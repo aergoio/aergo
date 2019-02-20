@@ -23,7 +23,8 @@ var sortedlistkey = []byte("sortedlist")
 const PeerIDLength = 39
 const VotingDelay = 10 //block interval
 
-func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
+func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
+	blockNo types.BlockNo, ci *types.CallInfo) error {
 	oldvote, err := getVote(scs, sender.ID())
 	if err != nil {
 		return err
@@ -54,7 +55,7 @@ func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blo
 		voteResult[base58.Encode(key)] = new(big.Int).Sub(voteResult[base58.Encode(key)], oldvote.GetAmountBigInt())
 	}
 
-	if txBody.Payload[0] != 'v' { //called from unstaking
+	if ci.Name != types.VoteBP { //called from unstaking
 		oldvote.Amount = staked.GetAmount()
 		err = setVote(scs, sender.ID(), oldvote)
 		if err != nil {
@@ -68,13 +69,18 @@ func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blo
 		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 			return types.ErrMustStakeBeforeVote
 		}
-		vote := &types.Vote{Candidate: txBody.Payload[1:], Amount: staked.GetAmount()}
+		var candidates []byte
+		for _, v := range ci.Args {
+			candidate, _ := base58.Decode(v.(string))
+			candidates = append(candidates, candidate...)
+		}
+		vote := &types.Vote{Candidate: candidates, Amount: staked.GetAmount()}
 		err = setVote(scs, sender.ID(), vote)
 		if err != nil {
 			return err
 		}
-		for offset := 0; offset < len(txBody.Payload[1:]); offset += PeerIDLength {
-			key := txBody.Payload[offset+1 : offset+PeerIDLength+1]
+		for offset := 0; offset < len(candidates); offset += PeerIDLength {
+			key := candidates[offset : offset+PeerIDLength]
 
 			if voteResult[base58.Encode(key)] == nil {
 				voteResult[base58.Encode(key)] = new(big.Int).SetUint64(0)

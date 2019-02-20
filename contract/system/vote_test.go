@@ -6,6 +6,7 @@
 package system
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -123,21 +124,24 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-
-	err = voting(tx.Body, sender, scs, VotingDelay)
+	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	assert.NoError(t, err, "voting failed")
+	err = voting(tx.Body, sender, scs, VotingDelay, ci)
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
-	assert.Equal(t, tx.Body.Payload[1:], result.GetVotes()[0].Candidate, "invalid candidate in voting result")
+	assert.Equal(t, ci.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	err = unstaking(tx.Body, sender, scs, VotingDelay)
+	err = ExecuteSystemTx(scs, tx.Body, sender, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	err = unstaking(tx.Body, sender, scs, VotingDelay+StakingDelay)
+	ci, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
+	assert.NoError(t, err, "unstaking failed")
+	err = unstaking(tx.Body, sender, scs, VotingDelay+StakingDelay, ci)
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, 23)
@@ -148,20 +152,20 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 }
 
 func buildVotingPayload(count int) []byte {
-	payload := make([]byte, 1+PeerIDLength*count)
-	for i := range payload {
-		payload[i] = byte(i)
+	var ci types.CallInfo
+	ci.Name = "v1voteBP"
+	for i := 0; i < count; i++ {
+		peerID := make([]byte, PeerIDLength)
+		peerID[0] = byte(i)
+		ci.Args = append(ci.Args, base58.Encode(peerID))
 	}
-	payload[0] = 'v'
+	payload, _ := json.Marshal(ci)
 	return payload
 }
 
 func buildStakingPayload(isStaking bool) []byte {
-	payload := make([]byte, 1)
 	if isStaking {
-		payload[0] = 's'
-	} else {
-		payload[0] = 'u'
+		return []byte(`{"Name":"v1stake"}`)
 	}
-	return payload
+	return []byte(`{"Name":"v1unstake"}`)
 }

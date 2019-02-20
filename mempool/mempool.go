@@ -512,8 +512,8 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			if err := system.ValidateSystemTx(account, tx.GetBody(),
-				scs, mp.bestBlockNo+1); err != nil {
+			if _, err := system.ValidateSystemTx(account, tx.GetBody(),
+				nil, scs, mp.bestBlockNo+1); err != nil {
 				return err
 			}
 		case types.AergoName:

@@ -20,11 +20,6 @@ const StakingDelay = 10 //block interval
 func staking(txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo types.BlockNo) error {
 
-	err := validateForStaking(txBody, scs, blockNo)
-	if err != nil {
-		return err
-	}
-
 	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
 		return err
@@ -41,8 +36,9 @@ func staking(txBody *types.TxBody, sender *state.V,
 	return nil
 }
 
-func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState, blockNo types.BlockNo) error {
-	staked, err := validateForUnstaking(sender.ID(), txBody, scs, blockNo)
+func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
+	blockNo types.BlockNo, ci *types.CallInfo) error {
+	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
 		return err
 	}
@@ -63,7 +59,7 @@ func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState, 
 	if err != nil {
 		return err
 	}
-	err = voting(txBody, sender, scs, blockNo)
+	err = voting(txBody, sender, scs, blockNo, ci)
 	if err != nil {
 		return err
 	}

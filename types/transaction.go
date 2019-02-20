@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+
+	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/mr-tron/base58/base58"
 )
 
 //governance type transaction which has aergo.system in recipient
@@ -93,10 +96,7 @@ func (tx *transaction) Validate() error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case AergoSystem:
-			if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
-				amount.Cmp(StakingMinimum) < 0 {
-				return ErrTooSmallAmount
-			}
+			return validateSystemTx(tx.GetBody())
 		case AergoName:
 			return validateNameTx(tx.GetBody())
 		default:
@@ -104,6 +104,38 @@ func (tx *transaction) Validate() error {
 		}
 	default:
 		return ErrTxInvalidType
+	}
+	return nil
+}
+
+func validateSystemTx(tx *TxBody) error {
+	var ci CallInfo
+	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
+		return ErrTxInvalidPayload
+	}
+	switch ci.Name {
+	case Stake:
+		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
+			return ErrTooSmallAmount
+		}
+	case Unstake:
+		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
+			return ErrTooSmallAmount
+		}
+	case VoteBP:
+		for i, v := range ci.Args {
+			if i >= MaxCandidates {
+				return ErrTxInvalidPayload
+			}
+			candidate, err := base58.Decode(v.(string))
+			if err != nil {
+				return ErrTxInvalidPayload
+			}
+			_, err = peer.IDFromBytes(candidate)
+			if err != nil {
+				return ErrTxInvalidPayload
+			}
+		}
 	}
 	return nil
 }
