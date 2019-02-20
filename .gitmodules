@@ -7,3 +7,6 @@
 [submodule "libtool/src/binaryen"]
 	path = libtool/src/binaryen
 	url = https://github.com/aergoio/binaryen.git
+[submodule "libtool/src/WAVM"]
+	path = libtool/src/WAVM
+	url = https://github.com/aergoio/WAVM.git
