@@ -21,7 +21,7 @@ var votingkey = []byte("voting")
 var sortedlistkey = []byte("sortedlist")
 
 const PeerIDLength = 39
-const VotingDelay = 10 //block interval
+const VotingDelay = 60 * 60 * 24 //block interval
 
 func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
 	blockNo types.BlockNo, ci *types.CallInfo) error {
