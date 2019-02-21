@@ -288,7 +288,13 @@ func (reorg *reorganizer) rollbackChain() error {
 	}
 
 	reorg.cs.Update(brStartBlock)
-	reorg.cs.cdb.deleteReceipts(reorg.oldBlocks)
+
+	dbTx := reorg.cs.cdb.NewTx()
+	for _, blk := range reorg.oldBlocks {
+		reorg.cs.cdb.deleteReceipts(&dbTx, blk.GetHash(), blk.BlockNo())
+	}
+	dbTx.Commit()
+
 	return nil
 }
 

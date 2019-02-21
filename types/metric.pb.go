@@ -3,11 +3,9 @@
 
 package types // import "github.com/aergoio/aergo/types"
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -58,7 +56,6 @@ func (*MetricsRequest) ProtoMessage()    {}
 func (*MetricsRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_metric_295631cc212b5411, []int{0}
 }
-
 func (m *MetricsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MetricsRequest.Unmarshal(m, b)
 }
@@ -97,7 +94,6 @@ func (*Metrics) ProtoMessage()    {}
 func (*Metrics) Descriptor() ([]byte, []int) {
 	return fileDescriptor_metric_295631cc212b5411, []int{1}
 }
-
 func (m *Metrics) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics.Unmarshal(m, b)
 }
@@ -140,7 +136,6 @@ func (*PeerMetric) ProtoMessage()    {}
 func (*PeerMetric) Descriptor() ([]byte, []int) {
 	return fileDescriptor_metric_295631cc212b5411, []int{2}
 }
-
 func (m *PeerMetric) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerMetric.Unmarshal(m, b)
 }
@@ -195,10 +190,10 @@ func (m *PeerMetric) GetAvrOut() int64 {
 }
 
 func init() {
-	proto.RegisterEnum("types.MetricType", MetricType_name, MetricType_value)
 	proto.RegisterType((*MetricsRequest)(nil), "types.MetricsRequest")
 	proto.RegisterType((*Metrics)(nil), "types.Metrics")
 	proto.RegisterType((*PeerMetric)(nil), "types.PeerMetric")
+	proto.RegisterEnum("types.MetricType", MetricType_name, MetricType_value)
 }
 
 func init() { proto.RegisterFile("metric.proto", fileDescriptor_metric_295631cc212b5411) }

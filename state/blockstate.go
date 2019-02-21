@@ -43,7 +43,7 @@ func NewBlockState(states *StateDB) *BlockState {
 	}
 }
 
-func (bs *BlockState) AddReceipt(r *types.Receipt) {
+func (bs *BlockState) AddReceipt(r *types.Receipt) error {
 	if len(r.Events) > 0 {
 		rBloom := bloom.New(types.BloomBitBits, types.BloomHashKNum)
 		for _, e := range r.Events {
@@ -52,9 +52,13 @@ func (bs *BlockState) AddReceipt(r *types.Receipt) {
 		}
 		binary, _ := rBloom.GobEncode()
 		r.Bloom = binary[24:]
-		bs.receipts.MergeBloom(rBloom)
+		err := bs.receipts.MergeBloom(rBloom)
+		if err != nil {
+			return err
+		}
 	}
 	bs.receipts.Set(append(bs.receipts.Get(), r))
+	return nil
 }
 
 func (bs *BlockState) Receipts() *types.Receipts {

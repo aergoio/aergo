@@ -776,8 +776,7 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 
-	bs.AddReceipt(receipt)
-	return nil
+	return bs.AddReceipt(receipt)
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {

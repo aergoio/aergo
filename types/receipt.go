@@ -43,9 +43,6 @@ func (r *Receipt) marshalBody(b *bytes.Buffer) {
 	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.CumulativeFeeUsed)))
 	b.Write(l[:4])
 	b.Write(r.CumulativeFeeUsed)
-	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.Data)))
-	b.Write(l[:4])
-	b.Write(r.Data)
 	if len(r.Bloom) == 0 {
 		b.WriteByte(0)
 	} else {
@@ -89,10 +86,6 @@ func (r *Receipt) unmarshalBody(data []byte) ([]byte, uint32) {
 	l = binary.LittleEndian.Uint32(data[pos:])
 	pos += 4
 	r.CumulativeFeeUsed = data[pos : pos+l]
-	pos += l
-	l = binary.LittleEndian.Uint32(data[pos:])
-	pos += 4
-	r.Data = data[pos : pos+l]
 	pos += l
 	bloomCheck := data[pos]
 	pos += 1
@@ -208,11 +201,11 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 		if i != 0 {
 			b.WriteString(`,`)
 		}
-		byte, err := ev.MarshalJSON()
+		bEv, err := ev.MarshalJSON()
 		if err != nil {
 			return nil, err
 		}
-		b.Write(byte)
+		b.Write(bEv)
 	}
 	b.WriteString(`]}`)
 	return b.Bytes(), nil
@@ -288,12 +281,12 @@ const BloomBitByte = 256
 const BloomBitBits = BloomBitByte * 8
 const BloomHashKNum = 3
 
-func (rs *Receipts) MergeBloom(bf *bloom.BloomFilter) {
+func (rs *Receipts) MergeBloom(bf *bloom.BloomFilter) error {
 	if rs.bloom == nil {
 		rs.bloom = (*bloomFilter)(bloom.New(BloomBitBits, BloomHashKNum))
 	}
 
-	(*bloom.BloomFilter)(rs.bloom).Merge(bf)
+	return (*bloom.BloomFilter)(rs.bloom).Merge(bf)
 }
 
 func (rs *Receipts) BloomFilter(fi *FilterInfo) bool {
@@ -357,7 +350,7 @@ func (rs *Receipts) UnmarshalBinary(data []byte) error {
 	pos := 1
 	if checkBloom == 1 {
 		var buffer bytes.Buffer
-		var bloom bloom.BloomFilter
+		var bf bloom.BloomFilter
 		l := make([]byte, 8)
 		binary.BigEndian.PutUint64(l, BloomBitBits)
 		buffer.Write(l)
@@ -366,12 +359,12 @@ func (rs *Receipts) UnmarshalBinary(data []byte) error {
 		binary.BigEndian.PutUint64(l, BloomBitBits)
 		buffer.Write(l)
 		buffer.Write(data[pos : pos+BloomBitByte])
-		_, err := bloom.ReadFrom(&buffer)
+		_, err := bf.ReadFrom(&buffer)
 		if err != nil {
 			return err
 		}
 		pos += BloomBitByte
-		rs.bloom = (*bloomFilter)(&bloom)
+		rs.bloom = (*bloomFilter)(&bf)
 	}
 	rCount := binary.LittleEndian.Uint32(data[pos:])
 	pos += 4

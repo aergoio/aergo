@@ -8,7 +8,6 @@ package chain
 import (
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/param"
 	"math/big"
 	"reflect"
 	"runtime"
@@ -119,10 +118,6 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	initChainEnv(core.cdb.GetGenesisInfo())
-	err := param.SetForkConfig(genesisBlock.GetHash())
-	if err != nil {
-		return nil, err
-	}
 
 	contract.StartLStateFactory()
 

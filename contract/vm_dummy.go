@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/param"
 	"io/ioutil"
 	"math/big"
 	"path"
@@ -47,7 +46,6 @@ func LoadDummyChain() (*DummyChain, error) {
 		return nil, err
 	}
 	genesis := types.GetTestGenesis()
-	param.SetForkConfig(genesis.Block().GetHash())
 	bc.sdb.SetGenesis(genesis, nil)
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()

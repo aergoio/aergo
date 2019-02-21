@@ -3134,7 +3134,6 @@ func TestReturnUData(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
 func checkRandomFloatValue(v string) error {
 	n, _ := strconv.ParseFloat(v, 64)
 	if n < 0.0 || n >= 1.0 {
@@ -3192,7 +3191,6 @@ abi.register(random)`
 			"random",
 			0,
 			`{"Name": "random", "Args":[0]}`).Fail("the maximum value must be greater than zero"),
-
 	)
 	if err != nil {
 		t.Error(err)
