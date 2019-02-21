@@ -270,6 +270,9 @@ type Receipts struct {
 }
 
 func (rs *Receipts) Get() []*Receipt {
+	if rs == nil {
+		return nil
+	}
 	return rs.receipts
 }
 

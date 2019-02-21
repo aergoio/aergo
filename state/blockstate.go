@@ -62,5 +62,8 @@ func (bs *BlockState) AddReceipt(r *types.Receipt) error {
 }
 
 func (bs *BlockState) Receipts() *types.Receipts {
+	if bs == nil {
+		return nil
+	}
 	return &bs.receipts
 }
