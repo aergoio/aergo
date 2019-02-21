@@ -608,6 +608,21 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 }
 
 func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int32) (*types.Receipt, error) {
+	storedReceipts, err := cdb.getReceipts(blockHash, blockNo)
+	if err != nil {
+		return nil, err
+	}
+	receipts := storedReceipts.Get()
+
+	if idx < 0 || idx > int32(len(receipts)) {
+		return nil, fmt.Errorf("cannot find a receipt: invalid index (%d)", idx)
+	}
+	r := receipts[idx]
+	r.SetMemoryInfo(blockHash, blockNo, idx)
+	return receipts[idx], nil
+}
+
+func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo) (*types.Receipts, error) {
 	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
 	if len(data) == 0 {
 		return nil, errors.New("cannot find a receipt")
@@ -618,10 +633,7 @@ func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int3
 	decoder := gob.NewDecoder(&b)
 	decoder.Decode(&receipts)
 
-	if idx < 0 || idx > int32(len(receipts)) {
-		return nil, fmt.Errorf("cannot find a receipt: invalid index (%d)", idx)
-	}
-	return receipts[idx], nil
+	return &receipts, nil
 }
 
 type ChainTree struct {
@@ -650,7 +662,7 @@ func (cdb *ChainDB) GetChainTree() ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts types.Receipts) {
+func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, receipts *types.Receipts) {
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 

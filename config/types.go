@@ -180,7 +180,6 @@ maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
 forceresetheight = "{{.Blockchain.ForceResetHeight}}"
 
-
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}
 enablefadeout = {{.Mempool.EnableFadeout}}

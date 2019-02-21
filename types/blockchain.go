@@ -178,7 +178,7 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, receipts Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
+func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var (
 		chainID       []byte
 		prevBlockHash []byte

@@ -6,10 +6,11 @@
 package config
 
 import (
+	"github.com/aergoio/aergo/types"
 	"runtime"
 
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/types"
+	//	"github.com/aergoio/aergo/types"
 )
 
 type ServerContext struct {

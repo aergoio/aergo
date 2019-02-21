@@ -229,7 +229,6 @@ func (l *luaTxDef) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
 	return b
 }
 
@@ -297,7 +296,7 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlock
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
-			_, err := Create(eContractState, l.code, l.contract, stateSet)
+			_, _, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
 			}
@@ -331,7 +330,6 @@ func (l *luaTxCall) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
 	return b
 }
 
@@ -347,15 +345,18 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBloc
 			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
-			rv, err := Call(eContractState, l.code, l.contract, stateSet)
+			rv, evs, err := Call(eContractState, l.code, l.contract, stateSet)
 			_ = bs.StageContractState(eContractState)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
+				r.TxHash = l.hash()
 				b, _ := r.MarshalBinary()
 				receiptTx.Set(l.hash(), b)
 				return err
 			}
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
+			r.Events = evs
+			r.TxHash = l.hash()
 			b, _ := r.MarshalBinary()
 			receiptTx.Set(l.hash(), b)
 			return nil

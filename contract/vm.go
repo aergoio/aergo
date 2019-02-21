@@ -82,6 +82,8 @@ type StateSet struct {
 	lastRecoveryEntry *recoveryEntry
 	dbUpdateTotalSize int64
 	seed              *rand.Rand
+	events            []*types.Event
+	eventCount        int32
 }
 
 type recoveryEntry struct {
@@ -217,6 +219,13 @@ func (ce *Executor) processArgs(ci *types.CallInfo) {
 			return
 		}
 	}
+}
+
+func (ce *Executor) getEvents() []*types.Event {
+	if ce == nil || ce.stateSet == nil {
+		return nil
+	}
+	return ce.stateSet.events
 }
 
 func pushValue(L *LState, v interface{}) error {
@@ -488,7 +497,7 @@ func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 }
 
 func Call(contractState *state.ContractState, code, contractAddress []byte,
-	stateSet *StateSet) (string, error) {
+	stateSet *StateSet) (string, []*types.Event, error) {
 
 	var err error
 	var ci types.CallInfo
@@ -502,7 +511,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		ctrLog.Warn().AnErr("err", err)
 	}
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
@@ -528,7 +537,7 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 			err = dbErr
 		}
 	}
-	return ce.jsonRet, err
+	return ce.jsonRet, ce.getEvents(), err
 }
 
 func setRandomSeed(stateSet *StateSet) {
@@ -545,7 +554,7 @@ func setRandomSeed(stateSet *StateSet) {
 }
 
 func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState *state.ContractState,
-	blockNo uint64, ts int64, rp uint64, prevBlockHash []byte) (string, error) {
+	blockNo uint64, ts int64, rp uint64, prevBlockHash []byte) (string, []*types.Event, error) {
 	var err error
 
 	defer ce.close()
@@ -579,7 +588,7 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 			err = dbErr
 		}
 	}
-	return ce.jsonRet, err
+	return ce.jsonRet, ce.getEvents(), err
 }
 
 func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contractAid types.AccountID, code, contractAddress []byte,
@@ -649,10 +658,10 @@ func setContract(contractState *state.ContractState, contractAddress, code []byt
 }
 
 func Create(contractState *state.ContractState, code, contractAddress []byte,
-	stateSet *StateSet) (string, error) {
+	stateSet *StateSet) (string, []*types.Event, error) {
 
 	if len(code) == 0 {
-		return "", errors.New("contract code is required")
+		return "", nil, errors.New("contract code is required")
 	}
 
 	if ctrLog.IsDebugEnabled() {
@@ -660,11 +669,11 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 	contract, codeLen, err := setContract(contractState, contractAddress, code)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	var ci types.CallInfo
 	if len(code) != int(codeLen) {
@@ -672,7 +681,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if err != nil {
 			logger.Warn().Err(err).Msg("invalid constructor argument")
 			errMsg, _ := json.Marshal("constructor call error:" + err.Error())
-			return string(errMsg), nil
+			return string(errMsg), nil, nil
 		}
 	}
 
@@ -684,7 +693,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
-		return "", newDbSystemError(errors.New("can't open a database connection"))
+		return "", nil, newDbSystemError(errors.New("can't open a database connection"))
 	}
 
 	ce.setCountHook(callMaxInstLimit)
@@ -696,17 +705,17 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		ret, _ := json.Marshal("constructor call error:" + err.Error())
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("constructor is failed")
-			return string(ret), dbErr
+			return string(ret), ce.getEvents(), dbErr
 		}
-		return string(ret), err
+		return string(ret), ce.getEvents(), err
 	}
 	err = ce.commitCalledContract()
 	if err != nil {
 		ret, _ := json.Marshal("constructor call error:" + err.Error())
 		logger.Error().Err(err).Msg("constructor is failed")
-		return string(ret), err
+		return string(ret), ce.getEvents(), err
 	}
-	return ce.jsonRet, err
+	return ce.jsonRet, ce.getEvents(), err
 
 }
 

@@ -107,7 +107,7 @@ func (cs *ChainService) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 }
 
 func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
-	_, i, err := cs.cdb.getTx(txHash)
+	tx, i, err := cs.cdb.getTx(txHash)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,68 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 		return nil, errors.New("cannot find a receipt")
 	}
 
-	return cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
+	r, err := cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
+	if err != nil {
+		return r, err
+	}
+	r.From = tx.GetBody().GetAccount()
+	r.To = tx.GetBody().GetRecipient()
+	return r, nil
+}
+
+func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
+	argFilter []types.ArgFilter) {
+	blkHash, err := cs.cdb.getHashByNo(blkNo)
+	if err != nil {
+		return
+	}
+	receipts, err := cs.cdb.getReceipts(blkHash, blkNo)
+	if err != nil {
+		return
+	}
+	if receipts.BloomFilter(filter) == false {
+		return
+	}
+	for idx, r := range receipts.Get() {
+		if r.BloomFilter(filter) == false {
+			continue
+		}
+		for _, e := range r.Events {
+			if e.Filter(filter, argFilter) {
+				e.SetMemoryInfo(r, blkHash, blkNo, int32(idx))
+				*events = append(*events, e)
+			}
+		}
+	}
+}
+
+func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, error) {
+	from := filter.Blockfrom
+	to := filter.Blockto
+
+	if to == 0 {
+		to = cs.cdb.getBestBlockNo()
+	}
+
+	err := filter.ValidateCheck(to)
+	if err != nil {
+		return nil, err
+	}
+	argFilter, err := filter.GetExArgFilter()
+	if err != nil {
+		return nil, err
+	}
+	events := []*types.Event{}
+	if filter.Desc {
+		for i := to; i >= from && i != 0; i-- {
+			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+		}
+	} else {
+		for i := from; i <= to; i++ {
+			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+		}
+	}
+	return events, nil
 }
 
 type chainProcessor struct {
@@ -606,7 +667,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
-	if len(ex.BlockState.Receipts()) != 0 {
+	if len(ex.BlockState.Receipts().Get()) != 0 {
 		cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
 	}
 
@@ -663,11 +724,12 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 
 	var txFee *big.Int
 	var rv string
+	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL:
 		txFee = CoinbaseFee()
 		sender.SubBalance(txFee)
-		rv, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, events, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
@@ -677,42 +739,44 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 	}
 
 	if err != nil {
-		if contract.IsRuntimeError(err) {
-			sender.Reset()
-			sender.SubBalance(txFee)
-			sender.SetNonce(txBody.Nonce)
-			sErr := sender.PutState()
-			if sErr != nil {
-				return sErr
-			}
-			bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
-			bs.AddReceipt(types.NewReceipt(receiver.ID(), err.Error(), ""))
-			return nil
+		if !contract.IsRuntimeError(err) {
+			return err
 		}
-		return err
-	}
-
-	sender.SetNonce(txBody.Nonce)
-	err = sender.PutState()
-	if err != nil {
-		return err
-	}
-	if sender.AccountID() != receiver.AccountID() {
-		err = receiver.PutState()
+		sender.Reset()
+		sender.SubBalance(txFee)
+		sender.SetNonce(txBody.Nonce)
+		sErr := sender.PutState()
+		if sErr != nil {
+			return sErr
+		}
+	} else {
+		sender.SetNonce(txBody.Nonce)
+		err = sender.PutState()
 		if err != nil {
 			return err
 		}
+		if sender.AccountID() != receiver.AccountID() {
+			err = receiver.PutState()
+			if err != nil {
+				return err
+			}
+		}
 	}
-
 	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 
-	if receiver.IsNew() && txBody.Recipient == nil {
-		bs.AddReceipt(types.NewReceipt(receiver.ID(), "CREATED", rv))
-		return nil
-
+	var receipt *types.Receipt
+	if err != nil {
+		receipt = types.NewReceipt(receiver.ID(), err.Error(), "")
+	} else if receiver.IsNew() && txBody.Recipient == nil {
+		receipt = types.NewReceipt(receiver.ID(), "CREATED", rv)
+	} else {
+		receipt = types.NewReceipt(receiver.ID(), "SUCCESS", rv)
 	}
-	bs.AddReceipt(types.NewReceipt(receiver.ID(), "SUCCESS", rv))
-	return nil
+	receipt.FeeUsed = txFee.Bytes()
+	receipt.TxHash = tx.GetHash()
+	receipt.Events = events
+
+	return bs.AddReceipt(receipt)
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {

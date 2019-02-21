@@ -165,6 +165,7 @@ type IChainHandler interface {
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
 	setSync(val bool)
+	listEvents(filter *types.FilterInfo) ([]*types.Event, error)
 }
 
 // ChainService manage connectivity of blocks
@@ -301,7 +302,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
-		*message.GetNameInfo:
+		*message.GetNameInfo,
+		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
 		//handle directly
@@ -449,16 +451,28 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Uint64("no", block.GetHeader().BlockNo).Str("hash", block.ID()).Msg("failed to add block")
 		}
+		blkNo := block.GetHeader().GetBlockNo()
+		blkHash := block.BlockHash()
 
 		rsp := message.AddBlockRsp{
-			BlockNo:   block.GetHeader().GetBlockNo(),
-			BlockHash: block.BlockHash(),
+			BlockNo:   blkNo,
+			BlockHash: blkHash,
 			Err:       err,
 		}
 
 		context.Respond(&rsp)
 
 		cm.TellTo(message.RPCSvc, block)
+		events := []*types.Event{}
+		for idx, receipt := range bstate.Receipts().Get() {
+			for _, e := range receipt.Events {
+				e.SetMemoryInfo(receipt, blkHash, blkNo, int32(idx))
+				events = append(events, e)
+			}
+		}
+		if len(events) != 0 {
+			cm.TellTo(message.RPCSvc, events)
+		}
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
@@ -666,6 +680,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(&message.GetNameInfoRsp{
 			Owner: owner,
 			Err:   err,
+		})
+	case *message.ListEvents:
+		events, err := cw.listEvents(msg.Filter)
+		context.Respond(&message.ListEventsRsp{
+			Events: events,
+			Err:    err,
 		})
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
