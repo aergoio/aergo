@@ -56,7 +56,7 @@ func newCluster(n int) *cluster {
 		clus.proposeC[i] = make(chan string, 1)
 		clus.confChangeC[i] = make(chan raftpb.ConfChange, 1)
 
-		rs := newRaftServer(uint64(i+1), clus.peers, false, waldir, snapdir, nil, clus.proposeC[i], clus.confChangeC[i])
+		rs := newRaftServer(uint64(i+1), clus.peers, false, waldir, snapdir, "", "", nil, clus.proposeC[i], clus.confChangeC[i])
 		clus.commitC[i] = rs.commitC
 		clus.errorC[i] = rs.errorC
 	}

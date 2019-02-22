@@ -44,7 +44,7 @@ type RPCConfig struct {
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
 	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
-	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
+	NSKey       string `mapstructure:"nskey" descript   ion:"Private Key file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
@@ -103,6 +103,8 @@ type ConsensusConfig struct {
 	RaftID        uint64   `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
 	RaftBpUrls    []string `mapstructure:"raftbpurls" description:"list of raft bp urls."`
 	RaftSkipEmpty bool     `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
+	RaftKeyFile   string   `mapstructure:"Private Key file for raft https server"`
+	RaftCertFile  string   `mapstructure:"Certificate file for raft https server"`
 }
 
 type MonitorConfig struct {

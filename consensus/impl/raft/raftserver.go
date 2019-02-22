@@ -75,6 +75,9 @@ type raftServer struct {
 	httpdonec chan struct{} // signals http server shutdown complete
 
 	leaderStatus LeaderStatus
+
+	certFile string
+	keyFile  string
 }
 
 type LeaderStatus struct {
@@ -91,6 +94,7 @@ var snapshotCatchUpEntriesN uint64 = 10000
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir string,
+	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error), proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange) *raftServer {
 
@@ -115,6 +119,9 @@ func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir 
 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
+
+		certFile: certFile,
+		keyFile:  keyFile,
 	}
 	go rs.startRaft()
 
@@ -281,7 +288,8 @@ func (rs *raftServer) serveChannels() {
 }
 
 func (rs *raftServer) serveRaft() {
-	urlData, err := url.Parse(rs.peers[rs.id-1])
+	urlstr := rs.peers[rs.id-1]
+	urlData, err := url.Parse(urlstr)
 	if err != nil {
 		raftLogger.Fatalf("Failed parsing URL (%v)", err)
 	}
@@ -291,7 +299,16 @@ func (rs *raftServer) serveRaft() {
 		raftLogger.Fatalf("Failed to listen rafthttp (%v)", err)
 	}
 
-	err = (&http.Server{Handler: rs.transport.Handler()}).Serve(ln)
+	if len(rs.certFile) != 0 && len(rs.keyFile) != 0 {
+		err = (&http.Server{Handler: rs.transport.Handler()}).ServeTLS(ln, rs.certFile, rs.keyFile)
+
+		logger.Info().Str("url", urlstr).Str("certfile", rs.certFile).Str("keyfile", rs.keyFile).
+			Msg("raft http server(tls) started")
+	} else {
+		err = (&http.Server{Handler: rs.transport.Handler()}).Serve(ln)
+
+		logger.Info().Str("url", urlstr).Msg("raft http server started")
+	}
 	select {
 	case <-rs.httpstopc:
 	default:

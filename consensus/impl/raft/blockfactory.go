@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
@@ -80,39 +79,6 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 	}
 }
 
-var (
-	ErrInvalidRaftID = errors.New("invalid raft id")
-	ErrDupRaftUrl    = errors.New("duplicated raft bp urls")
-)
-
-func checkConfig(cfg *config.Config) error {
-	//check Url
-	// - each url is unique
-	// - format is valid url
-	//check ID
-	// - 1 <= ID <= len(RaftBpUrls)
-	consCfg := cfg.Consensus
-	lenBpUrls := len(consCfg.RaftBpUrls)
-
-	urlMap := make(map[string]bool)
-	for _, url := range consCfg.RaftBpUrls {
-		//TODO url is valid
-		if _, ok := urlMap[url]; ok {
-			return ErrDupRaftUrl
-		} else {
-			urlMap[url] = true
-		}
-	}
-
-	raftID := cfg.Consensus.RaftID
-	if raftID <= 0 || raftID > uint64(lenBpUrls) {
-		return ErrInvalidRaftID
-	}
-
-	RaftSkipEmptyBlock = cfg.Consensus.RaftSkipEmpty
-	return nil
-}
-
 // New returns a BlockFactory.
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) (*BlockFactory, error) {
@@ -160,7 +126,9 @@ func (bf *BlockFactory) initRaftServer(cfg *config.Config) error {
 	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	bf.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir, nil, proposeC, confChangeC)
+	bf.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir,
+		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
+		nil, proposeC, confChangeC)
 
 	bf.raftServer.WaitStartup()
 
