@@ -15,6 +15,8 @@ const char *construct_name= "constructor";
 
 static void preloadModules(lua_State *L)
 {
+    int status;
+
 	luaopen_system(L);
 	luaopen_contract(L);
 	luaopen_state(L);
@@ -24,6 +26,20 @@ static void preloadModules(lua_State *L)
 	if (!IsPublic()) {
         luaopen_db(L);
 	}
+#ifdef MEASURE
+    lua_register(L, "nsec", lj_cf_nsec);
+    luaopen_jit(L);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
+    lua_getfield(L, -1, "jit");
+    lua_remove(L, -2);
+    lua_getfield(L, -1, "off");
+    status = lua_pcall(L, 0, 0, 0);
+    if (status != LUA_OK) {
+        lua_pushstring(L, "cannot load the `jit` module");
+        lua_error(L);
+    }
+    lua_remove(L, -1); /* remove jit.* */
+#endif
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
