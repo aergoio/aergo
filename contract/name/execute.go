@@ -2,102 +2,56 @@ package name
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
-func ExecuteNameTx(scs *state.ContractState, txBody *types.TxBody, sender, receiver *state.V, blockNo types.BlockNo) error {
-	nameCmd, err := getNameCmd(txBody.GetPayload())
-
-	switch nameCmd {
-	case 'c':
-		err = CreateName(scs, txBody, sender, receiver)
-	case 'u':
-		err = UpdateName(scs, txBody, sender, receiver)
-	default:
-		err = errors.New("could not execute unknown cmd")
+func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody, sender, receiver *state.V, blockNo types.BlockNo) error {
+	ci, err := ValidateNameTx(txBody, sender, scs)
+	if err != nil {
+		return err
+	}
+	switch ci.Name {
+	case types.NameCreate:
+		err = CreateName(scs, txBody, sender, receiver,
+			ci.Args[0].(string))
+	case types.NameUpdate:
+		err = UpdateName(bs, scs, txBody, sender, receiver,
+			ci.Args[0].(string), ci.Args[1].(string))
 	}
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func getNameCmd(payload []byte) (byte, error) {
-	if len(payload) <= 0 {
-		return 0, types.ErrTxFormatInvalid
+func ValidateNameTx(tx *types.TxBody, sender *state.V, scs *state.ContractState) (*types.CallInfo, error) {
+	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
+		return nil, types.ErrInsufficientBalance
 	}
-	return payload[0], nil
-}
 
-const allowed = "abcdefghijklmnopqrstuvwxyz1234567890"
-
-func validateAllowedChar(param []byte) error {
-	if param == nil {
-		return fmt.Errorf("invalid parameter in NameTx")
+	var ci types.CallInfo
+	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
+		return nil, err
 	}
-	for _, char := range string(param) {
-		if !strings.Contains(allowed, strings.ToLower(string(char))) {
-			return fmt.Errorf("not allowed character in %s", string(param))
-		}
-	}
-	return nil
-}
-
-func ValidateNameTx(tx *types.TxBody, scs *state.ContractState) error {
-	switch tx.Payload[0] {
-	case 'c':
-		name := tx.Payload[1:]
-		if len(name) > types.NameLength {
-			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
-		}
-		if err := validateAllowedChar(name); err != nil {
-			return err
-		}
-		owner := getOwner(scs, name, false)
+	name := ci.Args[0].(string)
+	switch ci.Name {
+	case types.NameCreate:
+		owner := getOwner(scs, []byte(name), false)
 		if owner != nil {
-			return fmt.Errorf("aleady occupied %s", string(name))
+			return nil, fmt.Errorf("aleady occupied %s", string(name))
 		}
-		if len(name) != types.NameLength {
-			return fmt.Errorf("not supported yet")
+	case types.NameUpdate:
+		if (!bytes.Equal(tx.Account, []byte(name))) &&
+			(!bytes.Equal(tx.Account, getOwner(scs, []byte(name), false))) {
+			return nil, fmt.Errorf("owner not matched : %s", name)
 		}
-
-	case 'u':
-		name, to := parseUpdatePayload(tx.Payload[1:])
-		if len(name) > types.NameLength {
-			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
-		}
-		if len(name) != types.NameLength {
-			return fmt.Errorf("not supported yet")
-		}
-		if err := validateAllowedChar(name); err != nil {
-			return err
-		}
-		if len(to) > types.AddressLength {
-			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
-		}
-		if (!bytes.Equal(tx.Account, name)) &&
-			(!bytes.Equal(tx.Account, getAddress(scs, name))) {
-			return fmt.Errorf("owner not matched : %s", name)
-		}
+	default:
+		return nil, errors.New("could not execute unknown cmd")
 	}
-	return nil
-}
-
-func parseUpdatePayload(p []byte) ([]byte, []byte) {
-	if len(p) <= types.NameLength && p[12] != ',' {
-		return nil, nil
-	}
-	comma := strings.IndexByte(string(p), ',')
-	if comma < 0 {
-		return nil, nil
-	}
-	name := p[:comma]
-	to := p[comma+1:]
-	return []byte(name), []byte(to)
+	return &ci, nil
 }

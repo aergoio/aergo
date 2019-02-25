@@ -397,7 +397,7 @@ func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
 	if owner == nil {
 		return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: nil}, types.ErrNameNotFound
 	}
-	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, err
+	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner, Destination: name.GetAddress(scs, []byte(qname))}, err
 }
 
 type ChainManager struct {
