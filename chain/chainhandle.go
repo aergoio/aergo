@@ -122,6 +122,7 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 	if err != nil {
 		return r, err
 	}
+	r.ContractAddress = types.AddressOrigin(r.ContractAddress)
 	r.From = tx.GetBody().GetAccount()
 	r.To = tx.GetBody().GetRecipient()
 	return r, nil
@@ -732,7 +733,7 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 		rv, events, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
+		events, err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

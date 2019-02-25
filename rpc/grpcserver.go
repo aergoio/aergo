@@ -777,7 +777,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 // GetPeers handle rpc request getpeers
 func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams) (*types.PeerList, error) {
 	result, err := rpc.hub.RequestFuture(message.P2PSvc,
-		&message.GetPeers{in.NoHidden,in.ShowSelf}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
+		&message.GetPeers{in.NoHidden, in.ShowSelf}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -786,10 +786,10 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 
-	ret := &types.PeerList{Peers: make([]*types.Peer,0, len(rsp.Peers))}
+	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer:pi.Self}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self}
 		ret.Peers = append(ret.Peers, peer)
 	}
 

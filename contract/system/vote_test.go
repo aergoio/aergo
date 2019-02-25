@@ -115,10 +115,12 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	}
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 
 	tx.Body.Payload = buildStakingPayload(true)
-	err = staking(tx.Body, sender, scs, 0)
+	_, err = staking(tx.Body, sender, receiver, scs, 0)
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
@@ -126,7 +128,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	tx.Body.Payload = buildVotingPayload(1)
 	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
-	err = voting(tx.Body, sender, scs, VotingDelay, ci)
+	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, 23)
@@ -136,12 +138,12 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	err = ExecuteSystemTx(scs, tx.Body, sender, VotingDelay)
+	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
 	ci, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
-	err = unstaking(tx.Body, sender, scs, VotingDelay+StakingDelay, ci)
+	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, ci)
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, 23)

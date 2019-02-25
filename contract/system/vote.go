@@ -7,6 +7,7 @@ package system
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"sort"
@@ -23,31 +24,31 @@ var sortedlistkey = []byte("sortedlist")
 const PeerIDLength = 39
 const VotingDelay = 60 * 60 * 24 //block interval
 
-func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) error {
+func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
+	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
 	oldvote, err := getVote(scs, sender.ID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
-		return types.ErrLessTimeHasPassed
+		return nil, types.ErrLessTimeHasPassed
 	}
 
 	staked.When = blockNo
 	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	voteResult, err := loadVoteResult(scs)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for offset := 0; offset < len(oldvote.Candidate); offset += PeerIDLength {
@@ -59,7 +60,7 @@ func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
 		oldvote.Amount = staked.GetAmount()
 		err = setVote(scs, sender.ID(), oldvote)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for offset := 0; offset < len(oldvote.Candidate); offset += PeerIDLength {
 			key := oldvote.Candidate[offset : offset+PeerIDLength]
@@ -67,7 +68,7 @@ func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
 		}
 	} else {
 		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
-			return types.ErrMustStakeBeforeVote
+			return nil, types.ErrMustStakeBeforeVote
 		}
 		var candidates []byte
 		for _, v := range ci.Args {
@@ -77,7 +78,7 @@ func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
 		vote := &types.Vote{Candidate: candidates, Amount: staked.GetAmount()}
 		err = setVote(scs, sender.ID(), vote)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for offset := 0; offset < len(candidates); offset += PeerIDLength {
 			key := candidates[offset : offset+PeerIDLength]
@@ -92,9 +93,20 @@ func voting(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
 
 	err = syncVoteResult(scs, voteResult)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	result, err := json.Marshal(ci.Args)
+	if err != nil {
+		return nil, err
+	}
+	return &types.Event{
+		ContractAddress: receiver.ID(),
+		EventIdx:        0,
+		EventName:       "voteBP",
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(txBody.Account) +
+			`", "vote":` + string(result) + `}`,
+	}, nil
 }
 
 //GetVote return amount, to, err

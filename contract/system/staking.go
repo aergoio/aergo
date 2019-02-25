@@ -17,12 +17,12 @@ var stakingkey = []byte("staking")
 
 const StakingDelay = 60 * 60 * 24 //block interval
 
-func staking(txBody *types.TxBody, sender *state.V,
-	scs *state.ContractState, blockNo types.BlockNo) error {
+func staking(txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockNo types.BlockNo) (*types.Event, error) {
 
 	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	beforeStaked := staked.GetAmountBigInt()
 	amount := txBody.GetAmountBigInt()
@@ -30,17 +30,25 @@ func staking(txBody *types.TxBody, sender *state.V,
 	staked.When = blockNo
 	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sender.SubBalance(amount)
-	return nil
+
+	return &types.Event{
+		ContractAddress: receiver.ID(),
+		EventIdx:        0,
+		EventName:       "stake",
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(txBody.Account) +
+			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
+	}, nil
 }
 
-func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) error {
+func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
+	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
 	staked, err := getStaking(scs, sender.ID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	amount := txBody.GetAmountBigInt()
 	var backToBalance *big.Int
@@ -57,14 +65,21 @@ func unstaking(txBody *types.TxBody, sender *state.V, scs *state.ContractState,
 
 	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = voting(txBody, sender, scs, blockNo, ci)
+	_, err = voting(txBody, sender, receiver, scs, blockNo, ci)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sender.AddBalance(backToBalance)
-	return nil
+	return &types.Event{
+		ContractAddress: receiver.ID(),
+		EventIdx:        0,
+		EventName:       "unstake",
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(txBody.Account) +
+			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
+	}, nil
 }
 
 func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {

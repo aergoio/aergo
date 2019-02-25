@@ -26,33 +26,38 @@ func TestBasicExecute(t *testing.T) {
 
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account: account,
-			Amount:  types.StakingMinimum.Bytes(),
-			Payload: []byte(`{"Name":"v1stake"}`),
+			Account:   account,
+			Recipient: []byte(types.AergoSystem),
+			Amount:    types.StakingMinimum.Bytes(),
+			Payload:   []byte(`{"Name":"v1stake"}`),
 		},
 	}
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.StakingMinimum)
 
 	emptytx := &types.TxBody{}
-	err = ExecuteSystemTx(scs, emptytx, sender, 0)
+	_, err = ExecuteSystemTx(scs, emptytx, sender, receiver, 0)
 	assert.EqualError(t, types.ErrTxInvalidPayload, err.Error(), "Execute system tx failed")
 
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, 0)
+	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
 	assert.NoError(t, err, "Execute system tx failed in staking")
 	assert.Equal(t, sender.Balance().Uint64(), uint64(0), "sender.Balance() should be 0 after staking")
+	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
 	tx.Body.Payload = []byte(`{"Name":"v1voteBP","Args":["16Uiu2HAmBDcLEjBYeEnGU2qDD1KdpEdwDBtN7gqXzNZbHXo8Q841"]}`)
 	tx.Body.Amount = big.NewInt(0).Bytes()
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, VotingDelay)
+	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
-
+	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	assert.Equal(t, events[0].EventName, "voteBP", "check event")
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
 	tx.Body.Amount = types.StakingMinimum.Bytes()
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, VotingDelay+StakingDelay)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "Execute system tx failed in unstaking")
 	assert.Equal(t, types.StakingMinimum.Bytes(), sender.Balance().Bytes(),
 		"sender.Balance() should be turn back")
@@ -73,45 +78,48 @@ func TestBasicFailedExecute(t *testing.T) {
 
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account: account,
-			Amount:  types.StakingMinimum.Bytes(),
-			Payload: buildStakingPayload(false),
+			Account:   account,
+			Recipient: []byte(types.AergoSystem),
+			Amount:    types.StakingMinimum.Bytes(),
+			Payload:   buildStakingPayload(false),
 		},
 	}
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
+	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
 	assert.NoError(t, err, "could not get test address state")
 	senderBalance := big.NewInt(0).Add(types.StakingMinimum, types.StakingMinimum)
 	sender.AddBalance(senderBalance)
 
 	emptytx := &types.TxBody{}
-	err = ExecuteSystemTx(scs, emptytx, sender, 0)
+	_, err = ExecuteSystemTx(scs, emptytx, sender, receiver, 0)
 	assert.EqualError(t, types.ErrTxInvalidPayload, err.Error(), "should error")
 
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, 0)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
 	assert.Error(t, err, "Execute system tx failed in unstaking")
 	assert.Equal(t, sender.Balance(), senderBalance, "sender.Balance() should not chagned after failed unstaking ")
 
 	tx.Body.Payload = buildStakingPayload(true)
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, 0)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
 	assert.NoError(t, err, "Execute system tx failed in staking")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, VotingDelay)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	tx.Body.Amount = senderBalance.Bytes()
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, VotingDelay+StakingDelay)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "Execute system tx failed in unstaking")
 	assert.Equal(t, sender.Balance(), senderBalance,
 		"sender.Balance() should be turn back")
 	staking, err = getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, VotingDelay+StakingDelay)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "Execute system tx failed in unstaking")
 }
 
@@ -170,9 +178,11 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 	}
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.StakingMinimum)
 
-	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, 0)
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, 0)
 	assert.NoError(t, err, "could not execute system tx")
 
 	tx.Body.Amount = types.StakingMinimum.Bytes()
@@ -208,6 +218,8 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.StakingMinimum)
 
 	stakingTx := &types.Tx{
@@ -229,11 +241,11 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	}
 	var blockNo uint64
 	blockNo = 1
-	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, blockNo)
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
 	blockNo += StakingDelay
-	err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, blockNo)
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "2nd staking tx")
 
 	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, blockNo)
@@ -243,7 +255,7 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, blockNo)
 	assert.NoError(t, err, "fisrt voting validation should success")
 
-	err = ExecuteSystemTx(scs, tx.GetBody(), sender, blockNo)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "fisrt voting execution should success")
 
 	blockNo++
@@ -264,6 +276,6 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	assert.EqualError(t, types.ErrTxInvalidPayload, err.Error(), "failed to validate system tx for voting")
 
 	blockNo += StakingDelay
-	err = ExecuteSystemTx(scs, unStakingTx.GetBody(), sender, blockNo)
+	_, err = ExecuteSystemTx(scs, unStakingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "should execute unstaking system tx")
 }

@@ -12,27 +12,28 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, sender *state.V,
-	blockNo types.BlockNo) error {
+func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
+	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
 
 	ci, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
+	var event *types.Event
 	switch ci.Name {
 	case types.Stake:
-		err = staking(txBody, sender, scs, blockNo)
+		event, err = staking(txBody, sender, receiver, scs, blockNo)
 	case types.VoteBP:
-		err = voting(txBody, sender, scs, blockNo, ci)
+		event, err = voting(txBody, sender, receiver, scs, blockNo, ci)
 	case types.Unstake:
-		err = unstaking(txBody, sender, scs, blockNo, ci)
+		event, err = unstaking(txBody, sender, receiver, scs, blockNo, ci)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return nil
+	var events []*types.Event
+	events = append(events, event)
+	return events, nil
 }
 
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
