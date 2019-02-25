@@ -103,8 +103,8 @@ type ConsensusConfig struct {
 	RaftID        uint64   `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
 	RaftBpUrls    []string `mapstructure:"raftbpurls" description:"list of raft bp urls."`
 	RaftSkipEmpty bool     `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
-	RaftKeyFile   string   `mapstructure:"Private Key file for raft https server"`
-	RaftCertFile  string   `mapstructure:"Certificate file for raft https server"`
+	RaftKeyFile   string   `mapstructure:"raftkeyfile" description:"Private Key file for raft https server"`
+	RaftCertFile  string   `mapstructure:"raftcertfile" description:"Certificate file for raft https server"`
 }
 
 type MonitorConfig struct {
