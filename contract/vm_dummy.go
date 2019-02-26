@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,12 @@ type DummyChain struct {
 	blockIds      []types.BlockID
 	blocks        []*types.Block
 	testReceiptDB db.DB
+}
+
+var addressRegexp *regexp.Regexp
+
+func init() {
+	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 }
 
 func LoadDummyChain() (*DummyChain, error) {
@@ -208,11 +215,17 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 }
 
 func strHash(d string) []byte {
-	h := sha256.New()
-	h.Write([]byte(d))
-	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
-	return b
+	// using real address
+	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
+		return types.ToAddress(d)
+	} else {
+		// using alias
+		h := sha256.New()
+		h.Write([]byte(d))
+		b := h.Sum(nil)
+		b = append([]byte{0x0C}, b...)
+		return b
+	}
 }
 
 var luaTxId uint64 = 0
