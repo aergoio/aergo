@@ -127,8 +127,11 @@ func preLoadWorker() {
 		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
 
 		if len(replyCh) > 2 {
-			preload := <-replyCh
-			preload.ex.close()
+			select {
+			case preload := <-replyCh:
+				preload.ex.close()
+			default:
+			}
 		}
 
 		bs := reqInfo.bs
@@ -136,8 +139,7 @@ func preLoadWorker() {
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
-		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 ||
-			txBody.Payload == nil {
+		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 {
 			continue
 		}
 

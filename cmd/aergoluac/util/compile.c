@@ -29,6 +29,25 @@ static int kpt_lua_Writer(struct lua_State *L, const void *p, size_t sz, void *u
 	return (fwrite(p, sz, 1, (FILE *)u) != 1) && (sz != 0);
 }
 
+#define GEN_ABI() \
+    do { \
+		if (lua_pcall(L, 0, 0, 0) != 0) { \
+		   return lua_tostring(L, -1); \
+		} \
+		lua_getfield(L, LUA_GLOBALSINDEX, "abi"); \
+		lua_getfield(L, -1, "autoload"); \
+		if (lua_pcall(L, 0, 0, 0) != 0) { \
+		    return lua_tostring(L, -1); \
+		} \
+		lua_getfield(L, -1, "generate"); \
+		if (lua_pcall(L, 0, 1, 0) != 0) { \
+		    return lua_tostring(L, -1); \
+		} \
+		if (!lua_isstring(L, -1)) { \
+		    return "empty ABI string"; \
+		} \
+    } while(0)
+
 const char *vm_compile(lua_State *L, const char *code, const char *byte, const char *abi)
 {
 	FILE *f = NULL;
@@ -47,28 +66,12 @@ const char *vm_compile(lua_State *L, const char *code, const char *byte, const c
 	fclose(f);
 
 	if (abi != NULL && strlen(abi) > 0) {
-		const char *r;
-		if (lua_pcall(L, 0, 0, 0) != 0) {
-		   return lua_tostring(L, -1);
-		}
-		lua_getfield(L, LUA_GLOBALSINDEX, "abi");
-		lua_getfield(L, -1, "autoload");
-		if (lua_pcall(L, 0, 0, 0) != 0) {
-		    return lua_tostring(L, -1);
-		}
-		lua_getfield(L, -1, "generate");
-		if (lua_pcall(L, 0, 1, 0) != 0) {
-		    return lua_tostring(L, -1);
-		}
-		if (!lua_isstring(L, -1)) {
-		    return "cannot create a abi file";
-		}
-		r = lua_tostring(L, -1);
 		f = fopen(abi, "wb");
 		if (f == NULL) {
 		    return "cannot open a abi file";
 		}
-		fwrite(r, 1, strlen(r), f);
+		GEN_ABI();
+		fwrite((char *)lua_tostring(L, -1), 1, lua_strlen(L, -1), f);
 		fclose(f);
 	}
 
@@ -113,17 +116,8 @@ const char *vm_stringdump(lua_State *L)
 	addByteN((char *)lua_tostring(L, -1), lua_strlen(L, -1));
 	lua_pop(L, 1);
 
-	if (lua_pcall(L, 0, 0, 0) != 0) {
-	   return lua_tostring(L, -1);
-	}
-	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
-	lua_getfield(L, -1, "generate");
-	if (lua_pcall(L, 0, 1, 0) != 0) {
-		return lua_tostring(L, -1);
-	}
-	if (!lua_isstring(L, -1)) {
-		return "empty ABI string";
-	}
+    GEN_ABI();
+
 	addByteN((char *)lua_tostring(L, -1), lua_strlen(L, -1));
 
 	return NULL;

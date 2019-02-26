@@ -30,10 +30,6 @@ type DummyChain struct {
 	testReceiptDB db.DB
 }
 
-func init() {
-	StartLStateFactory()
-}
-
 func LoadDummyChain() (*DummyChain, error) {
 	bc := &DummyChain{sdb: state.NewChainStateDB()}
 	dataPath, err := ioutil.TempDir("", "data")
@@ -53,6 +49,7 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadDatabase(dataPath) // sql database
+	StartLStateFactory()
 
 	return bc, nil
 }
