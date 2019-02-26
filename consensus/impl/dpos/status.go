@@ -101,6 +101,12 @@ func (s *Status) Update(block *types.Block) {
 	s.bestBlock = block
 }
 
+func (s *Status) libBlockNo() types.BlockNo {
+	s.RLock()
+	defer s.RUnlock()
+	return s.libState.libNo()
+}
+
 func (s *Status) updateLIB(lib *blockInfo) {
 	s.libState.Lib = lib
 
