@@ -355,7 +355,6 @@ static const luaL_Reg R[] =
 
 LUALIB_API int luaopen_bc(lua_State *L)
 {
- bc_init_numbers();
  luaL_newmetatable(L,MYTYPE);
  lua_setglobal(L,MYNAME);
  luaL_register(L,MYNAME,R);

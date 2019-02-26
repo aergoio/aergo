@@ -74,7 +74,7 @@ void
 bc_free_num (num)
     bc_num *num;
 {
-  if (*num == NULL) return;
+  if (*num == NULL || *num == _zero_ || *num == _one_ || *num == _two_) return;
   (*num)->n_refs--;
   if ((*num)->n_refs == 0) {
     if ((*num)->n_ptr)

@@ -3233,29 +3233,69 @@ abi.register(random)`
 	}
 }
 
+func TestBigTable(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	big := `
+function constructor()
+    db.exec("create table if not exists table1 (cid integer PRIMARY KEY, rgtime datetime)")
+    db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
+end
+
+-- About 900MB
+function inserts()
+    for i = 1, 25 do
+        db.exec("insert into table1 (rgtime) select rgtime from table1")
+    end
+end
+
+abi.register(inserts)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "big", 0, big),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts"}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestEvent(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
 	definition := `
-	function test_ev()
-		contract.event("ev1", 1,"local", 2, "form")
-		contract.event("ev1", 3,"local", 4, "form")
-	end
-	abi.register(test_ev)`
+    function test_ev()
+        contract.event("ev1", 1,"local", 2, "form")
+        contract.event("ev1", 3,"local", 4, "form")
+    end
+    abi.register(test_ev)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "event", 0, definition),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 // end of test-cases

@@ -304,7 +304,6 @@ static int moduleEvent(lua_State *L)
 {
 	char *event_name;
 	char *json_args;
-	int ret;
 	int *service = (int *)getLuaExecContext(L);
 
 	if (service == NULL) {
@@ -318,7 +317,7 @@ static int moduleEvent(lua_State *L)
 	}
 	LuaEvent(L, service, event_name, json_args);
 	free(json_args);
-	return ret;
+	return 0;
 }
 
 static const luaL_Reg call_methods[] = {
