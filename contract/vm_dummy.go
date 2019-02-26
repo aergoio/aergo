@@ -116,6 +116,13 @@ func NewLuaTxAccount(name string, balance uint64) *luaTxAccount {
 	}
 }
 
+func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
+	return &luaTxAccount{
+		name:    strHash(name),
+		balance: balance,
+	}
+}
+
 func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
@@ -136,11 +143,11 @@ type luaTxSend struct {
 	balance  *big.Int
 }
 
-func NewLuaTxSend(sender, receiver string, balance uint64) *luaTxSend {
+func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	return &luaTxSend{
 		sender:   strHash(sender),
 		receiver: strHash(receiver),
-		balance:  new(big.Int).SetUint64(balance),
+		balance:  balance,
 	}
 }
 
@@ -330,6 +337,18 @@ func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCal
 			sender:   strHash(sender),
 			contract: strHash(contract),
 			amount:   new(big.Int).SetUint64(amount),
+			code:     []byte(code),
+			id:       newTxId(),
+		},
+	}
+}
+
+func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *luaTxCall {
+	return &luaTxCall{
+		luaTxCommon: luaTxCommon{
+			sender:   strHash(sender),
+			contract: strHash(contract),
+			amount:   amount,
 			code:     []byte(code),
 			id:       newTxId(),
 		},
