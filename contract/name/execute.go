@@ -10,23 +10,39 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody, sender, receiver *state.V, blockNo types.BlockNo) error {
+func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
+	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
 	ci, err := ValidateNameTx(txBody, sender, scs)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var events []*types.Event
 	switch ci.Name {
 	case types.NameCreate:
-		err = CreateName(scs, txBody, sender, receiver,
-			ci.Args[0].(string))
+		if err = CreateName(scs, txBody, sender, receiver,
+			ci.Args[0].(string)); err != nil {
+			return nil, err
+		}
+		events = append(events, &types.Event{
+			ContractAddress: receiver.ID(),
+			EventIdx:        0,
+			EventName:       "create name",
+			JsonArgs:        `{"name":"` + ci.Args[0].(string) + `"}`,
+		})
 	case types.NameUpdate:
-		err = UpdateName(bs, scs, txBody, sender, receiver,
-			ci.Args[0].(string), ci.Args[1].(string))
+		if err = UpdateName(bs, scs, txBody, sender, receiver,
+			ci.Args[0].(string), ci.Args[1].(string)); err != nil {
+			return nil, err
+		}
+		events = append(events, &types.Event{
+			ContractAddress: receiver.ID(),
+			EventIdx:        0,
+			EventName:       "update name",
+			JsonArgs: `{"name":"` + ci.Args[0].(string) +
+				`","to":"` + ci.Args[1].(string) + `"}`,
+		})
 	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return events, nil
 }
 
 func ValidateNameTx(tx *types.TxBody, sender *state.V, scs *state.ContractState) (*types.CallInfo, error) {

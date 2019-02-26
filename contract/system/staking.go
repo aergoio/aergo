@@ -39,7 +39,7 @@ func staking(txBody *types.TxBody, sender, receiver *state.V,
 		EventIdx:        0,
 		EventName:       "stake",
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(txBody.Account) +
+			types.EncodeAddress(sender.ID()) +
 			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
 	}, nil
 }
@@ -77,7 +77,7 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 		EventIdx:        0,
 		EventName:       "unstake",
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(txBody.Account) +
+			types.EncodeAddress(sender.ID()) +
 			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
 	}, nil
 }

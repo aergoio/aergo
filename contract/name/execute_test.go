@@ -23,13 +23,13 @@ func TestExcuteNameTx(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
 	assert.NoError(t, err, "execute name tx")
 
 	//race
 	tmpAddress := "AmNHAxiGbZJjKjdGGNj2NBoAXGwdzX9Bg59eqbek9n49JpiaZ3As"
 	txBody.Account = types.ToAddress(tmpAddress)
-	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
 	assert.Error(t, err, "race execute name tx")
 
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
@@ -41,12 +41,12 @@ func TestExcuteNameTx(t *testing.T) {
 	ret = GetOwner(scs, []byte(name))
 	assert.Equal(t, txBody.Account, ret, "pubkey owner")
 
-	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
 	assert.Error(t, err, "execute name tx")
 
 	buyer := "AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay"
 	txBody.Payload = buildNamePayload(name, types.NameUpdate, buyer)
-	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 1)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 1)
 	assert.NoError(t, err, "execute to update name")
 
 	commitContractState(t, bs, scs)
@@ -58,11 +58,11 @@ func TestExcuteNameTx(t *testing.T) {
 	assert.Equal(t, buyer, types.EncodeAddress(ret), "pubkey owner")
 
 	//invalid case
-	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 2)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 2)
 	assert.Error(t, err, "execute invalid updating name")
 
 	txBody.Payload = txBody.Payload[1:]
-	err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 2)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 2)
 	assert.Error(t, err, "execute invalid payload")
 }
 
@@ -81,7 +81,7 @@ func TestExcuteFailNameTx(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
 	assert.Error(t, err, "execute name tx")
 }
 
