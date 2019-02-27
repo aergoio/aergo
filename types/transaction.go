@@ -202,7 +202,11 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, fee *big.Int)
 	case TxType_GOVERNANCE:
 		switch string(tx.GetBody().GetRecipient()) {
 		case AergoSystem:
-			if tx.GetBody().GetPayload()[0] == 's' &&
+			var ci CallInfo
+			if err := json.Unmarshal(tx.GetBody().GetPayload(), &ci); err != nil {
+				return ErrTxInvalidPayload
+			}
+			if ci.Name == Stake &&
 				amount.Cmp(balance) > 0 {
 				return ErrInsufficientBalance
 			}
