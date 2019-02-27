@@ -672,13 +672,36 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
 	}
 
-	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
-		Block: block,
-	})
+	cs.notifyEvents(block, ex.BlockState)
 
 	cs.Update(block)
 
 	return nil
+}
+
+func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockState) {
+	blkNo := block.GetHeader().GetBlockNo()
+	blkHash := block.BlockHash()
+
+	logger.Debug().Str("hash", block.ID()).Uint64("no", blkNo).Msg("add event from executed block")
+
+	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
+		Block: block,
+	})
+
+	cs.TellTo(message.RPCSvc, block)
+
+	events := []*types.Event{}
+	for idx, receipt := range bstate.Receipts().Get() {
+		for _, e := range receipt.Events {
+			e.SetMemoryInfo(receipt, blkHash, blkNo, int32(idx))
+			events = append(events, e)
+		}
+	}
+
+	if len(events) != 0 {
+		cs.TellTo(message.RPCSvc, events)
+	}
 }
 
 func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {

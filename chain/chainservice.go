@@ -461,18 +461,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		}
 
 		context.Respond(&rsp)
-
-		cm.TellTo(message.RPCSvc, block)
-		events := []*types.Event{}
-		for idx, receipt := range bstate.Receipts().Get() {
-			for _, e := range receipt.Events {
-				e.SetMemoryInfo(receipt, blkHash, blkNo, int32(idx))
-				events = append(events, e)
-			}
-		}
-		if len(events) != 0 {
-			cm.TellTo(message.RPCSvc, events)
-		}
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
