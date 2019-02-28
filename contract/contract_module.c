@@ -210,7 +210,6 @@ static int moduleSend(lua_State *L)
 static int moduleBalance(lua_State *L)
 {
 	char *contract;
-	int ret;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer amount;
 
@@ -223,7 +222,7 @@ static int moduleBalance(lua_State *L)
     else {
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
-	if ((ret = LuaGetBalance(L, service, contract)) < 0) {
+	if (LuaGetBalance(L, service, contract) < 0) {
 		lua_error(L);
 	}
 
@@ -315,7 +314,9 @@ static int moduleEvent(lua_State *L)
 	if (json_args == NULL) {
 		lua_error(L);
 	}
-	LuaEvent(L, service, event_name, json_args);
+	if (LuaEvent(L, service, event_name, json_args) < 0) {
+	    lua_error(L);
+	}
 	free(json_args);
 	return 0;
 }
