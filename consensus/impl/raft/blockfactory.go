@@ -19,7 +19,7 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 
-	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 const (

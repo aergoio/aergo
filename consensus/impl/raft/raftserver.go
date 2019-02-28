@@ -23,15 +23,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/coreos/etcd/etcdserver/stats"
-	"github.com/coreos/etcd/pkg/fileutil"
-	"github.com/coreos/etcd/pkg/types"
-	raftlib "github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/rafthttp"
-	"github.com/coreos/etcd/snap"
-	"github.com/coreos/etcd/wal"
-	"github.com/coreos/etcd/wal/walpb"
+	"github.com/aergoio/etcd/etcdserver/stats"
+	"github.com/aergoio/etcd/pkg/fileutil"
+	"github.com/aergoio/etcd/pkg/types"
+	raftlib "github.com/aergoio/etcd/raft"
+	"github.com/aergoio/etcd/raft/raftpb"
+	"github.com/aergoio/etcd/rafthttp"
+	"github.com/aergoio/etcd/snap"
+	"github.com/aergoio/etcd/wal"
+	"github.com/aergoio/etcd/wal/walpb"
 )
 
 //noinspection ALL
@@ -172,6 +172,8 @@ func (rs *raftServer) startRaft() {
 		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.id, 10)),
 		ErrorC:      make(chan error),
 	}
+
+	rs.transport.SetLogger(logger)
 
 	rs.transport.Start()
 	for i := range rs.peers {
