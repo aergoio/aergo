@@ -79,7 +79,7 @@ contract test {
 }
 
 @test(invalid_array_assignment)
-@error(ERROR_NOT_ALLOWED_ARRAY,3)
+@error(ERROR_INVALID_LVALUE,3)
 contract test {
     int i[2][2];
     int j[2];

@@ -170,9 +170,6 @@ stmt_check_assign(check_t *check, ast_stmt_t *stmt)
         RETURN(ERROR_INVALID_LVALUE, &l_exp->pos);
     }
 
-    if (is_array_meta(&l_exp->meta))
-        RETURN(ERROR_NOT_ALLOWED_ARRAY, &l_exp->pos);
-
     CHECK(meta_cmp(l_meta, r_meta));
 
     meta_eval(l_meta, r_meta);

@@ -85,7 +85,7 @@ exp_check_id(check_t *check, ast_exp_t *exp)
     else
         exp->id = id;
 
-    if (!is_var_id(id) || is_const_id(id))
+    if (!is_var_id(id) || is_const_id(id) || is_array_meta(&id->meta))
         exp->usable_lval = false;
 
     meta_copy(&exp->meta, &id->meta);
@@ -206,6 +206,9 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     else {
         RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
     }
+
+    if (is_array_meta(&exp->meta))
+        exp->usable_lval = false;
 
     return true;
 }
