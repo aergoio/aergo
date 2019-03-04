@@ -152,6 +152,8 @@ func (rs *raftServer) startRaft() {
 		MaxSizePerMsg:   1024 * 1024,
 		MaxInflightMsgs: 256,
 		Logger:          raftLogger,
+		CheckQuorum:     true,
+		PreVote:         true,
 	}
 
 	if oldwal {
