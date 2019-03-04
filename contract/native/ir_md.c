@@ -25,7 +25,7 @@ md_new(char *name)
 }
 
 void
-md_add_abi(ir_md_t *md, ir_abi_t *abi)
+md_add_imp(ir_md_t *md, ir_abi_t *abi)
 {
     int i;
 

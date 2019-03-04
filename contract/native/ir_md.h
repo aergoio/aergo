@@ -37,7 +37,7 @@ struct ir_md_s {
 
 ir_md_t *md_new(char *name);
 
-void md_add_abi(ir_md_t *md, ir_abi_t *abi);
+void md_add_imp(ir_md_t *md, ir_abi_t *abi);
 void md_add_fn(ir_md_t *md, ir_fn_t *fn);
 
 #endif /* no _IR_MD_H */

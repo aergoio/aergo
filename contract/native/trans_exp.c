@@ -365,7 +365,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, id_exp);
 
     if (fn_id->up != trans->id)
-        md_add_abi(trans->md, abi_new(fn_id));
+        md_add_imp(trans->md, abi_new(fn_id));
 
     if (is_ctor_id(fn_id)) {
         /* The constructor does not change the parameter, it always returns address. */
