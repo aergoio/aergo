@@ -44,7 +44,7 @@ type RPCConfig struct {
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
 	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
-	NSKey       string `mapstructure:"nskey" descript   ion:"Private Key file for RPC or REST API"`
+	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
