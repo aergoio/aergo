@@ -10,7 +10,8 @@ set(LUAJIT_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/luajit/src)
 set(LUAJIT_BUILD_DIR ${LUAJIT_SRC_DIR}/..)
 
 if(NOT EXISTS ${LUAJIT_SRC_DIR} OR 
-   NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/binaryen/src)
+   NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/binaryen/src OR
+   NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/WAVM/Lib/ASCL)
     execute_process(COMMAND git submodule update --init --force)
 endif()
 
@@ -31,7 +32,7 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
-add_custom_target(libtool DEPENDS libluajit liblmdb binaryen)
+add_custom_target(libtool DEPENDS libluajit liblmdb binaryen asclvm)
 
 add_custom_target(libluajit $(MAKE) PREFIX=${CMAKE_CURRENT_LIST_DIR} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
@@ -49,3 +50,4 @@ add_custom_target(libluajit-clean $(MAKE) clean WORKING_DIRECTORY ${LUAJIT_BUILD
 add_custom_target(liblmdb-clean $(MAKE) clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})
 
 add_subdirectory(src/binaryen)
+add_subdirectory(src/WAVM)

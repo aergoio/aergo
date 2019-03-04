@@ -40,10 +40,6 @@ add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X 'gi
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(aergoscc GOBIN=${BIN_DIR} go install -a ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/aergoscc/cmd.githash=`git describe --abbrev=0 --tags`\" ./cmd/aergoscc/...
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    DEPENDS vendor binaryen ascl)
-
 set(VENDOR ${CMAKE_CURRENT_LIST_DIR}/vendor)
 add_custom_command(OUTPUT ${VENDOR}
     COMMAND glide install
@@ -72,3 +68,4 @@ add_custom_target(protoclean rm -f ../types/*.pb.go)
 
 add_subdirectory(libtool)
 add_subdirectory(contract/native)
+add_subdirectory(cmd/aergoscc)
