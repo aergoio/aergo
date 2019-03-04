@@ -48,7 +48,9 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
-	case types.VoteBP:
+	case types.VoteBP,
+		types.VoteFee,
+		types.VoteNumBP:
 		staked, err := getStaking(scs, account)
 		if err != nil {
 			return nil, err
@@ -56,7 +58,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 			return nil, types.ErrMustStakeBeforeVote
 		}
-		oldvote, err := getVote(scs, account)
+		oldvote, err := GetVote(scs, account)
 		if err != nil {
 			return nil, err
 		}

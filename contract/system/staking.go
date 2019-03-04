@@ -67,6 +67,7 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 	if err != nil {
 		return nil, err
 	}
+	ci.Args = append(ci.Args, []byte(types.VoteBP)[2:])
 	_, err = voting(txBody, sender, receiver, scs, blockNo, ci)
 	if err != nil {
 		return nil, err

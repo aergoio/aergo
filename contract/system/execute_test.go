@@ -46,6 +46,7 @@ func TestBasicExecute(t *testing.T) {
 	assert.NoError(t, err, "Execute system tx failed in staking")
 	assert.Equal(t, sender.Balance().Uint64(), uint64(0), "sender.Balance() should be 0 after staking")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	assert.Equal(t, events[0].EventName, types.Stake[2:], "check event")
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
@@ -54,7 +55,7 @@ func TestBasicExecute(t *testing.T) {
 	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	assert.Equal(t, events[0].EventName, "voteBP", "check event")
+	assert.Equal(t, events[0].EventName, types.VoteBP[2:], "check event")
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
 	tx.Body.Amount = types.StakingMinimum.Bytes()
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)

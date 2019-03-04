@@ -55,7 +55,7 @@ func TestVoteResult(t *testing.T) {
 	err = InitVoteResult(scs, testResult)
 	assert.NoError(t, err, "failed to InitVoteResult")
 
-	result, err := getVoteResult(scs, 23)
+	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "could not get vote result")
 
 	oldAmount := new(big.Int).SetUint64((uint64)(math.MaxUint64))
@@ -86,10 +86,10 @@ func TestVoteData(t *testing.T) {
 		testVote := &types.Vote{Candidate: []byte(to),
 			Amount: new(big.Int).SetUint64(uint64(math.MaxInt64 + i)).Bytes()}
 
-		err = setVote(scs, []byte(from), testVote)
+		err = setVote(scs, defaultVoteKey, []byte(from), testVote)
 		assert.NoError(t, err, "failed to setVote")
 
-		vote, err = getVote(scs, []byte(from))
+		vote, err = GetVote(scs, []byte(from))
 		assert.NoError(t, err, "failed to getVote after set")
 		assert.Equal(t, uint64(math.MaxInt64+i), new(big.Int).SetBytes(vote.Amount).Uint64(), "invalid amount")
 		assert.Equal(t, []byte(to), vote.Candidate, "invalid candidates")
@@ -131,7 +131,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
 	assert.NoError(t, err, "voting failed")
 
-	result, err := getVoteResult(scs, 23)
+	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, ci.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
@@ -146,7 +146,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, ci)
 	assert.NoError(t, err, "unstaking failed")
 
-	result2, err := getVoteResult(scs, 23)
+	result2, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")
@@ -155,7 +155,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 func buildVotingPayload(count int) []byte {
 	var ci types.CallInfo
-	ci.Name = "v1voteBP"
+	ci.Name = types.VoteBP
 	for i := 0; i < count; i++ {
 		peerID := make([]byte, PeerIDLength)
 		peerID[0] = byte(i)
