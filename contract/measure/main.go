@@ -43,6 +43,13 @@ func main() {
 		}
 	}
 
-	runner("./bf.lua", "run_test")
-	runner("./fn.lua", "run_test")
+	runner("./bf.lua", "basic_fns")
+	runner("./bf.lua", "string_fns")
+	runner("./bf.lua", "table_fns1")
+	runner("./bf.lua", "table_fns2")
+	runner("./bf.lua", "table_fns3")
+	runner("./bf.lua", "table_fns4")
+	runner("./bf.lua", "math_fns")
+	runner("./bf.lua", "bit_fns")
+	runner("./aef.lua", "run_test")
 }
