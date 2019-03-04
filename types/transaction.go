@@ -13,6 +13,8 @@ import (
 
 //governance type transaction which has aergo.system in recipient
 const VoteBP = "v1voteBP"
+const VoteFee = "v1voteFee"
+const VoteNumBP = "v1voteNumBP"
 const Stake = "v1stake"
 const Unstake = "v1unstake"
 const NameCreate = "v1createName"
@@ -136,6 +138,8 @@ func validateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
+	default:
+		return ErrTxInvalidPayload
 	}
 	return nil
 }
