@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -39,11 +40,11 @@ func sendStake(cmd *cobra.Command, s bool) error {
 	if err != nil {
 		return errors.New("Failed to parse --address flag (" + address + ")\n" + err.Error())
 	}
-	payload := make([]byte, 1)
+	var ci types.CallInfo
 	if s {
-		payload[0] = 's'
+		ci.Name = types.Stake
 	} else {
-		payload[0] = 'u'
+		ci.Name = types.Unstake
 	}
 	amountBigInt, err := util.ParseUnit(amount)
 	if err != nil {
@@ -52,7 +53,11 @@ func sendStake(cmd *cobra.Command, s bool) error {
 	if amountBigInt.Cmp(types.StakingMinimum) < 0 {
 		return errors.New("Failed: minimum stake value is " + types.StakingMinimum.String())
 	}
-
+	payload, err := json.Marshal(ci)
+	if err != nil {
+		cmd.Printf("Failed: %s\n", err.Error())
+		return nil
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,

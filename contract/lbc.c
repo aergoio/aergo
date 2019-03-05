@@ -81,6 +81,12 @@ int lua_isbignumber(lua_State *L, int i)
     return 0;
 }
 
+int Bis(lua_State *L)
+{
+   lua_pushboolean(L, lua_isbignumber(L, 1) != 0);
+   return 1;
+}
+
 static bc_num Bget(lua_State *L, int i)
 {
  LL=L;
@@ -343,12 +349,12 @@ static const luaL_Reg R[] =
 	{ "tonumber",	Btonumber},
 	{ "tostring",	Btostring},
 /*	{ "trunc",	Btrunc	}, */
+	{ "isbignum",	Bis},
 	{ NULL,		NULL	}
 };
 
 LUALIB_API int luaopen_bc(lua_State *L)
 {
- bc_init_numbers();
  luaL_newmetatable(L,MYTYPE);
  lua_setglobal(L,MYNAME);
  luaL_register(L,MYNAME,R);

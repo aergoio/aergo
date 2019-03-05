@@ -115,7 +115,7 @@ func TestContractSystem(t *testing.T) {
 	tx := NewLuaTxCall("ktlee", "system", 0, `{"Name":"testState", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
 	receipt := bc.getReceipt(tx.hash())
-	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","4huAuw28LdAg9nKji5t1EGSkZ3ScvnyZwH2KBZCKejqHJ","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
+	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","99NTyZ796bpvwLLhMmsfwo8J3Wu3rUioUQsHE9CSYQKz","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
 	if receipt.GetRet() != exRv {
 		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
 	}
@@ -2862,10 +2862,17 @@ function calladdBignum(addr, a)
 	return tostring(contract.call(addr, "add", a, 2) + 3)
 end
 
+function checkBignum()
+	a = 1
+	b = bignum.number(1)
+	
+	return bignum.isbignum(a), bignum.isbignum(b), bignum.isbignum("2333")
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2915,6 +2922,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"checkBignum"}`, "", `[false,true,false]`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3157,7 +3168,6 @@ abi.register(random)`
 	if err != nil {
 		t.Error(err)
 	}
-
 	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
 	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
 	err = bc.ConnectBlock(tx, tx1)
@@ -3222,3 +3232,70 @@ abi.register(random)`
 		t.Error(err)
 	}
 }
+
+func TestBigTable(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	big := `
+function constructor()
+    db.exec("create table if not exists table1 (cid integer PRIMARY KEY, rgtime datetime)")
+    db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
+end
+
+-- About 900MB
+function inserts()
+    for i = 1, 25 do
+        db.exec("insert into table1 (rgtime) select rgtime from table1")
+    end
+end
+
+abi.register(inserts)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "big", 0, big),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts"}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestEvent(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+    function test_ev()
+        contract.event("ev1", 1,"local", 2, "form")
+        contract.event("ev1", 3,"local", 4, "form")
+    end
+    abi.register(test_ev)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "event", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// end of test-cases

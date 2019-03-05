@@ -19,12 +19,18 @@ var getpeersCmd = &cobra.Command{
 	Run:   execGetPeers,
 }
 
+
+var nohidden bool
+var showself bool
+
 func init() {
 	rootCmd.AddCommand(getpeersCmd)
+	getpeersCmd.Flags().BoolVar(&nohidden, "nohidden",false,"exclude hidden peers")
+	getpeersCmd.Flags().BoolVar(&showself, "self",false,"show self peer info")
 }
 
 func execGetPeers(cmd *cobra.Command, args []string) {
-	msg, err := client.GetPeers(context.Background(), &types.Empty{})
+	msg, err := client.GetPeers(context.Background(), &types.PeersParams{NoHidden:nohidden, ShowSelf:showself})
 	if err != nil {
 		cmd.Printf("Failed to get peer from server: %s\n", err.Error())
 		return

@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"reflect"
 
@@ -9,8 +10,12 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 )
 
+const (
+	HashIDLength = 32
+)
+
 // HashID is a fixed size bytes
-type HashID [32]byte
+type HashID [HashIDLength]byte
 
 // BlockID is a HashID to identify a block
 type BlockID HashID
@@ -74,12 +79,40 @@ func (id HashID) Equal(alt HashID) bool {
 	return bytes.Equal(id.Bytes(), alt.Bytes())
 }
 
+// ParseToTxID parse BlockID from bytes. it return error if length of parameter is not fit.
+func ParseToBlockID(blockHash []byte) (BlockID, error) {
+	var hash BlockID
+	if len(blockHash) != HashIDLength {
+		return hash, fmt.Errorf("parse error: invalid length")
+	}
+	copy(hash[:], blockHash)
+	return hash, nil
+}
+
+// MustParseBlockID parse, it panics if parsing is failed.
+func MustParseBlockID(blockHash []byte) BlockID {
+	hash, err := ParseToBlockID(blockHash)
+	if err != nil {
+		panic(err)
+	}
+	return hash
+}
+
 // ToBlockID make a BlockID from bytes
 func ToBlockID(blockHash []byte) BlockID {
 	return BlockID(ToHashID(blockHash))
 }
 func (id BlockID) String() string {
 	return HashID(id).String()
+}
+
+// ParseToTxID parse TxID from bytes. it return error if length of parameter is not fit.
+func ParseToTxID(txHash []byte) (TxID, error) {
+	var hash TxID
+	if len(txHash) != HashIDLength {
+		return hash, fmt.Errorf("parse error: invalid length")
+	}
+	return ToTxID(txHash), nil
 }
 
 // ToTxID make a TxID from bytes

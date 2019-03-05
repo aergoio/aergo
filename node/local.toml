@@ -1,0 +1,40 @@
+datadir = "/aergo/data"
+enableprofile = false
+profileport = 6060
+enablerest = false
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 7845
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+
+[rest]
+restport = "8080"
+
+[p2p]
+netprotocoladdr = "127.0.0.1"
+netprotocolport = 7846
+npbindaddr = "0.0.0.0"
+npbindport = 7846
+nptls = false
+npcert = ""
+npkey = ""
+npaddpeers = [
+]
+npmaxpeers = "0"
+nppeerpool = "0"
+
+[blockchain]
+blockchainplaceholder = false
+
+[mempool]
+showmetrics = false
+dumpfilepath = "/aergo/mempool.dump"
+
+[consensus]
+enablebp = true
+enabledpos = false
+blockinterval = 1

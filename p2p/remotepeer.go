@@ -43,7 +43,7 @@ type RemotePeer interface {
 	sendMessage(msg msgOrder)
 	sendAndWaitMessage(msg msgOrder, ttl time.Duration) error
 
-	pushTxsNotice(txHashes []TxHash)
+	pushTxsNotice(txHashes []types.TxID)
 	// utility method
 
 	consumeRequest(msgID MsgID)
@@ -52,7 +52,7 @@ type RemotePeer interface {
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
 	updateBlkCache(blkHash []byte, blkNumber uint64) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
-	updateTxCache(hashes []TxHash) []TxHash
+	updateTxCache(hashes []types.TxID) []types.TxID
 	// updateLastNotice change estimate of the last status of remote peer
 	updateLastNotice(blkHash []byte, blkNumber uint64)
 
@@ -377,7 +377,7 @@ func (p *remotePeerImpl) sendAndWaitMessage(msg msgOrder, timeout time.Duration)
 	}
 }
 
-func (p *remotePeerImpl) pushTxsNotice(txHashes []TxHash) {
+func (p *remotePeerImpl) pushTxsNotice(txHashes []types.TxID) {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
 	for _, hash := range txHashes {
@@ -442,7 +442,7 @@ func (p *remotePeerImpl) sendTxNotices() {
 		hashes := make([][]byte, 0, p.txNoticeQueue.Size())
 		idx := 0
 		for element := p.txNoticeQueue.Poll(); element != nil; element = p.txNoticeQueue.Poll() {
-			hash := element.(TxHash)
+			hash := element.(types.TxID)
 			if p.txHashCache.Contains(hash) {
 				continue
 			}
@@ -510,16 +510,15 @@ func (p *remotePeerImpl) pruneRequests() {
 
 func (p *remotePeerImpl) updateBlkCache(blkHash []byte, blkNumber uint64) bool {
 	p.updateLastNotice(blkHash, blkNumber)
-	var hash BlkHash
-	copy(hash[:], blkHash)
+	hash := types.ToBlockID(blkHash)
 	// lru cache can accept hashable key
 	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
 	return found
 }
 
-func (p *remotePeerImpl) updateTxCache(hashes []TxHash) []TxHash {
+func (p *remotePeerImpl) updateTxCache(hashes []types.TxID) []types.TxID {
 	// lru cache can accept hashable key
-	added := make([]TxHash, 0, len(hashes))
+	added := make([]types.TxID, 0, len(hashes))
 	for _, hash := range hashes {
 		if found, _ := p.txHashCache.ContainsOrAdd(hash, true); !found {
 			added = append(added, hash)

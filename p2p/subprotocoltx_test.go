@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/message/mocks"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,7 +33,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	dummyMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
 	mockMo := new(MockMsgOrder)
-	mockMo.On("GetProtocolID").Return(GetTxsResponse)
+	mockMo.On("GetProtocolID").Return(GetTXsResponse)
 	mockMo.On("GetMsgID").Return(sampleMsgID)
 	//mockSigner := new(mockMsgSigner)
 	//mockSigner.On("signMsg",mock.Anything).Return(nil)
@@ -48,7 +49,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExistEx")).Return(&message.MemPoolExistExRsp{Txs: dummyTxs}, nil)
 			msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistExRsp"), nil).Return(dummyTxs, nil)
 			hashes := sampleTxs[:1]
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, 1, len(resp.Hashes))
@@ -69,7 +70,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			actor.On("CallRequestDefaultTimeout",message.MemPoolSvc, mock.AnythingOfType("*message.MemPoolExistEx")).Return(&message.MemPoolExistExRsp{Txs:dummyTxs}, nil)
 			msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistExRsp"), nil).Return(dummyTxs, nil)
 			hashes := sampleTxs
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, len(sampleTxs), len(resp.Hashes))
@@ -105,7 +106,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			//	return false
 			//})).Return(&message.MemPoolExistExRsp{Txs:nil}, nil)
 			msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistExRsp"), nil).Return(dummyTxs, nil)
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, len(dummyTxs), len(resp.Hashes))
@@ -124,7 +125,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			//	return false
 			//	}), nil).Return(nil, nil)
 			//hashes := sampleTxs
-			//mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			//mockMF.On("newMsgResponseOrder",sampleMsgID,GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 			//		resp := args[2].(*types.GetTransactionsResponse)
 			//		assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 			//		assert.Equal(tt, len(sampleTxs)-1, len(resp.Hashes))
@@ -153,7 +154,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 				return false
 			}), nil).Return(nil, nil)
 			hashes := sampleTxs
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_NOT_FOUND, resp.Status)
 				assert.Equal(tt, 0, len(resp.Hashes))
@@ -176,7 +177,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 				return false})).Return(nil, fmt.Errorf("error"))
 			//msgHelper.On("ExtractTxsFromResponseAndError", mock.AnythingOfType("*message.MemPoolExistRsp"), nil).Return(dummyTx, nil)
 			hashes := sampleTxs
-			mockMF.On("newMsgResponseOrder",sampleMsgID,GetTxsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
+			mockMF.On("newMsgResponseOrder",sampleMsgID, GetTXsResponse, mock.AnythingOfType("*types.GetTransactionsResponse")).Run(func(args mock.Arguments) {
 				resp := args[2].(*types.GetTransactionsResponse)
 				// TODO check if the changed behavior is fair or not.
 				assert.Equal(tt, types.ResultStatus_NOT_FOUND, resp.Status)
@@ -265,9 +266,9 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 func TestNewTxNoticeHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	sampleMeta := PeerMeta{ID:dummyPeerID,IPAddress:"192.168.1.2",Port:4321}
-	var filledArrs []TxHash = make([]TxHash,1)
-	copy(filledArrs[0][:],dummyTxHash)
-	var emptyArrs []TxHash =make([]TxHash,0)
+	var filledArrs = make([]types.TxID,1)
+	filledArrs[0] = types.ToTxID(dummyTxHash)
+	var emptyArrs =make([]types.TxID,0)
 
 	tests := []struct {
 		name string
@@ -284,7 +285,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
 			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
-			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []TxHash) bool {
+			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []types.TxID) bool {
 				return len(arg) == 1
 			}))
 			mockSM.AssertCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
@@ -296,7 +297,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 			mockSM.On("HandleNewTxNotice",mock.Anything,mock.Anything, mock.AnythingOfType("*types.NewTransactionsNotice"))
 			return sampleHeader, &types.NewTransactionsNotice{TxHashes:hashes}
 		}, func(tt *testing.T, pm *MockPeerManager,mockPeer *MockRemotePeer, mockSM *MockSyncManager) {
-			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []TxHash) bool {
+			mockPeer.AssertCalled(t, "updateTxCache", mock.MatchedBy(func(arg []types.TxID) bool {
 				return len(arg) == len(sampleTxs)
 			}))
 			mockSM.AssertCalled(t, "HandleNewTxNotice", mockPeer, filledArrs, mock.Anything)
@@ -318,6 +319,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 			mockPeer := new(MockRemotePeer)
 			mockPeer.On("Meta").Return(sampleMeta)
 			mockPeer.On("ID").Return(sampleMeta.ID)
+			mockPeer.On("Name").Return(p2putil.ShortForm(sampleMeta.ID)+"#1")
 			mockSM := new(MockSyncManager)
 
 			header, body := test.setup(t, mockPM, mockPeer, mockSM)

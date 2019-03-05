@@ -45,7 +45,7 @@ func (ph *pingRequestHandler) handle(msg Message, msgBody proto.Message) {
 	remotePeer := ph.peer
 	pingData := msgBody.(*types.Ping)
 	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, fmt.Sprintf("blockHash=%s blockNo=%d",enc.ToString(pingData.BestBlockHash),pingData.BestHeight))
-	if _, err := ParseToBlkHash(pingData.GetBestBlockHash()); err != nil {
+	if _, err := types.ParseToBlockID(pingData.GetBestBlockHash()); err != nil {
 		ph.logger.Info().Str(LogPeerName,remotePeer.Name()).Msg("ping is old format or wrong")
 		return
 	}

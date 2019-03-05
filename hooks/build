@@ -1,0 +1,5 @@
+#!/bin/bash
+
+BUILD_TAG=$(echo $SOURCE_BRANCH | sed -e 's/^v//')
+docker build --build-arg GIT_TAG=$SOURCE_BRANCH -f $DOCKERFILE_PATH -t $DOCKER_REPO:$BUILD_TAG .
+

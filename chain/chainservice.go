@@ -89,29 +89,28 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	return nil
 }
 
-func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
-	gh, _ := core.cdb.getHashByNo(0)
-	if len(gh) == 0 {
-		latest := core.cdb.getBestBlockNo()
-		logger.Info().Uint64("nom", latest).Msg("current latest")
-		if latest == 0 {
-			if genesis == nil {
-				genesis = types.GetDefaultGenesis()
-			}
+func (core *Core) initGenesis(genesis *types.Genesis, testnet bool) (*types.Block, error) {
 
-			err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
-				return nil, err
-			}
+	exist := core.cdb.GetGenesisInfo()
+	if exist == nil {
+		logger.Info().Msg("generating genesis block..")
 
-			err = core.cdb.addGenesisBlock(genesis)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot add genesisblock")
-				return nil, err
-			}
+		if testnet {
+			genesis = types.GetTestNetGenesis()
+		} else if genesis == nil {
+			return nil, errors.New("mainnet will be launched soon")
+		}
 
-			logger.Info().Msg("genesis block is generated")
+		err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
+			return nil, err
+		}
+
+		err = core.cdb.addGenesisBlock(genesis)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot add genesisblock")
+			return nil, err
 		}
 	}
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
@@ -120,10 +119,13 @@ func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
 
 	contract.StartLStateFactory()
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.Hash)).
-		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
 
 	return genesisBlock, nil
+}
+
+func (core *Core) GetGenesisInfo() *types.Genesis {
+	return core.cdb.GetGenesisInfo()
 }
 
 // Close closes chain & state DB.
@@ -138,8 +140,8 @@ func (core *Core) Close() {
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
-func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
-	_, err := core.initGenesis(gb)
+func (core *Core) InitGenesisBlock(gb *types.Genesis, useTestnet bool) error {
+	_, err := core.initGenesis(gb, useTestnet)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
 		return err
@@ -160,6 +162,7 @@ type IChainHandler interface {
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
 	setSync(val bool)
+	listEvents(filter *types.FilterInfo) ([]*types.Event, error)
 }
 
 // ChainService manage connectivity of blocks
@@ -212,8 +215,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init genesis block
-	if _, err := cs.initGenesis(nil); err != nil {
+	if _, err := cs.initGenesis(nil, cfg.UseTestnet); err != nil {
 		logger.Fatal().Err(err).Msg("failed to create a genesis block")
+		panic("failed to init genesis block")
 	}
 
 	top, err := cs.getVotes(1)
@@ -280,8 +284,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,
 		*message.GetAnchors, //TODO move to ChainWorker (need chain lock)
-		*message.GetAncestor,
-		*message.GetQuery:
+		*message.GetAncestor:
 		cs.chainManager.Request(msg, context.Sender())
 
 		//pass to chainWorker
@@ -292,11 +295,13 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetTx,
 		*message.GetReceipt,
 		*message.GetABI,
+		*message.GetQuery,
 		*message.GetStateQuery,
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
-		*message.GetNameInfo:
+		*message.GetNameInfo,
+		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
 		//handle directly
@@ -390,7 +395,7 @@ func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
 	if owner == nil {
 		return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: nil}, types.ErrNameNotFound
 	}
-	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, err
+	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner, Destination: name.GetAddress(scs, []byte(qname))}, err
 }
 
 type ChainManager struct {
@@ -444,16 +449,16 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		if err != nil {
 			logger.Error().Err(err).Uint64("no", block.GetHeader().BlockNo).Str("hash", block.ID()).Msg("failed to add block")
 		}
+		blkNo := block.GetHeader().GetBlockNo()
+		blkHash := block.BlockHash()
 
 		rsp := message.AddBlockRsp{
-			BlockNo:   block.GetHeader().GetBlockNo(),
-			BlockHash: block.BlockHash(),
+			BlockNo:   blkNo,
+			BlockHash: blkHash,
 			Err:       err,
 		}
 
 		context.Respond(&rsp)
-
-		cm.TellTo(message.RPCSvc, block)
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
@@ -469,23 +474,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 			Ancestor: ancestor,
 			Err:      err,
 		})
-	case *message.GetQuery: //TODO move to ChainWorker (Currently, contract doesn't support parallel execution)
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		address, err := getAddressNameResolved(cm.sdb, msg.Contract)
-		if err != nil {
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-			break
-		}
-		ctrState, err := cm.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(cm.sdb.OpenNewStateDB(cm.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
-		}
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cm.name, reflect.TypeOf(msg), msg)
@@ -506,7 +494,6 @@ func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, er
 }
 
 func (cw *ChainWorker) Receive(context actor.Context) {
-	logger.Debug().Msg("chain worker")
 	switch msg := context.Message().(type) {
 	case *message.GetBlock:
 		bid := types.ToBlockID(msg.BlockHash)
@@ -601,6 +588,23 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 				Err: err,
 			})
 		}
+	case *message.GetQuery:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		address, err := getAddressNameResolved(cw.sdb, msg.Contract)
+		if err != nil {
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+			break
+		}
+		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
+			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+		}
 	case *message.GetStateQuery:
 		var varProofs []*types.ContractVarProof
 		var contractProof *types.AccountProof
@@ -662,6 +666,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		context.Respond(&message.GetNameInfoRsp{
 			Owner: owner,
 			Err:   err,
+		})
+	case *message.ListEvents:
+		events, err := cw.listEvents(msg.Filter)
+		context.Respond(&message.ListEventsRsp{
+			Events: events,
+			Err:    err,
 		})
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:

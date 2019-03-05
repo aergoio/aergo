@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -104,7 +105,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 				Str("req_id", msg.ID().String()).Msg("Sending partial response")
 
 			remotePeer.sendMessage(remotePeer.MF().
-				newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+				newMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 			hashes, txInfos, payloadSize = nil, nil, EmptyGetBlockResponseSize
 		}
 
@@ -125,12 +126,12 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 		Hashes: hashes,
 		Txs:    txInfos, HasNext: false}
 
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func newTxRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTxsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 
@@ -142,6 +143,7 @@ func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
 	data := msgBody.(*types.GetTransactionsResponse)
 	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
+	th.peer.consumeRequest(msg.OriginalID())
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
 		th.logger.Debug().Int(LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
@@ -174,9 +176,15 @@ func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
 		return
 	}
 	// lru cache can accept hashable key
-	hashes := make([]TxHash, len(data.TxHashes))
+	hashes := make([]types.TxID, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
-		copy(hashes[i][:], hash)
+		if tid, err := types.ParseToTxID(hash); err != nil {
+			th.logger.Info().Str(LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(hash)).Msg("malformed txhash found")
+			// TODO Add penelty score and break
+			break
+		} else {
+			hashes[i] = tid
+		}
 	}
 	added := th.peer.updateTxCache(hashes)
 	if len(added) > 0 {

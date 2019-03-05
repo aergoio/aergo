@@ -121,7 +121,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 				pm.remotePeers[peer.ID()] = peer
 			}
 
-			actPeers := pm.GetPeerAddresses()
+			actPeers := pm.GetPeerAddresses(false, false)
 			assert.Equal(t, peersLen, len(actPeers))
 		})
 	}

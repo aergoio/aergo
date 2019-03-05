@@ -154,9 +154,10 @@ func (p2ps *P2P) AfterStart() {
 
 // BeforeStop is called before actor hub stops. it finishes underlying peer manager
 func (p2ps *P2P) BeforeStop() {
+	p2ps.Logger.Debug().Msg("stopping p2p actor.")
 	p2ps.mm.Stop()
 	if err := p2ps.pm.Stop(); err != nil {
-		p2ps.Logger.Warn().Err(err).Msg("Erro on stopping peerManager")
+		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
 	}
 	p2ps.mutex.Lock()
 	nt := p2ps.nt
@@ -252,7 +253,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetPeers:
-		peers := p2ps.pm.GetPeerAddresses()
+		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden,msg.ShowSelf)
 		context.Respond(&message.GetPeersRsp{Peers: peers})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
@@ -357,7 +358,7 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 
 	// TxHandlers
 	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetTxsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[GetTXsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
 	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 
 	// BP protocol handlers

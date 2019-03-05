@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/types"
 
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
@@ -77,7 +78,7 @@ var sampleTxsB58 = []string{
 }
 
 var sampleTxs [][]byte
-var sampleTxHashes []TxHash
+var sampleTxHashes []types.TxID
 
 var sampleBlksB58 = []string{
 	"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
@@ -88,11 +89,11 @@ var sampleBlksB58 = []string{
 	"3bmB8D37XZr4DNPs64NiGRa2Vw3i8VEgEy6Xc2XBmRXC",
 }
 var sampleBlks [][]byte
-var sampleBlksHashes []BlkHash
+var sampleBlksHashes []types.BlockID
 
 func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
-	sampleTxHashes = make([]TxHash, len(sampleTxsB58))
+	sampleTxHashes = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
 		hash, _ := enc.ToBytes(hashb58)
 		sampleTxs[i] = hash
@@ -100,7 +101,7 @@ func init() {
 	}
 
 	sampleBlks = make([][]byte, len(sampleBlksB58))
-	sampleBlksHashes = make([]BlkHash, len(sampleBlksB58))
+	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
 	for i, hashb58 := range sampleTxsB58 {
 		hash, _ := enc.ToBytes(hashb58)
 		sampleBlks[i] = hash

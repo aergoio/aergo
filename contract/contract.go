@@ -48,29 +48,30 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (string, error) {
+	sender, receiver *state.V, preLoadService int) (string, []*types.Event, error) {
 
 	txBody := tx.GetBody()
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
 		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
-			return "", types.ErrInsufficientBalance
+			return "", nil, types.ErrInsufficientBalance
 		}
 		sender.SubBalance(txBody.GetAmountBigInt())
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
 	if !receiver.IsCreate() && len(receiver.State().CodeHash) == 0 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	var rv string
+	var events []*types.Event
 	var ex *Executor
 	if !receiver.IsCreate() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
@@ -85,35 +86,35 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 			break
 		}
 		if err != nil {
-			return "", err
+			return "", events, err
 		}
 	}
 	if ex != nil {
-		rv, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
+		rv, events, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
 		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
-			rv, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
 	if err != nil {
 		if isSystemError(err) {
-			return "", err
+			return "", events, err
 		}
-		return "", newVmError(err)
+		return "", events, newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
-		return "", err
+		return "", events, err
 	}
 
-	return rv, nil
+	return rv, events, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {
@@ -127,8 +128,11 @@ func preLoadWorker() {
 		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
 
 		if len(replyCh) > 2 {
-			preload := <-replyCh
-			preload.ex.close()
+			select {
+			case preload := <-replyCh:
+				preload.ex.close()
+			default:
+			}
 		}
 
 		bs := reqInfo.bs
@@ -136,8 +140,7 @@ func preLoadWorker() {
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
-		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 ||
-			txBody.Payload == nil {
+		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 {
 			continue
 		}
 

@@ -27,7 +27,7 @@ func (_m *MockSyncManager) HandleGetBlockResponse(peer RemotePeer, msg Message, 
 }
 
 // HandleNewTxNotice provides a mock function with given fields: peer, hashes, data
-func (_m *MockSyncManager) HandleNewTxNotice(peer RemotePeer, hashes []TxHash, data *types.NewTransactionsNotice) {
+func (_m *MockSyncManager) HandleNewTxNotice(peer RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice) {
 	_m.Called(peer, hashes, data)
 }
 

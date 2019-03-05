@@ -162,15 +162,23 @@ func (dpos *DPoS) bpid() peer.ID {
 
 // VerifyTimestamp checks the validity of the block timestamp.
 func (dpos *DPoS) VerifyTimestamp(block *types.Block) bool {
-	ts := block.GetHeader().GetTimestamp()
-	isFuture := slot.NewFromUnixNano(ts).IsFuture()
 
-	if isFuture {
+	if ts := block.GetHeader().GetTimestamp(); slot.NewFromUnixNano(ts).IsFuture() {
 		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
 			Time("timestamp", time.Unix(0, ts)).Msg("block has a future timestamp")
+		return false
 	}
 
-	return !isFuture
+	// Reject the blocks with no <= LIB since it cannot lead to a
+	// reorganization.
+	if dpos.Status != nil && block.BlockNo() <= dpos.libBlockNo() {
+		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
+			Uint64("block no", block.BlockNo()).Uint64("lib no", dpos.libBlockNo()).
+			Msg("too small block number (<= LIB number)")
+		return false
+	}
+
+	return true
 }
 
 // VerifySign reports the validity of the block signature.

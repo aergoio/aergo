@@ -19,12 +19,11 @@ import (
 func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	sampleBlock := &types.Block{Hash:dummyBlockHash}
-	var blkHash BlkHash
-	copy(blkHash[:], dummyBlockHash)
+	var blkHash = types.ToBlockID(dummyBlockHash)
 	// test if new block notice comes
 	tests := []struct {
 		name string
-		put *BlkHash
+		put *types.BlockID
 
 		wantActorCall bool
 	}{
@@ -60,18 +59,18 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
 	sampleBlock := &types.Block{Hash:dummyBlockHash}
-	var blkHash BlkHash
+	var blkHash types.BlockID
 	// test if new block notice comes
 	tests := []struct {
 		name string
-		put *BlkHash
+		put *types.BlockID
 		syncing bool
-		setup func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice)
+		setup func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (types.BlockID,*types.NewBlockNotice)
 		verify func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor)
 	}{
 		// 1. Succ : valid block hash and not exist in local
 		{"TSucc", nil, false,
-		func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+		func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (types.BlockID,*types.NewBlockNotice) {
 			ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(nil, nil)
 			copy(blkHash[:], dummyBlockHash)
 			return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -82,7 +81,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 		}},
 		// 1-1. Succ : valid block hash and exist in chainsvc, but not in cache
 		{"TSuccExistChain", nil,false,
-			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (types.BlockID,*types.NewBlockNotice) {
 				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -93,7 +92,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			}},
 		// 2. SuccCachehit : valid block hash but already exist in local cache
 		{"TSuccExistCache", &blkHash,false,
-			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (types.BlockID,*types.NewBlockNotice) {
 				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -104,7 +103,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 			}},
 		// 2. Busy : other sync worker is working
 		{"TBusy", &blkHash,true,
-			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (BlkHash,*types.NewBlockNotice) {
+			func(tt *testing.T, actor *MockActorService, ca *MockChainAccessor) (types.BlockID,*types.NewBlockNotice) {
 				ca.On("GetBlock", mock.AnythingOfType("[]uint8")).Return(sampleBlock, nil)
 				copy(blkHash[:], dummyBlockHash)
 				return blkHash, &types.NewBlockNotice{BlockHash:dummyBlockHash}
@@ -147,9 +146,9 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 	// test if new block notice comes
 	tests := []struct {
 		name string
-		inCache []TxHash
+		inCache []types.TxID
 		verify func(tt *testing.T, actor *MockActorService)
-		expected []TxHash
+		expected []types.TxID
 	}{
 		// 1. Succ : valid tx hashes and not exist in local cache
 		{"TSuccAllNew", nil,

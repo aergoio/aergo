@@ -896,6 +896,9 @@ func IsPublic() C.int {
 //export LuaRandom
 func LuaRandom(L *LState, service C.int) C.int {
 	stateSet := curStateSet[service]
+	if stateSet.seed == nil {
+		setRandomSeed(stateSet)
+	}
 	switch C.lua_gettop(L) {
 	case 0:
 		C.lua_pushnumber(L, C.double(stateSet.seed.Float64()))
@@ -920,4 +923,23 @@ func LuaRandom(L *LState, service C.int) C.int {
 		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(max+C.lua_Integer(1)-min)))+min)
 	}
 	return 1
+}
+
+//export LuaEvent
+func LuaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) C.int {
+	stateSet := curStateSet[*service]
+	if stateSet.isQuery == true {
+		luaPushStr(L, "[Contract.Event] event not permitted in query")
+		return -1
+	}
+	stateSet.events = append(stateSet.events,
+		&types.Event{
+			ContractAddress: stateSet.curContract.contractId,
+			EventIdx:        stateSet.eventCount,
+			EventName:       C.GoString(eventName),
+			JsonArgs:        C.GoString(args),
+		})
+	stateSet.eventCount++
+
+	return 0
 }

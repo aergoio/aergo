@@ -5,6 +5,8 @@ import "math/big"
 const AergoSystem = "aergo.system"
 const AergoName = "aergo.name"
 
+const MaxCandidates = 30
+
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {
 	result := new(big.Int).SetBytes(vl.Votes[i].Amount).Cmp(new(big.Int).SetBytes(vl.Votes[j].Amount))

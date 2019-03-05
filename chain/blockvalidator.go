@@ -8,7 +8,6 @@ package chain
 import (
 	"bytes"
 	"errors"
-
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -111,7 +110,7 @@ func (bv *BlockValidator) WaitVerifyDone() error {
 	return nil
 }
 
-func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts types.Receipts, block *types.Block) error {
+func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts, block *types.Block) error {
 	hdrRoot := block.GetHeader().GetBlocksRootHash()
 
 	if !bytes.Equal(hdrRoot, sdbRoot) {

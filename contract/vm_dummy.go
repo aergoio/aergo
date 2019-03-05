@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -30,8 +31,10 @@ type DummyChain struct {
 	testReceiptDB db.DB
 }
 
+var addressRegexp *regexp.Regexp
+
 func init() {
-	StartLStateFactory()
+	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 }
 
 func LoadDummyChain() (*DummyChain, error) {
@@ -53,6 +56,7 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadDatabase(dataPath) // sql database
+	StartLStateFactory()
 
 	return bc, nil
 }
@@ -112,6 +116,13 @@ func NewLuaTxAccount(name string, balance uint64) *luaTxAccount {
 	}
 }
 
+func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
+	return &luaTxAccount{
+		name:    strHash(name),
+		balance: balance,
+	}
+}
+
 func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
@@ -132,11 +143,11 @@ type luaTxSend struct {
 	balance  *big.Int
 }
 
-func NewLuaTxSend(sender, receiver string, balance uint64) *luaTxSend {
+func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	return &luaTxSend{
 		sender:   strHash(sender),
 		receiver: strHash(receiver),
-		balance:  new(big.Int).SetUint64(balance),
+		balance:  balance,
 	}
 }
 
@@ -211,11 +222,17 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 }
 
 func strHash(d string) []byte {
-	h := sha256.New()
-	h.Write([]byte(d))
-	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
-	return b
+	// using real address
+	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
+		return types.ToAddress(d)
+	} else {
+		// using alias
+		h := sha256.New()
+		h.Write([]byte(d))
+		b := h.Sum(nil)
+		b = append([]byte{0x0C}, b...)
+		return b
+	}
 }
 
 var luaTxId uint64 = 0
@@ -229,7 +246,6 @@ func (l *luaTxDef) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
 	return b
 }
 
@@ -297,7 +313,7 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlock
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
-			_, err := Create(eContractState, l.code, l.contract, stateSet)
+			_, _, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
 			}
@@ -327,11 +343,22 @@ func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCal
 	}
 }
 
+func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *luaTxCall {
+	return &luaTxCall{
+		luaTxCommon: luaTxCommon{
+			sender:   strHash(sender),
+			contract: strHash(contract),
+			amount:   amount,
+			code:     []byte(code),
+			id:       newTxId(),
+		},
+	}
+}
+
 func (l *luaTxCall) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
-	b = append([]byte{0x0C}, b...)
 	return b
 }
 
@@ -347,15 +374,18 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBloc
 			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
-			rv, err := Call(eContractState, l.code, l.contract, stateSet)
+			rv, evs, err := Call(eContractState, l.code, l.contract, stateSet)
 			_ = bs.StageContractState(eContractState)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
+				r.TxHash = l.hash()
 				b, _ := r.MarshalBinary()
 				receiptTx.Set(l.hash(), b)
 				return err
 			}
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
+			r.Events = evs
+			r.TxHash = l.hash()
 			b, _ := r.MarshalBinary()
 			receiptTx.Set(l.hash(), b)
 			return nil

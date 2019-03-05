@@ -2,7 +2,8 @@ package exec
 
 import (
 	"fmt"
-	"strconv"
+	"math/big"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -43,15 +44,15 @@ func (c *sendCoin) Validate(args string) error {
 	return err
 }
 
-func (c *sendCoin) parse(args string) (string, string, uint64, error) {
+func (c *sendCoin) parse(args string) (string, string, *big.Int, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 3 {
-		return "", "", 0, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
+		return "", "", nil, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
 	}
 
-	amount, err := strconv.ParseUint(splitArgs[2].Text, 10, 64)
-	if err != nil {
-		return "", "", 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+	amount, success := new(big.Int).SetString(splitArgs[2].Text, 10)
+	if success == false {
+		return "", "", nil, fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}
 
 	return splitArgs[0].Text,
@@ -63,15 +64,25 @@ func (c *sendCoin) parse(args string) (string, string, uint64, error) {
 func (c *sendCoin) Run(args string) (string, error) {
 	senderName, receiverName, amount, _ := c.parse(args)
 
+	// assuming target is contract
 	err := context.Get().ConnectBlock(
-		contract.NewLuaTxSend(senderName, receiverName, amount),
+		contract.NewLuaTxCallBig(senderName, receiverName, amount, ""),
 	)
 
-	if err != nil {
+	if err != nil && strings.HasPrefix(err.Error(), "cannot find contract") {
+		// retry to normal address
+		err := context.Get().ConnectBlock(
+			contract.NewLuaTxSendBig(senderName, receiverName, amount),
+		)
+		if err != nil {
+			return "", err
+		}
+	} else if err != nil {
 		return "", err
 	}
 
 	Index(context.AccountSymbol, receiverName)
 
 	return "send aergo successfully", nil
+
 }

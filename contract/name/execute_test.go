@@ -12,27 +12,77 @@ func TestExcuteNameTx(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	txBody := &types.TxBody{}
-
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	txBody.Recipient = []byte(types.AergoName)
 
 	name := "AB1234567890"
-	txBody.Payload = buildNamePayload(name, 'c', nil)
+	txBody.Payload = buildNamePayload(name, types.NameCreate, "")
 
 	sender, _ := sdb.GetStateDB().GetAccountStateV(txBody.Account)
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := ExecuteNameTx(scs, txBody, sender, receiver, 0)
+	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
 	assert.NoError(t, err, "execute name tx")
 
-	commitContractState(t, bs, scs)
+	//race
+	tmpAddress := "AmNHAxiGbZJjKjdGGNj2NBoAXGwdzX9Bg59eqbek9n49JpiaZ3As"
+	txBody.Account = types.ToAddress(tmpAddress)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	assert.Error(t, err, "race execute name tx")
 
+	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
+	commitContractState(t, bs, scs)
 	scs = openContractState(t, bs)
+
 	ret := GetAddress(scs, []byte(name))
 	assert.Equal(t, txBody.Account, ret, "pubkey address")
+	ret = GetOwner(scs, []byte(name))
+	assert.Equal(t, txBody.Account, ret, "pubkey owner")
 
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	assert.Error(t, err, "execute name tx")
+
+	buyer := "AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay"
+	txBody.Payload = buildNamePayload(name, types.NameUpdate, buyer)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 1)
+	assert.NoError(t, err, "execute to update name")
+
+	commitContractState(t, bs, scs)
+	scs = openContractState(t, bs)
+
+	ret = GetAddress(scs, []byte(name))
+	assert.Equal(t, buyer, types.EncodeAddress(ret), "pubkey address")
+	ret = GetOwner(scs, []byte(name))
+	assert.Equal(t, buyer, types.EncodeAddress(ret), "pubkey owner")
+
+	//invalid case
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 2)
+	assert.Error(t, err, "execute invalid updating name")
+
+	txBody.Payload = txBody.Payload[1:]
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, 2)
+	assert.Error(t, err, "execute invalid payload")
+}
+
+func TestExcuteFailNameTx(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	txBody := &types.TxBody{}
+
+	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
+	txBody.Recipient = []byte(types.AergoName)
+
+	name := "AB1234567890"
+	txBody.Payload = buildNamePayload(name, types.NameCreate+"Broken", "")
+
+	sender, _ := sdb.GetStateDB().GetAccountStateV(txBody.Account)
+	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
+	bs := sdb.NewBlockState(sdb.GetRoot())
+	scs := openContractState(t, bs)
+	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, 0)
+	assert.Error(t, err, "execute name tx")
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
