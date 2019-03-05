@@ -144,9 +144,6 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 		prevBlockHash: prevBlockHash,
 		service:       C.int(service),
 	}
-	if blockHeight > 0 { // No Preload
-		setRandomSeed(stateSet)
-	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
 	if sender != nil {
@@ -170,7 +167,6 @@ func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 		timestamp:   time.Now().UnixNano(),
 		isQuery:     true,
 	}
-	setRandomSeed(stateSet)
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[types.ToAccountID(receiverId)] = callState
 
@@ -570,7 +566,6 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.timestamp = ts
 	stateSet.curContract.rp = rp
 	stateSet.prevBlockHash = prevBlockHash
-	setRandomSeed(stateSet)
 
 	curStateSet[stateSet.service] = stateSet
 	ce.setCountHook(callMaxInstLimit)

@@ -950,8 +950,9 @@ func (rpc *AergoRPCService) ListEventStream(in *types.FilterInfo, stream types.A
 	if err != nil {
 		return err
 	}
-	rpc.eventStreamLock.Lock()
+
 	eventStream := &EventStream{in, stream}
+	rpc.eventStreamLock.Lock()
 	rpc.eventStream[eventStream] = eventStream
 	rpc.eventStreamLock.Unlock()
 
