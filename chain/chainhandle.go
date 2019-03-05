@@ -158,10 +158,18 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 	from := filter.Blockfrom
 	to := filter.Blockto
 
-	if to == 0 {
+	if filter.RecentBlockCnt > 0 {
 		to = cs.cdb.getBestBlockNo()
+		if to <= uint64(filter.RecentBlockCnt) {
+			from = 0
+		} else {
+			from = to - uint64(filter.RecentBlockCnt)
+		}
+	} else {
+		if to == 0 {
+			to = cs.cdb.getBestBlockNo()
+		}
 	}
-
 	err := filter.ValidateCheck(to)
 	if err != nil {
 		return nil, err

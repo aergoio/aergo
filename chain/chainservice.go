@@ -89,40 +89,37 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	return nil
 }
 
-func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
-	gh, _ := core.cdb.getHashByNo(0)
-	if len(gh) == 0 {
-		latest := core.cdb.getBestBlockNo()
-		logger.Info().Uint64("num", latest).Msg("current latest")
-		if latest == 0 {
-			if genesis == nil {
-				genesis = types.GetDefaultGenesis()
-			}
+func (core *Core) initGenesis(genesis *types.Genesis, testnet bool) (*types.Block, error) {
 
-			err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
-				return nil, err
-			}
+	exist := core.cdb.GetGenesisInfo()
+	if exist == nil {
+		logger.Info().Msg("generating genesis block..")
 
-			err = core.cdb.addGenesisBlock(genesis)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot add genesisblock")
-				return nil, err
-			}
+		if testnet {
+			genesis = types.GetTestNetGenesis()
+		} else if genesis == nil {
+			return nil, errors.New("mainnet will be launched soon")
+		}
 
-			logger.Info().Msg("genesis block is generated")
+		err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
+			return nil, err
+		}
+
+		err = core.cdb.addGenesisBlock(genesis)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot add genesisblock")
+			return nil, err
 		}
 	}
-
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	initChainEnv(core.cdb.GetGenesisInfo())
 
 	contract.StartLStateFactory()
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.GetHash())).
-		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
+	logger.Info().Str("genesis", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
 
 	return genesisBlock, nil
 }
@@ -143,8 +140,8 @@ func (core *Core) Close() {
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
-func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
-	_, err := core.initGenesis(gb)
+func (core *Core) InitGenesisBlock(gb *types.Genesis, useTestnet bool) error {
+	_, err := core.initGenesis(gb, useTestnet)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
 		return err
@@ -218,8 +215,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init genesis block
-	if _, err := cs.initGenesis(nil); err != nil {
+	if _, err := cs.initGenesis(nil, cfg.UseTestnet); err != nil {
 		logger.Fatal().Err(err).Msg("failed to create a genesis block")
+		panic("failed to init genesis block")
 	}
 
 	top, err := cs.getVotes(1)

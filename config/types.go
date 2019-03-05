@@ -31,6 +31,7 @@ type BaseConfig struct {
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
+	UseTestnet     bool   `mapstructure:"usetestnet" description:"need description"`
 	Personal       bool   `mapstructure:"personal" description:"enable personal account service"`
 	AuthDir        string `mapstructure:"authdir" description:"Directory to store files for auth"`
 }
@@ -138,6 +139,7 @@ dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enabletestmode = {{.BaseConfig.EnableTestmode}}
+usetestnet= {{.BaseConfig.UseTestnet}}
 personal = {{.BaseConfig.Personal}}
 authdir = "{{.BaseConfig.AuthDir}}"
 

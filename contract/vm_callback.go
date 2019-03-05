@@ -896,6 +896,9 @@ func IsPublic() C.int {
 //export LuaRandom
 func LuaRandom(L *LState, service C.int) C.int {
 	stateSet := curStateSet[service]
+	if stateSet.seed == nil {
+		setRandomSeed(stateSet)
+	}
 	switch C.lua_gettop(L) {
 	case 0:
 		C.lua_pushnumber(L, C.double(stateSet.seed.Float64()))

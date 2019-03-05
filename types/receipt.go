@@ -608,10 +608,17 @@ func (fi *FilterInfo) ValidateCheck(to uint64) error {
 	} else if len(fi.ContractAddress) != AddressLength {
 		return errors.New("invalid contractAddress:" + string(fi.ContractAddress))
 	}
+	if fi.RecentBlockCnt > 0 {
+		if fi.RecentBlockCnt > MAXBLOCKRANGE {
+			return errors.New(fmt.Sprintf("too large value at recentBlockCnt %d (max %d)",
+				fi.RecentBlockCnt, MAXBLOCKRANGE))
+		}
 
-	if fi.Blockfrom+MAXBLOCKRANGE < to {
-		return errors.New(fmt.Sprintf("too large block range(max %d) from %d to %d",
-			MAXBLOCKRANGE, fi.Blockfrom, to))
+	} else {
+		if fi.Blockfrom+MAXBLOCKRANGE < to {
+			return errors.New(fmt.Sprintf("too large block range(max %d) from %d to %d",
+				MAXBLOCKRANGE, fi.Blockfrom, to))
+		}
 	}
 	return nil
 }
