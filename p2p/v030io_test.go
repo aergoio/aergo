@@ -21,11 +21,11 @@ import (
 
 func init() {
 	sampleTxs = make([][]byte, len(sampleTxsB58))
-	sampleTxHashes = make([]TxHash, len(sampleTxsB58))
+	sampleTxHashes = make([]types.TxID, len(sampleTxsB58))
 	for i, hashb58 := range sampleTxsB58 {
 		hash, _ := enc.ToBytes(hashb58)
 		sampleTxs[i] = hash
-		copy(sampleTxHashes[i][:], hash)
+		sampleTxHashes[i] = types.ToTxID(hash)
 	}
 }
 

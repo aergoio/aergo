@@ -50,7 +50,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	dummyP2PServ := new(MockPeerManager)
 	mockMF := new(MockMoFactory)
 	dummyRW := new(MockMsgReadWriter)
-	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
+	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
 
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
@@ -104,7 +104,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			mockOrder.On("GetMsgID").Return(sampleMsgID)
 			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
 
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, dummyRW)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, dummyRW)
 			p.state.SetAndGet(types.RUNNING)
 			go p.runWrite()
 			p.state.SetAndGet(types.RUNNING)
@@ -146,7 +146,7 @@ func TestRemotePeer_sendPing(t *testing.T) {
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
 			mockMF.On("signMsg", mock.AnythingOfType("*types.P2PMessage")).Return(nil)
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, nil, nil, nil)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, nil, nil, nil)
 			p.state.SetAndGet(types.RUNNING)
 
 			go p.sendPing()
@@ -186,7 +186,7 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		mockStream := new(MockStream)
 		mockStream.On("Close").Return(nil)
 
-		p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, nil)
+		p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, nil)
 		t.Run(tt.name, func(t *testing.T) {
 			mid1, mid2, midn := NewMsgID(), NewMsgID(), NewMsgID()
 			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid1}}, nil}}
@@ -229,7 +229,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 			wg.Add(1)
 			wg2 := &sync.WaitGroup{}
 			wg2.Add(1)
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, nil, nil, nil, nil)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, nil, nil)
 			p.state.SetAndGet(types.RUNNING)
 
 			if !tt.timeout {
@@ -309,7 +309,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 			mockMsgHandler.On("handle", mock.Anything, mock.Anything)
 			mockSigner.On("verifyMsg", mock.Anything, mock.Anything).Return(nil)
 
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			target.handlers[PingRequest] = mockMsgHandler
 
 			if err := target.handleMsg(msg); (err != nil) != tt.wantErr {
@@ -337,7 +337,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 func TestRemotePeer_sendTxNotices(t *testing.T) {
 	t.Skip("meanningless after 20181030 refactoring")
 	sampleSize := DefaultPeerTxQueueSize << 1
-	sampleHashes := make([]TxHash, sampleSize)
+	sampleHashes := make([]types.TxID, sampleSize)
 	maxTxHashSize := 100
 	for i := 0; i < sampleSize; i++ {
 		sampleHashes[i] = generateHash(uint64(i))
@@ -366,7 +366,7 @@ func TestRemotePeer_sendTxNotices(t *testing.T) {
 
 			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockOrder)
 
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			target.maxTxNoticeHashSize = maxTxHashSize
 
 			for i := 0; i < test.initCnt; i++ {
@@ -377,8 +377,8 @@ func TestRemotePeer_sendTxNotices(t *testing.T) {
 		})
 	}
 }
-func generateHash(i uint64) TxHash {
-	bs := TxHash{}
+func generateHash(i uint64) types.TxID {
+	bs := types.TxID{}
 	binary.LittleEndian.PutUint64(bs[:], i)
 	return bs
 }
@@ -387,9 +387,9 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		hash        BlkHash
-		inCache     []BlkHash
-		prevLastBlk BlkHash
+		hash        types.BlockID
+		inCache     []types.BlockID
+		prevLastBlk types.BlockID
 		expected    bool
 	}{
 		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
@@ -403,7 +403,7 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 			mockSigner := new(mockMsgSigner)
 			mockMF := new(MockMoFactory)
 
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
@@ -418,13 +418,13 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 	tests := []struct {
 		name     string
-		hashes   []TxHash
-		inCache  []TxHash
-		expected []TxHash
+		hashes   []types.TxID
+		inCache  []types.TxID
+		expected []types.TxID
 	}{
 		{"TAllNew", sampleTxHashes, sampleTxHashes[:0], sampleTxHashes},
 		{"TPartial", sampleTxHashes, sampleTxHashes[2:], sampleTxHashes[:2]},
-		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]TxHash, 0)},
+		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]types.TxID, 0)},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -434,7 +434,7 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 			mockSigner := new(mockMsgSigner)
 			mockMF := new(MockMoFactory)
 
-			target := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			for _, hash := range test.inCache {
 				target.txHashCache.Add(hash, true)
 			}
@@ -447,14 +447,14 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 
 func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 	sampleSize := 100
-	sampleHashes := make([]TxHash, sampleSize)
+	sampleHashes := make([]types.TxID, sampleSize)
 	maxTxHashSize := 10
 	for i := 0; i < sampleSize; i++ {
 		sampleHashes[i] = generateHash(uint64(i))
 	}
 	tests := []struct {
 		name       string
-		in         []TxHash
+		in         []types.TxID
 		expectSend int
 	}{
 		// 1. single tx
@@ -478,7 +478,7 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 
 			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockMO)
 
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			p.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
 			p.maxTxNoticeHashSize = maxTxHashSize
 			//p.write.Open()
@@ -525,7 +525,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			mockPeerManager := new(MockPeerManager)
 			mockSigner := new(mockMsgSigner)
 			mockMF := new(MockMoFactory)
-			p := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			for _, add := range test.toAdd {
 				p.requests[add] = &requestInfo{receiver: recvList[add]}
 			}

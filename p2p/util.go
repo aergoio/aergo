@@ -9,13 +9,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"net"
 	"reflect"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
@@ -24,13 +24,16 @@ import (
 
 // frequently used constants for indicating p2p log category
 const (
-	LogPeerID  = "peer_id"
-	LogProtoID = "protocol_id"
-	LogMsgID   = "msg_id"
-	LogBlkHash = "blk_hash"
+	LogPeerID   = "peer_id"
+	// LogFullID is Full qualified peer id
+	LogFullID  = "full_id"
+	LogPeerName  = "peer_nm"
+	LogProtoID  = "protocol_id"
+	LogMsgID    = "msg_id"
+	LogBlkHash  = "blk_hash"
 	LogBlkCount = "blk_cnt"
-	LogTxHash  = "tx_hash"
-	LogTxCount = "tx_cnt"
+	LogTxHash   = "tx_hash"
+	LogTxCount  = "tx_cnt"
 )
 
 // ActorService is collection of helper methods to use actor
@@ -100,7 +103,11 @@ func extractTXs(from *message.MemPoolGetRsp) ([]*types.Tx, error) {
 	if from.Err != nil {
 		return nil, from.Err
 	}
-	return from.Txs, nil
+	txs := make([]*types.Tx, 0)
+	for _, x := range from.Txs {
+		txs = append(txs, x.GetTx())
+	}
+	return txs, nil
 }
 
 func setIP(a *types.PeerAddress, ipAddress net.IP) {
@@ -149,24 +156,22 @@ func externalIP() (net.IP, error) {
 	return nil, errors.New("no external ip address found")
 }
 
-func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peerID peer.ID,
-	additional interface{}) {
+func debugLogReceiveMsg(logger *log.Logger, protocol SubProtocol, msgID string, peer RemotePeer, additional interface{}) {
 	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a message")
 	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_id", peerID.Pretty()).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).
 			Msg("Received a message")
 	}
 }
 
-func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peerID peer.ID,
-	additional interface{}) {
+func debugLogReceiveResponseMsg(logger *log.Logger, protocol SubProtocol, msgID string, reqID string, peer RemotePeer, additional interface{}) {
 	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).Str("other", fmt.Sprint(additional)).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a response message")
 	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_id", peerID.Pretty()).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).
 			Msg("Received a response message")
 	}
 }
@@ -227,7 +232,7 @@ func PrintHashList(blocks []*types.Block) string {
 	case 0:
 		return "blk_cnt=0"
 	case 1:
-		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)",enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo)
+		return fmt.Sprintf("blk_cnt=1,hash=%s(num %d)", enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo)
 	default:
 		return fmt.Sprintf("blk_cnt=%d,firstHash=%s(num %d),lastHash=%s(num %d)", l, enc.ToString(blocks[0].Hash), blocks[0].Header.BlockNo, enc.ToString(blocks[l-1].Hash), blocks[l-1].Header.BlockNo)
 	}

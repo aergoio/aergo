@@ -210,7 +210,6 @@ static int moduleSend(lua_State *L)
 static int moduleBalance(lua_State *L)
 {
 	char *contract;
-	int ret;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer amount;
 
@@ -223,7 +222,7 @@ static int moduleBalance(lua_State *L)
     else {
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
-	if ((ret = LuaGetBalance(L, service, contract)) < 0) {
+	if (LuaGetBalance(L, service, contract) < 0) {
 		lua_error(L);
 	}
 
@@ -300,6 +299,28 @@ static int moduleDeploy(lua_State *L)
 	return ret;
 }
 
+static int moduleEvent(lua_State *L)
+{
+	char *event_name;
+	char *json_args;
+	int *service = (int *)getLuaExecContext(L);
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+
+	event_name = (char *)luaL_checkstring(L, 1);
+	json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), false);
+	if (json_args == NULL) {
+		lua_error(L);
+	}
+	if (LuaEvent(L, service, event_name, json_args) < 0) {
+	    lua_error(L);
+	}
+	free(json_args);
+	return 0;
+}
+
 static const luaL_Reg call_methods[] = {
 	{"value", call_value},
 	{"gas", call_gas},
@@ -335,6 +356,7 @@ static const luaL_Reg contract_lib[] = {
 	{"balance", moduleBalance},
 	{"send", moduleSend},
 	{"pcall", modulePcall},
+	{"event", moduleEvent},
 	{NULL, NULL}
 };
 

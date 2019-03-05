@@ -5,90 +5,76 @@
 package system
 
 import (
-	"math"
+	"encoding/json"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-const FutureBlockNo = math.MaxUint64
-const lsep = byte(':')
-const vsep = byte(',')
+func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
+	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
 
-func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody, sender *state.V,
-	blockNo types.BlockNo) error {
-
-	systemCmd, err := getSystemCmd(txBody.GetPayload())
-
-	switch systemCmd {
-	case 's':
-		err = staking(txBody, sender, scs, blockNo)
-	case 'v':
-		err = voting(txBody, sender, scs, blockNo)
-	case 'u':
-		err = unstaking(txBody, sender, scs, blockNo)
+	ci, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
+	if err != nil {
+		return nil, err
+	}
+	var event *types.Event
+	switch ci.Name {
+	case types.Stake:
+		event, err = staking(txBody, sender, receiver, scs, blockNo)
+	case types.VoteBP:
+		event, err = voting(txBody, sender, receiver, scs, blockNo, ci)
+	case types.Unstake:
+		event, err = unstaking(txBody, sender, receiver, scs, blockNo, ci)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return nil
+	var events []*types.Event
+	events = append(events, event)
+	return events, nil
 }
 
-func ValidateSystemTx(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
-	systemCmd, err := getSystemCmd(txBody.GetPayload())
-	switch systemCmd {
-	case 's':
-		err = validateForStaking(txBody, scs, blockNo)
-	case 'v':
-		if len(txBody.Payload[1:])%PeerIDLength != 0 {
-			return types.ErrTxFormatInvalid
+func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
+	scs *state.ContractState, blockNo uint64) (*types.CallInfo, error) {
+	var ci types.CallInfo
+	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
+		return nil, types.ErrTxInvalidPayload
+	}
+	var err error
+	switch ci.Name {
+	case types.Stake:
+		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
+			return nil, types.ErrInsufficientBalance
 		}
-		for offset := 0; offset < len(txBody.Payload[1:]); offset += PeerIDLength {
-			_, err := peer.IDFromBytes(txBody.Payload[offset+1 : offset+PeerIDLength+1])
-			if err != nil {
-				return err
-			}
-		}
+	case types.VoteBP,
+		types.VoteFee,
+		types.VoteNumBP:
 		staked, err := getStaking(scs, account)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
-			return types.ErrMustStakeBeforeVote
+			return nil, types.ErrMustStakeBeforeVote
 		}
-		oldvote, err := getVote(scs, account)
+		oldvote, err := GetVote(scs, account)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
-			//logger.Debug().Uint64("when", when).Uint64("blockNo", blockNo).Msg("remain voting delay")
-			return types.ErrLessTimeHasPassed
+			return nil, types.ErrLessTimeHasPassed
 		}
-	case 'u':
+	case types.Unstake:
 		_, err = validateForUnstaking(account, txBody, scs, blockNo)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
-}
-
-func validateForStaking(txBody *types.TxBody, scs *state.ContractState, blockNo uint64) error {
-	amount := txBody.GetAmountBigInt()
-	if amount.Cmp(types.StakingMinimum) < 0 {
-		return types.ErrTooSmallAmount
-	}
-	return nil
+	return &ci, nil
 }
 
 func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
-	amount := txBody.GetAmountBigInt()
-	if amount.Cmp(types.StakingMinimum) < 0 {
-		return nil, types.ErrTooSmallAmount
-	}
 	staked, err := getStaking(scs, account)
 	if err != nil {
 		return nil, err
@@ -100,11 +86,4 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 		return nil, types.ErrLessTimeHasPassed
 	}
 	return staked, nil
-}
-
-func getSystemCmd(payload []byte) (byte, error) {
-	if len(payload) <= 0 {
-		return 0, types.ErrTxFormatInvalid
-	}
-	return payload[0], nil
 }

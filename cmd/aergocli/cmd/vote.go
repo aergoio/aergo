@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
@@ -49,27 +50,29 @@ func execVote(cmd *cobra.Command, args []string) {
 		}
 		to = string(b)
 	}
-	var candidates []string
-	err = json.Unmarshal([]byte(to), &candidates)
+	var ci types.CallInfo
+	ci.Name = types.VoteBP
+	err = json.Unmarshal([]byte(to), &ci.Args)
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
 
-	payload := make([]byte, (len(candidates)*PeerIDLength)+1)
-	payload[0] = 'v'
-	for i, v := range candidates {
-		candidate, err := base58.Decode(v)
+	for i, v := range ci.Args {
+		if i >= types.MaxCandidates {
+			cmd.Println("too many candidates")
+			return
+		}
+		candidate, err := base58.Decode(v.(string))
 		if err != nil {
-			cmd.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
 			return
 		}
 		_, err = peer.IDFromBytes(candidate)
 		if err != nil {
-			cmd.Printf("Failed: %s\n", err.Error())
+			cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
 			return
 		}
-		copy(payload[1+(i*PeerIDLength):], candidate)
 	}
 
 	txs := make([]*types.Tx, 1)
@@ -80,7 +83,11 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-
+	payload, err := json.Marshal(ci)
+	if err != nil {
+		cmd.Printf("Failed: %s\n", err.Error())
+		return
+	}
 	txs[0] = &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
@@ -91,6 +98,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			Nonce:     state.GetNonce() + 1,
 		},
 	}
+	//cmd.Println(string(payload))
 	//TODO : support local
 	tx, err := client.SignTX(context.Background(), txs[0])
 	if err != nil {
@@ -104,16 +112,12 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-
-	for _, r := range msg.Results {
-		cmd.Println("voting hash :", base58.Encode(r.Hash), r.Error, r.Detail)
-		return
-	}
+	cmd.Println(util.JSON(msg))
 }
 
 var voteStatCmd = &cobra.Command{
-	Use:   "votestat",
-	Short: "show voting stat",
+	Use:   "bp",
+	Short: "show bp voting stat",
 	Run:   execVoteStat,
 }
 

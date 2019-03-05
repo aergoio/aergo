@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -82,6 +83,7 @@ func initConfig() {
 }
 
 func Execute() {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

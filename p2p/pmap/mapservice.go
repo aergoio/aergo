@@ -8,6 +8,10 @@ package pmap
 import (
 	"bufio"
 	"fmt"
+	"math"
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -20,26 +24,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	inet "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/libp2p/go-libp2p-protocol"
-	"math"
-	"sync"
-	"time"
-)
-
-// subprotocol for polaris
-const (
-	PolarisMapSub  protocol.ID = "/polaris/0.1"
-	PolarisPingSub protocol.ID = "/ping/0.1"
-)
-const (
-	MapQuery p2p.SubProtocol = 0x0100 + iota
-	MapResponse
 )
 
 // internal
 const (
 	PolarisConnectionTTL = time.Second * 30
-	PolarisPingTTL = PolarisConnectionTTL >> 1
+	PolarisPingTTL       = PolarisConnectionTTL >> 1
 
 	// polaris will return peers list at most this number
 	ResponseMaxPeerLimit = 500
@@ -56,9 +46,9 @@ var (
 )
 
 var (
-	// 89.15 is floor of declination of Polaris
+	// 89.16 is ceiling of declination of Polaris
 	MainnetMapServer = []string{
-		"/dns/polaris.aergo.io/tcp/8915/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
 
 	// 89.16 is ceiling of declination of Polaris
@@ -73,9 +63,14 @@ var (
 
 func init() {
 	// mainnet is not opened yet and have some unconfirmed values now, this values will be changed after the spec of mainnet is determined.
-	ONEMainNet = types.ChainID{PublicNet: true, MainNet:true,CoinbaseFee:"1000000000",Consensus:"dpos",Magic:"mainnet.aergo.io"}
+	//FIXME
+	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, CoinbaseFee: "1000000000", Consensus: "dpos", Magic: "mainnet.aergo.io"}
 
-	ONETestNet = types.ChainID{PublicNet: true, MainNet:false,CoinbaseFee:"1000000000",Consensus:"dpos",Magic:"testnet.aergo.io"}
+	tnGen := types.GetTestNetGenesis()
+	if tnGen == nil {
+		panic("Failed to get TestNet GenesisInfo")
+	}
+	ONETestNet = tnGen.ID
 }
 
 type mapService interface {
@@ -94,7 +89,7 @@ type peerChecker interface {
 type PeerMapService struct {
 	*component.BaseComponent
 
-	PrivateNet bool
+	PrivateNet   bool
 	allowPrivate bool
 
 	ntc p2p.NTContainer
@@ -123,7 +118,6 @@ func NewPolarisService(cfg *config.Config, ntc p2p.NTContainer) *PeerMapService 
 	return pms
 }
 
-
 func (pms *PeerMapService) SetHub(hub *component.ComponentHub) {
 	pms.BaseComponent.SetHub(hub)
 }
@@ -132,6 +126,7 @@ func (pms *PeerMapService) BeforeStart() {}
 
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
+	pms.Logger.Info().Str("version", string(PolarisMapSub)).Msg("Starting polaris listening")
 	pms.nt.AddStreamHandler(PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
 }
@@ -153,7 +148,7 @@ func (pms *PeerMapService) onConnect(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
 	remotePeerMeta := p2p.PeerMeta{ID: peerID}
-	pms.Logger.Debug().Str("addr",remoteAddrStr).Str(p2p.LogPeerID, peerID.String()).Msg("Received map query")
+	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2p.LogPeerID, peerID.String()).Msg("Received map query")
 
 	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
@@ -275,7 +270,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 	now := time.Now()
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
-		newState := &peerState{connected:now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
+		newState := &peerState{connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
 		pms.Logger.Info().Str("meta", receivedMeta.String()).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
@@ -292,7 +287,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2p.PeerMeta) error {
 func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
-	pms.Logger.Info().Str(p2p.LogPeerID, peerID.Pretty()).Msg("Unregistering bad peer")
+	pms.Logger.Info().Str(p2p.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
 
 }
@@ -375,7 +370,7 @@ func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types
 	pms.rwmutex.Lock()
 	pms.rwmutex.Unlock()
 	for _, rPeer := range pms.peerRegistry {
-		pList[addSize] = &types.PolarisPeer{Address:&rPeer.addr, Connected:rPeer.connected.UnixNano(), LastCheck:rPeer.lastCheck().UnixNano()}
+		pList[addSize] = &types.PolarisPeer{Address: &rPeer.addr, Connected: rPeer.connected.UnixNano(), LastCheck: rPeer.lastCheck().UnixNano()}
 		addSize++
 		if addSize >= listSize {
 			break
@@ -384,7 +379,7 @@ func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types
 	if addSize < listSize {
 		pList = pList[:addSize]
 	}
-	result := &types.PolarisPeerList{Peers:pList,HasNext:false, Total:uint32(totalSize)}
+	result := &types.PolarisPeerList{Peers: pList, HasNext: false, Total: uint32(totalSize)}
 	return result
 }
 
@@ -398,8 +393,7 @@ func (pms *PeerMapService) getBlackList(param *message.BlackListMsg) *types.Pola
 	return &types.PolarisPeerList{}
 }
 
-
-func calcMinimum(values... int) int {
+func calcMinimum(values ...int) int {
 	min := math.MaxUint32
 	for _, val := range values {
 		if min > val {
@@ -451,16 +445,16 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 
 func (pms *PeerMapService) checkConnectness(meta p2p.PeerMeta) bool {
 	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
-		pms.Logger.Debug().Str("addr",meta.IPAddress).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("peer is private address")
+		pms.Logger.Debug().Str("peer_meta", meta.String()).Msg("peer is private address")
 		return false
 	}
-	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary:true}
-	_, err := tempState.checkConnect(PolarisPingTTL )
+	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary: true}
+	_, err := tempState.checkConnect(PolarisPingTTL)
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("Ping check was failed.")
+		pms.Logger.Debug().Err(err).Str(p2p.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check was failed.")
 		return false
 	} else {
-		pms.Logger.Debug().Str(p2p.LogPeerID, meta.ID.Pretty()).Msg("Ping check is succeeded.")
+		pms.Logger.Debug().Str(p2p.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check is succeeded.")
 		return true
 	}
 }

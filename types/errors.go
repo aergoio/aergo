@@ -38,6 +38,8 @@ var (
 
 	ErrTxInvalidPrice = errors.New("tx invalid price")
 
+	ErrTxInvalidPayload = errors.New("tx invalid payload")
+
 	ErrTxSizeExceedLimit = errors.New("size of tx exceeds max length")
 
 	ErrSignNotMatch = errors.New("signature not matched")

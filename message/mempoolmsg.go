@@ -29,7 +29,7 @@ type MemPoolGet struct {
 
 // MemPoolGetRsp defines struct of result for MemPoolGet
 type MemPoolGetRsp struct {
-	Txs []*types.Tx
+	Txs []types.Transaction
 	Err error
 }
 

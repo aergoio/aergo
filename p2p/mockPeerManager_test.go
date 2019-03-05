@@ -255,12 +255,12 @@ func (_m *MockPeerManager) GetPeers() []RemotePeer {
 }
 
 // GetPeerAddresses provides a mock function with given fields:
-func (_m *MockPeerManager) GetPeerAddresses() []*message.PeerInfo {
-	ret := _m.Called()
+func (_m *MockPeerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo {
+	ret := _m.Called(noHidden, showSelf)
 
 	var r0 []*message.PeerInfo
-	if rf, ok := ret.Get(0).(func() []*message.PeerInfo); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(bool, bool) []*message.PeerInfo); ok {
+		r0 = rf(noHidden, showSelf)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*message.PeerInfo)
@@ -516,14 +516,4 @@ func (_m *MockPeerManager) Stop() error {
 	}
 
 	return r0
-}
-
-// NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewBlockNotice(peerID peer.ID, hash BlkHash, data *types.NewBlockNotice) {
-	_m.Called(peerID, hash, data)
-}
-
-// NewMessageData provides a mock function with given fields: messageID, gossip
-func (_m *MockPeerManager) HandleNewTxNotice(peerID peer.ID, hash []TxHash, data *types.NewTransactionsNotice) {
-	_m.Called(peerID, hash, data)
 }

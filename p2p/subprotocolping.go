@@ -42,18 +42,17 @@ func (ph *pingRequestHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 }
 
 func (ph *pingRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	pingData := msgBody.(*types.Ping)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, fmt.Sprintf("blockHash=%s blockNo=%d",enc.ToString(pingData.BestBlockHash),pingData.BestHeight))
-	if _, err := ParseToBlkHash(pingData.GetBestBlockHash()); err != nil {
-		ph.logger.Info().Str(LogPeerID,peerID.Pretty()).Msg("ping is old format or wrong")
+	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, fmt.Sprintf("blockHash=%s blockNo=%d",enc.ToString(pingData.BestBlockHash),pingData.BestHeight))
+	if _, err := types.ParseToBlockID(pingData.GetBestBlockHash()); err != nil {
+		ph.logger.Info().Str(LogPeerName,remotePeer.Name()).Msg("ping is old format or wrong")
 		return
 	}
 	remotePeer.updateLastNotice(pingData.BestBlockHash, pingData.BestHeight)
 
 	// generate response message
-	ph.logger.Debug().Str(LogPeerID, peerID.Pretty()).Str(LogMsgID, msg.ID().String()).Msg("Sending ping response")
+	ph.logger.Debug().Str(LogPeerName,remotePeer.Name()).Str(LogMsgID, msg.ID().String()).Msg("Sending ping response")
 	resp := &types.Pong{}
 	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), PingResponse, resp))
 }
@@ -69,10 +68,9 @@ func (ph *pingResponseHandler) parsePayload(rawbytes []byte) (proto.Message, err
 }
 
 func (ph *pingResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Pong)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, nil)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
 	remotePeer.consumeRequest(msg.ID())
 }
 
@@ -87,9 +85,8 @@ func (ph *goAwayHandler) parsePayload(rawbytes []byte) (proto.Message, error) {
 }
 
 func (ph *goAwayHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := ph.peer.ID()
 	data := msgBody.(*types.GoAwayNotice)
-	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), peerID, data.Message)
+	debugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), ph.peer, data.Message)
 
 	// TODO: check to remove peer here or not. (the sending peer will disconnect.)
 }

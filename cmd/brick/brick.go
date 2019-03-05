@@ -95,6 +95,18 @@ func main() {
 		cmd := "batch"
 		args := os.Args[1]
 
+		// set user-defined log level
+		if len(os.Args) > 2 {
+			if os.Args[2] == "-v" {
+				exec.EnableVerbose()
+			} else if os.Args[2] == "-w" {
+				exec.EnableWatch()
+			} else {
+				fmt.Println("Invalid Parameter. Usage: brick filename [-v|-w]\n\t-v\tverbose mode\n\t-w\twatch mode")
+				os.Exit(1)
+			}
+		}
+
 		exec.Execute(cmd, args)
 	}
 }

@@ -6,9 +6,9 @@
 package p2p
 
 import (
+	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"time"
-
-	"strconv"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
@@ -28,7 +28,7 @@ type PeerMeta struct {
 }
 
 func (m PeerMeta) String() string {
-	return m.ID.Pretty() + "/" + m.IPAddress + ":" + strconv.Itoa(int(m.Port))
+	return fmt.Sprintf("%s:%d/%s", m.IPAddress, m.Port, p2putil.ShortForm(m.ID))
 }
 
 // FromPeerAddress convert PeerAddress to PeerMeta

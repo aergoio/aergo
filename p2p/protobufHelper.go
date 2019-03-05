@@ -76,7 +76,7 @@ func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) error {
 	p.reqMutex.Unlock()
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		p.reqMutex.Lock()
 		delete(p.requests, pr.message.ID())
 		p.reqMutex.Unlock()
@@ -84,7 +84,7 @@ func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) error {
 	}
 
 
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+	p.logger.Debug().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send request message")
 
 	return nil
@@ -97,10 +97,10 @@ type pbResponseOrder struct {
 func (pr *pbResponseOrder) SendTo(p *remotePeerImpl) error {
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+	p.logger.Debug().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Str("req_id", pr.message.OriginalID().String()).Msg("Send response message")
 
 	return nil
@@ -112,18 +112,17 @@ type pbBlkNoticeOrder struct {
 }
 
 func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) error {
-	var blkhash BlkHash
-	copy(blkhash[:], pr.blkHash)
+	var blkhash = types.ToBlockID(pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
 		// the remote peer already know this block hash. skip it
 		// too many not-insteresting log,
-		// p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		// p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		// 	Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
 		return nil
 	}
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	return nil
@@ -136,15 +135,14 @@ type pbBpNoticeOrder struct {
 }
 
 func (pr *pbBpNoticeOrder) SendTo(p *remotePeerImpl) error {
-	var blkhash BlkHash
-	copy(blkhash[:], pr.block.Hash)
+	var blkhash = types.ToBlockID(pr.block.Hash)
 	p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
-	p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+	p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Str(LogBlkHash,enc.ToString(pr.block.Hash)).Msg("Notify block produced")
 	return nil
 }
@@ -157,11 +155,11 @@ type pbTxNoticeOrder struct {
 func (pr *pbTxNoticeOrder) SendTo(p *remotePeerImpl) error {
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	if p.logger.IsDebugEnabled() {
-		p.logger.Debug().Str(LogPeerID, p.meta.ID.Pretty()).Str(LogProtoID, pr.GetProtocolID().String()).
+		p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Str("hashes",bytesArrToString(pr.txHashes)).Msg("Sent tx notice")
 	}
 	return nil

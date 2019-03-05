@@ -52,6 +52,7 @@ var (
 	homePath       string
 	configFilePath string
 	enableTestmode bool
+	useTestnet     bool
 	svrlog         *log.Logger
 
 	cfg *config.Config
@@ -63,6 +64,7 @@ func init() {
 	fs.StringVar(&homePath, "home", "", "path of aergo home")
 	fs.StringVar(&configFilePath, "config", "", "path of configuration file")
 	fs.BoolVar(&enableTestmode, "testmode", false, "enable unsafe test mode (skips certain validations)")
+	fs.BoolVar(&useTestnet, "testnet", false, "use Aergo TestNet")
 }
 
 func initConfig() {
@@ -75,6 +77,9 @@ func initConfig() {
 	}
 	if enableTestmode {
 		cfg.EnableTestmode = true
+	}
+	if useTestnet {
+		cfg.UseTestnet = true
 	}
 }
 

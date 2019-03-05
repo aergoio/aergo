@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	fmt "fmt"
 	"math"
@@ -309,6 +310,16 @@ func GetDefaultGenesis() *Genesis {
 		Timestamp: DefaultSeed,
 		block:     nil,
 	} //TODO embed MAINNET genesis block
+}
+
+func GetTestNetGenesis() *Genesis {
+	if bs, err := hex.DecodeString(TestNetGenesis); err == nil {
+		var g Genesis
+		if err := json.Unmarshal(bs, &g); err == nil {
+			return &g
+		}
+	}
+	return nil
 }
 
 // GetTestGenesis returns Gensis object for a unit test.

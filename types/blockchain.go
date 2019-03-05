@@ -178,7 +178,7 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, receipts Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
+func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var (
 		chainID       []byte
 		prevBlockHash []byte
@@ -464,138 +464,6 @@ func (tx *Tx) CalculateTxHash() []byte {
 	return digest.Sum(nil)
 }
 
-func (tx *Tx) Validate() error {
-	account := tx.GetBody().GetAccount()
-	if account == nil {
-		return ErrTxFormatInvalid
-	}
-
-	if !bytes.Equal(tx.Hash, tx.CalculateTxHash()) {
-		return ErrTxHasInvalidHash
-	}
-
-	amount := tx.GetBody().GetAmountBigInt()
-	if amount.Cmp(MaxAER) > 0 {
-		return ErrTxInvalidAmount
-	}
-
-	price := tx.GetBody().GetPriceBigInt()
-	if price.Cmp(MaxAER) > 0 {
-		return ErrTxInvalidPrice
-	}
-
-	if len(tx.GetBody().GetAccount()) > AddressLength {
-		return ErrTxInvalidAccount
-	}
-
-	if len(tx.GetBody().GetRecipient()) > AddressLength {
-		return ErrTxInvalidRecipient
-	}
-
-	switch tx.Body.Type {
-	case TxType_NORMAL:
-		if tx.GetBody().GetRecipient() == nil && len(tx.GetBody().GetPayload()) == 0 {
-			//contract deploy
-			return ErrTxInvalidRecipient
-		}
-	case TxType_GOVERNANCE:
-		if len(tx.Body.Payload) <= 0 {
-			return ErrTxFormatInvalid
-		}
-		switch string(tx.GetBody().GetRecipient()) {
-		case AergoSystem:
-			if (tx.GetBody().GetPayload()[0] == 's' || tx.GetBody().GetPayload()[0] == 'u') &&
-				amount.Cmp(StakingMinimum) < 0 {
-				return ErrTooSmallAmount
-			}
-		case AergoName:
-			if tx.GetBody().GetPayload()[0] != 'c' &&
-				tx.GetBody().GetPayload()[0] != 'b' &&
-				tx.GetBody().GetPayload()[0] != 'u' {
-				return ErrTxFormatInvalid
-			}
-			if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetBody().GetAmountBigInt()) > 0 {
-				return ErrTooSmallAmount
-			}
-		default:
-			return ErrTxInvalidRecipient
-		}
-	default:
-		return ErrTxInvalidType
-	}
-	return nil
-}
-
-func (tx *Tx) ValidateWithSenderState(senderState *State, fee *big.Int) error {
-	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
-		return ErrTxNonceTooLow
-	}
-	amount := tx.GetBody().GetAmountBigInt()
-	balance := senderState.GetBalanceBigInt()
-	switch tx.GetBody().GetType() {
-	case TxType_NORMAL:
-		spending := new(big.Int).Add(amount, fee)
-		if spending.Cmp(balance) > 0 {
-			return ErrInsufficientBalance
-		}
-	case TxType_GOVERNANCE:
-		switch string(tx.GetBody().GetRecipient()) {
-		case AergoSystem:
-			if tx.GetBody().GetPayload()[0] == 's' &&
-				amount.Cmp(balance) > 0 {
-				return ErrInsufficientBalance
-			}
-		case AergoName:
-			if (tx.GetBody().GetPayload()[0] == 'c' ||
-				tx.GetBody().GetPayload()[0] == 'b') &&
-				amount.Cmp(balance) > 0 {
-				return ErrInsufficientBalance
-			}
-		default:
-			return ErrTxInvalidRecipient
-		}
-	}
-	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
-		return ErrTxNonceToohigh
-	}
-	return nil
-}
-
-//TODO : refoctor after ContractState move to types
-func (tx *Tx) ValidateWithContractState(contractState *State) error {
-	//in system.ValidateSystemTx
-	//in name.ValidateNameTx
-	return nil
-}
-
-func (tx *Tx) SetVerifedAccount(account []byte) bool {
-	if len(account) != AddressLength {
-		return false
-	}
-	tx.Body.Account = append(account, tx.GetBody().GetAccount()...)
-	return true
-}
-
-func (tx *Tx) GetVerifedAccount() []byte {
-	account := tx.GetBody().GetAccount()
-	if len(account) > AddressLength {
-		return account[:AddressLength]
-	}
-	return nil
-}
-
-func (tx *Tx) HasVerifedAccount() bool {
-	return len(tx.GetBody().GetAccount()) > AddressLength
-}
-
-func (tx *Tx) RemoveVerifedAccount() bool {
-	if len(tx.Body.Account) < AddressLength {
-		return false
-	}
-	tx.Body.Account = tx.GetBody().GetAccount()[AddressLength:]
-	return true
-}
-
 func (tx *Tx) NeedNameVerify() bool {
 	return tx.HasNameAccount()
 }
@@ -603,6 +471,7 @@ func (tx *Tx) NeedNameVerify() bool {
 func (tx *Tx) HasNameAccount() bool {
 	return len(tx.Body.Account) <= NameLength
 }
+
 func (tx *Tx) HasNameRecipient() bool {
 	return tx.Body.Recipient != nil && len(tx.Body.Recipient) <= NameLength
 }

@@ -73,6 +73,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 			mockActor := new(MockActorService)
 			dummyMF := new(testDoubleHashRespFactory)
 			mockPeer.On("ID").Return(dummyPeerID)
+			mockPeer.On("Name").Return("16..aadecf@1")
 			mockPeer.On("MF").Return(dummyMF)
 			mockPeer.On("sendMessage", mock.Anything)
 
@@ -130,6 +131,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 			dummyMF := new(testDoubleHashByNoRespFactory)
 			mockPeer.On("ID").Return(dummyPeerID)
 			mockPeer.On("MF").Return(dummyMF)
+			mockPeer.On("Name").Return("16..aadecf@1")
 			mockPeer.On("sendMessage", mock.Anything)
 
 			mockAcc := new(MockChainAccessor)

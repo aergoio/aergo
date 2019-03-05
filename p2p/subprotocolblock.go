@@ -57,10 +57,9 @@ func (bh *listBlockHeadersRequestHandler) parsePayload(rawbytes []byte) (proto.M
 }
 
 func (bh *listBlockHeadersRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
-	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, data)
+	debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 
 	// find block info from chainservice
 	maxFetchSize := min(MaxBlockHeaderResponseCount, data.Size)
@@ -121,10 +120,9 @@ func (bh *listBlockHeadersResponseHandler) parsePayload(rawbytes []byte) (proto.
 }
 
 func (bh *listBlockHeadersResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Hashes))
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, len(data.Hashes))
 
 	// send block headers to blockchain service
 	remotePeer.consumeRequest(msg.OriginalID())
@@ -148,6 +146,11 @@ func (bh *newBlockNoticeHandler) handle(msg Message, msgBody proto.Message) {
 	// remove to verbose log
 	// debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlkHash) }))
 
+	if _, err := types.ParseToBlockID(data.BlockHash) ; err != nil {
+		// TODO Add penelty score and break
+		bh.logger.Info().Str(LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
+		return
+	}
 	// lru cache can accept hashable key
 	if !remotePeer.updateBlkCache(data.BlockHash, data.BlockNo) {
 		bh.sm.HandleNewBlockNotice(remotePeer, data)
@@ -178,12 +181,11 @@ func (bh *getAncestorRequestHandler) parsePayload(rawbytes []byte) (proto.Messag
 }
 
 func (bh *getAncestorRequestHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorRequest)
 	status := types.ResultStatus_OK
 	if bh.logger.IsDebugEnabled() {
-		debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, bytesArrToString(data.Hashes))
+		debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, bytesArrToString(data.Hashes))
 	}
 
 	// send to ChainSvc
@@ -227,10 +229,9 @@ func (bh *getAncestorResponseHandler) parsePayload(rawbytes []byte) (proto.Messa
 }
 
 func (bh *getAncestorResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := bh.peer.ID()
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorResponse)
-	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))
+	debugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))
 
 	// locate request data and remove it if found
 	remotePeer.consumeRequest(msg.OriginalID())

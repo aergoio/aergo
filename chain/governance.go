@@ -16,26 +16,27 @@ import (
 )
 
 func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
-	blockNo types.BlockNo) error {
+	blockNo types.BlockNo) ([]*types.Event, error) {
 
 	if len(txBody.Payload) <= 0 {
-		return types.ErrTxFormatInvalid
+		return nil, types.ErrTxFormatInvalid
 	}
 
 	governance := string(txBody.Recipient)
 	if governance != types.AergoSystem && governance != types.AergoName {
-		return errors.New("receive unknown recipient")
+		return nil, errors.New("receive unknown recipient")
 	}
 
 	scs, err := bs.StateDB.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var events []*types.Event
 	switch governance {
 	case types.AergoSystem:
-		err = system.ExecuteSystemTx(scs, txBody, sender, blockNo)
+		events, err = system.ExecuteSystemTx(scs, txBody, sender, receiver, blockNo)
 	case types.AergoName:
-		err = name.ExecuteNameTx(scs, txBody, sender, receiver, blockNo)
+		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient
@@ -44,7 +45,7 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 		err = bs.StateDB.StageContractState(scs)
 	}
 
-	return err
+	return events, err
 }
 
 // InitGenesisBPs opens system contract and put initial voting result

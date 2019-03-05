@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-peer"
 	"sync"
 	"sync/atomic"
@@ -72,7 +73,7 @@ func (mm *metricsManager) Add(pid peer.ID, reader *MetricReader, writer *MetricW
 	mm.mutex.Lock()
 	defer  mm.mutex.Unlock()
 	if _, found := mm.metricsMap[pid] ; found {
-		mm.logger.Warn().Str("peer_id", pid.Pretty()).Msg("metric for to add peer is already exist. replacing new metric")
+		mm.logger.Warn().Str("peer_id", p2putil.ShortForm(pid)).Msg("metric for to add peer is already exist. replacing new metric")
 	}
 	peerMetric := &PeerMetric{PeerID:pid, InMetric:NewExponentMetric5(mm.interval), OutMetric:NewExponentMetric5(mm.interval), Since:time.Now()}
 	reader.AddListener(peerMetric.InMetric.AddBytes)
@@ -87,7 +88,7 @@ func (mm *metricsManager) Remove(pid peer.ID) *PeerMetric {
 	mm.mutex.Lock()
 	defer  mm.mutex.Unlock()
 	if metric, found := mm.metricsMap[pid] ; !found {
-		mm.logger.Warn().Str("peer_id", pid.Pretty()).Msg("metric for to remove peer is not exist.")
+		mm.logger.Warn().Str("peer_id",  p2putil.ShortForm(pid)).Msg("metric for to remove peer is not exist.")
 		return nil
 	} else {
 		atomic.AddInt64(&mm.deadTotalIn, metric.totalIn)
@@ -142,9 +143,9 @@ func (mm *metricsManager) PrintMetrics() string {
 	sb := bytes.Buffer{}
 	sb.WriteString("p2p metric summary \n")
 	if len(mm.Metrics()) > 0 {
-		sb.WriteString("PeerID                                                   :  IN_TOTAL,    IN_AVR,   IN_LOAD  :   OUT_TOTAL,   OUT_AVR,  OUT_LOAD\n")
+		sb.WriteString("PeerID      :  IN_TOTAL,    IN_AVR,   IN_LOAD  :   OUT_TOTAL,   OUT_AVR,  OUT_LOAD\n")
 		for _, met := range mm.Metrics() {
-			sb.WriteString(met.PeerID.Pretty())
+			sb.WriteString( p2putil.ShortForm(met.PeerID))
 			sb.WriteString(fmt.Sprintf("  :  %10d,%10d,%10d", met.totalIn, met.InMetric.APS(), met.InMetric.LoadScore()))
 			sb.WriteString(fmt.Sprintf("  :  %10d,%10d,%10d", met.totalOut, met.OutMetric.APS(), met.OutMetric.LoadScore()))
 			sb.WriteString("\n")

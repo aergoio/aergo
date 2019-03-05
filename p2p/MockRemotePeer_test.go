@@ -19,7 +19,7 @@ func (_m *MockRemotePeer) consumeRequest(msgID MsgID) {
 }
 
 // pushTxsNotice provides a mock function with given fields: txHashes
-func (_m *MockRemotePeer) pushTxsNotice(txHashes []TxHash) {
+func (_m *MockRemotePeer) pushTxsNotice(txHashes []types.TxID) {
 	_m.Called(txHashes)
 }
 
@@ -89,15 +89,15 @@ func (_m *MockRemotePeer) updateBlkCache(blkHash []byte, blkNumber uint64) bool 
 }
 
 // updateTxCache provides a mock function with given fields: hashes
-func (_m *MockRemotePeer) updateTxCache(hashes []TxHash) []TxHash {
+func (_m *MockRemotePeer) updateTxCache(hashes []types.TxID) []types.TxID {
 	ret := _m.Called(hashes)
 
-	var r0 []TxHash
-	if rf, ok := ret.Get(0).(func([]TxHash) []TxHash); ok {
+	var r0 []types.TxID
+	if rf, ok := ret.Get(0).(func([]types.TxID) []types.TxID); ok {
 		r0 = rf(hashes)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]TxHash)
+			r0 = ret.Get(0).([]types.TxID)
 		}
 	}
 
@@ -148,6 +148,19 @@ func (_m *MockRemotePeer) Meta() PeerMeta {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(PeerMeta)
+	}
+
+	return r0
+}
+
+func (_m *MockRemotePeer) Name() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
 	}
 
 	return r0

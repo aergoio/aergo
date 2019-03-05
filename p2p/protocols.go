@@ -6,8 +6,6 @@
 package p2p
 
 import (
-	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/libp2p/go-libp2p-protocol"
 )
 
@@ -65,7 +63,7 @@ const (
 )
 const (
 	GetTXsRequest SubProtocol = 0x020 + iota
-	GetTxsResponse
+	GetTXsResponse
 	NewTxNotice
 )
 
@@ -81,63 +79,3 @@ func (i SubProtocol) Uint32() uint32 {
 	return uint32(i)
 }
 
-
-const (
-	txhashLen  = 32
-	blkhashLen = 32
-
-)
-
-type BlkHash [blkhashLen]byte
-
-func ParseToBlkHash(bSlice []byte) (BlkHash, error) {
-	var hash BlkHash
-	if len(bSlice) != blkhashLen {
-		return hash, fmt.Errorf("parse error: invalid length")
-	}
-	copy(hash[:], bSlice)
-	return hash, nil
-}
-
-func MustParseBlkHash(bSlice []byte) BlkHash {
-	hash, err := ParseToBlkHash(bSlice)
-	if err != nil {
-		panic(err)
-	}
-	return hash
-}
-
-func (h BlkHash) String() string {
-	return enc.ToString(h[:])
-}
-
-func (h BlkHash) Slice() []byte {
-	return h[:]
-}
-
-type TxHash [txhashLen]byte
-
-func ParseToTxHash(bSlice []byte) (TxHash, error) {
-	var hash TxHash
-	if len(bSlice) != txhashLen {
-		return hash, fmt.Errorf("parse error: invalid length")
-	}
-	copy(hash[:], bSlice)
-	return hash, nil
-}
-
-func MustParseTxHash(bSlice []byte) TxHash {
-	hash, err := ParseToTxHash(bSlice)
-	if err != nil {
-		panic(err)
-	}
-	return hash
-}
-
-func (h TxHash) String() string {
-	return enc.ToString(h[:])
-}
-
-func (h TxHash) Slice() []byte {
-	return h[:]
-}

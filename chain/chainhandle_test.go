@@ -61,31 +61,31 @@ func TestErrorInExecuteTx(t *testing.T) {
 
 	tx := &types.Tx{}
 
-	err := executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err := executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxFormatInvalid.Error(), "execute empty tx")
 
 	tx.Body = &types.TxBody{}
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxFormatInvalid.Error(), "execute empty tx body")
 
 	tx.Body.Account = makeTestAddress(t)
 	tx.Body.Recipient = makeTestAddress(t)
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxHasInvalidHash.Error(), "execute tx body with account")
 
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrTxNonceTooLow.Error(), "execute tx body with account")
 
 	tx.Body.Nonce = 1
 	tx.Body.Amount = new(big.Int).SetUint64(math.MaxUint64).Bytes()
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
 
 	tx.Body.Amount = types.MaxAER.Bytes()
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
 }
 
@@ -100,22 +100,22 @@ func TestBasicExecuteTx(t *testing.T) {
 	tx.Body.Recipient = makeTestAddress(t)
 	tx.Body.Nonce = 1
 	signTestAddress(t, tx)
-	err := executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err := executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.NoError(t, err, "execute amount 0")
 
 	tx.Body.Nonce = 2
 	tx.Body.Amount = new(big.Int).SetUint64(1000).Bytes()
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.NoError(t, err, "execute amount 1000")
 
 	tx.Body.Nonce = 3
 	tx.Body.Amount = (new(big.Int).Add(types.StakingMinimum, new(big.Int).SetUint64(1))).Bytes()
 	tx.Body.Recipient = []byte(types.AergoSystem)
 	tx.Body.Type = types.TxType_GOVERNANCE
-	tx.Body.Payload = []byte{'s'}
+	tx.Body.Payload = []byte(`{"Name":"v1stake"}`)
 	signTestAddress(t, tx)
-	err = executeTx(bs, tx, 0, 0, nil, contract.ChainService)
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.NoError(t, err, "execute governance type")
 
 }

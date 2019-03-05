@@ -28,6 +28,7 @@ func (s *PeerState) Get() PeerState {
 
 // SetAndGet change state in atomic manner
 func (s *PeerState) SetAndGet(ns PeerState) PeerState {
+
 	return PeerState(atomic.SwapInt32((*int32)(s), int32(ns)))
 }
 

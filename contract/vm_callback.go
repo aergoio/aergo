@@ -141,24 +141,18 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	amount *C.char, gas uint64) C.int {
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
-	ecid := C.GoString(contractId)
-
-	if len(ecid) != types.EncodedAddressLength {
-		luaPushStr(L, "[System.LuaCallContract] invalid contractId length: "+ecid)
-		return -1
-	}
-	cid, err := types.DecodeAddress(ecid)
-	if err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract] invalid contractId: "+err.Error())
-		return -1
-	}
-	aid := types.ToAccountID(cid)
 
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		luaPushStr(L, "[Contract.LuaCallContract] contract state not found")
 		return -1
 	}
+	cid, err := getAddressNameResolved(C.GoString(contractId), stateSet.bs)
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaCallContract] invalid contractId: "+err.Error())
+		return -1
+	}
+	aid := types.ToAccountID(cid)
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaCallContract] invalid amount: "+err.Error())
@@ -244,19 +238,15 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	contractIdStr := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
-	if len(contractIdStr) != types.EncodedAddressLength {
-		luaPushStr(L, "[System.LuaDelegateCallContract] invalid contractId length: "+contractIdStr)
-		return -1
-	}
-	cid, err := types.DecodeAddress(contractIdStr)
-	if err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid contractId: "+err.Error())
-		return -1
-	}
 
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] contract state not found")
+		return -1
+	}
+	cid, err := getAddressNameResolved(contractIdStr, stateSet.bs)
+	if err != nil {
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid contractId: "+err.Error())
 		return -1
 	}
 	aid := types.ToAccountID(cid)
@@ -303,6 +293,20 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	return ret
 }
 
+func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error) {
+	accountLen := len(account)
+	if accountLen == types.EncodedAddressLength {
+		return types.DecodeAddress(account)
+	} else if accountLen == types.NameLength {
+		cid := name.Resolve(bs, []byte(account))
+		if cid == nil {
+			return nil, errors.New("name not founded :" + account)
+		}
+		return cid, nil
+	}
+	return nil, errors.New("invalid account length:" + account)
+}
+
 //export LuaSendAmount
 func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char) C.int {
 	stateSet := curStateSet[*service]
@@ -319,19 +323,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		luaPushStr(L, "[Contract.LuaSendAmount] send not permitted in query")
 		return -1
 	}
-
-	ecid := C.GoString(contractId)
-	var cid []byte
-	if len(ecid) == types.EncodedAddressLength {
-		cid, err = types.DecodeAddress(C.GoString(contractId))
-	} else if len(ecid) == types.NameLength {
-		cid = name.Resolve(stateSet.bs, []byte(ecid))
-		if cid == nil {
-			err = errors.New("name not founded :" + ecid)
-		}
-	} else {
-		err = errors.New("invalid account length:" + ecid)
-	}
+	cid, err := getAddressNameResolved(C.GoString(contractId), stateSet.bs)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaSendAmount] invalid contractId: "+err.Error())
 		return -1
@@ -475,18 +467,11 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) C.int {
 		luaPushStr(L, stateSet.curContract.callState.ctrState.GetBalanceBigInt().String())
 		return 0
 	}
-	ecid := C.GoString(contractId)
-	if len(ecid) != types.EncodedAddressLength {
-		luaPushStr(L, "[System.LuaCallContract] invalid contractId length: "+ecid)
-		return -1
-	}
-
-	cid, err := types.DecodeAddress(ecid)
+	cid, err := getAddressNameResolved(C.GoString(contractId), stateSet.bs)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaGetBalance] invalid contractId: "+err.Error())
 		return -1
 	}
-
 	aid := types.ToAccountID(cid)
 	callState := stateSet.callState[aid]
 	if callState == nil {
@@ -788,24 +773,22 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 
 	// get code
 	var code []byte
-	var err error
-	if len(contractStr) == types.EncodedAddressLength {
-		cid, err := types.DecodeAddress(contractStr)
-		if err == nil {
-			aid := types.ToAccountID(cid)
-			contractState, err := getOnlyContractState(stateSet, aid)
-			if err != nil {
-				luaPushStr(L, "[Contract.LuaDeployContract]"+err.Error())
-				return -1
-			}
-			code, err = contractState.GetCode()
-			if err != nil {
-				luaPushStr(L, "[Contract.LuaDeployContract]"+err.Error())
-				return -1
-			} else if len(code) == 0 {
-				luaPushStr(L, "[Contract.LuaDeployContract]: not found code")
-				return -1
-			}
+
+	cid, err := getAddressNameResolved(contractStr, bs)
+	if err == nil {
+		aid := types.ToAccountID(cid)
+		contractState, err := getOnlyContractState(stateSet, aid)
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaDeployContract]"+err.Error())
+			return -1
+		}
+		code, err = contractState.GetCode()
+		if err != nil {
+			luaPushStr(L, "[Contract.LuaDeployContract]"+err.Error())
+			return -1
+		} else if len(code) == 0 {
+			luaPushStr(L, "[Contract.LuaDeployContract]: not found code")
+			return -1
 		}
 	}
 
@@ -913,6 +896,9 @@ func IsPublic() C.int {
 //export LuaRandom
 func LuaRandom(L *LState, service C.int) C.int {
 	stateSet := curStateSet[service]
+	if stateSet.seed == nil {
+		setRandomSeed(stateSet)
+	}
 	switch C.lua_gettop(L) {
 	case 0:
 		C.lua_pushnumber(L, C.double(stateSet.seed.Float64()))
@@ -922,7 +908,7 @@ func LuaRandom(L *LState, service C.int) C.int {
 			luaPushStr(L, "system.random: the maximum value must be greater than zero")
 			return -1
 		}
-		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(n))) + C.lua_Integer(1))
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(n)))+C.lua_Integer(1))
 	default:
 		min := C.luaL_checkinteger(L, 1)
 		max := C.luaL_checkinteger(L, 2)
@@ -934,7 +920,26 @@ func LuaRandom(L *LState, service C.int) C.int {
 			luaPushStr(L, "system.random: the maximum value must be greater than the minimum value")
 			return -1
 		}
-		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(max+C.lua_Integer(1)-min))) + min)
+		C.lua_pushinteger(L, C.lua_Integer(stateSet.seed.Intn(int(max+C.lua_Integer(1)-min)))+min)
 	}
 	return 1
+}
+
+//export LuaEvent
+func LuaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) C.int {
+	stateSet := curStateSet[*service]
+	if stateSet.isQuery == true {
+		luaPushStr(L, "[Contract.Event] event not permitted in query")
+		return -1
+	}
+	stateSet.events = append(stateSet.events,
+		&types.Event{
+			ContractAddress: stateSet.curContract.contractId,
+			EventIdx:        stateSet.eventCount,
+			EventName:       C.GoString(eventName),
+			JsonArgs:        C.GoString(args),
+		})
+	stateSet.eventCount++
+
+	return 0
 }

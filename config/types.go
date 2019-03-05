@@ -31,6 +31,7 @@ type BaseConfig struct {
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
+	UseTestnet     bool   `mapstructure:"usetestnet" description:"need description"`
 	Personal       bool   `mapstructure:"personal" description:"enable personal account service"`
 	AuthDir        string `mapstructure:"authdir" description:"Directory to store files for auth"`
 }
@@ -58,7 +59,7 @@ type P2PConfig struct {
 	NPEnableTLS     bool     `mapstructure:"nptls" description:"Enable TLS on N2N network"`
 	NPCert          string   `mapstructure:"npcert" description:"Certificate file for N2N network"`
 	NPKey           string   `mapstructure:"npkey" description:"Private Key file for N2N network"`
-	NPAddPeers      []string `mapstructure:"npaddpeers" description:"Add peers to connect to at startup"`
+	NPAddPeers      []string `mapstructure:"npaddpeers" description'':"Add peers to connect to at startup"`
 	NPHiddenPeers   []string `mapstructure:"nphiddenpeers" description:"List of peerids which will not show to other peers"`
 	NPDiscoverPeers bool     `mapstructure:"npdiscoverpeers" description:"Whether to discover from polaris or other nodes and connects"`
 	NPMaxPeers      int      `mapstructure:"npmaxpeers" description:"Maximum number of remote peers to keep"`
@@ -68,6 +69,7 @@ type P2PConfig struct {
 	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
+	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 }
 
@@ -132,6 +134,7 @@ dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
 enabletestmode = {{.BaseConfig.EnableTestmode}}
+usetestnet= {{.BaseConfig.UseTestnet}}
 personal = {{.BaseConfig.Personal}}
 authdir = "{{.BaseConfig.AuthDir}}"
 
@@ -178,7 +181,6 @@ coinbaseaccount = "{{.Blockchain.CoinbaseAccount}}"
 maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
 forceresetheight = "{{.Blockchain.ForceResetHeight}}"
-
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

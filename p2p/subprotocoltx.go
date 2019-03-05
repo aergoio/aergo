@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
@@ -44,10 +45,9 @@ func (th *txRequestHandler) parsePayload(rawbytes []byte) (proto.Message, error)
 
 func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 
-	peerID := th.peer.ID()
 	remotePeer := th.peer
 	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
-	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, len(reqHashes))
+	debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, len(reqHashes))
 
 	// TODO consider to make async if deadlock with remote peer can occurs
 	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
@@ -105,7 +105,7 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 				Str("req_id", msg.ID().String()).Msg("Sending partial response")
 
 			remotePeer.sendMessage(remotePeer.MF().
-				newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+				newMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 			hashes, txInfos, payloadSize = nil, nil, EmptyGetBlockResponseSize
 		}
 
@@ -126,12 +126,12 @@ func (th *txRequestHandler) handle(msg Message, msgBody proto.Message) {
 		Hashes: hashes,
 		Txs:    txInfos, HasNext: false}
 
-	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTxsResponse, resp))
+	remotePeer.sendMessage(remotePeer.MF().newMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func newTxRespHandler(pm PeerManager, peer RemotePeer, logger *log.Logger, actor ActorService) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTxsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 
@@ -140,10 +140,10 @@ func (th *txResponseHandler) parsePayload(rawbytes []byte) (proto.Message, error
 }
 
 func (th *txResponseHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
 	data := msgBody.(*types.GetTransactionsResponse)
-	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), peerID, len(data.Txs))
+	debugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
+	th.peer.consumeRequest(msg.OriginalID())
 	// TODO: Is there any better solution than passing everything to mempool service?
 	if len(data.Txs) > 0 {
 		th.logger.Debug().Int(LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
@@ -165,20 +165,26 @@ func (th *newTxNoticeHandler) parsePayload(rawbytes []byte) (proto.Message, erro
 }
 
 func (th *newTxNoticeHandler) handle(msg Message, msgBody proto.Message) {
-	peerID := th.peer.ID()
+	remotePeer := th.peer
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
 	if th.logger.IsDebugEnabled() {
-		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), peerID, bytesArrToString(data.TxHashes))
+		debugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, bytesArrToString(data.TxHashes))
 	}
 
 	if len(data.TxHashes) == 0 {
 		return
 	}
 	// lru cache can accept hashable key
-	hashes := make([]TxHash, len(data.TxHashes))
+	hashes := make([]types.TxID, len(data.TxHashes))
 	for i, hash := range data.TxHashes {
-		copy(hashes[i][:], hash)
+		if tid, err := types.ParseToTxID(hash); err != nil {
+			th.logger.Info().Str(LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(hash)).Msg("malformed txhash found")
+			// TODO Add penelty score and break
+			break
+		} else {
+			hashes[i] = tid
+		}
 	}
 	added := th.peer.updateTxCache(hashes)
 	if len(added) > 0 {

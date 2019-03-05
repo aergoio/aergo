@@ -35,7 +35,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			pr := factory.newMsgRequestOrder(true, PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
@@ -76,7 +76,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			pr := factory.newMsgResponseOrder(NewMsgID(), PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
@@ -118,7 +118,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			mockPeerManager := new(MockPeerManager)
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			target := factory.newMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash})
 			msgID := sampleMsgID
@@ -127,8 +127,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			if tt.keyExist {
-				var hashKey BlkHash
-				copy(hashKey[:], dummyBlockHash)
+				hashKey := types.ToBlockID(dummyBlockHash)
 				peer.blkHashCache.Add(hashKey, true)
 			}
 			if err := target.SendTo(peer); (err != nil) != tt.wantErr {
@@ -172,7 +171,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 
 			mockRW := new(MockMsgReadWriter)
 			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
-			peer := newRemotePeer(sampleMeta, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
 			pr := factory.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()
@@ -180,9 +179,9 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			// put dummy request information in cache
 			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
-			var hashKey [txhashLen]byte
+			var hashKey types.TxID
 			for i := 0; i < tt.keyExist; i++ {
-				copy(hashKey[:], sampleHashes[i])
+				hashKey = types.ToTxID(sampleHashes[i])
 				peer.txHashCache.Add(hashKey, true)
 			}
 

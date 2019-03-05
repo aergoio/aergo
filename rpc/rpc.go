@@ -48,6 +48,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 		msgHelper:           message.GetHelper(),
 		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
 		blockMetadataStream: map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer{},
+		eventStream:         make(map[*EventStream]*EventStream),
 	}
 
 	tracer := opentracing.GlobalTracer()
@@ -125,6 +126,9 @@ func (ns *RPC) Receive(context actor.Context) {
 			Txcount: int32(len(msg.GetBody().GetTxs())),
 		}
 		server.BroadcastToListBlockMetadataStream(meta)
+	case []*types.Event:
+		server := ns.actualServer
+		server.BroadcastToEventStream(msg)
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 		// Ignore actor lfiecycle messages
 	default:

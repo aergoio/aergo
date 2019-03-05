@@ -2,7 +2,9 @@ package exec
 
 import (
 	"fmt"
-	"strconv"
+	"math/big"
+
+	"github.com/rs/zerolog"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -44,15 +46,15 @@ func (c *callContract) Validate(args string) error {
 	return err
 }
 
-func (c *callContract) parse(args string) (string, uint64, string, string, string, string, error) {
+func (c *callContract) parse(args string) (string, *big.Int, string, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 4 {
-		return "", 0, "", "", "", "", fmt.Errorf("need at least 4 arguments. usage: %s", c.Usage())
+		return "", nil, "", "", "", "", fmt.Errorf("need at least 4 arguments. usage: %s", c.Usage())
 	}
 
-	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
-	if err != nil {
-		return "", 0, "", "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+	amount, success := new(big.Int).SetString(splitArgs[1].Text, 10)
+	if success == false {
+		return "", nil, "", "", "", "", fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}
 
 	callCode := "[]"
@@ -80,12 +82,19 @@ func (c *callContract) Run(args string) (string, error) {
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
-	callTx := contract.NewLuaTxCall(accountName, contractName, amount, formattedQuery)
+	callTx := contract.NewLuaTxCallBig(accountName, contractName, amount, formattedQuery)
+
+	logLevel := zerolog.GlobalLevel()
+
 	if expectedResult != "" {
 		callTx.Fail(expectedResult)
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
 	err := context.Get().ConnectBlock(callTx)
 
+	if expectedResult != "" {
+		zerolog.SetGlobalLevel(logLevel) // restore log level
+	}
 	if err != nil {
 		return "", err
 	}

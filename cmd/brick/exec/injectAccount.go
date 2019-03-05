@@ -2,7 +2,7 @@ package exec
 
 import (
 	"fmt"
-	"strconv"
+	"math/big"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -42,15 +42,15 @@ func (c *injectAccount) Validate(args string) error {
 	return err
 }
 
-func (c *injectAccount) parse(args string) (string, uint64, error) {
+func (c *injectAccount) parse(args string) (string, *big.Int, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 2 {
-		return "", 0, fmt.Errorf("need 2 arguments. usage: %s", c.Usage())
+		return "", nil, fmt.Errorf("need 2 arguments. usage: %s", c.Usage())
 	}
 
-	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
-	if err != nil {
-		return "", 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+	amount, success := new(big.Int).SetString(splitArgs[1].Text, 10)
+	if success == false {
+		return "", nil, fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}
 
 	return splitArgs[0].Text, amount, nil
@@ -60,7 +60,7 @@ func (c *injectAccount) Run(args string) (string, error) {
 	accountName, amount, _ := c.parse(args)
 
 	err := context.Get().ConnectBlock(
-		contract.NewLuaTxAccount(accountName, amount),
+		contract.NewLuaTxAccountBig(accountName, amount),
 	)
 
 	if err != nil {

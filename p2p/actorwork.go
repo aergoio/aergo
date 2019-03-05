@@ -10,8 +10,9 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 	"time"
 )
 
@@ -23,7 +24,7 @@ const (
 func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 	remotePeer, ok := p2ps.pm.GetPeer(peerID)
 	if !ok {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Message addressRequest to Unknown peer, check if a bug")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("Message addressRequest to Unknown peer, check if a bug")
 
 		return false
 	}
@@ -38,12 +39,11 @@ func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
 func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 	remotePeer, exists := p2ps.pm.GetPeer(msg.ToWhom)
 	if !exists {
-		p2ps.Warn().Str(LogPeerID, msg.ToWhom.Pretty()).Msg("Request to invalid peer")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(msg.ToWhom)).Msg("Request to invalid peer")
 		return false
 	}
-	peerID := remotePeer.ID()
 
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Interface("msg", msg).Msg("Sending Get block Header request")
+	p2ps.Debug().Str(LogPeerName, remotePeer.Name()).Interface("msg", msg).Msg("Sending Get block Header request")
 	// create message data
 	reqMsg := &types.GetBlockHeadersRequest{Hash: msg.Hash,
 		Height: msg.Height, Offset: msg.Offset, Size: msg.MaxSize, Asc: msg.Asc,
@@ -56,14 +56,14 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool {
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(GetBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Str(LogProtoID, string(GetBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
 		return false
 	}
 	if len(blockHashes) == 0 {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, string(GetBlocksRequest)).Msg("meaningless GetBlocks request with zero hash")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Str(LogProtoID, string(GetBlocksRequest)).Msg("meaningless GetBlocks request with zero hash")
 		return false
 	}
-	p2ps.Debug().Str(LogPeerID, peerID.Pretty()).Int(LogBlkCount, len(blockHashes)).Str("first_hash", enc.ToString(blockHashes[0])).Msg("Sending Get block request")
+	p2ps.Debug().Str(LogPeerName, remotePeer.Name()).Int(LogBlkCount, len(blockHashes)).Str("first_hash", enc.ToString(blockHashes[0])).Msg("Sending Get block request")
 
 	hashes := make([][]byte, len(blockHashes))
 	for i, hash := range blockHashes {
@@ -83,7 +83,7 @@ func (p2ps *P2P) GetBlocksChunk(context actor.Context, msg *message.GetBlockChun
 	blockHashes := msg.Hashes
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetBlocksRequest.String()).Msg("Message to Unknown peer, check if a bug")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Str(LogProtoID, GetBlocksRequest.String()).Msg("Message to Unknown peer, check if a bug")
 		context.Respond(&message.GetBlockChunksRsp{ToWhom:peerID, Err:fmt.Errorf("invalid peer")})
 		return
 	}
@@ -98,7 +98,7 @@ func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
 	// TODO
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetHashesRequest.String()).Msg("Invalid peerID")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Str(LogProtoID, GetHashesRequest.String()).Msg("Invalid peerID")
 		context.Respond(&message.GetHashesRsp{Hashes:nil, PrevInfo:msg.PrevInfo, Count:0, Err:message.PeerNotFoundError})
 		return
 	}
@@ -112,7 +112,7 @@ func (p2ps *P2P) GetBlockHashByNo(context actor.Context, msg *message.GetHashByN
 	// TODO
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Str(LogProtoID, GetHashByNoRequest.String()).Msg("Invalid peerID")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Str(LogProtoID, GetHashByNoRequest.String()).Msg("Invalid peerID")
 		context.Respond(&message.GetHashByNoRsp{Err:message.PeerNotFoundError})
 		return
 	}
@@ -165,7 +165,7 @@ func (p2ps *P2P) NotifyBlockProduced(newBlock message.NotifyNewBlock) bool {
 func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 	remotePeer, ok := p2ps.pm.GetPeer(peerID)
 	if !ok {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("Invalid peer. check for bug")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("Invalid peer. check for bug")
 		return false
 	}
 	if len(txHashes) == 0 {
@@ -190,9 +190,9 @@ func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
 
 // NotifyNewTX notice tx(s) id created
 func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	hashes := make([]TxHash, len(newTXs.Txs))
+	hashes := make([]types.TxID, len(newTXs.Txs))
 	for i, tx := range newTXs.Txs {
-		copy(hashes[i][:], tx.Hash)
+		hashes[i] = types.ToTxID(tx.Hash)
 	}
 	// create message data
 	skipped, sent := 0, 0
@@ -214,11 +214,11 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 func (p2ps *P2P) GetSyncAncestor(peerID peer.ID, hashes [][]byte) bool {
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("invalid peer id")
+		p2ps.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("invalid peer id")
 		return false
 	}
 	if len(hashes) == 0 {
-		p2ps.Warn().Str(LogPeerID, peerID.Pretty()).Msg("empty hash list received")
+		p2ps.Warn().Str(LogPeerName, remotePeer.Name()).Msg("empty hash list received")
 		return false
 	}
 

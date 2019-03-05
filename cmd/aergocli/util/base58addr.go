@@ -82,6 +82,7 @@ type InOutPeer struct {
 	LastCheck time.Time
 	State     string
 	Hidden    bool
+	Self      bool
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -244,6 +245,7 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.BestBlock.BlockHash = base58.Encode(p.GetBestblock().GetBlockHash())
 	out.State = types.PeerState(p.State).String()
 	out.Hidden = p.Hidden
+	out.Self = p.Selfpeer
 	return out
 }
 

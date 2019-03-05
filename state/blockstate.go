@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/aergoio/aergo/types"
+	"github.com/willf/bloom"
 )
 
 // BlockInfo contains BlockHash and StateRoot
@@ -42,10 +43,27 @@ func NewBlockState(states *StateDB) *BlockState {
 	}
 }
 
-func (bs *BlockState) AddReceipt(r *types.Receipt) {
-	bs.receipts = append(bs.receipts, r)
+func (bs *BlockState) AddReceipt(r *types.Receipt) error {
+	if len(r.Events) > 0 {
+		rBloom := bloom.New(types.BloomBitBits, types.BloomHashKNum)
+		for _, e := range r.Events {
+			rBloom.Add(e.ContractAddress)
+			rBloom.Add([]byte(e.EventName))
+		}
+		binary, _ := rBloom.GobEncode()
+		r.Bloom = binary[24:]
+		err := bs.receipts.MergeBloom(rBloom)
+		if err != nil {
+			return err
+		}
+	}
+	bs.receipts.Set(append(bs.receipts.Get(), r))
+	return nil
 }
 
-func (bs *BlockState) Receipts() types.Receipts {
-	return bs.receipts
+func (bs *BlockState) Receipts() *types.Receipts {
+	if bs == nil {
+		return nil
+	}
+	return &bs.receipts
 }
