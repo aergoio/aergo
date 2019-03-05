@@ -67,12 +67,6 @@ func getCore(dataDir string) *chain.Core {
 		return nil
 	}
 
-	exist := core.GetGenesisInfo()
-	if exist != nil {
-		fmt.Println("genesis block is already existed")
-		return nil
-	}
-
 	return core
 }
 
@@ -86,22 +80,19 @@ var initGenesis = &cobra.Command{
 		if privateGenesis != "" {
 			fmt.Println("create genesis block for PrivateNet")
 			genesis = getGenesis(privateGenesis)
-		} else if testNet {
-			fmt.Println("create genesis block for TestNet")
-			genesis = types.GetTestNetGenesis()
-		} else {
+			if genesis == nil {
+				fmt.Printf("failed to obtain GenesisInfo\n")
+				return
+			}
+			if err := genesis.Validate(); err != nil {
+				fmt.Printf(" %s (error:%s)\n", privateGenesis, err)
+				return
+			}
+		}
+
+		if testNet == false && genesis == nil {
 			fmt.Println("mainnet will be launched soon")
 			fmt.Println("use --testnet or --privnet option instead")
-			return
-		}
-
-		if genesis == nil {
-			fmt.Printf("failed to obtain GenesisInfo\n")
-			return
-		}
-
-		if err := genesis.Validate(); err != nil {
-			fmt.Printf(" %s (error:%s)\n", privateGenesis, err)
 			return
 		}
 
@@ -111,14 +102,21 @@ var initGenesis = &cobra.Command{
 
 		core := getCore(dataDir)
 		if core != nil {
-			err := core.InitGenesisBlock(genesis)
+			defer core.Close()
+
+			exist := core.GetGenesisInfo()
+			if exist != nil {
+				fmt.Println("genesis block is already initialized")
+				return
+			}
+
+			err := core.InitGenesisBlock(genesis, testNet)
 			if err != nil {
 				fmt.Printf("fail to init genesis block data (error:%s)\n", err)
 			}
-			g := core.GetGenesisInfo()
 
+			g := core.GetGenesisInfo()
 			fmt.Printf("genesis block[%s] is created in (%s)\n", enc.ToString(g.Block().GetHash()), dataDir)
-			core.Close()
 		}
 	},
 }
