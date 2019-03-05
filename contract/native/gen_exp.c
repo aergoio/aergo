@@ -8,6 +8,7 @@
 #include "ast_id.h"
 #include "ir_abi.h"
 #include "gen_util.h"
+#include "syscall.h"
 
 #include "gen_exp.h"
 
@@ -560,24 +561,21 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
-    int i, j = 0;
-    char qname[NAME_MAX_LEN * 2 + 2];
-    ast_id_t *id = exp->id;
+    int i;
     BinaryenIndex param_cnt;
     BinaryenExpressionRef *arguments;
 
-    ASSERT(id->up != NULL);
+    ASSERT(exp->u_call.qname != NULL);
 
     param_cnt = vector_size(exp->u_call.param_exps);
     arguments = xmalloc(sizeof(BinaryenExpressionRef) * param_cnt);
 
     vector_foreach(exp->u_call.param_exps, i) {
-        arguments[j++] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
+        arguments[i] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
     }
 
-    snprintf(qname, sizeof(qname), "%s$%s", id->up->name, id->name);
-
-    return BinaryenCall(gen->module, qname, arguments, param_cnt, meta_gen(&id->meta));
+    return BinaryenCall(gen->module, exp->u_call.qname, arguments, param_cnt,
+                        meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef
@@ -595,6 +593,8 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
     BinaryenExpressionRef address, value;
+
+    ASSERT(!exp->is_global);
 
     if (is_map_meta(meta)) {
         /* elem_exps is the vector of key-value pair */
@@ -659,6 +659,8 @@ static BinaryenExpressionRef
 exp_gen_alloc(gen_t *gen, ast_exp_t *exp)
 {
     BinaryenExpressionRef address;
+
+    ASSERT(!exp->is_global);
 
     address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 

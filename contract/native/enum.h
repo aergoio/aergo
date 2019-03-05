@@ -13,6 +13,8 @@
 #define TYPE_BYTE(type)         type_bytes_[(type)]
 #define TYPE_ALIGN              TYPE_SIZE
 
+#define FN_NAME(kind)           fn_names_[(kind)]
+
 #define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
 
 typedef enum flag_val_e {
@@ -189,8 +191,16 @@ typedef enum loop_kind_e {
     LOOP_MAX
 } loop_kind_t;
 
+typedef enum fn_kind_e {
+    FN_MALLOC       = 0,
+    FN_MEMCPY,
+    FN_MAX
+} fn_kind_t;
+
 extern char *type_names_[TYPE_MAX];
 extern int type_sizes_[TYPE_MAX];
 extern int type_bytes_[TYPE_MAX];
+
+extern char *fn_names_[FN_MAX];
 
 #endif /* ! _ENUM_H */

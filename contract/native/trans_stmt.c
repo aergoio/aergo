@@ -119,9 +119,9 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
             resolve_var_meta(trans, var_exp, val_exp);
 
             if (var_exp->id != NULL && is_global_id(var_exp->id)) {
-                trans->is_heap = true;
+                trans->is_global = true;
                 exp_trans(trans, val_exp);
-                trans->is_heap = false;
+                trans->is_global = false;
             }
             else {
                 exp_trans(trans, val_exp);
@@ -136,9 +136,9 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
         resolve_var_meta(trans, l_exp, r_exp);
 
         if (l_exp->id != NULL && is_global_id(l_exp->id)) {
-            trans->is_heap = true;
+            trans->is_global = true;
             exp_trans(trans, r_exp);
-            trans->is_heap = false;
+            trans->is_global = false;
         }
         else {
             exp_trans(trans, r_exp);

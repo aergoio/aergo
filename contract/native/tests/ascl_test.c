@@ -43,7 +43,6 @@ env_init(env_t *env)
     env->flag.val = FLAG_TEST;
     env->flag.stack_size = UINT16_MAX + 1;
 
-    env->ec_cnt = 0;
     stack_init(&env->exp);
 }
 
@@ -245,6 +244,8 @@ get_opt(env_t *env, int argc, char **argv)
             flag_set(env->flag, FLAG_DUMP_YACC);
         else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--print-wat") == 0)
             flag_set(env->flag, FLAG_DUMP_WAT);
+        else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--optimize") == 0)
+            env->flag.opt_lvl = 2;
         else
             FATAL(ERROR_INVALID_FLAG, argv[i]);
     }

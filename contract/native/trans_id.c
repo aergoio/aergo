@@ -12,6 +12,7 @@
 #include "trans_blk.h"
 #include "trans_stmt.h"
 #include "trans_exp.h"
+#include "syscall.h"
 
 #include "trans_id.h"
 
@@ -50,27 +51,10 @@ id_trans_param(trans_t *trans, ast_id_t *id)
 }
 
 static void
-update_heap_offset(ir_fn_t *fn, vector_t *stmts, src_pos_t *pos)
-{
-    ast_exp_t *l_exp, *r_exp, *v_exp;
-
-    /* Increase "heap$offset" by the amount of memory used by initializer or allocator
-     * expressions defined in the function */
-    l_exp = exp_new_reg(fn->heap_idx);
-    meta_set_uint32(&l_exp->meta);
-
-    v_exp = exp_new_lit_i64(fn->heap_usage, pos);
-    meta_set_uint32(&v_exp->meta);
-
-    r_exp = exp_new_binary(OP_ADD, l_exp, v_exp, pos);
-
-    vector_add_last(stmts, stmt_new_assign(exp_new_global("heap$offset"), r_exp, pos));
-}
-
-static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
+    ast_exp_t *l_exp, *r_exp;
     ir_fn_t *fn = trans->fn;
     vector_t *stmts = vector_new();
 
@@ -100,10 +84,12 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(elem_id, dflt_exp));
     }
 
-    if (fn->heap_usage > 0)
-        /* Update "heap$offset" to prevent the heap from being overwritten by another
-         * constructor */
-        update_heap_offset(fn, &fn->entry_bb->stmts, &id->pos);
+    l_exp = exp_new_reg(fn->heap_idx);
+    meta_set_uint32(&l_exp->meta);
+
+    r_exp = syscall_new_malloc(trans, fn->heap_usage, &id->pos);
+
+    stmt_add(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
 
     trans->bb = fn->entry_bb;
 
@@ -115,55 +101,39 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 }
 
 static void
-set_memory_addr(ir_fn_t *fn, ast_id_t *id, uint32_t heap_start)
+set_stack_addr(ir_fn_t *fn, ast_id_t *id)
 {
     src_pos_t *pos = &id->pos;
-    ast_exp_t *glob_exp, *reg_exp;
+    ast_exp_t *stk_exp, *reg_exp;
+    ast_exp_t *val_exp, *bin_exp;
 
-    if (fn->stack_usage > 0) {
-        ast_exp_t *val_exp, *bin_exp;
+    if (fn->stack_usage == 0)
+        return;
 
-        glob_exp = exp_new_global("stack$top");
+    stk_exp = exp_new_global("stack_top");
 
-        reg_exp = exp_new_reg(fn->stack_idx);
-        meta_set_uint32(&reg_exp->meta);
+    reg_exp = exp_new_reg(fn->stack_idx);
+    meta_set_uint32(&reg_exp->meta);
 
-        val_exp = exp_new_lit_i64(fn->stack_usage, pos);
-        meta_set_uint32(&val_exp->meta);
+    val_exp = exp_new_lit_i64(fn->stack_usage, pos);
+    meta_set_uint32(&val_exp->meta);
 
-        bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
+    bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
 
-        /* At the beginning of "entry_bb", set the current stack offset to the register */
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(glob_exp, bin_exp, pos));
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, glob_exp, pos));
+    /* At the beginning of "entry_bb", set the current stack offset to the register */
+    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(stk_exp, bin_exp, pos));
+    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, stk_exp, pos));
 
-        /* TODO: checking stack overflow */
+    /* TODO: checking stack overflow */
 
-        /* If there is any stack variable in the function, it has to be restored to the
-         * original value at the end of "exit_bb" because "stack$top" has been changed */
-        vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(glob_exp, reg_exp, pos));
-    }
-
-    if (fn->heap_usage > 0 || is_ctor_id(id)) {
-        /* At the beginning of "entry_bb", set the current heap offset to the register */
-        glob_exp = exp_new_global("heap$offset");
-
-        reg_exp = exp_new_reg(fn->heap_idx);
-        meta_set_uint32(&reg_exp->meta);
-
-        vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, glob_exp, pos));
-
-        if (fn->heap_usage - heap_start > 0)
-            /* Increase "heap$offset" by the amount of memory used by initializer or
-             * allocator expressions defined in the function */
-            update_heap_offset(fn, &fn->exit_bb->stmts, pos);
-    }
+    /* If there is any stack variable in the function, it has to be restored to the
+     * original value at the end of "exit_bb" because "stack_top" has been changed */
+    vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(stk_exp, reg_exp, pos));
 }
 
 static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
-    uint32_t heap_start = 0;
     ast_id_t *ret_id = id->u_fn.ret_id;
     ir_md_t *md = trans->md;
     ir_fn_t *fn;
@@ -194,23 +164,18 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     trans->fn = fn;
 
-    if (is_ctor_id(id)) {
+    if (is_ctor_id(id))
         id_trans_ctor(trans, id);
-
-        /* To check the net usage of the function body */
-        heap_start = fn->heap_usage;
-    }
-    else {
+    else
         /* The "cont_idx" is always 0 because it is prepended to parameters */
         fn->cont_idx = 0;
-    }
 
     trans->bb = fn->entry_bb;
 
     if (id->u_fn.blk != NULL)
         blk_trans(trans, id->u_fn.blk);
 
-    set_memory_addr(fn, id, heap_start);
+    set_stack_addr(fn, id);
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, fn->exit_bb);

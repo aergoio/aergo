@@ -51,9 +51,9 @@ type_gen(type_t type)
     case TYPE_STRUCT:
     case TYPE_MAP:
     case TYPE_OBJECT:
+    case TYPE_TUPLE:
         return BinaryenTypeInt32();
 
-    case TYPE_TUPLE:
     default:
         ASSERT1(!"invalid type", type);
     }

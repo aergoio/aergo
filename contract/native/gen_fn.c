@@ -45,8 +45,8 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
                         (BinaryenType *)array_items(&fn->types), array_size(&fn->types),
                         BinaryenBlock(gen->module, NULL, &body, 1, abi->result));
 
-    if (fn->exp_name != NULL)
-        BinaryenAddFunctionExport(gen->module, fn->name, fn->exp_name);
+    if (fn->symbol != NULL)
+        BinaryenAddFunctionExport(gen->module, fn->name, fn->symbol);
 }
 
 /* end of gen_fn.c */

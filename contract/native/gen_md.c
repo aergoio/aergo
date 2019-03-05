@@ -23,7 +23,7 @@ import_gen(gen_t *gen, vector_t *abis)
     vector_foreach(abis, i) {
         ir_abi_t *abi = vector_get_abi(abis, i);
 
-        snprintf(qname, sizeof(qname), "%s$%s", abi->module, abi->name);
+        snprintf(qname, sizeof(qname), "%s.%s", abi->module, abi->name);
 
         BinaryenAddFunctionImport(gen->module, qname, abi->module, abi->name,
                                   abi_gen(gen, abi));
@@ -48,11 +48,9 @@ sgmt_gen(gen_t *gen, ir_sgmt_t *sgmt)
     BinaryenSetMemory(gen->module, 1, sgmt->offset / WASM_MEM_UNIT + 1, "memory",
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
-    BinaryenAddGlobal(gen->module, "stack$top", BinaryenTypeInt32(), 1,
+    BinaryenAddGlobal(gen->module, "stack_top", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
-    BinaryenAddGlobal(gen->module, "stack$max", BinaryenTypeInt32(), 0,
-                      i32_gen(gen, gen->flag.stack_size));
-    BinaryenAddGlobal(gen->module, "heap$offset", BinaryenTypeInt32(), 1,
+    BinaryenAddGlobal(gen->module, "stack_max", BinaryenTypeInt32(), 0,
                       i32_gen(gen, gen->flag.stack_size));
 }
 
@@ -71,7 +69,7 @@ md_gen(gen_t *gen, ir_md_t *md)
 
     sgmt_gen(gen, &md->sgmt);
 
-    if (is_flag_on(gen->flag, FLAG_DEBUG) || is_flag_on(gen->flag, FLAG_TEST)) {
+    if (is_flag_on(gen->flag, FLAG_DEBUG)) {
         BinaryenSetDebugInfo(1);
     }
     else if (gen->flag.opt_lvl > 0) {

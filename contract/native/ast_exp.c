@@ -370,6 +370,7 @@ exp_clone(ast_exp_t *exp)
         }
         res = exp_new_call(exp->u_call.is_ctor, exp_clone(exp->u_call.id_exp), res_exps,
                            &exp->pos);
+        res->u_call.qname = exp->u_call.qname;
         break;
 
     case EXP_SQL:

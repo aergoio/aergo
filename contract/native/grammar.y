@@ -1053,6 +1053,7 @@ new_exp:
 |   K_NEW initializer
     {
         $$ = $2;
+        $$->u_init.is_outmost = true;
     }
 ;
 

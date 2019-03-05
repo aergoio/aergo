@@ -145,10 +145,18 @@ contract main {
 
 @test(interface_as_parameter)
 interface spec {
-    func f1() int;
+    func f() int;
 }
-contract test {
-    func f1() int { return 1; }
-    func f2(spec v) int { return v.f1(); }
-    func f3() int { return f2(new test()); }
+contract test1 implements spec {
+    func f() int { return 1; }
+}
+contract test2 implements spec {
+    func f() int { return 2; }
+}
+contract main {
+    func f(spec v) int { return v.f(); }
+    main() {
+        f(new test1());
+        f(new test2());
+    }
 }

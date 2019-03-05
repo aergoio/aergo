@@ -94,6 +94,7 @@ typedef struct exp_cast_s {
 /* id(param, ...) */
 typedef struct exp_call_s {
     bool is_ctor;
+    char *qname;
     ast_exp_t *id_exp;
     vector_t *param_exps;
 } exp_call_t;
@@ -139,6 +140,7 @@ typedef struct exp_tuple_s {
 /* new {exp, exp, exp, ...} */
 typedef struct exp_init_s {
     bool is_aggr;
+    bool is_outmost;
     vector_t *elem_exps;
 } exp_init_t;
 
@@ -189,6 +191,7 @@ struct ast_exp_s {
     meta_t meta;
 
     bool usable_lval;       /* whether is used as lvalue */
+    bool is_global;         /* whether it is related with global variables */
 
     AST_NODE_DECL;
 };

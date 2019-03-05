@@ -67,6 +67,7 @@ typedef struct id_enum_s {
 } id_enum_t;
 
 typedef struct id_fn_s {
+    char qname[NAME_MAX_LEN * 2 + 2];
     vector_t *param_ids;
     ast_id_t *ret_id;
     ast_blk_t *blk;

@@ -238,7 +238,9 @@ id_check_fn(check_t *check, ast_id_t *id)
         }
     }
 
-    /* The body of the function is checked after resolution of all identifiers.
+    snprintf(id->u_fn.qname, sizeof(id->u_fn.qname), "%s.%s", id->up->name, id->name);
+
+    /* The body of the function is checked after the resolution of all identifiers.
      * (See blk_check()) */
 
     return true;

@@ -692,6 +692,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     meta_copy(&exp->meta, &id->meta);
 
     exp->usable_lval = false;
+    exp->u_call.qname = id->u_fn.qname;
 
     return true;
 }

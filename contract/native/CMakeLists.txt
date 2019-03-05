@@ -61,6 +61,7 @@ set(libascl_SRCS
     value.c
     util.c
     xalloc.c
+    syscall.c
     grammar.tab.c
     scanner.yy.c
 )

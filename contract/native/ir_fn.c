@@ -22,8 +22,8 @@ fn_new(ast_id_t *id)
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
 
-    snprintf(fn->name, sizeof(fn->name), "%s$%s", id->up->name, id->name);
-    fn->exp_name = is_public_id(id) ? id->name : NULL;
+    fn->name = id->u_fn.qname;
+    fn->symbol = is_public_id(id) ? id->name : NULL;
 
     fn->abi = abi_new(id);
 
