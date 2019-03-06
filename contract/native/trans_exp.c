@@ -142,16 +142,21 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 {
-    exp_trans(trans, exp->u_cast.val_exp);
+    ast_exp_t *val_exp = exp->u_cast.val_exp;
 
-    if (is_string_meta(&exp->meta) || is_string_meta(&exp->u_cast.to_meta)) {
-        /* TODO
-         * int addr = fn_add_stack_var(trans->fn);
-         * ast_exp_t *call_exp = exp_new_call("$concat", &exp->pos);
-         *
-         * bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &exp->pos));
-         *
-         * return <return address of call>; */
+    exp_trans(trans, val_exp);
+
+    if (is_string_meta(&exp->meta)) {
+        if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
+            md_add_imp(trans->md, syscall_abi(FN_ITOA64));
+        else if (is_bool_meta(to_meta) || is_integer_meta(to_meta))
+            md_add_imp(trans->md, syscall_abi(FN_ITOA32));
+        else if (is_float_meta(to_meta))
+            md_add_imp(trans->md, syscall_abi(FN_FTOA32));
+        else if (is_double_meta(to_meta))
+            md_add_imp(trans->md, syscall_abi(FN_FTOA64));
+        else
+            ASSERT2(!"invalid conversion", val_exp->meta.type, exp->meta.type);
     }
 }
 
@@ -203,14 +208,13 @@ exp_trans_binary(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_bin.l_exp);
     exp_trans(trans, exp->u_bin.r_exp);
 
-    if (exp->u_bin.kind == OP_ADD && is_string_meta(&exp->meta)) {
-        /* TODO
-         * int addr = fn_add_stack();
-         * ast_exp_t *call exp = exp_new_call("$concat", &exp->pos);
-         * bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &exp->pos));
-         * return exp_new_mem(addr, offset, &exp->pos);
-        */
-    }
+    if (exp->u_bin.kind == OP_ADD && is_string_meta(&exp->meta))
+        md_add_imp(trans->md, syscall_abi(FN_STRCAT));
+    else if ((exp->u_bin.kind == OP_EQ || exp->u_bin.kind == OP_NE ||
+              exp->u_bin.kind == OP_LT || exp->u_bin.kind == OP_LE ||
+              exp->u_bin.kind == OP_GT || exp->u_bin.kind == OP_GE) &&
+             is_string_meta(&exp->u_bin.l_exp->meta))
+        md_add_imp(trans->md, syscall_abi(FN_STRCMP));
 }
 
 static void

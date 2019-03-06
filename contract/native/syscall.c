@@ -9,38 +9,48 @@
 #include "ast_exp.h"
 #include "ir_abi.h"
 #include "ir_md.h"
+#include "gen_util.h"
 
 #include "syscall.h"
+
+sys_fn_t sys_fntab_[FN_MAX] = {
+    { "malloc", SYSCALL_MODULE".malloc", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "memcpy", SYSCALL_MODULE".memcpy", 3,
+        { TYPE_UINT32, TYPE_UINT32, TYPE_UINT32 }, TYPE_VOID },
+    { "strcat", SYSCALL_MODULE".strcat", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "strcmp", SYSCALL_MODULE".strcmp", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "atoi32", SYSCALL_MODULE".atoi32", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "atoi64", SYSCALL_MODULE".atoi64", 1, { TYPE_UINT32 }, TYPE_UINT64 },
+    { "atof32", SYSCALL_MODULE".atof32", 1, { TYPE_UINT32 }, TYPE_FLOAT },
+    { "atof64", SYSCALL_MODULE".atof64", 1, { TYPE_UINT32 }, TYPE_DOUBLE },
+    { "itoa32", SYSCALL_MODULE".itoa32", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "itoa64", SYSCALL_MODULE".itoa64", 1, { TYPE_UINT64 }, TYPE_UINT32 },
+    { "ftoa32", SYSCALL_MODULE".ftoa32", 1, { TYPE_FLOAT }, TYPE_UINT32 },
+    { "ftoa64", SYSCALL_MODULE".ftoa64", 1, { TYPE_DOUBLE }, TYPE_UINT32 },
+};
 
 ir_abi_t *
 syscall_abi(fn_kind_t kind)
 {
+    int i;
+    sys_fn_t *sys_fn;
     ir_abi_t *abi = xcalloc(sizeof(ir_abi_t));
 
+    ASSERT1(kind >= 0 && kind < FN_MAX, kind);
+
+    sys_fn = &sys_fntab_[kind];
+
     abi->module = SYSCALL_MODULE;
+    abi->name = sys_fn->name;
 
-    switch (kind) {
-    case FN_MALLOC:
-        abi->name = FN_NAME(FN_MALLOC);
-        abi->param_cnt = 1;
-        abi->params = xmalloc(sizeof(BinaryenType));
-        abi->params[0] = BinaryenTypeInt32();
-        abi->result = BinaryenTypeInt32();
-        break;
+    abi->param_cnt = sys_fn->param_cnt;
+    abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
 
-    case FN_MEMCPY:
-        abi->name = FN_NAME(FN_MEMCPY);
-        abi->param_cnt = 3;
-        abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);
-        abi->params[0] = BinaryenTypeInt32();
-        abi->params[1] = BinaryenTypeInt32();
-        abi->params[2] = BinaryenTypeInt32();
-        abi->result = BinaryenTypeNone();
-        break;
-
-    default:
-        ASSERT1(!"invalid function", kind);
+    for (i = 0; i < abi->param_cnt; i++) {
+        abi->params[i] = type_gen(sys_fn->params[i]);
     }
+
+    abi->result = type_gen(sys_fn->result);
 
     return abi;
 }
@@ -59,7 +69,7 @@ syscall_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos)
 
     res_exp = exp_new_call(false, NULL, param_exps, pos);
 
-    res_exp->u_call.qname = syscall_qname(FN_MALLOC);
+    res_exp->u_call.qname = sys_fntab_[FN_MALLOC].qname;
     meta_set_uint32(&res_exp->meta);
 
     md_add_imp(trans->md, syscall_abi(FN_MALLOC));
@@ -85,7 +95,7 @@ syscall_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
 
     res_exp = exp_new_call(false, NULL, param_exps, pos);
 
-    res_exp->u_call.qname = syscall_qname(FN_MEMCPY);
+    res_exp->u_call.qname = sys_fntab_[FN_MEMCPY].qname;
     meta_set_void(&res_exp->meta);
 
     md_add_imp(trans->md, syscall_abi(FN_MEMCPY));

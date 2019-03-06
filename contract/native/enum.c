@@ -82,9 +82,4 @@ int type_bytes_[TYPE_MAX] = {
     0                   /* TYPE_TUPLE */
 };
 
-char *fn_names_[FN_MAX] = {
-    "malloc",
-    "memcpy"
-};
-
 /* end of enum.c */

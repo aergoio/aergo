@@ -194,13 +194,24 @@ typedef enum loop_kind_e {
 typedef enum fn_kind_e {
     FN_MALLOC       = 0,
     FN_MEMCPY,
+    FN_STRCAT,
+    FN_STRCMP,
+    FN_ATOI32,
+    FN_ATOI64,
+    FN_ATOF32,
+    FN_ATOF64,
+    FN_ITOA32,
+    FN_ITOA64,
+    FN_FTOA32,
+    FN_FTOA64,
+    FN_MAP_NEW,
+    FN_MAP_GET,
+    FN_MAP_SET,
     FN_MAX
 } fn_kind_t;
 
 extern char *type_names_[TYPE_MAX];
 extern int type_sizes_[TYPE_MAX];
 extern int type_bytes_[TYPE_MAX];
-
-extern char *fn_names_[FN_MAX];
 
 #endif /* ! _ENUM_H */

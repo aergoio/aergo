@@ -83,6 +83,10 @@ contract test {
     bool b5 = 1 >= 1;
     bool b6 = 1 <= 1;
     bool b7 = (true == true);
+
+    string s1 = "1";
+    string s2 = "2";
+    bool b8 = (s1 != s2);
 }
 
 @test(mismatched_comparison_type)
@@ -127,7 +131,8 @@ contract test {
     int i4 = i1--;
     int i5 = --i1;
 
-    bool b = !true;
+    bool b1 = true;
+    bool b2 = !b1;
 }
 
 @test(invalid_unary_lvalue)

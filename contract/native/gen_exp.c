@@ -101,13 +101,31 @@ static BinaryenExpressionRef
 exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 {
     ast_exp_t *val_exp = exp->u_cast.val_exp;
+    meta_t *from_meta = &val_exp->meta;
     meta_t *to_meta = &exp->meta;
     BinaryenOp op = 0;
     BinaryenExpressionRef value;
+    sys_fn_t *sys_fn = NULL;
 
     value = exp_gen(gen, val_exp);
 
-    switch (val_exp->meta.type) {
+    if (is_string_meta(to_meta)) {
+        if (is_int64_meta(from_meta) || is_uint64_meta(from_meta))
+            sys_fn = SYS_FN(FN_ITOA64);
+        else if (is_bool_meta(from_meta) || is_integer_meta(from_meta))
+            sys_fn = SYS_FN(FN_ITOA32);
+        else if (is_float_meta(from_meta))
+            sys_fn = SYS_FN(FN_FTOA32);
+        else if (is_double_meta(from_meta))
+            sys_fn = SYS_FN(FN_FTOA64);
+        else
+            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
+
+        return BinaryenCall(gen->module, sys_fn->qname, &value, 1,
+                            type_gen(sys_fn->result));
+    }
+
+    switch (from_meta->type) {
     case TYPE_INT8:
     case TYPE_INT16:
     case TYPE_INT32:
@@ -117,9 +135,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertSInt32ToFloat64();
         else if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
             op = BinaryenExtendSInt32();
-        else if (is_string_meta(to_meta))
-            /* TOOD */
-            return NULL;
         else
             return value;
         break;
@@ -135,9 +150,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertUInt32ToFloat64();
         else if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
             op = BinaryenExtendUInt32();
-        else if (is_string_meta(to_meta))
-            /* TOOD */
-            return NULL;
         else
             return value;
         break;
@@ -149,9 +161,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertSInt64ToFloat64();
         else if (!is_int64_meta(to_meta) && !is_uint64_meta(to_meta))
             op = BinaryenWrapInt64();
-        else if (is_string_meta(to_meta))
-            /* TOOD */
-            return NULL;
         else
             return value;
         break;
@@ -163,9 +172,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenConvertUInt64ToFloat64();
         else if (!is_int64_meta(to_meta) && !is_uint64_meta(to_meta))
             op = BinaryenWrapInt64();
-        else if (is_string_meta(to_meta))
-            /* TOOD */
-            return NULL;
         else
             return value;
         break;
@@ -181,9 +187,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenTruncUFloat32ToInt32();
         else if (is_double_meta(to_meta))
             op = BinaryenPromoteFloat32();
-        else if (is_string_meta(to_meta))
-            /* TOOD */
-            return NULL;
         else
             return value;
         break;
@@ -199,19 +202,27 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             op = BinaryenTruncUFloat64ToInt32();
         else if (is_float_meta(to_meta))
             op = BinaryenDemoteFloat64();
-        else if (is_string_meta(to_meta))
-            /* TOOD */
-            return NULL;
         else
             return value;
         break;
 
     case TYPE_STRING:
-        /* TODO */
-        return NULL;
+        if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
+            sys_fn = SYS_FN(FN_ATOI64);
+        else if (is_bool_meta(to_meta) || is_integer_meta(to_meta))
+            sys_fn = SYS_FN(FN_ATOI32);
+        else if (is_float_meta(to_meta))
+            sys_fn = SYS_FN(FN_ATOF32);
+        else if (is_double_meta(to_meta))
+            sys_fn = SYS_FN(FN_ATOF64);
+        else
+            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
+
+        return BinaryenCall(gen->module, sys_fn->qname, &value, 1,
+                            type_gen(sys_fn->result));
 
     default:
-        ASSERT2(!"invalid conversion", exp->meta.type, to_meta->type);
+        ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
     }
 
     return BinaryenUnary(gen->module, op, value);
@@ -260,13 +271,11 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
     switch (exp->u_bin.kind) {
     case OP_ADD:
         if (is_string_meta(meta)) {
-            /* XXX
-            BinaryenExpressionRef args[2] = { l_exp, r_exp };
+            sys_fn_t *sys_fn = SYS_FN(FN_STRCAT);
+            BinaryenExpressionRef arguments[2] = { left, right };
 
-            return BinaryenCall(gen->module, xstrdup("concat$"), args, 2,
-                                BinaryenTypeInt32());
-                                */
-            return i32_gen(gen, 0);
+            return BinaryenCall(gen->module, sys_fn->qname, arguments, 2,
+                                type_gen(sys_fn->result));
         }
 
         if (is_int64_meta(meta) || is_uint64_meta(meta))
@@ -382,11 +391,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
     left = exp_gen(gen, exp->u_bin.l_exp);
     right = exp_gen(gen, exp->u_bin.r_exp);
 
-    if (is_string_meta(meta)) {
-        /* XXX */
-        return i32_gen(gen, 0);
-    }
-
     switch (exp->u_bin.kind) {
     case OP_AND:
         if (is_int64_meta(meta) || is_uint64_meta(meta))
@@ -433,10 +437,10 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
             op = BinaryenLtFloat32();
         else if (is_double_meta(meta))
             op = BinaryenLtFloat64();
-        else if (is_signed_meta(meta))
-            op = BinaryenLtSInt32();
-        else
+        else if (is_unsigned_meta(meta))
             op = BinaryenLtUInt32();
+        else
+            op = BinaryenLtSInt32();
         break;
 
     case OP_GT:
@@ -448,10 +452,10 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
             op = BinaryenGtFloat32();
         else if (is_double_meta(meta))
             op = BinaryenGtFloat64();
-        else if (is_signed_meta(meta))
-            op = BinaryenGtSInt32();
-        else
+        else if (is_unsigned_meta(meta))
             op = BinaryenGtUInt32();
+        else
+            op = BinaryenGtSInt32();
         break;
 
     case OP_LE:
@@ -463,10 +467,10 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
             op = BinaryenLeFloat32();
         else if (is_double_meta(meta))
             op = BinaryenLeFloat64();
-        else if (is_signed_meta(meta))
-            op = BinaryenLeSInt32();
-        else
+        else if (is_unsigned_meta(meta))
             op = BinaryenLeUInt32();
+        else
+            op = BinaryenLeSInt32();
         break;
 
     case OP_GE:
@@ -478,14 +482,24 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
             op = BinaryenGeFloat32();
         else if (is_double_meta(meta))
             op = BinaryenGeFloat64();
-        else if (is_signed_meta(meta))
-            op = BinaryenGeSInt32();
-        else
+        else if (is_unsigned_meta(meta))
             op = BinaryenGeUInt32();
+        else
+            op = BinaryenGeSInt32();
         break;
 
     default:
         ASSERT1(!"invalid operator", exp->u_bin.kind);
+    }
+
+    if (is_string_meta(meta)) {
+        sys_fn_t *sys_fn = SYS_FN(FN_STRCMP);
+        BinaryenExpressionRef arguments[2] = { left, right };
+
+        left = BinaryenCall(gen->module, sys_fn->qname, arguments, 2,
+                            type_gen(sys_fn->result));
+
+        right = i32_gen(gen, 0);
     }
 
     return BinaryenBinary(gen->module, op, left, right);
