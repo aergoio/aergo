@@ -58,6 +58,8 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 type BlockFactory struct {
 	*component.ComponentHub
 	consensus.ChainDB
+
+	bpc              *Cluster
 	jobQueue         chan interface{}
 	quit             chan interface{}
 	blockInterval    time.Duration
@@ -86,6 +88,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
+		bpc:              &Cluster{},
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    RaftBpTick,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
@@ -115,18 +118,19 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 }
 
 func (bf *BlockFactory) initRaftServer(cfg *config.Config) error {
-	if err := checkConfig(cfg); err != nil {
+	if err := checkConfig(cfg, bf.bpc); err != nil {
 		return err
 	}
 
 	proposeC := make(chan string, 1)
 	confChangeC := make(chan raftpb.ConfChange, 1)
 
-	peersList := cfg.Consensus.RaftBpUrls
 	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	bf.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir,
+	logger.Info().Uint64("raftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
+
+	bf.raftServer = newRaftServer(bf.bpc.ID, bf.bpc.BPUrls, false, waldir, snapdir,
 		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
 		nil, proposeC, confChangeC)
 
@@ -248,7 +252,7 @@ func (bf *BlockFactory) Start() {
 					continue
 				}
 
-				logger.Info().Str("BP", bf.ID).Str("id", block.ID()).
+				logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
 					Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Uint64("no", block.GetHeader().GetBlockNo()).
 					Str("hash", block.ID()).
