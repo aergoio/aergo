@@ -475,22 +475,25 @@ var emptyBytes = make([]byte, 0)
 
 // SendTX try to fill the nonce, sign, hash in the transaction automatically and commit it
 func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
-	getStateResult, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetState{Account: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTx").Result()
-	if err != nil {
-		return nil, err
+
+	if tx.Body.Nonce == 0 {
+		getStateResult, err := rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetState{Account: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTx").Result()
+		if err != nil {
+			return nil, err
+		}
+		getStateRsp, ok := getStateResult.(message.GetStateRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
+		}
+		if getStateRsp.Err != nil {
+			return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
+		}
+		tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 	}
-	getStateRsp, ok := getStateResult.(message.GetStateRsp)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
-	}
-	if getStateRsp.Err != nil {
-		return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
-	}
-	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 
 	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.SignTx{Tx: tx, Requester: getStateRsp.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
+		&message.SignTx{Tx: tx, Requester: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")

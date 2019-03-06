@@ -29,6 +29,7 @@ func init() {
 	sendtxCmd.MarkFlagRequired("to")
 	sendtxCmd.Flags().StringVar(&amount, "amount", "0", "How much in AER")
 	sendtxCmd.MarkFlagRequired("amount")
+	sendtxCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
 }
 
 func execSendTX(cmd *cobra.Command, args []string) error {
@@ -44,7 +45,12 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
-	tx := &types.Tx{Body: &types.TxBody{Account: account, Recipient: recipient, Amount: amountBigInt.Bytes()}}
+	tx := &types.Tx{Body: &types.TxBody{
+		Account:   account,
+		Recipient: recipient,
+		Amount:    amountBigInt.Bytes(),
+		Nonce:     nonce,
+	}}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		cmd.Println(err.Error())
