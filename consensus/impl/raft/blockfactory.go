@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
@@ -30,6 +31,11 @@ var (
 	logger             *log.Logger
 	RaftBpTick         = time.Second
 	RaftSkipEmptyBlock = false
+	peerCheckInterval  = time.Second * 3
+)
+
+var (
+	ErrBFQuit = errors.New("block factory quit")
 )
 
 func init() {
@@ -88,7 +94,6 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
-		bpc:              &Cluster{},
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    RaftBpTick,
 		maxBlockBodySize: chain.MaxBlockBodySize(),
@@ -98,7 +103,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		sdb:              sdb,
 	}
 
-	if err := bf.initRaftServer(cfg); err != nil {
+	if err := bf.startRaftServer(cfg); err != nil {
 		logger.Error().Err(err).Msg("failed to init raft server")
 		return bf, err
 	}
@@ -117,8 +122,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	return bf, nil
 }
 
-func (bf *BlockFactory) initRaftServer(cfg *config.Config) error {
-	if err := checkConfig(cfg, bf.bpc); err != nil {
+func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
+	if err := bf.InitCluster(cfg); err != nil {
 		return err
 	}
 
@@ -134,6 +139,7 @@ func (bf *BlockFactory) initRaftServer(cfg *config.Config) error {
 		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
 		nil, proposeC, confChangeC)
 
+	// WaitStartup must called from outside newRaftServer(), because rafttest
 	bf.raftServer.WaitStartup()
 
 	return nil
@@ -224,6 +230,11 @@ func (bf *BlockFactory) Start() {
 
 	runtime.LockOSThread()
 
+	if err := bf.waitSyncWithMajority(); err != nil {
+		logger.Error().Err(err).Msg("wait sync with majority failed")
+		return
+	}
+
 	for {
 		select {
 		case e := <-bf.jobQueue:
@@ -270,6 +281,28 @@ func (bf *BlockFactory) Start() {
 			}
 		case <-bf.quit:
 			return
+		}
+	}
+}
+
+// waitUntilStartable wait until this chain synchronizes with more than half of all peers
+func (bf *BlockFactory) waitSyncWithMajority() error {
+	ticker := time.NewTicker(peerCheckInterval)
+
+	for {
+		select {
+		case <-ticker.C:
+			if synced, err := bf.bpc.hasSynced(); err != nil {
+				logger.Error().Err(err).Msg("failed to check sync with a majority of peers")
+				return err
+			} else if synced {
+				return nil
+			}
+
+		case <-bf.QuitChan():
+			logger.Info().Msg("quit while wait sync")
+			return ErrBFQuit
+		default:
 		}
 	}
 }

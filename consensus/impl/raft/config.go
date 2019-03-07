@@ -12,21 +12,30 @@ import (
 )
 
 var (
-	ErrInvalidRaftID    = errors.New("invalid raft raftID")
-	ErrDupRaftUrl       = errors.New("duplicated raft bp urls")
-	ErrRaftEmptyTLSFile = errors.New("cert or key file name is empty")
-	ErrNotHttpsURL      = errors.New("url scheme is not https")
-	ErrURLInvalidScheme = errors.New("url has invalid scheme")
-	ErrURLInvalidPort   = errors.New("url must have host:port style")
-	ErrInvalidRaftBPID  = errors.New("raft bp raftID is not ordered. raftID must start with 1 and be sorted")
-	ErrDupBP            = errors.New("raft bp description is duplicated")
+	ErrInvalidRaftID     = errors.New("invalid raft raftID")
+	ErrDupRaftUrl        = errors.New("duplicated raft bp urls")
+	ErrRaftEmptyTLSFile  = errors.New("cert or key file name is empty")
+	ErrNotHttpsURL       = errors.New("url scheme is not https")
+	ErrURLInvalidScheme  = errors.New("url has invalid scheme")
+	ErrURLInvalidPort    = errors.New("url must have host:port style")
+	ErrInvalidRaftBPID   = errors.New("raft bp raftID is not ordered. raftID must start with 1 and be sorted")
+	ErrDupBP             = errors.New("raft bp description is duplicated")
+	ErrInvalidRaftPeerID = errors.New("peerID of current raft bp is not equals to p2p configure")
 )
 
-func checkConfig(cfg *config.Config, cluster *Cluster) error {
+const (
+	DefaultMarginChainDiff = 1
+)
+
+func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	useTls := true
 	var err error
 
+	lenBPs := len(cfg.Consensus.RaftBPs)
 	raftID := cfg.Consensus.RaftID
+
+	bf.bpc = NewCluster(bf, raftID, uint16(lenBPs))
+
 	if raftID <= 0 || raftID > uint64(len(cfg.Consensus.RaftBPs)) {
 		logger.Error().Err(err).Msg("raft raftID has the following values: 1 <= raft raftID <= len(bpcount)")
 
@@ -41,14 +50,14 @@ func checkConfig(cfg *config.Config, cluster *Cluster) error {
 		return err
 	}
 
-	if err = validateBPs(cfg.Consensus, useTls, cluster); err != nil {
+	if err = bf.bpc.addMembers(cfg.Consensus, useTls); err != nil {
 		logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
 		return err
 	}
 
 	RaftSkipEmptyBlock = cfg.Consensus.RaftSkipEmpty
 
-	logger.Info().Msg(cluster.toString())
+	logger.Info().Msg(bf.bpc.toString())
 
 	return nil
 }
@@ -110,13 +119,8 @@ func isValidID(raftID uint64, lenBps int) error {
 	return nil
 }
 
-func validateBPs(consCfg *config.ConsensusConfig, useTls bool, cl *Cluster) error {
+func (cc *Cluster) addMembers(consCfg *config.ConsensusConfig, useTls bool) error {
 	lenBPs := len(consCfg.RaftBPs)
-
-	cl.ID = consCfg.RaftID
-	cl.Size = uint16(lenBPs)
-	cl.Member = make(map[uint64]*blockProducer)
-	cl.BPUrls = make([]string, lenBPs)
 
 	// validate each bp
 	for i, raftBP := range consCfg.RaftBPs {
@@ -140,7 +144,9 @@ func validateBPs(consCfg *config.ConsensusConfig, useTls bool, cl *Cluster) erro
 			return fmt.Errorf("invalid raft peerID %s", raftBP.P2pID)
 		}
 
-		cl.addMember(raftBP.ID, trimUrl, peerID)
+		if err := cc.addMember(raftBP.ID, trimUrl, peerID); err != nil {
+			return err
+		}
 	}
 
 	// TODO check my node pubkey from p2p
