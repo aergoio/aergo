@@ -568,7 +568,6 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.prevBlockHash = prevBlockHash
 
 	curStateSet[stateSet.service] = stateSet
-	ce.setCountHook(callMaxInstLimit)
 	ce.call(ce.args, nil)
 	err = ce.err
 	if err == nil {
@@ -619,6 +618,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 	ce := newExecutor(contractCode, stateSet)
 	ce.args = &ci
+	ce.setCountHook(callMaxInstLimit)
 
 	return ce, nil
 
