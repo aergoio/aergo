@@ -189,15 +189,22 @@ int vm_is_payable_function(lua_State *L, char *fname)
 	return lua_tointeger(L, -1);
 }
 
-char *vm_resolve_function(lua_State *L, char *fname)
+char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag)
 {
     int err;
+
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "resolve");
 	lua_pushstring(L, fname);
-	err = lua_pcall(L, 1, 1, 0);
+	err = lua_pcall(L, 1, 3, 0);
 	if (err != 0) {
 		return NULL;
 	}
-	return (char *)lua_tostring(L, -1);
+    fname = (char *)lua_tostring(L, -3);
+	if (fname == NULL)
+	    return fname;
+	*payflag = lua_tointeger(L, -2);
+	*viewflag = lua_tointeger(L, -1);
+
+	return fname;
 }
