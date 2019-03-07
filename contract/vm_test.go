@@ -3298,4 +3298,62 @@ func TestEvent(t *testing.T) {
 	}
 }
 
+func TestView(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+    function test_view()
+        contract.event("ev1", 1,"local", 2, "form")
+        contract.event("ev1", 3,"local", 4, "form")
+    end
+	function k()
+		return 10
+	end
+	function tx_in_view_function()
+		k2()
+	end
+	function k2()
+		test_view()
+	end
+	function tx_after_view_function()
+		k()
+        contract.event("ev1", 1,"local", 2, "form")
+	end
+    abi.register(test_view, tx_after_view_function)
+    abi.register_view(test_view, k, tx_in_view_function)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "view", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "test_view", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("view", `{"Name":"k", "Args":[]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_in_view_function", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_after_view_function", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
