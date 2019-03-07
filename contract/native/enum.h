@@ -68,9 +68,10 @@ typedef enum type_e {
 
     TYPE_MAP        = 15,
     TYPE_OBJECT     = 16,           /* contract, interface or null */
+    TYPE_CURSOR     = 17,
 
-    TYPE_VOID       = 17,           /* return type of function */
-    TYPE_TUPLE      = 18,           /* tuple expression */
+    TYPE_VOID       = 18,           /* return type of function */
+    TYPE_TUPLE      = 19,           /* tuple expression */
     TYPE_MAX
 } type_t;
 

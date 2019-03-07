@@ -82,6 +82,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_CONTINUE      "continue"
         K_CONTRACT      "contract"
         K_CREATE        "create"
+        K_CURSOR        "cursor"
         K_DEFAULT       "default"
         K_DELETE        "delete"
         K_DOUBLE        "double"
@@ -431,19 +432,20 @@ prim_type:
     K_ACCOUNT           { $$ = TYPE_ACCOUNT; }
 |   K_BOOL              { $$ = TYPE_BOOL; }
 |   K_BYTE              { $$ = TYPE_UINT8; }
-//|   K_FLOAT             { $$ = TYPE_FLOAT; }
-//|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
-|   K_INT               { $$ = TYPE_INT32; }
+|   K_INT8              { $$ = TYPE_INT8; }
 |   K_INT16             { $$ = TYPE_INT16; }
+|   K_INT               { $$ = TYPE_INT32; }
 |   K_INT32             { $$ = TYPE_INT32; }
 |   K_INT64             { $$ = TYPE_INT64; }
-|   K_INT8              { $$ = TYPE_INT8; }
-|   K_STRING            { $$ = TYPE_STRING; }
-|   K_UINT              { $$ = TYPE_UINT32; }
+|   K_UINT8             { $$ = TYPE_UINT8; }
 |   K_UINT16            { $$ = TYPE_UINT16; }
+|   K_UINT              { $$ = TYPE_UINT32; }
 |   K_UINT32            { $$ = TYPE_UINT32; }
 |   K_UINT64            { $$ = TYPE_UINT64; }
-|   K_UINT8             { $$ = TYPE_UINT8; }
+//|   K_FLOAT             { $$ = TYPE_FLOAT; }
+//|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
+|   K_STRING            { $$ = TYPE_STRING; }
+|   K_CURSOR            { $$ = TYPE_CURSOR; }
 ;
 
 declarator_list:

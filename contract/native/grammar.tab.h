@@ -82,50 +82,51 @@ extern int yydebug;
     K_CONTINUE = 291,
     K_CONTRACT = 292,
     K_CREATE = 293,
-    K_DEFAULT = 294,
-    K_DELETE = 295,
-    K_DOUBLE = 296,
-    K_DROP = 297,
-    K_ELSE = 298,
-    K_ENUM = 299,
-    K_FALSE = 300,
-    K_FLOAT = 301,
-    K_FOR = 302,
-    K_FUNC = 303,
-    K_GOTO = 304,
-    K_IF = 305,
-    K_IMPLEMENTS = 306,
-    K_IMPORT = 307,
-    K_IN = 308,
-    K_INDEX = 309,
-    K_INSERT = 310,
-    K_INT = 311,
-    K_INT16 = 312,
-    K_INT32 = 313,
-    K_INT64 = 314,
-    K_INT8 = 315,
-    K_INTERFACE = 316,
-    K_MAP = 317,
-    K_NEW = 318,
-    K_NULL = 319,
-    K_PAYABLE = 320,
-    K_PUBLIC = 321,
-    K_REPLACE = 322,
-    K_RETURN = 323,
-    K_SELECT = 324,
-    K_STRING = 325,
-    K_STRUCT = 326,
-    K_SWITCH = 327,
-    K_TABLE = 328,
-    K_TRUE = 329,
-    K_TYPE = 330,
-    K_UINT = 331,
-    K_UINT16 = 332,
-    K_UINT32 = 333,
-    K_UINT64 = 334,
-    K_UINT8 = 335,
-    K_UPDATE = 336,
-    K_VIEW = 337
+    K_CURSOR = 294,
+    K_DEFAULT = 295,
+    K_DELETE = 296,
+    K_DOUBLE = 297,
+    K_DROP = 298,
+    K_ELSE = 299,
+    K_ENUM = 300,
+    K_FALSE = 301,
+    K_FLOAT = 302,
+    K_FOR = 303,
+    K_FUNC = 304,
+    K_GOTO = 305,
+    K_IF = 306,
+    K_IMPLEMENTS = 307,
+    K_IMPORT = 308,
+    K_IN = 309,
+    K_INDEX = 310,
+    K_INSERT = 311,
+    K_INT = 312,
+    K_INT16 = 313,
+    K_INT32 = 314,
+    K_INT64 = 315,
+    K_INT8 = 316,
+    K_INTERFACE = 317,
+    K_MAP = 318,
+    K_NEW = 319,
+    K_NULL = 320,
+    K_PAYABLE = 321,
+    K_PUBLIC = 322,
+    K_REPLACE = 323,
+    K_RETURN = 324,
+    K_SELECT = 325,
+    K_STRING = 326,
+    K_STRUCT = 327,
+    K_SWITCH = 328,
+    K_TABLE = 329,
+    K_TRUE = 330,
+    K_TYPE = 331,
+    K_UINT = 332,
+    K_UINT16 = 333,
+    K_UINT32 = 334,
+    K_UINT64 = 335,
+    K_UINT8 = 336,
+    K_UPDATE = 337,
+    K_VIEW = 338
   };
 #endif
 
@@ -134,7 +135,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 148 "grammar.y" /* yacc.c:1910  */
+#line 149 "grammar.y" /* yacc.c:1910  */
 
     bool flag;
     char *str;
@@ -152,7 +153,7 @@ union YYSTYPE
     ast_imp_t *imp;
     meta_t *meta;
 
-#line 156 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
+#line 157 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
 };
 
 typedef union YYSTYPE YYSTYPE;

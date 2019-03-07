@@ -200,6 +200,7 @@ float       double
 string
 map
 account
+cursor
 ```
 
 ```
@@ -267,14 +268,11 @@ ASCL에서는 다음과 같은 타입을 지원한다.
 
 <pre>
 <a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
-<a name="primitive_type">primitive_type</a> = "account" | "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "uint8" |
-                 "uint" | "uint16" | "uint32" | "uint64" | "float" | "double" | "string" ;
+<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" |
+                 "uint" | "uint8" | "uint16" | "uint32" | "uint64" |
+                 "float" | "double" | "string" | "account" | "cursor" ;
 <a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
-
-#### Account type
-
-> **TODO** 구현 후 추가 필요
 
 #### Boolean type
 
@@ -425,6 +423,14 @@ CommonItf con = new MyContract();
 
 CommonItf con2 = con;       // raise error
 ```
+
+#### Account type
+
+> **TODO** 구현 후 추가 필요
+
+#### Cursor type
+
+> **TODO** 구현 후 추가 필요
 
 ### Type conversions
 

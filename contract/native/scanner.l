@@ -227,6 +227,7 @@ id                          {L}({L}|{D})*
 "const"                     yy_return(K_CONST);
 "continue"                  yy_return(K_CONTINUE);
 "contract"                  yy_return(K_CONTRACT);
+"cursor"                    yy_return(K_CURSOR);
 "default"                   yy_return(K_DEFAULT);
 "double"                    yy_return(K_DOUBLE);
 "else"                      yy_return(K_ELSE);

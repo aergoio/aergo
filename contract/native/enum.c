@@ -25,6 +25,7 @@ char *type_names_[TYPE_MAX] = {
     "struct",
     "map",
     "object",
+    "cursor",
     "void",
     "tuple"
 };
@@ -53,6 +54,7 @@ int type_sizes_[TYPE_MAX] = {
     ADDR,               /* TYPE_STRUCT */
     ADDR,               /* TYPE_MAP */
     ADDR,               /* TYPE_OBJECT */
+    ADDR,               /* TYPE_CURSOR */
     0,                  /* TYPE_VOID */
     ADDR                /* TYPE_TUPLE */
 };
@@ -75,6 +77,7 @@ int type_bytes_[TYPE_MAX] = {
     sizeof(int32_t),    /* TYPE_STRUCT */
     sizeof(int32_t),    /* TYPE_MAP */
     sizeof(int32_t),    /* TYPE_OBJECT */
+    sizeof(int32_t),    /* TYPE_CURSOR */
     0,                  /* TYPE_VOID */
     0                   /* TYPE_TUPLE */
 };
