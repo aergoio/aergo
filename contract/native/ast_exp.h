@@ -191,7 +191,6 @@ struct ast_exp_s {
     meta_t meta;
 
     bool usable_lval;       /* whether is used as lvalue */
-    bool is_global;         /* whether it is related with global variables */
 
     AST_NODE_DECL;
 };

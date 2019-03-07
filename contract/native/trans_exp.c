@@ -124,7 +124,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 
         if (is_mem_exp(id_exp))
             exp_set_mem(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
-                           id_exp->u_mem.offset + offset);
+                        id_exp->u_mem.offset + offset);
         else
             exp_set_mem(exp, id_exp->u_reg.idx, 0, offset);
     }
@@ -142,21 +142,34 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 {
-    ast_exp_t *val_exp = exp->u_cast.val_exp;
+    meta_t *from_meta = &exp->u_cast.val_exp->meta;
+    meta_t *to_meta = &exp->meta;
 
-    exp_trans(trans, val_exp);
+    exp_trans(trans, exp->u_cast.val_exp);
 
-    if (is_string_meta(&exp->meta)) {
+    if (is_string_meta(from_meta)) {
         if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ITOA64));
+            md_add_imp(trans->md, syscall_abi(FN_ATOI64));
         else if (is_bool_meta(to_meta) || is_integer_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ITOA32));
+            md_add_imp(trans->md, syscall_abi(FN_ATOI32));
         else if (is_float_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_FTOA32));
+            md_add_imp(trans->md, syscall_abi(FN_ATOF32));
         else if (is_double_meta(to_meta))
+            md_add_imp(trans->md, syscall_abi(FN_ATOF64));
+        else
+            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
+    }
+    else if (is_string_meta(to_meta)) {
+        if (is_int64_meta(from_meta) || is_uint64_meta(from_meta))
+            md_add_imp(trans->md, syscall_abi(FN_ITOA64));
+        else if (is_bool_meta(from_meta) || is_integer_meta(from_meta))
+            md_add_imp(trans->md, syscall_abi(FN_ITOA32));
+        else if (is_float_meta(from_meta))
+            md_add_imp(trans->md, syscall_abi(FN_FTOA32));
+        else if (is_double_meta(from_meta))
             md_add_imp(trans->md, syscall_abi(FN_FTOA64));
         else
-            ASSERT2(!"invalid conversion", val_exp->meta.type, exp->meta.type);
+            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
     }
 }
 
@@ -254,7 +267,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global
          * variable belonging to the contract register */
         exp_set_mem(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr,
-                       fld_id->meta.rel_offset);
+                    fld_id->meta.rel_offset);
     }
     else if (is_mem_exp(qual_exp)) {
         /* It can be a memroy expression when referring to a global variable directly */
@@ -262,7 +275,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
                 qual_exp->u_mem.offset, fld_id->meta.rel_offset);
 
         exp_set_mem(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
-                       qual_exp->u_mem.offset + fld_id->meta.rel_offset);
+                    qual_exp->u_mem.offset + fld_id->meta.rel_offset);
     }
     else {
         /* If qualifier is a function and returns an array or a struct, "qual_exp" can
@@ -342,7 +355,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
             /* If the return value is an array or struct, we must copy the value because
              * we do share memory space between the caller and the callee */
-            if (exp->is_global) {
+            if (trans->is_global) {
                 mem_idx = fn_add_register(trans->fn, meta);
 
                 l_exp = exp_new_reg(mem_idx);
@@ -451,7 +464,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
         else
             size = meta_bytes(meta);
 
-        if (exp->is_global) {
+        if (trans->is_global) {
             uint32_t reg_idx = meta->base_idx;
             uint32_t offset = meta->rel_offset;
             ast_exp_t *l_exp, *r_exp;
@@ -518,7 +531,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 {
     meta_t *meta = &exp->meta;
 
-    if (exp->is_global) {
+    if (trans->is_global) {
         uint32_t reg_idx = fn_add_register(trans->fn, meta);
         ast_exp_t *l_exp, *r_exp;
 
@@ -543,16 +556,15 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 
         exp_set_reg(exp, reg_idx);
     }
-    else
+    else {
         fn_add_stack(trans->fn, meta_bytes(meta), meta);
+    }
 }
 
 void
 exp_trans(trans_t *trans, ast_exp_t *exp)
 {
     ASSERT(exp != NULL);
-
-    exp->is_global = trans->is_global;
 
     switch (exp->kind) {
     case EXP_NULL:

@@ -608,8 +608,6 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
     vector_t *elem_exps = exp->u_init.elem_exps;
     BinaryenExpressionRef address, value;
 
-    ASSERT(!exp->is_global);
-
     if (is_map_meta(meta)) {
         /* elem_exps is the vector of key-value pair */
         BinaryenExpressionRef args[2];
@@ -673,8 +671,6 @@ static BinaryenExpressionRef
 exp_gen_alloc(gen_t *gen, ast_exp_t *exp)
 {
     BinaryenExpressionRef address;
-
-    ASSERT(!exp->is_global);
 
     address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 

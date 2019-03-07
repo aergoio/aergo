@@ -9,11 +9,11 @@
 
 #include "value.h"
 
-#define i64_fit_signed(val, max)                                                         \
+#define is_fit_signed(val, max)                                                         \
     (((val)->is_neg && (val)->i64 <= (uint64_t)(max) + 1) ||                             \
      (!(val)->is_neg && (val)->i64 <= (uint64_t)(max)))
 
-#define i64_fit_unsigned(val, max)      (!(val)->is_neg && (val)->i64 <= (max))
+#define is_fit_unsigned(val, max)      (!(val)->is_neg && (val)->i64 <= (max))
 
 #define value_eval_arith(op, x, y, res)                                                  \
     do {                                                                                 \
@@ -91,14 +91,14 @@ value_fit(value_t *val, meta_t *meta)
 
     case TYPE_UINT64:
         ASSERT1(is_integer_meta(meta), meta->type);
-        if ((meta->type == TYPE_BYTE && !i64_fit_unsigned(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT8 && !i64_fit_signed(val, INT8_MAX)) ||
-            (meta->type == TYPE_UINT8 && !i64_fit_unsigned(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT16 && !i64_fit_signed(val, INT16_MAX)) ||
-            (meta->type == TYPE_UINT16 && !i64_fit_unsigned(val, UINT16_MAX)) ||
-            (meta->type == TYPE_INT32 && !i64_fit_signed(val, INT32_MAX)) ||
-            (meta->type == TYPE_UINT32 && !i64_fit_unsigned(val, UINT32_MAX)) ||
-            (meta->type == TYPE_INT64 && !i64_fit_signed(val, INT64_MAX)) ||
+        if ((meta->type == TYPE_BYTE && !is_fit_unsigned(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT8 && !is_fit_signed(val, INT8_MAX)) ||
+            (meta->type == TYPE_UINT8 && !is_fit_unsigned(val, UINT8_MAX)) ||
+            (meta->type == TYPE_INT16 && !is_fit_signed(val, INT16_MAX)) ||
+            (meta->type == TYPE_UINT16 && !is_fit_unsigned(val, UINT16_MAX)) ||
+            (meta->type == TYPE_INT32 && !is_fit_signed(val, INT32_MAX)) ||
+            (meta->type == TYPE_UINT32 && !is_fit_unsigned(val, UINT32_MAX)) ||
+            (meta->type == TYPE_INT64 && !is_fit_signed(val, INT64_MAX)) ||
             (meta->type == TYPE_UINT64 && val->is_neg))
             return false;
         break;
