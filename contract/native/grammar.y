@@ -430,7 +430,7 @@ var_type:
 prim_type:
     K_ACCOUNT           { $$ = TYPE_ACCOUNT; }
 |   K_BOOL              { $$ = TYPE_BOOL; }
-|   K_BYTE              { $$ = TYPE_BYTE; }
+|   K_BYTE              { $$ = TYPE_UINT8; }
 //|   K_FLOAT             { $$ = TYPE_FLOAT; }
 //|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
 |   K_INT               { $$ = TYPE_INT32; }

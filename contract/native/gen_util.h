@@ -27,7 +27,6 @@ type_gen(type_t type)
         return BinaryenTypeNone();
 
     case TYPE_BOOL:
-    case TYPE_BYTE:
     case TYPE_INT8:
     case TYPE_INT16:
     case TYPE_INT32:

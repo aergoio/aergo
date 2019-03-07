@@ -10,7 +10,6 @@
 char *type_names_[TYPE_MAX] = {
     "undefined",
     "bool",
-    "byte",
     "int8",
     "uint8",
     "int16",
@@ -39,7 +38,6 @@ char *type_names_[TYPE_MAX] = {
 int type_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     I32,                /* TYPE_BOOL */
-    I32,                /* TYPE_BYTE */
     I32,                /* TYPE_INT8 */
     I32,                /* TYPE_UINT8 */
     I32,                /* TYPE_INT16 */
@@ -62,7 +60,6 @@ int type_sizes_[TYPE_MAX] = {
 int type_bytes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     sizeof(bool),
-    sizeof(uint8_t),
     sizeof(int8_t),
     sizeof(uint8_t),
     sizeof(int16_t),

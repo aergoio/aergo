@@ -10,7 +10,6 @@
 
 #define is_none_type(type)          ((type) == TYPE_NONE)
 #define is_bool_type(type)          ((type) == TYPE_BOOL)
-#define is_byte_type(type)          ((type) == TYPE_BYTE)
 #define is_int8_type(type)          ((type) == TYPE_INT8)
 #define is_uint8_type(type)         ((type) == TYPE_UINT8)
 #define is_int16_type(type)         ((type) == TYPE_INT16)
@@ -33,12 +32,11 @@
     (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                 \
      is_int64_type(type))
 #define is_unsigned_type(type)                                                           \
-    (is_byte_type(type) || is_uint8_type(type) || is_uint16_type(type) ||                \
-     is_uint32_type(type) || is_uint64_type(type))
+    (is_uint8_type(type) || is_uint16_type(type) || is_uint32_type(type) ||              \
+     is_uint64_type(type))
 
 #define is_none_meta(meta)          is_none_type((meta)->type)
 #define is_bool_meta(meta)          is_bool_type((meta)->type)
-#define is_byte_meta(meta)          is_byte_type((meta)->type)
 #define is_int8_meta(meta)          is_int8_type((meta)->type)
 #define is_uint8_meta(meta)         is_uint8_type((meta)->type)
 #define is_int16_meta(meta)         is_int16_type((meta)->type)
@@ -79,7 +77,6 @@
 #define is_undef_meta(meta)         (meta)->is_undef
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
-#define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
 #define meta_set_int8(meta)         meta_set((meta), TYPE_INT8)
 #define meta_set_uint8(meta)        meta_set((meta), TYPE_UINT8)
 #define meta_set_int16(meta)        meta_set((meta), TYPE_INT16)

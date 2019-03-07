@@ -49,29 +49,28 @@ typedef enum errlvl_e {
 typedef enum type_e {
     TYPE_NONE       = 0,
     TYPE_BOOL       = 1,
-    TYPE_BYTE       = 2,
-    TYPE_INT8       = 3,
-    TYPE_UINT8      = 4,
-    TYPE_INT16      = 5,
-    TYPE_UINT16     = 6,
-    TYPE_INT32      = 7,
-    TYPE_UINT32     = 8,
-    TYPE_INT64      = 9,
-    TYPE_UINT64     = 10,
-    TYPE_FLOAT      = 11,
-    TYPE_DOUBLE     = 12,
-    TYPE_STRING     = 13,
+    TYPE_INT8       = 2,
+    TYPE_UINT8      = 3,
+    TYPE_INT16      = 4,
+    TYPE_UINT16     = 5,
+    TYPE_INT32      = 6,
+    TYPE_UINT32     = 7,
+    TYPE_INT64      = 8,
+    TYPE_UINT64     = 9,
+    TYPE_FLOAT      = 10,
+    TYPE_DOUBLE     = 11,
+    TYPE_STRING     = 12,
     TYPE_COMPATIBLE = TYPE_STRING,
 
-    TYPE_ACCOUNT    = 14,
-    TYPE_STRUCT     = 15,
+    TYPE_ACCOUNT    = 13,
+    TYPE_STRUCT     = 14,
     TYPE_COMPARABLE = TYPE_STRUCT,
 
-    TYPE_MAP        = 16,
-    TYPE_OBJECT     = 17,           /* contract, interface or null */
+    TYPE_MAP        = 15,
+    TYPE_OBJECT     = 16,           /* contract, interface or null */
 
-    TYPE_VOID       = 18,           /* return type of function */
-    TYPE_TUPLE      = 19,           /* tuple expression */
+    TYPE_VOID       = 17,           /* return type of function */
+    TYPE_TUPLE      = 18,           /* tuple expression */
     TYPE_MAX
 } type_t;
 

@@ -140,7 +140,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         break;
 
     case TYPE_BOOL:
-    case TYPE_BYTE:
     case TYPE_UINT8:
     case TYPE_UINT16:
     case TYPE_UINT32:

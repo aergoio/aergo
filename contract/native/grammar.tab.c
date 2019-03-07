@@ -2329,7 +2329,7 @@ yyreduce:
 
   case 32:
 #line 433 "grammar.y" /* yacc.c:1648  */
-    { (yyval.type) = TYPE_BYTE; }
+    { (yyval.type) = TYPE_UINT8; }
 #line 2334 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 

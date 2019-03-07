@@ -91,8 +91,7 @@ value_fit(value_t *val, meta_t *meta)
 
     case TYPE_UINT64:
         ASSERT1(is_integer_meta(meta), meta->type);
-        if ((meta->type == TYPE_BYTE && !is_fit_unsigned(val, UINT8_MAX)) ||
-            (meta->type == TYPE_INT8 && !is_fit_signed(val, INT8_MAX)) ||
+        if ((meta->type == TYPE_INT8 && !is_fit_signed(val, INT8_MAX)) ||
             (meta->type == TYPE_UINT8 && !is_fit_unsigned(val, UINT8_MAX)) ||
             (meta->type == TYPE_INT16 && !is_fit_signed(val, INT16_MAX)) ||
             (meta->type == TYPE_UINT16 && !is_fit_unsigned(val, UINT16_MAX)) ||
@@ -450,7 +449,6 @@ value_cast_to_str(value_t *val)
 cast_fn_t cast_fntab_[TYPE_COMPATIBLE + 1] = {
     NULL,
     value_cast_to_bool,
-    value_cast_to_i64,
     value_cast_to_i64,
     value_cast_to_i64,
     value_cast_to_i64,
