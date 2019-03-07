@@ -12,11 +12,6 @@
 
 #include "meta.h"
 
-meta_t addr_meta_ = {
-    TYPE_UINT32, sizeof(uint32_t), false, sizeof(uint32_t),
-    0, 0, NULL, 0, NULL, NULL, 0, 0, 0, NULL
-};
-
 char *
 meta_to_str(meta_t *meta)
 {

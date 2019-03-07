@@ -421,7 +421,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     ASSERT1(is_tuple_meta(meta), meta->type);
 
     if (exp->u_init.is_aggr) {
-        int offset = 0;
+        uint32_t offset = 0;
         uint32_t size = meta_bytes(meta);
         char *raw = xcalloc(size);
 

@@ -135,6 +135,7 @@ static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *ret_id = id->u_fn.ret_id;
+    meta_t addr_meta;
     ir_md_t *md = trans->md;
     ir_fn_t *fn;
 
@@ -149,18 +150,20 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn = fn_new(id);
 
+    meta_set_uint32(&addr_meta);
+
     /* All heap variables access memory by adding relative offset to this register */
-    fn->heap_idx = fn_add_register(fn, &addr_meta_);
+    fn->heap_idx = fn_add_register(fn, &addr_meta);
 
     /* All stack variables access memory by adding relative offset to this register */
-    fn->stack_idx = fn_add_register(fn, &addr_meta_);
+    fn->stack_idx = fn_add_register(fn, &addr_meta);
 
     if (ret_id != NULL)
         /* All return values are stored in this register */
         fn->ret_idx = fn_add_register(fn, &ret_id->meta);
 
     /* It is used internally for binaryen, not for us (see fn_gen()) */
-    fn->reloop_idx = fn_add_register(fn, &addr_meta_);
+    fn->reloop_idx = fn_add_register(fn, &addr_meta);
 
     trans->fn = fn;
 

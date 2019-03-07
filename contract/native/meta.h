@@ -120,27 +120,26 @@ struct meta_s {
     int size;
 
     bool is_undef;          /* whether it is literal */
-    int8_t align;
 
     /* array specifications */
     int max_dim;            /* maximum dimension */
     int arr_dim;            /* current dimension */
     int *dim_sizes;         /* size of each dimension */
 
+    /* structured elements (e.g, struct, map) */
     int elem_cnt;
     meta_t **elems;
 
     ast_id_t *type_id;      /* identifier of struct, contract, interface */
 
     /* memory location to be stored */
+    uint8_t align;
     uint32_t base_idx;      /* register index having base address */
     uint32_t rel_addr;      /* relative address from "base_idx" */
     uint32_t rel_offset;    /* relative offset from "rel_addr" */
 
     src_pos_t *pos;
 };
-
-extern meta_t addr_meta_;
 
 char *meta_to_str(meta_t *x);
 

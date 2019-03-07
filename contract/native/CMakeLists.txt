@@ -76,6 +76,6 @@ target_link_libraries(ascl binaryen stdc++ m)
 
 set_target_properties(ascl PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
-    COMPILE_OPTIONS -Wall -Wextra -Wno-unused-parameter)
+    COMPILE_FLAGS "-Wall -Wextra -Wno-unused-parameter")
 
 add_subdirectory(tests)
