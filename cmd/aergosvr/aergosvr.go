@@ -47,24 +47,38 @@ var (
 		Use:   "aergosvr",
 		Short: "Aergo Server",
 		Long:  "Aergo Server Full-node implementation",
-		Run:   rootRun,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if homePath != "" && configFilePath != "" && verbose {
+				fmt.Println("ignore home path if given config file has valid configuration")
+			}
+		},
+		Run: rootRun,
 	}
 	homePath       string
 	configFilePath string
 	enableTestmode bool
 	useTestnet     bool
-	svrlog         *log.Logger
+
+	verbose bool
+
+	svrlog *log.Logger
 
 	cfg *config.Config
 )
 
 func init() {
 	cobra.OnInitialize(initConfig)
+
+	localFlags := rootCmd.Flags()
+	localFlags.SortFlags = false
+	localFlags.BoolVar(&useTestnet, "testnet", false, "use Aergo TestNet; this only affects if there's no genesis block")
+	localFlags.BoolVar(&enableTestmode, "testmode", false, "enable unsafe test mode (skips certain validations); can NOT use with --testnet")
+
 	fs := rootCmd.PersistentFlags()
 	fs.StringVar(&homePath, "home", "", "path of aergo home")
 	fs.StringVar(&configFilePath, "config", "", "path of configuration file")
-	fs.BoolVar(&enableTestmode, "testmode", false, "enable unsafe test mode (skips certain validations)")
-	fs.BoolVar(&useTestnet, "testnet", false, "use Aergo TestNet")
+	fs.BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
+
 }
 
 func initConfig() {
@@ -80,6 +94,10 @@ func initConfig() {
 	}
 	if useTestnet {
 		cfg.UseTestnet = true
+	}
+	if cfg.EnableTestmode && cfg.UseTestnet {
+		fmt.Println("Turn off test mode for Aergo Public Chains")
+		os.Exit(1)
 	}
 }
 
