@@ -8,8 +8,9 @@ import (
 )
 
 type InOutBlockchainStatus struct {
-	Hash   string
-	Height uint64
+	Hash          string
+	Height        uint64
+	ConsensusInfo *json.RawMessage `json:",omitempty"`
 }
 
 func ConvHexBlockchainStatus(in *types.BlockchainStatus) string {

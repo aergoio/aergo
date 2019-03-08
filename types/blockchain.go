@@ -18,8 +18,8 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/minio/sha256-simd"
 )
 
@@ -113,6 +113,7 @@ func getLastIndexOfBH() (lastIndex int) {
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetGenesisInfo() *Genesis
+	GetConsensusInfo() string
 	GetBestBlock() (*Block, error)
 	// GetBlock return block of blockHash. It return nil and error if not found block of that hash or there is a problem in db store
 	GetBlock(blockHash []byte) (*Block, error)

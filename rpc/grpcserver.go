@@ -100,29 +100,16 @@ func (rpc *AergoRPCService) fillPeerMetrics(result *types.Metrics) {
 
 // Blockchain handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*types.BlockchainStatus, error) {
-	//last, _ := rpc.ChainService.GetBestBlock()
-	/*
-		result, err := rpc.hub.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, defaultActorTimeout,
-			"rpc.(*AergoRPCService).Blockchain").Result()
-		if err != nil {
-			return nil, err
-		}
-		rsp, ok := result.(message.GetBestBlockRsp)
-		if !ok {
-			return nil, status.Errorf(codes.Internal, "internal type error")
-		}
-		if rsp.Err != nil {
-			return nil, rsp.Err
-		}
-		last := rsp.Block
-	*/
-	last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
+	ca := rpc.actorHelper.GetChainAccessor()
+	last, err := ca.GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
+
 	return &types.BlockchainStatus{
 		BestBlockHash: last.BlockHash(),
 		BestHeight:    last.GetHeader().GetBlockNo(),
+		ConsensusInfo: ca.GetConsensusInfo(),
 	}, nil
 }
 

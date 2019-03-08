@@ -80,6 +80,7 @@ type ChainConsensus interface {
 	Update(block *types.Block)
 	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool
+	Info() string
 }
 
 // BlockFactory is an interface for a block factory implementation.

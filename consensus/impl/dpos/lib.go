@@ -65,6 +65,10 @@ func (ls libStatus) libNo() types.BlockNo {
 	return ls.Lib.BlockNo
 }
 
+func (ls libStatus) lib() *blockInfo {
+	return ls.Lib
+}
+
 func (ls *libStatus) addConfirmInfo(block *types.Block) {
 	// Genesis block must not be added.
 	if block.BlockNo() == 0 {

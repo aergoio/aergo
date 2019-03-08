@@ -25,8 +25,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/hashicorp/golang-lru"
-	"github.com/libp2p/go-libp2p-peer"
+	lru "github.com/hashicorp/golang-lru"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -258,6 +258,16 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 // CDB returns cs.sdb as a consensus.ChainDbReader.
 func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
+}
+
+// GetConsensusInfo returns consensus-related information, which is different
+// from consensus to consensus.
+func (cs *ChainService) GetConsensusInfo() string {
+	if cs.ChainConsensus == nil {
+		return ""
+	}
+
+	return cs.Info()
 }
 
 // SetChainConsensus sets cs.cc to cc.
