@@ -133,8 +133,6 @@ datadir = "{{.BaseConfig.DataDir}}"
 dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
-enabletestmode = {{.BaseConfig.EnableTestmode}}
-usetestnet= {{.BaseConfig.UseTestnet}}
 personal = {{.BaseConfig.Personal}}
 authdir = "{{.BaseConfig.AuthDir}}"
 

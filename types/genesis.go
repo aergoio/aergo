@@ -9,16 +9,14 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/aergoio/aergo/internal/common"
 )
 
 const (
-	// DefaultSeed is temporary const to create same genesis block with no
-	// configuration. This is a UNIX timestamp (2018-07-06 10:00:00 +0900 KST)
-	// in nanoseconds.
-	DefaultSeed     = 1530838800000000000
 	blockVersionNil = math.MinInt32
+	devChainMagic   = "dev.chain"
 )
 
 var (
@@ -33,7 +31,7 @@ var (
 
 	defaultChainID = ChainID{
 		Version:     0,
-		Magic:       "",
+		Magic:       devChainMagic,
 		PublicNet:   false,
 		MainNet:     false,
 		Consensus:   "sbp",
@@ -303,11 +301,35 @@ func (g Genesis) PublicNet() bool {
 	return g.ID.PublicNet
 }
 
+func (g Genesis) IsAergoPublicChain() bool {
+
+	testNetCid := GetTestNetGenesis().ID
+	if testNetCid.Equals(&g.ID) {
+		return true
+	}
+	//TODO check MainNetChainID later
+	return false
+}
+
+func (g Genesis) HasDevChainID() bool {
+	if g.ID.Magic == devChainMagic {
+		return true
+	}
+	return false
+}
+
+func (g Genesis) HasPrivateChainID() bool {
+	if g.IsAergoPublicChain() || g.HasDevChainID() {
+		return false
+	}
+	return true
+}
+
 // GetDefaultGenesis returns default genesis structure
 func GetDefaultGenesis() *Genesis {
 	return &Genesis{
 		ID:        defaultChainID,
-		Timestamp: DefaultSeed,
+		Timestamp: time.Now().UnixNano(),
 		block:     nil,
 	} //TODO embed MAINNET genesis block
 }
