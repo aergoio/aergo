@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -78,6 +79,10 @@ type raftServer struct {
 
 	certFile string
 	keyFile  string
+
+	startSync  bool // maybe this flag is unnecessary
+	lock       sync.RWMutex
+	promotable bool
 }
 
 type LeaderStatus struct {
@@ -96,7 +101,8 @@ var snapshotCatchUpEntriesN uint64 = 10000
 func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir string,
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error), proposeC <-chan string,
-	confChangeC <-chan raftpb.ConfChange) *raftServer {
+	confChangeC <-chan raftpb.ConfChange,
+	delayPromote bool) *raftServer {
 
 	commitC := make(chan *string)
 	errorC := make(chan error)
@@ -122,10 +128,32 @@ func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir 
 
 		certFile: certFile,
 		keyFile:  keyFile,
+
+		lock:       sync.RWMutex{},
+		promotable: true,
 	}
+
+	if delayPromote {
+		rs.SetPromotable(false)
+	}
+
 	go rs.startRaft()
 
 	return rs
+}
+
+func (rs *raftServer) SetPromotable(val bool) {
+	rs.lock.Lock()
+	rs.promotable = val
+	rs.lock.Unlock()
+}
+
+func (rs *raftServer) GetPromotable() bool {
+	rs.lock.RLock()
+	val := rs.promotable
+	rs.lock.RUnlock()
+
+	return val
 }
 
 func (rs *raftServer) startRaft() {
@@ -175,7 +203,7 @@ func (rs *raftServer) startRaft() {
 		ErrorC:      make(chan error),
 	}
 
-	rs.transport.SetLogger(logger)
+	rs.transport.SetLogger(httpLogger)
 
 	rs.transport.Start()
 	for i := range rs.peers {
@@ -256,10 +284,15 @@ func (rs *raftServer) serveChannels() {
 	for {
 		select {
 		case <-ticker.C:
-			rs.node.Tick()
+			if rs.GetPromotable() {
+				rs.node.Tick()
+			}
 
 			// store raft entries to wal, then publish over commit channel
 		case rd := <-rs.node.Ready():
+			if len(rd.Entries) > 0 {
+				logger.Debug().Int("entries", len(rd.Entries)).Uint64("first", rd.Entries[0].Index).Int("commitentries", len(rd.CommittedEntries)).Msg("raft job ready")
+			}
 			if rd.SoftState != nil {
 				rs.updateLeader(rd.SoftState)
 			}
@@ -279,7 +312,6 @@ func (rs *raftServer) serveChannels() {
 			}
 			rs.maybeTriggerSnapshot()
 			rs.node.Advance()
-
 		case err := <-rs.transport.ErrorC:
 			rs.writeError(err)
 			return
@@ -383,6 +415,7 @@ func (rs *raftServer) replayWAL() *wal.WAL {
 	} else {
 		//commitChannel used for syncing startup
 		rs.commitC <- nil
+		rs.startSync = true
 	}
 
 	logger.Info().Msg("replaying WAL done")
@@ -475,21 +508,26 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	for i := range ents {
 		switch ents[i].Type {
 		case raftpb.EntryNormal:
-			if len(ents[i].Data) == 0 {
-				// ignore empty messages
-				break
-			}
-			s := string(ents[i].Data)
-			select {
-			case rs.commitC <- &s:
-			case <-rs.stopc:
-				return false
+			logger.Debug().Int("idx", i).Uint64("term", ents[i].Term).Msg("publish normal entry")
+
+			if len(ents[i].Data) != 0 {
+				// it's only for unittest
+				s := string(ents[i].Data)
+				select {
+				case rs.commitC <- &s:
+				case <-rs.stopc:
+					return false
+				}
 			}
 
 		case raftpb.EntryConfChange:
 			var cc raftpb.ConfChange
+
 			cc.Unmarshal(ents[i].Data)
 			rs.confState = *rs.node.ApplyConfChange(cc)
+
+			logger.Debug().Int("idx", i).Int32("type", int32(cc.Type)).Int("ctx", len(cc.Context)).Msg("publish confchange entry")
+
 			switch cc.Type {
 			case raftpb.ConfChangeAddNode:
 				if len(cc.Context) > 0 {
@@ -509,10 +547,15 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 
 		// special nil commit to signal replay has finished
 		if ents[i].Index == rs.lastIndex {
-			select {
-			case rs.commitC <- nil:
-			case <-rs.stopc:
-				return false
+			if !rs.startSync {
+				logger.Debug().Uint64("idx", rs.lastIndex).Msg("published all entries of WAL")
+
+				select {
+				case rs.commitC <- nil:
+					rs.startSync = true
+				case <-rs.stopc:
+					return false
+				}
 			}
 		}
 	}
