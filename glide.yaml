@@ -23,6 +23,8 @@ import:
   version: gx/v3.0.10
 - package: github.com/libp2p/go-libp2p-interface-connmgr
   version: gx/v0.0.16
+- package: github.com/libp2p/go-libp2p-nat
+  version: gx/v0.8.7
 - package: github.com/libp2p/go-libp2p-net
   version: gx/v3.0.10
 - package: github.com/libp2p/go-libp2p-peer

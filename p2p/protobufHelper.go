@@ -6,13 +6,11 @@
 package p2p
 
 import (
-	"bufio"
 	"github.com/aergoio/aergo/internal/enc"
 	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	protobufCodec "github.com/multiformats/go-multicodec/protobuf"
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built
@@ -162,17 +160,6 @@ func (pr *pbTxNoticeOrder) SendTo(p *remotePeerImpl) error {
 		p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		Str(LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Str("hashes",bytesArrToString(pr.txHashes)).Msg("Sent tx notice")
 	}
-	return nil
-}
-
-// SendProtoMessage send proto.Message data over stream
-func SendProtoMessage(data proto.Message, rw *bufio.Writer) error {
-	enc := protobufCodec.Multicodec(nil).Encoder(rw)
-	err := enc.Encode(data)
-	if err != nil {
-		return err
-	}
-	rw.Flush()
 	return nil
 }
 
