@@ -29,6 +29,7 @@ const (
 
 var (
 	logger             *log.Logger
+	httpLogger         *log.Logger
 	RaftBpTick         = time.Second
 	RaftSkipEmptyBlock = false
 	peerCheckInterval  = time.Second * 3
@@ -40,6 +41,7 @@ var (
 
 func init() {
 	logger = log.NewLogger("raft")
+	httpLogger = log.NewLogger("rafthttp")
 }
 
 type txExec struct {
@@ -137,10 +139,7 @@ func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
 
 	bf.raftServer = newRaftServer(bf.bpc.ID, bf.bpc.BPUrls, false, waldir, snapdir,
 		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
-		nil, proposeC, confChangeC)
-
-	// WaitStartup must called from outside newRaftServer(), because rafttest
-	bf.raftServer.WaitStartup()
+		nil, proposeC, confChangeC, true)
 
 	return nil
 }
@@ -230,10 +229,19 @@ func (bf *BlockFactory) Start() {
 
 	runtime.LockOSThread()
 
+	// 1. sync blockchain
 	if err := bf.waitSyncWithMajority(); err != nil {
 		logger.Error().Err(err).Msg("wait sync with majority failed")
 		return
 	}
+
+	// 2. raft can be candidate
+	//    if this node hasn't been synchronized, it must not be candidate.
+	// 	  otherwise producing block will be stop until synchronization complete
+	bf.raftServer.SetPromotable(true)
+
+	// 3. wait to commit all uncommited log in WAL, and start
+	bf.raftServer.WaitStartup()
 
 	for {
 		select {

@@ -103,6 +103,10 @@ func (cc *Cluster) hasSynced() (bool, error) {
 	var peerBestNo uint64 = 0
 	logger.Debug().Msg("chain sync XXX test")
 
+	if cc.Size == 1 {
+		return true, nil
+	}
+
 	// request GetPeers to p2p
 	getBPPeers := func() (map[peer.ID]*message.PeerInfo, error) {
 		peers := make(map[peer.ID]*message.PeerInfo)
@@ -145,7 +149,7 @@ func (cc *Cluster) hasSynced() (bool, error) {
 		return false, err
 	}
 
-	if uint16(len(peers)) < cc.Quorum() {
+	if uint16(len(peers)) < (cc.Quorum() - 1) {
 		logger.Debug().Msg("a majority of peers are not connected")
 		return false, nil
 	}
@@ -168,7 +172,7 @@ func (cc *Cluster) hasSynced() (bool, error) {
 func (cc *Cluster) toString() string {
 	var buf string
 
-	buf = fmt.Sprintf("raft cluster configure: total=%d, raftID=%d, bps=[", cc.ID, cc.Size)
+	buf = fmt.Sprintf("raft cluster configure: total=%d, raftID=%d, bps=[", cc.Size, cc.ID)
 	for _, bp := range cc.Member {
 		bpbuf := fmt.Sprintf("{ id:%d, url:%s, peerID:%s }", bp.raftID, bp.url, bp.peerID)
 		buf += bpbuf
