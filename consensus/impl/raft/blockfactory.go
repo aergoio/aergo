@@ -3,11 +3,12 @@ package raft
 import (
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/libp2p/go-libp2p-crypto"
 	"runtime"
 	"time"
+
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
@@ -318,4 +319,11 @@ func (bf *BlockFactory) waitSyncWithMajority() error {
 // JobQueue returns the queue for block production triggering.
 func (bf *BlockFactory) JobQueue() chan<- interface{} {
 	return bf.jobQueue
+}
+
+// Info retuns an empty string.
+func (bf *BlockFactory) Info() string {
+	// TODO: Returns a appropriate information inx json format like current
+	// leader, etc.
+	return ""
 }

@@ -114,6 +114,10 @@ func (tchain *StubBlockChain) GetGenesisInfo() *types.Genesis {
 	return nil
 }
 
+func (tchain *StubBlockChain) GetConsensusInfo() string {
+	return ""
+}
+
 func (tchain *StubBlockChain) GetBestBlock() (*types.Block, error) {
 	return tchain.BestBlock, nil
 }

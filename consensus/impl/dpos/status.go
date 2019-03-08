@@ -1,6 +1,7 @@
 package dpos
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -101,10 +102,37 @@ func (s *Status) Update(block *types.Block) {
 	s.bestBlock = block
 }
 
-func (s *Status) libBlockNo() types.BlockNo {
+func (s *Status) libNo() types.BlockNo {
 	s.RLock()
 	defer s.RUnlock()
 	return s.libState.libNo()
+}
+
+func (s *Status) lib() *blockInfo {
+	s.RLock()
+	defer s.RUnlock()
+	return s.libState.lib()
+}
+
+func (s *Status) libAsJSON() string {
+	lib := s.lib()
+	if lib == nil {
+		return ""
+	}
+
+	l := &struct {
+		LibHash string
+		LibNo   types.BlockNo
+	}{
+		LibHash: lib.BlockHash,
+		LibNo:   lib.BlockNo,
+	}
+
+	if b, err := json.Marshal(l); err == nil {
+		return string(b)
+	}
+
+	return ""
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {
@@ -150,6 +178,17 @@ func (s *Status) NeedReorganization(rootNo types.BlockNo) bool {
 	}
 
 	return reorganizable
+}
+
+// Info returns the current last irreversible block information as a JSON
+// string.
+func (s *Status) Info() string {
+	return s.String()
+}
+
+// String returns the current LIB as a JSON string.
+func (s *Status) String() string {
+	return s.libAsJSON()
 }
 
 // init recovers the last DPoS status including pre-LIB map and confirms

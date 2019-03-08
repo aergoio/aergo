@@ -171,9 +171,9 @@ func (dpos *DPoS) VerifyTimestamp(block *types.Block) bool {
 
 	// Reject the blocks with no <= LIB since it cannot lead to a
 	// reorganization.
-	if dpos.Status != nil && block.BlockNo() <= dpos.libBlockNo() {
+	if dpos.Status != nil && block.BlockNo() <= dpos.libNo() {
 		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
-			Uint64("block no", block.BlockNo()).Uint64("lib no", dpos.libBlockNo()).
+			Uint64("block no", block.BlockNo()).Uint64("lib no", dpos.libNo()).
 			Msg("too small block number (<= LIB number)")
 		return false
 	}

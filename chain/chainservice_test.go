@@ -45,6 +45,9 @@ func (stubC *StubConsensus) Save(tx db.Transaction) error {
 func (stubC *StubConsensus) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
+func (stubC *StubConsensus) Info() string {
+	return ""
+}
 
 func makeBlockChain() *ChainService {
 	serverCtx := config.NewServerContext("", "")

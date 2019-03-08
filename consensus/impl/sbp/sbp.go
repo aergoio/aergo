@@ -201,3 +201,9 @@ func (s *SimpleBlockFactory) Start() {
 func (s *SimpleBlockFactory) JobQueue() chan<- interface{} {
 	return s.jobQueue
 }
+
+// Info retuns an empty string since SBP has no valuable consensus-related
+// information.
+func (s *SimpleBlockFactory) Info() string {
+	return ""
+}
