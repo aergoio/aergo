@@ -19,23 +19,18 @@
 int
 compile(char *path, flag_t flag)
 {
-    ast_t *ast = NULL;
+    ast_t *ast = ast_new();
+    ir_t *ir = ir_new();
 
     ASSERT(path != NULL);
 
-    parse(path, flag, &ast);
+    prep(path, flag, ast);
+    parse(path, flag, ast);
 
-    /* empty contract can be null */
-    if (ast != NULL) {
-        ir_t *ir = NULL;
+    check(ast, flag);
+    trans(ast, flag, ir);
 
-        prep(ast, flag, path);
-        check(ast, flag);
-
-        trans(ast, flag, &ir);
-
-        gen(ir, flag, path);
-    }
+    gen(ir, flag, path);
 
     if (is_flag_off(flag, FLAG_TEST))
         error_print();

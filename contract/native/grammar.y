@@ -160,11 +160,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     ast_blk_t *blk;
     ast_exp_t *exp;
     ast_stmt_t *stmt;
-    ast_imp_t *imp;
     meta_t *meta;
 }
 
-%type <imp>     import
 %type <id>      contract
 %type <exp>     impl_opt
 %type <blk>     contract_body
@@ -256,24 +254,15 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 
 root:
     import
-    {
-        AST = ast_new();
-        imp_add(&AST->imps, $1);
-    }
 |   contract
     {
-        AST = ast_new();
         id_add(&ROOT->ids, $1);
     }
 |   interface
     {
-        AST = ast_new();
         id_add(&ROOT->ids, $1);
     }
 |   root import
-    {
-        imp_add(&AST->imps, $2);
-    }
 |   root contract
     {
         id_add(&ROOT->ids, $2);
@@ -286,9 +275,6 @@ root:
 
 import:
     K_IMPORT L_STR
-    {
-        $$ = imp_new($2, &@2);
-    }
 ;
 
 contract:

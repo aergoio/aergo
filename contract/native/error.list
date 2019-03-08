@@ -18,7 +18,7 @@ error(ERROR_FILE_IO,                "%s: %s")
 /******************************************************************************
  * preprocessor
  *****************************************************************************/
-error(ERROR_INFINITE_IMPORT,        "infinite loop for import '%s'")
+error(ERROR_CYCLIC_IMPORT,          "cyclic import detected")
 
 /******************************************************************************
  * parser

@@ -34,7 +34,7 @@ src_pos_print(src_pos_t *pos, char *buf, int buf_size)
         adj_offset += pos->first_col - adj_col;
     }
 
-    adj_len = MIN(strlen(pos->src + adj_offset), line_max);
+    adj_len = MIN((int)strlen(pos->src + adj_offset), line_max);
 
     for (i = 0; i < adj_len; i++) {
         char c = pos->src[i + adj_offset];

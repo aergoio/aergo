@@ -19,8 +19,6 @@ ast_new(void)
 
     ast->root = blk_new_root(&pos);
 
-    vector_init(&ast->imps);
-
     return ast;
 }
 

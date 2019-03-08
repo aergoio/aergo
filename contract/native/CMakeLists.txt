@@ -27,7 +27,6 @@ set(libascl_SRCS
     ast_blk.c
     ast_stmt.c
     ast_exp.c
-    ast_imp.c
     check.c
     check_id.c
     check_blk.c

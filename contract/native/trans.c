@@ -11,11 +11,10 @@
 #include "trans.h"
 
 static void
-trans_init(trans_t *trans, flag_t flag)
+trans_init(trans_t *trans, flag_t flag, ir_t *ir)
 {
     trans->flag = flag;
-
-    trans->ir = ir_new();
+    trans->ir = ir;
 
     trans->blk = NULL;
 
@@ -30,7 +29,7 @@ trans_init(trans_t *trans, flag_t flag)
 }
 
 void
-trans(ast_t *ast, flag_t flag, ir_t **ir)
+trans(ast_t *ast, flag_t flag, ir_t *ir)
 {
     int i;
     trans_t trans;
@@ -38,13 +37,11 @@ trans(ast_t *ast, flag_t flag, ir_t **ir)
     if (has_error())
         return;
 
-    trans_init(&trans, flag);
+    trans_init(&trans, flag, ir);
 
     vector_foreach(&ast->root->ids, i) {
         id_trans(&trans, vector_get_id(&ast->root->ids, i));
     }
-
-    *ir = trans.ir;
 }
 
 /* end of trans.c */

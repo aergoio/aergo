@@ -40,6 +40,6 @@ typedef struct trans_s {
     bool is_global;         /* whether allocate to heap */
 } trans_t;
 
-void trans(ast_t *ast, flag_t flag, ir_t **ir);
+void trans(ast_t *ast, flag_t flag, ir_t *ir);
 
 #endif /* ! _TRANS_H */

@@ -10,7 +10,22 @@
 
 #include "flag.h"
 #include "ast.h"
+#include "strbuf.h"
 
-void prep(ast_t *ast, flag_t flag, char *path);
+typedef struct prep_s {
+    flag_t flag;
+
+    char *path;
+    char *work_dir;
+
+    int offset;
+    strbuf_t in;
+
+    src_pos_t pos;
+
+    ast_t *ast;
+} prep_t;
+
+void prep(char *path, flag_t flag, ast_t *ast);
 
 #endif /* ! _PREP_H */

@@ -150,10 +150,9 @@ union YYSTYPE
     ast_blk_t *blk;
     ast_exp_t *exp;
     ast_stmt_t *stmt;
-    ast_imp_t *imp;
     meta_t *meta;
 
-#line 157 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
+#line 156 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
 };
 
 typedef union YYSTYPE YYSTYPE;

@@ -8,8 +8,6 @@
 
 #include "common.h"
 
-#include "vector.h"
-
 #define AST_NODE_DECL                                                                    \
     src_pos_t pos
 
@@ -28,8 +26,6 @@ typedef struct ast_s {
      * to follow the up-pointer of the block to make the name resolution
      * more natural for the variable. */
     ast_blk_t *root;
-
-    vector_t imps;
 } ast_t;
 
 ast_t *ast_new(void);

@@ -5,103 +5,230 @@
 
 #include "common.h"
 
-#include "ast_imp.h"
-#include "parse.h"
-#include "check.h"
+#include "util.h"
 #include "stack.h"
+#include "parse.h"
 
 #include "prep.h"
 
+#define YY_LINE                 prep->pos.first_line
+#define YY_OFFSET               prep->pos.first_offset
+
+#define yy_update_line()        src_pos_update_line(&prep->pos)
+#define yy_update_col()         src_pos_update_col(&prep->pos, 1)
+
+#define yy_update_first()       src_pos_update_first(&prep->pos)
+
+static void subst(char *path, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast);
+
+static void
+prep_init(prep_t *prep, flag_t flag, char *path, char *work_dir, ast_t *ast)
+{
+    prep->flag = flag;
+
+    prep->path = path;
+    prep->work_dir = work_dir;
+
+    prep->offset = 0;
+
+    strbuf_init(&prep->in);
+    strbuf_load(&prep->in, path);
+
+    src_pos_init(&prep->pos, strbuf_str(&prep->in), xstrdup(path));
+
+    prep->ast = ast;
+}
+
+static char
+scan_next(prep_t *prep)
+{
+    char c;
+
+    if (prep->offset >= strbuf_size(&prep->in))
+        return EOF;
+
+    c = strbuf_char(&prep->in, prep->offset++);
+
+    yy_update_col();
+
+    if (c == '\n' || c == '\r') {
+        yy_update_line();
+        yy_update_first();
+    }
+
+    return c;
+}
+
+static char
+scan_peek(prep_t *prep, int cnt)
+{
+    if (prep->offset >= strbuf_size(&prep->in))
+        return EOF;
+
+    return strbuf_char(&prep->in, prep->offset + cnt);
+}
+
 static bool
-push_imp(stack_t *refs, ast_imp_t *imp)
+add_file(prep_t *prep, char *path, stack_t *imps)
 {
     stack_node_t *node;
 
-    stack_foreach(node, refs) {
-        if (strcmp(node->item, imp->path) == 0) {
-            ERROR(ERROR_INFINITE_IMPORT, &imp->pos, FILENAME(imp->path));
+    stack_foreach(node, imps) {
+        if (strcmp(node->item, path) == 0) {
+            ERROR(ERROR_CYCLIC_IMPORT, &prep->pos);
             return false;
         }
     }
 
-    stack_push(refs, imp->path);
+    stack_push(imps, xstrdup(path));
 
     return true;
 }
 
 static void
-pop_imp(stack_t *refs)
+del_file(prep_t *prep, char *path, stack_t *imps)
 {
-    stack_pop(refs);
+    stack_pop(imps);
 }
 
 static void
-attach(ast_id_t *id, vector_t *ids)
+skip_char(prep_t *prep, int n)
 {
-    int i;
+    prep->offset += n;
+}
 
-    ASSERT(id->is_checked);
+static void
+skip_comment(prep_t *prep)
+{
+    char n;
 
-    vector_foreach(ids, i) {
-        if (strcmp(vector_get_id(ids, i)->name, id->name) == 0)
-            return;
+    if (scan_peek(prep, 0) == '*') {
+        while ((n = scan_next(prep)) != EOF) {
+            if (n == '*' && scan_peek(prep, 0) == '/') {
+                scan_next(prep);
+                break;
+            }
+        }
     }
-
-    id->is_imported = true;
-
-    vector_add_last(ids, id);
+    else if (scan_peek(prep, 0) == '/') {
+        while ((n = scan_next(prep)) != EOF) {
+            if (n == '\n' || n == '\r')
+                break;
+        }
+    }
 }
 
 static void
-subst(ast_t *ast, flag_t flag, stack_t *refs, vector_t *ids)
+skip_literal(prep_t *prep)
 {
-    int i, j;
+    char n;
 
-    vector_foreach(&ast->imps, i) {
-        ast_imp_t *imp = vector_get_imp(&ast->imps, i);
+    while ((n = scan_next(prep)) != EOF) {
+        if (n != '\\' && scan_peek(prep, 0) == '"') {
+            scan_next(prep);
+            break;
+        }
+    }
+}
 
-        if (push_imp(refs, imp)) {
-            ast_t *imp_ast = NULL;
+static void
+subst_imp(prep_t *prep, stack_t *imps)
+{
+    int offset;
+    char path[PATH_MAX_LEN + 1];
+    char c, n;
 
-            parse(imp->path, flag, &imp_ast);
+    strcpy(path, prep->work_dir);
+    offset = strlen(path);
 
-            if (imp_ast != NULL) {
-                ast_blk_t *root = imp_ast->root;
+    // TODO: need more error handling
+    while ((c = scan_next(prep)) != EOF) {
+        if (c == '"') {
+            while ((n = scan_next(prep)) != EOF) {
+                path[offset++] = n;
 
-                ASSERT(is_empty_vector(&root->stmts));
+                if (n != '\\' && scan_peek(prep, 0) == '"') {
+                    scan_next(prep);
+                    path[offset] = '\0';
 
-                subst(imp_ast, flag, refs, ids);
-                check(imp_ast, flag);
-
-                vector_foreach(&root->ids, j) {
-                    attach(vector_get_id(&root->ids, j), ids);
+                    if (add_file(prep, path, imps)) {
+                        subst(path, prep->flag, prep->work_dir, imps, prep->ast);
+                        parse(path, prep->flag, prep->ast);
+                        del_file(prep, prep->path, imps);
+                    }
+                    offset = 0;
+                    break;
                 }
             }
+        }
+        else if (c == '\n' || c == '\r') {
+            break;
+        }
+    }
+}
 
-            pop_imp(refs);
+static void
+subst(char *path, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast)
+{
+    bool is_first_ch = true;
+    char c;
+    prep_t prep;
+
+    prep_init(&prep, flag, path, work_dir, ast);
+
+    while ((c = scan_next(&prep)) != EOF) {
+        if (c == '/') {
+            skip_comment(&prep);
+            is_first_ch = false;
+        }
+        else if (c == '"') {
+            skip_literal(&prep);
+            is_first_ch = false;
+        }
+        else if (c == '\n' || c == '\r') {
+            is_first_ch = true;
+        }
+        else if (is_first_ch && c == 'i' &&
+                 scan_peek(&prep, 0) == 'm' &&
+                 scan_peek(&prep, 1) == 'p' &&
+                 scan_peek(&prep, 2) == 'o' &&
+                 scan_peek(&prep, 3) == 'r' &&
+                 scan_peek(&prep, 4) == 't' &&
+                 isblank(scan_peek(&prep, 5))) {
+            skip_char(&prep, 6);
+            subst_imp(&prep, imps);
+            is_first_ch = false;
+        }
+        else if (!isblank(c)) {
+            is_first_ch = false;
         }
     }
 }
 
 void
-prep(ast_t *ast, flag_t flag, char *path)
+prep(char *path, flag_t flag, ast_t *ast)
 {
-    stack_t refs;
-    vector_t ids;
-    ast_blk_t *root = ast->root;
+    stack_t imps;
+    char *delim;
+    char work_dir[PATH_MAX_LEN];
 
-    ASSERT(is_empty_vector(&root->stmts));
+    ASSERT(ast != NULL);
 
-    stack_init(&refs);
-    vector_init(&ids);
+    stack_init(&imps);
 
-    stack_push(&refs, path);
+    strcpy(work_dir, path);
 
-    subst(ast, flag, &refs, &ids);
+    delim = strrchr(work_dir, PATH_DELIM);
+    if (delim == NULL)
+        work_dir[0] = '\0';
+    else
+        *delim = '\0';
 
-    vector_join_first(&root->ids, &ids);
+    stack_push(&imps, path);
 
-    stack_pop(&refs);
+    subst(path, flag, work_dir, &imps, ast);
+
+    stack_pop(&imps);
 }
 
 /* end of prep.c */

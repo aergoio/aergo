@@ -44,6 +44,6 @@ import "sub"
 contract main { }
 
 @test(cross_reference)
-@error(ERROR_INFINITE_IMPORT)
+@error(ERROR_CYCLIC_IMPORT)
 import "main"
 contract test { }
