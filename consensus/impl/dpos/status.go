@@ -116,7 +116,7 @@ func (s *Status) lib() *blockInfo {
 
 func (s *Status) libAsJSON() string {
 	lib := s.lib()
-	if lib == nil {
+	if lib == nil || lib.BlockNo == 0 {
 		return ""
 	}
 
