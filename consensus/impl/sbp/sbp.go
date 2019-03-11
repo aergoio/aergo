@@ -58,6 +58,11 @@ type SimpleBlockFactory struct {
 	prevBlock        *types.Block
 }
 
+// GetName returns the name of the consensus.
+func GetName() string {
+	return "sbp"
+}
+
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
@@ -205,5 +210,5 @@ func (s *SimpleBlockFactory) JobQueue() chan<- interface{} {
 // Info retuns an empty string since SBP has no valuable consensus-related
 // information.
 func (s *SimpleBlockFactory) Info() string {
-	return ""
+	return consensus.NewInfo(GetName()).AsJSON()
 }

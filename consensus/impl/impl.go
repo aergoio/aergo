@@ -46,9 +46,9 @@ func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 	sdb := cs.SDB()
 
 	impl := map[string]consensus.Constructor{
-		"dpos": dpos.GetConstructor(cfg, hub, cdb, sdb), // DPoS
-		"sbp":  sbp.GetConstructor(cfg, hub, cdb, sdb),  // Simple BP
-		"raft": raft.GetConstructor(cfg, hub, cdb, sdb), // Raft BP
+		dpos.GetName(): dpos.GetConstructor(cfg, hub, cdb, sdb), // DPoS
+		sbp.GetName():  sbp.GetConstructor(cfg, hub, cdb, sdb),  // Simple BP
+		raft.GetName(): raft.GetConstructor(cfg, hub, cdb, sdb), // Raft BP
 	}
 
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()
