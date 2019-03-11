@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,4 +49,28 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
 	err = transaction.Validate()
 	assert.NoError(t, err, "should success")
+
+	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, true)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate()
+	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid json param")
+
+	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, false)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate()
+	assert.Error(t, err, "should success")
+}
+
+func buildVoteBPPayloadEx(count int, err bool) []byte {
+	var ci CallInfo
+	ci.Name = VoteBP
+	for i := 0; i < count; i++ {
+		if err {
+			ci.Args = append(ci.Args, string(i+1))
+		} else {
+			ci.Args = append(ci.Args, strconv.Itoa(i+1))
+		}
+	}
+	payload, _ := json.Marshal(ci)
+	return payload
 }

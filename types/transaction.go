@@ -15,6 +15,7 @@ import (
 const VoteBP = "v1voteBP"
 const VoteFee = "v1voteFee"
 const VoteNumBP = "v1voteNumBP"
+
 const Stake = "v1stake"
 const Unstake = "v1unstake"
 const NameCreate = "v1createName"
@@ -135,6 +136,16 @@ func validateSystemTx(tx *TxBody) error {
 			}
 			_, err = peer.IDFromBytes(candidate)
 			if err != nil {
+				return ErrTxInvalidPayload
+			}
+		}
+	case VoteNumBP:
+		for i, v := range ci.Args {
+			if i >= MaxCandidates {
+				return ErrTxInvalidPayload
+			}
+			if _, ok := v.(string); !ok {
+				fmt.Println(v)
 				return ErrTxInvalidPayload
 			}
 		}

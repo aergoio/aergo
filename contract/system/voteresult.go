@@ -2,9 +2,12 @@ package system
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"math/big"
+	"sort"
 
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58"
@@ -28,27 +31,73 @@ func newVoteResult(key []byte) *VoteResult {
 	return voteResult
 }
 
-func (voteResult *VoteResult) SubVote(vote *types.Vote) {
-	for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
-		peer := vote.Candidate[offset : offset+PeerIDLength]
-		pkey := base58.Encode(peer)
-		voteResult.rmap[pkey] = new(big.Int).Sub(voteResult.rmap[pkey], vote.GetAmountBigInt())
-	}
-}
-
-func (voteResult *VoteResult) AddVote(vote *types.Vote) {
-	for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
-		key := vote.Candidate[offset : offset+PeerIDLength]
-		if voteResult.rmap[base58.Encode(key)] == nil {
-			voteResult.rmap[base58.Encode(key)] = new(big.Int).SetUint64(0)
+func (voteResult *VoteResult) SubVote(vote *types.Vote) error {
+	if voteResult.ex {
+		if vote.Candidate != nil {
+			var args []string
+			err := json.Unmarshal(vote.Candidate, &args)
+			if err != nil {
+				return err
+			}
+			for _, v := range args {
+				voteResult.rmap[v] = new(big.Int).Sub(voteResult.rmap[v], vote.GetAmountBigInt())
+			}
 		}
-		voteResult.rmap[base58.Encode(key)] = new(big.Int).Add(voteResult.rmap[base58.Encode(key)], vote.GetAmountBigInt())
+	} else {
+		for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
+			peer := vote.Candidate[offset : offset+PeerIDLength]
+			pkey := base58.Encode(peer)
+			voteResult.rmap[pkey] = new(big.Int).Sub(voteResult.rmap[pkey], vote.GetAmountBigInt())
+		}
 	}
+	return nil
 }
 
-func (vr VoteResult) Sync(scs *state.ContractState) error {
-	voteList := buildVoteList(vr.rmap)
-	return scs.SetData(append(sortKey, vr.key...), serializeVoteList(voteList, vr.ex))
+func (voteResult *VoteResult) AddVote(vote *types.Vote) error {
+	if voteResult.ex {
+		var args []string
+		err := json.Unmarshal(vote.Candidate, &args)
+		if err != nil {
+			return err
+		}
+		for _, v := range args {
+			if voteResult.rmap[v] == nil {
+				voteResult.rmap[v] = new(big.Int).SetUint64(0)
+			}
+			voteResult.rmap[v] = new(big.Int).Add(voteResult.rmap[v], vote.GetAmountBigInt())
+		}
+	} else {
+		for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
+			key := vote.Candidate[offset : offset+PeerIDLength]
+			if voteResult.rmap[base58.Encode(key)] == nil {
+				voteResult.rmap[base58.Encode(key)] = new(big.Int).SetUint64(0)
+			}
+			voteResult.rmap[base58.Encode(key)] = new(big.Int).Add(voteResult.rmap[base58.Encode(key)], vote.GetAmountBigInt())
+		}
+	}
+	return nil
+}
+
+func (vr *VoteResult) buildVoteList() *types.VoteList {
+	var voteList types.VoteList
+	for k, v := range vr.rmap {
+		vote := &types.Vote{
+			Amount: v.Bytes(),
+		}
+		if vr.ex {
+			vote.Candidate = []byte(k)
+		} else {
+			vote.Candidate, _ = enc.ToBytes(k)
+		}
+		voteList.Votes = append(voteList.Votes, vote)
+	}
+	sort.Sort(sort.Reverse(voteList))
+
+	return &voteList
+}
+
+func (vr *VoteResult) Sync(scs *state.ContractState) error {
+	return scs.SetData(append(sortKey, vr.key...), serializeVoteList(vr.buildVoteList(), vr.ex))
 }
 
 func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
