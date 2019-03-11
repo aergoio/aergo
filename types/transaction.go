@@ -126,11 +126,20 @@ func validateSystemTx(tx *TxBody) error {
 			return ErrTooSmallAmount
 		}
 	case VoteBP:
+		unique := map[string]int{}
 		for i, v := range ci.Args {
 			if i >= MaxCandidates {
 				return ErrTxInvalidPayload
 			}
-			candidate, err := base58.Decode(v.(string))
+			encoded, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
+			}
+			if unique[encoded] != 0 {
+				return ErrTxInvalidPayload
+			}
+			unique[encoded]++
+			candidate, err := base58.Decode(encoded)
 			if err != nil {
 				return ErrTxInvalidPayload
 			}
@@ -139,16 +148,18 @@ func validateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case VoteNumBP:
-		for i, v := range ci.Args {
-			if i >= MaxCandidates {
-				return ErrTxInvalidPayload
-			}
-			if _, ok := v.(string); !ok {
-				fmt.Println(v)
-				return ErrTxInvalidPayload
-			}
+		/* TODO:
+		case VoteNumBP:
+			for i, v := range ci.Args {
+				if i >= MaxCandidates {
+					return ErrTxInvalidPayload
+				}
+				if _, ok := v.(string); !ok {
+					fmt.Println(v)
+					return ErrTxInvalidPayload
+				}
 		}
+		*/
 	default:
 		return ErrTxInvalidPayload
 	}
