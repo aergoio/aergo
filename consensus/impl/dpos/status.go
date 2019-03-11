@@ -114,10 +114,10 @@ func (s *Status) lib() *blockInfo {
 	return s.libState.lib()
 }
 
-func (s *Status) libAsJSON() string {
+func (s *Status) libAsJSON() *json.RawMessage {
 	lib := s.lib()
 	if lib == nil || lib.BlockNo == 0 {
-		return ""
+		return nil
 	}
 
 	l := &struct {
@@ -129,10 +129,11 @@ func (s *Status) libAsJSON() string {
 	}
 
 	if b, err := json.Marshal(l); err == nil {
-		return string(b)
+		m := json.RawMessage(b)
+		return &m
 	}
 
-	return ""
+	return nil
 }
 
 func (s *Status) updateLIB(lib *blockInfo) {
@@ -188,7 +189,10 @@ func (s *Status) Info() string {
 
 // String returns the current LIB as a JSON string.
 func (s *Status) String() string {
-	return s.libAsJSON()
+	info := consensus.NewInfo(GetName())
+	info.Status = s.libAsJSON()
+
+	return info.AsJSON()
 }
 
 // init recovers the last DPoS status including pre-LIB map and confirms

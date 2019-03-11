@@ -82,6 +82,11 @@ type BlockFactory struct {
 	raftServer *raftServer
 }
 
+// GetName returns the name of the consensus.
+func GetName() string {
+	return "raft"
+}
+
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
@@ -325,5 +330,5 @@ func (bf *BlockFactory) JobQueue() chan<- interface{} {
 func (bf *BlockFactory) Info() string {
 	// TODO: Returns a appropriate information inx json format like current
 	// leader, etc.
-	return ""
+	return consensus.NewInfo(GetName()).AsJSON()
 }

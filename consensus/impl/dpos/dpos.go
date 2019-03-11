@@ -78,6 +78,11 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 	return block
 }
 
+// GetName returns the name of the consensus.
+func GetName() string {
+	return "dpos"
+}
+
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
