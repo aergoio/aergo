@@ -175,7 +175,10 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	for {
 		select {
 		case result := <-finder.lScanCh:
-			return result, nil
+			//valid response
+			if result == nil || result.No >= finder.ctx.LastAnchor {
+				return result, nil
+			}
 		case <-timer.C:
 			logger.Error().Float64("sec", finder.dfltTimeout.Seconds()).Msg("get ancestor response timeout")
 			return nil, ErrorGetSyncAncestorTimeout
