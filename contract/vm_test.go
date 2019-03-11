@@ -3356,4 +3356,27 @@ func TestView(t *testing.T) {
 	}
 }
 
+func TestNsec(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function test_nsec()
+		system.print(nsec())
+	end
+	abi.register(test_nsec)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "nsec", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "nsec", 0, `{"Name": "test_nsec"}`).Fail(`attempt to call global 'nsec' (a nil value)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
