@@ -843,8 +843,12 @@ func (re *recoveryEntry) recovery() error {
 	var zero big.Int
 	callState := re.callState
 	if re.amount.Cmp(&zero) > 0 {
-		re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
-		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
+		if re.senderState != nil {
+			re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
+		}
+		if callState != nil {
+			callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
+		}
 	}
 	if re.onlySend {
 		return nil

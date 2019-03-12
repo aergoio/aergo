@@ -321,6 +321,65 @@ static int moduleEvent(lua_State *L)
 	return 0;
 }
 
+static int governance(lua_State *L, char type) {
+	int ret;
+	int *service = (int *)getLuaExecContext(L);
+	char *arg;
+	bool needfree = false;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+
+    if (type != 'V') {
+    	if (lua_isnil(L, 1))
+	    return 0;
+
+        switch(lua_type(L, 1)) {
+        case LUA_TNUMBER:
+            arg = (char *)lua_tostring(L, 1);
+            break;
+        case LUA_TSTRING:
+            arg = (char *)lua_tostring(L, 1);
+            break;
+        case LUA_TUSERDATA:
+            arg = bc_num2str(*((void **)luaL_checkudata(L, 1, MYTYPE)));
+            needfree = true;
+            break;
+        default:
+            luaL_error(L, "invalid input");
+        }
+    }
+    else {
+	    arg = lua_util_get_json_from_stack (L, 1, lua_gettop(L), false);
+	    if (arg == NULL)
+		    lua_error(L);
+		if (strlen(arg) == 0) {
+		    free(arg);
+		    luaL_error(L, "invalid input");
+		}
+		needfree = true;
+    }
+	ret = LuaGovernance(L, service, type, arg);
+	if (needfree)
+	    free(arg);
+	if (ret < 0)
+		lua_error(L);
+	return 0;
+}
+
+static int moduleStake(lua_State *L) {
+    return governance(L, 'S');
+}
+
+static int moduleUnstake(lua_State *L) {
+    return governance(L, 'U');
+}
+
+static int moduleVote(lua_State *L) {
+    return governance(L, 'V');
+}
+
 static const luaL_Reg call_methods[] = {
 	{"value", call_value},
 	{"gas", call_gas},
@@ -357,6 +416,9 @@ static const luaL_Reg contract_lib[] = {
 	{"send", moduleSend},
 	{"pcall", modulePcall},
 	{"event", moduleEvent},
+	{"stake", moduleStake},
+	{"unstake", moduleUnstake},
+	{"vote", moduleVote},
 	{NULL, NULL}
 };
 
