@@ -106,6 +106,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_INT64         "int64"
         K_INT8          "int8"
         K_INTERFACE     "interface"
+        K_LIBRARY       "library"
         K_MAP           "map"
         K_NEW           "new"
         K_NULL          "null"
@@ -163,7 +164,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
     meta_t *meta;
 }
 
-%type <id>      contract
 %type <exp>     impl_opt
 %type <blk>     contract_body
 %type <id>      variable
@@ -188,15 +188,15 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <vect>    param_list_opt
 %type <vect>    param_list
 %type <id>      param_decl
-%type <blk>     block
-%type <blk>     blk_decl
 %type <id>      udf_spec
 %type <mod>     modifier_opt
 %type <id>      return_opt
 %type <id>      return_list
 %type <id>      return_decl
-%type <id>      interface
+%type <blk>     block
+%type <blk>     blk_decl
 %type <blk>     interface_body
+%type <blk>     library_body
 %type <stmt>    statement
 %type <stmt>    empty_stmt
 %type <stmt>    exp_stmt
@@ -253,24 +253,17 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %%
 
 root:
+    component
+|   library
+;
+
+component:
     import
 |   contract
-    {
-        id_add(&ROOT->ids, $1);
-    }
 |   interface
-    {
-        id_add(&ROOT->ids, $1);
-    }
 |   root import
 |   root contract
-    {
-        id_add(&ROOT->ids, $2);
-    }
 |   root interface
-    {
-        id_add(&ROOT->ids, $2);
-    }
 ;
 
 import:
@@ -285,7 +278,7 @@ contract:
         /* add default constructor */
         id_add(&blk->ids, id_new_ctor($2, NULL, NULL, &@2));
 
-        $$ = id_new_contract($2, $3, blk, &@$);
+        id_add(&ROOT->ids, id_new_contract($2, $3, blk, &@$));
     }
 |   K_CONTRACT identifier impl_opt '{' contract_body '}'
     {
@@ -301,7 +294,7 @@ contract:
             /* add default constructor */
             id_add(&$5->ids, id_new_ctor($2, NULL, NULL, &@2));
 
-        $$ = id_new_contract($2, $3, $5, &@$);
+        id_add(&ROOT->ids, id_new_contract($2, $3, $5, &@$));
     }
 ;
 
@@ -624,46 +617,6 @@ param_decl:
     }
 ;
 
-block:
-    '{' '}'             { $$ = NULL; }
-|   '{' blk_decl '}'    { $$ = $2; }
-;
-
-blk_decl:
-    var_qual
-    {
-        $$ = blk_new_normal(&@$);
-        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
-    }
-|   compound
-    {
-        $$ = blk_new_normal(&@$);
-        /* Unlike state variables, local variables are referenced according to their
-         * order of declaration. */
-        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
-    }
-|   statement
-    {
-        $$ = blk_new_normal(&@$);
-        stmt_add(&$$->stmts, $1);
-    }
-|   blk_decl var_qual
-    {
-        $$ = $1;
-        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
-    }
-|   blk_decl compound
-    {
-        $$ = $1;
-        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
-    }
-|   blk_decl statement
-    {
-        $$ = $1;
-        stmt_add(&$$->stmts, $2);
-    }
-;
-
 udf_spec:
     modifier_opt K_FUNC identifier '(' param_list_opt ')' return_opt
     {
@@ -732,10 +685,50 @@ return_decl:
     }
 ;
 
+block:
+    '{' '}'             { $$ = NULL; }
+|   '{' blk_decl '}'    { $$ = $2; }
+;
+
+blk_decl:
+    var_qual
+    {
+        $$ = blk_new_normal(&@$);
+        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
+    }
+|   compound
+    {
+        $$ = blk_new_normal(&@$);
+        /* Unlike state variables, local variables are referenced according to their
+         * order of declaration. */
+        stmt_add(&$$->stmts, stmt_new_id($1, &@1));
+    }
+|   statement
+    {
+        $$ = blk_new_normal(&@$);
+        stmt_add(&$$->stmts, $1);
+    }
+|   blk_decl var_qual
+    {
+        $$ = $1;
+        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
+    }
+|   blk_decl compound
+    {
+        $$ = $1;
+        stmt_add(&$$->stmts, stmt_new_id($2, &@2));
+    }
+|   blk_decl statement
+    {
+        $$ = $1;
+        stmt_add(&$$->stmts, $2);
+    }
+;
+
 interface:
     K_INTERFACE identifier '{' interface_body '}'
     {
-        $$ = id_new_interface($2, $4, &@2);
+        id_add(&ROOT->ids, id_new_interface($2, $4, &@2));
     }
 ;
 
@@ -749,6 +742,30 @@ interface_body:
     {
         $$ = $1;
         id_add(&$$->ids, $2);
+    }
+;
+
+library:
+    K_LIBRARY identifier '{' library_body '}'
+    {
+        id_add(&ROOT->ids, id_new_library($2, $4, &@2));
+    }
+;
+
+library_body:
+    udf_spec ':' L_STR ';'
+    {
+        $$ = blk_new_library(&@$);
+
+        vector_add_last(&$$->ids, $1);
+        $1->u_fn.alias = $3;
+    }
+|   library_body udf_spec ':' L_STR ';'
+    {
+        $$ = $1;
+
+        vector_add_last(&$$->ids, $2);
+        $2->u_fn.alias = $4;
     }
 ;
 
@@ -1343,6 +1360,7 @@ non_reserved_token:
 |   K_IMPORT            { $$ = xstrdup("import"); }
 |   K_INDEX             { $$ = xstrdup("index"); }
 |   K_INTERFACE         { $$ = xstrdup("interface"); }
+|   K_LIBRARY           { $$ = xstrdup("library"); }
 |   K_TABLE             { $$ = xstrdup("table"); }
 |   K_VIEW              { $$ = xstrdup("view"); }
 ;

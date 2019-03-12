@@ -238,7 +238,8 @@ id_check_fn(check_t *check, ast_id_t *id)
         }
     }
 
-    snprintf(id->u_fn.qname, sizeof(id->u_fn.qname), "%s.%s", id->up->name, id->name);
+    snprintf(id->u_fn.qname, sizeof(id->u_fn.qname), "%s.%s", id->up->name,
+             id->u_fn.alias != NULL ? id->u_fn.alias : id->name);
 
     /* The body of the function is checked after the resolution of all identifiers.
      * (See blk_check()) */
@@ -310,6 +311,23 @@ id_check_interface(check_t *check, ast_id_t *id)
     meta_set_object(&id->meta, id);
 
     blk_check(check, id->u_itf.blk);
+
+    return true;
+}
+
+static bool
+id_check_library(check_t *check, ast_id_t *id)
+{
+    ASSERT1(is_lib_id(id), id->kind);
+    ASSERT(id->name != NULL);
+    ASSERT(id->up == NULL);
+    ASSERT(id->u_lib.blk != NULL);
+
+    meta_set_void(&id->meta);
+
+    blk_check(check, id->u_lib.blk);
+
+    check->lib_id = id;
 
     return true;
 }
@@ -406,6 +424,10 @@ id_check(check_t *check, ast_id_t *id)
 
     case ID_ITF:
         id_check_interface(check, id);
+        break;
+
+    case ID_LIB:
+        id_check_library(check, id);
         break;
 
     case ID_LABEL:

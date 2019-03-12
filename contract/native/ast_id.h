@@ -20,6 +20,7 @@
 #define is_fn_id(id)                ((id)->kind == ID_FN)
 #define is_cont_id(id)              ((id)->kind == ID_CONT)
 #define is_itf_id(id)               ((id)->kind == ID_ITF)
+#define is_lib_id(id)               ((id)->kind == ID_LIB)
 #define is_label_id(id)             ((id)->kind == ID_LABEL)
 #define is_tuple_id(id)             ((id)->kind == ID_TUPLE)
 
@@ -67,10 +68,12 @@ typedef struct id_enum_s {
 } id_enum_t;
 
 typedef struct id_fn_s {
-    char qname[NAME_MAX_LEN * 2 + 2];
+    char *alias;
     vector_t *param_ids;
     ast_id_t *ret_id;
     ast_blk_t *blk;
+
+    char qname[NAME_MAX_LEN * 2 + 2];
 } id_fn_t;
 
 typedef struct id_cont_s {
@@ -81,6 +84,10 @@ typedef struct id_cont_s {
 typedef struct id_itf_s {
     ast_blk_t *blk;
 } id_itf_t;
+
+typedef struct id_lib_s {
+    ast_blk_t *blk;
+} id_lib_t;
 
 typedef struct id_label_s {
     ast_stmt_t *stmt;
@@ -105,6 +112,7 @@ struct ast_id_s {
         id_fn_t u_fn;
         id_cont_t u_cont;
         id_itf_t u_itf;
+        id_lib_t u_lib;
         id_label_t u_lab;
         id_tuple_t u_tup;
     };
@@ -133,6 +141,7 @@ ast_id_t *id_new_ctor(char *name, vector_t *param_ids, ast_blk_t *blk, src_pos_t
 ast_id_t *id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk,
                           src_pos_t *pos);
 ast_id_t *id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos);
+ast_id_t *id_new_library(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);
 ast_id_t *id_new_tuple(src_pos_t *pos);
 

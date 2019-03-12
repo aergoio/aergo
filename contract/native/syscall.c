@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "binaryen-c.h"
+#include "ast_id.h"
 #include "ast_exp.h"
 #include "ir_abi.h"
 #include "ir_md.h"
@@ -28,6 +29,22 @@ sys_fn_t sys_fntab_[FN_MAX] = {
     { "ftoa32", SYSCALL_MODULE".ftoa32", 1, { TYPE_FLOAT }, TYPE_UINT32 },
     { "ftoa64", SYSCALL_MODULE".ftoa64", 1, { TYPE_DOUBLE }, TYPE_UINT32 },
 };
+
+ast_id_t *
+syscall_load(void)
+{
+#if 0
+    char *src = " \
+library system { \
+    func abs(int8 v) int8 : abs_i8; \
+    func abs(int16 v) int16 : abs_i16; \
+    func abs(int32 v) int32 : abs_i32; \
+    func abs(int64 v) int64 : abs_i64; \
+} \
+";
+#endif
+    return NULL;
+}
 
 ir_abi_t *
 syscall_abi(fn_kind_t kind)

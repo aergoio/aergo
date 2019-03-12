@@ -15,6 +15,7 @@
 #define is_root_blk(blk)            ((blk)->kind == BLK_ROOT)
 #define is_cont_blk(blk)            ((blk)->kind == BLK_CONT)
 #define is_itf_blk(blk)             ((blk)->kind == BLK_ITF)
+#define is_lib_blk(blk)             ((blk)->kind == BLK_LIB)
 #define is_fn_blk(blk)              ((blk)->kind == BLK_FN)
 #define is_loop_blk(blk)            ((blk)->kind == BLK_LOOP)
 
@@ -43,6 +44,7 @@ ast_blk_t *blk_new_normal(src_pos_t *pos);
 ast_blk_t *blk_new_root(src_pos_t *pos);
 ast_blk_t *blk_new_contract(src_pos_t *pos);
 ast_blk_t *blk_new_interface(src_pos_t *pos);
+ast_blk_t *blk_new_library(src_pos_t *pos);
 ast_blk_t *blk_new_fn(src_pos_t *pos);
 ast_blk_t *blk_new_loop(src_pos_t *pos);
 ast_blk_t *blk_new_switch(src_pos_t *pos);

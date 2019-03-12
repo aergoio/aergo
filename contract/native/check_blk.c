@@ -82,14 +82,15 @@ blk_check(check_t *check, ast_blk_t *blk)
         if (!is_fn_id(id))
             continue;
 
-        check->id = id;
-        check->fn_id = id;
+        if (id->u_fn.blk != NULL) {
+            check->id = id;
+            check->fn_id = id;
 
-        if (id->u_fn.blk != NULL)
             blk_check(check, id->u_fn.blk);
 
-        check->fn_id = NULL;
-        check->id = id->up;
+            check->fn_id = NULL;
+            check->id = id->up;
+        }
 
         check_return_stmt(id);
     }

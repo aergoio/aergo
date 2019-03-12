@@ -7,6 +7,7 @@
 
 #include "ast_blk.h"
 #include "check_id.h"
+#include "syscall.h"
 
 #include "check_exp.h"
 

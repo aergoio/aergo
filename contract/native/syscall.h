@@ -19,6 +19,11 @@
 typedef struct ir_abi_s ir_abi_t;
 #endif /* ! _IR_ABI_T */
 
+#ifndef _AST_ID_T
+#define _AST_ID_T
+typedef struct ast_id_s ast_id_t;
+#endif /* ! _AST_ID_T */
+
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
 typedef struct ast_exp_s ast_exp_t;
@@ -35,6 +40,8 @@ typedef struct sys_fn_s {
 } sys_fn_t;
 
 extern sys_fn_t sys_fntab_[FN_MAX];
+
+ast_id_t *syscall_load(void);
 
 ir_abi_t *syscall_abi(fn_kind_t kind);
 

@@ -247,6 +247,7 @@ id                          {L}({L}|{D})*
 "int64"                     yy_return(K_INT64);
 "int8"                      yy_return(K_INT8);
 "interface"                 yy_return(K_INTERFACE);
+"library"                   yy_return(K_LIBRARY);
 "map"                       yy_return(K_MAP);
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);

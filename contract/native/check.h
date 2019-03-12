@@ -33,6 +33,8 @@ typedef struct check_s {
 
     ast_id_t *qual_id;      /* current access qualifier */
     ast_id_t *fn_id;        /* current function */
+
+    ast_id_t *lib_id;       /* system library */
 } check_t;
 
 void check(ast_t *ast, flag_t flag);

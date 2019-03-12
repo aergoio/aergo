@@ -52,6 +52,12 @@ blk_new_interface(src_pos_t *pos)
 }
 
 ast_blk_t *
+blk_new_library(src_pos_t *pos)
+{
+    return ast_blk_new(BLK_LIB, pos);
+}
+
+ast_blk_t *
 blk_new_fn(src_pos_t *pos)
 {
     return ast_blk_new(BLK_FN, pos);
@@ -83,7 +89,7 @@ blk_search(ast_blk_t *blk, blk_kind_t kind)
 }
 
 static inline bool
-is_visible_id(ast_blk_t *blk, ast_id_t *id, char *name, bool is_type)
+is_visible_id(ast_id_t *id, char *name, bool is_type)
 {
     if (is_type)
         return is_type_id(id) && strcmp(name, id->name) == 0;
@@ -113,11 +119,19 @@ blk_search_id(ast_blk_t *blk, char *name, bool is_type)
                 vector_foreach(id->u_tup.elem_ids, j) {
                     ast_id_t *elem_id = vector_get_id(id->u_tup.elem_ids, j);
 
-                    if (is_visible_id(blk, elem_id, name, is_type))
+                    if (is_visible_id(elem_id, name, is_type))
                         return elem_id;
                 }
             }
-            else if (is_visible_id(blk, id, name, is_type)) {
+            else if (is_lib_id(id)) {
+                vector_foreach(&id->u_lib.blk->ids, j) {
+                    ast_id_t *lib_id = vector_get_id(&id->u_lib.blk->ids, j);
+
+                    if (is_visible_id(lib_id, name, is_type))
+                        return lib_id;
+                }
+            }
+            else if (is_visible_id(id, name, is_type)) {
                 return id;
             }
         }

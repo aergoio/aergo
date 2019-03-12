@@ -134,6 +134,16 @@ id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_id_t *
+id_new_library(char *name, ast_blk_t *blk, src_pos_t *pos)
+{
+    ast_id_t *id = ast_id_new(ID_LIB, MOD_PUBLIC, name, pos);
+
+    id->u_lib.blk = blk;
+
+    return id;
+}
+
+ast_id_t *
 id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_LABEL, MOD_PRIVATE, name, pos);
