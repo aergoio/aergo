@@ -51,17 +51,19 @@ func NewMetricManager(interval int) *metricsManager {
 }
 
 func (mm *metricsManager) Start() {
-	mm.logger.Info().Msg("Starting p2p metrics manager ")
-	mm.ticker = time.NewTicker(time.Second * time.Duration(mm.interval))
-	for range mm.ticker.C {
-		mm.mutex.RLock()
-		//mm.logger.Debug().Int("peer_cnt", len(mm.metricsMap)).Msg("Calculating peer metrics")
-		for _, peerMetric := range mm.metricsMap {
-			peerMetric.InMetric.Calculate()
-			peerMetric.OutMetric.Calculate()
+	go func() {
+		mm.logger.Info().Msg("Starting p2p metrics manager ")
+		mm.ticker = time.NewTicker(time.Second * time.Duration(mm.interval))
+		for range mm.ticker.C {
+			mm.mutex.RLock()
+			//mm.logger.Debug().Int("peer_cnt", len(mm.metricsMap)).Msg("Calculating peer metrics")
+			for _, peerMetric := range mm.metricsMap {
+				peerMetric.InMetric.Calculate()
+				peerMetric.OutMetric.Calculate()
+			}
+			mm.mutex.RUnlock()
 		}
-		mm.mutex.RUnlock()
-	}
+	}()
 }
 
 func (mm *metricsManager) Stop() {
