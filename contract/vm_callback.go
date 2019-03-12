@@ -214,6 +214,12 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 		callState.curState.SqlRecoveryPoint, amountBig)
+
+	if *service <= ChainService {
+		ce.setCountHook(callMaxInstLimit)
+	} else {
+		ce.setCountHook(queryMaxInstLimit)
+	}
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
 		stateSet.curContract = prevContractInfo
@@ -285,6 +291,13 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 			return -1
 		}
 	}
+
+	if *service <= ChainService {
+		ce.setCountHook(callMaxInstLimit)
+	} else {
+		ce.setCountHook(queryMaxInstLimit)
+	}
+
 	ret := ce.call(&ci, L)
 	if ce.err != nil {
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] call error: "+ce.err.Error())
@@ -337,6 +350,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 	}
 	senderState := stateSet.curContract.callState.curState
 	if sendBalance(L, senderState, callState.curState, amountBig) == false {
+
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
@@ -762,11 +776,11 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.LuaCallContract]not found contract state")
+		luaPushStr(L, "[Contract.LuaDeployContract]not found contract state")
 		return -1
 	}
 	if stateSet.isQuery == true {
-		luaPushStr(L, "[Contract.LuaCallContract]send not permitted in query")
+		luaPushStr(L, "[Contract.LuaDeployContract]send not permitted in query")
 		return -1
 	}
 	bs := stateSet.bs
@@ -823,20 +837,20 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract]value not proper format:"+err.Error())
+		luaPushStr(L, "[Contract.LuaDeployContract]value not proper format:"+err.Error())
 		return -1
 	}
 	runCode := getContract(contractState, code)
 	ce := newExecutor(runCode, stateSet)
 	defer ce.close()
 	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract]newExecutor Error :"+ce.err.Error())
+		luaPushStr(L, "[Contract.LuaDeployContract]newExecutor Error :"+ce.err.Error())
 		return -1
 	}
 	var ci types.CallInfo
 	err = getCallInfo(&ci.Args, []byte(argsStr), newContract.ID())
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract] invalid args:"+err.Error())
+		luaPushStr(L, "[Contract.LuaDeployContract] invalid args:"+err.Error())
 		return -1
 	}
 	senderState := prevContractInfo.callState.curState
@@ -850,7 +864,7 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 		err = setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, false)
 		if err != nil {
 			stateSet.dbSystemError = true
-			luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
+			luaPushStr(L, "[System.LuaDeployContract] DB err:"+err.Error())
 		}
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, newContract.ID(),
@@ -868,16 +882,17 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
 		stateSet.dbSystemError = true
-		luaPushStr(L, "[System.LuaCallContract] DB err:"+err.Error())
+		luaPushStr(L, "[System.LuaDeployContract] DB err:"+err.Error())
 		return -1
 	}
 	senderState.Nonce += 1
 
 	luaPushStr(L, types.EncodeAddress(newContract.ID()))
+	ce.setCountHook(callMaxInstLimit)
 	ret := ce.constructCall(&ci, L)
 	if ce.err != nil {
 		stateSet.curContract = prevContractInfo
-		luaPushStr(L, "[Contract.LuaCallContract] call err:"+ce.err.Error())
+		luaPushStr(L, "[Contract.LuaDeployContract] call err:"+ce.err.Error())
 		return -1
 	}
 	stateSet.curContract = prevContractInfo
@@ -896,6 +911,9 @@ func IsPublic() C.int {
 //export LuaRandom
 func LuaRandom(L *LState, service C.int) C.int {
 	stateSet := curStateSet[service]
+	if stateSet.seed == nil {
+		setRandomSeed(stateSet)
+	}
 	switch C.lua_gettop(L) {
 	case 0:
 		C.lua_pushnumber(L, C.double(stateSet.seed.Float64()))

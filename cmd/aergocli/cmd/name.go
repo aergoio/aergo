@@ -7,7 +7,9 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -65,7 +67,7 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
-	payload := []byte{'c'}
+
 	if len(name) != types.NameLength {
 		return errors.New("The name must be 12 alphabetic characters\n")
 	}
@@ -73,12 +75,22 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
+	var ci types.CallInfo
+	ci.Name = types.NameCreate
+	err = json.Unmarshal([]byte("[\""+name+"\"]"), &ci.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+	payload, err := json.Marshal(ci)
+	if err != nil {
+		log.Fatal(err)
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
 			Recipient: []byte(types.AergoName),
 			Amount:    amount.Bytes(),
-			Payload:   append(payload, []byte(name)...),
+			Payload:   payload,
 			Limit:     0,
 			Type:      types.TxType_GOVERNANCE,
 		},
@@ -97,7 +109,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
-	to, err := types.DecodeAddress(to)
+	_, err = types.DecodeAddress(to)
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
@@ -108,11 +120,20 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
-	payload := []byte{'u'}
-	payload = append(payload, []byte(name)...)
-	payload = append(payload, ',')
-	payload = append(payload, to...)
-
+	var ci types.CallInfo
+	ci.Name = types.NameUpdate
+	err = json.Unmarshal([]byte("[\""+name+"\",\""+to+"\"]"), &ci.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal([]byte("[\""+name+"\",\""+to+"\"]"), &ci.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+	payload, err := json.Marshal(ci)
+	if err != nil {
+		log.Fatal(err)
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
@@ -123,7 +144,6 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		cmd.Printf("Failed request to aergo sever\n" + err.Error())
@@ -139,10 +159,7 @@ func execNameOwner(cmd *cobra.Command, args []string) {
 		cmd.Println(err.Error())
 		return
 	}
-	owner := msg.Owner
-	if len(owner) > types.NameLength {
-		cmd.Println("{\"" + msg.Name.Name + "\" : \"" + types.EncodeAddress(owner) + "\"}")
-	} else {
-		cmd.Println("{\"" + msg.Name.Name + "\" : \"" + string(msg.Owner) + "\"}")
-	}
+	cmd.Println("{\n \"" + msg.Name.Name + "\": {\n  " +
+		"\"Owner\": \"" + types.EncodeAddress(msg.Owner) + "\",\n  " +
+		"\"Destination\": \"" + types.EncodeAddress(msg.Destination) + "\"\n  }\n}")
 }

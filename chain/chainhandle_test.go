@@ -113,7 +113,7 @@ func TestBasicExecuteTx(t *testing.T) {
 	tx.Body.Amount = (new(big.Int).Add(types.StakingMinimum, new(big.Int).SetUint64(1))).Bytes()
 	tx.Body.Recipient = []byte(types.AergoSystem)
 	tx.Body.Type = types.TxType_GOVERNANCE
-	tx.Body.Payload = []byte{'s'}
+	tx.Body.Payload = []byte(`{"Name":"v1stake"}`)
 	signTestAddress(t, tx)
 	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.NoError(t, err, "execute governance type")

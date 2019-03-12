@@ -67,17 +67,8 @@ bc_num Bgetbnum(lua_State *L, int i)
 
 int lua_isbignumber(lua_State *L, int i)
 {
-    if (lua_type(L, i) == LUA_TUSERDATA) {
-        int cmp;
-        if(lua_getmetatable(L, i) == 0)
-            return 0;
-        luaL_getmetatable(L, MYTYPE);
-        if (lua_rawequal(L, -1, -2) == 1) {
-            lua_pop(L, 2);
-            return 1;
-        }
-        lua_pop(L, 2);
-    }
+    if (luaL_testudata(L, i, MYTYPE) != NULL)
+        return 1;
     return 0;
 }
 
@@ -355,7 +346,6 @@ static const luaL_Reg R[] =
 
 LUALIB_API int luaopen_bc(lua_State *L)
 {
- bc_init_numbers();
  luaL_newmetatable(L,MYTYPE);
  lua_setglobal(L,MYNAME);
  luaL_register(L,MYNAME,R);

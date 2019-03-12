@@ -3233,29 +3233,150 @@ abi.register(random)`
 	}
 }
 
+func TestBigTable(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	big := `
+function constructor()
+    db.exec("create table if not exists table1 (cid integer PRIMARY KEY, rgtime datetime)")
+    db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
+end
+
+-- About 900MB
+function inserts()
+    for i = 1, 25 do
+        db.exec("insert into table1 (rgtime) select rgtime from table1")
+    end
+end
+
+abi.register(inserts)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "big", 0, big),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts"}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestEvent(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
 	definition := `
-	function test_ev()
-		contract.event("ev1", 1,"local", 2, "form")
-		contract.event("ev1", 3,"local", 4, "form")
-	end
-	abi.register(test_ev)`
+    function test_ev()
+        contract.event("ev1", 1,"local", 2, "form")
+        contract.event("ev1", 3,"local", 4, "form")
+    end
+    abi.register(test_ev)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "event", 0, definition),
 	)
+	if err != nil {
+		t.Error(err)
+	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
+}
 
+func TestView(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+    function test_view()
+        contract.event("ev1", 1,"local", 2, "form")
+        contract.event("ev1", 3,"local", 4, "form")
+    end
+	function k()
+		return 10
+	end
+	function tx_in_view_function()
+		k2()
+	end
+	function k2()
+		test_view()
+	end
+	function tx_after_view_function()
+		k()
+        contract.event("ev1", 1,"local", 2, "form")
+	end
+    abi.register(test_view, tx_after_view_function)
+    abi.register_view(test_view, k, tx_in_view_function)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "view", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "test_view", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("view", `{"Name":"k", "Args":[]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_in_view_function", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_after_view_function", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNsec(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function test_nsec()
+		system.print(nsec())
+	end
+	abi.register(test_nsec)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "nsec", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "nsec", 0, `{"Name": "test_nsec"}`).Fail(`attempt to call global 'nsec' (a nil value)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 // end of test-cases

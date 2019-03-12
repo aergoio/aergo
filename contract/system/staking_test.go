@@ -28,25 +28,29 @@ func TestBasicStakingUnstaking(t *testing.T) {
 		Body: &types.TxBody{
 			Account: account,
 			Amount:  types.StakingMinimum.Bytes(),
-			Payload: []byte{'s'},
+			Payload: []byte(`{"Name":"v1stake"}`),
 		},
 	}
 	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(minplusmin)
 
-	err = staking(tx.Body, sender, scs, 0)
+	_, err = staking(tx.Body, sender, receiver, scs, 0)
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
 	saved, err := getStaking(scs, tx.Body.Account)
 	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
-	tx.Body.Payload = []byte{'u'}
-	err = unstaking(tx.Body, sender, scs, StakingDelay-1)
-	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
-	assert.Equal(t, types.StakingMinimum, sender.Balance(), "sender.Balance() should be 0 after staking")
 
-	err = unstaking(tx.Body, sender, scs, StakingDelay)
+	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
+	ci, err := ValidateSystemTx(account, tx.GetBody(), nil, scs, StakingDelay-1)
+	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
+
+	ci, err = ValidateSystemTx(account, tx.GetBody(), nil, scs, StakingDelay)
+	assert.NoError(t, err, "should be success")
+	_, err = unstaking(tx.Body, sender, receiver, scs, StakingDelay, ci)
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
 }
@@ -65,26 +69,28 @@ func TestStaking1Unstaking2(t *testing.T) {
 		Body: &types.TxBody{
 			Account: account,
 			Amount:  types.StakingMinimum.Bytes(),
-			Payload: []byte{'s'},
+			Payload: []byte(`{"Name":"v1stake"}`),
 		},
 	}
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 
-	err = staking(tx.Body, sender, scs, 0)
+	_, err = staking(tx.Body, sender, receiver, scs, 0)
 	assert.Equal(t, err, nil, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be 'MaxAER - StakingMin' after staking")
 
 	tx.Body.Amount = new(big.Int).Add(types.StakingMinimum, types.StakingMinimum).Bytes()
-	tx.Body.Payload = []byte{'u'}
-	err = unstaking(tx.Body, sender, scs, StakingDelay-1)
+	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
+	ci, err := ValidateSystemTx(account, tx.GetBody(), sender, scs, StakingDelay-1)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
-	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
-		"sender.Balance() should not be changed")
 
-	err = unstaking(tx.Body, sender, scs, StakingDelay)
+	ci, err = ValidateSystemTx(account, tx.GetBody(), sender, scs, StakingDelay)
+	assert.NoError(t, err, "should be success")
+	_, err = unstaking(tx.Body, sender, receiver, scs, StakingDelay, ci)
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, sender.Balance().Bytes(), types.MaxAER.Bytes(), "sender.Balance() cacluation failed")
 }
@@ -103,13 +109,15 @@ func TestUnstakingError(t *testing.T) {
 		Body: &types.TxBody{
 			Account: account,
 			Amount:  types.StakingMinimum.Bytes(),
-			Payload: []byte{'u'},
+			Payload: []byte(`{"Name":"v1unstake"}`),
 		},
 	}
 	sender, err := sdb.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 
-	err = unstaking(tx.Body, sender, scs, 0)
+	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, 0)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "should be success")
 }

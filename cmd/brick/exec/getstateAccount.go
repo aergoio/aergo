@@ -35,28 +35,41 @@ func (c *getStateAccount) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, err := c.parse(args)
+	_, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *getStateAccount) parse(args string) (string, error) {
+func (c *getStateAccount) parse(args string) (string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 1 {
-		return "", fmt.Errorf("need an arguments. usage: %s", c.Usage())
+		return "", "", fmt.Errorf("need an arguments. usage: %s", c.Usage())
 	}
 
-	return splitArgs[0].Text, nil
+	expectedResult := ""
+	if len(splitArgs) == 2 {
+		expectedResult = splitArgs[1].Text
+	}
+
+	return splitArgs[0].Text, expectedResult, nil
 }
 
 func (c *getStateAccount) Run(args string) (string, error) {
-	accountName, _ := c.parse(args)
+	accountName, expectedResult, _ := c.parse(args)
 
 	state, err := context.Get().GetAccountState(accountName)
 
 	if err != nil {
 		return "", err
 	}
-
-	return fmt.Sprintf("%s = %d", contract.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), nil
+	if expectedResult == "" {
+		return fmt.Sprintf("%s = %d", contract.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), nil
+	} else {
+		strRet := fmt.Sprintf("%d", new(big.Int).SetBytes(state.GetBalance()))
+		if expectedResult == strRet {
+			return "state compare successfully", nil
+		} else {
+			return "", fmt.Errorf("state compre fail. Expected: %s, Actual: %s", expectedResult, strRet)
+		}
+	}
 }

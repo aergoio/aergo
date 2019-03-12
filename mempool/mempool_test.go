@@ -470,7 +470,7 @@ func TestSwitchingBestBlock(t *testing.T) {
 
 	tx4 := genTx(0, 1, 5, 1)
 	if err := pool.put(tx4); err != nil {
-		t.Errorf("put should succeed, %s", err)
+		t.Errorf("put should succeed, %s", err.Error())
 	}
 
 	ready, orphan = pool.Size()
@@ -479,7 +479,7 @@ func TestSwitchingBestBlock(t *testing.T) {
 	}
 
 	if err := pool.put(tx1); err != nil {
-		t.Errorf("put should succeed, %s", err)
+		t.Errorf("put should succeed, %s", err.Error())
 	}
 	ready, orphan = pool.Size()
 	if ready != 3 || orphan != 1 {
@@ -501,7 +501,7 @@ func TestDumpAndLoad(t *testing.T) {
 
 	pool.dumpTxsToFile()
 	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
-		t.Errorf("err should be NotExist ,but %s", err)
+		t.Errorf("err should be NotExist ,but %s", err.Error())
 	}
 
 	if !atomic.CompareAndSwapInt32(&pool.status, initial, running) {
@@ -509,20 +509,20 @@ func TestDumpAndLoad(t *testing.T) {
 	}
 	pool.dumpTxsToFile()
 	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
-		t.Errorf("err should be NotExist ,but %s", err)
+		t.Errorf("err should be NotExist ,but %s", err.Error())
 	}
 
 	for i := 0; i < 100; i++ {
 		tmp := genTx(0, 0, uint64(i+1), uint64(i+1))
 		txs = append(txs, tmp.GetTx())
 		if err := pool.put(tmp); err != nil {
-			t.Errorf("put should succeed, %s", err)
+			t.Errorf("put should succeed, %s", err.Error())
 		}
 	}
 
 	pool.dumpTxsToFile()
 	if _, err := os.Stat(pool.dumpPath); err != nil {
-		t.Errorf("dump file should be created but, %s", err)
+		t.Errorf("dump file should be created but, %s", err.Error())
 	}
 	deinitTest()
 
@@ -559,14 +559,14 @@ func TestEvitOnProfit(t *testing.T) {
 	defer deinitTest()
 
 	if err := pool.put(genTx(0, 0, 1, 3)); err != nil {
-		t.Errorf("put should succeed, %s", err)
+		t.Errorf("put should succeed, %s", err.Error())
 	}
 	if err := pool.put(genTx(0, 0, 1, 10)); err == nil {
 		t.Errorf("put should failed") //FIXME
 	}
 
 	if err := pool.put(genTx(0, 0, 5, 3)); err != nil {
-		t.Errorf("put should succeed, %s", err)
+		t.Errorf("put should succeed, %s", err.Error())
 	}
 	pool.put(genTx(0, 0, 6, 3))
 	pool.put(genTx(0, 0, 7, 3))

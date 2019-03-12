@@ -43,6 +43,10 @@ func (_m *MockChainAccessor) GetGenesisInfo() *types.Genesis {
 	return nil
 }
 
+func (_m *MockChainAccessor) GetConsensusInfo() string {
+	return ""
+}
+
 // GetBlock provides a mock function with given fields: blockHash
 func (_m *MockChainAccessor) GetBlock(blockHash []byte) (*types.Block, error) {
 	ret := _m.Called(blockHash)

@@ -33,7 +33,12 @@ func NewStubBlockChain() *StubBlockChain {
 }
 
 func (tchain *StubBlockChain) GenAddBlock() {
-	newBlock := types.NewBlock(tchain.BestBlock, nil, nil, nil, nil, time.Now().UnixNano())
+	var prevBlockRootHash []byte
+	if tchain.BestBlock != nil {
+		prevBlockRootHash = tchain.BestBlock.GetHeader().BlocksRootHash
+	}
+
+	newBlock := types.NewBlock(tchain.BestBlock, prevBlockRootHash, nil, nil, nil, time.Now().UnixNano())
 	tchain.AddBlock(newBlock)
 
 	time.Sleep(time.Nanosecond * 3)
@@ -107,6 +112,10 @@ func (tchain *StubBlockChain) GetGenesisInfo() *types.Genesis {
 	// Not implemented. It should be implemented later if any test is related
 	// to genesis info.
 	return nil
+}
+
+func (tchain *StubBlockChain) GetConsensusInfo() string {
+	return ""
 }
 
 func (tchain *StubBlockChain) GetBestBlock() (*types.Block, error) {

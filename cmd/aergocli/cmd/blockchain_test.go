@@ -22,7 +22,7 @@ func TestBlockchainWithMock(t *testing.T) {
 		gomock.Any(), // expect any value for first parameter
 		gomock.Any(), // expect any value for second parameter
 	).Return(
-		&types.BlockchainStatus{BestBlockHash: testBlockHash, BestHeight: 1},
+		&types.BlockchainStatus{BestBlockHash: testBlockHash, BestHeight: 1, ConsensusInfo: ""},
 		nil,
 	).MaxTimes(3)
 

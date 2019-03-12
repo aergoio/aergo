@@ -22,6 +22,7 @@ var (
 	data   string
 	nonce  uint64
 	toJson bool
+	gover  bool
 )
 
 func init() {
@@ -49,6 +50,7 @@ func init() {
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
 	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
+	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
 
 	stateQueryCmd := &cobra.Command{
 		Use:   "statequery [flags] contract varname varindex",
@@ -205,7 +207,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	if !toJson {
+	if !toJson && !gover {
 		abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
 		if err != nil {
 			log.Fatal(err)
@@ -227,6 +229,10 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
+	txType := types.TxType_NORMAL
+	if gover {
+		txType = types.TxType_GOVERNANCE
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Nonce:     nonce,
@@ -234,6 +240,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Recipient: contract,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
+			Type:      txType,
 		},
 	}
 	sign, err := client.SignTX(context.Background(), tx)
@@ -250,10 +257,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	for i, r := range commit.Results {
-		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
-	}
+	cmd.Println(util.JSON(commit))
 }
 
 func runGetABICmd(cmd *cobra.Command, args []string) {

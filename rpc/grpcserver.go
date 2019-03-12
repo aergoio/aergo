@@ -100,29 +100,16 @@ func (rpc *AergoRPCService) fillPeerMetrics(result *types.Metrics) {
 
 // Blockchain handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*types.BlockchainStatus, error) {
-	//last, _ := rpc.ChainService.GetBestBlock()
-	/*
-		result, err := rpc.hub.RequestFuture(message.ChainSvc, &message.GetBestBlock{}, defaultActorTimeout,
-			"rpc.(*AergoRPCService).Blockchain").Result()
-		if err != nil {
-			return nil, err
-		}
-		rsp, ok := result.(message.GetBestBlockRsp)
-		if !ok {
-			return nil, status.Errorf(codes.Internal, "internal type error")
-		}
-		if rsp.Err != nil {
-			return nil, rsp.Err
-		}
-		last := rsp.Block
-	*/
-	last, err := rpc.actorHelper.GetChainAccessor().GetBestBlock()
+	ca := rpc.actorHelper.GetChainAccessor()
+	last, err := ca.GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
+
 	return &types.BlockchainStatus{
 		BestBlockHash: last.BlockHash(),
 		BestHeight:    last.GetHeader().GetBlockNo(),
+		ConsensusInfo: ca.GetConsensusInfo(),
 	}, nil
 }
 
@@ -475,22 +462,25 @@ var emptyBytes = make([]byte, 0)
 
 // SendTX try to fill the nonce, sign, hash in the transaction automatically and commit it
 func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
-	getStateResult, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetState{Account: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTx").Result()
-	if err != nil {
-		return nil, err
+
+	if tx.Body.Nonce == 0 {
+		getStateResult, err := rpc.hub.RequestFuture(message.ChainSvc,
+			&message.GetState{Account: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTx").Result()
+		if err != nil {
+			return nil, err
+		}
+		getStateRsp, ok := getStateResult.(message.GetStateRsp)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
+		}
+		if getStateRsp.Err != nil {
+			return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
+		}
+		tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 	}
-	getStateRsp, ok := getStateResult.(message.GetStateRsp)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(getStateResult))
-	}
-	if getStateRsp.Err != nil {
-		return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
-	}
-	tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
 
 	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.SignTx{Tx: tx, Requester: getStateRsp.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
+		&message.SignTx{Tx: tx, Requester: tx.Body.Account}, defaultActorTimeout, "rpc.(*AergoRPCService).SendTX")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
 			return nil, status.Errorf(codes.Unavailable, "Unavailable personal feature")
@@ -777,7 +767,7 @@ func (rpc *AergoRPCService) VerifyTX(ctx context.Context, in *types.Tx) (*types.
 // GetPeers handle rpc request getpeers
 func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams) (*types.PeerList, error) {
 	result, err := rpc.hub.RequestFuture(message.P2PSvc,
-		&message.GetPeers{in.NoHidden,in.ShowSelf}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
+		&message.GetPeers{in.NoHidden, in.ShowSelf}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -786,10 +776,10 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 
-	ret := &types.PeerList{Peers: make([]*types.Peer,0, len(rsp.Peers))}
+	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer:pi.Self}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -950,8 +940,9 @@ func (rpc *AergoRPCService) ListEventStream(in *types.FilterInfo, stream types.A
 	if err != nil {
 		return err
 	}
-	rpc.eventStreamLock.Lock()
+
 	eventStream := &EventStream{in, stream}
+	rpc.eventStreamLock.Lock()
 	rpc.eventStream[eventStream] = eventStream
 	rpc.eventStreamLock.Unlock()
 

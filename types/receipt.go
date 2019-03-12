@@ -6,16 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/willf/bloom"
 	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/minio/sha256-simd"
+	"github.com/willf/bloom"
 )
 
 func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt {
@@ -531,6 +531,8 @@ func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 	if filter.ContractAddress != nil && !bytes.Equal(ev.ContractAddress, filter.ContractAddress) {
 		return false
 	}
+	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
+
 	if len(filter.EventName) != 0 && ev.EventName != filter.EventName {
 		return false
 	}
@@ -582,14 +584,41 @@ type ArgFilter struct {
 }
 
 const MAXBLOCKRANGE = 10000
+const padprefix = 0x80
+
+func AddressPadding(addr []byte) []byte {
+	id := make([]byte, AddressLength)
+	id[0] = padprefix
+	copy(id[1:], addr)
+	return id
+}
+func AddressOrigin(addr []byte) []byte {
+	if addr[0] == padprefix {
+		addr = addr[1:bytes.IndexByte(addr, 0)]
+	}
+	return addr
+}
 
 func (fi *FilterInfo) ValidateCheck(to uint64) error {
-	if fi.ContractAddress == nil || len(fi.ContractAddress) != AddressLength {
-		return errors.New("invalid contractAddress :" + string(fi.ContractAddress))
+	if fi.ContractAddress == nil {
+		return errors.New("invalid contractAddress:" + string(fi.ContractAddress))
 	}
-	if fi.Blockfrom+MAXBLOCKRANGE < to {
-		return errors.New(fmt.Sprintf("too large block range(max %d) from %d to %d",
-			MAXBLOCKRANGE, fi.Blockfrom, to))
+	if len(fi.ContractAddress) < AddressLength {
+		fi.ContractAddress = AddressPadding(fi.ContractAddress)
+	} else if len(fi.ContractAddress) != AddressLength {
+		return errors.New("invalid contractAddress:" + string(fi.ContractAddress))
+	}
+	if fi.RecentBlockCnt > 0 {
+		if fi.RecentBlockCnt > MAXBLOCKRANGE {
+			return errors.New(fmt.Sprintf("too large value at recentBlockCnt %d (max %d)",
+				fi.RecentBlockCnt, MAXBLOCKRANGE))
+		}
+
+	} else {
+		if fi.Blockfrom+MAXBLOCKRANGE < to {
+			return errors.New(fmt.Sprintf("too large block range(max %d) from %d to %d",
+				MAXBLOCKRANGE, fi.Blockfrom, to))
+		}
 	}
 	return nil
 }

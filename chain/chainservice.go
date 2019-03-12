@@ -25,8 +25,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/hashicorp/golang-lru"
-	"github.com/libp2p/go-libp2p-peer"
+	lru "github.com/hashicorp/golang-lru"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -89,41 +89,55 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	return nil
 }
 
-func (core *Core) initGenesis(genesis *types.Genesis) (*types.Block, error) {
-	gh, _ := core.cdb.getHashByNo(0)
-	if len(gh) == 0 {
-		latest := core.cdb.getBestBlockNo()
-		logger.Info().Uint64("num", latest).Msg("current latest")
-		if latest == 0 {
+func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode bool) (*types.Block, error) {
+
+	gen := core.cdb.GetGenesisInfo()
+	if gen == nil {
+		logger.Info().Msg("generating genesis block..")
+		if testmode {
+			if !mainnet {
+				logger.Warn().Msg("--testnet opt will ignored due to testmode")
+			}
+			genesis = types.GetTestGenesis()
+		} else {
 			if genesis == nil {
-				genesis = types.GetDefaultGenesis()
+				if mainnet {
+					return nil, errors.New("mainnet will be launched soon")
+				} else {
+					genesis = types.GetTestNetGenesis()
+				}
 			}
+		}
 
-			err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
-				return nil, err
-			}
+		err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot set statedb of genesisblock")
+			return nil, err
+		}
 
-			err = core.cdb.addGenesisBlock(genesis)
-			if err != nil {
-				logger.Fatal().Err(err).Msg("cannot add genesisblock")
-				return nil, err
-			}
-
-			logger.Info().Msg("genesis block is generated")
+		err = core.cdb.addGenesisBlock(genesis)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot add genesisblock")
+			return nil, err
+		}
+		gen = genesis
+	} else {
+		if !mainnet {
+			logger.Warn().Msg("--testnet option will be ignored")
+		}
+		if testmode && !gen.HasDevChainID() {
+			logger.Info().Str("chain id", gen.ID.ToJSON()).Msg("current genesis info")
+			return nil, errors.New("do not run testmode on non dev-chain")
 		}
 	}
 
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
-
-	initChainEnv(core.cdb.GetGenesisInfo())
+	initChainEnv(gen)
 
 	contract.StartLStateFactory()
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.GetHash())).
-		Str("stateroot", enc.ToString(genesisBlock.GetHeader().GetBlocksRootHash())).Msg("chain initialized")
-
+	logger.Info().Str("chain id", gen.ID.ToJSON()).
+		Str("hash", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
 	return genesisBlock, nil
 }
 
@@ -143,8 +157,8 @@ func (core *Core) Close() {
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
-func (core *Core) InitGenesisBlock(gb *types.Genesis) error {
-	_, err := core.initGenesis(gb)
+func (core *Core) InitGenesisBlock(gb *types.Genesis, useTestnet bool) error {
+	_, err := core.initGenesis(gb, useTestnet, false)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
 		return err
@@ -218,8 +232,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init genesis block
-	if _, err := cs.initGenesis(nil); err != nil {
+	if _, err := cs.initGenesis(nil, !cfg.UseTestnet, cfg.EnableTestmode); err != nil {
 		logger.Fatal().Err(err).Msg("failed to create a genesis block")
+		panic("failed to init genesis block")
 	}
 
 	top, err := cs.getVotes(1)
@@ -243,6 +258,16 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 // CDB returns cs.sdb as a consensus.ChainDbReader.
 func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
+}
+
+// GetConsensusInfo returns consensus-related information, which is different
+// from consensus to consensus.
+func (cs *ChainService) GetConsensusInfo() string {
+	if cs.ChainConsensus == nil {
+		return ""
+	}
+
+	return cs.Info()
 }
 
 // SetChainConsensus sets cs.cc to cc.
@@ -397,7 +422,7 @@ func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
 	if owner == nil {
 		return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: nil}, types.ErrNameNotFound
 	}
-	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner.Address}, err
+	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner, Destination: name.GetAddress(scs, []byte(qname))}, err
 }
 
 type ChainManager struct {
@@ -461,18 +486,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		}
 
 		context.Respond(&rsp)
-
-		cm.TellTo(message.RPCSvc, block)
-		events := []*types.Event{}
-		for idx, receipt := range bstate.Receipts().Get() {
-			for _, e := range receipt.Events {
-				e.SetMemoryInfo(receipt, blkHash, blkNo, int32(idx))
-				events = append(events, e)
-			}
-		}
-		if len(events) != 0 {
-			cm.TellTo(message.RPCSvc, events)
-		}
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{

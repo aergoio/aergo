@@ -45,11 +45,16 @@ func (stubC *StubConsensus) Save(tx db.Transaction) error {
 func (stubC *StubConsensus) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
+func (stubC *StubConsensus) Info() string {
+	return ""
+}
 
 func makeBlockChain() *ChainService {
 	serverCtx := config.NewServerContext("", "")
 	testCfg = serverCtx.GetDefaultConfig().(*config.Config)
 	testCfg.DbType = "memorydb"
+	//TODO use testnet genesis for test for now
+	testCfg.UseTestnet = true
 
 	//TODO drop data when close memorydb when test mode
 	cs := NewChainService(testCfg)
@@ -73,25 +78,19 @@ func testAddBlock(t *testing.T, best int) (*ChainService, *StubBlockChain) {
 	for i := 1; i <= best; i++ {
 		newBlock := stubChain.GetBlockByNo(uint64(i))
 		err := cs.addBlock(newBlock, nil, testPeer)
-		if err != nil {
-			assert.Error(t, err, "add block failed")
-			return nil, nil
-		}
+		assert.NoError(t, err)
 
 		testBlockIsOnMasterChain(t, cs, newBlock)
 
 		//best block height
 		blk, err := cs.GetBestBlock()
 		assert.NoError(t, err)
-		if err != nil {
-			assert.Error(t, err)
-			return nil, nil
-		}
 		assert.Equal(t, blk.BlockNo(), uint64(i))
 
 		//block hash/no mapping
 		var noblk *types.Block
 		noblk, err = cs.getBlockByNo(uint64(i))
+		assert.NoError(t, err)
 		assert.Equal(t, blk.BlockHash(), noblk.BlockHash())
 	}
 

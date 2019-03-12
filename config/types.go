@@ -31,6 +31,7 @@ type BaseConfig struct {
 	EnableProfile  bool   `mapstructure:"enableprofile" description:"enable profiling"`
 	ProfilePort    int    `mapstructure:"profileport" description:"profiling port (default:6060)"`
 	EnableTestmode bool   `mapstructure:"enabletestmode" description:"enable unsafe test mode"`
+	UseTestnet     bool   `mapstructure:"usetestnet" description:"need description"`
 	Personal       bool   `mapstructure:"personal" description:"enable personal account service"`
 	AuthDir        string `mapstructure:"authdir" description:"Directory to store files for auth"`
 }
@@ -68,7 +69,7 @@ type P2PConfig struct {
 	NPUsePolaris   bool     `mapstructure:"npusepolaris" description:"Whether to connect and get node list from polaris"`
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
-	LogFullPeerID  bool     `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
+	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 }
 
@@ -98,8 +99,19 @@ type MempoolConfig struct {
 
 // ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
-	EnableBp      bool  `mapstructure:"enablebp" description:"enable block production"`
-	BlockInterval int64 `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	EnableBp      bool           `mapstructure:"enablebp" description:"enable block production"`
+	BlockInterval int64          `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	RaftID        uint64         `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
+	RaftBPs       []RaftBPConfig `mapstructure:"raftbps"`
+	RaftSkipEmpty bool           `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
+	RaftKeyFile   string         `mapstructure:"raftkeyfile" description:"Private Key file for raft https server"`
+	RaftCertFile  string         `mapstructure:"raftcertfile" description:"Certificate file for raft https server"`
+}
+
+type RaftBPConfig struct {
+	ID    uint64 `mapstructure:"id" description:"raft ID"`
+	Url   string `mapstructure:"url" description:"raft url"`
+	P2pID string `mapstructure:"p2pid" description:"p2p ID of this bp"`
 }
 
 type MonitorConfig struct {
@@ -132,7 +144,6 @@ datadir = "{{.BaseConfig.DataDir}}"
 dbtype = "{{.BaseConfig.DbType}}"
 enableprofile = {{.BaseConfig.EnableProfile}}
 profileport = {{.BaseConfig.ProfilePort}}
-enabletestmode = {{.BaseConfig.EnableTestmode}}
 personal = {{.BaseConfig.Personal}}
 authdir = "{{.BaseConfig.AuthDir}}"
 

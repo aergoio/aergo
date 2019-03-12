@@ -17,6 +17,7 @@ var (
 	// ErrQuit indicates that shutdown is initiated.
 	ErrQuit           = errors.New("shutdown initiated")
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
+	ErrBlockEmpty     = errors.New("no transactions in block")
 )
 
 // ErrTimeout can be used to indicatefor any kind of timeout.
@@ -63,15 +64,22 @@ func MaxBlockBodySize() uint32 {
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64) (*types.Block, error) {
+func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64, skipEmpty bool) (*types.Block, error) {
 	transactions, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, err
 	}
+
 	txs := make([]*types.Tx, 0)
 	for _, x := range transactions {
 		txs = append(txs, x.GetTx())
 	}
+
+	if len(txs) == 0 && skipEmpty {
+		logger.Debug().Msg("BF: empty block is skipped")
+		return nil, ErrBlockEmpty
+	}
+
 	block := types.NewBlock(prevBlock, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
 	if len(txs) != 0 && logger.IsDebugEnabled() {
 		logger.Debug().

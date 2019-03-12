@@ -469,7 +469,7 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
 	}
-	return name.GetAddress(scs, account)
+	return name.GetOwner(scs, account)
 }
 
 // check tx sanity
@@ -512,12 +512,12 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case types.AergoSystem:
-			if err := system.ValidateSystemTx(account, tx.GetBody(),
-				scs, mp.bestBlockNo+1); err != nil {
+			if _, err := system.ValidateSystemTx(account, tx.GetBody(),
+				nil, scs, mp.bestBlockNo+1); err != nil {
 				return err
 			}
 		case types.AergoName:
-			if err := name.ValidateNameTx(tx.GetBody(), scs); err != nil {
+			if _, err := name.ValidateNameTx(tx.GetBody(), nil, scs); err != nil {
 				return err
 			}
 		}

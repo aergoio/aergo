@@ -20,6 +20,7 @@ var argFilter string
 var start uint64
 var end uint64
 var desc bool
+var recentBlockCnt int32
 
 func init() {
 	eventCmd := &cobra.Command{
@@ -39,6 +40,7 @@ func init() {
 	listCmd.Flags().StringVarP(&contractAddress, "address", "", "", "Contract Address")
 	listCmd.Flags().BoolVar(&desc, "desc", false, "descending order")
 	listCmd.Flags().StringVarP(&argFilter, "argfilter", "", "", "argument filter")
+	listCmd.Flags().Int32Var(&recentBlockCnt, "recent", 0, "recent block count")
 	listCmd.MarkFlagRequired("address")
 
 	streamCmd := &cobra.Command{
@@ -71,6 +73,7 @@ func execListEvent(cmd *cobra.Command, args []string) {
 		EventName:       eventName,
 		Desc:            desc,
 		ArgFilter:       []byte(argFilter),
+		RecentBlockCnt:  recentBlockCnt,
 	}
 
 	events, err := client.ListEvents(context.Background(), filter)

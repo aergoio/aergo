@@ -173,8 +173,8 @@ type V struct {
 }
 
 func (v *V) ID() []byte {
-	if len(v.id) < 33 {
-		v.id = append(v.id, make([]byte, 33-len(v.id))...)
+	if len(v.id) < types.AddressLength {
+		v.id = types.AddressPadding(v.id)
 	}
 	return v.id
 }

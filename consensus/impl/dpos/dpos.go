@@ -78,6 +78,11 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 	return block
 }
 
+// GetName returns the name of the consensus.
+func GetName() string {
+	return "dpos"
+}
+
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
@@ -162,15 +167,23 @@ func (dpos *DPoS) bpid() peer.ID {
 
 // VerifyTimestamp checks the validity of the block timestamp.
 func (dpos *DPoS) VerifyTimestamp(block *types.Block) bool {
-	ts := block.GetHeader().GetTimestamp()
-	isFuture := slot.NewFromUnixNano(ts).IsFuture()
 
-	if isFuture {
+	if ts := block.GetHeader().GetTimestamp(); slot.NewFromUnixNano(ts).IsFuture() {
 		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
 			Time("timestamp", time.Unix(0, ts)).Msg("block has a future timestamp")
+		return false
 	}
 
-	return !isFuture
+	// Reject the blocks with no <= LIB since it cannot lead to a
+	// reorganization.
+	if dpos.Status != nil && block.BlockNo() <= dpos.libNo() {
+		logger.Error().Str("BP", block.BPID2Str()).Str("id", block.ID()).
+			Uint64("block no", block.BlockNo()).Uint64("lib no", dpos.libNo()).
+			Msg("too small block number (<= LIB number)")
+		return false
+	}
+
+	return true
 }
 
 // VerifySign reports the validity of the block signature.

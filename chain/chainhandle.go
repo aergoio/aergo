@@ -122,6 +122,7 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 	if err != nil {
 		return r, err
 	}
+	r.ContractAddress = types.AddressOrigin(r.ContractAddress)
 	r.From = tx.GetBody().GetAccount()
 	r.To = tx.GetBody().GetRecipient()
 	return r, nil
@@ -157,10 +158,18 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 	from := filter.Blockfrom
 	to := filter.Blockto
 
-	if to == 0 {
+	if filter.RecentBlockCnt > 0 {
 		to = cs.cdb.getBestBlockNo()
+		if to <= uint64(filter.RecentBlockCnt) {
+			from = 0
+		} else {
+			from = to - uint64(filter.RecentBlockCnt)
+		}
+	} else {
+		if to == 0 {
+			to = cs.cdb.getBestBlockNo()
+		}
 	}
-
 	err := filter.ValidateCheck(to)
 	if err != nil {
 		return nil, err
@@ -671,13 +680,36 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		cs.cdb.writeReceipts(block.BlockHash(), block.BlockNo(), ex.BlockState.Receipts())
 	}
 
-	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
-		Block: block,
-	})
+	cs.notifyEvents(block, ex.BlockState)
 
 	cs.Update(block)
 
 	return nil
+}
+
+func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockState) {
+	blkNo := block.GetHeader().GetBlockNo()
+	blkHash := block.BlockHash()
+
+	logger.Debug().Str("hash", block.ID()).Uint64("no", blkNo).Msg("add event from executed block")
+
+	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
+		Block: block,
+	})
+
+	cs.TellTo(message.RPCSvc, block)
+
+	events := []*types.Event{}
+	for idx, receipt := range bstate.Receipts().Get() {
+		for _, e := range receipt.Events {
+			e.SetMemoryInfo(receipt, blkHash, blkNo, int32(idx))
+			events = append(events, e)
+		}
+	}
+
+	if len(events) != 0 {
+		cs.TellTo(message.RPCSvc, events)
+	}
 }
 
 func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
@@ -732,7 +764,7 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 		rv, events, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
+		events, err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

@@ -277,6 +277,10 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
 	logger.Debug().Msg("syncer received ancestor response")
 
+	if syncer.finder == nil {
+		logger.Debug().Msg("finder already stopped. so drop unexpected AncestorRsp message")
+		return
+	}
 	//set ancestor in types.SyncContext
 	syncer.finder.lScanCh <- msg.Ancestor
 }
@@ -361,8 +365,7 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 
 func (syncer *Syncer) RecoverSyncerSelf() {
 	if r := recover(); r != nil {
-		logger.Error().Str("dest", "SYNCER").Msg("syncer recovered it's panic")
-		debug.PrintStack()
+		logger.Error().Str("dest", "SYNCER").Str("callstack", string(debug.Stack())).Msg("syncer recovered it's panic")
 		syncer.Reset()
 	}
 }
@@ -379,8 +382,7 @@ func closeFetcher(compRequester component.IComponentRequester, who string) {
 
 func RecoverSyncer(name string, compRequester component.IComponentRequester, finalize func()) {
 	if r := recover(); r != nil {
-		logger.Error().Str("child", name).Msg("syncer recovered child panic")
-		debug.PrintStack()
+		logger.Error().Str("child", name).Str("callstack", string(debug.Stack())).Msg("syncer recovered child panic")
 		stopSyncer(compRequester, name, ErrSyncerPanic)
 	}
 

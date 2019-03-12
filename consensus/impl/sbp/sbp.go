@@ -58,6 +58,11 @@ type SimpleBlockFactory struct {
 	prevBlock        *types.Block
 }
 
+// GetName returns the name of the consensus.
+func GetName() string {
+	return "sbp"
+}
+
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
@@ -178,7 +183,7 @@ func (s *SimpleBlockFactory) Start() {
 					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
 				)
 
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts)
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
@@ -200,4 +205,10 @@ func (s *SimpleBlockFactory) Start() {
 // JobQueue returns the queue for block production triggering.
 func (s *SimpleBlockFactory) JobQueue() chan<- interface{} {
 	return s.jobQueue
+}
+
+// Info retuns an empty string since SBP has no valuable consensus-related
+// information.
+func (s *SimpleBlockFactory) Info() string {
+	return consensus.NewInfo(GetName()).AsJSON()
 }

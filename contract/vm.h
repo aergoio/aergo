@@ -21,7 +21,7 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt);
 sqlite3 *vm_get_db(lua_State *L);
 void vm_get_abi_function(lua_State *L, char *fname);
 int vm_is_payable_function(lua_State *L, char *fname);
-char *vm_resolve_function(lua_State *L, char *fname);
+char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag);
 void vm_set_count_hook(lua_State *L, int limit);
 
 #endif /* _VM_H */
