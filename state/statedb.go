@@ -275,6 +275,15 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 	}, nil
 }
 
+func (states *StateDB) InitAccountStateV(id []byte, old *types.State, new *types.State) *V {
+	return &V{
+		sdb:  states,
+		id:   id,
+		oldV: old,
+		newV: new,
+	}
+}
+
 // GetState gets state of account id from state buffer and trie.
 // nil value is returned when there is no state corresponding to account id.
 func (states *StateDB) GetState(id types.AccountID) (*types.State, error) {

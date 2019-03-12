@@ -99,7 +99,7 @@ func (tx *transaction) Validate() error {
 		}
 		switch string(tx.GetBody().GetRecipient()) {
 		case AergoSystem:
-			return validateSystemTx(tx.GetBody())
+			return ValidateSystemTx(tx.GetBody())
 		case AergoName:
 			return validateNameTx(tx.GetBody())
 		default:
@@ -111,7 +111,7 @@ func (tx *transaction) Validate() error {
 	return nil
 }
 
-func validateSystemTx(tx *TxBody) error {
+func ValidateSystemTx(tx *TxBody) error {
 	var ci CallInfo
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return ErrTxInvalidPayload

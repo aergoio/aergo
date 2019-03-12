@@ -1,9 +1,11 @@
 package contract
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -3376,6 +3378,86 @@ func TestNsec(t *testing.T) {
 	)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGovernance(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+    function test_gov()
+		contract.stake("5 aergo")
+		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p", "16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
+    end
+
+	function error_case()
+		contract.stake("5 aergo")
+		assert(false)
+	end
+	
+	function test_pcall()
+		return contract.pcall(error_case)
+	end
+		
+    abi.register(test_gov, test_pcall, error_case)
+	abi.payable(test_gov, test_pcall)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "gov", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "gov", 10000000000000000000, `{"Name": "test_gov", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	oldstaking, err := bc.GetStaking("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	oldgov, err := bc.GetAccountState("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "gov", 0, `{"Name": "test_pcall", "Args":[]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	staking, err := bc.GetStaking("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	gov, err := bc.GetAccountState("gov")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if bytes.Equal(oldstaking.Amount, staking.Amount) == false ||
+		bytes.Equal(oldgov.GetBalance(), gov.GetBalance()) == false {
+		t.Error("pcall error")
+	}
+	tx = NewLuaTxCall("ktlee", "gov", 0, `{"Name": "error_case", "Args":[]}`)
+	_ = bc.ConnectBlock(tx)
+	newstaking, err := bc.GetStaking("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	newgov, err := bc.GetAccountState("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	if bytes.Equal(oldstaking.Amount, newstaking.Amount) == false ||
+		bytes.Equal(oldgov.GetBalance(), newgov.GetBalance()) == false {
+		fmt.Println(new(big.Int).SetBytes(newstaking.Amount).String(), newgov.GetBalanceBigInt().String())
+		t.Error("pcall error")
 	}
 }
 
