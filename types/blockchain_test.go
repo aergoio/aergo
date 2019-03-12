@@ -2,14 +2,13 @@ package types
 
 import (
 	fmt "fmt"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
+	proto "github.com/golang/protobuf/proto"
 	"github.com/minio/sha256-simd"
 
-	"github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -153,11 +152,39 @@ func TestUpdateAvgVerifyTime(t *testing.T) {
 	}
 }
 
-func TestSignFieldPosition(t *testing.T) {
-	signIdx := getLastIndexOfBH()
+func TestBlockHeader(t *testing.T) {
+	a := assert.New(t)
 
-	bh := &BlockHeader{}
-	v := reflect.Indirect(reflect.ValueOf(bh))
-	fmt.Println("field next to sign:", v.Type().Field(signIdx+1).Name)
-	assert.True(t, strings.Contains(v.Type().Field(signIdx+1).Name, "XXX"))
+	chainID := "01234567890123456789"
+	dig := sha256.New()
+	dig.Write([]byte(chainID))
+	h := dig.Sum(nil)
+
+	addr, err := DecodeAddress("AmLquXjQSiDdR8FTDK78LJ16Ycrq3uNL6NQuiwqXRCGw9Riq2DE4")
+	a.Nil(err, "invalid coinbase account")
+
+	priv, pub := genKeyPair(a)
+
+	block := &Block{
+		Header: &BlockHeader{
+			ChainID:          []byte(chainID),
+			PrevBlockHash:    h,
+			BlockNo:          10,
+			Timestamp:        time.Now().UnixNano(),
+			BlocksRootHash:   h,
+			TxsRootHash:      h,
+			ReceiptsRootHash: h,
+			Confirms:         23,
+			CoinbaseAccount:  addr,
+		},
+	}
+	err = block.setPubKey(pub)
+	a.Nil(err, "PubKey set failed")
+
+	err = block.Sign(priv)
+	a.Nil(err, "block sign failed")
+
+	fmt.Println("block id:", block.ID())
+	fmt.Println("block size:", proto.Size(block))
+	fmt.Println("signature len:", len(block.Header.Sign))
 }
