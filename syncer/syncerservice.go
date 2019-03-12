@@ -382,8 +382,7 @@ func closeFetcher(compRequester component.IComponentRequester, who string) {
 
 func RecoverSyncer(name string, compRequester component.IComponentRequester, finalize func()) {
 	if r := recover(); r != nil {
-		logger.Error().Str("child", name).Msg("syncer recovered child panic")
-		debug.PrintStack()
+		logger.Error().Str("child", name).Str("callstack", string(debug.Stack())).Msg("syncer recovered child panic")
 		stopSyncer(compRequester, name, ErrSyncerPanic)
 	}
 
