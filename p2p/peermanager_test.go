@@ -6,12 +6,13 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
@@ -27,7 +28,7 @@ func FailTestGetPeers(t *testing.T) {
 	mockMF := new(MockMoFactory)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
-		nil, nil, new(MockReconnectManager), nil,
+		nil, nil, nil,
 		log.NewLogger("test.p2p"), mockMF).(*peerManager)
 
 	iterSize := 500
@@ -67,7 +68,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	InitNodeInfo(&tConfig.BaseConfig, tConfig.P2P, tLogger)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		tConfig,
-		nil, nil, new(MockReconnectManager), nil,
+		nil, nil, nil,
 		tLogger, mockMF).(*peerManager)
 
 	iterSize := 500
@@ -107,9 +108,9 @@ func TestPeerManager_GetPeers(t *testing.T) {
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice:&LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice:&LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice:&LastBlockStatus{}}
+	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice: &LastBlockStatus{}}
+	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice: &LastBlockStatus{}}
+	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice: &LastBlockStatus{}}
 	tests := []struct {
 		name string
 	}{
@@ -117,7 +118,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pm := &peerManager{remotePeers:make(map[peer.ID]*remotePeerImpl)}
+			pm := &peerManager{remotePeers: make(map[peer.ID]*remotePeerImpl)}
 			for _, peer := range samplePeers {
 				pm.remotePeers[peer.ID()] = peer
 			}
@@ -135,27 +136,27 @@ func TestPeerManager_init(t *testing.T) {
 	localIP, _ := externalIP()
 
 	tests := []struct {
-		name string
-		inCfg *cfg.P2PConfig
+		name            string
+		inCfg           *cfg.P2PConfig
 		expectProtoAddr string
 		expectProtoPort uint32
-		expectBindAddr string
-		expectBindPort uint32
-		expectPanic bool
+		expectBindAddr  string
+		expectBindPort  uint32
+		expectPanic     bool
 	}{
-		{"TDefault",defaultCfg, localIP.String(), uint32(defaultCfg.NetProtocolPort), localIP.String(), uint32(defaultCfg.NetProtocolPort), false},
+		{"TDefault", defaultCfg, localIP.String(), uint32(defaultCfg.NetProtocolPort), localIP.String(), uint32(defaultCfg.NetProtocolPort), false},
 		// wrong ProtocolAddress 0.0.0.0
-		{"TUnspecifiedAddr",&cfg.P2PConfig{NetProtocolAddr:"0.0.0.0",NetProtocolPort:7846}, localIP.String(), 7846, localIP.String(), uint32(defaultCfg.NetProtocolPort), true},
+		{"TUnspecifiedAddr", &cfg.P2PConfig{NetProtocolAddr: "0.0.0.0", NetProtocolPort: 7846}, localIP.String(), 7846, localIP.String(), uint32(defaultCfg.NetProtocolPort), true},
 		// wrong ProtocolAddress
-		{"TWrongAddr",&cfg.P2PConfig{NetProtocolAddr:"24558.30.0.0",NetProtocolPort:7846}, localIP.String(), 7846, localIP.String(), 7846, true},
+		{"TWrongAddr", &cfg.P2PConfig{NetProtocolAddr: "24558.30.0.0", NetProtocolPort: 7846}, localIP.String(), 7846, localIP.String(), 7846, true},
 		// bind all address
-		{"TBindAll",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindAddr:"0.0.0.0"}, localIP.String(), 7846, "0.0.0.0", 7846, false},
+		{"TBindAll", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindAddr: "0.0.0.0"}, localIP.String(), 7846, "0.0.0.0", 7846, false},
 		// bind differnt address
-		{"TBindDifferAddr",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindAddr:"172.21.1.2"}, localIP.String(), 7846, "172.21.1.2", 7846, false},
+		{"TBindDifferAddr", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindAddr: "172.21.1.2"}, localIP.String(), 7846, "172.21.1.2", 7846, false},
 		// bind different port
-		{"TDifferPort",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindPort:12345}, localIP.String(), 7846, localIP.String(), 12345, false},
+		{"TDifferPort", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindPort: 12345}, localIP.String(), 7846, localIP.String(), 12345, false},
 		// bind different address and port
-		{"TBindDiffer",&cfg.P2PConfig{NetProtocolAddr:"",NetProtocolPort:7846, NPBindAddr:"172.21.1.2", NPBindPort:12345}, localIP.String(), 7846, "172.21.1.2", 12345, false},
+		{"TBindDiffer", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindAddr: "172.21.1.2", NPBindPort: 12345}, localIP.String(), 7846, "172.21.1.2", 12345, false},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -166,11 +167,10 @@ func TestPeerManager_init(t *testing.T) {
 						fmt.Println(test.name, " expected panic occurred ", r)
 					}
 				}()
-				pm := peerManager{conf:test.inCfg}
+				pm := peerManager{conf: test.inCfg}
 
 				pm.init()
 			}
 		})
 	}
 }
-

@@ -1,21 +1,22 @@
-/**
- *  @file
+/** @file
  *  @copyright defined in aergo/LICENSE.txt
  */
 
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"math"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 
 	"github.com/aergoio/aergo-lib/log"
 )
 
-var durations []time.Duration
-
-var maxTrial = 15
+var (
+	durations []time.Duration
+	maxTrial  = 15
+)
 
 func init() {
 	// It will get [20s 36s 1m6s 2m1s 3m40s 6m42s 12m12s 22m14s 40m30s 1h13m48s 2h14m29s 4h5m2s 7h26m29s 13h33m32s 24h42m21s]
@@ -25,15 +26,14 @@ func init() {
 type reconnectJob struct {
 	meta   p2pcommon.PeerMeta
 	trial  int
-	rm     ReconnectManager
 	pm     PeerManager
 	logger *log.Logger
 
 	cancel chan struct{}
 }
 
-func newReconnectRunner(meta p2pcommon.PeerMeta, rm ReconnectManager, pm PeerManager, logger *log.Logger) *reconnectJob {
-	return &reconnectJob{meta: meta, trial: 0, rm: rm, pm: pm, cancel: make(chan struct{}, 1), logger: logger}
+func newReconnectRunner(meta p2pcommon.PeerMeta, pm PeerManager, logger *log.Logger) *reconnectJob {
+	return &reconnectJob{meta: meta, trial: 0, pm: pm, cancel: make(chan struct{}, 1), logger: logger}
 }
 func (rj *reconnectJob) runJob() {
 	timer := time.NewTimer(getNextInterval(rj.trial))
@@ -54,7 +54,7 @@ RETRYLOOP:
 			break RETRYLOOP
 		}
 	}
-	rj.rm.jobFinished(rj.meta.ID)
+	//rj.rm.jobFinished(rj.meta.ID)
 }
 
 func getNextInterval(trial int) time.Duration {

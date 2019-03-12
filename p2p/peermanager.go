@@ -1,20 +1,18 @@
-/*
- * @file
- * @copyright defined in aergo/LICENSE.txt
- */
+/* @file @copyright defined in aergo/LICENSE.txt */
 
 package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	inet "github.com/libp2p/go-libp2p-net"
 
@@ -24,6 +22,12 @@ import (
 
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/libp2p/go-libp2p-peer"
+)
+
+const (
+	initial  = iota
+	running  = iota
+	stopping = iota
 )
 
 // PeerManager is internal service that provide peer management
@@ -53,32 +57,38 @@ type PeerManager interface {
  * It implements  Component interface
  */
 type peerManager struct {
+	status         int32
 	nt             NetworkTransport
 	hsFactory      HSHandlerFactory
 	handlerFactory HandlerFactory
 	actorService   ActorService
 	signer         msgSigner
 	mf             moFactory
-	rm             ReconnectManager
 	mm             metric.MetricsManager
 
 	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
-	designatedPeers map[peer.ID]p2pcommon.PeerMeta
-	hiddenPeerSet   map[peer.ID]bool
+	hiddenPeerSet map[peer.ID]bool
 
+	mutex        *sync.Mutex
 	manageNumber uint32
-	remotePeers map[peer.ID]*remotePeerImpl
-	peerPool    map[peer.ID]p2pcommon.PeerMeta
-	conf        *cfg.P2PConfig
-	logger      *log.Logger
-	mutex       *sync.Mutex
+	remotePeers  map[peer.ID]*remotePeerImpl
+	peerPool     map[peer.ID]p2pcommon.PeerMeta
+	conf         *cfg.P2PConfig
 	// peerCache is copy-on-write style
-	peerCache   []RemotePeer
+	peerCache []RemotePeer
 
-	addPeerChannel    chan p2pcommon.PeerMeta
-	fillPoolChannel   chan []p2pcommon.PeerMeta
-	finishChannel     chan struct{}
-	eventListeners    []PeerEventListener
+	addPeerChannel  chan p2pcommon.PeerMeta
+	fillPoolChannel chan []p2pcommon.PeerMeta
+	finishChannel   chan struct{}
+	eventListeners  []PeerEventListener
+
+	//
+	designatedPeers map[peer.ID]p2pcommon.PeerMeta
+	awaitMutex      sync.RWMutex
+	awaitPeers      map[peer.ID]*reconnectJob
+	awaitDone       chan struct{}
+
+	logger *log.Logger
 }
 
 var _ PeerManager = (*peerManager)(nil)
@@ -93,7 +103,7 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, nt NetworkTransport, rm ReconnectManager, mm metric.MetricsManager, logger *log.Logger, mf moFactory) PeerManager {
+func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, iServ ActorService, cfg *cfg.Config, signer msgSigner, nt NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf moFactory) PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
@@ -104,22 +114,25 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		conf:           p2pConf,
 		signer:         signer,
 		mf:             mf,
-		rm:             rm,
 		mm:             mm,
 		logger:         logger,
 		mutex:          &sync.Mutex{},
 
+		status:          initial,
 		designatedPeers: make(map[peer.ID]p2pcommon.PeerMeta, len(cfg.P2P.NPAddPeers)),
 		hiddenPeerSet:   make(map[peer.ID]bool, len(cfg.P2P.NPHiddenPeers)),
 
 		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
-		peerPool:    make(map[peer.ID]p2pcommon.PeerMeta, p2pConf.NPPeerPool),
-		peerCache:   make([]RemotePeer, 0, p2pConf.NPMaxPeers),
 
-		addPeerChannel:    make(chan p2pcommon.PeerMeta, 2),
-		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
-		eventListeners:    make([]PeerEventListener, 0, 4),
-		finishChannel:     make(chan struct{}),
+		awaitPeers: make(map[peer.ID]*reconnectJob, p2pConf.NPPeerPool),
+		peerPool:   make(map[peer.ID]p2pcommon.PeerMeta, p2pConf.NPPeerPool),
+		peerCache:  make([]RemotePeer, 0, p2pConf.NPMaxPeers),
+		awaitDone:  make(chan struct{}),
+
+		addPeerChannel:  make(chan p2pcommon.PeerMeta, 2),
+		fillPoolChannel: make(chan []p2pcommon.PeerMeta, 2),
+		eventListeners:  make([]PeerEventListener, 0, 4),
+		finishChannel:   make(chan struct{}),
 	}
 
 	// additional initializations
@@ -173,12 +186,16 @@ func (pm *peerManager) Start() error {
 		}()
 	}()
 
+	if !atomic.CompareAndSwapInt32(&pm.status, initial, running) {
+		panic("wrong internal status")
+	}
 	return nil
 }
 
 func (pm *peerManager) Stop() error {
-	// TODO stop service
-	pm.finishChannel <- struct{}{}
+	if !atomic.CompareAndSwapInt32(&pm.status, running, stopping) {
+		pm.finishChannel <- struct{}{}
+	}
 	return nil
 }
 
@@ -206,16 +223,13 @@ MANLOOP:
 		select {
 		case meta := <-pm.addPeerChannel:
 			if pm.addOutboundPeer(meta) {
-				if _, found := pm.designatedPeers[meta.ID]; found {
-					pm.rm.CancelJob(meta.ID)
-				}
+				pm.cancelAwait(meta.ID)
 			}
 		case <-initialTimer.C:
 			initialTimer.Stop()
 			pm.checkAndCollectPeerListFromAll()
 		case <-addrTicker.C:
 			pm.checkAndCollectPeerListFromAll()
-			//pm.logPeerMetrics()
 		case peerMetas := <-pm.fillPoolChannel:
 			pm.tryFillPool(&peerMetas)
 		case <-pm.finishChannel:
@@ -224,7 +238,7 @@ MANLOOP:
 		}
 	}
 	// guarrenty no new peer connection will be made
-	pm.rm.Stop()
+	pm.cancelAllAwait()
 	pm.nt.RemoveStreamHandler(aergoP2PSub)
 	pm.logger.Info().Msg("Finishing peerManager")
 
@@ -234,29 +248,23 @@ MANLOOP:
 			peer.stop()
 		}
 	}()
-	timer := time.NewTimer(time.Second*30)
+	timer := time.NewTimer(time.Second * 30)
 	finishPoll := time.NewTicker(time.Second)
-	CLEANUPLOOP:
+CLEANUPLOOP:
 	for {
 		select {
-			case <-finishPoll.C:
-				pm.mutex.Lock()
-				if len(pm.remotePeers) == 0 {
-					pm.mutex.Unlock()
-					pm.logger.Debug().Msg("All peers were finished peerManager")
-					break CLEANUPLOOP
-				}
+		case <-finishPoll.C:
+			pm.mutex.Lock()
+			if len(pm.remotePeers) == 0 {
 				pm.mutex.Unlock()
-			case <-timer.C:
-				pm.logger.Warn().Int("remained",len(pm.peerCache)).Msg("peermanager stop timeout. some peers were not finished.")
+				pm.logger.Debug().Msg("All peers were finished peerManager")
 				break CLEANUPLOOP
+			}
+			pm.mutex.Unlock()
+		case <-timer.C:
+			pm.logger.Warn().Int("remained", len(pm.peerCache)).Msg("peermanager stop timeout. some peers were not finished.")
+			break CLEANUPLOOP
 		}
-	}
-}
-
-func (pm *peerManager) logPeerMetrics() {
-	if pm.logger.IsDebugEnabled() {
-		pm.logger.Debug().Msg(pm.mm.PrintMetrics())
 	}
 }
 
@@ -365,7 +373,7 @@ func (pm *peerManager) doPostHandshake(peerID peer.ID, remoteStatus *types.Statu
 }
 
 func (pm *peerManager) GetNextManageNum() uint32 {
-	return atomic.AddUint32(&pm.manageNumber,1)
+	return atomic.AddUint32(&pm.manageNumber, 1)
 }
 func (pm *peerManager) sendGoAway(rw MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
@@ -411,14 +419,14 @@ func (pm *peerManager) removePeer(peer RemotePeer) bool {
 		pm.logger.Warn().Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but peer is still running")
 	}
 	pm.deletePeer(peerID)
-	pm.logger.Info().Uint32("manage_num",peer.ManageNumber()).Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
+	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
 	pm.mutex.Unlock()
 	for _, listener := range pm.eventListeners {
 		listener.OnRemovePeer(peerID)
 	}
 
 	if meta, found := pm.designatedPeers[peer.ID()]; found {
-		pm.rm.AddJob(meta)
+		pm.addAwait(meta)
 	}
 	return true
 }
@@ -428,7 +436,7 @@ func (pm *peerManager) onConnect(s inet.Stream) {
 	tempMeta := p2pcommon.PeerMeta{ID: peerID}
 	addr := s.Conn().RemoteMultiaddr()
 
-	pm.logger.Debug().Str(LogFullID, peerID.Pretty()).Str("multiaddr",addr.String()).Msg("new inbound peer arrived")
+	pm.logger.Debug().Str(LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
 	completeMeta, added := pm.tryAddPeer(false, tempMeta, s)
 	if !added {
 		s.Close()
@@ -545,7 +553,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 			return nil
 		}
 		selfpi := &message.PeerInfo{
-			&addr,meta.Hidden, time.Now(), bestBlk.BlockHash(), bestBlk.Header.BlockNo, types.RUNNING, true}
+			&addr, meta.Hidden, time.Now(), bestBlk.BlockHash(), bestBlk.Header.BlockNo, types.RUNNING, true}
 		peers = append(peers, selfpi)
 	}
 	for _, aPeer := range pm.peerCache {
@@ -556,7 +564,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		addr := meta.ToPeerAddress()
 		lastNoti := aPeer.LastNotice()
 		pi := &message.PeerInfo{
-			&addr,meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
+			&addr, meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers
@@ -584,4 +592,40 @@ func (pm *peerManager) updatePeerCache() {
 		newSlice = append(newSlice, rPeer)
 	}
 	pm.peerCache = newSlice
+}
+
+func (pm *peerManager) addAwait(meta p2pcommon.PeerMeta) {
+	pm.awaitMutex.Lock()
+	defer pm.awaitMutex.Lock()
+	if _, exist := pm.awaitPeers[meta.ID]; exist {
+		return
+	}
+	if atomic.LoadInt32(&pm.status) != running {
+		return
+	}
+	pm.awaitPeers[meta.ID] = newReconnectRunner(meta, pm, pm.logger)
+}
+
+func (pm *peerManager) cancelAwait(id peer.ID) {
+	pm.awaitMutex.Lock()
+	defer pm.awaitMutex.Lock()
+	defer func() {
+		if atomic.LoadInt32(&pm.status) == stopping &&
+			len(pm.awaitPeers) == 0 {
+			pm.awaitDone <- struct{}{}
+		}
+	}()
+	job, exist := pm.awaitPeers[id]
+	if !exist {
+		return
+	}
+	delete(pm.awaitPeers, id)
+	job.cancel <- struct{}{}
+}
+
+func (pm *peerManager) cancelAllAwait() {
+	for id, _ := range pm.awaitPeers {
+		go pm.cancelAwait(id)
+	}
+	<-pm.awaitDone
 }

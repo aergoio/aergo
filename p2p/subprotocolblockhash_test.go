@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -104,7 +105,7 @@ type testDoubleHashRespFactory struct {
 	lastStatus types.ResultStatus
 }
 
-func (f *testDoubleHashRespFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
+func (f *testDoubleHashRespFactory) newMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message pbMessage) msgOrder {
 	f.lastResp = message.(*types.GetHashesResponse)
 	f.lastStatus = f.lastResp.Status
 	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
@@ -160,7 +161,7 @@ type testDoubleHashByNoRespFactory struct {
 	lastStatus types.ResultStatus
 }
 
-func (f *testDoubleHashByNoRespFactory) newMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message pbMessage) msgOrder {
+func (f *testDoubleHashByNoRespFactory) newMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message pbMessage) msgOrder {
 	f.lastResp = message.(*types.GetHashByNoResponse)
 	f.lastStatus = f.lastResp.Status
 	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
