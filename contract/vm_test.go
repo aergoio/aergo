@@ -3389,7 +3389,7 @@ func TestGovernance(t *testing.T) {
 	definition := `
     function test_gov()
 		contract.stake("5 aergo")
-		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p", "16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
+		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
     end
 
 	function error_case()
