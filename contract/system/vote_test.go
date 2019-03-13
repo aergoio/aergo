@@ -80,7 +80,7 @@ func TestVoteData(t *testing.T) {
 	for i := 0; i < testSize; i++ {
 		from := fmt.Sprintf("from%d", i)
 		to := fmt.Sprintf("%39d", i)
-		vote, err := GetVote(scs, []byte(from))
+		vote, err := GetVote(scs, []byte(from), defaultVoteKey)
 		assert.NoError(t, err, "failed to getVote")
 		assert.Zero(t, vote.Amount, "new amount value is already set")
 		assert.Nil(t, vote.Candidate, "new candidates value is already set")
@@ -91,7 +91,7 @@ func TestVoteData(t *testing.T) {
 		err = setVote(scs, defaultVoteKey, []byte(from), testVote)
 		assert.NoError(t, err, "failed to setVote")
 
-		vote, err = GetVote(scs, []byte(from))
+		vote, err = GetVote(scs, []byte(from), defaultVoteKey)
 		assert.NoError(t, err, "failed to getVote after set")
 		assert.Equal(t, uint64(math.MaxInt64+i), new(big.Int).SetBytes(vote.Amount).Uint64(), "invalid amount")
 		assert.Equal(t, []byte(to), vote.Candidate, "invalid candidates")

@@ -141,8 +141,8 @@ func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 }
 
 //GetVote return amount, to, err
-func GetVote(scs *state.ContractState, voter []byte) (*types.Vote, error) {
-	return getVote(scs, defaultVoteKey, voter)
+func GetVote(scs *state.ContractState, voter []byte, title []byte) (*types.Vote, error) {
+	return getVote(scs, title, voter)
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
@@ -192,17 +192,17 @@ type AccountStateReader interface {
 }
 
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(ar AccountStateReader, n int) (*types.VoteList, error) {
+func GetVoteResult(ar AccountStateReader, title []byte, n int) (*types.VoteList, error) {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	return getVoteResult(scs, defaultVoteKey, n)
+	return getVoteResult(scs, title, n)
 }
 
 // GetRankers returns the IDs of the top n rankers.
 func GetRankers(ar AccountStateReader, n int) ([]string, error) {
-	vl, err := GetVoteResult(ar, n)
+	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
 	}

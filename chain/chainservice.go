@@ -171,8 +171,8 @@ type IChainHandler interface {
 	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
 	getReceipt(txHash []byte) (*types.Receipt, error)
-	getVote(addr []byte) (*types.VoteList, error)
-	getVotes(n int) (*types.VoteList, error)
+	getVote(title string, addr []byte) (*types.VoteList, error)
+	getVotes(title string, n int) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
@@ -237,7 +237,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic("failed to init genesis block")
 	}
 
-	top, err := cs.getVotes(1)
+	top, err := cs.getVotes(types.VoteBP[2:], 1)
 	if err != nil {
 		logger.Debug().Err(err).Msg("failed to get elected BPs")
 	} else {
@@ -370,11 +370,11 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 	return cs.cdb.GetChainTree()
 }
 
-func (cs *ChainService) getVotes(n int) (*types.VoteList, error) {
-	return system.GetVoteResult(cs.sdb, n)
+func (cs *ChainService) getVotes(title string, n int) (*types.VoteList, error) {
+	return system.GetVoteResult(cs.sdb, []byte(title), n)
 }
 
-func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
+func (cs *ChainService) getVote(title string, addr []byte) (*types.VoteList, error) {
 	scs, err := cs.sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
 	var voteList types.VoteList
 	var tmp []*types.Vote
 	voteList.Votes = tmp
-	vote, err := system.GetVote(scs, addr)
+	vote, err := system.GetVote(scs, addr, []byte(title))
 	if err != nil {
 		return nil, err
 	}
@@ -391,6 +391,7 @@ func (cs *ChainService) getVote(addr []byte) (*types.VoteList, error) {
 		vote := &types.Vote{
 			Candidate: to[offset : offset+system.PeerIDLength],
 			Amount:    vote.GetAmount(),
+			Title:     title,
 		}
 		voteList.Votes = append(voteList.Votes, vote)
 	}
@@ -671,13 +672,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:    err,
 		})
 	case *message.GetElected:
-		top, err := cw.getVotes(msg.N)
+		top, err := cw.getVotes(msg.Title, msg.N)
 		context.Respond(&message.GetVoteRsp{
 			Top: top,
 			Err: err,
 		})
 	case *message.GetVote:
-		top, err := cw.getVote(msg.Addr)
+		top, err := cw.getVote(msg.Title, msg.Addr)
 		context.Respond(&message.GetVoteRsp{
 			Top: top,
 			Err: err,

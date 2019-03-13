@@ -115,11 +115,13 @@ type SyncBlockState struct {
 
 // GetElected is request to get voting result about top N elect
 type GetElected struct {
-	N int
+	Title string
+	N     int
 }
 
 type GetVote struct {
-	Addr []byte
+	Addr  []byte
+	Title string
 }
 
 // GetElectedRsp is return to get voting result
