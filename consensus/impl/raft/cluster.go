@@ -101,7 +101,6 @@ func (cc *Cluster) hasSynced() (bool, error) {
 	var peers map[peer.ID]*message.PeerInfo
 	var err error
 	var peerBestNo uint64 = 0
-	logger.Debug().Msg("chain sync XXX test")
 
 	if cc.Size == 1 {
 		return true, nil

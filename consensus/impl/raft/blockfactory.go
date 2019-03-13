@@ -144,7 +144,7 @@ func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
 	logger.Info().Uint64("raftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
 
 	bf.raftServer = newRaftServer(bf.bpc.ID, bf.bpc.BPUrls, false, waldir, snapdir,
-		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
+		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
 		nil, proposeC, confChangeC, true)
 
 	return nil
