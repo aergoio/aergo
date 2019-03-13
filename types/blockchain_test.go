@@ -2,6 +2,7 @@ package types
 
 import (
 	fmt "fmt"
+	math "math"
 	"testing"
 	"time"
 
@@ -152,10 +153,10 @@ func TestUpdateAvgVerifyTime(t *testing.T) {
 	}
 }
 
-func TestBlockHeader(t *testing.T) {
+func TestBlockHeaderLimit(t *testing.T) {
 	a := assert.New(t)
 
-	chainID := "01234567890123456789"
+	chainID := "0123456789012345678901234567890123456789"
 	dig := sha256.New()
 	dig.Write([]byte(chainID))
 	h := dig.Sum(nil)
@@ -163,28 +164,37 @@ func TestBlockHeader(t *testing.T) {
 	addr, err := DecodeAddress("AmLquXjQSiDdR8FTDK78LJ16Ycrq3uNL6NQuiwqXRCGw9Riq2DE4")
 	a.Nil(err, "invalid coinbase account")
 
-	priv, pub := genKeyPair(a)
+	_, pub := genKeyPair(a)
 
 	block := &Block{
 		Header: &BlockHeader{
-			ChainID:          []byte(chainID),
-			PrevBlockHash:    h,
-			BlockNo:          10,
-			Timestamp:        time.Now().UnixNano(),
-			BlocksRootHash:   h,
-			TxsRootHash:      h,
-			ReceiptsRootHash: h,
-			Confirms:         23,
+			ChainID:          []byte(chainID), // len <= 40
+			PrevBlockHash:    h,               // 32byte
+			BlockNo:          math.MaxUint64,
+			Timestamp:        math.MinInt64,
+			BlocksRootHash:   h, // 32byte. Currenly not used but for the future use.
+			TxsRootHash:      h, // 32byte
+			ReceiptsRootHash: h, // 32byte
+			Confirms:         math.MaxUint64,
 			CoinbaseAccount:  addr,
 		},
 	}
 	err = block.setPubKey(pub)
 	a.Nil(err, "PubKey set failed")
 
-	err = block.Sign(priv)
-	a.Nil(err, "block sign failed")
+	// The signature's max length is 72 (strict DER format). But usually it is
+	// 70 or 71. For header length measurement, generate a byte array of length
+	// 72 from a hash (sha256) value xrather than a real signature.
+	block.Header.Sign = h
+	block.Header.Sign = append(block.Header.Sign, h...)
+	block.Header.Sign = append(block.Header.Sign, h[:8]...)
 
+	// A block can include its sha256 hash value. Thus the size of blcok hash
+	// value should be considered when the block header limit estimated.
 	fmt.Println("block id:", block.ID())
-	fmt.Println("block size:", proto.Size(block))
-	fmt.Println("signature len:", len(block.Header.Sign))
+
+	hdrSize := proto.Size(block)
+	a.True(hdrSize <= defaultMaxHdrSize, "too large header (> %v): %v", defaultMaxHdrSize, hdrSize)
+
+	fmt.Println("hdr size", hdrSize)
 }
