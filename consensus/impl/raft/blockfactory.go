@@ -1,12 +1,14 @@
 package raft
 
 import (
+	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/libp2p/go-libp2p-crypto"
 	"runtime"
 	"time"
+
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
@@ -28,12 +30,19 @@ const (
 
 var (
 	logger             *log.Logger
+	httpLogger         *log.Logger
 	RaftBpTick         = time.Second
 	RaftSkipEmptyBlock = false
+	peerCheckInterval  = time.Second * 3
+)
+
+var (
+	ErrBFQuit = errors.New("block factory quit")
 )
 
 func init() {
 	logger = log.NewLogger("raft")
+	httpLogger = log.NewLogger("rafthttp")
 }
 
 type txExec struct {
@@ -58,6 +67,8 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 type BlockFactory struct {
 	*component.ComponentHub
 	consensus.ChainDB
+
+	bpc              *Cluster
 	jobQueue         chan interface{}
 	quit             chan interface{}
 	blockInterval    time.Duration
@@ -69,6 +80,11 @@ type BlockFactory struct {
 	prevBlock        *types.Block // best block of last job
 
 	raftServer *raftServer
+}
+
+// GetName returns the name of the consensus.
+func GetName() string {
+	return "raft"
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -95,7 +111,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		sdb:              sdb,
 	}
 
-	if err := bf.initRaftServer(cfg); err != nil {
+	if err := bf.startRaftServer(cfg); err != nil {
 		logger.Error().Err(err).Msg("failed to init raft server")
 		return bf, err
 	}
@@ -114,23 +130,22 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	return bf, nil
 }
 
-func (bf *BlockFactory) initRaftServer(cfg *config.Config) error {
-	if err := checkConfig(cfg); err != nil {
+func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
+	if err := bf.InitCluster(cfg); err != nil {
 		return err
 	}
 
 	proposeC := make(chan string, 1)
 	confChangeC := make(chan raftpb.ConfChange, 1)
 
-	peersList := cfg.Consensus.RaftBpUrls
 	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	bf.raftServer = newRaftServer(cfg.Consensus.RaftID, peersList, false, waldir, snapdir,
-		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
-		nil, proposeC, confChangeC)
+	logger.Info().Uint64("raftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
 
-	bf.raftServer.WaitStartup()
+	bf.raftServer = newRaftServer(bf.bpc.ID, bf.bpc.BPUrls, false, waldir, snapdir,
+		cfg.Consensus.RaftCertFile, cfg.Consensus.RaftKeyFile,
+		nil, proposeC, confChangeC, true)
 
 	return nil
 }
@@ -220,6 +235,20 @@ func (bf *BlockFactory) Start() {
 
 	runtime.LockOSThread()
 
+	// 1. sync blockchain
+	if err := bf.waitSyncWithMajority(); err != nil {
+		logger.Error().Err(err).Msg("wait sync with majority failed")
+		return
+	}
+
+	// 2. raft can be candidate
+	//    if this node hasn't been synchronized, it must not be candidate.
+	// 	  otherwise producing block will be stop until synchronization complete
+	bf.raftServer.SetPromotable(true)
+
+	// 3. wait to commit all uncommited log in WAL, and start
+	bf.raftServer.WaitStartup()
+
 	for {
 		select {
 		case e := <-bf.jobQueue:
@@ -248,7 +277,7 @@ func (bf *BlockFactory) Start() {
 					continue
 				}
 
-				logger.Info().Str("BP", bf.ID).Str("id", block.ID()).
+				logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
 					Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Uint64("no", block.GetHeader().GetBlockNo()).
 					Str("hash", block.ID()).
@@ -270,7 +299,36 @@ func (bf *BlockFactory) Start() {
 	}
 }
 
+// waitUntilStartable wait until this chain synchronizes with more than half of all peers
+func (bf *BlockFactory) waitSyncWithMajority() error {
+	ticker := time.NewTicker(peerCheckInterval)
+
+	for {
+		select {
+		case <-ticker.C:
+			if synced, err := bf.bpc.hasSynced(); err != nil {
+				logger.Error().Err(err).Msg("failed to check sync with a majority of peers")
+				return err
+			} else if synced {
+				return nil
+			}
+
+		case <-bf.QuitChan():
+			logger.Info().Msg("quit while wait sync")
+			return ErrBFQuit
+		default:
+		}
+	}
+}
+
 // JobQueue returns the queue for block production triggering.
 func (bf *BlockFactory) JobQueue() chan<- interface{} {
 	return bf.jobQueue
+}
+
+// Info retuns an empty string.
+func (bf *BlockFactory) Info() string {
+	// TODO: Returns a appropriate information inx json format like current
+	// leader, etc.
+	return consensus.NewInfo(GetName()).AsJSON()
 }

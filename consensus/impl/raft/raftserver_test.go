@@ -16,8 +16,10 @@ package raft
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/aergoio/etcd/raft/raftpb"
 )
@@ -28,12 +30,14 @@ type cluster struct {
 	errorC      []<-chan error
 	proposeC    []chan string
 	confChangeC []chan raftpb.ConfChange
+
+	rs []*raftServer
 }
 
 var dataDirBase = "./rafttest"
 
 // newCluster creates a cluster of n nodes
-func newCluster(n int) *cluster {
+func newCluster(n int, delayPromote bool) *cluster {
 	peers := make([]string, n)
 	for i := range peers {
 		peers[i] = fmt.Sprintf("http://127.0.0.1:%d", 10000+i)
@@ -45,6 +49,7 @@ func newCluster(n int) *cluster {
 		errorC:      make([]<-chan error, len(peers)),
 		proposeC:    make([]chan string, len(peers)),
 		confChangeC: make([]chan raftpb.ConfChange, len(peers)),
+		rs:          make([]*raftServer, len(peers)),
 	}
 
 	os.RemoveAll(dataDirBase)
@@ -56,7 +61,8 @@ func newCluster(n int) *cluster {
 		clus.proposeC[i] = make(chan string, 1)
 		clus.confChangeC[i] = make(chan raftpb.ConfChange, 1)
 
-		rs := newRaftServer(uint64(i+1), clus.peers, false, waldir, snapdir, "", "", nil, clus.proposeC[i], clus.confChangeC[i])
+		rs := newRaftServer(uint64(i+1), clus.peers, false, waldir, snapdir, "", "", nil, clus.proposeC[i], clus.confChangeC[i], delayPromote)
+		clus.rs[i] = rs
 		clus.commitC[i] = rs.commitC
 		clus.errorC[i] = rs.errorC
 	}
@@ -102,7 +108,7 @@ func (clus *cluster) closeNoErrors(t *testing.T) {
 // TestProposeOnCommit starts three nodes and feeds commits back into the proposal
 // channel. The intent is to ensure blocking on a proposal won't block raft progress.
 func TestProposeOnCommit(t *testing.T) {
-	clus := newCluster(3)
+	clus := newCluster(3, false)
 	defer clus.closeNoErrors(t)
 
 	//wait creation of all Raft nodes
@@ -117,7 +123,7 @@ func TestProposeOnCommit(t *testing.T) {
 				if !ok {
 					pC = nil
 				}
-				t.Logf("raft node [%d][%d] commit", i, n)
+				//t.Logf("raft node [%d][%d] commit", i, n)
 				select {
 				case pC <- *s:
 					continue
@@ -144,7 +150,7 @@ func TestProposeOnCommit(t *testing.T) {
 
 // TestCloseProposerBeforeReplay tests closing the producer before raft starts.
 func TestCloseProposerBeforeReplay(t *testing.T) {
-	clus := newCluster(1)
+	clus := newCluster(1, false)
 	// close before replay so raft never starts
 	defer clus.closeNoErrors(t)
 }
@@ -152,7 +158,7 @@ func TestCloseProposerBeforeReplay(t *testing.T) {
 // TestCloseProposerInflight tests closing the producer while
 // committed messages are being published to the client.
 func TestCloseProposerInflight(t *testing.T) {
-	clus := newCluster(1)
+	clus := newCluster(1, false)
 	defer clus.closeNoErrors(t)
 
 	clus.sinkReplay()
@@ -167,6 +173,37 @@ func TestCloseProposerInflight(t *testing.T) {
 	if c, ok := <-clus.commitC[0]; *c != "foo" || !ok {
 		t.Fatalf("Commit failed")
 	}
+}
+
+func TestRaftDelayPromotable(t *testing.T) {
+	clus := newCluster(3, true)
+
+	defer clus.closeNoErrors(t)
+
+	//wait creation of all Raft nodes
+	clus.sinkReplay()
+
+	//2개 node가 promotable 되면 leader 결정
+	t.Log("replay ready")
+
+	checkHasLeader := func(has bool) {
+		res := false
+		for _, raftserver := range clus.rs {
+			if raftserver.IsLeader() {
+				res = true
+			}
+		}
+
+		assert.Equal(t, has, res)
+	}
+
+	time.Sleep(time.Second * 1)
+	checkHasLeader(false)
+
+	clus.rs[0].SetPromotable(true)
+
+	time.Sleep(time.Second * 5)
+	checkHasLeader(true)
 }
 
 /*

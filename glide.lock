@@ -1,5 +1,5 @@
-hash: d07a82c41f9ce2cdd3f06c532aa0622fc99d25f525fc6c4a9f8f5031c4d7be70
-updated: 2019-02-27T18:43:25.560676+09:00
+hash: d159573adefc8682d7a81bf843426f1b152518aeef4c894b7c05b8d8ab06b24c
+updated: 2019-03-08T15:40:19.009606+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 562037d5fec70391e3c047a5293b49a443237386
@@ -248,7 +248,7 @@ imports:
 - name: github.com/libp2p/go-libp2p-metrics
   version: 1f0f4db0472785ecdf0b4fe57ba6253f9b0635d2
 - name: github.com/libp2p/go-libp2p-nat
-  version: df5e02c31d7d3abda339c733005ab89da900e166
+  version: fcc8db1a9963a3d489abbc632f2c0f404e4ff607
 - name: github.com/libp2p/go-libp2p-net
   version: c070e8fb6eade68612d96e0fbace731f89897d33
 - name: github.com/libp2p/go-libp2p-peer
@@ -325,10 +325,6 @@ imports:
   version: ab7059599c0215374d05ceb716f54d6ed9bb1d5f
 - name: github.com/multiformats/go-multiaddr-net
   version: cba4f9fea8613343eb7ecc4ddadd8e7298a00c39
-- name: github.com/multiformats/go-multicodec
-  version: b5a68a7220079b47607cb5205c390397d095ab18
-  subpackages:
-  - protobuf
 - name: github.com/multiformats/go-multihash
   version: 1a04c485626b992b36afcaa599584fdb0770c397
 - name: github.com/multiformats/go-multistream
@@ -395,7 +391,7 @@ imports:
 - name: github.com/rs/cors
   version: 76f58f330d76a55c5badc74f6212e8a15e742c77
 - name: github.com/rs/zerolog
-  version: 8747b7b3a51b5d08ee7ac50eaf4869edaf9f714a
+  version: 6d6350a51143b5c0d0a6a3b736ee2b41315f7269
   subpackages:
   - internal/cbor
   - internal/json
@@ -529,7 +525,7 @@ imports:
   subpackages:
   - rate
 - name: google.golang.org/genproto
-  version: fc2db5cae922db113989ef87b5b859cc8a179f59
+  version: 09f6ed296fc66555a25fe4ce95173148778dfa85
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc

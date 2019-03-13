@@ -25,8 +25,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/hashicorp/golang-lru"
-	"github.com/libp2p/go-libp2p-peer"
+	lru "github.com/hashicorp/golang-lru"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -89,16 +89,24 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	return nil
 }
 
-func (core *Core) initGenesis(genesis *types.Genesis, testnet bool) (*types.Block, error) {
+func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode bool) (*types.Block, error) {
 
-	exist := core.cdb.GetGenesisInfo()
-	if exist == nil {
+	gen := core.cdb.GetGenesisInfo()
+	if gen == nil {
 		logger.Info().Msg("generating genesis block..")
-
-		if testnet {
-			genesis = types.GetTestNetGenesis()
-		} else if genesis == nil {
-			return nil, errors.New("mainnet will be launched soon")
+		if testmode {
+			if !mainnet {
+				logger.Warn().Msg("--testnet opt will ignored due to testmode")
+			}
+			genesis = types.GetTestGenesis()
+		} else {
+			if genesis == nil {
+				if mainnet {
+					return nil, errors.New("mainnet will be launched soon")
+				} else {
+					genesis = types.GetTestNetGenesis()
+				}
+			}
 		}
 
 		err := core.sdb.SetGenesis(genesis, InitGenesisBPs)
@@ -112,15 +120,24 @@ func (core *Core) initGenesis(genesis *types.Genesis, testnet bool) (*types.Bloc
 			logger.Fatal().Err(err).Msg("cannot add genesisblock")
 			return nil, err
 		}
+		gen = genesis
+	} else {
+		if !mainnet {
+			logger.Warn().Msg("--testnet option will be ignored")
+		}
+		if testmode && !gen.HasDevChainID() {
+			logger.Info().Str("chain id", gen.ID.ToJSON()).Msg("current genesis info")
+			return nil, errors.New("do not run testmode on non dev-chain")
+		}
 	}
-	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
-	initChainEnv(core.cdb.GetGenesisInfo())
+	genesisBlock, _ := core.cdb.GetBlockByNo(0)
+	initChainEnv(gen)
 
 	contract.StartLStateFactory()
 
-	logger.Info().Str("genesis", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
-
+	logger.Info().Str("chain id", gen.ID.ToJSON()).
+		Str("hash", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
 	return genesisBlock, nil
 }
 
@@ -141,7 +158,7 @@ func (core *Core) Close() {
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
 func (core *Core) InitGenesisBlock(gb *types.Genesis, useTestnet bool) error {
-	_, err := core.initGenesis(gb, useTestnet)
+	_, err := core.initGenesis(gb, useTestnet, false)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot initialize genesis block")
 		return err
@@ -215,7 +232,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init genesis block
-	if _, err := cs.initGenesis(nil, cfg.UseTestnet); err != nil {
+	if _, err := cs.initGenesis(nil, !cfg.UseTestnet, cfg.EnableTestmode); err != nil {
 		logger.Fatal().Err(err).Msg("failed to create a genesis block")
 		panic("failed to init genesis block")
 	}
@@ -241,6 +258,16 @@ func (cs *ChainService) SDB() *state.ChainStateDB {
 // CDB returns cs.sdb as a consensus.ChainDbReader.
 func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
+}
+
+// GetConsensusInfo returns consensus-related information, which is different
+// from consensus to consensus.
+func (cs *ChainService) GetConsensusInfo() string {
+	if cs.ChainConsensus == nil {
+		return ""
+	}
+
+	return cs.Info()
 }
 
 // SetChainConsensus sets cs.cc to cc.

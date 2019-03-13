@@ -6,10 +6,11 @@ package mock_types
 
 import (
 	context "context"
+	reflect "reflect"
+
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	grpc "google.golang.org/grpc"
-	reflect "reflect"
 )
 
 // MockAergoRPCServiceClient is a mock of AergoRPCServiceClient interface

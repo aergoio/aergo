@@ -16,6 +16,8 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
@@ -153,6 +155,66 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 }
 
+func TestBasicStakeVoteExUnstake(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+
+	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	assert.NoError(t, err, "could not open contract state")
+
+	account, err := types.DecodeAddress(testSender)
+	assert.NoError(t, err, "could not decode test address")
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account: account,
+			Amount:  types.StakingMinimum.Bytes(),
+		},
+	}
+	sender, err := sdb.GetAccountStateV(tx.Body.Account)
+	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	assert.NoError(t, err, "could not get test address state")
+	sender.AddBalance(types.MaxAER)
+
+	tx.Body.Payload = buildStakingPayload(true)
+	_, err = staking(tx.Body, sender, receiver, scs, 0)
+	assert.NoError(t, err, "staking failed")
+	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
+		"sender.Balance() should be reduced after staking")
+
+	testsize := 20
+	tx.Body.Payload = buildVotingPayloadEx(testsize, types.VoteNumBP)
+	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	assert.NoError(t, err, "voting failed")
+	event, err := voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
+	assert.NoError(t, err, "voting failed")
+	assert.Equal(t, types.VoteNumBP[2:], event.EventName, "invalid amount in voting result")
+
+	result, err := getVoteResult(scs, []byte(types.VoteNumBP[2:]), 23)
+	assert.NoError(t, err, "voting failed")
+	assert.EqualValues(t, testsize, len(result.GetVotes()), "invalid voting result")
+	//assert.Equal(t, ci.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
+	//assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
+
+	tx.Body.Payload = buildStakingPayload(false)
+	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
+	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
+
+	ci, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
+	assert.NoError(t, err, "unstaking failed")
+	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, ci)
+	assert.NoError(t, err, "unstaking failed")
+
+	result2, err := getVoteResult(scs, []byte(types.VoteNumBP[2:]), 23)
+	assert.NoError(t, err, "voting failed")
+	assert.EqualValues(t, testsize, len(result2.GetVotes()), "invalid voting result")
+	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")
+	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
+
+}
+
 func buildVotingPayload(count int) []byte {
 	var ci types.CallInfo
 	ci.Name = types.VoteBP
@@ -160,6 +222,18 @@ func buildVotingPayload(count int) []byte {
 		peerID := make([]byte, PeerIDLength)
 		peerID[0] = byte(i)
 		ci.Args = append(ci.Args, base58.Encode(peerID))
+	}
+	payload, _ := json.Marshal(ci)
+	return payload
+}
+
+func buildVotingPayloadEx(count int, name string) []byte {
+	var ci types.CallInfo
+	ci.Name = name
+	for i := 0; i < count; i++ {
+		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		pid, _ := peer.IDFromPublicKey(pub)
+		ci.Args = append(ci.Args, peer.IDB58Encode(pid))
 	}
 	payload, _ := json.Marshal(ci)
 	return payload

@@ -6,6 +6,7 @@
 package consensus
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -80,6 +81,26 @@ type ChainConsensus interface {
 	Update(block *types.Block)
 	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool
+	Info() string
+}
+
+// Info represents an information for a consensus implementation.
+type Info struct {
+	Type   string
+	Status *json.RawMessage `json:",omitempty"`
+}
+
+// NewInfo returns a new Info with name.
+func NewInfo(name string) *Info {
+	return &Info{Type: name}
+}
+
+// AsJSON() returns i as a JSON string
+func (i *Info) AsJSON() string {
+	if m, err := json.Marshal(i); err == nil {
+		return string(m)
+	}
+	return ""
 }
 
 // BlockFactory is an interface for a block factory implementation.

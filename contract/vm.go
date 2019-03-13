@@ -312,8 +312,17 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	return nil
 }
 
-func checkPayable(L *LState, fname *C.char, amount *big.Int) error {
-	if amount.Cmp(big.NewInt(0)) > 0 && C.vm_is_payable_function(L, fname) == C.int(0) {
+func checkPayable(L *LState, fname *C.char, flag *C.int, amount *big.Int) error {
+	if amount.Cmp(big.NewInt(0)) <= 0 {
+		return nil
+	}
+	var payableFlag C.int
+	if flag == nil {
+		payableFlag = C.vm_is_payable_function(L, fname)
+	} else {
+		payableFlag = *flag
+	}
+	if payableFlag == C.int(0) {
 		return fmt.Errorf("'%s' is not payable", C.GoString(fname))
 	}
 	return nil
@@ -328,17 +337,24 @@ func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
 	fname := C.CString(ci.Name)
 	defer C.free(unsafe.Pointer(fname))
 
-	resolvedName := C.vm_resolve_function(ce.L, fname)
+	var viewFlag, payFlag C.int
+	resolvedName := C.vm_resolve_function(ce.L, fname, &viewFlag, &payFlag)
 	if resolvedName == nil {
 		ce.err = fmt.Errorf("attempt to call global '%s' (a nil value)", ci.Name)
 		return 0
 	}
 
-	if err := checkPayable(ce.L, resolvedName, ce.stateSet.curContract.amount); err != nil {
+	if err := checkPayable(ce.L, resolvedName, &payFlag, ce.stateSet.curContract.amount); err != nil {
 		ce.err = err
 		return 0
 	}
-
+	if viewFlag != C.int(0) {
+		oldIsQuery := ce.stateSet.isQuery
+		ce.stateSet.isQuery = true
+		defer func() {
+			ce.stateSet.isQuery = oldIsQuery
+		}()
+	}
 	C.vm_get_abi_function(ce.L, resolvedName)
 	ce.processArgs(ci)
 	nret := C.int(0)
@@ -369,7 +385,7 @@ func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
-	if err := checkPayable(ce.L, C.construct_name, ce.stateSet.curContract.amount); err != nil {
+	if err := checkPayable(ce.L, C.construct_name, nil, ce.stateSet.curContract.amount); err != nil {
 		ce.err = errVmConstructorIsNotPayable
 		return 0
 	}
@@ -568,7 +584,6 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.prevBlockHash = prevBlockHash
 
 	curStateSet[stateSet.service] = stateSet
-	ce.setCountHook(callMaxInstLimit)
 	ce.call(ce.args, nil)
 	err = ce.err
 	if err == nil {
@@ -619,6 +634,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 	ce := newExecutor(contractCode, stateSet)
 	ce.args = &ci
+	ce.setCountHook(callMaxInstLimit)
 
 	return ce, nil
 
@@ -827,8 +843,12 @@ func (re *recoveryEntry) recovery() error {
 	var zero big.Int
 	callState := re.callState
 	if re.amount.Cmp(&zero) > 0 {
-		re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
-		callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
+		if re.senderState != nil {
+			re.senderState.Balance = new(big.Int).Add(re.senderState.GetBalanceBigInt(), re.amount).Bytes()
+		}
+		if callState != nil {
+			callState.curState.Balance = new(big.Int).Sub(callState.curState.GetBalanceBigInt(), re.amount).Bytes()
+		}
 	}
 	if re.onlySend {
 		return nil

@@ -15,6 +15,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	luac_util "github.com/aergoio/aergo/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -98,6 +99,14 @@ func (bc *DummyChain) getReceipt(txHash []byte) *types.Receipt {
 
 func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
 	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(strHash(name)))
+}
+
+func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
+	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil, err
+	}
+	return system.GetStaking(scs, strHash(name))
 }
 
 type luaTx interface {
@@ -386,6 +395,11 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBloc
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
 			r.Events = evs
 			r.TxHash = l.hash()
+			blockHash := make([]byte, 32)
+			for _, ev := range evs {
+				ev.TxHash = r.TxHash
+				ev.BlockHash = blockHash
+			}
 			b, _ := r.MarshalBinary()
 			receiptTx.Set(l.hash(), b)
 			return nil

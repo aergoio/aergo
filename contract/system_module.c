@@ -374,6 +374,29 @@ static int lua_random(lua_State *L)
     return 1;
 }
 
+static int is_contract(lua_State *L)
+{
+    char *contract;
+	int *service = (int *)getLuaExecContext(L);
+	int ret;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+    }
+
+	contract = (char *)luaL_checkstring(L, 1);
+    ret = LuaIsContract(L, service, contract);
+	if (ret < 0) {
+		lua_error(L);
+	}
+	if (ret == 0)
+	    lua_pushboolean(L, false);
+	else
+	    lua_pushboolean(L, true);
+
+    return 1;
+}
+
 static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
@@ -391,6 +414,7 @@ static const luaL_Reg sys_lib[] = {
 	{"time", os_time},
 	{"difftime", os_difftime},
 	{"random", lua_random},
+	{"isContract", is_contract},
 	{NULL, NULL}
 };
 

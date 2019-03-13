@@ -61,15 +61,13 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 	}
 	staked.Amount = amount.Bytes()
 	//blockNo will be updated in voting
-	staked.When = 0 /*blockNo*/
+	staked.When = blockNo
 
 	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return nil, err
 	}
-	ci.Args = append(ci.Args, []byte(types.VoteBP)[2:])
-	_, err = voting(txBody, sender, receiver, scs, blockNo, ci)
-	if err != nil {
+	if err = refreshAllVote(txBody, sender, receiver, scs, blockNo); err != nil {
 		return nil, err
 	}
 	sender.AddBalance(backToBalance)

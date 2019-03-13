@@ -2,7 +2,9 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo/config"
+	"github.com/libp2p/go-libp2p-peer"
 	"net"
 	"net/url"
 	"os"
@@ -10,17 +12,35 @@ import (
 )
 
 var (
-	ErrInvalidRaftID    = errors.New("invalid raft id")
-	ErrDupRaftUrl       = errors.New("duplicated raft bp urls")
-	ErrRaftEmptyTLSFile = errors.New("cert or key file name is empty")
-	ErrNotHttpsURL      = errors.New("url scheme is not https")
-	ErrURLInvalidScheme = errors.New("url has invalid scheme")
-	ErrURLInvalidPort   = errors.New("url must have host:port style")
+	ErrInvalidRaftID     = errors.New("invalid raft raftID")
+	ErrDupRaftUrl        = errors.New("duplicated raft bp urls")
+	ErrRaftEmptyTLSFile  = errors.New("cert or key file name is empty")
+	ErrNotHttpsURL       = errors.New("url scheme is not https")
+	ErrURLInvalidScheme  = errors.New("url has invalid scheme")
+	ErrURLInvalidPort    = errors.New("url must have host:port style")
+	ErrInvalidRaftBPID   = errors.New("raft bp raftID is not ordered. raftID must start with 1 and be sorted")
+	ErrDupBP             = errors.New("raft bp description is duplicated")
+	ErrInvalidRaftPeerID = errors.New("peerID of current raft bp is not equals to p2p configure")
 )
 
-func checkConfig(cfg *config.Config) error {
+const (
+	DefaultMarginChainDiff = 1
+)
+
+func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	useTls := true
 	var err error
+
+	lenBPs := len(cfg.Consensus.RaftBPs)
+	raftID := cfg.Consensus.RaftID
+
+	bf.bpc = NewCluster(bf, raftID, uint16(lenBPs))
+
+	if raftID <= 0 || raftID > uint64(len(cfg.Consensus.RaftBPs)) {
+		logger.Error().Err(err).Msg("raft raftID has the following values: 1 <= raft raftID <= len(bpcount)")
+
+		return ErrInvalidRaftID
+	}
 
 	if useTls, err = validateTLS(cfg.Consensus); err != nil {
 		logger.Error().Err(err).
@@ -30,15 +50,15 @@ func checkConfig(cfg *config.Config) error {
 		return err
 	}
 
-	var outUrls []string
-	if outUrls, err = validateBPUrls(cfg.Consensus, useTls); err != nil {
+	if err = bf.bpc.addMembers(cfg.Consensus, useTls); err != nil {
 		logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
 		return err
 	}
 
-	cfg.Consensus.RaftBpUrls = outUrls
-
 	RaftSkipEmptyBlock = cfg.Consensus.RaftSkipEmpty
+
+	logger.Info().Msg(bf.bpc.toString())
+
 	return nil
 }
 
@@ -72,47 +92,66 @@ func validateTLS(consCfg *config.ConsensusConfig) (bool, error) {
 	return true, nil
 }
 
-func validateBPUrls(consCfg *config.ConsensusConfig, useTls bool) ([]string, error) {
-	//TODO check Url
-	// - each urlstr is unique
-	// - format is valid urlstr
-	//check ID
-	// - 1 <= ID <= len(RaftBpUrls)
-
-	lenBpUrls := len(consCfg.RaftBpUrls)
-	outUrls := make([]string, lenBpUrls)
-
+func isValidURL(urlstr string, useTls bool) error {
 	var urlobj *url.URL
 	var err error
 
-	urlMap := make(map[string]bool, lenBpUrls)
-	for i, urlstr := range consCfg.RaftBpUrls {
-		urlstr = strings.TrimSpace(urlstr)
-		if _, ok := urlMap[urlstr]; ok {
-			return nil, ErrDupRaftUrl
-		} else {
-			urlMap[urlstr] = true
-		}
-
-		if urlobj, err = parseToUrl(urlstr); err != nil {
-			logger.Error().Str("url", urlstr).Err(err).Msg("raft bp urlstr is not vaild form")
-			return nil, err
-		}
-
-		if useTls && urlobj.Scheme != "https" {
-			logger.Error().Str("urlstr", urlstr).Msg("raft bp urlstr shoud use https protocol")
-			return nil, ErrNotHttpsURL
-		}
-
-		outUrls[i] = urlstr
+	if urlobj, err = parseToUrl(urlstr); err != nil {
+		logger.Error().Str("url", urlstr).Err(err).Msg("raft bp urlstr is not vaild form")
+		return err
 	}
 
-	raftID := consCfg.RaftID
-	if raftID <= 0 || raftID > uint64(lenBpUrls) {
-		return nil, ErrInvalidRaftID
+	if useTls && urlobj.Scheme != "https" {
+		logger.Error().Str("urlstr", urlstr).Msg("raft bp urlstr shoud use https protocol")
+		return ErrNotHttpsURL
 	}
 
-	return outUrls, nil
+	return nil
+}
+
+func isValidID(raftID uint64, lenBps int) error {
+	if raftID <= 0 || raftID > uint64(lenBps) {
+		logger.Error().Msg("raft raftID has the following values: 1 <= raft raftID <= len(bpcount)")
+
+		return ErrInvalidRaftID
+	}
+
+	return nil
+}
+
+func (cc *Cluster) addMembers(consCfg *config.ConsensusConfig, useTls bool) error {
+	lenBPs := len(consCfg.RaftBPs)
+
+	// validate each bp
+	for i, raftBP := range consCfg.RaftBPs {
+		if uint64(i+1) != raftBP.ID {
+			return ErrInvalidRaftBPID
+		}
+
+		urlstr := raftBP.Url
+		trimUrl := strings.TrimSpace(urlstr)
+
+		if err := isValidURL(urlstr, useTls); err != nil {
+			return err
+		}
+
+		if err := isValidID(raftBP.ID, lenBPs); err != nil {
+			return err
+		}
+
+		peerID, err := peer.IDB58Decode(raftBP.P2pID)
+		if err != nil {
+			return fmt.Errorf("invalid raft peerID %s", raftBP.P2pID)
+		}
+
+		if err := cc.addMember(raftBP.ID, trimUrl, peerID); err != nil {
+			return err
+		}
+	}
+
+	// TODO check my node pubkey from p2p
+
+	return nil
 }
 
 func parseToUrl(urlstr string) (*url.URL, error) {
