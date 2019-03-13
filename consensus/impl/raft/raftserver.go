@@ -249,7 +249,7 @@ func (rs *raftServer) serveChannels() {
 
 	defer rs.wal.Close()
 
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(RaftTick)
 	defer ticker.Stop()
 
 	// send proposals over raft
