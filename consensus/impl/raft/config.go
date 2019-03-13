@@ -13,8 +13,6 @@ import (
 )
 
 var (
-	RaftTick = DefaultTickMS
-
 	ErrInvalidRaftID     = errors.New("invalid raft raftID")
 	ErrDupRaftUrl        = errors.New("duplicated raft bp urls")
 	ErrRaftEmptyTLSFile  = errors.New("cert or key file name is empty")
@@ -42,7 +40,7 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 
 	//set default
 	if raftConfig.RaftTick != 0 {
-		RaftTick = RaftTick
+		RaftTick = time.Duration(raftConfig.RaftTick * 1000000)
 	}
 
 	lenBPs := len(raftConfig.RaftBPs)
@@ -71,7 +69,7 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 
 	RaftSkipEmptyBlock = raftConfig.RaftSkipEmpty
 
-	logger.Info().Msg(bf.bpc.toString())
+	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
 }

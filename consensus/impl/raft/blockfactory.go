@@ -31,7 +31,7 @@ const (
 var (
 	logger             *log.Logger
 	httpLogger         *log.Logger
-	RaftBpTick         = time.Second
+	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
 	peerCheckInterval  = time.Second * 3
 )
@@ -61,7 +61,7 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 	return err
 }
 
-// BlockFactory implments a simple block factory which generate block each cfg.Consensus.BlockInterval.
+// BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockInterval if this node is leader of raft
 //
 // This can be used for testing purpose.
 type BlockFactory struct {
@@ -103,7 +103,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		ComponentHub:     hub,
 		ChainDB:          cdb,
 		jobQueue:         make(chan interface{}, slotQueueMax),
-		blockInterval:    RaftBpTick,
+		blockInterval:    time.Second * time.Duration(cfg.Consensus.BlockInterval),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
 		ID:               p2p.NodeSID(),
@@ -145,7 +145,7 @@ func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
 
 	bf.raftServer = newRaftServer(bf.bpc.ID, bf.bpc.BPUrls, false, waldir, snapdir,
 		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
-		nil, proposeC, confChangeC, true)
+		nil, RaftTick, proposeC, confChangeC, true)
 
 	return nil
 }

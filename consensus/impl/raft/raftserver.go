@@ -83,6 +83,8 @@ type raftServer struct {
 	startSync  bool // maybe this flag is unnecessary
 	lock       sync.RWMutex
 	promotable bool
+
+	tickMS time.Duration
 }
 
 type LeaderStatus struct {
@@ -100,7 +102,8 @@ var snapshotCatchUpEntriesN uint64 = 10000
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir string,
 	certFile string, keyFile string,
-	getSnapshot func() ([]byte, error), proposeC <-chan string,
+	getSnapshot func() ([]byte, error), tickMS time.Duration,
+	proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange,
 	delayPromote bool) *raftServer {
 
@@ -131,6 +134,7 @@ func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir 
 
 		lock:       sync.RWMutex{},
 		promotable: true,
+		tickMS:     tickMS,
 	}
 
 	if delayPromote {
@@ -249,7 +253,7 @@ func (rs *raftServer) serveChannels() {
 
 	defer rs.wal.Close()
 
-	ticker := time.NewTicker(RaftTick)
+	ticker := time.NewTicker(rs.tickMS)
 	defer ticker.Stop()
 
 	// send proposals over raft
