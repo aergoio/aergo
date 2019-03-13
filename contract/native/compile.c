@@ -12,20 +12,24 @@
 #include "ir.h"
 #include "trans.h"
 #include "gen.h"
-#include "strbuf.h"
+#include "iobuf.h"
 
 #include "compile.h"
 
 int
 compile(char *path, flag_t flag)
 {
+    iobuf_t src;
     ast_t *ast = ast_new();
     ir_t *ir = ir_new();
 
     ASSERT(path != NULL);
 
-    prep(path, flag, ast);
-    parse(path, flag, ast);
+    iobuf_init(&src, path);
+    iobuf_load(&src);
+
+    prep(&src, flag, ast);
+    parse(&src, flag, ast);
 
     check(ast, flag);
     trans(ast, flag, ir);

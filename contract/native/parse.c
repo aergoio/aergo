@@ -1,9 +1,11 @@
 /**
- * @file    parser.c
+ * @file    parse.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
 #include "common.h"
+
+#include "iobuf.h"
 
 #include "parse.h"
 
@@ -17,20 +19,17 @@ extern int yyparse(parse_t *, void *);
 extern int yydebug;
 
 static void
-parse_init(parse_t *parse, flag_t flag, char *path, ast_t *ast)
+parse_init(parse_t *parse, flag_t flag, iobuf_t *src, ast_t *ast)
 {
-    strbuf_t src;
+    char *path = iobuf_path(src);
 
     ASSERT(path != NULL);
 
     parse->path = path;
     parse->flag = flag;
 
-    strbuf_init(&src);
-    strbuf_load(&src, path);
-
-    parse->src = strbuf_str(&src);
-    parse->len = strbuf_size(&src);
+    parse->src = iobuf_str(src);
+    parse->len = iobuf_size(src);
     parse->pos = 0;
 
     parse->ast = ast;
@@ -43,14 +42,14 @@ parse_init(parse_t *parse, flag_t flag, char *path, ast_t *ast)
 }
 
 void
-parse(char *path, flag_t flag, ast_t *ast)
+parse(iobuf_t *src, flag_t flag, ast_t *ast)
 {
     parse_t parse;
     void *scanner;
 
     ASSERT(ast != NULL);
 
-    parse_init(&parse, flag, path, ast);
+    parse_init(&parse, flag, src, ast);
     yylex_init(&scanner);
 
     yyset_extra(&parse, scanner);
@@ -66,4 +65,4 @@ parse(char *path, flag_t flag, ast_t *ast)
     yylex_destroy(scanner);
 }
 
-/* end of parser.c */
+/* end of parse.c */

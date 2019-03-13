@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-#define STRBUF_INIT_SIZE            1024
+#define STRBUF_INIT_SIZE            256
 
 #define is_empty_strbuf(sb)         ((sb)->offset == 0)
 
@@ -35,17 +35,5 @@ void strbuf_ncat(strbuf_t *sb, char *str, int n);
 void strbuf_trunc(strbuf_t *sb, int n);
 
 void strbuf_copy(strbuf_t *src, strbuf_t *dest);
-
-void strbuf_load(strbuf_t *sb, char *path);
-void strbuf_print(strbuf_t *sb, char *path);
-
-static inline char
-strbuf_char(strbuf_t *sb, int idx) 
-{
-    ASSERT(sb != NULL);
-    ASSERT2(idx < sb->offset, idx, sb->offset);
-
-    return sb->buf[idx];
-}
 
 #endif /* ! _STRBUF_H */

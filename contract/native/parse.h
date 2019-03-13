@@ -16,6 +16,11 @@
 #include "ast_exp.h"
 #include "ast_stmt.h"
 
+#ifndef _IOBUF_T
+#define _IOBUF_T
+typedef struct iobuf_s iobuf_t;
+#endif /* ! _IOBUF_T */
+
 typedef struct parse_s {
     char *path;
     flag_t flag;
@@ -43,6 +48,6 @@ typedef struct parse_s {
 
 #include "grammar.tab.h"
 
-void parse(char *path, flag_t flag, ast_t *ast);
+void parse(iobuf_t *src, flag_t flag, ast_t *ast);
 
 #endif /* ! _PARSE_H */

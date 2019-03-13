@@ -19,22 +19,20 @@
 
 #define yy_update_first()       src_pos_update_first(&prep->pos)
 
-static void subst(char *path, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast);
+static void subst(iobuf_t *src, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast);
 
 static void
-prep_init(prep_t *prep, flag_t flag, char *path, char *work_dir, ast_t *ast)
+prep_init(prep_t *prep, flag_t flag, iobuf_t *src, char *work_dir, ast_t *ast)
 {
     prep->flag = flag;
 
-    prep->path = path;
+    prep->path = iobuf_path(src);
     prep->work_dir = work_dir;
 
     prep->offset = 0;
+    prep->src = src;
 
-    strbuf_init(&prep->in);
-    strbuf_load(&prep->in, path);
-
-    src_pos_init(&prep->pos, strbuf_str(&prep->in), xstrdup(path));
+    src_pos_init(&prep->pos, iobuf_str(prep->src), prep->path);
 
     prep->ast = ast;
 }
@@ -42,12 +40,10 @@ prep_init(prep_t *prep, flag_t flag, char *path, char *work_dir, ast_t *ast)
 static char
 scan_next(prep_t *prep)
 {
-    char c;
+    char c = iobuf_char(prep->src, prep->offset++);
 
-    if (prep->offset >= strbuf_size(&prep->in))
+    if (c == EOF)
         return EOF;
-
-    c = strbuf_char(&prep->in, prep->offset++);
 
     yy_update_col();
 
@@ -62,10 +58,7 @@ scan_next(prep_t *prep)
 static char
 scan_peek(prep_t *prep, int cnt)
 {
-    if (prep->offset >= strbuf_size(&prep->in))
-        return EOF;
-
-    return strbuf_char(&prep->in, prep->offset + cnt);
+    return iobuf_char(prep->src, prep->offset + cnt);
 }
 
 static bool
@@ -152,8 +145,14 @@ subst_imp(prep_t *prep, stack_t *imps)
                     path[offset] = '\0';
 
                     if (add_file(prep, path, imps)) {
-                        subst(path, prep->flag, prep->work_dir, imps, prep->ast);
-                        parse(path, prep->flag, prep->ast);
+                        iobuf_t src;
+
+                        iobuf_init(&src, path);
+                        iobuf_load(&src);
+
+                        subst(&src, prep->flag, prep->work_dir, imps, prep->ast);
+                        parse(&src, prep->flag, prep->ast);
+
                         del_file(prep, prep->path, imps);
                     }
                     offset = 0;
@@ -168,13 +167,13 @@ subst_imp(prep_t *prep, stack_t *imps)
 }
 
 static void
-subst(char *path, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast)
+subst(iobuf_t *src, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast)
 {
     bool is_first_ch = true;
     char c;
     prep_t prep;
 
-    prep_init(&prep, flag, path, work_dir, ast);
+    prep_init(&prep, flag, src, work_dir, ast);
 
     while ((c = scan_next(&prep)) != EOF) {
         if (c == '/') {
@@ -206,17 +205,18 @@ subst(char *path, flag_t flag, char *work_dir, stack_t *imps, ast_t *ast)
 }
 
 void
-prep(char *path, flag_t flag, ast_t *ast)
+prep(iobuf_t *src, flag_t flag, ast_t *ast)
 {
     stack_t imps;
     char *delim;
     char work_dir[PATH_MAX_LEN];
 
+    ASSERT(src != NULL);
     ASSERT(ast != NULL);
 
     stack_init(&imps);
 
-    strcpy(work_dir, path);
+    strcpy(work_dir, iobuf_path(src));
 
     delim = strrchr(work_dir, PATH_DELIM);
     if (delim == NULL)
@@ -224,9 +224,9 @@ prep(char *path, flag_t flag, ast_t *ast)
     else
         *delim = '\0';
 
-    stack_push(&imps, path);
+    stack_push(&imps, iobuf_path(src));
 
-    subst(path, flag, work_dir, &imps, ast);
+    subst(src, flag, work_dir, &imps, ast);
 
     stack_pop(&imps);
 }

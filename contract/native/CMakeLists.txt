@@ -52,6 +52,7 @@ set(libascl_SRCS
     assert.c
     error.c
     strbuf.c
+    iobuf.c
     vector.c
     stack.c
     src_pos.c
