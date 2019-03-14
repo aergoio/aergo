@@ -9,7 +9,7 @@ package cmd
 #cgo CFLAGS: -I${SRCDIR}/../../../contract/native
 #cgo LDFLAGS: ${SRCDIR}/../../../contract/native/lib/libascl.a
 #cgo LDFLAGS: -L${SRCDIR}/../../../libtool/lib -lbinaryen -lstdc++ -lm
-#cgo LDFLAGS: -L${SRCDIR}/../../../libtool/lib -lasclvm -lRuntime -lWASTParse -lWASM -lRegExp -lNFA -lLLVMJIT -lIR -lLogging -lPlatform -lWAVMUnwind
+#cgo LDFLAGS: -L${SRCDIR}/../../../libtool/lib -lASCLVM -lRuntime -lWASTParse -lWASM -lRegExp -lNFA -lLLVMJIT -lIR -lLogging -lPlatform -lWAVMUnwind
 #cgo LDFLAGS: -lLLVMSupport -lLLVMCore -lLLVMPasses -lLLVMOrcJIT -lLLVMRuntimeDyld -lLLVMDebugInfoDWARF -lLLVMX86CodeGen -lLLVMX86AsmParser -lLLVMX86AsmPrinter -lLLVMX86Desc -lLLVMX86Disassembler -lLLVMX86Info -lLLVMX86Utils -lLLVMipo -lLLVMInstrumentation -lLLVMVectorize -lLLVMIRReader -lLLVMAsmParser -lLLVMLinker -lLLVMExecutionEngine -lLLVMRuntimeDyld -lLLVMAsmPrinter -lLLVMDebugInfoCodeView -lLLVMDebugInfoMSF -lLLVMGlobalISel -lLLVMSelectionDAG -lLLVMCodeGen -lLLVMScalarOpts -lLLVMInstCombine -lLLVMBitWriter -lLLVMTarget -lLLVMTransformUtils -lLLVMAnalysis -lLLVMProfileData -lLLVMX86AsmPrinter -lLLVMObject -lLLVMMCParser -lLLVMBitReader -lLLVMMCDisassembler -lLLVMMC -lLLVMX86Utils -lLLVMCore -lLLVMBinaryFormat -lLLVMSupport -lz -ltinfo -lpthread -lm -lLLVMDemangle -lrt -ldl
 
 #include "compile.h"
