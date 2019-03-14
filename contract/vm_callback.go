@@ -159,7 +159,8 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		luaPushStr(L, "[Contract.LuaCallContract] contract state not found")
 		return -1
 	}
-	cid, err := getAddressNameResolved(C.GoString(contractId), stateSet.bs)
+	contractAddress := C.GoString(contractId)
+	cid, err := getAddressNameResolved(contractAddress, stateSet.bs)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaCallContract] invalid contractId: "+err.Error())
 		return -1
@@ -185,14 +186,6 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 
 	prevContractInfo := stateSet.curContract
 
-	ce := newExecutor(callee, stateSet)
-	defer ce.close()
-
-	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaCallContract] newExecutor error: "+ce.err.Error())
-		return -1
-	}
-
 	var ci types.CallInfo
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
@@ -200,6 +193,15 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		luaPushStr(L, "[Contract.LuaCallContract] invalid arguments: "+err.Error())
 		return -1
 	}
+
+	ce := newExecutor(callee, cid, stateSet, &ci, amountBig, false)
+	defer ce.close()
+
+	if ce.err != nil {
+		luaPushStr(L, "[Contract.LuaCallContract] newExecutor error: "+ce.err.Error())
+		return -1
+	}
+
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if stateSet.isQuery == true {
@@ -225,7 +227,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	} else {
 		ce.setCountHook(queryMaxInstLimit)
 	}
-	ret := ce.call(&ci, L)
+	ret := ce.call(L)
 	if ce.err != nil {
 		stateSet.curContract = prevContractInfo
 		luaPushStr(L, "[Contract.LuaCallContract] call err: "+ce.err.Error())
@@ -271,19 +273,20 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] cannot find contract "+contractIdStr)
 		return -1
 	}
-	ce := newExecutor(contract, stateSet)
-	defer ce.close()
-
-	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaDelegateCallContract] newExecutor error: "+ce.err.Error())
-		return -1
-	}
 
 	var ci types.CallInfo
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid arguments: "+err.Error())
+		return -1
+	}
+
+	ce := newExecutor(contract, cid, stateSet, &ci, zeroBig, false)
+	defer ce.close()
+
+	if ce.err != nil {
+		luaPushStr(L, "[Contract.LuaDelegateCallContract] newExecutor error: "+ce.err.Error())
 		return -1
 	}
 
@@ -303,7 +306,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		ce.setCountHook(queryMaxInstLimit)
 	}
 
-	ret := ce.call(&ci, L)
+	ret := ce.call(L)
 	if ce.err != nil {
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] call error: "+ce.err.Error())
 		return -1
@@ -840,19 +843,22 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 		luaPushStr(L, "[Contract.LuaDeployContract]value not proper format:"+err.Error())
 		return -1
 	}
-	runCode := getContract(contractState, code)
-	ce := newExecutor(runCode, stateSet)
-	defer ce.close()
-	if ce.err != nil {
-		luaPushStr(L, "[Contract.LuaDeployContract]newExecutor Error :"+ce.err.Error())
-		return -1
-	}
 	var ci types.CallInfo
 	err = getCallInfo(&ci.Args, []byte(argsStr), newContract.ID())
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaDeployContract] invalid args:"+err.Error())
 		return -1
 	}
+	runCode := getContract(contractState, code)
+	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true)
+	if ce != nil {
+		defer ce.close()
+		if ce.err != nil {
+			luaPushStr(L, "[Contract.LuaDeployContract]newExecutor Error :"+ce.err.Error())
+			return -1
+		}
+	}
+
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if sendBalance(L, senderState, callState.curState, amountBig) == false {
@@ -888,15 +894,18 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	senderState.Nonce += 1
 
 	luaPushStr(L, types.EncodeAddress(newContract.ID()))
-	ce.setCountHook(callMaxInstLimit)
-	ret := ce.constructCall(&ci, L)
-	if ce.err != nil {
-		stateSet.curContract = prevContractInfo
-		luaPushStr(L, "[Contract.LuaDeployContract] call err:"+ce.err.Error())
-		return -1
+	ret := C.int(1)
+	if ce != nil {
+		ce.setCountHook(callMaxInstLimit)
+		ret += ce.call(L)
+		if ce.err != nil {
+			stateSet.curContract = prevContractInfo
+			luaPushStr(L, "[Contract.LuaDeployContract] call err:"+ce.err.Error())
+			return -1
+		}
 	}
 	stateSet.curContract = prevContractInfo
-	return ret + 1
+	return ret
 }
 
 //export IsPublic

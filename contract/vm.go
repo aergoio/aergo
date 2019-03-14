@@ -19,6 +19,7 @@ import "C"
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -103,10 +104,11 @@ type LState = C.struct_lua_State
 type Executor struct {
 	L        *LState
 	code     []byte
-	args     *types.CallInfo
 	err      error
+	numArgs  C.int
 	stateSet *StateSet
 	jsonRet  string
+	isView   bool
 }
 
 func init() {
@@ -183,7 +185,7 @@ func (L *LState) Close() {
 	}
 }
 
-func newExecutor(contract []byte, stateSet *StateSet) *Executor {
+func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *types.CallInfo, amount *big.Int, isCreate bool) *Executor {
 	ce := &Executor{
 		code:     contract,
 		L:        GetLState(),
@@ -194,17 +196,55 @@ func newExecutor(contract []byte, stateSet *StateSet) *Executor {
 		ce.err = newVmStartError()
 		return ce
 	}
+	hexId := C.CString(hex.EncodeToString(contractId))
+	defer C.free(unsafe.Pointer(hexId))
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&contract[0])),
 		C.size_t(len(contract)),
+		hexId,
 		&stateSet.service,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Error().Str("error", errMsg)
 		ce.err = errors.New(errMsg)
+		return ce
 	}
+
+	if isCreate == false {
+		C.vm_remove_constructor(ce.L)
+		fname := C.CString(ci.Name)
+		defer C.free(unsafe.Pointer(fname))
+
+		var viewFlag, payFlag C.int
+		resolvedName := C.vm_resolve_function(ce.L, fname, &viewFlag, &payFlag)
+		if resolvedName == nil {
+			ce.err = fmt.Errorf("attempt to call global '%s' (a nil value)", ci.Name)
+			return ce
+		}
+
+		if err := checkPayable(ce.L, resolvedName, &payFlag, amount); err != nil {
+			ce.err = err
+			return ce
+		}
+		if viewFlag != C.int(0) {
+			ce.isView = true
+		}
+		C.vm_get_abi_function(ce.L, resolvedName)
+		ce.numArgs = C.int(len(ci.Args) + 1)
+	} else {
+		if err := checkPayable(ce.L, C.construct_name, nil, amount); err != nil {
+			ce.err = errVmConstructorIsNotPayable
+			return ce
+		}
+		C.vm_get_constructor(ce.L)
+		if C.vm_isnil(ce.L, C.int(-1)) == 1 {
+			return nil
+		}
+		ce.numArgs = C.int(len(ci.Args))
+	}
+	ce.processArgs(ci)
 	return ce
 }
 
@@ -328,81 +368,23 @@ func checkPayable(L *LState, fname *C.char, flag *C.int, amount *big.Int) error 
 	return nil
 }
 
-func (ce *Executor) call(ci *types.CallInfo, target *LState) C.int {
+func (ce *Executor) call(target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
 
-	C.vm_remove_constructor(ce.L)
-	fname := C.CString(ci.Name)
-	defer C.free(unsafe.Pointer(fname))
-
-	var viewFlag, payFlag C.int
-	resolvedName := C.vm_resolve_function(ce.L, fname, &viewFlag, &payFlag)
-	if resolvedName == nil {
-		ce.err = fmt.Errorf("attempt to call global '%s' (a nil value)", ci.Name)
-		return 0
-	}
-
-	if err := checkPayable(ce.L, resolvedName, &payFlag, ce.stateSet.curContract.amount); err != nil {
-		ce.err = err
-		return 0
-	}
-	if viewFlag != C.int(0) {
+	if ce.isView == true {
 		oldIsQuery := ce.stateSet.isQuery
 		ce.stateSet.isQuery = true
 		defer func() {
 			ce.stateSet.isQuery = oldIsQuery
 		}()
 	}
-	C.vm_get_abi_function(ce.L, resolvedName)
-	ce.processArgs(ci)
 	nret := C.int(0)
-	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)+1), &nret); cErrMsg != nil {
+	if cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if ce.stateSet.dbSystemError == true {
-			ce.err = newDbSystemError(errors.New(errMsg))
-		} else {
-			ce.err = errors.New(errMsg)
-		}
-		return 0
-	}
-
-	if target == nil {
-		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
-	} else {
-		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
-			errMsg := C.GoString(cErrMsg)
-			ce.err = errors.New(errMsg)
-		}
-	}
-	return nret
-}
-
-func (ce *Executor) constructCall(ci *types.CallInfo, target *LState) C.int {
-	if ce.err != nil {
-		return 0
-	}
-	if err := checkPayable(ce.L, C.construct_name, nil, ce.stateSet.curContract.amount); err != nil {
-		ce.err = errVmConstructorIsNotPayable
-		return 0
-	}
-
-	C.vm_get_constructor(ce.L)
-	if C.vm_isnil(ce.L, C.int(-1)) == 1 {
-		return 0
-	}
-	ce.processArgs(ci)
-	if ce.err != nil {
-		return 0
-	}
-	nret := C.int(0)
-	if cErrMsg := C.vm_pcall(ce.L, C.int(len(ci.Args)), &nret); cErrMsg != nil {
-		errMsg := C.GoString(cErrMsg)
-		C.free(unsafe.Pointer(cErrMsg))
-		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s constructor call", types.EncodeAddress(ce.stateSet.curContract.contractId))
 		if ce.stateSet.dbSystemError == true {
 			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
@@ -530,12 +512,12 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 	}
 
 	curStateSet[stateSet.service] = stateSet
-	ce := newExecutor(contract, stateSet)
+	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false)
 	defer ce.close()
 
 	ce.setCountHook(callMaxInstLimit)
 
-	ce.call(&ci, nil)
+	ce.call(nil)
 	err = ce.err
 	if err == nil {
 		err = ce.commitCalledContract()
@@ -584,7 +566,7 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.prevBlockHash = prevBlockHash
 
 	curStateSet[stateSet.service] = stateSet
-	ce.call(ce.args, nil)
+	ce.call(nil)
 	err = ce.err
 	if err == nil {
 		err = ce.commitCalledContract()
@@ -632,8 +614,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(code)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
-	ce := newExecutor(contractCode, stateSet)
-	ce.args = &ci
+	ce := newExecutor(contractCode, contractAddress, stateSet, &ci, stateSet.curContract.amount, false)
 	ce.setCountHook(callMaxInstLimit)
 
 	return ce, nil
@@ -697,9 +678,6 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	}
 
 	curStateSet[stateSet.service] = stateSet
-	var ce *Executor
-	ce = newExecutor(contract, stateSet)
-	defer ce.close()
 
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
@@ -707,8 +685,15 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		return "", nil, newDbSystemError(errors.New("can't open a database connection"))
 	}
 
+	var ce *Executor
+	ce = newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, true)
+	if ce == nil {
+		return "", nil, nil
+	}
+	defer ce.close()
+
 	ce.setCountHook(callMaxInstLimit)
-	ce.constructCall(&ci, nil)
+	ce.call(nil)
 	err = ce.err
 
 	if err != nil {
@@ -776,7 +761,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Msgf("contract %s", types.EncodeAddress(contractAddress))
 	}
-	ce = newExecutor(contract, stateSet)
+	ce = newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false)
 	defer ce.close()
 	defer func() {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
@@ -784,7 +769,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 		}
 	}()
 	ce.setCountHook(queryMaxInstLimit)
-	ce.call(&ci, nil)
+	ce.call(nil)
 
 	curStateSet[stateSet.service] = nil
 	return []byte(ce.jsonRet), ce.err
