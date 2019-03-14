@@ -10,22 +10,28 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/golang/mock/gomock"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 func FailTestGetPeers(t *testing.T) {
-	mockActorServ := &MockActorService{}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockActorServ := p2pmocks.NewMockActorService(ctrl)
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
-	mockMF := new(MockMoFactory)
+	mockActorServ.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
+	mockMF := p2pmocks.NewMockMoFactory(ctrl)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, nil, nil,
@@ -58,10 +64,11 @@ func FailTestGetPeers(t *testing.T) {
 }
 
 func TestPeerManager_GetPeers(t *testing.T) {
-	mockActorServ := &MockActorService{}
-	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActorServ.On("CallRequest", mock.Anything, mock.Anything).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
-	mockMF := new(MockMoFactory)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockActorServ := p2pmocks.NewMockActorService(ctrl)
+	mockMF := p2pmocks.NewMockMoFactory(ctrl)
 
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
@@ -108,9 +115,9 @@ func TestPeerManager_GetPeers(t *testing.T) {
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice: &LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice: &LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice: &LastBlockStatus{}}
+	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice: &p2pcommon.LastBlockStatus{}}
+	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice: &p2pcommon.LastBlockStatus{}}
+	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice: &p2pcommon.LastBlockStatus{}}
 	tests := []struct {
 		name string
 	}{
@@ -133,7 +140,7 @@ func TestPeerManager_init(t *testing.T) {
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
 	defaultCfg := tConfig.P2P
 	InitNodeInfo(&tConfig.BaseConfig, defaultCfg, logger)
-	localIP, _ := externalIP()
+	localIP, _ := p2putil.ExternalIP()
 
 	tests := []struct {
 		name            string

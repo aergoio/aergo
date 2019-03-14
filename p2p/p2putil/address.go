@@ -12,6 +12,7 @@ import (
 )
 
 type AddressType int
+
 // AddressType
 const (
 	AddressTypeError AddressType = iota
@@ -19,8 +20,8 @@ const (
 	AddressTypeFQDN
 )
 
-
 var privateIPBlocks []*net.IPNet
+
 func init() {
 	for _, cidr := range []string{
 		"127.0.0.0/8",    // IPv4 loopback
@@ -57,7 +58,7 @@ func ResolveHostDomain(domainName string) ([]net.IP, error) {
 	if err != nil || len(addrs) == 0 {
 		return nil, fmt.Errorf("Could not get IPs: %v\n", err)
 	}
-	ips := make([]net.IP,len(addrs))
+	ips := make([]net.IP, len(addrs))
 	for i, addr := range addrs {
 		ips[i] = net.ParseIP(addr)
 	}
@@ -65,10 +66,11 @@ func ResolveHostDomain(domainName string) ([]net.IP, error) {
 }
 
 const (
-	DN = `^([a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62}){1}(\.[a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62})*[\._]?$`
+	DN   = `^([a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62}){1}(\.[a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62})*[\._]?$`
 	IPv4 = `^((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])`
 	IPv6 = `^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$`
 )
+
 var (
 	DNPattern = regexp.MustCompile(DN)
 
@@ -76,7 +78,7 @@ var (
 )
 
 func CheckAdddressType(urlStr string) AddressType {
-	if ip := net.ParseIP(urlStr) ; ip != nil {
+	if ip := net.ParseIP(urlStr); ip != nil {
 		return AddressTypeIP
 	} else if DNPattern.MatchString(urlStr) {
 		return AddressTypeFQDN
@@ -86,7 +88,7 @@ func CheckAdddressType(urlStr string) AddressType {
 }
 
 func CheckAdddress(urlStr string) (string, error) {
-	if ip := net.ParseIP(urlStr) ; ip != nil {
+	if ip := net.ParseIP(urlStr); ip != nil {
 		return urlStr, nil
 	} else if DNPattern.MatchString(urlStr) {
 		return urlStr, nil

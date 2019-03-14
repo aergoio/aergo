@@ -8,19 +8,12 @@ package p2p
 import (
 	"fmt"
 
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
-
-// signHandler sign or verify p2p message
-type msgSigner interface {
-	// signMsg calulate signature and fill related fields in msg(peerid, pubkey, signature or etc)
-	signMsg(msg *types.P2PMessage) error
-	// verifyMsg check signature is valid
-	verifyMsg(msg *types.P2PMessage, senderID peer.ID) error
-}
 
 type defaultMsgSigner struct {
 	selfPeerID peer.ID
@@ -31,14 +24,14 @@ type defaultMsgSigner struct {
 	pubKeyBytes []byte
 }
 
-func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID peer.ID) msgSigner {
+func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID peer.ID) p2pcommon.MsgSigner {
 	pidBytes := []byte(peerID)
 	pubKeyBytes, _ := pubKey.Bytes()
 	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
 }
 
 // sign an outgoing p2p message payload
-func (pm *defaultMsgSigner) signMsg(message *types.P2PMessage) error {
+func (pm *defaultMsgSigner) SignMsg(message *types.P2PMessage) error {
 	// TODO this code modify caller's parameter.
 	message.Header.PeerID = pm.pidBytes
 	message.Header.NodePubKey = pm.pubKeyBytes
@@ -76,7 +69,7 @@ func (pm *defaultMsgSigner) signBytes(data []byte) ([]byte, error) {
 	return res, err
 }
 
-func (pm *defaultMsgSigner) verifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
+func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
 	// check signature
 	pubKey, err := crypto.UnmarshalPublicKey(msg.Header.NodePubKey)
 	if err != nil {
@@ -129,13 +122,13 @@ var dummyBytes = []byte{}
 
 type dummySigner struct{}
 
-func (d *dummySigner) signMsg(msg *types.P2PMessage) error {
+func (d *dummySigner) SignMsg(msg *types.P2PMessage) error {
 	msg.Header.Sign = dummyBytes
 	return nil
 }
 
-func (d *dummySigner) verifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
+func (d *dummySigner) VerifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
 	return nil
 }
 
-var _ msgSigner = (*dummySigner)(nil)
+var _ p2pcommon.MsgSigner = (*dummySigner)(nil)

@@ -10,14 +10,13 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 )
-
 
 func TestNewHCM(t *testing.T) {
 	type args struct {
 		mapService *PeerMapService
-		nt         p2p.NetworkTransport
+		nt         p2pcommon.NetworkTransport
 	}
 	tests := []struct {
 		name string
@@ -39,7 +38,7 @@ func Test_healthCheckManager_Start(t *testing.T) {
 	type fields struct {
 		logger    *log.Logger
 		ms        *PeerMapService
-		nt        p2p.NetworkTransport
+		nt        p2pcommon.NetworkTransport
 		finish    chan interface{}
 		workerCnt int
 	}
@@ -67,7 +66,7 @@ func Test_healthCheckManager_Stop(t *testing.T) {
 	type fields struct {
 		logger    *log.Logger
 		ms        *PeerMapService
-		nt        p2p.NetworkTransport
+		nt        p2pcommon.NetworkTransport
 		finish    chan interface{}
 		workerCnt int
 	}
@@ -95,7 +94,7 @@ func Test_healthCheckManager_runHCM(t *testing.T) {
 	type fields struct {
 		logger    *log.Logger
 		ms        *PeerMapService
-		nt        p2p.NetworkTransport
+		nt        p2pcommon.NetworkTransport
 		finish    chan interface{}
 		workerCnt int
 	}
@@ -123,7 +122,7 @@ func Test_healthCheckManager_checkPeers(t *testing.T) {
 	type fields struct {
 		logger    *log.Logger
 		ms        *PeerMapService
-		nt        p2p.NetworkTransport
+		nt        p2pcommon.NetworkTransport
 		finish    chan interface{}
 		workerCnt int
 	}

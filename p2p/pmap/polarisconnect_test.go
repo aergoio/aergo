@@ -6,32 +6,32 @@
 package pmap
 
 import (
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/p2p/mocks"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peer"
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
+	net "github.com/libp2p/go-libp2p-net"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // initSvc select Polarises to connect, or disable polaris
 func TestPolarisConnectSvc_initSvc(t *testing.T) {
-	polarisIDMain,_ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
-	polarisIDTest,_ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
+	polarisIDMain, _ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
+	polarisIDTest, _ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
 	dummyPeerID2, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	polar2 := "/ip4/172.21.1.2/tcp/8915/p2p/16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm"
 	dummyPeerID3, _ := peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
 	polar3 := "/ip4/172.22.2.3/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"
 
-	customChainID := types.ChainID{Magic:"unittest.blocko.io"}
+	customChainID := types.ChainID{Magic: "unittest.blocko.io"}
 	type args struct {
-		use bool
+		use       bool
 		polarises []string
 
 		chainID *types.ChainID
@@ -46,27 +46,27 @@ func TestPolarisConnectSvc_initSvc(t *testing.T) {
 		//
 		{"TAergoNoPolaris", args{false, nil, &ONEMainNet}, 0, []peer.ID{}},
 		{"TAergoMainDefault", args{true, nil, &ONEMainNet}, 1, []peer.ID{polarisIDMain}},
-		{"TAergoMainPlusCfg", args{true, []string{polar2,polar3},&ONEMainNet}, 3, []peer.ID{polarisIDMain,dummyPeerID2,dummyPeerID3}},
+		{"TAergoMainPlusCfg", args{true, []string{polar2, polar3}, &ONEMainNet}, 3, []peer.ID{polarisIDMain, dummyPeerID2, dummyPeerID3}},
 		{"TAergoTestDefault", args{true, nil, &ONETestNet}, 1, []peer.ID{polarisIDTest}},
-		{"TAergoTestPlusCfg", args{true, []string{polar2,polar3}, &ONETestNet}, 3, []peer.ID{polarisIDTest,dummyPeerID2,dummyPeerID3}},
-		{"TCustom", args{true, nil,&customChainID}, 0, []peer.ID{}},
-		{"TCustomPlusCfg", args{true, []string{polar2,polar3},&customChainID}, 2, []peer.ID{dummyPeerID2,dummyPeerID3}},
-		{"TWrongPolarisAddr", args{true, []string{"/ip4/256.256.1.1/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"},&customChainID}, 0, []peer.ID{}},
-		{"TWrongPolarisAddr2", args{true, []string{"/egwgew5/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"},&customChainID}, 0, []peer.ID{}},
-		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.aergo.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"},&customChainID}, 0, []peer.ID{}},
+		{"TAergoTestPlusCfg", args{true, []string{polar2, polar3}, &ONETestNet}, 3, []peer.ID{polarisIDTest, dummyPeerID2, dummyPeerID3}},
+		{"TCustom", args{true, nil, &customChainID}, 0, []peer.ID{}},
+		{"TCustomPlusCfg", args{true, []string{polar2, polar3}, &customChainID}, 2, []peer.ID{dummyPeerID2, dummyPeerID3}},
+		{"TWrongPolarisAddr", args{true, []string{"/ip4/256.256.1.1/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []peer.ID{}},
+		{"TWrongPolarisAddr2", args{true, []string{"/egwgew5/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []peer.ID{}},
+		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.aergo.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []peer.ID{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			pmapDummyNTC.chainID = tt.args.chainID
 
-			cfg:= config.NewServerContext("",""	).GetDefaultP2PConfig()
+			cfg := config.NewServerContext("", "").GetDefaultP2PConfig()
 			cfg.NPUsePolaris = tt.args.use
 			cfg.NPAddPolarises = tt.args.polarises
 
-			pcs :=  NewPolarisConnectSvc(cfg, pmapDummyNTC)
+			pcs := NewPolarisConnectSvc(cfg, pmapDummyNTC)
 
 			if len(pcs.mapServers) != tt.wantCnt {
 				t.Errorf("NewPolarisConnectSvc() = %v, want %v", len(pcs.mapServers), tt.wantCnt)
@@ -105,7 +105,7 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			pms := NewPolarisConnectSvc(pmapDummyCfg.P2P, pmapDummyNTC)
 
@@ -121,16 +121,15 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 	}
 }
 
-
 func TestPolarisConnectSvc_onPing(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
 		mapServers    []p2pcommon.PeerMeta
-		ntc           p2p.NTContainer
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -160,16 +159,15 @@ func TestPolarisConnectSvc_onPing(t *testing.T) {
 	}
 }
 
-
 func TestPeerMapService_connectAndQuery(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
 		ChainID       []byte
 		PrivateNet    bool
 		mapServers    []p2pcommon.PeerMeta
-		ntc           p2p.NTContainer
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -216,9 +214,9 @@ func TestPolarisConnectSvc_sendRequest(t *testing.T) {
 		ChainID       []byte
 		PrivateNet    bool
 		mapServers    []p2pcommon.PeerMeta
-		ntc           p2p.NTContainer
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -228,7 +226,7 @@ func TestPolarisConnectSvc_sendRequest(t *testing.T) {
 		mapServerMeta p2pcommon.PeerMeta
 		register      bool
 		size          int
-		wt            p2p.MsgWriter
+		wt            p2pcommon.MsgWriter
 	}
 	tests := []struct {
 		name    string
@@ -261,16 +259,16 @@ func TestPolarisConnectSvc_readResponse(t *testing.T) {
 		ChainID       []byte
 		PrivateNet    bool
 		mapServers    []p2pcommon.PeerMeta
-		ntc           p2p.NTContainer
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
 	}
 	type args struct {
 		mapServerMeta p2pcommon.PeerMeta
-		rd            p2p.MsgReader
+		rd            p2pcommon.MsgReader
 	}
 	tests := []struct {
 		name    string

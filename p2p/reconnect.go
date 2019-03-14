@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	"github.com/aergoio/aergo-lib/log"
 )
@@ -26,13 +27,13 @@ func init() {
 type reconnectJob struct {
 	meta   p2pcommon.PeerMeta
 	trial  int
-	pm     PeerManager
+	pm     p2pcommon.PeerManager
 	logger *log.Logger
 
 	cancel chan struct{}
 }
 
-func newReconnectRunner(meta p2pcommon.PeerMeta, pm PeerManager, logger *log.Logger) *reconnectJob {
+func newReconnectRunner(meta p2pcommon.PeerMeta, pm p2pcommon.PeerManager, logger *log.Logger) *reconnectJob {
 	return &reconnectJob{meta: meta, trial: 0, pm: pm, cancel: make(chan struct{}, 1), logger: logger}
 }
 func (rj *reconnectJob) runJob() {
@@ -46,7 +47,7 @@ RETRYLOOP:
 			if found {
 				break RETRYLOOP
 			}
-			rj.logger.Debug().Str("peer_meta", rj.meta.String()).Int("trial", rj.trial).Msg("Trying to connect")
+			rj.logger.Debug().Str("peer_meta", p2putil.FuckForm(rj.meta)).Int("trial", rj.trial).Msg("Trying to connect")
 			rj.pm.AddNewPeer(rj.meta)
 			rj.trial++
 			timer.Reset(getNextInterval(rj.trial))

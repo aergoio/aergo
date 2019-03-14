@@ -16,7 +16,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/message/mocks"
-	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -78,7 +78,7 @@ func TestAergoRPCService_GetTX(t *testing.T) {
 	mockMsgHelper.On("ExtractTxFromResponse", mock.AnythingOfType("message.MemPoolGetRsp")).Return(sampleTx, nil)
 	type fields struct {
 		hub         *component.ComponentHub
-		actorHelper p2p.ActorService
+		actorHelper p2pcommon.ActorService
 		msgHelper   message.Helper
 	}
 	type args struct {

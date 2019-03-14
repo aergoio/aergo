@@ -6,10 +6,11 @@
 package pmap
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 )
 
 type HealthCheckManager interface {
@@ -20,7 +21,7 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	logger *log.Logger
 	ms     mapService
-	nt     p2p.NetworkTransport
+	nt     p2pcommon.NetworkTransport
 	finish chan interface{}
 
 	workerCnt int
@@ -36,9 +37,9 @@ func (hcm *healthCheckManager) Stop() {
 	hcm.finish <- struct{}{}
 }
 
-func NewHCM(mapService *PeerMapService, nt p2p.NetworkTransport) *healthCheckManager {
-	hcm := &healthCheckManager{ms: mapService, nt:nt, logger:mapService.Logger, workerCnt:ConcurrentHealthCheckCount,
-		finish:make(chan interface{},1)}
+func NewHCM(mapService *PeerMapService, nt p2pcommon.NetworkTransport) *healthCheckManager {
+	hcm := &healthCheckManager{ms: mapService, nt: nt, logger: mapService.Logger, workerCnt: ConcurrentHealthCheckCount,
+		finish: make(chan interface{}, 1)}
 
 	return hcm
 }
@@ -61,14 +62,14 @@ func (hcm *healthCheckManager) runHCM() {
 func (hcm *healthCheckManager) checkPeers() {
 	checkers := hcm.ms.getPeerCheckers()
 	thresholdTime := time.Now().Add(PeerHealthcheckInterval)
-	toCheck := make([]peerChecker,0,len(checkers)>>2)
-	for _, ps  := range checkers {
+	toCheck := make([]peerChecker, 0, len(checkers)>>2)
+	for _, ps := range checkers {
 		if ps.lastCheck().Before(thresholdTime) {
 			toCheck = append(toCheck, ps)
 		}
 	}
 
-	hcm.logger.Debug().Int("all_peers",len(checkers)).Int("check_peers",len(toCheck)).Msg("Starting peers health check")
+	hcm.logger.Debug().Int("all_peers", len(checkers)).Int("check_peers", len(toCheck)).Msg("Starting peers health check")
 	wg := &sync.WaitGroup{}
 	wg.Add(len(toCheck))
 	for _, ps := range toCheck {

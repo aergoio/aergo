@@ -6,10 +6,8 @@
 package p2pcommon
 
 import (
-	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // PeerMeta contains non changeable information of peer node during connected state
@@ -23,10 +21,6 @@ type PeerMeta struct {
 
 	Hidden   bool // Hidden means that meta info of this peer will not be sent to other peers when getting peer list
 	Outbound bool
-}
-
-func (m PeerMeta) String() string {
-	return fmt.Sprintf("%s:%d/%s", m.IPAddress, m.Port, p2putil.ShortForm(m.ID))
 }
 
 // FromPeerAddress convert PeerAddress to PeerMeta

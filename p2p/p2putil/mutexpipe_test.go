@@ -112,7 +112,7 @@ func TestMutexPipe_nonBlockWriteChan2(t *testing.T) {
 			go consumeStall2(c, tt.stallIdx, arrSize, doneC)
 			for _, mo := range mos {
 				for !c.Put(mo) {
-					time.Sleep(time.Millisecond<<3)
+					time.Sleep(time.Millisecond << 3)
 				}
 			}
 			consumeCount := <-doneC
@@ -251,7 +251,7 @@ func TestMutexPipe_MultiLoads(t *testing.T) {
 
 			fmt.Printf("In %d , out %d , drop %d, consecutive drop %d\n", actStat.incnt, actStat.outcnt, actStat.dropcnt, actStat.consecdrop)
 			// There are two cases, one is last one is in channel and not consumed, and another is consumed all items.
-			assert.True(t, actStat.outcnt-uint64(consumeCount) <= 1 )
+			assert.True(t, actStat.outcnt-uint64(consumeCount) <= 1)
 			// in should equal to sum of out, drop, and remained in queue
 			assert.Equal(t, actStat.incnt, actStat.outcnt+actStat.dropcnt+uint64(rqueue.Size()))
 

@@ -6,11 +6,13 @@
 package p2p
 
 import (
+	"time"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"time"
 )
 
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
@@ -18,8 +20,8 @@ import (
 type BlockHashesReceiver struct {
 	requestID p2pcommon.MsgID
 
-	peer  RemotePeer
-	actor ActorService
+	peer  p2pcommon.RemotePeer
+	actor p2pcommon.ActorService
 
 	prevBlock *types.BlockInfo
 	count     int
@@ -30,16 +32,16 @@ type BlockHashesReceiver struct {
 	offset int
 }
 
-func NewBlockHashesReceiver(actor ActorService, peer RemotePeer, req *message.GetHashes, ttl time.Duration) *BlockHashesReceiver {
+func NewBlockHashesReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, req *message.GetHashes, ttl time.Duration) *BlockHashesReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlockHashesReceiver{actor: actor, peer:peer, prevBlock: req.PrevInfo, count:int(req.Count), timeout:timeout, got:make([]message.BlockHash, 0, int(req.Count))}
+	return &BlockHashesReceiver{actor: actor, peer: peer, prevBlock: req.PrevInfo, count: int(req.Count), timeout: timeout, got: make([]message.BlockHash, 0, int(req.Count))}
 }
 
 func (br *BlockHashesReceiver) StartGet() {
 	// create message data
 	req := &types.GetHashesRequest{PrevHash: br.prevBlock.Hash, PrevNumber: br.prevBlock.No, Size: uint64(br.count)}
-	mo := br.peer.MF().newMsgBlockRequestOrder(br.ReceiveResp, GetHashesRequest, req)
-	br.peer.sendMessage(mo)
+	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetHashesRequest, req)
+	br.peer.SendMessage(mo)
 	br.requestID = mo.GetMsgID()
 }
 
@@ -51,15 +53,15 @@ func (br *BlockHashesReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.
 		// silently ignore already finished job
 		//br.actor.TellRequest(message.SyncerSvc,&message.GetBlockChunksRsp{ToWhom:br.peer.ID(), Err:message.RemotePeerFailError})
 		br.finished = true
-		br.peer.consumeRequest(br.requestID)
+		br.peer.ConsumeRequest(br.requestID)
 		return
 	}
 	// remote peer response failure
 	body := msgBody.(*types.GetHashesResponse)
 	if body.Status != types.ResultStatus_OK || len(body.Hashes) == 0 {
-		br.actor.TellRequest(message.SyncerSvc,&message.GetHashesRsp{Hashes:nil,PrevInfo:br.prevBlock, Count:0, Err:message.RemotePeerFailError})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: nil, PrevInfo: br.prevBlock, Count: 0, Err: message.RemotePeerFailError})
 		br.finished = true
-		br.peer.consumeRequest(br.requestID)
+		br.peer.ConsumeRequest(br.requestID)
 		return
 	}
 
@@ -70,22 +72,22 @@ func (br *BlockHashesReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.
 		br.offset++
 		// check overflow
 		if br.offset >= int(br.count) {
-			br.actor.TellRequest(message.SyncerSvc,&message.GetHashesRsp{Hashes:br.got, PrevInfo:br.prevBlock, Count:uint64(br.offset)})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: br.got, PrevInfo: br.prevBlock, Count: uint64(br.offset)})
 			br.finished = true
-			br.peer.consumeRequest(br.requestID)
+			br.peer.ConsumeRequest(br.requestID)
 			return
 		}
 	}
 	// is it end?
 	if !body.HasNext {
 		if br.offset < br.count {
-			br.actor.TellRequest(message.SyncerSvc,&message.GetHashesRsp{Hashes:br.got, PrevInfo:br.prevBlock, Count:0, Err:message.MissingHashError})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: br.got, PrevInfo: br.prevBlock, Count: 0, Err: message.MissingHashError})
 			// not all blocks were filled. this is error
 		} else {
-			br.actor.TellRequest(message.SyncerSvc,&message.GetHashesRsp{Hashes:br.got, PrevInfo:br.prevBlock, Count:uint64(len(br.got))})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetHashesRsp{Hashes: br.got, PrevInfo: br.prevBlock, Count: uint64(len(br.got))})
 		}
 		br.finished = true
-		br.peer.consumeRequest(br.requestID)
+		br.peer.ConsumeRequest(br.requestID)
 	}
 	return
 }

@@ -7,22 +7,28 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/golang/mock/gomock"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func Test_pbRequestOrder_SendTo(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory := &v030MOFactory{}
 
 	tests := []struct {
 		name     string
 		writeErr error
-		wantErr   bool
+		wantErr  bool
 	}{
 		// new request fill cache of peer
 		{"TSucc", nil, false},
@@ -31,20 +37,20 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
+			mockActorServ := p2pmocks.NewMockActorService(ctrl)
+			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
+			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			mockRW := new(MockMsgReadWriter)
-			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
-
-			pr := factory.newMsgRequestOrder(true, PingRequest, &types.Ping{})
+			pr := factory.NewMsgRequestOrder(true, subproto.PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
 
 			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
 				t.Errorf("pbRequestOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
 			}
+
 			if !tt.wantErr {
 				assert.Equal(t, prevCacheSize+1, len(peer.requests))
 				actualMo, ok := peer.requests[msgID]
@@ -58,13 +64,15 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbMessageOrder_SendTo(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory :=&v030MOFactory{}
+	factory := &v030MOFactory{}
 
 	tests := []struct {
 		name     string
 		writeErr error
-		wantErr     bool
+		wantErr  bool
 	}{
 		{"TSucc", nil, false},
 		// when failed in send
@@ -72,17 +80,17 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
+			mockActorServ := p2pmocks.NewMockActorService(ctrl)
+			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
+			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
 
-			mockRW := new(MockMsgReadWriter)
-			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
+			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
+
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
-
-			pr := factory.newMsgResponseOrder(p2pcommon.NewMsgID(), PingResponse, &types.Pong{})
+			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), subproto.PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
-			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
+			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 
 			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
@@ -97,6 +105,8 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory := &v030MOFactory{}
 
@@ -115,17 +125,22 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockRW := new(MockMsgReadWriter)
-			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
+			mockActorServ := p2pmocks.NewMockActorService(ctrl)
+			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
+			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+
+			if tt.keyExist {
+				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
+			} else {
+				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
+			}
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
-			target := factory.newMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash})
+			target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash})
 			msgID := sampleMsgID
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
-			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
+			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			if tt.keyExist {
 				hashKey := types.ToBlockID(dummyBlockHash)
@@ -133,12 +148,6 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			}
 			if err := target.SendTo(peer); (err != nil) != tt.wantErr {
 				t.Errorf("pbMessageOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.keyExist {
-				mockRW.AssertNotCalled(t, "WriteMsg", mock.Anything)
-			} else {
-				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V030Message"))
-
 			}
 			// not affect any cache
 			assert.Equal(t, prevCacheSize, len(peer.requests))
@@ -149,6 +158,8 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 }
 
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 	factory := &v030MOFactory{}
 
@@ -167,18 +178,23 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
+			mockActorServ := p2pmocks.NewMockActorService(ctrl)
+			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
+			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
 
-			mockRW := new(MockMsgReadWriter)
-			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeErr)
+			if tt.keyExist == len(sampleHashes) {
+				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
+			} else {
+				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
+			}
+
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
 
-			pr := factory.newMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
+			pr := factory.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
-			peer.requests[msgID] = &requestInfo{reqMO:&pbRequestOrder{}}
+			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}
 			prevCacheSize := len(peer.requests)
 			var hashKey types.TxID
 			for i := 0; i < tt.keyExist; i++ {
@@ -188,11 +204,6 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 
 			if err := pr.SendTo(peer); (err != nil) != tt.wantErr {
 				t.Errorf("pbRequestOrder.SendTo() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.keyExist == len(sampleHashes) {
-				mockRW.AssertNotCalled(t, "WriteMsg", mock.Anything)
-			} else {
-				mockRW.AssertCalled(t, "WriteMsg", mock.AnythingOfType("*p2p.V030Message"))
 			}
 			// not affect any cache
 			assert.Equal(t, prevCacheSize, len(peer.requests))
