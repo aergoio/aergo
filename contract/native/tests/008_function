@@ -305,3 +305,15 @@ contract test {
         return n.f();
     }
 }
+
+@test(builtin_abs)
+contract test {
+    int8 v1 = (int8)abs(-1);
+    int16 v2 = (int16)abs(-2);
+    int32 v3 = (int32)abs(-3);
+    int64 v4 = abs(-4);
+
+    int8 v5 = abs(v1);
+    int16 v6 = abs(v2);
+    int32 v7 = abs(v3);
+}

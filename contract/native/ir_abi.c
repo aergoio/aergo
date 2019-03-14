@@ -18,9 +18,10 @@ abi_new(ast_id_t *id)
 
     ASSERT(id != NULL);
     ASSERT(id->up != NULL);
+    ASSERT1(is_fn_id(id), id->kind);
 
     abi->module = id->up->name;
-    abi->name = id->name;
+    abi->name = id->u_fn.alias != NULL ? id->u_fn.alias : id->name;
 
     abi->param_cnt = vector_size(id->u_fn.param_ids);
     abi->params = xmalloc(sizeof(BinaryenType) * abi->param_cnt);

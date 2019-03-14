@@ -298,7 +298,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     if (fn_id->up != trans->id)
         md_add_imp(trans->md, abi_new(fn_id));
 
-    if (is_ctor_id(fn_id)) {
+    if (is_ctor_id(fn_id) || is_system_id(fn_id)) {
         /* The constructor does not change the parameter, it always returns address. */
         vector_foreach(exp->u_call.param_exps, i) {
             exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));

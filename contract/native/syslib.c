@@ -24,8 +24,8 @@ char *lib_src =
 "    func strcat(uint32 s1, uint32 s2) uint32 : \"strcat\";\n"
 "    func strcmp(uint32 s1, uint32 s2) int32 : \"strcmp\";\n"
 
-"    func to_number(uint32 str) uint32 : \"atoi32\";\n"
-"    func to_number(uint32 str) uint64 : \"atoi64\";\n"
+"    func to_int32(uint32 str) int32 : \"atoi32\";\n"
+"    func to_int64(uint32 str) int64 : \"atoi64\";\n"
 
 "    //func to_float(uint32 str) float : \"atof32\";\n"
 "    //func to_double(uint32 str) double : \"atof64\";\n"
@@ -35,10 +35,10 @@ char *lib_src =
 "    //func to_char(float f) uint32 : \"ftoa32\";\n"
 "    //func to_char(double f) uint32 : \"ftoa64\";\n"
 
-"    func abs(int8 i) uint8 : \"abs_i8\";\n"
-"    func abs(int16 i) uint16 : \"abs_i16\";\n"
-"    func abs(int32 i) uint32 : \"abs_i32\";\n"
-"    func abs(int64 i) uint64 : \"abs_i64\";\n"
+"    func abs(int64 i) int64 : \"abs_i64\";\n"
+"    func abs(int32 i) int32 : \"abs_i32\";\n"
+"    func abs(int16 i) int16 : \"abs_i16\";\n"
+"    func abs(int8 i) int8 : \"abs_i8\";\n"
 "    //func abs(float f) float : \"abs_f32\";\n"
 "    //func abs(double f) double : \"abs_f64\";\n"
 "}";

@@ -8,6 +8,7 @@
 #include "util.h"
 
 #include "ast_id.h"
+#include "ast_exp.h"
 #include "ast_stmt.h"
 
 #include "ast_blk.h"
@@ -136,6 +137,48 @@ blk_search_id(ast_blk_t *blk, char *name, bool is_type)
             }
         }
     } while ((blk = blk->up) != NULL);
+
+    return NULL;
+}
+
+ast_id_t *
+blk_search_lib(ast_blk_t *blk, char *name, vector_t *param_exps)
+{
+    int i, j;
+    int param_cnt;
+
+    ASSERT(name != NULL);
+    ASSERT(param_exps != NULL);
+
+    if (blk == NULL)
+        return NULL;
+
+    param_cnt = vector_size(param_exps);
+
+    vector_foreach(&blk->ids, i) {
+        ast_id_t *id = vector_get_id(&blk->ids, i);
+        vector_t *param_ids = id->u_fn.param_ids;
+
+        ASSERT1(is_fn_id(id), id->kind);
+
+        if (strcmp(name, id->name) != 0 || param_cnt != vector_size(param_ids))
+            continue;
+
+        vector_foreach(param_exps, j) {
+            ast_id_t *param_id = vector_get_id(param_ids, j);
+            ast_exp_t *param_exp = vector_get_exp(param_exps, j);
+
+            if (!meta_cmp(&param_id->meta, &param_exp->meta)) {
+                /* TODO: Pops an error here because it raises an error directly in
+                 *       meta_cmp() for the specific error message. */
+                error_pop();
+                break;
+            }
+        }
+
+        if (j == param_cnt)
+            return id;
+    }
 
     return NULL;
 }

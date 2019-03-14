@@ -146,7 +146,8 @@ typedef enum modifier_e {
     MOD_PAYABLE     = 0x02,
     MOD_READONLY    = 0x04,
     MOD_CONST       = 0x08,
-    MOD_CTOR        = 0x10
+    MOD_CTOR        = 0x10,
+    MOD_SYSTEM      = 0x20
 } modifier_t;
 
 typedef enum op_kind_e {

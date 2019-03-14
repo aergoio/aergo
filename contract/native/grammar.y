@@ -757,15 +757,37 @@ library_body:
     {
         $$ = blk_new_library(&@$);
 
-        vector_add_last(&$$->ids, $1);
+        $1->mod = MOD_SYSTEM;
         $1->u_fn.alias = $3;
+
+        vector_add_last(&$$->ids, $1);
+    }
+|   udf_spec block
+    {
+        $$ = blk_new_library(&@$);
+
+        $1->mod = MOD_SYSTEM;
+        $1->u_fn.blk = $2;
+
+        vector_add_last(&$$->ids, $1);
     }
 |   library_body udf_spec ':' L_STR ';'
     {
         $$ = $1;
 
-        vector_add_last(&$$->ids, $2);
+        $2->mod = MOD_SYSTEM;
         $2->u_fn.alias = $4;
+
+        vector_add_last(&$$->ids, $2);
+    }
+|   library_body udf_spec block
+    {
+        $$ = $1;
+
+        $2->mod = MOD_SYSTEM;
+        $2->u_fn.blk = $3;
+
+        vector_add_last(&$$->ids, $2);
     }
 ;
 

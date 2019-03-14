@@ -33,14 +33,15 @@ trans(ast_t *ast, flag_t flag, ir_t *ir)
 {
     int i;
     trans_t trans;
+    ast_blk_t *root = ast->root;
 
     if (has_error())
         return;
 
     trans_init(&trans, flag, ir);
 
-    vector_foreach(&ast->root->ids, i) {
-        id_trans(&trans, vector_get_id(&ast->root->ids, i));
+    vector_foreach(&root->ids, i) {
+        id_trans(&trans, vector_get_id(&root->ids, i));
     }
 }
 

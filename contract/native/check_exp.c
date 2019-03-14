@@ -649,14 +649,36 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     if (id == NULL)
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
-    if (is_cont_id(id)) {
-        /* If the contract identifier is returned, it is searched by the constructor
-         * name of another contract. Therefore, the constructor is searched again in
-         * the contract block */
+    vector_foreach(param_exps, i) {
+        ast_exp_t *param_exp = vector_get_exp(param_exps, i);
+
+        CHECK(exp_check(check, param_exp));
+
+        if (param_exp->id != NULL &&
+            !is_var_id(param_exp->id) && !is_fn_id(param_exp->id))
+            ERROR(ERROR_NOT_ALLOWED_PARAM, &param_exp->pos);
+    }
+
+    if (is_system_id(id)) {
+        char *name = id->name;
+
+        ASSERT(id->up != NULL);
+        ASSERT1(is_lib_id(id->up), id->up->kind);
+
+        id = blk_search_lib(id->up->u_lib.blk, name, param_exps);
+        if (id == NULL)
+            RETURN(ERROR_UNDEFINED_ID, &id_exp->pos, name);
+
+        ASSERT(id->is_checked);
+    }
+    else if (is_cont_id(id)) {
+        /* In case of the contract identifier, the constructor is searched again */
         id = blk_search_id(id->u_cont.blk, id->name, false);
         ASSERT(id != NULL);
 
         id_trycheck(check, id);
+
+        ASSERT(id->up != NULL);
     }
 
     if (!is_fn_id(id))
@@ -676,13 +698,6 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     vector_foreach(param_exps, i) {
         ast_id_t *param_id = vector_get_id(param_ids, i);
         ast_exp_t *param_exp = vector_get_exp(param_exps, i);
-
-        CHECK(exp_check(check, param_exp));
-        CHECK(meta_cmp(&param_id->meta, &param_exp->meta));
-
-        if (param_exp->id != NULL &&
-            !is_var_id(param_exp->id) && !is_fn_id(param_exp->id))
-            ERROR(ERROR_NOT_ALLOWED_PARAM, &param_exp->pos);
 
         meta_eval(&param_id->meta, &param_exp->meta);
 

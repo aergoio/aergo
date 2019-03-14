@@ -30,6 +30,7 @@
 #define is_readonly_id(id)          IS_BIT_ON((id)->mod, MOD_READONLY)
 #define is_const_id(id)             IS_BIT_ON((id)->mod, MOD_CONST)
 #define is_ctor_id(id)              IS_BIT_ON((id)->mod, MOD_CTOR)
+#define is_system_id(id)            IS_BIT_ON((id)->mod, MOD_SYSTEM)
 
 #define is_global_id(id)            (id->up != NULL && is_cont_id(id->up))
 #define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))

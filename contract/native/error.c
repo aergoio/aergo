@@ -106,6 +106,7 @@ error_new(ec_t ec, errlvl_t lvl, src_pos_t *pos, char *desc)
     error->col = pos->first_col;
 
     src_pos_print(pos, buf, sizeof(buf));
+
     snprintf(error->desc, sizeof(error->desc), "%s\n%s", desc, buf);
 
     return error;
