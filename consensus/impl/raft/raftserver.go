@@ -600,3 +600,11 @@ func (rs *raftServer) GetLeader() uint64 {
 func (rs *raftServer) IsLeader() bool {
 	return rs.id == rs.GetLeader()
 }
+
+func (rs *raftServer) Status() raftlib.Status {
+	if rs.node == nil {
+		return raftlib.Status{}
+	}
+
+	return rs.node.Status()
+}

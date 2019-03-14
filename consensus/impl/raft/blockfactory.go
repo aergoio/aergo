@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime"
@@ -330,5 +331,15 @@ func (bf *BlockFactory) JobQueue() chan<- interface{} {
 func (bf *BlockFactory) Info() string {
 	// TODO: Returns a appropriate information inx json format like current
 	// leader, etc.
-	return consensus.NewInfo(GetName()).AsJSON()
+	info := consensus.NewInfo(GetName())
+
+	b, err := json.Marshal(bf.raftServer.Status())
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to marshal raft consensus")
+	} else {
+		m := json.RawMessage(b)
+		info.Status = &m
+	}
+
+	return info.AsJSON()
 }
