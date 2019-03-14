@@ -12,7 +12,7 @@
 #include "trans_blk.h"
 #include "trans_stmt.h"
 #include "trans_exp.h"
-#include "syscall.h"
+#include "syslib.h"
 
 #include "trans_id.h"
 
@@ -87,7 +87,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     l_exp = exp_new_reg(fn->heap_idx);
     meta_set_uint32(&l_exp->meta);
 
-    r_exp = syscall_new_malloc(trans, fn->heap_usage, &id->pos);
+    r_exp = syslib_new_malloc(trans, fn->heap_usage, &id->pos);
 
     stmt_add(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
 
@@ -312,6 +312,7 @@ id_trans(trans_t *trans, ast_id_t *id)
 
     case ID_STRUCT:
     case ID_ENUM:
+    case ID_LIB:
         break;
 
     default:

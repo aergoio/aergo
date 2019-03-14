@@ -34,6 +34,7 @@
 #define is_global_id(id)            (id->up != NULL && is_cont_id(id->up))
 #define is_local_id(id)             (id->up != NULL && !is_cont_id(id->up))
 
+#define is_root_id(id)              (is_cont_id(id) || is_itf_id(id) || is_lib_id(id))
 #define is_type_id(id)              (is_struct_id(id) || is_cont_id(id) || is_itf_id(id))
 #define is_param_id(id)             (is_var_id(id) && (id)->u_var.is_param)
 

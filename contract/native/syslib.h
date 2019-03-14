@@ -1,16 +1,16 @@
 /**
- * @file    syscall.h
+ * @file    syslib.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _SYSCALL_H
-#define _SYSCALL_H
+#ifndef _SYSLIB_H
+#define _SYSLIB_H
 
 #include "common.h"
 
 #include "trans.h"
 
-#define SYSCALL_MODULE              "system"
+#define SYSLIB_MODULE               "system"
 
 #define SYS_FN(kind)                (&sys_fntab_[(kind)])
 
@@ -41,12 +41,12 @@ typedef struct sys_fn_s {
 
 extern sys_fn_t sys_fntab_[FN_MAX];
 
-ast_id_t *syscall_load(void);
+void syslib_load(ast_t *ast);
 
-ir_abi_t *syscall_abi(fn_kind_t kind);
+ir_abi_t *syslib_abi(fn_kind_t kind);
 
-ast_exp_t *syscall_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos);
-ast_exp_t *syscall_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
+ast_exp_t *syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos);
+ast_exp_t *syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
                               uint32_t size, src_pos_t *pos);
 
-#endif /* ! _SYSCALL_H */
+#endif /* ! _SYSLIB_H */

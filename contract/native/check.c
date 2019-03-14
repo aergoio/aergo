@@ -41,7 +41,7 @@ check(ast_t *ast, flag_t flag)
     vector_foreach(&root->ids, i) {
         ast_id_t *id = vector_get_id(&root->ids, i);
 
-        ASSERT1(is_cont_id(id) || is_itf_id(id), id->kind);
+        ASSERT1(is_root_id(id), id->kind);
 
         id_check(&check, id);
     }

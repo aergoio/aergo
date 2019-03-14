@@ -49,7 +49,8 @@ check_unused_ids(vector_t *ids)
 static void
 check_return_stmt(ast_id_t *id)
 {
-    if (!is_itf_id(id->up) && !is_ctor_id(id) && id->u_fn.ret_id != NULL &&
+    if (!is_itf_id(id->up) && !is_lib_id(id->up) &&
+        !is_ctor_id(id) && id->u_fn.ret_id != NULL &&
         (id->u_fn.blk == NULL || is_empty_vector(&id->u_fn.blk->stmts) ||
          !is_return_stmt(vector_get_last(&id->u_fn.blk->stmts, ast_stmt_t))))
         ERROR(ERROR_MISSING_RETURN, &id->pos);
@@ -95,7 +96,7 @@ blk_check(check_t *check, ast_blk_t *blk)
         check_return_stmt(id);
     }
 
-    if (!is_itf_blk(blk))
+    if (!is_itf_blk(blk) && !is_lib_blk(blk))
         check_unused_ids(&blk->ids);
 
     check->blk = blk->up;

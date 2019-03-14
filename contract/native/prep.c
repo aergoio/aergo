@@ -8,6 +8,7 @@
 #include "util.h"
 #include "stack.h"
 #include "parse.h"
+#include "syslib.h"
 
 #include "prep.h"
 
@@ -229,6 +230,8 @@ prep(iobuf_t *src, flag_t flag, ast_t *ast)
     subst(src, flag, work_dir, &imps, ast);
 
     stack_pop(&imps);
+
+    syslib_load(ast);
 }
 
 /* end of prep.c */

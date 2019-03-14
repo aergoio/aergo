@@ -199,7 +199,7 @@ id_check_fn(check_t *check, ast_id_t *id)
     ASSERT1(is_fn_id(id), id->kind);
     ASSERT(id->name != NULL);
     ASSERT(id->up != NULL);
-    ASSERT1(is_cont_id(id->up) || is_itf_id(id->up), id->up->kind);
+    ASSERT1(is_root_id(id->up), id->up->kind);
 
     if (is_ctor_id(id) && strcmp(id->name, id->up->name) != 0)
         ERROR(ERROR_MISMATCHED_NAME, &id->pos, id->up->name, id->name);
@@ -327,8 +327,6 @@ id_check_library(check_t *check, ast_id_t *id)
 
     blk_check(check, id->u_lib.blk);
 
-    check->lib_id = id;
-
     return true;
 }
 
@@ -449,17 +447,19 @@ void
 id_trycheck(check_t *check, ast_id_t *id)
 {
     ast_id_t *org_id = check->id;
+    ast_id_t *org_impl_id = check->impl_id;
+    ast_id_t *org_qual_id = check->qual_id;
 
-    /* TODO: Currently it can be a variable identifier due to self-reference */
-
-    if (is_cont_id(id) || is_itf_id(id))
+    if (is_root_id(id))
         check->id = NULL;
     else if (is_fn_id(id))
-        check->id = check->cont_id;
+        check->id = check->qual_id != NULL ? check->qual_id : check->cont_id;
 
     id_check(check, id);
 
     check->id = org_id;
+    check->impl_id = org_impl_id;
+    check->qual_id = org_qual_id;
 }
 
 /* end of check_id.c */

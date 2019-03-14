@@ -14,7 +14,7 @@
 #include "ir_bb.h"
 #include "ir_sgmt.h"
 #include "trans_stmt.h"
-#include "syscall.h"
+#include "syslib.h"
 
 #include "trans_exp.h"
 
@@ -149,25 +149,25 @@ exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 
     if (is_string_meta(from_meta)) {
         if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ATOI64));
+            md_add_imp(trans->md, syslib_abi(FN_ATOI64));
         else if (is_bool_meta(to_meta) || is_integer_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ATOI32));
+            md_add_imp(trans->md, syslib_abi(FN_ATOI32));
         else if (is_float_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ATOF32));
+            md_add_imp(trans->md, syslib_abi(FN_ATOF32));
         else if (is_double_meta(to_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ATOF64));
+            md_add_imp(trans->md, syslib_abi(FN_ATOF64));
         else
             ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
     }
     else if (is_string_meta(to_meta)) {
         if (is_int64_meta(from_meta) || is_uint64_meta(from_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ITOA64));
+            md_add_imp(trans->md, syslib_abi(FN_ITOA64));
         else if (is_bool_meta(from_meta) || is_integer_meta(from_meta))
-            md_add_imp(trans->md, syscall_abi(FN_ITOA32));
+            md_add_imp(trans->md, syslib_abi(FN_ITOA32));
         else if (is_float_meta(from_meta))
-            md_add_imp(trans->md, syscall_abi(FN_FTOA32));
+            md_add_imp(trans->md, syslib_abi(FN_FTOA32));
         else if (is_double_meta(from_meta))
-            md_add_imp(trans->md, syscall_abi(FN_FTOA64));
+            md_add_imp(trans->md, syslib_abi(FN_FTOA64));
         else
             ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
     }
@@ -222,12 +222,12 @@ exp_trans_binary(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, exp->u_bin.r_exp);
 
     if (exp->u_bin.kind == OP_ADD && is_string_meta(&exp->meta))
-        md_add_imp(trans->md, syscall_abi(FN_STRCAT));
+        md_add_imp(trans->md, syslib_abi(FN_STRCAT));
     else if ((exp->u_bin.kind == OP_EQ || exp->u_bin.kind == OP_NE ||
               exp->u_bin.kind == OP_LT || exp->u_bin.kind == OP_LE ||
               exp->u_bin.kind == OP_GT || exp->u_bin.kind == OP_GE) &&
              is_string_meta(&exp->u_bin.l_exp->meta))
-        md_add_imp(trans->md, syscall_abi(FN_STRCMP));
+        md_add_imp(trans->md, syslib_abi(FN_STRCMP));
 }
 
 static void
@@ -361,7 +361,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_reg(mem_idx);
                 meta_set_uint32(&l_exp->meta);
 
-                r_exp = syscall_new_malloc(trans, size, &exp->pos);
+                r_exp = syslib_new_malloc(trans, size, &exp->pos);
 
                 bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
 
@@ -384,7 +384,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 exp_set_mem(exp, mem_idx, meta->rel_addr, 0);
             }
 
-            cpy_exp = syscall_new_memcpy(trans, addr_exp, reg_exp, size, &exp->pos);
+            cpy_exp = syslib_new_memcpy(trans, addr_exp, reg_exp, size, &exp->pos);
 
             bb_add_stmt(trans->bb, stmt_new_exp(cpy_exp, &exp->pos));
         }
@@ -475,7 +475,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_reg(reg_idx);
                 meta_set_uint32(&l_exp->meta);
 
-                r_exp = syscall_new_malloc(trans, meta_bytes(meta), &exp->pos);
+                r_exp = syslib_new_malloc(trans, meta_bytes(meta), &exp->pos);
 
                 bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
 
@@ -538,7 +538,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
         l_exp = exp_new_reg(reg_idx);
         meta_set_uint32(&l_exp->meta);
 
-        r_exp = syscall_new_malloc(trans, meta_bytes(meta), &exp->pos);
+        r_exp = syslib_new_malloc(trans, meta_bytes(meta), &exp->pos);
 
         bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
 

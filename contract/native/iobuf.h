@@ -42,4 +42,12 @@ iobuf_char(iobuf_t *ib, int i)
     return i > ib->offset ? EOF : ib->buf[i];
 }
 
+static inline void
+iobuf_set(iobuf_t *ib, int size, char *buf)
+{
+    ib->offset = size;
+    ib->size = size;
+    ib->buf = buf;
+}
+
 #endif /* ! _IOBUF_H */

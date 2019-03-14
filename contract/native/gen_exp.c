@@ -8,7 +8,7 @@
 #include "ast_id.h"
 #include "ir_abi.h"
 #include "gen_util.h"
-#include "syscall.h"
+#include "syslib.h"
 
 #include "gen_exp.h"
 

@@ -23,8 +23,6 @@ parse_init(parse_t *parse, flag_t flag, iobuf_t *src, ast_t *ast)
 {
     char *path = iobuf_path(src);
 
-    ASSERT(path != NULL);
-
     parse->path = path;
     parse->flag = flag;
 
@@ -46,8 +44,6 @@ parse(iobuf_t *src, flag_t flag, ast_t *ast)
 {
     parse_t parse;
     void *scanner;
-
-    ASSERT(ast != NULL);
 
     parse_init(&parse, flag, src, ast);
     yylex_init(&scanner);
