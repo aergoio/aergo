@@ -30,13 +30,11 @@ const (
 	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
 
-	// defaultMaxHdrSize: the max size of the proto-buf serialized non-body
+	// DefaultMaxHdrSize is the max size of the proto-buf serialized non-body
 	// fields. For the estimation detail, check 'TestBlockHeaderLimit' in
-	// 'blockchain_test.go.'
-	//
-	// Caution: Be sure to adjust the value below if the structure of the
-	// header is changed.
-	defaultMaxHdrSize = 400
+	// 'blockchain_test.go.' Caution: Be sure to adjust the value below if the
+	// structure of the header is changed.
+	DefaultMaxHdrSize = 400
 	lastFieldOfBH     = "Sign"
 )
 

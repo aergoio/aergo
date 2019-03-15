@@ -194,7 +194,7 @@ func TestBlockHeaderLimit(t *testing.T) {
 	fmt.Println("block id:", block.ID())
 
 	hdrSize := proto.Size(block)
-	a.True(hdrSize <= defaultMaxHdrSize, "too large header (> %v): %v", defaultMaxHdrSize, hdrSize)
+	a.True(hdrSize <= DefaultMaxHdrSize, "too large header (> %v): %v", DefaultMaxHdrSize, hdrSize)
 
 	fmt.Println("hdr size", hdrSize)
 }
