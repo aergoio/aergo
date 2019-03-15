@@ -62,6 +62,13 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
+	if raftConfig.RaftListenUrl != "" {
+		if err := isValidURL(raftConfig.RaftListenUrl, useTls); err != nil {
+			logger.Error().Err(err).Msg("failed to validate listen url for raft")
+			return err
+		}
+	}
+
 	if err = bf.bpc.addMembers(raftConfig, useTls); err != nil {
 		logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
 		return err

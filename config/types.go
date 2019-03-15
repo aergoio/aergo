@@ -106,6 +106,7 @@ type ConsensusConfig struct {
 
 type RaftConfig struct {
 	RaftID        uint64         `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
+	RaftListenUrl string         `mapstructure:"raftlistenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
 	RaftBPs       []RaftBPConfig `mapstructure:"raftbps"`
 	RaftSkipEmpty bool           `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
 	RaftKeyFile   string         `mapstructure:"raftkeyfile" description:"Private Key file for raft https server"`
