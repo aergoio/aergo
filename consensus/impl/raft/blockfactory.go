@@ -112,9 +112,11 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		sdb:              sdb,
 	}
 
-	if err := bf.startRaftServer(cfg); err != nil {
-		logger.Error().Err(err).Msg("failed to init raft server")
-		return bf, err
+	if cfg.Consensus.EnableBp {
+		if err := bf.newRaftServer(cfg); err != nil {
+			logger.Error().Err(err).Msg("failed to init raft server")
+			return bf, err
+		}
 	}
 
 	bf.txOp = chain.NewCompTxOp(
@@ -131,7 +133,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	return bf, nil
 }
 
-func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
+func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 	if err := bf.InitCluster(cfg); err != nil {
 		return err
 	}
@@ -144,7 +146,7 @@ func (bf *BlockFactory) startRaftServer(cfg *config.Config) error {
 
 	logger.Info().Uint64("raftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
 
-	bf.raftServer = newRaftServer(bf.bpc.ID, bf.bpc.BPUrls, false, waldir, snapdir,
+	bf.raftServer = newRaftServer(bf.bpc.ID, cfg.Consensus.Raft.RaftListenUrl, bf.bpc.BPUrls, false, waldir, snapdir,
 		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
 		nil, RaftTick, proposeC, confChangeC, true)
 
@@ -233,6 +235,8 @@ func (bf *BlockFactory) NeedReorganization(rootNo types.BlockNo) bool {
 // Start run a raft block factory service.
 func (bf *BlockFactory) Start() {
 	defer logger.Info().Msg("shutdown initiated. stop the service")
+
+	bf.raftServer.Start()
 
 	runtime.LockOSThread()
 
@@ -332,6 +336,9 @@ func (bf *BlockFactory) Info() string {
 	// TODO: Returns a appropriate information inx json format like current
 	// leader, etc.
 	info := consensus.NewInfo(GetName())
+	if bf.raftServer == nil {
+		return info.AsJSON()
+	}
 
 	b, err := json.Marshal(bf.raftServer.Status())
 	if err != nil {
