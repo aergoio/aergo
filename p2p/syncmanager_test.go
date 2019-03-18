@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"bytes"
+	"github.com/aergoio/aergo/chain"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -20,47 +21,58 @@ import (
 )
 
 func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
+	// only interested in max block size
+	chain.Init(1024*1024,"",false,0,0)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test.p2p")
 	sampleBlock := &types.Block{Hash: dummyBlockHash}
+	txs := make([]*types.Tx,1)
+	txs[0] = &types.Tx{Hash:make([]byte,1024*1024*2)}
+	sampleBigBlock := &types.Block{Hash:dummyBlockHash,Body:&types.BlockBody{Txs:txs}}
 	var blkHash = types.ToBlockID(dummyBlockHash)
 	// test if new block notice comes
 	tests := []struct {
 		name string
 		put  *types.BlockID
+		addedBlock *types.Block
 
 		wantActorCall bool
 	}{
 		// 1. Succ : valid block hash and not exist in local
-		{"TSucc", nil, true},
+		{"TSucc", nil, sampleBlock,true},
 		// 2. Rare case - valid block hash but already exist in local cache
-		{"TExist", &blkHash, false},
+		{"TExist", &blkHash, sampleBlock, false},
+		{"TTooBigBlock", nil, sampleBigBlock,false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
+			mockPeer.EXPECT().ID().Return(sampleMeta.ID).AnyTimes()
+			actorCallCnt := 0
 			if test.wantActorCall {
-				mockPeer.EXPECT().ID().Return(sampleMeta.ID)
-				mockActor.EXPECT().SendRequest(message.ChainSvc, gomock.Any())
-			} else {
-				mockPeer.EXPECT().Name().Return("16..aadecf@1")
-				mockActor.EXPECT().SendRequest(message.ChainSvc, gomock.Any()).Times(0)
+				actorCallCnt = 1
 			}
+			mockActor.EXPECT().SendRequest(message.ChainSvc, gomock.Any()).Times(actorCallCnt)
 
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
 			if test.put != nil {
 				target.blkCache.Add(*test.put, true)
 			}
-			target.HandleBlockProducedNotice(mockPeer, sampleBlock)
+			target.HandleBlockProducedNotice(mockPeer, test.addedBlock)
 		})
 	}
 }
 
 func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
+	// only interested in max block size
+	chain.Init(1024*1024,"",false,0,0)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -199,6 +211,9 @@ func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 }
 
 func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
+	// only interested in max block size
+	chain.Init(1024*1024,"",false,0,0)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

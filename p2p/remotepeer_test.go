@@ -383,11 +383,14 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	idSize := 10
 	idList := make([]p2pcommon.MsgID, idSize)
 	recvList := make(map[p2pcommon.MsgID]p2pcommon.ResponseReceiver)
+	// first 5 have receiever, but latters don't
 	for i := 0; i < idSize; i++ {
 		idList[i] = p2pcommon.NewMsgID()
-		recvList[idList[i]] = func(msg p2pcommon.Message, msgBody proto.Message) bool {
-			logger.Debug().Int("seq", i).Msg("receiver called")
-			return true
+		if i < 5 {
+			recvList[idList[i]] = func(msg p2pcommon.Message, msgBody proto.Message) bool {
+				logger.Debug().Int("seq", i).Msg("receiver called")
+				return true
+			}
 		}
 	}
 	// GetReceiver should not return nil and consumeRequest must be thread-safe
@@ -395,12 +398,13 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 		name      string
 		toAdd     []p2pcommon.MsgID
 		inID      p2pcommon.MsgID
-		contained bool
+
+		receiverReturn bool
 	}{
 		// 1. not anything
-		{"TEmpty", idList[1:10], idList[0], false},
+		{"TEmpty", idList[1:10], idList[0], true},
 		// 2. have request history but no receiver
-		{"TNOReceiver", idList[1:10], p2pcommon.NewMsgID(), false},
+		{"TNOReceiver", idList[1:10], idList[5], false},
 		// 3. have request history with receiver
 		{"THave", idList[1:10], idList[1], true},
 		// 4. have multiple receivers
@@ -419,12 +423,13 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
 			dummyMsg := &V030Message{id: p2pcommon.NewMsgID(), originalID: test.inID}
-			assert.Equal(t, test.contained, actual(dummyMsg, nil))
+			assert.Equal(t, test.receiverReturn, actual(dummyMsg, nil))
 
+			// after consuming request, GetReceiver always return requestIDNotFoundReceiver, which always return true
 			p.ConsumeRequest(test.inID)
 			actual2 := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual2)
-			assert.Equal(t, false, actual2(dummyMsg, nil))
+			assert.Equal(t, true, actual2(dummyMsg, nil))
 		})
 	}
 }
