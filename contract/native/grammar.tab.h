@@ -101,33 +101,37 @@ extern int yydebug;
     K_INDEX = 310,
     K_INSERT = 311,
     K_INT = 312,
-    K_INT16 = 313,
-    K_INT32 = 314,
-    K_INT64 = 315,
-    K_INT8 = 316,
-    K_INTERFACE = 317,
-    K_LIBRARY = 318,
-    K_MAP = 319,
-    K_NEW = 320,
-    K_NULL = 321,
-    K_PAYABLE = 322,
-    K_PUBLIC = 323,
-    K_REPLACE = 324,
-    K_RETURN = 325,
-    K_SELECT = 326,
-    K_STRING = 327,
-    K_STRUCT = 328,
-    K_SWITCH = 329,
-    K_TABLE = 330,
-    K_TRUE = 331,
-    K_TYPE = 332,
-    K_UINT = 333,
-    K_UINT16 = 334,
-    K_UINT32 = 335,
-    K_UINT64 = 336,
-    K_UINT8 = 337,
-    K_UPDATE = 338,
-    K_VIEW = 339
+    K_INT8 = 313,
+    K_INT16 = 314,
+    K_INT32 = 315,
+    K_INT64 = 316,
+    K_INT128 = 317,
+    K_INT256 = 318,
+    K_INTERFACE = 319,
+    K_LIBRARY = 320,
+    K_MAP = 321,
+    K_NEW = 322,
+    K_NULL = 323,
+    K_PAYABLE = 324,
+    K_PUBLIC = 325,
+    K_REPLACE = 326,
+    K_RETURN = 327,
+    K_SELECT = 328,
+    K_STRING = 329,
+    K_STRUCT = 330,
+    K_SWITCH = 331,
+    K_TABLE = 332,
+    K_TRUE = 333,
+    K_TYPE = 334,
+    K_UINT = 335,
+    K_UINT8 = 336,
+    K_UINT16 = 337,
+    K_UINT32 = 338,
+    K_UINT64 = 339,
+    K_UINT128 = 340,
+    K_UINT256 = 341,
+    K_UPDATE = 342,
+    K_VIEW = 343
   };
 #endif
 
@@ -136,7 +140,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 150 "grammar.y" /* yacc.c:1910  */
+#line 154 "grammar.y" /* yacc.c:1910  */
 
     bool flag;
     char *str;
@@ -153,7 +157,7 @@ union YYSTYPE
     ast_stmt_t *stmt;
     meta_t *meta;
 
-#line 157 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
+#line 161 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
 };
 
 typedef union YYSTYPE YYSTYPE;

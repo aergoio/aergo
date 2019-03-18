@@ -242,10 +242,12 @@ id                          {L}({L}|{D})*
 "import"                    yy_return(K_IMPORT);
 "in"                        yy_return(K_IN);
 "int"                       yy_return(K_INT);
+"int8"                      yy_return(K_INT8);
 "int16"                     yy_return(K_INT16);
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
-"int8"                      yy_return(K_INT8);
+"int128"                    yy_return(K_INT128);
+"int256"                    yy_return(K_INT256);
 "interface"                 yy_return(K_INTERFACE);
 "library"                   yy_return(K_LIBRARY);
 "map"                       yy_return(K_MAP);
@@ -260,10 +262,12 @@ id                          {L}({L}|{D})*
 "true"                      yy_return(K_TRUE);
 "type"                      yy_return(K_TYPE);
 "uint"                      yy_return(K_UINT);
+"uint8"                     yy_return(K_UINT8);
 "uint16"                    yy_return(K_UINT16);
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
-"uint8"                     yy_return(K_UINT8);
+"uint128"                   yy_return(K_UINT128);
+"uint256"                   yy_return(K_UINT256);
 
 {alter}                     yy_return(K_ALTER);
 {create}                    yy_return(K_CREATE);

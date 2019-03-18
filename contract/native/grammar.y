@@ -101,10 +101,12 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_INDEX         "index"
         K_INSERT        "insert"
         K_INT           "int"
+        K_INT8          "int8"
         K_INT16         "int16"
         K_INT32         "int32"
         K_INT64         "int64"
-        K_INT8          "int8"
+        K_INT128        "int128"
+        K_INT256        "int256"
         K_INTERFACE     "interface"
         K_LIBRARY       "library"
         K_MAP           "map"
@@ -122,10 +124,12 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_TRUE          "true"
         K_TYPE          "type"
         K_UINT          "uint"
+        K_UINT8         "uint8"
         K_UINT16        "uint16"
         K_UINT32        "uint32"
         K_UINT64        "uint64"
-        K_UINT8         "uint8"
+        K_UINT128       "uint128"
+        K_UINT256       "uint256"
         K_UPDATE        "update"
         K_VIEW          "view"
 
@@ -413,14 +417,18 @@ prim_type:
 |   K_BYTE              { $$ = TYPE_UINT8; }
 |   K_INT8              { $$ = TYPE_INT8; }
 |   K_INT16             { $$ = TYPE_INT16; }
-|   K_INT               { $$ = TYPE_INT32; }
 |   K_INT32             { $$ = TYPE_INT32; }
 |   K_INT64             { $$ = TYPE_INT64; }
+|   K_INT128            { $$ = TYPE_INT128; }
+|   K_INT256            { $$ = TYPE_INT256; }
+|   K_INT               { $$ = TYPE_INT32; }
 |   K_UINT8             { $$ = TYPE_UINT8; }
 |   K_UINT16            { $$ = TYPE_UINT16; }
-|   K_UINT              { $$ = TYPE_UINT32; }
 |   K_UINT32            { $$ = TYPE_UINT32; }
 |   K_UINT64            { $$ = TYPE_UINT64; }
+|   K_UINT128           { $$ = TYPE_UINT128; }
+|   K_UINT256           { $$ = TYPE_UINT256; }
+|   K_UINT              { $$ = TYPE_UINT32; }
 //|   K_FLOAT             { $$ = TYPE_FLOAT; }
 //|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
 |   K_STRING            { $$ = TYPE_STRING; }
