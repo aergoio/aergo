@@ -17,7 +17,7 @@ set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/gmp-6.1.2)
 set(MPFR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/mpfr-4.0.2)
 set(MPFR_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/mpfr-4.0.2)
 
-if(NOT EXISTS ${LUAJIT_SRC_DIR} OR 
+if(NOT EXISTS ${LUAJIT_SRC_DIR} OR
    NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/binaryen/src OR
    NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/WAVM/Lib/ASCL)
     execute_process(COMMAND git submodule update --init --force)
@@ -46,25 +46,27 @@ add_custom_target(liblmdb $(MAKE) prefix=${LIB_DIR} all install
 include(ExternalProject)
 
 ExternalProject_Add(libgmp
-  	SOURCE_DIR ${GMP_SRC_DIR}
-	BINARY_DIR ${GMP_BUILD_DIR}
-	TMP_DIR ${GMP_BUILD_DIR}
-	STAMP_DIR ${GMP_BUILD_DIR}
-  	CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-shared=no
-  	PREFIX ${GMP_SRC_DIR}
-  	BUILD_COMMAND $(MAKE) install)
+    SOURCE_DIR ${GMP_SRC_DIR}
+    BINARY_DIR ${GMP_BUILD_DIR}
+    TMP_DIR ${GMP_BUILD_DIR}
+    STAMP_DIR ${GMP_BUILD_DIR}
+    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-shared=no
+    PREFIX ${GMP_SRC_DIR}
+    BUILD_COMMAND $(MAKE) install
+    BUILD_ALWAYS 1)
 
-ExternalProject_Add(libmpfr
-	DEPENDS libgmp
-  	SOURCE_DIR ${MPFR_SRC_DIR}
-	BINARY_DIR ${MPFR_BUILD_DIR}
-	TMP_DIR ${MPFR_BUILD_DIR}
-	STAMP_DIR ${MPFR_BUILD_DIR}
-  	CONFIGURE_COMMAND ${MPFR_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-shared=no
-  	PREFIX ${MPFR_SRC_DIR}
-  	BUILD_COMMAND $(MAKE) install)
+#ExternalProject_Add(libmpfr
+#    DEPENDS libgmp
+#    SOURCE_DIR ${MPFR_SRC_DIR}
+#    BINARY_DIR ${MPFR_BUILD_DIR}
+#    TMP_DIR ${MPFR_BUILD_DIR}
+#    STAMP_DIR ${MPFR_BUILD_DIR}
+#    CONFIGURE_COMMAND ${MPFR_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-shared=no
+#    PREFIX ${MPFR_SRC_DIR}
+#    BUILD_COMMAND $(MAKE) install
+#    BUILD_ALWAYS 1)
 
-add_custom_target(libtool-clean 
+add_custom_target(libtool-clean
     COMMAND rm -rf ${LIB_DIR}/lib/*
     COMMAND rm -rf ${LIB_DIR}/include/*
     COMMAND rm -rf ${LIB_DIR}/bin/*

@@ -566,7 +566,8 @@ LIBGMP_LT_AGE = 3
 LIBGMPXX_LT_CURRENT = 9
 LIBGMPXX_LT_REVISION = 2
 LIBGMPXX_LT_AGE = 5
-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
+#SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
+SUBDIRS = mpn mpz mpq mpf printf scanf rand cxx
 
 # The "test -f" support for srcdir!=builddir is similar to the automake .c.o
 # etc rules, but with each foo.c explicitly, since $< is not portable
