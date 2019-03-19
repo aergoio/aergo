@@ -29,13 +29,10 @@ func init() {
 }
 
 type RemotePeer interface {
-	ID() peer.ID
+	types.PeerBlockInfo
 	Meta() PeerMeta
 	ManageNumber() uint32
 	Name() string
-
-	State() types.PeerState
-	LastNotice() *LastBlockStatus
 
 	runPeer()
 	stop()
@@ -58,12 +55,6 @@ type RemotePeer interface {
 
 	// TODO
 	MF() moFactory
-}
-
-type LastBlockStatus struct {
-	CheckTime time.Time
-	BlockHash []byte
-	BlockNumber uint64
 }
 
 type requestInfo struct {
@@ -111,7 +102,7 @@ type remotePeerImpl struct {
 
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
-	lastNotice   *LastBlockStatus
+	lastNotice   *types.LastBlockStatus
 
 	txQueueLock         *sync.Mutex
 	txNoticeQueue       *p2putil.PressableQueue
@@ -132,7 +123,7 @@ func newRemotePeer(meta PeerMeta, manageNum uint32, pm PeerManager, actor ActorS
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
-		lastNotice: &LastBlockStatus{},
+		lastNotice: &types.LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 
@@ -188,7 +179,7 @@ func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
 }
 
-func (p *remotePeerImpl) LastNotice() *LastBlockStatus {
+func (p *remotePeerImpl) LastNotice() *types.LastBlockStatus {
 	return p.lastNotice
 }
 
@@ -528,7 +519,7 @@ func (p *remotePeerImpl) updateTxCache(hashes []types.TxID) []types.TxID {
 }
 
 func (p *remotePeerImpl) updateLastNotice(blkHash []byte, blkNumber uint64) {
-	p.lastNotice = &LastBlockStatus{time.Now(), blkHash, blkNumber}
+	p.lastNotice = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

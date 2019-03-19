@@ -517,3 +517,18 @@ func (_m *MockPeerManager) Stop() error {
 
 	return r0
 }
+
+func (_m *MockPeerManager) GetPeerBlockInfos() []types.PeerBlockInfo {
+	ret := _m.Called()
+
+	var r0 []types.PeerBlockInfo
+	if rf, ok := ret.Get(0).(func() []types.PeerBlockInfo); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]types.PeerBlockInfo)
+		}
+	}
+
+	return r0
+}

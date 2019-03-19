@@ -179,6 +179,10 @@ func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
 	return p2ps.nt
 }
 
+func (p2ps *P2P) GetPeerAccessor() types.PeerAccessor {
+	return p2ps.pm
+}
+
 func (p2ps *P2P) ChainID() *types.ChainID {
 	return p2ps.chainID
 }

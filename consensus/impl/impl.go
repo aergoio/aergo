@@ -13,10 +13,11 @@ import (
 	"github.com/aergoio/aergo/consensus/impl/raft"
 	"github.com/aergoio/aergo/consensus/impl/sbp"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService, pa types.PeerAccessor) (consensus.Consensus, error) {
 	var (
 		c   consensus.Consensus
 		err error

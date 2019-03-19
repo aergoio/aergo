@@ -195,14 +195,14 @@ func (_m *MockRemotePeer) State() types.PeerState {
 
 
 // LastNotice provides a mock function with given fields:
-func (_m *MockRemotePeer) LastNotice() *LastBlockStatus {
+func (_m *MockRemotePeer) LastNotice() *types.LastBlockStatus {
 	ret := _m.Called()
 
-	var r0 *LastBlockStatus
-	if rf, ok := ret.Get(0).(func() *LastBlockStatus); ok {
+	var r0 *types.LastBlockStatus
+	if rf, ok := ret.Get(0).(func() *types.LastBlockStatus); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(*LastBlockStatus)
+		r0 = ret.Get(0).(*types.LastBlockStatus)
 	}
 
 	return r0

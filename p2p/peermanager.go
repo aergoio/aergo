@@ -45,6 +45,7 @@ type PeerManager interface {
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
 	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
+	types.PeerAccessor
 }
 
 /**
@@ -536,6 +537,17 @@ func (pm *peerManager) GetPeers() []RemotePeer {
 	return pm.peerCache
 }
 
+func (pm *peerManager) GetPeerBlockInfos() []types.PeerBlockInfo {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	infos := make([]types.PeerBlockInfo, len(pm.peerCache))
+	for i, peer := range pm.peerCache {
+		infos[i] = peer
+	}
+	return infos
+}
+
+
 func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo {
 	peers := make([]*message.PeerInfo, 0, len(pm.peerCache))
 	if showSelf {
@@ -562,6 +574,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 	}
 	return peers
 }
+
 
 // this method should be called inside pm.mutex
 func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
