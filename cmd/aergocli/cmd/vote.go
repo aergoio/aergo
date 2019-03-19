@@ -7,10 +7,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -20,13 +21,12 @@ import (
 )
 
 var revert bool
-var title string
+var election string
 
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
 	voteStatCmd.MarkFlagRequired("address")
-	voteStatCmd.Flags().StringVar(&title, "title", "", "title of voting")
 	rootCmd.AddCommand(bpCmd)
 	bpCmd.Flags().Uint64Var(&number, "count", 23, "the number of elected (default: 23)")
 }
@@ -67,30 +67,44 @@ func execVote(cmd *cobra.Command, args []string) {
 		to = string(b)
 	}
 	var ci types.CallInfo
-	ci.Name = types.VoteBP
-	err = json.Unmarshal([]byte(to), &ci.Args)
-	if err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
+	switch strings.ToLower(election) {
+	case "bp":
+		ci.Name = types.VoteBP
+		err = json.Unmarshal([]byte(to), &ci.Args)
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+
+		for i, v := range ci.Args {
+			if i >= types.MaxCandidates {
+				cmd.Println("too many candidates")
+				return
+			}
+			candidate, err := base58.Decode(v.(string))
+			if err != nil {
+				cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
+				return
+			}
+			_, err = peer.IDFromBytes(candidate)
+			if err != nil {
+				cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
+				return
+			}
+		}
+	case "numofbp":
+		ci.Name = types.VoteNumBP
+		numofbp, err := strconv.ParseUint(to, 10, 64)
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		ci.Args = append(ci.Args, strconv.Itoa(int(numofbp)))
+
+	default:
+		cmd.Printf("Failed: Wrong election\n")
 		return
 	}
-
-	for i, v := range ci.Args {
-		if i >= types.MaxCandidates {
-			cmd.Println("too many candidates")
-			return
-		}
-		candidate, err := base58.Decode(v.(string))
-		if err != nil {
-			cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
-			return
-		}
-		_, err = peer.IDFromBytes(candidate)
-		if err != nil {
-			cmd.Printf("Failed: %s (%s)\n", err.Error(), v)
-			return
-		}
-	}
-
 	txs := make([]*types.Tx, 1)
 
 	state, err := client.GetState(context.Background(),
@@ -140,40 +154,16 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	msg, err := client.GetVotes(context.Background(), &types.SingleBytes{Value: rawAddr})
+	msg, err := client.GetAccountVotes(context.Background(), &types.AccountAddress{Value: rawAddr})
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	cmd.Println(votesToJSON(msg.GetVotes()))
-}
-
-func votesToJSON(votes []*types.Vote) string {
-	out := map[string][]string{}
-
-	if len(votes) != 0 {
-		out["amount"] = append(out["amount"], votes[0].GetAmountBigInt().String())
-		for _, v := range votes {
-			title := v.GetTitle()
-			var candidate string
-			if title == types.VoteBP[2:] {
-				candidate = base58.Encode(v.GetCandidate())
-			} else {
-				candidate = string(v.GetCandidate())
-			}
-			out[title] = append(out[title], candidate)
-		}
-	}
-	ret, _ := json.MarshalIndent(out, "", " ")
-	return string(ret)
+	cmd.Println(util.JSON(msg))
 }
 
 func execBP(cmd *cobra.Command, args []string) {
-	var voteQuery []byte
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(number))
-	voteQuery = b
-	msg, err := client.GetVotes(context.Background(), &types.SingleBytes{Value: voteQuery})
+	msg, err := client.GetVotes(context.Background(), &types.VoteParams{Count: uint32(number)})
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return

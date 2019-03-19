@@ -48,7 +48,7 @@ func execGetState(cmd *cobra.Command, args []string) {
 	}
 	if staking {
 		msg, err := client.GetStaking(context.Background(),
-			&types.SingleBytes{Value: addr})
+			&types.AccountAddress{Value: addr})
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return

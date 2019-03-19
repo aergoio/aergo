@@ -148,18 +148,15 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-		/* TODO:
-		case VoteNumBP:
-			for i, v := range ci.Args {
-				if i >= MaxCandidates {
-					return ErrTxInvalidPayload
-				}
-				if _, ok := v.(string); !ok {
-					fmt.Println(v)
-					return ErrTxInvalidPayload
-				}
+	case VoteNumBP:
+		for i, v := range ci.Args {
+			if i > 1 {
+				return ErrTxInvalidPayload
+			}
+			if _, ok := v.(string); !ok {
+				return ErrTxInvalidPayload
+			}
 		}
-		*/
 	default:
 		return ErrTxInvalidPayload
 	}

@@ -67,17 +67,34 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestInvalidPeerID)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
 	err = transaction.Validate()
-	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
+	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid peer id")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestDuplicatePeerID)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
 	err = transaction.Validate()
-	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
+	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "dup peer id")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestNormal)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
 	err = transaction.Validate()
-	assert.Error(t, err, "should success")
+	t.Log(string(transaction.GetTx().GetBody().Payload))
+	assert.NoError(t, err, "should success")
+
+	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestInvalidString)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate()
+	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
+
+	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(2, TestInvalidString)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate()
+	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "only one candidate allowed")
+
+	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestNormal)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	t.Log(string(transaction.GetTx().GetBody().Payload))
+	err = transaction.Validate()
+	assert.NoError(t, err, "should success")
 }
 
 func buildVoteBPPayloadEx(count int, err int) []byte {
@@ -92,6 +109,25 @@ func buildVoteBPPayloadEx(count int, err int) []byte {
 			ci.Args = append(ci.Args, (i + 1))
 		} else if err == TestInvalidPeerID {
 			ci.Args = append(ci.Args, string(i+1))
+		} else {
+			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+			peerid, _ := peer.IDFromPublicKey(pub)
+			ci.Args = append(ci.Args, peer.IDB58Encode(peerid))
+		}
+	}
+	payload, _ := json.Marshal(ci)
+	return payload
+}
+
+func buildVoteNumBPPayloadEx(count int, err int) []byte {
+	var ci CallInfo
+	ci.Name = VoteNumBP
+	candidate := 1
+	for i := 0; i < count; i++ {
+		if err == TestDuplicatePeerID {
+			ci.Args = append(ci.Args, candidate)
+		} else if err == TestInvalidString {
+			ci.Args = append(ci.Args, (i + 1))
 		} else {
 			ci.Args = append(ci.Args, strconv.Itoa(i+1))
 		}

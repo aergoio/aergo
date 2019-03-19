@@ -13,7 +13,10 @@ func (vl VoteList) Less(i, j int) bool {
 	if result == -1 {
 		return true
 	} else if result == 0 {
-		return new(big.Int).SetBytes(vl.Votes[i].Candidate[7:]).Cmp(new(big.Int).SetBytes(vl.Votes[j].Candidate[7:])) > 0
+		if len(vl.Votes[i].Candidate) == 39 /*peer id length*/ {
+			return new(big.Int).SetBytes(vl.Votes[i].Candidate[7:]).Cmp(new(big.Int).SetBytes(vl.Votes[j].Candidate[7:])) > 0
+		}
+		return new(big.Int).SetBytes(vl.Votes[i].Candidate).Cmp(new(big.Int).SetBytes(vl.Votes[j].Candidate)) > 0
 	}
 	return false
 }

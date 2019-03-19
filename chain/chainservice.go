@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -171,8 +172,8 @@ type IChainHandler interface {
 	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
 	getReceipt(txHash []byte) (*types.Receipt, error)
-	getVote(title string, addr []byte) (*types.VoteList, error)
-	getVotes(title string, n int) (*types.VoteList, error)
+	getAccountVote(id []string, addr []byte) (*types.AccountVoteInfo, error)
+	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
@@ -370,32 +371,39 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 	return cs.cdb.GetChainTree()
 }
 
-func (cs *ChainService) getVotes(title string, n int) (*types.VoteList, error) {
-	return system.GetVoteResult(cs.sdb, []byte(title), n)
+func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
+	return system.GetVoteResult(cs.sdb, []byte(id), int(n))
 }
 
-func (cs *ChainService) getVote(title string, addr []byte) (*types.VoteList, error) {
+func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.AccountVoteInfo, error) {
 	scs, err := cs.sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	var voteList types.VoteList
-	var tmp []*types.Vote
-	voteList.Votes = tmp
-	vote, err := system.GetVote(scs, addr, []byte(title))
-	if err != nil {
-		return nil, err
-	}
-	to := vote.GetCandidate()
-	for offset := 0; offset < len(to); offset += system.PeerIDLength {
-		vote := &types.Vote{
-			Candidate: to[offset : offset+system.PeerIDLength],
-			Amount:    vote.GetAmount(),
-			Title:     title,
+
+	var voteInfo types.AccountVoteInfo
+
+	for _, id := range ids {
+		vote, err := system.GetVote(scs, addr, []byte(id))
+		if err != nil {
+			return nil, err
 		}
-		voteList.Votes = append(voteList.Votes, vote)
+		var candidates []string
+		if id == types.VoteBP[2:] {
+			to := vote.GetCandidate()
+			for offset := 0; offset < len(to); offset += system.PeerIDLength {
+				candidates = append(candidates, types.EncodeB58(to[offset:offset+system.PeerIDLength]))
+			}
+		} else {
+			err := json.Unmarshal(vote.GetCandidate(), &candidates)
+			if err != nil {
+				return nil, err
+			}
+		}
+		voteInfo.Voting = append(voteInfo.Voting, &types.VoteInfo{Id: id, Candidates: candidates})
 	}
-	return &voteList, nil
+
+	return &voteInfo, nil
 }
 
 func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
@@ -672,16 +680,16 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:    err,
 		})
 	case *message.GetElected:
-		top, err := cw.getVotes(msg.Title, msg.N)
+		top, err := cw.getVotes(msg.Id, msg.N)
 		context.Respond(&message.GetVoteRsp{
 			Top: top,
 			Err: err,
 		})
 	case *message.GetVote:
-		top, err := cw.getVote(msg.Title, msg.Addr)
-		context.Respond(&message.GetVoteRsp{
-			Top: top,
-			Err: err,
+		info, err := cw.getAccountVote(msg.Ids, msg.Addr)
+		context.Respond(&message.GetAccountVoteRsp{
+			Info: info,
+			Err:  err,
 		})
 	case *message.GetStaking:
 		staking, err := cw.getStaking(msg.Addr)

@@ -23,10 +23,13 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	switch ci.Name {
 	case types.Stake:
 		event, err = staking(txBody, sender, receiver, scs, blockNo)
-	case types.VoteBP:
+	case types.VoteBP,
+		types.VoteNumBP:
 		event, err = voting(txBody, sender, receiver, scs, blockNo, ci)
 	case types.Unstake:
 		event, err = unstaking(txBody, sender, receiver, scs, blockNo, ci)
+	default:
+		err = types.ErrTxInvalidPayload
 	}
 	if err != nil {
 		return nil, err
