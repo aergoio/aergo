@@ -9,8 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"math/big"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -28,7 +28,9 @@ func init() {
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
 	voteStatCmd.MarkFlagRequired("address")
 	rootCmd.AddCommand(bpCmd)
-	bpCmd.Flags().Uint64Var(&number, "count", 23, "the number of elected (default: 23)")
+	bpCmd.Flags().Uint64Var(&number, "count", 23, "the number of elected")
+	rootCmd.AddCommand(paramCmd)
+	paramCmd.Flags().StringVar(&election, "election", "numofbp", "block chain parameter")
 }
 
 var voteStatCmd = &cobra.Command{
@@ -49,6 +51,12 @@ var bpCmd = &cobra.Command{
 	Run:   execBP,
 }
 
+var paramCmd = &cobra.Command{
+	Use:   "param",
+	Short: "show given parameter status",
+	Run:   execParam,
+}
+
 const PeerIDLength = 39
 
 func execVote(cmd *cobra.Command, args []string) {
@@ -67,6 +75,11 @@ func execVote(cmd *cobra.Command, args []string) {
 		to = string(b)
 	}
 	var ci types.CallInfo
+	numberVote := map[string]string{
+		"numofbp":        types.VoteNumBP,
+		"nameprice":      types.VoteNamePrice,
+		"minimumstaking": types.VoteMinStaking,
+	}
 	switch strings.ToLower(election) {
 	case "bp":
 		ci.Name = types.VoteBP
@@ -92,14 +105,16 @@ func execVote(cmd *cobra.Command, args []string) {
 				return
 			}
 		}
-	case "numofbp":
-		ci.Name = types.VoteNumBP
-		numofbp, err := strconv.ParseUint(to, 10, 64)
-		if err != nil {
+	case "numofbp",
+		"nameprice",
+		"minimumstaking":
+		ci.Name = numberVote[strings.ToLower(election)]
+		numberArg, ok := new(big.Int).SetString(to, 10)
+		if !ok {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		ci.Args = append(ci.Args, strconv.Itoa(int(numofbp)))
+		ci.Args = append(ci.Args, numberArg.String())
 
 	default:
 		cmd.Printf("Failed: Wrong election\n")
@@ -163,7 +178,10 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 }
 
 func execBP(cmd *cobra.Command, args []string) {
-	msg, err := client.GetVotes(context.Background(), &types.VoteParams{Count: uint32(number)})
+	msg, err := client.GetVotes(context.Background(), &types.VoteParams{
+		Count: uint32(number),
+		Id:    types.VoteBP[2:],
+	})
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
@@ -172,6 +190,33 @@ func execBP(cmd *cobra.Command, args []string) {
 	comma := ","
 	for i, r := range msg.GetVotes() {
 		cmd.Printf("{\"" + base58.Encode(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}")
+		if i+1 == len(msg.GetVotes()) {
+			comma = ""
+		}
+		cmd.Println(comma)
+	}
+	cmd.Println("]")
+}
+
+func execParam(cmd *cobra.Command, args []string) {
+	numberVote := map[string]string{
+		"numofbp":        types.VoteNumBP,
+		"nameprice":      types.VoteNamePrice,
+		"minimumstaking": types.VoteMinStaking,
+	}
+	msg, err := client.GetVotes(context.Background(), &types.VoteParams{
+		Count: uint32(number),
+		Id:    numberVote[election][2:],
+	})
+	if err != nil {
+		cmd.Printf("Failed: %s\n", err.Error())
+		return
+	}
+	cmd.Println("[")
+	comma := ","
+	for i, r := range msg.GetVotes() {
+		value, _ := new(big.Int).SetString(string(r.Candidate), 10)
+		cmd.Printf("{\"" + value.String() + "\":" + r.GetAmountBigInt().String() + "}")
 		if i+1 == len(msg.GetVotes()) {
 			comma = ""
 		}

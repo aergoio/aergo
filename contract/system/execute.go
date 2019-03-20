@@ -24,7 +24,9 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	case types.Stake:
 		event, err = staking(txBody, sender, receiver, scs, blockNo)
 	case types.VoteBP,
-		types.VoteNumBP:
+		types.VoteNumBP,
+		types.VoteNamePrice,
+		types.VoteMinStaking:
 		event, err = voting(txBody, sender, receiver, scs, blockNo, ci)
 	case types.Unstake:
 		event, err = unstaking(txBody, sender, receiver, scs, blockNo, ci)
@@ -48,7 +50,11 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	var err error
 	switch ci.Name {
 	case types.Stake:
-		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
+		amount := txBody.GetAmountBigInt()
+		if amount.Cmp(types.StakingMinimum) < 0 {
+			return nil, types.ErrTooSmallAmount
+		}
+		if sender != nil && sender.Balance().Cmp(amount) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
 	case types.VoteBP,
@@ -69,6 +75,10 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, types.ErrLessTimeHasPassed
 		}
 	case types.Unstake:
+		amount := txBody.GetAmountBigInt()
+		if amount.Cmp(types.StakingMinimum) < 0 {
+			return nil, types.ErrTooSmallAmount
+		}
 		_, err = validateForUnstaking(account, txBody, scs, blockNo)
 	}
 	if err != nil {

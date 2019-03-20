@@ -822,7 +822,12 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.VoteParams) 
 }
 
 func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.AccountAddress) (*types.AccountVoteInfo, error) {
-	ids := []string{types.VoteBP[2:], types.VoteNumBP[2:]}
+	ids := []string{
+		types.VoteBP[2:],
+		types.VoteNumBP[2:],
+		types.VoteNamePrice[2:],
+		types.VoteMinStaking[2:],
+	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
 		&message.GetVote{Addr: in.Value, Ids: ids}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
 	if err != nil {

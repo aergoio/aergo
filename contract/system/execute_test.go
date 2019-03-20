@@ -166,8 +166,8 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, 0)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "Validate system tx failed")
 	tx.Body.Amount = new(big.Int).Sub(types.StakingMinimum, new(big.Int).SetUint64(1)).Bytes()
-	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, 0)
-	assert.EqualError(t, err, types.ErrMustStakeBeforeUnstake.Error(), "Validate system tx failed")
+	//_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, 0)
+	//assert.EqualError(t, err, types.ErrMustStakeBeforeUnstake.Error(), "Validate system tx failed")
 
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{

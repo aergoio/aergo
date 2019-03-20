@@ -7,6 +7,12 @@ const AergoName = "aergo.name"
 
 const MaxCandidates = 30
 
+const VoteBP = "v1voteBP"
+const VoteFee = "v1voteFee"
+const VoteNumBP = "v1voteNumBP"
+const VoteNamePrice = "v1voteNamePrice"
+const VoteMinStaking = "v1voteMinStaking"
+
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {
 	result := new(big.Int).SetBytes(vl.Votes[i].Amount).Cmp(new(big.Int).SetBytes(vl.Votes[j].Amount))

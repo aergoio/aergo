@@ -12,9 +12,6 @@ import (
 )
 
 //governance type transaction which has aergo.system in recipient
-const VoteBP = "v1voteBP"
-const VoteFee = "v1voteFee"
-const VoteNumBP = "v1voteNumBP"
 
 const Stake = "v1stake"
 const Unstake = "v1unstake"
@@ -148,12 +145,18 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case VoteNumBP:
+	case VoteNumBP,
+		VoteNamePrice,
+		VoteMinStaking:
 		for i, v := range ci.Args {
 			if i > 1 {
 				return ErrTxInvalidPayload
 			}
-			if _, ok := v.(string); !ok {
+			vstr, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
+			}
+			if _, ok := new(big.Int).SetString(vstr, 10); !ok {
 				return ErrTxInvalidPayload
 			}
 		}

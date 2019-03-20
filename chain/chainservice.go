@@ -389,13 +389,16 @@ func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.Accoun
 			return nil, err
 		}
 		var candidates []string
+		to := vote.GetCandidate()
+		if len(to) == 0 {
+			continue
+		}
 		if id == types.VoteBP[2:] {
-			to := vote.GetCandidate()
 			for offset := 0; offset < len(to); offset += system.PeerIDLength {
 				candidates = append(candidates, types.EncodeB58(to[offset:offset+system.PeerIDLength]))
 			}
 		} else {
-			err := json.Unmarshal(vote.GetCandidate(), &candidates)
+			err := json.Unmarshal(to, &candidates)
 			if err != nil {
 				return nil, err
 			}

@@ -103,7 +103,12 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 
 func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
 	blockNo types.BlockNo) error {
-	var allVote = [][]byte{[]byte(types.VoteBP[2:]), []byte(types.VoteNumBP[2:])}
+	var allVote = [][]byte{
+		[]byte(types.VoteBP[2:]),
+		[]byte(types.VoteNumBP[2:]),
+		[]byte(types.VoteNamePrice[2:]),
+		[]byte(types.VoteMinStaking[2:]),
+	}
 	for _, key := range allVote {
 		oldvote, err := getVote(scs, key, sender.ID())
 		if err != nil {
@@ -112,7 +117,6 @@ func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 		if oldvote.Amount == nil {
 			continue
 		}
-
 		voteResult, err := loadVoteResult(scs, key)
 		if err != nil {
 			return err
@@ -136,7 +140,6 @@ func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -192,12 +195,12 @@ type AccountStateReader interface {
 }
 
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(ar AccountStateReader, title []byte, n int) (*types.VoteList, error) {
+func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, error) {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	return getVoteResult(scs, title, n)
+	return getVoteResult(scs, id, n)
 }
 
 // GetRankers returns the IDs of the top n rankers.
