@@ -6,6 +6,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -47,6 +48,9 @@ func (stubC *StubConsensus) NeedReorganization(rootNo types.BlockNo) bool {
 }
 func (stubC *StubConsensus) Info() string {
 	return ""
+}
+func (stubC *StubConsensus) GetType() consensus.ConsensusType {
+	return consensus.ConsensusSBP
 }
 
 func makeBlockChain() *ChainService {

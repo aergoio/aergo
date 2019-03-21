@@ -60,7 +60,7 @@ type SimpleBlockFactory struct {
 
 // GetName returns the name of the consensus.
 func GetName() string {
-	return "sbp"
+	return consensus.ConsensusName[consensus.ConsensusSBP]
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -113,6 +113,10 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		s.prevBlock = b
 		jq <- b
 	}
+}
+
+func (s *SimpleBlockFactory) GetType() consensus.ConsensusType {
+	return consensus.ConsensusSBP
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -211,4 +215,8 @@ func (s *SimpleBlockFactory) JobQueue() chan<- interface{} {
 // information.
 func (s *SimpleBlockFactory) Info() string {
 	return consensus.NewInfo(GetName()).AsJSON()
+}
+
+func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
+	return &types.ConsensusInfo{}
 }

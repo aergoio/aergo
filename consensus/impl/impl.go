@@ -13,11 +13,12 @@ import (
 	"github.com/aergoio/aergo/consensus/impl/raft"
 	"github.com/aergoio/aergo/consensus/impl/sbp"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/types"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService, pa types.PeerAccessor) (consensus.Consensus, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService, pa types.PeerAccessor, rpcSvc *rpc.RPC) (consensus.Consensus, error) {
 	var (
 		c   consensus.Consensus
 		err error
@@ -36,6 +37,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService
 	if c, err = newConsensus(cfg, hub, cs); err == nil {
 		// Link mutual references.
 		cs.SetChainConsensus(c)
+		rpcSvc.SetConsensusAccessor(c)
 	}
 
 	return c, err

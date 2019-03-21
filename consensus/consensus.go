@@ -57,10 +57,15 @@ type Constructor func() (Consensus, error)
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
 	ChainConsensus
+	ConsensusAccessor
 	Ticker() *time.Ticker
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
+}
+
+type ConsensusAccessor interface {
+	ConsensusInfo() *types.ConsensusInfo
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -72,8 +77,19 @@ type ChainDB interface {
 	NewTx() db.Transaction
 }
 
+type ConsensusType int
+
+const (
+	ConsensusDPOS ConsensusType = iota
+	ConsensusRAFT
+	ConsensusSBP
+)
+
+var ConsensusName = []string{"dpos", "raft", "sbp"}
+
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
+	GetType() ConsensusType
 	IsTransactionValid(tx *types.Tx) bool
 	VerifyTimestamp(block *types.Block) bool
 	VerifySign(block *types.Block) error
