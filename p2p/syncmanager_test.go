@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/chain"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
