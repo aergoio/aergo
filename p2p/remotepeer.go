@@ -75,7 +75,7 @@ type remotePeerImpl struct {
 
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
-	lastNotice   *p2pcommon.LastBlockStatus
+	lastNotice   *types.LastBlockStatus
 
 	txQueueLock         *sync.Mutex
 	txNoticeQueue       *p2putil.PressableQueue
@@ -96,7 +96,7 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
-		lastNotice: &p2pcommon.LastBlockStatus{},
+		lastNotice: &types.LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 
@@ -151,7 +151,7 @@ func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
 }
 
-func (p *remotePeerImpl) LastNotice() *p2pcommon.LastBlockStatus {
+func (p *remotePeerImpl) LastNotice() *types.LastBlockStatus {
 	return p.lastNotice
 }
 
@@ -491,7 +491,7 @@ func (p *remotePeerImpl) UpdateTxCache(hashes []types.TxID) []types.TxID {
 }
 
 func (p *remotePeerImpl) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
-	p.lastNotice = &p2pcommon.LastBlockStatus{time.Now(), blkHash, blkNumber}
+	p.lastNotice = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

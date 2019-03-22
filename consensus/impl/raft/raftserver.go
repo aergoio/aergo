@@ -51,9 +51,10 @@ type raftServer struct {
 
 	id          uint64   // client ID for raft session
 	peers       []string // raft peer URLs
-	join        bool     // node is joining an existing cluster
-	waldir      string   // path to WAL directory
-	snapdir     string   // path to snapshot directory
+	listenUrl   string
+	join        bool   // node is joining an existing cluster
+	waldir      string // path to WAL directory
+	snapdir     string // path to snapshot directory
 	getSnapshot func() ([]byte, error)
 	lastIndex   uint64 // index of log at start
 
@@ -83,6 +84,8 @@ type raftServer struct {
 	startSync  bool // maybe this flag is unnecessary
 	lock       sync.RWMutex
 	promotable bool
+
+	tickMS time.Duration
 }
 
 type LeaderStatus struct {
@@ -98,9 +101,10 @@ var snapshotCatchUpEntriesN uint64 = 10000
 // provided the proposal channel. All log entries are replayed over the
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
-func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir string,
+func newRaftServer(id uint64, listenUrl string, peers []string, join bool, waldir string, snapdir string,
 	certFile string, keyFile string,
-	getSnapshot func() ([]byte, error), proposeC <-chan string,
+	getSnapshot func() ([]byte, error), tickMS time.Duration,
+	proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange,
 	delayPromote bool) *raftServer {
 
@@ -113,6 +117,7 @@ func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir 
 		commitC:     commitC,
 		errorC:      errorC,
 		id:          id,
+		listenUrl:   listenUrl,
 		peers:       peers,
 		join:        join,
 		waldir:      waldir,
@@ -131,13 +136,16 @@ func newRaftServer(id uint64, peers []string, join bool, waldir string, snapdir 
 
 		lock:       sync.RWMutex{},
 		promotable: true,
+		tickMS:     tickMS,
+	}
+
+	if listenUrl == "" {
+		rs.listenUrl = peers[rs.id-1]
 	}
 
 	if delayPromote {
 		rs.SetPromotable(false)
 	}
-
-	go rs.startRaft()
 
 	return rs
 }
@@ -154,6 +162,10 @@ func (rs *raftServer) GetPromotable() bool {
 	rs.lock.RUnlock()
 
 	return val
+}
+
+func (rs *raftServer) Start() {
+	go rs.startRaft()
 }
 
 func (rs *raftServer) startRaft() {
@@ -249,7 +261,7 @@ func (rs *raftServer) serveChannels() {
 
 	defer rs.wal.Close()
 
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(rs.tickMS)
 	defer ticker.Stop()
 
 	// send proposals over raft
@@ -324,7 +336,7 @@ func (rs *raftServer) serveChannels() {
 }
 
 func (rs *raftServer) serveRaft() {
-	urlstr := rs.peers[rs.id-1]
+	urlstr := rs.listenUrl
 	urlData, err := url.Parse(urlstr)
 	if err != nil {
 		logger.Fatal().Err(err).Str("url", urlstr).Msg("Failed parsing URL")
@@ -595,4 +607,12 @@ func (rs *raftServer) GetLeader() uint64 {
 
 func (rs *raftServer) IsLeader() bool {
 	return rs.id == rs.GetLeader()
+}
+
+func (rs *raftServer) Status() raftlib.Status {
+	if rs.node == nil {
+		return raftlib.Status{}
+	}
+
+	return rs.node.Status()
 }

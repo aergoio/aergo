@@ -14,12 +14,6 @@ import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
 )
 
-type LastBlockStatus struct {
-	CheckTime   time.Time
-	BlockHash   []byte
-	BlockNumber uint64
-}
-
 type RemotePeer interface {
 	ID() peer.ID
 	Meta() PeerMeta
@@ -27,7 +21,7 @@ type RemotePeer interface {
 	Name() string
 
 	State() types.PeerState
-	LastNotice() *LastBlockStatus
+	LastNotice() *types.LastBlockStatus
 
 	RunPeer()
 	Stop()
@@ -100,6 +94,8 @@ type PeerManager interface {
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 	GetPeers() []RemotePeer
 	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
+
+	GetPeerBlockInfos() []types.PeerBlockInfo
 }
 type SyncManager interface {
 	// handle notice from bp

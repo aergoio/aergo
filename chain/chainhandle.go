@@ -745,10 +745,13 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 
 	recipient := name.Resolve(bs, txBody.Recipient)
 	var receiver *state.V
+	var status string
 	if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
+		status = "SUCCESS"
 	} else {
 		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
+		status = "CREATED"
 	}
 	if err != nil {
 		return err
@@ -781,6 +784,8 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 		if sErr != nil {
 			return sErr
 		}
+		status = "ERROR"
+		rv = err.Error()
 	} else {
 		sender.SetNonce(txBody.Nonce)
 		err = sender.PutState()
@@ -796,14 +801,7 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 	}
 	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 
-	var receipt *types.Receipt
-	if err != nil {
-		receipt = types.NewReceipt(receiver.ID(), err.Error(), "")
-	} else if receiver.IsNew() && txBody.Recipient == nil {
-		receipt = types.NewReceipt(receiver.ID(), "CREATED", rv)
-	} else {
-		receipt = types.NewReceipt(receiver.ID(), "SUCCESS", rv)
-	}
+	receipt := types.NewReceipt(receiver.ID(), status, rv)
 	receipt.FeeUsed = txFee.Bytes()
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events

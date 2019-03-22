@@ -278,7 +278,9 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s inet
 	rw, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
 	if err != nil {
 		pm.logger.Debug().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
-		pm.sendGoAway(rw, err.Error())
+		if rw != nil {
+			pm.sendGoAway(rw, err.Error())
+		}
 		return meta, false
 	}
 	// update peer meta info using sent information from remote peer
@@ -520,6 +522,16 @@ func (pm *peerManager) GetPeers() []p2pcommon.RemotePeer {
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	return pm.peerCache
+}
+
+func (pm *peerManager) GetPeerBlockInfos() []types.PeerBlockInfo {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	infos := make([]types.PeerBlockInfo, len(pm.peerCache))
+	for i, peer := range pm.peerCache {
+		infos[i] = peer
+	}
+	return infos
 }
 
 func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo {

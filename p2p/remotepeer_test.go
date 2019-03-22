@@ -341,7 +341,7 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
-			target.lastNotice = &p2pcommon.LastBlockStatus{BlockHash: test.prevLastBlk[:], BlockNumber: 0, CheckTime: time.Now()}
+			target.lastNotice = &types.LastBlockStatus{BlockHash: test.prevLastBlk[:], BlockNumber: 0, CheckTime: time.Now()}
 			actual := target.UpdateBlkCache(test.hash[:], 0)
 			assert.Equal(t, test.expected, actual)
 			assert.True(t, bytes.Equal(test.hash[:], target.LastNotice().BlockHash))

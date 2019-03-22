@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -25,65 +26,83 @@ var (
 
 const (
 	DefaultMarginChainDiff = 1
+	DefaultTickMS          = time.Millisecond * 30
 )
 
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	useTls := true
 	var err error
 
-	lenBPs := len(cfg.Consensus.RaftBPs)
-	raftID := cfg.Consensus.RaftID
+	raftConfig := cfg.Consensus.Raft
+	if raftConfig == nil {
+		panic("raftconfig is not set. please set raftID, raftBPs.")
+	}
+
+	//set default
+	if raftConfig.RaftTick != 0 {
+		RaftTick = time.Duration(raftConfig.RaftTick * 1000000)
+	}
+
+	lenBPs := len(raftConfig.RaftBPs)
+	raftID := raftConfig.RaftID
 
 	bf.bpc = NewCluster(bf, raftID, uint16(lenBPs))
 
-	if raftID <= 0 || raftID > uint64(len(cfg.Consensus.RaftBPs)) {
+	if raftID <= 0 || raftID > uint64(lenBPs) {
 		logger.Error().Err(err).Msg("raft raftID has the following values: 1 <= raft raftID <= len(bpcount)")
 
 		return ErrInvalidRaftID
 	}
 
-	if useTls, err = validateTLS(cfg.Consensus); err != nil {
+	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).
-			Str("key", cfg.Consensus.RaftKeyFile).
-			Str("cert", cfg.Consensus.RaftCertFile).
+			Str("key", raftConfig.RaftKeyFile).
+			Str("cert", raftConfig.RaftCertFile).
 			Msg("failed to validate tls config for raft")
 		return err
 	}
 
-	if err = bf.bpc.addMembers(cfg.Consensus, useTls); err != nil {
+	if raftConfig.RaftListenUrl != "" {
+		if err := isValidURL(raftConfig.RaftListenUrl, useTls); err != nil {
+			logger.Error().Err(err).Msg("failed to validate listen url for raft")
+			return err
+		}
+	}
+
+	if err = bf.bpc.addMembers(raftConfig, useTls); err != nil {
 		logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
 		return err
 	}
 
-	RaftSkipEmptyBlock = cfg.Consensus.RaftSkipEmpty
+	RaftSkipEmptyBlock = raftConfig.RaftSkipEmpty
 
-	logger.Info().Msg(bf.bpc.toString())
+	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
 }
 
-func validateTLS(consCfg *config.ConsensusConfig) (bool, error) {
-	if len(consCfg.RaftCertFile) == 0 && len(consCfg.RaftKeyFile) == 0 {
+func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
+	if len(raftCfg.RaftCertFile) == 0 && len(raftCfg.RaftKeyFile) == 0 {
 		return false, nil
 	}
 
 	//두 파일이 모두 설정되어 있는지 확인
 	//실제 file에 존재하는지 확인
-	if len(consCfg.RaftCertFile) == 0 || len(consCfg.RaftKeyFile) == 0 {
-		logger.Error().Str("raftcertfile", consCfg.RaftCertFile).Str("raftkeyfile", consCfg.RaftKeyFile).
+	if len(raftCfg.RaftCertFile) == 0 || len(raftCfg.RaftKeyFile) == 0 {
+		logger.Error().Str("raftcertfile", raftCfg.RaftCertFile).Str("raftkeyfile", raftCfg.RaftKeyFile).
 			Msg(ErrRaftEmptyTLSFile.Error())
 		return false, ErrRaftEmptyTLSFile
 	}
 
-	if len(consCfg.RaftCertFile) != 0 {
-		if _, err := os.Stat(consCfg.RaftCertFile); err != nil {
+	if len(raftCfg.RaftCertFile) != 0 {
+		if _, err := os.Stat(raftCfg.RaftCertFile); err != nil {
 			logger.Error().Err(err).Msg("not exist certificate file for raft")
 			return false, err
 		}
 	}
 
-	if len(consCfg.RaftKeyFile) != 0 {
-		if _, err := os.Stat(consCfg.RaftKeyFile); err != nil {
+	if len(raftCfg.RaftKeyFile) != 0 {
+		if _, err := os.Stat(raftCfg.RaftKeyFile); err != nil {
 			logger.Error().Err(err).Msg("not exist Key file for raft")
 			return false, err
 		}
@@ -119,11 +138,14 @@ func isValidID(raftID uint64, lenBps int) error {
 	return nil
 }
 
-func (cc *Cluster) addMembers(consCfg *config.ConsensusConfig, useTls bool) error {
-	lenBPs := len(consCfg.RaftBPs)
+func (cc *Cluster) addMembers(raftCfg *config.RaftConfig, useTls bool) error {
+	lenBPs := len(raftCfg.RaftBPs)
+	if lenBPs == 0 {
+		return fmt.Errorf("config of raft bp is empty")
+	}
 
 	// validate each bp
-	for i, raftBP := range consCfg.RaftBPs {
+	for i, raftBP := range raftCfg.RaftBPs {
 		if uint64(i+1) != raftBP.ID {
 			return ErrInvalidRaftBPID
 		}

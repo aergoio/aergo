@@ -58,7 +58,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 			return nil, types.ErrMustStakeBeforeVote
 		}
-		oldvote, err := GetVote(scs, account)
+		oldvote, err := GetVote(scs, account, []byte(ci.Name[2:]))
 		if err != nil {
 			return nil, err
 		}

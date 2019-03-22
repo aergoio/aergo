@@ -814,10 +814,10 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 	if len(in.Value) == 8 {
 		number = int(binary.LittleEndian.Uint64(in.Value))
 		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
+			&message.GetElected{Title: types.VoteBP[2:], N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
 	} else if len(in.Value) == types.AddressLength {
 		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
+			&message.GetVote{Addr: in.Value, Title: types.VoteBP[2:]}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
 	} else {
 		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
 	}

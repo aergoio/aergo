@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
@@ -115,9 +115,9 @@ func TestPeerManager_GetPeers(t *testing.T) {
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice: &p2pcommon.LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice: &p2pcommon.LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice: &p2pcommon.LastBlockStatus{}}
+	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice: &types.LastBlockStatus{}}
+	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice: &types.LastBlockStatus{}}
+	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice: &types.LastBlockStatus{}}
 	tests := []struct {
 		name string
 	}{

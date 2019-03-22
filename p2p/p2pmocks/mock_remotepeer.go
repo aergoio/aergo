@@ -78,10 +78,10 @@ func (mr *MockRemotePeerMockRecorder) ID() *gomock.Call {
 }
 
 // LastNotice mocks base method
-func (m *MockRemotePeer) LastNotice() *p2pcommon.LastBlockStatus {
+func (m *MockRemotePeer) LastNotice() *types.LastBlockStatus {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LastNotice")
-	ret0, _ := ret[0].(*p2pcommon.LastBlockStatus)
+	ret0, _ := ret[0].(*types.LastBlockStatus)
 	return ret0
 }
 

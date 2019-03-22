@@ -179,9 +179,12 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(`","contractAddress":"`)
 	b.WriteString(EncodeAddress(r.ContractAddress))
 	b.WriteString(`","status":"`)
-	b.WriteString(strings.Replace(r.Status, "\"", "'", -1))
+	b.WriteString(r.Status)
 	if len(r.Ret) == 0 {
 		b.WriteString(`","ret": {}`)
+	} else if r.Status == "ERROR" {
+		b.WriteString(`","ret": "`)
+		b.WriteString(fmt.Sprintf("%s\"", strings.Replace(r.Ret, "\"", "'", -1)))
 	} else {
 		b.WriteString(`","ret": `)
 		b.WriteString(r.Ret)

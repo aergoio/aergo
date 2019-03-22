@@ -119,7 +119,8 @@ func TestParseMultiaddrWithResolve(t *testing.T) {
 		{"TIP4AndPort", "/ip4/192.168.0.58/tcp/11002", []net.IP{net.ParseIP("192.168.0.58")}, "11002", false},
 		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{net.ParseIP("FE80::0202:B3FF:FE1E:8329")}, "11003", false},
 		//FIXME
-		//{"TDomainName", "/dns/aergo.io/tcp/11004/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{net.ParseIP("104.20.141.102"), net.ParseIP("104.20.160.59")}, "11004", false},
+		// skip case, since it depend on external environment. uncomment it if really need, and comment back after finishing test
+		//{"TDomainName", "/dns/aergo.io/tcp/11004/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{net.ParseIP("104.20.161.59"), net.ParseIP("104.20.160.59")}, "11004", false},
 		{"TInvalidDomain", "/dns/nowhere.a.aergo.io/tcp/11004/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{}, "", true},
 		{"TWrongProto", "/ipx/192.168.0.58/tcp/11004/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{}, "", true},
 		// TODO: Add test cases.
