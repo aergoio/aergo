@@ -116,7 +116,10 @@ func (c *Cluster) genesisBpList() []string {
 
 // BPs returns BP information about each BP in JSON.
 func (c *Cluster) BPs() []string {
-	if c.Size() == 0 {
+	c.Lock()
+	defer c.Unlock()
+
+	if c == nil || c.Size() == 0 || len(c.member) != int(c.Size()) {
 		return nil
 	}
 	bps := make([]string, c.Size())

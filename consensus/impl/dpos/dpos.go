@@ -255,10 +255,15 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 
 // ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
-	return &types.ConsensusInfo{
-		Type: GetName(),
-		Bps:  dpos.bpc.BPs(),
+	dpos.RLock()
+	defer dpos.RUnlock()
+
+	ci := &types.ConsensusInfo{Type: GetName()}
+	if dpos.done {
+		ci.Bps = dpos.bpc.BPs()
 	}
+
+	return ci
 }
 
 func isBpTiming(block *types.Block, s *slot.Slot) bool {
