@@ -59,23 +59,21 @@ typedef enum type_e {
     TYPE_UINT64     = 9,
     TYPE_INT128     = 10,
     TYPE_UINT128    = 11,
-    TYPE_INT256     = 12,
-    TYPE_UINT256    = 13,
-    TYPE_FLOAT      = 14,
-    TYPE_DOUBLE     = 15,
-    TYPE_STRING     = 16,
+    TYPE_FLOAT      = 12,
+    TYPE_DOUBLE     = 13,
+    TYPE_STRING     = 14,
     TYPE_COMPATIBLE = TYPE_STRING,
 
-    TYPE_ACCOUNT    = 17,
-    TYPE_STRUCT     = 18,
+    TYPE_ACCOUNT    = 15,
+    TYPE_STRUCT     = 16,
     TYPE_COMPARABLE = TYPE_STRUCT,
 
-    TYPE_MAP        = 19,
-    TYPE_OBJECT     = 20,           /* contract, interface or null */
-    TYPE_CURSOR     = 21,
+    TYPE_MAP        = 17,
+    TYPE_OBJECT     = 18,           /* contract, interface or null */
+    TYPE_CURSOR     = 19,
 
-    TYPE_VOID       = 22,           /* return type of function */
-    TYPE_TUPLE      = 23,           /* tuple expression */
+    TYPE_VOID       = 20,           /* return type of function */
+    TYPE_TUPLE      = 21,           /* tuple expression */
     TYPE_MAX
 } type_t;
 

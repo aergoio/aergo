@@ -106,7 +106,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_INT32         "int32"
         K_INT64         "int64"
         K_INT128        "int128"
-        K_INT256        "int256"
         K_INTERFACE     "interface"
         K_LIBRARY       "library"
         K_MAP           "map"
@@ -129,7 +128,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_UINT32        "uint32"
         K_UINT64        "uint64"
         K_UINT128       "uint128"
-        K_UINT256       "uint256"
         K_UPDATE        "update"
         K_VIEW          "view"
 
@@ -420,14 +418,12 @@ prim_type:
 |   K_INT32             { $$ = TYPE_INT32; }
 |   K_INT64             { $$ = TYPE_INT64; }
 |   K_INT128            { $$ = TYPE_INT128; }
-|   K_INT256            { $$ = TYPE_INT256; }
 |   K_INT               { $$ = TYPE_INT32; }
 |   K_UINT8             { $$ = TYPE_UINT8; }
 |   K_UINT16            { $$ = TYPE_UINT16; }
 |   K_UINT32            { $$ = TYPE_UINT32; }
 |   K_UINT64            { $$ = TYPE_UINT64; }
 |   K_UINT128           { $$ = TYPE_UINT128; }
-|   K_UINT256           { $$ = TYPE_UINT256; }
 |   K_UINT              { $$ = TYPE_UINT32; }
 //|   K_FLOAT             { $$ = TYPE_FLOAT; }
 //|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
@@ -1353,24 +1349,18 @@ literal:
     }
 |   L_INT
     {
-        uint64_t v;
-
-        sscanf($1, "%"SCNu64, &v);
-        $$ = exp_new_lit_i64(v, &@$);
+        $$ = exp_new_lit_int(0, &@$);
+        mpz_set_str(val_mpz(&$$->u_lit.val), $1, 10);
     }
 |   L_OCTAL
     {
-        uint64_t v;
-
-        sscanf($1, "%"SCNo64, &v);
-        $$ = exp_new_lit_i64(v, &@$);
+        $$ = exp_new_lit_int(0, &@$);
+        mpz_set_str(val_mpz(&$$->u_lit.val), $1, 8);
     }
 |   L_HEX
     {
-        uint64_t v;
-
-        sscanf($1, "%"SCNx64, &v);
-        $$ = exp_new_lit_i64(v, &@$);
+        $$ = exp_new_lit_int(0, &@$);
+        mpz_set_str(val_mpz(&$$->u_lit.val), $1, 16);
     }
 |   L_FLOAT
     {

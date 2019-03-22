@@ -29,6 +29,14 @@ contract test {
     uint64 ui8 = 18446744073709551615;
 
     /*
+    int128 i9 = 170141183460469231731687303715884105727;
+    int128 i10 = -170141183460469231731687303715884105728;
+
+    uint128 ui9 = 0;
+    uint128 ui10 = 340282366920938463463374607431768211455;
+    */
+
+    /*
     float f1 = 1.0;
     float f2 = +1.1;
     float f3 = -1.2;
@@ -52,7 +60,7 @@ contract test {
 }
 
 @test(numeric_overflow)
-@error(ERROR_NUMERIC_OVERFLOW,17)
+@error(ERROR_NUMERIC_OVERFLOW,18)
 contract test {
     byte b1 = -1;
     byte b2 = 257;
@@ -79,6 +87,7 @@ contract test {
     int64 i8 = -9223372036854775809;
 
     uint64 ui7 = -1;
+    uint64 ui8 = 18446744073709551616;
 
     /*
     float f1 = -340282446638528959811704183484516925441.000000;

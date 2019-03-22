@@ -9,10 +9,9 @@
 #include "common.h"
 
 #define is_null_val(val)            ((val)->size == 0)
-#define is_signed_val(val)          ((val)->is_neg)
 
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
-#define is_i64_val(val)             ((val)->type == TYPE_UINT64)
+#define is_int_val(val)             ((val)->type == TYPE_UINT128)
 #define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)
 #define is_str_val(val)             ((val)->type == TYPE_STRING)
 #define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
@@ -21,12 +20,27 @@
 #define val_size(val)               ((val)->size)
 
 #define val_bool(val)               ((val)->b)
-#define val_i64(val)                ((val)->is_neg ? -(val)->i64 : (val)->i64)
+#define val_mpz(val)                ((val)->z)
 #define val_f64(val)                ((val)->d)
 #define val_str(val)                ((char *)((val)->ptr))
 
+#define val_i64(val)                mpz_get_ui((val)->z)
+
 #define is_zero_val(val)                                                                 \
-    (is_i64_val(val) ? (val)->i64 == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
+    (is_int_val(val) ? mpz_sgn(val_mpz(val)) == 0 :                                      \
+     (is_f64_val(val) ? (val)->d == 0.0f : false))
+
+#define is_neg_val(val)             (mpz_sgn(val_mpz(val)) < 0)
+
+#define value_init_int(val)                                                              \
+    do {                                                                                 \
+        (val)->type = TYPE_UINT128;                                                      \
+        (val)->size = sizeof(mpz_t);                                                     \
+        (val)->ptr = (val)->z;                                                           \
+        mpz_init2((val)->z, 256);                                                        \
+    } while (0)
+
+#define value_set_null(val)         value_set_ptr(val, NULL, 0)
 
 #define value_set_bool(val, v)                                                           \
     do {                                                                                 \
@@ -36,12 +50,10 @@
         (val)->b = (v);                                                                  \
     } while (0)
 
-#define value_set_i64(val, v)                                                            \
+#define value_set_int(val, v)                                                            \
     do {                                                                                 \
-        (val)->type = TYPE_UINT64;                                                       \
-        (val)->size = sizeof(uint64_t);                                                  \
-        (val)->ptr = &(val)->i64;                                                        \
-        (val)->i64 = (v);                                                                \
+        value_init_int(val);                                                             \
+        mpz_set_ui((val)->z, (v));                                                       \
     } while (0)
 
 #define value_set_f64(val, v)                                                            \
@@ -66,8 +78,6 @@
         (val)->ptr = (v);                                                                \
     } while (0)
 
-#define value_set_null(val)         value_set_ptr(val, NULL, 0)
-
 #ifndef _VALUE_T
 #define _VALUE_T
 typedef struct value_s value_t;
@@ -84,12 +94,11 @@ typedef void (*cast_fn_t)(value_t *);
 struct value_s {
     type_t type;
     int size;
-    bool is_neg;
 
     void *ptr;
     union {
         bool b;
-        uint64_t i64;
+        mpz_t z;
         double d;
         char *s;
     };
@@ -109,75 +118,38 @@ value_init(value_t *val)
     memset(val, 0x00, sizeof(value_t));
 }
 
-static inline void
-value_set_neg(value_t *val, bool is_neg)
-{
-    val->is_neg = is_neg;
-}
-
-static inline void *
-value_ptr(value_t *val, meta_t *meta)
-{
-    void *ptr;
-
-    /* TODO: Until value_t and meta_t are integrated, we have to do this. Because
-     *       meta_eval() determines the actual type of literal, there is no way to refer
-     *       to value at that time */
-
-    switch (val->type) {
-    case TYPE_BOOL:
-        ptr = xmalloc(sizeof(uint32_t));
-        *(uint32_t *)ptr = val_bool(val) ? 1 : 0;
-        return ptr;
-
-    case TYPE_UINT64:
-        if (is_int64_meta(meta) || is_uint64_meta(meta))
-            return val->ptr;
-
-        ptr = xmalloc(sizeof(uint32_t));
-        *(uint32_t *)ptr = (uint32_t)val_i64(val);
-        return ptr;
-
-    case TYPE_DOUBLE:
-        if (is_double_meta(meta))
-            return val->ptr;
-
-        ptr = xmalloc(sizeof(float));
-        *(float *)ptr = (float)val_f64(val);
-        return ptr;
-
-    case TYPE_STRING:
-    case TYPE_OBJECT:
-        return val->ptr;
-
-    default:
-        ASSERT2(!"invalid value", val->type, meta->type);
-    }
-
-    return NULL;
-}
-
 static inline uint32_t
-value_size(value_t *val, meta_t *meta)
+value_serialize(value_t *val, char *buf, meta_t *meta)
 {
     switch (val->type) {
     case TYPE_BOOL:
+        *(uint32_t *)buf = val_bool(val) ? 1 : 0;
         return sizeof(uint32_t);
 
-    case TYPE_UINT64:
-        if (is_int64_meta(meta) || is_uint64_meta(meta))
-            return val->size;
+    case TYPE_UINT128:
+        ASSERT1(!is_int128_meta(meta) && !is_uint128_meta(meta) &&
+                !is_int128_meta(meta) && !is_uint128_meta(meta), meta->type);
 
+        if (is_int64_meta(meta) || is_uint64_meta(meta)) {
+            *(uint64_t *)buf = val_i64(val);
+            return sizeof(uint64_t);
+        }
+
+        *(uint32_t *)buf = (uint32_t)val_i64(val);
         return sizeof(uint32_t);
 
     case TYPE_DOUBLE:
-        if (is_double_meta(meta))
-            return val->size;
+        if (is_double_meta(meta)) {
+            *(double *)buf = val_f64(val);
+            return sizeof(double);
+        }
 
+        *(float *)buf = (float)val_f64(val);
         return sizeof(float);
 
     case TYPE_STRING:
     case TYPE_OBJECT:
+        memcpy(buf, val->ptr, val->size);
         return val->size;
 
     default:

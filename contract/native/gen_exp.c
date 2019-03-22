@@ -22,7 +22,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
     case TYPE_BOOL:
         return i32_gen(gen, val_bool(val) ? 1 : 0);
 
-    case TYPE_UINT64:
+    case TYPE_UINT128:
         if (is_int64_meta(meta) || is_uint64_meta(meta))
             return i64_gen(gen, val_i64(val));
 

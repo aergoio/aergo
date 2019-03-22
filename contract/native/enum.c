@@ -22,8 +22,6 @@ char *type_names_[TYPE_MAX] = {
     "uint64",
     "int128",
     "uint128",
-    "int256",
-    "uint256",
     "float",
     "double",
     "string",
@@ -53,10 +51,8 @@ int type_sizes_[TYPE_MAX] = {
     I32,                /* TYPE_UINT32 */
     I64,                /* TYPE_INT64 */
     I64,                /* TYPE_UINT64 */
-    I64,                /* TYPE_INT128 */
-    I64,                /* TYPE_UINT128 */
-    I64,                /* TYPE_INT256 */
-    I64,                /* TYPE_UINT256 */
+    ADDR,               /* TYPE_INT128 */
+    ADDR,               /* TYPE_UINT128 */
     F32,                /* TYPE_FLOAT */
     F64,                /* TYPE_DOUBLE */
     ADDR,               /* TYPE_STRING */
@@ -80,10 +76,8 @@ int type_bytes_[TYPE_MAX] = {
     sizeof(uint32_t),
     sizeof(int64_t),
     sizeof(uint64_t),
-    sizeof(mpz_t),
-    sizeof(mpz_t),
-    sizeof(mpz_t),
-    sizeof(mpz_t),
+    sizeof(int32_t),
+    sizeof(int32_t),
     sizeof(float),
     sizeof(double),
     sizeof(int32_t),    /* TYPE_STRING */

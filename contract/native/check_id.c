@@ -50,7 +50,7 @@ id_check_array(check_t *check, ast_id_t *id)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
             ASSERT(size_val != NULL);
-            ASSERT1(is_i64_val(size_val), size_val->type);
+            ASSERT1(is_int_val(size_val), size_val->type);
 
             dim_size = val_i64(size_val);
             if (dim_size <= 0)
@@ -161,8 +161,7 @@ id_check_enum(check_t *check, ast_id_t *id)
         if (dflt_exp == NULL) {
             elem_id->val = xmalloc(sizeof(value_t));
 
-            value_init(elem_id->val);
-            value_set_i64(elem_id->val, enum_val);
+            value_set_int(elem_id->val, enum_val);
         }
         else {
             CHECK(exp_check(check, dflt_exp));

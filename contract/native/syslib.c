@@ -104,7 +104,7 @@ syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos)
     ast_exp_t *param_exp;
     vector_t *param_exps = vector_new();
 
-    param_exp = exp_new_lit_i64(size, pos);
+    param_exp = exp_new_lit_int(size, pos);
     meta_set_uint32(&param_exp->meta);
 
     exp_add(param_exps, param_exp);
@@ -130,7 +130,7 @@ syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
     exp_add(param_exps, dest_exp);
     exp_add(param_exps, src_exp);
 
-    param_exp = exp_new_lit_i64(size, pos);
+    param_exp = exp_new_lit_int(size, pos);
     meta_set_uint32(&param_exp->meta);
 
     exp_add(param_exps, param_exp);

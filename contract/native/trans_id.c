@@ -115,7 +115,7 @@ set_stack_addr(ir_fn_t *fn, ast_id_t *id)
     reg_exp = exp_new_reg(fn->stack_idx);
     meta_set_uint32(&reg_exp->meta);
 
-    val_exp = exp_new_lit_i64(fn->stack_usage, pos);
+    val_exp = exp_new_lit_int(fn->stack_usage, pos);
     meta_set_uint32(&val_exp->meta);
 
     bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);

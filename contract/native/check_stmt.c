@@ -292,7 +292,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 
     iter_id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
     iter_id->u_var.size_exps = NULL;
-    iter_id->u_var.dflt_exp = exp_new_lit_i64(0, pos);
+    iter_id->u_var.dflt_exp = exp_new_lit_int(0, pos);
 
     /* Make "arr_idx" expression */
     iter_exp = exp_new_id(iter_id->name, pos);

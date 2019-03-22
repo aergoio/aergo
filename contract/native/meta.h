@@ -20,8 +20,6 @@
 #define is_uint64_type(type)        ((type) == TYPE_UINT64)
 #define is_int128_type(type)        ((type) == TYPE_INT128)
 #define is_uint128_type(type)       ((type) == TYPE_UINT128)
-#define is_int256_type(type)        ((type) == TYPE_INT256)
-#define is_uint256_type(type)       ((type) == TYPE_UINT256)
 #define is_float_type(type)         ((type) == TYPE_FLOAT)
 #define is_double_type(type)        ((type) == TYPE_DOUBLE)
 #define is_string_type(type)        ((type) == TYPE_STRING)
@@ -34,10 +32,10 @@
 
 #define is_signed_type(type)                                                             \
     (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                 \
-     is_int64_type(type) || is_int128_type(type) || is_int256_type(type))
+     is_int64_type(type) || is_int128_type(type))
 #define is_unsigned_type(type)                                                           \
     (is_uint8_type(type) || is_uint16_type(type) || is_uint32_type(type) ||              \
-     is_uint64_type(type) || is_uint128_type(type) || is_uint256_type(type))
+     is_uint64_type(type) || is_uint128_type(type))
 
 #define is_none_meta(meta)          is_none_type((meta)->type)
 #define is_bool_meta(meta)          is_bool_type((meta)->type)
@@ -51,8 +49,6 @@
 #define is_uint64_meta(meta)        is_uint64_type((meta)->type)
 #define is_int128_meta(meta)        is_int128_type((meta)->type)
 #define is_uint128_meta(meta)       is_uint128_type((meta)->type)
-#define is_int256_meta(meta)        is_int256_type((meta)->type)
-#define is_uint256_meta(meta)       is_uint256_type((meta)->type)
 #define is_float_meta(meta)         is_float_type((meta)->type)
 #define is_double_meta(meta)        is_double_type((meta)->type)
 #define is_string_meta(meta)        is_string_type((meta)->type)
@@ -95,8 +91,6 @@
 #define meta_set_uint64(meta)       meta_set((meta), TYPE_UINT64)
 #define meta_set_int128(meta)       meta_set((meta), TYPE_INT128)
 #define meta_set_uint128(meta)      meta_set((meta), TYPE_UINT128)
-#define meta_set_int256(meta)       meta_set((meta), TYPE_INT256)
-#define meta_set_uint256(meta)      meta_set((meta), TYPE_UINT256)
 #define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
 #define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
 #define meta_set_string(meta)       meta_set((meta), TYPE_STRING)

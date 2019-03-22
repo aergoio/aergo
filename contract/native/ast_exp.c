@@ -62,11 +62,11 @@ exp_new_lit_bool(bool v, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_lit_i64(uint64_t v, src_pos_t *pos)
+exp_new_lit_int(uint64_t v, src_pos_t *pos)
 {
     ast_exp_t *exp = exp_new_lit(pos);
 
-    value_set_i64(&exp->u_lit.val, v);
+    value_set_int(&exp->u_lit.val, v);
 
     return exp;
 }

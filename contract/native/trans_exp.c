@@ -21,7 +21,6 @@
 static void
 exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
-    int addr;
     value_t *val = &exp->u_lit.val;
     ir_md_t *md = trans->md;
 
@@ -29,27 +28,20 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     switch (val->type) {
     case TYPE_BOOL:
-    case TYPE_UINT64:
+    case TYPE_UINT128:
     case TYPE_DOUBLE:
         break;
 
     case TYPE_STRING:
-        /* Since "value_set_xxx()" is a macro, we must use the "addr" variable. */
-        addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val) + 1);
-        value_set_i64(val, addr);
+        value_set_int(val, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val) + 1));
         meta_set_uint32(&exp->meta);
         break;
 
     case TYPE_OBJECT:
-        /* Same as above */
-        if (is_null_val(val)) {
-            /* An address value of zero always means a null value. */
-            value_set_i64(val, 0);
-        }
-        else {
-            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
-            value_set_i64(val, addr);
-        }
+        if (is_null_val(val))
+            value_init_int(val);
+        else
+            value_set_int(val, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
         meta_set_uint32(&exp->meta);
         break;
 
@@ -188,7 +180,7 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
         exp_trans(trans, var_exp);
         exp_trans(trans, val_exp);
 
-        lit_exp = exp_new_lit_i64(1, &exp->pos);
+        lit_exp = exp_new_lit_int(1, &exp->pos);
         meta_copy(&lit_exp->meta, &val_exp->meta);
 
         bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp,
@@ -376,7 +368,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_reg(mem_idx);
                 meta_set_uint32(&l_exp->meta);
 
-                r_exp = exp_new_lit_i64(meta->rel_addr, &exp->pos);
+                r_exp = exp_new_lit_int(meta->rel_addr, &exp->pos);
                 meta_set_uint32(&r_exp->meta);
 
                 addr_exp = exp_new_binary(OP_ADD, l_exp, r_exp, &exp->pos);
@@ -437,17 +429,16 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
         }
 
         vector_foreach(elem_exps, i) {
+            uint32_t val_size;
             ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
             meta_t *elem_meta = &elem_exp->meta;
-            void *val_ptr = value_ptr(&elem_exp->u_lit.val, elem_meta);
-            uint32_t val_size = value_size(&elem_exp->u_lit.val, elem_meta);
-
-            ASSERT2(val_size <= meta_bytes(elem_meta), val_size, meta_bytes(elem_meta));
-            ASSERT3(offset + val_size <= size, offset, val_size, size);
 
             offset = ALIGN(offset, meta_align(elem_meta));
 
-            memcpy(raw + offset, val_ptr, val_size);
+            val_size = value_serialize(&elem_exp->u_lit.val, raw + offset, elem_meta);
+            ASSERT2(val_size <= meta_bytes(elem_meta), val_size, meta_bytes(elem_meta));
+            ASSERT3(offset + val_size <= size, offset, val_size, size);
+
             offset += meta_bytes(elem_meta);
         }
 
@@ -488,7 +479,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_mem(reg_idx, 0, offset);
                 meta_set_uint32(&l_exp->meta);
 
-                r_exp = exp_new_lit_i64(meta->dim_sizes[0], &exp->pos);
+                r_exp = exp_new_lit_int(meta->dim_sizes[0], &exp->pos);
                 meta_set_uint32(&r_exp->meta);
 
                 bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
@@ -548,7 +539,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
             l_exp = exp_new_mem(reg_idx, 0, 0);
             meta_set_uint32(&l_exp->meta);
 
-            r_exp = exp_new_lit_i64(meta->dim_sizes[0], &exp->pos);
+            r_exp = exp_new_lit_int(meta->dim_sizes[0], &exp->pos);
             meta_set_uint32(&r_exp->meta);
 
             bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));

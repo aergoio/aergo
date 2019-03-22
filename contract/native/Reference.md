@@ -268,8 +268,8 @@ ASCL에서는 다음과 같은 타입을 지원한다.
 
 <pre>
 <a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
-<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" |
-                 "uint" | "uint8" | "uint16" | "uint32" | "uint64" |
+<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "int128"
+                 "uint" | "uint8" | "uint16" | "uint32" | "uint64" | "uint128"
                  "float" | "double" | "string" | "account" | "cursor" ;
 <a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
@@ -294,11 +294,13 @@ int8      8-bit signed integer       -128 ~ 127
 int16     16-bit signed integer      -32768 ~ 32767
 int32     32-bit signed integer      -2147483648 ~ 2147483647
 int64     64-bit signed integer      -9223372036854775808 ~ 9223372036854775807
+int128    128-bit signed integer     -2^127 ~ (2^127 - 1)
 
 uint8     8-bit unsigned integer     0 ~ 255
 uint16    16-bit unsigned integer    0 ~ 65535
 uint32    32-bit unsigned integer    0 ~ 4294967295
 uint64    64-bit unsigned integer    0 ~ 18446744073709551615
+uint128   128-bit unsigned integer   0 ~ (2^128 - 1)
 ```
 
 ```
@@ -447,9 +449,9 @@ float f = i;        // raise error
 
 ```
 Constant  Comparable types
---------  --------------------------------------------------------------
+--------  -------------------------------------------------------------------------------
 booleans  bool
-integers  byte, int8, int16, int32, int64, uint8, uint16, uint32, uint64
+integers  byte, int8, int16, int32, int64, int128, uint8, uint16, uint32, uint64, uint128
 floats    float, double
 strings   string
 ```

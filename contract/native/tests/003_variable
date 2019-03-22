@@ -1,15 +1,18 @@
 @test(primitive_type)
 contract test {
-    int v1;
-    int8 v2;
+    int8 v1;
+    uint8 v2;
     int16 v3;
-    int32 v4;
-    int64 v5;
-    uint v6;
-    uint8 v7;
-    uint16 v8;
-    uint32 v9;
-    uint64 v10;
+    uint16 v4;
+    int32 v5;
+    uint32 v6;
+    int64 v7;
+    uint64 v8;
+    int128 v9;
+    uint128 v10;
+    int v11;
+    uint v12;
+
     //float v11;
     //double v12;
     bool v13;

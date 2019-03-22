@@ -27,6 +27,7 @@ set(LUAJIT_GIT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/luajit/.git)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
 	set(CFLAGS "CFLAGS=\"-DLJ_ENABLE_DEBUG\"")
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS_DEBUG})
 endif()
 
 set(LMDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/lmdb)
@@ -50,9 +51,9 @@ ExternalProject_Add(libgmp
     BINARY_DIR ${GMP_BUILD_DIR}
     TMP_DIR ${GMP_BUILD_DIR}
     STAMP_DIR ${GMP_BUILD_DIR}
-    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-shared=no
+    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-static=no > /dev/null
     PREFIX ${GMP_SRC_DIR}
-    BUILD_COMMAND $(MAKE) install
+    BUILD_COMMAND $(MAKE) CFLAGS="${CMAKE_C_FLAGS}" install > make.log
     BUILD_ALWAYS 1)
 
 #ExternalProject_Add(libmpfr
@@ -61,7 +62,7 @@ ExternalProject_Add(libgmp
 #    BINARY_DIR ${MPFR_BUILD_DIR}
 #    TMP_DIR ${MPFR_BUILD_DIR}
 #    STAMP_DIR ${MPFR_BUILD_DIR}
-#    CONFIGURE_COMMAND ${MPFR_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-shared=no
+#    CONFIGURE_COMMAND ${MPFR_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-static=no
 #    PREFIX ${MPFR_SRC_DIR}
 #    BUILD_COMMAND $(MAKE) install
 #    BUILD_ALWAYS 1)
@@ -71,10 +72,11 @@ add_custom_target(libtool-clean
     COMMAND rm -rf ${LIB_DIR}/include/*
     COMMAND rm -rf ${LIB_DIR}/bin/*
     COMMAND rm -rf ${LIB_DIR}/share/*
-    DEPENDS libluajit-clean liblmdb-clean)
+    DEPENDS libluajit-clean liblmdb-clean libgmp-clean)
 
 add_custom_target(libluajit-clean $(MAKE) clean WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
 add_custom_target(liblmdb-clean $(MAKE) clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})
+add_custom_target(libgmp-clean $(MAKE) clean > /dev/null WORKING_DIRECTORY ${GMP_BUILD_DIR})
 
 add_subdirectory(src/binaryen)
 add_subdirectory(src/WAVM)

@@ -247,7 +247,6 @@ id                          {L}({L}|{D})*
 "int32"                     yy_return(K_INT32);
 "int64"                     yy_return(K_INT64);
 "int128"                    yy_return(K_INT128);
-"int256"                    yy_return(K_INT256);
 "interface"                 yy_return(K_INTERFACE);
 "library"                   yy_return(K_LIBRARY);
 "map"                       yy_return(K_MAP);
@@ -267,7 +266,6 @@ id                          {L}({L}|{D})*
 "uint32"                    yy_return(K_UINT32);
 "uint64"                    yy_return(K_UINT64);
 "uint128"                   yy_return(K_UINT128);
-"uint256"                   yy_return(K_UINT256);
 
 {alter}                     yy_return(K_ALTER);
 {create}                    yy_return(K_CREATE);

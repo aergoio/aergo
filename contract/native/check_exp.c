@@ -14,15 +14,17 @@
 static bool
 exp_check_lit(check_t *check, ast_exp_t *exp)
 {
+    value_t *val = &exp->u_lit.val;
+
     ASSERT1(is_lit_exp(exp), exp->kind);
 
-    switch (exp->u_lit.val.type) {
+    switch (val->type) {
     case TYPE_BOOL:
         meta_set_bool(&exp->meta);
         break;
 
-    case TYPE_UINT64:
-        meta_set_uint64(&exp->meta);
+    case TYPE_UINT128:
+        meta_set_uint128(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
 
@@ -36,13 +38,13 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
-        ASSERT1(is_null_val(&exp->u_lit.val), val_size(&exp->u_lit.val));
+        ASSERT1(is_null_val(val), val_size(val));
         meta_set_object(&exp->meta, NULL);
         meta_set_undef(&exp->meta);
         break;
 
     default:
-        ASSERT1(!"invalid value", exp->u_lit.val.type);
+        ASSERT1(!"invalid value", val->type);
     }
 
     exp->usable_lval = false;
@@ -191,7 +193,8 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
             /* The "dim_sizes[0]" can be negative if array is used as a parameter */
             if (id_meta->dim_sizes[0] > 0 &&
-                val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0])
+                (is_neg_val(&idx_exp->u_lit.val) ||
+                 val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0]))
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
         }
 
@@ -379,7 +382,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
     case OP_RSHIFT:
     case OP_LSHIFT:
         if (!is_unsigned_meta(r_meta) ||
-            (is_lit_exp(r_exp) && is_signed_val(&r_exp->u_lit.val)))
+            (is_lit_exp(r_exp) && is_neg_val(&r_exp->u_lit.val)))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 
@@ -780,8 +783,12 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, elem_exp));
 
-        if (!is_lit_exp(elem_exp) &&
-            (!is_init_exp(elem_exp) || !elem_exp->u_init.is_aggr))
+        if ((is_lit_exp(elem_exp) &&
+             is_integer_meta(&elem_exp->meta) &&
+             !mpz_fits_slong_p(val_mpz(&elem_exp->u_lit.val)) &&
+             !mpz_fits_ulong_p(val_mpz(&elem_exp->u_lit.val))) ||
+            (!is_lit_exp(elem_exp) &&
+             (!is_init_exp(elem_exp) || !elem_exp->u_init.is_aggr)))
             exp->u_init.is_aggr = false;
     }
 
@@ -827,7 +834,7 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
             ASSERT(size_val != NULL);
-            ASSERT1(is_i64_val(size_val), size_val->type);
+            ASSERT1(is_int_val(size_val), size_val->type);
 
             dim_size = val_i64(size_val);
             if (dim_size <= 0)

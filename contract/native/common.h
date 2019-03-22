@@ -48,6 +48,8 @@ typedef unsigned char bool;
 #define __bool_true_false_are_defined
 #endif
 
+#include "gmp.h"
+
 #include "xalloc.h"
 #include "assert.h"
 #include "src_pos.h"
