@@ -3,7 +3,7 @@
 rm cscope.* 2>/dev/null
 rm tags 2>/dev/null
 
-find `pwd` \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -o -name '*.l' -o -name '*.y' -o -name '*.list' \) -print > cscope.files
+find `pwd` \( -name '*.c' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' -o -name '*.l' -o -name '*.y' -o -name '*.list' \) ! \( -path "*/build/*" \) -print > cscope.files
 cscope -b
 
 ctags -R --c++-kinds=+p --fields=+iaS --extra=+f --exclude=build --sort=no `pwd` 2>/dev/null
