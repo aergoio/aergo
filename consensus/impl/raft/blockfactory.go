@@ -346,7 +346,7 @@ func (bf *BlockFactory) Info() string {
 		return info.AsJSON()
 	}
 
-	b, err := json.Marshal(bf.raftServer.Status())
+	b, err := json.Marshal(bf.bpc.getRaftInfo(false))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to marshal raft consensus")
 	} else {
@@ -359,7 +359,7 @@ func (bf *BlockFactory) Info() string {
 
 func (bf *BlockFactory) ConsensusInfo() *types.ConsensusInfo {
 	if bf.bpc == nil {
-		return &types.ConsensusInfo{Type: GetName(), Info: "", Bps: []string{""}}
+		return &types.ConsensusInfo{Type: GetName()}
 	}
 	return bf.bpc.toConsensusInfo()
 }

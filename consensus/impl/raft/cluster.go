@@ -33,6 +33,13 @@ type Cluster struct {
 	cdb consensus.ChainDB
 }
 
+type RaftInfo struct {
+	Leader uint64
+	Total  uint16
+	RaftId uint64
+	Status *json.RawMessage
+}
+
 type blockProducer struct {
 	RaftID uint64
 	Url    string
@@ -183,17 +190,29 @@ func (cc *Cluster) toString() string {
 	return buf
 }
 
+func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
+	var leader uint64
+	if cl.rs != nil {
+		leader = cl.rs.GetLeader()
+	}
+
+	rinfo := &RaftInfo{Leader: leader, Total: cl.Size, RaftId: cl.ID}
+
+	if withStatus && cl.rs != nil {
+		b, err := cl.rs.Status().MarshalJSON()
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to marshal raft consensus")
+		} else {
+			m := json.RawMessage(b)
+			rinfo.Status = &m
+		}
+	}
+	return rinfo
+}
+
 func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	emptyCons := types.ConsensusInfo{
 		Type: GetName(),
-		Info: "",
-		Bps:  []string{""},
-	}
-
-	type RaftInfo struct {
-		Leader uint64
-		Total  uint16
-		RaftId uint64
 	}
 
 	type PeerInfo struct {
@@ -201,13 +220,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 		PeerID string
 	}
 
-	var leader uint64
-	if cl.rs != nil {
-		leader = cl.rs.GetLeader()
-	}
-
-	info := &RaftInfo{Leader: leader, Total: cl.Size, RaftId: cl.ID}
-	b, err := json.Marshal(info)
+	b, err := json.Marshal(cl.getRaftInfo(true))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to marshal raft consensus")
 		return &emptyCons

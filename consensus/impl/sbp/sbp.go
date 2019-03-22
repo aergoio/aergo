@@ -218,5 +218,5 @@ func (s *SimpleBlockFactory) Info() string {
 }
 
 func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
-	return &types.ConsensusInfo{}
+	return &types.ConsensusInfo{Type: GetName()}
 }
