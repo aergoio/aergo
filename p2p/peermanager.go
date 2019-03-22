@@ -587,7 +587,7 @@ func (pm *peerManager) updatePeerCache() {
 
 func (pm *peerManager) addAwait(meta p2pcommon.PeerMeta) {
 	pm.awaitMutex.Lock()
-	defer pm.awaitMutex.Lock()
+	defer pm.awaitMutex.Unlock()
 	if _, exist := pm.awaitPeers[meta.ID]; exist {
 		return
 	}
@@ -601,7 +601,7 @@ func (pm *peerManager) addAwait(meta p2pcommon.PeerMeta) {
 
 func (pm *peerManager) cancelAwait(id peer.ID) {
 	pm.awaitMutex.Lock()
-	defer pm.awaitMutex.Lock()
+	defer pm.awaitMutex.Unlock()
 	defer func() {
 		if atomic.LoadInt32(&pm.status) == stopping &&
 			len(pm.awaitPeers) == 0 {
