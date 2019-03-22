@@ -253,8 +253,12 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	}
 }
 
+// ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
-	return &types.ConsensusInfo{}
+	return &types.ConsensusInfo{
+		Type: GetName(),
+		Bps:  dpos.bpc.BPs(),
+	}
 }
 
 func isBpTiming(block *types.Block, s *slot.Slot) bool {
