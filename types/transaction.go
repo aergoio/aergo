@@ -114,6 +114,7 @@ func ValidateSystemTx(tx *TxBody) error {
 		return ErrTxInvalidPayload
 	}
 	switch ci.Name {
+	/* should read state db to know staking minimum, because of voting param
 	case Stake:
 		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
 			return ErrTooSmallAmount
@@ -122,6 +123,9 @@ func ValidateSystemTx(tx *TxBody) error {
 		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
 			return ErrTooSmallAmount
 		}
+	*/
+	case Stake,
+		Unstake:
 	case VoteBP:
 		unique := map[string]int{}
 		for i, v := range ci.Args {
@@ -146,6 +150,7 @@ func ValidateSystemTx(tx *TxBody) error {
 			}
 		}
 	case VoteNumBP,
+		VoteFee,
 		VoteNamePrice,
 		VoteMinStaking:
 		for i, v := range ci.Args {
@@ -237,20 +242,12 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, fee *big.Int)
 				return ErrInsufficientBalance
 			}
 		case AergoName:
-			return validateNameTxWithSenderState(senderState, tx.GetBody())
 		default:
 			return ErrTxInvalidRecipient
 		}
 	}
 	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
 		return ErrTxNonceToohigh
-	}
-	return nil
-}
-
-func validateNameTxWithSenderState(s *State, tx *TxBody) error {
-	if tx.GetAmountBigInt().Cmp(s.GetBalanceBigInt()) > 0 {
-		return ErrInsufficientBalance
 	}
 	return nil
 }

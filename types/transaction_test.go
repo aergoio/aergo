@@ -52,7 +52,7 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	transaction.GetTx().GetBody().Recipient = []byte(AergoSystem)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
 	err = transaction.Validate()
-	assert.EqualError(t, ErrTooSmallAmount, err.Error(), "recipient should be aergo.*")
+	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Amount = StakingMinimum.Bytes()
 	transaction.GetTx().Hash = transaction.CalculateTxHash()

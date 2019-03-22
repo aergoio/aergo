@@ -103,13 +103,8 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 
 func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
 	blockNo types.BlockNo) error {
-	var allVote = [][]byte{
-		[]byte(types.VoteBP[2:]),
-		[]byte(types.VoteNumBP[2:]),
-		[]byte(types.VoteNamePrice[2:]),
-		[]byte(types.VoteMinStaking[2:]),
-	}
-	for _, key := range allVote {
+	for _, keystr := range types.AllVotes {
+		key := []byte(keystr[2:])
 		oldvote, err := getVote(scs, key, sender.ID())
 		if err != nil {
 			return err

@@ -13,6 +13,8 @@ const VoteNumBP = "v1voteNumBP"
 const VoteNamePrice = "v1voteNamePrice"
 const VoteMinStaking = "v1voteMinStaking"
 
+var AllVotes = [...]string{VoteBP, VoteFee, VoteNumBP, VoteNamePrice, VoteMinStaking}
+
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {
 	result := new(big.Int).SetBytes(vl.Votes[i].Amount).Cmp(new(big.Int).SetBytes(vl.Votes[j].Amount))

@@ -6,13 +6,17 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
 func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
 	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
-	ci, err := ValidateNameTx(txBody, sender, scs)
+
+	systemContractState, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+
+	ci, err := ValidateNameTx(txBody, sender, scs, systemContractState)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +49,14 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	return events, nil
 }
 
-func ValidateNameTx(tx *types.TxBody, sender *state.V, scs *state.ContractState) (*types.CallInfo, error) {
+func ValidateNameTx(tx *types.TxBody, sender *state.V,
+	scs, systemcs *state.ContractState) (*types.CallInfo, error) {
+
+	namePrice := system.GetNamePrice(systemcs)
+	if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
+		return nil, types.ErrTooSmallAmount
+	}
+
 	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
 		return nil, types.ErrInsufficientBalance
 	}

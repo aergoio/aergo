@@ -75,11 +75,6 @@ func execVote(cmd *cobra.Command, args []string) {
 		to = string(b)
 	}
 	var ci types.CallInfo
-	numberVote := map[string]string{
-		"numofbp":        types.VoteNumBP,
-		"nameprice":      types.VoteNamePrice,
-		"minimumstaking": types.VoteMinStaking,
-	}
 	switch strings.ToLower(election) {
 	case "bp":
 		ci.Name = types.VoteBP
@@ -106,9 +101,10 @@ func execVote(cmd *cobra.Command, args []string) {
 			}
 		}
 	case "numofbp",
+		"fee",
 		"nameprice",
 		"minimumstaking":
-		ci.Name = numberVote[strings.ToLower(election)]
+		ci.Name = getVoteCmd(election)
 		numberArg, ok := new(big.Int).SetString(to, 10)
 		if !ok {
 			cmd.Printf("Failed: %s\n", err.Error())
@@ -198,15 +194,25 @@ func execBP(cmd *cobra.Command, args []string) {
 	cmd.Println("]")
 }
 
-func execParam(cmd *cobra.Command, args []string) {
+func getVoteCmd(param string) string {
 	numberVote := map[string]string{
 		"numofbp":        types.VoteNumBP,
+		"fee":            types.VoteFee,
 		"nameprice":      types.VoteNamePrice,
 		"minimumstaking": types.VoteMinStaking,
 	}
+	return numberVote[election]
+}
+
+func execParam(cmd *cobra.Command, args []string) {
+	id := getVoteCmd(election)
+	if len(id) == 0 {
+		cmd.Printf("Failed: unsupported parameter : %s\n", election)
+		return
+	}
 	msg, err := client.GetVotes(context.Background(), &types.VoteParams{
 		Count: uint32(number),
-		Id:    numberVote[election][2:],
+		Id:    id[2:],
 	})
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())

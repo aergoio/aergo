@@ -24,6 +24,7 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	case types.Stake:
 		event, err = staking(txBody, sender, receiver, scs, blockNo)
 	case types.VoteBP,
+		types.VoteFee,
 		types.VoteNumBP,
 		types.VoteNamePrice,
 		types.VoteMinStaking:
@@ -41,6 +42,28 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	return events, nil
 }
 
+func GetNamePrice(scs *state.ContractState) *big.Int {
+	votelist, err := getVoteResult(scs, []byte(types.VoteNamePrice[2:]), 1)
+	if err != nil {
+		panic("could not get vote result for min staking")
+	}
+	if len(votelist.Votes) == 0 {
+		return types.NamePrice
+	}
+	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
+}
+
+func GetMinimumStaking(scs *state.ContractState) *big.Int {
+	votelist, err := getVoteResult(scs, []byte(types.VoteMinStaking[2:]), 1)
+	if err != nil {
+		panic("could not get vote result for min staking")
+	}
+	if len(votelist.Votes) == 0 {
+		return types.StakingMinimum
+	}
+	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
+}
+
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo uint64) (*types.CallInfo, error) {
 	var ci types.CallInfo
@@ -51,7 +74,8 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	switch ci.Name {
 	case types.Stake:
 		amount := txBody.GetAmountBigInt()
-		if amount.Cmp(types.StakingMinimum) < 0 {
+
+		if amount.Cmp(GetMinimumStaking(scs)) < 0 {
 			return nil, types.ErrTooSmallAmount
 		}
 		if sender != nil && sender.Balance().Cmp(amount) < 0 {
@@ -76,7 +100,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 	case types.Unstake:
 		amount := txBody.GetAmountBigInt()
-		if amount.Cmp(types.StakingMinimum) < 0 {
+		if amount.Cmp(GetMinimumStaking(scs)) < 0 {
 			return nil, types.ErrTooSmallAmount
 		}
 		_, err = validateForUnstaking(account, txBody, scs, blockNo)
