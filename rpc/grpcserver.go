@@ -806,21 +806,11 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*
 }
 
 //GetVotes handle rpc request getvotes
-func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
-	var number int
-	var err error
-	var result interface{}
+func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.VoteParams) (*types.VoteList, error) {
 
-	if len(in.Value) == 8 {
-		number = int(binary.LittleEndian.Uint64(in.Value))
-		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetElected{Title: types.VoteBP[2:], N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
-	} else if len(in.Value) == types.AddressLength {
-		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetVote{Addr: in.Value, Title: types.VoteBP[2:]}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
-	} else {
-		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
-	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetElected{Id: in.GetId(), N: in.GetCount()}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
+
 	if err != nil {
 		return nil, err
 	}
@@ -831,8 +821,27 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 	return rsp.Top, rsp.Err
 }
 
+func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.AccountAddress) (*types.AccountVoteInfo, error) {
+	ids := []string{
+		types.VoteBP[2:],
+		types.VoteNumBP[2:],
+		types.VoteNamePrice[2:],
+		types.VoteMinStaking[2:],
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetVote{Addr: in.Value, Ids: ids}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.GetAccountVoteRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Info, rsp.Err
+}
+
 //GetStaking handle rpc request getstaking
-func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.SingleBytes) (*types.Staking, error) {
+func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.AccountAddress) (*types.Staking, error) {
 	var err error
 	var result interface{}
 

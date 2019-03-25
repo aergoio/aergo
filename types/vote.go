@@ -7,13 +7,24 @@ const AergoName = "aergo.name"
 
 const MaxCandidates = 30
 
+const VoteBP = "v1voteBP"
+const VoteFee = "v1voteFee"
+const VoteNumBP = "v1voteNumBP"
+const VoteNamePrice = "v1voteNamePrice"
+const VoteMinStaking = "v1voteMinStaking"
+
+var AllVotes = [...]string{VoteBP, VoteFee, VoteNumBP, VoteNamePrice, VoteMinStaking}
+
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {
 	result := new(big.Int).SetBytes(vl.Votes[i].Amount).Cmp(new(big.Int).SetBytes(vl.Votes[j].Amount))
 	if result == -1 {
 		return true
 	} else if result == 0 {
-		return new(big.Int).SetBytes(vl.Votes[i].Candidate[7:]).Cmp(new(big.Int).SetBytes(vl.Votes[j].Candidate[7:])) > 0
+		if len(vl.Votes[i].Candidate) == 39 /*peer id length*/ {
+			return new(big.Int).SetBytes(vl.Votes[i].Candidate[7:]).Cmp(new(big.Int).SetBytes(vl.Votes[j].Candidate[7:])) > 0
+		}
+		return new(big.Int).SetBytes(vl.Votes[i].Candidate).Cmp(new(big.Int).SetBytes(vl.Votes[j].Candidate)) > 0
 	}
 	return false
 }

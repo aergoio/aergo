@@ -12,9 +12,6 @@ import (
 )
 
 //governance type transaction which has aergo.system in recipient
-const VoteBP = "v1voteBP"
-const VoteFee = "v1voteFee"
-const VoteNumBP = "v1voteNumBP"
 
 const Stake = "v1stake"
 const Unstake = "v1unstake"
@@ -117,6 +114,7 @@ func ValidateSystemTx(tx *TxBody) error {
 		return ErrTxInvalidPayload
 	}
 	switch ci.Name {
+	/* should read state db to know staking minimum, because of voting param
 	case Stake:
 		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
 			return ErrTooSmallAmount
@@ -125,6 +123,9 @@ func ValidateSystemTx(tx *TxBody) error {
 		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
 			return ErrTooSmallAmount
 		}
+	*/
+	case Stake,
+		Unstake:
 	case VoteBP:
 		unique := map[string]int{}
 		for i, v := range ci.Args {
@@ -148,18 +149,22 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-		/* TODO:
-		case VoteNumBP:
-			for i, v := range ci.Args {
-				if i >= MaxCandidates {
-					return ErrTxInvalidPayload
-				}
-				if _, ok := v.(string); !ok {
-					fmt.Println(v)
-					return ErrTxInvalidPayload
-				}
+	case VoteNumBP,
+		VoteFee,
+		VoteNamePrice,
+		VoteMinStaking:
+		for i, v := range ci.Args {
+			if i > 1 {
+				return ErrTxInvalidPayload
+			}
+			vstr, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
+			}
+			if _, ok := new(big.Int).SetString(vstr, 10); !ok {
+				return ErrTxInvalidPayload
+			}
 		}
-		*/
 	default:
 		return ErrTxInvalidPayload
 	}
@@ -237,20 +242,12 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, fee *big.Int)
 				return ErrInsufficientBalance
 			}
 		case AergoName:
-			return validateNameTxWithSenderState(senderState, tx.GetBody())
 		default:
 			return ErrTxInvalidRecipient
 		}
 	}
 	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
 		return ErrTxNonceToohigh
-	}
-	return nil
-}
-
-func validateNameTxWithSenderState(s *State, tx *TxBody) error {
-	if tx.GetAmountBigInt().Cmp(s.GetBalanceBigInt()) > 0 {
-		return ErrInsufficientBalance
 	}
 	return nil
 }

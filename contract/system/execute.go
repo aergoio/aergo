@@ -23,10 +23,16 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	switch ci.Name {
 	case types.Stake:
 		event, err = staking(txBody, sender, receiver, scs, blockNo)
-	case types.VoteBP:
+	case types.VoteBP,
+		types.VoteFee,
+		types.VoteNumBP,
+		types.VoteNamePrice,
+		types.VoteMinStaking:
 		event, err = voting(txBody, sender, receiver, scs, blockNo, ci)
 	case types.Unstake:
 		event, err = unstaking(txBody, sender, receiver, scs, blockNo, ci)
+	default:
+		err = types.ErrTxInvalidPayload
 	}
 	if err != nil {
 		return nil, err
@@ -34,6 +40,28 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	var events []*types.Event
 	events = append(events, event)
 	return events, nil
+}
+
+func GetNamePrice(scs *state.ContractState) *big.Int {
+	votelist, err := getVoteResult(scs, []byte(types.VoteNamePrice[2:]), 1)
+	if err != nil {
+		panic("could not get vote result for min staking")
+	}
+	if len(votelist.Votes) == 0 {
+		return types.NamePrice
+	}
+	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
+}
+
+func GetMinimumStaking(scs *state.ContractState) *big.Int {
+	votelist, err := getVoteResult(scs, []byte(types.VoteMinStaking[2:]), 1)
+	if err != nil {
+		panic("could not get vote result for min staking")
+	}
+	if len(votelist.Votes) == 0 {
+		return types.StakingMinimum
+	}
+	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
 }
 
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
@@ -45,7 +73,12 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	var err error
 	switch ci.Name {
 	case types.Stake:
-		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
+		amount := txBody.GetAmountBigInt()
+
+		if amount.Cmp(GetMinimumStaking(scs)) < 0 {
+			return nil, types.ErrTooSmallAmount
+		}
+		if sender != nil && sender.Balance().Cmp(amount) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
 	case types.VoteBP,
@@ -66,6 +99,10 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, types.ErrLessTimeHasPassed
 		}
 	case types.Unstake:
+		amount := txBody.GetAmountBigInt()
+		if amount.Cmp(GetMinimumStaking(scs)) < 0 {
+			return nil, types.ErrTooSmallAmount
+		}
 		_, err = validateForUnstaking(account, txBody, scs, blockNo)
 	}
 	if err != nil {

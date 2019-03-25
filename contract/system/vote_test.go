@@ -11,6 +11,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -184,8 +185,9 @@ func TestBasicStakeVoteExUnstake(t *testing.T) {
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
-	testsize := 20
+	testsize := 1
 	tx.Body.Payload = buildVotingPayloadEx(testsize, types.VoteNumBP)
+	t.Log("payload = ", string(tx.Body.Payload))
 	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 	event, err := voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
@@ -230,10 +232,17 @@ func buildVotingPayload(count int) []byte {
 func buildVotingPayloadEx(count int, name string) []byte {
 	var ci types.CallInfo
 	ci.Name = name
-	for i := 0; i < count; i++ {
-		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPublicKey(pub)
-		ci.Args = append(ci.Args, peer.IDB58Encode(pid))
+	switch name {
+	case types.VoteBP:
+		for i := 0; i < count; i++ {
+			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+			pid, _ := peer.IDFromPublicKey(pub)
+			ci.Args = append(ci.Args, peer.IDB58Encode(pid))
+		}
+	case types.VoteNumBP:
+		for i := 12; i < 12+count; i++ {
+			ci.Args = append(ci.Args, strconv.Itoa(i))
+		}
 	}
 	payload, _ := json.Marshal(ci)
 	return payload
