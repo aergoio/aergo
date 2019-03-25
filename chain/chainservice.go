@@ -469,7 +469,6 @@ func newChainWorker(cs *ChainService, cntWorker int, core *Core) *ChainWorker {
 }
 
 func (cm *ChainManager) Receive(context actor.Context) {
-	logger.Debug().Msg("chain manager")
 	switch msg := context.Message().(type) {
 
 	case *message.AddBlock:
@@ -477,8 +476,8 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		defer runtime.UnlockOSThread()
 
 		block := msg.Block
-		logger.Debug().Str("hash", block.ID()).
-			Uint64("blockNo", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
+			Uint64("no", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
 		if msg.Bstate != nil {
