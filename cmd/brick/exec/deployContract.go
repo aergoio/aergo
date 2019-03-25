@@ -80,13 +80,12 @@ func (c *deployContract) Run(args string) (string, error) {
 		return "", err
 	}
 
-	err = context.Get().ConnectBlock(
-		contract.NewLuaTxDef(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
-	)
+	contract.UpdateContractInfo(
+		contract.PlainStrToHexAddr(contractName), defPath)
 
-	if err != nil {
-		return "", err
-	}
+	err = context.Get().ConnectBlock(
+		contract.NewRawLuaTxDef(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
+	)
 
 	Index(context.ContractSymbol, contractName)
 	Index(context.AccountSymbol, contractName)

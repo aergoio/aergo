@@ -2,6 +2,7 @@ package exec
 
 import (
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/contract"
 )
 
 func init() {
@@ -34,6 +35,8 @@ func (c *resetChain) Validate(args string) error {
 func (c *resetChain) Run(args string) (string, error) {
 
 	context.Reset()
+
+	contract.ResetContractInfo()
 
 	return "reset a dummy chain successfully", nil
 }

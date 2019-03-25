@@ -27,7 +27,7 @@ func (c *callContract) Syntax() string {
 }
 
 func (c *callContract) Usage() string {
-	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]`")
+	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]` `[expected_error_str]`")
 }
 
 func (c *callContract) Describe() string {

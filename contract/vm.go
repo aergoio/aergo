@@ -463,16 +463,6 @@ func (ce *Executor) rollbackToSavepoint() error {
 	return nil
 }
 
-func (ce *Executor) setCountHook(limit C.int) {
-	if ce == nil || ce.L == nil {
-		return
-	}
-	if ce.err != nil {
-		return
-	}
-	C.vm_set_count_hook(ce.L, limit)
-}
-
 func (ce *Executor) close() {
 	if ce != nil {
 		FreeLState(ce.L)

@@ -23,7 +23,7 @@ func (c *getStateAccount) Syntax() string {
 }
 
 func (c *getStateAccount) Usage() string {
-	return fmt.Sprintf("getstate <account_name>")
+	return fmt.Sprintf("getstate <account_name> `[expected_balance]`")
 }
 
 func (c *getStateAccount) Describe() string {

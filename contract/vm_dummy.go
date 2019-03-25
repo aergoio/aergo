@@ -230,6 +230,49 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 	}
 }
 
+func getCompiledABI(code string) ([]byte, error) {
+
+	L := luac_util.NewLState()
+	if L == nil {
+		return nil, newVmStartError()
+	}
+	defer luac_util.CloseLState(L)
+	b, err := luac_util.Compile(L, code)
+	if err != nil {
+		return nil, err
+	}
+
+	codeLen := binary.LittleEndian.Uint32(b[:4])
+
+	return b[4+codeLen:], nil
+}
+
+func NewRawLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
+
+	byteAbi, err := getCompiledABI(code)
+	if err != nil {
+		return &luaTxDef{cErr: err}
+	}
+
+	byteCode := []byte(code)
+	payload := make([]byte, 8+len(byteCode)+len(byteAbi))
+	binary.LittleEndian.PutUint32(payload[0:], uint32(len(byteCode)+len(byteAbi)+8))
+	binary.LittleEndian.PutUint32(payload[4:], uint32(len(byteCode)))
+	codeLen := copy(payload[8:], byteCode)
+	copy(payload[8+codeLen:], byteAbi)
+
+	return &luaTxDef{
+		luaTxCommon: luaTxCommon{
+			sender:   strHash(sender),
+			contract: strHash(contract),
+			code:     payload,
+			amount:   new(big.Int).SetUint64(amount),
+			id:       newTxId(),
+		},
+		cErr: nil,
+	}
+}
+
 func strHash(d string) []byte {
 	// using real address
 	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
