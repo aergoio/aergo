@@ -126,11 +126,11 @@ func (c *Cluster) BPs() []string {
 	bps := make([]string, c.Size())
 	for i, bp := range c.member {
 		p := &struct {
-			Index string
-			BP    string
+			Index  string
+			PeerID string
 		}{
-			Index: strconv.FormatUint(uint64(i), 10),
-			BP:    bp.id.Pretty(),
+			Index:  strconv.FormatUint(uint64(i), 10),
+			PeerID: bp.id.Pretty(),
 		}
 
 		m, err := json.Marshal(p)
