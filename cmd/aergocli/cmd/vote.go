@@ -30,7 +30,7 @@ func init() {
 	rootCmd.AddCommand(bpCmd)
 	bpCmd.Flags().Uint64Var(&number, "count", 23, "the number of elected")
 	rootCmd.AddCommand(paramCmd)
-	paramCmd.Flags().StringVar(&election, "election", "numofbp", "block chain parameter")
+	paramCmd.Flags().StringVar(&election, "election", "bp", "block chain parameter")
 }
 
 var voteStatCmd = &cobra.Command{

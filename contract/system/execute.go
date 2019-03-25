@@ -61,7 +61,11 @@ func GetMinimumStaking(scs *state.ContractState) *big.Int {
 	if len(votelist.Votes) == 0 {
 		return types.StakingMinimum
 	}
-	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
+	minimumStaking, ok := new(big.Int).SetString(string(votelist.Votes[0].GetCandidate()), 10)
+	if !ok {
+		panic("could not get vote result for min staking")
+	}
+	return minimumStaking
 }
 
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
