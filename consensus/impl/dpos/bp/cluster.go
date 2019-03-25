@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -125,10 +126,10 @@ func (c *Cluster) BPs() []string {
 	bps := make([]string, c.Size())
 	for i, bp := range c.member {
 		p := &struct {
-			Index int
+			Index string
 			BP    string
 		}{
-			Index: int(i),
+			Index: strconv.FormatUint(uint64(i), 10),
 			BP:    bp.id.Pretty(),
 		}
 
