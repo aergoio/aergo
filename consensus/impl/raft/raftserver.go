@@ -151,15 +151,16 @@ func newRaftServer(id uint64, listenUrl string, peers []string, join bool, waldi
 }
 
 func (rs *raftServer) SetPromotable(val bool) {
+	defer rs.lock.Unlock()
 	rs.lock.Lock()
 	rs.promotable = val
-	rs.lock.Unlock()
 }
 
 func (rs *raftServer) GetPromotable() bool {
+	defer rs.lock.RUnlock()
+
 	rs.lock.RLock()
 	val := rs.promotable
-	rs.lock.RUnlock()
 
 	return val
 }
@@ -196,15 +197,21 @@ func (rs *raftServer) startRaft() {
 		PreVote:         true,
 	}
 
+	var node raftlib.Node
 	if oldwal {
-		rs.node = raftlib.RestartNode(c)
+		node = raftlib.RestartNode(c)
 	} else {
 		startPeers := rpeers
 		if rs.join {
 			startPeers = nil
 		}
-		rs.node = raftlib.StartNode(c, startPeers)
+		node = raftlib.StartNode(c, startPeers)
 	}
+
+	logger.Debug().Msg("raft core node is started")
+
+	// need locking for sync with consensusAccessor
+	rs.setNodeSync(node)
 
 	rs.transport = &rafthttp.Transport{
 		ID:          types.ID(rs.id),
@@ -226,6 +233,23 @@ func (rs *raftServer) startRaft() {
 
 	go rs.serveRaft()
 	go rs.serveChannels()
+}
+
+func (rs *raftServer) setNodeSync(node raftlib.Node) {
+	defer rs.lock.Unlock()
+
+	rs.lock.Lock()
+	rs.node = node
+}
+
+func (rs *raftServer) getNodeSync() raftlib.Node {
+	defer rs.lock.RUnlock()
+
+	var node raftlib.Node
+	rs.lock.RLock()
+	node = rs.node
+
+	return node
 }
 
 // stop closes http, closes all channels, and stops raft.
@@ -610,9 +634,10 @@ func (rs *raftServer) IsLeader() bool {
 }
 
 func (rs *raftServer) Status() raftlib.Status {
-	if rs.node == nil {
+	node := rs.getNodeSync()
+	if node == nil {
 		return raftlib.Status{}
 	}
 
-	return rs.node.Status()
+	return node.Status()
 }
