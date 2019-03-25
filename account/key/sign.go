@@ -84,5 +84,6 @@ func CalculateHashWithoutSign(txBody *types.TxBody) []byte {
 	binary.Write(h, binary.LittleEndian, txBody.Limit)
 	h.Write(txBody.Price)
 	binary.Write(h, binary.LittleEndian, txBody.Type)
+	h.Write(txBody.ChainIDHash)
 	return h.Sum(nil)
 }

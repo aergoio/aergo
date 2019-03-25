@@ -463,6 +463,7 @@ func (tx *Tx) CalculateTxHash() []byte {
 	binary.Write(digest, binary.LittleEndian, txBody.Limit)
 	digest.Write(txBody.Price)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
+	digest.Write(txBody.ChainIDHash)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
@@ -487,15 +488,16 @@ func (tx *Tx) Clone() *Tx {
 		return &Tx{}
 	}
 	body := &TxBody{
-		Nonce:     tx.Body.Nonce,
-		Account:   Clone(tx.Body.Account).([]byte),
-		Recipient: Clone(tx.Body.Recipient).([]byte),
-		Amount:    Clone(tx.Body.Amount).([]byte),
-		Payload:   Clone(tx.Body.Payload).([]byte),
-		Limit:     tx.Body.Limit,
-		Price:     Clone(tx.Body.Price).([]byte),
-		Type:      tx.Body.Type,
-		Sign:      Clone(tx.Body.Sign).([]byte),
+		Nonce:       tx.Body.Nonce,
+		Account:     Clone(tx.Body.Account).([]byte),
+		Recipient:   Clone(tx.Body.Recipient).([]byte),
+		Amount:      Clone(tx.Body.Amount).([]byte),
+		Payload:     Clone(tx.Body.Payload).([]byte),
+		Limit:       tx.Body.Limit,
+		Price:       Clone(tx.Body.Price).([]byte),
+		Type:        tx.Body.Type,
+		ChainIDHash: Clone(tx.Body.ChainIDHash).([]byte),
+		Sign:        Clone(tx.Body.Sign).([]byte),
 	}
 	res := &Tx{
 		Body: body,
