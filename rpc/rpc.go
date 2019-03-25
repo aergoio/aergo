@@ -37,13 +37,14 @@ type RPC struct {
 	actualServer  *AergoRPCService
 	httpServer    *http.Server
 
-	ca types.ChainAccessor
+	ca      types.ChainAccessor
+	version string
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
 
 // NewRPC create an rpc service
-func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
+func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version string) *RPC {
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
 		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
@@ -77,6 +78,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,
 		ca:            chainAccessor,
+		version:       version,
 	}
 	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
 	actualServer.actorHelper = rpcsvc
@@ -112,7 +114,9 @@ func (ns *RPC) BeforeStop() {
 }
 
 func (ns *RPC) Statistics() *map[string]interface{} {
-	return nil
+	return &map[string]interface{}{
+		"version": ns.version,
+	}
 }
 
 func (ns *RPC) Receive(context actor.Context) {
