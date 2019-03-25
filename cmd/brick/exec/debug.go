@@ -1,9 +1,4 @@
-// debugger
-
-// set bp
-// remove bp
-// list bp
-//
+// +build Debug
 
 package exec
 
@@ -194,4 +189,14 @@ func (c *resetb) Run(args string) (string, error) {
 	contract.ResetBreakPoints()
 
 	return "reset breakpoints", nil
+}
+
+// =========== interfaces ==============
+func resetContractInfoInterface() {
+	contract.ResetContractInfo()
+}
+
+func updateContractInfoInterface(contractName string, defPath string) {
+	contract.UpdateContractInfo(
+		contract.PlainStrToHexAddr(contractName), defPath)
 }

@@ -80,8 +80,7 @@ func (c *deployContract) Run(args string) (string, error) {
 		return "", err
 	}
 
-	contract.UpdateContractInfo(
-		contract.PlainStrToHexAddr(contractName), defPath)
+	updateContractInfoInterface(contractName, defPath)
 
 	err = context.Get().ConnectBlock(
 		contract.NewRawLuaTxDef(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),

@@ -12,6 +12,7 @@ set(PROTO_DIR ${CMAKE_CURRENT_LIST_DIR}/aergo-protobuf/proto)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GCFLAGS "-gcflags=\"-N" "-l\"")
+    set(GFLAG -tags Debug)
 endif()
 
 add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac brick)
@@ -36,7 +37,7 @@ add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergolu
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS} -tags Debug -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`' 
+add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS}  ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`' 
 -X 'github.com/aergoio/aergo/vendor/github.com/aergoio/aergo-lib/log.defaultConfStr=`cat ./cmd/brick/arglog.toml`'\"  ./cmd/brick/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
