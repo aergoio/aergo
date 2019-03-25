@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-peer"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -34,9 +35,9 @@ type Cluster struct {
 }
 
 type RaftInfo struct {
-	Leader uint64
-	Total  uint16
-	RaftId uint64
+	Leader string
+	Total  string
+	RaftId string
 	Status *json.RawMessage
 }
 
@@ -196,7 +197,7 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 		leader = cl.rs.GetLeader()
 	}
 
-	rinfo := &RaftInfo{Leader: leader, Total: cl.Size, RaftId: cl.ID}
+	rinfo := &RaftInfo{Leader: strconv.FormatUint(uint64(leader), 10), Total: strconv.FormatUint(uint64(cl.Size), 10), RaftId: strconv.FormatUint(uint64(cl.ID), 10)}
 
 	if withStatus && cl.rs != nil {
 		b, err := cl.rs.Status().MarshalJSON()
@@ -216,7 +217,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	}
 
 	type PeerInfo struct {
-		RaftID uint64
+		RaftID string
 		PeerID string
 	}
 
@@ -232,7 +233,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	var i int = 0
 	bps := make([]string, cl.Size)
 	for id, m := range cl.Member {
-		bp := &PeerInfo{RaftID: m.RaftID, PeerID: m.PeerID.Pretty()}
+		bp := &PeerInfo{RaftID: strconv.FormatUint(uint64(m.RaftID), 10), PeerID: m.PeerID.Pretty()}
 		b, err = json.Marshal(bp)
 		if err != nil {
 			logger.Error().Err(err).Uint64("raftid", id).Msg("failed to marshal raft consensus bp")
