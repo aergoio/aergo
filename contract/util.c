@@ -5,7 +5,7 @@
 #include "util.h"
 #include "vm.h"
 #include "math.h"
-#include "lbc.h"
+#include "lgmp.h"
 
 typedef struct tcall {
 	void **ptrs;
@@ -310,11 +310,13 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	}
 	case LUA_TUSERDATA: {
 	    if (lua_isbignumber(L, idx)) {
+	        char *s;
 	        copy_to_buffer(bignum_str,strlen(bignum_str), sbuf);
-	        bc_num bnum = Bgetbnum(L, idx);
-	        char *s = bc_num2str(bnum);
-	        copy_str_to_buffer (s, strlen (s), sbuf);
-	        free(s);
+	        s = lua_get_bignum_str(L, idx);
+	        if (s != NULL) {
+                copy_str_to_buffer (s, strlen (s), sbuf);
+                free(s);
+            }
 		    src_val = "\"},";
 		    break;
 	    }
@@ -442,7 +444,7 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 	        char *end = strchr(json + 1, '"');
 	        if (end != NULL) {
 	            *end = '\0';
-	            Bset(L, json + 1);
+	            lua_set_bignum(L, json + 1);
 	            *end = '"';
 	            json = end + 1;
 	        }

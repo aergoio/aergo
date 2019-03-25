@@ -2870,11 +2870,33 @@ function checkBignum()
 	
 	return bignum.isbignum(a), bignum.isbignum(b), bignum.isbignum("2333")
 end
-
+function calcBignum()
+	bg1 = bignum.number("999999999999999999999999999999")
+	bg2 = bignum.number("999999999999999999999999999999")
+	bg3 = bg1 + bg2
+	bg4 = bg1 * 2
+	bg5 = 2 * bg1
+	n1 = 999999999999999
+	system.print(n1)
+	bg6 = bignum.number(n1)
+	assert (bg3 == bg4 and bg4 == bg5)
+	bg5 = bg1 - bg3 
+	assert (bignum.isneg(bg5) and bg5 == bignum.neg(bg1))
+	system.print(bg3, bg5, bg6)
+	bg6 = bignum.number(1)
+	assert (bg6 > bg5)
+	pow = bignum.number(2) ^ 8
+	assert(pow == bignum.number(256))
+	assert(bignum.compare(bg6, 1) == 0)
+	system.print((bg6 == 1), bignum.isbignum(pow))
+	div1 = bignum.number(3)/2
+	assert(bignum.compare(div1, 1) == 0)
+	div = bg6 / 0
+end
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2928,6 +2950,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", `{"Name":"checkBignum"}`, "", `[false,true,false]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"calcBignum"}`, "bignum divide by zero", "")
 	if err != nil {
 		t.Error(err)
 	}

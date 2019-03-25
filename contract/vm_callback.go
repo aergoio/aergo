@@ -7,7 +7,7 @@ package contract
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
-#include "lbc.h"
+#include "lgmp.h"
 */
 import "C"
 import (
