@@ -128,7 +128,6 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 		Status: status,
 		Hashes: hashes,
 		Txs:    txInfos, HasNext: false}
-
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
 }
 

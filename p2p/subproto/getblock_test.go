@@ -5,15 +5,35 @@
 
 package subproto
 
-/* FIXME enable test after refactor protocol version
+import (
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
+	"github.com/libp2p/go-libp2p-peer"
+	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
+)
+
 func TestBlockRequestHandler_handle(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logger := log.NewLogger("test.subproto")
+
+	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+
 	bigHash := make([]byte, 2*1024*1024)
-	logger := log.NewLogger("test")
 	//validSmallBlockRsp := &message.GetBlockRsp{Block:&types.Block{Hash:make([]byte,40)},Err:nil}
 	validBlock := &types.Block{Hash: bigHash}
 	//validBigBlockRsp := message.GetBlockRsp{Block:validBlock,Err:nil}
 	//notExistBlockRsp := message.GetBlockRsp{Block:nil,Err:nil}
-	//dummyMO := new(MockMsgOrder)
+	//dummyMO := p2pmock.NewMockMsgOrder(ctrl)
 	tests := []struct {
 		name              string
 		hashCnt           int
@@ -30,55 +50,63 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockPM := new(MockPeerManager)
-			mockPeer := new(MockRemotePeer)
-			mockActor := new(MockActorService)
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
 			// mockery Mock can't handle big byte slice sell. it takes to much time to do. so use dummy stub instead and give up verify code.
-			mockMF := &testDoubleFactory{}
-			mockPeer.On("MF").Return(mockMF)
-			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("Name").Return("16..aadecf@1")
-			mockPeer.On("sendAndWaitMessage", mock.Anything, mock.AnythingOfType("time.Duration")).Return(nil)
+			mockMF := &testDoubleMOFactory{}
+			mockPeer.EXPECT().MF().Return(mockMF).AnyTimes()
+			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
+			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
+			mockPeer.EXPECT().SendAndWaitMessage(gomock.Any(), gomock.AssignableToTypeOf(time.Duration(0))).Return(nil).Times(test.expectedSendCount)
 
 			callReqCount := 0
-			mockCA := new(MockChainAccessor)
-			mockActor.On("GetChainAccessor").Return(mockCA)
-			mockCA.On("GetBlock", mock.MatchedBy(func(arg []byte) bool {
+			mockCA := p2pmock.NewMockChainAccessor(ctrl)
+			mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
+			mockCA.EXPECT().GetBlock(gomock.Any()).DoAndReturn(func(blockHash []byte) (*types.Block, error) {
 				callReqCount++
 				if callReqCount <= test.validCallCount {
-					return true
+					return validBlock, nil
 				}
-				return false
-			})).Return(validBlock, nil)
-			mockCA.On("GetBlock", mock.MatchedBy(func(arg []byte) bool {
-				callReqCount++
-				if callReqCount <= test.validCallCount {
-					return false
-				}
-				return true
-			})).Return(nil, nil)
+				return nil, nil
+			}).MinTimes(1)
 
-			h := newBlockReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &V030Message{id: p2pcommon.NewMsgID()}
+			h := NewBlockReqHandler(mockPM, mockPeer, logger, mockActor)
+			dummyMsg := &testMessage{subProtocol:GetBlocksRequest,id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
-			h.handle(dummyMsg, msgBody)
+			h.Handle(dummyMsg, msgBody)
 
-			mockPeer.AssertNumberOfCalls(t, "sendAndWaitMessage", test.expectedSendCount)
 			assert.Equal(t, test.succResult, mockMF.lastStatus == types.ResultStatus_OK)
 		})
 	}
 }
-type testDoubleFactory struct {
-	v030MOFactory
-	lastStatus types.ResultStatus
-}
-
-func (f *testDoubleFactory) newMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message pbMessage) msgOrder {
-	f.lastStatus = message.(*types.GetBlockResponse).Status
-	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
-}
 
 func TestBlockResponseHandler_handle(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logger := log.NewLogger("test.subproto")
+	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	var sampleBlksB58 = []string{
+		"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
+		"2VEPg4MqJUoaS3EhZ6WWSAUuFSuD4oSJ645kSQsGV7H9",
+		"AtzTZ2CZS45F1276RpTdLfYu2DLgRcd9HL3aLqDT1qte",
+		"2n9QWNDoUvML756X7xdHWCFLZrM4CQEtnVH2RzG5FYAw",
+		"6cy7U7XKYtDTMnF3jNkcJvJN5Rn85771NSKjc5Tfo2DM",
+		"3bmB8D37XZr4DNPs64NiGRa2Vw3i8VEgEy6Xc2XBmRXC",
+	}
+	var sampleBlks [][]byte
+	var sampleBlksHashes []types.BlockID
+
+	sampleBlks = make([][]byte, len(sampleBlksB58))
+	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
+	for i, hashb58 := range sampleBlksB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleBlks[i] = hash
+		copy(sampleBlksHashes[i][:], hash)
+	}
+
 	blkNo := uint64(100)
 	prevHash := dummyBlockHash
 	inputHashes := make([]message.BlockHash, len(sampleBlks))
@@ -93,40 +121,37 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 	tests := []struct {
 		name string
 
-		receiver ResponseReceiver
-		consume  bool
-		callSM   bool
+		receiver    p2pcommon.ResponseReceiver
+		wantConsume int
+		wantCallSM  int
 	}{
 		// 1. not exist receiver and consumed message
 		//{"Tnothing",nil, true},
 		// 2. exist receiver and consume successfully
 		{"TexistAndConsume", func(msg p2pcommon.Message, body proto.Message) bool {
 			return true
-		}, true, false},
+		}, 0, 0},
 		// 2. exist receiver but not consumed
-		{"TExistWrong", dummyResponseReceiver, false, true},
+		{"TExistWrong", func (msg p2pcommon.Message, msgBody proto.Message) bool {
+			return false
+		}, 1, 1},
 		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockPM := new(MockPeerManager)
-			mockPeer := new(MockRemotePeer)
-			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("consumeRequest", mock.AnythingOfType("p2pcommon.MsgID"))
-			mockActor := new(MockActorService)
-			mockSM := new(MockSyncManager)
-			mockSM.On("HandleGetBlockResponse", mockPeer, mock.Anything, mock.AnythingOfType("*types.GetBlockResponse"))
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
+			mockPeer.EXPECT().ConsumeRequest(gomock.AssignableToTypeOf(p2pcommon.MsgID{})).Times(test.wantConsume)
+			mockActor := p2pmock.NewMockActorService(ctrl)
+			mockSM := p2pmock.NewMockSyncManager(ctrl)
+			mockSM.EXPECT().HandleGetBlockResponse(mockPeer, gomock.Any(), gomock.AssignableToTypeOf(&types.GetBlockResponse{})).Times(test.wantCallSM)
 
-			mockPeer.On("GetReceiver", mock.AnythingOfType("p2pcommon.MsgID")).Return(test.receiver)
-			msg := &V030Message{subProtocol: GetBlocksResponse, id: sampleMsgID}
+			mockPeer.EXPECT().GetReceiver(gomock.AssignableToTypeOf(p2pcommon.MsgID{})).Return(test.receiver)
+			msg := &testMessage{subProtocol: GetBlocksResponse, id: p2pcommon.NewMsgID()}
 			body := &types.GetBlockResponse{Blocks: make([]*types.Block, 2)}
-			h := newBlockRespHandler(mockPM, mockPeer, logger, mockActor, mockSM)
-			h.handle(msg, body)
-			if test.consume {
-				mockSM.AssertNumberOfCalls(t, "HandleGetBlockResponse", 0)
-			} else {
-				mockSM.AssertNumberOfCalls(t, "HandleGetBlockResponse", 1)
-			}
+			h := NewBlockRespHandler(mockPM, mockPeer, logger, mockActor, mockSM)
+			h.Handle(msg, body)
 		})
 	}
-}*/
+}

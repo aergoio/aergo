@@ -1,6 +1,9 @@
 package subproto
 
 import (
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-peer"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -27,7 +30,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	//mockIStream.EXPECT().Protocol().Return(protocol.ID(StatusRequest))
 	//	mockIStream.EXPECT().Close().Return(nil)
 	//mockConn.EXPECT().("MessageImpl").Return(samplePeerID)
-	//mockP2PS.On("LookupPeer", samplePeerID).Return(nil, false)
+	//mockP2PS.EXPECT().LookupPeer(, samplePeerID).Return(nil, false)
 
 	type fields struct {
 		actorServ p2pcommon.ActorService
@@ -70,8 +73,14 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	}
 }
 
-/* FIXME enable test after refactor protocol version
 func Test_pingRequestHandler_handle(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logger := log.NewLogger("test.subproto")
+	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+
 	type args struct {
 		hash   []byte
 		height uint64
@@ -80,39 +89,38 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 		name string
 		args args
 
-		wantCallUpdate bool
+		sendRespCnt int
 	}{
-		{"TSucc", args{dummyBlockHash, 10}, true},
-		{"TWrongHash", args{[]byte{}, 10}, false},
+		{"TSucc", args{dummyBlockHash, 10}, 1},
+		{"TWrongHash", args{[]byte{}, 10}, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockPM := new(MockPeerManager)
-			mockPeer := new(MockRemotePeer)
-			mockActor := new(MockActorService)
-			dummyMF := &v030MOFactory{}
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
+			dummyMF := p2pmock.NewMockMoFactory(ctrl)
+			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
+			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
+			mockPeer.EXPECT().MF().Return(dummyMF).MinTimes(tt.sendRespCnt)
+			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(tt.sendRespCnt)
+			mockPeer.EXPECT().UpdateLastNotice(tt.args.hash, tt.args.height).Times(tt.sendRespCnt)
+			mockCA := p2pmock.NewMockChainAccessor(ctrl)
+			mockActor.EXPECT().GetChainAccessor().Return(mockCA).MaxTimes(1)
 
-			mockPeer.On("MF").Return(dummyMF)
-			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("Name").Return(p2putil.ShortForm(dummyPeerID) + "@1")
-			mockPeer.On("updateLastNotice", tt.args.hash, tt.args.height)
-			mockPeer.On("sendMessage", mock.Anything)
+			reqID := p2pcommon.NewMsgID()
+			dummyMF.EXPECT().NewMsgResponseOrder(reqID, PingResponse, gomock.AssignableToTypeOf(&types.Pong{})).Return(nil).Times(tt.sendRespCnt)
 
-			mockCA := new(MockChainAccessor)
-			mockActor.On("GetChainAccessor").Return(mockCA)
-
-			msg := &V030Message{subProtocol: PingRequest, id: sampleMsgID}
+			msg := p2pmock.NewMockMessage(ctrl)
+			msg.EXPECT().ID().Return(reqID).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(PingRequest).AnyTimes()
 			body := &types.Ping{BestBlockHash: tt.args.hash, BestHeight: tt.args.height}
 
-			ph := newPingReqHandler(mockPM, mockPeer, logger, mockActor)
+			ph := NewPingReqHandler(mockPM, mockPeer, logger, mockActor)
 
-			ph.handle(msg, body)
+			ph.Handle(msg, body)
 
-			if !tt.wantCallUpdate {
-				mockPeer.AssertNotCalled(t, "updateLastNotice", mock.Anything, mock.Anything)
-			}
-			// other call verifications are already checked by On() method
 		})
 	}
 }
-*/
+

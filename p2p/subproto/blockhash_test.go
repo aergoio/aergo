@@ -7,14 +7,50 @@ package subproto
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/gofrs/uuid"
+	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-peer"
+	"github.com/stretchr/testify/assert"
+	"testing"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 )
 
-/* FIXME enable test after refactor protocol version
 func TestGetHashRequestHandler_handle(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logger := log.NewLogger("test.subproto")
+
+	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var sampleMsgID = p2pcommon.NewMsgID()
+
+	var sampleBlksB58 = []string{
+		"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
+		"2VEPg4MqJUoaS3EhZ6WWSAUuFSuD4oSJ645kSQsGV7H9",
+		"AtzTZ2CZS45F1276RpTdLfYu2DLgRcd9HL3aLqDT1qte",
+		"2n9QWNDoUvML756X7xdHWCFLZrM4CQEtnVH2RzG5FYAw",
+		"6cy7U7XKYtDTMnF3jNkcJvJN5Rn85771NSKjc5Tfo2DM",
+		"3bmB8D37XZr4DNPs64NiGRa2Vw3i8VEgEy6Xc2XBmRXC",
+	}
+	var sampleBlks [][]byte
+	var sampleBlksHashes []types.BlockID
+
+	sampleBlks = make([][]byte, len(sampleBlksB58))
+	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
+	for i, hashb58 := range sampleBlksB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleBlks[i] = hash
+		copy(sampleBlksHashes[i][:], hash)
+	}
+
+
 	baseHeight := uint64(110000)
 	sampleSize := 21
 	mainChainHashes := make([][]byte, sampleSize)
@@ -66,123 +102,107 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockPM := new(MockPeerManager)
-			mockPeer := new(MockRemotePeer)
-			mockActor := new(MockActorService)
-			dummyMF := new(testDoubleHashRespFactory)
-			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("Name").Return("16..aadecf@1")
-			mockPeer.On("MF").Return(dummyMF)
-			mockPeer.On("sendMessage", mock.Anything)
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
+			dummyMF := &testDoubleHashesRespFactory{}
+			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
+			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
+			mockPeer.EXPECT().MF().Return(dummyMF).MinTimes(1)
+			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 
 			mockAcc := &testDoubleChainAccessor{firstChain: test.firstChain, lastChain: test.lastChain, baseHeight: baseHeight, reorgTiming: test.reorgIdx}
-			mockActor.On("GetChainAccessor").Return(mockAcc)
+			mockActor.EXPECT().GetChainAccessor().Return(mockAcc).MinTimes(1)
 
-			msg := &p2p.V030Message{subProtocol: GetHashesRequest, id: sampleMsgID}
+			msg := p2pmock.NewMockMessage(ctrl)
+			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(GetHashesRequest).AnyTimes()
 			body := &types.GetHashesRequest{PrevNumber: test.inNum, PrevHash: test.inHash, Size: test.inSize}
 
-			h := newGetHashesReqHandler(mockPM, mockPeer, logger, mockActor)
-			h.handle(msg, body)
+			h := NewGetHashesReqHandler(mockPM, mockPeer, logger, mockActor)
+			h.Handle(msg, body)
 
-			// verify
+			// verify whether handler send response with expected result
 			assert.Equal(t, test.expectedStatus.String(), dummyMF.lastStatus.String())
 			if test.expectedStatus == types.ResultStatus_OK {
 				assert.Equal(t, test.expectedHashCnt, len(dummyMF.lastResp.Hashes))
 			}
-			// send only one response whether success or not
-			mockPeer.AssertNumberOfCalls(t, "sendMessage", 1)
 		})
 	}
 }
-*/
-
-/* FIXME enable test after refactor protocol version
-type testDoubleHashRespFactory struct {
-	v030MOFactory
-	lastResp   *types.GetHashesResponse
-	lastStatus types.ResultStatus
-}
-
-func (f *testDoubleHashRespFactory) newMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message pbMessage) msgOrder {
-	f.lastResp = message.(*types.GetHashesResponse)
-	f.lastStatus = f.lastResp.Status
-	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
-}
 
 func TestGetHashByNoRequestHandler_handle(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	logger := log.NewLogger("test.subproto")
+
+	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var sampleMsgID = p2pcommon.NewMsgID()
+
+	var sampleBlksB58 = []string{
+		"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
+		"2VEPg4MqJUoaS3EhZ6WWSAUuFSuD4oSJ645kSQsGV7H9",
+		"AtzTZ2CZS45F1276RpTdLfYu2DLgRcd9HL3aLqDT1qte",
+		"2n9QWNDoUvML756X7xdHWCFLZrM4CQEtnVH2RzG5FYAw",
+		"6cy7U7XKYtDTMnF3jNkcJvJN5Rn85771NSKjc5Tfo2DM",
+		"3bmB8D37XZr4DNPs64NiGRa2Vw3i8VEgEy6Xc2XBmRXC",
+	}
+	var sampleBlks [][]byte
+	var sampleBlksHashes []types.BlockID
+
+	sampleBlks = make([][]byte, len(sampleBlksB58))
+	sampleBlksHashes = make([]types.BlockID, len(sampleBlksB58))
+	for i, hashb58 := range sampleBlksB58 {
+		hash, _ := enc.ToBytes(hashb58)
+		sampleBlks[i] = hash
+		copy(sampleBlksHashes[i][:], hash)
+	}
+
 	baseHeight := uint64(110000)
 	wrongHeight := uint64(21531535)
 	tests := []struct {
 		name  string
 		inNum uint64
+		accRet []byte
+		accRetErr error
 
 		expectedStatus types.ResultStatus
 	}{
 		// 1. success (exact prev and enough chaining)
-		{"Tsucc", baseHeight, types.ResultStatus_OK},
+		{"Tsucc", baseHeight, sampleBlks[0], nil, types.ResultStatus_OK},
 		// 2. exact prev but smaller chaining
-		{"TMissing", wrongHeight, types.ResultStatus_NOT_FOUND},
+		{"TMissing", wrongHeight, nil, &chain.ErrNoBlock{}, types.ResultStatus_NOT_FOUND},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockPM := new(MockPeerManager)
-			mockPeer := new(MockRemotePeer)
-			mockActor := new(MockActorService)
-			dummyMF := new(testDoubleHashByNoRespFactory)
-			mockPeer.On("ID").Return(dummyPeerID)
-			mockPeer.On("MF").Return(dummyMF)
-			mockPeer.On("Name").Return("16..aadecf@1")
-			mockPeer.On("sendMessage", mock.Anything)
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
+			dummyMF := &testDoubleMOFactory{}
+			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
+			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
+			mockPeer.EXPECT().MF().Return(dummyMF).MinTimes(1)
+			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 
-			mockAcc := new(MockChainAccessor)
-			mockActor.On("GetChainAccessor").Return(mockAcc)
-			mockAcc.On("GetHashByNo", baseHeight).Return(sampleBlks[0], nil)
-			mockAcc.On("GetHashByNo", wrongHeight).Return(nil, &chain.ErrNoBlock{})
-			msg := &p2p.V030Message{subProtocol: GetHashByNoRequest, id: sampleMsgID}
+			mockAcc := p2pmock.NewMockChainAccessor(ctrl)
+			mockAcc.EXPECT().GetHashByNo(test.inNum).Return(test.accRet, test.accRetErr).Times(1)
+			mockActor.EXPECT().GetChainAccessor().Return(mockAcc).AnyTimes()
+
+			msg :=  p2pmock.NewMockMessage(ctrl)
+			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(GetHashByNoRequest).AnyTimes()
 			body := &types.GetHashByNo{BlockNo: test.inNum}
 
-			h := newGetHashByNoReqHandler(mockPM, mockPeer, logger, mockActor)
-			h.handle(msg, body)
+			h := NewGetHashByNoReqHandler(mockPM, mockPeer, logger, mockActor)
+			h.Handle(msg, body)
 
 			// verify
 			assert.Equal(t, test.expectedStatus.String(), dummyMF.lastStatus.String())
-			// send only one response whether success or not
-			mockPeer.AssertNumberOfCalls(t, "sendMessage", 1)
-			mockAcc.AssertNumberOfCalls(t, "GetHashByNo", 1)
 		})
 	}
 }
 
-type testDoubleHashByNoRespFactory struct {
-	v030MOFactory
-	lastResp   *types.GetHashByNoResponse
-	lastStatus types.ResultStatus
-}
-
-func (f *testDoubleHashByNoRespFactory) newMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message pbMessage) msgOrder {
-	f.lastResp = message.(*types.GetHashByNoResponse)
-	f.lastStatus = f.lastResp.Status
-	return f.v030MOFactory.newMsgResponseOrder(reqID, protocolID, message)
-}
-*/
-// emulate db
-type testDoubleChainAccessor struct {
-	p2pmock.MockChainAccessor
-	baseHeight types.BlockNo
-
-	callCount   int
-	reorgTiming int
-	firstChain  [][]byte
-	lastChain   [][]byte
-}
-
-func (a *testDoubleChainAccessor) getChain() [][]byte {
-	if a.callCount <= a.reorgTiming {
-		return a.firstChain
-	} else {
-		return a.lastChain
-	}
-}
 
 func (a *testDoubleChainAccessor) GetBestBlock() (*types.Block, error) {
 	mychain := a.getChain()
@@ -219,4 +239,159 @@ func (a *testDoubleChainAccessor) GetHashByNo(blockNo types.BlockNo) ([]byte, er
 		return nil, chain.ErrNoBlock{}
 	}
 	return mychain[int(idx)], nil
+}
+
+
+
+// emulate db
+type testDoubleChainAccessor struct {
+	p2pmock.MockChainAccessor
+	baseHeight types.BlockNo
+
+	callCount   int
+	reorgTiming int
+	firstChain  [][]byte
+	lastChain   [][]byte
+}
+
+func (a *testDoubleChainAccessor) getChain() [][]byte {
+	if a.callCount <= a.reorgTiming {
+		return a.firstChain
+	} else {
+		return a.lastChain
+	}
+}
+
+
+type testDoubleHashesRespFactory struct {
+	lastResp   *types.GetHashesResponse
+	lastStatus types.ResultStatus
+}
+
+func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleHashesRespFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleHashesRespFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+	f.lastResp = message.(*types.GetHashesResponse)
+	f.lastStatus = f.lastResp.Status
+	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
+}
+
+func (f *testDoubleHashesRespFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleHashesRespFactory) NewMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleHashesRespFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+
+// testDoubleMOFactory keep last created message and last result status of response message
+type testDoubleMOFactory struct {
+	lastResp   p2pcommon.PbMessage
+	lastStatus types.ResultStatus
+}
+
+func (f *testDoubleMOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleMOFactory) NewMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleMOFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+	f.lastResp = message
+	f.lastStatus = f.lastResp.(types.ResponseMessage).GetStatus()
+	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
+}
+
+type testMo struct {
+	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.
+	message p2pcommon.Message
+}
+
+func (mo *testMo) GetMsgID() p2pcommon.MsgID {
+	return mo.message.ID()
+}
+
+func (mo *testMo) Timestamp() int64 {
+	return mo.message.Timestamp()
+}
+
+func (*testMo) IsRequest() bool {
+	return false
+}
+
+func (*testMo) IsNeedSign() bool {
+	return true
+}
+
+func (mo *testMo) GetProtocolID() p2pcommon.SubProtocol {
+	return mo.protocolID
+}
+
+func (mo *testMo) SendTo(p p2pcommon.RemotePeer) error {
+	return nil
+}
+
+type testMessage struct {
+	subProtocol p2pcommon.SubProtocol
+	// Length is lenght of payload
+	length uint32
+	// timestamp is unix time (precision of second)
+	timestamp int64
+	// ID is 16 bytes unique identifier
+	id p2pcommon.MsgID
+	// OriginalID is message id of request which trigger this message. it will be all zero, if message is request or notice.
+	originalID p2pcommon.MsgID
+
+	// marshaled by google protocol buffer v3. object is determined by Subprotocol
+	payload []byte
+}
+
+func (m *testMessage) Subprotocol() p2pcommon.SubProtocol {
+	return m.subProtocol
+}
+
+func (m *testMessage) Length() uint32 {
+	return m.length
+
+}
+
+func (m *testMessage) Timestamp() int64 {
+	return m.timestamp
+}
+
+func (m *testMessage) ID() p2pcommon.MsgID {
+	return m.id
+}
+
+func (m *testMessage) OriginalID() p2pcommon.MsgID {
+	return m.originalID
+}
+
+func (m *testMessage) Payload() []byte {
+	return m.payload
 }

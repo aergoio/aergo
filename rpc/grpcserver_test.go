@@ -8,6 +8,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/aergoio/aergo/message/messagemock"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/golang/mock/gomock"
 	"math/big"
 	"reflect"
 	"testing"
@@ -15,12 +18,10 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/message/mocks"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestAergoRPCService_dummys(t *testing.T) {
@@ -60,22 +61,26 @@ var dummyPayload = []byte("OPreturn I am groooot")
 
 var hubStub *component.ComponentHub
 var mockCtx context.Context
-var mockMsgHelper *mocks.Helper
+var mockMsgHelper *messagemock.Helper
 var mockActorHelper *MockActorService
 
 func init() {
 	hubStub = &component.ComponentHub{}
-	mockMsgHelper = &mocks.Helper{}
-	mockActorHelper = &MockActorService{}
 
 	mockCtx = &Context{}
 }
 func TestAergoRPCService_GetTX(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockMsgHelper := messagemock.NewHelper(ctrl)
+	mockActorHelper := p2pmock.NewMockActorService(ctrl)
+
 	dummyTxBody := types.TxBody{Account: dummyWalletAddress, Amount: new(big.Int).SetUint64(4332).Bytes(),
 		Recipient: dummyWalletAddress2, Payload: dummyPayload}
 	sampleTx := &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}
-	mockActorHelper.On("CallRequestDefaultTimeout", message.MemPoolSvc, mock.Anything).Return(message.MemPoolGetRsp{}, nil)
-	mockMsgHelper.On("ExtractTxFromResponse", mock.AnythingOfType("message.MemPoolGetRsp")).Return(sampleTx, nil)
+	mockActorHelper.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.Any()).Return(message.MemPoolGetRsp{}, nil)
+	mockMsgHelper.EXPECT().ExtractTxFromResponse(gomock.AssignableToTypeOf(message.MemPoolGetRsp{})).Return(sampleTx, nil)
 	type fields struct {
 		hub         *component.ComponentHub
 		actorHelper p2pcommon.ActorService
@@ -92,7 +97,7 @@ func TestAergoRPCService_GetTX(t *testing.T) {
 		want    *types.Tx
 		wantErr bool
 	}{
-		{args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+		{name:"T00", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
 			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
 		// TODO: Add test cases.
 	}
