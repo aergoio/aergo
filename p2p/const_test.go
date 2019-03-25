@@ -13,7 +13,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -151,10 +151,10 @@ func init() {
 	}
 }
 
-var dummyMo *p2pmocks.MockMsgOrder
+var dummyMo *p2pmock.MockMsgOrder
 
-func createDummyMo(ctrl *gomock.Controller) *p2pmocks.MockMsgOrder {
-	dummyMo = p2pmocks.NewMockMsgOrder(ctrl)
+func createDummyMo(ctrl *gomock.Controller) *p2pmock.MockMsgOrder {
+	dummyMo = p2pmock.NewMockMsgOrder(ctrl)
 	dummyMo.EXPECT().IsNeedSign().Return(true).AnyTimes()
 	dummyMo.EXPECT().IsRequest().Return(true).AnyTimes()
 	dummyMo.EXPECT().GetProtocolID().Return(subproto.NewTxNotice).AnyTimes()

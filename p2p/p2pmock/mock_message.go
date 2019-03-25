@@ -2,7 +2,7 @@
 // Source: github.com/aergoio/aergo/p2p/p2pcommon (interfaces: Message)
 
 // Package mock_p2pcommon is a generated GoMock package.
-package p2pmocks
+package p2pmock
 
 import (
 	reflect "reflect"

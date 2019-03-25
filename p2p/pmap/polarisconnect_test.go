@@ -12,7 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -58,7 +58,7 @@ func TestPolarisConnectSvc_initSvc(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			pmapDummyNTC.chainID = tt.args.chainID
 
@@ -105,7 +105,7 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			pms := NewPolarisConnectSvc(pmapDummyCfg.P2P, pmapDummyNTC)
 

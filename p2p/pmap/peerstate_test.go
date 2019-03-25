@@ -13,7 +13,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
@@ -60,7 +60,7 @@ func Test_pingChecker_DoCall(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &peerState{temporary: true, PeerMapService: &PeerMapService{BaseComponent: &component.BaseComponent{Logger: log.NewLogger("test")}}}
-			rw := p2pmocks.NewMockMsgReadWriter(ctrl)
+			rw := p2pmock.NewMockMsgReadWriter(ctrl)
 			pc := &pingChecker{
 				peerState: ps,
 				rw:        rw,
@@ -133,7 +133,7 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &peerState{temporary: true, PeerMapService: &PeerMapService{BaseComponent: &component.BaseComponent{Logger: log.NewLogger("test")}}}
-			rw := p2pmocks.NewMockMsgReadWriter(ctrl)
+			rw := p2pmock.NewMockMsgReadWriter(ctrl)
 			pc := &pingChecker{
 				peerState: ps,
 				rw:        rw,

@@ -9,7 +9,7 @@ import (
 	"bytes"
 
 	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -167,7 +167,7 @@ func (f *testDoubleHashByNoRespFactory) newMsgResponseOrder(reqID p2pcommon.MsgI
 */
 // emulate db
 type testDoubleChainAccessor struct {
-	p2pmocks.MockChainAccessor
+	p2pmock.MockChainAccessor
 	baseHeight types.BlockNo
 
 	callCount   int

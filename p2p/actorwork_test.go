@@ -11,7 +11,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/golang/mock/gomock"
@@ -24,9 +24,9 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 	sampleMsg := &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: samplePeerID}, TTL: time.Minute}
 
 	// fail: cancel create receiver and return fail instantly
-	mockPM := p2pmocks.NewMockPeerManager(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
 	mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false)
-	mockCtx := p2pmocks.NewMockContext(ctrl)
+	mockCtx := p2pmock.NewMockContext(ctrl)
 	mockCtx.EXPECT().Respond(gomock.Any()).Times(1)
 	ps := &P2P{}
 	ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
@@ -35,10 +35,10 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 	ps.GetBlocksChunk(mockCtx, sampleMsg)
 
 	// success case
-	mockPM = p2pmocks.NewMockPeerManager(ctrl)
-	mockCtx = p2pmocks.NewMockContext(ctrl)
-	mockPeer := p2pmocks.NewMockRemotePeer(ctrl)
-	mockMF := p2pmocks.NewMockMoFactory(ctrl)
+	mockPM = p2pmock.NewMockPeerManager(ctrl)
+	mockCtx = p2pmock.NewMockContext(ctrl)
+	mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+	mockMF := p2pmock.NewMockMoFactory(ctrl)
 
 	mockPM.EXPECT().GetPeer(gomock.Any()).Return(mockPeer, true)
 	mockCtx.EXPECT().Respond(gomock.Any()).Times(0)
@@ -67,8 +67,8 @@ func TestP2P_GetBlockHashByNo(t *testing.T) {
 	sampleMsg := &message.GetHashByNo{ToWhom: samplePeerID, BlockNo: uint64(111111)}
 
 	// fail: cancel create receiver and return fail instantly
-	mockPM := p2pmocks.NewMockPeerManager(ctrl)
-	mockCtx := p2pmocks.NewMockContext(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
+	mockCtx := p2pmock.NewMockContext(ctrl)
 	mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false)
 	mockCtx.EXPECT().Respond(gomock.Any()).Times(1)
 	ps := &P2P{}
@@ -78,10 +78,10 @@ func TestP2P_GetBlockHashByNo(t *testing.T) {
 	ps.GetBlockHashByNo(mockCtx, sampleMsg)
 
 	// success case
-	mockPM = p2pmocks.NewMockPeerManager(ctrl)
-	mockCtx = p2pmocks.NewMockContext(ctrl)
-	mockPeer := p2pmocks.NewMockRemotePeer(ctrl)
-	mockMF := p2pmocks.NewMockMoFactory(ctrl)
+	mockPM = p2pmock.NewMockPeerManager(ctrl)
+	mockCtx = p2pmock.NewMockContext(ctrl)
+	mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+	mockMF := p2pmock.NewMockMoFactory(ctrl)
 
 	mockCtx.EXPECT().Respond(gomock.Any()).Times(0)
 	mockPM.EXPECT().GetPeer(gomock.Any()).Return(mockPeer, true)

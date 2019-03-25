@@ -2,7 +2,7 @@
 // Source: p2p/networktransport.go
 
 // Package mock_p2p is a generated GoMock package.
-package p2pmocks
+package p2pmock
 
 import (
 	"context"

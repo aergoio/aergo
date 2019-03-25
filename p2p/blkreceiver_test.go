@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -36,13 +36,13 @@ func TestBlocksChunkReceiver_StartGet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			//mockContext := new(mockContext)
-			mockActor := p2pmocks.NewMockActorService(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
 			//mockActor.On("SendRequest", message.P2PSvc, mock.AnythingOfType("*types.GetBlock"))
 			//mockActor.On("TellRequest", message.SyncerSvc, mock.AnythingOfType("*types.GetBlock"))
-			mockMF := p2pmocks.NewMockMoFactory(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
 			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
-			mockPeer := p2pmocks.NewMockRemotePeer(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().MF().Return(mockMF)
 			mockPeer.EXPECT().SendMessage(mockMo).Times(1)
 
@@ -99,7 +99,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			//mockContext := new(mockContext)
-			mockActor := p2pmocks.NewMockActorService(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
 			if test.sentResp > 0 {
 				mockActor.EXPECT().TellRequest(message.SyncerSvc, gomock.Any()).
 					DoAndReturn(func(a string, arg *message.GetBlockChunksRsp) {
@@ -109,10 +109,10 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 					}).Times(test.sentResp)
 			}
 
-			mockMF := p2pmocks.NewMockMoFactory(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
 			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
-			mockPeer := p2pmocks.NewMockRemotePeer(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
 			mockPeer.EXPECT().MF().Return(mockMF)
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)

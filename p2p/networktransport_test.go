@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
@@ -29,7 +29,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockActor := p2pmocks.NewMockActorService(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActor.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	//mockMF := new(MockMoFactory)
@@ -37,7 +37,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 		logger: log.NewLogger("test.p2p")}
 
 	//target.Host = &mockHost{peerstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
-	target.Host = p2pmocks.NewMockHost(ctrl)
+	target.Host = p2pmock.NewMockHost(ctrl)
 	target.selfMeta.ID = peer.ID("gwegw")
 
 	sampleAddr1 := p2pcommon.PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}

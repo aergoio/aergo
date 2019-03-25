@@ -5,7 +5,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 	inet "github.com/libp2p/go-libp2p-net"
 )
@@ -16,9 +16,9 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockP2PS := p2pmocks.NewMockPeerManager(ctrl)
-	mockIStream := p2pmocks.NewMockStream(ctrl)
-	//mockConn := p2pmocks.NewMockConn(ctrl)
+	mockP2PS := p2pmock.NewMockPeerManager(ctrl)
+	mockIStream := p2pmock.NewMockStream(ctrl)
+	//mockConn := p2pmock.NewMockConn(ctrl)
 
 	//samplePeerID, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	// dummyPeer := AergoPeer{}
@@ -46,7 +46,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 		{
 			"normal",
 			&fields{
-				actorServ: p2pmocks.NewMockActorService(ctrl),
+				actorServ: p2pmock.NewMockActorService(ctrl),
 				logger:    log.NewLogger("test.p2p"),
 				ps:        mockP2PS,
 			},

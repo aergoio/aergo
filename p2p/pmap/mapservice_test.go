@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -60,7 +60,7 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 
@@ -97,7 +97,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			mockNT.EXPECT().AddStreamHandler(PolarisMapSub, gomock.Any()).Times(1)
 
@@ -105,7 +105,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 			pms.AfterStart()
 
 			msgStub := &p2p.V030Message{}
-			mockRd := p2pmocks.NewMockMsgReader(ctrl)
+			mockRd := p2pmock.NewMockMsgReader(ctrl)
 
 			mockRd.EXPECT().ReadMsg().Times(1).Return(msgStub, tt.args.readErr)
 
@@ -171,8 +171,8 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
-			mockStream := p2pmocks.NewMockStream(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			mockStream := p2pmock.NewMockStream(ctrl)
 			mockStream.EXPECT().Write(gomock.Any()).MaxTimes(1).Return(100, nil)
 			mockStream.EXPECT().Close().MaxTimes(1).Return(nil)
 			pmapDummyNTC.chainID = &ONEMainNet
@@ -226,7 +226,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.nt = mockNT
 
@@ -268,7 +268,7 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := p2pmocks.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.nt = mockNT
 			for _, meta := range metas {

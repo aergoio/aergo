@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -39,9 +39,9 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger = log.NewLogger("test")
-	mockActor := p2pmocks.NewMockActorService(ctrl)
-	mockCA := p2pmocks.NewMockChainAccessor(ctrl)
-	mockPM := p2pmocks.NewMockPeerManager(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockCA := p2pmock.NewMockChainAccessor(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress: "dummy.aergo.io"}
 	dummyAddr := dummyMeta.ToPeerAddress()
@@ -70,9 +70,9 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := p2pmocks.NewMockReader(ctrl)
-			dummyWriter := p2pmocks.NewMockWriter(ctrl)
-			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			dummyReader := p2pmock.NewMockReader(ctrl)
+			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
@@ -111,9 +111,9 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 
 	// t.SkipNow()
 	logger = log.NewLogger("test")
-	mockActor := p2pmocks.NewMockActorService(ctrl)
-	mockCA := p2pmocks.NewMockChainAccessor(ctrl)
-	mockPM := p2pmocks.NewMockPeerManager(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockCA := p2pmock.NewMockChainAccessor(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress: "dummy.aergo.io"}
 	dummyAddr := dummyMeta.ToPeerAddress()
@@ -143,9 +143,9 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := p2pmocks.NewMockReader(ctrl)
-			dummyWriter := p2pmocks.NewMockWriter(ctrl)
-			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			dummyReader := p2pmock.NewMockReader(ctrl)
+			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			containerMsg := &V030Message{}
 			if tt.readReturn != nil {

@@ -2,7 +2,7 @@
 // Source: vendor/github.com/libp2p/go-libp2p-net/interface.go
 
 // Package mock_net is a generated GoMock package.
-package p2pmocks
+package p2pmock
 
 import (
 	context "context"

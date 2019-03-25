@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
@@ -62,9 +62,9 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger = log.NewLogger("test")
-	mockActor := p2pmocks.NewMockActorService(ctrl)
-	mockPM := p2pmocks.NewMockPeerManager(ctrl)
-	mockCA := p2pmocks.NewMockChainAccessor(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
+	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta)
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA)
@@ -83,8 +83,8 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, myChainID, samplePeerID)
-			mockReader := p2pmocks.NewMockReader(ctrl)
-			mockWriter := p2pmocks.NewMockWriter(ctrl)
+			mockReader := p2pmock.NewMockReader(ctrl)
+			mockWriter := p2pmock.NewMockWriter(ctrl)
 			mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(p interface{}) (int, error) {
 				time.Sleep(tt.delay)
 				return 0, fmt.Errorf("must not reach")
@@ -111,8 +111,8 @@ func TestPeerHandshaker_Select(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger = log.NewLogger("test")
-	mockActor := p2pmocks.NewMockActorService(ctrl)
-	mockPM := p2pmocks.NewMockPeerManager(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 	tests := []struct {
 		name     string
@@ -126,8 +126,8 @@ func TestPeerHandshaker_Select(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockReader := p2pmocks.NewMockReader(ctrl)
-			mockWriter := p2pmocks.NewMockWriter(ctrl)
+			mockReader := p2pmock.NewMockReader(ctrl)
+			mockWriter := p2pmock.NewMockWriter(ctrl)
 
 			h := newHandshaker(mockPM, mockActor, logger, nil, samplePeerID)
 

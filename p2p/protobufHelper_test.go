@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/golang/mock/gomock"
 
@@ -37,9 +37,9 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := p2pmocks.NewMockActorService(ctrl)
-			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
-			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			mockActorServ := p2pmock.NewMockActorService(ctrl)
+			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
@@ -80,9 +80,9 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := p2pmocks.NewMockActorService(ctrl)
-			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
-			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			mockActorServ := p2pmock.NewMockActorService(ctrl)
+			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
@@ -125,9 +125,9 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := p2pmocks.NewMockActorService(ctrl)
-			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
-			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			mockActorServ := p2pmock.NewMockActorService(ctrl)
+			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			if tt.keyExist {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
@@ -178,9 +178,9 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := p2pmocks.NewMockActorService(ctrl)
-			mockPeerManager := p2pmocks.NewMockPeerManager(ctrl)
-			mockRW := p2pmocks.NewMockMsgReadWriter(ctrl)
+			mockActorServ := p2pmock.NewMockActorService(ctrl)
+			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			if tt.keyExist == len(sampleHashes) {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)

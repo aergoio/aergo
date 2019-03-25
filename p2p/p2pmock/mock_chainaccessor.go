@@ -2,7 +2,7 @@
 // Source: ./blockchain.go
 
 // Package mock_types is a generated GoMock package.
-package p2pmocks
+package p2pmock
 
 import (
 	reflect "reflect"

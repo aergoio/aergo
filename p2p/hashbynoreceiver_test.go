@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -33,12 +33,12 @@ func TestBlockHashByNoReceiver_StartGet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			//mockContext := new(mockContext)
-			mockActor := p2pmocks.NewMockActorService(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
 
 			mockMo := createDummyMo(ctrl)
-			mockMF := p2pmocks.NewMockMoFactory(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
-			mockPeer := p2pmocks.NewMockRemotePeer(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().MF().Return(mockMF)
 			mockPeer.EXPECT().SendMessage(mockMo).Times(1)
 
@@ -85,7 +85,7 @@ func TestBlockHashByNoReceiver_ReceiveResp(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			//mockContext := new(mockContext)
-			mockActor := p2pmocks.NewMockActorService(ctrl)
+			mockActor := p2pmock.NewMockActorService(ctrl)
 			//mockActor.EXPECT().SendRequest(message.P2PSvc, gomock.Any())
 			if test.sentResp > 0 {
 				mockActor.EXPECT().TellRequest(message.SyncerSvc, gomock.Any()).DoAndReturn(func(a string, arg *message.GetHashByNoRsp) {
@@ -95,8 +95,8 @@ func TestBlockHashByNoReceiver_ReceiveResp(t *testing.T) {
 				})
 			}
 			//mockContext.On("Respond",mock.AnythingOfType("*message.GetBlockChunksRsp"))
-			mockMF := p2pmocks.NewMockMoFactory(ctrl)
-			mockPeer := p2pmocks.NewMockRemotePeer(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			//	mockPeer.On("ID").Return(dummyPeerID)
 			mockPeer.EXPECT().MF().Return(mockMF)
 			mockMo := createDummyMo(ctrl)

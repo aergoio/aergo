@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmocks"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -27,11 +27,11 @@ func FailTestGetPeers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockActorServ := p2pmocks.NewMockActorService(ctrl)
+	mockActorServ := p2pmock.NewMockActorService(ctrl)
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActorServ.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
-	mockMF := p2pmocks.NewMockMoFactory(ctrl)
+	mockMF := p2pmock.NewMockMoFactory(ctrl)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, nil, nil,
@@ -67,8 +67,8 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockActorServ := p2pmocks.NewMockActorService(ctrl)
-	mockMF := p2pmocks.NewMockMoFactory(ctrl)
+	mockActorServ := p2pmock.NewMockActorService(ctrl)
+	mockMF := p2pmock.NewMockMoFactory(ctrl)
 
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
