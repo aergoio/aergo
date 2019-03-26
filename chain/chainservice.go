@@ -35,8 +35,8 @@ var (
 
 	dfltErrBlocks = 128
 
-	ErrBlockExist   = errors.New("block already exist")
-	ErrNotSupported = errors.New("nor supported request")
+	ErrBlockExist            = errors.New("block already exist")
+	ErrNotSupportedConsensus = errors.New("nor supported by this consensus")
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -380,15 +380,15 @@ func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 		return system.GetVoteResult(cs.sdb, []byte(id), int(n))
 	case consensus.ConsensusName[consensus.ConsensusRAFT]:
 		//return cs.GetBPs()
-		return nil, ErrNotSupported
+		return nil, ErrNotSupportedConsensus
 	default:
-		return nil, ErrNotSupported
+		return nil, ErrNotSupportedConsensus
 	}
 }
 
 func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.AccountVoteInfo, error) {
 	if cs.GetType() != consensus.ConsensusDPOS {
-		return nil, ErrNotSupported
+		return nil, ErrNotSupportedConsensus
 	}
 
 	scs, err := cs.sdb.GetSystemAccountState()
@@ -426,7 +426,7 @@ func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.Accoun
 
 func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	if cs.GetType() != consensus.ConsensusDPOS {
-		return nil, ErrNotSupported
+		return nil, ErrNotSupportedConsensus
 	}
 
 	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
