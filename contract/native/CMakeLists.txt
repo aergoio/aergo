@@ -71,6 +71,8 @@ set(TEST_LIBS ascl CACHE STRING "ascl library")
 add_library(ascl STATIC ${libascl_SRCS})
 target_include_directories(ascl PRIVATE ${TOOL_INCLUDE_DIR})
 
+add_dependencies(ascl binaryen libgmp)
+
 link_directories(${TOOL_LIB_DIR})
 target_link_libraries(ascl binaryen stdc++ m
     ${TOOL_LIB_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}gmp${CMAKE_SHARED_LIBRARY_SUFFIX})
