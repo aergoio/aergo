@@ -313,20 +313,11 @@ func (cp *chainProcessor) execute(block *types.Block) error {
 	// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
 	// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
 	//	In this case, messages of mempool is synchronized in actor message queue.
-	var oldLatest types.BlockNo
-	if oldLatest, err = cp.connectToChain(block); err != nil {
+	if _, err = cp.connectToChain(block); err != nil {
 		return err
 	}
 
 	cp.notifyBlockByOther(block)
-
-	blockNo := block.BlockNo()
-	if logger.IsDebugEnabled() {
-		logger.Debug().
-			Uint64("old latest", oldLatest).
-			Uint64("new latest", blockNo).
-			Msg("block executed")
-	}
 
 	return nil
 }
@@ -689,7 +680,7 @@ func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockStat
 	blkNo := block.GetHeader().GetBlockNo()
 	blkHash := block.BlockHash()
 
-	logger.Debug().Str("hash", block.ID()).Uint64("no", blkNo).Msg("add event from executed block")
+	logger.Debug().Uint64("no", blkNo).Msg("add event from executed block")
 
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		Block: block,

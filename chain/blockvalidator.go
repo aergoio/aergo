@@ -34,7 +34,7 @@ func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainState
 		sdb:          sdb,
 	}
 
-	logger.Debug().Msg("started signverifier")
+	logger.Info().Msg("started signverifier")
 	return &bv
 }
 

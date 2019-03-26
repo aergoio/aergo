@@ -211,7 +211,7 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 		}
 	case *message.SyncStop:
 		if msg.Err == nil {
-			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer succeed")
+			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer finished successfully")
 		} else {
 			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer finished by error")
 		}

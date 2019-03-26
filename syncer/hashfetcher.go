@@ -204,9 +204,9 @@ func (hf *HashFetcher) stop() {
 		return
 	}
 
-	logger.Info().Msg("HashFetcher stop#1")
-
 	if hf.isRunning {
+		logger.Info().Msg("HashFetcher stop#1")
+
 		close(hf.quitCh)
 		logger.Info().Msg("HashFetcher close quitCh")
 
