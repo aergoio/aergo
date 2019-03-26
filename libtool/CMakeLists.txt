@@ -32,10 +32,10 @@ ExternalProject_Add(libgmp
    STAMP_DIR ${GMP_BUILD_DIR}
    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-static=no > /dev/null
    PREFIX ${GMP_SRC_DIR}
-   BUILD_COMMAND $(MAKE) CFLAGS="${CMAKE_C_FLAGS}" all install > make.log
+   BUILD_COMMAND $(MAKE) all install > make.log
    BUILD_ALWAYS 1)
 
-add_custom_target(libtool DEPENDS libluajit liblmdb)
+add_custom_target(libtool DEPENDS libluajit liblmdb libgmp)
 
 add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} ${CFLAGS} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
@@ -47,7 +47,8 @@ add_custom_target(libtool-clean
     COMMAND rm -rf ${LIB_DIR}/include/*
     COMMAND rm -rf ${LIB_DIR}/bin/*
     COMMAND rm -rf ${LIB_DIR}/share/*
-    DEPENDS libluajit-clean liblmdb-clean)
+    DEPENDS libluajit-clean liblmdb-clean libgmp-clean)
 
 add_custom_target(libluajit-clean $(MAKE) clean WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
 add_custom_target(liblmdb-clean $(MAKE) clean WORKING_DIRECTORY ${LMDB_BUILD_DIR})
+add_custom_target(libgmp-clean $(MAKE) clean WORKING_DIRECTORY ${GMP_BUILD_DIR})
