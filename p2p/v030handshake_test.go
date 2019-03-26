@@ -8,37 +8,25 @@ package p2p
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
-	"github.com/stretchr/testify/mock"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
 )
-
-var (
-	myChainID, theirChainID * types.ChainID
-	myChainBytes, theirChainBytes []byte
-)
-
-func init() {
-	myChainID = types.NewChainID()
-	myChainID.Magic = "itSmain1"
-	myChainBytes, _ = myChainID.Bytes()
-
-	theirChainID = types.NewChainID()
-	theirChainID.Read(myChainBytes)
-	theirChainID.Magic = "itsdiff2"
-	theirChainBytes, _ = theirChainID.Bytes()
-
-}
 
 func TestDeepEqual(t *testing.T) {
 	b1, _ := myChainID.Bytes()
-	b2 := make([]byte, len(b1), len(b1)<<1 )
-	copy( b2, b1)
+	b2 := make([]byte, len(b1), len(b1)<<1)
+	copy(b2, b1)
 
-	s1 := &types.Status{ChainID:b1}
-	s2 := &types.Status{ChainID:b2}
+	s1 := &types.Status{ChainID: b1}
+	s2 := &types.Status{ChainID: b2}
 
 	if !reflect.DeepEqual(s1, s2) {
 		t.Errorf("byte slice cant do DeepEqual! %v, %v", b1, b2)
@@ -47,21 +35,24 @@ func TestDeepEqual(t *testing.T) {
 }
 
 func TestV030StatusHS_doForOutbound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	logger = log.NewLogger("test")
-	mockActor := new(MockActorService)
-	mockCA := new(MockChainAccessor)
-	mockPM := new(MockPeerManager)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockCA := p2pmock.NewMockChainAccessor(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
+	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress: "dummy.aergo.io"}
 	dummyAddr := dummyMeta.ToPeerAddress()
-	mockPM.On("SelfMeta").Return(dummyMeta)
+	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActor.On("GetChainAccessor").Return(mockCA)
-	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
+	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
+	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID:myChainBytes, Sender:&dummyAddr}
-	nilSenderStatusMsg := &types.Status{ChainID:myChainBytes, Sender:nil}
-	diffStatusMsg := &types.Status{ChainID:theirChainBytes, Sender:&dummyAddr}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr}
+	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -79,20 +70,20 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := new(MockReader)
-			dummyWriter := new(MockWriter)
-			mockRW := new(MockMsgReadWriter)
+			dummyReader := p2pmock.NewMockReader(ctrl)
+			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
-				containerMsg.subProtocol = StatusRequest
-				statusBytes, _ := MarshalMessage(tt.readReturn)
+				containerMsg.subProtocol = subproto.StatusRequest
+				statusBytes, _ := p2putil.MarshalMessage(tt.readReturn)
 				containerMsg.payload = statusBytes
 			} else {
-				containerMsg.subProtocol = AddressesRequest
+				containerMsg.subProtocol = subproto.AddressesRequest
 			}
-			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
-			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeError)
+			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
+			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
 
 			h := newV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
 			h.msgRW = mockRW
@@ -101,7 +92,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got!=nil && tt.want!= nil {
+			if got != nil && tt.want != nil {
 				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
 					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
 					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
@@ -115,23 +106,26 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 }
 
 func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	// t.SkipNow()
 	logger = log.NewLogger("test")
-	mockActor := new(MockActorService)
-	mockCA := new(MockChainAccessor)
-	mockPM := new(MockPeerManager)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockCA := p2pmock.NewMockChainAccessor(ctrl)
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := PeerMeta{ID: dummyPeerID, IPAddress:"dummy.aergo.io"}
+	dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress: "dummy.aergo.io"}
 	dummyAddr := dummyMeta.ToPeerAddress()
-	mockPM.On("SelfMeta").Return(dummyMeta)
+	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	//dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
-	mockActor.On("GetChainAccessor").Return(mockCA)
-	mockCA.On("GetBestBlock").Return(dummyBlock, nil)
+	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
+	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID:myChainBytes, Sender:&dummyAddr}
-	nilSenderStatusMsg := &types.Status{ChainID:myChainBytes, Sender:nil}
-	diffStatusMsg := &types.Status{ChainID:theirChainBytes, Sender:&dummyAddr}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr}
+	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -149,20 +143,21 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := new(MockReader)
-			dummyWriter := new(MockWriter)
-			mockRW := new(MockMsgReadWriter)
+			dummyReader := p2pmock.NewMockReader(ctrl)
+			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
+
 			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
-				containerMsg.subProtocol = StatusRequest
-				statusBytes, _ := MarshalMessage(tt.readReturn)
+				containerMsg.subProtocol = subproto.StatusRequest
+				statusBytes, _ := p2putil.MarshalMessage(tt.readReturn)
 				containerMsg.payload = statusBytes
 			} else {
-				containerMsg.subProtocol = AddressesRequest
+				containerMsg.subProtocol = subproto.AddressesRequest
 			}
 
-			mockRW.On("ReadMsg").Return(containerMsg, tt.readError)
-			mockRW.On("WriteMsg", mock.Anything).Return(tt.writeError)
+			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
+			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
 
 			h := newV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
 			h.msgRW = mockRW
@@ -171,7 +166,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 				t.Errorf("PeerHandshaker.handshakeInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got!=nil && tt.want!= nil {
+			if got != nil && tt.want != nil {
 				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
 					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
 					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))

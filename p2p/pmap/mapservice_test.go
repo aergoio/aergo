@@ -13,23 +13,24 @@ import (
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/p2p/mocks"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peer"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	net "github.com/libp2p/go-libp2p-net"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 )
 
 type dummyNTC struct {
-	nt p2p.NetworkTransport
+	nt      p2pcommon.NetworkTransport
 	chainID *types.ChainID
 }
 
-func (dntc *dummyNTC) GetNetworkTransport() p2p.NetworkTransport {
+func (dntc *dummyNTC) GetNetworkTransport() p2pcommon.NetworkTransport {
 	return dntc.nt
 }
 func (dntc *dummyNTC) ChainID() *types.ChainID {
@@ -37,20 +38,19 @@ func (dntc *dummyNTC) ChainID() *types.ChainID {
 }
 
 var (
-	pmapDummyCfg = &config.Config{P2P:&config.P2PConfig{},Polaris:&config.PolarisConfig{GenesisFile:"../../examples/genesis.json"}}
-	pmapDummyNTC = &dummyNTC{chainID:&types.ChainID{}}
+	pmapDummyCfg = &config.Config{P2P: &config.P2PConfig{}, Polaris: &config.PolarisConfig{GenesisFile: "../../examples/genesis.json"}}
+	pmapDummyNTC = &dummyNTC{chainID: &types.ChainID{}}
 )
 
 func TestPeerMapService_BeforeStop(t *testing.T) {
 
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		peerRegistry  map[peer.ID]p2p.PeerMeta
+		peerRegistry  map[peer.ID]p2pcommon.PeerMeta
 	}
 	tests := []struct {
 		name   string
 		fields fields
-
 	}{
 		{"Tlisten", fields{}},
 		{"TNot", fields{}},
@@ -60,7 +60,7 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 
@@ -77,9 +77,9 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 }
 
 func TestPeerMapService_readRequest(t *testing.T) {
-	dummyMeta := p2p.PeerMeta{ID: ""}
+	dummyMeta := p2pcommon.PeerMeta{ID: ""}
 	type args struct {
-		meta    p2p.PeerMeta
+		meta    p2pcommon.PeerMeta
 		readErr error
 	}
 	tests := []struct {
@@ -97,7 +97,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
 			mockNT.EXPECT().AddStreamHandler(PolarisMapSub, gomock.Any()).Times(1)
 
@@ -105,7 +105,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 			pms.AfterStart()
 
 			msgStub := &p2p.V030Message{}
-			mockRd := mock_p2p.NewMockMsgReader(ctrl)
+			mockRd := p2pmock.NewMockMsgReader(ctrl)
 
 			mockRd.EXPECT().ReadMsg().Times(1).Return(msgStub, tt.args.readErr)
 
@@ -135,33 +135,33 @@ func TestPeerMapService_readRequest(t *testing.T) {
 }
 
 func TestPeerMapService_handleQuery(t *testing.T) {
-	mainnetbytes,err := ONEMainNet.Bytes()
+	mainnetbytes, err := ONEMainNet.Bytes()
 	if err != nil {
 		t.Error("mainnet var is not set properly", ONEMainNet)
 	}
 	dummyPeerID2, err := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
-	goodPeerMeta := p2p.PeerMeta{ID:dummyPeerID2, IPAddress:"211.34.56.78",Port:7845}
+	goodPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID2, IPAddress: "211.34.56.78", Port: 7845}
 	good := goodPeerMeta.ToPeerAddress()
-	badPeerMeta := p2p.PeerMeta{ID:peer.ID("bad"), IPAddress:"211.34.56.78",Port:7845}
+	badPeerMeta := p2pcommon.PeerMeta{ID: peer.ID("bad"), IPAddress: "211.34.56.78", Port: 7845}
 	bad := badPeerMeta.ToPeerAddress()
 	type args struct {
 		status *types.Status
-		addme bool
-		size int32
+		addme  bool
+		size   int32
 	}
 	tests := []struct {
-		name    string
-		args    args
+		name string
+		args args
 
 		wantErr bool
 		wantMsg bool
 	}{
 		// check if parameter is bad
-		{"TMissingStat",args{nil, true, 9999}, true ,false},
+		{"TMissingStat", args{nil, true, 9999}, true, false},
 		// check if addMe is set or not
-		{"TOnlyQuery",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, false, 10}, false,false },
-		{"TOnlyQuery",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, false, 10}, false,false },
+		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &good}, false, 10}, false, false},
+		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &bad}, false, 10}, false, false},
 		// TODO refator mapservice to run commented test
 		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false },
 		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true },
@@ -171,25 +171,25 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
-			mockStream := mock_p2p.NewMockStream(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			mockStream := p2pmock.NewMockStream(ctrl)
 			mockStream.EXPECT().Write(gomock.Any()).MaxTimes(1).Return(100, nil)
 			mockStream.EXPECT().Close().MaxTimes(1).Return(nil)
 			pmapDummyNTC.chainID = &ONEMainNet
 			pmapDummyNTC.nt = mockNT
 			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any())
-			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(),PolarisPingSub, gomock.Any()).Return(mockStream, nil)
+			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), PolarisPingSub, gomock.Any()).Return(mockStream, nil)
 
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()
-			query := &types.MapQuery{Status:tt.args.status, AddMe:tt.args.addme, Size:tt.args.size}
+			query := &types.MapQuery{Status: tt.args.status, AddMe: tt.args.addme, Size: tt.args.size}
 
 			got, err := pms.handleQuery(nil, query)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerMapService.handleQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && (len(got.Message)>0) != tt.wantMsg {
+			if !tt.wantErr && (len(got.Message) > 0) != tt.wantMsg {
 				t.Errorf("PeerMapService.handleQuery() msg = %v, wantMsg %v", got.Message, tt.wantMsg)
 				return
 			}
@@ -198,14 +198,14 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	}
 }
 
-var metas []p2p.PeerMeta
+var metas []p2pcommon.PeerMeta
 
 func init() {
-	metas = make([]p2p.PeerMeta, 20)
+	metas = make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
 		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		peerid, _ := peer.IDFromPublicKey(pub)
-		metas[i] = p2p.PeerMeta{ID: peerid}
+		metas[i] = p2pcommon.PeerMeta{ID: peerid}
 	}
 }
 
@@ -214,7 +214,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		args     []p2p.PeerMeta
+		args     []p2pcommon.PeerMeta
 		wantSize int
 		wantErr  bool
 	}{
@@ -226,7 +226,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.nt = mockNT
 
@@ -235,7 +235,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 			wg.Add(1)
 			finWg.Add(len(tt.args))
 			for _, meta := range tt.args {
-				go func(in p2p.PeerMeta) {
+				go func(in p2pcommon.PeerMeta) {
 					wg.Wait()
 					pms.registerPeer(in)
 					finWg.Done()
@@ -251,13 +251,12 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 	}
 }
 
-
 func TestPeerMapService_unregisterPeer(t *testing.T) {
 	dupMetas := MakeMetaSlice(metas[2:5], metas[3:7])
 	allSize := len(metas)
 	tests := []struct {
 		name         string
-		args         []p2p.PeerMeta
+		args         []p2pcommon.PeerMeta
 		wantDecrease int
 		wantErr      bool
 	}{
@@ -269,7 +268,7 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockNT := mock_p2p.NewMockNetworkTransport(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.nt = mockNT
 			for _, meta := range metas {
@@ -280,7 +279,7 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 			wg.Add(1)
 			finWg.Add(len(tt.args))
 			for _, meta := range tt.args {
-				go func(in p2p.PeerMeta) {
+				go func(in p2pcommon.PeerMeta) {
 					wg.Wait()
 					pms.unregisterPeer(in.ID)
 					finWg.Done()
@@ -288,7 +287,7 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 			}
 			wg.Done()
 			finWg.Wait()
-			assert.Equal(t, allSize - tt.wantDecrease, len(pms.peerRegistry))
+			assert.Equal(t, allSize-tt.wantDecrease, len(pms.peerRegistry))
 
 			ctrl.Finish()
 
@@ -296,8 +295,8 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 	}
 }
 
-func MakeMetaSlice(slis ...[]p2p.PeerMeta) []p2p.PeerMeta {
-	result := make([]p2p.PeerMeta, 0, 10)
+func MakeMetaSlice(slis ...[]p2pcommon.PeerMeta) []p2pcommon.PeerMeta {
+	result := make([]p2pcommon.PeerMeta, 0, 10)
 	for _, sli := range slis {
 		result = append(result, sli...)
 	}
@@ -308,15 +307,15 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 	type fields struct {
 		BaseComponent *component.BaseComponent
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		mutex         *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
 	}
 	type args struct {
-		reqContainer p2p.Message
-		meta         p2p.PeerMeta
+		reqContainer p2pcommon.Message
+		meta         p2pcommon.PeerMeta
 		resp         *types.MapResponse
-		wt           p2p.MsgWriter
+		wt           p2pcommon.MsgWriter
 	}
 	tests := []struct {
 		name    string
@@ -344,7 +343,7 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 func TestNewMapService(t *testing.T) {
 	type args struct {
 		cfg    *config.Config
-		ntc    p2p.NTContainer
+		ntc    p2pcommon.NTContainer
 		listen bool
 	}
 	tests := []struct {
@@ -368,10 +367,10 @@ func TestPeerMapService_BeforeStart(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
+		mapServers    []p2pcommon.PeerMeta
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -403,10 +402,10 @@ func TestPeerMapService_AfterStart(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
+		mapServers    []p2pcommon.PeerMeta
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -438,10 +437,10 @@ func TestPeerMapService_onConnect(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
+		mapServers    []p2pcommon.PeerMeta
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -477,10 +476,10 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
+		mapServers    []p2pcommon.PeerMeta
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -517,9 +516,9 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 
 func Test_createV030Message(t *testing.T) {
 	type args struct {
-		msgID       p2p.MsgID
-		orgID       p2p.MsgID
-		subProtocol p2p.SubProtocol
+		msgID       p2pcommon.MsgID
+		orgID       p2pcommon.MsgID
+		subProtocol p2pcommon.SubProtocol
 		innerMsg    proto.Message
 	}
 	tests := []struct {
@@ -549,10 +548,10 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 		BaseComponent *component.BaseComponent
 		ChainID       *types.ChainID
 		PrivateNet    bool
-		mapServers    []p2p.PeerMeta
-		ntc           p2p.NTContainer
+		mapServers    []p2pcommon.PeerMeta
+		ntc           p2pcommon.NTContainer
 		listen        bool
-		nt            p2p.NetworkTransport
+		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
 		peerRegistry  map[peer.ID]*peerState
@@ -589,7 +588,7 @@ func Test_makeGoAwayMsg(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    p2p.Message
+		want    p2pcommon.Message
 		wantErr bool
 	}{
 		// TODO: Add test cases.

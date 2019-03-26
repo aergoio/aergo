@@ -6,35 +6,32 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/internal/enc"
 	"time"
 
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 // ClientVersion is the version of p2p protocol to which this codes are built
 // FIXME version should be defined in more general ways
 const ClientVersion = "0.2.0"
 
-type pbMessage interface {
-	proto.Message
-}
-
 type pbMessageOrder struct {
 	// reqID means that this message is response of the request of ID. Set empty if the messge is request.
-	request         bool
-	needSign        bool
-	protocolID      SubProtocol // protocolName and msg struct type MUST be matched.
+	request    bool
+	needSign   bool
+	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.
 
-	message Message
+	message p2pcommon.Message
 }
 
-var _ msgOrder = (*pbRequestOrder)(nil)
-var _ msgOrder = (*pbResponseOrder)(nil)
-var _ msgOrder = (*pbBlkNoticeOrder)(nil)
-var _ msgOrder = (*pbTxNoticeOrder)(nil)
-
+var _ p2pcommon.MsgOrder = (*pbRequestOrder)(nil)
+var _ p2pcommon.MsgOrder = (*pbResponseOrder)(nil)
+var _ p2pcommon.MsgOrder = (*pbBlkNoticeOrder)(nil)
+var _ p2pcommon.MsgOrder = (*pbTxNoticeOrder)(nil)
 
 func setupMessageData(md *types.MsgHeader, reqID string, version string, ts int64) {
 	md.Id = reqID
@@ -43,7 +40,7 @@ func setupMessageData(md *types.MsgHeader, reqID string, version string, ts int6
 	md.Timestamp = ts
 }
 
-func (pr *pbMessageOrder) GetMsgID() MsgID {
+func (pr *pbMessageOrder) GetMsgID() p2pcommon.MsgID {
 	return pr.message.ID()
 }
 
@@ -59,31 +56,31 @@ func (pr *pbMessageOrder) IsNeedSign() bool {
 	return pr.needSign
 }
 
-func (pr *pbMessageOrder) GetProtocolID() SubProtocol {
+func (pr *pbMessageOrder) GetProtocolID() p2pcommon.SubProtocol {
 	return pr.protocolID
 }
 
 type pbRequestOrder struct {
 	pbMessageOrder
-	respReceiver ResponseReceiver
+	respReceiver p2pcommon.ResponseReceiver
 }
 
-func (pr *pbRequestOrder) SendTo(p *remotePeerImpl) error {
+func (pr *pbRequestOrder) SendTo(pi p2pcommon.RemotePeer) error {
+	p := pi.(*remotePeerImpl)
 	p.reqMutex.Lock()
-	p.requests[pr.message.ID()] = &requestInfo{cTime:time.Now(), reqMO:pr, receiver: pr.respReceiver}
+	p.requests[pr.message.ID()] = &requestInfo{cTime: time.Now(), reqMO: pr, receiver: pr.respReceiver}
 	p.reqMutex.Unlock()
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		p.reqMutex.Lock()
 		delete(p.requests, pr.message.ID())
 		p.reqMutex.Unlock()
 		return err
 	}
 
-
-	p.logger.Debug().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID().String()).Msg("Send request message")
+	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		Str(p2putil.LogMsgID, pr.GetMsgID().String()).Msg("Send request message")
 
 	return nil
 }
@@ -92,14 +89,15 @@ type pbResponseOrder struct {
 	pbMessageOrder
 }
 
-func (pr *pbResponseOrder) SendTo(p *remotePeerImpl) error {
+func (pr *pbResponseOrder) SendTo(pi p2pcommon.RemotePeer) error {
+	p := pi.(*remotePeerImpl)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
-	p.logger.Debug().Str(LogPeerName, p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID().String()).Str("req_id", pr.message.OriginalID().String()).Msg("Send response message")
+	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str("req_id", pr.message.OriginalID().String()).Msg("Send response message")
 
 	return nil
 }
@@ -109,7 +107,8 @@ type pbBlkNoticeOrder struct {
 	blkHash []byte
 }
 
-func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) error {
+func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
+	p := pi.(*remotePeerImpl)
 	var blkhash = types.ToBlockID(pr.blkHash)
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
 		// the remote peer already know this block hash. skip it
@@ -120,28 +119,28 @@ func (pr *pbBlkNoticeOrder) SendTo(p *remotePeerImpl) error {
 	}
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	return nil
 }
-
 
 type pbBpNoticeOrder struct {
 	pbMessageOrder
 	block *types.Block
 }
 
-func (pr *pbBpNoticeOrder) SendTo(p *remotePeerImpl) error {
+func (pr *pbBpNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
+	p := pi.(*remotePeerImpl)
 	var blkhash = types.ToBlockID(pr.block.Hash)
 	p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
-	p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID().String()).Str(LogBlkHash,enc.ToString(pr.block.Hash)).Msg("Notify block produced")
+	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+		Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogBlkHash, enc.ToString(pr.block.Hash)).Msg("Notify block produced")
 	return nil
 }
 
@@ -150,27 +149,17 @@ type pbTxNoticeOrder struct {
 	txHashes [][]byte
 }
 
-func (pr *pbTxNoticeOrder) SendTo(p *remotePeerImpl) error {
+func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
+	p := pi.(*remotePeerImpl)
+
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).Str(LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
 	if p.logger.IsDebugEnabled() {
-		p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
-		Str(LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Str("hashes",bytesArrToString(pr.txHashes)).Msg("Sent tx notice")
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Str("hashes", p2putil.BytesArrToString(pr.txHashes)).Msg("Sent tx notice")
 	}
 	return nil
-}
-
-func MarshalMessage(message proto.Message) ([]byte, error) {
-	return proto.Marshal(message)
-}
-
-func UnmarshalMessage(data []byte, msgData proto.Message) error {
-	return proto.Unmarshal(data, msgData)
-}
-
-func unmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, error) {
-	return msgData, proto.Unmarshal(data, msgData)
 }

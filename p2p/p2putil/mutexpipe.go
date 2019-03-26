@@ -13,7 +13,7 @@ import (
 type mutexPipe struct {
 	mutex *sync.Mutex
 
-	out  chan interface{}
+	out chan interface{}
 
 	queue *PressableQueue
 	stop  int32
@@ -28,7 +28,7 @@ func newMutexPipe(bufsize int, listener PipeEventListener) *mutexPipe {
 	}
 	c := &mutexPipe{
 		mutex: new(sync.Mutex),
-		out:  make(chan interface{}, 1),
+		out:   make(chan interface{}, 1),
 
 		queue: NewPressableQueue(bufsize),
 
@@ -74,10 +74,10 @@ func (c *mutexPipe) Done() {
 }
 
 func (c *mutexPipe) Open() {
-	atomic.StoreInt32(&c.stop,0)
+	atomic.StoreInt32(&c.stop, 0)
 }
 func (c *mutexPipe) Close() {
-	atomic.StoreInt32(&c.stop,1)
+	atomic.StoreInt32(&c.stop, 1)
 }
 
 func (c *mutexPipe) pushToOut(e interface{}) {

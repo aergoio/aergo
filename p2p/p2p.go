@@ -6,12 +6,15 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	subproto "github.com/aergoio/aergo/p2p/subproto"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -21,8 +24,8 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type nodeInfo struct {
@@ -38,14 +41,13 @@ type P2P struct {
 
 	// caching data from genesis block
 	chainID *types.ChainID
-	nt 	NetworkTransport
-	pm     PeerManager
-	sm     SyncManager
-	rm     ReconnectManager
-	mm 	metric.MetricsManager
-	mf     moFactory
-	signer msgSigner
-	ca     types.ChainAccessor
+	nt      p2pcommon.NetworkTransport
+	pm      p2pcommon.PeerManager
+	sm      p2pcommon.SyncManager
+	mm      metric.MetricsManager
+	mf      p2pcommon.MoFactory
+	signer  p2pcommon.MsgSigner
+	ca      types.ChainAccessor
 
 	mutex sync.Mutex
 }
@@ -55,8 +57,8 @@ type HandlerFactory interface {
 }
 
 var (
-	_  ActorService = (*P2P)(nil)
-	_ HSHandlerFactory = (*P2P)(nil)
+	_  p2pcommon.ActorService = (*P2P)(nil)
+	_  HSHandlerFactory       = (*P2P)(nil)
 	ni *nodeInfo
 )
 
@@ -83,13 +85,13 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *
 			logger.Info().Str("pk_file", autogenFilePath).Msg("Generate new private key file.")
 			priv, pub, err = GenerateKeyFile(baseCfg.AuthDir, DefaultPkKeyPrefix)
 			if err != nil {
-				panic("Failed to generate new pk file: "+err.Error())
+				panic("Failed to generate new pk file: " + err.Error())
 			}
 		} else {
 			logger.Info().Str("pk_file", autogenFilePath).Msg("Load existing generated private key file.")
 			priv, pub, err = LoadKeyFile(autogenFilePath)
 			if err != nil {
-				panic("Failed to load generated pk file '"+autogenFilePath+"' "+err.Error())
+				panic("Failed to load generated pk file '" + autogenFilePath + "' " + err.Error())
 			}
 		}
 	}
@@ -172,8 +174,7 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 	return &stmap
 }
 
-
-func (p2ps *P2P) GetNetworkTransport() NetworkTransport {
+func (p2ps *P2P) GetNetworkTransport() p2pcommon.NetworkTransport {
 	p2ps.mutex.Lock()
 	defer p2ps.mutex.Unlock()
 	return p2ps.nt
@@ -194,25 +195,25 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	genesis := chainsvc.CDB().GetGenesisInfo()
 	chainIdBytes, err := genesis.ChainID()
 	if err != nil {
-		panic("genesis block is not set properly: "+err.Error())
+		panic("genesis block is not set properly: " + err.Error())
 	}
 	chainID := types.NewChainID()
 	err = chainID.Read(chainIdBytes)
 	if err != nil {
-		panic("invalid chainid: "+err.Error())
+		panic("invalid chainid: " + err.Error())
 	}
 	p2ps.chainID = chainID
 
 	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
 	mf := &v030MOFactory{}
-	reconMan := newReconnectManager(p2ps.Logger)
+	//reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, reconMan, metricMan, p2ps.Logger, mf)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 
 	// connect managers each other
-	reconMan.pm = peerMan
+	//reconMan.pm = peerMan
 
 	p2ps.mutex.Lock()
 	p2ps.signer = signer
@@ -220,7 +221,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.mf = mf
 	p2ps.pm = peerMan
 	p2ps.sm = syncMan
-	p2ps.rm = reconMan
+	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
 	p2ps.mutex.Unlock()
 }
@@ -257,7 +258,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetPeers:
-		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden,msg.ShowSelf)
+		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden, msg.ShowSelf)
 		context.Respond(&message.GetPeersRsp{Peers: peers})
 	case *message.GetSyncAncestor:
 		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
@@ -265,7 +266,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.MapQueryMsg:
 		bestBlock, err := p2ps.GetChainAccessor().GetBestBlock()
 		if err == nil {
-			msg.BestBlock=bestBlock
+			msg.BestBlock = bestBlock
 			p2ps.SendRequest(message.MapSvc, msg)
 		}
 	case *message.MapQueryRsp:
@@ -279,11 +280,10 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	}
 }
 
-
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := p2ps.pm.SelfNodeID()
-	peerMetas := make([]PeerMeta, 0, len(peers))
+	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
@@ -292,7 +292,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
-		meta := FromPeerAddress(rPeerAddr)
+		meta := p2pcommon.FromPeerAddress(rPeerAddr)
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {
@@ -341,37 +341,37 @@ func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
 	logger := p2ps.Logger
 
 	// PingHandlers
-	peer.handlers[PingRequest] = newPingReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[PingResponse] = newPingRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GoAway] = newGoAwayHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[AddressesRequest] = newAddressesReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[AddressesResponse] = newAddressesRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.PingRequest] = subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.PingResponse] = subproto.NewPingRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GoAway] = subproto.NewGoAwayHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.AddressesRequest] = subproto.NewAddressesReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.AddressesResponse] = subproto.NewAddressesRespHandler(p2ps.pm, peer, logger, p2ps)
 
 	// BlockHandlers
-	peer.handlers[GetBlocksRequest] = newBlockReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetBlocksResponse] = newBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
-	peer.handlers[GetBlockHeadersRequest] = newListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetBlockHeadersResponse] = newListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[NewBlockNotice] = newNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
-	peer.handlers[GetAncestorRequest] = newGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetAncestorResponse] = newGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetHashesRequest] = newGetHashesReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetHashesResponse] = newGetHashesRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetHashByNoRequest] = newGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetHashByNoResponse] = newGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetBlocksRequest] = subproto.NewBlockReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetBlocksResponse] = subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.handlers[subproto.GetBlockHeadersRequest] = subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetBlockHeadersResponse] = subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.NewBlockNotice] = subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.handlers[subproto.GetAncestorRequest] = subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetAncestorResponse] = subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetHashesRequest] = subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetHashesResponse] = subproto.NewGetHashesRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetHashByNoRequest] = subproto.NewGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetHashByNoResponse] = subproto.NewGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps)
 
 	// TxHandlers
-	peer.handlers[GetTXsRequest] = newTxReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[GetTXsResponse] = newTxRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[NewTxNotice] = newNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.handlers[subproto.GetTXsRequest] = subproto.NewTxReqHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.GetTXsResponse] = subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.handlers[subproto.NewTxNotice] = subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 
 	// BP protocol handlers
-	peer.handlers[BlockProducedNotice] = newBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.handlers[subproto.BlockProducedNotice] = subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
 
 }
 
-func (p2ps *P2P) CreateHSHandler(outbound bool, pm PeerManager, actor ActorService, log *log.Logger, pid peer.ID) HSHandler {
-	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID:p2ps.chainID, peerID: pid}
+func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) HSHandler {
+	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: p2ps.chainID, peerID: pid}
 	if outbound {
 		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
 	} else {

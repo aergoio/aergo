@@ -6,9 +6,12 @@
 package pmap
 
 import (
-	"github.com/aergoio/aergo/p2p"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -16,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 // P2P is actor component for p2p
@@ -24,13 +26,13 @@ type LiteContainerService struct {
 	*component.BaseComponent
 
 	chainID *types.ChainID
-	nt     p2p.NetworkTransport
+	nt      p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
 }
 
 var (
-	//_ ActorService     = (*LiteContainerService)(nil)
+//_ ActorService     = (*LiteContainerService)(nil)
 )
 
 // NewP2P create a new ActorService for p2p
@@ -40,7 +42,6 @@ func NewNTContainer(cfg *config.Config) *LiteContainerService {
 	lntc.init(cfg)
 	return lntc
 }
-
 
 func (lntc *LiteContainerService) SetHub(hub *component.ComponentHub) {
 	lntc.BaseComponent.SetHub(hub)
@@ -69,7 +70,7 @@ func (lntc *LiteContainerService) Statistics() *map[string]interface{} {
 	return nil
 }
 
-func (lntc *LiteContainerService) GetNetworkTransport() p2p.NetworkTransport {
+func (lntc *LiteContainerService) GetNetworkTransport() p2pcommon.NetworkTransport {
 	lntc.mutex.Lock()
 	defer lntc.mutex.Unlock()
 	return lntc.nt
@@ -89,16 +90,16 @@ func (lntc *LiteContainerService) init(cfg *config.Config) {
 	}
 	chainIdBytes, err := genesis.ChainID()
 	if err != nil {
-		panic("genesis block is not set properly: "+err.Error())
+		panic("genesis block is not set properly: " + err.Error())
 	}
 	chainID := types.NewChainID()
 	err = chainID.Read(chainIdBytes)
 	if err != nil {
-		panic("invalid chainid: "+err.Error())
+		panic("invalid chainid: " + err.Error())
 	}
 	lntc.chainID = chainID
 
-	lntc.Logger.Info().Str("genesis",chainID.ToJSON()).Msg("genesis block loaded")
+	lntc.Logger.Info().Str("genesis", chainID.ToJSON()).Msg("genesis block loaded")
 
 	netTransport := p2p.NewNetworkTransport(cfg.P2P, lntc.Logger)
 
@@ -122,13 +123,13 @@ func (lntc *LiteContainerService) Receive(context actor.Context) {
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (lntc *LiteContainerService) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := lntc.nt.SelfNodeID()
-	peerMetas := make([]p2p.PeerMeta, 0, len(peers))
+	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}
-		meta := p2p.FromPeerAddress(rPeerAddr)
+		meta := p2pcommon.FromPeerAddress(rPeerAddr)
 		peerMetas = append(peerMetas, meta)
 	}
 }

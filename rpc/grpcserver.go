@@ -20,8 +20,8 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -41,7 +41,7 @@ type EventStream struct {
 // AergoRPCService implements GRPC server which is defined in rpc.proto
 type AergoRPCService struct {
 	hub         *component.ComponentHub
-	actorHelper p2p.ActorService
+	actorHelper p2pcommon.ActorService
 	msgHelper   message.Helper
 
 	streamID                uint32

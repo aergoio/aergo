@@ -12,8 +12,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	peer "github.com/libp2p/go-libp2p-peer"
+
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 )
@@ -81,7 +83,7 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := PeerMeta{
+			m := p2pcommon.PeerMeta{
 				ID:        tt.fields.ID,
 				IPAddress: tt.fields.IPAddress,
 				Port:      tt.fields.Port,
@@ -116,6 +118,7 @@ func TestParseMultiaddrWithResolve(t *testing.T) {
 		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{net.ParseIP("192.168.0.58")}, "11002", false},
 		{"TIP4AndPort", "/ip4/192.168.0.58/tcp/11002", []net.IP{net.ParseIP("192.168.0.58")}, "11002", false},
 		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{net.ParseIP("FE80::0202:B3FF:FE1E:8329")}, "11003", false},
+		//FIXME
 		// skip case, since it depend on external environment. uncomment it if really need, and comment back after finishing test
 		//{"TDomainName", "/dns/aergo.io/tcp/11004/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{net.ParseIP("104.20.161.59"), net.ParseIP("104.20.160.59")}, "11004", false},
 		{"TInvalidDomain", "/dns/nowhere.a.aergo.io/tcp/11004/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", []net.IP{}, "", true},
@@ -133,6 +136,7 @@ func TestParseMultiaddrWithResolve(t *testing.T) {
 				if got == nil {
 					t.Errorf("ParseMultiaddrWithResolve() is nil , want not nil")
 				}
+
 				ipStr, err := got.ValueForProtocol(multiaddr.P_IP4)
 				if err != nil {
 					ipStr, _ = got.ValueForProtocol(multiaddr.P_IP6)
@@ -166,14 +170,14 @@ func TestGenerateKeyFile(t *testing.T) {
 	} else {
 		err := os.MkdirAll(testDir, os.ModePerm)
 		if err != nil {
-			t.Skip("can't test. permission error. "+err.Error())
+			t.Skip("can't test. permission error. " + err.Error())
 		}
 		defer func() {
 			os.RemoveAll(testDir)
 		}()
 		err = os.MkdirAll(existDir, os.ModePerm)
 		if err != nil {
-			t.Skip("can't test. permission error. "+err.Error())
+			t.Skip("can't test. permission error. " + err.Error())
 		}
 	}
 	type args struct {
@@ -185,8 +189,8 @@ func TestGenerateKeyFile(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"TSucc", args{filepath.Join(testDir,"abc"), "testkey"}, false},
-		{"TPermission", args{"/sbin/abc","testkey"}, true},
+		{"TSucc", args{filepath.Join(testDir, "abc"), "testkey"}, false},
+		{"TPermission", args{"/sbin/abc", "testkey"}, true},
 		{"TDir", args{testDir, "holder"}, true},
 		//{"TNotExist", args{}, true},
 		//{"TInvalidKey", args{}, false},
@@ -208,15 +212,15 @@ func TestGenerateKeyFile(t *testing.T) {
 				}
 
 				ldPriv, ldPub, actErr := LoadKeyFile(file)
-				if actErr !=nil {
+				if actErr != nil {
 					t.Errorf("LoadKeyFile() should not return error, but get %v, ", actErr)
 				}
-				if !ldPriv.Equals(gotPriv)  {
-					t.Errorf("GenerateKeyFile() and LoadKeyFile() private key is differ." )
+				if !ldPriv.Equals(gotPriv) {
+					t.Errorf("GenerateKeyFile() and LoadKeyFile() private key is differ.")
 					return
 				}
-				if !ldPub.Equals(gotPub)  {
-					t.Errorf("GenerateKeyFile() and LoadKeyFile() public key is differ." )
+				if !ldPub.Equals(gotPub) {
+					t.Errorf("GenerateKeyFile() and LoadKeyFile() public key is differ.")
 					return
 				}
 			}
