@@ -10,7 +10,7 @@ RUN make aergosvr
 FROM alpine:3.8
 RUN apk add libgcc
 COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/bin/aergosvr /usr/local/bin/
-COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/libtool/lib/libgmp.* /usr/local/lib/
+COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/libtool/lib/* /usr/local/lib/
 
 ADD node/testnet.toml /aergo/testnet.toml
 ADD node/testnet.toml /root/.aergo/config.toml
