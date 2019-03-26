@@ -18,6 +18,7 @@ import (
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired.
 type BlockHashByNoReceiver struct {
+	syncerSeq uint64
 	requestID p2pcommon.MsgID
 
 	peer  p2pcommon.RemotePeer
@@ -30,9 +31,9 @@ type BlockHashByNoReceiver struct {
 	got message.BlockHash
 }
 
-func NewBlockHashByNoReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, blockNo types.BlockNo, ttl time.Duration) *BlockHashByNoReceiver {
+func NewBlockHashByNoReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, seq uint64, blockNo types.BlockNo, ttl time.Duration) *BlockHashByNoReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlockHashByNoReceiver{actor: actor, peer: peer, blockNo: blockNo, timeout: timeout}
+	return &BlockHashByNoReceiver{syncerSeq: seq, actor: actor, peer: peer, blockNo: blockNo, timeout: timeout}
 }
 
 func (br *BlockHashByNoReceiver) StartGet() {
@@ -57,13 +58,13 @@ func (br *BlockHashByNoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody prot
 	// remote peer response failure
 	body := msgBody.(*types.GetHashByNoResponse)
 	if body.Status != types.ResultStatus_OK {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{BlockHash: nil, Err: message.RemotePeerFailError})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq:br.syncerSeq, BlockHash: nil, Err: message.RemotePeerFailError})
 		br.finished = true
 		br.peer.ConsumeRequest(br.requestID)
 		return
 	}
 	br.got = body.BlockHash
-	br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{BlockHash: br.got})
+	br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq:br.syncerSeq, BlockHash: br.got})
 	br.finished = true
 	br.peer.ConsumeRequest(br.requestID)
 	return

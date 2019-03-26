@@ -21,6 +21,7 @@ import (
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired, since
 // syncer actor already dropped wait before.
 type BlocksChunkReceiver struct {
+	syncerSeq uint64
 	requestID p2pcommon.MsgID
 
 	peer  p2pcommon.RemotePeer
@@ -44,9 +45,9 @@ const (
 	receiverStatusFinished
 )
 
-func NewBlockReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, blockHashes []message.BlockHash, ttl time.Duration) *BlocksChunkReceiver {
+func NewBlockReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, seq uint64, blockHashes []message.BlockHash, ttl time.Duration) *BlocksChunkReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlocksChunkReceiver{actor: actor, peer: peer, blockHashes: blockHashes, timeout: timeout, got: make([]*types.Block, len(blockHashes))}
+	return &BlocksChunkReceiver{syncerSeq:seq, actor: actor, peer: peer, blockHashes: blockHashes, timeout: timeout, got: make([]*types.Block, len(blockHashes))}
 }
 
 func (br *BlocksChunkReceiver) StartGet() {
@@ -95,15 +96,13 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 	// responses malformed data will not expectec remained chunk.
 	respBody, ok := msgBody.(types.ResponseMessage)
 	if !ok || respBody.GetStatus() != types.ResultStatus_OK {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Err: message.RemotePeerFailError})
-		br.finishReceiver()
+		br.cancelReceiving(message.RemotePeerFailError, false)
 		return
 	}
 	// remote peer response malformed data.
 	body, ok := msgBody.(*types.GetBlockResponse)
 	if !ok || len(body.Blocks) == 0 {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Err: message.MissingHashError})
-		br.finishReceiver()
+		br.cancelReceiving(message.MissingHashError, false)
 		return
 	}
 
@@ -111,19 +110,16 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 	for _, block := range body.Blocks {
 		// It also error that response has more blocks than expected(=requested).
 		if br.offset >= len(br.got) {
-			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Blocks: nil, Err: message.TooManyBlocksError})
-			br.cancelReceiving(body.HasNext)
+			br.cancelReceiving(message.TooManyBlocksError, body.HasNext)
 			return
 		}
 		// unexpected block
 		if !bytes.Equal(br.blockHashes[br.offset], block.Hash) {
-			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Err: message.UnexpectedBlockError})
-			br.cancelReceiving(body.HasNext)
+			br.cancelReceiving(message.UnexpectedBlockError, body.HasNext)
 			return
 		}
 		if proto.Size(block) > int(chain.MaxBlockSize()) {
-			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Err: message.TooBigBlockError})
-			br.cancelReceiving(body.HasNext)
+			br.cancelReceiving(message.TooBigBlockError, body.HasNext)
 			return
 		}
 		br.got[br.offset] = block
@@ -132,19 +128,23 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 	// remote peer hopefully sent last chunk
 	if !body.HasNext {
 		if br.offset < len(br.got) {
-			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Err: message.TooFewBlocksError})
 			// not all blocks were filled. this is error
+			br.cancelReceiving(message.TooFewBlocksError, body.HasNext)
 		} else {
-			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{ToWhom: br.peer.ID(), Blocks: br.got, Err: nil})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{Seq:br.syncerSeq, ToWhom: br.peer.ID(), Blocks: br.got, Err: nil})
+			br.finishReceiver()
 		}
-		br.finishReceiver()
 	}
 	return
 }
 
-// cancelReceiving is to cancel receiver the middle in receiving, waiting remaining (and useless) response. It is assumed cancelings are not frequently occur
-func (br *BlocksChunkReceiver) cancelReceiving(hasNext bool) {
+// cancelReceiving is cancel wait for receiving and send syncer the failure result.
+// not all part of response is received, it wait remaining (and useless) response. It is assumed cancelings are not frequently occur
+func (br *BlocksChunkReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
+	br.actor.TellRequest(message.SyncerSvc,
+		&message.GetBlockChunksRsp{Seq:br.syncerSeq, ToWhom: br.peer.ID(), Err: err})
+
 	// check time again. since negative duration of timer will not fire channel.
 	interval := br.timeout.Sub(time.Now())
 	if !hasNext || interval <= 0 {
@@ -168,7 +168,7 @@ func (br *BlocksChunkReceiver) cancelReceiving(hasNext bool) {
 
 // finishReceiver is to cancel works, assuming cancelings are not frequently occur
 func (br *BlocksChunkReceiver) finishReceiver() {
-	br.status = receiverStatusCanceled
+	br.status = receiverStatusFinished
 	br.peer.ConsumeRequest(br.requestID)
 }
 

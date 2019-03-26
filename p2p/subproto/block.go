@@ -230,18 +230,9 @@ func (bh *getAncestorResponseHandler) ParsePayload(rawbytes []byte) (proto.Messa
 }
 
 func (bh *getAncestorResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
-	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorResponse)
 	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))
 
 	// locate request data and remove it if found
-	remotePeer.ConsumeRequest(msg.OriginalID())
-
-	var ancestor *types.BlockInfo
-	if data.Status == types.ResultStatus_OK {
-		ancestor = &types.BlockInfo{Hash: data.AncestorHash, No: data.AncestorNo}
-	}
-	// send GetSyncAncestorRsp to syncer
-	// if error, ancestor is nil
-	bh.actor.TellRequest(message.SyncerSvc, &message.GetSyncAncestorRsp{Ancestor: ancestor})
+	bh.peer.GetReceiver(msg.OriginalID())(msg, data)
 }
