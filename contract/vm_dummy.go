@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	luac_util "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -57,6 +58,7 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadDatabase(dataPath) // sql database
+	fee.SetFixedTxFee(true)
 	StartLStateFactory()
 
 	return bc, nil

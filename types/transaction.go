@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/aergoio/aergo/fee"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
 )
@@ -24,17 +25,20 @@ type Transaction interface {
 	GetHash() []byte
 	CalculateTxHash() []byte
 	Validate() error
-	ValidateWithSenderState(senderState *State, fee *big.Int) error
+	ValidateWithSenderState(senderState *State) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
 	SetVerifedAccount(account Address) bool
 	RemoveVerifedAccount() bool
+	GetMaxFee() *big.Int
 }
 
 type transaction struct {
 	Tx              *Tx
 	VerifiedAccount Address
 }
+
+var _ Transaction = (*transaction)(nil)
 
 func NewTransaction(tx *Tx) Transaction {
 	return &transaction{Tx: tx}
@@ -218,7 +222,7 @@ func validateNameTx(tx *TxBody) error {
 	return nil
 }
 
-func (tx *transaction) ValidateWithSenderState(senderState *State, fee *big.Int) error {
+func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
@@ -226,7 +230,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, fee *big.Int)
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL:
-		spending := new(big.Int).Add(amount, fee)
+		spending := new(big.Int).Add(amount, tx.GetMaxFee())
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
 		}
@@ -299,6 +303,10 @@ func (tx *transaction) Clone() *transaction {
 	}
 	res.Tx.Hash = res.CalculateTxHash()
 	return res
+}
+
+func (tx *transaction) GetMaxFee() *big.Int {
+	return fee.FixedTxFee()
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"

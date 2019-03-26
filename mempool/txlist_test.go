@@ -9,11 +9,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/types"
-)
-
-var (
-	zeroFee = new(big.Int).SetInt64(0)
 )
 
 func NewState(nonce uint64, bal uint64) *types.State {
@@ -92,12 +89,13 @@ func TestListDel(t *testing.T) {
 	defer deinitTest()
 	mpl := NewTxList(nil, NewState(0, 0))
 
-	ret, txs := mpl.FilterByState(NewState(2, 100), zeroFee)
+	fee.SetFixedTxFee(false)
+	ret, txs := mpl.FilterByState(NewState(2, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(0, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(0, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -112,27 +110,27 @@ func TestListDel(t *testing.T) {
 		mpl.Put(genTx(0, 0, uint64(i+1), 0))
 	}
 	// 1, |2, 3, | x, 5, x, 7, | x, 9... 14, |15... 100
-	ret, txs = mpl.FilterByState(NewState(0, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(0, 100))
 	if ret != 0 || mpl.Len() != 3 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(1, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(1, 100))
 	if ret != 0 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(3, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(3, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(7, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(7, 100))
 	if ret != 2 || mpl.Len() != 0 || len(txs) != 2 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
 
-	ret, txs = mpl.FilterByState(NewState(14, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(14, 100))
 	if ret != 92 || mpl.Len() != count-14 || len(txs) != 6 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
@@ -156,11 +154,12 @@ func TestListDelMiddle(t *testing.T) {
 	if mpl.Len() != 3 {
 		t.Error("should be 3 not ", len(mpl.list))
 	}
-	ret, txs := mpl.FilterByState(NewState(1, 100), zeroFee)
+	fee.SetFixedTxFee(false)
+	ret, txs := mpl.FilterByState(NewState(1, 100))
 	if ret != -3 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}
-	ret, txs = mpl.FilterByState(NewState(4, 100), zeroFee)
+	ret, txs = mpl.FilterByState(NewState(4, 100))
 	if ret != 3 || mpl.Len() != 2 || len(txs) != 1 {
 		t.Error(ret, mpl.Len(), len(txs))
 	}

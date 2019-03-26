@@ -27,11 +27,10 @@ var chaininfoCmd = &cobra.Command{
 }
 
 type printChainId struct {
-	Magic       string
-	Public      bool
-	Mainnet     bool
-	CoinbaseFee string
-	Consensus   string
+	Magic     string
+	Public    bool
+	Mainnet   bool
+	Consensus string
 }
 
 type printChainInfo struct {
@@ -47,7 +46,6 @@ func convChainInfoMsg(msg *types.ChainInfo) string {
 	out.Chainid.Magic = msg.Chainid.Magic
 	out.Chainid.Public = msg.Chainid.Public
 	out.Chainid.Mainnet = msg.Chainid.Mainnet
-	out.Chainid.CoinbaseFee = new(big.Int).SetBytes(msg.Chainid.Coinbasefee).String()
 	out.Chainid.Consensus = msg.Chainid.Consensus
 	out.BpNumber = msg.Bpnumber
 	out.MaxBlockSize = msg.Maxblocksize

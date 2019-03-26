@@ -26,7 +26,6 @@ import (
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-	DefaultCoinbaseFee  = "1000000000"
 	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
 

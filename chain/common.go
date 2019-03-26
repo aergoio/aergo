@@ -7,10 +7,8 @@ package chain
 
 import (
 	"errors"
-	"math/big"
 
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
@@ -21,7 +19,6 @@ var (
 	CoinbaseAccount []byte
 	MaxAnchorCount  int
 	VerifierCount   int
-	coinbaseFee     *big.Int
 
 	// maxBlockBodySize is the upper limit of block size.
 	maxBlockBodySize uint32
@@ -74,9 +71,6 @@ func initChainEnv(genesis *types.Genesis) {
 	if pubNet {
 		setMaxBlockBodySize(pubNetMaxBlockBodySize)
 	}
-	contract.PubNet = pubNet
-	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
-	setCoinbaseFee(fee)
 	if err := setConsensusName(genesis.ConsensusType()); err != nil {
 		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
 	}
@@ -98,14 +92,6 @@ func setMaxBlockBodySize(size uint32) {
 
 func setMaxBlockSize(size uint32) {
 	maxBlockSize = size
-}
-
-func setCoinbaseFee(fee *big.Int) {
-	coinbaseFee = fee
-}
-
-func CoinbaseFee() *big.Int {
-	return coinbaseFee
 }
 
 func setConsensusName(val string) error {

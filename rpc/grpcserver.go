@@ -141,10 +141,6 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 			Consensus: id.Consensus,
 		}
 
-		if fee, success := id.GetCoinbaseFee(); success {
-			chainInfo.Chainid.Coinbasefee = fee.Bytes()
-		}
-
 		chainInfo.Bpnumber = uint32(len(genesisInfo.BPs))
 
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {

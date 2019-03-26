@@ -24,6 +24,7 @@ import (
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -74,29 +75,22 @@ type MemPool struct {
 // NewMemPoolService create and return new MemPool
 func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 
-	var fee *big.Int
 	var sdb *state.ChainStateDB
 	if cs != nil {
-		cidFee, ok := cs.CDB().GetGenesisInfo().ID.GetCoinbaseFee()
-		if !ok {
-			panic("CoinbaseFee is not set during mempool init")
-		}
-		fee = cidFee
 		sdb = cs.SDB()
-	} else {
-		fee = new(big.Int).SetUint64(0)
+	} else { // Test
+		fee.SetFixedTxFee(false)
 	}
 
 	actor := &MemPool{
-		cfg:         cfg,
-		sdb:         sdb,
-		cache:       map[types.TxID]types.Transaction{},
-		pool:        map[types.AccountID]*TxList{},
-		dumpPath:    cfg.Mempool.DumpFilePath,
-		coinbasefee: fee,
-		status:      initial,
-		verifier:    nil,
-		quit:        make(chan bool),
+		cfg:      cfg,
+		sdb:      sdb,
+		cache:    map[types.TxID]types.Transaction{},
+		pool:     map[types.AccountID]*TxList{},
+		dumpPath: cfg.Mempool.DumpFilePath,
+		status:   initial,
+		verifier: nil,
+		quit:     make(chan bool),
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
 
@@ -121,7 +115,6 @@ func (mp *MemPool) AfterStart() {
 		Bool("fadeout", mp.cfg.Mempool.EnableFadeout).
 		Str("evict period", evictPeriod.String()).
 		Int("number of verifier", mp.cfg.Mempool.VerifierNumber).
-		Str("coinbase fee", mp.coinbasefee.String()).
 		Msg("mempool init")
 
 	mp.verifier = actor.Spawn(router.NewRoundRobinPool(mp.cfg.Mempool.VerifierNumber).
@@ -401,7 +394,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			// TODO : ????
 			continue
 		}
-		diff, delTxs := list.FilterByState(ns, mp.coinbasefee)
+		diff, delTxs := list.FilterByState(ns)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
 			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
@@ -482,7 +475,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	if err != nil {
 		return err
 	}
-	err = tx.ValidateWithSenderState(ns, mp.coinbasefee)
+	err = tx.ValidateWithSenderState(ns)
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
