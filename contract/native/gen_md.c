@@ -60,12 +60,13 @@ md_gen(gen_t *gen, ir_md_t *md)
     int i;
 
     gen->module = BinaryenModuleCreate();
-
-    import_gen(gen, &md->abis);
+    gen->md = md;
 
     vector_foreach(&md->fns, i) {
         fn_gen(gen, vector_get_fn(&md->fns, i));
     }
+
+    import_gen(gen, &md->abis);
 
     sgmt_gen(gen, &md->sgmt);
 
@@ -107,6 +108,7 @@ md_gen(gen_t *gen, ir_md_t *md)
     BinaryenModuleDispose(gen->module);
 
     gen->module = NULL;
+    gen->md = NULL;
 }
 
 /* end of gen_md.c */

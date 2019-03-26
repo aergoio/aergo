@@ -306,14 +306,11 @@ contract test {
     }
 }
 
-@test(builtin_abs)
+@test(builtin_functions)
 contract test {
-    int8 v1 = (int8)abs(-1);
-    int16 v2 = (int16)abs(-2);
-    int32 v3 = (int32)abs(-3);
-    int64 v4 = abs(-4);
-
-    int8 v5 = abs(v1);
-    int16 v6 = abs(v2);
-    int32 v7 = abs(v3);
+    int8 v1 = (int8)abs32((int32)-1);
+    int16 v2 = (int16)abs32((int32)-2);
+    int32 v3 = abs32(-3);
+    int64 v4 = abs64(-4);
+    int128 v5 = abs128(-5);
 }

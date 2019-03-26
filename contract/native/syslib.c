@@ -18,29 +18,9 @@
 
 char *lib_src =
 "library system {\n"
-"    func malloc(uint32 size) uint32 : \"malloc\";\n"
-"    func memcpy(uint32 dest, uint32 src, uint32 size) uint32 : \"memcpy\";\n"
-
-"    func strcat(uint32 s1, uint32 s2) uint32 : \"strcat\";\n"
-"    func strcmp(uint32 s1, uint32 s2) int32 : \"strcmp\";\n"
-
-"    func to_int32(uint32 str) int32 : \"atoi32\";\n"
-"    func to_int64(uint32 str) int64 : \"atoi64\";\n"
-
-"    //func to_float(uint32 str) float : \"atof32\";\n"
-"    //func to_double(uint32 str) double : \"atof64\";\n"
-
-"    func to_char(uint32 i) uint32 : \"itoa32\";\n"
-"    func to_char(uint64 i) uint32 : \"itoa64\";\n"
-"    //func to_char(float f) uint32 : \"ftoa32\";\n"
-"    //func to_char(double f) uint32 : \"ftoa64\";\n"
-
-"    func abs(int64 i) int64 : \"abs_i64\";\n"
-"    func abs(int32 i) int32 : \"abs_i32\";\n"
-"    func abs(int16 i) int16 : \"abs_i16\";\n"
-"    func abs(int8 i) int8 : \"abs_i8\";\n"
-"    //func abs(float f) float : \"abs_f32\";\n"
-"    //func abs(double f) double : \"abs_f64\";\n"
+"    func abs32(int32 i) int32 : \"abs32\";\n"
+"    func abs64(int64 i) int64 : \"abs64\";\n"
+"    func abs128(int128 i) int128 : \"mpz_abs\";\n"
 "}";
 
 sys_fn_t sys_fntab_[FN_MAX] = {
@@ -51,12 +31,31 @@ sys_fn_t sys_fntab_[FN_MAX] = {
     { "strcmp", SYSLIB_MODULE".strcmp", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
     { "atoi32", SYSLIB_MODULE".atoi32", 1, { TYPE_UINT32 }, TYPE_UINT32 },
     { "atoi64", SYSLIB_MODULE".atoi64", 1, { TYPE_UINT32 }, TYPE_UINT64 },
-    { "atof32", SYSLIB_MODULE".atof32", 1, { TYPE_UINT32 }, TYPE_FLOAT },
-    { "atof64", SYSLIB_MODULE".atof64", 1, { TYPE_UINT32 }, TYPE_DOUBLE },
     { "itoa32", SYSLIB_MODULE".itoa32", 1, { TYPE_UINT32 }, TYPE_UINT32 },
     { "itoa64", SYSLIB_MODULE".itoa64", 1, { TYPE_UINT64 }, TYPE_UINT32 },
-    { "ftoa32", SYSLIB_MODULE".ftoa32", 1, { TYPE_FLOAT }, TYPE_UINT32 },
-    { "ftoa64", SYSLIB_MODULE".ftoa64", 1, { TYPE_DOUBLE }, TYPE_UINT32 },
+    { "mpz_get_i32", SYSLIB_MODULE".mpz_get_i32", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_get_i64", SYSLIB_MODULE".mpz_get_i64", 1, { TYPE_UINT32 }, TYPE_UINT64 },
+    { "mpz_get_str", SYSLIB_MODULE".mpz_get_str", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_set_i32", SYSLIB_MODULE".mpz_set_i32", 2,
+        { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_set_i64", SYSLIB_MODULE".mpz_set_i64", 2,
+        { TYPE_UINT64, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_set_str", SYSLIB_MODULE".mpz_set_str", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_add", SYSLIB_MODULE".mpz_add", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_sub", SYSLIB_MODULE".mpz_sub", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_mul", SYSLIB_MODULE".mpz_mul", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_div", SYSLIB_MODULE".mpz_div", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_mod", SYSLIB_MODULE".mpz_mod", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_and", SYSLIB_MODULE".mpz_and", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_or", SYSLIB_MODULE".mpz_or", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_xor", SYSLIB_MODULE".mpz_xor", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_rshift", SYSLIB_MODULE".mpz_rshift", 2,
+        { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_lshift", SYSLIB_MODULE".mpz_lshift", 2,
+        { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_cmp", SYSLIB_MODULE".mpz_cmp", 2,
+        { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
+    { "mpz_neg", SYSLIB_MODULE".mpz_neg", 1, { TYPE_UINT32 }, TYPE_UINT32 },
 };
 
 void
@@ -72,15 +71,12 @@ syslib_load(ast_t *ast)
 }
 
 ir_abi_t *
-syslib_abi(fn_kind_t kind)
+syslib_abi(sys_fn_t *sys_fn)
 {
     int i;
-    sys_fn_t *sys_fn;
     ir_abi_t *abi = xcalloc(sizeof(ir_abi_t));
 
-    ASSERT1(kind >= 0 && kind < FN_MAX, kind);
-
-    sys_fn = &sys_fntab_[kind];
+    ASSERT(sys_fn != NULL);
 
     abi->module = SYSLIB_MODULE;
     abi->name = sys_fn->name;
@@ -103,6 +99,7 @@ syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos)
     ast_exp_t *res_exp;
     ast_exp_t *param_exp;
     vector_t *param_exps = vector_new();
+    sys_fn_t *sys_fn = SYS_FN(FN_MALLOC);
 
     param_exp = exp_new_lit_int(size, pos);
     meta_set_uint32(&param_exp->meta);
@@ -111,10 +108,10 @@ syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos)
 
     res_exp = exp_new_call(false, NULL, param_exps, pos);
 
-    res_exp->u_call.qname = sys_fntab_[FN_MALLOC].qname;
+    res_exp->u_call.qname = sys_fn->qname;
     meta_set_uint32(&res_exp->meta);
 
-    md_add_imp(trans->md, syslib_abi(FN_MALLOC));
+    md_add_imp(trans->md, syslib_abi(sys_fn));
 
     return res_exp;
 }
@@ -126,6 +123,7 @@ syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
     ast_exp_t *res_exp;
     ast_exp_t *param_exp;
     vector_t *param_exps = vector_new();
+    sys_fn_t *sys_fn = SYS_FN(FN_MEMCPY);
 
     exp_add(param_exps, dest_exp);
     exp_add(param_exps, src_exp);
@@ -137,12 +135,40 @@ syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
 
     res_exp = exp_new_call(false, NULL, param_exps, pos);
 
-    res_exp->u_call.qname = sys_fntab_[FN_MEMCPY].qname;
+    res_exp->u_call.qname = sys_fn->qname;
     meta_set_void(&res_exp->meta);
 
-    md_add_imp(trans->md, syslib_abi(FN_MEMCPY));
+    md_add_imp(trans->md, syslib_abi(sys_fn));
 
     return res_exp;
+}
+
+BinaryenExpressionRef
+syslib_call_1(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument)
+{
+    sys_fn_t *sys_fn = SYS_FN(kind);
+
+    ASSERT2(sys_fn->param_cnt == 1, kind, sys_fn->param_cnt);
+
+    md_add_imp(gen->md, syslib_abi(sys_fn));
+
+    return BinaryenCall(gen->module, sys_fn->qname, &argument, 1,
+                        type_gen(sys_fn->result));
+}
+
+BinaryenExpressionRef
+syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef left,
+              BinaryenExpressionRef right)
+{
+    sys_fn_t *sys_fn = SYS_FN(kind);
+    BinaryenExpressionRef arguments[2] = { left, right };
+
+    ASSERT2(sys_fn->param_cnt == 2, kind, sys_fn->param_cnt);
+
+    md_add_imp(gen->md, syslib_abi(sys_fn));
+
+    return BinaryenCall(gen->module, sys_fn->qname, arguments, 2,
+                        type_gen(sys_fn->result));
 }
 
 /* end of syslib.c */

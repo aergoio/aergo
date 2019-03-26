@@ -8,6 +8,13 @@ contract test {
     int i6 = (2 * 3) / (5 + 1) % 1;
     int i7 = i1 + i2;
 
+    int128 z1 = 1;
+    int128 z2 = z1 + 1;
+    int128 z3 = z1 - 0x1;
+    int128 z4 = z1 * (1);
+    int128 z5 = z1 / 1;
+    int128 z6 = z1 % 1;
+
     /*
     float f1 = 1.0 + (1.0 + .1);
     float f2 = 1.0e1 - 1.0;
@@ -60,6 +67,13 @@ contract test {
     uint i4 = 1 + 1 << 1;
     int i5 = 0xff >> 1;
     int i6 = i5 >> i4;
+
+    uint128 z1 = 1;
+    uint128 z2 = 0xFF & z1;
+    uint128 z3 = 0xFF | z1;
+    uint128 z4 = 0xFF ^ z1;
+    uint128 z5 = z3 >> z1;
+    uint128 z6 = z4 << z1;
 }
 
 @test(negative_bitwise_operand)
@@ -87,6 +101,13 @@ contract test {
     string s1 = "1";
     string s2 = "2";
     bool b8 = (s1 != s2);
+
+    int128 z1 = 1;
+    int128 z2 = 2;
+    bool b9 = z1 == 1;
+    bool b10 = z1 != 1;
+    bool b11 = z1 < z2;
+    bool b12 = z1 > z2;
 }
 
 @test(mismatched_comparison_type)
@@ -130,6 +151,12 @@ contract test {
     int i3 = ++i1;
     int i4 = i1--;
     int i5 = --i1;
+    int i6 = -i1;
+
+    uint128 z1 = 1;
+    uint128 z2 = z1++;
+    uint128 z3 = z1--;
+    uint128 z4 = -z1;
 
     bool b1 = true;
     bool b2 = !b1;
@@ -195,7 +222,7 @@ contract test {
     int8 i1;
     int64 i2;
     uint16 u1;
-    uint64 u2;
+    uint128 u2;
     //float f;
     //double d;
     string s;
@@ -236,14 +263,14 @@ contract test {
     //uint16 v47 = (uint16)d;
     uint16 v48 = (uint16)s;
 
-    uint64 v51 = (uint64)b1;
-    uint64 v52 = (uint64)i1;
-    uint64 v53 = (uint64)i2;
-    uint64 v54 = (uint64)u1;
-    uint64 v55 = (uint64)u2;
-    //uint64 v56 = (uint64)f;
-    //uint64 v57 = (uint64)d;
-    uint64 v58 = (uint64)s;
+    uint128 v51 = (uint128)b1;
+    uint128 v52 = (uint128)i1;
+    uint128 v53 = (uint128)i2;
+    uint128 v54 = (uint128)u1;
+    uint128 v55 = (uint128)u2;
+    //uint128 v56 = (uint128)f;
+    //uint128 v57 = (uint128)d;
+    uint128 v58 = (uint128)s;
 
     /*
     float v61 = (float)b1;

@@ -215,6 +215,8 @@ prep(iobuf_t *src, flag_t flag, ast_t *ast)
     ASSERT(src != NULL);
     ASSERT(ast != NULL);
 
+    syslib_load(ast);
+
     stack_init(&imps);
 
     strcpy(work_dir, iobuf_path(src));
@@ -230,8 +232,6 @@ prep(iobuf_t *src, flag_t flag, ast_t *ast)
     subst(src, flag, work_dir, &imps, ast);
 
     stack_pop(&imps);
-
-    syslib_load(ast);
 }
 
 /* end of prep.c */

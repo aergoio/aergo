@@ -58,7 +58,7 @@ int type_sizes_[TYPE_MAX] = {
     ADDR,               /* TYPE_STRING */
     ADDR,               /* TYPE_ACCOUNT */
     ADDR,               /* TYPE_STRUCT */
-    ADDR,               /* TYPE_MAP */
+    I64,                /* TYPE_MAP */
     ADDR,               /* TYPE_OBJECT */
     ADDR,               /* TYPE_CURSOR */
     0,                  /* TYPE_VOID */
@@ -76,8 +76,8 @@ int type_bytes_[TYPE_MAX] = {
     sizeof(uint32_t),
     sizeof(int64_t),
     sizeof(uint64_t),
-    sizeof(int32_t),
-    sizeof(int32_t),
+    sizeof(uint32_t),
+    sizeof(uint32_t),
     sizeof(float),
     sizeof(double),
     sizeof(int32_t),    /* TYPE_STRING */

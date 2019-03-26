@@ -29,6 +29,7 @@ typedef struct gen_s {
     flag_t flag;
 
     ir_sgmt_t *sgmt;
+    ir_md_t *md;
 
     BinaryenModuleRef module;
     RelooperRef relooper;

@@ -78,6 +78,11 @@
         (val)->ptr = (v);                                                                \
     } while (0)
 
+#define value_fits_i32(val)                                                              \
+    (mpz_fits_sint_p(val_mpz(val)) || mpz_fits_uint_p(val_mpz(val)))
+#define value_fits_i64(val)                                                              \
+    (mpz_fits_slong_p(val_mpz(val)) || mpz_fits_ulong_p(val_mpz(val)))
+
 #ifndef _VALUE_T
 #define _VALUE_T
 typedef struct value_s value_t;

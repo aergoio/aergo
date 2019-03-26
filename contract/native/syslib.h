@@ -9,6 +9,7 @@
 #include "common.h"
 
 #include "trans.h"
+#include "gen.h"
 
 #define SYSLIB_MODULE               "system"
 
@@ -43,10 +44,17 @@ extern sys_fn_t sys_fntab_[FN_MAX];
 
 void syslib_load(ast_t *ast);
 
-ir_abi_t *syslib_abi(fn_kind_t kind);
+ir_abi_t *syslib_abi(sys_fn_t *sys_fn);
 
 ast_exp_t *syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos);
 ast_exp_t *syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
                               uint32_t size, src_pos_t *pos);
+
+BinaryenExpressionRef syslib_call_1(gen_t *gen, fn_kind_t kind,
+                                    BinaryenExpressionRef argument);
+
+BinaryenExpressionRef syslib_call_2(gen_t *gen, fn_kind_t kind,
+                                    BinaryenExpressionRef left,
+                                    BinaryenExpressionRef right);
 
 #endif /* ! _SYSLIB_H */

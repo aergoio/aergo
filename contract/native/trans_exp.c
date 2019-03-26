@@ -22,6 +22,7 @@ static void
 exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
     value_t *val = &exp->u_lit.val;
+    meta_t *meta = &exp->meta;
     ir_md_t *md = trans->md;
 
     ASSERT(md != NULL);
@@ -34,7 +35,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     case TYPE_STRING:
         value_set_int(val, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val) + 1));
-        meta_set_uint32(&exp->meta);
+        meta_set_uint32(meta);
         break;
 
     case TYPE_OBJECT:
@@ -42,7 +43,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
             value_init_int(val);
         else
             value_set_int(val, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
-        meta_set_uint32(&exp->meta);
+        meta_set_uint32(meta);
         break;
 
     default:
@@ -134,35 +135,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 {
-    meta_t *from_meta = &exp->u_cast.val_exp->meta;
-    meta_t *to_meta = &exp->meta;
-
     exp_trans(trans, exp->u_cast.val_exp);
-
-    if (is_string_meta(from_meta)) {
-        if (is_int64_meta(to_meta) || is_uint64_meta(to_meta))
-            md_add_imp(trans->md, syslib_abi(FN_ATOI64));
-        else if (is_bool_meta(to_meta) || is_integer_meta(to_meta))
-            md_add_imp(trans->md, syslib_abi(FN_ATOI32));
-        else if (is_float_meta(to_meta))
-            md_add_imp(trans->md, syslib_abi(FN_ATOF32));
-        else if (is_double_meta(to_meta))
-            md_add_imp(trans->md, syslib_abi(FN_ATOF64));
-        else
-            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
-    }
-    else if (is_string_meta(to_meta)) {
-        if (is_int64_meta(from_meta) || is_uint64_meta(from_meta))
-            md_add_imp(trans->md, syslib_abi(FN_ITOA64));
-        else if (is_bool_meta(from_meta) || is_integer_meta(from_meta))
-            md_add_imp(trans->md, syslib_abi(FN_ITOA32));
-        else if (is_float_meta(from_meta))
-            md_add_imp(trans->md, syslib_abi(FN_FTOA32));
-        else if (is_double_meta(from_meta))
-            md_add_imp(trans->md, syslib_abi(FN_FTOA64));
-        else
-            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
-    }
 }
 
 static void
@@ -212,14 +185,6 @@ exp_trans_binary(trans_t *trans, ast_exp_t *exp)
 {
     exp_trans(trans, exp->u_bin.l_exp);
     exp_trans(trans, exp->u_bin.r_exp);
-
-    if (exp->u_bin.kind == OP_ADD && is_string_meta(&exp->meta))
-        md_add_imp(trans->md, syslib_abi(FN_STRCAT));
-    else if ((exp->u_bin.kind == OP_EQ || exp->u_bin.kind == OP_NE ||
-              exp->u_bin.kind == OP_LT || exp->u_bin.kind == OP_LE ||
-              exp->u_bin.kind == OP_GT || exp->u_bin.kind == OP_GE) &&
-             is_string_meta(&exp->u_bin.l_exp->meta))
-        md_add_imp(trans->md, syslib_abi(FN_STRCMP));
 }
 
 static void

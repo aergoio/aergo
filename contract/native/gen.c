@@ -12,15 +12,11 @@
 static void
 gen_init(gen_t *gen, flag_t flag)
 {
-    gen->flag = flag;
-    gen->sgmt = NULL;
+    memset(gen, 0x00, sizeof(gen_t));
 
-    gen->module = NULL;
-    gen->relooper = NULL;
+    gen->flag = flag;
 
     array_init(&gen->instrs, BinaryenExpressionRef);
-
-    gen->is_lval = false;
 }
 
 void
