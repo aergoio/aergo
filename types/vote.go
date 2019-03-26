@@ -2,17 +2,19 @@ package types
 
 import "math/big"
 
-const AergoSystem = "aergo.system"
-const AergoName = "aergo.name"
+const (
+	AergoSystem = "aergo.system"
+	AergoName   = "aergo.name"
 
-const MaxCandidates = 30
+	MaxCandidates = 30
 
-const VoteBP = "v1voteBP"
-
-const VoteGasPrice = "v1voteGasPrice"
-const VoteNumBP = "v1voteNumBP"
-const VoteNamePrice = "v1voteNamePrice"
-const VoteMinStaking = "v1voteMinStaking"
+	votePrefixLen  = 2
+	VoteBP         = "v1voteBP"
+	VoteGasPrice   = "v1voteGasPrice"
+	VoteNumBP      = "v1voteNumBP"
+	VoteNamePrice  = "v1voteNamePrice"
+	VoteMinStaking = "v1voteMinStaking"
+)
 
 //var AllVotes = [...]string{VoteBP, VoteGasPrice, VoteNumBP, VoteNamePrice, VoteMinStaking}
 var AllVotes = [...]string{VoteBP}

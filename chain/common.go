@@ -9,6 +9,7 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
@@ -65,7 +66,7 @@ func IsPublic() bool {
 	return pubNet
 }
 
-func initChainEnv(genesis *types.Genesis) {
+func initChainParams(genesis *types.Genesis) {
 	pubNet = genesis.ID.PublicNet
 	if pubNet {
 		setBlockSizeLimit(pubNetMaxBlockBodySize)
@@ -73,6 +74,7 @@ func initChainEnv(genesis *types.Genesis) {
 	if err := setConsensusName(genesis.ConsensusType()); err != nil {
 		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
 	}
+	system.InitDefaultBpCount(len(genesis.BPs))
 }
 
 // MaxBlockBodySize returns the max block body size.

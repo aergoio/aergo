@@ -17,6 +17,8 @@ import (
 	"github.com/mr-tron/base58"
 )
 
+var defaultBpCount int
+
 var voteKey = []byte("vote")
 var sortKey = []byte("sort")
 
@@ -187,8 +189,26 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	return getVoteResult(scs, id, n)
 }
 
+// InitDefaultBpCount sets defaultBpCount to bpCount.
+//
+// Caution: This function must be called only once before all the aergosvr
+// services start.
+func InitDefaultBpCount(bpCount int) {
+	// Ensure that it is not modified after it is initialized.
+	if defaultBpCount > 0 {
+		return
+	}
+	defaultBpCount = bpCount
+}
+
+func getDefaultBpCount() int {
+	return defaultBpCount
+}
+
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader, n int) ([]string, error) {
+func GetRankers(ar AccountStateReader) ([]string, error) {
+	n := getDefaultBpCount()
+
 	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
