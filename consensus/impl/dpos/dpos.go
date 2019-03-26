@@ -80,7 +80,7 @@ func (bi *bpInfo) updateBestBLock() *types.Block {
 
 // GetName returns the name of the consensus.
 func GetName() string {
-	return "dpos"
+	return consensus.ConsensusName[consensus.ConsensusDPOS]
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -147,6 +147,10 @@ func (dpos *DPoS) QueueJob(now time.Time, jq chan<- interface{}) {
 // BlockFactory returns the BlockFactory interface in dpos.
 func (dpos *DPoS) BlockFactory() consensus.BlockFactory {
 	return dpos.bf
+}
+
+func (dpos *DPoS) GetType() consensus.ConsensusType {
+	return consensus.ConsensusDPOS
 }
 
 // IsTransactionValid checks the DPoS consensus level validity of a transaction
@@ -247,6 +251,19 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 		bestBlock: block,
 		slot:      s,
 	}
+}
+
+// ConsensusInfo returns the basic DPoS-related info.
+func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
+	dpos.RLock()
+	defer dpos.RUnlock()
+
+	ci := &types.ConsensusInfo{Type: GetName()}
+	if dpos.done {
+		ci.Bps = dpos.bpc.BPs()
+	}
+
+	return ci
 }
 
 func isBpTiming(block *types.Block, s *slot.Slot) bool {

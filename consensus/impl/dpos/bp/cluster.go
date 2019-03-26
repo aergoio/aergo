@@ -6,9 +6,11 @@
 package bp
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -18,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -111,6 +113,34 @@ func (c *Cluster) genesisBpList() []string {
 		}
 	}
 	return nil
+}
+
+// BPs returns BP information about each BP in JSON.
+func (c *Cluster) BPs() []string {
+	c.Lock()
+	defer c.Unlock()
+
+	if c == nil || c.Size() == 0 || len(c.member) != int(c.Size()) {
+		return nil
+	}
+	bps := make([]string, c.Size())
+	for i, bp := range c.member {
+		p := &struct {
+			Index  string
+			PeerID string
+		}{
+			Index:  strconv.FormatUint(uint64(i), 10),
+			PeerID: bp.id.Pretty(),
+		}
+
+		m, err := json.Marshal(p)
+		if err != nil {
+			bps = nil
+			break
+		}
+		bps[int(i)] = string(m)
+	}
+	return bps
 }
 
 // Update updates old cluster index by using ids.

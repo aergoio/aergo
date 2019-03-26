@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
@@ -26,12 +27,14 @@ var (
 	maxBlockBodySize uint32
 	maxBlockSize     uint32
 	pubNet           bool
+	consensusName    string
 )
 
 var (
 	// ErrInvalidCoinbaseAccount is returned by Init when the coinbase account
 	// address is invalid.
 	ErrInvalidCoinbaseAccount = errors.New("invalid coinbase account in config")
+	ErrInvalidConsensus       = errors.New("invalid consensus name from genesis")
 )
 
 // Init initializes the blockchain-related parameters.
@@ -74,6 +77,9 @@ func initChainEnv(genesis *types.Genesis) {
 	contract.PubNet = pubNet
 	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
 	setCoinbaseFee(fee)
+	if err := setConsensusName(genesis.ConsensusType()); err != nil {
+		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
+	}
 }
 
 // MaxBlockBodySize returns the max block body size.
@@ -100,4 +106,22 @@ func setCoinbaseFee(fee *big.Int) {
 
 func CoinbaseFee() *big.Int {
 	return coinbaseFee
+}
+
+func setConsensusName(val string) error {
+	for _, name := range consensus.ConsensusName {
+		if val == name {
+			consensusName = val
+		}
+	}
+
+	if consensusName == "" {
+		return ErrInvalidConsensus
+	}
+
+	return nil
+}
+
+func ConsensusName() string {
+	return consensusName
 }

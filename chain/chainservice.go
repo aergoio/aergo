@@ -35,7 +35,8 @@ var (
 
 	dfltErrBlocks = 128
 
-	ErrBlockExist = errors.New("block already exist")
+	ErrBlockExist            = errors.New("block already exists")
+	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -238,13 +239,15 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic("failed to init genesis block")
 	}
 
-	top, err := cs.getVotes(types.VoteBP[2:], 1)
-	if err != nil {
-		logger.Debug().Err(err).Msg("failed to get elected BPs")
-	} else {
-		for _, res := range top.Votes {
-			logger.Debug().Str("BP", enc.ToString(res.Candidate)).
-				Str("votes", new(big.Int).SetBytes(res.Amount).String()).Msgf("BP vote stat")
+	if ConsensusName() == consensus.ConsensusName[consensus.ConsensusDPOS] {
+		top, err := cs.getVotes(types.VoteBP[2:], 1)
+		if err != nil {
+			logger.Debug().Err(err).Msg("failed to get elected BPs")
+		} else {
+			for _, res := range top.Votes {
+				logger.Debug().Str("BP", enc.ToString(res.Candidate)).
+					Str("votes", new(big.Int).SetBytes(res.Amount).String()).Msgf("BP vote stat")
+			}
 		}
 	}
 
@@ -372,10 +375,22 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 }
 
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
-	return system.GetVoteResult(cs.sdb, []byte(id), int(n))
+	switch ConsensusName() {
+	case consensus.ConsensusName[consensus.ConsensusDPOS]:
+		return system.GetVoteResult(cs.sdb, []byte(id), int(n))
+	case consensus.ConsensusName[consensus.ConsensusRAFT]:
+		//return cs.GetBPs()
+		return nil, ErrNotSupportedConsensus
+	default:
+		return nil, ErrNotSupportedConsensus
+	}
 }
 
 func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.AccountVoteInfo, error) {
+	if cs.GetType() != consensus.ConsensusDPOS {
+		return nil, ErrNotSupportedConsensus
+	}
+
 	scs, err := cs.sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
@@ -410,6 +425,10 @@ func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.Accoun
 }
 
 func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
+	if cs.GetType() != consensus.ConsensusDPOS {
+		return nil, ErrNotSupportedConsensus
+	}
+
 	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
 	if err != nil {
 		return nil, err

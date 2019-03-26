@@ -85,7 +85,7 @@ type BlockFactory struct {
 
 // GetName returns the name of the consensus.
 func GetName() string {
-	return "raft"
+	return consensus.ConsensusName[consensus.ConsensusRAFT]
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -144,11 +144,13 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	logger.Info().Uint64("raftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
+	logger.Info().Uint64("RaftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
 
 	bf.raftServer = newRaftServer(bf.bpc.ID, cfg.Consensus.Raft.RaftListenUrl, bf.bpc.BPUrls, false, waldir, snapdir,
 		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
 		nil, RaftTick, proposeC, confChangeC, true)
+
+	bf.bpc.rs = bf.raftServer
 
 	return nil
 }
@@ -174,6 +176,10 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		bf.prevBlock = b
 		jq <- b
 	}
+}
+
+func (bf *BlockFactory) GetType() consensus.ConsensusType {
+	return consensus.ConsensusRAFT
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -340,7 +346,7 @@ func (bf *BlockFactory) Info() string {
 		return info.AsJSON()
 	}
 
-	b, err := json.Marshal(bf.raftServer.Status())
+	b, err := json.Marshal(bf.bpc.getRaftInfo(false))
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to marshal raft consensus")
 	} else {
@@ -349,4 +355,11 @@ func (bf *BlockFactory) Info() string {
 	}
 
 	return info.AsJSON()
+}
+
+func (bf *BlockFactory) ConsensusInfo() *types.ConsensusInfo {
+	if bf.bpc == nil {
+		return &types.ConsensusInfo{Type: GetName()}
+	}
+	return bf.bpc.toConsensusInfo()
 }

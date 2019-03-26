@@ -19,6 +19,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -33,6 +34,10 @@ var (
 	logger = log.NewLogger("rpc")
 )
 
+var (
+	ErrUninitAccessor = errors.New("accessor is not initilized")
+)
+
 type EventStream struct {
 	filter *types.FilterInfo
 	stream types.AergoRPCService_ListEventStreamServer
@@ -42,6 +47,7 @@ type EventStream struct {
 type AergoRPCService struct {
 	hub         *component.ComponentHub
 	actorHelper p2pcommon.ActorService
+	consensusAccessor consensus.ConsensusAccessor //TODO refactor with actorHelper
 	msgHelper   message.Helper
 
 	streamID                uint32
@@ -59,6 +65,14 @@ const halfMinute = time.Second * 30
 const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
+
+func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
+	if rpc == nil {
+		return
+	}
+
+	rpc.consensusAccessor = ca
+}
 
 func (rpc *AergoRPCService) Metric(ctx context.Context, req *types.MetricsRequest) (*types.Metrics, error) {
 	result := &types.Metrics{}
@@ -998,4 +1012,13 @@ func (rpc *AergoRPCService) ListEvents(ctx context.Context, in *types.FilterInfo
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &types.EventList{Events: rsp.Events}, rsp.Err
+}
+
+// Blockchain handle rpc request blockchain. It has no additional input parameter
+func (rpc *AergoRPCService) GetConsensusInfo(ctx context.Context, in *types.Empty) (*types.ConsensusInfo, error) {
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	return rpc.consensusAccessor.ConsensusInfo(), nil
 }

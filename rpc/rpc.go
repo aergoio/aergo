@@ -15,6 +15,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -96,6 +97,10 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 func (ns *RPC) SetHub(hub *component.ComponentHub) {
 	ns.actualServer.hub = hub
 	ns.BaseComponent.SetHub(hub)
+}
+
+func (ns *RPC) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
+	ns.actualServer.SetConsensusAccessor(ca)
 }
 
 // Start start rpc service.
