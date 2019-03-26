@@ -27,9 +27,15 @@ const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
 	DefaultCoinbaseFee  = "1000000000"
-	lastFieldOfBH       = "Sign"
 	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
+
+	// DefaultMaxHdrSize is the max size of the proto-buf serialized non-body
+	// fields. For the estimation detail, check 'TestBlockHeaderLimit' in
+	// 'blockchain_test.go.' Caution: Be sure to adjust the value below if the
+	// structure of the header is changed.
+	DefaultMaxHdrSize = 400
+	lastFieldOfBH     = "Sign"
 )
 
 type TxHash = []byte

@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -57,10 +56,8 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 }
 
 // MaxBlockBodySize returns the maximum block body size.
-//
-// TODO: This is not an exact size. Let's make it exact!
 func MaxBlockBodySize() uint32 {
-	return chain.MaxBlockSize() - uint32(proto.Size(&types.BlockHeader{}))
+	return chain.MaxBlockBodySize()
 }
 
 // GenerateBlock generate & return a new block

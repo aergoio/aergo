@@ -359,8 +359,13 @@ func (p *remotePeerImpl) ConsumeRequest(originalID p2pcommon.MsgID) {
 	p.reqMutex.Unlock()
 }
 
-func (p *remotePeerImpl) notFoundReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
-	//	p.logger.Debug().Str(LogPeerName, p.Name()).Str("req_id", msg.OriginalID().String()).Str(LogMsgID, msg.ID().String()).Msg("not found suitable reciever. toss message to legacy handler")
+// requestIDNotFoundReceiver is to handle response msg which the original message is not identified
+func (p *remotePeerImpl) requestIDNotFoundReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
+	return true
+}
+
+// passThroughReceiver is bypass message to legacy handler.
+func (p *remotePeerImpl) passThroughReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
 	return false
 }
 
@@ -368,10 +373,13 @@ func (p *remotePeerImpl) GetReceiver(originalID p2pcommon.MsgID) p2pcommon.Respo
 	p.reqMutex.Lock()
 	defer p.reqMutex.Unlock()
 	req, found := p.requests[originalID]
-	if !found || req.receiver == nil {
-		return p.notFoundReceiver
+	if !found {
+		return p.requestIDNotFoundReceiver
+	} else if req.receiver == nil {
+		return p.passThroughReceiver
+	} else {
+		return req.receiver
 	}
-	return req.receiver
 }
 
 func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {

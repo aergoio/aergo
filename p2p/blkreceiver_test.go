@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
@@ -60,6 +61,8 @@ func TestBlocksChunkReceiver_StartGet(t *testing.T) {
 func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	chain.Init(1<<20 , "", false, 1, 1 )
+
 
 	blkNo := uint64(100)
 	prevHash := dummyBlockHash
@@ -89,10 +92,14 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 		{"TRemoteFail", inputHashes, time.Minute, 0, [][]*types.Block{inputBlocks[:0]}, 1, 1, true},
 		// server didn't sent last parts. and it is very similar to timeout
 		//{"TNotComplete", inputHashes, time.Minute,0,[][]*types.Block{inputBlocks[:2]},1,0, false},
-		// Fail2 missing some blocks
-		{"TMissingBlk", inputHashes, time.Minute, 0, [][]*types.Block{inputBlocks[:1], inputBlocks[2:3], inputBlocks[3:]}, 1, 1, true},
+		// Fail2 missing some blocks in the middle
+		{"TMissingBlk", inputHashes, time.Minute,0,[][]*types.Block{inputBlocks[:1],inputBlocks[2:3],inputBlocks[3:]},0,1, true},
+		// Fail2-1 missing some blocks in last
+		{"TMissingBlkLast", inputHashes, time.Minute,0,[][]*types.Block{inputBlocks[:1],inputBlocks[1:2],inputBlocks[3:]},1,1, true},
 		// Fail3 unexpected block
-		{"TDupBlock", inputHashes, time.Minute, 0, [][]*types.Block{inputBlocks[:2], inputBlocks[1:3], inputBlocks[3:]}, 1, 1, true},
+		{"TDupBlock", inputHashes, time.Minute,0,[][]*types.Block{inputBlocks[:2],inputBlocks[1:3],inputBlocks[3:]},0,1, true},
+		{"TTooManyBlks", inputHashes[:4], time.Minute*4,0,[][]*types.Block{inputBlocks[:1],inputBlocks[1:3],inputBlocks[3:]},1,1, true},
+		{"TTooManyBlksMiddle", inputHashes[:2], time.Minute,0,[][]*types.Block{inputBlocks[:1],inputBlocks[1:3],inputBlocks[3:]},0,1, true},
 		// Fail4 response sent after timeout
 		{"TTimeout", inputHashes, time.Millisecond * 10, time.Millisecond * 20, [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1, 0, false},
 	}
@@ -129,7 +136,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 				}
 				body := &types.GetBlockResponse{Blocks: blks, HasNext: i < len(test.blkInput)-1}
 				br.ReceiveResp(msg, body)
-				if br.finished {
+				if br.status == receiverStatusFinished {
 					break
 				}
 			}

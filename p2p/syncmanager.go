@@ -8,9 +8,11 @@ package p2p
 import (
 	"bytes"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2putil"
@@ -60,6 +62,12 @@ func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, bloc
 		sm.logger.Warn().Str(p2putil.LogBlkHash, hash.String()).Str(p2putil.LogPeerName, peer.Name()).Msg("Duplacated blockProduced notice")
 		return
 	}
+	// check if block size is over the limit
+	if proto.Size(block) > int(chain.MaxBlockSize()) {
+		sm.logger.Info().Str(p2putil.LogPeerName,peer.Name()).Str(p2putil.LogBlkHash, block.BlockID().String()).Int("size", proto.Size(block)).Msg("invalid blockProduced notice. block size exceed limit")
+		return
+	}
+
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil})
 
 }
@@ -106,6 +114,12 @@ func (sm *syncManager) HandleGetBlockResponse(peer p2pcommon.RemotePeer, msg p2p
 		return
 	}
 	block := blocks[0]
+	// check if block size is over the limit
+	if proto.Size(block) > int(chain.MaxBlockSize()) {
+		sm.logger.Info().Str(p2putil.LogPeerName,peer.Name()).Str(p2putil.LogBlkHash, block.BlockID().String()).Int("size", proto.Size(block)).Msg("cancel to add block. block size exceed limit")
+		return
+	}
+
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 }
 

@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const pubNetMaxBlockSize = 4000000
+const pubNetMaxBlockBodySize = 4000000
 
 var (
 	CoinbaseAccount []byte
@@ -22,20 +22,25 @@ var (
 	VerifierCount   int
 	coinbaseFee     *big.Int
 
-	// MaxBlockSize is the upper limit of block size.
-	maxBlockSize uint32
-	pubNet       bool
+	// maxBlockBodySize is the upper limit of block size.
+	maxBlockBodySize uint32
+	maxBlockSize     uint32
+	pubNet           bool
 )
 
 var (
+	// ErrInvalidCoinbaseAccount is returned by Init when the coinbase account
+	// address is invalid.
 	ErrInvalidCoinbaseAccount = errors.New("invalid coinbase account in config")
 )
 
 // Init initializes the blockchain-related parameters.
-func Init(maxBlkSize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, verifierCount int) error {
+func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, verifierCount int) error {
 	var err error
 
-	maxBlockSize = maxBlkSize
+	setMaxBlockBodySize(maxBlkBodySize)
+	setMaxBlockSize(MaxBlockBodySize() + types.DefaultMaxHdrSize)
+
 	if isBp {
 		if len(coinbaseAccountStr) != 0 {
 			CoinbaseAccount, err = types.DecodeAddress(coinbaseAccountStr)
@@ -64,16 +69,25 @@ func IsPublic() bool {
 func initChainEnv(genesis *types.Genesis) {
 	pubNet = genesis.ID.PublicNet
 	if pubNet {
-		setMaxBlockSize(pubNetMaxBlockSize)
+		setMaxBlockBodySize(pubNetMaxBlockBodySize)
 	}
 	contract.PubNet = pubNet
 	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
 	setCoinbaseFee(fee)
 }
 
-// MaxBlockSize returns (kind of) the upper limit of block size.
+// MaxBlockBodySize returns the max block body size.
+func MaxBlockBodySize() uint32 {
+	return maxBlockBodySize
+}
+
+// MaxBlockSize returns the max block size.
 func MaxBlockSize() uint32 {
 	return maxBlockSize
+}
+
+func setMaxBlockBodySize(size uint32) {
+	maxBlockBodySize = size
 }
 
 func setMaxBlockSize(size uint32) {
