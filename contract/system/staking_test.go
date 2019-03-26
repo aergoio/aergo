@@ -43,6 +43,8 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
 	saved, err := getStaking(scs, tx.Body.Account)
 	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
+	total, err := GetStakingTotal(scs)
+	assert.Equal(t, types.StakingMinimum, total, "total value")
 
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
 	ci, err := ValidateSystemTx(account, tx.GetBody(), nil, scs, StakingDelay-1)
@@ -53,6 +55,11 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	_, err = unstaking(tx.Body, sender, receiver, scs, StakingDelay, ci)
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
+	saved, err = getStaking(scs, tx.Body.Account)
+	assert.Equal(t, new(big.Int).SetUint64(0).Bytes(), saved.Amount, "saved staking value")
+	total, err = GetStakingTotal(scs)
+	assert.NoError(t, err, "should be success")
+	assert.Equal(t, new(big.Int).SetUint64(0), total, "total value")
 }
 
 func TestStaking1Unstaking2(t *testing.T) {
