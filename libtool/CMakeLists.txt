@@ -27,7 +27,7 @@ set(LUAJIT_GIT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/luajit/.git)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
 	set(CFLAGS "CFLAGS=\"-DLJ_ENABLE_DEBUG\"")
-    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS_DEBUG})
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG})
 endif()
 
 set(LMDB_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/lmdb)
@@ -51,9 +51,9 @@ ExternalProject_Add(libgmp
     BINARY_DIR ${GMP_BUILD_DIR}
     TMP_DIR ${GMP_BUILD_DIR}
     STAMP_DIR ${GMP_BUILD_DIR}
-    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-static=no > /dev/null
+    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-static=no CFLAGS=${CMAKE_C_FLAGS} > /dev/null
     PREFIX ${GMP_SRC_DIR}
-    BUILD_COMMAND $(MAKE) CFLAGS="${CMAKE_C_FLAGS}" install > make.log
+    BUILD_COMMAND $(MAKE) install > make.log
     BUILD_ALWAYS 1)
 
 #ExternalProject_Add(libmpfr
