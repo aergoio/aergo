@@ -93,9 +93,6 @@ id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id,
     id->u_fn.ret_id = ret_id;
     id->u_fn.blk = blk;
 
-    if (id->u_fn.blk != NULL)
-        id->u_fn.blk->kind = BLK_FN;
-
     return id;
 }
 

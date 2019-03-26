@@ -28,7 +28,6 @@ typedef struct ir_sgmt_s ir_sgmt_t;
 typedef struct gen_s {
     flag_t flag;
 
-    ir_sgmt_t *sgmt;
     ir_md_t *md;
 
     BinaryenModuleRef module;

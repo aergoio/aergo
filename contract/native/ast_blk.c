@@ -59,12 +59,6 @@ blk_new_library(src_pos_t *pos)
 }
 
 ast_blk_t *
-blk_new_fn(src_pos_t *pos)
-{
-    return ast_blk_new(BLK_FN, pos);
-}
-
-ast_blk_t *
 blk_new_loop(src_pos_t *pos)
 {
     return ast_blk_new(BLK_LOOP, pos);

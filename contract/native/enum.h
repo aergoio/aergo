@@ -136,7 +136,6 @@ typedef enum blk_kind_e {
     BLK_CONT,
     BLK_ITF,
     BLK_LIB,
-    BLK_FN,
     BLK_LOOP,
     BLK_SWITCH,
     BLK_MAX

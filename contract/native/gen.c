@@ -31,11 +31,7 @@ gen(ir_t *ir, flag_t flag, char *infile)
     gen_init(&gen, flag);
 
     vector_foreach(&ir->mds, i) {
-        ir_md_t *md = vector_get_md(&ir->mds, i);
-
-        gen.sgmt = &md->sgmt;
-
-        md_gen(&gen, md);
+        md_gen(&gen, vector_get_md(&ir->mds, i));
     }
 }
 

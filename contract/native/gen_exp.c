@@ -18,6 +18,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 {
     value_t *val = &exp->u_lit.val;
     meta_t *meta = &exp->meta;
+    ir_md_t *md = gen->md;
 
     switch (val->type) {
     case TYPE_BOOL:
@@ -37,7 +38,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
                                      i32_gen(gen, is_signed_meta(meta)));
 
             z_str = mpz_get_str(NULL, 10, val_mpz(val));
-            argument = i32_gen(gen, sgmt_add_raw(gen->sgmt, z_str, strlen(z_str)));
+            argument = i32_gen(gen, sgmt_add_raw(&md->sgmt, z_str, strlen(z_str)));
 
             return syslib_call_1(gen, FN_MPZ_SET_STR, argument);
         }
@@ -54,7 +55,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
         return f32_gen(gen, val_f64(val));
 
     case TYPE_OBJECT:
-        return i32_gen(gen, sgmt_add_raw(gen->sgmt, val_ptr(val), val_size(val)));
+        return i32_gen(gen, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
 
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
