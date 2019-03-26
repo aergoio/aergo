@@ -35,8 +35,8 @@ var (
 
 	dfltErrBlocks = 128
 
-	ErrBlockExist            = errors.New("block already exist")
-	ErrNotSupportedConsensus = errors.New("nor supported by this consensus")
+	ErrBlockExist            = errors.New("block already exists")
+	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
