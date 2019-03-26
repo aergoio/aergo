@@ -30,7 +30,7 @@ ExternalProject_Add(libgmp
    BINARY_DIR ${GMP_BUILD_DIR}
    TMP_DIR ${GMP_BUILD_DIR}
    STAMP_DIR ${GMP_BUILD_DIR}
-   CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --enable-static=no > /dev/null
+   CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
    PREFIX ${GMP_SRC_DIR}
    BUILD_COMMAND $(MAKE) all install > make.log
    BUILD_ALWAYS 1)

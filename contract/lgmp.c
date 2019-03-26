@@ -6,7 +6,7 @@
 #include "lgmp.h"
 
 #define lua_boxpointer(L,u) \
-    (*(void **)(lua_newuserdata(L, sizeof(void *))) = (u))
+	(*(void **)(lua_newuserdata(L, sizeof(void *))) = (u))
 #define MPZ(a) ((mpz_ptr)(a->mpptr))
 
 static const char *mp_num_memory_error="bignum not enough memory";
@@ -61,9 +61,9 @@ mp_num Bgetbnum(lua_State *L, int i)
 
 int lua_isbignumber(lua_State *L, int i)
 {
-    if (luaL_testudata(L, i, MYTYPE) != NULL)
-        return 1;
-    return 0;
+	if (luaL_testudata(L, i, MYTYPE) != NULL)
+		return 1;
+	return 0;
 }
 
 int Bis(lua_State *L)
@@ -78,10 +78,10 @@ static mp_num Bget(lua_State *L, int i)
 	{
 		case LUA_TNUMBER:
 		{
-		    mp_num x;
-		    double d = lua_tonumber(L, i);
+			mp_num x;
+			double d = lua_tonumber(L, i);
 			x = bn_alloc(BN_Integer);
-		    if (x == NULL)
+			if (x == NULL)
 				luaL_error(L, mp_num_memory_error);
 			mpz_init_set_d(x->mpptr, d);
 			Bnew(L, x);
@@ -94,7 +94,7 @@ static mp_num Bget(lua_State *L, int i)
 			mp_num x;
 			const char *s = lua_tostring(L, i);
 			x = bn_alloc(BN_Integer);
-		    if (x == NULL)
+			if (x == NULL)
 				luaL_error(L, mp_num_memory_error);
 			if (mpz_init_set_str(x->mpptr, s, 0) != 0) {
 				mp_num_free(x);
@@ -125,7 +125,7 @@ static int Bdo1(lua_State *L, void (*f)(mpz_ptr a, mpz_srcptr b, mpz_srcptr c), 
 	if (is_div == 1 && mpz_sgn(MPZ(b)) == 0)
 		luaL_error(L, mp_num_divide_zero);
 
-    c = bn_alloc(a->type);
+	c = bn_alloc(a->type);
 	if (c == NULL)
 		luaL_error(L, mp_num_memory_error);
 	f(MPZ(c), MPZ(a), MPZ(b));
@@ -244,7 +244,7 @@ static int Bpow(lua_State *L)			/** pow(x,y) */
 	mp_num b = Bget(L, 2);
 	mp_num c;
 
-    c = bn_alloc(a->type);
+	c = bn_alloc(a->type);
 	if (c == NULL)
 		luaL_error(L, mp_num_memory_error);
 	
@@ -273,8 +273,8 @@ static int Bdivmod(lua_State *L)		/** divmod(x,y) */
 	if (mpz_sgn(MPZ(b)) == 0)
 		luaL_error(L, mp_num_divide_zero);
 
-    q = bn_alloc(a->type);
-    r = bn_alloc(a->type);
+	q = bn_alloc(a->type);
+	r = bn_alloc(a->type);
 	if (q == NULL || r == NULL)
 		luaL_error(L, mp_num_memory_error);
 	
@@ -287,7 +287,7 @@ static int Bdivmod(lua_State *L)		/** divmod(x,y) */
 static int Bgc(lua_State *L)
 {
 	mp_num x=Bget(L,1);
- 	mp_num_free(x);
+	mp_num_free(x);
 	lua_pushnil(L);
 	lua_setmetatable(L,1);
 	return 0;
@@ -298,7 +298,7 @@ static int Bneg(lua_State *L)			/** neg(x) */
 	mp_num a=Bget(L,1);
 	mp_num res;
 
-    res = bn_alloc(a->type);
+	res = bn_alloc(a->type);
 	if (res == NULL)
 		luaL_error(L, mp_num_memory_error);
 	
@@ -317,7 +317,7 @@ static int Bpowmod(lua_State *L)		/** powmod(x,y,m) */
 	if (mpz_sgn(MPZ(m)) == 0)
 		luaL_error(L, mp_num_divide_zero);
 
-    r = bn_alloc(a->type);
+	r = bn_alloc(a->type);
 	if (r == NULL)
 		luaL_error(L, mp_num_memory_error);
 	
@@ -331,7 +331,7 @@ static int Bsqrt(lua_State *L)			/** sqrt(x) */
 	mp_num a=Bget(L,1);
 	mp_num res;
 
-    res = bn_alloc(a->type);
+	res = bn_alloc(a->type);
 	if (res == NULL)
 		luaL_error(L, mp_num_memory_error);
 	
