@@ -34,12 +34,14 @@ type StubSyncer struct {
 
 	cfg *SyncerConfig
 
-	checkResultFn    TestResultFn
-	getAnchorsHookFn GetAnchorsHookFn
+	checkResultFn         TestResultFn
+	getAnchorsHookFn      GetAnchorsHookFn
+	getSyncAncestorHookFn GetSyncAncestorHookFn
 }
 
 type TestResultFn func(stubSyncer *StubSyncer)
 type GetAnchorsHookFn func(stubSyncer *StubSyncer)
+type GetSyncAncestorHookFn func(stubSyncer *StubSyncer, msg *message.GetSyncAncestor)
 
 var (
 	targetPeerID = peer.ID([]byte(fmt.Sprintf("peer-%d", 0)))
@@ -115,11 +117,6 @@ func isOtherActorRequest(msg interface{}) bool {
 func (stubSyncer *StubSyncer) handleMessage(msg interface{}) bool {
 	//prefix handle
 	switch resmsg := msg.(type) {
-	case *message.GetAnchors:
-		if stubSyncer.getAnchorsHookFn != nil {
-			stubSyncer.getAnchorsHookFn(stubSyncer)
-		}
-
 	case *message.FinderResult:
 		if resmsg.Ancestor != nil && resmsg.Err == nil && resmsg.Ancestor.No >= 0 {
 			stubSyncer.localChain.Rollback(resmsg.Ancestor)
@@ -210,6 +207,10 @@ func (stubSyncer *StubSyncer) handleActorMsg(inmsg interface{}) {
 
 //reply to requestFuture()
 func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
+	if syncer.getAnchorsHookFn != nil {
+		syncer.getAnchorsHookFn(syncer)
+	}
+
 	go func() {
 		if syncer.cfg.debugContext.debugFinder {
 			if syncer.stubPeers[0].timeDelaySec > 0 {
@@ -221,7 +222,7 @@ func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
 
 		hashes, lastno, err := syncer.localChain.GetAnchors()
 
-		rspMsg := message.GetAnchorsRsp{Hashes: hashes, LastNo: lastno, Err: err}
+		rspMsg := message.GetAnchorsRsp{Seq: msg.Seq, Hashes: hashes, LastNo: lastno, Err: err}
 		syncer.stubRequester.sendReply(StubRequestResult{rspMsg, nil})
 	}()
 }
@@ -231,27 +232,34 @@ func (syncer *StubSyncer) GetPeers(msg *message.GetPeers) {
 	syncer.stubRequester.sendReply(StubRequestResult{rspMsg, nil})
 }
 
-func (syncer *StubSyncer) GetSyncAncestor(msg *message.GetSyncAncestor) {
+func (syncer *StubSyncer) SendGetSyncAncestorRsp(msg *message.GetSyncAncestor) {
 	//find peer
 	stubPeer := syncer.findStubPeer(msg.ToWhom)
 	ancestor := stubPeer.blockChain.GetAncestorWithHashes(msg.Hashes)
 
-	rspMsg := &message.GetSyncAncestorRsp{Ancestor: ancestor}
+	rspMsg := &message.GetSyncAncestorRsp{Seq: msg.Seq, Ancestor: ancestor}
 	syncer.stubRequester.TellTo(message.SyncerSvc, rspMsg) //TODO refactoring: stubcompRequesterresult
+}
 
+func (syncer *StubSyncer) GetSyncAncestor(msg *message.GetSyncAncestor) {
+	if syncer.getSyncAncestorHookFn != nil {
+		syncer.getSyncAncestorHookFn(syncer, msg)
+	}
+
+	syncer.SendGetSyncAncestorRsp(msg)
 }
 
 func (syncer *StubSyncer) GetHashByNo(msg *message.GetHashByNo) {
 	//targetPeer = 0
 	hash, err := syncer.stubPeers[0].blockChain.GetHashByNo(msg.BlockNo)
-	rsp := &message.GetHashByNoRsp{BlockHash: hash, Err: err}
+	rsp := &message.GetHashByNoRsp{Seq: msg.Seq, BlockHash: hash, Err: err}
 	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 }
 func (syncer *StubSyncer) GetHashes(msg *message.GetHashes, responseErr error) {
 	blkHashes, _ := syncer.remoteChain.GetHashes(msg.PrevInfo, msg.Count)
 
 	assert.Equal(syncer.t, len(blkHashes), int(msg.Count))
-	rsp := &message.GetHashesRsp{msg.PrevInfo, blkHashes, uint64(len(blkHashes)), responseErr}
+	rsp := &message.GetHashesRsp{Seq: msg.Seq, PrevInfo: msg.PrevInfo, Hashes: blkHashes, Count: uint64(len(blkHashes)), Err: responseErr}
 
 	syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 }
@@ -276,7 +284,7 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 		//send reply
 		blocks, err := stubPeer.blockChain.GetBlocks(msg.Hashes)
 
-		rsp := &message.GetBlockChunksRsp{ToWhom: msg.ToWhom, Blocks: blocks, Err: err}
+		rsp := &message.GetBlockChunksRsp{Seq: msg.Seq, ToWhom: msg.ToWhom, Blocks: blocks, Err: err}
 		syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 	}()
 }
@@ -310,7 +318,7 @@ func makePeerReply(stubPeers []*StubPeer) *message.GetPeersRsp {
 	peers := make([]*message.PeerInfo, count)
 	for i, p := range stubPeers {
 		peerInfo := &message.PeerInfo{
-			Addr: p.addr, CheckTime:now, State:p.state, LastBlockHash:p.lastBlk.BlockHash, LastBlockNumber:p.lastBlk.BlockNo,
+			Addr: p.addr, CheckTime: now, State: p.state, LastBlockHash: p.lastBlk.BlockHash, LastBlockNumber: p.lastBlk.BlockNo,
 		}
 		peers[i] = peerInfo
 	}

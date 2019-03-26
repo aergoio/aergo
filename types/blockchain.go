@@ -130,6 +130,8 @@ type ChainAccessor interface {
 }
 
 type SyncContext struct {
+	Seq uint64
+
 	PeerID peer.ID
 
 	BestNo   BlockNo
@@ -142,8 +144,8 @@ type SyncContext struct {
 	LastAnchor BlockNo
 }
 
-func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
-	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
+func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
+	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
 }
 
 func (ctx *SyncContext) SetAncestor(ancestor *Block) {

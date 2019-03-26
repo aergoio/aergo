@@ -21,6 +21,7 @@ import (
 type Syncer struct {
 	*component.BaseComponent
 
+	Seq       uint64
 	cfg       *cfg.Config
 	syncerCfg *SyncerConfig
 	chain     types.ChainAccessor
@@ -101,8 +102,9 @@ func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor, syncerCfg *SyncerConf
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
 	syncer.compRequester = syncer.BaseComponent
 	syncer.chain = chain
+	syncer.Seq = 1
 
-	logger.Info().Msg("Syncer started")
+	logger.Info().Uint64("seq", syncer.Seq).Msg("Syncer started")
 
 	return syncer
 }
@@ -141,6 +143,15 @@ func (syncer *Syncer) Reset() {
 	logger.Info().Msg("syncer stopped")
 }
 
+func (syncer *Syncer) GetSeq() uint64 {
+	return syncer.Seq
+}
+
+func (syncer *Syncer) IncSeq() uint64 {
+	syncer.Seq++
+	return syncer.Seq
+}
+
 func (syncer *Syncer) getCompRequester() component.IComponentRequester {
 	if syncer.compRequester != nil {
 		return syncer.compRequester
@@ -175,8 +186,56 @@ func (syncer *Syncer) Receive(context actor.Context) {
 	syncer.handleMessage(context.Message())
 }
 
+func (syncer *Syncer) verifySeq(inmsg interface{}) bool {
+	isMatch := func(seq uint64) bool {
+		return syncer.Seq == seq
+	}
+
+	var seq uint64
+	var match bool
+
+	switch msg := inmsg.(type) {
+	case *message.GetAnchorsRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetSyncAncestorRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.FinderResult:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetHashesRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetHashByNoRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetBlockChunksRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.SyncStop:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.CloseFetcher:
+		seq = msg.Seq
+		match = isMatch(seq)
+	default:
+		match = true
+	}
+
+	if !match {
+		logger.Debug().Msgf("syncer(seq=%d) message(%T, seq=%d) is dropped", syncer.GetSeq(), inmsg, seq)
+	}
+
+	return match
+}
+
 func (syncer *Syncer) handleMessage(inmsg interface{}) {
 	defer syncer.RecoverSyncerSelf()
+
+	if !syncer.verifySeq(inmsg) {
+		return
+	}
 
 	switch msg := inmsg.(type) {
 	case *message.SyncStart:
@@ -262,10 +321,12 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 		return nil
 	}
 
-	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
+	syncer.IncSeq()
+
+	logger.Info().Uint64("seq", syncer.GetSeq()).Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
 
 	//TODO BP stop
-	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
+	syncer.ctx = types.NewSyncCtx(syncer.GetSeq(), msg.PeerID, msg.TargetNo, bestBlockNo)
 	syncer.isRunning = true
 
 	syncer.finder = newFinder(syncer.ctx, syncer.getCompRequester(), syncer.chain, syncer.syncerCfg)
@@ -275,14 +336,26 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 }
 
 func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
-	logger.Debug().Msg("syncer received ancestor response")
+	var ancestorNo uint64
+
+	if msg.Ancestor != nil {
+		ancestorNo = msg.Ancestor.No
+	}
+
+	logger.Debug().Uint64("no", ancestorNo).Msg("syncer received ancestor response")
 
 	if syncer.finder == nil {
 		logger.Debug().Msg("finder already stopped. so drop unexpected AncestorRsp message")
 		return
 	}
+
 	//set ancestor in types.SyncContext
-	syncer.finder.lScanCh <- msg.Ancestor
+	select {
+	case syncer.finder.lScanCh <- msg.Ancestor:
+		logger.Debug().Uint64("seq", msg.Seq).Msg("syncer transfer response to finder")
+	default:
+		logger.Debug().Uint64("seq", msg.Seq).Msg("syncer dropped response of finder")
+	}
 }
 
 func (syncer *Syncer) handleGetHashByNoRsp(msg *message.GetHashByNoRsp) {
@@ -370,20 +443,20 @@ func (syncer *Syncer) RecoverSyncerSelf() {
 	}
 }
 
-func stopSyncer(compRequester component.IComponentRequester, who string, err error) {
+func stopSyncer(compRequester component.IComponentRequester, seq uint64, who string, err error) {
 	logger.Info().Str("who", who).Err(err).Msg("request syncer stop")
 
-	compRequester.TellTo(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
+	compRequester.TellTo(message.SyncerSvc, &message.SyncStop{Seq: seq, FromWho: who, Err: err})
 }
 
-func closeFetcher(compRequester component.IComponentRequester, who string) {
-	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
+func closeFetcher(compRequester component.IComponentRequester, seq uint64, who string) {
+	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{Seq: seq, FromWho: who})
 }
 
-func RecoverSyncer(name string, compRequester component.IComponentRequester, finalize func()) {
+func RecoverSyncer(name string, seq uint64, compRequester component.IComponentRequester, finalize func()) {
 	if r := recover(); r != nil {
 		logger.Error().Str("child", name).Str("callstack", string(debug.Stack())).Msg("syncer recovered child panic")
-		stopSyncer(compRequester, name, ErrSyncerPanic)
+		stopSyncer(compRequester, seq, name, ErrSyncerPanic)
 	}
 
 	if finalize != nil {

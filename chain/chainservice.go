@@ -519,6 +519,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	case *message.GetAnchors:
 		anchor, lastNo, err := cm.getAnchorsNew()
 		context.Respond(message.GetAnchorsRsp{
+			Seq:    msg.Seq,
 			Hashes: anchor,
 			LastNo: lastNo,
 			Err:    err,
