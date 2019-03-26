@@ -347,7 +347,7 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 
 	oldLatest = cdb.setLatest(block)
 
-	logger.Debug().Str("hash", block.ID()).Msg("connect block to mainchain")
+	logger.Debug().Msg("connected block to mainchain")
 
 	return
 }
@@ -408,7 +408,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
 	bestNo := cdb.getBestBlockNo()
 	if blockNo > 0 && blockNo != bestNo+1 {
-		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", bestNo).Msg("block is branch")
+		logger.Debug().Uint64("no", blockNo).Uint64("latest", bestNo).Msg("block is branch")
 
 		return false, nil
 	}
@@ -421,9 +421,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 
 	isMainChain := bytes.Equal(prevHash, latestHash)
 
-	logger.Debug().Bool("isMainChain", isMainChain).Uint64("blkno", blockNo).Str("hash", block.ID()).
-		Str("latest", enc.ToString(latestHash)).Str("prev", enc.ToString(prevHash)).
-		Msg("check if block is in main chain")
+	logger.Debug().Bool("isMainChain", isMainChain).Msg("check if block is in main chain")
 
 	return isMainChain, nil
 }

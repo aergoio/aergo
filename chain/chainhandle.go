@@ -285,6 +285,7 @@ func (cp *chainProcessor) notifyBlockByBP(block *types.Block) {
 
 func (cp *chainProcessor) notifyBlockByOther(block *types.Block) {
 	if !cp.isByBP {
+		logger.Debug().Msg("notify block from other bp")
 		cp.notifyBlock(block, false)
 	}
 }
@@ -299,7 +300,6 @@ func (cp *chainProcessor) execute(block *types.Block) error {
 	if !cp.isMainChain {
 		return nil
 	}
-	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("start to execute")
 
 	var err error
 
@@ -313,22 +313,11 @@ func (cp *chainProcessor) execute(block *types.Block) error {
 	// 	After executing MemPoolDel in the chain service, MemPoolGet must be executed on the consensus.
 	// 	To do this, cdb.setLatest() must be executed after MemPoolDel.
 	//	In this case, messages of mempool is synchronized in actor message queue.
-	var oldLatest types.BlockNo
-	if oldLatest, err = cp.connectToChain(block); err != nil {
+	if _, err = cp.connectToChain(block); err != nil {
 		return err
 	}
 
 	cp.notifyBlockByOther(block)
-
-	blockNo := block.BlockNo()
-	if logger.IsDebugEnabled() {
-		logger.Debug().
-			Uint64("old latest", oldLatest).
-			Uint64("new latest", blockNo).
-			Str("hash", block.ID()).
-			Str("prev_hash", enc.ToString(block.GetHeader().GetPrevBlockHash())).
-			Msg("block executed")
-	}
 
 	return nil
 }
@@ -368,8 +357,6 @@ func (cp *chainProcessor) reorganize() error {
 }
 
 func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
-	logger.Debug().Str("hash", newBlock.ID()).Msg("add block")
-
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,
@@ -460,7 +447,6 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	_, err := cs.getBlock(newBlock.BlockHash())
 	if err == nil {
-		logger.Debug().Str("hash", newBlock.ID()).Msg("already exist")
 		return ErrBlockExist
 	}
 
@@ -631,7 +617,7 @@ func (e *blockExecutor) execute() error {
 		return err
 	}
 
-	logger.Debug().Msg("executed block")
+	logger.Debug().Msg("block executor finished")
 	return nil
 }
 
@@ -651,6 +637,7 @@ func (e *blockExecutor) commit() error {
 // TODO: Refactoring: batch
 func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Block) error {
 	// Caution: block must belong to the main chain.
+	logger.Debug().Str("hash", block.ID()).Uint64("no", block.GetHeader().BlockNo).Msg("start to execute")
 
 	var (
 		bestBlock *types.Block
@@ -684,6 +671,8 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	cs.Update(block)
 
+	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end to execute")
+
 	return nil
 }
 
@@ -691,7 +680,7 @@ func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockStat
 	blkNo := block.GetHeader().GetBlockNo()
 	blkHash := block.BlockHash()
 
-	logger.Debug().Str("hash", block.ID()).Uint64("no", blkNo).Msg("add event from executed block")
+	logger.Debug().Uint64("no", blkNo).Msg("add event from executed block")
 
 	cs.RequestTo(message.MemPoolSvc, &message.MemPoolDel{
 		Block: block,
@@ -853,8 +842,8 @@ func (cs *ChainService) resolveOrphan(block *types.Block) (*types.Block, error) 
 			orphanBlock.GetHeader().GetBlockNo())
 	}
 
-	logger.Debug().Str("parentHash=", block.ID()).
-		Str("orphanHash=", orphanBlock.ID()).
+	logger.Debug().Str("parent", block.ID()).
+		Str("orphan", orphanBlock.ID()).
 		Msg("connect orphan")
 
 	cs.op.removeOrphan(orphanID)
@@ -872,8 +861,7 @@ func (cs *ChainService) isOrphan(block *types.Block) bool {
 func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
-		// logging???
-		logger.Debug().Str("hash", block.ID()).Msg("add Orphan Block failed")
+		logger.Error().Err(err).Str("hash", block.ID()).Msg("add orphan block failed")
 
 		return err
 	}

@@ -124,6 +124,8 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 func (reorg *reorganizer) swapChain() error {
 	cs := reorg.cs
 
+	logger.Info().Msg("swap chain to new branch")
+
 	cs.cdb.swapChain(reorg.newBlocks)
 
 	reorg.swapTxMapping()
@@ -186,9 +188,10 @@ func (reorg *reorganizer) swapTxMapping() error {
 
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	count := len(oldTxs)
+	logger.Debug().Int("tx count", count).Msg("tx add to mempool")
+
 	if count > 0 {
 		//txs := make([]*types.Tx, 0, count)
-		logger.Debug().Int("tx count", count).Msg("tx add to mempool")
 
 		for _, tx := range oldTxs {
 			//			logger.Debug().Str("txID", txID.String()).Msg("tx added")
@@ -201,7 +204,6 @@ func (reorg *reorganizer) swapTxMapping() error {
 		//		Txs: txs,
 		//	})
 	}
-
 	return nil
 }
 
@@ -282,6 +284,8 @@ func (reorg *reorganizer) rollbackChain() error {
 	brStartBlock := reorg.brStartBlock
 	brStartBlockNo := brStartBlock.GetHeader().GetBlockNo()
 
+	logger.Info().Str("hash", brStartBlock.ID()).Uint64("no", brStartBlockNo).Msg("rollback chain to branch start block")
+
 	if err := reorg.cs.sdb.Rollback(brStartBlock.GetHeader().GetBlocksRootHash()); err != nil {
 		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brStartBlockNo,
 			brStartBlock.ID())
@@ -306,14 +310,15 @@ func (reorg *reorganizer) rollbackChain() error {
 func (reorg *reorganizer) rollforwardChain() error {
 	cs := reorg.cs
 
+	logger.Info().Msg("rollforward chain started")
+
 	for i := len(reorg.newBlocks) - 1; i >= 0; i-- {
 		newBlock := reorg.newBlocks[i]
 		newBlockNo := newBlock.GetHeader().GetBlockNo()
 
-		logger.Debug().Str("hash", enc.ToString(newBlock.Hash)).Uint64("blockNo", newBlockNo).
-			Msg("rollforward block")
-
 		if err := cs.executeBlock(nil, newBlock); err != nil {
+			logger.Error().Str("hash", newBlock.ID()).Uint64("no", newBlockNo).
+				Msg("failed to execute block in reorg")
 			return err
 		}
 	}

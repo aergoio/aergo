@@ -202,7 +202,7 @@ func (bproc *BlockProcessor) AddBlockResponse(msg *message.AddBlockRsp) error {
 	bproc.blockFetcher.stat.setLastAddBlock(curBlock)
 
 	if curBlock.BlockNo() == bproc.targetBlockNo {
-		logger.Info().Msg("connected last block, stop syncer")
+		logger.Info().Msg("succeed to add last block, request stopping syncer")
 		stopSyncer(bproc.compRequester, bproc.name, nil)
 	}
 
