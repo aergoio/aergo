@@ -5,7 +5,7 @@
 
 package p2putil
 
-import "github.com/gogo/protobuf/proto"
+import "github.com/golang/protobuf/proto"
 
 func CalculateFieldDescSize(varSize int) int {
 	switch {
