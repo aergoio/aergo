@@ -2,6 +2,7 @@ package contract
 
 import "C"
 import (
+	"math/big"
 	"strconv"
 
 	"github.com/aergoio/aergo/state"
@@ -48,30 +49,31 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (string, []*types.Event, error) {
+	sender, receiver *state.V, preLoadService int) (rv string, fee *big.Int, events []*types.Event, err error) {
 
 	txBody := tx.GetBody()
+
+	fee = big.NewInt(0)
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
 		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
-			return "", nil, types.ErrInsufficientBalance
+			err = types.ErrInsufficientBalance
+			return
 		}
 		sender.SubBalance(txBody.GetAmountBigInt())
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
 	if !receiver.IsCreate() && len(receiver.State().CodeHash) == 0 {
-		return "", nil, nil
+		return
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
-		return "", nil, err
+		return
 	}
 
-	var rv string
-	var events []*types.Event
 	var ex *Executor
 	if !receiver.IsCreate() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
@@ -86,7 +88,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 			break
 		}
 		if err != nil {
-			return "", events, err
+			return
 		}
 	}
 	if ex != nil {
@@ -104,17 +106,17 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 	}
 	if err != nil {
 		if isSystemError(err) {
-			return "", events, err
+			return "", fee, events, err
 		}
-		return "", events, newVmError(err)
+		return "", fee, events, newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
-		return "", events, err
+		return "", fee, events, err
 	}
 
-	return rv, events, nil
+	return rv, fee, events, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {

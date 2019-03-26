@@ -21,21 +21,19 @@ const (
 
 var (
 	nilChainID = ChainID{
-		Version:     0,
-		Magic:       "",
-		PublicNet:   false,
-		MainNet:     false,
-		Consensus:   "",
-		CoinbaseFee: DefaultCoinbaseFee,
+		Version:   0,
+		Magic:     "",
+		PublicNet: false,
+		MainNet:   false,
+		Consensus: "",
 	}
 
 	defaultChainID = ChainID{
-		Version:     0,
-		Magic:       devChainMagic,
-		PublicNet:   false,
-		MainNet:     false,
-		Consensus:   "sbp",
-		CoinbaseFee: DefaultCoinbaseFee,
+		Version:   0,
+		Magic:     devChainMagic,
+		PublicNet: false,
+		MainNet:   false,
+		Consensus: "sbp",
 	}
 )
 
@@ -60,12 +58,11 @@ func (e errCidCodec) Error() string {
 
 // ChainID represents the identity of the chain.
 type ChainID struct {
-	Version     int32  `json:"-"`
-	PublicNet   bool   `json:"public"`
-	MainNet     bool   `json:"mainnet"`
-	CoinbaseFee string `json:"coinbasefee"`
-	Magic       string `json:"magic"`
-	Consensus   string `json:"consensus"`
+	Version   int32  `json:"-"`
+	PublicNet bool   `json:"public"`
+	MainNet   bool   `json:"mainnet"`
+	Magic     string `json:"magic"`
+	Consensus string `json:"consensus"`
 }
 
 // NewChainID returns a new ChainID initialized as nilChainID.
@@ -102,24 +99,8 @@ func (cid *ChainID) Bytes() ([]byte, error) {
 			err:   err,
 		}
 	}
-	if n, ok := cid.GetCoinbaseFee(); !ok || n.Sign() < 0 {
-		return nil, errCidCodec{
-			codec: cidMarshal,
-			field: "coinbasefee",
-			err: fmt.Errorf(
-				"coinbasefee is not proper number(%s)", cid.CoinbaseFee),
-		}
-	}
-	if cid.PublicNet && cid.CoinbaseFee != DefaultCoinbaseFee {
-		return nil, errCidCodec{
-			codec: cidMarshal,
-			field: "coinbasefee",
-			err: fmt.Errorf(
-				"coinbasefee for mainnet should be %s not %s", DefaultCoinbaseFee, cid.CoinbaseFee),
-		}
-	}
 
-	others := fmt.Sprintf("%s/%s/%s", cid.CoinbaseFee, cid.Magic, cid.Consensus)
+	others := fmt.Sprintf("%s/%s", cid.Magic, cid.Consensus)
 	if err := binary.Write(&w, binary.LittleEndian, []byte(others)); err != nil {
 		return nil, errCidCodec{
 			codec: cidMarshal,
@@ -159,23 +140,14 @@ func (cid *ChainID) Read(data []byte) error {
 		}
 	}
 	mc := strings.Split(string(r.Bytes()), "/")
-	if len(mc) != 3 {
+	if len(mc) != 2 {
 		return errCidCodec{
 			codec: cidUnmarshal,
-			field: "coinbasefee/magic/consensus",
+			field: "magic/consensus",
 			err:   fmt.Errorf("wrong number of fields: %s", mc),
 		}
 	}
-	cid.CoinbaseFee, cid.Magic, cid.Consensus = mc[0], mc[1], mc[2]
-
-	if _, ok := cid.GetCoinbaseFee(); !ok {
-		return errCidCodec{
-			codec: cidMarshal,
-			field: "coinbasefee",
-			err: fmt.Errorf(
-				"coinbasefee is not proper number(%s)", cid.CoinbaseFee),
-		}
-	}
+	cid.Magic, cid.Consensus = mc[0], mc[1]
 
 	return nil
 }
@@ -200,10 +172,6 @@ func (cid *ChainID) Equals(rhs *ChainID) bool {
 	}
 
 	return bytes.Compare(lVal, rVal) == 0
-}
-
-func (cid *ChainID) GetCoinbaseFee() (*big.Int, bool) {
-	return new(big.Int).SetString(cid.CoinbaseFee, 10)
 }
 
 // ToJSON returns a JSON encoded string of cid.

@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func initTest(t *testing.T, testmode bool) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 
-	coinbaseFee, _ = genesis.ID.GetCoinbaseFee()
+	fee.SetFixedTxFee(true)
 }
 
 func deinitTest() {

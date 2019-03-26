@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -133,10 +134,11 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 		}
 	}
 
-	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 	initChainEnv(gen)
 
 	contract.StartLStateFactory()
+
+	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	logger.Info().Str("chain id", gen.ID.ToJSON()).
 		Str("hash", enc.ToString(genesisBlock.GetHash())).Msg("chain initialized")
@@ -250,6 +252,15 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 			}
 		}
 	}
+
+	// init related modules
+	if !pubNet && len(cfg.Blockchain.FixedTxFee) > 0 {
+		if err := fee.SetUserTxFee(cfg.Blockchain.FixedTxFee); err != nil {
+			logger.Info().Err(err).Msg("set to default transaction fee")
+		}
+	}
+	fee.SetFixedTxFee(pubNet)
+	contract.PubNet = pubNet
 
 	return cs
 }
