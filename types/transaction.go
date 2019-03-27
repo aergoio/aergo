@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/fee"
+	"github.com/gogo/protobuf/proto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
 )
@@ -19,7 +20,7 @@ const Unstake = "v1unstake"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
 
-const TxMaxPayloadSize = 200 * 1024
+const TxMaxSize = 200 * 1024
 
 type Transaction interface {
 	GetTx() *Tx
@@ -47,7 +48,10 @@ func NewTransaction(tx *Tx) Transaction {
 }
 
 func (tx *transaction) GetTx() *Tx {
-	return tx.Tx
+	if tx != nil {
+		return tx.Tx
+	}
+	return nil
 }
 
 func (tx *transaction) GetBody() *TxBody {
@@ -63,9 +67,12 @@ func (tx *transaction) CalculateTxHash() []byte {
 }
 
 func (tx *transaction) Validate() error {
+	if tx.GetTx() == nil {
+		return ErrTxFormatInvalid
+	}
 
-	if len(tx.GetBody().GetPayload()) > TxMaxPayloadSize {
-		return ErrTxInvalidPayloadSize
+	if proto.Size(tx.GetTx()) > TxMaxSize {
+		return ErrTxInvalidSize
 	}
 
 	account := tx.GetBody().GetAccount()
