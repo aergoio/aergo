@@ -91,7 +91,7 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 			Recipient: []byte(types.AergoName),
 			Amount:    amount.Bytes(),
 			Payload:   payload,
-			Limit:     0,
+			GasLimit:  0,
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
@@ -140,7 +140,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 			Recipient: []byte(types.AergoName),
 			Amount:    amount.Bytes(),
 			Payload:   payload,
-			Limit:     0,
+			GasLimit:  0,
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}

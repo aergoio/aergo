@@ -75,8 +75,8 @@ func (tx *transaction) Validate() error {
 		return ErrTxInvalidAmount
 	}
 
-	price := tx.GetBody().GetPriceBigInt()
-	if price.Cmp(MaxAER) > 0 {
+	gasprice := tx.GetBody().GetGasPriceBigInt()
+	if gasprice.Cmp(MaxAER) > 0 {
 		return ErrTxInvalidPrice
 	}
 
@@ -293,8 +293,8 @@ func (tx *transaction) Clone() *transaction {
 		Recipient: Clone(tx.GetBody().Recipient).([]byte),
 		Amount:    Clone(tx.GetBody().Amount).([]byte),
 		Payload:   Clone(tx.GetBody().Payload).([]byte),
-		Limit:     tx.GetBody().Limit,
-		Price:     Clone(tx.GetBody().Price).([]byte),
+		GasLimit:  tx.GetBody().GasLimit,
+		GasPrice:  Clone(tx.GetBody().GasPrice).([]byte),
 		Type:      tx.GetBody().Type,
 		Sign:      Clone(tx.GetBody().Sign).([]byte),
 	}

@@ -45,10 +45,10 @@ type EventStream struct {
 
 // AergoRPCService implements GRPC server which is defined in rpc.proto
 type AergoRPCService struct {
-	hub         *component.ComponentHub
-	actorHelper p2pcommon.ActorService
+	hub               *component.ComponentHub
+	actorHelper       p2pcommon.ActorService
 	consensusAccessor consensus.ConsensusAccessor //TODO refactor with actorHelper
-	msgHelper   message.Helper
+	msgHelper         message.Helper
 
 	streamID                uint32
 	blockStreamLock         sync.RWMutex
@@ -134,14 +134,14 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
 		id := genesisInfo.ID
 
-		chainInfo.Chainid = &types.ChainId{
+		chainInfo.Id = &types.ChainId{
 			Magic:     id.Magic,
 			Public:    id.PublicNet,
 			Mainnet:   id.MainNet,
 			Consensus: id.Consensus,
 		}
 
-		chainInfo.Bpnumber = uint32(len(genesisInfo.BPs))
+		chainInfo.BpNumber = uint32(len(genesisInfo.BPs))
 
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
 			chainInfo.Maxtokens = totalBalance.Bytes()

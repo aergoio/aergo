@@ -134,7 +134,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			Account:   account,
 			Recipient: []byte(aergosystem),
 			Payload:   payload,
-			Limit:     0,
+			GasLimit:  0,
 			Type:      types.TxType_GOVERNANCE,
 			Nonce:     state.GetNonce() + 1,
 		},

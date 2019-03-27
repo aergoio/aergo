@@ -64,7 +64,7 @@ func sendStake(cmd *cobra.Command, s bool) error {
 			Recipient: []byte(types.AergoSystem),
 			Amount:    amountBigInt.Bytes(),
 			Payload:   payload,
-			Limit:     0,
+			GasLimit:  0,
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}

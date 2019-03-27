@@ -81,9 +81,9 @@ func CalculateHashWithoutSign(txBody *types.TxBody) []byte {
 	h.Write(txBody.Recipient)
 	h.Write(txBody.Amount)
 	h.Write(txBody.Payload)
-	binary.Write(h, binary.LittleEndian, txBody.Limit)
-	h.Write(txBody.Price)
+	binary.Write(h, binary.LittleEndian, txBody.GasLimit)
+	h.Write(txBody.GasPrice)
 	binary.Write(h, binary.LittleEndian, txBody.Type)
-	h.Write(txBody.ChainIDHash)
+	h.Write(txBody.ChainIdHash)
 	return h.Sum(nil)
 }

@@ -467,10 +467,10 @@ func (tx *Tx) CalculateTxHash() []byte {
 	digest.Write(txBody.Recipient)
 	digest.Write(txBody.Amount)
 	digest.Write(txBody.Payload)
-	binary.Write(digest, binary.LittleEndian, txBody.Limit)
-	digest.Write(txBody.Price)
+	binary.Write(digest, binary.LittleEndian, txBody.GasLimit)
+	digest.Write(txBody.GasPrice)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
-	digest.Write(txBody.ChainIDHash)
+	digest.Write(txBody.ChainIdHash)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
@@ -500,10 +500,10 @@ func (tx *Tx) Clone() *Tx {
 		Recipient:   Clone(tx.Body.Recipient).([]byte),
 		Amount:      Clone(tx.Body.Amount).([]byte),
 		Payload:     Clone(tx.Body.Payload).([]byte),
-		Limit:       tx.Body.Limit,
-		Price:       Clone(tx.Body.Price).([]byte),
+		GasLimit:    tx.Body.GasLimit,
+		GasPrice:    Clone(tx.Body.GasPrice).([]byte),
 		Type:        tx.Body.Type,
-		ChainIDHash: Clone(tx.Body.ChainIDHash).([]byte),
+		ChainIdHash: Clone(tx.Body.ChainIdHash).([]byte),
 		Sign:        Clone(tx.Body.Sign).([]byte),
 	}
 	res := &Tx{
@@ -517,8 +517,8 @@ func (b *TxBody) GetAmountBigInt() *big.Int {
 	return new(big.Int).SetBytes(b.GetAmount())
 }
 
-func (b *TxBody) GetPriceBigInt() *big.Int {
-	return new(big.Int).SetBytes(b.GetPrice())
+func (b *TxBody) GetGasPriceBigInt() *big.Int {
+	return new(big.Int).SetBytes(b.GetGasPrice())
 }
 
 type MovingAverage struct {

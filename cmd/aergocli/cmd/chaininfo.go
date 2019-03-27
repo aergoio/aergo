@@ -43,11 +43,11 @@ type printChainInfo struct {
 
 func convChainInfoMsg(msg *types.ChainInfo) string {
 	out := &printChainInfo{}
-	out.Chainid.Magic = msg.Chainid.Magic
-	out.Chainid.Public = msg.Chainid.Public
-	out.Chainid.Mainnet = msg.Chainid.Mainnet
-	out.Chainid.Consensus = msg.Chainid.Consensus
-	out.BpNumber = msg.Bpnumber
+	out.Chainid.Magic = msg.Id.Magic
+	out.Chainid.Public = msg.Id.Public
+	out.Chainid.Mainnet = msg.Id.Mainnet
+	out.Chainid.Consensus = msg.Id.Consensus
+	out.BpNumber = msg.BpNumber
 	out.MaxBlockSize = msg.Maxblocksize
 	out.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
 	out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()

@@ -25,8 +25,8 @@ type InOutTxBody struct {
 	Recipient string
 	Amount    string
 	Payload   string
-	Limit     uint64
-	Price     string
+	GasLimit  uint64
+	GasPrice  string
 	Type      types.TxType
 	Sign      string
 }
@@ -116,13 +116,13 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 			return err
 		}
 	}
-	target.Limit = source.Limit
-	if source.Price != "" {
-		price, err := ParseUnit(source.Price)
+	target.GasLimit = source.GasLimit
+	if source.GasPrice != "" {
+		price, err := ParseUnit(source.GasPrice)
 		if err != nil {
 			return err
 		}
-		target.Price = price.Bytes()
+		target.GasPrice = price.Bytes()
 	}
 	if source.Sign != "" {
 		target.Sign, err = base58.Decode(source.Sign)
@@ -196,8 +196,8 @@ func ConvTx(tx *types.Tx) *InOutTx {
 	}
 	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
-	out.Body.Limit = tx.Body.Limit
-	out.Body.Price = new(big.Int).SetBytes(tx.Body.Price).String()
+	out.Body.GasLimit = tx.Body.GasLimit
+	out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out
