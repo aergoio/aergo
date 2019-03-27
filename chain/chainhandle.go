@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
@@ -19,7 +21,6 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"math/big"
 )
 
 var (
@@ -233,7 +234,7 @@ func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainSer
 		ChainService: cs,
 		block:        block,
 		state:        state,
-		isByBP:       (state != nil),
+		isByBP:       state != nil,
 		isMainChain:  isMainChain,
 	}
 
@@ -573,7 +574,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 	commitOnly := false
 
-	// The DPoS block factory excutes transactions during block generation. In
+	// The DPoS block factory executes transactions during block generation. In
 	// such a case it send block with block state so that bState != nil. On the
 	// contrary, the block propagated from the network is not half-executed.
 	// Hence we need a new block state and tx executor (execTx).
@@ -622,6 +623,10 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
 			return ErrGatherChain
+		}
+		if bi.Version < 0 {
+			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.Version = %d", bi.Version)
+			return ErrInvalidBlockHeader
 		}
 		snapshot := bState.Snapshot()
 
@@ -898,7 +903,7 @@ func executeTx(
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State())
+	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.Version)
 	if err != nil {
 		return err
 	}
@@ -936,7 +941,7 @@ func executeTx(
 		}
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
-		if tx.GetMaxFee().Cmp(balance) > 0 {
+		if tx.GetMaxFee(bs.GasPrice, bi.Version).Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
@@ -992,7 +997,7 @@ func executeTx(
 		}
 		rv = adjustRv(rv)
 	}
-	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
+	bs.BpReward.Add(&bs.BpReward, txFee)
 
 	receipt := types.NewReceipt(receiver.ID(), status, rv)
 	receipt.FeeUsed = txFee.Bytes()
@@ -1014,9 +1019,9 @@ func DecorateBlockRewardFn(fn BlockRewardFn) {
 }
 
 func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
-	bpReward := new(big.Int).SetBytes(bState.BpReward)
+	bpReward := &bState.BpReward
 	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
-		logger.Debug().Str("reward", new(big.Int).SetBytes(bState.BpReward).String()).Msg("coinbase is skipped")
+		logger.Debug().Str("reward", bpReward.String()).Msg("coinbase is skipped")
 		return nil
 	}
 

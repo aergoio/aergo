@@ -77,11 +77,11 @@ func TestUpdateChainIdVersion(t *testing.T) {
 		t.Errorf("version mismatch: 0 expected, but got %d", cid0.Version)
 		t.Log(cid0.ToJSON())
 	}
-	updatedCID := makeChainId(b, 0)
+	updatedCID := MakeChainId(b, 0)
 	if !bytes.Equal(b, updatedCID) {
 		t.Error("chainid is not equal")
 	}
-	updatedCID = makeChainId(b, 1)
+	updatedCID = MakeChainId(b, 1)
 	cid1 := new(ChainID)
 	cid1.Read(updatedCID)
 	if cid1.Version != 1 {

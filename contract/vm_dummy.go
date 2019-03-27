@@ -36,6 +36,8 @@ type DummyChain struct {
 	testReceiptDB db.DB
 	tmpDir        string
 	timeout       int
+	clearLState   func()
+	gasPrice      *big.Int
 }
 
 var addressRegexp *regexp.Regexp
@@ -52,8 +54,9 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 		return nil, err
 	}
 	bc := &DummyChain{
-		sdb:    state.NewChainStateDB(),
-		tmpDir: dataPath,
+		sdb:      state.NewChainStateDB(),
+		tmpDir:   dataPath,
+		gasPrice: new(big.Int).SetUint64(1),
 	}
 	defer func() {
 		if err != nil {
@@ -67,12 +70,13 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	}
 	genesis := types.GetTestGenesis()
 	bc.sdb.SetGenesis(genesis, nil)
+	bc.bestBlock = genesis.Block()
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
-	LoadTestDatabase(dataPath) // sql database
+	loadTestDatabase(dataPath) // sql database
 	StartLStateFactory()
 	HardforkConfig = config.AllEnabledHardforkConfig
 
@@ -88,6 +92,9 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 
 func (bc *DummyChain) Release() {
 	bc.testReceiptDB.Close()
+	if bc.clearLState != nil {
+		bc.clearLState()
+	}
 	_ = os.RemoveAll(bc.tmpDir)
 }
 
@@ -101,9 +108,14 @@ func (bc *DummyChain) newBState() *state.BlockState {
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     time.Now().UnixNano(),
+			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, HardforkConfig.Version(bc.bestBlockNo+1)),
 		},
 	}
-	return state.NewBlockState(bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()))
+	return state.NewBlockState(
+		bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()),
+		state.SetPrevBlockHash(bc.cBlock.GetHeader().PrevBlockHash),
+		state.SetGasPrice(bc.gasPrice),
+	)
 }
 
 func (bc *DummyChain) BeginReceiptTx() db.Transaction {
@@ -437,16 +449,16 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			contract.State().SqlRecoveryPoint = 1
 
-			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout, false)
+			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
+				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, 0, timeout, false)
 
 			if traceState {
-				stateSet.traceFile, _ =
+				ctx.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				defer stateSet.traceFile.Close()
+				defer ctx.traceFile.Close()
 			}
 
-			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
+			_, _, _, err := Create(eContractState, l.code, l.contract, ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -518,14 +530,14 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error {
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
-			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout, l.feeDelegate)
+			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
+				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, 0, timeout, l.feeDelegate)
 			if traceState {
-				stateSet.traceFile, _ =
+				ctx.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				defer stateSet.traceFile.Close()
+				defer ctx.traceFile.Close()
 			}
-			rv, evs, usedfee, err := Call(eContractState, l.code, l.contract, stateSet)
+			rv, evs, usedfee, err := Call(eContractState, l.code, l.contract, ctx)
 			if usedfee != nil {
 				usedfee.Add(usedfee, fee.PayloadTxFee(len(l.code)))
 			}
@@ -660,4 +672,20 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string) (string, error) {
 
 func StrToAddress(name string) string {
 	return types.EncodeAddress(strHash(name))
+}
+
+func onPubNet(dc *DummyChain) {
+	flushLState := func() {
+		for i := 0; i <= lStateMaxSize; i++ {
+			s := getLState()
+			freeLState(s)
+		}
+	}
+	PubNet = true
+	flushLState()
+
+	dc.clearLState = func() {
+		PubNet = false
+		flushLState()
+	}
 }

@@ -6,15 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
@@ -22,9 +17,14 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 var (
@@ -72,7 +72,7 @@ func (work *Work) ToString() string {
 	return fmt.Sprintf("bestblock=%s", work.BlockID())
 }
 
-// BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
+// BlockFactory implements a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
 //
 // This can be used for testing purpose.
 type BlockFactory struct {
@@ -415,12 +415,13 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 		return nil, nil, ErrCancelGenerate
 	}
 
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bestBlock, time.Now().UnixNano(), bf.bv)
+	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi, bf.bpTimeoutC))
 	blockState := bf.sdb.NewBlockState(
 		bestBlock.GetHeader().GetBlocksRootHash(),
 		state.SetPrevBlockHash(bestBlock.BlockHash()),
+		state.SetGasPrice(system.GetGasPrice()),
 	)
-	bi := types.NewBlockHeaderInfoFromPrevBlock(bestBlock, time.Now().UnixNano(), bf.bv)
-	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi, bf.bpTimeoutC))
 
 	block, err := chain.GenerateBlock(bf, bi, blockState, txOp, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {

@@ -15,6 +15,7 @@ static int systemPrint(lua_State *L)
     char *jsonValue;
 	int *service = (int *)getLuaExecContext(L);
 
+    lua_gasuse(L, 100);
     jsonValue = lua_util_get_json_from_stack (L, 1, lua_gettop(L), true);
     if (jsonValue == NULL) {
 		luaL_throwerror(L);
@@ -44,10 +45,10 @@ int setItemWithPrefix(lua_State *L)
 	char *errStr;
 	int keylen;
 
+	lua_gasuse(L, 100);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-
 	luaL_checkstring(L, 1);
 	luaL_checkany(L, 2);
 	luaL_checkstring(L, 3);
@@ -58,13 +59,13 @@ int setItemWithPrefix(lua_State *L)
 		luaL_throwerror(L);
 	}
 
+	lua_gasuse(L, GAS_SDATA*strlen(jsonValue));
 	if ((errStr = luaSetDB(L, service, dbKey, keylen, jsonValue)) != NULL) {
 		free(jsonValue);
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
 	}
 	free(jsonValue);
-
 	return 0;
 }
 
@@ -85,6 +86,7 @@ int getItemWithPrefix(lua_State *L)
 	struct luaGetDB_return ret;
 	int keylen;
 
+	lua_gasuse(L, 100);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -138,6 +140,7 @@ int delItemWithPrefix(lua_State *L)
 	char *ret;
 	int keylen;
 
+	lua_gasuse(L, 100);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -156,6 +159,7 @@ static int getSender(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	char *sender;
+	lua_gasuse(L, 1000);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -168,6 +172,7 @@ static int getTxhash(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	char *hash;
+	lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -179,6 +184,7 @@ static int getTxhash(lua_State *L)
 static int getBlockHeight(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
+	lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -189,6 +195,7 @@ static int getBlockHeight(lua_State *L)
 static int getTimestamp(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
+	lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -200,6 +207,7 @@ static int getContractID(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	char *id;
+	lua_gasuse(L, 1000);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -213,7 +221,7 @@ static int getCreator(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	struct luaGetDB_return ret;
 	int keylen = 7;
-
+	lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -235,6 +243,7 @@ static int getAmount(lua_State *L)
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
+	lua_gasuse(L, 300);
 	amount = luaGetAmount(L, service);
 	strPushAndRelease(L, amount);
 	return 1;
@@ -244,6 +253,7 @@ static int getOrigin(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	char *origin;
+	lua_gasuse(L, 1000);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -256,6 +266,7 @@ static int getPrevBlockHash(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	char *hash;
+	lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -320,6 +331,7 @@ static int os_date(lua_State *L)
 #if LJ_TARGET_POSIX
     struct tm rtm;
 #endif
+    lua_gasuse(L, 100);
     if (*s == '!') {  /* UTC? */
         s++;  /* Skip '!' */
     }
@@ -369,6 +381,7 @@ static int os_date(lua_State *L)
 static int os_time(lua_State *L)
 {
     time_t t;
+    lua_gasuse(L, 100);
     if (lua_isnoneornil(L, 1)) {
         t = blocktime(L);
     } else {
@@ -397,6 +410,7 @@ static int os_time(lua_State *L)
 
 static int os_difftime(lua_State *L)
 {
+    lua_gasuse(L, 100);
     lua_pushnumber(L, difftime((time_t)(luaL_checknumber(L, 1)),
                 (time_t)(luaL_optnumber(L, 2, (lua_Number)0))));
     return 1;
@@ -408,11 +422,10 @@ static int lua_random(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	int min, max;
-
+    lua_gasuse(L, 100);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
     }
-
 	switch (lua_gettop(L)) {
 	case 1:
         max = luaL_checkint(L, 1);
@@ -436,7 +449,6 @@ static int lua_random(lua_State *L)
         luaL_error(L, "system.random: 1 or 2 arguments required");
         break;
 	}
-
     return 1;
 }
 
@@ -446,10 +458,10 @@ static int is_contract(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	struct luaIsContract_return ret;
 
+    lua_gasuse(L, 100);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
     }
-
 	contract = (char *)luaL_checkstring(L, 1);
     ret = luaIsContract(L, service, contract);
 	if (ret.r1 != NULL) {
@@ -478,11 +490,11 @@ static int is_fee_delegation(lua_State *L)
 	    strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
-	if (ret.r0 == 0)
+	if (ret.r0 == 0) {
 	    lua_pushboolean(L, false);
-	else
+    } else {
 	    lua_pushboolean(L, true);
-
+    }
     return 1;
 }
 

@@ -33,6 +33,7 @@ func init() {
 	sendtxCmd.MarkFlagRequired("amount")
 	sendtxCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
 	sendtxCmd.Flags().StringVar(&chainIdHash, "chainidhash", "", "hash value of chain id in the block")
+	sendtxCmd.Flags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
 }
 
 func execSendTX(cmd *cobra.Command, args []string) error {
@@ -53,6 +54,7 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 		Recipient: recipient,
 		Amount:    amountBigInt.Bytes(),
 		Nonce:     nonce,
+		GasLimit:  gas,
 	}}
 	if chainIdHash != "" {
 		cid, err := base58.Decode(chainIdHash)

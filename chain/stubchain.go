@@ -19,6 +19,8 @@ type StubBlockChain struct {
 	BestBlock *types.Block
 }
 
+var _ types.ChainAccessor = (*StubBlockChain)(nil)
+
 var (
 	ErrNotExistHash  = errors.New("not exist hash")
 	ErrNotExistBlock = errors.New("not exist block of the hash")

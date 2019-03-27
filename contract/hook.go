@@ -7,11 +7,11 @@ package contract
 */
 import "C"
 
-func (ce *Executor) setCountHook(limit C.int) {
+func (ce *executor) setCountHook(limit C.int) {
 	if ce == nil ||
 		ce.L == nil ||
 		ce.err != nil ||
-		!vmNeedResourceLimit(ce.stateSet) {
+		vmIsGasSystem(ce.ctx) {
 		return
 	}
 	C.vm_set_count_hook(ce.L, limit)

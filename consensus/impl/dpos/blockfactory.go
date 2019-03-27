@@ -16,6 +16,7 @@ import (
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -218,15 +219,15 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		}
 	}()
 
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
 	bs = bf.sdb.NewBlockState(
 		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
 		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
+		state.SetGasPrice(system.GetGasPrice()),
 	)
-	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
-	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(contract.ChainAccessor(bpi.ChainDB), bi, bf.bpTimeoutC))
-
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
-	block, err = chain.GenerateBlock(bf, bi, bs, txOp, false)
+
+	block, err = chain.GenerateBlock(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi, bf.bpTimeoutC)), false)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -16,7 +16,7 @@ import (
 
 type loadedReply struct {
 	tx  *types.Tx
-	ex  *Executor
+	ex  *executor
 	err error
 }
 
@@ -83,6 +83,10 @@ func Execute(
 	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
 		return
 	}
+	if useGas(bi.Version) && txBody.GetGasLimit() == 0 {
+		err = newVmError(types.ErrNotEnoughGas)
+		return
+	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
@@ -95,7 +99,7 @@ func Execute(
 		bs.CodeMap.Remove(receiver.AccountID())
 	}
 
-	var ex *Executor
+	var ex *executor
 	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
@@ -125,24 +129,25 @@ func Execute(
 		}
 	}
 
-	var cFee *big.Int
+	var ctrFee *big.Int
 	if ex != nil {
-		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), timeout)
+		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), timeout)
 	} else {
-		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
+		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), timeout, isFeeDelegation)
-		if stateSet.traceFile != nil {
-			defer stateSet.traceFile.Close()
+			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+			timeout, isFeeDelegation)
+		if ctx.traceFile != nil {
+			defer ctx.traceFile.Close()
 		}
 		if receiver.IsDeploy() {
-			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
 		} else {
-			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
 		}
 	}
 
-	usedFee.Add(usedFee, cFee)
+	usedFee.Add(usedFee, ctrFee)
 
 	if err != nil {
 		if isSystemError(err) {
@@ -209,11 +214,12 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
+		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
-			reqInfo.preLoadService, txBody.GetAmountBigInt(), nil, txBody.Type == types.TxType_FEEDELEGATION)
+			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+			nil, txBody.Type == types.TxType_FEEDELEGATION)
 
-		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
+		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), ctx)
 		replyCh <- &loadedReply{tx, ex, err}
 	}
 }
@@ -241,3 +247,8 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 	}
 	return nil
 }
+
+func useGas(version int32) bool {
+	return version >= 2 && PubNet
+}
+

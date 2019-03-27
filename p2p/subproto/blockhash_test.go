@@ -8,19 +8,19 @@ package subproto
 import (
 	"bytes"
 	"crypto/sha256"
+	"sync"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"sync"
-	"testing"
-
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
 )
 
 func TestGetHashRequestHandler_handle(t *testing.T) {
@@ -50,7 +50,6 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 		sampleBlks[i] = hash
 		copy(sampleBlksHashes[i][:], hash)
 	}
-
 
 	baseHeight := uint64(110000)
 	sampleSize := 21
@@ -163,9 +162,9 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 	baseHeight := uint64(110000)
 	wrongHeight := uint64(21531535)
 	tests := []struct {
-		name  string
-		inNum uint64
-		accRet []byte
+		name      string
+		inNum     uint64
+		accRet    []byte
 		accRetErr error
 
 		expectedStatus types.ResultStatus
@@ -190,7 +189,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 			mockAcc.EXPECT().GetHashByNo(test.inNum).Return(test.accRet, test.accRetErr).Times(1)
 			mockActor.EXPECT().GetChainAccessor().Return(mockAcc).AnyTimes()
 
-			msg :=  p2pmock.NewMockMessage(ctrl)
+			msg := p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
 			msg.EXPECT().Subprotocol().Return(p2pcommon.GetHashByNoRequest).AnyTimes()
 			body := &types.GetHashByNo{BlockNo: test.inNum}
@@ -203,7 +202,6 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 		})
 	}
 }
-
 
 func (a *testDoubleChainAccessor) GetBestBlock() (*types.Block, error) {
 	mychain := a.getChain()
@@ -242,8 +240,6 @@ func (a *testDoubleChainAccessor) GetHashByNo(blockNo types.BlockNo) ([]byte, er
 	return mychain[int(idx)], nil
 }
 
-
-
 // emulate db
 type testDoubleChainAccessor struct {
 	p2pmock.MockChainAccessor
@@ -255,6 +251,8 @@ type testDoubleChainAccessor struct {
 	lastChain   [][]byte
 }
 
+var _ types.ChainAccessor = (*testDoubleChainAccessor)(nil)
+
 func (a *testDoubleChainAccessor) getChain() [][]byte {
 	if a.callCount <= a.reorgTiming {
 		return a.firstChain
@@ -263,12 +261,10 @@ func (a *testDoubleChainAccessor) getChain() [][]byte {
 	}
 }
 
-
 type testDoubleHashesRespFactory struct {
 	lastResp   *types.GetHashesResponse
 	lastStatus types.ResultStatus
 }
-
 
 func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
@@ -281,7 +277,7 @@ func (f *testDoubleHashesRespFactory) NewMsgBlockRequestOrder(respReceiver p2pco
 func (f *testDoubleHashesRespFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	f.lastResp = message.(*types.GetHashesResponse)
 	f.lastStatus = f.lastResp.Status
-	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
+	return &testMo{message: &testMessage{id: reqID, subProtocol: protocolID}}
 }
 
 func (f *testDoubleHashesRespFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) p2pcommon.MsgOrder {
@@ -300,11 +296,9 @@ func (f *testDoubleHashesRespFactory) NewRaftMsgOrder(msgType raftpb.MessageType
 	panic("implement me")
 }
 
-
-
 // testDoubleMOFactory keep last created message and last result status of response message
 type testDoubleMOFactory struct {
-	mutex sync.Mutex
+	mutex      sync.Mutex
 	lastResp   p2pcommon.MessageBody
 	lastStatus types.ResultStatus
 }
@@ -335,17 +329,16 @@ func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protoco
 
 	f.lastResp = message
 	f.lastStatus = f.lastResp.(types.ResponseMessage).GetStatus()
-	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
+	return &testMo{message: &testMessage{id: reqID, subProtocol: protocolID}}
 }
 
 func (f *testDoubleMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 
-
 type testMo struct {
 	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.
-	message p2pcommon.Message
+	message    p2pcommon.Message
 }
 
 func (mo *testMo) GetMsgID() p2pcommon.MsgID {

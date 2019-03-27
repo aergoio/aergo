@@ -9,6 +9,7 @@ static int crypto_sha256(lua_State *L)
     char *arg;
     struct luaCryptoSha256_return ret;
 
+    lua_gasuse(L, 500);
     luaL_checktype(L, 1, LUA_TSTRING);
     arg = (char *)lua_tolstring(L, 1, &len);
 
@@ -27,6 +28,7 @@ static int crypto_ecverify(lua_State *L)
     struct luaECVerify_return ret;
 	int *service = (int *)getLuaExecContext(L);
 
+    lua_gasuse(L, 10000);
     luaL_checktype(L, 1, LUA_TSTRING);
     luaL_checktype(L, 2, LUA_TSTRING);
     luaL_checktype(L, 3, LUA_TSTRING);
@@ -53,6 +55,7 @@ static int crypto_verifyProof(lua_State *L)
     size_t kLen, vLen, hLen, nProof;
     int i, b;
     const int proofIndex = 4;
+    lua_gasuse(L, 10000);
     if (argc < proofIndex) {
         lua_pushboolean(L, 0);
         return 1;
@@ -77,6 +80,7 @@ static int crypto_keccak256(lua_State *L)
     char *arg;
     struct luaCryptoKeccak256_return ret;
 
+    lua_gasuse(L, 500);
     luaL_checktype(L, 1, LUA_TSTRING);
     arg = (char *)lua_tolstring(L, 1, &len);
 

@@ -71,6 +71,7 @@ var (
 	ErrGatherChain        = errors.New("new/old blocks must exist")
 	ErrNotExistBranchRoot = errors.New("branch root block doesn't exist")
 	ErrInvalidSwapChain   = errors.New("New chain is not longer than old chain")
+	ErrInvalidBlockHeader = errors.New("invalid block header")
 
 	errMsgNoBlock         = "block not found in the chain DB"
 	errMsgInvalidOldBlock = "rollback target is not valid"

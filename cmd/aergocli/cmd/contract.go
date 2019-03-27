@@ -27,6 +27,7 @@ var (
 	gover         bool
 	feeDelegation bool
 	contractID    string
+	gas			  uint64
 )
 
 func init() {
@@ -34,6 +35,7 @@ func init() {
 		Use:   "contract [flags] subcommand",
 		Short: "Contract command",
 	}
+	contractCmd.PersistentFlags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
 
 	deployCmd := &cobra.Command{
 		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
@@ -175,6 +177,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			Account:   creator,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
+			GasLimit:  gas,
 			Type:      txType,
 			Recipient: recipient,
 		},
@@ -253,6 +256,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Recipient: contract,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
+			GasLimit:  gas,
 			Type:      txType,
 		},
 	}

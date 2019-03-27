@@ -63,7 +63,7 @@ type MemPool struct {
 	//cache       map[types.TxID]types.Transaction
 	cache       sync.Map
 	length      int
-	pool        map[types.AccountID]*TxList
+	pool        map[types.AccountID]*txList
 	dumpPath    string
 	status      int32
 	coinbasefee *big.Int
@@ -93,7 +93,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		sdb: sdb,
 		//cache:    map[types.TxID]types.Transaction{},
 		cache:    sync.Map{},
-		pool:     map[types.AccountID]*TxList{},
+		pool:     map[types.AccountID]*txList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
 		verifier: nil,
@@ -107,7 +107,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	return actor
 }
 
-// Start runs mempool servivce
+// BeforeStart runs mempool servivce
 func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
@@ -139,7 +139,7 @@ func (mp *MemPool) AfterStart() {
 	go mp.monitor()
 }
 
-// Stop handles clean-up for mempool service
+// BeforeStop handles clean-up for mempool service
 func (mp *MemPool) BeforeStop() {
 	if mp.verifier != nil {
 		mp.verifier.GracefulStop()
@@ -397,7 +397,7 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 func (mp *MemPool) resetAll() {
 	mp.orphan = 0
 	mp.length = 0
-	mp.pool = map[types.AccountID]*TxList{}
+	mp.pool = map[types.AccountID]*txList{}
 	mp.cache = sync.Map{}
 }
 
@@ -512,6 +512,10 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 	return name.GetOwner(scs, account)
 }
 
+func (mp *MemPool) nextBlockVersion() int32 {
+	return mp.cfg.Hardfork.Version(mp.bestBlockNo + 1)
+}
+
 // check tx sanity
 // check if sender has enough balance
 // check if recipient is valid name
@@ -524,7 +528,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	if err != nil {
 		return err
 	}
-	err = tx.ValidateWithSenderState(ns)
+	err = tx.ValidateWithSenderState(ns, system.GetGasPrice(), mp.nextBlockVersion())
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
@@ -609,8 +613,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		if err != nil {
 			return err
 		}
-		balance := aergoState.GetBalanceBigInt()
-		if tx.GetMaxFee().Cmp(balance) > 0 {
+		if tx.GetMaxFee(system.GetGasPrice(), mp.nextBlockVersion()).Cmp(aergoState.GetBalanceBigInt()) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		txBody := tx.GetBody()
@@ -654,7 +657,7 @@ func (mp *MemPool) existEx(hashes []types.TxHash) []*types.Tx {
 	return ret
 }
 
-func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
+func (mp *MemPool) acquireMemPoolList(acc []byte) (*txList, error) {
 	list := mp.getMemPoolList(acc)
 	if list != nil {
 		return list, nil
@@ -664,18 +667,18 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 		return nil, err
 	}
 	id := types.ToAccountID(acc)
-	mp.pool[id] = NewTxList(acc, ns)
+	mp.pool[id] = newTxList(acc, ns, mp)
 	return mp.pool[id], nil
 }
 
-func (mp *MemPool) releaseMemPoolList(list *TxList) {
+func (mp *MemPool) releaseMemPoolList(list *txList) {
 	if list.Empty() {
 		id := types.ToAccountID(list.account)
 		delete(mp.pool, id)
 	}
 }
 
-func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
+func (mp *MemPool) getMemPoolList(acc []byte) *txList {
 	id := types.ToAccountID(acc)
 	return mp.pool[id]
 }
