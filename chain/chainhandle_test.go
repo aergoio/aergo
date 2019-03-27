@@ -6,7 +6,6 @@ package chain
 
 import (
 	"io/ioutil"
-	"math"
 	"math/big"
 	"os"
 	"testing"
@@ -79,7 +78,7 @@ func TestErrorInExecuteTx(t *testing.T) {
 	assert.EqualError(t, err, types.ErrTxNonceTooLow.Error(), "execute tx body with account")
 
 	tx.Body.Nonce = 1
-	tx.Body.Amount = new(big.Int).SetUint64(math.MaxUint64).Bytes()
+	tx.Body.Amount = new(big.Int).Add(types.StakingMinimum, types.StakingMinimum).Bytes()
 	signTestAddress(t, tx)
 	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService)
 	assert.EqualError(t, err, types.ErrInsufficientBalance.Error(), "execute tx body with nonce")
@@ -112,6 +111,7 @@ func TestBasicExecuteTx(t *testing.T) {
 
 	tx.Body.Nonce = 3
 	tx.Body.Amount = (new(big.Int).Add(types.StakingMinimum, new(big.Int).SetUint64(1))).Bytes()
+	tx.Body.Amount = types.StakingMinimum.Bytes()
 	tx.Body.Recipient = []byte(types.AergoSystem)
 	tx.Body.Type = types.TxType_GOVERNANCE
 	tx.Body.Payload = []byte(`{"Name":"v1stake"}`)

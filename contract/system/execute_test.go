@@ -281,6 +281,7 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	assert.NoError(t, err, "should execute unstaking system tx")
 }
 
+/*
 func TestValidateVoteNumpBP(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
@@ -314,3 +315,4 @@ func TestValidateVoteNumpBP(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 2)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 }
+*/

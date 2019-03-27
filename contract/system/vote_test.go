@@ -156,6 +156,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 }
 
+/*
 func TestBasicStakeVoteExUnstake(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
@@ -216,6 +217,7 @@ func TestBasicStakeVoteExUnstake(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 
 }
+*/
 
 func buildVotingPayload(count int) []byte {
 	var ci types.CallInfo

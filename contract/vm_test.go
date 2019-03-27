@@ -3414,12 +3414,12 @@ func TestGovernance(t *testing.T) {
 	}
 	definition := `
     function test_gov()
-		contract.stake("5 aergo")
+		contract.stake("10000 aergo")
 		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
     end
 
 	function error_case()
-		contract.stake("5 aergo")
+		contract.stake("10000 aergo")
 		assert(false)
 	end
 	
@@ -3438,8 +3438,9 @@ func TestGovernance(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	amount, _ := new(big.Int).SetString("10000000000000000000000", 10)
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "gov", 10000000000000000000, `{"Name": "test_gov", "Args":[]}`),
+		NewLuaTxCallBig("ktlee", "gov", amount, `{"Name": "test_gov", "Args":[]}`),
 	)
 	if err != nil {
 		t.Error(err)

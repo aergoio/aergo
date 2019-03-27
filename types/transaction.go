@@ -124,16 +124,6 @@ func ValidateSystemTx(tx *TxBody) error {
 		return ErrTxInvalidPayload
 	}
 	switch ci.Name {
-	/* should read state db to know staking minimum, because of voting param
-	case Stake:
-		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
-			return ErrTooSmallAmount
-		}
-	case Unstake:
-		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
-			return ErrTooSmallAmount
-		}
-	*/
 	case Stake,
 		Unstake:
 	case VoteBP:
@@ -159,22 +149,24 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case VoteNumBP,
-		VoteGasPrice,
-		VoteNamePrice,
-		VoteMinStaking:
-		for i, v := range ci.Args {
-			if i > 1 {
-				return ErrTxInvalidPayload
+		/* TODO: will be changed
+		case VoteNumBP,
+			VoteGasPrice,
+			VoteNamePrice,
+			VoteMinStaking:
+			for i, v := range ci.Args {
+				if i > 1 {
+					return ErrTxInvalidPayload
+				}
+				vstr, ok := v.(string)
+				if !ok {
+					return ErrTxInvalidPayload
+				}
+				if _, ok := new(big.Int).SetString(vstr, 10); !ok {
+					return ErrTxInvalidPayload
+				}
 			}
-			vstr, ok := v.(string)
-			if !ok {
-				return ErrTxInvalidPayload
-			}
-			if _, ok := new(big.Int).SetString(vstr, 10); !ok {
-				return ErrTxInvalidPayload
-			}
-		}
+		*/
 	default:
 		return ErrTxInvalidPayload
 	}

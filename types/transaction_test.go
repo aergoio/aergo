@@ -90,11 +90,13 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	err = transaction.Validate()
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "only one candidate allowed")
 
-	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestNormal)
-	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	t.Log(string(transaction.GetTx().GetBody().Payload))
-	err = transaction.Validate()
-	assert.NoError(t, err, "should success")
+	/*
+		transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestNormal)
+		transaction.GetTx().Hash = transaction.CalculateTxHash()
+		t.Log(string(transaction.GetTx().GetBody().Payload))
+		err = transaction.Validate()
+		assert.NoError(t, err, "should success")
+	*/
 }
 
 func buildVoteBPPayloadEx(count int, err int) []byte {
