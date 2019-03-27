@@ -19,6 +19,8 @@ const Unstake = "v1unstake"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
 
+const TxMaxPayloadSize = 200 * 1024
+
 type Transaction interface {
 	GetTx() *Tx
 	GetBody() *TxBody
@@ -61,11 +63,15 @@ func (tx *transaction) CalculateTxHash() []byte {
 }
 
 func (tx *transaction) Validate() error {
+
+	if len(tx.GetBody().GetPayload()) > TxMaxPayloadSize {
+		return ErrTxInvalidPayloadSize
+	}
+
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return ErrTxFormatInvalid
 	}
-
 	if !bytes.Equal(tx.GetHash(), tx.CalculateTxHash()) {
 		return ErrTxHasInvalidHash
 	}
@@ -95,7 +101,7 @@ func (tx *transaction) Validate() error {
 			return ErrTxInvalidRecipient
 		}
 	case TxType_GOVERNANCE:
-		if len(tx.GetBody().Payload) <= 0 {
+		if len(tx.GetBody().GetPayload()) <= 0 {
 			return ErrTxFormatInvalid
 		}
 		switch string(tx.GetBody().GetRecipient()) {

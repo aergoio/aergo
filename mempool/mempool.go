@@ -43,7 +43,6 @@ var (
 	evictInterval  = time.Minute
 	evictPeriod    = time.Hour * types.DefaultEvictPeriod
 	metricInterval = time.Second
-	txMaxSize      = 200 * 1024
 )
 
 // MemPool is main structure of mempool service

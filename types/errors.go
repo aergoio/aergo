@@ -40,7 +40,7 @@ var (
 
 	ErrTxInvalidPayload = errors.New("tx invalid payload")
 
-	ErrTxSizeExceedLimit = errors.New("size of tx exceeds max length")
+	ErrTxInvalidPayloadSize = errors.New("payload size of tx exceeds max length")
 
 	ErrSignNotMatch = errors.New("signature not matched")
 
