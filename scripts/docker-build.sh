@@ -1,4 +1,5 @@
 # This script can be used to build the Docker images manually (outside of CI)
+set -e
 
 GIT_TAG=$1
 MAIN_TAG=$2
@@ -29,8 +30,6 @@ fi
 echo "Building Docker images for ${tags[*]} using git tag $GIT_TAG"
 sleep 1
 
-
-
 declare -a names=("node" "tools" "polaris")
 for name in "${names[@]}"
 do
@@ -42,20 +41,12 @@ do
     echo "[aergo/$name:${tags[*]}]"
     DOCKERFILE="../Dockerfile.$name"
     [[ $name == "node" ]] && DOCKERFILE="../Dockerfile"
-    echo docker build --build-arg GIT_TAG=$GIT_TAG ${tagsExpanded[@]} ../ --file $DOCKERFILE
-    docker build --build-arg GIT_TAG=$GIT_TAG ${tagsExpanded[@]} ../ --file $DOCKERFILE >/tmp/dockerbuild 2>&1 &
-    PROC_ID=$!
-    echo -n "Build started"
-    LAST_STEP=""
-    while kill -0 "$PROC_ID" >/dev/null 2>&1; do  
-        STEP=$(grep Step /tmp/dockerbuild | tail -1)
-        [[ $STEP != $LAST_STEP && $STEP = *[$' \t\n']* ]] && echo -n -e "\r\033[0K$STEP"
-        LAST_STEP=$STEP
-    done
-    echo -e "\r\033[0KDone"
+    echo docker build -q --build-arg GIT_TAG=$GIT_TAG ${tagsExpanded[@]} ../ --file $DOCKERFILE
+    imageid=`docker build -q --build-arg GIT_TAG=$GIT_TAG ${tagsExpanded[@]} ../ --file $DOCKERFILE`
+    docker images --format "Done: \t{{.Repository}}:{{.Tag}} \t{{.ID}} ({{.Size}})" | grep "${imageid:7:12}"
 done
 
-echo "REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE"
+echo -e "\nREPOSITORY          TAG                 IMAGE ID            CREATED             SIZE"
 for name in "${names[@]}"
 do
     for tag in "${tags[@]}"
@@ -64,7 +55,7 @@ do
     done
 done
 
-echo "You can now push these to Docker Hub."
+echo -e "\nYou can now push these to Docker Hub."
 echo "For example:"
 
 declare -a names=("node" "tools" "polaris")

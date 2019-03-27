@@ -1,5 +1,5 @@
 FROM golang:alpine as builder
-RUN apk update && apk add git glide cmake build-base
+RUN apk update && apk add git glide cmake build-base m4
 ENV GOPATH $HOME/go
 ARG GIT_TAG
 RUN go get -d github.com/aergoio/aergo
