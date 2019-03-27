@@ -90,7 +90,7 @@ func (hf *HashFetcher) Start() {
 	hf.isRunning = true
 
 	run := func() {
-		defer RecoverSyncer(NameHashFetcher, hf.compRequester, func() { hf.waitGroup.Done() })
+		defer RecoverSyncer(NameHashFetcher, hf.GetSeq(), hf.compRequester, func() { hf.waitGroup.Done() })
 
 		logger.Debug().Msg("start hash fetcher")
 
@@ -116,19 +116,19 @@ func (hf *HashFetcher) Start() {
 						//TODO send errmsg to syncer & stop sync
 						logger.Error().Err(err).Msg("error! process hash chunk, HashFetcher exited")
 						if err != ErrQuitHashFetcher {
-							stopSyncer(hf.compRequester, hf.name, err)
+							stopSyncer(hf.compRequester, hf.GetSeq(), hf.name, err)
 						}
 						return
 					}
 
 					if hf.isFinished(HashSet) {
-						closeFetcher(hf.compRequester, hf.name)
+						closeFetcher(hf.compRequester, hf.GetSeq(), hf.name)
 						logger.Info().Msg("HashFetcher finished")
 						return
 					}
 					hf.requestHashSet()
 				} else if err != nil {
-					stopSyncer(hf.compRequester, hf.name, err)
+					stopSyncer(hf.compRequester, hf.GetSeq(), hf.name, err)
 				}
 
 				//timer restart
@@ -136,7 +136,7 @@ func (hf *HashFetcher) Start() {
 			case <-timer.C:
 				if hf.requestTimeout() {
 					logger.Error().Msg("HashFetcher response timeout.")
-					stopSyncer(hf.compRequester, hf.name, ErrHashFetcherTimeout)
+					stopSyncer(hf.compRequester, hf.GetSeq(), hf.name, ErrHashFetcherTimeout)
 				}
 
 			case <-hf.quitCh:
@@ -147,6 +147,10 @@ func (hf *HashFetcher) Start() {
 	}
 
 	go run()
+}
+
+func (hf *HashFetcher) GetSeq() uint64 {
+	return hf.ctx.Seq
 }
 
 func (hf *HashFetcher) isFinished(HashSet *HashSet) bool {
@@ -169,7 +173,7 @@ func (hf *HashFetcher) requestHashSet() {
 
 	logger.Debug().Uint64("prev", hf.lastBlockInfo.No).Str("prevhash", enc.ToString(hf.lastBlockInfo.Hash)).Uint64("count", count).Msg("request hashset to peer")
 
-	hf.compRequester.TellTo(message.P2PSvc, &message.GetHashes{ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
+	hf.compRequester.TellTo(message.P2PSvc, &message.GetHashes{Seq: hf.GetSeq(), ToWhom: hf.ctx.PeerID, PrevInfo: hf.lastBlockInfo, Count: count})
 }
 
 func (hf *HashFetcher) processHashSet(hashSet *HashSet) error {

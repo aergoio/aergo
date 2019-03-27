@@ -152,8 +152,12 @@ type GetNameInfoRsp struct {
 	Err   error
 }
 
-type GetAnchors struct{}
+type GetAnchors struct {
+	Seq uint64
+}
+
 type GetAnchorsRsp struct {
+	Seq    uint64
 	Hashes [][]byte
 	LastNo types.BlockNo
 	Err    error

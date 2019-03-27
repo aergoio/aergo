@@ -261,8 +261,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden, msg.ShowSelf)
 		context.Respond(&message.GetPeersRsp{Peers: peers})
 	case *message.GetSyncAncestor:
-		p2ps.GetSyncAncestor(msg.ToWhom, msg.Hashes)
-
+		p2ps.GetSyncAncestor(context, msg)
 	case *message.MapQueryMsg:
 		bestBlock, err := p2ps.GetChainAccessor().GetBestBlock()
 		if err == nil {

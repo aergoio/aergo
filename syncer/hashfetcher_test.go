@@ -30,16 +30,18 @@ func TestHashFetcher_normal(t *testing.T) {
 	testCfg.debugContext.targetNo = targetNo
 
 	//set ctx because finder is skipped
-	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.Best))
+	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best))
 	ancestorInfo := remoteChain.GetBlockInfo(0)
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 	syncer.realSyncer.ctx = ctx
+	syncer.realSyncer.Seq = 1
+	seq := syncer.realSyncer.GetSeq()
 
 	syncer.start()
 
 	//ancestor of ctx will be set by FinderResult
-	syncer.stubRequester.TellTo(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
+	syncer.stubRequester.TellTo(message.SyncerSvc, &message.FinderResult{Seq: seq, Ancestor: ancestorInfo, Err: nil})
 
 	syncer.waitStop()
 }
@@ -66,7 +68,7 @@ func TestHashFetcher_quit(t *testing.T) {
 	testCfg.debugContext.BfWaitTime = time.Second * 1000
 
 	//set ctx because finder is skipped
-	ctx := types.NewSyncCtx("peer-0", targetNo, uint64(localChain.Best))
+	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best))
 	ancestorInfo := remoteChain.GetBlockInfo(0)
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
@@ -75,12 +77,12 @@ func TestHashFetcher_quit(t *testing.T) {
 	syncer.start()
 
 	//ancestor of ctx will be set by FinderResult
-	syncer.stubRequester.TellTo(message.SyncerSvc, &message.FinderResult{ancestorInfo, nil})
+	syncer.stubRequester.TellTo(message.SyncerSvc, &message.FinderResult{Seq: syncer.realSyncer.GetSeq(), Ancestor: ancestorInfo, Err: nil})
 
 	//test if hashfetcher stop
 	go func() {
 		time.Sleep(time.Second * 1)
-		stopSyncer(syncer.stubRequester, NameBlockFetcher, ErrQuitBlockFetcher)
+		stopSyncer(syncer.stubRequester, syncer.realSyncer.GetSeq(), NameBlockFetcher, ErrQuitBlockFetcher)
 	}()
 	syncer.waitStop()
 }

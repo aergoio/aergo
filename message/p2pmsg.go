@@ -96,6 +96,7 @@ type GetBlockInfos struct {
 }
 
 type GetBlockChunks struct {
+	Seq uint64
 	GetBlockInfos
 	TTL time.Duration
 }
@@ -108,6 +109,7 @@ type BlockInfosResponse struct {
 }
 
 type GetBlockChunksRsp struct {
+	Seq    uint64
 	ToWhom peer.ID
 	Blocks []*types.Block
 	Err    error
@@ -127,7 +129,7 @@ type PeerInfo struct {
 	LastBlockHash   []byte
 	LastBlockNumber uint64
 	State           types.PeerState
-	Self 			bool
+	Self            bool
 }
 
 // GetPeersRsp contains peer meta information and current states.
@@ -140,22 +142,26 @@ type GetMetrics struct {
 
 // GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
 type GetSyncAncestor struct {
+	Seq    uint64
 	ToWhom peer.ID
 	Hashes [][]byte
 }
 
 // GetSyncAncestorRsp is data from other peer, as a response of types.GetAncestorRequest
 type GetSyncAncestorRsp struct {
+	Seq      uint64
 	Ancestor *types.BlockInfo
 }
 
 type GetHashes struct {
+	Seq      uint64
 	ToWhom   peer.ID
 	PrevInfo *types.BlockInfo
 	Count    uint64
 }
 
 type GetHashesRsp struct {
+	Seq      uint64
 	PrevInfo *types.BlockInfo
 	Hashes   []BlockHash
 	Count    uint64
@@ -163,11 +169,13 @@ type GetHashesRsp struct {
 }
 
 type GetHashByNo struct {
+	Seq     uint64
 	ToWhom  peer.ID
 	BlockNo types.BlockNo
 }
 
 type GetHashByNoRsp struct {
+	Seq       uint64
 	BlockHash BlockHash
 	Err       error
 }

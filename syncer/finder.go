@@ -69,7 +69,7 @@ func (finder *Finder) start() {
 		var ancestor *types.BlockInfo
 		var err error
 
-		defer RecoverSyncer(NameFinder, finder.compRequester, func() { finder.waitGroup.Done() })
+		defer RecoverSyncer(NameFinder, finder.GetSeq(), finder.compRequester, func() { finder.waitGroup.Done() })
 
 		logger.Debug().Msg("start to find common ancestor")
 
@@ -85,11 +85,11 @@ func (finder *Finder) start() {
 
 		if err != nil {
 			logger.Debug().Msg("quit finder")
-			stopSyncer(finder.compRequester, NameFinder, err)
+			stopSyncer(finder.compRequester, finder.GetSeq(), NameFinder, err)
 			return
 		}
 
-		finder.compRequester.TellTo(message.SyncerSvc, &message.FinderResult{Ancestor: ancestor, Err: nil})
+		finder.compRequester.TellTo(message.SyncerSvc, &message.FinderResult{Seq: finder.GetSeq(), Ancestor: ancestor, Err: nil})
 		logger.Info().Msg("stopped finder successfully")
 	}
 
@@ -113,6 +113,10 @@ func (finder *Finder) stop() {
 	finder.waitGroup.Wait()
 
 	logger.Info().Msg("finder stop#2")
+}
+
+func (finder *Finder) GetSeq() uint64 {
+	return finder.ctx.Seq
 }
 
 func (finder *Finder) GetHashByNoRsp(rsp *message.GetHashByNoRsp) {
@@ -149,7 +153,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{}, finder.dfltTimeout, "Finder/getAnchors")
+	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{finder.GetSeq()}, finder.dfltTimeout, "Finder/getAnchors")
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
@@ -168,7 +172,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
 	logger.Debug().Str("peer", p2putil.ShortForm(finder.ctx.PeerID)).Msg("send GetAncestor message to peer")
-	finder.compRequester.TellTo(message.P2PSvc, &message.GetSyncAncestor{ToWhom: finder.ctx.PeerID, Hashes: anchors})
+	finder.compRequester.TellTo(message.P2PSvc, &message.GetSyncAncestor{Seq: finder.GetSeq(), ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)
 
@@ -246,7 +250,7 @@ func (finder *Finder) binarySearch(left uint64, right uint64) (*types.BlockInfo,
 }
 
 func (finder *Finder) hasSameHash(no types.BlockNo, localHash []byte) (bool, error) {
-	finder.compRequester.TellTo(message.P2PSvc, &message.GetHashByNo{ToWhom: finder.ctx.PeerID, BlockNo: no})
+	finder.compRequester.TellTo(message.P2PSvc, &message.GetHashByNo{Seq: finder.GetSeq(), ToWhom: finder.ctx.PeerID, BlockNo: no})
 
 	recvHashRsp := func() (*message.GetHashByNoRsp, error) {
 		timer := time.NewTimer(finder.dfltTimeout)

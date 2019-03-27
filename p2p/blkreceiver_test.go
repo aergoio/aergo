@@ -48,7 +48,7 @@ func TestBlocksChunkReceiver_StartGet(t *testing.T) {
 			mockPeer.EXPECT().SendMessage(mockMo).Times(1)
 
 			expire := time.Now().Add(test.ttl)
-			br := NewBlockReceiver(mockActor, mockPeer, test.input, test.ttl)
+			br := NewBlockReceiver(mockActor, mockPeer, 0, test.input, test.ttl)
 
 			br.StartGet()
 
@@ -63,7 +63,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 	defer ctrl.Finish()
 	chain.Init(1<<20 , "", false, 1, 1 )
 
-
+	seqNo := uint64(8723)
 	blkNo := uint64(100)
 	prevHash := dummyBlockHash
 	inputHashes := make([]message.BlockHash, len(sampleBlks))
@@ -113,6 +113,9 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 						if !((arg.Err != nil) == test.respError) {
 							t.Fatalf("Wrong error (have %v)\n", arg.Err)
 						}
+						if arg.Seq != seqNo {
+							t.Fatalf("Wrong seqNo %d, want %d)\n", arg.Seq, seqNo)
+						}
 					}).Times(test.sentResp)
 			}
 
@@ -126,7 +129,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			mockPeer.EXPECT().ConsumeRequest(gomock.Any()).Times(test.consumed) //mock.AnythingOfType("p2pcommon.MsgID"))
 
 			//expire := time.Now().Add(test.ttl)
-			br := NewBlockReceiver(mockActor, mockPeer, test.input, test.ttl)
+			br := NewBlockReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
 			msg := &V030Message{subProtocol: subproto.GetBlocksResponse, id: sampleMsgID}
