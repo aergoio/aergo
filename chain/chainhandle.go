@@ -841,7 +841,7 @@ func (cs *ChainService) resolveOrphan(block *types.Block) (*types.Block, error) 
 			orphanBlock.GetHeader().GetBlockNo())
 	}
 
-	logger.Debug().Str("parent", block.ID()).
+	logger.Info().Str("parent", block.ID()).
 		Str("orphan", orphanBlock.ID()).
 		Msg("connect orphan")
 

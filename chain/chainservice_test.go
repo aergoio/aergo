@@ -77,6 +77,9 @@ func testAddBlock(t *testing.T, best int) (*ChainService, *StubBlockChain) {
 	cs := makeBlockChain()
 
 	genesisBlk, _ := cs.getBlockByNo(0)
+
+	assert.NotNil(t, genesisBlk)
+
 	stubChain := InitStubBlockChain([]*types.Block{genesisBlk}, best)
 
 	for i := 1; i <= best; i++ {

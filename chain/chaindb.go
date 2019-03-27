@@ -271,6 +271,10 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 
 	tx := cdb.store.NewTx()
 
+	if len(block.Hash) == 0 {
+		block.BlockID()
+	}
+
 	cdb.connectToChain(&tx, block)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
@@ -278,6 +282,8 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	}
 
 	tx.Commit()
+
+	logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("hash", block.ID()).Msg("Genesis Block Added")
 
 	//logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("chain id (raw)",
 	//	enc.ToString(block.GetHeader().GetChainID())).Msg("Genesis Block Added")
@@ -474,7 +480,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
 	// fork can be here
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
+	logger.Debug().Uint64("blockNo", blockNo).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")
