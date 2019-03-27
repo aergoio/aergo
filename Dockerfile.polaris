@@ -11,5 +11,8 @@ FROM alpine:3.8
 RUN apk add libgcc
 COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/bin/polaris /usr/local/bin/
 COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/bin/colaris /usr/local/bin/
+COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/libtool/lib/* /usr/local/lib/
+ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+
 WORKDIR /tools/
 CMD ["polaris"]
