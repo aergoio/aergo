@@ -6,7 +6,7 @@
 package cmd
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../contract/native
+#cgo CFLAGS: -I${SRCDIR}/../../../contract/native -I${SRCDIR}/../../../libtool/include
 #cgo LDFLAGS: ${SRCDIR}/../../../contract/native/lib/libascl.a
 #cgo LDFLAGS: -L${SRCDIR}/../../../libtool/lib -lgmp -lbinaryen -lstdc++ -lm
 #cgo LDFLAGS: -L${SRCDIR}/../../../libtool/lib -lASCLVM -lRuntime -lWASTParse -lWASM -lRegExp -lNFA -lLLVMJIT -lIR -lLogging -lPlatform -lWAVMUnwind

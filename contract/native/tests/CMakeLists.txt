@@ -1,5 +1,5 @@
 add_executable(ascl_test ascl_test.c)
-target_include_directories(ascl_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/..)
+target_include_directories(ascl_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/.. ${TOOL_INCLUDE_DIR})
 
 target_link_libraries(ascl_test ${TEST_LIBS})
 
