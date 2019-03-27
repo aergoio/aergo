@@ -154,7 +154,7 @@ func ValidateSystemTx(tx *TxBody) error {
 			}
 		}
 	case VoteNumBP,
-		VoteFee,
+		VoteGasPrice,
 		VoteNamePrice,
 		VoteMinStaking:
 		for i, v := range ci.Args {

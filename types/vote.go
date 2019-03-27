@@ -8,12 +8,12 @@ const AergoName = "aergo.name"
 const MaxCandidates = 30
 
 const VoteBP = "v1voteBP"
-const VoteFee = "v1voteFee"
+const VoteGasPrice = "v1voteGasPrice"
 const VoteNumBP = "v1voteNumBP"
 const VoteNamePrice = "v1voteNamePrice"
 const VoteMinStaking = "v1voteMinStaking"
 
-var AllVotes = [...]string{VoteBP, VoteFee, VoteNumBP, VoteNamePrice, VoteMinStaking}
+var AllVotes = [...]string{VoteBP, VoteGasPrice, VoteNumBP, VoteNamePrice, VoteMinStaking}
 
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {

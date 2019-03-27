@@ -101,7 +101,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			}
 		}
 	case "numofbp",
-		"fee",
+		"gasprice",
 		"nameprice",
 		"minimumstaking":
 		ci.Name = getVoteCmd(election)
@@ -197,7 +197,7 @@ func execBP(cmd *cobra.Command, args []string) {
 func getVoteCmd(param string) string {
 	numberVote := map[string]string{
 		"numofbp":        types.VoteNumBP,
-		"fee":            types.VoteFee,
+		"gasprice":       types.VoteGasPrice,
 		"nameprice":      types.VoteNamePrice,
 		"minimumstaking": types.VoteMinStaking,
 	}

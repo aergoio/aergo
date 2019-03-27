@@ -24,7 +24,7 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	case types.Stake:
 		event, err = staking(txBody, sender, receiver, scs, blockNo)
 	case types.VoteBP,
-		types.VoteFee,
+		types.VoteGasPrice,
 		types.VoteNumBP,
 		types.VoteNamePrice,
 		types.VoteMinStaking:
@@ -86,8 +86,10 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, types.ErrInsufficientBalance
 		}
 	case types.VoteBP,
-		types.VoteFee,
-		types.VoteNumBP:
+		types.VoteGasPrice,
+		types.VoteNumBP,
+		types.VoteNamePrice,
+		types.VoteMinStaking:
 		staked, err := getStaking(scs, account)
 		if err != nil {
 			return nil, err
@@ -108,6 +110,8 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, types.ErrTooSmallAmount
 		}
 		_, err = validateForUnstaking(account, txBody, scs, blockNo)
+	default:
+		return nil, types.ErrTxInvalidPayload
 	}
 	if err != nil {
 		return nil, err
