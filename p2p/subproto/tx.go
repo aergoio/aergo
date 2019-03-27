@@ -6,11 +6,12 @@
 package subproto
 
 import (
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -63,31 +64,32 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 	var txSize, fieldSize int
 
 	bucket := message.MaxReqestHashes
-	var futures []interface{}
+	var futures []*actor.Future
+
+	request := func(h []types.TxHash) *actor.Future {
+		return th.actor.FutureRequestDefaultTimeout(message.MemPoolSvc,
+			&message.MemPoolExistEx{Hashes: h})
+	}
 
 	for _, h := range reqHashes {
 		hashes = append(hashes, h)
 		if len(hashes) == bucket {
-			if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
-				&message.MemPoolExistEx{Hashes: hashes}); err == nil {
-				futures = append(futures, f)
-			}
-			hashes = nil
+			futures = append(futures, request(hashes))
 		}
+		hashes = nil
 	}
+
 	if hashes != nil {
-		if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
-			&message.MemPoolExistEx{Hashes: hashes}); err == nil {
-			futures = append(futures, f)
-		}
+		futures = append(futures, request(hashes))
 	}
 	hashes = nil
 	idx = 0
 	for _, f := range futures {
-		if tmp, err := th.msgHelper.ExtractTxsFromResponseAndError(f, nil); err == nil {
+		if tmp, err := th.msgHelper.ExtractTxsFromResponseAndError(f.Result()); err == nil {
 			txs = append(txs, tmp...)
 		}
 	}
+
 	for _, tx := range txs {
 		if tx == nil {
 			continue
