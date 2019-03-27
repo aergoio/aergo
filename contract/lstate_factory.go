@@ -1,8 +1,5 @@
 package contract
 
-/*
-#include "lbc.h"
-*/
 import "C"
 import "sync"
 
@@ -14,7 +11,6 @@ const MAX_LSTATE_SIZE = 100
 
 func StartLStateFactory() {
 	once.Do(func() {
-		C.bc_init_numbers()
 		getCh = make(chan *LState, MAX_LSTATE_SIZE)
 		freeCh = make(chan *LState, MAX_LSTATE_SIZE)
 

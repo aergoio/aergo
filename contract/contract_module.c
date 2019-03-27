@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "util.h"
-#include "lbc.h"
-#include "config.h"
+#include "lgmp.h"
 #include "_cgo_export.h"
 
 extern const int *getLuaExecContext(lua_State *L);
@@ -45,7 +44,10 @@ static int set_value(lua_State *L, const char *str)
 	    lua_pushvalue(L, 1);
 	    break;
 	case LUA_TUSERDATA: {
-	    char *str = bc_num2str(*((void **)luaL_checkudata(L, 1, MYTYPE)));
+	    char *str = lua_get_bignum_str(L, 1);
+        if (str == NULL) {
+            luaL_error(L, "not enough memory");
+        }
 	    lua_pushstring(L, str);
 	    free (str);
 	    break;
@@ -193,7 +195,10 @@ static int moduleSend(lua_State *L)
         amount = (char *)lua_tostring(L, 2);
         break;
     case LUA_TUSERDATA:
-        amount = bc_num2str(*((void **)luaL_checkudata(L, 2, MYTYPE)));
+        amount = lua_get_bignum_str(L, 2);
+        if (amount == NULL) {
+            luaL_error(L, "not enough memory");
+        }
         needfree = true;
         break;
     default:
@@ -343,7 +348,10 @@ static int governance(lua_State *L, char type) {
             arg = (char *)lua_tostring(L, 1);
             break;
         case LUA_TUSERDATA:
-            arg = bc_num2str(*((void **)luaL_checkudata(L, 1, MYTYPE)));
+            arg = lua_get_bignum_str(L, 1);
+            if (arg == NULL) {
+                luaL_error(L, "not enough memory");
+            }
             needfree = true;
             break;
         default:

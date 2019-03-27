@@ -6,14 +6,16 @@
 package contract
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1
+#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1 -I${SRCDIR}/../libtool/include
 #cgo !windows CFLAGS: -DLJ_TARGET_POSIX
-#cgo LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -lm
+#cgo darwin LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/lib/libgmp.dylib -lm
+#cgo windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/bin/libgmp-10.dll -lm
+#cgo !darwin,!windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/lib/libgmp.so -lm
 
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
-#include "lbc.h"
+#include "lgmp.h"
 */
 import "C"
 import (
@@ -334,8 +336,11 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 			if arg, ok := v.(string); ok {
 				C.lua_settop(L, -2)
 				argC := C.CString(arg)
-				C.Bset(L, argC)
+				msg := C.lua_set_bignum(L, argC)
 				C.free(unsafe.Pointer(argC))
+				if msg != nil {
+					return errors.New(C.GoString(msg))
+				}
 				return nil
 			}
 		}

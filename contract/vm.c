@@ -7,7 +7,7 @@
 #include "state_module.h"
 #include "crypto_module.h"
 #include "util.h"
-#include "lbc.h"
+#include "lgmp.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -22,7 +22,7 @@ static void preloadModules(lua_State *L)
 	luaopen_state(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
-	luaopen_bc(L);
+	luaopen_gmp(L);
 	if (!IsPublic()) {
         luaopen_db(L);
 	}
