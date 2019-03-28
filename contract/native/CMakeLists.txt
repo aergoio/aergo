@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.0)
 
-project(libascl C)
+project(libascl C CXX)
 
 find_package(BISON QUIET)
 find_package(FLEX QUIET)
@@ -18,7 +18,7 @@ if(BISON_FOUND AND FLEX_FOUND)
     set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "grammar.output")
 endif()
 
-set(libascl_SRCS
+set(ascl_sources
     compile.c
     prep.c
     parse.c
@@ -66,18 +66,32 @@ set(libascl_SRCS
     scanner.yy.c
 )
 
-set(TEST_LIBS ascl CACHE STRING "ascl library")
+set(TEST_LIBS ascl ascl-rt CACHE STRING "test libraries for ascl")
 
-add_library(ascl STATIC ${libascl_SRCS})
+link_directories(${TOOL_LIB_DIR})
+
+add_library(ascl STATIC ${ascl_sources})
 target_include_directories(ascl PRIVATE ${TOOL_INCLUDE_DIR})
 
 add_dependencies(ascl binaryen libgmp)
-
-link_directories(${TOOL_LIB_DIR})
 target_link_libraries(ascl binaryen stdc++ m
     ${TOOL_LIB_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}gmp${CMAKE_SHARED_LIBRARY_SUFFIX})
 
 set_target_properties(ascl PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
+    COMPILE_FLAGS "-Wall -Wextra -Wno-unused-parameter")
+
+set(ascl_rt_sources
+    run.c
+)
+
+add_library(ascl-rt STATIC ${ascl_rt_sources})
+target_include_directories(ascl-rt PRIVATE ${TOOL_INCLUDE_DIR})
+
+add_dependencies(ascl-rt ASCLVM)
+target_link_libraries(ascl-rt ASCLVM)
+
+set_target_properties(ascl-rt PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
     COMPILE_FLAGS "-Wall -Wextra -Wno-unused-parameter")
 
