@@ -21,6 +21,14 @@ char *lib_src =
 "    func abs32(int32 i) int32 : \"abs32\";\n"
 "    func abs64(int64 i) int64 : \"abs64\";\n"
 "    func abs128(int128 i) int128 : \"mpz_abs\";\n"
+
+"    func pow32(int32 x, int32 y) int32 : \"pow32\";\n"
+"    func pow64(int64 x, int32 y) int64 : \"pow64\";\n"
+"    func pow128(int128 x, int32 y) int128 : \"mpz_pow_ui\";\n"
+
+"    func sqrt32(int32 x) int32 : \"sqrt32\";\n"
+"    func sqrt64(int64 x) int64 : \"sqrt64\";\n"
+"    func sqrt128(int128 x) int128 : \"mpz_sqrt\";\n"
 "}";
 
 sys_fn_t sys_fntab_[FN_MAX] = {
