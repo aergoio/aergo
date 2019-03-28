@@ -48,7 +48,6 @@ env_init(env_t *env)
 {
     memset(env, 0x00, sizeof(env_t));
 
-    env->flag.val = FLAG_TEST;
     env->flag.stack_size = UINT16_MAX + 1;
 
     stack_init(&env->exp);

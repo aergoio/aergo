@@ -36,10 +36,12 @@ compile(char *path, flag_t flag)
 
     gen(ir, flag, path);
 
-    if (is_flag_off(flag, FLAG_TEST))
+    if (has_error()) {
         error_print();
+        return EXIT_FAILURE;
+    }
 
-    return has_error();
+    return EXIT_SUCCESS;
 }
 
 /* end of compile.c */

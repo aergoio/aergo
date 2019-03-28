@@ -24,7 +24,7 @@ typedef enum flag_val_e {
     FLAG_DUMP_LEX   = 0x0004,
     FLAG_DUMP_YACC  = 0x0008,
     FLAG_DUMP_WAT   = 0x0010,
-    FLAG_TEST       = 0x0020
+    FLAG_MAX        = 0XFFFF
 } flag_val_t;
 
 typedef enum ec_e {
