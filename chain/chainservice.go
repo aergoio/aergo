@@ -136,8 +136,6 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 
 	initChainEnv(gen)
 
-	contract.StartLStateFactory()
-
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
 	logger.Info().Str("chain id", gen.ID.ToJSON()).
@@ -257,7 +255,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	if !pubNet && cfg.Blockchain.ZeroFee {
 		fee.EnableZeroFee()
 	}
+	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
+	contract.StartLStateFactory()
 
 	return cs
 }
