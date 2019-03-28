@@ -34,6 +34,7 @@ const (
 	LogBlkCount = "blk_cnt"
 	LogTxHash   = "tx_hash"
 	LogTxCount  = "tx_cnt"
+	LogRespStatus   = "resp_st"
 )
 
 func ExtractBlockFromRequest(rawResponse interface{}, err error) (*types.Block, error) {

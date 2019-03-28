@@ -306,7 +306,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 
 	mp.orphan -= diff
 	mp.cache[id] = tx
-	//mp.Debugf("tx add-ed size(%d, %d)[%s]", len(mp.cache), mp.orphan, tx.GetBody().String())
+	mp.Debug().Str("tx_hash", enc.ToString(tx.GetHash())).Msgf("tx add-ed size(%d, %d)", len(mp.cache), mp.orphan)
 
 	if !mp.testConfig {
 		mp.notifyNewTx(tx)
@@ -539,6 +539,7 @@ func (mp *MemPool) existEx(hash [][]byte) []*types.Tx {
 			Msg("too many hashes for MempoolExists")
 		return nil
 	}
+	mp.Debug().Int("request hash", len(bucketHash)).Int("cached", len(mp.cache)).Msg("mempool existEx")
 	ret := make([]*types.Tx, len(bucketHash))
 	for i, h := range bucketHash {
 		if v, ok := mp.cache[types.ToTxID(h)]; ok {
