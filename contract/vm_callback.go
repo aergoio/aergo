@@ -69,7 +69,7 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) C.int {
 		luaPushStr(L, err.Error())
 		return -1
 	}
-	if err := addUpdateSize(stateSet, int64(3*32+len(val))); err != nil {
+	if err := addUpdateSize(stateSet, int64(types.HashIDLength+len(val))); err != nil {
 		luaPushStr(L, err.Error())
 		return -1
 	}

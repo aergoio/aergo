@@ -254,12 +254,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init related modules
-	if !pubNet && len(cfg.Blockchain.FixedTxFee) > 0 {
-		if err := fee.SetUserTxFee(cfg.Blockchain.FixedTxFee); err != nil {
-			logger.Info().Err(err).Msg("set to default transaction fee")
-		}
+	if !pubNet && cfg.Blockchain.ZeroFee {
+		fee.EnableZeroFee()
 	}
-	fee.SetFixedTxFee(pubNet)
 	contract.PubNet = pubNet
 
 	return cs

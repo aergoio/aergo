@@ -50,11 +50,11 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (rv string, usedFee *big.Int, events []*types.Event, err error) {
+	sender, receiver *state.V, preLoadService int) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	txBody := tx.GetBody()
 
-	usedFee = fee.FixedTxFee()
+	usedFee = fee.PayloadTxFee(len(txBody.GetPayload()))
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -92,32 +92,37 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 			return
 		}
 	}
+
+	var cFee *big.Int
 	if ex != nil {
-		rv, events, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
+		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
 		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
-			rv, events, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, events, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
+
+	usedFee.Add(usedFee, cFee)
+
 	if err != nil {
 		if isSystemError(err) {
-			return "", usedFee, events, err
+			return "", events, usedFee, err
 		}
-		return "", usedFee, events, newVmError(err)
+		return "", events, usedFee, newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
-		return "", usedFee, events, err
+		return "", events, usedFee, err
 	}
 
-	return rv, usedFee, events, nil
+	return rv, events, usedFee, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {

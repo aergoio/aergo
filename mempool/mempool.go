@@ -78,7 +78,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	if cs != nil {
 		sdb = cs.SDB()
 	} else { // Test
-		fee.SetFixedTxFee(false)
+		fee.EnableZeroFee()
 	}
 
 	actor := &MemPool{

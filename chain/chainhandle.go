@@ -751,8 +751,14 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		rv, txFee, events, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, events, txFee, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 		sender.SubBalance(txFee)
+		if logger.IsDebugEnabled() {
+			logger.Debug().
+				Str("usedfee", txFee.String()).
+				Int("payload", len(tx.GetBody().GetPayload())).
+				Msg("normal transaction")
+		}
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)

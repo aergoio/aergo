@@ -311,7 +311,7 @@ func (tx *transaction) Clone() *transaction {
 }
 
 func (tx *transaction) GetMaxFee() *big.Int {
-	return fee.FixedTxFee()
+	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"

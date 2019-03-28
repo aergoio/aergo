@@ -89,7 +89,7 @@ func TestListDel(t *testing.T) {
 	defer deinitTest()
 	mpl := NewTxList(nil, NewState(0, 0))
 
-	fee.SetFixedTxFee(false)
+	fee.EnableZeroFee()
 	ret, txs := mpl.FilterByState(NewState(2, 100))
 	if ret != 0 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
@@ -154,7 +154,7 @@ func TestListDelMiddle(t *testing.T) {
 	if mpl.Len() != 3 {
 		t.Error("should be 3 not ", len(mpl.list))
 	}
-	fee.SetFixedTxFee(false)
+	fee.EnableZeroFee()
 	ret, txs := mpl.FilterByState(NewState(1, 100))
 	if ret != -3 || mpl.Len() != 0 || len(txs) != 0 {
 		t.Error(ret, mpl.Len(), len(txs))
