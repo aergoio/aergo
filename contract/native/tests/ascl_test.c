@@ -11,7 +11,12 @@
 #include "strbuf.h"
 #include "util.h"
 #include "stack.h"
-#include "compile.h"
+#include "prep.h"
+#include "parse.h"
+#include "check.h"
+#include "trans.h"
+#include "gen.h"
+#include "run.h"
 
 #define FILE_MAX_CNT    100
 
@@ -21,6 +26,9 @@
 
 typedef struct env_s {
     char *path;
+
+    bool fits_l;
+    bool fits_r;
     char *needle;
 
     flag_t flag;
@@ -60,6 +68,43 @@ env_reset(env_t *env)
             unlink(item);
         }
     }
+
+    error_clear();
+}
+
+static bool
+match_title(env_t *env)
+{
+    int size;
+    char *needle = env->needle;
+
+    if (needle == NULL || needle[0] == '\0')
+        return true;
+
+    size = strlen(needle);
+
+    if (env->fits_l) {
+        if (env->fits_r) {
+            if (strcmp(env->path, needle) == 0 || strcmp(env->title, needle) == 0)
+                return true;
+        }
+        else if (strncmp(env->path, needle, size) == 0 ||
+                 strncmp(env->title, needle, size) == 0) {
+            return true;
+        }
+    }
+    else if (env->fits_r) {
+        if (((int)strlen(env->path) >= size &&
+             strcmp(env->path + strlen(env->path) - size, needle) == 0) ||
+            ((int)strlen(env->title) >= size &&
+             strcmp(env->title + strlen(env->title) - size, needle) == 0))
+            return true;
+    }
+    else if (strstr(env->path, needle) != NULL || strstr(env->title, needle) != NULL) {
+        return true;
+    }
+
+    return false;
 }
 
 static void
@@ -109,31 +154,27 @@ print_results(env_t *env)
 static void
 run_test(env_t *env, char *path)
 {
-    int i = 0;
-
-    if (env->needle != NULL) {
-        if ((env->needle[0] == '^' &&
-             strncmp(env->path, env->needle + 1, strlen(env->needle + 1)) != 0 &&
-             strncmp(env->title, env->needle + 1, strlen(env->needle + 1)) != 0) ||
-            (env->needle[0] != '^' &&
-             strstr(env->path, env->needle) == NULL &&
-             strstr(env->title, env->needle) == NULL)) {
-            unlink(path);
-            env_reset(env);
-            return;
-        }
-    }
+    iobuf_t src;
+    ast_t *ast = ast_new();
+    ir_t *ir = ir_new();
 
     env->total_cnt++;
 
     printf("  + %-67s ", env->title);
     fflush(stdout);
 
-    compile(path, env->flag);
+    iobuf_init(&src, path);
+    iobuf_load(&src);
+
+    prep(&src, env->flag, ast);
+    parse(&src, env->flag, ast);
+
+    check(ast, env->flag);
+    trans(ast, env->flag, ir);
+
+    gen(ir, env->flag, path);
 
     print_results(env);
-
-    error_clear();
 
     unlink(path);
     env_reset(env);
@@ -142,8 +183,6 @@ run_test(env_t *env, char *path)
 static void
 read_test(env_t *env, char *path)
 {
-    int line = 1;
-    int offset = 0;
     char buf[1024];
     char out_file[PATH_MAX_LEN];
     FILE *in_fp = open_file(path, "r");
@@ -165,8 +204,20 @@ read_test(env_t *env, char *path)
 
             exp_fp = NULL;
 
-            offset += strlen(buf);
-            strcpy(env->title, strtrim(buf + strlen(TAG_TITLE), "() \t\n\r"));
+            while (true) {
+                strcpy(env->title, strtrim(buf + strlen(TAG_TITLE), "() \t\n\r"));
+
+                if (match_title(env))
+                    break;
+
+                while (fgets(buf, sizeof(buf), in_fp) != NULL) {
+                    if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0)
+                        break;
+                }
+
+                if (feof(in_fp))
+                    return;
+            }
 
             snprintf(out_file, sizeof(out_file), "%s", env->title);
             out_fp = open_file(out_file, "w");
@@ -178,7 +229,6 @@ read_test(env_t *env, char *path)
             ASSERT(env->title[0] != '\0');
             ASSERT(env->ec == NO_ERROR);
 
-            offset += strlen(buf);
             args = strtrim(buf + strlen(TAG_ERROR), "() \t\n\r");
 
             if (strchr(args, ',') != NULL) {
@@ -205,7 +255,6 @@ read_test(env_t *env, char *path)
             exp_file = strtrim(xstrdup(buf) + strlen(TAG_EXPORT), "() \t\n\r");
             exp_fp = open_file(exp_file, "w");
 
-            offset += strlen(buf);
             stack_push(&env->exp, exp_file);
         }
         else {
@@ -213,10 +262,7 @@ read_test(env_t *env, char *path)
                 fwrite(buf, 1, strlen(buf), exp_fp);
             else
                 fwrite(buf, 1, strlen(buf), out_fp);
-
-            offset += strlen(buf);
         }
-        line++;
     }
 
     if (out_fp != NULL) {
@@ -232,7 +278,18 @@ get_opt(env_t *env, int argc, char **argv)
 
     for (i = 1; i < argc; i++) {
         if (*argv[i] != '-') {
-            env->needle = argv[i];
+            if (argv[i][0] == '^') {
+                env->needle = argv[i] + 1;
+                env->fits_l = true;
+            }
+            else {
+                env->needle = argv[i];
+            }
+
+            if (env->needle[(int)strlen(env->needle) - 1] == '$') {
+                env->needle[(int)strlen(env->needle) - 1] = '\0';
+                env->fits_r = true;
+            }
             continue;
         }
 
@@ -315,7 +372,10 @@ main(int argc, char **argv)
     closedir(dir);
 
     printf("%s\n", delim);
-    if (env.failed_cnt > 0) {
+    if (env.total_cnt == 0) {
+        printf("%s\n", "* No tests found!!!");
+    }
+    else if (env.failed_cnt > 0) {
         sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE" / "ANSI_RED"%d"ANSI_NONE" ]",
                 env.total_cnt - env.failed_cnt, env.total_cnt);
         printf("%-66s %31s\n", "* Some tests failed with errors!!!", buf);
