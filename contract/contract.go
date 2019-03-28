@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -49,11 +50,11 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (rv string, fee *big.Int, events []*types.Event, err error) {
+	sender, receiver *state.V, preLoadService int) (rv string, usedFee *big.Int, events []*types.Event, err error) {
 
 	txBody := tx.GetBody()
 
-	fee = big.NewInt(0)
+	usedFee = fee.FixedTxFee()
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -106,17 +107,17 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 	}
 	if err != nil {
 		if isSystemError(err) {
-			return "", fee, events, err
+			return "", usedFee, events, err
 		}
-		return "", fee, events, newVmError(err)
+		return "", usedFee, events, newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
-		return "", fee, events, err
+		return "", usedFee, events, err
 	}
 
-	return rv, fee, events, nil
+	return rv, usedFee, events, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {
