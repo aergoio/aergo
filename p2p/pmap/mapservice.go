@@ -273,11 +273,11 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta) error {
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
 		newState := &peerState{connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
-		pms.Logger.Info().Str("meta", p2putil.FuckForm(receivedMeta)).Msg("Registering new peer info")
+		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
 		if prev.meta != receivedMeta {
-			pms.Logger.Info().Str("meta", p2putil.FuckForm(prev.meta)).Msg("Replacing previous peer info")
+			pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(prev.meta)).Msg("Replacing previous peer info")
 			prev.meta = receivedMeta
 			prev.addr = receivedMeta.ToPeerAddress()
 		}
@@ -447,7 +447,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 
 func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
 	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
-		pms.Logger.Debug().Str("peer_meta", p2putil.FuckForm(meta)).Msg("peer is private address")
+		pms.Logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(meta)).Msg("peer is private address")
 		return false
 	}
 	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary: true}

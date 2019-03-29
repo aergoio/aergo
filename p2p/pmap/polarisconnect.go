@@ -20,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	net "github.com/libp2p/go-libp2p-net"
+	"github.com/libp2p/go-libp2p-net"
 )
 
 // PeerMapService is
@@ -92,7 +92,9 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		}
 
 		if len(pcs.mapServers) == 0 {
-			pcs.Logger.Warn().Msg("no active polaris server found. node discovery by polaris is disabled")
+			pcs.Logger.Warn().Msg("using polais is enabled but no active polaris server found. node discovery by polaris is disabled")
+		} else {
+			pcs.Logger.Info().Array("polarises",p2putil.NewLogPeerMetasMarshaler(pcs.mapServers,10)).Msg("using polaris")
 		}
 	} else {
 		pcs.Logger.Info().Msg("node discovery by polaris is disabled configuration.")

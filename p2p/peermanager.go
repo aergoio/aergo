@@ -465,7 +465,7 @@ func (pm *peerManager) tryFillPool(metas *[]p2pcommon.PeerMeta) {
 	invalid := make([]string, 0)
 	for _, meta := range *metas {
 		if string(meta.ID) == "" {
-			invalid = append(invalid, p2putil.FuckForm(meta))
+			invalid = append(invalid, p2putil.ShortMetaForm(meta))
 			continue
 		}
 		_, found := pm.peerPool[meta.ID]
