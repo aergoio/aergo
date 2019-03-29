@@ -405,7 +405,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		if err == nil {
-			return ErrBlockOrphan, false
+			return nil, false
 		}
 
 		return err, false
@@ -447,7 +447,8 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	_, err := cs.getBlock(newBlock.BlockHash())
 	if err == nil {
-		return ErrBlockExist
+		logger.Warn().Msg("block already exists")
+		return nil
 	}
 
 	var needCache bool

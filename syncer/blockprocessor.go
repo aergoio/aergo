@@ -6,7 +6,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"sort"
 
-	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -94,16 +93,7 @@ func (bproc *BlockProcessor) isValidResponse(msg interface{}) error {
 	}
 
 	validateAddBlockRsp := func(msg *message.AddBlockRsp) error {
-		isAvailErr := func(err error) bool {
-			switch err {
-			case chain.ErrBlockExist:
-				return true
-			default:
-				return false
-			}
-		}
-
-		if msg.Err != nil && !isAvailErr(msg.Err) {
+		if msg.Err != nil {
 			return msg.Err
 		}
 

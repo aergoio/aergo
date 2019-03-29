@@ -35,7 +35,7 @@ func NewOrphanPool() *OrphanPool {
 
 // add Orphan into the orphan cache pool
 func (op *OrphanPool) addOrphan(block *types.Block) error {
-	logger.Debug().Str("prev", enc.ToString(block.GetHeader().GetPrevBlockHash())).Msg("add orphan Block")
+	logger.Warn().Str("prev", enc.ToString(block.GetHeader().GetPrevBlockHash())).Msg("add orphan Block")
 
 	id := types.ToBlockID(block.Header.PrevBlockHash)
 	cachedblock, exists := op.cache[id]

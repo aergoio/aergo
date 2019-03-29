@@ -36,7 +36,6 @@ var (
 
 	dfltErrBlocks = 128
 
-	ErrBlockExist            = errors.New("block already exists")
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
