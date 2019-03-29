@@ -254,7 +254,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			tx.Body.ChainIdHash = status.BestBlockHash
+			tx.Body.ChainIdHash = status.BestChainIdHash
 		}
 		sign, err := client.SignTX(context.Background(), tx)
 		if err != nil || sign == nil {
