@@ -171,10 +171,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	for i, r := range commit.Results {
-		cmd.Println(i+1, ":", base58.Encode(r.Hash), r.Error)
-	}
+	cmd.Println(util.JSON(commit))
 }
 
 func runCallCmd(cmd *cobra.Command, args []string) {
