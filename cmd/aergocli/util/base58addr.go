@@ -126,7 +126,7 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		target.GasPrice = price.Bytes()
 	}
 	if source.ChainIdHash != "" {
-		target.Payload, err = base58.Decode(source.ChainIdHash)
+		target.ChainIdHash, err = base58.Decode(source.ChainIdHash)
 		if err != nil {
 			return err
 		}
@@ -175,7 +175,7 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 	body := &types.TxBody{}
 	in := &InOutTxBody{}
 
-	err := json.Unmarshal([]byte(jsonTx), in)
+	err := json.Unmarshal(jsonTx, in)
 	if err != nil {
 		return nil, err
 	}
