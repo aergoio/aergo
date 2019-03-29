@@ -97,7 +97,7 @@ func (pr *pbResponseOrder) SendTo(pi p2pcommon.RemotePeer) error {
 		return err
 	}
 	p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
-		Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str("req_id", pr.message.OriginalID().String()).Msg("Send response message")
+		Str(p2putil.LogMsgID, pr.GetMsgID().String()).Str(p2putil.LogOrgReqID, pr.message.OriginalID().String()).Msg("Send response message")
 
 	return nil
 }

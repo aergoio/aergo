@@ -107,7 +107,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 				Hashes: hashes,
 				Txs:    txInfos, HasNext: true}
 			th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-				Str("req_id", msg.ID().String()).Msg("Sending partial response")
+				Str(p2putil.LogOrgReqID, msg.ID().String()).Msg("Sending partial response")
 
 			remotePeer.SendMessage(remotePeer.MF().
 				NewMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
@@ -123,7 +123,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 		status = types.ResultStatus_NOT_FOUND
 	}
 	th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-		Str("req_id", msg.ID().String()).Str(p2putil.LogRespStatus,status.String()).Msg("Sending last part response")
+		Str(p2putil.LogOrgReqID, msg.ID().String()).Str(p2putil.LogRespStatus,status.String()).Msg("Sending last part response")
 	// generate response message
 
 	resp := &types.GetTransactionsResponse{

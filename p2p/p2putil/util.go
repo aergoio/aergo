@@ -19,22 +19,22 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // frequently used constants for indicating p2p log category
 const (
-	LogPeerID = "peer_id"
-	// LogFullID is Full qualified peer id
-	LogFullID   = "full_id"
-	LogPeerName = "peer_nm"
-	LogProtoID  = "protocol_id"
-	LogMsgID    = "msg_id"
-	LogBlkHash  = "blk_hash"
-	LogBlkCount = "blk_cnt"
-	LogTxHash   = "tx_hash"
-	LogTxCount  = "tx_cnt"
-	LogRespStatus   = "resp_st"
+	LogPeerID     = "peer_id"
+	LogFullID     = "full_id" // LogFullID is Full qualified peer id
+	LogPeerName   = "peer_nm"
+	LogProtoID    = "protocol_id"
+	LogMsgID      = "msg_id"
+	LogOrgReqID   = "req_id" // LogOrgReqID is msgid of request from remote peer
+	LogBlkHash    = "blk_hash"
+	LogBlkCount   = "blk_cnt"
+	LogTxHash     = "tx_hash"
+	LogTxCount    = "tx_cnt"
+	LogRespStatus = "resp_st"
 )
 
 func ExtractBlockFromRequest(rawResponse interface{}, err error) (*types.Block, error) {
@@ -148,10 +148,10 @@ func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgI
 
 func DebugLogReceiveResponseMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, reqID string, peer p2pcommon.RemotePeer, additional interface{}) {
 	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
 			Msg("Received a response message")
 	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("req_id", reqID).Str("from_peer", peer.Name()).
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).
 			Msg("Received a response message")
 	}
 }

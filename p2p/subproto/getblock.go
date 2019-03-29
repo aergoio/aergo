@@ -67,13 +67,13 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Messa
 		foundBlock, err := bh.actor.GetChainAccessor().GetBlock(hash)
 		if err != nil {
 			// the block hash from request must exists. this error is fatal.
-			bh.logger.Warn().Err(err).Str(p2putil.LogBlkHash, enc.ToString(hash)).Str("req_id", requestID.String()).Msg("failed to get block while processing getBlock")
+			bh.logger.Warn().Err(err).Str(p2putil.LogBlkHash, enc.ToString(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("failed to get block while processing getBlock")
 			status = types.ResultStatus_INTERNAL
 			break
 		}
 		if foundBlock == nil {
 			// the remote peer request not existing block
-			bh.logger.Debug().Str(p2putil.LogBlkHash, enc.ToString(hash)).Str("req_id", requestID.String()).Msg("requested block hash is missing")
+			bh.logger.Debug().Str(p2putil.LogBlkHash, enc.ToString(hash)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("requested block hash is missing")
 			status = types.ResultStatus_NOT_FOUND
 			break
 
@@ -89,10 +89,10 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Messa
 				HasNext: true,
 				//HasNext:msgSentCount<MaxResponseSplitCount, // always have nextItem ( see foundBlock) but msg count limit will affect
 			}
-			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(p2putil.LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending partial getBlock response")
+			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending partial getBlock response")
 			err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
 			if err != nil {
-				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(p2putil.LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending failed")
+				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending failed")
 				return
 			}
 			blockInfos = make([]*types.Block, 0, sliceCap)
@@ -116,10 +116,10 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Messa
 		Blocks: blockInfos, HasNext: false}
 
 	// ???: have to check arguments
-	bh.logger.Debug().Int(p2putil.LogBlkCount, len(blockInfos)).Str("req_id", requestID.String()).Msg("Sending last part of getBlock response")
+	bh.logger.Debug().Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending last part of getBlock response")
 	err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
 	if err != nil {
-		bh.logger.Info().Int(p2putil.LogBlkCount, len(data.Hashes)).Err(err).Str("req_id", requestID.String()).Msg("Sending failed")
+		bh.logger.Info().Int(p2putil.LogBlkCount, len(data.Hashes)).Err(err).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending failed")
 		return
 	}
 }
