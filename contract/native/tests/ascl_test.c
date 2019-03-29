@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "WAVM/ASCL/ASCLVM.h"
+
 #include "strbuf.h"
 #include "util.h"
 #include "stack.h"
@@ -16,13 +18,13 @@
 #include "check.h"
 #include "trans.h"
 #include "gen.h"
-#include "run.h"
 
 #define FILE_MAX_CNT    100
 
 #define TAG_TITLE       "@test"
 #define TAG_ERROR       "@error"
 #define TAG_EXPORT      "@export"
+#define TAG_RUN         "@run"
 
 typedef struct env_s {
     char *path;
@@ -33,7 +35,9 @@ typedef struct env_s {
 
     flag_t flag;
 
-    char title[PATH_MAX_LEN];
+    char title[PATH_MAX_LEN + 1];
+    char module[PATH_MAX_LEN + 1];
+    char func[PATH_MAX_LEN + 1];
     ec_t ec;
     int ec_cnt;
 
@@ -173,6 +177,21 @@ run_test(env_t *env, char *path)
 
     gen(ir, env->flag, path);
 
+    if (!has_error() && env->module[0] != '\0') {
+        /*
+        int address;
+        char *argv[1] = { NULL };
+        char wasm[PATH_MAX_LEN + 6];
+
+        address = vm_run(env->module, env->module, argv);
+        if (address > 1) {
+            snprintf(wasm, sizeof(wasm), "%s.wasm", env->module);
+
+            vm_run(wasm, env->func, argv);
+        }
+        */
+    }
+
     print_results(env);
 
     unlink(path);
@@ -183,7 +202,7 @@ static void
 read_test(env_t *env, char *path)
 {
     char buf[1024];
-    char out_file[PATH_MAX_LEN];
+    char out_file[PATH_MAX_LEN + 1];
     FILE *in_fp = open_file(path, "r");
     FILE *out_fp = NULL;
     FILE *exp_fp = NULL;
@@ -255,6 +274,20 @@ read_test(env_t *env, char *path)
             exp_fp = open_file(exp_file, "w");
 
             stack_push(&env->exp, exp_file);
+        }
+        else if (strncasecmp(buf, TAG_RUN, strlen(TAG_RUN)) == 0) {
+            char *ptr;
+            char *qname = strtrim(buf + strlen(TAG_RUN), "() \t\n\r");
+
+            ptr = strchr(qname, '.');
+            if (ptr != NULL) {
+                *ptr = '\0';
+                strcpy(env->func, ptr + 1);
+            }
+            else {
+                strcpy(env->func, qname);
+            }
+            strcpy(env->module, qname);
         }
         else {
             if (exp_fp != NULL)
