@@ -50,10 +50,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
+func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -270,7 +270,7 @@ func (bf *BlockFactory) Start() {
 
 				txOp := chain.NewCompTxOp(
 					bf.txOp,
-					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
+					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
 				)
 
 				block, err := chain.GenerateBlock(bf, prevBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
