@@ -8,6 +8,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -121,11 +122,15 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		return nil, err
 	}
 
+	digest := sha256.New()
+	digest.Write(last.GetHeader().GetChainID())
+	bestChainIdHash := digest.Sum(nil)
+
 	return &types.BlockchainStatus{
 		BestBlockHash:   last.BlockHash(),
 		BestHeight:      last.GetHeader().GetBlockNo(),
 		ConsensusInfo:   ca.GetConsensusInfo(),
-		BestChainIdHash: common.Hasher(last.GetHeader().GetChainID()),
+		BestChainIdHash: bestChainIdHash,
 	}, nil
 }
 

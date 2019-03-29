@@ -162,16 +162,11 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		},
 	}
 
-	sign, err := client.SignTX(context.Background(), tx)
-	if err != nil || sign == nil {
+	msg, err := client.SendTX(context.Background(), tx)
+	if err != nil || msg == nil {
 		log.Fatal(err)
 	}
-	txs := []*types.Tx{sign}
-	commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
-	if err != nil {
-		log.Fatal(err)
-	}
-	cmd.Println(util.JSON(commit))
+	cmd.Println(util.JSON(msg))
 }
 
 func runCallCmd(cmd *cobra.Command, args []string) {
@@ -240,21 +235,11 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Type:      txType,
 		},
 	}
-	sign, err := client.SignTX(context.Background(), tx)
-	if err != nil || sign == nil {
+	msg, err := client.SendTX(context.Background(), tx)
+	if err != nil || msg == nil {
 		log.Fatal(err)
 	}
-
-	if toJson {
-		fmt.Println(util.TxConvBase58Addr(sign))
-		return
-	}
-	txs := []*types.Tx{sign}
-	commit, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
-	if err != nil {
-		log.Fatal(err)
-	}
-	cmd.Println(util.JSON(commit))
+	cmd.Println(util.JSON(msg))
 }
 
 func runGetABICmd(cmd *cobra.Command, args []string) {

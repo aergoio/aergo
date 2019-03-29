@@ -268,7 +268,7 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 		ci := json.RawMessage(in.ConsensusInfo)
 		out.ConsensusInfo = &ci
 	}
-	out.ChainIdHash = base58.Encode(in.BestBlockHash)
+	out.ChainIdHash = base58.Encode(in.BestChainIdHash)
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""

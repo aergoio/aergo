@@ -116,7 +116,6 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: Wrong election\n")
 		return
 	}
-	txs := make([]*types.Tx, 1)
 
 	state, err := client.GetState(context.Background(),
 		&types.SingleBytes{Value: account})
@@ -129,7 +128,7 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	txs[0] = &types.Tx{
+	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,
 			Recipient: []byte(aergosystem),
@@ -141,14 +140,7 @@ func execVote(cmd *cobra.Command, args []string) {
 	}
 	//cmd.Println(string(payload))
 	//TODO : support local
-	tx, err := client.SignTX(context.Background(), txs[0])
-	if err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
-		return
-	}
-
-	txs[0] = tx
-	msg, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
+	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
