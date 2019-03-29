@@ -20,15 +20,16 @@ type InOutTx struct {
 }
 
 type InOutTxBody struct {
-	Nonce     uint64
-	Account   string
-	Recipient string
-	Amount    string
-	Payload   string
-	GasLimit  uint64
-	GasPrice  string
-	Type      types.TxType
-	Sign      string
+	Nonce       uint64
+	Account     string
+	Recipient   string
+	Amount      string
+	Payload     string
+	GasLimit    uint64
+	GasPrice    string
+	Type        types.TxType
+	ChainIdHash string
+	Sign        string
 }
 
 type InOutTxIdx struct {
@@ -124,6 +125,12 @@ func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
 		}
 		target.GasPrice = price.Bytes()
 	}
+	if source.ChainIdHash != "" {
+		target.Payload, err = base58.Decode(source.ChainIdHash)
+		if err != nil {
+			return err
+		}
+	}
 	if source.Sign != "" {
 		target.Sign, err = base58.Decode(source.Sign)
 		if err != nil {
@@ -198,6 +205,7 @@ func ConvTx(tx *types.Tx) *InOutTx {
 	out.Body.Payload = base58.Encode(tx.Body.Payload)
 	out.Body.GasLimit = tx.Body.GasLimit
 	out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
+	out.Body.ChainIdHash = base58.Encode(tx.Body.ChainIdHash)
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out
@@ -260,6 +268,7 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 		ci := json.RawMessage(in.ConsensusInfo)
 		out.ConsensusInfo = &ci
 	}
+	out.ChainIdHash = base58.Encode(in.BestBlockHash)
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""
