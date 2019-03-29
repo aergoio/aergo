@@ -49,6 +49,7 @@ func init() {
 	}
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
 	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
+	callCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
 
@@ -225,6 +226,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if gover {
 		txType = types.TxType_GOVERNANCE
 	}
+
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Nonce:     nonce,
@@ -234,6 +236,32 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Amount:    amountBigInt.Bytes(),
 			Type:      txType,
 		},
+	}
+
+	if chainIdHash != "" {
+		rawCidHash, err := base58.Decode(chainIdHash)
+		if err != nil {
+			fmt.Fprint(os.Stderr, "failed to parse --chainidhash flags\n")
+			os.Exit(1)
+		}
+		tx.Body.ChainIdHash = rawCidHash
+	}
+
+	if toJson {
+		if chainIdHash == "" {
+			status, err := client.Blockchain(context.Background(), &types.Empty{})
+			if err != nil {
+				cmd.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			tx.Body.ChainIdHash = status.BestBlockHash
+		}
+		sign, err := client.SignTX(context.Background(), tx)
+		if err != nil || sign == nil {
+			log.Fatal(err)
+		}
+		fmt.Println(util.TxConvBase58Addr(sign))
+		return
 	}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil || msg == nil {
