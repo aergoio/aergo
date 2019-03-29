@@ -31,63 +31,72 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 			Type:    TxType_GOVERNANCE,
 		},
 	}
+
+	chainid := []byte("chainid")
+	fakechainid := []byte("fake")
 	transaction := NewTransaction(tx)
-	err = transaction.Validate()
+
+	transaction.GetBody().ChainIdHash = fakechainid
+	err = transaction.Validate(chainid)
+	assert.EqualError(t, ErrTxInvalidChainIdHash, err.Error(), "invalid chainid")
+
+	transaction.GetBody().ChainIdHash = chainid
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, ErrTxHasInvalidHash, err.Error(), "empty hash")
 
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, ErrTxInvalidRecipient, err.Error(), "recipient null")
 
 	transaction.GetTx().GetBody().Recipient = tx.Body.Payload
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, ErrTxInvalidRecipient, err.Error(), "wrong recipient case")
 
 	transaction.GetTx().GetBody().Recipient = recipient
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, ErrTxInvalidRecipient, err.Error(), "recipient should be aergo.*")
 
 	transaction.GetTx().GetBody().Recipient = []byte(AergoSystem)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Amount = StakingMinimum.Bytes()
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestInvalidString)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestInvalidPeerID)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid peer id")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestDuplicatePeerID)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "dup peer id")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestNormal)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	t.Log(string(transaction.GetTx().GetBody().Payload))
 	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestInvalidString)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
 
 	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(2, TestInvalidString)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate()
+	err = transaction.Validate(chainid)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "only one candidate allowed")
 
 	/*

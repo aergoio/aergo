@@ -146,10 +146,7 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	if err = types.NewTransaction(tx).Validate(); err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
-		return
-	}
+
 	txs[0] = tx
 	msg, err := client.CommitTX(context.Background(), &types.TxList{Txs: txs})
 	if err != nil {

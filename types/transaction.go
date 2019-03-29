@@ -27,7 +27,7 @@ type Transaction interface {
 	GetBody() *TxBody
 	GetHash() []byte
 	CalculateTxHash() []byte
-	Validate() error
+	Validate([]byte) error
 	ValidateWithSenderState(senderState *State) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
@@ -66,11 +66,14 @@ func (tx *transaction) CalculateTxHash() []byte {
 	return tx.Tx.CalculateTxHash()
 }
 
-func (tx *transaction) Validate() error {
-	if tx.GetTx() == nil {
+func (tx *transaction) Validate(chainidhash []byte) error {
+	if tx.GetTx() == nil || tx.GetTx().GetBody() == nil {
 		return ErrTxFormatInvalid
 	}
 
+	if !bytes.Equal(chainidhash, tx.GetTx().GetBody().GetChainIdHash()) {
+		return ErrTxInvalidChainIdHash
+	}
 	if proto.Size(tx.GetTx()) > TxMaxSize {
 		return ErrTxInvalidSize
 	}

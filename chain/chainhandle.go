@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
@@ -560,7 +561,7 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoa
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(bState, tx, blockNo, ts, prevBlockHash, preLoadService, chainID)
+		err := executeTx(bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
@@ -702,7 +703,7 @@ func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockStat
 	}
 }
 
-func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainID []byte) error {
+func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainIDHash []byte) error {
 
 	txBody := tx.GetBody()
 
@@ -718,7 +719,7 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 		account = name.Resolve(bs, txBody.GetAccount())
 	}
 
-	err := tx.Validate()
+	err := tx.Validate(chainIDHash)
 	if err != nil {
 		return err
 	}

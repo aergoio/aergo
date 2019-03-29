@@ -25,6 +25,7 @@ import (
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -63,6 +64,7 @@ type MemPool struct {
 	dumpPath    string
 	status      int32
 	coinbasefee *big.Int
+	chainIdHash []byte
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -339,6 +341,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
 				Msg("new StateDB opened")
@@ -423,7 +426,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 // signiture verification
 func (mp *MemPool) verifyTx(tx types.Transaction) error {
-	err := tx.Validate()
+	err := tx.Validate(mp.chainIdHash)
 	if err != nil {
 		return err
 	}

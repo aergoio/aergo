@@ -31,6 +31,8 @@ var (
 
 	ErrTxInvalidAccount = errors.New("tx invalid account")
 
+	ErrTxInvalidChainIdHash = errors.New("tx invalid chain id hash")
+
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 

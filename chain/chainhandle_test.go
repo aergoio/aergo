@@ -64,9 +64,11 @@ func TestErrorInExecuteTx(t *testing.T) {
 	assert.EqualError(t, err, types.ErrTxFormatInvalid.Error(), "execute empty tx")
 
 	tx.Body = &types.TxBody{}
-	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService, chainID)
-	assert.EqualError(t, err, types.ErrTxFormatInvalid.Error(), "execute empty tx body")
 
+	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService, chainID)
+	assert.EqualError(t, err, types.ErrTxInvalidChainIdHash.Error(), "execute empty tx body")
+
+	tx.Body.ChainIdHash = chainID
 	tx.Body.Account = makeTestAddress(t)
 	tx.Body.Recipient = makeTestAddress(t)
 	err = executeTx(bs, types.NewTransaction(tx), 0, 0, nil, contract.ChainService, chainID)
@@ -95,6 +97,7 @@ func TestBasicExecuteTx(t *testing.T) {
 
 	tx := &types.Tx{Body: &types.TxBody{}}
 
+	tx.Body.ChainIdHash = chainID
 	tx.Body.Account = makeTestAddress(t)
 	tx.Body.Recipient = makeTestAddress(t)
 	tx.Body.Nonce = 1
