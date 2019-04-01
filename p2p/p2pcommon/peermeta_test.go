@@ -42,3 +42,36 @@ func TestFromPeerAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestNewMetaFromStatus(t *testing.T) {
+	type args struct {
+		ip   string
+		port uint32
+		id   string
+		noExpose bool
+		outbound bool
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{"TExpose", args{"192.168.1.2", 2, "id0002", false, false}},
+		{"TNoExpose", args{"0.0.0.0", 2223, "id2223", true, false}},
+		{"TOutbound", args{"2001:0db8:85a3:08d3:1319:8a2e:0370:7334", 444, "id0002",false, true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sender := &types.PeerAddress{Address:tt.args.ip, Port:tt.args.port, PeerID:[]byte(tt.args.id)}
+			status := &types.Status{Sender:sender, NoExpose:tt.args.noExpose}
+			actual := NewMetaFromStatus(status, tt.args.outbound)
+			assert.Equal(t, tt.args.ip, actual.IPAddress)
+			assert.Equal(t, tt.args.port, actual.Port)
+			assert.Equal(t, tt.args.id, string(actual.ID))
+			assert.Equal(t, tt.args.noExpose, actual.Hidden)
+			assert.Equal(t, tt.args.outbound, actual.Outbound)
+
+			actual2 := actual.ToPeerAddress()
+			assert.Equal(t, *sender, actual2)
+		})
+	}
+}

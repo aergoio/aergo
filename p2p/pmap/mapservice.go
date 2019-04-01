@@ -232,7 +232,8 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 
 	resp.Addresses = pms.retrieveList(maxPeers, receivedMeta.ID)
 
-	if query.AddMe {
+	// old syntax (AddMe) and newer syntax (status.NoExpose) for expose peer
+	if query.AddMe && !query.Status.NoExpose {
 		// check Sender
 		// check peer is really capable to aergosvr
 		if !pms.checkConnectness(receivedMeta) {

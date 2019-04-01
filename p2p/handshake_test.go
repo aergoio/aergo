@@ -62,13 +62,6 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger = log.NewLogger("test")
-	mockActor := p2pmock.NewMockActorService(ctrl)
-	mockPM := p2pmock.NewMockPeerManager(ctrl)
-	mockCA := p2pmock.NewMockChainAccessor(ctrl)
-
-	mockPM.EXPECT().SelfMeta().Return(dummyMeta)
-	mockActor.EXPECT().GetChainAccessor().Return(mockCA)
-	mockCA.EXPECT().GetBestBlock().Return(dummyBestBlock, nil)
 	// dummyStatusMsg := &types.Status{}
 	tests := []struct {
 		name    string
@@ -82,6 +75,13 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockActor := p2pmock.NewMockActorService(ctrl)
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockCA := p2pmock.NewMockChainAccessor(ctrl)
+			mockPM.EXPECT().SelfMeta().Return(dummyMeta).Times(2)
+			mockActor.EXPECT().GetChainAccessor().Return(mockCA)
+			mockCA.EXPECT().GetBestBlock().Return(dummyBestBlock, nil)
+
 			h := newHandshaker(mockPM, mockActor, logger, myChainID, samplePeerID)
 			mockReader := p2pmock.NewMockReader(ctrl)
 			mockWriter := p2pmock.NewMockWriter(ctrl)
