@@ -284,13 +284,12 @@ func (pm *peerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s inet
 		return meta, false
 	}
 	// update peer meta info using sent information from remote peer
-	receivedMeta := p2pcommon.FromPeerAddress(remoteStatus.Sender)
+	receivedMeta := p2pcommon.NewMetaFromStatus(remoteStatus, outbound)
 	if receivedMeta.ID != peerID {
 		pm.logger.Debug().Str("received_peer_id", receivedMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Inconsistent peerID")
 		pm.sendGoAway(rw, "Inconsistent peerID")
 		return meta, false
 	}
-	receivedMeta.Outbound = outbound
 	_, receivedMeta.Designated = pm.designatedPeers[peerID]
 
 	// adding peer to peer list
@@ -374,7 +373,10 @@ func (pm *peerManager) RemovePeer(peer p2pcommon.RemotePeer) {
 }
 
 func (pm *peerManager) NotifyPeerHandshake(peerID peer.ID) {
-	pm.checkAndCollectPeerList(peerID)
+	// TODO code smell.
+	if pm.conf.NPDiscoverPeers {
+		pm.checkAndCollectPeerList(peerID)
+	}
 }
 
 func (pm *peerManager) NotifyPeerAddressReceived(metas []p2pcommon.PeerMeta) {
@@ -437,9 +439,13 @@ func (pm *peerManager) checkAndCollectPeerListFromAll() {
 		pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
 	}
 
-	// not strictly need to check peers. so use cache instead
-	for _, remotePeer := range pm.peerCache {
-		pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.ID(), Size: MaxAddrListSizePeer, Offset: 0})
+	// if server is not discover new peer, such as of BP or backup node, it does not send addresses reqeust to other peer.
+	// These types are only connect to designated peers.
+	if pm.conf.NPDiscoverPeers {
+		// not strictly need to check peers. so use cache instead
+		for _, remotePeer := range pm.peerCache {
+			pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.ID(), Size: MaxAddrListSizePeer, Offset: 0})
+		}
 	}
 }
 

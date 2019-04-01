@@ -15,7 +15,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // HSHandlerFactory is creator of HSHandler
@@ -187,6 +187,7 @@ func createStatusMsg(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService,
 		ChainID:       chainIDbytes,
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
+		NoExpose:      pm.SelfMeta().Hidden,
 	}
 
 	return statusMsg, nil

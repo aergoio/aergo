@@ -382,13 +382,6 @@ func (p *remotePeerImpl) GetReceiver(originalID p2pcommon.MsgID) p2pcommon.Respo
 	}
 }
 
-func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
-	// check address. and apply current
-	receivedMeta := p2pcommon.FromPeerAddress(statusMsg.Sender)
-	p.meta.IPAddress = receivedMeta.IPAddress
-	p.meta.Port = receivedMeta.Port
-}
-
 func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {
 	if err := m.SendTo(p); err != nil {
 		// write fail
