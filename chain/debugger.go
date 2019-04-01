@@ -19,6 +19,7 @@ const (
 )
 
 var stopConds = [...]string{
+	"",
 	"DEBUG_REORG_STOP_1",
 	"DEBUG_REORG_STOP_2",
 	"DEBUG_REORG_STOP_3",
@@ -30,16 +31,16 @@ func (ec *ErrDebug) Error() string {
 	return fmt.Sprintf("stopped by debugger cond[%s]", ec.cond.String())
 }
 
-type debugger struct {
+type Debugger struct {
 	sync.RWMutex
 	condMap map[stopCond]bool
 }
 
-func newDebugger() *debugger {
-	return &debugger{condMap: make(map[stopCond]bool)}
+func newDebugger() *Debugger {
+	return &Debugger{condMap: make(map[stopCond]bool)}
 }
 
-func (debug *debugger) set(cond stopCond) {
+func (debug *Debugger) set(cond stopCond) {
 	if debug == nil {
 		return
 	}
@@ -50,7 +51,7 @@ func (debug *debugger) set(cond stopCond) {
 	debug.condMap[cond] = true
 }
 
-func (debug *debugger) unset(cond stopCond) {
+func (debug *Debugger) unset(cond stopCond) {
 	if debug == nil {
 		return
 	}
@@ -61,7 +62,7 @@ func (debug *debugger) unset(cond stopCond) {
 	delete(debug.condMap, cond)
 }
 
-func (debug *debugger) clear() {
+func (debug *Debugger) clear() {
 	if debug == nil {
 		return
 	}
@@ -72,7 +73,7 @@ func (debug *debugger) clear() {
 	debug.condMap = make(map[stopCond]bool)
 }
 
-func (debug *debugger) check(cond stopCond) error {
+func (debug *Debugger) check(cond stopCond) error {
 	if debug == nil {
 		return nil
 	}

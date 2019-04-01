@@ -251,7 +251,7 @@ func TestResetChain(t *testing.T) {
 	}
 }
 
-func TestReorgCrashRecoverBeforeChainSwap(t *testing.T) {
+func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
 	cs, mainChain, sideChain := testSideBranch(t, 5)
 
 	// add heigher block to sideChain
@@ -267,8 +267,8 @@ func TestReorgCrashRecoverBeforeChainSwap(t *testing.T) {
 	assert.Equal(t, mainChain.BestBlock.BlockHash(), orgBestBlock.BlockHash())
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
-	debug = newDebugger()
-	debug.set(DEBUG_REORG_STOP_1)
+	debugger = newDebugger()
+	debugger.set(DEBUG_REORG_STOP_1)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})
@@ -278,7 +278,7 @@ func TestReorgCrashRecoverBeforeChainSwap(t *testing.T) {
 	newBestBlock, _ := cs.GetBestBlock()
 	assert.Equal(t, newBestBlock.GetHeader().BlockNo, orgBestBlock.GetHeader().BlockNo)
 
-	debug.clear()
+	debugger.clear()
 	cs.errBlocks.Purge()
 
 	// chain swap is not complete, so has nothing to do
@@ -287,6 +287,11 @@ func TestReorgCrashRecoverBeforeChainSwap(t *testing.T) {
 }
 
 func TestReorgCrashRecoverAfterReorgMarker(t *testing.T) {
+	testReorgCrashRecoverCond(t, DEBUG_REORG_STOP_2)
+	testReorgCrashRecoverCond(t, DEBUG_REORG_STOP_3)
+}
+
+func testReorgCrashRecoverCond(t *testing.T, cond stopCond) {
 	cs, mainChain, sideChain := testSideBranch(t, 5)
 
 	// add heigher block to sideChain
@@ -302,16 +307,16 @@ func TestReorgCrashRecoverAfterReorgMarker(t *testing.T) {
 	assert.Equal(t, mainChain.BestBlock.BlockHash(), orgBestBlock.BlockHash())
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
-	debug = newDebugger()
-	debug.set(DEBUG_REORG_STOP_2)
+	debugger = newDebugger()
+	debugger.set(cond)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})
-	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: DEBUG_REORG_STOP_2})
+	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: cond})
 
 	assert.True(t, !checkRecoveryDone(t, cs.cdb, sideChain))
 
-	debug.clear()
+	debugger.clear()
 	cs.errBlocks.Purge()
 
 	// chain swap is not complete, so has nothing to do
@@ -341,6 +346,10 @@ func checkRecoveryDone(t *testing.T, cdb *ChainDB, chain *StubBlockChain) bool {
 		if !checkBlockEqual(t, block, dbBlk) {
 			return false
 		}
+	}
+
+	if marker, err := cdb.getReorgMarker(); err == nil && marker != nil {
+		return false
 	}
 
 	return true

@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,7 +37,9 @@ var (
 	dfltErrBlocks = 128
 
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
-	debug                    *debugger
+	ErrRecoNoBestStateRoot   = errors.New("state root of best block is not exist")
+
+	debugger *Debugger
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -329,41 +330,6 @@ func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 		})
 }
 
-func (cs *ChainService) Recover() error {
-	// check if reorg marker exists
-	marker, err := cs.cdb.getReorgMarker()
-	if err != nil {
-		return err
-	}
-
-	if marker == nil {
-		return nil
-	}
-
-	logger.Info().Str("reorg marker", marker.toString()).Msg("chain recovery started")
-
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	best, err := cs.GetBestBlock()
-	if err != nil {
-		return err
-	}
-
-	// check status of chain
-	if !bytes.Equal(best.GetHash(), marker.BrBestHash) {
-		logger.Info().Str("best", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("best block doesn't changed in prev reorg")
-	}
-
-	if err = cs.recoverReorg(marker); err != nil {
-		return err
-	}
-
-	cs.recovered = true
-
-	return nil
-}
-
 // Receive actor message
 func (cs *ChainService) Receive(context actor.Context) {
 	if !cs.recovered {
@@ -547,6 +513,8 @@ func newChainWorker(cs *ChainService, cntWorker int, core *Core) *ChainWorker {
 }
 
 func (cm *ChainManager) Receive(context actor.Context) {
+	defer RecoverExit()
+
 	switch msg := context.Message().(type) {
 
 	case *message.AddBlock:

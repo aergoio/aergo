@@ -696,7 +696,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 // TODO: Refactoring: batch
 func (cs *ChainService) executeBlockReco(bstate *state.BlockState, block *types.Block) error {
 	// Caution: block must belong to the main chain.
-	logger.Debug().Str("hash", block.ID()).Uint64("no", block.GetHeader().BlockNo).Msg("start to execute for recovery")
+	logger.Debug().Str("hash", block.ID()).Uint64("no", block.GetHeader().BlockNo).Msg("start to execute for reco")
 
 	var (
 		bestBlock *types.Block
@@ -725,7 +725,7 @@ func (cs *ChainService) executeBlockReco(bstate *state.BlockState, block *types.
 
 	cs.Update(block)
 
-	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end to execute for recovery")
+	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end to execute for reco")
 
 	return nil
 }
