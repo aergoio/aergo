@@ -2,6 +2,7 @@ package chain
 
 import (
 	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 
@@ -16,10 +17,19 @@ const (
 	initBlkCount = 20
 )
 
+var (
+	reorgKeyStr = "_reorg_marker_"
+	reorgKey    = []byte(reorgKeyStr)
+)
+
+var (
+	ErrInvalidReorgMarker = errors.New("reorg marker is invalid")
+)
+
 type reorganizer struct {
 	//input info
 	cs         *ChainService
-	dbtx       *db.Transaction
+	bestBlock  *types.Block
 	brTopBlock *types.Block //branch top block
 
 	//collected info from chain
@@ -76,23 +86,31 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 //TODO: on booting, retry reorganizing
 //TODO: on booting, delete played tx of block. because deleting txs from mempool is done after commit
 //TODO: gather delete request of played tx (1 msg)
-func (cs *ChainService) reorg(topBlock *types.Block) error {
-	reorgtx := cs.cdb.store.NewTx()
-
+func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error {
 	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
 		Msg("reorg started")
 
 	reorg := &reorganizer{
 		cs:         cs,
-		dbtx:       &reorgtx,
 		brTopBlock: topBlock,
 		newBlocks:  make([]*types.Block, 0, initBlkCount),
 		oldBlocks:  make([]*types.Block, 0, initBlkCount),
 	}
 
-	err := reorg.gatherChainInfo()
-	if err != nil {
-		return err
+	isReco := (marker != nil)
+
+	var err error
+
+	if isReco {
+		err = reorg.gatherChainInfoReco(marker)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = reorg.gatherChainInfo()
+		if err != nil {
+			return err
+		}
 	}
 
 	if !cs.NeedReorganization(reorg.brStartBlock.BlockNo()) {
@@ -104,12 +122,24 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return err
 	}
 
-	//it's possible to occur error while executing branch block (forgery)
-	if err := reorg.rollforwardChain(); err != nil {
-		return err
+	if isReco {
+		// only need  consensus update
+		if err := reorg.rollforwardChainReco(); err != nil {
+			return err
+		}
+	} else {
+		//it's possible to occur error while executing branch block (forgery)
+		if err := reorg.rollforwardChain(); err != nil {
+			return err
+		}
 	}
 
 	if err := reorg.swapChain(); err != nil {
+		switch ec := err.(type) {
+		case *ErrDebug:
+			return ec
+		}
+		logger.Fatal().Err(err).Msg("reorg failed while swapping chain, it can't recover")
 		return err
 	}
 
@@ -120,18 +150,116 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 	return nil
 }
 
+// recoverReorg redo task that need to be performed after swapping chain meta
+// 1. delete receipts of rollbacked blocks
+// 2. swap tx mapping
+func (cs *ChainService) recoverReorg(marker *ReorgMarker) error {
+	// build reorgnizer from reorg marker
+	topBlock, err := cs.GetBlock(marker.BrTopHash)
+	if err != nil {
+		return err
+	}
+
+	if err = cs.reorg(topBlock, marker); err != nil {
+		logger.Error().Err(err).Msg("failed to retry reorg")
+		return err
+	}
+
+	logger.Info().Msg("recovery succeeded")
+	return nil
+}
+
+type ReorgMarker struct {
+	BrStartHash []byte
+	BrStartNo   types.BlockNo
+	BrBestHash  []byte
+	BrBestNo    types.BlockNo
+	BrTopHash   []byte
+	BrTopNo     types.BlockNo
+}
+
+func (rm *ReorgMarker) toBytes() ([]byte, error) {
+	var val bytes.Buffer
+	gob := gob.NewEncoder(&val)
+	if err := gob.Encode(rm); err != nil {
+		return nil, err
+	}
+
+	return val.Bytes(), nil
+}
+
+func (rm *ReorgMarker) toString() string {
+	buf := ""
+
+	if len(rm.BrStartHash) != 0 {
+		buf = buf + fmt.Sprintf("branch root=%s", enc.ToString(rm.BrStartHash))
+	}
+	if len(rm.BrTopHash) != 0 {
+		buf = buf + fmt.Sprintf("branch top=%s", enc.ToString(rm.BrTopHash))
+	}
+
+	return buf
+}
+
 // swap oldchain to newchain oneshot (best effort)
 //  - chain height mapping
 //  - tx mapping
 //  - best block
 func (reorg *reorganizer) swapChain() error {
-	cs := reorg.cs
+	cdb := reorg.cs.cdb
 
 	logger.Info().Msg("swap chain to new branch")
 
-	cs.cdb.swapChain(reorg.newBlocks)
+	marker := &ReorgMarker{
+		BrStartHash: reorg.brStartBlock.BlockHash(),
+		BrStartNo:   reorg.brStartBlock.GetHeader().GetBlockNo(),
+		BrBestHash:  reorg.bestBlock.BlockHash(),
+		BrBestNo:    reorg.bestBlock.GetHeader().GetBlockNo(),
+		BrTopHash:   reorg.brTopBlock.BlockHash(),
+		BrTopNo:     reorg.brTopBlock.GetHeader().GetBlockNo(),
+	}
 
-	reorg.swapTxMapping()
+	if err := debug.check(DEBUG_REORG_STOP_1); err != nil {
+		return err
+	}
+
+	if err := cdb.writeReorgMarker(marker); err != nil {
+		return err
+	}
+
+	if err := debug.check(DEBUG_REORG_STOP_2); err != nil {
+		return err
+	}
+
+	reorg.deleteOldReceipts()
+
+	//TODO batch notification of rollforward blocks
+
+	if err := reorg.swapTxMapping(); err != nil {
+		return err
+	}
+
+	if err := debug.check(DEBUG_REORG_STOP_3); err != nil {
+		return err
+	}
+
+	if err := reorg.swapChainMapping(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// swapChainMapping swaps chain meta from org chain to side chain and deleting reorg marker.
+// it should be executed by 1 tx to be atomic.
+func (reorg *reorganizer) swapChainMapping() error {
+	cdb := reorg.cs.cdb
+
+	if err := cdb.swapChainMapping(reorg.newBlocks); err != nil {
+		return err
+	}
+
+	cdb.deleteReorgMarker()
 
 	return nil
 }
@@ -223,6 +351,12 @@ func (reorg *reorganizer) gatherChainInfo() error {
 	var err error
 	cdb := reorg.cs.cdb
 
+	bestBlock, err := cdb.GetBestBlock()
+	if err != nil {
+		return err
+	}
+	reorg.bestBlock = bestBlock
+
 	brBlock := reorg.brTopBlock
 	brBlockNo := brBlock.BlockNo()
 
@@ -283,26 +417,80 @@ func (reorg *reorganizer) gatherChainInfo() error {
 	return ErrNotExistBranchRoot
 }
 
+// build reorg chain info from marker
+func (reorg *reorganizer) gatherChainInfoReco(marker *ReorgMarker) error {
+	var err error
+	cdb := reorg.cs.cdb
+
+	var startBlock, bestBlock, topBlock *types.Block
+
+	if startBlock, err = cdb.getBlock(marker.BrStartHash); err != nil {
+		return err
+	}
+
+	if bestBlock, err = cdb.getBlock(marker.BrBestHash); err != nil {
+		return err
+	}
+
+	if topBlock, err = cdb.getBlock(marker.BrTopHash); err != nil {
+		return err
+	}
+
+	if bestBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() ||
+		startBlock.GetHeader().GetBlockNo() >= bestBlock.GetHeader().GetBlockNo() ||
+		startBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() {
+		return ErrInvalidReorgMarker
+	}
+
+	reorg.brStartBlock = startBlock
+	reorg.bestBlock = bestBlock
+
+	for tmpBlk := bestBlock; tmpBlk.GetHeader().GetBlockNo() > startBlock.GetHeader().GetBlockNo(); {
+		reorg.oldBlocks = append(reorg.oldBlocks, tmpBlk)
+		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("blockNo", tmpBlk.GetHeader().GetBlockNo()).
+			Msg("gather rollback target")
+
+		if tmpBlk, err = cdb.getBlock(tmpBlk.GetHeader().GetPrevBlockHash()); err != nil {
+			return err
+		}
+	}
+
+	for tmpBlk := topBlock; tmpBlk.GetHeader().GetBlockNo() > startBlock.GetHeader().GetBlockNo(); {
+		reorg.newBlocks = append(reorg.newBlocks, tmpBlk)
+
+		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("blockNo", tmpBlk.GetHeader().GetBlockNo()).
+			Msg("gather rollforward target")
+
+		if tmpBlk, err = cdb.getBlock(tmpBlk.GetHeader().GetPrevBlockHash()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (reorg *reorganizer) rollbackChain() error {
 	brStartBlock := reorg.brStartBlock
 	brStartBlockNo := brStartBlock.GetHeader().GetBlockNo()
 
 	logger.Info().Str("hash", brStartBlock.ID()).Uint64("no", brStartBlockNo).Msg("rollback chain to branch start block")
 
-	if err := reorg.cs.sdb.Rollback(brStartBlock.GetHeader().GetBlocksRootHash()); err != nil {
+	if err := reorg.cs.sdb.SetRoot(brStartBlock.GetHeader().GetBlocksRootHash()); err != nil {
 		return fmt.Errorf("failed to rollback sdb(branchRoot:no=%d,hash=%v)", brStartBlockNo,
 			brStartBlock.ID())
 	}
 
 	reorg.cs.Update(brStartBlock)
 
+	return nil
+}
+
+func (reorg *reorganizer) deleteOldReceipts() {
 	dbTx := reorg.cs.cdb.NewTx()
 	for _, blk := range reorg.oldBlocks {
 		reorg.cs.cdb.deleteReceipts(&dbTx, blk.GetHash(), blk.BlockNo())
 	}
 	dbTx.Commit()
-
-	return nil
 }
 
 /*
@@ -322,6 +510,25 @@ func (reorg *reorganizer) rollforwardChain() error {
 		if err := cs.executeBlock(nil, newBlock); err != nil {
 			logger.Error().Str("hash", newBlock.ID()).Uint64("no", newBlockNo).
 				Msg("failed to execute block in reorg")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (reorg *reorganizer) rollforwardChainReco() error {
+	cs := reorg.cs
+
+	logger.Info().Msg("rollforward chain started for recovery")
+
+	for i := len(reorg.newBlocks) - 1; i >= 0; i-- {
+		newBlock := reorg.newBlocks[i]
+		newBlockNo := newBlock.GetHeader().GetBlockNo()
+
+		if err := cs.executeBlockReco(nil, newBlock); err != nil {
+			logger.Error().Str("hash", newBlock.ID()).Uint64("no", newBlockNo).
+				Msg("failed to execute block in reorg for recovery")
 			return err
 		}
 	}

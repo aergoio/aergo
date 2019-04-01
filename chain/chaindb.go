@@ -358,7 +358,7 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 	return
 }
 
-func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
+func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 	oldNo := cdb.getBestBlockNo()
 	newNo := newBlocks[0].GetHeader().GetBlockNo()
 
@@ -691,4 +691,44 @@ func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
 	binary.LittleEndian.PutUint64(l[:], blockNo)
 	key.Write(l)
 	return key.Bytes()
+}
+
+func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	val, err := marker.toBytes()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to serialize reorg marker")
+		return err
+	}
+
+	dbTx.Set(reorgKey, val)
+
+	dbTx.Commit()
+	return nil
+}
+
+func (cdb *ChainDB) deleteReorgMarker() {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	dbTx.Delete(reorgKey)
+
+	dbTx.Commit()
+}
+
+func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
+	data := cdb.store.Get(reorgKey)
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var marker ReorgMarker
+	var b bytes.Buffer
+	b.Write(data)
+	decoder := gob.NewDecoder(&b)
+	err := decoder.Decode(&marker)
+
+	return &marker, err
 }

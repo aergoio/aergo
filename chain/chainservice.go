@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +38,7 @@ var (
 	dfltErrBlocks = 128
 
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
+	debug                    *debugger
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -200,6 +202,9 @@ type ChainService struct {
 	chainManager *ChainManager
 
 	stat stats
+
+	recovered  bool
+	debuggable bool
 }
 
 // NewChainService creates an instance of ChainService.
@@ -324,8 +329,47 @@ func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 		})
 }
 
+func (cs *ChainService) Recover() error {
+	// check if reorg marker exists
+	marker, err := cs.cdb.getReorgMarker()
+	if err != nil {
+		return err
+	}
+
+	if marker == nil {
+		return nil
+	}
+
+	logger.Info().Str("reorg marker", marker.toString()).Msg("chain recovery started")
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	best, err := cs.GetBestBlock()
+	if err != nil {
+		return err
+	}
+
+	// check status of chain
+	if !bytes.Equal(best.GetHash(), marker.BrBestHash) {
+		logger.Info().Str("best", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("best block doesn't changed in prev reorg")
+	}
+
+	if err = cs.recoverReorg(marker); err != nil {
+		return err
+	}
+
+	cs.recovered = true
+
+	return nil
+}
+
 // Receive actor message
 func (cs *ChainService) Receive(context actor.Context) {
+	if !cs.recovered {
+		err := cs.Recover()
+		logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
+	}
 
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,

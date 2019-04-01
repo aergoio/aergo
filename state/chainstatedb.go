@@ -178,7 +178,7 @@ func (sdb *ChainStateDB) UpdateRoot(bstate *BlockState) error {
 	return nil
 }
 
-func (sdb *ChainStateDB) Rollback(targetBlockRoot []byte) error {
+func (sdb *ChainStateDB) SetRoot(targetBlockRoot []byte) error {
 	sdb.Lock()
 	defer sdb.Unlock()
 
