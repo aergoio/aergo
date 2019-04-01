@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/common"
 	"index/suffixarray"
 	"math/big"
 	"regexp"
@@ -77,11 +78,56 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) C.int {
 }
 
 //export LuaGetDB
-func LuaGetDB(L *LState, service *C.int, key *C.char) C.int {
+func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		luaPushStr(L, "[System.LuaGetDB] contract state not found")
 		return -1
+	}
+	if blkno != nil {
+		bigNo, _ := new(big.Int).SetString(strings.TrimSpace(C.GoString(blkno)), 10)
+		if bigNo == nil || bigNo.Sign() < 0 {
+			luaPushStr(L, "[System.LuaGetDB] invalid blockheight value :"+C.GoString(blkno))
+			return -1
+		}
+		blkNo := bigNo.Uint64()
+
+		chainBlockHeight := stateSet.blockHeight
+		if chainBlockHeight == 0 {
+			bestBlock, err := stateSet.cdb.GetBestBlock()
+			if err != nil {
+				luaPushStr(L, "[System.LuaGetDB] get best block error")
+			}
+			chainBlockHeight = bestBlock.GetHeader().GetBlockNo()
+		}
+		if blkNo < chainBlockHeight {
+			blk, err := stateSet.cdb.GetBlockByNo(blkNo)
+			if err != nil {
+				luaPushStr(L, err.Error())
+				return -1
+			}
+			accountId := types.ToAccountID(stateSet.curContract.contractId)
+			contractProof, err := stateSet.bs.GetAccountAndProof(accountId[:], blk.GetHeader().GetBlocksRootHash(), false)
+			if err != nil {
+				luaPushStr(L, "[System.LuaGetDB] failed to get snapshot state for account")
+				return -1
+			} else if contractProof.Inclusion {
+				trieKey := common.Hasher([]byte(C.GoString(key)))
+				varProof, err := stateSet.bs.GetVarAndProof(trieKey, contractProof.GetState().GetStorageRoot(), false)
+				if err != nil {
+					luaPushStr(L, "[System.LuaGetDB] failed to get snapshot state variable in contract")
+					return -1
+				}
+				if varProof.Inclusion {
+					if len(varProof.GetValue()) == 0 {
+						return 0
+					}
+					luaPushStr(L, string(varProof.GetValue()))
+					return 1
+				}
+			}
+			return 0
+		}
 	}
 
 	data, err := stateSet.curContract.callState.ctrState.GetData([]byte(C.GoString(key)))

@@ -111,8 +111,16 @@ func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
 	return system.GetStaking(scs, strHash(name))
 }
 
+func (bc *DummyChain) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
+	return bc.blocks[blockNo], nil
+}
+
+func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
+	return bc.bestBlock, nil
+}
+
 type luaTx interface {
-	run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte, receiptTx db.Transaction) error
+	run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte, receiptTx db.Transaction) error
 }
 
 type luaTxAccount struct {
@@ -134,7 +142,7 @@ func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
 	}
 }
 
-func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
 	id := types.ToAccountID(l.name)
@@ -162,7 +170,7 @@ func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	}
 }
 
-func (l *luaTxSend) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
 	senderID := types.ToAccountID(l.sender)
@@ -352,7 +360,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 
 }
 
-func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
 	if l.cErr != nil {
@@ -363,7 +371,7 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlock
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
 			contract.State().SqlRecoveryPoint = 1
 
-			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
+			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
@@ -421,11 +429,11 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
-			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
+			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 			rv, evs, err := Call(eContractState, l.code, l.contract, stateSet)
@@ -468,7 +476,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	defer tx.Commit()
 
 	for _, x := range txs {
-		if err := x.run(blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,
+		if err := x.run(blockState, bc, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,
 			bc.cBlock.Header.PrevBlockHash, tx); err != nil {
 			return err
 		}
@@ -484,6 +492,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	//FIXME newblock must be created after sdb.apply()
 	bc.cBlock.SetBlocksRootHash(bc.sdb.GetRoot())
 	bc.bestBlockNo = bc.bestBlockNo + 1
+	bc.bestBlock = bc.cBlock
 	bc.bestBlockId = types.ToBlockID(bc.cBlock.BlockHash())
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, bc.cBlock)
@@ -514,7 +523,7 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	if err != nil {
 		return err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -543,7 +552,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), nil, cState, []byte(queryInfo))
 
 	if err != nil {
 		return "", err

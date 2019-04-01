@@ -48,7 +48,7 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preLoadInfos[service].requestedTx = tx
 }
 
-func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
+func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
 	sender, receiver *state.V, preLoadService int) (rv string, fee *big.Int, events []*types.Event, err error) {
 
 	txBody := tx.GetBody()
@@ -94,7 +94,7 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 	if ex != nil {
 		rv, events, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
-		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
+		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
@@ -161,7 +161,7 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
+		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), 0, 0, nil, "", false,
 			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
