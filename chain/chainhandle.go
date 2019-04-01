@@ -894,12 +894,14 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 		// need to be short
 		mainblock, err = cs.cdb.getBlock(hash)
 		if err != nil {
+			mainblock = nil
 			continue
 		}
 		// get main hash with same block height
 		mainhash, err = cs.cdb.getHashByNo(
 			types.BlockNo(mainblock.GetHeader().GetBlockNo()))
 		if err != nil {
+			mainblock = nil
 			continue
 		}
 
