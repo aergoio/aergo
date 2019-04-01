@@ -104,7 +104,7 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 		} else {
 			if genesis == nil {
 				if mainnet {
-					return nil, errors.New("mainnet will be launched soon")
+					return nil, errors.New("to use mainnet, create genesis manually (visit http://docs.aergo.io)")
 				} else {
 					genesis = types.GetTestNetGenesis()
 				}

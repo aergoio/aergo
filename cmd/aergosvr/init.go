@@ -56,8 +56,7 @@ var initGenesis = &cobra.Command{
 
 		if genesis == nil {
 			if testNet == false {
-				fmt.Println("mainnet will be launched soon")
-				fmt.Println("use --testnet or --privnet option instead")
+				fmt.Println("to use mainnet, create genesis manually (visit http://docs.aergo.io)")
 				return
 			} else {
 				fmt.Println("create genesis block for Aergo Testnet")
