@@ -3487,4 +3487,80 @@ func TestGovernance(t *testing.T) {
 	}
 }
 
+func TestSnapshot(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	state.var{
+		counts = state.map(),
+		data = state.value(),
+		array = state.array(10)
+	}
+
+	function inc()
+		a = system.getItem("key1")
+		if (a == nil) then
+			system.setItem("key1", 1)
+			return
+		end
+		system.setItem("key1", a + 1)
+		counts["key1"] = a + 1
+		data:set(a+1)
+		array[1] = a + 1
+	end
+	function query(a)
+			return system.getItem("key1", a), state.getsnap(counts, "key1", a), state.getsnap(data,a), state.getsnap(array, 1, a)
+	end
+	function query2()
+			return state.getsnap(array, 1)
+	end
+	abi.register(inc, query, query2)
+	abi.payable(inc)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "snap", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query"}`, "", "[3,3,3,3]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query", "Args":[2]}`, "", "[1,{},{},{}]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query", "Args":[3]}`, "", "[2,2,2,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query2", "Args":[]}`,
+		"invalid argument at getsnap, need (state.array, index, blockheight)", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

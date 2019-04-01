@@ -524,7 +524,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
-		exec = NewTxExecutor(block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService)
+		exec = NewTxExecutor(cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -551,7 +551,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int) TxExecFn {
+func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -559,7 +559,7 @@ func NewTxExecutor(blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoa
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(bState, tx, blockNo, ts, prevBlockHash, preLoadService)
+		err := executeTx(cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
@@ -701,7 +701,7 @@ func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockStat
 	}
 }
 
-func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
+func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
 
 	txBody := tx.GetBody()
 
@@ -751,7 +751,8 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		rv, txFee, events, err = contract.Execute(bs, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, txFee, events, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash,
+			sender, receiver, preLoadService)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)

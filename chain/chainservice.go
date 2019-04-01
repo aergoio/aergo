@@ -671,7 +671,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
 			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, ctrState, msg.Queryinfo)
+			ret, err := contract.Query(msg.Contract, bs, cw.cdb, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:

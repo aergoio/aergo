@@ -53,6 +53,11 @@ var (
 	querySync      sync.Mutex
 )
 
+type ChainAccessor interface {
+	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetBestBlock() (*types.Block, error)
+}
+
 type CallState struct {
 	ctrState  *state.ContractState
 	prevState *types.State
@@ -71,6 +76,7 @@ type ContractInfo struct {
 type StateSet struct {
 	curContract       *ContractInfo
 	bs                *state.BlockState
+	cdb               ChainAccessor
 	origin            []byte
 	txHash            []byte
 	blockHeight       uint64
@@ -128,7 +134,7 @@ func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64,
 	}
 }
 
-func NewContext(blockState *state.BlockState, sender, reciever *state.V,
+func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, blockHeight uint64,
 	timestamp int64, prevBlockHash []byte, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int) *StateSet {
@@ -138,6 +144,7 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 	stateSet := &StateSet{
 		curContract:   newContractInfo(callState, senderID, reciever.ID(), rp, amount),
 		bs:            blockState,
+		cdb:           cdb,
 		origin:        senderID,
 		txHash:        txHash,
 		node:          node,
@@ -157,7 +164,7 @@ func NewContext(blockState *state.BlockState, sender, reciever *state.V,
 	return stateSet
 }
 
-func NewContextQuery(blockState *state.BlockState, receiverId []byte,
+func NewContextQuery(blockState *state.BlockState, cdb ChainAccessor, receiverId []byte,
 	contractState *state.ContractState, node string, confirmed bool,
 	rp uint64) *StateSet {
 
@@ -166,6 +173,7 @@ func NewContextQuery(blockState *state.BlockState, receiverId []byte,
 	stateSet := &StateSet{
 		curContract: newContractInfo(callState, nil, receiverId, rp, big.NewInt(0)),
 		bs:          blockState,
+		cdb:         cdb,
 		node:        node,
 		confirmed:   confirmed,
 		timestamp:   time.Now().UnixNano(),
@@ -734,7 +742,7 @@ func setQueryContext(stateSet *StateSet) {
 	}
 }
 
-func Query(contractAddress []byte, bs *state.BlockState, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
+func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
 	contract := getContract(contractState, nil)
 	if contract != nil {
@@ -749,7 +757,7 @@ func Query(contractAddress []byte, bs *state.BlockState, contractState *state.Co
 
 	var ce *Executor
 
-	stateSet := NewContextQuery(bs, contractAddress, contractState, "", true,
+	stateSet := NewContextQuery(bs, cdb, contractAddress, contractState, "", true,
 		contractState.SqlRecoveryPoint)
 
 	setQueryContext(stateSet)

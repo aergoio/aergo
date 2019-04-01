@@ -31,10 +31,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
+func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory),
 	}
 }
 
@@ -184,7 +184,7 @@ func (s *SimpleBlockFactory) Start() {
 
 				txOp := chain.NewCompTxOp(
 					s.txOp,
-					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
+					newTxExec(s.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
 				)
 
 				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
