@@ -104,7 +104,6 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, offset);
 
-        /* XXX: change is_array_meta() to assertion */
         if (gen->is_lval || is_array_meta(meta))
             return address;
 
