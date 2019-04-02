@@ -17,16 +17,10 @@ check_init(check_t *check, ast_blk_t *root, flag_t flag)
     ASSERT(root->up == NULL);
     ASSERT1(is_empty_vector(&root->stmts), vector_size(&root->stmts));
 
+    memset(check, 0x00, sizeof(check_t));
+
     check->flag = flag;
-
     check->blk = root;
-    check->id = NULL;
-
-    check->cont_id = NULL;
-    check->impl_id = NULL;
-
-    check->qual_id = NULL;
-    check->fn_id = NULL;
 }
 
 void

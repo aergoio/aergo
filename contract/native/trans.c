@@ -13,19 +13,10 @@
 static void
 trans_init(trans_t *trans, flag_t flag, ir_t *ir)
 {
+    memset(trans, 0x00, sizeof(trans_t));
+
     trans->flag = flag;
     trans->ir = ir;
-
-    trans->blk = NULL;
-
-    trans->md = NULL;
-    trans->fn = NULL;
-    trans->bb = NULL;
-
-    trans->cont_bb = NULL;
-    trans->break_bb = NULL;
-
-    trans->is_global = false;
 }
 
 void

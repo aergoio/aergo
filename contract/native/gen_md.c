@@ -22,9 +22,20 @@ env_gen(gen_t *gen, ir_md_t *md)
     char qname[NAME_MAX_LEN * 2 + 2];
     vector_t *abis = &md->abis;
     ir_sgmt_t *sgmt = &md->sgmt;
+    BinaryenExpressionRef *addrs;
 
     if (sgmt->offset >= gen->flag.stack_size)
         FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_size, sgmt->offset);
+
+    addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
+
+    for (i = 0; i < sgmt->size; i++) {
+        addrs[i] = i32_gen(gen, sgmt->addrs[i]);
+    }
+
+    BinaryenSetMemory(gen->module, 1, sgmt->offset / WASM_MEM_UNIT + 1, NULL,
+                      (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
+
 
     BinaryenAddGlobal(gen->module, "stack_top", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
@@ -40,7 +51,7 @@ env_gen(gen_t *gen, ir_md_t *md)
                                   abi_gen(gen, abi));
     }
 
-    BinaryenAddMemoryImport(gen->module, NULL, SYSLIB_MODULE, "memory", 1);
+    BinaryenAddMemoryImport(gen->module, NULL, SYSLIB_MODULE, "memory", 0);
 }
 
 void
