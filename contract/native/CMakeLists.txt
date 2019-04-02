@@ -88,8 +88,8 @@ set(ascl_rt_sources
 add_library(ascl-rt STATIC ${ascl_rt_sources})
 target_include_directories(ascl-rt PRIVATE ${TOOL_INCLUDE_DIR})
 
-add_dependencies(ascl-rt ASCLVM)
-target_link_libraries(ascl-rt ASCLVM)
+add_dependencies(ascl-rt WAVM)
+target_link_libraries(ascl-rt WAVM)
 
 set_target_properties(ascl-rt PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
