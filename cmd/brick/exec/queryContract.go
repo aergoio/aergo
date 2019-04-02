@@ -57,6 +57,8 @@ func (c *queryContract) parse(args string) (string, string, string, string, erro
 	expectedResult := ""
 	if len(splitArgs) == 4 {
 		expectedResult = splitArgs[3].Text
+	} else if len(splitArgs) > 4 {
+		return "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, // contractName

@@ -65,6 +65,8 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 	expectedResult := ""
 	if len(splitArgs) == 6 {
 		expectedResult = splitArgs[5].Text
+	} else if len(splitArgs) > 6 {
+		return "", nil, "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, //accountName

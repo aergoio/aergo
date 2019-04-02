@@ -62,6 +62,8 @@ func (c *deployContract) parse(args string) (string, uint64, string, string, str
 	constuctorArg := "[]"
 	if len(splitArgs) == 5 {
 		constuctorArg = splitArgs[4].Text
+	} else if len(splitArgs) > 5 {
+		return "", 0, "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, //accountName
