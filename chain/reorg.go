@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"os"
 )
 
 const (
@@ -140,9 +139,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	if err := reorg.swapChain(); err != nil {
 		switch ec := err.(type) {
 		case *ErrDebug:
-			if len(os.Getenv("DEBUG_CHAIN_CRASH")) == 0 {
-				return ec
-			}
+			return ec
 		}
 		logger.Fatal().Err(err).Msg("reorg failed while swapping chain, it can't recover")
 		return err
@@ -166,7 +163,7 @@ func (reorg *reorganizer) swapChain() error {
 
 	marker := NewReorgMarker(reorg)
 
-	if err := debugger.check(DEBUG_REORG_STOP_1); err != nil {
+	if err := debugger.check(DEBUG_CHAIN_STOP_1); err != nil {
 		return err
 	}
 
@@ -174,7 +171,7 @@ func (reorg *reorganizer) swapChain() error {
 		return err
 	}
 
-	if err := debugger.check(DEBUG_REORG_STOP_2); err != nil {
+	if err := debugger.check(DEBUG_CHAIN_STOP_2); err != nil {
 		return err
 	}
 
@@ -190,7 +187,7 @@ func (reorg *reorganizer) swapChain() error {
 		return err
 	}
 
-	if err := debugger.check(DEBUG_REORG_STOP_3); err != nil {
+	if err := debugger.check(DEBUG_CHAIN_STOP_3); err != nil {
 		return err
 	}
 

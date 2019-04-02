@@ -281,7 +281,7 @@ func (cs *ChainService) initDebugger() {
 	if len(envStr) > 0 {
 		cond, err := strconv.Atoi(envStr)
 		if err != nil {
-			logger.Error().Err(err).Msgf("DEBUG_CHAIN_CRASH environment varialble must be integer (1 <= var <= %d", DEBUG_REORG_STOP_INF)
+			logger.Error().Err(err).Msgf("DEBUG_CHAIN_CRASH environment varialble must be integer (1 <= var <= %d", DEBUG_CHAIN_STOP_INF)
 			return
 		}
 		logger.Debug().Int("stop", cond).Msgf("DEBUG_CHAIN_CRASH is set")

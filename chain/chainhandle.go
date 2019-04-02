@@ -339,6 +339,10 @@ func (cp *chainProcessor) execute(block *types.Block) error {
 }
 
 func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, error) {
+	if err := debugger.check(DEBUG_CHAIN_STOP_4); err != nil {
+		return 0, err
+	}
+
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 

@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+	"os"
 	"sync"
 )
 
@@ -13,19 +14,21 @@ type stopCond int
 
 // stop before swap chain
 const (
-	DEBUG_REORG_STOP_1 stopCond = 1 + iota
-	DEBUG_REORG_STOP_2
-	DEBUG_REORG_STOP_3
+	DEBUG_CHAIN_STOP_1 stopCond = 1 + iota
+	DEBUG_CHAIN_STOP_2
+	DEBUG_CHAIN_STOP_3
+	DEBUG_CHAIN_STOP_4
 )
 const (
-	DEBUG_REORG_STOP_INF = DEBUG_REORG_STOP_3
+	DEBUG_CHAIN_STOP_INF = DEBUG_CHAIN_STOP_4
 )
 
 var stopConds = [...]string{
 	"",
-	"DEBUG_REORG_STOP_1",
-	"DEBUG_REORG_STOP_2",
-	"DEBUG_REORG_STOP_3",
+	"DEBUG_CHAIN_STOP_1",
+	"DEBUG_CHAIN_STOP_2",
+	"DEBUG_CHAIN_STOP_3",
+	"DEBUG_CHAIN_STOP_4",
 }
 
 func (c stopCond) String() string { return stopConds[c] }
@@ -85,6 +88,10 @@ func (debug *Debugger) check(cond stopCond) error {
 	defer debug.Unlock()
 
 	if _, ok := debug.condMap[cond]; ok {
+		if len(os.Getenv("DEBUG_CHAIN_CRASH")) == 0 {
+			logger.Fatal().Str("cond", stopConds[cond]).Msg("shutdown by DEBUG_CHAIN_CRASH")
+		}
+
 		return &ErrDebug{cond: cond}
 	}
 

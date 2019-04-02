@@ -268,11 +268,11 @@ func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
 	debugger = newDebugger()
-	debugger.set(DEBUG_REORG_STOP_1)
+	debugger.set(DEBUG_CHAIN_STOP_1)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})
-	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: DEBUG_REORG_STOP_1})
+	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: DEBUG_CHAIN_STOP_1})
 
 	// check if chain meta is not changed
 	newBestBlock, _ := cs.GetBestBlock()
@@ -287,8 +287,8 @@ func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
 }
 
 func TestReorgCrashRecoverAfterReorgMarker(t *testing.T) {
-	testReorgCrashRecoverCond(t, DEBUG_REORG_STOP_2)
-	testReorgCrashRecoverCond(t, DEBUG_REORG_STOP_3)
+	testReorgCrashRecoverCond(t, DEBUG_CHAIN_STOP_2)
+	testReorgCrashRecoverCond(t, DEBUG_CHAIN_STOP_3)
 }
 
 func testReorgCrashRecoverCond(t *testing.T, cond stopCond) {
