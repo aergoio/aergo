@@ -21,30 +21,20 @@ var voteKey = []byte("vote")
 var sortKey = []byte("sort")
 
 const PeerIDLength = 39
+
 const VotingDelay = 60 * 60 * 24 //block interval
+//const VotingDelay = 5
 
 var defaultVoteKey = []byte(types.VoteBP)[2:]
 
 func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
-	key := []byte(ci.Name)[2:]
-	oldvote, err := getVote(scs, key, sender.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
-		return nil, types.ErrLessTimeHasPassed
-	}
-
+	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	key := []byte(context.Call.Name)[2:]
+	oldvote := context.Vote
+	staked := context.Staked
 	//update block number
 	staked.When = blockNo
-	err = setStaking(scs, sender.ID(), staked)
+	err := setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return nil, err
 	}
@@ -63,13 +53,13 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		return nil, types.ErrMustStakeBeforeVote
 	}
 	vote := &types.Vote{Amount: staked.GetAmount()}
-	args, err := json.Marshal(ci.Args)
+	args, err := json.Marshal(context.Call.Args)
 	if err != nil {
 		return nil, err
 	}
 	var candidates []byte
 	if bytes.Equal(key, defaultVoteKey) {
-		for _, v := range ci.Args {
+		for _, v := range context.Call.Args {
 			candidate, _ := base58.Decode(v.(string))
 			candidates = append(candidates, candidate...)
 		}
@@ -94,18 +84,19 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
-		EventName:       ci.Name[2:],
+		EventName:       context.Call.Name[2:],
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(txBody.Account) +
 			`", "vote":` + string(args) + `}`,
 	}, nil
 }
 
-func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo) error {
+func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
+	context *SystemContext) error {
+	account := context.Sender.ID()
 	for _, keystr := range types.AllVotes {
 		key := []byte(keystr[2:])
-		oldvote, err := getVote(scs, key, sender.ID())
+		oldvote, err := getVote(scs, key, account)
 		if err != nil {
 			return err
 		}
@@ -119,13 +110,9 @@ func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 		if err = voteResult.SubVote(oldvote); err != nil {
 			return err
 		}
-
-		staked, err := getStaking(scs, sender.ID())
-		if err != nil {
-			return err
-		}
+		staked := context.Staked
 		oldvote.Amount = staked.GetAmount()
-		if err = setVote(scs, key, sender.ID(), oldvote); err != nil {
+		if err = setVote(scs, key, account, oldvote); err != nil {
 			return err
 		}
 		if err = voteResult.AddVote(oldvote); err != nil {

@@ -26,7 +26,7 @@ import (
 var cdb *state.ChainStateDB
 var sdb *state.StateDB
 
-func initTest(t *testing.T) {
+func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
@@ -35,6 +35,18 @@ func initTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+
+	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	assert.NoError(t, err, "could not open contract state")
+
+	account, err := types.DecodeAddress(testSender)
+	assert.NoError(t, err, "could not decode test address")
+	sender, err := sdb.GetAccountStateV(account)
+	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV([]byte(types.AergoSystem))
+	assert.NoError(t, err, "could not get test address state")
+	return scs, sender, receiver
 }
 
 func deinitTest() {
@@ -129,24 +141,24 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	context, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
-	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
+	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, context)
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
-	assert.Equal(t, ci.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
+	assert.Equal(t, context.Call.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	ci, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
+	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
-	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, ci)
+	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, context)
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, defaultVoteKey, 23)

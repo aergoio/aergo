@@ -14,7 +14,7 @@ import (
 )
 
 func TestBasicExecute(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
@@ -32,10 +32,6 @@ func TestBasicExecute(t *testing.T) {
 			Payload:   []byte(`{"Name":"v1stake"}`),
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.StakingMinimum)
 
 	emptytx := &types.TxBody{}
@@ -67,7 +63,7 @@ func TestBasicExecute(t *testing.T) {
 }
 
 func TestBasicFailedExecute(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
@@ -85,10 +81,6 @@ func TestBasicFailedExecute(t *testing.T) {
 			Payload:   buildStakingPayload(false),
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
 	senderBalance := big.NewInt(0).Add(types.StakingMinimum, types.StakingMinimum)
 	sender.AddBalance(senderBalance)
 
@@ -125,29 +117,28 @@ func TestBasicFailedExecute(t *testing.T) {
 }
 
 func TestValidateSystemTxForStaking(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
-	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
 
-	account, err := types.DecodeAddress(testSender)
-	assert.NoError(t, err, "could not decode test address")
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account: account,
-			Amount:  types.StakingMinimum.Bytes(),
-			Payload: buildStakingPayload(true),
+			Account:   sender.ID(),
+			Recipient: receiver.ID(),
+			Amount:    types.StakingMinimum.Bytes(),
+			Payload:   buildStakingPayload(true),
 		},
 	}
-	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, 0)
+	sender.AddBalance(types.StakingMinimum)
+	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), sender, scs, 0)
 	assert.NoError(t, err, "Validate system tx failed")
 	tx.Body.Amount = new(big.Int).Sub(types.StakingMinimum, new(big.Int).SetUint64(1)).Bytes()
 }
 
 func TestValidateSystemTxForUnstaking(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
@@ -177,10 +168,6 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.StakingMinimum)
 
 	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, 0)
@@ -194,14 +181,12 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 }
 
 func TestValidateSystemTxForVoting(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 	const testCandidate = "16Uiu2HAmUJhjwotQqm7eGyZh1ZHrVviQJrdm2roQouD329vxZEkx"
 	candidates, err := base58.Decode(testCandidate)
 	assert.NoError(t, err, "could not decode candidates")
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
-	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
@@ -217,10 +202,6 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 	assert.EqualError(t, err, types.ErrMustStakeBeforeVote.Error(), "Execute system tx failed")
 	tx.Body.Payload = append(tx.Body.Payload, candidates...)
 
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.StakingMinimum)
 
 	stakingTx := &types.Tx{
@@ -283,7 +264,7 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 
 /*
 func TestValidateVoteNumpBP(t *testing.T) {
-	initTest(t)
+scs,sender,receiver:=initTest(t)
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 

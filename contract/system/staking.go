@@ -17,6 +17,7 @@ var stakingKey = []byte("staking")
 var stakingTotalKey = []byte("stakingtotal")
 
 const StakingDelay = 60 * 60 * 24 //block interval
+//const StakingDelay = 5
 
 func staking(txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockNo types.BlockNo) (*types.Event, error) {
@@ -48,11 +49,8 @@ func staking(txBody *types.TxBody, sender, receiver *state.V,
 }
 
 func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
+	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	staked := context.Staked
 	amount := txBody.GetAmountBigInt()
 	var backToBalance *big.Int
 	if staked.GetAmountBigInt().Cmp(amount) < 0 {
@@ -66,13 +64,13 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 	//blockNo will be updated in voting
 	staked.When = blockNo
 
-	if err = setStaking(scs, sender.ID(), staked); err != nil {
+	if err := setStaking(scs, sender.ID(), staked); err != nil {
 		return nil, err
 	}
-	if err = refreshAllVote(txBody, sender, receiver, scs, blockNo); err != nil {
+	if err := refreshAllVote(txBody, scs, context); err != nil {
 		return nil, err
 	}
-	if err = subTotal(scs, backToBalance); err != nil {
+	if err := subTotal(scs, backToBalance); err != nil {
 		return nil, err
 	}
 	sender.AddBalance(backToBalance)
