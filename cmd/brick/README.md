@@ -122,12 +122,21 @@ cancels the last tx (inject, send, deploy, call). `undo`
   INF Undo, Succesfully cmd=undo module=brick
 ```
 
+### forward
+
+skip blocks. `forward [height_to_skip]`
+
+``` lua
+7> forward 100
+  INF fast forward blocks successfully cmd=forward module=brick
+```
+
 ### reset
 
 clear all txs and reset the chain. `reset`
 
 ``` lua
-7> reset
+107> reset
   INF reset a dummy chain successfully cmd=reset module=brick
 0>
 ```
