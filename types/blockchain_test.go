@@ -3,6 +3,7 @@ package types
 import (
 	fmt "fmt"
 	math "math"
+	"math/big"
 	"testing"
 	"time"
 
@@ -153,7 +154,7 @@ func TestUpdateAvgVerifyTime(t *testing.T) {
 	}
 }
 
-func TestBlockHeaderLimit(t *testing.T) {
+func TestBlockLimit(t *testing.T) {
 	a := assert.New(t)
 
 	chainID := "0123456789012345678901234567890123456789"
@@ -178,6 +179,7 @@ func TestBlockHeaderLimit(t *testing.T) {
 			Confirms:         math.MaxUint64,
 			CoinbaseAccount:  addr,
 		},
+		Body: &BlockBody{Txs: make([]*Tx, 0)},
 	}
 	err = block.setPubKey(pub)
 	a.Nil(err, "PubKey set failed")
@@ -197,4 +199,46 @@ func TestBlockHeaderLimit(t *testing.T) {
 	a.True(hdrSize <= DefaultMaxHdrSize, "too large header (> %v): %v", DefaultMaxHdrSize, hdrSize)
 
 	fmt.Println("hdr size", hdrSize)
+
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+	account, _ := DecodeAddress(testSender)
+	amount, ok := new(big.Int).SetString("999999999999999999", 10)
+	a.True(ok, "amount conversion failed")
+
+	//blk := &Block{}
+	tx := &Tx{
+		Body: &TxBody{
+			Nonce:     math.MaxUint64,
+			Account:   account,
+			Recipient: account,
+			Amount:    amount.Bytes(),
+			Payload:   []byte(`{"Name":"v1unstake"}`),
+			GasLimit:  math.MaxUint64,
+			GasPrice:  amount.Bytes(),
+			Sign:      block.GetHeader().GetSign(),
+			Type:      TxType_GOVERNANCE,
+		},
+	}
+	tx.Hash = tx.CalculateTxHash()
+
+	txSize := proto.Size(tx)
+
+	nTx := 10000
+	var i int
+
+	hdrLimit := 400
+	bodyLimit := 1000000
+	limit := hdrLimit + bodyLimit
+	s := 0
+	for i = 1; i <= nTx; i++ {
+		if s += proto.Size(tx); s > bodyLimit {
+			break
+		}
+		block.Body.Txs = append(block.Body.Txs, tx)
+	}
+
+	fmt.Println("estimate #1: ", block.Size(), "esimate #2: ", txSize*i+hdrSize, "actual: ", proto.Size(block))
+	a.True(block.Size() <= proto.Size(block), "block size violation")
+	a.True(block.Size() <= txSize*i+hdrSize, "block size violation")
+	a.True(block.Size() <= limit, "block size violation")
 }
