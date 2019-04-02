@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -268,7 +270,25 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.StartLStateFactory()
 
+	// init Debugger
+	cs.initDebugger()
+
 	return cs
+}
+
+func (cs *ChainService) initDebugger() {
+	envStr := os.Getenv("DEBUG_CHAIN_CRASH")
+	if len(envStr) > 0 {
+		cond, err := strconv.Atoi(envStr)
+		if err != nil {
+			logger.Error().Err(err).Msgf("DEBUG_CHAIN_CRASH environment varialble must be integer (1 <= var <= %d", DEBUG_REORG_STOP_INF)
+			return
+		}
+		logger.Debug().Int("stop", cond).Msgf("DEBUG_CHAIN_CRASH is set")
+
+		debugger = newDebugger()
+		debugger.set(stopCond(cond))
+	}
 }
 
 // SDB returns cs.sdb.
@@ -334,7 +354,9 @@ func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 func (cs *ChainService) Receive(context actor.Context) {
 	if !cs.recovered {
 		err := cs.Recover()
-		logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
+		if err != nil {
+			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
+		}
 	}
 
 	switch msg := context.Message().(type) {

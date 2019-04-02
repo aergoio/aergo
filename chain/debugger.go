@@ -17,6 +17,9 @@ const (
 	DEBUG_REORG_STOP_2
 	DEBUG_REORG_STOP_3
 )
+const (
+	DEBUG_REORG_STOP_INF = DEBUG_REORG_STOP_3
+)
 
 var stopConds = [...]string{
 	"",
