@@ -88,7 +88,7 @@ func (debug *Debugger) check(cond stopCond) error {
 	defer debug.Unlock()
 
 	if _, ok := debug.condMap[cond]; ok {
-		if len(os.Getenv("DEBUG_CHAIN_CRASH")) == 0 {
+		if len(os.Getenv("DEBUG_CHAIN_CRASH")) != 0 {
 			logger.Fatal().Str("cond", stopConds[cond]).Msg("shutdown by DEBUG_CHAIN_CRASH")
 		}
 

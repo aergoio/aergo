@@ -3,12 +3,18 @@ package chain
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 	"os"
 	"runtime"
 	"runtime/debug"
+)
+
+var (
+	ErrInvalidPrevHash = errors.New("no of previous hash block is invalid")
+	ErrRecoInvalidBest = errors.New("best block is not equal to old chain")
 )
 
 func RecoverExit() {
@@ -52,8 +58,9 @@ func (cs *ChainService) Recover() error {
 	}
 
 	// check status of chain
-	if !bytes.Equal(best.GetHash(), marker.BrBestHash) {
-		logger.Info().Str("best", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("best block doesn't changed in prev reorg")
+	if !bytes.Equal(best.BlockHash(), marker.BrBestHash) {
+		logger.Error().Msg("best block is not equal to old chain")
+		return ErrRecoInvalidBest
 	}
 
 	if err = cs.recoverReorg(marker); err != nil {
@@ -145,11 +152,74 @@ func (rm *ReorgMarker) toString() string {
 	buf := ""
 
 	if len(rm.BrStartHash) != 0 {
-		buf = buf + fmt.Sprintf("branch root=%s", enc.ToString(rm.BrStartHash))
+		buf = buf + fmt.Sprintf("branch root=(%d,%s)", rm.BrStartNo, enc.ToString(rm.BrStartHash))
 	}
 	if len(rm.BrTopHash) != 0 {
-		buf = buf + fmt.Sprintf("branch top=%s", enc.ToString(rm.BrTopHash))
+		buf = buf + fmt.Sprintf("branch top=(%d,%s)", rm.BrTopNo, enc.ToString(rm.BrTopHash))
+	}
+	if len(rm.BrBestHash) != 0 {
+		buf = buf + fmt.Sprintf("org best=(%d,%s)", rm.BrTopNo, enc.ToString(rm.BrTopHash))
 	}
 
 	return buf
+}
+
+// RecoverChainMapping rollback chain (no/hash) mapping to old chain of reorg.
+// it is required for LIB loading
+func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
+	best, err := cdb.GetBestBlock()
+	if err != nil {
+		return err
+	}
+
+	if bytes.Equal(best.BlockHash(), rm.BrBestHash) {
+		return nil
+	}
+
+	logger.Info().Str("marker", rm.toString()).Str("curbest", best.ID()).Uint64("curbestno", best.GetHeader().GetBlockNo()).Msg("start to recover chain mapping")
+
+	bestBlock, err := cdb.getBlock(rm.BrBestHash)
+	if err != nil {
+		return err
+	}
+
+	bulk := cdb.store.NewBulk()
+	defer bulk.DiscardLast()
+
+	var tmpBlkNo types.BlockNo
+	var tmpBlk *types.Block
+
+	// remove unnecessary chain mapping of new chain
+	for tmpBlkNo = rm.BrTopNo; tmpBlkNo > rm.BrBestNo; tmpBlkNo-- {
+		logger.Debug().Uint64("no", tmpBlkNo).Msg("delete chain mapping of new chain")
+		bulk.Delete(types.BlockNoToBytes(tmpBlkNo))
+	}
+
+	tmpBlk = bestBlock
+	tmpBlkNo = tmpBlk.GetHeader().GetBlockNo()
+
+	for tmpBlkNo > rm.BrStartNo {
+		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("no", tmpBlk.GetHeader().GetBlockNo()).Msg("update chain mapping to old chain")
+
+		bulk.Set(types.BlockNoToBytes(tmpBlkNo), tmpBlk.BlockHash())
+
+		if tmpBlk, err = cdb.getBlock(tmpBlk.GetHeader().GetPrevBlockHash()); err != nil {
+			return err
+		}
+
+		if tmpBlkNo != tmpBlk.GetHeader().GetBlockNo()+1 {
+			return ErrInvalidPrevHash
+		}
+		tmpBlkNo = tmpBlk.GetHeader().GetBlockNo()
+	}
+
+	logger.Info().Uint64("bestno", rm.BrBestNo).Msg("update best block")
+
+	bulk.Set(latestKey, types.BlockNoToBytes(rm.BrBestNo))
+	bulk.Flush()
+
+	cdb.setLatest(bestBlock)
+
+	logger.Info().Msg("succeed to recover chain mapping")
+	return nil
 }

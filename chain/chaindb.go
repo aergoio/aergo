@@ -93,6 +93,13 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if err := cdb.loadChainData(); err != nil {
 		return err
 	}
+
+	// recover from reorg marker
+	if err := cdb.recover(); err != nil {
+		logger.Error().Err(err).Msg("failed to recover chain database from crash")
+		return err
+	}
+
 	// // if empty then create new genesis block
 	// // if cdb.getBestBlockNo() == 0 && len(cdb.blocks) == 0 {
 	// blockIdx := types.BlockNoToBytes(0)
@@ -100,6 +107,23 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	// if cdb.getBestBlockNo() == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
+	return nil
+}
+
+func (cdb *ChainDB) recover() error {
+	marker, err := cdb.getReorgMarker()
+	if err != nil {
+		return err
+	}
+
+	if marker == nil {
+		return nil
+	}
+
+	if err := marker.RecoverChainMapping(cdb); err != nil {
+		return err
+	}
+
 	return nil
 }
 
