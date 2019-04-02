@@ -229,7 +229,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 			Tx: tx,
 		})
 	case *message.MemPoolExistEx:
-		txs := mp.existEx(msg.Hashes)
+		txsnum, _ := mp.Size()
+		var bucketHash []types.TxHash
+		bucketHash = msg.Hashes
+		mp.Debug().Int("len", len(bucketHash)).Int("cached", txsnum).Msg("mempool existEx")
+
+		txs := mp.existEx(bucketHash)
 		context.Respond(&message.MemPoolExistExRsp{Txs: txs})
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
@@ -302,7 +307,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	defer mp.releaseMemPoolList(list)
 	diff, err := list.Put(tx)
 	if err != nil {
-		mp.Debug().Err(err).Msg("fail to put at a mempool list")
+		mp.Error().Err(err).Msg("fail to put at a mempool list")
 		return err
 	}
 
@@ -344,6 +349,7 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
+				Str("chainidhash", enc.ToString(mp.chainIdHash)).
 				Msg("new StateDB opened")
 		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
 			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
@@ -525,26 +531,23 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 }
 
 func (mp *MemPool) exist(hash []byte) *types.Tx {
-	v := make([][]byte, 1)
+	v := make([]types.TxHash, 1)
 	v[0] = hash
 	txs := mp.existEx(v)
 	return txs[0]
 }
-func (mp *MemPool) existEx(hash [][]byte) []*types.Tx {
+func (mp *MemPool) existEx(hashes []types.TxHash) []*types.Tx {
 	mp.RLock()
 	defer mp.RUnlock()
 
-	var bucketHash []types.TxHash
-	bucketHash = hash
-
-	if len(bucketHash) > message.MaxReqestHashes {
-		mp.Warn().Int("size", len(bucketHash)).
-			Msg("too many hashes for MempoolExists")
+	if len(hashes) > message.MaxReqestHashes {
+		mp.Error().Int("size", len(hashes)).
+			Msg("request exceeds max hash length")
 		return nil
 	}
-	mp.Debug().Int("request hash", len(bucketHash)).Int("cached", len(mp.cache)).Msg("mempool existEx")
-	ret := make([]*types.Tx, len(bucketHash))
-	for i, h := range bucketHash {
+
+	ret := make([]*types.Tx, len(hashes))
+	for i, h := range hashes {
 		if v, ok := mp.cache[types.ToTxID(h)]; ok {
 			ret[i] = v.GetTx()
 		}
@@ -699,7 +702,7 @@ func (mp *MemPool) dumpTxsToFile() {
 			strData := enc.ToString(data)
 			err = writer.Write([]string{strData})
 			if err != nil {
-				mp.Info().Err(err).Msg("writing encoded tx fail")
+				mp.Error().Err(err).Msg("writing encoded tx fail")
 				break
 			}
 			count++
