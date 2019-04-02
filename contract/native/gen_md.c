@@ -33,7 +33,7 @@ env_gen(gen_t *gen, ir_md_t *md)
         addrs[i] = i32_gen(gen, sgmt->addrs[i]);
     }
 
-    BinaryenSetMemory(gen->module, 1, sgmt->offset / WASM_MEM_UNIT + 1, NULL,
+    BinaryenSetMemory(gen->module, 128, 128 + sgmt->offset / WASM_MEM_UNIT + 1, NULL,
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
 

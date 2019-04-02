@@ -127,6 +127,7 @@ typedef enum stmt_kind_e {
     STMT_GOTO,
     STMT_DDL,
     STMT_BLK,
+    STMT_PRAGMA,
     STMT_MAX
 } stmt_kind_t;
 
@@ -194,6 +195,11 @@ typedef enum loop_kind_e {
     LOOP_ARRAY,
     LOOP_MAX
 } loop_kind_t;
+
+typedef enum pragma_kind_e {
+    PRAGMA_ASSERT   = 0,
+    PRAGMA_MAX
+} pragma_kind_t;
 
 typedef enum fn_kind_e {
     FN_MALLOC       = 0,

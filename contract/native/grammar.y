@@ -74,6 +74,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 /* keyword */
 %token  K_ACCOUNT       "account"
         K_ALTER         "alter"
+        K_ASSERT        "assert"
         K_BOOL          "bool"
         K_BREAK         "break"
         K_BYTE          "byte"
@@ -112,6 +113,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_NEW           "new"
         K_NULL          "null"
         K_PAYABLE       "payable"
+        K_PRAGMA        "pragma"
         K_PUBLIC        "public"
         K_REPLACE       "replace"
         K_RETURN        "return"
@@ -215,6 +217,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    jump_stmt
 %type <stmt>    ddl_stmt
 %type <stmt>    blk_stmt
+%type <stmt>    pragma_stmt
 %type <exp>     expression
 %type <exp>     sql_exp
 %type <sql>     sql_prefix
@@ -806,6 +809,7 @@ statement:
 |   jump_stmt
 |   ddl_stmt
 |   blk_stmt
+|   pragma_stmt
 ;
 
 empty_stmt:
@@ -1029,6 +1033,13 @@ blk_stmt:
     block
     {
         $$ = stmt_new_blk($1, &@$);
+    }
+;
+
+pragma_stmt:
+    K_PRAGMA K_ASSERT '(' eq_exp ')'
+    {
+        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, &@1);
     }
 ;
 
@@ -1376,7 +1387,8 @@ literal:
 ;
 
 non_reserved_token:
-    K_CONTRACT          { $$ = xstrdup("contract"); }
+    K_ASSERT            { $$ = xstrdup("assert"); }
+|   K_CONTRACT          { $$ = xstrdup("contract"); }
 |   K_IMPORT            { $$ = xstrdup("import"); }
 |   K_INDEX             { $$ = xstrdup("index"); }
 |   K_INTERFACE         { $$ = xstrdup("interface"); }

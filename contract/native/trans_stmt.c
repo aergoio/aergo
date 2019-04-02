@@ -500,6 +500,11 @@ stmt_trans_blk(trans_t *trans, ast_stmt_t *stmt)
         blk_trans(trans, stmt->u_blk.blk);
 }
 
+static void
+stmt_trans_pragma(trans_t *trans, ast_stmt_t *stmt)
+{
+}
+
 void
 stmt_trans(trans_t *trans, ast_stmt_t *stmt)
 {
@@ -571,6 +576,10 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
 
     case STMT_BLK:
         stmt_trans_blk(trans, stmt);
+        break;
+
+    case STMT_PRAGMA:
+        stmt_trans_pragma(trans, stmt);
         break;
 
     default:

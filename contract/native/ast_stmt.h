@@ -25,6 +25,7 @@
 #define is_goto_stmt(stmt)          ((stmt)->kind == STMT_GOTO)
 #define is_ddl_stmt(stmt)           ((stmt)->kind == STMT_DDL)
 #define is_blk_stmt(stmt)           ((stmt)->kind == STMT_BLK)
+#define is_pragma_stmt(stmt)        ((stmt)->kind == STMT_PRAGMA)
 
 #define stmt_add                    vector_add_last
 
@@ -115,6 +116,11 @@ typedef struct stmt_blk_s {
     ast_blk_t *blk;
 } stmt_blk_t;
 
+typedef struct stmt_pragma_s {
+    pragma_kind_t kind;
+    ast_exp_t *val_exp;
+} stmt_pragma_t;
+
 struct ast_stmt_s {
     stmt_kind_t kind;
 
@@ -131,6 +137,7 @@ struct ast_stmt_s {
         stmt_goto_t u_goto;
         stmt_ddl_t u_ddl;
         stmt_blk_t u_blk;
+        stmt_pragma_t u_pragma;
     };
 
     ir_bb_t *label_bb;
@@ -152,6 +159,7 @@ ast_stmt_t *stmt_new_goto(char *label, src_pos_t *pos);
 ast_stmt_t *stmt_new_jump(stmt_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_ddl(char *ddl, src_pos_t *pos);
 ast_stmt_t *stmt_new_blk(ast_blk_t *blk, src_pos_t *pos);
+ast_stmt_t *stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, src_pos_t *pos);
 
 ast_stmt_t *stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp);
 

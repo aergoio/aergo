@@ -573,6 +573,32 @@ stmt_check_blk(check_t *check, ast_stmt_t *stmt)
     return true;
 }
 
+static bool
+stmt_check_pragma(check_t *check, ast_stmt_t *stmt)
+{
+    ast_exp_t *val_exp;
+    meta_t *val_meta;
+
+    ASSERT1(is_pragma_stmt(stmt), stmt->kind);
+
+    val_exp = stmt->u_pragma.val_exp;
+    val_meta = &val_exp->meta;
+
+    switch (stmt->u_pragma.kind) {
+    case PRAGMA_ASSERT:
+        CHECK(exp_check(check, val_exp));
+
+        if (!is_bool_meta(val_meta))
+            RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
+        break;
+
+    default:
+        ASSERT1(!"invalid pragma", stmt->u_pragma.kind);
+    }
+
+    return true;
+}
+
 void
 stmt_check(check_t *check, ast_stmt_t *stmt)
 {
@@ -632,6 +658,10 @@ stmt_check(check_t *check, ast_stmt_t *stmt)
 
     case STMT_BLK:
         stmt_check_blk(check, stmt);
+        break;
+
+    case STMT_PRAGMA:
+        stmt_check_pragma(check, stmt);
         break;
 
     default:

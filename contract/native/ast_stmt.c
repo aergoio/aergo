@@ -168,6 +168,17 @@ stmt_new_blk(ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
+stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, src_pos_t *pos)
+{
+    ast_stmt_t *stmt = ast_stmt_new(STMT_PRAGMA, pos);
+
+    stmt->u_pragma.kind = kind;
+    stmt->u_pragma.val_exp = val_exp;
+
+    return stmt;
+}
+
+ast_stmt_t *
 stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
 {
     ast_exp_t *var_exp;

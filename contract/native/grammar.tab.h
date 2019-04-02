@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.5.  */
+/* A Bison parser, made by GNU Bison 3.3.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +30,9 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
+
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_HOME_WRPARK_BLOCKO_SRC_GITHUB_COM_AERGOIO_AERGO_CONTRACT_NATIVE_GRAMMAR_TAB_H_INCLUDED
 # define YY_YY_HOME_WRPARK_BLOCKO_SRC_GITHUB_COM_AERGOIO_AERGO_CONTRACT_NATIVE_GRAMMAR_TAB_H_INCLUDED
@@ -74,62 +78,64 @@ extern int yydebug;
     UNARY_DEC = 283,
     K_ACCOUNT = 284,
     K_ALTER = 285,
-    K_BOOL = 286,
-    K_BREAK = 287,
-    K_BYTE = 288,
-    K_CASE = 289,
-    K_CONST = 290,
-    K_CONTINUE = 291,
-    K_CONTRACT = 292,
-    K_CREATE = 293,
-    K_CURSOR = 294,
-    K_DEFAULT = 295,
-    K_DELETE = 296,
-    K_DOUBLE = 297,
-    K_DROP = 298,
-    K_ELSE = 299,
-    K_ENUM = 300,
-    K_FALSE = 301,
-    K_FLOAT = 302,
-    K_FOR = 303,
-    K_FUNC = 304,
-    K_GOTO = 305,
-    K_IF = 306,
-    K_IMPLEMENTS = 307,
-    K_IMPORT = 308,
-    K_IN = 309,
-    K_INDEX = 310,
-    K_INSERT = 311,
-    K_INT = 312,
-    K_INT8 = 313,
-    K_INT16 = 314,
-    K_INT32 = 315,
-    K_INT64 = 316,
-    K_INT128 = 317,
-    K_INTERFACE = 318,
-    K_LIBRARY = 319,
-    K_MAP = 320,
-    K_NEW = 321,
-    K_NULL = 322,
-    K_PAYABLE = 323,
-    K_PUBLIC = 324,
-    K_REPLACE = 325,
-    K_RETURN = 326,
-    K_SELECT = 327,
-    K_STRING = 328,
-    K_STRUCT = 329,
-    K_SWITCH = 330,
-    K_TABLE = 331,
-    K_TRUE = 332,
-    K_TYPE = 333,
-    K_UINT = 334,
-    K_UINT8 = 335,
-    K_UINT16 = 336,
-    K_UINT32 = 337,
-    K_UINT64 = 338,
-    K_UINT128 = 339,
-    K_UPDATE = 340,
-    K_VIEW = 341
+    K_ASSERT = 286,
+    K_BOOL = 287,
+    K_BREAK = 288,
+    K_BYTE = 289,
+    K_CASE = 290,
+    K_CONST = 291,
+    K_CONTINUE = 292,
+    K_CONTRACT = 293,
+    K_CREATE = 294,
+    K_CURSOR = 295,
+    K_DEFAULT = 296,
+    K_DELETE = 297,
+    K_DOUBLE = 298,
+    K_DROP = 299,
+    K_ELSE = 300,
+    K_ENUM = 301,
+    K_FALSE = 302,
+    K_FLOAT = 303,
+    K_FOR = 304,
+    K_FUNC = 305,
+    K_GOTO = 306,
+    K_IF = 307,
+    K_IMPLEMENTS = 308,
+    K_IMPORT = 309,
+    K_IN = 310,
+    K_INDEX = 311,
+    K_INSERT = 312,
+    K_INT = 313,
+    K_INT8 = 314,
+    K_INT16 = 315,
+    K_INT32 = 316,
+    K_INT64 = 317,
+    K_INT128 = 318,
+    K_INTERFACE = 319,
+    K_LIBRARY = 320,
+    K_MAP = 321,
+    K_NEW = 322,
+    K_NULL = 323,
+    K_PAYABLE = 324,
+    K_PRAGMA = 325,
+    K_PUBLIC = 326,
+    K_REPLACE = 327,
+    K_RETURN = 328,
+    K_SELECT = 329,
+    K_STRING = 330,
+    K_STRUCT = 331,
+    K_SWITCH = 332,
+    K_TABLE = 333,
+    K_TRUE = 334,
+    K_TYPE = 335,
+    K_UINT = 336,
+    K_UINT8 = 337,
+    K_UINT16 = 338,
+    K_UINT32 = 339,
+    K_UINT64 = 340,
+    K_UINT128 = 341,
+    K_UPDATE = 342,
+    K_VIEW = 343
   };
 #endif
 
@@ -138,7 +144,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 152 "grammar.y" /* yacc.c:1910  */
+#line 154 "grammar.y" /* yacc.c:1921  */
 
     bool flag;
     char *str;
@@ -155,7 +161,7 @@ union YYSTYPE
     ast_stmt_t *stmt;
     meta_t *meta;
 
-#line 159 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
+#line 165 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1921  */
 };
 
 typedef union YYSTYPE YYSTYPE;

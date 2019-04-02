@@ -220,6 +220,7 @@ id                          {L}({L}|{D})*
 "'"                         yy_return('\'');
 
 "account"                   yy_return(K_ACCOUNT);
+"assert"                    yy_return(K_ASSERT);
 "bool"                      yy_return(K_BOOL);
 "break"                     yy_return(K_BREAK);
 "byte"                      yy_return(K_BYTE);
@@ -253,6 +254,7 @@ id                          {L}({L}|{D})*
 "new"                       yy_return(K_NEW);
 "null"                      yy_return(K_NULL);
 "payable"                   yy_return(K_PAYABLE);
+"pragma"                    yy_return(K_PRAGMA);
 "public"                    yy_return(K_PUBLIC);
 "return"                    yy_return(K_RETURN);
 "string"                    yy_return(K_STRING);

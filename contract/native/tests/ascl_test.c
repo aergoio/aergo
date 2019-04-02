@@ -61,6 +61,8 @@ static void
 env_reset(env_t *env)
 {
     env->title[0] = '\0';
+    env->module[0] = '\0';
+    env->func[0] = '\0';
     env->ec = NO_ERROR;
     env->ec_cnt = 0;
 
@@ -178,18 +180,12 @@ run_test(env_t *env, char *path)
     gen(ir, env->flag, path);
 
     if (!has_error() && env->module[0] != '\0') {
-        /*
-        int address;
-        char *argv[1] = { NULL };
+        char *argv[2] = { "0", NULL };
         char wasm[PATH_MAX_LEN + 6];
 
-        address = vm_run(env->module, env->module, argv);
-        if (address > 1) {
-            snprintf(wasm, sizeof(wasm), "%s.wasm", env->module);
+        snprintf(wasm, sizeof(wasm), "%s.wasm", env->module);
 
-            vm_run(wasm, env->func, argv);
-        }
-        */
+        vm_run(wasm, env->func, argv);
     }
 
     print_results(env);

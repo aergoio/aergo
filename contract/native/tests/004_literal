@@ -293,7 +293,7 @@ contract test {
     map(int, string) m1 = new { { 1, "value1" } };
     map(int, string) m2 = new { { 1, "value1" }, { 2, "value2" } };
 
-    map(bool, map(int, string)) m3 = 
+    map(bool, map(int, string)) m3 =
         new { { true, { { 3, "3" } } }, { false, { { 4, "4" } } } };
 
     map(bool, map(int, string)) m4 = new { { true, m1 }, { false, m2 } };
