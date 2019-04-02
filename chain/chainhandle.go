@@ -674,6 +674,8 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
+	// TODO execute를 fn으로 빼서 argument로 받게 refactor
+	//      if를 한군데로 몰면 보기 좋다
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err
@@ -712,6 +714,7 @@ func (cs *ChainService) executeBlockReco(bstate *state.BlockState, block *types.
 	}
 
 	// Check consensus info validity
+	// TODO remove bestblock
 	if err = cs.IsBlockValid(block, bestBlock); err != nil {
 		return err
 	}

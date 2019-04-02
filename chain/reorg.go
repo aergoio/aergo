@@ -103,6 +103,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 
 	var err error
 
+	// TODO gatherChain 전에 marker build한후 공통코드 타게 하자
 	if isReco {
 		err = reorg.gatherChainInfoReco(marker)
 		if err != nil {
@@ -482,6 +483,7 @@ func (reorg *reorganizer) rollforwardChainReco() error {
 		newBlock := reorg.newBlocks[i]
 		newBlockNo := newBlock.GetHeader().GetBlockNo()
 
+		//TODO cs를 closure로 받으면 refactoring 가능
 		if err := cs.executeBlockReco(nil, newBlock); err != nil {
 			logger.Error().Str("hash", newBlock.ID()).Uint64("no", newBlockNo).
 				Msg("failed to execute block in reorg for reco")

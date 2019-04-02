@@ -73,6 +73,8 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 		return err
 	}
 
+	// TODO recovery for crashed chain mapping
+
 	if forceResetHeight > 0 {
 		if err := core.cdb.ResetBest(forceResetHeight); err != nil {
 			logger.Fatal().Err(err).Uint64("height", forceResetHeight).Msg("failed to reset chaindb")
