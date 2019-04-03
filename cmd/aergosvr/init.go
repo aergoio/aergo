@@ -18,7 +18,7 @@ var (
 
 func init() {
 	initGenesis.Flags().BoolVar(&testNet, "testnet", false, "create genesis block for Aergo TestNet")
-	initGenesis.Flags().StringVar(&jsonGenesis, "json", "", "genesis json file for private net")
+	initGenesis.Flags().StringVar(&jsonGenesis, "genesis", "", "genesis json file for private net")
 
 	rootCmd.AddCommand(initGenesis)
 }
