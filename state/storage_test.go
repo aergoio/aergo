@@ -84,3 +84,39 @@ func TestStorageDelete(t *testing.T) {
 	assert.Equal(t, []byte{0}, storage.get(v2).Hash())
 	assert.Nil(t, storage.get(v2).Value())
 }
+
+func TestStorageHasKey(t *testing.T) {
+	storage := newBufferedStorage(nil, nil)
+	v1 := types.GetHashID([]byte("v1"))
+
+	assert.False(t, storage.has(v1, false)) // check buffer only
+	assert.False(t, storage.has(v1, true))  // check buffer and trie
+
+	// put entry
+	storage.put(newValueEntry(v1, []byte{1}))
+	assert.True(t, storage.has(v1, false)) // buffer has key
+	assert.True(t, storage.has(v1, true))  // buffer has key
+
+	// update storage and reset buffer
+	err := storage.update()
+	assert.NoError(t, err, "failed to update storage")
+	err = storage.buffer.reset()
+	assert.NoError(t, err, "failed to reset buffer")
+	// after update and reset
+	assert.False(t, storage.has(v1, false)) // buffer doesn't have key
+	assert.True(t, storage.has(v1, true))   // buffer doesn't have, but trie has key
+
+	// delete entry
+	storage.put(newValueEntryDelete(v1))
+	assert.True(t, storage.has(v1, false)) // buffer has key
+	assert.True(t, storage.has(v1, true))  // buffer has key
+
+	// update storage and reset buffer
+	err = storage.update()
+	assert.NoError(t, err, "failed to update storage")
+	err = storage.buffer.reset()
+	assert.NoError(t, err, "failed to reset buffer")
+	// after update and reset
+	assert.False(t, storage.has(v1, false)) // buffer doesn't have key
+	assert.False(t, storage.has(v1, true))  // buffer and trie don't have key
+}

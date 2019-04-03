@@ -162,6 +162,50 @@ func TestContractStateDataDelete(t *testing.T) {
 	assert.NoError(t, err, "stage contract state")
 }
 
+func TestContractStateHasKey(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	testAddress := []byte("test_address")
+	testBytes := []byte("test_bytes")
+	testKey := []byte("test_key")
+
+	// open contract state and set test data
+	contractState, err := stateDB.OpenContractStateAccount(types.ToAccountID(testAddress))
+	assert.NoError(t, err, "could not open contract state")
+	assert.False(t, contractState.HasKey(testKey))
+
+	err = contractState.SetData(testKey, testBytes)
+	assert.NoError(t, err, "set data to contract state")
+	assert.True(t, contractState.HasKey(testKey))
+
+	// get test data
+	_, err = contractState.GetData(testKey)
+	assert.NoError(t, err, "get data from contract state")
+	assert.True(t, contractState.HasKey(testKey))
+
+	// delete test data
+	err = contractState.DeleteData(testKey)
+	assert.NoError(t, err, "delete data from contract state")
+	assert.True(t, contractState.HasKey(testKey))
+
+	// stage contract state
+	err = stateDB.StageContractState(contractState)
+	assert.NoError(t, err, "stage contract state")
+
+	// update and commit
+	err = stateDB.Update()
+	assert.NoError(t, err, "failed to update stateDB")
+	err = stateDB.Commit()
+	assert.NoError(t, err, "failed to commit stateDB")
+
+	// re-open contract state
+	contractState, err = stateDB.OpenContractState(types.ToAccountID(testAddress), contractState.State)
+	assert.NoError(t, err, "could not open contract state")
+
+	// check key existence
+	assert.False(t, contractState.HasKey(testKey))
+}
+
 func TestContractStateEmpty(t *testing.T) {
 	initTest(t)
 	defer deinitTest()

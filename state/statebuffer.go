@@ -109,6 +109,10 @@ func (buffer *stateBuffer) get(key types.HashID) entry {
 	}
 	return nil
 }
+func (buffer *stateBuffer) has(key types.HashID) bool {
+	_, ok := buffer.indexes[key]
+	return ok
+}
 
 func (buffer *stateBuffer) put(et entry) {
 	snapshot := buffer.snapshot()
