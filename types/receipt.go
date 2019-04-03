@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
@@ -219,8 +218,9 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	if len(r.Ret) == 0 {
 		b.WriteString(`","ret": {}`)
 	} else if r.Status == "ERROR" {
-		b.WriteString(`","ret": "`)
-		b.WriteString(fmt.Sprintf("%s\"", strings.Replace(r.Ret, "\"", "'", -1)))
+		js, _ := json.Marshal(r.Ret)
+		b.WriteString(`","ret": `)
+		b.WriteString(string(js))
 	} else {
 		b.WriteString(`","ret": `)
 		b.WriteString(r.Ret)
