@@ -16,17 +16,10 @@ import (
 func TestBasicExecute(t *testing.T) {
 	scs, sender, receiver := initTest(t)
 	defer deinitTest()
-	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
-
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
-	assert.NoError(t, err, "could not open contract state")
-
-	account, err := types.DecodeAddress(testSender)
-	assert.NoError(t, err, "could not decode test address")
 
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account:   account,
+			Account:   sender.ID(),
 			Recipient: []byte(types.AergoSystem),
 			Amount:    types.StakingMinimum.Bytes(),
 			Payload:   []byte(`{"Name":"v1stake"}`),
@@ -35,7 +28,7 @@ func TestBasicExecute(t *testing.T) {
 	sender.AddBalance(types.StakingMinimum)
 
 	emptytx := &types.TxBody{}
-	_, err = ExecuteSystemTx(scs, emptytx, sender, receiver, 0)
+	_, err := ExecuteSystemTx(scs, emptytx, sender, receiver, 0)
 	assert.EqualError(t, types.ErrTxInvalidPayload, err.Error(), "Execute system tx failed")
 
 	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
@@ -60,6 +53,93 @@ func TestBasicExecute(t *testing.T) {
 		"sender.Balance() should be turn back")
 	staking, err = getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+}
+
+func TestBalanceExecute(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    types.StakingMinimum.Bytes(),
+			Payload:   []byte(`{"Name":"v1stake"}`),
+		},
+	}
+	balance3 := new(big.Int).Mul(types.StakingMinimum, big.NewInt(3))
+	balance2 := new(big.Int).Mul(types.StakingMinimum, big.NewInt(2))
+	sender.AddBalance(balance3)
+
+	blockNo := uint64(0)
+	//staking 1
+	//balance 3-1=2
+	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "Execute system tx failed in staking")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 0 after staking")
+	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	assert.Equal(t, events[0].EventName, types.Stake[2:], "check event")
+	staking, err := getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+
+	tx.Body.Payload = []byte(`{"Name":"v1voteBP","Args":["16Uiu2HAmBDcLEjBYeEnGU2qDD1KdpEdwDBtN7gqXzNZbHXo8Q841"]}`)
+	tx.Body.Amount = big.NewInt(0).Bytes()
+
+	blockNo += VotingDelay
+	//voting when 1
+	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "Execute system tx failed in voting")
+	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	assert.Equal(t, events[0].EventName, types.VoteBP[2:], "check event")
+
+	voteResult, err := getVoteResult(scs, defaultVoteKey, 1)
+	assert.NoError(t, err, "get vote result")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
+
+	tx.Body.Payload = []byte(`{"Name":"v1stake"}`)
+	tx.Body.Amount = balance2.Bytes()
+
+	blockNo += StakingDelay
+	//staking 1+2 = 3
+	//balance 2-2 = 0
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "Execute system tx failed in staking")
+	assert.Equal(t, big.NewInt(0), sender.Balance(), "sender.Balance() should be 0 after staking")
+	staking, err = getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, balance3, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+
+	//voting still 1
+	voteResult, err = getVoteResult(scs, defaultVoteKey, 1)
+	assert.NoError(t, err, "get vote result")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
+
+	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
+	tx.Body.Amount = types.StakingMinimum.Bytes()
+	blockNo += StakingDelay
+	//unstaking 3-1 = 2
+	//balance 0+1 = 1
+	//voting still 1
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "Execute system tx failed in unstaking")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(sender.Balance().Bytes()), "sender.Balance() should be turn back")
+	staking, err = getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, balance2, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+	voteResult, err = getVoteResult(scs, defaultVoteKey, 1)
+	assert.NoError(t, err, "get vote reulst")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
+
+	//unstaking 2-3 = 0
+	//balance 1+2 = 3
+	//voting 0
+	tx.Body.Amount = balance3.Bytes()
+	blockNo += StakingDelay
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.Equal(t, balance3, new(big.Int).SetBytes(sender.Balance().Bytes()), "sender.Balance() should be turn back")
+	staking, err = getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+	voteResult, err = getVoteResult(scs, defaultVoteKey, 1)
+	assert.NoError(t, err, "get vote reulst")
+	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
 }
 
 func TestBasicFailedExecute(t *testing.T) {

@@ -94,13 +94,16 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 	context *SystemContext) error {
 	account := context.Sender.ID()
+	staked := context.Staked
+	stakedAmount := new(big.Int).SetBytes(staked.Amount)
 	for _, keystr := range types.AllVotes {
 		key := []byte(keystr[2:])
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {
 			return err
 		}
-		if oldvote.Amount == nil {
+		if oldvote.Amount == nil ||
+			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
 		voteResult, err := loadVoteResult(scs, key)
@@ -110,7 +113,6 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 		if err = voteResult.SubVote(oldvote); err != nil {
 			return err
 		}
-		staked := context.Staked
 		oldvote.Amount = staked.GetAmount()
 		if err = setVote(scs, key, account, oldvote); err != nil {
 			return err
