@@ -8,6 +8,7 @@
 #include <luajit.h>
 
 #define TYPE_NAME "_type_"
+#define TYPE_LEN  "_len_"
 
 static int state_map(lua_State *L)
 {
@@ -20,14 +21,18 @@ static int state_map(lua_State *L)
 
 static int state_array(lua_State *L)
 {
+    int len = 0;
     int is_fixed = lua_gettop(L) != 0;
     if (is_fixed) {
-        int len = luaL_checkint(L, 1);      /* size */
+        len = luaL_checkint(L, 1);      /* size */
         luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
     }
     lua_newtable(L);
     lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "array");     /* m _type_ array */
+    lua_rawset(L, -3);
+    lua_pushstring(L, TYPE_LEN);    /* m _len_ */
+    lua_pushinteger(L, len);        /* m _len_ len*/
     lua_rawset(L, -3);
     return 1;
 }
@@ -64,10 +69,10 @@ static int state_var(lua_State *L)
                             var_name, lua_typename(L, t));
             lua_error(L);
         }
-        lua_getglobal(L, "abi");                /* T key value "type_name" m f */
+        lua_getglobal(L, "abi");                /* T key value "type_name" m */
         lua_getfield(L, -1, "register_var");    /* T key value "type_name" m f */
         lua_pushstring(L, var_name);            /* T key value "type_name" m f var_name */
-        lua_pushvalue(L, -4);                   /* T key value "type_name" m f var_name "type_name" */
+        lua_pushvalue(L, -5);                   /* T key value "type_name" m f var_name VT */
         lua_call(L, 2, 0);                      /* T key value "type_name" m */
         lua_pop(L, 2);                          /* T key value */
         lua_setglobal(L, var_name);             /* T key */
