@@ -31,7 +31,7 @@ const (
 	sortAddr = "addr"
 	sortID = "id"
 	sortHeight = "height"
-	sortDefault = "default"
+	sortDefault = "no"
 )
 func init() {
 	rootCmd.AddCommand(getpeersCmd)
