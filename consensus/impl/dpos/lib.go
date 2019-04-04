@@ -239,12 +239,6 @@ func (ls *libStatus) gc() {
 				return cInfo(e).BlockNo > ls.Lib.BlockNo
 			},
 		)
-
-		for bp, lib := range ls.Prpsd {
-			if lib.Plib.BlockNo < ls.Lib.BlockNo {
-				delete(ls.Prpsd, bp)
-			}
-		}
 	}
 	// GC based on the element no
 	limitConfirms := ls.gcNumLimit()

@@ -143,6 +143,7 @@ func (s *Status) updateLIB(lib *blockInfo) {
 		Str("block hash", s.libState.Lib.BlockHash).
 		Uint64("block no", s.libState.Lib.BlockNo).
 		Int("confirms len", s.libState.confirms.Len()).
+		Int("pm len", len(s.libState.Prpsd)).
 		Msg("last irreversible block (BFT) updated")
 }
 
