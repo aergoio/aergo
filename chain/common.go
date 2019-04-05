@@ -75,6 +75,10 @@ func initChainParams(genesis *types.Genesis) {
 		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
 	}
 	system.InitDefaultBpCount(len(genesis.BPs))
+	if genesis.TotalBalance() != nil {
+		types.MaxAER = genesis.TotalBalance()
+		logger.Info().Str("TotalBalance", types.MaxAER.String()).Msg("set total from genesis")
+	}
 }
 
 // MaxBlockBodySize returns the max block body size.
