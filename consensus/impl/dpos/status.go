@@ -196,6 +196,10 @@ func (s *Status) String() string {
 	return info.AsJSON()
 }
 
+func (s *Status) lpbNo() types.BlockNo {
+	return s.libState.LpbNo
+}
+
 // init recovers the last DPoS status including pre-LIB map and confirms
 // list between LIB and the best block.
 func (s *Status) init(cdb consensus.ChainDB, resetHeight types.BlockNo) {
