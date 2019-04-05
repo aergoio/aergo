@@ -6,8 +6,10 @@
 #include "common.h"
 
 #include "ast_id.h"
+#include "ir_md.h"
 #include "gen_exp.h"
 #include "gen_util.h"
+#include "syslib.h"
 
 #include "gen_stmt.h"
 
@@ -77,6 +79,16 @@ stmt_gen_ddl(gen_t *gen, ast_stmt_t *stmt)
     return NULL;
 }
 
+static BinaryenExpressionRef
+stmt_gen_pragma(gen_t *gen, ast_stmt_t *stmt)
+{
+    ast_exp_t *val_exp = stmt->u_pragma.val_exp;
+    ir_md_t *md = gen->md;
+
+    return syslib_gen(gen, FN_ASSERT, 2, exp_gen(gen, val_exp),
+                      i32_gen(gen, sgmt_add_str(&md->sgmt, stmt->u_pragma.arg_str)));
+}
+
 BinaryenExpressionRef
 stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 {
@@ -92,6 +104,9 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 
     case STMT_DDL:
         return stmt_gen_ddl(gen, stmt);
+
+    case STMT_PRAGMA:
+        return stmt_gen_pragma(gen, stmt);
 
     default:
         ASSERT1(!"invalid statement", stmt->kind);

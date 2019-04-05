@@ -119,6 +119,7 @@ typedef struct stmt_blk_s {
 typedef struct stmt_pragma_s {
     pragma_kind_t kind;
     ast_exp_t *val_exp;
+    char *arg_str;
 } stmt_pragma_t;
 
 struct ast_stmt_s {
@@ -159,7 +160,7 @@ ast_stmt_t *stmt_new_goto(char *label, src_pos_t *pos);
 ast_stmt_t *stmt_new_jump(stmt_kind_t kind, ast_exp_t *cond_exp, src_pos_t *pos);
 ast_stmt_t *stmt_new_ddl(char *ddl, src_pos_t *pos);
 ast_stmt_t *stmt_new_blk(ast_blk_t *blk, src_pos_t *pos);
-ast_stmt_t *stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, src_pos_t *pos);
+ast_stmt_t *stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, char *arg_str, src_pos_t *pos);
 
 ast_stmt_t *stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp);
 

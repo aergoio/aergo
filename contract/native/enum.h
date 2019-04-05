@@ -204,6 +204,7 @@ typedef enum pragma_kind_e {
 typedef enum fn_kind_e {
     FN_MALLOC       = 0,
     FN_MEMCPY,
+    FN_ASSERT,
     FN_STRCAT,
     FN_STRCMP,
     FN_ATOI32,

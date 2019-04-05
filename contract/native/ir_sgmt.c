@@ -36,7 +36,7 @@ sgmt_add_raw(ir_sgmt_t *sgmt, void *ptr, uint32_t len)
     int addr;
 
     ASSERT(ptr != NULL);
-    ASSERT(len > 0);
+    ASSERT1(len > 0, len);
 
     addr = sgmt_lookup(sgmt, ptr, len);
     if (addr >= 0)

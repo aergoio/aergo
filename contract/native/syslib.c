@@ -35,6 +35,7 @@ sys_fn_t sys_fntab_[FN_MAX] = {
     { "malloc", SYSLIB_MODULE".malloc", 1, { TYPE_UINT32 }, TYPE_UINT32 },
     { "memcpy", SYSLIB_MODULE".memcpy", 3,
         { TYPE_UINT32, TYPE_UINT32, TYPE_UINT32 }, TYPE_VOID },
+    { "_assert", SYSLIB_MODULE"._assert", 2, { TYPE_BOOL, TYPE_STRING }, TYPE_VOID },
     { "strcat", SYSLIB_MODULE".strcat", 2, { TYPE_STRING, TYPE_STRING }, TYPE_STRING },
     { "strcmp", SYSLIB_MODULE".strcmp", 2, { TYPE_STRING, TYPE_STRING }, TYPE_UINT32 },
     { "atoi32", SYSLIB_MODULE".atoi32", 1, { TYPE_STRING }, TYPE_UINT32 },
@@ -160,23 +161,45 @@ syslib_call_1(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument)
 
     md_add_imp(gen->md, syslib_abi(sys_fn));
 
-    return BinaryenCall(gen->module, sys_fn->qname, &argument, 1,
-                        type_gen(sys_fn->result));
+    return BinaryenCall(gen->module, sys_fn->qname, &argument, 1, type_gen(sys_fn->result));
 }
 
 BinaryenExpressionRef
-syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef left,
-              BinaryenExpressionRef right)
+syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument1,
+              BinaryenExpressionRef argument2)
 {
     sys_fn_t *sys_fn = SYS_FN(kind);
-    BinaryenExpressionRef arguments[2] = { left, right };
+    BinaryenExpressionRef arguments[2] = { argument1, argument2 };
 
     ASSERT2(sys_fn->param_cnt == 2, kind, sys_fn->param_cnt);
 
     md_add_imp(gen->md, syslib_abi(sys_fn));
 
-    return BinaryenCall(gen->module, sys_fn->qname, arguments, 2,
-                        type_gen(sys_fn->result));
+    return BinaryenCall(gen->module, sys_fn->qname, arguments, 2, type_gen(sys_fn->result));
+}
+
+BinaryenExpressionRef
+syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...)
+{
+    int i;
+    va_list vargs;
+    sys_fn_t *sys_fn = SYS_FN(kind);
+    BinaryenExpressionRef arguments[4];
+
+    ASSERT1(argc <= 4, argc);
+    ASSERT3(sys_fn->param_cnt == argc, kind, sys_fn->param_cnt, argc);
+
+    va_start(vargs, argc);
+
+    for (i = 0; i < argc; i++) {
+        arguments[i] = va_arg(vargs, BinaryenExpressionRef);
+    }
+
+    va_end(vargs);
+
+    md_add_imp(gen->md, syslib_abi(sys_fn));
+
+    return BinaryenCall(gen->module, sys_fn->qname, arguments, argc, type_gen(sys_fn->result));
 }
 
 /* end of syslib.c */

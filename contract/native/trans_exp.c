@@ -90,6 +90,7 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, idx_exp);
 
     if (is_array_meta(&id->meta)) {
+        int i;
         uint32_t offset;
 
         /* In array expression, the offset is calculated as follows:
@@ -108,6 +109,13 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
         if (!is_lit_exp(idx_exp))
             /* We must dynamically determine the address and offset */
             return;
+
+        for (i = 0; i < id->meta.arr_dim; i++) {
+            if (id->meta.dim_sizes[i] == -1)
+                /* When the user uses the expression like "int v[][] = f()", the size of
+                 * the array is determined dynamically. */
+                return;
+        }
 
         ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 

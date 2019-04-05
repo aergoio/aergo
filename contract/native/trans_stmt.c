@@ -503,6 +503,16 @@ stmt_trans_blk(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_pragma(trans_t *trans, ast_stmt_t *stmt)
 {
+    switch (stmt->u_pragma.kind) {
+    case PRAGMA_ASSERT:
+        exp_trans(trans, stmt->u_pragma.val_exp);
+        break;
+
+    default:
+        ASSERT1(!"invalid pragma", stmt->u_pragma.kind);
+    }
+
+    bb_add_stmt(trans->bb, stmt);
 }
 
 void

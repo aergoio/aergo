@@ -287,15 +287,7 @@ contract:
     }
 |   K_CONTRACT identifier impl_opt '{' contract_body '}'
     {
-        int i;
-        bool has_ctor = false;
-
-        vector_foreach(&$5->ids, i) {
-            if (is_ctor_id(vector_get_id(&$5->ids, i)))
-                has_ctor = true;
-        }
-
-        if (!has_ctor)
+        if (is_empty_vector(&$5->ids) || !is_ctor_id(vector_get_id(&$5->ids, 0)))
             /* add default constructor */
             id_add(&$5->ids, id_new_ctor($2, NULL, NULL, &@2));
 
@@ -1039,7 +1031,10 @@ blk_stmt:
 pragma_stmt:
     K_PRAGMA K_ASSERT '(' eq_exp ')'
     {
-        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, &@1);
+        int arg_len = @5.first_col - @3.last_col;
+        char *arg_str = xstrndup(parse->src + @$.first_offset + @3.last_col - 1, arg_len);
+
+        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, arg_str, &@1);
     }
 ;
 

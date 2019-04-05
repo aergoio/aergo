@@ -48,6 +48,15 @@ contract test {
     */
 
     int i, j = 1, 0;
+
+    /*
+    public func check() {
+        test t = new test();
+
+        pragma assert(b1 == 0);
+        pragma assert(b2 == 1);
+    }
+    */
 }
 
 @test(mismatched_primitive_type)

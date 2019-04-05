@@ -11,6 +11,8 @@
 
 #define SGMT_INIT_CAPACITY          10
 
+#define sgmt_add_str(sgmt, str)     sgmt_add_raw((sgmt), (str), strlen(str))
+
 #ifndef _IR_SGMT_T
 #define _IR_SGMT_T
 typedef struct ir_sgmt_s ir_sgmt_t;

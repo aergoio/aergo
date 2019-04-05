@@ -262,7 +262,10 @@ id_add(vector_t *ids, ast_id_t *new_id)
         return;
     }
 
-    vector_add_last(ids, new_id);
+    if (is_ctor_id(new_id))
+        vector_add_first(ids, new_id);
+    else
+        vector_add_last(ids, new_id);
 }
 
 void

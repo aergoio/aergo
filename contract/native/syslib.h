@@ -57,4 +57,6 @@ BinaryenExpressionRef syslib_call_2(gen_t *gen, fn_kind_t kind,
                                     BinaryenExpressionRef left,
                                     BinaryenExpressionRef right);
 
+BinaryenExpressionRef syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...);
+
 #endif /* ! _SYSLIB_H */
