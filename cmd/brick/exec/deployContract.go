@@ -3,8 +3,8 @@ package exec
 import (
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
-	"strconv"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -45,25 +45,27 @@ func (c *deployContract) Validate(args string) error {
 	return err
 }
 
-func (c *deployContract) parse(args string) (string, uint64, string, string, string, error) {
+func (c *deployContract) parse(args string) (string, *big.Int, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 4 {
-		return "", 0, "", "", "", fmt.Errorf("need 4 arguments. usage: %s", c.Usage())
+		return "", nil, "", "", "", fmt.Errorf("need 4 arguments. usage: %s", c.Usage())
 	}
-	amount, err := strconv.ParseUint(splitArgs[1].Text, 10, 64)
-	if err != nil {
-		return "", 0, "", "", "", fmt.Errorf("fail to parse number %s: %s", splitArgs[1].Text, err.Error())
+
+	amount, success := new(big.Int).SetString(splitArgs[1].Text, 10)
+	if success == false {
+		return "", nil, "", "", "", fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}
+
 	defPath := splitArgs[3].Text
 	if _, err := os.Stat(defPath); os.IsNotExist(err) {
-		return "", 0, "", "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3].Text, err.Error())
+		return "", nil, "", "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3].Text, err.Error())
 	}
 
 	constuctorArg := "[]"
 	if len(splitArgs) == 5 {
 		constuctorArg = splitArgs[4].Text
 	} else if len(splitArgs) > 5 {
-		return "", 0, "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
+		return "", nil, "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, //accountName
@@ -85,7 +87,7 @@ func (c *deployContract) Run(args string) (string, error) {
 	updateContractInfoInterface(contractName, defPath)
 
 	err = context.Get().ConnectBlock(
-		contract.NewRawLuaTxDef(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
+		contract.NewRawLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
 	)
 
 	Index(context.ContractSymbol, contractName)

@@ -257,7 +257,7 @@ func getCompiledABI(code string) ([]byte, error) {
 	return b[4+codeLen:], nil
 }
 
-func NewRawLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
+func NewRawLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {
 
 	byteAbi, err := getCompiledABI(code)
 	if err != nil {
@@ -276,7 +276,7 @@ func NewRawLuaTxDef(sender, contract string, amount uint64, code string) *luaTxD
 			sender:   strHash(sender),
 			contract: strHash(contract),
 			code:     payload,
-			amount:   new(big.Int).SetUint64(amount),
+			amount:   amount,
 			id:       newTxId(),
 		},
 		cErr: nil,
