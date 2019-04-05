@@ -994,7 +994,7 @@ func LuaIsContract(L *LState, service *C.int, contractId *C.char) C.int {
 func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) C.int {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
-		luaPushStr(L, "[Contract.LuaStake] contract state not found")
+		luaPushStr(L, "[Contract.LuaGovernance] contract state not found")
 		return -1
 	}
 	var amountBig *big.Int
@@ -1004,11 +1004,11 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) C.int {
 		var err error
 		amountBig, err = transformAmount(C.GoString(arg))
 		if err != nil {
-			luaPushStr(L, "[Contract.LuaStake] invalid amount: "+err.Error())
+			luaPushStr(L, "[Contract.LuaGovernance] invalid amount: "+err.Error())
 			return -1
 		}
 		if stateSet.isQuery == true && amountBig.Cmp(zeroBig) > 0 {
-			luaPushStr(L, "[Contract.LuaStake] stake not permitted in query")
+			luaPushStr(L, "[Contract.LuaGovernance] governance not permitted in query")
 			return -1
 		}
 		if gType == 'S' {
@@ -1023,7 +1023,7 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) C.int {
 	aid := types.ToAccountID([]byte(types.AergoSystem))
 	scsState, err := getCtrState(stateSet, aid)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaStake] getAccount error: "+err.Error())
+		luaPushStr(L, "[Contract.LuaGovernance] getAccount error: "+err.Error())
 		return -1
 	}
 	curContract := stateSet.curContract
@@ -1038,7 +1038,7 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) C.int {
 	}
 	err = types.ValidateSystemTx(&txBody)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaStake] stake error: "+err.Error())
+		luaPushStr(L, "[Contract.LuaGovernance] error: "+err.Error())
 		return -1
 	}
 	if stateSet.lastRecoveryEntry != nil {
@@ -1051,7 +1051,7 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) C.int {
 	}
 	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, stateSet.blockHeight)
 	if err != nil {
-		luaPushStr(L, "[Contract.LuaStake] stake error: "+err.Error())
+		luaPushStr(L, "[Contract.LuaGovernance] error: "+err.Error())
 		return -1
 	}
 	stateSet.eventCount += int32(len(evs))
