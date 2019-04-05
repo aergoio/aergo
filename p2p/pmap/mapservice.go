@@ -50,7 +50,7 @@ var (
 var (
 	// 89.16 is ceiling of declination of Polaris
 	MainnetMapServer = []string{
-		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa",
 	}
 
 	// 89.16 is ceiling of declination of Polaris
@@ -65,8 +65,8 @@ var (
 
 func init() {
 	// mainnet is not opened yet and have some unconfirmed values now, this values will be changed after the spec of mainnet is determined.
-	//FIXME
-	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, Consensus: "dpos", Magic: "mainnet.aergo.io"}
+	//FIXME change this code if types.GetMainNetGenesis() is made
+	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, Consensus: "dpos", Magic: "main.aergo.io"}
 
 	tnGen := types.GetTestNetGenesis()
 	if tnGen == nil {
