@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -255,12 +256,44 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 
 // ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
-	dpos.RLock()
-	defer dpos.RUnlock()
-
 	ci := &types.ConsensusInfo{Type: GetName()}
 	if dpos.done {
-		ci.Bps = dpos.bpc.BPs()
+		var lpbNo types.BlockNo
+
+		// Use a closure to release the mutex even upon panic.
+		func() {
+			dpos.RLock()
+			defer dpos.RUnlock()
+
+			ci.Bps = dpos.bpc.BPs()
+			lpbNo = dpos.lpbNo()
+		}()
+
+		if lpbNo > 0 {
+			if block, err := dpos.GetBlockByNo(lpbNo); err == nil {
+				type lpbInfo struct {
+					BPID      string
+					Height    types.BlockNo
+					Hash      string
+					Timestamp string
+				}
+				s := struct {
+					NodeID              string
+					RecentBlockProduced lpbInfo
+				}{
+					NodeID: dpos.bf.ID,
+					RecentBlockProduced: lpbInfo{
+						BPID:      block.BPID2Str(),
+						Height:    lpbNo,
+						Hash:      block.ID(),
+						Timestamp: block.Localtime().String(),
+					},
+				}
+				if m, err := json.Marshal(s); err == nil {
+					ci.Info = string(m)
+				}
+			}
+		}
 	}
 
 	return ci

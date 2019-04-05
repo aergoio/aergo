@@ -224,6 +224,12 @@ func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx,
 	return &block
 }
 
+// Localtime retrurns a time.Time object, which is coverted from block
+// timestamp.
+func (block *Block) Localtime() time.Time {
+	return time.Unix(0, block.GetHeader().GetTimestamp())
+}
+
 // calculateBlockHash computes sha256 hash of block header.
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
