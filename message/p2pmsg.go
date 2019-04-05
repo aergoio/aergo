@@ -179,3 +179,6 @@ type GetHashByNoRsp struct {
 	BlockHash BlockHash
 	Err       error
 }
+
+type GetSelf struct {
+}

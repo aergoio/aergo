@@ -1024,6 +1024,20 @@ func (rpc *AergoRPCService) ListEvents(ctx context.Context, in *types.FilterInfo
 	return &types.EventList{Events: rsp.Events}, rsp.Err
 }
 
+func (rpc *AergoRPCService) GetServerInfo(ctx context.Context, in *types.KeyParams) (*types.ServerInfo, error) {
+	result, err := rpc.hub.RequestFuture(message.RPCSvc,
+		&message.GetServerInfo{Categories: in.Key}, defaultActorTimeout, "rpc.(*AergoRPCService).GetServerInfo").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*types.ServerInfo)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp, nil
+}
+
+
 // Blockchain handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) GetConsensusInfo(ctx context.Context, in *types.Empty) (*types.ConsensusInfo, error) {
 	if rpc.consensusAccessor == nil {

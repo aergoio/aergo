@@ -7,9 +7,12 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"net"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -138,6 +141,8 @@ func (ns *RPC) Receive(context actor.Context) {
 	case []*types.Event:
 		server := ns.actualServer
 		server.BroadcastToEventStream(msg)
+	case *message.GetServerInfo:
+		context.Respond(ns.CollectServerInfo(msg.Categories))
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 		// Ignore actor lfiecycle messages
 	default:
@@ -211,6 +216,25 @@ func (ns *RPC) serve() {
 	}
 
 	return
+}
+
+func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo{
+	// 3 items are needed
+	statusInfo := make(map[string]string)
+	rsp, err := ns.CallRequestDefaultTimeout(message.P2PSvc, &message.GetSelf{})
+	if err != nil {
+		ns.Logger.Error().Err(err).Msg("p2p actor error")
+		statusInfo["id"] = p2p.NodeSID()
+	} else {
+		meta := rsp.(p2pcommon.PeerMeta)
+		statusInfo["id"] = meta.ID.Pretty()
+		statusInfo["addr"] = meta.IPAddress
+		statusInfo["prot"] = strconv.Itoa(int(meta.Port))
+	}
+	configInfo := make(map[string]*types.ConfigItem)
+	types.AddCategory(configInfo, "base").AddBool("personal",ns.conf.BaseConfig.Personal)
+	types.AddCategory(configInfo, "account").AddInt("unlocktimeout",int(ns.conf.Account.UnlockTimeout))
+	return &types.ServerInfo{Status: statusInfo, Config:configInfo}
 }
 
 const defaultTTL = time.Second * 4

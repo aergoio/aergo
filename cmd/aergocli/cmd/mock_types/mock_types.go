@@ -323,6 +323,24 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetReceipt(arg0, arg1 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReceipt", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetReceipt), varargs...)
 }
 
+// GetServerInfo mocks base method
+func (m *MockAergoRPCServiceClient) GetServerInfo(arg0 context.Context, arg1 *types.KeyParams, arg2 ...grpc.CallOption) (*types.ServerInfo, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetServerInfo", varargs...)
+	ret0, _ := ret[0].(*types.ServerInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetServerInfo indicates an expected call of GetServerInfo
+func (mr *MockAergoRPCServiceClientMockRecorder) GetServerInfo(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServerInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetServerInfo), varargs...)
+}
+
 // GetStaking mocks base method
 func (m *MockAergoRPCServiceClient) GetStaking(arg0 context.Context, arg1 *types.AccountAddress, arg2 ...grpc.CallOption) (*types.Staking, error) {
 	varargs := []interface{}{arg0, arg1}

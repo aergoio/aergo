@@ -257,6 +257,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.AddBlockRsp:
 		// do nothing for now. just for prevent deadletter
 
+	case *message.GetSelf:
+		context.Respond(p2ps.nt.SelfMeta())
 	case *message.GetPeers:
 		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden, msg.ShowSelf)
 		context.Respond(&message.GetPeersRsp{Peers: peers})
