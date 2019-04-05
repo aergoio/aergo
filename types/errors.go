@@ -65,4 +65,7 @@ var (
 
 	//ErrMustStakeBeforeUnstake
 	ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
+
+	//ErrTooSmallAmount
+	ErrExceedAmount = errors.New("request amount exceeds")
 )

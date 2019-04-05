@@ -128,12 +128,27 @@ func TestBalanceExecute(t *testing.T) {
 	assert.NoError(t, err, "get vote reulst")
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
 
-	//unstaking 2-3 = 0
-	//balance 1+2 = 3
-	//voting 0
+	//unstaking 2-3 = -1(fail)
+	//balance 1
+	//voting 1
 	tx.Body.Amount = balance3.Bytes()
 	blockNo += StakingDelay
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.EqualError(t, types.ErrExceedAmount, err.Error(), "should return exceed error")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(sender.Balance().Bytes()), "sender.Balance() should be turn back")
+	staking, err = getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, balance2, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+	voteResult, err = getVoteResult(scs, defaultVoteKey, 1)
+	assert.NoError(t, err, "get vote reulst")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
+
+	tx.Body.Amount = balance2.Bytes()
+	blockNo += StakingDelay
+	//unstaking 2-2 = 0
+	//balance 1+2 = 3
+	//voting 0
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "Execute system tx failed in unstaking")
 	assert.Equal(t, balance3, new(big.Int).SetBytes(sender.Balance().Bytes()), "sender.Balance() should be turn back")
 	staking, err = getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(staking.Amount), "check amount of staking")
@@ -170,7 +185,7 @@ func TestBasicFailedExecute(t *testing.T) {
 
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
 	assert.Error(t, err, "Execute system tx failed in unstaking")
-	assert.Equal(t, sender.Balance(), senderBalance, "sender.Balance() should not chagned after failed unstaking ")
+	assert.Equal(t, sender.Balance(), senderBalance, "sender.Balance() should not chagned after failed unstaking")
 
 	tx.Body.Payload = buildStakingPayload(true)
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
@@ -180,18 +195,34 @@ func TestBasicFailedExecute(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
+	//staking 0+1 = 1
+	//balance 2-1 = 1
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	tx.Body.Amount = senderBalance.Bytes()
+	//staking 1-2 = -1 (fail)
+	//balance still 1
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
-	assert.NoError(t, err, "Execute system tx failed in unstaking")
-	assert.Equal(t, sender.Balance(), senderBalance,
+	assert.Error(t, err, "should failed with exceed error")
+	assert.Equal(t, types.StakingMinimum, sender.Balance(),
 		"sender.Balance() should be turn back")
 	staking, err = getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+
+	//staking 1-1 = 0
+	//balance 1+1 = 2
+	tx.Body.Amount = types.StakingMinimum.Bytes()
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
+	assert.NoError(t, err, "Execute system tx failed in staking")
+	staking, err = getStaking(scs, tx.GetBody().GetAccount())
+	assert.Equal(t, senderBalance, sender.Balance(),
+		"sender.Balance() should be turn back")
 	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
+	//staking 0-1 = -1 (fail)
+	//balance still 2
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "Execute system tx failed in unstaking")
 }

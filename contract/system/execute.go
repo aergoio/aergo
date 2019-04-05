@@ -132,8 +132,11 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 	if err != nil {
 		return nil, err
 	}
-	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
+	if staked.GetAmountBigInt().Cmp(big.NewInt(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeUnstake
+	}
+	if staked.GetAmountBigInt().Cmp(txBody.GetAmountBigInt()) < 0 {
+		return nil, types.ErrExceedAmount
 	}
 	if staked.GetWhen()+StakingDelay > blockNo {
 		return nil, types.ErrLessTimeHasPassed
