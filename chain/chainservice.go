@@ -133,7 +133,7 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 		}
 	}
 
-	initChainEnv(gen)
+	initChainParams(gen)
 
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 

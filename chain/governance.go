@@ -68,7 +68,6 @@ func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
 	// Set genesis.BPs to the votes-ordered BPs. This will be used later for
 	// bootstrapping.
 	genesis.BPs = system.BuildOrderedCandidates(voteResult)
-
 	if err = states.StageContractState(scs); err != nil {
 		return err
 	}

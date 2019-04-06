@@ -23,6 +23,13 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
+const (
+	max = 100
+
+	// New BPs are elected every maxBpLimit blocks.
+	electionPeriod = types.BlockNo(max)
+)
+
 var (
 	logger  = log.NewLogger("bp")
 	errNoBP = errors.New("no block producers found in the block chain")
@@ -39,6 +46,11 @@ func (e errBpSize) Error() string {
 	return fmt.Sprintf("insufficient or redundant block producers  - %v (required - %v)", e.given, e.required)
 }
 
+// Max returns the maximum number of active block producers.
+func Max() uint16 {
+	return max
+}
+
 // ClusterMember is an interface which corresponds to BP member udpate.
 type ClusterMember interface {
 	Size() uint16
@@ -47,7 +59,7 @@ type ClusterMember interface {
 
 // Cluster represents a cluster of block producers.
 type Cluster struct {
-	sync.Mutex
+	sync.RWMutex
 	size   uint16
 	member map[Index]*blockProducer
 	index  map[peer.ID]Index
@@ -94,9 +106,8 @@ func (c *Cluster) init() error {
 	return nil
 }
 
-func bootstrapHeight(bpCount types.BlockNo) types.BlockNo {
-	const bootRound = 10
-	return bpCount * bootRound
+func bootstrapHeight() types.BlockNo {
+	return getElectionPeriod() * 3
 }
 
 func (c *Cluster) genesisBpList() []string {
@@ -117,13 +128,13 @@ func (c *Cluster) genesisBpList() []string {
 
 // BPs returns BP information about each BP in JSON.
 func (c *Cluster) BPs() []string {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 
-	if c == nil || c.Size() == 0 || len(c.member) != int(c.Size()) {
+	if c == nil || c.getSize() == 0 || len(c.member) != int(c.getSize()) {
 		return nil
 	}
-	bps := make([]string, c.Size())
+	bps := make([]string, c.getSize())
 	for i, bp := range c.member {
 		p := &struct {
 			Index  string
@@ -166,10 +177,7 @@ func (c *Cluster) Update(ids []string) error {
 		bpIndex[bpID] = index
 	}
 
-	if len(bpMember) != int(c.size) {
-		return errBpSize{required: c.size, given: uint16(len(ids))}
-	}
-
+	c.size = uint16(len(bpMember))
 	c.member = bpMember
 	c.index = bpIndex
 
@@ -180,6 +188,12 @@ func (c *Cluster) Update(ids []string) error {
 
 // Size returns c.size.
 func (c *Cluster) Size() uint16 {
+	c.RLock()
+	defer c.RUnlock()
+	return c.getSize()
+}
+
+func (c *Cluster) getSize() uint16 {
 	return c.size
 }
 
@@ -242,23 +256,23 @@ type Snapshot struct {
 }
 
 // NewSnapshot returns a Snapshot corresponding to blockNo and period.
-func NewSnapshot(blockNo types.BlockNo, bpCount uint16, bps []string) (*Snapshot, error) {
-	if !isSnapPeriod(blockNo, types.BlockNo(bpCount)) {
-		return nil, fmt.Errorf("block no %v is inconsistent with period %v", blockNo, bpCount)
+func NewSnapshot(blockNo types.BlockNo, bps []string) (*Snapshot, error) {
+	if !isSnapPeriod(blockNo) {
+		return nil, fmt.Errorf("%v is not inconsistent with period %v", blockNo, getElectionPeriod())
 	}
 	return &Snapshot{RefBlockNo: blockNo, List: bps}, nil
 }
 
-func snapBlockNo(blockNo types.BlockNo, bpCount types.BlockNo) types.BlockNo {
-	if blockNo < bootstrapHeight(bpCount) {
+func snapBlockNo(blockNo types.BlockNo) types.BlockNo {
+	if blockNo < bootstrapHeight() {
 		return 0
 	}
-	return (blockNo/bpCount - 1) * bpCount
+	return (blockNo/getElectionPeriod() - 1) * getElectionPeriod()
 }
 
-func isSnapPeriod(blockNo, period types.BlockNo) bool {
+func isSnapPeriod(blockNo types.BlockNo) bool {
 	// The current snapshot period is the total BP count.
-	return blockNo%period == 0
+	return blockNo%getElectionPeriod() == 0
 }
 
 // Key returns the properly prefixed key corresponding to s.
@@ -296,7 +310,6 @@ type journal struct {
 // Snapshots is a map from block no to *Snapshot.
 type Snapshots struct {
 	snaps         map[types.BlockNo]*Snapshot
-	bpCount       uint16
 	maxRefBlockNo types.BlockNo
 	cm            ClusterMember
 	cdb           consensus.ChainDB
@@ -306,11 +319,10 @@ type Snapshots struct {
 // NewSnapshots returns a new Snapshots.
 func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateDB) *Snapshots {
 	snap := &Snapshots{
-		snaps:   make(map[types.BlockNo]*Snapshot),
-		bpCount: c.Size(),
-		cm:      c,
-		cdb:     cdb,
-		sdb:     sdb,
+		snaps: make(map[types.BlockNo]*Snapshot),
+		cm:    c,
+		cdb:   cdb,
+		sdb:   sdb,
 	}
 
 	// To avoid a unit test failure.
@@ -331,7 +343,7 @@ func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 // NeedToRefresh reports whether blockNo corresponds to a BP regime change
 // point.
 func (sn *Snapshots) NeedToRefresh(blockNo types.BlockNo) bool {
-	return blockNo%types.BlockNo(sn.bpCount) == 0
+	return blockNo%getElectionPeriod() == 0
 }
 
 // AddSnapshot add a new BP list corresponding to refBlockNO to sn.
@@ -342,7 +354,7 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 	}
 
 	// Add BP list every 'sn.bpCount'rd block.
-	if sn.sdb == nil || !isSnapPeriod(refBlockNo, types.BlockNo(sn.bpCount)) || refBlockNo == 0 {
+	if sn.sdb == nil || !isSnapPeriod(refBlockNo) || refBlockNo == 0 {
 		return nil, nil
 	}
 
@@ -369,7 +381,7 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 }
 
 func (sn *Snapshots) gatherRankers() ([]string, error) {
-	return system.GetRankers(sn.sdb, int(sn.bpCount))
+	return system.GetRankers(sn.sdb)
 }
 
 // UpdateCluster updates the current BP list by the ones corresponding to
@@ -401,7 +413,7 @@ func (sn *Snapshots) add(refBlockNo types.BlockNo, bps []string) error {
 		err error
 	)
 
-	if s, err = NewSnapshot(refBlockNo, sn.bpCount, bps); err != nil {
+	if s, err = NewSnapshot(refBlockNo, bps); err != nil {
 		return err
 	}
 
@@ -442,8 +454,12 @@ func (sn *Snapshots) gc(blockNo types.BlockNo) {
 	}
 }
 
+func getElectionPeriod() types.BlockNo {
+	return electionPeriod
+}
+
 func (sn Snapshots) period() types.BlockNo {
-	return types.BlockNo(sn.bpCount)
+	return getElectionPeriod()
 }
 
 func (sn Snapshots) gcPeriod() types.BlockNo {
@@ -452,7 +468,7 @@ func (sn Snapshots) gcPeriod() types.BlockNo {
 
 // getCurrentCluster returns the BP snapshot corresponding to blockNo.
 func (sn *Snapshots) getCurrentCluster(blockNo types.BlockNo) ([]string, error) {
-	refBlockNo := snapBlockNo(blockNo, sn.period())
+	refBlockNo := snapBlockNo(blockNo)
 	if refBlockNo == 0 {
 		return genesisBpList, nil
 	}
@@ -470,12 +486,12 @@ func (sn *Snapshots) loadClusterSnapshot(blockNo types.BlockNo) ([]string, error
 		err   error
 	)
 
-	block, err = sn.cdb.GetBlockByNo(snapBlockNo(blockNo, types.BlockNo(sn.bpCount)))
+	block, err = sn.cdb.GetBlockByNo(snapBlockNo(blockNo))
 	if err != nil {
 		return nil, err
 	}
 
 	stateDB := sn.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
 
-	return system.GetRankers(stateDB, int(sn.bpCount))
+	return system.GetRankers(stateDB)
 }
