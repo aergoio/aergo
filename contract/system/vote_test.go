@@ -112,36 +112,28 @@ func TestVoteData(t *testing.T) {
 }
 
 func TestBasicStakingVotingUnstaking(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
-	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
-	assert.NoError(t, err, "could not open contract state")
-
-	account, err := types.DecodeAddress(testSender)
-	assert.NoError(t, err, "could not decode test address")
-
+	sender.AddBalance(types.MaxAER)
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account: account,
+			Account: sender.ID(),
 			Amount:  types.StakingMinimum.Bytes(),
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
-	sender.AddBalance(types.MaxAER)
 
 	tx.Body.Payload = buildStakingPayload(true)
-	_, err = staking(tx.Body, sender, receiver, scs, 0)
+
+	context, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, 0)
+	assert.NoError(t, err, "staking validation")
+	_, err = staking(tx.Body, sender, receiver, scs, 0, context)
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	context, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, context)
 	assert.NoError(t, err, "voting failed")

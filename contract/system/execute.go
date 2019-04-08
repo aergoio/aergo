@@ -34,7 +34,7 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	var event *types.Event
 	switch context.Call.Name {
 	case types.Stake:
-		event, err = staking(txBody, sender, receiver, scs, blockNo)
+		event, err = staking(txBody, sender, receiver, scs, blockNo, context)
 	case types.VoteBP:
 		event, err = voting(txBody, sender, receiver, scs, blockNo, context)
 	case types.Unstake:
@@ -86,14 +86,14 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	}
 	switch ci.Name {
 	case types.Stake:
-		amount := txBody.GetAmountBigInt()
-
-		if amount.Cmp(GetMinimumStaking(scs)) < 0 {
-			return nil, types.ErrTooSmallAmount
-		}
-		if sender != nil && sender.Balance().Cmp(amount) < 0 {
+		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
+		staked, err := validateForStaking(account, txBody, scs, blockNo)
+		if err != nil {
+			return nil, err
+		}
+		context.Staked = staked
 	case types.VoteBP:
 		staked, err := getStaking(scs, account)
 		if err != nil {
@@ -112,10 +112,6 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		context.Staked = staked
 		context.Vote = oldvote
 	case types.Unstake:
-		amount := txBody.GetAmountBigInt()
-		if amount.Cmp(GetMinimumStaking(scs)) < 0 {
-			return nil, types.ErrTooSmallAmount
-		}
 		staked, err := validateForUnstaking(account, txBody, scs, blockNo)
 		if err != nil {
 			return nil, err
@@ -125,6 +121,21 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		return nil, types.ErrTxInvalidPayload
 	}
 	return context, nil
+}
+
+func validateForStaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
+	staked, err := getStaking(scs, account)
+	if err != nil {
+		return nil, err
+	}
+	if staked.GetAmount() != nil && staked.GetWhen()+StakingDelay > blockNo {
+		return nil, types.ErrLessTimeHasPassed
+	}
+	toBe := new(big.Int).Add(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
+	if GetMinimumStaking(scs).Cmp(toBe) > 0 {
+		return nil, types.ErrTooSmallAmount
+	}
+	return staked, nil
 }
 
 func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
@@ -140,6 +151,10 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 	}
 	if staked.GetWhen()+StakingDelay > blockNo {
 		return nil, types.ErrLessTimeHasPassed
+	}
+	toBe := new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
+	if toBe.Cmp(big.NewInt(0)) != 0 && GetMinimumStaking(scs).Cmp(toBe) > 0 {
+		return nil, types.ErrTooSmallAmount
 	}
 	return staked, nil
 }

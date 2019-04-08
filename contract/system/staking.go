@@ -20,20 +20,16 @@ const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
 
 func staking(txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo types.BlockNo) (*types.Event, error) {
-
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
+	scs *state.ContractState, blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	staked := context.Staked
 	beforeStaked := staked.GetAmountBigInt()
 	amount := txBody.GetAmountBigInt()
 	staked.Amount = new(big.Int).Add(beforeStaked, amount).Bytes()
 	staked.When = blockNo
-	if err = setStaking(scs, sender.ID(), staked); err != nil {
+	if err := setStaking(scs, sender.ID(), staked); err != nil {
 		return nil, err
 	}
-	if err = addTotal(scs, amount); err != nil {
+	if err := addTotal(scs, amount); err != nil {
 		return nil, err
 	}
 	sender.SubBalance(amount)
