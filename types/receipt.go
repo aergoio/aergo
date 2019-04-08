@@ -560,6 +560,7 @@ func (ev *Event) MarshalJSON() ([]byte, error) {
 }
 
 func (ev *Event) SetMemoryInfo(receipt *Receipt, blkHash []byte, blkNo BlockNo, txIdx int32) {
+	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
 	ev.TxHash = receipt.TxHash
 	ev.TxIndex = txIdx
 	ev.BlockHash = blkHash
@@ -570,8 +571,6 @@ func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 	if filter.ContractAddress != nil && !bytes.Equal(ev.ContractAddress, filter.ContractAddress) {
 		return false
 	}
-	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
-
 	if len(filter.EventName) != 0 && ev.EventName != filter.EventName {
 		return false
 	}

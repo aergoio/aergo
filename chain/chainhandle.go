@@ -20,6 +20,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
@@ -130,18 +131,19 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 }
 
 func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
-	argFilter []types.ArgFilter) {
+	argFilter []types.ArgFilter) uint64 {
 	blkHash, err := cs.cdb.getHashByNo(blkNo)
 	if err != nil {
-		return
+		return 0
 	}
 	receipts, err := cs.cdb.getReceipts(blkHash, blkNo)
 	if err != nil {
-		return
+		return 0
 	}
 	if receipts.BloomFilter(filter) == false {
-		return
+		return 0
 	}
+	var totalSize uint64
 	for idx, r := range receipts.Get() {
 		if r.BloomFilter(filter) == false {
 			continue
@@ -150,10 +152,14 @@ func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, f
 			if e.Filter(filter, argFilter) {
 				e.SetMemoryInfo(r, blkHash, blkNo, int32(idx))
 				*events = append(*events, e)
+				totalSize += uint64(proto.Size(e))
 			}
 		}
 	}
+	return totalSize
 }
+
+const MaxEventSize = 4 * 1024 * 1024
 
 func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, error) {
 	from := filter.Blockfrom
@@ -180,13 +186,20 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 		return nil, err
 	}
 	events := []*types.Event{}
+	var totalSize uint64
 	if filter.Desc {
 		for i := to; i >= from && i != 0; i-- {
-			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			totalSize += cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			if totalSize > MaxEventSize {
+				return nil, errors.New(fmt.Sprintf("too large size of event (%v)", totalSize))
+			}
 		}
 	} else {
 		for i := from; i <= to; i++ {
-			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			totalSize += cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			if totalSize > MaxEventSize {
+				return nil, errors.New(fmt.Sprintf("too large size of event (%v)", totalSize))
+			}
 		}
 	}
 	return events, nil
