@@ -1,16 +1,17 @@
-package raft
+package raftv2
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/aergoio/aergo/p2p"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
@@ -49,10 +50,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory),
 	}
 }
 
@@ -84,7 +85,7 @@ type BlockFactory struct {
 
 // GetName returns the name of the consensus.
 func GetName() string {
-	return consensus.ConsensusName[consensus.ConsensusRAFT]
+	return consensus.ConsensusName[consensus.ConsensusRAFTV2]
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -106,8 +107,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		blockInterval:    time.Second * time.Duration(cfg.Consensus.BlockInterval),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
-		ID:               p2pkey.NodeSID(),
-		privKey:          p2pkey.NodePrivKey(),
+		ID:               p2p.NodeSID(),
+		privKey:          p2p.NodePrivKey(),
 		sdb:              sdb,
 	}
 
@@ -147,7 +148,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.raftServer = newRaftServer(bf.bpc.ID, cfg.Consensus.Raft.RaftListenUrl, bf.bpc.BPUrls, false, waldir, snapdir,
 		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
-		nil, RaftTick, proposeC, confChangeC, true)
+		nil, RaftTick, proposeC, confChangeC, false)
 
 	bf.bpc.rs = bf.raftServer
 
@@ -178,7 +179,7 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 }
 
 func (bf *BlockFactory) GetType() consensus.ConsensusType {
-	return consensus.ConsensusRAFT
+	return consensus.ConsensusRAFTV2
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -223,7 +224,7 @@ func (bf *BlockFactory) Update(block *types.Block) {
 }
 
 // Save has nothging to do.
-func (bf *BlockFactory) Save(tx consensus.TxWriter) error {
+func (bf *BlockFactory) Save(tx db.Transaction) error {
 	return nil
 }
 
@@ -245,18 +246,7 @@ func (bf *BlockFactory) Start() {
 
 	runtime.LockOSThread()
 
-	// 1. sync blockchain
-	if err := bf.waitSyncWithMajority(); err != nil {
-		logger.Error().Err(err).Msg("wait sync with majority failed")
-		return
-	}
-
-	// 2. raft can be candidate
-	//    if this node hasn't been synchronized, it must not be candidate.
-	// 	  otherwise producing block will be stop until synchronization complete
-	bf.raftServer.SetPromotable(true)
-
-	// 3. wait to commit all uncommited log in WAL, and start
+	// wait to commit all uncommited log in WAL, and start
 	bf.raftServer.WaitStartup()
 
 	for {
@@ -269,7 +259,7 @@ func (bf *BlockFactory) Start() {
 
 				txOp := chain.NewCompTxOp(
 					bf.txOp,
-					newTxExec(bf.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
+					newTxExec(bf.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
 				)
 
 				block, err := chain.GenerateBlock(bf, prevBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
