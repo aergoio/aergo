@@ -222,6 +222,7 @@ func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo{
 	// 3 items are needed
 	statusInfo := make(map[string]string)
 	rsp, err := ns.CallRequestDefaultTimeout(message.P2PSvc, &message.GetSelf{})
+	statusInfo["version"] = ns.version
 	if err != nil {
 		ns.Logger.Error().Err(err).Msg("p2p actor error")
 		statusInfo["id"] = p2p.NodeSID()
@@ -229,7 +230,7 @@ func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo{
 		meta := rsp.(p2pcommon.PeerMeta)
 		statusInfo["id"] = meta.ID.Pretty()
 		statusInfo["addr"] = meta.IPAddress
-		statusInfo["prot"] = strconv.Itoa(int(meta.Port))
+		statusInfo["port"] = strconv.Itoa(int(meta.Port))
 	}
 	configInfo := make(map[string]*types.ConfigItem)
 	types.AddCategory(configInfo, "base").AddBool("personal",ns.conf.BaseConfig.Personal)
