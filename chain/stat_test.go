@@ -15,7 +15,7 @@ func TestChainStatBasic(t *testing.T) {
 	var chk = assert.New(t)
 
 	stats := newStats()
-	chk.Equal(len(stats), statMax, "# of stat item is inconsistent.")
+	chk.Equal(statIndex(len(stats)), MaxStat, "# of stat item is inconsistent.")
 	for i, st := range stats {
 		chk.Equal(int64(0), st.getCount(), "stat[%d] initial # of events must be 0.", i)
 	}
@@ -25,7 +25,7 @@ func TestChainStatReorgBasic(t *testing.T) {
 	var chk = assert.New(t)
 
 	stats := newStats()
-	i := statReorg
+	i := ReorgStat
 	chk.Equal(int64(0), stats.getCount(i), "reorg stat's initial # of events must be 0.")
 	stats.updateEvent(i, block, block, block)
 	chk.Equal(int64(1), stats.getCount(i))
@@ -43,7 +43,7 @@ func TestChainStatReorgClone(t *testing.T) {
 	var chk = assert.New(t)
 
 	stats := newStats()
-	i := statReorg
+	i := ReorgStat
 
 	r := stats.clone(i)
 	chk.NotNil(r)
@@ -59,5 +59,18 @@ func TestChainStatReorgClone(t *testing.T) {
 	b, err = json.Marshal(r)
 	chk.Nil(err)
 	fmt.Println(string(b))
+}
 
+func TestChainStatJSON(t *testing.T) {
+	var chk = assert.New(t)
+
+	stats := newStats()
+	i := ReorgStat
+	stats.updateEvent(i, block, block, block)
+	stats.updateEvent(i, block, block, block)
+	stats.updateEvent(i, block, block, block)
+
+	s := stats.JSON()
+	chk.NotZero(len(s))
+	fmt.Println(s)
 }

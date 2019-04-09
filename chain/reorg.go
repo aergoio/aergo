@@ -113,7 +113,7 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 		return err
 	}
 
-	cs.stat.updateEvent(statReorg, reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brTopBlock)
+	cs.stat.updateEvent(ReorgStat, reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brTopBlock)
 
 	logger.Info().Msg("reorg end")
 
