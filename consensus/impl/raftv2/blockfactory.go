@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
@@ -85,6 +86,7 @@ type BlockFactory struct {
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block // best block of last job
+	jobLock          sync.RWMutex
 
 	raftOp     *RaftOperator
 	raftServer *raftServer
@@ -146,26 +148,25 @@ type Proposed struct {
 }
 
 type RaftOperator struct {
-	proposeC    chan *types.Block
 	confChangeC chan raftpb.ConfChange
 	commitC     chan *types.Block
+
+	rs *raftServer
 
 	proposed *Proposed
 }
 
-func newRaftOperator() *RaftOperator {
-	proposeC := make(chan *types.Block, 1)
+func newRaftOperator(rs *raftServer) *RaftOperator {
 	confChangeC := make(chan raftpb.ConfChange, 1)
 	commitC := make(chan *types.Block)
 
-	return &RaftOperator{proposeC: proposeC, confChangeC: confChangeC, commitC: commitC}
+	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
 }
 
 func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) {
 	rop.proposed = &Proposed{block: block, blockState: blockState}
 
-	// propose to raft
-	rop.proposeC <- block
+	rop.rs.Propose(block)
 
 	logger.Info().Msg("block proposed by blockfactory")
 }
@@ -175,12 +176,22 @@ func (rop *RaftOperator) resetPropose() {
 	logger.Debug().Msg("reset proposed block")
 }
 
+func (rop *RaftOperator) toString() string {
+	buf := "proposed:"
+	if rop.proposed != nil && rop.proposed.block != nil {
+		buf = buf + fmt.Sprintf("[no=%d, hash=%s]", rop.proposed.block.BlockNo(), rop.proposed.block.BlockID().String())
+	} else {
+		buf = buf + "empty"
+	}
+	return buf
+}
+
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 	if err := bf.InitCluster(cfg); err != nil {
 		return err
 	}
 
-	bf.raftOp = newRaftOperator()
+	bf.raftOp = newRaftOperator(bf.raftServer)
 
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
@@ -188,9 +199,10 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.raftServer = newRaftServer(bf.bpc.ID, cfg.Consensus.Raft.RaftListenUrl, bf.bpc.BPUrls, false, snapdir,
 		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
-		nil, RaftTick, bf.raftOp.proposeC, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
+		nil, RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
+	bf.raftOp.rs = bf.raftServer
 
 	return nil
 }
@@ -202,6 +214,9 @@ func (bf *BlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
+	bf.jobLock.Lock()
+	defer bf.jobLock.Unlock()
+
 	if !bf.raftServer.IsLeader() {
 		logger.Debug().Msg("skip producing block because this bp is not leader")
 		return
@@ -304,7 +319,7 @@ func (bf *BlockFactory) Start() {
 			}
 
 			if block == nil {
-				logger.Debug().Msg("data from commit channel is nil")
+				bf.reset()
 				continue
 			}
 
@@ -362,6 +377,15 @@ func (bf *BlockFactory) commitC() chan *types.Block {
 	return bf.raftOp.commitC
 }
 
+func (bf *BlockFactory) reset() {
+	bf.jobLock.Lock()
+	defer bf.jobLock.Unlock()
+
+	logger.Debug().Str("prev proposed", bf.raftOp.toString()).Msg("commit nil data, so reset block factory")
+
+	bf.prevBlock = nil
+}
+
 // save block/block state to connect after commit
 func (bf *BlockFactory) connect(block *types.Block) error {
 	proposed := bf.raftOp.proposed
@@ -375,6 +399,11 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 			blockState = proposed.blockState
 		}
 	}
+
+	logger.Debug().Uint64("no", block.BlockNo()).
+		Str("hash", block.ID()).
+		Str("prev", block.PrevID()).
+		Msg("connect block")
 
 	//if bestblock is changed, connecting block failed. new block is generated in next tick
 	if err := chain.ConnectBlock(bf, block, blockState); err != nil {

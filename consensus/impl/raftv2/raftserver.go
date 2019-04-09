@@ -47,7 +47,6 @@ func init() {
 
 // A key-value stream backed by raft
 type raftServer struct {
-	proposeC    <-chan *types.Block      // proposed messages (k,v)
 	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
 	commitC     chan *types.Block        // entries committed to log (k,v)
 	errorC      chan error               // errors from raft session
@@ -108,7 +107,6 @@ func newRaftServer(id uint64, listenUrl string, peers []string, join bool, snapd
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
-	proposeC chan *types.Block,
 	confChangeC <-chan raftpb.ConfChange,
 	commitC chan *types.Block,
 	delayPromote bool,
@@ -118,7 +116,6 @@ func newRaftServer(id uint64, listenUrl string, peers []string, join bool, snapd
 
 	rs := &raftServer{
 		walDB:       NewWalDB(chainWal),
-		proposeC:    proposeC,
 		confChangeC: confChangeC,
 		commitC:     commitC,
 		errorC:      errorC,
@@ -286,6 +283,17 @@ func (rs *raftServer) writeError(err error) {
 	rs.node.Stop()
 }
 
+// TODO timeout handling with context
+func (rs *raftServer) Propose(block *types.Block) {
+	if data, err := marshalEntryData(block); err == nil {
+		// blocks until accepted by raft state machine
+		rs.node.Propose(context.TODO(), data)
+		logger.Debug().Int("len", len(data)).Msg("proposed data to raft node")
+	} else {
+		logger.Fatal().Err(err).Msg("poposed data is invalid")
+	}
+}
+
 func (rs *raftServer) serveChannels() {
 	snapshot, err := rs.raftStorage.Snapshot()
 	if err != nil {
@@ -302,20 +310,8 @@ func (rs *raftServer) serveChannels() {
 	go func() {
 		var confChangeCount uint64 = 0
 
-		for rs.proposeC != nil && rs.confChangeC != nil {
+		for rs.confChangeC != nil {
 			select {
-			case prop, ok := <-rs.proposeC:
-				if !ok {
-					rs.proposeC = nil
-				} else {
-					if data, err := marshalEntryData(prop); err == nil {
-						// blocks until accepted by raft state machine
-						rs.node.Propose(context.TODO(), data)
-					} else {
-						logger.Fatal().Err(err).Msg("poposed data is invalid")
-					}
-				}
-
 			case cc, ok := <-rs.confChangeC:
 				if !ok {
 					rs.confChangeC = nil
@@ -574,17 +570,18 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 		case raftpb.EntryNormal:
 			logger.Debug().Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Int("datalen", len(ents[i].Data)).Msg("publish normal entry")
 
+			var block *types.Block
+			var err error
 			if len(ents[i].Data) != 0 {
-				var block *types.Block
-				var err error
 				if block, err = unmarshalEntryData(ents[i].Data); err != nil {
 					logger.Fatal().Err(err).Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Msg("commit entry is corrupted")
+					continue
 				}
-				select {
-				case rs.commitC <- block:
-				case <-rs.stopc:
-					return false
-				}
+			}
+			select {
+			case rs.commitC <- block:
+			case <-rs.stopc:
+				return false
 			}
 
 		case raftpb.EntryConfChange:
