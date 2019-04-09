@@ -198,13 +198,16 @@ type ChainService struct {
 
 	chainWorker  *ChainWorker
 	chainManager *ChainManager
+
+	stat stats
 }
 
 // NewChainService creates an instance of ChainService.
 func NewChainService(cfg *cfg.Config) *ChainService {
 	cs := &ChainService{
-		cfg: cfg,
-		op:  NewOrphanPool(),
+		cfg:  cfg,
+		op:   NewOrphanPool(),
+		stat: newStats(),
 	}
 
 	var err error

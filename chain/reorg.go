@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
@@ -111,6 +112,8 @@ func (cs *ChainService) reorg(topBlock *types.Block) error {
 	if err := reorg.swapChain(); err != nil {
 		return err
 	}
+
+	cs.stat.updateEvent(statReorg, reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brTopBlock)
 
 	logger.Info().Msg("reorg end")
 

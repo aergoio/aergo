@@ -2,6 +2,9 @@ package chain
 
 import (
 	"sync"
+	"time"
+
+	"github.com/aergoio/aergo/types"
 )
 
 const (
@@ -95,9 +98,15 @@ func newStReorg() statItem {
 }
 
 type evReorg struct {
-	OldBest string
-	NewBest string
-	Branch  string
+	OldBest *blockInfo
+	NewBest *blockInfo
+	Branch  *blockInfo
+	time    time.Time
+}
+
+type blockInfo struct {
+	Hash   string
+	Height types.BlockNo
 }
 
 func (sr *stReorg) getCount() int64 {
@@ -110,23 +119,26 @@ func (sr *stReorg) getLatestEvent() interface{} {
 
 func (sr *stReorg) updateEvent(args ...interface{}) {
 	if len(args) != 3 {
-		logger.Debug().Int("len", len(args)).Msg("invalid arguments for the reorg stat update")
+		logger.Info().Int("len", len(args)).Msg("invalid # of arguments for the reorg stat update")
 		return
 	}
 
-	s := make([]string, len(args))
+	bi := make([]*blockInfo, len(args))
 	for i, a := range args {
+		var block *types.Block
 		ok := false
-		if s[i], ok = a.(string); !ok {
-			logger.Debug().Int("arg idx", i).Msg("non-string arguemt for the reorg stat update")
+		if block, ok = a.(*types.Block); !ok {
+			logger.Info().Int("arg idx", i).Msg("invalid type of argument")
 			return
 		}
+		bi[i] = &blockInfo{Hash: block.ID(), Height: block.BlockNo()}
 	}
 
 	sr.Latest = &evReorg{
-		OldBest: s[0],
-		NewBest: s[1],
-		Branch:  s[2],
+		OldBest: bi[0],
+		NewBest: bi[1],
+		Branch:  bi[2],
+		time:    time.Now(),
 	}
 	sr.Count++
 }
