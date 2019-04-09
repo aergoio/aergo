@@ -197,15 +197,16 @@ func (rs *raftServer) startRaft() {
 	}
 
 	c := &raftlib.Config{
-		ID:              uint64(rs.id),
-		ElectionTick:    10,
-		HeartbeatTick:   1,
-		Storage:         rs.raftStorage,
-		MaxSizePerMsg:   1024 * 1024,
-		MaxInflightMsgs: 256,
-		Logger:          raftLogger,
-		CheckQuorum:     true,
-		PreVote:         true,
+		ID:                        uint64(rs.id),
+		ElectionTick:              10,
+		HeartbeatTick:             1,
+		Storage:                   rs.raftStorage,
+		MaxSizePerMsg:             1024 * 1024,
+		MaxInflightMsgs:           256,
+		Logger:                    raftLogger,
+		CheckQuorum:               true,
+		PreVote:                   true,
+		DisableProposalForwarding: true,
 	}
 
 	var node raftlib.Node
