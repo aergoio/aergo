@@ -526,7 +526,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if err != nil {
 				return err
 			}
-			if _, err := name.ValidateNameTx(tx.GetBody(), nil, scs, systemcs); err != nil {
+			sender, err := mp.stateDB.GetAccountStateV(account)
+			if err != nil {
+				return err
+			}
+			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
 				return err
 			}
 		}

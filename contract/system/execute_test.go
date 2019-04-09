@@ -384,7 +384,6 @@ func TestRemainStakingMinimum(t *testing.T) {
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Amount:  balance1_5.Bytes(),
 			Payload: buildStakingPayload(true),
 			Type:    types.TxType_GOVERNANCE,
 		},
@@ -392,9 +391,13 @@ func TestRemainStakingMinimum(t *testing.T) {
 
 	var blockNo uint64
 	blockNo = 1
+	stakingTx.Body.Amount = balance0_5.Bytes()
+	_, err := ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	assert.EqualError(t, err, types.ErrTooSmallAmount.Error(), "could not execute system tx")
 	//balance 3-1.5=1.5
 	//staking 0+1.5=1.5
-	_, err := ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	stakingTx.Body.Amount = balance1_5.Bytes()
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
 	blockNo += StakingDelay

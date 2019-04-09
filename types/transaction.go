@@ -17,6 +17,7 @@ import (
 
 const Stake = "v1stake"
 const Unstake = "v1unstake"
+const SetContractOwner = "v1setOwner"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
 
@@ -188,6 +189,40 @@ func validateNameTx(tx *TxBody) error {
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return ErrTxInvalidPayload
 	}
+	switch ci.Name {
+	case NameCreate:
+		_validateNameTx(tx, &ci)
+		if len(ci.Args) != 1 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+	case NameUpdate:
+		_validateNameTx(tx, &ci)
+		if len(ci.Args) != 2 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+		to, err := DecodeAddress(ci.Args[1].(string))
+		if err != nil {
+			return fmt.Errorf("invalid receiver in %s", ci)
+		}
+		if len(to) > AddressLength {
+			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+		}
+	case SetContractOwner:
+		owner, ok := ci.Args[0].(string)
+		if !ok {
+			return fmt.Errorf("invalid arguments in %s", owner)
+		}
+		_, err := DecodeAddress(owner)
+		if err != nil {
+			return fmt.Errorf("invalid new owner %s", err.Error())
+		}
+	default:
+		return ErrTxInvalidPayload
+	}
+	return nil
+}
+
+func _validateNameTx(tx *TxBody, ci *CallInfo) error {
 	if len(ci.Args) < 1 {
 		return fmt.Errorf("invalid arguments in %s", ci)
 	}
@@ -205,29 +240,11 @@ func validateNameTx(tx *TxBody) error {
 	if err := validateAllowedChar([]byte(nameParam)); err != nil {
 		return err
 	}
-	switch ci.Name {
-	case NameCreate:
-		if len(ci.Args) != 1 {
-			return fmt.Errorf("invalid arguments in %s", ci)
-		}
-	case NameUpdate:
-		if len(ci.Args) != 2 {
-			return fmt.Errorf("invalid arguments in %s", ci)
-		}
-		to, err := DecodeAddress(ci.Args[1].(string))
-		if err != nil {
-			return fmt.Errorf("invalid receiver in %s", ci)
-		}
-		if len(to) > AddressLength {
-			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
-		}
-	default:
-		return ErrTxInvalidPayload
-	}
 	if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetAmountBigInt()) > 0 {
 		return ErrTooSmallAmount
 	}
 	return nil
+
 }
 
 func (tx *transaction) ValidateWithSenderState(senderState *State) error {
