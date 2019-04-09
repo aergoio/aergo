@@ -285,6 +285,10 @@ func (cs *ChainService) GetConsensusInfo() string {
 	return cs.Info()
 }
 
+func (cs *ChainService) GetChainStats() string {
+	return cs.stat.JSON()
+}
+
 // SetChainConsensus sets cs.cc to cc.
 func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 	cs.ChainConsensus = cc
