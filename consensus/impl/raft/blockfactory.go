@@ -366,3 +366,7 @@ func (bf *BlockFactory) ConsensusInfo() *types.ConsensusInfo {
 func (bf *BlockFactory) NeedNotify() bool {
 	return false
 }
+
+func (bf *BlockFactory) HasWAL() bool {
+	return false
+}

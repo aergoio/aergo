@@ -19,6 +19,7 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -36,9 +37,13 @@ var (
 	ErrorLoadBestBlock   = errors.New("failed to load latest block from DB")
 	ErrCantDropGenesis   = errors.New("can't drop genesis block")
 	ErrTooBigResetHeight = errors.New("reset height is too big")
+	ErrInvalidHardState  = errors.New("invalid hard state")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
+
+	raftstateKey    = []byte("r_state")
+	raftEntryPrefix = []byte("r_entry.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -299,7 +304,7 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 		block.BlockID()
 	}
 
-	cdb.connectToChain(&tx, block)
+	cdb.connectToChain(&tx, block, false)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
 		tx.Set([]byte(genesisBalanceKey), totalBalance.Bytes())
@@ -356,12 +361,14 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 	return
 }
 
-func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (oldLatest types.BlockNo) {
+func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block, skipAdd bool) (oldLatest types.BlockNo) {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
 
-	if err := cdb.addBlock(dbtx, block); err != nil {
-		return 0
+	if !skipAdd {
+		if err := cdb.addBlock(dbtx, block); err != nil {
+			return 0
+		}
 	}
 
 	// Update best block hash
@@ -742,4 +749,81 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 	err := decoder.Decode(&marker)
 
 	return &marker, err
+}
+
+// implement ChainWAL interface
+func (cdb *ChainDB) IsNew() bool {
+	//TODO
+	return true
+}
+
+func (cdb *ChainDB) ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error) {
+	//TODO
+	return raftpb.HardState{}, nil, nil
+}
+
+func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	var data []byte
+	var err error
+
+	if data, err = proto.Marshal(hardstate); err != nil {
+		logger.Panic().Msg("failed to marshal raft state")
+		return err
+	}
+	dbTx.Set(raftstateKey, data)
+	dbTx.Commit()
+
+	return nil
+}
+
+func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
+	data := cdb.store.Get(raftstateKey)
+
+	state := &raftpb.HardState{}
+	if err := proto.Unmarshal(data, state); err != nil {
+		logger.Panic().Msg("failed to unmarshal raft state")
+		return nil, ErrInvalidHardState
+	}
+
+	return state, nil
+}
+
+func getRaftEntryKey(idx uint64) []byte {
+	var key bytes.Buffer
+	key.Write(raftEntryPrefix)
+	l := make([]byte, 8)
+	binary.LittleEndian.PutUint64(l[:], idx)
+	key.Write(l)
+	return key.Bytes()
+}
+
+func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block) error {
+	var data []byte
+	var err error
+
+	for i, entry := range ents {
+		dbTx := cdb.store.NewTx()
+		logger.Debug().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Msg("add raft log entry")
+
+		if entry.Type == consensus.EntryBlock {
+			if err := cdb.addBlock(&dbTx, blocks[i]); err != nil {
+				dbTx.Discard()
+				panic("add block entry")
+				return err
+			}
+		}
+
+		if data, err = entry.ToBytes(); err != nil {
+			dbTx.Discard()
+			return err
+		}
+
+		dbTx.Set(getRaftEntryKey(entry.Index), data)
+		dbTx.Commit()
+	}
+
+	return nil
 }

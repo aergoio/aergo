@@ -305,6 +305,11 @@ func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
 }
 
+// CDB returns cs.sdb as a consensus.ChainDbReader.
+func (cs *ChainService) WalDB() consensus.ChainWAL {
+	return cs.cdb
+}
+
 // GetConsensusInfo returns consensus-related information, which is different
 // from consensus to consensus.
 func (cs *ChainService) GetConsensusInfo() string {

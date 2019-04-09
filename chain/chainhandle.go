@@ -461,7 +461,13 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return ErrBlockCachedErrLRU
 	}
 
-	_, err := cs.getBlock(newBlock.BlockHash())
+	var err error
+	if !cs.HasWAL() {
+		_, err = cs.getBlock(newBlock.BlockHash());
+	} else {
+		// check alread connect block
+		_, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
+	}
 	if err == nil {
 		logger.Warn().Msg("block already exists")
 		return nil

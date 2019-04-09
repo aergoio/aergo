@@ -63,7 +63,7 @@ func NewCluster(bf *BlockFactory, raftID uint64, size uint16) *Cluster {
 		Member:             make(map[uint64]*blockProducer),
 		Index:              make(map[peer.ID]uint64),
 		BPUrls:             make([]string, size),
-		cdb:                bf.ChainDB,
+		cdb:                bf.ChainWAL,
 	}
 
 	return cl
@@ -202,7 +202,7 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 	if withStatus && cl.rs != nil {
 		b, err := cl.rs.Status().MarshalJSON()
 		if err != nil {
-			logger.Error().Err(err).Msg("failed to marshal raft consensus")
+			logger.Error().Err(err).Msg("failed to marshalEntryData raft consensus")
 		} else {
 			m := json.RawMessage(b)
 			rinfo.Status = &m
@@ -223,7 +223,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 
 	b, err := json.Marshal(cl.getRaftInfo(true))
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to marshal raft consensus")
+		logger.Error().Err(err).Msg("failed to marshalEntryData raft consensus")
 		return &emptyCons
 	}
 
@@ -236,7 +236,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 		bp := &PeerInfo{RaftID: strconv.FormatUint(uint64(m.RaftID), 10), PeerID: m.PeerID.Pretty()}
 		b, err = json.Marshal(bp)
 		if err != nil {
-			logger.Error().Err(err).Uint64("raftid", id).Msg("failed to marshal raft consensus bp")
+			logger.Error().Err(err).Uint64("raftid", id).Msg("failed to marshalEntryData raft consensus bp")
 			return &emptyCons
 		}
 		bps[i] = string(b)

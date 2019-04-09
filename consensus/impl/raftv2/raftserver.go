@@ -16,6 +16,8 @@ package raftv2
 
 import (
 	"context"
+	"errors"
+	"github.com/gogo/protobuf/proto"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,15 +26,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/types"
+
 	"github.com/aergoio/etcd/etcdserver/stats"
 	"github.com/aergoio/etcd/pkg/fileutil"
-	"github.com/aergoio/etcd/pkg/types"
+	etcdtypes "github.com/aergoio/etcd/pkg/types"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/rafthttp"
 	"github.com/aergoio/etcd/snap"
-	"github.com/aergoio/etcd/wal"
-	"github.com/aergoio/etcd/wal/walpb"
 )
 
 //noinspection ALL
@@ -44,16 +47,15 @@ func init() {
 
 // A key-value stream backed by raft
 type raftServer struct {
-	proposeC    <-chan string            // proposed messages (k,v)
+	proposeC    <-chan *types.Block      // proposed messages (k,v)
 	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
-	commitC     chan *string             // entries committed to log (k,v)
+	commitC     chan *types.Block        // entries committed to log (k,v)
 	errorC      chan error               // errors from raft session
 
 	id          uint64   // client ID for raft session
 	peers       []string // raft peer URLs
 	listenUrl   string
 	join        bool   // node is joining an existing cluster
-	waldir      string // path to WAL directory
 	snapdir     string // path to snapshot directory
 	getSnapshot func() ([]byte, error)
 	lastIndex   uint64 // index of log at start
@@ -65,7 +67,8 @@ type raftServer struct {
 	// raft backing for the commit/error channel
 	node        raftlib.Node
 	raftStorage *raftlib.MemoryStorage
-	wal         *wal.WAL
+	//wal         *wal.WAL
+	walDB *WalDB
 
 	snapshotter      *snap.Snapshotter
 	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
@@ -101,17 +104,20 @@ var snapshotCatchUpEntriesN uint64 = 10000
 // provided the proposal channel. All log entries are replayed over the
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
-func newRaftServer(id uint64, listenUrl string, peers []string, join bool, waldir string, snapdir string,
+func newRaftServer(id uint64, listenUrl string, peers []string, join bool, snapdir string,
 	certFile string, keyFile string,
-	getSnapshot func() ([]byte, error), tickMS time.Duration,
-	proposeC <-chan string,
+	getSnapshot func() ([]byte, error),
+	tickMS time.Duration,
+	proposeC chan *types.Block,
 	confChangeC <-chan raftpb.ConfChange,
-	delayPromote bool) *raftServer {
+	commitC chan *types.Block,
+	delayPromote bool,
+	chainWal consensus.ChainWAL) *raftServer {
 
-	commitC := make(chan *string)
 	errorC := make(chan error)
 
 	rs := &raftServer{
+		walDB:       NewWalDB(chainWal),
 		proposeC:    proposeC,
 		confChangeC: confChangeC,
 		commitC:     commitC,
@@ -120,7 +126,6 @@ func newRaftServer(id uint64, listenUrl string, peers []string, join bool, waldi
 		listenUrl:   listenUrl,
 		peers:       peers,
 		join:        join,
-		waldir:      waldir,
 		snapdir:     snapdir,
 		getSnapshot: getSnapshot,
 		snapCount:   defaultSnapCount,
@@ -178,13 +183,19 @@ func (rs *raftServer) startRaft() {
 	rs.snapshotter = snap.New(rs.snapdir)
 	rs.snapshotterReady <- rs.snapshotter
 
-	oldwal := wal.Exist(rs.waldir)
-	rs.wal = rs.replayWAL()
+	isNew := func() bool {
+		return rs.walDB.IsNew()
+	}
+
+	if err := rs.replayWAL(); err != nil {
+		logger.Fatal().Err(err).Msg("replay wal failed for raft")
+	}
 
 	rpeers := make([]raftlib.Peer, len(rs.peers))
 	for i := range rpeers {
 		rpeers[i] = raftlib.Peer{ID: uint64(i + 1)}
 	}
+
 	c := &raftlib.Config{
 		ID:              uint64(rs.id),
 		ElectionTick:    10,
@@ -198,7 +209,7 @@ func (rs *raftServer) startRaft() {
 	}
 
 	var node raftlib.Node
-	if oldwal {
+	if !isNew() {
 		node = raftlib.RestartNode(c)
 	} else {
 		startPeers := rpeers
@@ -214,7 +225,7 @@ func (rs *raftServer) startRaft() {
 	rs.setNodeSync(node)
 
 	rs.transport = &rafthttp.Transport{
-		ID:          types.ID(rs.id),
+		ID:          etcdtypes.ID(rs.id),
 		ClusterID:   0x1000,
 		Raft:        rs,
 		ServerStats: stats.NewServerStats("", ""),
@@ -227,7 +238,7 @@ func (rs *raftServer) startRaft() {
 	rs.transport.Start()
 	for i := range rs.peers {
 		if uint64(i+1) != rs.id {
-			rs.transport.AddPeer(types.ID(i+1), []string{rs.peers[i]})
+			rs.transport.AddPeer(etcdtypes.ID(i+1), []string{rs.peers[i]})
 		}
 	}
 
@@ -283,8 +294,6 @@ func (rs *raftServer) serveChannels() {
 	rs.snapshotIndex = snapshot.Metadata.Index
 	rs.appliedIndex = snapshot.Metadata.Index
 
-	defer rs.wal.Close()
-
 	ticker := time.NewTicker(rs.tickMS)
 	defer ticker.Stop()
 
@@ -298,8 +307,12 @@ func (rs *raftServer) serveChannels() {
 				if !ok {
 					rs.proposeC = nil
 				} else {
-					// blocks until accepted by raft state machine
-					rs.node.Propose(context.TODO(), []byte(prop))
+					if data, err := marshalEntryData(prop); err == nil {
+						// blocks until accepted by raft state machine
+						rs.node.Propose(context.TODO(), data)
+					} else {
+						logger.Fatal().Err(err).Msg("poposed data is invalid")
+					}
 				}
 
 			case cc, ok := <-rs.confChangeC:
@@ -324,16 +337,17 @@ func (rs *raftServer) serveChannels() {
 				rs.node.Tick()
 			}
 
-			// store raft entries to wal, then publish over commit channel
+			// store raft entries to walDB, then publish over commit channel
 		case rd := <-rs.node.Ready():
-			if len(rd.Entries) > 0 {
-				logger.Debug().Int("entries", len(rd.Entries)).Uint64("first", rd.Entries[0].Index).Int("commitentries", len(rd.CommittedEntries)).Msg("raft job ready")
+			if len(rd.Entries) > 0 || len(rd.CommittedEntries) > 0 || !raftlib.IsEmptyHardState(rd.HardState) {
+				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("term", rd.HardState.String()).Msg("ready to process")
 			}
+
 			if rd.SoftState != nil {
 				rs.updateLeader(rd.SoftState)
 			}
 
-			rs.wal.Save(rd.HardState, rd.Entries)
+			rs.walDB.SaveEntry(rd.HardState, rd.Entries)
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
 				panic("snapshot occurred!!")
 				rs.saveSnap(rd.Snapshot)
@@ -391,26 +405,29 @@ func (rs *raftServer) serveRaft() {
 }
 
 func (rs *raftServer) loadSnapshot() *raftpb.Snapshot {
-	snapshot, err := rs.snapshotter.Load()
-	if err != nil && err != snap.ErrNoSnapshot {
-		logger.Fatal().Err(err).Msg("error loading snapshot")
-	}
-	return snapshot
+	/*
+		snapshot, err := rs.snapshotter.Load()
+		if err != nil && err != snap.ErrNoSnapshot {
+			logger.Fatal().Err(err).Msg("error loading snapshot")
+		}*/
+	// TODO build from latest connect block of chain
+	return nil
 }
 
+/*
 // openWAL returns a WAL ready for reading.
 func (rs *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(rs.waldir) {
 		if err := os.MkdirAll(rs.waldir, 0750); err != nil {
-			logger.Fatal().Err(err).Msg("cannot create dir for wal")
+			logger.Fatal().Err(err).Msg("cannot create dir for walDB")
 		}
 
 		w, err := wal.Create(rs.waldir, nil)
 		if err != nil {
-			logger.Fatal().Err(err).Msg("create wal error")
+			logger.Fatal().Err(err).Msg("create walDB error")
 		}
 
-		logger.Info().Str("dir", rs.waldir).Msg("create wal directory")
+		logger.Info().Str("dir", rs.waldir).Msg("create walDB directory")
 		w.Close()
 	}
 
@@ -421,19 +438,23 @@ func (rs *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 	logger.Info().Uint64("term", walsnap.Term).Uint64("index", walsnap.Index).Msg("loading WAL at term %d and index")
 	w, err := wal.Open(rs.waldir, walsnap)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("error loading wal")
+		logger.Fatal().Err(err).Msg("error loading walDB")
 	}
 
 	logger.Info().Msg("openwal done")
 	return w
 }
+*/
 
 // replayWAL replays WAL entries into the raft instance.
-func (rs *raftServer) replayWAL() *wal.WAL {
+func (rs *raftServer) replayWAL() error {
 	logger.Info().Uint64("raftid", rs.id).Msg("replaying WAL of member %d")
+	/*
+		snapshot := rs.loadSnapshot()
+		w := rs.openWAL(snapshot)
+	*/
 	snapshot := rs.loadSnapshot()
-	w := rs.openWAL(snapshot)
-	_, st, ents, err := w.ReadAll()
+	st, ents, err := rs.walDB.ReadAll()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to read WAL")
 	}
@@ -456,7 +477,7 @@ func (rs *raftServer) replayWAL() *wal.WAL {
 
 	logger.Info().Msg("replaying WAL done")
 
-	return w
+	return nil
 }
 
 func (rs *raftServer) maybeTriggerSnapshot() {
@@ -510,18 +531,22 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
 func (rs *raftServer) saveSnap(snap raftpb.Snapshot) error {
 	// must save the snapshot index to the WAL before saving the
 	// snapshot to maintain the invariant that we only Open the
-	// wal at previously-saved snapshot indexes.
-	walSnap := walpb.Snapshot{
-		Index: snap.Metadata.Index,
-		Term:  snap.Metadata.Term,
-	}
-	if err := rs.wal.SaveSnapshot(walSnap); err != nil {
-		return err
-	}
-	if err := rs.snapshotter.SaveSnap(snap); err != nil {
-		return err
-	}
-	return rs.wal.ReleaseLockTo(snap.Metadata.Index)
+	// walDB at previously-saved snapshot indexes.
+	panic("not support save snap")
+	/*
+		walSnap := walpb.Snapshot{
+			Index: snap.Metadata.Index,
+			Term:  snap.Metadata.Term,
+		}
+
+		if err := rs.wal.SaveSnapshot(walSnap); err != nil {
+			return err
+		}
+		if err := rs.snapshotter.SaveSnap(snap); err != nil {
+			return err
+		}
+		return rs.wal.ReleaseLockTo(snap.Metadata.Index)
+	*/
 }
 
 func (rs *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
@@ -544,13 +569,16 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	for i := range ents {
 		switch ents[i].Type {
 		case raftpb.EntryNormal:
-			logger.Debug().Int("idx", i).Uint64("term", ents[i].Term).Msg("publish normal entry")
+			logger.Debug().Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Int("datalen", len(ents[i].Data)).Msg("publish normal entry")
 
 			if len(ents[i].Data) != 0 {
-				// it's only for unittest
-				s := string(ents[i].Data)
+				var block *types.Block
+				var err error
+				if block, err = unmarshalEntryData(ents[i].Data); err != nil {
+					logger.Fatal().Err(err).Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Msg("commit entry is corrupted")
+				}
 				select {
-				case rs.commitC <- &s:
+				case rs.commitC <- block:
 				case <-rs.stopc:
 					return false
 				}
@@ -562,19 +590,19 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 			cc.Unmarshal(ents[i].Data)
 			rs.confState = *rs.node.ApplyConfChange(cc)
 
-			logger.Debug().Int("idx", i).Int32("type", int32(cc.Type)).Int("ctx", len(cc.Context)).Msg("publish confchange entry")
+			logger.Debug().Int("idx", i).Str("type", raftpb.ConfChangeType_name[int32(cc.Type)]).Int("addrlen", len(cc.Context)).Msg("publish confchange entry")
 
 			switch cc.Type {
 			case raftpb.ConfChangeAddNode:
 				if len(cc.Context) > 0 {
-					rs.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
+					rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{string(cc.Context)})
 				}
 			case raftpb.ConfChangeRemoveNode:
 				if cc.NodeID == uint64(rs.id) {
 					logger.Info().Msg("I've been removed from the cluster! Shutting down.")
 					return false
 				}
-				rs.transport.RemovePeer(types.ID(cc.NodeID))
+				rs.transport.RemovePeer(etcdtypes.ID(cc.NodeID))
 			}
 		}
 
@@ -640,4 +668,27 @@ func (rs *raftServer) Status() raftlib.Status {
 	}
 
 	return node.Status()
+}
+
+func marshalEntryData(block *types.Block) ([]byte, error) {
+	var data []byte
+	var err error
+	if data, err = proto.Marshal(block); err != nil {
+		logger.Fatal().Err(err).Msg("poposed data is invalid")
+	}
+
+	return data, nil
+}
+
+var (
+	ErrUnmarshal = errors.New("failed to unmarshalEntryData log entry")
+)
+
+func unmarshalEntryData(data []byte) (*types.Block, error) {
+	block := &types.Block{}
+	if err := proto.Unmarshal(data, block); err != nil {
+		return block, ErrUnmarshal
+	}
+
+	return block, nil
 }

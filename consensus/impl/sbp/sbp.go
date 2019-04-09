@@ -223,3 +223,7 @@ func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
 func (s *SimpleBlockFactory) NeedNotify() bool {
 	return true
 }
+
+func (s *SimpleBlockFactory) HasWAL() bool {
+	return false
+}
