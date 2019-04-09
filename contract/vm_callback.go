@@ -960,7 +960,7 @@ func LuaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) C.int 
 		luaPushStr(L, "[Contract.Event] event not permitted in query")
 		return -1
 	}
-	if stateSet.eventCount > maxEventCnt {
+	if stateSet.eventCount >= maxEventCnt {
 		luaPushStr(L, fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt))
 		return -1
 	}
