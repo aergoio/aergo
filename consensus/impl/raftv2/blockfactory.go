@@ -48,7 +48,7 @@ var (
 )
 
 func init() {
-	logger = log.NewLogger("raft")
+	logger = log.NewLogger("raftv2")
 	httpLogger = log.NewLogger("rafthttp")
 }
 

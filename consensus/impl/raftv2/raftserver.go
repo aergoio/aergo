@@ -343,10 +343,6 @@ func (rs *raftServer) serveChannels() {
 				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("term", rd.HardState.String()).Msg("ready to process")
 			}
 
-			if rd.SoftState != nil {
-				rs.updateLeader(rd.SoftState)
-			}
-
 			rs.walDB.SaveEntry(rd.HardState, rd.Entries)
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
 				panic("snapshot occurred!!")
@@ -361,6 +357,12 @@ func (rs *raftServer) serveChannels() {
 				return
 			}
 			rs.maybeTriggerSnapshot()
+
+			// New block must be created after connecting all commited block
+			if rd.SoftState != nil {
+				rs.updateLeader(rd.SoftState)
+			}
+
 			rs.node.Advance()
 		case err := <-rs.transport.ErrorC:
 			rs.writeError(err)
