@@ -131,6 +131,7 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		BestHeight:      last.GetHeader().GetBlockNo(),
 		ConsensusInfo:   ca.GetConsensusInfo(),
 		BestChainIdHash: bestChainIdHash,
+		ChainStat:       ca.GetChainStats(),
 	}, nil
 }
 

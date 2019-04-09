@@ -108,7 +108,7 @@ type statItem interface {
 
 type stReorg struct {
 	Count  int64
-	Latest *evReorg
+	Latest *evReorg `json:",omitempty"`
 }
 
 func newStReorg() statItem {
@@ -118,8 +118,8 @@ func newStReorg() statItem {
 type evReorg struct {
 	OldBest *blockInfo
 	NewBest *blockInfo
-	Branch  *blockInfo
-	time    time.Time
+	Fork    *blockInfo
+	Time    time.Time
 }
 
 type blockInfo struct {
@@ -155,8 +155,8 @@ func (sr *stReorg) updateEvent(args ...interface{}) {
 	sr.Latest = &evReorg{
 		OldBest: bi[0],
 		NewBest: bi[1],
-		Branch:  bi[2],
-		time:    time.Now(),
+		Fork:    bi[2],
+		Time:    time.Now(),
 	}
 	sr.Count++
 }
