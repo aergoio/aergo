@@ -8,6 +8,7 @@ package chain
 import (
 	"bytes"
 	"container/list"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -716,6 +717,17 @@ func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockStat
 	}
 }
 
+const maxRetSize = 1024
+
+func adjustRv(ret string) string {
+	if len(ret) > maxRetSize {
+		modified, _ := json.Marshal(ret[:maxRetSize-4] + " ...")
+
+		return string(modified)
+	}
+	return ret
+}
+
 func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainIDHash []byte) error {
 
 	txBody := tx.GetBody()
@@ -801,6 +813,7 @@ func executeTx(bs *state.BlockState, tx types.Transaction, blockNo uint64, ts in
 				return err
 			}
 		}
+		rv = adjustRv(rv)
 	}
 	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 

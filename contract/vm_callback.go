@@ -33,6 +33,10 @@ import (
 
 var mulAergo, mulGaer, zeroBig *big.Int
 
+const maxEventCnt = 50
+const maxEventNameSize = 64
+const maxEventArgSize = 512
+
 func init() {
 	mulAergo, _ = new(big.Int).SetString("1000000000000000000", 10)
 	mulGaer, _ = new(big.Int).SetString("1000000000", 10)
@@ -954,6 +958,18 @@ func LuaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) C.int 
 	stateSet := curStateSet[*service]
 	if stateSet.isQuery == true {
 		luaPushStr(L, "[Contract.Event] event not permitted in query")
+		return -1
+	}
+	if stateSet.eventCount > maxEventCnt {
+		luaPushStr(L, fmt.Sprintf("[Contract.Event] exceeded the maximum number of events(%d)", maxEventCnt))
+		return -1
+	}
+	if len(C.GoString(eventName)) > maxEventNameSize {
+		luaPushStr(L, fmt.Sprintf("[Contract.Event] exceeded the maximum length of event name(%d)", maxEventNameSize))
+		return -1
+	}
+	if len(C.GoString(args)) > maxEventArgSize {
+		luaPushStr(L, fmt.Sprintf("[Contract.Event] exceeded the maximum length of event args(%d)", maxEventArgSize))
 		return -1
 	}
 	stateSet.events = append(stateSet.events,

@@ -322,7 +322,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	    }
 	}
 	default:
-		lua_pushfstring(L, "unsupport type: %s", lua_typename (L, lua_type(L, idx)));
+		lua_pushfstring(L, "\"unsupport type: %s\"", lua_typename (L, lua_type(L, idx)));
 		return false;
 	}
 
