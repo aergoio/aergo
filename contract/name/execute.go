@@ -25,9 +25,13 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	var nameState *state.V
 	owner := getOwner(scs, []byte(types.AergoName), false)
 	if owner != nil {
-		nameState, err = bs.GetAccountStateV(owner)
-		if err != nil {
-			return nil, err
+		if bytes.Equal(sender.ID(), owner) {
+			nameState = sender
+		} else {
+			nameState, err = bs.GetAccountStateV(owner)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		nameState = receiver
