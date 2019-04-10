@@ -35,7 +35,7 @@ var mulAergo, mulGaer, zeroBig *big.Int
 
 const maxEventCnt = 50
 const maxEventNameSize = 64
-const maxEventArgSize = 512
+const maxEventArgSize = 4096
 const maxCallCount = 10
 
 func init() {
