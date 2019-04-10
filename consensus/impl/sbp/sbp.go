@@ -31,10 +31,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
+func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -56,6 +56,11 @@ type SimpleBlockFactory struct {
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block
+}
+
+// GetName returns the name of the consensus.
+func GetName() string {
+	return consensus.ConsensusName[consensus.ConsensusSBP]
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -108,6 +113,10 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		s.prevBlock = b
 		jq <- b
 	}
+}
+
+func (s *SimpleBlockFactory) GetType() consensus.ConsensusType {
+	return consensus.ConsensusSBP
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -175,10 +184,10 @@ func (s *SimpleBlockFactory) Start() {
 
 				txOp := chain.NewCompTxOp(
 					s.txOp,
-					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash()),
+					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
 				)
 
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts)
+				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {
@@ -200,4 +209,14 @@ func (s *SimpleBlockFactory) Start() {
 // JobQueue returns the queue for block production triggering.
 func (s *SimpleBlockFactory) JobQueue() chan<- interface{} {
 	return s.jobQueue
+}
+
+// Info retuns an empty string since SBP has no valuable consensus-related
+// information.
+func (s *SimpleBlockFactory) Info() string {
+	return consensus.NewInfo(GetName()).AsJSON()
+}
+
+func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
+	return &types.ConsensusInfo{Type: GetName()}
 }

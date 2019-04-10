@@ -271,6 +271,10 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 
 	tx := cdb.store.NewTx()
 
+	if len(block.Hash) == 0 {
+		block.BlockID()
+	}
+
 	cdb.connectToChain(&tx, block)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
@@ -278,6 +282,8 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	}
 
 	tx.Commit()
+
+	logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("hash", block.ID()).Msg("Genesis Block Added")
 
 	//logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("chain id (raw)",
 	//	enc.ToString(block.GetHeader().GetChainID())).Msg("Genesis Block Added")
@@ -347,7 +353,7 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 
 	oldLatest = cdb.setLatest(block)
 
-	logger.Debug().Str("hash", block.ID()).Msg("connect block to mainchain")
+	logger.Debug().Msg("connected block to mainchain")
 
 	return
 }
@@ -408,7 +414,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
 	bestNo := cdb.getBestBlockNo()
 	if blockNo > 0 && blockNo != bestNo+1 {
-		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", bestNo).Msg("block is branch")
+		logger.Debug().Uint64("no", blockNo).Uint64("latest", bestNo).Msg("block is branch")
 
 		return false, nil
 	}
@@ -421,9 +427,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 
 	isMainChain := bytes.Equal(prevHash, latestHash)
 
-	logger.Debug().Bool("isMainChain", isMainChain).Uint64("blkno", blockNo).Str("hash", block.ID()).
-		Str("latest", enc.ToString(latestHash)).Str("prev", enc.ToString(prevHash)).
-		Msg("check if block is in main chain")
+	logger.Debug().Bool("isMainChain", isMainChain).Msg("check if block is in main chain")
 
 	return isMainChain, nil
 }
@@ -476,7 +480,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
 	// fork can be here
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
+	logger.Debug().Uint64("blockNo", blockNo).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")

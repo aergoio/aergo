@@ -2,14 +2,15 @@ package types
 
 import (
 	fmt "fmt"
-	"reflect"
-	"strings"
+	math "math"
+	"math/big"
 	"testing"
 	"time"
 
+	proto "github.com/golang/protobuf/proto"
 	"github.com/minio/sha256-simd"
 
-	"github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -153,11 +154,91 @@ func TestUpdateAvgVerifyTime(t *testing.T) {
 	}
 }
 
-func TestSignFieldPosition(t *testing.T) {
-	signIdx := getLastIndexOfBH()
+func TestBlockLimit(t *testing.T) {
+	a := assert.New(t)
 
-	bh := &BlockHeader{}
-	v := reflect.Indirect(reflect.ValueOf(bh))
-	fmt.Println("field next to sign:", v.Type().Field(signIdx+1).Name)
-	assert.True(t, strings.Contains(v.Type().Field(signIdx+1).Name, "XXX"))
+	chainID := "0123456789012345678901234567890123456789"
+	dig := sha256.New()
+	dig.Write([]byte(chainID))
+	h := dig.Sum(nil)
+
+	addr, err := DecodeAddress("AmLquXjQSiDdR8FTDK78LJ16Ycrq3uNL6NQuiwqXRCGw9Riq2DE4")
+	a.Nil(err, "invalid coinbase account")
+
+	_, pub := genKeyPair(a)
+
+	block := &Block{
+		Header: &BlockHeader{
+			ChainID:          []byte(chainID), // len <= 40
+			PrevBlockHash:    h,               // 32byte
+			BlockNo:          math.MaxUint64,
+			Timestamp:        math.MinInt64,
+			BlocksRootHash:   h, // 32byte. Currenly not used but for the future use.
+			TxsRootHash:      h, // 32byte
+			ReceiptsRootHash: h, // 32byte
+			Confirms:         math.MaxUint64,
+			CoinbaseAccount:  addr,
+		},
+		Body: &BlockBody{Txs: make([]*Tx, 0)},
+	}
+	err = block.setPubKey(pub)
+	a.Nil(err, "PubKey set failed")
+
+	// The signature's max length is 72 (strict DER format). But usually it is
+	// 70 or 71. For header length measurement, generate a byte array of length
+	// 72 from a hash (sha256) value xrather than a real signature.
+	block.Header.Sign = h
+	block.Header.Sign = append(block.Header.Sign, h...)
+	block.Header.Sign = append(block.Header.Sign, h[:8]...)
+
+	// A block can include its sha256 hash value. Thus the size of blcok hash
+	// value should be considered when the block header limit estimated.
+	fmt.Println("block id:", block.ID())
+
+	hdrSize := proto.Size(block)
+	a.True(hdrSize <= DefaultMaxHdrSize, "too large header (> %v): %v", DefaultMaxHdrSize, hdrSize)
+
+	fmt.Println("hdr size", hdrSize)
+
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+	account, _ := DecodeAddress(testSender)
+	amount, ok := new(big.Int).SetString("999999999999999999", 10)
+	a.True(ok, "amount conversion failed")
+
+	//blk := &Block{}
+	tx := &Tx{
+		Body: &TxBody{
+			Nonce:     math.MaxUint64,
+			Account:   account,
+			Recipient: account,
+			Amount:    amount.Bytes(),
+			Payload:   []byte(`{"Name":"v1unstake"}`),
+			GasLimit:  math.MaxUint64,
+			GasPrice:  amount.Bytes(),
+			Sign:      block.GetHeader().GetSign(),
+			Type:      TxType_GOVERNANCE,
+		},
+	}
+	tx.Hash = tx.CalculateTxHash()
+
+	txSize := proto.Size(tx)
+
+	nTx := 10000
+	var i int
+
+	hdrLimit := 400
+	bodyLimit := 1000000
+	limit := hdrLimit + bodyLimit
+	s := 0
+	for i = 1; i <= nTx; i++ {
+		if s += proto.Size(tx); s > bodyLimit {
+			break
+		}
+		block.Body.Txs = append(block.Body.Txs, tx)
+	}
+
+	fmt.Println("estimate #1: ", block.Size(), "esimate #2: ", txSize*i+hdrSize, "actual: ", proto.Size(block))
+	a.True(block.Size() <= proto.Size(block), "block size violation")
+	a.True(block.Size() <= txSize*i+hdrSize, "block size violation")
+	a.True(block.Size() <= limit, "block size violation")
 }

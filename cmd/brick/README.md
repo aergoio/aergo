@@ -51,7 +51,7 @@ creates an account and deposite aergo. `inject inject <account_name> <amount>`
 
 ### getstate
 
-get current balance of an account. `getstate getstate <account_name>` This will returns in a form of `<internal_address>=<remaining_balance>`
+get current balance of an account. `getstate getstate <account_name> [expected_balance]` This will returns in a form of `<internal_address>=<remaining_balance>`
 
 ``` lua
 1> getstate tester
@@ -177,7 +177,30 @@ Or user can set the option `-w` to display the batch execution results continuou
 
 ## Debugging
 
-If you build in debug mode, you can use `os, io, coroutine` modules which is not allowed in release mode. There is no limit to which debugger to use, but here we describe the zerobrane studio, which provides ui and is easy to install.
+If you build in debug mode, you can use `os, io, debug` modules which is not allowed in release mode. There is no limit to which debugger to use, but brick provides built-in debugger using customized [clidebugger](https://github.com/ToddWegner/clidebugger). For debugging purpose, brick has extended commands.
+
+### setb (brick / debugmode)
+
+Set a breakpoint to the contract. When vm reach the line of breakpoint during a call or query of a contract, it enters debugmode. contract_name is optional in debugmode. `setb <line> [contract_name]`
+
+### delb (brick / debugmode) 
+
+Delete an existing breakpoint. contract_name is optional in debugmode. `delb <line> [contract_name]`
+
+### listb (brick / debugmode)
+
+Prints all breakpoints. `listb`
+
+### resetb (brick / debugmode)
+
+Clear all breakpoints. `resetb`
+
+### in debugmode
+When vm enters debugmode, prompt changes to `[DEBUG]>`. In debugmode, command set is changed for debugging purpose, like `run`, `exit`, `show`, `vars`. For more detail, type `help`.
+
+## Debug using Zerobrane Studio
+
+Here we describe GUI based debugging using the zerobrane studio.
 
 1. download [zerobrane studio](https://studio.zerobrane.com/support) (lua ide)
 2. set envoronment var `LUA_PATH, LUACPATH` following an [instruction](https://studio.zerobrane.com/doc-remote-debugging)

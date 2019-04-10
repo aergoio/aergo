@@ -18,18 +18,24 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/gogo/protobuf/proto"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/minio/sha256-simd"
 )
 
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-	DefaultCoinbaseFee  = "1000000000"
-	lastFieldOfBH       = "Sign"
 	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
+
+	// DefaultMaxHdrSize is the max size of the proto-buf serialized non-body
+	// fields. For the estimation detail, check 'TestBlockHeaderLimit' in
+	// 'blockchain_test.go.' Caution: Be sure to adjust the value below if the
+	// structure of the header is changed.
+	DefaultMaxHdrSize = 400
+	lastFieldOfBH     = "Sign"
 )
 
 type TxHash = []byte
@@ -50,13 +56,15 @@ var MaxAER *big.Int
 //StakingMinimum is minimum amount for staking
 var StakingMinimum *big.Int
 
+///NamePrice is default value of creating and updating name
+var NamePrice *big.Int
+
 var lastIndexOfBH int
 
 func init() {
-	MaxAER = new(big.Int)
-	MaxAER.SetString("500000000000000000000000000", 10)
-	StakingMinimum = new(big.Int)
-	StakingMinimum.SetString("1000000000000000000", 10)
+	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
+	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
+	NamePrice, _ = new(big.Int).SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
@@ -113,6 +121,7 @@ func getLastIndexOfBH() (lastIndex int) {
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetGenesisInfo() *Genesis
+	GetConsensusInfo() string
 	GetBestBlock() (*Block, error)
 	// GetBlock return block of blockHash. It return nil and error if not found block of that hash or there is a problem in db store
 	GetBlock(blockHash []byte) (*Block, error)
@@ -121,6 +130,8 @@ type ChainAccessor interface {
 }
 
 type SyncContext struct {
+	Seq uint64
+
 	PeerID peer.ID
 
 	BestNo   BlockNo
@@ -133,8 +144,8 @@ type SyncContext struct {
 	LastAnchor BlockNo
 }
 
-func NewSyncCtx(peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
-	return &SyncContext{PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
+func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
+	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
 }
 
 func (ctx *SyncContext) SetAncestor(ancestor *Block) {
@@ -211,6 +222,12 @@ func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx,
 	block.Header.ReceiptsRootHash = receipts.MerkleRoot()
 
 	return &block
+}
+
+// Localtime retrurns a time.Time object, which is coverted from block
+// timestamp.
+func (block *Block) Localtime() time.Time {
+	return time.Unix(0, block.GetHeader().GetTimestamp())
 }
 
 // calculateBlockHash computes sha256 hash of block header.
@@ -299,6 +316,24 @@ func (block *Block) ValidChildOf(parent *Block) bool {
 	}
 
 	return bytes.Compare(parChainID, curChainID) == 0
+}
+
+// Size returns a block size where the tx size is individually calculated. A
+// similar method is used to limit the block size by the block factory.
+//
+// THE REASON WHY THE BLOCK FACTORY DOESN'T USE THE EXACT SIZE OF A MARSHALED
+// BLOCK: The actual size of a marshaled block is larger than this because it
+// includes an additional data associated with the marshaling of the
+// transations array in the block body. It is ineffective that the (DPoS) block
+// factory measures the exact size of the additional probuf data when it
+// produces a block. Thus we use the slightly(?) different and less expensive
+// estimation of the block size.
+func (block *Block) Size() int {
+	size := proto.Size(block.GetHeader()) + len(block.GetHash())
+	for _, tx := range block.GetBody().GetTxs() {
+		size += proto.Size(tx)
+	}
+	return size
 }
 
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed
@@ -457,9 +492,10 @@ func (tx *Tx) CalculateTxHash() []byte {
 	digest.Write(txBody.Recipient)
 	digest.Write(txBody.Amount)
 	digest.Write(txBody.Payload)
-	binary.Write(digest, binary.LittleEndian, txBody.Limit)
-	digest.Write(txBody.Price)
+	binary.Write(digest, binary.LittleEndian, txBody.GasLimit)
+	digest.Write(txBody.GasPrice)
 	binary.Write(digest, binary.LittleEndian, txBody.Type)
+	digest.Write(txBody.ChainIdHash)
 	digest.Write(txBody.Sign)
 	return digest.Sum(nil)
 }
@@ -484,15 +520,16 @@ func (tx *Tx) Clone() *Tx {
 		return &Tx{}
 	}
 	body := &TxBody{
-		Nonce:     tx.Body.Nonce,
-		Account:   Clone(tx.Body.Account).([]byte),
-		Recipient: Clone(tx.Body.Recipient).([]byte),
-		Amount:    Clone(tx.Body.Amount).([]byte),
-		Payload:   Clone(tx.Body.Payload).([]byte),
-		Limit:     tx.Body.Limit,
-		Price:     Clone(tx.Body.Price).([]byte),
-		Type:      tx.Body.Type,
-		Sign:      Clone(tx.Body.Sign).([]byte),
+		Nonce:       tx.Body.Nonce,
+		Account:     Clone(tx.Body.Account).([]byte),
+		Recipient:   Clone(tx.Body.Recipient).([]byte),
+		Amount:      Clone(tx.Body.Amount).([]byte),
+		Payload:     Clone(tx.Body.Payload).([]byte),
+		GasLimit:    tx.Body.GasLimit,
+		GasPrice:    Clone(tx.Body.GasPrice).([]byte),
+		Type:        tx.Body.Type,
+		ChainIdHash: Clone(tx.Body.ChainIdHash).([]byte),
+		Sign:        Clone(tx.Body.Sign).([]byte),
 	}
 	res := &Tx{
 		Body: body,
@@ -505,8 +542,8 @@ func (b *TxBody) GetAmountBigInt() *big.Int {
 	return new(big.Int).SetBytes(b.GetAmount())
 }
 
-func (b *TxBody) GetPriceBigInt() *big.Int {
-	return new(big.Int).SetBytes(b.GetPrice())
+func (b *TxBody) GetGasPriceBigInt() *big.Int {
+	return new(big.Int).SetBytes(b.GetGasPrice())
 }
 
 type MovingAverage struct {

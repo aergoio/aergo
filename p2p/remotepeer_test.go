@@ -8,122 +8,54 @@ package p2p
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/gofrs/uuid"
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
-	"github.com/libp2p/go-libp2p-protocol"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+
+	"github.com/aergoio/aergo/p2p/p2pmock"
+
+	"github.com/aergoio/aergo/types"
 )
 
-const testDuration = time.Second >> 1
-
-var samplePeerID peer.ID
-var sampleMeta PeerMeta
-var sampleErr error
-
-var logger *log.Logger
-
-func init() {
-	logger = log.NewLogger("test")
-
-	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
-	sampleErr = fmt.Errorf("err in unittest")
-	sampleMeta = PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-}
+//const testDuration = time.Second >> 1
 
 // TODO refactor rw and modify this test
+/*
 func TestAergoPeer_RunPeer(t *testing.T) {
-	t.SkipNow()
-	mockActorServ := new(MockActorService)
-	dummyP2PServ := new(MockPeerManager)
-	mockMF := new(MockMoFactory)
-	dummyRW := new(MockMsgReadWriter)
-	target := newRemotePeer(PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
+	//t.SkipNow()
+
+	ctrl := gomock.NewController(t)
+
+	//mockActorServ := new(p2pmock.MockActorService)
+	mockActorServ := p2pmock.NewMockActorService(ctrl)
+	dummyP2PServ := new(p2pmock.MockPeerManager)
+	mockMF := new(p2pmock.MockMoFactory)
+	dummyRW := new(p2pmock.MockMsgReadWriter)
+	target := newRemotePeer(p2pcommon.PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
 
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
+
 	mockActorServ.On("requestSync", mock.Anything, mock.AnythingOfType("message.GetBlockRsp")).Return(dummyBestBlock, true)
 
-	go target.runPeer()
+	mockActorServ.EXPECT().
+	go target.RunPeer()
 
 	time.Sleep(testDuration)
-	target.stop()
-}
-
-func TestRemotePeer_writeToPeer(t *testing.T) {
-	rand := uuid.Must(uuid.NewV4())
-	var sampleMsgID MsgID
-	copy(sampleMsgID[:], rand[:])
-	type args struct {
-		StreamResult error
-		signErr      error
-		needResponse bool
-		sendErr      error
-	}
-	type wants struct {
-		sendCnt   int
-		expReqCnt int
-	}
-	tests := []struct {
-		name  string
-		args  args
-		wants wants
-	}{
-		{"TNReq1", args{}, wants{1, 0}},
-		// {"TNReqWResp1", args{needResponse: true}, wants{1, 1}},
-
-		// error while signing
-		// error while get stream
-		// TODO this case is evaled in pbMsgOrder tests
-		// {"TFSend1", args{needResponse: true, sendErr: sampleErr}, wants{1, 0}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockOrder := new(MockMsgOrder)
-			mockStream := new(MockStream)
-			mockStream.On("Close").Return(nil)
-			dummyRW := new(MockMsgReadWriter)
-			mockOrder.On("IsNeedSign").Return(true)
-			mockOrder.On("IsRequest", mockPeerManager).Return(true)
-			mockOrder.On("SendTo", mock.AnythingOfType("*p2p.remotePeerImpl")).Return(tt.args.sendErr)
-			mockOrder.On("GetProtocolID").Return(PingRequest)
-			mockOrder.On("GetMsgID").Return(sampleMsgID)
-			mockOrder.On("ResponseExpected").Return(tt.args.needResponse)
-
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, dummyRW)
-			p.state.SetAndGet(types.RUNNING)
-			go p.runWrite()
-			p.state.SetAndGet(types.RUNNING)
-
-			p.writeToPeer(mockOrder)
-
-			// FIXME wait in more relaiable way
-			time.Sleep(50 * time.Millisecond)
-			p.closeWrite <- struct{}{}
-			mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)
-			assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
-		})
-	}
+	target.Stop()
 }
 
 func TestRemotePeer_sendPing(t *testing.T) {
 	t.Skip("Send ping is not used for now, and will be reused after")
 	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	sampleSelf := PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
+	sampleSelf := p2pcommon.PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}
 	type wants struct {
@@ -139,9 +71,9 @@ func TestRemotePeer_sendPing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockMF := new(MockMoFactory)
+			mockActorServ := new(p2pmock.MockActorService)
+			mockPeerManager := new(p2pmock.MockPeerManager)
+			mockMF := new(p2pmock.MockMoFactory)
 
 			mockActorServ.On("CallRequest", message.ChainSvc, mock.AnythingOfType("*message.GetBestBlock")).Return(dummyBestBlockRsp, tt.getBlockErr)
 			mockPeerManager.On("SelfMeta").Return(sampleSelf)
@@ -181,14 +113,14 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 	// defer logger.SetLevel(prevLevel)
 	for _, tt := range tests {
 		// logger.SetLevel(tt.loglevel)
-		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockPeerManager)
-		mockStream := new(MockStream)
+		mockActorServ := new(p2pmock.MockActorService)
+		mockPeerManager := new(p2pmock.MockPeerManager)
+		mockStream := new(p2pmock.MockStream)
 		mockStream.On("Close").Return(nil)
 
 		p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, nil)
 		t.Run(tt.name, func(t *testing.T) {
-			mid1, mid2, midn := NewMsgID(), NewMsgID(), NewMsgID()
+			mid1, mid2, midn := p2pcommon.NewMsgID(), p2pcommon.NewMsgID(), p2pcommon.NewMsgID()
 			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid1}}, nil}}
 			p.requests[mid2] = &requestInfo{cTime: time.Now().Add(time.Minute * -60).Add(time.Second * -1), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid2}}, nil}}
 			p.requests[midn] = &requestInfo{cTime: time.Now().Add(time.Minute * -59), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: midn}}, nil}}
@@ -202,7 +134,7 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 func TestRemotePeer_sendMessage(t *testing.T) {
 
 	type args struct {
-		msgID    MsgID
+		msgID    p2pcommon.MsgID
 		protocol protocol.ID
 		timeout  time.Duration
 	}
@@ -211,14 +143,14 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 		args    args
 		timeout bool
 	}{
-		{"TSucc", args{NewMsgID(), "p1", time.Millisecond * 100}, false},
-		{"TTimeout", args{NewMsgID(), "p1", time.Millisecond * 100}, true},
+		{"TSucc", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, false},
+		{"TTimeout", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, true},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
-		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockPeerManager)
-		mockMsg := new(MockMsgOrder)
+		mockActorServ := new(p2pmock.MockActorService)
+		mockPeerManager := new(p2pmock.MockPeerManager)
+		mockMsg := new(p2pmock.MockMsgOrder)
 		mockMsg.On("GetMsgID").Return(tt.args.msgID)
 		mockMsg.On("GetProtocolID").Return(NewBlockNotice)
 
@@ -264,8 +196,8 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 }
 
 func TestRemotePeer_handleMsg(t *testing.T) {
-	sampleMsgID := NewMsgID()
-	mockMO := new(MockMsgOrder)
+	sampleMsgID := p2pcommon.NewMsgID()
+	mockMO := new(p2pmock.MockMsgOrder)
 	mockMO.On("GetMsgID").Return(sampleMsgID)
 	mockMO.On("Subprotocol").Return(PingRequest)
 
@@ -288,15 +220,15 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 		//{"TTimeout", args{false, nil, fmt.Errorf("no permission")}, true},
 	}
 	for _, tt := range tests {
-		mockActorServ := new(MockActorService)
-		mockPeerManager := new(MockPeerManager)
-		mockMsgHandler := new(MockMessageHandler)
-		mockSigner := new(mockMsgSigner)
-		mockMF := new(MockMoFactory)
+		mockActorServ := new(p2pmock.MockActorService)
+		mockPeerManager := new(p2pmock.MockPeerManager)
+		mockMsgHandler := new(p2pmock.MockMessageHandler)
+		mockSigner := new(p2pmock.MockMsgSigner)
+		mockMF := new(p2pmock.MockMoFactory)
 		t.Run(tt.name, func(t *testing.T) {
-			msg := new(MockMessage)
+			msg := new(p2pmock.MockMessage)
 			if tt.args.nohandler {
-				msg.On("Subprotocol").Return(SubProtocol(3999999999))
+				msg.On("Subprotocol").Return(p2pcommon.SubProtocol(3999999999))
 			} else {
 				msg.On("Subprotocol").Return(PingRequest)
 			}
@@ -354,15 +286,14 @@ func TestRemotePeer_sendTxNotices(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockMF := new(MockMoFactory)
-			mockOrder := new(MockMsgOrder)
+			mockActorServ := new(p2pmock.MockActorService)
+			mockPeerManager := new(p2pmock.MockPeerManager)
+			mockSigner := new(p2pmock.MockMsgSigner)
+			mockMF := new(p2pmock.MockMoFactory)
+			mockOrder := new(p2pmock.MockMsgOrder)
 			mockOrder.On("IsNeedSign").Return(true)
-			mockOrder.On("IsRequest", mockPeerManager).Return(true)
 			mockOrder.On("GetProtocolID").Return(NewTxNotice)
-			mockOrder.On("GetMsgID").Return(NewMsgID())
+			mockOrder.On("GetMsgID").Return(p2pcommon.NewMsgID())
 
 			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockOrder)
 
@@ -377,6 +308,9 @@ func TestRemotePeer_sendTxNotices(t *testing.T) {
 		})
 	}
 }
+
+*/
+
 func generateHash(i uint64) types.TxID {
 	bs := types.TxID{}
 	binary.LittleEndian.PutUint64(bs[:], i)
@@ -398,17 +332,17 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockMF := new(MockMoFactory)
+			mockActorServ := new(p2pmock.MockActorService)
+			mockPeerManager := new(p2pmock.MockPeerManager)
+			mockSigner := new(p2pmock.MockMsgSigner)
+			mockMF := new(p2pmock.MockMoFactory)
 
 			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
-			target.lastNotice = &LastBlockStatus{BlockHash: test.prevLastBlk[:], BlockNumber:0, CheckTime:time.Now()}
-			actual := target.updateBlkCache(test.hash[:], 0)
+			target.lastNotice = &types.LastBlockStatus{BlockHash: test.prevLastBlk[:], BlockNumber: 0, CheckTime: time.Now()}
+			actual := target.UpdateBlkCache(test.hash[:], 0)
 			assert.Equal(t, test.expected, actual)
 			assert.True(t, bytes.Equal(test.hash[:], target.LastNotice().BlockHash))
 		})
@@ -429,23 +363,80 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockMF := new(MockMoFactory)
+			mockActorServ := new(p2pmock.MockActorService)
+			mockPeerManager := new(p2pmock.MockPeerManager)
+			mockSigner := new(p2pmock.MockMsgSigner)
+			mockMF := new(p2pmock.MockMoFactory)
 
 			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
 			for _, hash := range test.inCache {
 				target.txHashCache.Add(hash, true)
 			}
-			actual := target.updateTxCache(test.hashes)
+			actual := target.UpdateTxCache(test.hashes)
 
 			assert.Equal(t, test.expected, actual)
 		})
 	}
 }
 
+func TestRemotePeerImpl_GetReceiver(t *testing.T) {
+	idSize := 10
+	idList := make([]p2pcommon.MsgID, idSize)
+	recvList := make(map[p2pcommon.MsgID]p2pcommon.ResponseReceiver)
+	// first 5 have receiever, but latters don't
+	for i := 0; i < idSize; i++ {
+		idList[i] = p2pcommon.NewMsgID()
+		if i < 5 {
+			recvList[idList[i]] = func(msg p2pcommon.Message, msgBody proto.Message) bool {
+				logger.Debug().Int("seq", i).Msg("receiver called")
+				return true
+			}
+		}
+	}
+	// GetReceiver should not return nil and consumeRequest must be thread-safe
+	tests := []struct {
+		name      string
+		toAdd     []p2pcommon.MsgID
+		inID      p2pcommon.MsgID
+
+		receiverReturn bool
+	}{
+		// 1. not anything
+		{"TEmpty", idList[1:10], idList[0], true},
+		// 2. have request history but no receiver
+		{"TNOReceiver", idList[1:10], idList[5], false},
+		// 3. have request history with receiver
+		{"THave", idList[1:10], idList[1], true},
+		// 4. have multiple receivers
+		// TODO maybe to make separate test
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mockActorServ := new(p2pmock.MockActorService)
+			mockPeerManager := new(p2pmock.MockPeerManager)
+			mockSigner := new(p2pmock.MockMsgSigner)
+			mockMF := new(p2pmock.MockMoFactory)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			for _, add := range test.toAdd {
+				p.requests[add] = &requestInfo{receiver: recvList[add]}
+			}
+			actual := p.GetReceiver(test.inID)
+			assert.NotNil(t, actual)
+			dummyMsg := &V030Message{id: p2pcommon.NewMsgID(), originalID: test.inID}
+			assert.Equal(t, test.receiverReturn, actual(dummyMsg, nil))
+
+			// after consuming request, GetReceiver always return requestIDNotFoundReceiver, which always return true
+			p.ConsumeRequest(test.inID)
+			actual2 := p.GetReceiver(test.inID)
+			assert.NotNil(t, actual2)
+			assert.Equal(t, true, actual2(dummyMsg, nil))
+		})
+	}
+}
+
 func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 	sampleSize := 100
 	sampleHashes := make([]types.TxID, sampleSize)
 	maxTxHashSize := 10
@@ -466,78 +457,78 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockMF := new(MockMoFactory)
-			mockMO := new(MockMsgOrder)
-			mockMO.On("IsNeedSign").Return(true)
-			mockMO.On("IsRequest", mockPeerManager).Return(true)
-			mockMO.On("GetProtocolID").Return(NewTxNotice)
-			mockMO.On("GetMsgID").Return(NewMsgID())
+			mockMO := p2pmock.NewMockMsgOrder(ctrl)
+			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
+			mockSigner := new(p2pmock.MockMsgSigner)
 
-			mockMF.On("newMsgTxBroadcastOrder", mock.AnythingOfType("*types.NewTransactionsNotice")).Return(mockMO)
+			mockMO.EXPECT().GetMsgID().Return(p2pcommon.NewMsgID()).AnyTimes()
+			mockMF.EXPECT().NewMsgTxBroadcastOrder(gomock.Any()).Return(mockMO).
+				Times(test.expectSend)
 
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, nil, logger, mockMF, mockSigner, nil, nil)
 			p.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
 			p.maxTxNoticeHashSize = maxTxHashSize
-			//p.write.Open()
 
-			p.pushTxsNotice(test.in)
-
-			mockMF.AssertNumberOfCalls(t, "newMsgTxBroadcastOrder", test.expectSend)
-			//p.write.Close()
-
+			p.PushTxsNotice(test.in)
 		})
 	}
 }
+func TestRemotePeer_writeToPeer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-func TestRemotePeerImpl_GetReceiver(t *testing.T) {
-	idSize := 10
-	idList := make([]MsgID, idSize)
-	recvList := make(map[MsgID]ResponseReceiver)
-	for i := 0; i < idSize; i++ {
-		idList[i] = NewMsgID()
-		recvList[idList[i]] = func(msg Message, msgBody proto.Message) bool {
-			logger.Debug().Int("seq", i).Msg("receiver called")
-			return true
-		}
+	rand := uuid.Must(uuid.NewV4())
+	var sampleMsgID p2pcommon.MsgID
+	copy(sampleMsgID[:], rand[:])
+	type args struct {
+		StreamResult error
+		signErr      error
+		needResponse bool
+		sendErr      error
 	}
-	// GetReceiver should not return nil and consumeRequest must be thread-safe
+	type wants struct {
+		sendCnt   int
+		expReqCnt int
+	}
 	tests := []struct {
-		name      string
-		toAdd     []MsgID
-		inID      MsgID
-		contained bool
+		name  string
+		args  args
+		wants wants
 	}{
-		// 1. not anything
-		{"TEmpty", idList[1:10], idList[0], false},
-		// 2. have request history but no receiver
-		{"TNOReceiver", idList[1:10], NewMsgID(), false},
-		// 3. have request history with receiver
-		{"THave", idList[1:10], idList[1], true},
-		// 4. have multiple receivers
-		// TODO maybe to make separate test
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(MockActorService)
-			mockPeerManager := new(MockPeerManager)
-			mockSigner := new(mockMsgSigner)
-			mockMF := new(MockMoFactory)
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
-			for _, add := range test.toAdd {
-				p.requests[add] = &requestInfo{receiver: recvList[add]}
-			}
-			actual := p.GetReceiver(test.inID)
-			assert.NotNil(t, actual)
-			dummyMsg := &V030Message{id: NewMsgID(), originalID: test.inID}
-			assert.Equal(t, test.contained, actual(dummyMsg, nil))
+		{"TNReq1", args{}, wants{1, 0}},
+		// {"TNReqWResp1", args{needResponse: true}, wants{1, 1}},
 
-			p.consumeRequest(test.inID)
-			actual2 := p.GetReceiver(test.inID)
-			assert.NotNil(t, actual2)
-			assert.Equal(t, false, actual2(dummyMsg, nil))
+		// error while signing
+		// error while get stream
+		// TODO this case is evaled in pbMsgOrder tests
+		// {"TFSend1", args{needResponse: true, sendErr: sampleErr}, wants{1, 0}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
+			mockMO := p2pmock.NewMockMsgOrder(ctrl)
+			mockStream := p2pmock.NewMockStream(ctrl)
+			dummyRW := p2pmock.NewMockMsgReadWriter(ctrl)
+
+			mockStream.EXPECT().Close().Return(nil).AnyTimes()
+			mockMO.EXPECT().IsNeedSign().Return(true).AnyTimes()
+			mockMO.EXPECT().SendTo(gomock.Any()).Return(tt.args.sendErr)
+			mockMO.EXPECT().GetProtocolID().Return(subproto.PingRequest).AnyTimes()
+			mockMO.EXPECT().GetMsgID().Return(sampleMsgID).AnyTimes()
+
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, nil, logger, nil, nil, mockStream, dummyRW)
+			p.state.SetAndGet(types.RUNNING)
+			go p.runWrite()
+			p.state.SetAndGet(types.RUNNING)
+
+			p.writeToPeer(mockMO)
+
+			// FIXME wait in more relaiable way
+			time.Sleep(50 * time.Millisecond)
+			p.closeWrite <- struct{}{}
+			//mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)
+			//assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
 		})
 	}
 }

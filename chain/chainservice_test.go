@@ -6,6 +6,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,12 @@ func (stubC *StubConsensus) Save(tx db.Transaction) error {
 func (stubC *StubConsensus) NeedReorganization(rootNo types.BlockNo) bool {
 	return true
 }
+func (stubC *StubConsensus) Info() string {
+	return ""
+}
+func (stubC *StubConsensus) GetType() consensus.ConsensusType {
+	return consensus.ConsensusSBP
+}
 
 func makeBlockChain() *ChainService {
 	serverCtx := config.NewServerContext("", "")
@@ -70,6 +77,9 @@ func testAddBlock(t *testing.T, best int) (*ChainService, *StubBlockChain) {
 	cs := makeBlockChain()
 
 	genesisBlk, _ := cs.getBlockByNo(0)
+
+	assert.NotNil(t, genesisBlk)
+
 	stubChain := InitStubBlockChain([]*types.Block{genesisBlk}, best)
 
 	for i := 1; i <= best; i++ {

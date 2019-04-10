@@ -65,6 +65,10 @@ func (ls libStatus) libNo() types.BlockNo {
 	return ls.Lib.BlockNo
 }
 
+func (ls libStatus) lib() *blockInfo {
+	return ls.Lib
+}
+
 func (ls *libStatus) addConfirmInfo(block *types.Block) {
 	// Genesis block must not be added.
 	if block.BlockNo() == 0 {
@@ -235,12 +239,6 @@ func (ls *libStatus) gc() {
 				return cInfo(e).BlockNo > ls.Lib.BlockNo
 			},
 		)
-
-		for bp, lib := range ls.Prpsd {
-			if lib.Plib.BlockNo < ls.Lib.BlockNo {
-				delete(ls.Prpsd, bp)
-			}
-		}
 	}
 	// GC based on the element no
 	limitConfirms := ls.gcNumLimit()

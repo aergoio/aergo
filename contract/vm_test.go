@@ -1,9 +1,11 @@
 package contract
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -512,11 +514,20 @@ function infiniteLoop()
 	end
 	return t
 end
-abi.register(infiniteLoop)`
+function catch()
+	return pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "loop", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"loop",
@@ -525,6 +536,21 @@ abi.register(infiniteLoop)`
 		),
 	)
 	errMsg := "exceeded the maximum instruction count"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"catch"}`,
+		),
+	)
 	if err == nil {
 		t.Errorf("expected: %s", errMsg)
 	}
@@ -767,7 +793,8 @@ func TestSqlVmDateTime(t *testing.T) {
 	definition := `
 function init()
     db.exec("create table if not exists dt_test (n datetime, b bool)")
-	db.exec("insert into dt_test values (10000, 1),(date('2004-10-24', '+1 month', '-1 day'), 0)")
+	local n = db.exec("insert into dt_test values (?, ?),(date('2004-10-24', '+1 month', '-1 day'), 0)", 10000, 1)
+	assert(n == 2, "change count mismatch");
 end
 
 function nowNull()
@@ -775,7 +802,7 @@ function nowNull()
 end
 
 function localtimeNull()
-	db.exec("insert into dt_test values (datetime('2018-05-25', 'localtime'), 1)")
+	db.exec("insert into dt_test values (datetime('2018-05-25', ?), 1)", 'localtime')
 end
 
 function get()
@@ -926,8 +953,7 @@ end
 
 function query(id)
     local rt = {}
-    local stmt = db.prepare("select * from customer where id like '%' || ? || '%'")
-    local rs = stmt:query(id)
+    local rs = db.query("select * from customer where id like '%' || ? || '%'", id)
     while rs:next() do
         local col1, col2, col3, col4, col5 = rs:get()
         local item = {
@@ -943,18 +969,18 @@ function query(id)
 end
 
 function insert(id , passwd, name, birth, mobile)
-    local stmt = db.prepare("insert into customer values (?,?,?,?,?)")
-    stmt:exec(id, passwd, name, birth, mobile)
+    local n = db.exec("insert into customer values (?,?,?,?,?)", id, passwd, name, birth, mobile)
+	assert(n == 1, "insert count mismatch")
 end
 
 function update(id , passwd)
-    local stmt = db.prepare("update customer set passwd =? where id =?")
-    stmt:exec(passwd, id)
+    local n = db.exec("update customer set passwd =? where id =?", passwd, id)
+	assert(n == 1, "update count mismatch")
 end
 
 function delete(id)
-    local stmt = db.prepare("delete from customer where id =?")
-    stmt:exec(id)
+    local n = db.exec("delete from customer where id =?", id)
+	assert(n == 1, "delete count mismatch")
 end
 
 function count()
@@ -2868,11 +2894,33 @@ function checkBignum()
 	
 	return bignum.isbignum(a), bignum.isbignum(b), bignum.isbignum("2333")
 end
-
+function calcBignum()
+	bg1 = bignum.number("999999999999999999999999999999")
+	bg2 = bignum.number("999999999999999999999999999999")
+	bg3 = bg1 + bg2
+	bg4 = bg1 * 2
+	bg5 = 2 * bg1
+	n1 = 999999999999999
+	system.print(n1)
+	bg6 = bignum.number(n1)
+	assert (bg3 == bg4 and bg4 == bg5)
+	bg5 = bg1 - bg3 
+	assert (bignum.isneg(bg5) and bg5 == bignum.neg(bg1))
+	system.print(bg3, bg5, bg6)
+	bg6 = bignum.number(1)
+	assert (bg6 > bg5)
+	pow = bignum.number(2) ^ 8
+	assert(pow == bignum.number(256))
+	assert(bignum.compare(bg6, 1) == 0)
+	system.print((bg6 == 1), bignum.isbignum(pow))
+	div1 = bignum.number(3)/2
+	assert(bignum.compare(div1, 1) == 0)
+	div = bg6 / 0
+end
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2926,6 +2974,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", `{"Name":"checkBignum"}`, "", `[false,true,false]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"calcBignum"}`, "bignum divide by zero", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3295,6 +3347,168 @@ func TestEvent(t *testing.T) {
 	)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestView(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+    function test_view()
+        contract.event("ev1", 1,"local", 2, "form")
+        contract.event("ev1", 3,"local", 4, "form")
+    end
+	function k()
+		return 10
+	end
+	function tx_in_view_function()
+		k2()
+	end
+	function k2()
+		test_view()
+	end
+	function tx_after_view_function()
+		k()
+        contract.event("ev1", 1,"local", 2, "form")
+	end
+    abi.register(test_view, tx_after_view_function)
+    abi.register_view(test_view, k, tx_in_view_function)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "view", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "test_view", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("view", `{"Name":"k", "Args":[]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_in_view_function", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_after_view_function", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNsec(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function test_nsec()
+		system.print(nsec())
+	end
+	abi.register(test_nsec)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "nsec", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "nsec", 0, `{"Name": "test_nsec"}`).Fail(`attempt to call global 'nsec' (a nil value)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGovernance(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+    function test_gov()
+		contract.stake("10000 aergo")
+		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
+    end
+
+	function error_case()
+		contract.stake("10000 aergo")
+		assert(false)
+	end
+	
+	function test_pcall()
+		return contract.pcall(error_case)
+	end
+		
+    abi.register(test_gov, test_pcall, error_case)
+	abi.payable(test_gov, test_pcall)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "gov", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	amount, _ := new(big.Int).SetString("10000000000000000000000", 10)
+	err = bc.ConnectBlock(
+		NewLuaTxCallBig("ktlee", "gov", amount, `{"Name": "test_gov", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	oldstaking, err := bc.GetStaking("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	oldgov, err := bc.GetAccountState("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "gov", 0, `{"Name": "test_pcall", "Args":[]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	staking, err := bc.GetStaking("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	gov, err := bc.GetAccountState("gov")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if bytes.Equal(oldstaking.Amount, staking.Amount) == false ||
+		bytes.Equal(oldgov.GetBalance(), gov.GetBalance()) == false {
+		t.Error("pcall error")
+	}
+	tx = NewLuaTxCall("ktlee", "gov", 0, `{"Name": "error_case", "Args":[]}`)
+	_ = bc.ConnectBlock(tx)
+	newstaking, err := bc.GetStaking("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	newgov, err := bc.GetAccountState("gov")
+	if err != nil {
+		t.Error(err)
+	}
+	if bytes.Equal(oldstaking.Amount, newstaking.Amount) == false ||
+		bytes.Equal(oldgov.GetBalance(), newgov.GetBalance()) == false {
+		fmt.Println(new(big.Int).SetBytes(newstaking.Amount).String(), newgov.GetBalanceBigInt().String())
+		t.Error("pcall error")
 	}
 }
 

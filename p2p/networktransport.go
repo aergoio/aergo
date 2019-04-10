@@ -8,59 +8,27 @@ package p2p
 import (
 	"context"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-host"
-	inet "github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
-	"github.com/libp2p/go-libp2p-protocol"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	host "github.com/libp2p/go-libp2p-host"
+	inet "github.com/libp2p/go-libp2p-net"
+	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
+	protocol "github.com/libp2p/go-libp2p-protocol"
+
 	"github.com/aergoio/aergo-lib/log"
 
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	peer "github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 )
-
-// NTContainer can provide NetworkTransport interface.
-type NTContainer interface {
-	GetNetworkTransport() NetworkTransport
-
-	// ChainID return id of current chain.
-	ChainID() *types.ChainID
-}
-
-// NetworkTransport do manager network connection
-// TODO need refactoring. it has other role, pk management of self peer
-type NetworkTransport interface {
-	host.Host
-	Start() error
-	Stop() error
-
-	PrivateKey() crypto.PrivKey
-	PublicKey() crypto.PubKey
-	SelfMeta() PeerMeta
-	SelfNodeID() peer.ID
-
-	GetAddressesOfPeer(peerID peer.ID) []string
-
-	// AddStreamHandler wrapper function which call host.SetStreamHandler after transport is initialized, this method is for preventing nil error.
-	AddStreamHandler(pid protocol.ID, handler inet.StreamHandler)
-
-
-	GetOrCreateStream(meta PeerMeta, protocolID protocol.ID) (inet.Stream, error)
-	GetOrCreateStreamWithTTL(meta PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error)
-
-	FindPeer(peerID peer.ID) bool
-	ClosePeerConnection(peerID peer.ID) bool
-}
 
 /**
  * networkTransport connect to and listen from other nodes.
@@ -68,22 +36,21 @@ type NetworkTransport interface {
  */
 type networkTransport struct {
 	host.Host
-	privateKey  crypto.PrivKey
-	publicKey   crypto.PubKey
+	privateKey crypto.PrivKey
+	publicKey  crypto.PubKey
 
-	selfMeta    PeerMeta
+	selfMeta    p2pcommon.PeerMeta
 	bindAddress net.IP
 	bindPort    uint32
-
 
 	// hostInited is
 	hostInited *sync.WaitGroup
 
-	conf        *cfg.P2PConfig
-	logger      *log.Logger
+	conf   *cfg.P2PConfig
+	logger *log.Logger
 }
 
-var _ NetworkTransport = (*networkTransport)(nil)
+var _ p2pcommon.NetworkTransport = (*networkTransport)(nil)
 
 func (sl *networkTransport) PrivateKey() crypto.PrivKey {
 	return sl.privateKey
@@ -91,7 +58,7 @@ func (sl *networkTransport) PrivateKey() crypto.PrivKey {
 func (sl *networkTransport) PublicKey() crypto.PubKey {
 	return sl.publicKey
 }
-func (sl *networkTransport) SelfMeta() PeerMeta {
+func (sl *networkTransport) SelfMeta() p2pcommon.PeerMeta {
 	return sl.selfMeta
 }
 func (sl *networkTransport) SelfNodeID() peer.ID {
@@ -100,8 +67,8 @@ func (sl *networkTransport) SelfNodeID() peer.ID {
 
 func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransport {
 	nt := &networkTransport{
-		conf:           conf,
-		logger:         logger,
+		conf:   conf,
+		logger: logger,
 
 		hostInited: &sync.WaitGroup{},
 	}
@@ -120,7 +87,7 @@ func (sl *networkTransport) initNT() {
 
 	// init address and port
 	// if not set, it look up ip addresses of machine and choose suitable one (but not so smart) and default port 7845
-	sl.initSelfMeta(peerID)
+	sl.initSelfMeta(peerID, !sl.conf.NPExposeSelf)
 	sl.initServiceBindAddress()
 
 	sl.hostInited.Add(1)
@@ -129,7 +96,7 @@ func (sl *networkTransport) initNT() {
 	// TODO more survey libp2p NAT configuration
 }
 
-func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
+func (sl *networkTransport) initSelfMeta(peerID peer.ID, noExpose bool) {
 	protocolAddr := sl.conf.NetProtocolAddr
 	var ipAddress net.IP
 	var err error
@@ -137,13 +104,13 @@ func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
 	if len(sl.conf.NetProtocolAddr) != 0 {
 		ipAddress, err = p2putil.GetSingleIPAddress(protocolAddr)
 		if err != nil {
-			panic("Invalid protocol address "+protocolAddr+" : "+err.Error())
+			panic("Invalid protocol address " + protocolAddr + " : " + err.Error())
 		}
 		if ipAddress.IsUnspecified() {
 			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
 		}
 	} else {
-		extIP, err := externalIP()
+		extIP, err := p2putil.ExternalIP()
 		if err != nil {
 			panic("error while finding IP address: " + err.Error())
 		}
@@ -157,6 +124,7 @@ func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
 	sl.selfMeta.IPAddress = protocolAddr
 	sl.selfMeta.Port = uint32(protocolPort)
 	sl.selfMeta.ID = peerID
+	sl.selfMeta.Hidden = noExpose
 
 	// bind address and port will be overriden if configuration is specified
 	sl.bindAddress = ipAddress
@@ -194,25 +162,25 @@ func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.Strea
 
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
-func (sl *networkTransport) GetOrCreateStreamWithTTL(meta PeerMeta, protocolID  protocol.ID, ttl time.Duration) (inet.Stream, error) {
+func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error) {
 	var peerAddr, err = PeerMetaToMultiAddr(meta)
 	if err != nil {
 		sl.logger.Warn().Err(err).Str("addr", meta.IPAddress).Msg("invalid NPAddPeer address")
-		return nil,fmt.Errorf("invalid IP address %s:%d",meta.IPAddress,meta.Port)
+		return nil, fmt.Errorf("invalid IP address %s:%d", meta.IPAddress, meta.Port)
 	}
 	var peerID = meta.ID
-	sl.Peerstore().AddAddr(peerID, peerAddr,ttl)
+	sl.Peerstore().AddAddr(peerID, peerAddr, ttl)
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, meta.ID, protocolID)
 	if err != nil {
-		sl.logger.Info().Err(err).Str("addr", meta.IPAddress).Str(LogPeerID, p2putil.ShortForm(meta.ID)).Str(LogProtoID, string(protocolID)).Msg("Error while get stream")
-		return nil,err
+		sl.logger.Info().Err(err).Str("addr", meta.IPAddress).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Str(p2putil.LogProtoID, string(protocolID)).Msg("Error while get stream")
+		return nil, err
 	}
 	return s, nil
 }
 
-func (sl *networkTransport) GetOrCreateStream(meta PeerMeta, protocolID  protocol.ID) (inet.Stream, error) {
-	return sl.GetOrCreateStreamWithTTL(meta, protocolID, meta.TTL())
+func (sl *networkTransport) GetOrCreateStream(meta p2pcommon.PeerMeta, protocolID protocol.ID) (inet.Stream, error) {
+	return sl.GetOrCreateStreamWithTTL(meta, protocolID, getTTL(meta))
 }
 
 func (sl *networkTransport) FindPeer(peerID peer.ID) bool {
@@ -261,22 +229,28 @@ func (sl *networkTransport) startListener() {
 		panic(err.Error())
 	}
 
-	sl.logger.Info().Str(LogFullID, sl.SelfNodeID().Pretty()).Str(LogPeerID, p2putil.ShortForm(sl.SelfNodeID())).Str("addr[0]", listens[0].String()).
+	sl.logger.Info().Str(p2putil.LogFullID, sl.SelfNodeID().Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(sl.SelfNodeID())).Str("addr[0]", listens[0].String()).
 		Msg("Set self node's pid, and listening for connections")
 	sl.Host = newHost
 }
-
 
 func (sl *networkTransport) Stop() error {
 	return sl.Host.Close()
 }
 
 func (sl *networkTransport) GetAddressesOfPeer(peerID peer.ID) []string {
-		addrs := sl.Peerstore().Addrs(peerID)
-		addrStrs := make([]string, len(addrs))
-		for i, addr := range addrs {
-			addrStrs[i] = addr.String()
-		}
-		return addrStrs
+	addrs := sl.Peerstore().Addrs(peerID)
+	addrStrs := make([]string, len(addrs))
+	for i, addr := range addrs {
+		addrStrs[i] = addr.String()
+	}
+	return addrStrs
 }
 
+// TTL return node's ttl
+func getTTL(m p2pcommon.PeerMeta) time.Duration {
+	if m.Designated {
+		return DesignatedNodeTTL
+	}
+	return DefaultNodeTTL
+}

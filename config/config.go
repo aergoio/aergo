@@ -20,7 +20,7 @@ type ServerContext struct {
 func NewServerContext(homePath string, configFilePath string) *ServerContext {
 	serverCxt := &ServerContext{}
 	serverCxt.BaseContext = config.NewBaseContext(serverCxt, homePath, configFilePath, EnvironmentPrefix)
-
+	serverCxt.Vc.SetDefault("blockchain.zerofee", true)
 	return serverCxt
 }
 
@@ -103,6 +103,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		MaxAnchorCount:   20,
 		VerifierCount:    types.DefaultVerifierCnt,
 		ForceResetHeight: 0,
+		ZeroFee:          true,
 	}
 }
 

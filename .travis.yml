@@ -28,10 +28,14 @@ before_deploy:
   - AERGO_VERSION="${TRAVIS_TAG:1}" 
   - mkdir -p release
   - mkdir -p aergo/${AERGO_VERSION}/bin
+  - mkdir -p aergo/${AERGO_VERSION}/lib
   - mv bin/{aergocli,aergoluac,aergosvr,brick} aergo/${AERGO_VERSION}/bin
+  - cp libtool/lib/libgmp* aergo/${AERGO_VERSION}/lib
   - tar -zcvf release/aergo-${AERGO_VERSION}.${TRAVIS_OS_NAME}.tar.gz aergo/${AERGO_VERSION}
   - mkdir -p polaris/${AERGO_VERSION}/bin
+  - mkdir -p polaris/${AERGO_VERSION}/lib
   - mv bin/{polaris,colaris} polaris/${AERGO_VERSION}/bin
+  - cp libtool/lib/libgmp* polaris/${AERGO_VERSION}/lib
   - tar -zcvf release/polaris-${AERGO_VERSION}.${TRAVIS_OS_NAME}.tar.gz polaris/${AERGO_VERSION}
 
 deploy:

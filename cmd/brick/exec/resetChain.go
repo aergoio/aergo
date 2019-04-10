@@ -35,5 +35,7 @@ func (c *resetChain) Run(args string) (string, error) {
 
 	context.Reset()
 
+	resetContractInfoInterface()
+
 	return "reset a dummy chain successfully", nil
 }

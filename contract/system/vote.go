@@ -6,11 +6,10 @@
 package system
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"math/big"
-	"sort"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -18,43 +17,26 @@ import (
 	"github.com/mr-tron/base58"
 )
 
+var defaultBpCount int
+
 var voteKey = []byte("vote")
 var sortKey = []byte("sort")
 
 const PeerIDLength = 39
+
 const VotingDelay = 60 * 60 * 24 //block interval
+//const VotingDelay = 5
 
 var defaultVoteKey = []byte(types.VoteBP)[2:]
 
 func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
-
-	fromUnstake := false
-
-	var key []byte
-	if ci.Name == types.Unstake { //called from unstaking
-		fromUnstake = true
-		key = ci.Args[0].([]byte)
-	} else {
-		key = []byte(ci.Name)[2:]
-	}
-
-	oldvote, err := getVote(scs, key, sender.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
-		return nil, types.ErrLessTimeHasPassed
-	}
-
+	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	key := []byte(context.Call.Name)[2:]
+	oldvote := context.Vote
+	staked := context.Staked
+	//update block number
 	staked.When = blockNo
-	err = setStaking(scs, sender.ID(), staked)
+	err := setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return nil, err
 	}
@@ -64,67 +46,92 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		return nil, err
 	}
 
-	for offset := 0; offset < len(oldvote.Candidate); offset += PeerIDLength {
-		key := oldvote.Candidate[offset : offset+PeerIDLength]
-		voteResult[base58.Encode(key)] = new(big.Int).Sub(voteResult[base58.Encode(key)], oldvote.GetAmountBigInt())
-	}
-
-	if fromUnstake { //called from unstaking
-		oldvote.Amount = staked.GetAmount()
-		err = setVote(scs, key, sender.ID(), oldvote)
-		if err != nil {
-			return nil, err
-		}
-		for offset := 0; offset < len(oldvote.Candidate); offset += PeerIDLength {
-			key := oldvote.Candidate[offset : offset+PeerIDLength]
-			voteResult[base58.Encode(key)] = new(big.Int).Add(voteResult[base58.Encode(key)], staked.GetAmountBigInt())
-		}
-	} else {
-		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
-			return nil, types.ErrMustStakeBeforeVote
-		}
-		var candidates []byte
-		for _, v := range ci.Args {
-			candidate, _ := base58.Decode(v.(string))
-			candidates = append(candidates, candidate...)
-		}
-		vote := &types.Vote{Candidate: candidates, Amount: staked.GetAmount()}
-		err = setVote(scs, key, sender.ID(), vote)
-		if err != nil {
-			return nil, err
-		}
-		for offset := 0; offset < len(candidates); offset += PeerIDLength {
-			key := candidates[offset : offset+PeerIDLength]
-
-			if voteResult[base58.Encode(key)] == nil {
-				voteResult[base58.Encode(key)] = new(big.Int).SetUint64(0)
-			}
-
-			voteResult[base58.Encode(key)] = new(big.Int).Add(voteResult[base58.Encode(key)], staked.GetAmountBigInt())
-		}
-	}
-
-	err = syncVoteResult(scs, key, voteResult)
+	err = voteResult.SubVote(oldvote)
 	if err != nil {
 		return nil, err
 	}
-	result, err := json.Marshal(ci.Args)
+
+	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
+		return nil, types.ErrMustStakeBeforeVote
+	}
+	vote := &types.Vote{Amount: staked.GetAmount()}
+	args, err := json.Marshal(context.Call.Args)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []byte
+	if bytes.Equal(key, defaultVoteKey) {
+		for _, v := range context.Call.Args {
+			candidate, _ := base58.Decode(v.(string))
+			candidates = append(candidates, candidate...)
+		}
+		vote.Candidate = candidates
+	} else {
+		vote.Candidate = args
+	}
+
+	err = setVote(scs, key, sender.ID(), vote)
+	if err != nil {
+		return nil, err
+	}
+	err = voteResult.AddVote(vote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = voteResult.Sync(scs)
 	if err != nil {
 		return nil, err
 	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
-		EventName:       ci.Name[2:],
+		EventName:       context.Call.Name[2:],
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(txBody.Account) +
-			`", "vote":` + string(result) + `}`,
+			`", "vote":` + string(args) + `}`,
 	}, nil
 }
 
+func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
+	context *SystemContext) error {
+	account := context.Sender.ID()
+	staked := context.Staked
+	stakedAmount := new(big.Int).SetBytes(staked.Amount)
+	for _, keystr := range types.AllVotes {
+		key := []byte(keystr[2:])
+		oldvote, err := getVote(scs, key, account)
+		if err != nil {
+			return err
+		}
+		if oldvote.Amount == nil ||
+			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
+			continue
+		}
+		voteResult, err := loadVoteResult(scs, key)
+		if err != nil {
+			return err
+		}
+		if err = voteResult.SubVote(oldvote); err != nil {
+			return err
+		}
+		oldvote.Amount = staked.GetAmount()
+		if err = setVote(scs, key, account, oldvote); err != nil {
+			return err
+		}
+		if err = voteResult.AddVote(oldvote); err != nil {
+			return err
+		}
+		if err = voteResult.Sync(scs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //GetVote return amount, to, err
-func GetVote(scs *state.ContractState, voter []byte) (*types.Vote, error) {
-	return getVote(scs, defaultVoteKey, voter)
+func GetVote(scs *state.ContractState, voter []byte, title []byte) (*types.Vote, error) {
+	return getVote(scs, title, voter)
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
@@ -135,7 +142,11 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 	}
 	var vote types.Vote
 	if len(data) != 0 {
-		return deserializeVote(data), nil
+		if bytes.Equal(key, defaultVoteKey) {
+			return deserializeVote(data), nil
+		} else {
+			return deserializeVoteEx(data), nil
+		}
 	}
 
 	return &vote, nil
@@ -143,44 +154,19 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
 	dataKey := append(append(voteKey, key...), voter...)
-	return scs.SetData(dataKey, serializeVote(vote))
-}
-
-func loadVoteResult(scs *state.ContractState, key []byte) (map[string]*big.Int, error) {
-	voteResult := map[string]*big.Int{}
-	data, err := scs.GetData(append(sortKey, key...))
-	if err != nil {
-		return nil, err
+	if bytes.Equal(key, defaultVoteKey) {
+		return scs.SetData(dataKey, serializeVote(vote))
+	} else {
+		return scs.SetData(dataKey, serializeVoteEx(vote))
 	}
-	if len(data) != 0 {
-		voteList := deserializeVoteList(data)
-		if voteList != nil {
-			for _, v := range voteList.GetVotes() {
-				voteResult[base58.Encode(v.Candidate)] = v.GetAmountBigInt()
-			}
-		}
-	}
-	return voteResult, nil
-}
-
-func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) error {
-	if voteResult == nil {
-		return errors.New("Invalid argument : voteReult should not nil")
-	}
-	return syncVoteResult(scs, defaultVoteKey, voteResult)
-}
-
-func syncVoteResult(scs *state.ContractState, key []byte, voteResult map[string]*big.Int) error {
-	voteList := buildVoteList(voteResult)
-
-	//logger.Info().Msgf("VOTE set list %v", voteList.Votes)
-	return scs.SetData(append(sortKey, key...), serializeVoteList(voteList))
 }
 
 // BuildOrderedCandidates returns a candidate list ordered by votes.xs
 func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	// TODO: cleanup
-	l := buildVoteList(vote)
+	voteResult := newVoteResult(defaultVoteKey)
+	voteResult.rmap = vote
+	l := voteResult.buildVoteList()
 	bps := make([]string, 0, len(l.Votes))
 	for _, v := range l.Votes {
 		bp := enc.ToString(v.Candidate)
@@ -189,39 +175,41 @@ func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	return bps
 }
 
-// BuildVoteList builds and returns a voteList type obejct from vote.
-func buildVoteList(vote map[string]*big.Int) *types.VoteList {
-	var voteList types.VoteList
-	for k, v := range vote {
-		c, _ := enc.ToBytes(k)
-		vote := &types.Vote{
-			Candidate: c,
-			Amount:    v.Bytes(),
-		}
-		voteList.Votes = append(voteList.Votes, vote)
-	}
-	sort.Sort(sort.Reverse(voteList))
-
-	return &voteList
-}
-
 // AccountStateReader is an interface for getting a system account state.
 type AccountStateReader interface {
 	GetSystemAccountState() (*state.ContractState, error)
 }
 
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(ar AccountStateReader, n int) (*types.VoteList, error) {
+func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, error) {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	return getVoteResult(scs, defaultVoteKey, n)
+	return getVoteResult(scs, id, n)
+}
+
+// InitDefaultBpCount sets defaultBpCount to bpCount.
+//
+// Caution: This function must be called only once before all the aergosvr
+// services start.
+func InitDefaultBpCount(bpCount int) {
+	// Ensure that it is not modified after it is initialized.
+	if defaultBpCount > 0 {
+		return
+	}
+	defaultBpCount = bpCount
+}
+
+func getDefaultBpCount() int {
+	return defaultBpCount
 }
 
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader, n int) ([]string, error) {
-	vl, err := GetVoteResult(ar, n)
+func GetRankers(ar AccountStateReader) ([]string, error) {
+	n := getDefaultBpCount()
+
+	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
 	}
@@ -234,26 +222,19 @@ func GetRankers(ar AccountStateReader, n int) ([]string, error) {
 	return bps, nil
 }
 
-func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList, error) {
-	data, err := scs.GetData(append(sortKey, key...))
-	if err != nil {
-		return nil, err
-	}
-	voteList := deserializeVoteList(data)
-	if n < len(voteList.Votes) {
-		voteList.Votes = voteList.Votes[:n]
-	}
-	return voteList, nil
-}
-
-func serializeVoteList(vl *types.VoteList) []byte {
+func serializeVoteList(vl *types.VoteList, ex bool) []byte {
 	var data []byte
 	for _, v := range vl.GetVotes() {
-		v := serializeVote(v)
+		var serialized []byte
+		if ex {
+			serialized = serializeVoteEx(v)
+		} else {
+			serialized = serializeVote(v)
+		}
 		vsize := make([]byte, 8)
-		binary.LittleEndian.PutUint64(vsize, uint64(len(v)))
+		binary.LittleEndian.PutUint64(vsize, uint64(len(serialized)))
 		data = append(data, vsize...)
-		data = append(data, v...)
+		data = append(data, serialized...)
 	}
 	return data
 }
@@ -261,6 +242,18 @@ func serializeVoteList(vl *types.VoteList) []byte {
 func serializeVote(v *types.Vote) []byte {
 	var ret []byte
 	if v != nil {
+		ret = append(ret, v.GetCandidate()...)
+		ret = append(ret, v.GetAmount()...)
+	}
+	return ret
+}
+
+func serializeVoteEx(v *types.Vote) []byte {
+	var ret []byte
+	if v != nil {
+		size := make([]byte, 8)
+		binary.LittleEndian.PutUint64(size, uint64(len(v.Candidate)))
+		ret = append(ret, size...)
 		ret = append(ret, v.GetCandidate()...)
 		ret = append(ret, v.GetAmount()...)
 	}
@@ -277,14 +270,25 @@ func deserializeVote(data []byte) *types.Vote {
 	return &types.Vote{Amount: amount, Candidate: candidate}
 }
 
-func deserializeVoteList(data []byte) *types.VoteList {
+func deserializeVoteEx(data []byte) *types.Vote {
+	size := int(binary.LittleEndian.Uint64(data[:8]))
+	candidate := data[8 : 8+size]
+	amount := data[8+size:]
+	return &types.Vote{Amount: amount, Candidate: candidate}
+}
+
+func deserializeVoteList(data []byte, ex bool) *types.VoteList {
 	vl := &types.VoteList{Votes: []*types.Vote{}}
 	var end int
 	for offset := 0; offset < len(data); offset = end {
 		size := binary.LittleEndian.Uint64(data[offset : offset+8])
 		end = offset + 8 + int(size)
 		v := data[offset+8 : end]
-		vl.Votes = append(vl.Votes, deserializeVote(v))
+		if ex {
+			vl.Votes = append(vl.Votes, deserializeVoteEx(v))
+		} else {
+			vl.Votes = append(vl.Votes, deserializeVote(v))
+		}
 	}
 	return vl
 }

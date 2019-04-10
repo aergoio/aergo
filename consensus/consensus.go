@@ -6,6 +6,7 @@
 package consensus
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -56,10 +57,15 @@ type Constructor func() (Consensus, error)
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
 	ChainConsensus
+	ConsensusAccessor
 	Ticker() *time.Ticker
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
+}
+
+type ConsensusAccessor interface {
+	ConsensusInfo() *types.ConsensusInfo
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -71,8 +77,19 @@ type ChainDB interface {
 	NewTx() db.Transaction
 }
 
+type ConsensusType int
+
+const (
+	ConsensusDPOS ConsensusType = iota
+	ConsensusRAFT
+	ConsensusSBP
+)
+
+var ConsensusName = []string{"dpos", "raft", "sbp"}
+
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
+	GetType() ConsensusType
 	IsTransactionValid(tx *types.Tx) bool
 	VerifyTimestamp(block *types.Block) bool
 	VerifySign(block *types.Block) error
@@ -80,6 +97,26 @@ type ChainConsensus interface {
 	Update(block *types.Block)
 	Save(tx db.Transaction) error
 	NeedReorganization(rootNo types.BlockNo) bool
+	Info() string
+}
+
+// Info represents an information for a consensus implementation.
+type Info struct {
+	Type   string
+	Status *json.RawMessage `json:",omitempty"`
+}
+
+// NewInfo returns a new Info with name.
+func NewInfo(name string) *Info {
+	return &Info{Type: name}
+}
+
+// AsJSON() returns i as a JSON string
+func (i *Info) AsJSON() string {
+	if m, err := json.Marshal(i); err == nil {
+		return string(m)
+	}
+	return ""
 }
 
 // BlockFactory is an interface for a block factory implementation.

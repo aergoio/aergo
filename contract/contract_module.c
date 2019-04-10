@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "util.h"
-#include "lbc.h"
-#include "config.h"
+#include "lgmp.h"
 #include "_cgo_export.h"
 
 extern const int *getLuaExecContext(lua_State *L);
@@ -45,7 +44,10 @@ static int set_value(lua_State *L, const char *str)
 	    lua_pushvalue(L, 1);
 	    break;
 	case LUA_TUSERDATA: {
-	    char *str = bc_num2str(*((void **)luaL_checkudata(L, 1, MYTYPE)));
+	    char *str = lua_get_bignum_str(L, 1);
+        if (str == NULL) {
+            luaL_error(L, "not enough memory");
+        }
 	    lua_pushstring(L, str);
 	    free (str);
 	    break;
@@ -117,12 +119,12 @@ static int moduleCall(lua_State *L)
 	fname = (char *)luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 
 	if ((ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas)) < 0) {
 		free(json_args);
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	free(json_args);
 	reset_amount_info(L);
@@ -158,11 +160,11 @@ static int moduleDelegateCall(lua_State *L)
 	fname = (char *)luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	if ((ret = LuaDelegateCallContract(L, service, contract, fname, json_args, gas)) < 0) {
 		free(json_args);
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	free(json_args);
 	reset_amount_info(L);
@@ -193,7 +195,10 @@ static int moduleSend(lua_State *L)
         amount = (char *)lua_tostring(L, 2);
         break;
     case LUA_TUSERDATA:
-        amount = bc_num2str(*((void **)luaL_checkudata(L, 2, MYTYPE)));
+        amount = lua_get_bignum_str(L, 2);
+        if (amount == NULL) {
+            luaL_error(L, "not enough memory");
+        }
         needfree = true;
         break;
     default:
@@ -203,7 +208,7 @@ static int moduleSend(lua_State *L)
 	if (needfree)
 	    free(amount);
 	if (ret < 0)
-		lua_error(L);
+		luaL_throwerror(L);
 	return 0;
 }
 
@@ -223,7 +228,7 @@ static int moduleBalance(lua_State *L)
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
 	if (LuaGetBalance(L, service, contract) < 0) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 
 	return 1;
@@ -241,14 +246,14 @@ static int modulePcall(lua_State *L)
 
 	start_seq = LuaSetRecoveryPoint(L, service);
 	if (start_seq < 0)
-	    lua_error(L);
+	    luaL_throwerror(L);
 
 	if (lua_pcall(L, argc, LUA_MULTRET, 0) != 0) {
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
 		if (start_seq > 0) {
 			if (LuaClearRecovery(L, service, start_seq, true) < 0)
-				lua_error(L);
+				luaL_throwerror(L);
 		}
 		return 2;
 	}
@@ -256,7 +261,7 @@ static int modulePcall(lua_State *L)
 	lua_insert(L, 1);
 	if (start_seq > 0) {
 		if (LuaClearRecovery(L, service, start_seq, false) < 0)
-			lua_error(L);
+			luaL_throwerror(L);
 	}
 	return lua_gettop(L);
 }
@@ -288,11 +293,11 @@ static int moduleDeploy(lua_State *L)
 	contract = (char *)luaL_checkstring(L, 2);
 	json_args = lua_util_get_json_from_stack (L, 3, lua_gettop(L), false);
 	if (json_args == NULL) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	if ((ret = LuaDeployContract(L, service, contract, json_args, amount)) < 0) {
 		free(json_args);
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	free(json_args);
 	reset_amount_info(L);
@@ -312,13 +317,75 @@ static int moduleEvent(lua_State *L)
 	event_name = (char *)luaL_checkstring(L, 1);
 	json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), false);
 	if (json_args == NULL) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	if (LuaEvent(L, service, event_name, json_args) < 0) {
-	    lua_error(L);
+	    luaL_throwerror(L);
 	}
 	free(json_args);
 	return 0;
+}
+
+static int governance(lua_State *L, char type) {
+	int ret;
+	int *service = (int *)getLuaExecContext(L);
+	char *arg;
+	bool needfree = false;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+	}
+
+    if (type != 'V') {
+    	if (lua_isnil(L, 1))
+	    return 0;
+
+        switch(lua_type(L, 1)) {
+        case LUA_TNUMBER:
+            arg = (char *)lua_tostring(L, 1);
+            break;
+        case LUA_TSTRING:
+            arg = (char *)lua_tostring(L, 1);
+            break;
+        case LUA_TUSERDATA:
+            arg = lua_get_bignum_str(L, 1);
+            if (arg == NULL) {
+                luaL_error(L, "not enough memory");
+            }
+            needfree = true;
+            break;
+        default:
+            luaL_error(L, "invalid input");
+        }
+    }
+    else {
+	    arg = lua_util_get_json_from_stack (L, 1, lua_gettop(L), false);
+	    if (arg == NULL)
+		    luaL_throwerror(L);
+		if (strlen(arg) == 0) {
+		    free(arg);
+		    luaL_error(L, "invalid input");
+		}
+		needfree = true;
+    }
+	ret = LuaGovernance(L, service, type, arg);
+	if (needfree)
+	    free(arg);
+	if (ret < 0)
+		luaL_throwerror(L);
+	return 0;
+}
+
+static int moduleStake(lua_State *L) {
+    return governance(L, 'S');
+}
+
+static int moduleUnstake(lua_State *L) {
+    return governance(L, 'U');
+}
+
+static int moduleVote(lua_State *L) {
+    return governance(L, 'V');
 }
 
 static const luaL_Reg call_methods[] = {
@@ -357,6 +424,9 @@ static const luaL_Reg contract_lib[] = {
 	{"send", moduleSend},
 	{"pcall", modulePcall},
 	{"event", moduleEvent},
+	{"stake", moduleStake},
+	{"unstake", moduleUnstake},
+	{"vote", moduleVote},
 	{NULL, NULL}
 };
 

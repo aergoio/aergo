@@ -34,7 +34,7 @@ func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainState
 		sdb:          sdb,
 	}
 
-	logger.Debug().Msg("started signverifier")
+	logger.Info().Msg("started signverifier")
 	return &bv
 }
 
@@ -121,9 +121,7 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts,
 		return ErrorBlockVerifyStateRoot
 	}
 
-	logger.Debug().Str("block", block.ID()).
-		Str("hdrroot", enc.ToString(hdrRoot)).
-		Str("sdbroot", enc.ToString(sdbRoot)).
+	logger.Debug().Str("sdbroot", enc.ToString(sdbRoot)).
 		Msg("block root hash validation succeed")
 
 	hdrRoot = block.GetHeader().ReceiptsRootHash
@@ -135,9 +133,7 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts,
 			Msg("receipts root hash validation failed")
 		return ErrorBlockVerifyReceiptRoot
 	}
-	logger.Debug().Str("block", block.ID()).
-		Str("hdrroot", enc.ToString(hdrRoot)).
-		Str("receipts_root", enc.ToString(receiptsRoot)).
+	logger.Debug().Str("receipts_root", enc.ToString(receiptsRoot)).
 		Msg("receipt root hash validation succeed")
 
 	return nil

@@ -190,7 +190,7 @@ func TestSyncerAllPeerBadByResponseError(t *testing.T) {
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 
 	peers[0].HookGetBlockChunkRsp = func(msgReq *message.GetBlockChunks) {
-		rsp := &message.GetBlockChunksRsp{ToWhom: msgReq.ToWhom, Blocks: nil, Err: message.RemotePeerFailError}
+		rsp := &message.GetBlockChunksRsp{Seq: msgReq.Seq, ToWhom: msgReq.ToWhom, Blocks: nil, Err: message.RemotePeerFailError}
 		syncer.stubRequester.TellTo(message.SyncerSvc, rsp)
 	}
 
@@ -242,4 +242,40 @@ func TestSyncerAlreadySynched(t *testing.T) {
 	syncer.waitStop()
 
 	assert.Equal(t, 1002, syncer.localChain.Best, "sync failed")
+}
+
+func TestSyncer_invalid_seq_getancestor(t *testing.T) {
+	remoteChainLen := 1002
+	localChainLen := 10
+	targetNo := uint64(1000)
+
+	remoteChain := chain.InitStubBlockChain(nil, remoteChainLen)
+	localChain := chain.InitStubBlockChain(remoteChain.Blocks[0:1], localChainLen-1)
+
+	remoteChains := []*chain.StubBlockChain{remoteChain}
+	peers := makeStubPeerSet(remoteChains)
+
+	testCfg := *SyncerCfg
+	testCfg.debugContext = &SyncerDebug{t: t, expAncestor: 0}
+
+	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
+	// set prev sequence
+	syncer.realSyncer.Seq = 99
+	syncer.getSyncAncestorHookFn = func(stubSyncer *StubSyncer, msg *message.GetSyncAncestor) {
+		// send prev sequence
+		newMsg := &message.GetSyncAncestor{Seq: 98, ToWhom: msg.ToWhom, Hashes: msg.Hashes}
+		syncer.SendGetSyncAncestorRsp(newMsg)
+
+		newMsg = &message.GetSyncAncestor{Seq: 99, ToWhom: msg.ToWhom, Hashes: msg.Hashes}
+		syncer.SendGetSyncAncestorRsp(newMsg)
+	}
+
+	syncer.start()
+
+	syncReq := &message.SyncStart{PeerID: targetPeerID, TargetNo: 1000}
+	syncer.stubRequester.TellTo(message.SyncerSvc, syncReq)
+
+	syncer.waitStop()
+
+	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }

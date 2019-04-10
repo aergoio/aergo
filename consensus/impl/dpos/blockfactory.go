@@ -31,10 +31,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
+func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -217,10 +217,10 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 
 	txOp := chain.NewCompTxOp(
 		bf.txOp,
-		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.GetHeader().GetPrevBlockHash()),
+		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.GetHeader().GetPrevBlockHash(), bpi.bestBlock.GetHeader().ChainID),
 	)
 
-	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts)
+	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts, false)
 	if err != nil {
 		return nil, nil, err
 	}

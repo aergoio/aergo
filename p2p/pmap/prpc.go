@@ -10,20 +10,21 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"net"
+	"reflect"
+	"time"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
-	"net"
-	"reflect"
-	"time"
 )
 
 var NotSupportError = fmt.Errorf("not supported cmd")
@@ -34,7 +35,7 @@ type PolarisRPC struct {
 	conf   *config.Config
 	logger *log.Logger
 
-	actorHelper p2p.ActorService
+	actorHelper p2pcommon.ActorService
 
 	grpcServer   *grpc.Server
 	actualServer *PRPCServer
@@ -177,7 +178,7 @@ type PRPCServer struct {
 	logger *log.Logger
 
 	hub         *component.ComponentHub
-	actorHelper p2p.ActorService
+	actorHelper p2pcommon.ActorService
 }
 
 func (rs *PRPCServer) NodeState(ctx context.Context, in *types.NodeReq) (*types.SingleBytes, error) {

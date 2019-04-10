@@ -7,14 +7,18 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"net"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -37,13 +41,14 @@ type RPC struct {
 	actualServer  *AergoRPCService
 	httpServer    *http.Server
 
-	ca types.ChainAccessor
+	ca      types.ChainAccessor
+	version string
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
 
 // NewRPC create an rpc service
-func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
+func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version string) *RPC {
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
 		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
@@ -77,6 +82,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor) *RPC {
 		grpcWebServer: grpcWebServer,
 		actualServer:  actualServer,
 		ca:            chainAccessor,
+		version:       version,
 	}
 	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
 	actualServer.actorHelper = rpcsvc
@@ -96,6 +102,10 @@ func (ns *RPC) SetHub(hub *component.ComponentHub) {
 	ns.BaseComponent.SetHub(hub)
 }
 
+func (ns *RPC) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
+	ns.actualServer.SetConsensusAccessor(ca)
+}
+
 // Start start rpc service.
 func (ns *RPC) BeforeStart() {
 	aergorpc.RegisterAergoRPCServiceServer(ns.grpcServer, ns.actualServer)
@@ -112,7 +122,9 @@ func (ns *RPC) BeforeStop() {
 }
 
 func (ns *RPC) Statistics() *map[string]interface{} {
-	return nil
+	return &map[string]interface{}{
+		"version": ns.version,
+	}
 }
 
 func (ns *RPC) Receive(context actor.Context) {
@@ -129,6 +141,8 @@ func (ns *RPC) Receive(context actor.Context) {
 	case []*types.Event:
 		server := ns.actualServer
 		server.BroadcastToEventStream(msg)
+	case *message.GetServerInfo:
+		context.Respond(ns.CollectServerInfo(msg.Categories))
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 		// Ignore actor lfiecycle messages
 	default:
@@ -202,6 +216,26 @@ func (ns *RPC) serve() {
 	}
 
 	return
+}
+
+func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo{
+	// 3 items are needed
+	statusInfo := make(map[string]string)
+	rsp, err := ns.CallRequestDefaultTimeout(message.P2PSvc, &message.GetSelf{})
+	statusInfo["version"] = ns.version
+	if err != nil {
+		ns.Logger.Error().Err(err).Msg("p2p actor error")
+		statusInfo["id"] = p2p.NodeSID()
+	} else {
+		meta := rsp.(p2pcommon.PeerMeta)
+		statusInfo["id"] = meta.ID.Pretty()
+		statusInfo["addr"] = meta.IPAddress
+		statusInfo["port"] = strconv.Itoa(int(meta.Port))
+	}
+	configInfo := make(map[string]*types.ConfigItem)
+	types.AddCategory(configInfo, "base").AddBool("personal",ns.conf.BaseConfig.Personal)
+	types.AddCategory(configInfo, "account").AddInt("unlocktimeout",int(ns.conf.Account.UnlockTimeout))
+	return &types.ServerInfo{Status: statusInfo, Config:configInfo}
 }
 
 const defaultTTL = time.Second * 4

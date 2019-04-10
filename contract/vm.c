@@ -7,7 +7,7 @@
 #include "state_module.h"
 #include "crypto_module.h"
 #include "util.h"
-#include "lbc.h"
+#include "lgmp.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -15,15 +15,31 @@ const char *construct_name= "constructor";
 
 static void preloadModules(lua_State *L)
 {
+    int status;
+
 	luaopen_system(L);
 	luaopen_contract(L);
 	luaopen_state(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
-	luaopen_bc(L);
+	luaopen_gmp(L);
 	if (!IsPublic()) {
         luaopen_db(L);
 	}
+#ifdef MEASURE
+    lua_register(L, "nsec", lj_cf_nsec);
+    luaopen_jit(L);
+    lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
+    lua_getfield(L, -1, "jit");
+    lua_remove(L, -2);
+    lua_getfield(L, -1, "off");
+    status = lua_pcall(L, 0, 0, 0);
+    if (status != LUA_OK) {
+        lua_pushstring(L, "cannot load the `jit` module");
+        lua_error(L);
+    }
+    lua_remove(L, -1); /* remove jit.* */
+#endif
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
@@ -52,14 +68,14 @@ lua_State *vm_newstate()
 	return L;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, int *service)
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
 	int err;
 	const char *errMsg = NULL;
 
 	setLuaExecContext(L, service);
 
-	err = luaL_loadbuffer(L, code, sz, "lua contract");
+	err = luaL_loadbuffer(L, code, sz, hex_id);
 	if (err != 0) {
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
@@ -95,8 +111,9 @@ void vm_remove_constructor(lua_State *L)
 
 static void count_hook(lua_State *L, lua_Debug *ar)
 {
+    luaL_setuncatchablerror(L);
 	lua_pushstring(L, "exceeded the maximum instruction count");
-	lua_error(L);
+	luaL_throwerror(L);
 }
 
 void vm_set_count_hook(lua_State *L, int limit)
@@ -112,6 +129,9 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
+	    if (err == LUA_ERRMEM) {
+            luaL_setuncatchablerror(L);
+	    }
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
 	}
@@ -163,8 +183,9 @@ sqlite3 *vm_get_db(lua_State *L)
     service = (int *)getLuaExecContext(L);
     db = LuaGetDbHandle(service);
     if (db == NULL) {
+        luaL_setsyserror(L);
         lua_pushstring(L, "can't open a database connection");
-        lua_error(L);
+        luaL_throwerror(L);
     }
     return db;
 }
@@ -189,15 +210,22 @@ int vm_is_payable_function(lua_State *L, char *fname)
 	return lua_tointeger(L, -1);
 }
 
-char *vm_resolve_function(lua_State *L, char *fname)
+char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag)
 {
     int err;
+
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "resolve");
 	lua_pushstring(L, fname);
-	err = lua_pcall(L, 1, 1, 0);
+	err = lua_pcall(L, 1, 3, 0);
 	if (err != 0) {
 		return NULL;
 	}
-	return (char *)lua_tostring(L, -1);
+    fname = (char *)lua_tostring(L, -3);
+	if (fname == NULL)
+	    return fname;
+	*payflag = lua_tointeger(L, -2);
+	*viewflag = lua_tointeger(L, -1);
+
+	return fname;
 }

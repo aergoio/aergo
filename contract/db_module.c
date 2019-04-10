@@ -5,7 +5,7 @@
 #include <sqlite3-binding.h>
 #include "vm.h"
 #include "sqlcheck.h"
-#include "lbc.h"
+#include "lgmp.h"
 
 #define LAST_ERROR(L,db,rc)                         \
     do {                                            \
@@ -231,14 +231,22 @@ static int db_pstmt_tostr(lua_State *L)
     return 1;
 }
 
-static int bind(lua_State *L, db_pstmt_t *pstmt)
+static int bind(lua_State *L, sqlite3 *db, sqlite3_stmt *pstmt)
 {
     int rc, i;
     int argc = lua_gettop(L) - 1;
+    int param_count;
 
-    rc = sqlite3_reset(pstmt->s);
+    param_count = sqlite3_bind_parameter_count(pstmt);
+    if (argc != param_count) {
+        lua_pushfstring(L, "parameter count mismatch: want %d got %d", param_count, argc);
+        return -1;
+    }
+
+    rc = sqlite3_reset(pstmt);
+    sqlite3_clear_bindings(pstmt);
     if (rc != SQLITE_ROW && rc != SQLITE_OK && rc != SQLITE_DONE) {
-        lua_pushfstring(L, sqlite3_errmsg(pstmt->db));
+        lua_pushfstring(L, sqlite3_errmsg(db));
         return -1;
     }
 
@@ -254,47 +262,40 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
         case LUA_TNUMBER:
             if (luaL_isinteger(L, n)) {
                 lua_Integer d = lua_tointeger(L, n);
-                rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
+                rc = sqlite3_bind_int64(pstmt, i, (sqlite3_int64)d);
             } else {
                 lua_Number d = lua_tonumber(L, n);
-                rc = sqlite3_bind_double(pstmt->s, i, (double)d);
+                rc = sqlite3_bind_double(pstmt, i, (double)d);
             }
             break;
         case LUA_TSTRING:
             s = lua_tolstring(L, n, &l);
-            rc = sqlite3_bind_text(pstmt->s, i, s, l, SQLITE_TRANSIENT);
+            rc = sqlite3_bind_text(pstmt, i, s, l, SQLITE_TRANSIENT);
             break;
         case LUA_TBOOLEAN:
             b = lua_toboolean(L, i+1);
             if (b) {
-                rc = sqlite3_bind_int(pstmt->s, i, 1);
+                rc = sqlite3_bind_int(pstmt, i, 1);
             } else {
-                rc = sqlite3_bind_int(pstmt->s, i, 0);
+                rc = sqlite3_bind_int(pstmt, i, 0);
             }
             break;
         case LUA_TNIL:
-            rc = sqlite3_bind_null(pstmt->s, i);
+            rc = sqlite3_bind_null(pstmt, i);
             break;
         case LUA_TUSERDATA:
         {
             if (lua_isbignumber(L, n)) {
-                bc_num bnum = Bgetbnum(L, n);
-                if (bnum->n_scale == 0) {
-                    long d = bc_num2long(bnum);
-                    if (d == 0 && bnum->n_len > 0) {
-                        char *s = bc_num2str(bnum);
+                long int d = lua_get_bignum_si(L, n);
+                if (d == 0 && lua_bignum_is_zero(L, n) != 0) {
+                    char *s = lua_get_bignum_str(L, n);
+                    if (s != NULL) {
                         lua_pushfstring(L, "bignum value overflow for binding %s", s);
                         free(s);
                     }
-                    rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
+                    return -1;
                 }
-                else {
-                    double d;
-                    char *s = bc_num2str(bnum);
-                    sscanf(s, "%lf", &d);
-                    free(s);
-                    rc = sqlite3_bind_double(pstmt->s, i, d);
-                }
+                rc = sqlite3_bind_int64(pstmt, i, (sqlite3_int64)d);
                 break;
             }
         }
@@ -303,7 +304,7 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
             return -1;
         }
         if (rc != SQLITE_OK) {
-            lua_pushfstring(L, sqlite3_errmsg(pstmt->db));
+            lua_pushfstring(L, sqlite3_errmsg(db));
             return -1;
         }
     }
@@ -316,7 +317,7 @@ static int db_pstmt_exec(lua_State *L)
     int rc, n;
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
-    rc = bind(L, pstmt);
+    rc = bind(L, pstmt->db, pstmt->s);
     if (rc == -1) {
         sqlite3_reset(pstmt->s);
         sqlite3_clear_bindings(pstmt->s);
@@ -339,7 +340,7 @@ static int db_pstmt_query(lua_State *L)
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
     db_rs_t *rs;
 
-    rc = bind(L, pstmt);
+    rc = bind(L, pstmt->db, pstmt->s);
     if (rc != 0) {
         sqlite3_reset(pstmt->s);
         sqlite3_clear_bindings(pstmt->s);
@@ -385,17 +386,31 @@ static int db_exec(lua_State *L)
 {
     const char *cmd;
     sqlite3 *db;
-    int rc, n;
+    sqlite3_stmt *s;
+    int rc;
 
     cmd = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(cmd)) {
         luaL_error(L, "invalid sql command");
     }
     db = vm_get_db(L);
-    rc = sqlite3_exec(db, cmd, 0, 0, 0);
+    rc = sqlite3_prepare_v2(db, cmd, -1, &s, NULL);
     LAST_ERROR(L, db, rc);
-    n = sqlite3_changes(db);
-    lua_pushinteger(L, n);
+
+    rc = bind(L, db, s);
+    if (rc == -1) {
+        sqlite3_finalize(s);
+        luaL_error(L, lua_tostring(L, -1));
+    }
+
+    rc = sqlite3_step(s);
+    if (rc != SQLITE_ROW && rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(s);
+        luaL_error(L, sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(s);
+
+    lua_pushinteger(L, sqlite3_changes(db));
     return 1;
 }
 
@@ -414,6 +429,12 @@ static int db_query(lua_State *L)
     db = vm_get_db(L);
     rc = sqlite3_prepare_v2(db, query, -1, &s, NULL);
     LAST_ERROR(L, db, rc);
+
+    rc = bind(L, db, s);
+    if (rc == -1) {
+        sqlite3_finalize(s);
+        luaL_error(L, lua_tostring(L, -1));
+    }
 
     rs = (db_rs_t *)lua_newuserdata(L, sizeof(db_rs_t));
     luaL_getmetatable(L, DB_RS_ID);

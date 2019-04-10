@@ -23,6 +23,8 @@ import:
   version: gx/v3.0.10
 - package: github.com/libp2p/go-libp2p-interface-connmgr
   version: gx/v0.0.16
+- package: github.com/libp2p/go-libp2p-nat
+  version: gx/v0.8.7
 - package: github.com/libp2p/go-libp2p-net
   version: gx/v3.0.10
 - package: github.com/libp2p/go-libp2p-peer
@@ -64,10 +66,6 @@ import:
   version: gx/v1.3.0
 - package: github.com/multiformats/go-multiaddr-dns
   version: gx/v0.2.4
-  #- package: github.com/multiformats/go-multicodec
-  #version: gx/v0.1.5
-  #subpackages:
-  #- protobuf
 - package: github.com/davecgh/go-spew
   version: ~1.1.0
 - package: github.com/rcrowley/go-metrics
@@ -102,6 +100,8 @@ import:
   version: =1.1.9
 - package: github.com/willf/bloom
   version: =2.0.3
+- package: github.com/aergoio/etcd
+  version: aergo
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

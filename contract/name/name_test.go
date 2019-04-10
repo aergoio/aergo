@@ -2,6 +2,7 @@ package name
 
 import (
 	"encoding/json"
+	"math/big"
 	"os"
 	"testing"
 
@@ -44,12 +45,13 @@ func TestName(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
+	systemcs := openSystemContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
-	_, err = ValidateNameTx(tx, sender, scs)
+	_, err = ValidateNameTx(tx, sender, scs, systemcs)
 	assert.Error(t, err, "same name")
 
 	ret := getAddress(scs, []byte(name))
@@ -123,6 +125,34 @@ func TestNameNil(t *testing.T) {
 
 	err = CreateName(scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "create name")
+}
+
+func TestNameSetContractOwner(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	//name := "AB1234567890"
+	requester := types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
+	//ownerAddr := types.ToAddress("AmNExAm3zWL8j4xXDkx2UBCMoLoTgX13K3M4GM8mLPhRCq4KuLeR")
+	tx := &types.TxBody{
+		Account: requester,
+		Payload: []byte(`{"Name":"v1setOwner","Args":["AmNExAm3zWL8j4xXDkx2UBCMoLoTgX13K3M4GM8mLPhRCq4KuLeR"]}`),
+	}
+	tx.Recipient = []byte(types.AergoName)
+
+	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
+	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
+	//owner, _ := sdb.GetStateDB().GetAccountStateV(ownerAddr)
+
+	receiver.AddBalance(big.NewInt(1000))
+
+	bs := sdb.NewBlockState(sdb.GetRoot())
+	scs := openContractState(t, bs)
+	//systemcs := openSystemContractState(t, bs)
+
+	blockNo := uint64(1)
+	_, err := ExecuteNameTx(bs, scs, tx, sender, receiver, blockNo)
+	assert.NoError(t, err, "execute name")
+	assert.Equal(t, big.NewInt(0), receiver.Balance(), "check remain")
 }
 
 func buildNamePayload(name string, operation string, buyer string) []byte {

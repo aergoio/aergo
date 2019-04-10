@@ -7,35 +7,40 @@ package chain
 
 import (
 	"errors"
-	"math/big"
 
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
 
-const pubNetMaxBlockSize = 4000000
+const pubNetMaxBlockBodySize = 4000000
 
 var (
 	CoinbaseAccount []byte
 	MaxAnchorCount  int
 	VerifierCount   int
-	coinbaseFee     *big.Int
 
-	// MaxBlockSize is the upper limit of block size.
-	maxBlockSize uint32
-	pubNet       bool
+	// maxBlockBodySize is the upper limit of block size.
+	maxBlockBodySize uint32
+	maxBlockSize     uint32
+	pubNet           bool
+	consensusName    string
 )
 
 var (
+	// ErrInvalidCoinbaseAccount is returned by Init when the coinbase account
+	// address is invalid.
 	ErrInvalidCoinbaseAccount = errors.New("invalid coinbase account in config")
+	ErrInvalidConsensus       = errors.New("invalid consensus name from genesis")
 )
 
 // Init initializes the blockchain-related parameters.
-func Init(maxBlkSize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, verifierCount int) error {
+func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, verifierCount int) error {
 	var err error
 
-	maxBlockSize = maxBlkSize
+	setBlockSizeLimit(maxBlkBodySize)
+
 	if isBp {
 		if len(coinbaseAccountStr) != 0 {
 			CoinbaseAccount, err = types.DecodeAddress(coinbaseAccountStr)
@@ -61,29 +66,54 @@ func IsPublic() bool {
 	return pubNet
 }
 
-func initChainEnv(genesis *types.Genesis) {
+func initChainParams(genesis *types.Genesis) {
 	pubNet = genesis.ID.PublicNet
 	if pubNet {
-		setMaxBlockSize(pubNetMaxBlockSize)
+		setBlockSizeLimit(pubNetMaxBlockBodySize)
 	}
-	contract.PubNet = pubNet
-	fee, _ := genesis.ID.GetCoinbaseFee() // no failure
-	setCoinbaseFee(fee)
+	if err := setConsensusName(genesis.ConsensusType()); err != nil {
+		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
+	}
+	system.InitDefaultBpCount(len(genesis.BPs))
+	if genesis.TotalBalance() != nil {
+		types.MaxAER = genesis.TotalBalance()
+		logger.Info().Str("TotalBalance", types.MaxAER.String()).Msg("set total from genesis")
+	}
 }
 
-// MaxBlockSize returns (kind of) the upper limit of block size.
+// MaxBlockBodySize returns the max block body size.
+func MaxBlockBodySize() uint32 {
+	return maxBlockBodySize
+}
+
+// MaxBlockSize returns the max block size.
 func MaxBlockSize() uint32 {
 	return maxBlockSize
 }
 
-func setMaxBlockSize(size uint32) {
-	maxBlockSize = size
+func setMaxBlockBodySize(size uint32) {
+	maxBlockBodySize = size
 }
 
-func setCoinbaseFee(fee *big.Int) {
-	coinbaseFee = fee
+func setBlockSizeLimit(maxBlockBodySize uint32) {
+	setMaxBlockBodySize(maxBlockBodySize)
+	maxBlockSize = MaxBlockBodySize() + types.DefaultMaxHdrSize
 }
 
-func CoinbaseFee() *big.Int {
-	return coinbaseFee
+func setConsensusName(val string) error {
+	for _, name := range consensus.ConsensusName {
+		if val == name {
+			consensusName = val
+		}
+	}
+
+	if consensusName == "" {
+		return ErrInvalidConsensus
+	}
+
+	return nil
+}
+
+func ConsensusName() string {
+	return consensusName
 }

@@ -16,7 +16,7 @@ static int systemPrint(lua_State *L)
 
     jsonValue = lua_util_get_json_from_stack (L, 1, lua_gettop(L), true);
     if (jsonValue == NULL) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
     LuaPrint(service, jsonValue);
     free(jsonValue);
@@ -46,12 +46,12 @@ int setItemWithPrefix(lua_State *L)
 	dbKey = getDbKey(L);
 	jsonValue = lua_util_get_json (L, 2, false);
 	if (jsonValue == NULL) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 
 	if (LuaSetDB(L, service, dbKey, jsonValue) != 0) {
 		free(jsonValue);
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	free(jsonValue);
 
@@ -81,7 +81,7 @@ int getItemWithPrefix(lua_State *L)
 	dbKey = getDbKey(L);
 	ret = LuaGetDB(L, service, dbKey);
 	if (ret < 0) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	if (ret == 0)
 		return 0;
@@ -116,7 +116,7 @@ int delItemWithPrefix(lua_State *L)
 	dbKey = getDbKey(L);
 	ret = LuaDelDB(L, service, dbKey);
 	if (ret < 0) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
     return 0;
 }
@@ -181,7 +181,7 @@ static int getCreator(lua_State *L)
 	}
 	ret = LuaGetDB(L, service, "Creator");
 	if (ret < 0) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
 	if (ret == 0)
 		return 0;
@@ -369,8 +369,31 @@ static int lua_random(lua_State *L)
     }
     ret = LuaRandom(L, *service);
 	if (ret < 0) {
-		lua_error(L);
+		luaL_throwerror(L);
 	}
+    return 1;
+}
+
+static int is_contract(lua_State *L)
+{
+    char *contract;
+	int *service = (int *)getLuaExecContext(L);
+	int ret;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+    }
+
+	contract = (char *)luaL_checkstring(L, 1);
+    ret = LuaIsContract(L, service, contract);
+	if (ret < 0) {
+		luaL_throwerror(L);
+	}
+	if (ret == 0)
+	    lua_pushboolean(L, false);
+	else
+	    lua_pushboolean(L, true);
+
     return 1;
 }
 
@@ -391,6 +414,7 @@ static const luaL_Reg sys_lib[] = {
 	{"time", os_time},
 	{"difftime", os_difftime},
 	{"random", lua_random},
+	{"isContract", is_contract},
 	{NULL, NULL}
 };
 

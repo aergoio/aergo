@@ -9,13 +9,18 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/minio/sha256-simd"
 	"github.com/willf/bloom"
+)
+
+const (
+	successStatus = 0
+	createdStatus = 1
+	errorStatus   = 2
 )
 
 func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt {
@@ -26,15 +31,26 @@ func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt 
 	}
 }
 
-func (r *Receipt) marshalBody(b *bytes.Buffer) {
+func (r *Receipt) marshalBody(b *bytes.Buffer, isMerkle bool) error {
 	l := make([]byte, 8)
 	b.Write(r.ContractAddress)
-	binary.LittleEndian.PutUint16(l[:2], uint16(len(r.Status)))
-	b.Write(l[:2])
-	b.WriteString(r.Status)
-	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.Ret)))
-	b.Write(l[:4])
-	b.WriteString(r.Ret)
+	var status byte
+	switch r.Status {
+	case "SUCCESS":
+		status = successStatus
+	case "CREATED":
+		status = createdStatus
+	case "ERROR":
+		status = errorStatus
+	default:
+		return errors.New("unsupported status in receipt")
+	}
+	b.WriteByte(status)
+	if !isMerkle || status != errorStatus {
+		binary.LittleEndian.PutUint32(l[:4], uint32(len(r.Ret)))
+		b.Write(l[:4])
+		b.WriteString(r.Ret)
+	}
 	b.Write(r.TxHash)
 
 	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.FeeUsed)))
@@ -51,12 +67,17 @@ func (r *Receipt) marshalBody(b *bytes.Buffer) {
 	}
 	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.Events)))
 	b.Write(l[:4])
+
+	return nil
 }
 
 func (r *Receipt) marshalStoreBinary() ([]byte, error) {
 	var b bytes.Buffer
 
-	r.marshalBody(&b)
+	err := r.marshalBody(&b, false)
+	if err != nil {
+		return nil, err
+	}
 	for _, ev := range r.Events {
 		evB, err := ev.marshalStoreBinary(r)
 		if err != nil {
@@ -70,10 +91,17 @@ func (r *Receipt) marshalStoreBinary() ([]byte, error) {
 
 func (r *Receipt) unmarshalBody(data []byte) ([]byte, uint32) {
 	r.ContractAddress = data[:33]
-	l := uint32(binary.LittleEndian.Uint16(data[33:]))
-	pos := 35 + l
-	r.Status = string(data[35:pos])
-	l = binary.LittleEndian.Uint32(data[pos:])
+	status := data[33]
+	switch status {
+	case successStatus:
+		r.Status = "SUCCESS"
+	case createdStatus:
+		r.Status = "CREATED"
+	case errorStatus:
+		r.Status = "ERROR"
+	}
+	pos := uint32(34)
+	l := binary.LittleEndian.Uint32(data[pos:])
 	pos += 4
 	r.Ret = string(data[pos : pos+l])
 	pos += l
@@ -118,7 +146,10 @@ func (r *Receipt) unmarshalStoreBinary(data []byte) ([]byte, error) {
 func (r *Receipt) MarshalBinary() ([]byte, error) {
 	var b bytes.Buffer
 
-	r.marshalBody(&b)
+	err := r.marshalBody(&b, false)
+	if err != nil {
+		return nil, err
+	}
 	for _, ev := range r.Events {
 		evB, err := ev.MarshalBinary()
 		if err != nil {
@@ -133,7 +164,11 @@ func (r *Receipt) MarshalBinary() ([]byte, error) {
 func (r *Receipt) MarshalMerkleBinary() ([]byte, error) {
 	var b bytes.Buffer
 
-	r.marshalBody(&b)
+	err := r.marshalBody(&b, true)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, ev := range r.Events {
 		evB, err := ev.MarshalMerkleBinary()
 		if err != nil {
@@ -179,9 +214,13 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(`","contractAddress":"`)
 	b.WriteString(EncodeAddress(r.ContractAddress))
 	b.WriteString(`","status":"`)
-	b.WriteString(strings.Replace(r.Status, "\"", "'", -1))
+	b.WriteString(r.Status)
 	if len(r.Ret) == 0 {
 		b.WriteString(`","ret": {}`)
+	} else if r.Status == "ERROR" {
+		js, _ := json.Marshal(r.Ret)
+		b.WriteString(`","ret": `)
+		b.WriteString(string(js))
 	} else {
 		b.WriteString(`","ret": `)
 		b.WriteString(r.Ret)
@@ -521,6 +560,7 @@ func (ev *Event) MarshalJSON() ([]byte, error) {
 }
 
 func (ev *Event) SetMemoryInfo(receipt *Receipt, blkHash []byte, blkNo BlockNo, txIdx int32) {
+	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
 	ev.TxHash = receipt.TxHash
 	ev.TxIndex = txIdx
 	ev.BlockHash = blkHash
@@ -531,8 +571,6 @@ func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 	if filter.ContractAddress != nil && !bytes.Equal(ev.ContractAddress, filter.ContractAddress) {
 		return false
 	}
-	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
-
 	if len(filter.EventName) != 0 && ev.EventName != filter.EventName {
 		return false
 	}
