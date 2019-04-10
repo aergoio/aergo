@@ -82,7 +82,6 @@ type StateSet struct {
 	isQuery           bool
 	prevBlockHash     []byte
 	service           C.int
-	dbSystemError     bool
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
 	dbUpdateTotalSize int64
@@ -402,10 +401,16 @@ func (ce *Executor) call(target *LState) C.int {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if C.luaL_syserrcode(ce.L) > C.int(0) {
+		if target != nil {
+			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
+				C.luaL_setuncatchablerror(target)
+			}
+			if C.luaL_hassyserror(ce.L) != C.int(0) {
+				C.luaL_setsyserror(target)
+			}
+		}
+		if C.luaL_hassyserror(ce.L) != C.int(0) {
 			ce.err = newVmSystemError(errors.New(errMsg))
-		} else if ce.stateSet.dbSystemError == true {
-			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
 			ce.err = errors.New(errMsg)
 		}

@@ -514,11 +514,20 @@ function infiniteLoop()
 	end
 	return t
 end
-abi.register(infiniteLoop)`
+function catch()
+	return pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "loop", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"loop",
@@ -527,6 +536,21 @@ abi.register(infiniteLoop)`
 		),
 	)
 	errMsg := "exceeded the maximum instruction count"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"catch"}`,
+		),
+	)
 	if err == nil {
 		t.Errorf("expected: %s", errMsg)
 	}

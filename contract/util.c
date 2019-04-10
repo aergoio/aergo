@@ -615,7 +615,7 @@ static int lua_json_encode (lua_State *L)
 {
 	char *json = lua_util_get_json(L, -1, true);
 	if (json == NULL)
-		lua_error(L);
+		luaL_throwerror(L);
 	lua_pushstring(L, json);
 	free(json);
 	return 1;

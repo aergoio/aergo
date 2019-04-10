@@ -111,8 +111,9 @@ void vm_remove_constructor(lua_State *L)
 
 static void count_hook(lua_State *L, lua_Debug *ar)
 {
+    luaL_setuncatchablerror(L);
 	lua_pushstring(L, "exceeded the maximum instruction count");
-	lua_error(L);
+	luaL_throwerror(L);
 }
 
 void vm_set_count_hook(lua_State *L, int limit)
@@ -128,6 +129,9 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
+	    if (err == LUA_ERRMEM) {
+            luaL_setuncatchablerror(L);
+	    }
 		errMsg = strdup(lua_tostring(L, -1));
 		return errMsg;
 	}
@@ -179,8 +183,9 @@ sqlite3 *vm_get_db(lua_State *L)
     service = (int *)getLuaExecContext(L);
     db = LuaGetDbHandle(service);
     if (db == NULL) {
+        luaL_setsyserror(L);
         lua_pushstring(L, "can't open a database connection");
-        lua_error(L);
+        luaL_throwerror(L);
     }
     return db;
 }
