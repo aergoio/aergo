@@ -46,6 +46,18 @@ func (e *DbSystemError) System() bool {
 	return e != nil
 }
 
+type VmSystemError struct {
+	error
+}
+
+func newVmSystemError(e error) error {
+	return &VmSystemError{e}
+}
+
+func (e *VmSystemError) System() bool {
+	return e != nil
+}
+
 type ErrRuntime interface {
 	Runtime() bool
 }

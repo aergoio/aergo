@@ -401,7 +401,9 @@ func (ce *Executor) call(target *LState) C.int {
 		errMsg := C.GoString(cErrMsg)
 		C.free(unsafe.Pointer(cErrMsg))
 		ctrLog.Warn().Str("error", errMsg).Msgf("contract %s", types.EncodeAddress(ce.stateSet.curContract.contractId))
-		if ce.stateSet.dbSystemError == true {
+		if C.luaL_syserrcode(ce.L) > C.int(0) {
+			ce.err = newVmSystemError(errors.New(errMsg))
+		} else if ce.stateSet.dbSystemError == true {
 			ce.err = newDbSystemError(errors.New(errMsg))
 		} else {
 			ce.err = errors.New(errMsg)
