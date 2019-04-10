@@ -66,7 +66,7 @@ var (
 func init() {
 	// mainnet is not opened yet and have some unconfirmed values now, this values will be changed after the spec of mainnet is determined.
 	//FIXME change this code if types.GetMainNetGenesis() is made
-	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, Consensus: "dpos", Magic: "main.aergo.io"}
+	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, Consensus: "dpos", Magic: "aergo.io"}
 
 	tnGen := types.GetTestNetGenesis()
 	if tnGen == nil {
