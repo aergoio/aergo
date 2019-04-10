@@ -827,7 +827,7 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	if len(code) == 0 {
 		l := luacUtil.NewLState()
 		if l == nil {
-			luaPushStr(L, "[Contract.LuaDeployContract]compile error:"+err.Error())
+			luaPushStr(L, "[Contract.LuaDeployContract] get luaState error")
 			return -1
 		}
 		defer luacUtil.CloseLState(l)
@@ -903,7 +903,7 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
 		stateSet.dbSystemError = true
-		luaPushStr(L, "[System.LuaDeployContract] DB err:"+err.Error())
+		luaPushStr(L, "[System.LuaDeployContract] DB err")
 		return -1
 	}
 	senderState.Nonce += 1
