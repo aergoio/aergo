@@ -26,61 +26,60 @@
 
 #define val_i64(val)                mpz_get_ui((val)->z)
 
-#define is_zero_val(val)                                                                 \
-    (is_int_val(val) ? mpz_sgn(val_mpz(val)) == 0 :                                      \
-     (is_f64_val(val) ? (val)->d == 0.0f : false))
+#define is_zero_val(val)                                                                           \
+    (is_int_val(val) ? mpz_sgn(val_mpz(val)) == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
 
 #define is_neg_val(val)             (mpz_sgn(val_mpz(val)) < 0)
 
-#define value_init_int(val)                                                              \
-    do {                                                                                 \
-        (val)->type = TYPE_UINT128;                                                      \
-        (val)->size = sizeof(mpz_t);                                                     \
-        (val)->ptr = (val)->z;                                                           \
-        mpz_init2((val)->z, 256);                                                        \
+#define value_init_int(val)                                                                        \
+    do {                                                                                           \
+        (val)->type = TYPE_UINT128;                                                                \
+        (val)->size = sizeof(mpz_t);                                                               \
+        (val)->ptr = (val)->z;                                                                     \
+        mpz_init2((val)->z, 256);                                                                  \
     } while (0)
 
 #define value_set_null(val)         value_set_ptr(val, NULL, 0)
 
-#define value_set_bool(val, v)                                                           \
-    do {                                                                                 \
-        (val)->type = TYPE_BOOL;                                                         \
-        (val)->size = sizeof(bool);                                                      \
-        (val)->ptr = &(val)->b;                                                          \
-        (val)->b = (v);                                                                  \
+#define value_set_bool(val, v)                                                                     \
+    do {                                                                                           \
+        (val)->type = TYPE_BOOL;                                                                   \
+        (val)->size = sizeof(bool);                                                                \
+        (val)->ptr = &(val)->b;                                                                    \
+        (val)->b = (v);                                                                            \
     } while (0)
 
-#define value_set_int(val, v)                                                            \
-    do {                                                                                 \
-        value_init_int(val);                                                             \
-        mpz_set_ui((val)->z, (v));                                                       \
+#define value_set_int(val, v)                                                                      \
+    do {                                                                                           \
+        value_init_int(val);                                                                       \
+        mpz_set_ui((val)->z, (v));                                                                 \
     } while (0)
 
-#define value_set_f64(val, v)                                                            \
-    do {                                                                                 \
-        (val)->type = TYPE_DOUBLE;                                                       \
-        (val)->size = sizeof(double);                                                    \
-        (val)->ptr = &(val)->d;                                                          \
-        (val)->d = (v);                                                                  \
+#define value_set_f64(val, v)                                                                      \
+    do {                                                                                           \
+        (val)->type = TYPE_DOUBLE;                                                                 \
+        (val)->size = sizeof(double);                                                              \
+        (val)->ptr = &(val)->d;                                                                    \
+        (val)->d = (v);                                                                            \
     } while (0)
 
-#define value_set_str(val, v)                                                            \
-    do {                                                                                 \
-        (val)->type = TYPE_STRING;                                                       \
-        (val)->size = strlen(v);                                                         \
-        (val)->ptr = (v);                                                                \
+#define value_set_str(val, v)                                                                      \
+    do {                                                                                           \
+        (val)->type = TYPE_STRING;                                                                 \
+        (val)->size = strlen(v);                                                                   \
+        (val)->ptr = (v);                                                                          \
     } while (0)
 
-#define value_set_ptr(val, v, l)                                                         \
-    do {                                                                                 \
-        (val)->type = TYPE_OBJECT;                                                       \
-        (val)->size = l;                                                                 \
-        (val)->ptr = (v);                                                                \
+#define value_set_ptr(val, v, l)                                                                   \
+    do {                                                                                           \
+        (val)->type = TYPE_OBJECT;                                                                 \
+        (val)->size = l;                                                                           \
+        (val)->ptr = (v);                                                                          \
     } while (0)
 
-#define value_fits_i32(val)                                                              \
+#define value_fits_i32(val)                                                                        \
     (mpz_fits_sint_p(val_mpz(val)) || mpz_fits_uint_p(val_mpz(val)))
-#define value_fits_i64(val)                                                              \
+#define value_fits_i64(val)                                                                        \
     (mpz_fits_slong_p(val_mpz(val)) || mpz_fits_ulong_p(val_mpz(val)))
 
 #ifndef _VALUE_T
@@ -132,8 +131,7 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
         return sizeof(uint32_t);
 
     case TYPE_UINT128:
-        ASSERT1(!is_int128_meta(meta) && !is_uint128_meta(meta) &&
-                !is_int128_meta(meta) && !is_uint128_meta(meta), meta->type);
+        ASSERT1(!is_int128_meta(meta) && !is_uint128_meta(meta), meta->type);
 
         if (is_int64_meta(meta) || is_uint64_meta(meta)) {
             *(uint64_t *)buf = val_i64(val);

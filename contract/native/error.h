@@ -10,19 +10,19 @@
 
 #include "enum.h"
 
-#define DESC_MAX_LEN            512
+#define DESC_MAX_LEN                512
 
-#define FATAL(ec, ...)          error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
+#define FATAL(ec, ...)              error_exit((ec), LVL_FATAL, ## __VA_ARGS__)
 
-#define ERROR(ec, pos, ...)     error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__)
-#define INFO(ec, pos, ...)      error_push((ec), LVL_INFO, (pos), ## __VA_ARGS__)
-#define WARN(ec, pos, ...)      error_push((ec), LVL_WARN, (pos), ## __VA_ARGS__)
-#define DEBUG(ec, pos, ...)     error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
+#define ERROR(ec, pos, ...)         error_push((ec), LVL_ERROR, (pos), ## __VA_ARGS__)
+#define INFO(ec, pos, ...)          error_push((ec), LVL_INFO, (pos), ## __VA_ARGS__)
+#define WARN(ec, pos, ...)          error_push((ec), LVL_WARN, (pos), ## __VA_ARGS__)
+#define DEBUG(ec, pos, ...)         error_push((ec), LVL_DEBUG, (pos), ## __VA_ARGS__)
 
-#define error_first()           error_item(0)
-#define error_last()            error_item(error_size())
+#define error_first()               error_item(0)
+#define error_last()                error_item(error_size())
 
-#define has_error()             (error_size() > 0)
+#define has_error()                 (error_size() > 0)
 
 typedef struct error_s {
     ec_t code;

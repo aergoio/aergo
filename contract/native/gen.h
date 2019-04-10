@@ -13,11 +13,11 @@
 #include "array.h"
 #include "binaryen-c.h"
 
-#define instr_add(gen, stmt)                                                             \
-    do {                                                                                 \
-        BinaryenExpressionRef instr = (stmt);                                            \
-        if (instr != NULL)                                                               \
-            array_add(&(gen)->instrs, instr, BinaryenExpressionRef);                     \
+#define instr_add(gen, stmt)                                                                       \
+    do {                                                                                           \
+        BinaryenExpressionRef instr = (stmt);                                                      \
+        if (instr != NULL)                                                                         \
+            array_add(&(gen)->instrs, instr, BinaryenExpressionRef);                               \
     } while (0)
 
 #ifndef _IR_SGMT_T

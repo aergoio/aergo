@@ -33,17 +33,16 @@
 
 #define is_usable_lval(exp)         (exp)->usable_lval
 
-#define is_usable_stmt(exp)                                                              \
-    (is_null_exp(exp) || is_call_exp(exp) ||                                             \
-     (is_sql_exp(exp) && exp->u_sql.kind != SQL_QUERY) ||                                \
+#define is_usable_stmt(exp)                                                                        \
+    (is_null_exp(exp) || is_call_exp(exp) || (is_sql_exp(exp) && exp->u_sql.kind != SQL_QUERY) ||  \
      (is_unary_exp(exp) && (exp->u_un.kind == OP_INC || exp->u_un.kind == OP_DEC)))
 
 #define exp_add                     vector_add_last
 
-#define exp_check_overflow(exp, meta)                                                    \
-    do {                                                                                 \
-        if (is_lit_exp(exp) && !value_fit(&(exp)->u_lit.val, (meta)))                    \
-            ERROR(ERROR_NUMERIC_OVERFLOW, &(exp)->pos, meta_to_str(meta));               \
+#define exp_check_overflow(exp, meta)                                                              \
+    do {                                                                                           \
+        if (is_lit_exp(exp) && !value_fit(&(exp)->u_lit.val, (meta)))                              \
+            ERROR(ERROR_NUMERIC_OVERFLOW, &(exp)->pos, meta_to_str(meta));                         \
     } while (0)
 
 #ifndef _AST_EXP_T
@@ -205,13 +204,10 @@ ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
-ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps,
-                        src_pos_t *pos);
+ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos);
-ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp,
-                         src_pos_t *pos);
-ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp,
-                          src_pos_t *pos);
+ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp, src_pos_t *pos);
+ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos);
 ast_exp_t *exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
                            src_pos_t *pos);
 ast_exp_t *exp_new_sql(sql_kind_t kind, char *sql, src_pos_t *pos);

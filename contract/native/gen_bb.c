@@ -23,8 +23,7 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
         instr_add(gen, stmt_gen(gen, vector_get_stmt(&bb->stmts, i)));
     }
 
-    block = BinaryenBlock(gen->module, NULL,
-                          (BinaryenExpressionRef *)array_items(&gen->instrs),
+    block = BinaryenBlock(gen->module, NULL, (BinaryenExpressionRef *)array_items(&gen->instrs),
                           array_size(&gen->instrs), BinaryenTypeNone());
 
     bb->rb = RelooperAddBlock(gen->relooper, block);

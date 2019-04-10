@@ -140,8 +140,7 @@ ast_id_t *id_new_enum(char *name, vector_t *elem_ids, src_pos_t *pos);
 ast_id_t *id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id,
                       ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_ctor(char *name, vector_t *param_ids, ast_blk_t *blk, src_pos_t *pos);
-ast_id_t *id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk,
-                          src_pos_t *pos);
+ast_id_t *id_new_contract(char *name, ast_exp_t *impl_exp, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_interface(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_library(char *name, ast_blk_t *blk, src_pos_t *pos);
 ast_id_t *id_new_label(char *name, ast_stmt_t *stmt, src_pos_t *pos);

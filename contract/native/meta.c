@@ -158,8 +158,7 @@ meta_cmp_map(meta_t *x, meta_t *y)
             meta_t *y_elem = y->elems[i];
 
             if (!is_tuple_meta(y_elem))
-                RETURN(ERROR_MISMATCHED_TYPE, y_elem->pos, meta_to_str(x),
-                       meta_to_str(y_elem));
+                RETURN(ERROR_MISMATCHED_TYPE, y_elem->pos, meta_to_str(x), meta_to_str(y_elem));
 
             if (x->elem_cnt != y_elem->elem_cnt)
                 RETURN(ERROR_MISMATCHED_COUNT, y_elem->pos, "key-value", x->elem_cnt,
@@ -324,16 +323,14 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
             if (x->dim_sizes[i] == -1)
                 meta_set_dim_size(x, i, y->dim_sizes[i]);
             else if (x->dim_sizes[i] != y->dim_sizes[i])
-                RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[i],
-                       y->dim_sizes[i]);
+                RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[i], y->dim_sizes[i]);
         }
     }
     else if (is_tuple_meta(y)) {
         if (x->dim_sizes[dim] == -1)
             meta_set_dim_size(x, dim, y->elem_cnt);
         else if (x->dim_sizes[dim] != y->elem_cnt)
-            RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[dim],
-                   y->elem_cnt);
+            RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[dim], y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {
             if (dim < x->arr_dim - 1)

@@ -8,6 +8,7 @@
 #include "util.h"
 #include "stack.h"
 #include "parse.h"
+#include "iobuf.h"
 #include "syslib.h"
 
 #include "prep.h"

@@ -16,41 +16,40 @@ mpz_t uint128_max_ = { { 0, 0, NULL } };
 #define mpz_fits_schar_p(v)     (mpz_get_si(v) >= INT8_MIN && mpz_get_si(v) <= INT8_MAX)
 #define mpz_fits_uchar_p(v)     (mpz_get_si(v) >= 0 && mpz_get_si(v) <= UINT8_MAX)
 
-#define mpz_fits_int128_p(v)                                                             \
-    (mpz_cmp(v, int128_min_) >= 0 && mpz_cmp(v, int128_max_) <= 0)
+#define mpz_fits_int128_p(v)    (mpz_cmp(v, int128_min_) >= 0 && mpz_cmp(v, int128_max_) <= 0)
 #define mpz_fits_uint128_p(v)   (mpz_sgn(v) >= 0 && mpz_cmp(v, uint128_max_) <= 0)
 
-#define value_eval_cmp(op, x, y, res)                                                    \
-    do {                                                                                 \
-        bool v = false;                                                                  \
-        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                           \
-        switch (x->type) {                                                               \
-        case TYPE_BOOL:                                                                  \
-            v = val_bool(x) op val_bool(y);                                              \
-            break;                                                                       \
-        case TYPE_UINT128:                                                               \
-            v = mpz_cmp(val_mpz(x), val_mpz(y)) op 0;                                    \
-            break;                                                                       \
-        case TYPE_DOUBLE:                                                                \
-            v = val_f64(x) op val_f64(y);                                                \
-            break;                                                                       \
-        case TYPE_STRING:                                                                \
-            if (is_null_val(x) || is_null_val(y))                                        \
-                v = is_null_val(x) && is_null_val(y);                                    \
-            else                                                                         \
-                v = strcmp(val_str(x), val_str(y)) op 0;                                 \
-            break;                                                                       \
-        case TYPE_OBJECT:                                                                \
-            ASSERT1((y)->type == TYPE_OBJECT, (y)->type);                                \
-            if (is_null_val(x) || is_null_val(y))                                        \
-                v = is_null_val(x) && is_null_val(y);                                    \
-            else                                                                         \
-                v = val_ptr(x) op val_ptr(y);                                            \
-            break;                                                                       \
-        default:                                                                         \
-            ASSERT1(!"invalid value", (x)->type);                                        \
-        }                                                                                \
-        value_set_bool((res), v);                                                        \
+#define value_eval_cmp(op, x, y, res)                                                              \
+    do {                                                                                           \
+        bool v = false;                                                                            \
+        ASSERT2((x)->type == (y)->type, (x)->type, (y)->type);                                     \
+        switch (x->type) {                                                                         \
+        case TYPE_BOOL:                                                                            \
+            v = val_bool(x) op val_bool(y);                                                        \
+            break;                                                                                 \
+        case TYPE_UINT128:                                                                         \
+            v = mpz_cmp(val_mpz(x), val_mpz(y)) op 0;                                              \
+            break;                                                                                 \
+        case TYPE_DOUBLE:                                                                          \
+            v = val_f64(x) op val_f64(y);                                                          \
+            break;                                                                                 \
+        case TYPE_STRING:                                                                          \
+            if (is_null_val(x) || is_null_val(y))                                                  \
+                v = is_null_val(x) && is_null_val(y);                                              \
+            else                                                                                   \
+                v = strcmp(val_str(x), val_str(y)) op 0;                                           \
+            break;                                                                                 \
+        case TYPE_OBJECT:                                                                          \
+            ASSERT1((y)->type == TYPE_OBJECT, (y)->type);                                          \
+            if (is_null_val(x) || is_null_val(y))                                                  \
+                v = is_null_val(x) && is_null_val(y);                                              \
+            else                                                                                   \
+                v = val_ptr(x) op val_ptr(y);                                                      \
+            break;                                                                                 \
+        default:                                                                                   \
+            ASSERT1(!"invalid value", (x)->type);                                                  \
+        }                                                                                          \
+        value_set_bool((res), v);                                                                  \
     } while (0)
 
 bool

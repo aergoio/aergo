@@ -47,8 +47,7 @@ env_gen(gen_t *gen, ir_md_t *md)
 
         snprintf(qname, sizeof(qname), "%s.%s", abi->module, abi->name);
 
-        BinaryenAddFunctionImport(gen->module, qname, abi->module, abi->name,
-                                  abi_gen(gen, abi));
+        BinaryenAddFunctionImport(gen->module, qname, abi->module, abi->name, abi_gen(gen, abi));
     }
 
     BinaryenAddMemoryImport(gen->module, NULL, SYSLIB_MODULE, "memory", 0);
@@ -64,8 +63,8 @@ md_gen(gen_t *gen, ir_md_t *md)
     gen->module = BinaryenModuleCreate();
     gen->md = md;
 
-    /* env_gen() is executed after fn_gen() because abi can be added in the process of
-     * generating a function and the usage of data segment can also be changed. */
+    /* env_gen() is executed after fn_gen() because abi can be added in the process of generating
+     * a function and the usage of data segment can also be changed. */
 
     vector_foreach(&md->fns, i) {
         fn_gen(gen, vector_get_fn(&md->fns, i));

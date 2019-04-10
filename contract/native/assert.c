@@ -14,8 +14,8 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
     va_list vargs;
     char errdesc[DESC_MAX_LEN];
 
-    snprintf(errdesc, sizeof(errdesc), "%s:%d: internal error with condition '%s'", 
-             file, line, cond);
+    snprintf(errdesc, sizeof(errdesc), "%s:%d: internal error with condition '%s'", file, line, 
+             cond);
 
     fprintf(stderr, ANSI_RED"fatal"ANSI_RED": "ANSI_NONE"%s\n", errdesc);
 
@@ -45,8 +45,7 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
             break;
         case 8:
             i64 = va_arg(vargs, uint64_t);
-            fprintf(stderr, "%"PRId64" = %"PRIu64" = 0x%"PRIx64"\n", 
-                    (int64_t)i64, i64, i64);
+            fprintf(stderr, "%"PRId64" = %"PRIu64" = 0x%"PRIx64"\n", (int64_t)i64, i64, i64);
             break;
         }
     }

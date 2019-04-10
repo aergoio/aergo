@@ -53,8 +53,8 @@ fn_add_global(ir_fn_t *fn, meta_t *meta)
     else
         fn->heap_usage = ALIGN(fn->heap_usage, meta_align(meta));
 
-    /* Global variables are always accessed with "base_idx + rel_addr", and offset is
-     * used only when accessing an array or struct element */
+    /* Global variables are always accessed with "base_idx + rel_addr", and offset is used only 
+     * when accessing an array or struct element */
 
     meta->base_idx = fn->cont_idx;
     meta->rel_addr = fn->heap_usage;

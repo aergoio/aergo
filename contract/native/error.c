@@ -150,8 +150,8 @@ error_print(void)
     vector_foreach(vector, i) {
         error_t *e = vector_get(vector, i, error_t);
 
-        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n",
-                err_lvls_[e->level], e->path, e->line, e->desc);
+        fprintf(stderr, "%s: "ANSI_NONE"%s:%d: %s\n", err_lvls_[e->level], e->path, e->line,
+                e->desc);
     }
 
     vector_clear(vector);

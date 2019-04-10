@@ -450,8 +450,7 @@ stmt_check_return(check_t *check, ast_stmt_t *stmt)
 
     if (arg_exp != NULL) {
         if (is_void_meta(fn_meta) || is_ctor_id(fn_id))
-            RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, "return", 0,
-                   meta_cnt(&arg_exp->meta));
+            RETURN(ERROR_MISMATCHED_COUNT, &arg_exp->pos, "return", 0, meta_cnt(&arg_exp->meta));
 
         CHECK(exp_check(check, arg_exp));
         CHECK(meta_cmp(fn_meta, &arg_exp->meta));

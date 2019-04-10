@@ -24,9 +24,9 @@
 #define vector_get_bb(vect, idx)        vector_get(vect, idx, ir_bb_t)
 #define vector_get_br(vect, idx)        vector_get(vect, idx, ir_br_t)
 
-#define vector_get_first(vect, type)                                                     \
+#define vector_get_first(vect, type)                                                               \
     (vector_size(vect) > 0 ? (type *)((vect)->items[0]) : NULL)
-#define vector_get_last(vect, type)                                                      \
+#define vector_get_last(vect, type)                                                                \
     (vector_size(vect) > 0 ? (type *)((vect)->items[(vect)->size - 1]) : NULL)
 
 #define vector_add_first(vect, item)    vector_add((vect), 0, (item))

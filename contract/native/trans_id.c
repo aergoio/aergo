@@ -36,8 +36,8 @@ id_trans_param(trans_t *trans, ast_id_t *id)
     if (is_ctor_id(id))
         return;
 
-    /* All functions that are not constructors must be added the contract address as
-     * the first argument, and must also be added to the param_ids to reflect the abi */
+    /* All functions that are not constructors must be added the contract address as the first
+     * argument, and must also be added to the param_ids to reflect the abi */
 
     param_id = id_new_tmp_var("cont$addr");
     param_id->u_var.is_param = true;
@@ -126,8 +126,8 @@ set_stack_addr(ir_fn_t *fn, ast_id_t *id)
 
     /* TODO: checking stack overflow */
 
-    /* If there is any stack variable in the function, it has to be restored to the
-     * original value at the end of "exit_bb" because "stack_top" has been changed */
+    /* If there is any stack variable in the function, it has to be restored to the original value
+     * at the end of "exit_bb" because "stack_top" has been changed */
     vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(stk_exp, reg_exp, pos));
 }
 
@@ -257,8 +257,8 @@ id_trans_interface(trans_t *trans, ast_id_t *id)
         ASSERT1(is_fn_id(elem_id), elem_id->kind);
         ASSERT(!is_ctor_id(elem_id));
 
-        /* If the interface type is used as a parameter, we can invoke it with the
-         * interface function, so transform the parameter here */
+        /* If the interface type is used as a parameter, we can invoke it with the interface
+         * function, so transform the parameter here */
 
         id_trans_param(trans, elem_id);
     }

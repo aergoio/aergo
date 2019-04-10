@@ -10,7 +10,11 @@
 
 #include "flag.h"
 #include "ast.h"
-#include "iobuf.h"
+
+#ifndef _IOBUF_T
+#define _IOBUF_T
+typedef struct iobuf_s iobuf_t;
+#endif /* ! _IOBUF_T */
 
 typedef struct prep_s {
     flag_t flag;

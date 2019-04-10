@@ -81,8 +81,8 @@ resolve_var_meta(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
     meta_t *meta = &var_exp->meta;
 
-    /* Here we override the meta of the variable declared in the form
-     * "interface variable = rvalue;" with the contract meta */
+    /* Here we override the meta of the variable declared in the form "interface variable = rvalue;"
+     * with the contract meta */
 
     /* If rvalue is the "null" literal, "val_exp->id" can be null */
     if (val_exp->id == NULL || !is_object_meta(meta) || !is_itf_id(meta->type_id))
@@ -226,9 +226,8 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *next_bb = bb_new();
     vector_t *elif_stmts = &stmt->u_if.elif_stmts;
 
-    /* The if statement is transformed to a combination of basic blocks, each condition
-     * is used as a branch condition, and the else block is transformed by an
-     * unconditional branch
+    /* The if statement is transformed to a combination of basic blocks, each condition is used as
+     * a branch condition, and the else block is transformed by an unconditional branch.
      *
      *         .---------------------------.
      *         |         prev_bb           |
@@ -300,9 +299,9 @@ stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *cond_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
-    /* The initial expression is added to the end of prev_bb, the conditional expression
-     * is added at the beginning of cond_bb, and the afterthought expression is added at
-     * the end of the loop block
+    /* The initial expression is added to the end of prev_bb, the conditional expression is added
+     * at the beginning of cond_bb, and the afterthought expression is added at the end of the
+     * loop block
      *
      *         .---------------------.
      *         | prev_bb + init_stmt |
@@ -350,9 +349,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *next_bb = bb_new();
 
-    /* In a switch-case statement, each case block is transformed to a single basic
-     * block, and the switch condition and the case value are compared and used as
-     * a branch condition
+    /* In a switch-case statement, each case block is transformed to a single basic block, and the
+     * switch condition and the case value are compared and used as a branch condition.
      *
      *         .---------------------------.
      *         |         prev_bb           |
@@ -376,8 +374,8 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
     vector_foreach(&blk->stmts, i) {
         ast_stmt_t *case_stmt = vector_get_stmt(&blk->stmts, i);
 
-        /* The case statement means the start of a case block or default block,
-         * and the remaining statements are included in the corresponding block */
+        /* The case statement means the start of a case block or default block, and the remaining
+         * statements are included in the corresponding block */
         if (is_case_stmt(case_stmt)) {
             ir_bb_t *case_bb = bb_new();
 

@@ -272,8 +272,7 @@ id_check_contract(check_t *check, ast_id_t *id)
         }
     }
 
-    /* It can be used the contract variable in the block, so the meta is set before
-     * blk_check() */
+    /* It can be used the contract variable in the block, so the meta is set before blk_check() */
     meta_set_object(&id->meta, id);
 
     check->cont_id = id;

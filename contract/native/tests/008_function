@@ -120,11 +120,13 @@ contract test {
     func f5() string[][] { return new string[3][2]; }
 
     test() {
+        /*
         int i[] = f1();
         i[0] = -87;
 
         uint16 j[] = f2();
         j[1] = 1027;
+        */
 
         /*
         float f[] = f3();

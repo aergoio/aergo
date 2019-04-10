@@ -11,6 +11,7 @@
 #include "WAVM/ASCL/ASCLVM.h"
 
 #include "strbuf.h"
+#include "iobuf.h"
 #include "util.h"
 #include "stack.h"
 #include "prep.h"

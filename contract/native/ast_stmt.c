@@ -79,8 +79,8 @@ stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp,
-              ast_exp_t *loop_exp, ast_blk_t *blk, src_pos_t *pos)
+stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
+              ast_blk_t *blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_LOOP, pos);
 
@@ -189,9 +189,8 @@ stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
         vector_t *elem_exps = vector_new();
         ast_exp_t *id_exp;
 
-        /* Since the number of elements in "val_exp" may be smaller than
-         * the number of elements in "var_id", it is made as a tuple expression
-         * for asymmetry assignment processing */
+        /* Since the number of elements in "val_exp" may be smaller than the number of elements
+         * in "var_id", it is made as a tuple expression for asymmetry assignment processing */
         vector_foreach(var_id->u_tup.elem_ids, i) {
             ast_id_t *elem_id = vector_get_id(var_id->u_tup.elem_ids, i);
 

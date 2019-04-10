@@ -8,14 +8,14 @@
 
 #include "common.h"
 
-#define TYPE_NAME(type)         type_names_[(type)]
-#define TYPE_SIZE(type)         type_sizes_[(type)]
-#define TYPE_BYTE(type)         type_bytes_[(type)]
-#define TYPE_ALIGN              TYPE_SIZE
+#define TYPE_NAME(type)             type_names_[(type)]
+#define TYPE_SIZE(type)             type_sizes_[(type)]
+#define TYPE_BYTE(type)             type_bytes_[(type)]
+#define TYPE_ALIGN                  TYPE_SIZE
 
-#define FN_NAME(kind)           fn_names_[(kind)]
+#define FN_NAME(kind)               fn_names_[(kind)]
 
-#define is_valid_type(type)     (type > TYPE_NONE && type < TYPE_MAX)
+#define is_valid_type(type)         (type > TYPE_NONE && type < TYPE_MAX)
 
 typedef enum flag_val_e {
     FLAG_NONE       = 0x0000,
@@ -30,7 +30,7 @@ typedef enum flag_val_e {
 typedef enum ec_e {
     NO_ERROR = 0,
 #undef error
-#define error(code, msg)    code,
+#define error(code, msg)            code,
 #include "error.list"
 
     ERROR_MAX

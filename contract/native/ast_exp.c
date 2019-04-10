@@ -182,8 +182,7 @@ exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *po
 }
 
 ast_exp_t *
-exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp,
-                src_pos_t *pos)
+exp_new_ternary(ast_exp_t *pre_exp, ast_exp_t *in_exp, ast_exp_t *post_exp, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_TERNARY, pos);
 
@@ -332,18 +331,16 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_ARRAY:
-        res = exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp),
-                            &exp->pos);
+        res = exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp), &exp->pos);
         break;
 
     case EXP_CAST:
-        res = exp_new_cast(exp->u_cast.to_meta.type, exp_clone(exp->u_cast.val_exp),
-                           &exp->pos);
+        res = exp_new_cast(exp->u_cast.to_meta.type, exp_clone(exp->u_cast.val_exp), &exp->pos);
         break;
 
     case EXP_UNARY:
-        res = exp_new_unary(exp->u_un.kind, exp->u_un.is_prefix,
-                            exp_clone(exp->u_un.val_exp), &exp->pos);
+        res = exp_new_unary(exp->u_un.kind, exp->u_un.is_prefix, exp_clone(exp->u_un.val_exp),
+                            &exp->pos);
         break;
 
     case EXP_BINARY:
@@ -352,14 +349,13 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_TERNARY:
-        res = exp_new_ternary(exp_clone(exp->u_tern.pre_exp),
-                              exp_clone(exp->u_tern.in_exp),
+        res = exp_new_ternary(exp_clone(exp->u_tern.pre_exp), exp_clone(exp->u_tern.in_exp),
                               exp_clone(exp->u_tern.post_exp), &exp->pos);
         break;
 
     case EXP_ACCESS:
-        res = exp_new_access(exp_clone(exp->u_acc.qual_exp),
-                             exp_clone(exp->u_acc.fld_exp), &exp->pos);
+        res = exp_new_access(exp_clone(exp->u_acc.qual_exp), exp_clone(exp->u_acc.fld_exp),
+                             &exp->pos);
         break;
 
     case EXP_CALL:
@@ -368,8 +364,7 @@ exp_clone(ast_exp_t *exp)
         vector_foreach(elem_exps, i) {
             vector_add_last(res_exps, exp_clone(vector_get_exp(elem_exps, i)));
         }
-        res = exp_new_call(exp->u_call.is_ctor, exp_clone(exp->u_call.id_exp), res_exps,
-                           &exp->pos);
+        res = exp_new_call(exp->u_call.is_ctor, exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
         res->u_call.qname = exp->u_call.qname;
         break;
 
@@ -443,8 +438,7 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
         return strcmp(x->u_id.name, y->u_id.name) == 0;
 
     case EXP_TYPE:
-        return x->u_type.type == y->u_type.type &&
-            strcmp(x->u_type.name, y->u_type.name) == 0 &&
+        return x->u_type.type == y->u_type.type && strcmp(x->u_type.name, y->u_type.name) == 0 &&
             exp_equals(x->u_type.k_exp, y->u_type.k_exp);
 
     case EXP_ARRAY:
@@ -456,12 +450,10 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
             exp_equals(x->u_cast.val_exp, y->u_cast.val_exp);
 
     case EXP_UNARY:
-        return x->u_un.kind == y->u_un.kind &&
-            exp_equals(x->u_un.val_exp, y->u_un.val_exp);
+        return x->u_un.kind == y->u_un.kind && exp_equals(x->u_un.val_exp, y->u_un.val_exp);
 
     case EXP_BINARY:
-        return x->u_bin.kind == y->u_bin.kind &&
-            exp_equals(x->u_bin.l_exp, y->u_bin.l_exp) &&
+        return x->u_bin.kind == y->u_bin.kind && exp_equals(x->u_bin.l_exp, y->u_bin.l_exp) &&
             exp_equals(x->u_bin.r_exp, y->u_bin.r_exp);
 
     case EXP_TERNARY:

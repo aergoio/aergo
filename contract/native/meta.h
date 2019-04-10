@@ -30,11 +30,11 @@
 #define is_void_type(type)          ((type) == TYPE_VOID)
 #define is_tuple_type(type)         ((type) == TYPE_TUPLE)
 
-#define is_signed_type(type)                                                             \
-    (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                 \
+#define is_signed_type(type)                                                                       \
+    (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                           \
      is_int64_type(type) || is_int128_type(type))
-#define is_unsigned_type(type)                                                           \
-    (is_uint8_type(type) || is_uint16_type(type) || is_uint32_type(type) ||              \
+#define is_unsigned_type(type)                                                                     \
+    (is_uint8_type(type) || is_uint16_type(type) || is_uint32_type(type) ||                        \
      is_uint64_type(type) || is_uint128_type(type))
 
 #define is_none_meta(meta)          is_none_type((meta)->type)
@@ -66,15 +66,14 @@
 #define is_fpoint_meta(meta)        (is_float_meta(meta) || is_double_meta(meta))
 #define is_numeric_meta(meta)       (is_integer_meta(meta) || is_fpoint_meta(meta))
 
-#define is_pointer_meta(meta)                                                            \
-    (is_array_meta(meta) || is_string_meta(meta) || is_struct_meta(meta) ||              \
+#define is_pointer_meta(meta)                                                                      \
+    (is_array_meta(meta) || is_string_meta(meta) || is_struct_meta(meta) ||                        \
      is_map_meta(meta) || is_object_meta(meta))
 
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_STRING)
-#define is_comparable_meta(meta)                                                         \
-    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
-#define is_compatible_meta(x, y)                                                         \
-    ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                            \
+#define is_comparable_meta(meta)    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
+#define is_compatible_meta(x, y)                                                                   \
+    ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                                      \
      (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
 
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
@@ -100,7 +99,7 @@
 #define meta_size(meta)             (meta)->size
 #define meta_align(meta)            (meta)->align
 
-#define meta_cnt(meta)                                                                   \
+#define meta_cnt(meta)                                                                             \
     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1)
 
 #ifndef _META_T

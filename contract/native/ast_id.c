@@ -84,8 +84,8 @@ id_new_enum(char *name, vector_t *elem_ids, src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id,
-            ast_blk_t *blk, src_pos_t *pos)
+id_new_func(char *name, modifier_t mod, vector_t *param_ids, ast_id_t *ret_id, ast_blk_t *blk,
+            src_pos_t *pos)
 {
     ast_id_t *id = ast_id_new(ID_FN, mod, name, pos);
 
@@ -191,8 +191,7 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
     vector_foreach(fld_ids, i) {
         ast_id_t *fld_id = vector_get_id(fld_ids, i);
 
-        if ((is_self || is_itf_id(id) || is_public_id(fld_id)) &&
-            strcmp(fld_id->name, name) == 0)
+        if ((is_self || is_itf_id(id) || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
             return fld_id;
     }
 

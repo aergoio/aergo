@@ -112,20 +112,18 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
 
         for (i = 0; i < id->meta.arr_dim; i++) {
             if (id->meta.dim_sizes[i] == -1)
-                /* When the user uses the expression like "int v[][] = f()", the size of
-                 * the array is determined dynamically. */
+                /* When the user uses the expression like "int v[][] = f()", the size of the array
+                 * is determined dynamically. */
                 return;
         }
 
         ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 
         /* The following meta_bytes() is stripped size of array */
-        offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) +
-            meta_align(&id->meta);
+        offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) + meta_align(&id->meta);
 
         if (is_mem_exp(id_exp))
-            exp_set_mem(exp, id_exp->u_mem.base, id_exp->u_mem.addr,
-                        id_exp->u_mem.offset + offset);
+            exp_set_mem(exp, id_exp->u_mem.base, id_exp->u_mem.addr, id_exp->u_mem.offset + offset);
         else
             exp_set_mem(exp, id_exp->u_reg.idx, 0, offset);
     }
@@ -164,8 +162,8 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
         lit_exp = exp_new_lit_int(1, &exp->pos);
         meta_copy(&lit_exp->meta, &val_exp->meta);
 
-        bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp,
-                                lit_exp, &exp->pos);
+        bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp, lit_exp,
+                                &exp->pos);
         meta_copy(&bi_exp->meta, &val_exp->meta);
 
         if (exp->u_un.is_prefix)
@@ -229,10 +227,9 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     }
 
     if (is_reg_exp(qual_exp)) {
-        /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global
-         * variable belonging to the contract register */
-        exp_set_mem(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr,
-                    fld_id->meta.rel_offset);
+        /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global variable
+         * belonging to the contract register */
+        exp_set_mem(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr, fld_id->meta.rel_offset);
     }
     else if (is_mem_exp(qual_exp)) {
         /* It can be a memroy expression when referring to a global variable directly */
@@ -243,8 +240,8 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
                     qual_exp->u_mem.offset + fld_id->meta.rel_offset);
     }
     else {
-        /* If qualifier is a function and returns an array or a struct, "qual_exp" can
-         * be a binary expression (See exp_trans_call()) */
+        /* If qualifier is a function and returns an array or a struct, "qual_exp" can be a binary
+         * expression (See exp_trans_call()) */
         ASSERT1(is_binary_exp(qual_exp), qual_exp->kind);
     }
 }
@@ -271,8 +268,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         return;
     }
 
-    /* Since non-constructor functions are added the contract base address as a first
-     * parameter, we must also add the address as a call argument here. */
+    /* Since non-constructor functions are added the contract base address as a first parameter,
+     * we must also add the address as a call argument here. */
     if (exp->u_call.param_exps == NULL)
         exp->u_call.param_exps = vector_new();
 
@@ -290,8 +287,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         ASSERT1(fn->cont_idx == 0, fn->cont_idx);
 
-        /* If the expression is of type "x()", pass my first parameter as the first
-         * argument. */
+        /* If the expression is of type "x()", pass my first parameter as the first argument. */
         param_exp = exp_new_reg(0);
         meta_set_uint32(&param_exp->meta);
 
@@ -318,8 +314,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             ast_exp_t *l_exp, *r_exp;
             ast_exp_t *addr_exp, *cpy_exp;
 
-            /* If the return value is an array or struct, we must copy the value because
-             * we do share memory space between the caller and the callee */
+            /* If the return value is an array or struct, we must copy the value because we do
+             * share memory space between the caller and the callee */
             if (trans->is_global) {
                 mem_idx = fn_add_register(trans->fn, meta);
 

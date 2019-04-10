@@ -8,38 +8,38 @@
 
 #include "common.h"
 
-#define is_empty_list(list)             ((list)->head == NULL)
+#define is_empty_list(list)         ((list)->head == NULL)
 
-#define list_size(list)                 (list)->size
-#define list_item(node, type)           (type *)((node)->item)
+#define list_size(list)             (list)->size
+#define list_item(node, type)       (type *)((node)->item)
 
-#define list_foreach(node, list)                                                         \
+#define list_foreach(node, list)                                                                   \
     for ((node) = (list)->head; (node) != NULL; (node) = (node)->next)
 
-#define list_foreach_safe(node, save, list)                                              \
-    for ((node) = (list)->head, (save) = (node)->next; (node) != NULL;                   \
+#define list_foreach_safe(node, save, list)                                                        \
+    for ((node) = (list)->head, (save) = (node)->next; (node) != NULL;                             \
          (node) = (save), (save) = (save)->next)
 
-#define list_foreach_reverse(node, list)                                                 \
+#define list_foreach_reverse(node, list)                                                           \
     for ((node) = (list)->tail; (node) != NULL; (node) = (node)->prev)
 
-#define list_foreach_reverse_safe(node, next, type, list)                                \
-    for ((node) = (list)->tail, (save) = (node)->prev; (node) != NULL;                   \
+#define list_foreach_reverse_safe(node, next, type, list)                                          \
+    for ((node) = (list)->tail, (save) = (node)->prev; (node) != NULL;                             \
          (node) = (save), (save) = (save)->prev)
 
-#define list_node_init(node)                                                             \
-    do {                                                                                 \
-        (node)->next = NULL;                                                             \
-        (node)->prev = NULL;                                                             \
-        (node)->item = NULL;                                                             \
+#define list_node_init(node)                                                                       \
+    do {                                                                                           \
+        (node)->next = NULL;                                                                       \
+        (node)->prev = NULL;                                                                       \
+        (node)->item = NULL;                                                                       \
     } while (0)
 
-#define list_init(list)                                                                  \
-    do {                                                                                 \
-        (list)->head = NULL;                                                             \
-        (list)->tail = NULL;                                                             \
-        (list)->size = 0;                                                                \
-    } while (0)                                                                          \
+#define list_init(list)                                                                            \
+    do {                                                                                           \
+        (list)->head = NULL;                                                                       \
+        (list)->tail = NULL;                                                                       \
+        (list)->size = 0;                                                                          \
+    } while (0)
 
 typedef struct list_node_s {
   	struct list_node_s *next;

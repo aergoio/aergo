@@ -8,8 +8,8 @@
 
 #include "common.h"
 
-#define xstrdup(s)          xstrndup((s), strlen(s))
-#define xstrcat(s1, s2)     xstrncat((s1), strlen(s1), (s2), strlen(s2))
+#define xstrdup(s)                  xstrndup((s), strlen(s))
+#define xstrcat(s1, s2)             xstrncat((s1), strlen(s1), (s2), strlen(s2))
 
 void *xmalloc(size_t size);
 void *xcalloc(size_t size);

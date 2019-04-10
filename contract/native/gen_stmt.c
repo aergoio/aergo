@@ -52,12 +52,12 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 
         if (is_array_meta(&l_exp->meta))
             return BinaryenStore(gen->module, sizeof(uint32_t),
-                                 l_exp->u_mem.addr + l_exp->u_mem.offset, 0, address,
-                                 value, BinaryenTypeInt32());
+                                 l_exp->u_mem.addr + l_exp->u_mem.offset, 0, address, value,
+                                 BinaryenTypeInt32());
 
         return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type),
-                             l_exp->u_mem.addr + l_exp->u_mem.offset, 0, address,
-                             value, meta_gen(&l_exp->meta));
+                             l_exp->u_mem.addr + l_exp->u_mem.offset, 0, address, value,
+                             meta_gen(&l_exp->meta));
     }
 
     /* For an array whose index is a variable, we must dynamically determine the offset */
@@ -68,8 +68,8 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     address = exp_gen(gen, l_exp);
     gen->is_lval = false;
 
-    return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address,
-                         value, meta_gen(&l_exp->meta));
+    return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address, value,
+                         meta_gen(&l_exp->meta));
 }
 
 static BinaryenExpressionRef

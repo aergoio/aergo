@@ -600,8 +600,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
     /* Get the actual struct, contract or interface identifier */
     if (is_struct_meta(qual_meta) || is_object_meta(qual_meta)) {
         /* if "this.x" is used, "qual_id" is the contract identifier */
-        ASSERT1(is_var_id(qual_id) || is_fn_id(qual_id) || is_cont_id(qual_id),
-                qual_id->kind);
+        ASSERT1(is_var_id(qual_id) || is_fn_id(qual_id) || is_cont_id(qual_id), qual_id->kind);
         ASSERT(qual_meta->type_id != NULL);
 
         if (is_cont_id(qual_id))
@@ -682,8 +681,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, param_exp));
 
-        if (param_exp->id != NULL &&
-            !is_var_id(param_exp->id) && !is_fn_id(param_exp->id))
+        if (param_exp->id != NULL && !is_var_id(param_exp->id) && !is_fn_id(param_exp->id))
             ERROR(ERROR_NOT_ALLOWED_PARAM, &param_exp->pos);
 
         meta_eval(&param_id->meta, &param_exp->meta);
@@ -767,12 +765,10 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, elem_exp));
 
-        if ((is_lit_exp(elem_exp) &&
-             is_integer_meta(&elem_exp->meta) &&
+        if ((is_lit_exp(elem_exp) && is_integer_meta(&elem_exp->meta) &&
              !mpz_fits_slong_p(val_mpz(&elem_exp->u_lit.val)) &&
              !mpz_fits_ulong_p(val_mpz(&elem_exp->u_lit.val))) ||
-            (!is_lit_exp(elem_exp) &&
-             (!is_init_exp(elem_exp) || !elem_exp->u_init.is_aggr)))
+            (!is_lit_exp(elem_exp) && (!is_init_exp(elem_exp) || !elem_exp->u_init.is_aggr)))
             exp->u_init.is_aggr = false;
     }
 

@@ -14,8 +14,7 @@
 BinaryenFunctionTypeRef
 abi_gen(gen_t *gen, ir_abi_t *abi)
 {
-    return BinaryenAddFunctionType(gen->module, NULL, abi->result, abi->params,
-                                   abi->param_cnt);
+    return BinaryenAddFunctionType(gen->module, NULL, abi->result, abi->params, abi->param_cnt);
 }
 
 void

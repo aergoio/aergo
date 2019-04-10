@@ -32,8 +32,7 @@ vector_add(vector_t *vect, int idx, void *item)
         vect->items[vect->size++] = item;
     }
     else {
-        memmove(&vect->items[idx + 1], &vect->items[idx],
-                sizeof(void *) * vect->size);
+        memmove(&vect->items[idx + 1], &vect->items[idx], sizeof(void *) * vect->size);
 
         vect->items[idx] = item;
         vect->size++;
@@ -59,8 +58,7 @@ vector_sadd(vector_t *vect, void *item, int (*cmp_fn)(const void *, const void *
 
         for (i = 0; i < vect->size; i++) {
             if (cmp_fn(item, vect->items[i]) <= 0) {
-                memmove(&vect->items[i + 1], &vect->items[i],
-                        sizeof(void *) * (vect->size - i));
+                memmove(&vect->items[i + 1], &vect->items[i], sizeof(void *) * (vect->size - i));
                 vect->items[i] = item;
                 vect->size++;
                 break;
@@ -138,8 +136,7 @@ vector_del(vector_t *vect, int idx)
     item = vect->items[idx];
 
     if (idx < vect->size - 1)
-        memmove(&vect->items[idx], &vect->items[idx + 1],
-                sizeof(void *) * vect->size - idx - 1);
+        memmove(&vect->items[idx], &vect->items[idx + 1], sizeof(void *) * vect->size - idx - 1);
 
     vect->size--;
 

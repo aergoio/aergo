@@ -30,8 +30,8 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
 
     trans->blk = up;
 
-    /* Since there is no relation between general blocks and basic blocks,
-     * we deliberately do not do anything about basic blocks here. */
+    /* Since there is no relation between general blocks and basic blocks, we deliberately do not
+     * do anything about basic blocks here. */
 }
 
 /* end of trans_blk.c */

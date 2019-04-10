@@ -50,11 +50,9 @@ ast_exp_t *syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos);
 ast_exp_t *syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
                               uint32_t size, src_pos_t *pos);
 
-BinaryenExpressionRef syslib_call_1(gen_t *gen, fn_kind_t kind,
-                                    BinaryenExpressionRef argument);
+BinaryenExpressionRef syslib_call_1(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument);
 
-BinaryenExpressionRef syslib_call_2(gen_t *gen, fn_kind_t kind,
-                                    BinaryenExpressionRef left,
+BinaryenExpressionRef syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef left,
                                     BinaryenExpressionRef right);
 
 BinaryenExpressionRef syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...);
