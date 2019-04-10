@@ -11,7 +11,7 @@
 
 #define SGMT_INIT_CAPACITY          10
 
-#define sgmt_add_str(sgmt, str)     sgmt_add_raw((sgmt), (str), strlen(str))
+#define sgmt_add_str(sgmt, str)     sgmt_add_raw((sgmt), (str), strlen(str) + 1)
 
 #ifndef _IR_SGMT_T
 #define _IR_SGMT_T

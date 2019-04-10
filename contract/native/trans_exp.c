@@ -21,6 +21,7 @@
 static void
 exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
+    int addr;
     value_t *val = &exp->u_lit.val;
     meta_t *meta = &exp->meta;
     ir_md_t *md = trans->md;
@@ -34,15 +35,21 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         break;
 
     case TYPE_STRING:
-        value_set_int(val, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val) + 1));
+        /* Since val_set_int() is a macro, do not combine the two lines below. */
+        addr = sgmt_add_str(&md->sgmt, val_ptr(val));
+        value_set_int(val, addr);
         meta_set_uint32(meta);
         break;
 
     case TYPE_OBJECT:
-        if (is_null_val(val))
+        if (is_null_val(val)) {
             value_init_int(val);
-        else
-            value_set_int(val, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
+        }
+        else {
+            /* Same as above */
+            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
+            value_set_int(val, addr);
+        }
         meta_set_uint32(meta);
         break;
 
@@ -90,7 +97,6 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, idx_exp);
 
     if (is_array_meta(&id->meta)) {
-        int i;
         uint32_t offset;
 
         /* In array expression, the offset is calculated as follows:
@@ -110,17 +116,10 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-        for (i = 0; i < id->meta.arr_dim; i++) {
-            if (id->meta.dim_sizes[i] == -1)
-                /* When the user uses the expression like "int v[][] = f()", the size of the array
-                 * is determined dynamically. */
-                return;
-        }
-
         ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 
         /* The following meta_bytes() is stripped size of array */
-        offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) + meta_align(&id->meta);
+        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&id->meta) + meta_align(&id->meta);
 
         if (is_mem_exp(id_exp))
             exp_set_mem(exp, id_exp->u_mem.base, id_exp->u_mem.addr, id_exp->u_mem.offset + offset);
