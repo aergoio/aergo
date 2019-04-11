@@ -58,69 +58,34 @@ const int *getLuaExecContext(lua_State *L)
 	return service;
 }
 
-static int loadLibs(lua_State *L)
-{
-	luaL_openlibs(L);
-	preloadModules(L);
-	return 0;
-}
-
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
-	int rc;
 	if (L == NULL)
 		return NULL;
-
-	rc = lua_cpcall(L, loadLibs, NULL);
-	if (rc != 0)
-	    return NULL;
-
+	luaL_openlibs(L);
+	preloadModules(L);
 	return L;
-}
-
-struct loadBuffCtx {
-    const char *code;
-    size_t sz;
-    char *hex_id;
-    int *service;
-    char *errMsg;
-};
-
-static int loadBuff(lua_State *L)
-{
-	int err;
-	struct loadBuffCtx *ctx;
-	const char *errMsg = NULL;
-
-	ctx = (struct loadBuffCtx *)lua_topointer(L, -1);
-
-	setLuaExecContext(L, ctx->service);
-
-	err = luaL_loadbuffer(L, ctx->code, ctx->sz, ctx->hex_id);
-	if (err != 0) {
-		ctx->errMsg = strdup(lua_tostring(L, -1));
-		return 0;
-	}
-	err = lua_pcall(L, 0, 0, 0);
-	if (err != 0) {
-		ctx->errMsg = strdup(lua_tostring(L, -1));
-	}
-	return 0;
 }
 
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
-	struct loadBuffCtx ctx;
-	ctx.code = code;
-	ctx.sz = sz;
-	ctx.hex_id = hex_id;
-	ctx.service = service;
-	ctx.errMsg = NULL;
+	int err;
+	const char *errMsg = NULL;
 
-	lua_cpcall(L, loadBuff, &ctx);
+	setLuaExecContext(L, service);
 
-	return ctx.errMsg;
+	err = luaL_loadbuffer(L, code, sz, hex_id);
+	if (err != 0) {
+		errMsg = strdup(lua_tostring(L, -1));
+		return errMsg;
+	}
+	err = lua_pcall(L, 0, 0, 0);
+	if (err != 0) {
+		errMsg = strdup(lua_tostring(L, -1));
+		return errMsg;
+	}
+	return NULL;
 }
 
 void vm_getfield(lua_State *L, const char *name)
