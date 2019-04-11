@@ -58,34 +58,69 @@ const int *getLuaExecContext(lua_State *L)
 	return service;
 }
 
+static int loadLibs(lua_State *L)
+{
+	luaL_openlibs(L);
+	preloadModules(L);
+	return 0;
+}
+
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
+	int rc;
 	if (L == NULL)
 		return NULL;
-	luaL_openlibs(L);
-	preloadModules(L);
+
+	rc = lua_cpcall(L, loadLibs, NULL);
+	if (rc != 0)
+	    return NULL;
+
 	return L;
+}
+
+struct loadBuffCtx {
+    const char *code;
+    size_t sz;
+    char *hex_id;
+    int *service;
+    char *errMsg;
+};
+
+static int loadBuff(lua_State *L)
+{
+	int err;
+	struct loadBuffCtx *ctx;
+	const char *errMsg = NULL;
+
+	ctx = (struct loadBuffCtx *)lua_topointer(L, -1);
+
+	setLuaExecContext(L, ctx->service);
+
+	err = luaL_loadbuffer(L, ctx->code, ctx->sz, ctx->hex_id);
+	if (err != 0) {
+		ctx->errMsg = strdup(lua_tostring(L, -1));
+		return 0;
+	}
+	err = lua_pcall(L, 0, 0, 0);
+	if (err != 0) {
+		ctx->errMsg = strdup(lua_tostring(L, -1));
+	}
+	return 0;
 }
 
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
-	int err;
-	const char *errMsg = NULL;
+	struct loadBuffCtx ctx;
+	ctx.code = code;
+	ctx.sz = sz;
+	ctx.hex_id = hex_id;
+	ctx.service = service;
+	ctx.errMsg = NULL;
 
-	setLuaExecContext(L, service);
+	lua_cpcall(L, loadBuff, &ctx);
 
-	err = luaL_loadbuffer(L, code, sz, hex_id);
-	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
-	}
-	err = lua_pcall(L, 0, 0, 0);
-	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
-	}
-	return NULL;
+	return ctx.errMsg;
 }
 
 void vm_getfield(lua_State *L, const char *name)
@@ -118,22 +153,17 @@ static void count_hook(lua_State *L, lua_Debug *ar)
 
 void vm_set_count_hook(lua_State *L, int limit)
 {
-	lua_sethook (L, count_hook, LUA_MASKCOUNT, limit);
+	lua_sethook(L, count_hook, LUA_MASKCOUNT, limit);
 }
 
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
-	const char *errMsg = NULL;
 	int nr = lua_gettop(L) - argc - 1;
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 	if (err != 0) {
-	    if (err == LUA_ERRMEM) {
-            luaL_setuncatchablerror(L);
-	    }
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+		return strdup(lua_tostring(L, -1));
 	}
 	*nresult = lua_gettop(L) - nr;
 	return NULL;
@@ -151,11 +181,6 @@ const char *vm_get_json_ret(lua_State *L, int nresult)
 	free(json_ret);
 	
 	return lua_tostring(L, -1);
-}
-
-const char *vm_tostring(lua_State *L, int idx)
-{
-	return lua_tolstring(L, idx, NULL);
 }
 
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)

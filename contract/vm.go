@@ -387,7 +387,6 @@ func (ce *Executor) call(target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
-
 	if ce.isView == true {
 		oldIsQuery := ce.stateSet.isQuery
 		ce.stateSet.isQuery = true
@@ -395,6 +394,7 @@ func (ce *Executor) call(target *LState) C.int {
 			ce.stateSet.isQuery = oldIsQuery
 		}()
 	}
+	C.luaL_enablemaxmem(ce.L)
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
@@ -415,14 +415,16 @@ func (ce *Executor) call(target *LState) C.int {
 		}
 		return 0
 	}
-
+	C.luaL_disablemaxmem(ce.L)
 	if target == nil {
 		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
 	} else {
+		C.luaL_disablemaxmem(target)
 		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
 			errMsg := C.GoString(cErrMsg)
 			ce.err = errors.New(errMsg)
 		}
+		C.luaL_enablemaxmem(target)
 	}
 	return nret
 }
