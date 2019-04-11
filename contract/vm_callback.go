@@ -36,7 +36,6 @@ var mulAergo, mulGaer, zeroBig *big.Int
 const maxEventCnt = 50
 const maxEventNameSize = 64
 const maxEventArgSize = 4096
-const maxCallCount = 10
 
 func init() {
 	mulAergo, _ = new(big.Int).SetString("1000000000000000000", 10)
@@ -169,11 +168,6 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		luaPushStr(L, "[Contract.LuaCallContract] contract state not found")
 		return -1
 	}
-	if stateSet.callCount >= maxCallCount {
-		luaPushStr(L, fmt.Sprintf("[Contract.LuaCallContract] contract call exceeded limit(%d) in one transaction", maxCallCount))
-		return -1
-	}
-	stateSet.callCount++
 	contractAddress := C.GoString(contractId)
 	cid, err := getAddressNameResolved(contractAddress, stateSet.bs)
 	if err != nil {
@@ -271,11 +265,6 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] contract state not found")
 		return -1
 	}
-	if stateSet.callCount >= maxCallCount {
-		luaPushStr(L, fmt.Sprintf("[Contract.LuaDelegateCallContract] contract call exceeded limit(%d) in one transaction", maxCallCount))
-		return -1
-	}
-	stateSet.callCount++
 	cid, err := getAddressNameResolved(contractIdStr, stateSet.bs)
 	if err != nil {
 		luaPushStr(L, "[Contract.LuaDelegateCallContract] invalid contractId: "+err.Error())

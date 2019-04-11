@@ -52,7 +52,7 @@ var (
 	curStateSet    [maxStateSet]*StateSet
 	lastQueryIndex int
 	querySync      sync.Mutex
-	zeroFee        *big.Int
+	zeroFee		   *big.Int
 )
 
 type CallState struct {
@@ -88,7 +88,6 @@ type StateSet struct {
 	seed              *rand.Rand
 	events            []*types.Event
 	eventCount        int32
-	callCount         int32
 }
 
 type recoveryEntry struct {
