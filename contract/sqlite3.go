@@ -163,7 +163,6 @@ import (
 	"net/url"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -947,242 +946,18 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 		return nil, errors.New("sqlite library was not compiled for thread-safe operation")
 	}
 
-	var pkey string
-
 	// Options
 	var loc *time.Location
-	mutex := C.int(C.SQLITE_OPEN_FULLMUTEX)
 	txlock := "BEGIN"
 
 	// PRAGMA's
-	autoVacuum := -1
-	busyTimeout := 5000
-	caseSensitiveLike := -1
-	deferForeignKeys := -1
-	foreignKeys := -1
-	ignoreCheckConstraints := -1
-	journalMode := "DELETE"
-	lockingMode := "NORMAL"
 	queryOnly := -1
-	recursiveTriggers := -1
-	secureDelete := "DEFAULT"
-	synchronousMode := "NORMAL"
-	writableSchema := -1
 
 	pos := strings.IndexRune(dsn, '?')
 	if pos >= 1 {
 		params, err := url.ParseQuery(dsn[pos+1:])
 		if err != nil {
 			return nil, err
-		}
-
-		// _loc
-		if val := params.Get("_loc"); val != "" {
-			switch strings.ToLower(val) {
-			case "auto":
-				loc = time.Local
-			default:
-				loc, err = time.LoadLocation(val)
-				if err != nil {
-					return nil, fmt.Errorf("Invalid _loc: %v: %v", val, err)
-				}
-			}
-		}
-
-		// _mutex
-		if val := params.Get("_mutex"); val != "" {
-			switch strings.ToLower(val) {
-			case "no":
-				mutex = C.SQLITE_OPEN_NOMUTEX
-			case "full":
-				mutex = C.SQLITE_OPEN_FULLMUTEX
-			default:
-				return nil, fmt.Errorf("Invalid _mutex: %v", val)
-			}
-		}
-
-		// _txlock
-		if val := params.Get("_txlock"); val != "" {
-			switch strings.ToLower(val) {
-			case "immediate":
-				txlock = "BEGIN IMMEDIATE"
-			case "exclusive":
-				txlock = "BEGIN EXCLUSIVE"
-			case "deferred":
-				txlock = "BEGIN"
-			default:
-				return nil, fmt.Errorf("Invalid _txlock: %v", val)
-			}
-		}
-
-		// Auto Vacuum (_vacuum)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_auto_vacuum
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_auto_vacuum"]; ok {
-			pkey = "_auto_vacuum"
-		}
-		if _, ok := params["_vacuum"]; ok {
-			pkey = "_vacuum"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "none":
-				autoVacuum = 0
-			case "1", "full":
-				autoVacuum = 1
-			case "2", "incremental":
-				autoVacuum = 2
-			default:
-				return nil, fmt.Errorf("Invalid _auto_vacuum: %v, expecting value of '0 NONE 1 FULL 2 INCREMENTAL'", val)
-			}
-		}
-
-		// Busy Timeout (_busy_timeout)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_busy_timeout
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_busy_timeout"]; ok {
-			pkey = "_busy_timeout"
-		}
-		if _, ok := params["_timeout"]; ok {
-			pkey = "_timeout"
-		}
-		if val := params.Get(pkey); val != "" {
-			iv, err := strconv.ParseInt(val, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid _busy_timeout: %v: %v", val, err)
-			}
-			busyTimeout = int(iv)
-		}
-
-		// Case Sensitive Like (_cslike)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_case_sensitive_like
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_case_sensitive_like"]; ok {
-			pkey = "_case_sensitive_like"
-		}
-		if _, ok := params["_cslike"]; ok {
-			pkey = "_cslike"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				caseSensitiveLike = 0
-			case "1", "yes", "true", "on":
-				caseSensitiveLike = 1
-			default:
-				return nil, fmt.Errorf("Invalid _case_sensitive_like: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-
-		// Defer Foreign Keys (_defer_foreign_keys | _defer_fk)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_defer_foreign_keys
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_defer_foreign_keys"]; ok {
-			pkey = "_defer_foreign_keys"
-		}
-		if _, ok := params["_defer_fk"]; ok {
-			pkey = "_defer_fk"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				deferForeignKeys = 0
-			case "1", "yes", "true", "on":
-				deferForeignKeys = 1
-			default:
-				return nil, fmt.Errorf("Invalid _defer_foreign_keys: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-
-		// Foreign Keys (_foreign_keys | _fk)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_foreign_keys
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_foreign_keys"]; ok {
-			pkey = "_foreign_keys"
-		}
-		if _, ok := params["_fk"]; ok {
-			pkey = "_fk"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				foreignKeys = 0
-			case "1", "yes", "true", "on":
-				foreignKeys = 1
-			default:
-				return nil, fmt.Errorf("Invalid _foreign_keys: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-
-		// Ignore CHECK Constrains (_ignore_check_constraints)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_ignore_check_constraints
-		//
-		if val := params.Get("_ignore_check_constraints"); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				ignoreCheckConstraints = 0
-			case "1", "yes", "true", "on":
-				ignoreCheckConstraints = 1
-			default:
-				return nil, fmt.Errorf("Invalid _ignore_check_constraints: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-
-		// Journal Mode (_journal_mode | _journal)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_journal_mode
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_journal_mode"]; ok {
-			pkey = "_journal_mode"
-		}
-		if _, ok := params["_journal"]; ok {
-			pkey = "_journal"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToUpper(val) {
-			case "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF":
-				journalMode = strings.ToUpper(val)
-			case "WAL":
-				journalMode = strings.ToUpper(val)
-
-				// For WAL Mode set Synchronous Mode to 'NORMAL'
-				// See https://www.sqlite.org/pragma.html#pragma_synchronous
-				synchronousMode = "NORMAL"
-			default:
-				return nil, fmt.Errorf("Invalid _journal: %v, expecting value of 'DELETE TRUNCATE PERSIST MEMORY WAL OFF'", val)
-			}
-		}
-
-		// Locking Mode (_locking)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_locking_mode
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_locking_mode"]; ok {
-			pkey = "_locking_mode"
-		}
-		if _, ok := params["_locking"]; ok {
-			pkey = "_locking"
-		}
-		if val := params.Get("_locking"); val != "" {
-			switch strings.ToUpper(val) {
-			case "NORMAL", "EXCLUSIVE":
-				lockingMode = strings.ToUpper(val)
-			default:
-				return nil, fmt.Errorf("Invalid _locking_mode: %v, expecting value of 'NORMAL EXCLUSIVE", val)
-			}
 		}
 
 		// Query Only (_query_only)
@@ -1200,80 +975,6 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 			}
 		}
 
-		// Recursive Triggers (_recursive_triggers)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_recursive_triggers
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_recursive_triggers"]; ok {
-			pkey = "_recursive_triggers"
-		}
-		if _, ok := params["_rt"]; ok {
-			pkey = "_rt"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				recursiveTriggers = 0
-			case "1", "yes", "true", "on":
-				recursiveTriggers = 1
-			default:
-				return nil, fmt.Errorf("Invalid _recursive_triggers: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-
-		// Secure Delete (_secure_delete)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_secure_delete
-		//
-		if val := params.Get("_secure_delete"); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				secureDelete = "OFF"
-			case "1", "yes", "true", "on":
-				secureDelete = "ON"
-			case "fast":
-				secureDelete = "FAST"
-			default:
-				return nil, fmt.Errorf("Invalid _secure_delete: %v, expecting boolean value of '0 1 false true no yes off on fast'", val)
-			}
-		}
-
-		// Synchronous Mode (_synchronous | _sync)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_synchronous
-		//
-		pkey = "" // Reset pkey
-		if _, ok := params["_synchronous"]; ok {
-			pkey = "_synchronous"
-		}
-		if _, ok := params["_sync"]; ok {
-			pkey = "_sync"
-		}
-		if val := params.Get(pkey); val != "" {
-			switch strings.ToUpper(val) {
-			case "0", "OFF", "1", "NORMAL", "2", "FULL", "3", "EXTRA":
-				synchronousMode = strings.ToUpper(val)
-			default:
-				return nil, fmt.Errorf("Invalid _synchronous: %v, expecting value of '0 OFF 1 NORMAL 2 FULL 3 EXTRA'", val)
-			}
-		}
-
-		// Writable Schema (_writeable_schema)
-		//
-		// https://www.sqlite.org/pragma.html#pragma_writeable_schema
-		//
-		if val := params.Get("_writable_schema"); val != "" {
-			switch strings.ToLower(val) {
-			case "0", "no", "false", "off":
-				writableSchema = 0
-			case "1", "yes", "true", "on":
-				writableSchema = 1
-			default:
-				return nil, fmt.Errorf("Invalid _writable_schema: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-
 		if !strings.HasPrefix(dsn, "file:") {
 			dsn = dsn[:pos]
 		}
@@ -1282,20 +983,12 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	var db *C.sqlite3
 	name := C.CString(dsn)
 	defer C.free(unsafe.Pointer(name))
-	rv := C._sqlite3_open_v2(name, &db,
-		mutex|C.SQLITE_OPEN_READWRITE|C.SQLITE_OPEN_CREATE,
-		nil)
+	rv := C._sqlite3_open_v2(name, &db, C.SQLITE_OPEN_READWRITE|C.SQLITE_OPEN_CREATE, nil)
 	if rv != 0 {
 		return nil, Error{Code: ErrNo(rv)}
 	}
 	if db == nil {
 		return nil, errors.New("sqlite succeeded without returning a database")
-	}
-
-	rv = C.sqlite3_busy_timeout(db, C.int(busyTimeout))
-	if rv != C.SQLITE_OK {
-		C.sqlite3_close_v2(db)
-		return nil, Error{Code: ErrNo(rv)}
 	}
 
 	exec := func(s string) error {
@@ -1339,105 +1032,9 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	// Create connection to SQLite
 	conn := &SQLiteConn{db: db, loc: loc, txlock: txlock}
 
-	// Auto Vacuum
-	// Moved auto_vacuum command, the user preference for auto_vacuum needs to be implemented directly after
-	// the authentication and before the sqlite_user table gets created if the user
-	// decides to activate User Authentication because
-	// auto_vacuum needs to be set before any tables are created
-	// and activating user authentication creates the internal table `sqlite_user`.
-	if autoVacuum > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA auto_vacuum = %d;", autoVacuum)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Case Sensitive LIKE
-	if caseSensitiveLike > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA case_sensitive_like = %d;", caseSensitiveLike)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Defer Foreign Keys
-	if deferForeignKeys > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA defer_foreign_keys = %d;", deferForeignKeys)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Forgein Keys
-	if foreignKeys > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA foreign_keys = %d;", foreignKeys)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Ignore CHECK Constraints
-	if ignoreCheckConstraints > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA ignore_check_constraints = %d;", ignoreCheckConstraints)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Journal Mode
-	// Because default Journal Mode is DELETE this PRAGMA can always be executed.
-	if err := exec(fmt.Sprintf("PRAGMA journal_mode = %s;", journalMode)); err != nil {
-		C.sqlite3_close_v2(db)
-		return nil, err
-	}
-
-	// Locking Mode
-	// Because the default is NORMAL and this is not changed in this package
-	// by using the compile time SQLITE_DEFAULT_LOCKING_MODE this PRAGMA can always be executed
-	if err := exec(fmt.Sprintf("PRAGMA locking_mode = %s;", lockingMode)); err != nil {
-		C.sqlite3_close_v2(db)
-		return nil, err
-	}
-
 	// Query Only
 	if queryOnly > -1 {
 		if err := exec(fmt.Sprintf("PRAGMA query_only = %d;", queryOnly)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Recursive Triggers
-	if recursiveTriggers > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA recursive_triggers = %d;", recursiveTriggers)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Secure Delete
-	//
-	// Because this package can set the compile time flag SQLITE_SECURE_DELETE with a build tag
-	// the default value for secureDelete var is 'DEFAULT' this way
-	// you can compile with secure_delete 'ON' and disable it for a specific database connection.
-	if secureDelete != "DEFAULT" {
-		if err := exec(fmt.Sprintf("PRAGMA secure_delete = %s;", secureDelete)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	// Synchronous Mode
-	//
-	// Because default is NORMAL this statement is always executed
-	if err := exec(fmt.Sprintf("PRAGMA synchronous = %s;", synchronousMode)); err != nil {
-		C.sqlite3_close_v2(db)
-		return nil, err
-	}
-
-	// Writable Schema
-	if writableSchema > -1 {
-		if err := exec(fmt.Sprintf("PRAGMA writable_schema = %d;", writableSchema)); err != nil {
 			C.sqlite3_close_v2(db)
 			return nil, err
 		}

@@ -22,5 +22,6 @@ void vm_get_abi_function(lua_State *L, char *fname);
 int vm_is_payable_function(lua_State *L, char *fname);
 char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag);
 void vm_set_count_hook(lua_State *L, int limit);
+void vm_db_release_resource(lua_State *L);
 
 #endif /* _VM_H */

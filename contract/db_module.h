@@ -4,5 +4,6 @@
 #include "lua.h"
 
 extern int luaopen_db(lua_State *L);
+extern void lua_db_release_resource(lua_State *L);
 
 #endif /* _DB_MODULE_H */

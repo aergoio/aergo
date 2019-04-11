@@ -14,14 +14,29 @@
         }                                           \
     } while(0)
 
+#define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
+#define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
+
+static int append_resource(lua_State *L, const char *key, void *data)
+{
+    int refno;
+    if (luaL_findtable(L, LUA_REGISTRYINDEX, key, 0) != NULL) {
+        luaL_error(L, "cannot find the environment of the db module");
+    }
+    /* tab */
+    lua_pushlightuserdata(L, data);     /* tab pstmt */
+    refno = luaL_ref(L, -2);            /* tab */
+    lua_pop(L, 1);                      /* remove tab */
+    return refno;
+}
+
 #define DB_PSTMT_ID "__db_pstmt__"
 
 typedef struct {
     sqlite3 *db;
     sqlite3_stmt *s;
     int closed;
-    int ref;
-    int refcnt;
+    int refno;
 } db_pstmt_t;
 
 #define DB_RS_ID "__db_rs__"
@@ -31,11 +46,10 @@ typedef struct {
     sqlite3_stmt *s;
     int closed;
     int nc;
-    int ref;
+    int shared_stmt;
     char **decltypes;
+    int refno;
 } db_rs_t;
-
-static void db_pstmt_close(lua_State *L, int ref);
 
 static db_rs_t *get_db_rs(lua_State *L, int pos)
 {
@@ -137,7 +151,7 @@ static int db_rs_get(lua_State *L)
     return rs->nc;
 }
 
-static void db_rs_close(lua_State *L, db_rs_t *rs)
+static void db_rs_close(lua_State *L, db_rs_t *rs, int remove)
 {
     if (rs->closed) {
         return;
@@ -146,16 +160,15 @@ static void db_rs_close(lua_State *L, db_rs_t *rs)
     if (rs->decltypes) {
         free_decltypes(rs);
     }
-    if (rs->ref == -1) {
+    if (rs->shared_stmt == 0) {
         sqlite3_finalize(rs->s);
-    } else {
-        db_pstmt_t *pstmt;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, rs->ref);
-        pstmt = (db_pstmt_t *)luaL_checkudata(L, -1, DB_PSTMT_ID);
-        pstmt->refcnt--;
-        if (pstmt->refcnt == 0) {
-            db_pstmt_close(L, rs->ref);
+    }
+    if (remove) {
+        if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY, 0) != NULL) {
+            luaL_error(L, "cannot find the environment of the db module");
         }
+        luaL_unref(L, -1, rs->refno);
+        lua_pop(L, 1);
     }
 }
 
@@ -166,12 +179,12 @@ static int db_rs_next(lua_State *L)
 
     rc = sqlite3_step(rs->s);
     if (rc == SQLITE_DONE) {
-        db_rs_close(L, rs);
+        db_rs_close(L, rs, 1);
         lua_pushboolean(L, 0);
     } else if (rc != SQLITE_ROW) {
         rc = sqlite3_reset(rs->s);
         LAST_ERROR(L, rs->db, rc);
-        db_rs_close(L, rs);
+        db_rs_close(L, rs, 1);
         lua_pushboolean(L, 0);
     } else {
         if (rs->decltypes == NULL) {
@@ -188,26 +201,7 @@ static int db_rs_next(lua_State *L)
 
 static int db_rs_gc(lua_State *L)
 {
-    db_rs_t *rs = luaL_checkudata(L, 1, DB_RS_ID);
-
-    if (rs->closed) {
-        return 0;
-    }
-    rs->closed = 1;
-    if (rs->decltypes) {
-        free_decltypes(rs);
-    }
-    if (rs->ref == -1) {
-        sqlite3_finalize(rs->s);
-    } else {
-        db_pstmt_t *pstmt;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, rs->ref);
-        pstmt = (db_pstmt_t *)luaL_checkudata(L, -1, DB_PSTMT_ID);
-        pstmt->refcnt--;
-        if (pstmt->refcnt == 0) {
-            db_pstmt_close(L, rs->ref);
-        }
-    }
+    db_rs_close(L, luaL_checkudata(L, 1, DB_RS_ID), 1);
     return 0;
 }
 
@@ -354,31 +348,31 @@ static int db_pstmt_query(lua_State *L)
     rs->s = pstmt->s;
     rs->closed = 0;
     rs->nc = sqlite3_column_count(pstmt->s);
-    rs->ref = pstmt->ref;
+    rs->shared_stmt = 1;
     rs->decltypes = NULL;
-    pstmt->refcnt++;
+    rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
+
     return 1;
 }
 
-static void db_pstmt_close(lua_State *L, int ref)
+static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove)
 {
-    db_pstmt_t *pstmt = luaL_checkudata(L, -1, DB_PSTMT_ID);
-
-    if (!pstmt->closed) {
-        pstmt->closed = 1;
-        sqlite3_finalize(pstmt->s);
-        luaL_unref(L, LUA_REGISTRYINDEX, ref);
+    if (pstmt->closed)
+        return;
+    pstmt->closed = 1;
+    sqlite3_finalize(pstmt->s);
+    if (remove) {
+        if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_PSTMT_KEY, 0) != NULL) {
+            luaL_error(L, "cannot find the environment of the db module");
+        }
+        luaL_unref(L, -1, pstmt->refno);
+        lua_pop(L, 1);
     }
 }
 
 static int db_pstmt_gc(lua_State *L)
 {
-    db_pstmt_t *pstmt = luaL_checkudata(L, 1, DB_PSTMT_ID);
-
-    if (!pstmt->closed) {
-        pstmt->closed = 1;
-        sqlite3_finalize(pstmt->s);
-    }
+    db_pstmt_close(L, luaL_checkudata(L, 1, DB_PSTMT_ID), 1);
     return 0;
 }
 
@@ -443,8 +437,10 @@ static int db_query(lua_State *L)
     rs->s = s;
     rs->closed = 0;
     rs->nc = sqlite3_column_count(s);
-    rs->ref = -1;
+    rs->shared_stmt = 0;
     rs->decltypes = NULL;
+    rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
+
     return 1;
 }
 
@@ -468,15 +464,39 @@ static int db_prepare(lua_State *L)
     pstmt = (db_pstmt_t *)lua_newuserdata(L, sizeof(db_pstmt_t));
     luaL_getmetatable(L, DB_PSTMT_ID);
     lua_setmetatable(L, -2);
-    lua_pushvalue(L, -1);
-    ref = luaL_ref(L, LUA_REGISTRYINDEX);
     pstmt->db = db;
     pstmt->s = s;
     pstmt->closed = 0;
-    pstmt->refcnt = 0;
-    pstmt->ref = ref;
+    pstmt->refno = append_resource(L, RESOURCE_PSTMT_KEY, (void *)pstmt);
 
     return 1;
+}
+
+void lua_db_release_resource(lua_State *L)
+{
+    if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY, 0) != NULL) {
+        luaL_error(L, "cannot find the environment of the db module");
+    }
+    /* T */
+    lua_pushnil(L); /* T nil(key) */
+    while (lua_next(L, -2)) {
+        if (lua_islightuserdata(L, -1))
+            db_rs_close(L, (db_rs_t *)lua_topointer(L, -1), 0);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+
+    if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_PSTMT_KEY, 0) != NULL) {
+        luaL_error(L, "cannot find the environment of the db module");
+    }
+    /* T */
+    lua_pushnil(L); /* T nil(key) */
+    while (lua_next(L, -2)) {
+        if (lua_islightuserdata(L, -1))
+            db_pstmt_close(L, (db_pstmt_t *)lua_topointer(L, -1), 0);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
 }
 
 int luaopen_db(lua_State *L)

@@ -98,12 +98,15 @@ func LoadDatabase(dataDir string) error {
 }
 
 func CloseDatabase() {
-	for _, db := range database.DBs {
+	for name, db := range database.DBs {
 		_ = db.close()
+		delete(database.DBs, name)
 	}
 }
 
 func SaveRecoveryPoint(bs *state.BlockState) error {
+	defer CloseDatabase()
+
 	for id, db := range database.DBs {
 		if db.tx != nil {
 			err := db.tx.Commit()

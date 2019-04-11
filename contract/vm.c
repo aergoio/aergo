@@ -219,3 +219,8 @@ char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag
 
 	return fname;
 }
+
+void vm_db_release_resource(lua_State *L)
+{
+    lua_db_release_resource(L);
+}

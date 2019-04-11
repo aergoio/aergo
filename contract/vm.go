@@ -490,6 +490,7 @@ func (ce *Executor) rollbackToSavepoint() error {
 
 func (ce *Executor) close() {
 	if ce != nil {
+		C.vm_db_release_resource(ce.L)
 		FreeLState(ce.L)
 	}
 }
