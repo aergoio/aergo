@@ -24,7 +24,7 @@
 #define val_f64(val)                ((val)->d)
 #define val_str(val)                ((char *)((val)->ptr))
 
-#define val_i64(val)                mpz_get_ui((val)->z)
+#define val_i64(val)                mpz_get_si((val)->z)
 
 #define is_zero_val(val)                                                                           \
     (is_int_val(val) ? mpz_sgn(val_mpz(val)) == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))

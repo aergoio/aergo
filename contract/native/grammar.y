@@ -1366,7 +1366,7 @@ literal:
 |   L_HEX
     {
         $$ = exp_new_lit_int(0, &@$);
-        mpz_set_str(val_mpz(&$$->u_lit.val), $1, 16);
+        mpz_set_str(val_mpz(&$$->u_lit.val), $1, 0);
     }
 |   L_FLOAT
     {

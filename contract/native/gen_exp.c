@@ -75,32 +75,65 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     if (is_array_meta(&id->meta)) {
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        BinaryenExpressionRef base, address, offset, index;
+#if 0
+        BinaryenExpressionRef base, address;
 
-        ASSERT(!is_lit_exp(idx_exp));
-
-        /* Because BinaryenLoad() takes an offset as uint32_t and "idx_exp" is a register or memory
-         * expression, we do not know the offset value, so we add the offset to the address and use
-         * BinaryenLoad(). See exp_trans_array() for the following formula. */
+        /* In array expression, the offset is calculated as follows:
+         *
+         * Suppose that "int i[x][y][z]" is defined.
+         *
+         * First, when we access "i[a]", the formula for calculating the offset is
+         * (a * sizeof(i[0])).
+         *
+         * Next, in the case of "i[a][b]",
+         * (a * sizeof(i[0])) + (b * sizeof(i[0][0])).
+         *
+         * Finally, in the case of "i[a][b][c]",
+         * (a * sizeof(i[0])) + (b * sizeof(i[0][0])) + (c * sizeof(int)). */
 
         base = exp_gen(gen, id_exp);
-        index = exp_gen(gen, idx_exp);
 
-        if (is_int64_meta(&idx_exp->meta) || is_uint64_meta(&idx_exp->meta))
-            /* TODO: need to check range of index in semantic checker */
-            index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
+        if (is_lit_exp(idx_exp)) {
+            uint32_t offset;
+            ast_id_t *id = exp->id;
 
-        offset = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
-                                i32_gen(gen, meta_bytes(meta)));
+            offset = val_i64(&idx_exp->u_lit.val) * meta_size(&id->meta) + meta_align(&id->meta);
 
-        if (id->meta.rel_addr > 0)
-            offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
-                                    i32_gen(gen, id->meta.rel_addr + meta_align(&id->meta)));
-        else
-            offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
-                                    i32_gen(gen, meta_align(&id->meta)));
+            if (is_mem_exp(id_exp))
+                offset += id_exp->u_mem.offset;
 
-        address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, offset);
+            address = BinaryenBinary(gen->module, BinaryenAddInt32(),
+                                     BinaryenLoad(gen->module, sizeof(uint32_t), 1, 0, 0,
+                                                  BinaryenTypeInt32(), base),
+                                     i32_gen(gen, offset));
+        }
+        else {
+#endif
+            BinaryenExpressionRef base, address, index, offset;
+
+            /* Because BinaryenLoad() takes an offset as uint32_t and "idx_exp" is a register or
+             * memory expression, we do not know the offset value, so we add the offset to the
+             * address and use BinaryenLoad(). */
+
+            base = exp_gen(gen, id_exp);
+            index = exp_gen(gen, idx_exp);
+
+            if (is_int64_meta(&idx_exp->meta) || is_uint64_meta(&idx_exp->meta))
+                /* TODO: need to check range of index in semantic checker */
+                index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
+
+            offset = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
+                                    i32_gen(gen, meta_bytes(meta)));
+
+            if (id->meta.rel_addr > 0)
+                offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
+                                        i32_gen(gen, id->meta.rel_addr + meta_align(&id->meta)));
+            else
+                offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
+                                        i32_gen(gen, meta_align(&id->meta)));
+
+            address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, offset);
+        //}
 
         if (gen->is_lval || is_array_meta(meta))
             return address;
@@ -453,143 +486,142 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
     left = exp_gen(gen, exp->u_bin.l_exp);
     right = exp_gen(gen, exp->u_bin.r_exp);
 
+    switch (exp->u_bin.kind) {
+    case OP_AND:
+        ASSERT(!is_int64_meta(meta) && !is_uint64_meta(meta));
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            op = BinaryenAndInt64();
+        else
+            op = BinaryenAndInt32();
+        break;
+
+    case OP_OR:
+        ASSERT(!is_int64_meta(meta) && !is_uint64_meta(meta));
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            op = BinaryenOrInt64();
+        else
+            op = BinaryenOrInt32();
+        break;
+
+    case OP_EQ:
+        if (is_int128_meta(meta) || is_uint128_meta(meta)) {
+            left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
+            right = i32_gen(gen, 0);
+        }
+
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            op = BinaryenEqInt64();
+        else if (is_float_meta(meta))
+            op = BinaryenEqFloat32();
+        else if (is_double_meta(meta))
+            op = BinaryenEqFloat64();
+        else
+            op = BinaryenEqInt32();
+        break;
+
+    case OP_NE:
+        if (is_int128_meta(meta) || is_uint128_meta(meta)) {
+            left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
+            right = i32_gen(gen, 0);
+        }
+
+        if (is_int64_meta(meta) || is_uint64_meta(meta))
+            op = BinaryenNeInt64();
+        else if (is_float_meta(meta))
+            op = BinaryenNeFloat32();
+        else if (is_double_meta(meta))
+            op = BinaryenNeFloat64();
+        else
+            op = BinaryenNeInt32();
+        break;
+
+    case OP_LT:
+        if (is_int128_meta(meta) || is_uint128_meta(meta)) {
+            left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
+            right = i32_gen(gen, 0);
+        }
+
+        if (is_int64_meta(meta))
+            op = BinaryenLtSInt64();
+        else if (is_uint64_meta(meta))
+            op = BinaryenLtUInt64();
+        else if (is_float_meta(meta))
+            op = BinaryenLtFloat32();
+        else if (is_double_meta(meta))
+            op = BinaryenLtFloat64();
+        else if (is_unsigned_meta(meta))
+            op = BinaryenLtUInt32();
+        else
+            op = BinaryenLtSInt32();
+        break;
+
+    case OP_GT:
+        if (is_int128_meta(meta) || is_uint128_meta(meta)) {
+            left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
+            right = i32_gen(gen, 0);
+        }
+
+        if (is_int64_meta(meta))
+            op = BinaryenGtSInt64();
+        else if (is_uint64_meta(meta))
+            op = BinaryenGtUInt64();
+        else if (is_float_meta(meta))
+            op = BinaryenGtFloat32();
+        else if (is_double_meta(meta))
+            op = BinaryenGtFloat64();
+        else if (is_unsigned_meta(meta))
+            op = BinaryenGtUInt32();
+        else
+            op = BinaryenGtSInt32();
+        break;
+
+    case OP_LE:
+        if (is_int128_meta(meta) || is_uint128_meta(meta)) {
+            left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
+            right = i32_gen(gen, 0);
+        }
+
+        if (is_int64_meta(meta))
+            op = BinaryenLeSInt64();
+        else if (is_uint64_meta(meta))
+            op = BinaryenLeUInt64();
+        else if (is_float_meta(meta))
+            op = BinaryenLeFloat32();
+        else if (is_double_meta(meta))
+            op = BinaryenLeFloat64();
+        else if (is_unsigned_meta(meta))
+            op = BinaryenLeUInt32();
+        else
+            op = BinaryenLeSInt32();
+        break;
+
+    case OP_GE:
+        if (is_int128_meta(meta) || is_uint128_meta(meta)) {
+            left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
+            right = i32_gen(gen, 0);
+        }
+
+        if (is_int64_meta(meta))
+            op = BinaryenGeSInt64();
+        else if (is_uint64_meta(meta))
+            op = BinaryenGeUInt64();
+        else if (is_float_meta(meta))
+            op = BinaryenGeFloat32();
+        else if (is_double_meta(meta))
+            op = BinaryenGeFloat64();
+        else if (is_unsigned_meta(meta))
+            op = BinaryenGeUInt32();
+        else
+            op = BinaryenGeSInt32();
+        break;
+
+    default:
+        ASSERT1(!"invalid operator", exp->u_bin.kind);
+    }
+
     if (is_string_meta(meta)) {
         left = syslib_call_2(gen, FN_STRCMP, left, right);
         right = i32_gen(gen, 0);
-    }
-    else {
-        switch (exp->u_bin.kind) {
-        case OP_AND:
-            ASSERT(!is_int64_meta(meta) && !is_uint64_meta(meta));
-            if (is_int64_meta(meta) || is_uint64_meta(meta))
-                op = BinaryenAndInt64();
-            else
-                op = BinaryenAndInt32();
-            break;
-
-        case OP_OR:
-            ASSERT(!is_int64_meta(meta) && !is_uint64_meta(meta));
-            if (is_int64_meta(meta) || is_uint64_meta(meta))
-                op = BinaryenOrInt64();
-            else
-                op = BinaryenOrInt32();
-            break;
-
-        case OP_EQ:
-            if (is_int128_meta(meta) || is_uint128_meta(meta)) {
-                left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
-                right = i32_gen(gen, 0);
-            }
-
-            if (is_int64_meta(meta) || is_uint64_meta(meta))
-                op = BinaryenEqInt64();
-            else if (is_float_meta(meta))
-                op = BinaryenEqFloat32();
-            else if (is_double_meta(meta))
-                op = BinaryenEqFloat64();
-            else
-                op = BinaryenEqInt32();
-            break;
-
-        case OP_NE:
-            if (is_int128_meta(meta) || is_uint128_meta(meta)) {
-                left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
-                right = i32_gen(gen, 0);
-            }
-
-            if (is_int64_meta(meta) || is_uint64_meta(meta))
-                op = BinaryenNeInt64();
-            else if (is_float_meta(meta))
-                op = BinaryenNeFloat32();
-            else if (is_double_meta(meta))
-                op = BinaryenNeFloat64();
-            else
-                op = BinaryenNeInt32();
-            break;
-
-        case OP_LT:
-            if (is_int128_meta(meta) || is_uint128_meta(meta)) {
-                left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
-                right = i32_gen(gen, 0);
-            }
-
-            if (is_int64_meta(meta))
-                op = BinaryenLtSInt64();
-            else if (is_uint64_meta(meta))
-                op = BinaryenLtUInt64();
-            else if (is_float_meta(meta))
-                op = BinaryenLtFloat32();
-            else if (is_double_meta(meta))
-                op = BinaryenLtFloat64();
-            else if (is_unsigned_meta(meta))
-                op = BinaryenLtUInt32();
-            else
-                op = BinaryenLtSInt32();
-            break;
-
-        case OP_GT:
-            if (is_int128_meta(meta) || is_uint128_meta(meta)) {
-                left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
-                right = i32_gen(gen, 0);
-            }
-
-            if (is_int64_meta(meta))
-                op = BinaryenGtSInt64();
-            else if (is_uint64_meta(meta))
-                op = BinaryenGtUInt64();
-            else if (is_float_meta(meta))
-                op = BinaryenGtFloat32();
-            else if (is_double_meta(meta))
-                op = BinaryenGtFloat64();
-            else if (is_unsigned_meta(meta))
-                op = BinaryenGtUInt32();
-            else
-                op = BinaryenGtSInt32();
-            break;
-
-        case OP_LE:
-            if (is_int128_meta(meta) || is_uint128_meta(meta)) {
-                left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
-                right = i32_gen(gen, 0);
-            }
-
-            if (is_int64_meta(meta))
-                op = BinaryenLeSInt64();
-            else if (is_uint64_meta(meta))
-                op = BinaryenLeUInt64();
-            else if (is_float_meta(meta))
-                op = BinaryenLeFloat32();
-            else if (is_double_meta(meta))
-                op = BinaryenLeFloat64();
-            else if (is_unsigned_meta(meta))
-                op = BinaryenLeUInt32();
-            else
-                op = BinaryenLeSInt32();
-            break;
-
-        case OP_GE:
-            if (is_int128_meta(meta) || is_uint128_meta(meta)) {
-                left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
-                right = i32_gen(gen, 0);
-            }
-
-            if (is_int64_meta(meta))
-                op = BinaryenGeSInt64();
-            else if (is_uint64_meta(meta))
-                op = BinaryenGeUInt64();
-            else if (is_float_meta(meta))
-                op = BinaryenGeFloat32();
-            else if (is_double_meta(meta))
-                op = BinaryenGeFloat64();
-            else if (is_unsigned_meta(meta))
-                op = BinaryenGeUInt32();
-            else
-                op = BinaryenGeSInt32();
-            break;
-
-        default:
-            ASSERT1(!"invalid operator", exp->u_bin.kind);
-        }
     }
 
     return BinaryenBinary(gen->module, op, left, right);
@@ -785,17 +817,21 @@ exp_gen_reg(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_mem(gen_t *gen, ast_exp_t *exp)
 {
+    uint32_t offset = exp->u_mem.addr + exp->u_mem.offset;
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
     address = BinaryenGetLocal(gen->module, exp->u_mem.base, BinaryenTypeInt32());
 
-    if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta))
-        return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                              i32_gen(gen, exp->u_mem.addr + exp->u_mem.offset));
+    if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
+        if (offset == 0)
+            return address;
 
-    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_type(meta->type),
-                        exp->u_mem.addr + exp->u_mem.offset, 0, meta_gen(meta), address);
+        return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
+    }
+
+    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_type(meta->type), offset, 0,
+                        meta_gen(meta), address);
 }
 
 BinaryenExpressionRef

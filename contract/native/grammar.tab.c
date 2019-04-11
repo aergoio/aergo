@@ -3739,7 +3739,7 @@ yyreduce:
 #line 1367 "grammar.y" /* yacc.c:1652  */
     {
         (yyval.exp) = exp_new_lit_int(0, &(yyloc));
-        mpz_set_str(val_mpz(&(yyval.exp)->u_lit.val), (yyvsp[0].str), 16);
+        mpz_set_str(val_mpz(&(yyval.exp)->u_lit.val), (yyvsp[0].str), 0);
     }
 #line 3745 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
     break;

@@ -1,29 +1,30 @@
 @test(numeric_value)
+@run(test.check)
 contract test {
     byte b1 = 0;
     byte b2 = +1;
     byte b3 = 0xff;
 
     int8 i1 = +127;
-    int8 i2 = -0x7f;
+    int8 i2 = -0x80;
 
     uint8 ui1 = 0;
     uint8 ui2 = 0xff;
 
     int16 i3 = +32767;
-    int16 i4 = -0x7fff;
+    int16 i4 = -0x8000;
 
     uint16 ui3 = 0;
     uint16 ui4 = 0xffff;
 
-    int32 i5 = +0x7fffff - 1;
+    int32 i5 = +0x80000000 - 1;
     int32 i6 = -2147483648;
 
     uint32 ui5 = 0;
     uint32 ui6 = 4294967295;
 
     int64 i7 = 9223372036854775807;
-    int64 i8 = -0x7fffffff;
+    int64 i8 = -0x8000000000000000;
 
     uint64 ui7 = 0;
     uint64 ui8 = 18446744073709551615;
@@ -49,14 +50,46 @@ contract test {
 
     int i, j = 1, 0;
 
-    /*
     public func check() {
         test t = new test();
 
-        pragma assert(b1 == 0);
-        pragma assert(b2 == 1);
+        pragma assert(t.b1 == 0);
+        pragma assert(t.b2 == 1);
+        pragma assert(t.b3 == 255);
+
+        pragma assert(t.i1 == 127);
+        pragma assert(t.i2 == -128);
+
+        pragma assert(t.ui1 == 0);
+        pragma assert(t.ui2 == 255);
+
+        pragma assert(t.i3 == 32767);
+        pragma assert(t.i4 == -32768);
+
+        pragma assert(t.ui3 == 0);
+        pragma assert(t.ui4 == 65535);
+
+        pragma assert(t.i5 == 2147483647);
+        pragma assert(t.i6 == -2147483648);
+
+        pragma assert(t.ui5 == 0);
+        pragma assert(t.ui6 == 4294967295);
+
+        pragma assert(t.i7 == 9223372036854775807);
+        pragma assert(t.i8 == -9223372036854775808);
+
+        pragma assert(t.ui7 == 0);
+        pragma assert(t.ui8 == 18446744073709551615);
+
+        pragma assert(t.i9 == 170141183460469231731687303715884105727);
+        pragma assert(t.i10 == -170141183460469231731687303715884105728);
+
+        pragma assert(t.ui9 == 0);
+        pragma assert(t.ui10 == 340282366920938463463374607431768211455);
+
+        pragma assert(t.i == 1);
+        pragma assert(t.j == 0);
     }
-    */
 }
 
 @test(mismatched_primitive_type)
@@ -103,11 +136,21 @@ contract test {
 }
 
 @test(character_value)
+@run(test.check)
 contract test {
     string v1 = "";
     string v2 = "literal";
     string v3 = "literal \"include quotation\"";
     string v4 = "literal /* with */ // comments";
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.v1 == "");
+        pragma assert(t.v2 == "literal");
+        pragma assert(t.v3 == "literal \"include quotation\"");
+        pragma assert(t.v4 == "literal /* with */ // comments");
+    }
 }
 
 @test(unterminated_string)
@@ -117,14 +160,25 @@ contract test {
 }
 
 @test(predefined_constant)
+@run(test.check)
 contract test {
-    bool v1 = true;
-    bool v2 = false;
+    bool b1 = true;
+    bool b2 = false;
     string s = null;
     map(int, string) m = null;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.b1 == true);
+        pragma assert(t.b2 == false);
+        pragma assert(t.s == null);
+        pragma assert(t.m == null);
+    }
 }
 
 @test(array_initializer)
+@run(test.check)
 contract test {
     bool b1[2] = new { true, false };
     byte b2[2] = new { 0xa, 0xb };
@@ -144,6 +198,18 @@ contract test {
     uint64 u2[1], u3[2] = new { 1 }, new { 2, 3 } ;
 
     string s[3] = new { "a", "b", "c" };
+
+    public func check() {
+        /*
+        test t = new test();
+
+        pragma assert(t.b1[0] == true);
+        pragma assert(t.b1[1] == false);
+
+        pragma assert(t.b2[0] == 10);
+        pragma assert(t.b2[1] == 11);
+        */
+    }
 }
 
 @test(empty_initializer)

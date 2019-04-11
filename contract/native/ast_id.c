@@ -169,7 +169,7 @@ id_new_tmp_var(char *name)
 ast_id_t *
 id_search_fld(ast_id_t *id, char *name, bool is_self)
 {
-    int i;
+    int i, j;
     vector_t *fld_ids = NULL;
 
     ASSERT(id != NULL);
@@ -191,8 +191,19 @@ id_search_fld(ast_id_t *id, char *name, bool is_self)
     vector_foreach(fld_ids, i) {
         ast_id_t *fld_id = vector_get_id(fld_ids, i);
 
-        if ((is_self || is_itf_id(id) || is_public_id(fld_id)) && strcmp(fld_id->name, name) == 0)
+        if (is_tuple_id(fld_id)) {
+            vector_foreach(fld_id->u_tup.elem_ids, j) {
+                ast_id_t *var_id = vector_get_id(fld_id->u_tup.elem_ids, j);
+
+                if ((is_self || is_itf_id(id) || is_public_id(var_id)) &&
+                    strcmp(var_id->name, name) == 0)
+                    return var_id;
+            }
+        }
+        else if ((is_self || is_itf_id(id) || is_public_id(fld_id)) &&
+                 strcmp(fld_id->name, name) == 0) {
             return fld_id;
+        }
     }
 
     return NULL;
