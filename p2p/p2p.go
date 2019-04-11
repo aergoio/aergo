@@ -277,7 +277,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	}
 }
 
-// TODO need refactoring. this code is copied from subprotcoladdrs.go
+// TODO need refactoring. this code is copied from subproto/addrs.go
 func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := p2ps.pm.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))

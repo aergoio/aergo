@@ -46,21 +46,25 @@ type peerManager struct {
 	mf             p2pcommon.MoFactory
 	mm             metric.MetricsManager
 
+	peerFinder p2pcommon.PeerFinder
+
 	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
 	hiddenPeerSet map[peer.ID]bool
 
 	mutex        *sync.Mutex
 	manageNumber uint32
 	remotePeers  map[peer.ID]p2pcommon.RemotePeer
-	peerPool     map[peer.ID]p2pcommon.PeerMeta
-	conf         *cfg.P2PConfig
+	waitingPeers map[peer.ID]*p2pcommon.WaitingPeer
+
+	conf *cfg.P2PConfig
 	// peerCache is copy-on-write style
 	peerCache []p2pcommon.RemotePeer
 
-	addPeerChannel  chan p2pcommon.PeerMeta
-	fillPoolChannel chan []p2pcommon.PeerMeta
-	finishChannel   chan struct{}
-	eventListeners  []PeerEventListener
+	addPeerChannel    chan p2pcommon.PeerMeta
+	removePeerChannel chan p2pcommon.RemotePeer
+	fillPoolChannel   chan []p2pcommon.PeerMeta
+	finishChannel     chan struct{}
+	eventListeners    []PeerEventListener
 
 	//
 	designatedPeers map[peer.ID]p2pcommon.PeerMeta
@@ -104,15 +108,17 @@ func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon
 
 		remotePeers: make(map[peer.ID]p2pcommon.RemotePeer, p2pConf.NPMaxPeers),
 
-		awaitPeers: make(map[peer.ID]*reconnectJob, p2pConf.NPPeerPool),
-		peerPool:   make(map[peer.ID]p2pcommon.PeerMeta, p2pConf.NPPeerPool),
-		peerCache:  make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
-		awaitDone:  make(chan struct{}),
+		awaitPeers:   make(map[peer.ID]*reconnectJob, p2pConf.NPPeerPool),
+		waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, p2pConf.NPPeerPool),
 
-		addPeerChannel:  make(chan p2pcommon.PeerMeta, 2),
-		fillPoolChannel: make(chan []p2pcommon.PeerMeta, 2),
-		eventListeners:  make([]PeerEventListener, 0, 4),
-		finishChannel:   make(chan struct{}),
+		peerCache: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
+		awaitDone: make(chan struct{}),
+
+		addPeerChannel:    make(chan p2pcommon.PeerMeta, 2),
+		removePeerChannel: make(chan p2pcommon.RemotePeer),
+		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
+		eventListeners:    make([]PeerEventListener, 0, 4),
+		finishChannel:     make(chan struct{}),
 	}
 
 	// additional initializations
@@ -139,25 +145,26 @@ func (pm *peerManager) init() {
 		}
 		pm.hiddenPeerSet[pid] = true
 	}
+
+	pm.peerFinder = NewPeerFinder(pm.logger, pm, pm.actorService, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers, pm.conf.NPUsePolaris)
 }
 
 func (pm *peerManager) Start() error {
-
 	go pm.runManagePeers()
 	// need to start listen after chainservice is read to init
 	// FIXME: adhoc code
 	go func() {
 		//time.Sleep(time.Second * 3)
-		pm.nt.AddStreamHandler(p2pcommon.AergoP2PSub, pm.onConnect)
 		pm.logger.Info().Str("version", string(p2pcommon.AergoP2PSub)).Msg("Starting p2p listening")
+		pm.nt.AddStreamHandler(p2pcommon.AergoP2PSub, pm.onConnect)
 
 		// addition should start after all modules are started
-		go func() {
-			time.Sleep(time.Second * 2)
-			for _, meta := range pm.designatedPeers {
-				pm.addPeerChannel <- meta
-			}
-		}()
+		time.Sleep(time.Second * 2)
+		dPeers := make([]p2pcommon.PeerMeta,len(pm.designatedPeers))
+		for _, meta := range pm.designatedPeers {
+			dPeers = append(dPeers, meta)
+		}
+		pm.fillPoolChannel <- dPeers
 	}()
 
 	return nil
@@ -202,15 +209,20 @@ MANLOOP:
 		select {
 		case meta := <-pm.addPeerChannel:
 			if pm.addOutboundPeer(meta) {
+				pm.peerFinder.OnPeerConnect(meta.ID)
 				pm.cancelAwait(meta.ID)
+			}
+		case peer := <-pm.removePeerChannel:
+			if pm.removePeer(peer) {
+				pm.peerFinder.OnPeerDisconnect(peer)
 			}
 		case <-initialTimer.C:
 			initialTimer.Stop()
-			pm.checkAndCollectPeerListFromAll()
+			pm.peerFinder.CheckAndFill()
 		case <-addrTicker.C:
-			pm.checkAndCollectPeerListFromAll()
+			pm.peerFinder.CheckAndFill()
 		case peerMetas := <-pm.fillPoolChannel:
-			pm.tryFillPool(&peerMetas)
+			pm.peerFinder.OnDiscoveredPeers(peerMetas)
 		case <-pm.finishChannel:
 			addrTicker.Stop()
 			break MANLOOP
@@ -232,6 +244,8 @@ MANLOOP:
 CLEANUPLOOP:
 	for {
 		select {
+		case peer := <-pm.removePeerChannel:
+			pm.removePeer(peer)
 		case <-finishPoll.C:
 			pm.mutex.Lock()
 			if len(pm.remotePeers) == 0 {
@@ -365,19 +379,15 @@ func (pm *peerManager) sendGoAway(rw p2pcommon.MsgReadWriter, msg string) {
 	rw.WriteMsg(container)
 }
 
-func (pm *peerManager) AddNewPeer(peer p2pcommon.PeerMeta) {
-	pm.addPeerChannel <- peer
+func (pm *peerManager) AddNewPeer(meta p2pcommon.PeerMeta) {
+	pm.addPeerChannel <- meta
 }
 
 func (pm *peerManager) RemovePeer(peer p2pcommon.RemotePeer) {
-	pm.removePeer(peer)
+	pm.removePeerChannel <- peer
 }
 
 func (pm *peerManager) NotifyPeerHandshake(peerID peer.ID) {
-	// TODO code smell.
-	if pm.conf.NPDiscoverPeers {
-		pm.checkAndCollectPeerList(peerID)
-	}
 }
 
 func (pm *peerManager) NotifyPeerAddressReceived(metas []p2pcommon.PeerMeta) {
@@ -409,9 +419,6 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 		listener.OnRemovePeer(peerID)
 	}
 
-	if meta, found := pm.designatedPeers[peer.ID()]; found {
-		pm.addAwait(meta)
-	}
 	return true
 }
 
@@ -431,41 +438,6 @@ func (pm *peerManager) onConnect(s inet.Stream) {
 	}
 }
 
-func (pm *peerManager) checkAndCollectPeerListFromAll() {
-	if pm.hasEnoughPeers() {
-		return
-	}
-	if pm.conf.NPUsePolaris {
-		pm.logger.Debug().Msg("Sending map query to polaris")
-		pm.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
-	}
-
-	// if server is not discover new peer, such as of BP or backup node, it does not send addresses reqeust to other peer.
-	// These types are only connect to designated peers.
-	if pm.conf.NPDiscoverPeers {
-		// not strictly need to check peers. so use cache instead
-		for _, remotePeer := range pm.peerCache {
-			pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: remotePeer.ID(), Size: MaxAddrListSizePeer, Offset: 0})
-		}
-	}
-}
-
-func (pm *peerManager) checkAndCollectPeerList(ID peer.ID) {
-	if pm.hasEnoughPeers() {
-		return
-	}
-	rPeer, ok := pm.GetPeer(ID)
-	if !ok {
-		pm.logger.Warn().Str(p2putil.LogFullID, ID.Pretty()).Msg("invalid peer id")
-		return
-	}
-	pm.actorService.SendRequest(message.P2PSvc, &message.GetAddressesMsg{ToWhom: rPeer.ID(), Size: 20, Offset: 0})
-}
-
-func (pm *peerManager) hasEnoughPeers() bool {
-	return len(pm.peerPool) >= pm.conf.NPPeerPool
-}
-
 // tryConnectPeers should be called in runManagePeers() only
 func (pm *peerManager) tryFillPool(metas *[]p2pcommon.PeerMeta) {
 	added := make([]p2pcommon.PeerMeta, 0, len(*metas))
@@ -475,12 +447,12 @@ func (pm *peerManager) tryFillPool(metas *[]p2pcommon.PeerMeta) {
 			invalid = append(invalid, p2putil.ShortMetaForm(meta))
 			continue
 		}
-		_, found := pm.peerPool[meta.ID]
+		_, found := pm.waitingPeers[meta.ID]
 		if !found {
 			// change some properties
 			meta.Outbound = true
 			meta.Designated = false
-			pm.peerPool[meta.ID] = meta
+			pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 			added = append(added, meta)
 		}
 	}
@@ -494,16 +466,25 @@ func (pm *peerManager) tryFillPool(metas *[]p2pcommon.PeerMeta) {
 // tryConnectPeers should be called in runManagePeers() only
 func (pm *peerManager) tryConnectPeers() {
 	remained := pm.conf.NPMaxPeers - len(pm.remotePeers)
-	for ID, meta := range pm.peerPool {
+	now := time.Now()
+	for ID, wp := range pm.waitingPeers {
 		if _, found := pm.GetPeer(ID); found {
-			delete(pm.peerPool, ID)
+			delete(pm.waitingPeers, ID)
 			continue
 		}
+		if wp.NextTrial.After(now) {
+			// cool time is not over. try connect later
+			continue
+		}
+		meta := wp.Meta
 		if meta.IPAddress == "" || meta.Port == 0 {
 			pm.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Str("addr", meta.IPAddress).
 				Uint32("port", meta.Port).Msg("Invalid peer meta informations")
+			// remove invalid peer
+			delete(pm.waitingPeers, ID)
 			continue
 		}
+		// TODO
 		// in same go rountine.
 		pm.addOutboundPeer(meta)
 		remained--
