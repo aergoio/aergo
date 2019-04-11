@@ -154,6 +154,10 @@ func getCtrState(stateSet *StateSet, aid types.AccountID) (*CallState, error) {
 	return callState, err
 }
 
+func setInstCount(parent *LState, child *LState) {
+	C.luaL_setinstcount(parent, C.luaL_instcount(child))
+}
+
 //export LuaCallContract
 func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.char, args *C.char,
 	amount *C.char, gas uint64) C.int {
@@ -234,11 +238,9 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 		callState.curState.SqlRecoveryPoint, amountBig)
 
-	if *service <= ChainService {
-		ce.setCountHook(callMaxInstLimit)
-	} else {
-		ce.setCountHook(queryMaxInstLimit)
-	}
+	ce.setCountHook(C.luaL_instcount(L))
+	defer setInstCount(L, ce.L)
+
 	ret := ce.call(L)
 	if ce.err != nil {
 		stateSet.curContract = prevContractInfo
@@ -317,11 +319,8 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		}
 	}
 
-	if *service <= ChainService {
-		ce.setCountHook(callMaxInstLimit)
-	} else {
-		ce.setCountHook(queryMaxInstLimit)
-	}
+	ce.setCountHook(C.luaL_instcount(L))
+	defer setInstCount(L, ce.L)
 
 	ret := ce.call(L)
 	if ce.err != nil {
@@ -916,7 +915,9 @@ func LuaDeployContract(L *LState, service *C.int, contract *C.char, args *C.char
 	luaPushStr(L, types.EncodeAddress(newContract.ID()))
 	ret := C.int(1)
 	if ce != nil {
-		ce.setCountHook(callMaxInstLimit)
+		ce.setCountHook(C.luaL_instcount(L))
+		defer setInstCount(L, ce.L)
+
 		ret += ce.call(L)
 		if ce.err != nil {
 			stateSet.curContract = prevContractInfo
