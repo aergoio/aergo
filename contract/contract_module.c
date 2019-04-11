@@ -93,7 +93,7 @@ static int moduleCall(lua_State *L)
 	char *contract;
 	char *fname;
 	char *json_args;
-	int ret;
+	struct LuaCallContract_return ret;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer gas;
 	char *amount;
@@ -122,13 +122,15 @@ static int moduleCall(lua_State *L)
 		luaL_throwerror(L);
 	}
 
-	if ((ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas)) < 0) {
+    ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas);
+	if (ret.r1 != NULL) {
 		free(json_args);
+		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
 	free(json_args);
 	reset_amount_info(L);
-	return ret;
+	return ret.r0;
 }
 
 static int delegate_call_gas(lua_State *L)
@@ -141,7 +143,7 @@ static int moduleDelegateCall(lua_State *L)
 	char *contract;
 	char *fname;
 	char *json_args;
-	int ret;
+	struct LuaDelegateCallContract_return ret;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer gas;
 
@@ -162,20 +164,22 @@ static int moduleDelegateCall(lua_State *L)
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
-	if ((ret = LuaDelegateCallContract(L, service, contract, fname, json_args, gas)) < 0) {
+	ret = LuaDelegateCallContract(L, service, contract, fname, json_args, gas);
+	if (ret.r1 != NULL) {
 		free(json_args);
+		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
 	free(json_args);
 	reset_amount_info(L);
 
-	return ret;
+	return ret.r0;
 }
 
 static int moduleSend(lua_State *L)
 {
 	char *contract;
-	int ret;
+	char *errStr;
 	int *service = (int *)getLuaExecContext(L);
 	char *amount;
 	bool needfree = false;
@@ -204,11 +208,13 @@ static int moduleSend(lua_State *L)
     default:
 		luaL_error(L, "invalid input");
 	}
-	ret = LuaSendAmount(L, service, contract, amount);
+	errStr = LuaSendAmount(L, service, contract, amount);
 	if (needfree)
 	    free(amount);
-	if (ret < 0)
+	if (errStr != NULL) {
+        strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
+    }
 	return 0;
 }
 
@@ -217,6 +223,7 @@ static int moduleBalance(lua_State *L)
 	char *contract;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer amount;
+	struct LuaGetBalance_return balance;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -227,10 +234,14 @@ static int moduleBalance(lua_State *L)
     else {
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
-	if (LuaGetBalance(L, service, contract) < 0) {
+
+	balance = LuaGetBalance(L, service, contract);
+	if (balance.r1 != NULL) {
+	    strPushAndRelease(L, balance.r1);
 		luaL_throwerror(L);
 	}
 
+	strPushAndRelease(L, balance.r0);
 	return 1;
 }
 
@@ -238,30 +249,38 @@ static int modulePcall(lua_State *L)
 {
 	int argc = lua_gettop(L) - 1;
 	int *service = (int *)getLuaExecContext(L);
-	int start_seq = -1;
+	struct LuaSetRecoveryPoint_return start_seq;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
 	start_seq = LuaSetRecoveryPoint(L, service);
-	if (start_seq < 0)
+	if (start_seq.r0 < 0) {
+	    strPushAndRelease(L, start_seq.r1);
 	    luaL_throwerror(L);
+    }
 
 	if (lua_pcall(L, argc, LUA_MULTRET, 0) != 0) {
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
-		if (start_seq > 0) {
-			if (LuaClearRecovery(L, service, start_seq, true) < 0)
+		if (start_seq.r0 > 0) {
+		    char *errStr = LuaClearRecovery(L, service, start_seq.r0, true);
+			if (errStr != NULL) {
+			    strPushAndRelease(L, errStr);
 				luaL_throwerror(L);
+            }
 		}
 		return 2;
 	}
 	lua_pushboolean(L, true);
 	lua_insert(L, 1);
-	if (start_seq > 0) {
-		if (LuaClearRecovery(L, service, start_seq, false) < 0)
+	if (start_seq.r0 > 0) {
+        char *errStr = LuaClearRecovery(L, service, start_seq.r0, false);
+		if (errStr != NULL) {
+			strPushAndRelease(L, errStr);
 			luaL_throwerror(L);
+        }
 	}
 	return lua_gettop(L);
 }
@@ -276,7 +295,7 @@ static int moduleDeploy(lua_State *L)
 	char *contract;
 	char *fname;
 	char *json_args;
-	int ret;
+	struct LuaDeployContract_return ret;
 	int *service = (int *)getLuaExecContext(L);
 	char *amount;
 
@@ -295,13 +314,20 @@ static int moduleDeploy(lua_State *L)
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
-	if ((ret = LuaDeployContract(L, service, contract, json_args, amount)) < 0) {
+
+	ret = LuaDeployContract(L, service, contract, json_args, amount);
+	if (ret.r0 < 0) {
 		free(json_args);
+		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
 	free(json_args);
 	reset_amount_info(L);
-	return ret;
+	strPushAndRelease(L, ret.r1);
+	if (ret.r0 > 1)
+        lua_insert(L, -ret.r0);
+
+	return ret.r0;
 }
 
 static int moduleEvent(lua_State *L)
@@ -309,6 +335,7 @@ static int moduleEvent(lua_State *L)
 	char *event_name;
 	char *json_args;
 	int *service = (int *)getLuaExecContext(L);
+	char *errStr;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -319,7 +346,9 @@ static int moduleEvent(lua_State *L)
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
-	if (LuaEvent(L, service, event_name, json_args) < 0) {
+	errStr = LuaEvent(L, service, event_name, json_args);
+	if (errStr != NULL) {
+	    strPushAndRelease(L, errStr);
 	    luaL_throwerror(L);
 	}
 	free(json_args);
@@ -327,7 +356,7 @@ static int moduleEvent(lua_State *L)
 }
 
 static int governance(lua_State *L, char type) {
-	int ret;
+	char *ret;
 	int *service = (int *)getLuaExecContext(L);
 	char *arg;
 	bool needfree = false;
@@ -371,8 +400,10 @@ static int governance(lua_State *L, char type) {
 	ret = LuaGovernance(L, service, type, arg);
 	if (needfree)
 	    free(arg);
-	if (ret < 0)
+	if (ret != NULL) {
+	    strPushAndRelease(L, ret);
 		luaL_throwerror(L);
+    }
 	return 0;
 }
 
