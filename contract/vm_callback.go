@@ -1091,9 +1091,9 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) C.int {
 
 	if stateSet.lastRecoveryEntry != nil {
 		if gType == 'S' {
-			_ = setRecoveryPoint(aid, stateSet, senderState, nil, amountBig, true)
+			_ = setRecoveryPoint(aid, stateSet, senderState, scsState, amountBig, true)
 		} else if gType == 'U' {
-			_ = setRecoveryPoint(aid, stateSet, nil, stateSet.curContract.callState, amountBig, true)
+			_ = setRecoveryPoint(aid, stateSet, scsState.curState, stateSet.curContract.callState, amountBig, true)
 		}
 	}
 	return 0
