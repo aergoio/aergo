@@ -514,11 +514,20 @@ function infiniteLoop()
 	end
 	return t
 end
-abi.register(infiniteLoop)`
+function catch()
+	return pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "loop", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"loop",
@@ -527,6 +536,21 @@ abi.register(infiniteLoop)`
 		),
 	)
 	errMsg := "exceeded the maximum instruction count"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"catch"}`,
+		),
+	)
 	if err == nil {
 		t.Errorf("expected: %s", errMsg)
 	}
@@ -769,7 +793,8 @@ func TestSqlVmDateTime(t *testing.T) {
 	definition := `
 function init()
     db.exec("create table if not exists dt_test (n datetime, b bool)")
-	db.exec("insert into dt_test values (10000, 1),(date('2004-10-24', '+1 month', '-1 day'), 0)")
+	local n = db.exec("insert into dt_test values (?, ?),(date('2004-10-24', '+1 month', '-1 day'), 0)", 10000, 1)
+	assert(n == 2, "change count mismatch");
 end
 
 function nowNull()
@@ -777,7 +802,7 @@ function nowNull()
 end
 
 function localtimeNull()
-	db.exec("insert into dt_test values (datetime('2018-05-25', 'localtime'), 1)")
+	db.exec("insert into dt_test values (datetime('2018-05-25', ?), 1)", 'localtime')
 end
 
 function get()
@@ -928,8 +953,7 @@ end
 
 function query(id)
     local rt = {}
-    local stmt = db.prepare("select * from customer where id like '%' || ? || '%'")
-    local rs = stmt:query(id)
+    local rs = db.query("select * from customer where id like '%' || ? || '%'", id)
     while rs:next() do
         local col1, col2, col3, col4, col5 = rs:get()
         local item = {
@@ -945,18 +969,18 @@ function query(id)
 end
 
 function insert(id , passwd, name, birth, mobile)
-    local stmt = db.prepare("insert into customer values (?,?,?,?,?)")
-    stmt:exec(id, passwd, name, birth, mobile)
+    local n = db.exec("insert into customer values (?,?,?,?,?)", id, passwd, name, birth, mobile)
+	assert(n == 1, "insert count mismatch")
 end
 
 function update(id , passwd)
-    local stmt = db.prepare("update customer set passwd =? where id =?")
-    stmt:exec(passwd, id)
+    local n = db.exec("update customer set passwd =? where id =?", passwd, id)
+	assert(n == 1, "update count mismatch")
 end
 
 function delete(id)
-    local stmt = db.prepare("delete from customer where id =?")
-    stmt:exec(id)
+    local n = db.exec("delete from customer where id =?", id)
+	assert(n == 1, "delete count mismatch")
 end
 
 function count()
@@ -3414,12 +3438,12 @@ func TestGovernance(t *testing.T) {
 	}
 	definition := `
     function test_gov()
-		contract.stake("5 aergo")
+		contract.stake("10000 aergo")
 		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
     end
 
 	function error_case()
-		contract.stake("5 aergo")
+		contract.stake("10000 aergo")
 		assert(false)
 	end
 	
@@ -3438,8 +3462,9 @@ func TestGovernance(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	amount, _ := new(big.Int).SetString("10000000000000000000000", 10)
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "gov", 10000000000000000000, `{"Name": "test_gov", "Args":[]}`),
+		NewLuaTxCallBig("ktlee", "gov", amount, `{"Name": "test_gov", "Args":[]}`),
 	)
 	if err != nil {
 		t.Error(err)

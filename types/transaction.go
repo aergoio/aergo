@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/fee"
+	"github.com/gogo/protobuf/proto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
 )
@@ -16,15 +17,18 @@ import (
 
 const Stake = "v1stake"
 const Unstake = "v1unstake"
+const SetContractOwner = "v1setOwner"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
+
+const TxMaxSize = 200 * 1024
 
 type Transaction interface {
 	GetTx() *Tx
 	GetBody() *TxBody
 	GetHash() []byte
 	CalculateTxHash() []byte
-	Validate() error
+	Validate([]byte) error
 	ValidateWithSenderState(senderState *State) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
@@ -45,7 +49,10 @@ func NewTransaction(tx *Tx) Transaction {
 }
 
 func (tx *transaction) GetTx() *Tx {
-	return tx.Tx
+	if tx != nil {
+		return tx.Tx
+	}
+	return nil
 }
 
 func (tx *transaction) GetBody() *TxBody {
@@ -60,12 +67,22 @@ func (tx *transaction) CalculateTxHash() []byte {
 	return tx.Tx.CalculateTxHash()
 }
 
-func (tx *transaction) Validate() error {
+func (tx *transaction) Validate(chainidhash []byte) error {
+	if tx.GetTx() == nil || tx.GetTx().GetBody() == nil {
+		return ErrTxFormatInvalid
+	}
+
+	if !bytes.Equal(chainidhash, tx.GetTx().GetBody().GetChainIdHash()) {
+		return ErrTxInvalidChainIdHash
+	}
+	if proto.Size(tx.GetTx()) > TxMaxSize {
+		return ErrTxInvalidSize
+	}
+
 	account := tx.GetBody().GetAccount()
 	if account == nil {
 		return ErrTxFormatInvalid
 	}
-
 	if !bytes.Equal(tx.GetHash(), tx.CalculateTxHash()) {
 		return ErrTxHasInvalidHash
 	}
@@ -95,7 +112,7 @@ func (tx *transaction) Validate() error {
 			return ErrTxInvalidRecipient
 		}
 	case TxType_GOVERNANCE:
-		if len(tx.GetBody().Payload) <= 0 {
+		if len(tx.GetBody().GetPayload()) <= 0 {
 			return ErrTxFormatInvalid
 		}
 		switch string(tx.GetBody().GetRecipient()) {
@@ -118,16 +135,6 @@ func ValidateSystemTx(tx *TxBody) error {
 		return ErrTxInvalidPayload
 	}
 	switch ci.Name {
-	/* should read state db to know staking minimum, because of voting param
-	case Stake:
-		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
-			return ErrTooSmallAmount
-		}
-	case Unstake:
-		if tx.GetAmountBigInt().Cmp(StakingMinimum) < 0 {
-			return ErrTooSmallAmount
-		}
-	*/
 	case Stake,
 		Unstake:
 	case VoteBP:
@@ -153,22 +160,24 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case VoteNumBP,
-		VoteGasPrice,
-		VoteNamePrice,
-		VoteMinStaking:
-		for i, v := range ci.Args {
-			if i > 1 {
-				return ErrTxInvalidPayload
+		/* TODO: will be changed
+		case VoteNumBP,
+			VoteGasPrice,
+			VoteNamePrice,
+			VoteMinStaking:
+			for i, v := range ci.Args {
+				if i > 1 {
+					return ErrTxInvalidPayload
+				}
+				vstr, ok := v.(string)
+				if !ok {
+					return ErrTxInvalidPayload
+				}
+				if _, ok := new(big.Int).SetString(vstr, 10); !ok {
+					return ErrTxInvalidPayload
+				}
 			}
-			vstr, ok := v.(string)
-			if !ok {
-				return ErrTxInvalidPayload
-			}
-			if _, ok := new(big.Int).SetString(vstr, 10); !ok {
-				return ErrTxInvalidPayload
-			}
-		}
+		*/
 	default:
 		return ErrTxInvalidPayload
 	}
@@ -180,6 +189,40 @@ func validateNameTx(tx *TxBody) error {
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return ErrTxInvalidPayload
 	}
+	switch ci.Name {
+	case NameCreate:
+		_validateNameTx(tx, &ci)
+		if len(ci.Args) != 1 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+	case NameUpdate:
+		_validateNameTx(tx, &ci)
+		if len(ci.Args) != 2 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+		to, err := DecodeAddress(ci.Args[1].(string))
+		if err != nil {
+			return fmt.Errorf("invalid receiver in %s", ci)
+		}
+		if len(to) > AddressLength {
+			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+		}
+	case SetContractOwner:
+		owner, ok := ci.Args[0].(string)
+		if !ok {
+			return fmt.Errorf("invalid arguments in %s", owner)
+		}
+		_, err := DecodeAddress(owner)
+		if err != nil {
+			return fmt.Errorf("invalid new owner %s", err.Error())
+		}
+	default:
+		return ErrTxInvalidPayload
+	}
+	return nil
+}
+
+func _validateNameTx(tx *TxBody, ci *CallInfo) error {
 	if len(ci.Args) < 1 {
 		return fmt.Errorf("invalid arguments in %s", ci)
 	}
@@ -197,29 +240,11 @@ func validateNameTx(tx *TxBody) error {
 	if err := validateAllowedChar([]byte(nameParam)); err != nil {
 		return err
 	}
-	switch ci.Name {
-	case NameCreate:
-		if len(ci.Args) != 1 {
-			return fmt.Errorf("invalid arguments in %s", ci)
-		}
-	case NameUpdate:
-		if len(ci.Args) != 2 {
-			return fmt.Errorf("invalid arguments in %s", ci)
-		}
-		to, err := DecodeAddress(ci.Args[1].(string))
-		if err != nil {
-			return fmt.Errorf("invalid receiver in %s", ci)
-		}
-		if len(to) > AddressLength {
-			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
-		}
-	default:
-		return ErrTxInvalidPayload
-	}
 	if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetAmountBigInt()) > 0 {
 		return ErrTooSmallAmount
 	}
 	return nil
+
 }
 
 func (tx *transaction) ValidateWithSenderState(senderState *State) error {
@@ -306,7 +331,7 @@ func (tx *transaction) Clone() *transaction {
 }
 
 func (tx *transaction) GetMaxFee() *big.Int {
-	return fee.FixedTxFee()
+	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"

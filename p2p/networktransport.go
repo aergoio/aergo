@@ -87,7 +87,7 @@ func (sl *networkTransport) initNT() {
 
 	// init address and port
 	// if not set, it look up ip addresses of machine and choose suitable one (but not so smart) and default port 7845
-	sl.initSelfMeta(peerID)
+	sl.initSelfMeta(peerID, !sl.conf.NPExposeSelf)
 	sl.initServiceBindAddress()
 
 	sl.hostInited.Add(1)
@@ -96,7 +96,7 @@ func (sl *networkTransport) initNT() {
 	// TODO more survey libp2p NAT configuration
 }
 
-func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
+func (sl *networkTransport) initSelfMeta(peerID peer.ID, noExpose bool) {
 	protocolAddr := sl.conf.NetProtocolAddr
 	var ipAddress net.IP
 	var err error
@@ -124,6 +124,7 @@ func (sl *networkTransport) initSelfMeta(peerID peer.ID) {
 	sl.selfMeta.IPAddress = protocolAddr
 	sl.selfMeta.Port = uint32(protocolPort)
 	sl.selfMeta.ID = peerID
+	sl.selfMeta.Hidden = noExpose
 
 	// bind address and port will be overriden if configuration is specified
 	sl.bindAddress = ipAddress

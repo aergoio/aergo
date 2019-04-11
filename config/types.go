@@ -86,7 +86,7 @@ type BlockchainConfig struct {
 	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
 	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
-	FixedTxFee       string `mapstructure:"fixedtxfee" description:"fixed transaction fee (works only on private network)"`
+	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(works only on private network)"`
 }
 
 // MempoolConfig defines configurations for mempool service

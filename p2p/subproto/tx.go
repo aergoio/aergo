@@ -9,8 +9,8 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -50,7 +50,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 
 	remotePeer := th.peer
 	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
-	p2putil.DebugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, len(reqHashes))
+	p2putil.DebugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(reqHashes))
 
 	// TODO consider to make async if deadlock with remote peer can occurs
 	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
@@ -86,6 +86,8 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 	for _, f := range futures {
 		if tmp, err := th.msgHelper.ExtractTxsFromResponseAndError(f, nil); err == nil {
 			txs = append(txs, tmp...)
+		} else {
+			th.logger.Debug().Err(err).Msg("ErrExtract tx in future")
 		}
 	}
 	for _, tx := range txs {
@@ -105,7 +107,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 				Hashes: hashes,
 				Txs:    txInfos, HasNext: true}
 			th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-				Str("req_id", msg.ID().String()).Msg("Sending partial response")
+				Str(p2putil.LogOrgReqID, msg.ID().String()).Msg("Sending partial response")
 
 			remotePeer.SendMessage(remotePeer.MF().
 				NewMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
@@ -121,7 +123,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 		status = types.ResultStatus_NOT_FOUND
 	}
 	th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-		Str("req_id", msg.ID().String()).Msg("Sending last part response")
+		Str(p2putil.LogOrgReqID, msg.ID().String()).Str(p2putil.LogRespStatus, status.String()).Msg("Sending last part response")
 	// generate response message
 
 	resp := &types.GetTransactionsResponse{

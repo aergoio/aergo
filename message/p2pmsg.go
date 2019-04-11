@@ -20,9 +20,9 @@ var (
 	PeerNotFoundError    = fmt.Errorf("remote peer was not found")
 	MissingHashError     = fmt.Errorf("some block hash not found")
 	UnexpectedBlockError = fmt.Errorf("unexpected blocks response")
-	TooFewBlocksError = fmt.Errorf("too few blocks received that expected")
-	TooManyBlocksError = fmt.Errorf("too many blocks received that expected")
-	TooBigBlockError = fmt.Errorf("block size limit exceeded")
+	TooFewBlocksError    = fmt.Errorf("too few blocks received that expected")
+	TooManyBlocksError   = fmt.Errorf("too many blocks received that expected")
+	TooBigBlockError     = fmt.Errorf("block size limit exceeded")
 )
 
 // PingMsg send types.Ping to each peer.
@@ -178,4 +178,7 @@ type GetHashByNoRsp struct {
 	Seq       uint64
 	BlockHash BlockHash
 	Err       error
+}
+
+type GetSelf struct {
 }

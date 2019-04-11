@@ -20,7 +20,7 @@ import (
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 // TODO split this test into two... one is to attempt make connection and the other is test peermanager if same peerid is given
@@ -57,7 +57,8 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 
 func Test_networkTransport_initSelfMeta(t *testing.T) {
 	type args struct {
-		peerID peer.ID
+		peerID   peer.ID
+		noExpose bool
 	}
 	tests := []struct {
 		name string
@@ -68,12 +69,13 @@ func Test_networkTransport_initSelfMeta(t *testing.T) {
 		wantSameAddr bool
 		wantPort     uint32
 		wantID       peer.ID
+		wantHidden   bool
 	}{
-		{"TIP6", &cfg.P2PConfig{NetProtocolAddr: "fe80::dcbf:beff:fe87:e30a", NetProtocolPort: 7845}, args{dummyPeerID}, true, 7845, dummyPeerID},
-		{"TIP4", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{dummyPeerID}, true, 7845, dummyPeerID},
-		{"TDN", &cfg.P2PConfig{NetProtocolAddr: "www.aergo.io", NetProtocolPort: 7845}, args{dummyPeerID}, true, 7845, dummyPeerID},
-		{"TDefault", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7845}, args{dummyPeerID}, false, 7845, dummyPeerID},
-		// TODO: Add test cases.
+		{"TIP6", &cfg.P2PConfig{NetProtocolAddr: "fe80::dcbf:beff:fe87:e30a", NetProtocolPort: 7845}, args{dummyPeerID, false}, true, 7845, dummyPeerID, false},
+		{"TIP4", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{dummyPeerID, false}, true, 7845, dummyPeerID, false},
+		{"TDN", &cfg.P2PConfig{NetProtocolAddr: "www.aergo.io", NetProtocolPort: 7845}, args{dummyPeerID, false}, true, 7845, dummyPeerID, false},
+		{"TDefault", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7845}, args{dummyPeerID, false}, false, 7845, dummyPeerID, false},
+		{"THidden", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{dummyPeerID, true}, true, 7845, dummyPeerID, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,7 +84,7 @@ func Test_networkTransport_initSelfMeta(t *testing.T) {
 				logger: logger,
 			}
 
-			sl.initSelfMeta(tt.args.peerID)
+			sl.initSelfMeta(tt.args.peerID, tt.args.noExpose)
 
 			if tt.wantSameAddr {
 				assert.Equal(t, tt.conf.NetProtocolAddr, sl.selfMeta.IPAddress)
@@ -91,6 +93,7 @@ func Test_networkTransport_initSelfMeta(t *testing.T) {
 			}
 			assert.Equal(t, tt.wantPort, sl.selfMeta.Port)
 			assert.Equal(t, tt.wantID, sl.selfMeta.ID)
+			assert.Equal(t, tt.wantHidden, sl.selfMeta.Hidden)
 
 			assert.NotNil(t, sl.bindAddress)
 			fmt.Println("ProtocolAddress: ", sl.selfMeta.IPAddress)

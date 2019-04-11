@@ -13,8 +13,6 @@ var (
 	bpMinTimeLimitMs int64
 	// bpMaxTimeLimitMs is the maximum block generation time limit in milli-seconds.
 	bpMaxTimeLimitMs int64
-
-	blockProducers uint16
 )
 
 // Slot is a DPoS slot implmentation.
@@ -26,11 +24,10 @@ type Slot struct {
 }
 
 // Init initilizes various slot parameters
-func Init(blockIntervalSec int64, bps uint16) {
+func Init(blockIntervalSec int64) {
 	blockIntervalMs = blockIntervalSec * 1000
 	bpMinTimeLimitMs = blockIntervalMs / 4
 	bpMaxTimeLimitMs = blockIntervalMs / 2
-	blockProducers = bps
 }
 
 // Now returns a Slot corresponding to the current local time.
@@ -106,8 +103,8 @@ func IsNextTo(s1, s2 *Slot) bool {
 }
 
 // IsFor reports whether s correponds to myBpIdx (block producer index).
-func (s *Slot) IsFor(bpIdx bp.Index) bool {
-	return s.NextBpIndex() == int64(bpIdx)
+func (s *Slot) IsFor(bpIdx bp.Index, bpCount uint16) bool {
+	return s.NextBpIndex(bpCount) == int64(bpIdx)
 }
 
 // GetBpTimeout returns the time available for block production.
@@ -133,12 +130,8 @@ func (s Slot) TimesUp() bool {
 }
 
 // NextBpIndex returns BP index for s.nextIndex.
-func (s *Slot) NextBpIndex() int64 {
-	return absToBpIndex(s.nextIndex)
-}
-
-func absToBpIndex(idx int64) int64 {
-	return idx % int64(blockProducers)
+func (s *Slot) NextBpIndex(bpCount uint16) int64 {
+	return s.nextIndex % int64(bpCount)
 }
 
 func msToPrevIndex(ms int64) int64 {

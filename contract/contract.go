@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -49,11 +50,11 @@ func SetPreloadTx(tx *types.Tx, service int) {
 }
 
 func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (rv string, fee *big.Int, events []*types.Event, err error) {
+	sender, receiver *state.V, preLoadService int) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	txBody := tx.GetBody()
 
-	fee = big.NewInt(0)
+	usedFee = fee.PayloadTxFee(len(txBody.GetPayload()))
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -91,32 +92,37 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 			return
 		}
 	}
+
+	var cFee *big.Int
 	if ex != nil {
-		rv, events, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
+		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
 		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
-			rv, events, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, events, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
+
+	usedFee.Add(usedFee, cFee)
+
 	if err != nil {
 		if isSystemError(err) {
-			return "", fee, events, err
+			return "", events, usedFee, err
 		}
-		return "", fee, events, newVmError(err)
+		return "", events, usedFee, newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
-		return "", fee, events, err
+		return "", events, usedFee, err
 	}
 
-	return rv, fee, events, nil
+	return rv, events, usedFee, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {

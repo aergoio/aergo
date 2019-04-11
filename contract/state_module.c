@@ -17,6 +17,7 @@
 #define STATE_VAR_META_TYPE     "_sv_meta-type_"
 
 #define TYPE_NAME               "_type_"
+#define TYPE_LEN                "_len_"
 #define KEY_TYPE_NAME           "_key_type_"
 
 static int state_map_delete(lua_State *L);
@@ -397,12 +398,20 @@ static int state_var(lua_State *L)
                         var_name, lua_typename(L, t));
                 lua_error(L);
             }
+            lua_pop(L, 1);                                              /* T key value */
+            lua_pushvalue(L, -1);                                       /* T key value value*/
             insert_var(L, var_name);
             lua_setglobal(L, var_name);                                 /* T key */
         } else if (LUA_TUSERDATA == t) {
             state_array_t *arr = luaL_checkudata(L, -1, STATE_ARRAY_ID);
             arr->id = strdup((const char *)lua_tostring(L, -2));        /* T key value */
-            lua_pushstring(L, "array");                                 /* T key "type_name" */
+            lua_newtable(L);                                            /* T key value VT*/
+            lua_pushstring(L, TYPE_NAME);                               /* T key value VT _type_ */
+            lua_pushstring(L, "array");                                 /* T key value VT _type_ "type_name" */
+            lua_rawset(L, -3);                                          /* T key value VT{_type_="type_name"} */
+            lua_pushstring(L, TYPE_LEN);                                /* T key value VT _len_ */
+            lua_pushinteger(L, arr->len);                               /* T key value VT _len_ len */
+            lua_rawset(L, -3);                                          /* T key value VT{_len_=len} */
             insert_var(L, var_name);
             lua_setglobal(L, var_name);                                 /* T key */
         } else {

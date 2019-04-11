@@ -47,7 +47,7 @@ RETRYLOOP:
 			if found {
 				break RETRYLOOP
 			}
-			rj.logger.Debug().Str("peer_meta", p2putil.FuckForm(rj.meta)).Int("trial", rj.trial).Msg("Trying to connect")
+			rj.logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(rj.meta)).Int("trial", rj.trial).Msg("Trying to connect")
 			rj.pm.AddNewPeer(rj.meta)
 			rj.trial++
 			timer.Reset(getNextInterval(rj.trial))

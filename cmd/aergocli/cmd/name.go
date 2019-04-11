@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math/big"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -113,22 +114,27 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
 	}
-	if len(name) != types.NameLength {
-		return errors.New("The name must be 12 alphabetic characters\n")
-	}
 	amount, err := util.ParseUnit(spending)
 	if err != nil {
 		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
 	var ci types.CallInfo
-	ci.Name = types.NameUpdate
-	err = json.Unmarshal([]byte("[\""+name+"\",\""+to+"\"]"), &ci.Args)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = json.Unmarshal([]byte("[\""+name+"\",\""+to+"\"]"), &ci.Args)
-	if err != nil {
-		log.Fatal(err)
+	if name == types.AergoName {
+		ci.Name = types.SetContractOwner
+		err = json.Unmarshal([]byte("[\""+to+"\"]"), &ci.Args)
+		if err != nil {
+			log.Fatal(err)
+		}
+		amount = big.NewInt(0)
+	} else {
+		ci.Name = types.NameUpdate
+		if len(name) != types.NameLength {
+			return errors.New("The name must be 12 alphabetic characters\n")
+		}
+		err = json.Unmarshal([]byte("[\""+name+"\",\""+to+"\"]"), &ci.Args)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	payload, err := json.Marshal(ci)
 	if err != nil {

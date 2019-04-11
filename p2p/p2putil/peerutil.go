@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -30,6 +30,6 @@ func ShortForm(pid peer.ID) string {
 
 }
 
-func FuckForm(m p2pcommon.PeerMeta) string {
+func ShortMetaForm(m p2pcommon.PeerMeta) string {
 	return fmt.Sprintf("%s:%d/%s", m.IPAddress, m.Port, ShortForm(m.ID))
 }

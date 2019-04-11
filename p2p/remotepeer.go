@@ -239,12 +239,14 @@ func (p *remotePeerImpl) runRead() {
 	for {
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
-			p.logger.Error().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to read message")
+			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
+			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to read message")
 			p.Stop()
 			return
 		}
 		if err = p.handleMsg(msg); err != nil {
-			p.logger.Error().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
+			// TODO set different log level by case (i.e. it can be expected if peer is disconnecting )
+			p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("Failed to handle message")
 			p.Stop()
 			return
 		}
@@ -256,7 +258,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Warn().Interface("panic", r).Msg("There were panic in handler.")
+			p.logger.Error().Interface("panic", r).Msg("There were panic in handler.")
 			err = fmt.Errorf("internal error")
 		}
 	}()
@@ -380,13 +382,6 @@ func (p *remotePeerImpl) GetReceiver(originalID p2pcommon.MsgID) p2pcommon.Respo
 	} else {
 		return req.receiver
 	}
-}
-
-func (p *remotePeerImpl) updateMetaInfo(statusMsg *types.Status) {
-	// check address. and apply current
-	receivedMeta := p2pcommon.FromPeerAddress(statusMsg.Sender)
-	p.meta.IPAddress = receivedMeta.IPAddress
-	p.meta.Port = receivedMeta.Port
 }
 
 func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {

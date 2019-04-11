@@ -31,6 +31,8 @@ var (
 
 	ErrTxInvalidAccount = errors.New("tx invalid account")
 
+	ErrTxInvalidChainIdHash = errors.New("tx invalid chain id hash")
+
 	//ErrInvalidRecipient
 	ErrTxInvalidRecipient = errors.New("tx invalid recipient")
 
@@ -40,7 +42,7 @@ var (
 
 	ErrTxInvalidPayload = errors.New("tx invalid payload")
 
-	ErrTxSizeExceedLimit = errors.New("size of tx exceeds max length")
+	ErrTxInvalidSize = errors.New("size of tx exceeds max length")
 
 	ErrSignNotMatch = errors.New("signature not matched")
 
@@ -63,4 +65,7 @@ var (
 
 	//ErrMustStakeBeforeUnstake
 	ErrMustStakeBeforeUnstake = errors.New("must stake before unstake")
+
+	//ErrTooSmallAmount
+	ErrExceedAmount = errors.New("request amount exceeds")
 )

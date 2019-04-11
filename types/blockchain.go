@@ -18,6 +18,7 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
+	"github.com/gogo/protobuf/proto"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/minio/sha256-simd"
@@ -62,7 +63,7 @@ var lastIndexOfBH int
 
 func init() {
 	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
-	StakingMinimum, _ = new(big.Int).SetString("1000000000000000000", 10)
+	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
 	NamePrice, _ = new(big.Int).SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
 }
@@ -223,6 +224,12 @@ func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx,
 	return &block
 }
 
+// Localtime retrurns a time.Time object, which is coverted from block
+// timestamp.
+func (block *Block) Localtime() time.Time {
+	return time.Unix(0, block.GetHeader().GetTimestamp())
+}
+
 // calculateBlockHash computes sha256 hash of block header.
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
@@ -309,6 +316,24 @@ func (block *Block) ValidChildOf(parent *Block) bool {
 	}
 
 	return bytes.Compare(parChainID, curChainID) == 0
+}
+
+// Size returns a block size where the tx size is individually calculated. A
+// similar method is used to limit the block size by the block factory.
+//
+// THE REASON WHY THE BLOCK FACTORY DOESN'T USE THE EXACT SIZE OF A MARSHALED
+// BLOCK: The actual size of a marshaled block is larger than this because it
+// includes an additional data associated with the marshaling of the
+// transations array in the block body. It is ineffective that the (DPoS) block
+// factory measures the exact size of the additional probuf data when it
+// produces a block. Thus we use the slightly(?) different and less expensive
+// estimation of the block size.
+func (block *Block) Size() int {
+	size := proto.Size(block.GetHeader()) + len(block.GetHash())
+	for _, tx := range block.GetBody().GetTxs() {
+		size += proto.Size(tx)
+	}
+	return size
 }
 
 // Confirms returns block.Header.Confirms which indicates how many block is confirmed

@@ -142,6 +142,15 @@ static int _sqlite3_limit(sqlite3* db, int limitId, int newLimit) {
   return sqlite3_limit(db, limitId, newLimit);
 #endif
 }
+
+static int _sqlite3_disable_loadextfunc(sqlite3* db)
+{
+  int rv = sqlite3_enable_load_extension(db, 0);
+  if (rv != SQLITE_OK) {
+    return rv;
+  }
+  return sqlite3_db_config(db, SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION, 1, NULL);
+}
 */
 import "C"
 import (
@@ -1297,6 +1306,12 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 			return lastError(db)
 		}
 		return nil
+	}
+
+	rv = C._sqlite3_disable_loadextfunc(db)
+	if rv != C.SQLITE_OK {
+		C.sqlite3_close_v2(db)
+		return nil, Error{Code: ErrNo(rv)}
 	}
 
 	// USER AUTHENTICATION

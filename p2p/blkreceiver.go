@@ -7,8 +7,9 @@ package p2p
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/chain"
 	"time"
+
+	"github.com/aergoio/aergo/chain"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -47,7 +48,7 @@ const (
 
 func NewBlockReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, seq uint64, blockHashes []message.BlockHash, ttl time.Duration) *BlocksChunkReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlocksChunkReceiver{syncerSeq:seq, actor: actor, peer: peer, blockHashes: blockHashes, timeout: timeout, got: make([]*types.Block, len(blockHashes))}
+	return &BlocksChunkReceiver{syncerSeq: seq, actor: actor, peer: peer, blockHashes: blockHashes, timeout: timeout, got: make([]*types.Block, len(blockHashes))}
 }
 
 func (br *BlocksChunkReceiver) StartGet() {
@@ -118,7 +119,7 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 			br.cancelReceiving(message.UnexpectedBlockError, body.HasNext)
 			return
 		}
-		if proto.Size(block) > int(chain.MaxBlockSize()) {
+		if block.Size() > int(chain.MaxBlockSize()) {
 			br.cancelReceiving(message.TooBigBlockError, body.HasNext)
 			return
 		}
@@ -131,7 +132,7 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 			// not all blocks were filled. this is error
 			br.cancelReceiving(message.TooFewBlocksError, body.HasNext)
 		} else {
-			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{Seq:br.syncerSeq, ToWhom: br.peer.ID(), Blocks: br.got, Err: nil})
+			br.actor.TellRequest(message.SyncerSvc, &message.GetBlockChunksRsp{Seq: br.syncerSeq, ToWhom: br.peer.ID(), Blocks: br.got, Err: nil})
 			br.finishReceiver()
 		}
 	}
@@ -143,7 +144,7 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 func (br *BlocksChunkReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
 	br.actor.TellRequest(message.SyncerSvc,
-		&message.GetBlockChunksRsp{Seq:br.syncerSeq, ToWhom: br.peer.ID(), Err: err})
+		&message.GetBlockChunksRsp{Seq: br.syncerSeq, ToWhom: br.peer.ID(), Err: err})
 
 	// check time again. since negative duration of timer will not fire channel.
 	interval := br.timeout.Sub(time.Now())

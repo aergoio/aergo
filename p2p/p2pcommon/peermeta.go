@@ -23,6 +23,14 @@ type PeerMeta struct {
 	Outbound bool
 }
 
+// FromStatusToMeta create peerMeta from Status message
+func NewMetaFromStatus(status *types.Status, outbound bool) PeerMeta {
+	meta := FromPeerAddress(status.Sender)
+	meta.Hidden = status.NoExpose
+	meta.Outbound = outbound
+	return meta
+}
+
 // FromPeerAddress convert PeerAddress to PeerMeta
 func FromPeerAddress(addr *types.PeerAddress) PeerMeta {
 	meta := PeerMeta{IPAddress: addr.Address,

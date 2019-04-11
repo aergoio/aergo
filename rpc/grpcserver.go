@@ -8,6 +8,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -120,10 +122,15 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		return nil, err
 	}
 
+	digest := sha256.New()
+	digest.Write(last.GetHeader().GetChainID())
+	bestChainIdHash := digest.Sum(nil)
+
 	return &types.BlockchainStatus{
-		BestBlockHash: last.BlockHash(),
-		BestHeight:    last.GetHeader().GetBlockNo(),
-		ConsensusInfo: ca.GetConsensusInfo(),
+		BestBlockHash:   last.BlockHash(),
+		BestHeight:      last.GetHeader().GetBlockNo(),
+		ConsensusInfo:   ca.GetConsensusInfo(),
+		BestChainIdHash: bestChainIdHash,
 	}, nil
 }
 
@@ -470,7 +477,7 @@ func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleByte
 
 var emptyBytes = make([]byte, 0)
 
-// SendTX try to fill the nonce, sign, hash in the transaction automatically and commit it
+// SendTX try to fill the nonce, sign, hash, chainIdHash in the transaction automatically and commit it
 func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
 
 	if tx.Body.Nonce == 0 {
@@ -487,6 +494,15 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 			return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
 		}
 		tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
+	}
+
+	if tx.Body.ChainIdHash == nil {
+		ca := rpc.actorHelper.GetChainAccessor()
+		last, err := ca.GetBestBlock()
+		if err != nil {
+			return nil, err
+		}
+		tx.Body.ChainIdHash = common.Hasher(last.GetHeader().GetChainID())
 	}
 
 	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
@@ -1006,6 +1022,19 @@ func (rpc *AergoRPCService) ListEvents(ctx context.Context, in *types.FilterInfo
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &types.EventList{Events: rsp.Events}, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetServerInfo(ctx context.Context, in *types.KeyParams) (*types.ServerInfo, error) {
+	result, err := rpc.hub.RequestFuture(message.RPCSvc,
+		&message.GetServerInfo{Categories: in.Key}, defaultActorTimeout, "rpc.(*AergoRPCService).GetServerInfo").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*types.ServerInfo)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp, nil
 }
 
 // Blockchain handle rpc request blockchain. It has no additional input parameter

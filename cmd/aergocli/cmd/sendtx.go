@@ -11,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +21,7 @@ var sendtxCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	RunE:  execSendTX,
 }
+var chainIdHash string
 
 func init() {
 	rootCmd.AddCommand(sendtxCmd)
@@ -30,6 +32,7 @@ func init() {
 	sendtxCmd.Flags().StringVar(&amount, "amount", "0", "How much in AER")
 	sendtxCmd.MarkFlagRequired("amount")
 	sendtxCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+	sendtxCmd.Flags().StringVar(&chainIdHash, "chainidhash", "", "hash value of chain id in the block")
 }
 
 func execSendTX(cmd *cobra.Command, args []string) error {
@@ -51,6 +54,13 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 		Amount:    amountBigInt.Bytes(),
 		Nonce:     nonce,
 	}}
+	if chainIdHash != "" {
+		cid, err := base58.Decode(chainIdHash)
+		if err != nil {
+			return errors.New("Wrong value in --chainidhash flag\n" + err.Error())
+		}
+		tx.GetBody().ChainIdHash = cid
+	}
 	msg, err := client.SendTX(context.Background(), tx)
 	if err != nil {
 		cmd.Println(err.Error())

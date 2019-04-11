@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -20,9 +21,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
-
-// DefaultDposBpNumber is the default number of block producers.
-const DefaultDposBpNumber = 23
 
 var (
 	logger = log.NewLogger("dpos")
@@ -119,7 +117,7 @@ func Init(bpCount uint16) {
 	majorityCount = blockProducers*2/3 + 1
 	// Collect voting for BPs during 10 rounds.
 	initialBpElectionPeriod = types.BlockNo(blockProducers) * 10
-	slot.Init(consensus.BlockIntervalSec, blockProducers)
+	slot.Init(consensus.BlockIntervalSec)
 }
 
 func consensusBlockCount(bpCount uint16) uint16 {
@@ -211,10 +209,10 @@ func (dpos *DPoS) IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	s := slot.NewFromUnixNano(ns)
 	// Check whether the BP ID is one of the current BP members and its
 	// corresponding BP index is consistent with the block timestamp.
-	if !s.IsFor(idx) {
+	if !s.IsFor(idx, dpos.bpc.Size()) {
 		return &consensus.ErrorConsensus{
 			Msg: fmt.Sprintf("BP %v (idx: %v) is not permitted for the time slot %v (%v)",
-				block.BPID2Str(), idx, time.Unix(0, ns), s.NextBpIndex()),
+				block.BPID2Str(), idx, time.Unix(0, ns), s.NextBpIndex(dpos.bpc.Size())),
 		}
 	}
 
@@ -228,7 +226,7 @@ func (dpos *DPoS) bpIdx() bp.Index {
 func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 	s := slot.Time(now)
 
-	if !s.IsFor(dpos.bpIdx()) {
+	if !s.IsFor(dpos.bpIdx(), dpos.bpc.Size()) {
 		return nil
 	}
 
@@ -255,12 +253,44 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 
 // ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
-	dpos.RLock()
-	defer dpos.RUnlock()
-
 	ci := &types.ConsensusInfo{Type: GetName()}
 	if dpos.done {
-		ci.Bps = dpos.bpc.BPs()
+		var lpbNo types.BlockNo
+
+		// Use a closure to release the mutex even upon panic.
+		func() {
+			dpos.RLock()
+			defer dpos.RUnlock()
+
+			ci.Bps = dpos.bpc.BPs()
+			lpbNo = dpos.lpbNo()
+		}()
+
+		if lpbNo > 0 {
+			if block, err := dpos.GetBlockByNo(lpbNo); err == nil {
+				type lpbInfo struct {
+					BPID      string
+					Height    types.BlockNo
+					Hash      string
+					Timestamp string
+				}
+				s := struct {
+					NodeID              string
+					RecentBlockProduced lpbInfo
+				}{
+					NodeID: dpos.bf.ID,
+					RecentBlockProduced: lpbInfo{
+						BPID:      block.BPID2Str(),
+						Height:    lpbNo,
+						Hash:      block.ID(),
+						Timestamp: block.Localtime().String(),
+					},
+				}
+				if m, err := json.Marshal(s); err == nil {
+					ci.Info = string(m)
+				}
+			}
+		}
 	}
 
 	return ci

@@ -322,7 +322,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	    }
 	}
 	default:
-		lua_pushfstring(L, "unsupport type: %s", lua_typename (L, lua_type(L, idx)));
+		lua_pushfstring(L, "\"unsupport type: %s\"", lua_typename (L, lua_type(L, idx)));
 		return false;
 	}
 
@@ -615,7 +615,7 @@ static int lua_json_encode (lua_State *L)
 {
 	char *json = lua_util_get_json(L, -1, true);
 	if (json == NULL)
-		lua_error(L);
+		luaL_throwerror(L);
 	lua_pushstring(L, json);
 	free(json);
 	return 1;

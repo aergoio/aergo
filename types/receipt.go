@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
@@ -219,8 +218,9 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	if len(r.Ret) == 0 {
 		b.WriteString(`","ret": {}`)
 	} else if r.Status == "ERROR" {
-		b.WriteString(`","ret": "`)
-		b.WriteString(fmt.Sprintf("%s\"", strings.Replace(r.Ret, "\"", "'", -1)))
+		js, _ := json.Marshal(r.Ret)
+		b.WriteString(`","ret": `)
+		b.WriteString(string(js))
 	} else {
 		b.WriteString(`","ret": `)
 		b.WriteString(r.Ret)
@@ -560,6 +560,7 @@ func (ev *Event) MarshalJSON() ([]byte, error) {
 }
 
 func (ev *Event) SetMemoryInfo(receipt *Receipt, blkHash []byte, blkNo BlockNo, txIdx int32) {
+	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
 	ev.TxHash = receipt.TxHash
 	ev.TxIndex = txIdx
 	ev.BlockHash = blkHash
@@ -570,8 +571,6 @@ func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 	if filter.ContractAddress != nil && !bytes.Equal(ev.ContractAddress, filter.ContractAddress) {
 		return false
 	}
-	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
-
 	if len(filter.EventName) != 0 && ev.EventName != filter.EventName {
 		return false
 	}

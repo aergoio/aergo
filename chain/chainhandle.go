@@ -8,6 +8,7 @@ package chain
 import (
 	"bytes"
 	"container/list"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -15,10 +16,12 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-peer"
 )
 
@@ -129,18 +132,19 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 }
 
 func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, filter *types.FilterInfo,
-	argFilter []types.ArgFilter) {
+	argFilter []types.ArgFilter) uint64 {
 	blkHash, err := cs.cdb.getHashByNo(blkNo)
 	if err != nil {
-		return
+		return 0
 	}
 	receipts, err := cs.cdb.getReceipts(blkHash, blkNo)
 	if err != nil {
-		return
+		return 0
 	}
 	if receipts.BloomFilter(filter) == false {
-		return
+		return 0
 	}
+	var totalSize uint64
 	for idx, r := range receipts.Get() {
 		if r.BloomFilter(filter) == false {
 			continue
@@ -149,10 +153,14 @@ func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, f
 			if e.Filter(filter, argFilter) {
 				e.SetMemoryInfo(r, blkHash, blkNo, int32(idx))
 				*events = append(*events, e)
+				totalSize += uint64(proto.Size(e))
 			}
 		}
 	}
+	return totalSize
 }
+
+const MaxEventSize = 4 * 1024 * 1024
 
 func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, error) {
 	from := filter.Blockfrom
@@ -179,13 +187,20 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 		return nil, err
 	}
 	events := []*types.Event{}
+	var totalSize uint64
 	if filter.Desc {
 		for i := to; i >= from && i != 0; i-- {
-			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			totalSize += cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			if totalSize > MaxEventSize {
+				return nil, errors.New(fmt.Sprintf("too large size of event (%v)", totalSize))
+			}
 		}
 	} else {
 		for i := from; i <= to; i++ {
-			cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			totalSize += cs.getEvents(&events, types.BlockNo(i), filter, argFilter)
+			if totalSize > MaxEventSize {
+				return nil, errors.New(fmt.Sprintf("too large size of event (%v)", totalSize))
+			}
 		}
 	}
 	return events, nil
@@ -405,7 +420,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
 		if err == nil {
-			return ErrBlockOrphan, false
+			return nil, false
 		}
 
 		return err, false
@@ -447,7 +462,8 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	_, err := cs.getBlock(newBlock.BlockHash())
 	if err == nil {
-		return ErrBlockExist
+		logger.Warn().Msg("block already exists")
+		return nil
 	}
 
 	var needCache bool
@@ -524,7 +540,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
-		exec = NewTxExecutor(cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService)
+		exec = NewTxExecutor(cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService, block.GetHeader().ChainID)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -551,7 +567,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int) TxExecFn {
+func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int, chainID []byte) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -559,7 +575,7 @@ func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, 
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService)
+		err := executeTx(cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			bState.Rollback(snapshot)
@@ -701,7 +717,18 @@ func (cs *ChainService) notifyEvents(block *types.Block, bstate *state.BlockStat
 	}
 }
 
-func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int) error {
+const maxRetSize = 1024
+
+func adjustRv(ret string) string {
+	if len(ret) > maxRetSize {
+		modified, _ := json.Marshal(ret[:maxRetSize-4] + " ...")
+
+		return string(modified)
+	}
+	return ret
+}
+
+func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainIDHash []byte) error {
 
 	txBody := tx.GetBody()
 
@@ -717,7 +744,7 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 		account = name.Resolve(bs, txBody.GetAccount())
 	}
 
-	err := tx.Validate()
+	err := tx.Validate(chainIDHash)
 	if err != nil {
 		return err
 	}
@@ -751,8 +778,7 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL:
-		rv, txFee, events, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash,
-			sender, receiver, preLoadService)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -787,6 +813,7 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 				return err
 			}
 		}
+		rv = adjustRv(rv)
 	}
 	bs.BpReward = new(big.Int).Add(new(big.Int).SetBytes(bs.BpReward), txFee).Bytes()
 
@@ -887,12 +914,14 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 		// need to be short
 		mainblock, err = cs.cdb.getBlock(hash)
 		if err != nil {
+			mainblock = nil
 			continue
 		}
 		// get main hash with same block height
 		mainhash, err = cs.cdb.getHashByNo(
 			types.BlockNo(mainblock.GetHeader().GetBlockNo()))
 		if err != nil {
+			mainblock = nil
 			continue
 		}
 

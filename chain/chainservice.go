@@ -36,7 +36,6 @@ var (
 
 	dfltErrBlocks = 128
 
-	ErrBlockExist            = errors.New("block already exists")
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
@@ -105,7 +104,7 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 		} else {
 			if genesis == nil {
 				if mainnet {
-					return nil, errors.New("mainnet will be launched soon")
+					return nil, errors.New("to use mainnet, create genesis manually (visit http://docs.aergo.io)")
 				} else {
 					genesis = types.GetTestNetGenesis()
 				}
@@ -134,9 +133,7 @@ func (core *Core) initGenesis(genesis *types.Genesis, mainnet bool, testmode boo
 		}
 	}
 
-	initChainEnv(gen)
-
-	contract.StartLStateFactory()
+	initChainParams(gen)
 
 	genesisBlock, _ := core.cdb.GetBlockByNo(0)
 
@@ -254,13 +251,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init related modules
-	if !pubNet && len(cfg.Blockchain.FixedTxFee) > 0 {
-		if err := fee.SetUserTxFee(cfg.Blockchain.FixedTxFee); err != nil {
-			logger.Info().Err(err).Msg("set to default transaction fee")
-		}
+	if !pubNet && cfg.Blockchain.ZeroFee {
+		fee.EnableZeroFee()
 	}
-	fee.SetFixedTxFee(pubNet)
+	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
+	contract.StartLStateFactory()
 
 	return cs
 }
@@ -596,7 +592,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		id := types.ToAccountID(address)
 		accState, err := cw.sdb.GetStateDB().GetAccountState(id)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
 		}
 		context.Respond(message.GetStateRsp{
 			Account: address,
@@ -615,9 +611,9 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		id := types.ToAccountID(address)
 		stateProof, err := cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Account)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
 		}
-		stateProof.Key = msg.Account
+		stateProof.Key = address
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
 			Err:        err,
@@ -667,11 +663,11 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		}
 		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
 			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
-			ret, err := contract.Query(msg.Contract, bs, cw.cdb, ctrState, msg.Queryinfo)
+			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
@@ -690,7 +686,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		id := types.ToAccountID(address)
 		contractProof, err = cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
-			logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state for account")
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
 			for _, storageKey := range msg.StorageKeys {
@@ -699,11 +695,11 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {
-					logger.Error().Str("hash", enc.ToString(msg.ContractAddress)).Err(err).Msg("failed to get state variable in contract")
+					logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state variable in contract")
 				}
 			}
 		}
-		contractProof.Key = msg.ContractAddress
+		contractProof.Key = address
 		stateQuery := &types.StateQueryProof{
 			ContractProof: contractProof,
 			VarProofs:     varProofs,

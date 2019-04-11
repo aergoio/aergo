@@ -270,9 +270,9 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 		}
 	case *message.SyncStop:
 		if msg.Err == nil {
-			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer finished successfully")
+			logger.Info().Str("from", msg.FromWho).Msg("syncer try to stop successfully")
 		} else {
-			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer finished by error")
+			logger.Error().Str("from", msg.FromWho).Err(msg.Err).Msg("syncer try to stop by error")
 		}
 		syncer.Reset()
 	case *message.CloseFetcher:

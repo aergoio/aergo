@@ -34,16 +34,16 @@ func TestPeerMeta_String(t *testing.T) {
 				Designated: false,
 				Outbound:   false,
 			}
-			actual := FuckForm(m)
+			actual := ShortMetaForm(m)
 			assert.True(t, strings.Contains(actual, tt.fields.ip))
 			assert.True(t, strings.Contains(actual, strconv.Itoa(int(tt.fields.port))))
 			assert.True(t, strings.Contains(actual, m.ID.Pretty()))
 			m2 := m
 			m2.Designated = true
-			assert.Equal(t, actual, FuckForm(m2))
+			assert.Equal(t, actual, ShortMetaForm(m2))
 			m3 := m
 			m3.Outbound = true
-			assert.Equal(t, actual, FuckForm(m3))
+			assert.Equal(t, actual, ShortMetaForm(m3))
 		})
 	}
 }

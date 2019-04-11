@@ -9,6 +9,7 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
@@ -38,8 +39,7 @@ var (
 func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchorCount int, verifierCount int) error {
 	var err error
 
-	setMaxBlockBodySize(maxBlkBodySize)
-	setMaxBlockSize(MaxBlockBodySize() + types.DefaultMaxHdrSize)
+	setBlockSizeLimit(maxBlkBodySize)
 
 	if isBp {
 		if len(coinbaseAccountStr) != 0 {
@@ -66,13 +66,18 @@ func IsPublic() bool {
 	return pubNet
 }
 
-func initChainEnv(genesis *types.Genesis) {
+func initChainParams(genesis *types.Genesis) {
 	pubNet = genesis.ID.PublicNet
 	if pubNet {
-		setMaxBlockBodySize(pubNetMaxBlockBodySize)
+		setBlockSizeLimit(pubNetMaxBlockBodySize)
 	}
 	if err := setConsensusName(genesis.ConsensusType()); err != nil {
 		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
+	}
+	system.InitDefaultBpCount(len(genesis.BPs))
+	if genesis.TotalBalance() != nil {
+		types.MaxAER = genesis.TotalBalance()
+		logger.Info().Str("TotalBalance", types.MaxAER.String()).Msg("set total from genesis")
 	}
 }
 
@@ -90,8 +95,9 @@ func setMaxBlockBodySize(size uint32) {
 	maxBlockBodySize = size
 }
 
-func setMaxBlockSize(size uint32) {
-	maxBlockSize = size
+func setBlockSizeLimit(maxBlockBodySize uint32) {
+	setMaxBlockBodySize(maxBlockBodySize)
+	maxBlockSize = MaxBlockBodySize() + types.DefaultMaxHdrSize
 }
 
 func setConsensusName(val string) error {

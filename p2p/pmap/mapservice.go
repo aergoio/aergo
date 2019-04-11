@@ -50,7 +50,7 @@ var (
 var (
 	// 89.16 is ceiling of declination of Polaris
 	MainnetMapServer = []string{
-		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa",
 	}
 
 	// 89.16 is ceiling of declination of Polaris
@@ -65,8 +65,8 @@ var (
 
 func init() {
 	// mainnet is not opened yet and have some unconfirmed values now, this values will be changed after the spec of mainnet is determined.
-	//FIXME
-	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, Consensus: "dpos", Magic: "mainnet.aergo.io"}
+	//FIXME change this code if types.GetMainNetGenesis() is made
+	ONEMainNet = types.ChainID{PublicNet: true, MainNet: true, Consensus: "dpos", Magic: "aergo.io"}
 
 	tnGen := types.GetTestNetGenesis()
 	if tnGen == nil {
@@ -232,7 +232,8 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 
 	resp.Addresses = pms.retrieveList(maxPeers, receivedMeta.ID)
 
-	if query.AddMe {
+	// old syntax (AddMe) and newer syntax (status.NoExpose) for expose peer
+	if query.AddMe && !query.Status.NoExpose {
 		// check Sender
 		// check peer is really capable to aergosvr
 		if !pms.checkConnectness(receivedMeta) {
@@ -273,11 +274,11 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta) error {
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
 		newState := &peerState{connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
-		pms.Logger.Info().Str("meta", p2putil.FuckForm(receivedMeta)).Msg("Registering new peer info")
+		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
 		if prev.meta != receivedMeta {
-			pms.Logger.Info().Str("meta", p2putil.FuckForm(prev.meta)).Msg("Replacing previous peer info")
+			pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(prev.meta)).Msg("Replacing previous peer info")
 			prev.meta = receivedMeta
 			prev.addr = receivedMeta.ToPeerAddress()
 		}
@@ -447,7 +448,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 
 func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
 	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
-		pms.Logger.Debug().Str("peer_meta", p2putil.FuckForm(meta)).Msg("peer is private address")
+		pms.Logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(meta)).Msg("peer is private address")
 		return false
 	}
 	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary: true}
