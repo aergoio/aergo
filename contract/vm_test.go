@@ -3512,4 +3512,71 @@ func TestGovernance(t *testing.T) {
 	}
 }
 
+func TestContractSend(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function constructor()
+	end
+    function send(addr)
+        contract.send(addr,1)
+    end
+    abi.register(send, constructor)
+	abi.payable(constructor)
+`
+	definition2 := `
+    function default()
+		system.print("default called")
+    end
+    abi.register(default)
+	abi.payable(default)
+`
+	definition3 := `
+    function test()
+    end
+    abi.register(test)
+`
+	definition4 := `
+    function default()
+    end
+    abi.register(default)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "test1", 50, definition),
+		NewLuaTxDef("ktlee", "test2", 0, definition2),
+		NewLuaTxDef("ktlee", "test3", 0, definition3),
+		NewLuaTxDef("ktlee", "test4", 0, definition4),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test2")))),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: attempt to call global 'default' (a nil value)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test4")))).Fail(`[Contract.LuaSendAmount] newExecutor error: 'default' is not payable`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee")))),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
