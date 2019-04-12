@@ -710,7 +710,7 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
-		"cannot find contract",
+		"not found contract",
 		"",
 	)
 	if err != nil {
@@ -2802,7 +2802,7 @@ abi.payable(save)
 		}
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("not found contract"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3575,6 +3575,41 @@ func TestContractSend(t *testing.T) {
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee")))),
 	)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMaxMemSize(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function oom()
+	 local s = "hello"
+
+	 while 1 do
+		 s = s .. s
+	 end
+end
+abi.register(oom)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "oom", 0, definition),
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"oom"}`,
+		),
+	)
+	errMsg := "not enough memory"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
 }

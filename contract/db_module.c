@@ -472,7 +472,7 @@ static int db_prepare(lua_State *L)
     return 1;
 }
 
-void lua_db_release_resource(lua_State *L)
+int lua_db_release_resource(lua_State *L)
 {
     if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY, 0) != NULL) {
         luaL_error(L, "cannot find the environment of the db module");
@@ -497,6 +497,7 @@ void lua_db_release_resource(lua_State *L)
         lua_pop(L, 1);
     }
     lua_pop(L, 1);
+    return 0;
 }
 
 int luaopen_db(lua_State *L)

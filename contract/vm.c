@@ -58,32 +58,38 @@ const int *getLuaExecContext(lua_State *L)
 	return service;
 }
 
+static int loadLibs(lua_State *L)
+{
+	luaL_openlibs(L);
+	preloadModules(L);
+	return 0;
+}
+
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
+	int status;
 	if (L == NULL)
 		return NULL;
-	luaL_openlibs(L);
-	preloadModules(L);
+	status = lua_cpcall(L, loadLibs, NULL);
+	if (status != 0)
+	    return NULL;
 	return L;
 }
 
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
 	int err;
-	const char *errMsg = NULL;
 
 	setLuaExecContext(L, service);
 
 	err = luaL_loadbuffer(L, code, sz, hex_id);
 	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+	    return lua_tostring(L, -1);
 	}
 	err = lua_pcall(L, 0, 0, 0);
 	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+		return lua_tostring(L, -1);
 	}
 	return NULL;
 }
@@ -126,10 +132,20 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 	int err;
 	int nr = lua_gettop(L) - argc - 1;
 
+    luaL_enablemaxmem(L);
+
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
+
+	luaL_disablemaxmem(L);
+
 	if (err != 0) {
-		return strdup(lua_tostring(L, -1));
+        lua_cpcall(L, lua_db_release_resource, NULL);
+		return lua_tostring(L, -1);
 	}
+    err = lua_cpcall(L, lua_db_release_resource, NULL);
+    if (err != 0) {
+		return lua_tostring(L, -1);
+    }
 	*nresult = lua_gettop(L) - nr;
 	return NULL;
 }
@@ -220,7 +236,3 @@ char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag
 	return fname;
 }
 
-void vm_db_release_resource(lua_State *L)
-{
-    lua_db_release_resource(L);
-}
