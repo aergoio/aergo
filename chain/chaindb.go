@@ -33,17 +33,21 @@ const (
 
 var (
 	// ErrNoChainDB reports chaindb is not prepared.
-	ErrNoChainDB         = fmt.Errorf("chaindb not prepared")
-	ErrorLoadBestBlock   = errors.New("failed to load latest block from DB")
-	ErrCantDropGenesis   = errors.New("can't drop genesis block")
-	ErrTooBigResetHeight = errors.New("reset height is too big")
-	ErrInvalidHardState  = errors.New("invalid hard state")
+	ErrNoChainDB           = fmt.Errorf("chaindb not prepared")
+	ErrorLoadBestBlock     = errors.New("failed to load latest block from DB")
+	ErrCantDropGenesis     = errors.New("can't drop genesis block")
+	ErrTooBigResetHeight   = errors.New("reset height is too big")
+	ErrInvalidHardState    = errors.New("invalid hard state")
+	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 
-	raftstateKey    = []byte("r_state")
-	raftEntryPrefix = []byte("r_entry.")
+	raftStateKey        = []byte("r_state")
+	raftSnapKey         = []byte("r_snap")
+	raftSnapStatusKey   = []byte("r_snapstatus")
+	raftEntryLastIdxKey = []byte("r_last")
+	raftEntryPrefix     = []byte("r_entry.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -579,6 +583,10 @@ func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 		return nil, err
 	}
 	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, enc.ToString(blockHash))
+	return cdb.getBlock(blockHash)
+}
+
+func (cdb *ChainDB) GetBlock(blockHash []byte) (*types.Block, error) {
 	return cdb.getBlock(blockHash)
 }
 

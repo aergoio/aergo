@@ -3,6 +3,9 @@ package consensus
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
+	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
@@ -21,6 +24,8 @@ var (
 		1: "EntryEmpty",
 		2: "EntryConfChange",
 	}
+
+	ErrEmptySnapData = errors.New("failed to decode snapshot data. encoded data is empty")
 )
 
 type WalEntry struct {
@@ -45,8 +50,88 @@ type ChainWAL interface {
 	ChainDB
 
 	IsNew() bool
+	GetBlock(blockHash []byte) (*types.Block, error)
 	ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error)
 	WriteRaftEntry([]*WalEntry, []*types.Block) error
+	GetRaftEntry(idx uint64) (*WalEntry, error)
+	GetRaftEntryLastIdx() (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
+	WriteSnapshot(snap *raftpb.Snapshot) error
+	GetSnapshot() (*raftpb.Snapshot, error)
+	GetSnapshotDone() (bool, error)
+	WriteSnapshotDone() error
+}
+
+type ChainSnapshot struct {
+	No   types.BlockNo
+	Hash []byte
+}
+
+func NewChainSnapshot(block *types.Block) *ChainSnapshot {
+	if block == nil {
+		return nil
+	}
+
+	return &ChainSnapshot{No: block.BlockNo(), Hash: block.BlockHash()}
+}
+
+func (csnap *ChainSnapshot) ToBytes() ([]byte, error) {
+	var val bytes.Buffer
+
+	gob := gob.NewEncoder(&val)
+	if err := gob.Encode(csnap); err != nil {
+		logger.Fatal().Err(err).Msg("failed to encode chainsnap")
+		return nil, err
+	}
+
+	return val.Bytes(), nil
+}
+
+func (csnap *ChainSnapshot) ToString() string {
+	if csnap == nil || csnap.Hash == nil {
+		return "csnap: empty"
+	}
+	return fmt.Sprintf("chainsnap:(no=%d, hash=%s)", csnap.No, enc.ToString(csnap.Hash))
+}
+
+func DecodeChainSnapshot(data []byte) (*ChainSnapshot, error) {
+	var snap ChainSnapshot
+	var b bytes.Buffer
+	b.Write(data)
+
+	if data == nil {
+		return nil, ErrEmptySnapData
+	}
+
+	decoder := gob.NewDecoder(&b)
+	if err := decoder.Decode(&snap); err != nil {
+		logger.Fatal().Err(err).Msg("failed to decode chainsnap")
+		return nil, err
+	}
+
+	return &snap, nil
+}
+
+func ConfStateToString(conf *raftpb.ConfState) string {
+	var buf string
+	for _, node := range conf.Nodes {
+		buf = buf + fmt.Sprintf("node[%d]", node)
+	}
+
+	for _, learner := range conf.Learners {
+		buf = buf + fmt.Sprintf("learner[%d]", learner)
+	}
+	return buf
+}
+
+func SnapToString(snap *raftpb.Snapshot, chainSnap *ChainSnapshot) string {
+	var buf string
+	buf = buf + fmt.Sprintf("snap=[term:%d, index:%d conf:%s]", snap.Metadata.Index, snap.Metadata.Term, ConfStateToString(&snap.Metadata.ConfState))
+
+	if chainSnap != nil {
+		buf = buf + fmt.Sprintf(", chain=[no:%d, hash:%s]", chainSnap.No, chainSnap.Hash)
+	}
+
+	return buf
 }

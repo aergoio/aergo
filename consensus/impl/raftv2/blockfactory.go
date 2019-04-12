@@ -197,7 +197,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	logger.Info().Uint64("RaftID", bf.bpc.ID).Msg("raft server start")
 
-	bf.raftServer = newRaftServer(bf.bpc.ID, cfg.Consensus.Raft.RaftListenUrl, bf.bpc.BPUrls, false, snapdir,
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.RaftListenUrl, false, snapdir,
 		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
 		nil, RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 

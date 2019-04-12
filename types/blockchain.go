@@ -143,10 +143,12 @@ type SyncContext struct {
 	TotalCnt   uint64
 	RemainCnt  uint64
 	LastAnchor BlockNo
+
+	NotifyC chan error
 }
 
-func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
-	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
+func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64, notifyC chan error) *SyncContext {
+	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0, NotifyC: notifyC}
 }
 
 func (ctx *SyncContext) SetAncestor(ancestor *Block) {

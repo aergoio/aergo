@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	ErrInvalidEntry = errors.New("Invalid raftpb.entry")
+	ErrInvalidEntry       = errors.New("Invalid raftpb.entry")
+	ErrWalEntryTooLowTerm = errors.New("term of wal entry is too low")
 )
 
 type WalDB struct {
@@ -99,4 +100,94 @@ func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry
 	}
 
 	return walents, blocks
+}
+
+var ErrInvalidWalEntry = errors.New("invalid wal entry")
+var ErrWalConvBlock = errors.New("failed to convert bytes of block from wal entry")
+
+func (wal *WalDB) convertWalToRaft(walEntry *consensus.WalEntry) (*raftpb.Entry, error) {
+	var raftEntry = &raftpb.Entry{Term: walEntry.Term, Index: walEntry.Index}
+
+	getDataFromWalEntry := func(walEntry *consensus.WalEntry) ([]byte, error) {
+		if walEntry.Type != consensus.EntryBlock {
+			return nil, ErrWalConvBlock
+		}
+		block, err := wal.GetBlock(walEntry.Data)
+		if err != nil {
+			return nil, err
+		}
+		data, err := marshalEntryData(block)
+		if err != nil {
+			return nil, err
+		}
+
+		return data, nil
+	}
+
+	switch walEntry.Type {
+	case consensus.EntryConfChange:
+		raftEntry.Type = raftpb.EntryConfChange
+		raftEntry.Data = walEntry.Data
+
+	case consensus.EntryEmpty:
+		raftEntry.Type = raftpb.EntryNormal
+		raftEntry.Data = nil
+
+	case consensus.EntryBlock:
+		data, err := getDataFromWalEntry(walEntry)
+		if err != nil {
+			return nil, err
+		}
+		raftEntry.Data = data
+	default:
+		return nil, ErrInvalidWalEntry
+	}
+
+	return raftEntry, nil
+}
+
+var (
+	ErrWalGetHardState = errors.New("failed to read hard state")
+	ErrWalGetLastIdx   = errors.New("failed to read last Idx")
+)
+
+// ReadAll returns hard state, all uncommitted entries
+// - read last hard state
+// - read  all uncommited entries after snapshot index
+func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (state raftpb.HardState, ents []raftpb.Entry, err error) {
+	hardstate, err := wal.GetHardState()
+	if err != nil {
+		return state, ents, ErrWalGetHardState
+	}
+
+	commitIdx := hardstate.Commit
+	lastIdx, err := wal.GetRaftEntryLastIdx()
+	if err != nil {
+		return state, ents, ErrWalGetLastIdx
+	}
+
+	snapIdx := snapshot.Metadata.Index
+	snapTerm := snapshot.Metadata.Term
+
+	logger.Info().Uint64("snapidx", snapIdx).Uint64("commit", commitIdx).Uint64("last", lastIdx).Msg("read all entries of wal")
+
+	for i := snapIdx + 1; i <= lastIdx; i++ {
+		walEntry, err := wal.GetRaftEntry(i)
+		if err != nil {
+			return state, nil, err
+		}
+
+		if walEntry.Term < snapTerm {
+			return state, nil, ErrWalEntryTooLowTerm
+		}
+
+		raftEntry, err := wal.convertWalToRaft(walEntry)
+		if err != nil {
+			return state, nil, err
+		}
+
+		ents = append(ents, *raftEntry)
+	}
+
+	return state, ents, nil
 }

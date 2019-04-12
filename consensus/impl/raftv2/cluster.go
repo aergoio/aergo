@@ -2,6 +2,7 @@ package raftv2
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
@@ -13,6 +14,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
+)
+
+var (
+	ErrNotExistRaftMember = errors.New("not exist member of raft cluster")
+	ErrNoEnableSyncPeer   = errors.New("no peer to sync chain")
 )
 
 // raft cluster membership
@@ -97,6 +103,27 @@ func (cc *Cluster) addMember(id uint64, url string, peerID peer.ID) error {
 	cc.BPUrls[id-1] = bp.Url
 
 	return nil
+}
+
+func (cc *Cluster) getMemberPeerAddress(id uint64) (peer.ID, error) {
+	member, ok := cc.Member[id]
+	if !ok {
+		return "", ErrNotExistRaftMember
+	}
+
+	logger.Debug().Uint64("rid", id).Str("peer", member.PeerID.Pretty()).Msg("raft member")
+	return member.PeerID, nil
+}
+
+// getMemberPeerAddressToSync returns peer address that has block of no for sync
+func (cc *Cluster) getMemberPeerAddressToSync(no uint64) (peer.ID, error) {
+	for _, member := range cc.Member {
+		if member.RaftID != cc.ID {
+			return member.PeerID, nil
+		}
+	}
+
+	return "", ErrNoEnableSyncPeer
 }
 
 func MaxUint64(x, y uint64) uint64 {

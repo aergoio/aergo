@@ -15,9 +15,15 @@
 package raftv2
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
+	"github.com/libp2p/go-libp2p-peer"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,7 +45,16 @@ import (
 )
 
 //noinspection ALL
-var raftLogger raftlib.Logger
+var (
+	raftLogger              raftlib.Logger
+	defaultSnapCount        uint64 = 10
+	snapshotCatchUpEntriesN uint64 = 10
+	ErrNoSnapshot                  = errors.New("no snapshot")
+)
+
+const (
+	HasNoLeader uint64 = 0
+)
 
 func init() {
 	raftLogger = NewRaftLogger(logger)
@@ -47,6 +62,10 @@ func init() {
 
 // A key-value stream backed by raft
 type raftServer struct {
+	*component.ComponentHub
+
+	cluster *Cluster
+
 	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
 	commitC     chan *types.Block        // entries committed to log (k,v)
 	errorC      chan error               // errors from raft session
@@ -88,6 +107,8 @@ type raftServer struct {
 	promotable bool
 
 	tickMS time.Duration
+
+	lastAppliedBlock *types.Block //tracking last applied block. It's initillay set at repling wal
 }
 
 type LeaderStatus struct {
@@ -95,15 +116,14 @@ type LeaderStatus struct {
 	leaderChanged uint64
 }
 
-var defaultSnapCount uint64 = 10000
-var snapshotCatchUpEntriesN uint64 = 10000
-
 // newRaftServer initiates a raft instance and returns a committed log entry
 // channel and error channel. Proposals for log updates are sent over the
 // provided the proposal channel. All log entries are replayed over the
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
-func newRaftServer(id uint64, listenUrl string, peers []string, join bool, snapdir string,
+func newRaftServer(hub *component.ComponentHub,
+	cluster *Cluster,
+	listenUrl string, join bool, snapdir string,
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
@@ -113,22 +133,25 @@ func newRaftServer(id uint64, listenUrl string, peers []string, join bool, snapd
 	chainWal consensus.ChainWAL) *raftServer {
 
 	errorC := make(chan error)
+	peers := cluster.BPUrls
 
 	rs := &raftServer{
-		walDB:       NewWalDB(chainWal),
-		confChangeC: confChangeC,
-		commitC:     commitC,
-		errorC:      errorC,
-		id:          id,
-		listenUrl:   listenUrl,
-		peers:       peers,
-		join:        join,
-		snapdir:     snapdir,
-		getSnapshot: getSnapshot,
-		snapCount:   defaultSnapCount,
-		stopc:       make(chan struct{}),
-		httpstopc:   make(chan struct{}),
-		httpdonec:   make(chan struct{}),
+		ComponentHub: hub,
+		cluster:      cluster,
+		walDB:        NewWalDB(chainWal),
+		confChangeC:  confChangeC,
+		commitC:      commitC,
+		errorC:       errorC,
+		id:           cluster.ID,
+		listenUrl:    listenUrl,
+		peers:        peers,
+		join:         join,
+		snapdir:      snapdir,
+		getSnapshot:  getSnapshot,
+		snapCount:    defaultSnapCount,
+		stopc:        make(chan struct{}),
+		httpstopc:    make(chan struct{}),
+		httpdonec:    make(chan struct{}),
 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
@@ -342,8 +365,11 @@ func (rs *raftServer) serveChannels() {
 
 			rs.walDB.SaveEntry(rd.HardState, rd.Entries)
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
-				panic("snapshot occurred!!")
-				rs.saveSnap(rd.Snapshot)
+				if err := rs.saveSnap(&rd.Snapshot); err != nil {
+					logger.Fatal().Err(err).Msg("failed to save snapshot")
+					//TODO handle sync failure , need to retry(it can be occurred when leader stops while synchronizing)
+				}
+
 				rs.raftStorage.ApplySnapshot(rd.Snapshot)
 				rs.publishSnapshot(rd.Snapshot)
 			}
@@ -403,14 +429,41 @@ func (rs *raftServer) serveRaft() {
 	close(rs.httpdonec)
 }
 
-func (rs *raftServer) loadSnapshot() *raftpb.Snapshot {
-	/*
-		snapshot, err := rs.snapshotter.Load()
-		if err != nil && err != snap.ErrNoSnapshot {
-			logger.Fatal().Err(err).Msg("error loading snapshot")
-		}*/
-	// TODO build from latest connect block of chain
-	return nil
+func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
+	snapshot, err := rs.walDB.GetSnapshot()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("error loading snapshot")
+		return nil, err
+	}
+
+	if snapshot == nil {
+		logger.Info().Msg("snapshot does not exist")
+		return nil, nil
+	}
+	chainSnap, err := consensus.DecodeChainSnapshot(snapshot.Data)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("error decoding snapshot")
+		return nil, err
+	}
+
+	done, err := rs.walDB.GetSnapshotDone()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("get snapshot status")
+		return nil, err
+	}
+
+	logger.Info().Str("meta", snapshot.String()).Str("snap", chainSnap.ToString()).Msg("loaded snapshot meta")
+	if done {
+		return snapshot, nil
+	}
+
+	logger.Info().Str("meta", snapshot.String()).Str("snap", chainSnap.ToString()).Msg("need to sync with snapshot again")
+	if err := rs.requestSync(chainSnap); err != nil {
+		logger.Fatal().Err(err).Str("snap", chainSnap.ToString()).Msg("error sync snapshot")
+		return nil, err
+	}
+
+	return snapshot, nil
 }
 
 /*
@@ -448,15 +501,25 @@ func (rs *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 // replayWAL replays WAL entries into the raft instance.
 func (rs *raftServer) replayWAL() error {
 	logger.Info().Uint64("raftid", rs.id).Msg("replaying WAL of member %d")
-	/*
-		snapshot := rs.loadSnapshot()
-		w := rs.openWAL(snapshot)
-	*/
-	snapshot := rs.loadSnapshot()
-	st, ents, err := rs.walDB.ReadAll()
+
+	snapshot, err := rs.loadSnapshot()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to read WAL")
+		return err
 	}
+
+	st, ents, err := rs.walDB.ReadAll(snapshot)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to read WAL")
+		return err
+	}
+
+	rs.lastAppliedBlock, err = rs.walDB.GetBestBlock()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to get last applied block")
+		return err
+	}
+
 	rs.raftStorage = raftlib.NewMemoryStorage()
 	if snapshot != nil {
 		rs.raftStorage.ApplySnapshot(*snapshot)
@@ -479,34 +542,61 @@ func (rs *raftServer) replayWAL() error {
 	return nil
 }
 
+func (rs *raftServer) createSnapshot(snapshotIndex uint64) ([]byte, error) {
+	//get block of prev log
+	if rs.lastAppliedBlock == nil {
+		logger.Fatal().Msg("last applied block is nil")
+	}
+
+	snapBlockNo := rs.lastAppliedBlock.BlockNo() - 1
+	snapBlock, err := rs.walDB.GetBlockByNo(snapBlockNo)
+	if err != nil {
+		logger.Fatal().Err(err).Uint64("no", snapBlockNo).Msg("failed to get prev of last applied block")
+	}
+
+	if !bytes.Equal(snapBlock.GetHash(), rs.lastAppliedBlock.GetHeader().GetPrevBlockHash()) {
+		logger.Fatal().Err(err).Uint64("no", snapBlockNo).Str("snap", snapBlock.ID()).Str("prev of last", enc.ToString(rs.lastAppliedBlock.GetHeader().GetPrevBlockHash())).Msg("block in wal is not equal to raft")
+	}
+
+	logger.Info().Str("hash", snapBlock.ID()).Uint64("no", snapBlock.BlockNo()).Msg("create new snapshot")
+
+	snap := consensus.NewChainSnapshot(snapBlock)
+	if snap == nil {
+		panic("new snap failed")
+	}
+
+	return snap.ToBytes()
+}
+
+// maybeTriggerSnapshot create snapshot and make compaction for raft log storage
+// raft can not wait until last applied entry commits. so snapshot must create from rs.appliedIndex - 1
 func (rs *raftServer) maybeTriggerSnapshot() {
 	if rs.appliedIndex-rs.snapshotIndex <= rs.snapCount {
 		return
 	}
 
-	logger.Info().Uint64("applied index", rs.appliedIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
-	data, err := rs.getSnapshot()
+	newSnapshotIndex := rs.appliedIndex - 1
+
+	logger.Info().Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
+	data, err := rs.createSnapshot(newSnapshotIndex)
 	if err != nil {
-		logger.Panic().Err(err).Msg("raft getsnapshot failed")
+		logger.Fatal().Err(err).Msg("raft getsnapshot failed")
 	}
-	snapshot, err := rs.raftStorage.CreateSnapshot(rs.appliedIndex, &rs.confState, data)
+	_, err = rs.raftStorage.CreateSnapshot(newSnapshotIndex, &rs.confState, data)
 	if err != nil {
-		panic(err)
-	}
-	if err := rs.saveSnap(snapshot); err != nil {
-		panic(err)
+		logger.Fatal().Err(err).Msg("raft create snapshot failed")
 	}
 
 	compactIndex := uint64(1)
-	if rs.appliedIndex > snapshotCatchUpEntriesN {
-		compactIndex = rs.appliedIndex - snapshotCatchUpEntriesN
+	if newSnapshotIndex > snapshotCatchUpEntriesN {
+		compactIndex = newSnapshotIndex - snapshotCatchUpEntriesN
 	}
 	if err := rs.raftStorage.Compact(compactIndex); err != nil {
 		panic(err)
 	}
 
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")
-	rs.snapshotIndex = rs.appliedIndex
+	rs.snapshotIndex = newSnapshotIndex
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
@@ -527,25 +617,68 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
 	rs.appliedIndex = snapshotToSave.Metadata.Index
 }
 
-func (rs *raftServer) saveSnap(snap raftpb.Snapshot) error {
-	// must save the snapshot index to the WAL before saving the
-	// snapshot to maintain the invariant that we only Open the
-	// walDB at previously-saved snapshot indexes.
-	panic("not support save snap")
-	/*
-		walSnap := walpb.Snapshot{
-			Index: snap.Metadata.Index,
-			Term:  snap.Metadata.Term,
+func (rs *raftServer) saveSnap(snap *raftpb.Snapshot) error {
+	chainSnap, err := consensus.DecodeChainSnapshot(snap.Data)
+	if err != nil {
+		return err
+	}
+
+	// write snapshot log in WAL for crash recovery
+	logger.Info().Str("snap", consensus.SnapToString(snap, chainSnap)).Msg("receive snapshot from remote")
+	if err := rs.walDB.WriteSnapshot(snap); err != nil {
+		return err
+	}
+
+	// TODO	request sync for chain with snapshot.data
+	// wait to finish sync of chain
+	if err := rs.requestSync(chainSnap); err != nil {
+		logger.Fatal().Err(err).Msg("failed to sync. need to retry with other leader, try N times and shutdown")
+		return err
+	}
+
+	return nil
+}
+
+// TODO handle error case that leader stops while synchronizing
+func (rs *raftServer) requestSync(snap *consensus.ChainSnapshot) error {
+	getSyncLeader := func() (peer.ID, error) {
+		var peerID peer.ID
+		var err error
+
+		leader := rs.GetLeader()
+		if leader == HasNoLeader {
+			peerID, err = rs.cluster.getMemberPeerAddressToSync(snap.No)
+			if err != nil {
+				logger.Error().Err(err).Uint64("leader", leader).Msg("can't get peeraddress of leader")
+				return "", err
+			}
+		} else {
+			peerID, err = rs.cluster.getMemberPeerAddress(leader)
+			if err != nil {
+				logger.Error().Err(err).Uint64("leader", leader).Msg("can't get peeraddress of leader")
+				return "", err
+			}
 		}
 
-		if err := rs.wal.SaveSnapshot(walSnap); err != nil {
-			return err
-		}
-		if err := rs.snapshotter.SaveSnap(snap); err != nil {
-			return err
-		}
-		return rs.wal.ReleaseLockTo(snap.Metadata.Index)
-	*/
+		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("target peer to sync")
+
+		return peerID, err
+	}
+
+	peerID, err := getSyncLeader()
+	if err != nil {
+		return err
+	}
+
+	if err := chain.SyncChain(rs.ComponentHub, snap.Hash, snap.No, peerID); err != nil {
+		return err
+	}
+
+	if err := rs.walDB.WriteSnapshotDone(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (rs *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
@@ -577,6 +710,8 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 					logger.Fatal().Err(err).Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Msg("commit entry is corrupted")
 					continue
 				}
+
+				rs.lastAppliedBlock = block
 			}
 			select {
 			case rs.commitC <- block:
