@@ -342,7 +342,7 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	oldLatest := cp.cdb.connectToChain(&dbTx, block)
+	oldLatest := cp.cdb.connectToChain(&dbTx, block, cp.HasWAL())
 
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
 		return 0, err
@@ -463,7 +463,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 
 	var err error
 	if !cs.HasWAL() {
-		_, err = cs.getBlock(newBlock.BlockHash());
+		_, err = cs.getBlock(newBlock.BlockHash())
 	} else {
 		// check alread connect block
 		_, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
