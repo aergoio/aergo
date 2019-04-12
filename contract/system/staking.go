@@ -33,7 +33,7 @@ func staking(txBody *types.TxBody, sender, receiver *state.V,
 		return nil, err
 	}
 	sender.SubBalance(amount)
-
+	receiver.AddBalance(amount)
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
@@ -70,6 +70,7 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 		return nil, err
 	}
 	sender.AddBalance(backToBalance)
+	receiver.SubBalance(backToBalance)
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,

@@ -50,9 +50,6 @@ func sendStake(cmd *cobra.Command, s bool) error {
 	if err != nil {
 		return errors.New("Failed to parse --amount flag\n" + err.Error())
 	}
-	if amountBigInt.Cmp(types.StakingMinimum) < 0 {
-		return errors.New("Failed: minimum stake value is " + types.StakingMinimum.String())
-	}
 	payload, err := json.Marshal(ci)
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())
