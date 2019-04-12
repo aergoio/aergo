@@ -435,7 +435,6 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
-			_ = bs.StageContractState(eContractState)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				r.TxHash = l.hash()
@@ -443,6 +442,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts
 				receiptTx.Set(l.hash(), b)
 				return err
 			}
+			_ = bs.StageContractState(eContractState)
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
 			r.Events = evs
 			r.TxHash = l.hash()
