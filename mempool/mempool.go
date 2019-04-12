@@ -637,6 +637,8 @@ func (mp *MemPool) loadTxs() {
 		}
 		return
 	}
+
+	defer file.Close() // nolint: errcheck
 	reader := csv.NewReader(bufio.NewReader(file))
 
 	var count int

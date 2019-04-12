@@ -710,7 +710,7 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
-		"cannot find contract",
+		"not found contract",
 		"",
 	)
 	if err != nil {
@@ -2802,7 +2802,7 @@ abi.payable(save)
 		}
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("not found contract"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3509,6 +3509,108 @@ func TestGovernance(t *testing.T) {
 		bytes.Equal(oldgov.GetBalance(), newgov.GetBalance()) == false {
 		fmt.Println(new(big.Int).SetBytes(newstaking.Amount).String(), newgov.GetBalanceBigInt().String())
 		t.Error("pcall error")
+	}
+}
+
+func TestContractSend(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function constructor()
+	end
+    function send(addr)
+        contract.send(addr,1)
+    end
+    abi.register(send, constructor)
+	abi.payable(constructor)
+`
+	definition2 := `
+    function default()
+		system.print("default called")
+    end
+    abi.register(default)
+	abi.payable(default)
+`
+	definition3 := `
+    function test()
+    end
+    abi.register(test)
+`
+	definition4 := `
+    function default()
+    end
+    abi.register(default)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "test1", 50, definition),
+		NewLuaTxDef("ktlee", "test2", 0, definition2),
+		NewLuaTxDef("ktlee", "test3", 0, definition3),
+		NewLuaTxDef("ktlee", "test4", 0, definition4),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test2")))),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: attempt to call global 'default' (a nil value)`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test4")))).Fail(`[Contract.LuaSendAmount] newExecutor error: 'default' is not payable`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee")))),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMaxMemSize(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function oom()
+	 local s = "hello"
+
+	 while 1 do
+		 s = s .. s
+	 end
+end
+abi.register(oom)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "oom", 0, definition),
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"oom"}`,
+		),
+	)
+	errMsg := "not enough memory"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
 	}
 }
 

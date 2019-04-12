@@ -81,6 +81,7 @@ func TestBalanceExecute(t *testing.T) {
 	assert.Equal(t, events[0].EventName, types.Stake[2:], "check event")
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+	assert.Equal(t, types.StakingMinimum, receiver.Balance(), "check amount of staking")
 
 	tx.Body.Payload = []byte(`{"Name":"v1voteBP","Args":["16Uiu2HAmBDcLEjBYeEnGU2qDD1KdpEdwDBtN7gqXzNZbHXo8Q841"]}`)
 	tx.Body.Amount = big.NewInt(0).Bytes()
@@ -107,6 +108,7 @@ func TestBalanceExecute(t *testing.T) {
 	assert.Equal(t, big.NewInt(0), sender.Balance(), "sender.Balance() should be 0 after staking")
 	staking, err = getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, balance3, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+	assert.Equal(t, balance3, receiver.Balance(), "check amount of staking")
 
 	//voting still 1
 	voteResult, err = getVoteResult(scs, defaultVoteKey, 1)
@@ -124,6 +126,7 @@ func TestBalanceExecute(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(sender.Balance().Bytes()), "sender.Balance() should be turn back")
 	staking, err = getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, balance2, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
+	assert.Equal(t, balance2, receiver.Balance(), "check amount of staking")
 	voteResult, err = getVoteResult(scs, defaultVoteKey, 1)
 	assert.NoError(t, err, "get vote reulst")
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")

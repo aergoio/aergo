@@ -75,7 +75,6 @@ func Resolve(bs *state.BlockState, name []byte) []byte {
 	if err != nil {
 		return name
 	}
-	defer bs.StateDB.StageContractState(scs)
 	return getAddress(scs, name)
 }
 
