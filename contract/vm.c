@@ -77,11 +77,11 @@ lua_State *vm_newstate()
 	return L;
 }
 
-static int pcall(lua_State *L, int narg, int nret)
+static int pcall(lua_State *L, int narg, int nret, int maxinstcount)
 {
     int err;
 
-    vm_set_count_hook(L, 5000000);
+    vm_set_count_hook(L, maxinstcount);
     luaL_enablemaxmem(L);
 
     err = lua_pcall(L, narg, nret, 0);
@@ -98,7 +98,7 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id,
 
 	setLuaExecContext(L, service);
 
-	err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0);
+	err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0, 5000000);
 	if (err != 0) {
 	    return lua_tostring(L, -1);
 	}
@@ -221,7 +221,7 @@ int vm_is_payable_function(lua_State *L, char *fname)
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "is_payable");
 	lua_pushstring(L, fname);
-	err = pcall(L, 1, 1);
+	err = pcall(L, 1, 1, 1);
 	if (err != 0) {
 	    return 0;
 	}
@@ -235,7 +235,7 @@ char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "resolve");
 	lua_pushstring(L, fname);
-	err = pcall(L, 1, 3);
+	err = pcall(L, 1, 3, 1);
 	if (err != 0) {
 		return NULL;
 	}
