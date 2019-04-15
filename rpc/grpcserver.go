@@ -266,34 +266,32 @@ func (rpc *AergoRPCService) getBlocks(ctx context.Context, in *types.ListParams)
 	return blocks, err
 }
 
-func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) error {
+func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) {
 	var err error
 	rpc.blockStreamLock.RLock()
 	for _, stream := range rpc.blockStream {
 		if stream != nil {
 			err = stream.Send(block)
+			if err != nil {
+				logger.Warn().Err(err).Msg("failed to broadcast block stream")
+			}
 		}
 	}
 	rpc.blockStreamLock.RUnlock()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
-func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.BlockMetadata) error {
+func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.BlockMetadata) {
 	var err error
 	rpc.blockMetadataStreamLock.RLock()
 	for _, stream := range rpc.blockMetadataStream {
 		if stream != nil {
 			err = stream.Send(meta)
+			if err != nil {
+				logger.Warn().Err(err).Msg("failed to broadcast block meta stream")
+			}
 		}
 	}
 	rpc.blockMetadataStreamLock.RUnlock()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // real-time streaming most recent block header
@@ -302,6 +300,7 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 	rpc.blockStreamLock.Lock()
 	rpc.blockStream[streamId] = stream
 	rpc.blockStreamLock.Unlock()
+	logger.Info().Uint32("id", streamId).Msg("block stream added")
 
 	for {
 		select {
@@ -309,6 +308,7 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 			rpc.blockStreamLock.Lock()
 			delete(rpc.blockStream, streamId)
 			rpc.blockStreamLock.Unlock()
+			logger.Info().Uint32("id", streamId).Msg("block stream deleted")
 			return nil
 		}
 	}
@@ -319,6 +319,7 @@ func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream type
 	rpc.blockMetadataStreamLock.Lock()
 	rpc.blockMetadataStream[streamId] = stream
 	rpc.blockMetadataStreamLock.Unlock()
+	logger.Info().Uint32("id", streamId).Msg("block meta stream added")
 
 	for {
 		select {
@@ -326,6 +327,7 @@ func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream type
 			rpc.blockMetadataStreamLock.Lock()
 			delete(rpc.blockMetadataStream, streamId)
 			rpc.blockMetadataStreamLock.Unlock()
+			logger.Info().Uint32("id", streamId).Msg("block meta stream deleted")
 			return nil
 		}
 	}
@@ -1001,9 +1003,10 @@ func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error 
 			for _, event := range events {
 				if event.Filter(es.filter, argFilter) {
 					err = es.stream.Send(event)
-				}
-				if err != nil {
-					return err
+					if err != nil {
+						logger.Warn().Err(err).Msg("failed to broadcast block stream")
+						break
+					}
 				}
 			}
 		}

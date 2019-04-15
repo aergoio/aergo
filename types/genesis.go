@@ -272,10 +272,10 @@ func (g Genesis) PublicNet() bool {
 func (g Genesis) IsAergoPublicChain() bool {
 
 	testNetCid := GetTestNetGenesis().ID
-	if testNetCid.Equals(&g.ID) {
+	mainNetCid := GetMainNetGenesis().ID
+	if testNetCid.Equals(&g.ID) || mainNetCid.Equals(&g.ID) {
 		return true
 	}
-	//TODO check MainNetChainID later
 	return false
 }
 
@@ -302,6 +302,15 @@ func GetDefaultGenesis() *Genesis {
 	} //TODO embed MAINNET genesis block
 }
 
+func GetMainNetGenesis() *Genesis {
+	if bs, err := hex.DecodeString(MainNetGenesis); err == nil {
+		var g Genesis
+		if err := json.Unmarshal(bs, &g); err == nil {
+			return &g
+		}
+	}
+	return nil
+}
 func GetTestNetGenesis() *Genesis {
 	if bs, err := hex.DecodeString(TestNetGenesis); err == nil {
 		var g Genesis

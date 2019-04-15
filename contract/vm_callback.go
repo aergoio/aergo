@@ -840,6 +840,11 @@ func LuaDeployContract(
 		}
 	}
 
+	err = addUpdateSize(stateSet, int64(len(code)))
+	if err != nil {
+		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
+	}
+
 	// create account
 	prevContractInfo := stateSet.curContract
 	creator := prevContractInfo.callState.curState
@@ -865,13 +870,6 @@ func LuaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract] invalid args:" + err.Error())
 	}
 	runCode := getContract(contractState, code)
-	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true)
-	if ce != nil {
-		defer ce.close()
-		if ce.err != nil {
-			return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
-		}
-	}
 
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
@@ -898,6 +896,15 @@ func LuaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
+
+	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true)
+	if ce != nil {
+		defer ce.close()
+		if ce.err != nil {
+			return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
+		}
+	}
+
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
