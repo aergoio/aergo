@@ -6,10 +6,11 @@ package mock_types
 
 import (
 	context "context"
+	reflect "reflect"
+
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	grpc "google.golang.org/grpc"
-	reflect "reflect"
 )
 
 // MockAergoRPCServiceClient is a mock of AergoRPCServiceClient interface
@@ -247,6 +248,24 @@ func (m *MockAergoRPCServiceClient) GetChainInfo(arg0 context.Context, arg1 *typ
 
 // GetChainInfo indicates an expected call of GetChainInfo
 func (mr *MockAergoRPCServiceClientMockRecorder) GetChainInfo(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetChainInfo), varargs...)
+}
+
+// ChainStat mocks base method
+func (m *MockAergoRPCServiceClient) ChainStat(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.ChainStats, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetChainInfo", varargs...)
+	ret0, _ := ret[0].(*types.ChainStats)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ChainStat indicates an expected call of ChainStat
+func (mr *MockAergoRPCServiceClientMockRecorder) ChainStat(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetChainInfo), varargs...)
 }

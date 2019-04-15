@@ -272,7 +272,6 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 		return nil
 	}
 	out.ConsensusInfo = toJRM(in.ConsensusInfo)
-	out.ChainStat = toJRM(in.ChainStat)
 
 	jsonout, err := json.Marshal(out)
 	if err != nil {
