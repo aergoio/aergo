@@ -7,17 +7,20 @@ package p2pcommon
 
 import (
 	"errors"
+	net "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
 	"time"
 )
 
 const (
-	ManagerInterval = time.Minute
+	WaitingPeerManagerInterval = time.Minute
 
 	PolarisQueryInterval   = time.Minute * 10
 	PeerQueryInterval      = time.Hour
 	PeerFirstInterval      = time.Second * 4
+
 	MaxConcurrentHandshake = 5
+
 )
 
 var (
@@ -35,10 +38,23 @@ type PeerEventListener interface {
 // NOTE that this object is not thread safe by itself.
 type PeerFinder interface {
 	PeerEventListener
-	OnDiscoveredPeers(metas []PeerMeta)
 
 	// Check if it need to discover more peers and send query request to polaris or other peers if needed.
 	CheckAndFill()
+}
+
+// WaitingPeerManager manage waint peer pool.
+type WaitingPeerManager interface {
+	PeerEventListener
+	// OnDiscoveredPeers is called when response of discover query came from polaris or other peer.
+	// It returns the count of previously unknown peers.
+	OnDiscoveredPeers(metas []PeerMeta) int
+	// OnWorkDone
+	OnWorkDone(result ConnWorkResult)
+
+	CheckAndConnect()
+
+	OnInboundConn(s net.Stream)
 }
 
 type WaitingPeer struct {
@@ -47,4 +63,16 @@ type WaitingPeer struct {
 	NextTrial time.Time
 
 	LastResult error
+}
+
+type ConnWorkResult struct {
+	Inbound bool
+	Seq     uint32
+	// TargetPeer is nil if Inbound is true
+	TargetPeer *WaitingPeer
+	Meta       PeerMeta
+
+	P2PVer uint32
+	Result error
+	Peer   RemotePeer
 }

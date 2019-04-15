@@ -8,6 +8,7 @@ package p2p
 import (
 	"fmt"
 	"runtime/debug"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 
@@ -26,11 +27,8 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var TimeoutError error
-
-func init() {
-	TimeoutError = fmt.Errorf("timeout")
-}
+var TimeoutError =  errors.New("timeout")
+var CancelError = errors.New("canceled")
 
 type requestInfo struct {
 	cTime    time.Time

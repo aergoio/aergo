@@ -6,13 +6,11 @@
 package p2p
 
 import (
-	"context"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-peer"
-	"github.com/pkg/errors"
 	"time"
 )
 
@@ -23,13 +21,15 @@ const (
 )
 
 func NewPeerFinder(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.PeerFinder {
+	var pf p2pcommon.PeerFinder
 	if !useDiscover {
-		return &staticPeerFinder{pm:pm, logger:logger}
+		pf = &staticPeerFinder{pm:pm, logger:logger}
 	} else {
 		dp := &dynamicPeerFinder{logger: logger, pm: pm, actorService: actorService, maxCap: maxCap, usePolaris:usePolaris}
 		dp.qStats = make(map[peer.ID]*queryStat)
-		return dp
+		pf = dp
 	}
+	return pf
 
 }
 
@@ -39,43 +39,17 @@ type staticPeerFinder struct {
 	logger *log.Logger
 }
 
+var _ p2pcommon.PeerFinder = (*staticPeerFinder)(nil)
+
 func (dp *staticPeerFinder) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
-	if _, ok := dp.pm.designatedPeers[peer.ID()]; ok {
-		// These peers must have cool time.
-		dp.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectColltime)}
-		dp.pm.addAwait(peer.Meta())
-	}
 }
 
 func (dp *staticPeerFinder) OnPeerConnect(pid peer.ID) {
-	if _, ok := dp.pm.designatedPeers[pid]; ok {
-		delete(dp.pm.waitingPeers, pid)
-		dp.pm.cancelAwait(pid)
-	}
-}
-
-func (dp *staticPeerFinder) OnDiscoveredPeers(metas []p2pcommon.PeerMeta) {
 }
 
 func (dp *staticPeerFinder) CheckAndFill() {
-	// find if there are not connected designated peers. designated peer
-	for _, meta := range dp.pm.designatedPeers {
-		if _, found := dp.pm.remotePeers[meta.ID]; !found {
-			if _, foundInWait := dp.pm.waitingPeers[meta.ID]; !foundInWait {
-				dp.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
-			}
-		}
-	}
 }
 
-func (dp *staticPeerFinder) AddWaitings(metas []p2pcommon.PeerMeta) {
-}
-
-func (dp *staticPeerFinder) PickPeer(ctx context.Context) (p2pcommon.PeerMeta, error) {
-	return p2pcommon.PeerMeta{}, errors.New("no peers in pool")
-}
-
-var _ p2pcommon.PeerFinder = (*staticPeerFinder)(nil)
 
 // dynamicPeerFinder is triggering map query to Polaris or address query to other connected peer
 // to discover peer
@@ -98,12 +72,6 @@ var _ p2pcommon.PeerFinder = (*dynamicPeerFinder)(nil)
 func (dp *dynamicPeerFinder) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	// And check if to connect more peers
 	delete(dp.qStats, peer.ID())
-	if _, ok := dp.pm.designatedPeers[peer.ID()]; ok {
-		dp.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
-		// These peers must have cool time.
-		dp.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectColltime)}
-		dp.pm.addAwait(peer.Meta())
-	}
 }
 
 func (dp *dynamicPeerFinder) OnPeerConnect(pid peer.ID) {
@@ -112,27 +80,12 @@ func (dp *dynamicPeerFinder) OnPeerConnect(pid peer.ID) {
 		// first query will be sent quickly
 		dp.qStats[pid] = &queryStat{pid: pid, nextTurn: time.Now().Add(p2pcommon.PeerFirstInterval)}
 	}
-	// remove peer from wait pool
-	delete(dp.pm.waitingPeers, pid)
-	dp.pm.cancelAwait(pid)
-}
-
-func (dp *dynamicPeerFinder) OnDiscoveredPeers(metas []p2pcommon.PeerMeta) {
-	for _, meta := range metas {
-		if _, ok := dp.qStats[meta.ID]; ok {
-			// skip connected peer
-			continue
-		} else if _, ok := dp.pm.waitingPeers[meta.ID]; ok {
-			continue
-		}
-		dp.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
-	}
 }
 
 func (dp *dynamicPeerFinder) CheckAndFill() {
+	// if enough peer is collected already, skip collect
 	toConnCount := dp.maxCap - len(dp.pm.waitingPeers)
 	if toConnCount <= 0 {
-		// if enough peer is collected already, skip collect
 		return
 	}
 	now := time.Now()

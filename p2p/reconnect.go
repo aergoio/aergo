@@ -7,11 +7,6 @@ package p2p
 import (
 	"math"
 	"time"
-
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-
-	"github.com/aergoio/aergo-lib/log"
 )
 
 var (
@@ -22,40 +17,6 @@ var (
 func init() {
 	// It will get [20s 36s 1m6s 2m1s 3m40s 6m42s 12m12s 22m14s 40m30s 1h13m48s 2h14m29s 4h5m2s 7h26m29s 13h33m32s 24h42m21s]
 	durations = generateExpDuration(20, 0.6, maxTrial)
-}
-
-type reconnectJob struct {
-	meta   p2pcommon.PeerMeta
-	trial  int
-	pm     p2pcommon.PeerManager
-	logger *log.Logger
-
-	cancel chan struct{}
-}
-
-func newReconnectRunner(meta p2pcommon.PeerMeta, pm p2pcommon.PeerManager, logger *log.Logger) *reconnectJob {
-	return &reconnectJob{meta: meta, trial: 0, pm: pm, cancel: make(chan struct{}, 1), logger: logger}
-}
-func (rj *reconnectJob) runJob() {
-	timer := time.NewTimer(getNextInterval(rj.trial))
-RETRYLOOP:
-	for {
-		// wait for duration
-		select {
-		case <-timer.C:
-			_, found := rj.pm.GetPeer(rj.meta.ID)
-			if found {
-				break RETRYLOOP
-			}
-			rj.logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(rj.meta)).Int("trial", rj.trial).Msg("Trying to connect")
-			rj.pm.AddNewPeer(rj.meta)
-			rj.trial++
-			timer.Reset(getNextInterval(rj.trial))
-		case <-rj.cancel:
-			break RETRYLOOP
-		}
-	}
-	//rj.rm.jobFinished(rj.meta.ID)
 }
 
 func getNextInterval(trial int) time.Duration {

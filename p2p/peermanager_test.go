@@ -179,6 +179,53 @@ func TestPeerManager_init(t *testing.T) {
 	}
 }
 
+func Test_peerManager_runManagePeers_fillAddr(t *testing.T) {
+	// Test if polaris or other peer send addresses informations.
+	ctrl := gomock.NewController(t)
+	logger := log.NewLogger("p2p.test")
+	tests := []struct {
+		name string
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPeerFinder := p2pmock.NewMockPeerFinder(ctrl)
+			mockWPManager := p2pmock.NewMockWaitingPeerManager(ctrl)
+			dummyCfg := &cfg.P2PConfig{}
+			pm := &peerManager{
+				peerFinder:   mockPeerFinder,
+				wpManager:    mockWPManager,
+				remotePeers:  make(map[peer.ID]p2pcommon.RemotePeer, 10),
+				waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, 10),
+				conf:         dummyCfg,
+
+				getPeerChannel:    make(chan getPeerChan),
+				peerHandshaked:    make(chan p2pcommon.RemotePeer),
+				removePeerChannel: make(chan p2pcommon.RemotePeer),
+				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
+				inboundConnChan:   make(chan inboundConnEvent),
+				workDoneChannel:   make(chan p2pcommon.ConnWorkResult),
+				eventListeners:    make([]PeerEventListener, 0, 4),
+				finishChannel:     make(chan struct{}),
+
+				logger: logger,
+			}
+
+			go pm.runManagePeers()
+
+			metas := []p2pcommon.PeerMeta{}
+			pm.NotifyPeerAddressReceived(metas)
+
+			pm.Stop()
+
+			for atomic.LoadInt32(&pm.status) != stopped {
+				time.Sleep(time.Millisecond << 6)
+			}
+		})
+	}
+}
+
 func Test_peerManager_Stop(t *testing.T) {
 	// check if Stop is working.
 	tests := []struct {
@@ -199,7 +246,7 @@ func Test_peerManager_Stop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pm := &peerManager{
 				logger:        logger,
-				finishChannel: make(chan struct{},1 ),
+				finishChannel: make(chan struct{}, 1),
 			}
 
 			atomic.StoreInt32(&pm.status, tt.prevStatus)
@@ -210,12 +257,12 @@ func Test_peerManager_Stop(t *testing.T) {
 					toMStatusName(tt.wantStatus))
 			}
 			var sent bool
-			timeout := time.NewTimer(time.Millisecond<<6)
+			timeout := time.NewTimer(time.Millisecond << 6)
 			select {
-				case <-pm.finishChannel:
-					sent = true
-				case <-timeout.C:
-					sent = false
+			case <-pm.finishChannel:
+				sent = true
+			case <-timeout.C:
+				sent = false
 			}
 			if sent != tt.wantSentChannel {
 				t.Errorf("signal sent %v, want %v ", sent, tt.wantSentChannel)
@@ -244,11 +291,17 @@ func Test_peerManager_StopInRun(t *testing.T) {
 			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any()).AnyTimes()
 			mockNT.EXPECT().RemoveStreamHandler(gomock.Any()).AnyTimes()
+
+			mockPeerFinder := p2pmock.NewMockPeerFinder(ctrl)
+			mockWPManager := p2pmock.NewMockWaitingPeerManager(ctrl)
+
 			pm := &peerManager{
-				logger:        logger,
-				nt:            mockNT,
+				logger:     logger,
+				nt:         mockNT,
+				peerFinder: mockPeerFinder,
+				wpManager:  mockWPManager,
+
 				mutex:         &sync.Mutex{},
-				awaitDone:     make(chan struct{}),
 				finishChannel: make(chan struct{}),
 			}
 			go pm.runManagePeers()
