@@ -22,6 +22,7 @@ var getblockCmd = &cobra.Command{
 	Run:   execGetBlock,
 }
 
+var stream bool
 var number uint64
 var hash string
 
@@ -29,9 +30,30 @@ func init() {
 	rootCmd.AddCommand(getblockCmd)
 	getblockCmd.Flags().Uint64VarP(&number, "number", "n", 0, "Block height")
 	getblockCmd.Flags().StringVarP(&hash, "hash", "", "", "Block hash")
+	getblockCmd.Flags().BoolVar(&stream, "stream", false, "Get the block information by streamming")
 }
 
 func execGetBlock(cmd *cobra.Command, args []string) {
+	if stream {
+		bs, err := client.ListBlockStream(context.Background(), &aergorpc.Empty{})
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		if err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+		for {
+			b, err := bs.Recv()
+			if err != nil {
+				cmd.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			cmd.Println(util.BlockConvBase58Addr(b))
+		}
+		return
+	}
 	fflags := cmd.Flags()
 	if fflags.Changed("number") == false && fflags.Changed("hash") == false {
 		cmd.Println("no block --hash or --number specified")
