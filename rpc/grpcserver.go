@@ -1049,7 +1049,11 @@ func (rpc *AergoRPCService) GetConsensusInfo(ctx context.Context, in *types.Empt
 	return rpc.consensusAccessor.ConsensusInfo(), nil
 }
 
-// Chainstat handles rpc request chainstat.
+// ChainStat handles rpc request chainstat.
 func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*types.ChainStats, error) {
-	return nil, nil
+	ca := rpc.actorHelper.GetChainAccessor()
+	if ca == nil {
+		return nil, ErrUninitAccessor
+	}
+	return &types.ChainStats{Report: ca.GetChainStats()}, nil
 }
