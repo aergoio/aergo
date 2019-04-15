@@ -116,6 +116,29 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
+#if 0
+        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&id->meta) + meta_align(&id->meta);
+
+        if (is_array_exp(id_exp)) {
+            exp->u_arr.id_exp = id_exp->u_arr.id_exp;
+
+            exp->meta.base_idx = id_exp->meta.base_idx;
+            exp->meta.rel_addr = id_exp->meta.rel_addr;
+            exp->meta.rel_offset = id_exp->meta.rel_offset + offset;
+        }
+        else if (is_mem_exp(id_exp)) {
+            exp->meta.base_idx = id_exp->u_mem.base;
+            exp->meta.rel_addr = id_exp->u_mem.addr;
+            exp->meta.rel_offset = id_exp->u_mem.offset + offset;
+        }
+        else {
+            ASSERT1(is_reg_exp(id_exp), id_exp->kind);
+
+            exp->meta.base_idx = id_exp->u_reg.idx;
+            exp->meta.rel_addr = 0;
+            exp->meta.rel_offset = offset;
+        }
+#endif
         ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 
         /* The following meta_bytes() is stripped size of array */
@@ -238,11 +261,13 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         exp_set_mem(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
                     qual_exp->u_mem.offset + fld_id->meta.rel_offset);
     }
+#if 0
     else {
         /* If qualifier is a function and returns an array or a struct, "qual_exp" can be a binary
          * expression (See exp_trans_call()) */
         ASSERT1(is_binary_exp(qual_exp), qual_exp->kind);
     }
+#endif
 }
 
 static void

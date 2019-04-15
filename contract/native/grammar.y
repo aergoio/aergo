@@ -218,6 +218,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    ddl_stmt
 %type <stmt>    blk_stmt
 %type <stmt>    pragma_stmt
+%type <exp>     desc_opt
 %type <exp>     expression
 %type <exp>     sql_exp
 %type <sql>     sql_prefix
@@ -1029,13 +1030,18 @@ blk_stmt:
 ;
 
 pragma_stmt:
-    K_PRAGMA K_ASSERT '(' eq_exp ')'
+    K_PRAGMA K_ASSERT '(' eq_exp desc_opt ')'
     {
-        int arg_len = @5.first_col - @3.last_col;
-        char *arg_str = xstrndup(parse->src + @$.first_offset + @3.last_col - 1, arg_len);
-
-        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, arg_str, &@1);
+        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4,
+                             xstrndup(parse->src + @$.first_offset + @3.last_col - 1,
+                                      @5.first_col - @3.last_col),
+                             $5, &@1);
     }
+;
+
+desc_opt:
+    /* empty */         { $$ = NULL; }
+|   ',' add_exp         { $$ = $2; }
 ;
 
 expression:

@@ -184,7 +184,7 @@ contract test {
     byte b2[2] = new { 0xa, 0xb };
 
     int8 i1[3] = new { -1, 0, 1, };
-    int16 i2[1], i3[2] = new { 1024 }, new { 0x0000, 0xffff } ;
+    int16 i2[1], i3[2] = new { 1024 }, new { 0x0000, 0xffff };
 
     int i4[1 + 1] = new { 1, 2 };
     int i5[1 * 3 - 1] = new { 3, 4 };
@@ -208,6 +208,26 @@ contract test {
 
         pragma assert(t.b2[0] == 10);
         pragma assert(t.b2[1] == 11);
+
+        pragma assert(t.i1[0] == -1);
+        pragma assert(t.i1[1] == 0);
+        pragma assert(t.i1[2] == 1);
+
+        pragma assert(t.i2[0] == 1024);
+
+        pragma assert(t.i3[0] == 0);
+        pragma assert(t.i3[1] == -1);
+
+        pragma assert(t.i4[0] == 1);
+        pragma assert(t.i4[1] == 2);
+
+        pragma assert(t.i5[0] == 3);
+        pragma assert(t.i5[1] == 4);
+
+        pragma assert(t.i6[0][0] == 1);
+        pragma assert(t.i6[0][1] == 2);
+        pragma assert(t.i6[1][0] == 3);
+        pragma assert(t.i6[1][1] == 4);
         */
     }
 }

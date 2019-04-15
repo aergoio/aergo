@@ -82,11 +82,18 @@ stmt_gen_ddl(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_pragma(gen_t *gen, ast_stmt_t *stmt)
 {
-    ast_exp_t *val_exp = stmt->u_pragma.val_exp;
     ir_md_t *md = gen->md;
+    BinaryenExpressionRef condition, description;
 
-    return syslib_gen(gen, FN_ASSERT, 2, exp_gen(gen, val_exp),
-                      i32_gen(gen, sgmt_add_str(&md->sgmt, stmt->u_pragma.arg_str)));
+    condition = exp_gen(gen, stmt->u_pragma.val_exp);
+
+    if (stmt->u_pragma.desc_exp != NULL)
+        description = exp_gen(gen, stmt->u_pragma.desc_exp);
+    else
+        description = i32_gen(gen, 0);
+
+    return syslib_gen(gen, FN_ASSERT, 3, condition,
+                      i32_gen(gen, sgmt_add_str(&md->sgmt, stmt->u_pragma.val_str)), description);
 }
 
 BinaryenExpressionRef

@@ -577,8 +577,10 @@ stmt_check_pragma(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *val_exp;
     meta_t *val_meta;
+    ast_exp_t *desc_exp;
 
     ASSERT1(is_pragma_stmt(stmt), stmt->kind);
+    ASSERT(stmt->u_pragma.val_str != NULL);
 
     val_exp = stmt->u_pragma.val_exp;
     val_meta = &val_exp->meta;
@@ -589,6 +591,17 @@ stmt_check_pragma(check_t *check, ast_stmt_t *stmt)
 
         if (!is_bool_meta(val_meta))
             RETURN(ERROR_INVALID_COND_TYPE, &val_exp->pos, meta_to_str(val_meta));
+
+        desc_exp = stmt->u_pragma.desc_exp;
+
+        if (desc_exp != NULL) {
+            meta_t *desc_meta = &desc_exp->meta;
+
+            CHECK(exp_check(check, desc_exp));
+
+            if (!is_string_meta(desc_meta))
+                RETURN(ERROR_INVALID_OP_TYPE, &desc_exp->pos, meta_to_str(desc_meta));
+        }
         break;
 
     default:

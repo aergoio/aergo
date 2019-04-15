@@ -168,13 +168,15 @@ stmt_new_blk(ast_blk_t *blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, char *arg_str, src_pos_t *pos)
+stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, char *val_str, ast_exp_t *desc_exp,
+                src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_PRAGMA, pos);
 
     stmt->u_pragma.kind = kind;
     stmt->u_pragma.val_exp = val_exp;
-    stmt->u_pragma.arg_str = arg_str;
+    stmt->u_pragma.val_str = val_str;
+    stmt->u_pragma.desc_exp = desc_exp;
 
     return stmt;
 }

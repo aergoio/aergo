@@ -73,11 +73,12 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     /* This function is used when the offset value needs to be computed dynamically */
 
     if (is_array_meta(&id->meta)) {
+        uint32_t offset = 0;
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-#if 0
         BinaryenExpressionRef base, address;
 
+#if 0
         /* In array expression, the offset is calculated as follows:
          *
          * Suppose that "int i[x][y][z]" is defined.
@@ -91,25 +92,19 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
          * Finally, in the case of "i[a][b][c]",
          * (a * sizeof(i[0])) + (b * sizeof(i[0][0])) + (c * sizeof(int)). */
 
-        base = exp_gen(gen, id_exp);
-
         if (is_lit_exp(idx_exp)) {
-            uint32_t offset;
-            ast_id_t *id = exp->id;
+            ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 
-            offset = val_i64(&idx_exp->u_lit.val) * meta_size(&id->meta) + meta_align(&id->meta);
+            address = BinaryenLoad(gen->module, sizeof(uint32_t), 1, 0, 0, BinaryenTypeInt32(),
+                                   exp_gen(gen, id_exp));
 
-            if (is_mem_exp(id_exp))
-                offset += id_exp->u_mem.offset;
-
-            address = BinaryenBinary(gen->module, BinaryenAddInt32(),
-                                     BinaryenLoad(gen->module, sizeof(uint32_t), 1, 0, 0,
-                                                  BinaryenTypeInt32(), base),
-                                     i32_gen(gen, offset));
+            offset = exp->meta.rel_offset;
         }
         else {
 #endif
-            BinaryenExpressionRef base, address, index, offset;
+            BinaryenExpressionRef index, size;
+
+        ASSERT(!is_lit_exp(idx_exp));
 
             /* Because BinaryenLoad() takes an offset as uint32_t and "idx_exp" is a register or
              * memory expression, we do not know the offset value, so we add the offset to the
@@ -122,23 +117,28 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
                 /* TODO: need to check range of index in semantic checker */
                 index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
 
-            offset = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
-                                    i32_gen(gen, meta_bytes(meta)));
+            size = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
+                                  i32_gen(gen, meta_bytes(meta)));
 
             if (id->meta.rel_addr > 0)
-                offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
-                                        i32_gen(gen, id->meta.rel_addr + meta_align(&id->meta)));
+                size = BinaryenBinary(gen->module, BinaryenAddInt32(), size,
+                                      i32_gen(gen, id->meta.rel_addr + meta_align(&id->meta)));
             else
-                offset = BinaryenBinary(gen->module, BinaryenAddInt32(), offset,
-                                        i32_gen(gen, meta_align(&id->meta)));
+                size = BinaryenBinary(gen->module, BinaryenAddInt32(), size,
+                                      i32_gen(gen, meta_align(&id->meta)));
 
-            address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, offset);
+            address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, size);
         //}
 
-        if (gen->is_lval || is_array_meta(meta))
-            return address;
+        if (gen->is_lval || is_array_meta(meta)) {
+            if (offset > 0)
+                return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                                      i32_gen(gen, offset));
 
-        return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), 0, 0,
+            return address;
+        }
+
+        return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
     }
 
