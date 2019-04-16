@@ -191,12 +191,16 @@ func validateNameTx(tx *TxBody) error {
 	}
 	switch ci.Name {
 	case NameCreate:
-		_validateNameTx(tx, &ci)
+		if err := _validateNameTx(tx, &ci); err != nil {
+			return err
+		}
 		if len(ci.Args) != 1 {
 			return fmt.Errorf("invalid arguments in %s", ci)
 		}
 	case NameUpdate:
-		_validateNameTx(tx, &ci)
+		if err := _validateNameTx(tx, &ci); err != nil {
+			return err
+		}
 		if len(ci.Args) != 2 {
 			return fmt.Errorf("invalid arguments in %s", ci)
 		}
