@@ -1,7 +1,6 @@
 datadir = "/aergo/data"
 enableprofile = false
 profileport = 6060
-enablerest = false
 enabletestmode = true
 
 [rpc]
