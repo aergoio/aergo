@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -195,7 +196,7 @@ func (p *remotePeerImpl) runWrite() {
 	cleanupTicker := time.NewTicker(cleanRequestInterval)
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Panic().Str(p2putil.LogPeerName, p.Name()).Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
+			p.logger.Panic().Str("callstack", string(debug.Stack())).Str(p2putil.LogPeerName, p.Name()).Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
 		}
 	}()
 
@@ -258,7 +259,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Error().Interface("panic", r).Msg("There were panic in handler.")
+			p.logger.Error().Str("callstack", string(debug.Stack())).Interface("panic", r).Msg("There were panic in handler.")
 			err = fmt.Errorf("internal error")
 		}
 	}()
