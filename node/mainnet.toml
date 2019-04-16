@@ -1,4 +1,5 @@
 datadir = "/aergo/data"
+authdir = "/aergo/auth"
 enableprofile = false
 profileport = 6060
 
@@ -9,9 +10,6 @@ nstls = false
 nscert = ""
 nskey = ""
 nsallowcors = false
-
-[rest]
-restport = "8080"
 
 [p2p]
 netprotocoladdr = ""
