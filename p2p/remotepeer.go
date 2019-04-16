@@ -259,7 +259,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Error().Str("callstack", string(debug.Stack())).Interface("panic", r).Msg("There were panic in handler.")
+			p.logger.Error().Str(p2putil.LogProtoID,subProto.String()).Str("callstack", string(debug.Stack())).Interface("panic", r).Msg("There were panic in handler.")
 			err = fmt.Errorf("internal error")
 		}
 	}()
