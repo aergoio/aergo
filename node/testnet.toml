@@ -1,7 +1,6 @@
 datadir = "/aergo/data"
 enableprofile = false
 profileport = 6060
-enablerest = false
 usetestnet = true
 
 [rpc]
@@ -31,7 +30,6 @@ npexposeself = false
 npusepolaris = true
 
 [blockchain]
-usefastsyncer = true
 blockchainplaceholder = false
 
 [mempool]

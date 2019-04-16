@@ -22,7 +22,7 @@ level = "info"
 level = "info"
 
 [syncer]
-level = "debug"
+level = "info"
 
 [bp]
 level = "info"
