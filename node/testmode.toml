@@ -23,9 +23,7 @@ npaddpeers = [
 ]
 npmaxpeers = "0"
 nppeerpool = "0"
-
-[blockchain]
-blockchainplaceholder = false
+npusepolaris = false
 
 [mempool]
 showmetrics = false
