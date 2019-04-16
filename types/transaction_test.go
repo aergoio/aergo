@@ -99,13 +99,16 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	err = transaction.Validate(chainid)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "only one candidate allowed")
 
-	/*
-		transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestNormal)
-		transaction.GetTx().Hash = transaction.CalculateTxHash()
-		t.Log(string(transaction.GetTx().GetBody().Payload))
-		err = transaction.Validate()
-		assert.NoError(t, err, "should success")
-	*/
+	transaction.GetTx().GetBody().Recipient = []byte(`aergo.name`)
+	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1createName", "Args":["1"]}`)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate(chainid)
+	assert.Error(t, err, "invalid name length in create")
+
+	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1updateName", "Args":["1234567890","AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate(chainid)
+	assert.Error(t, err, "invalid name length in update")
 }
 
 func buildVoteBPPayloadEx(count int, err int) []byte {
