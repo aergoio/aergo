@@ -37,8 +37,8 @@ type WalEntry struct {
 
 func (we *WalEntry) ToBytes() ([]byte, error) {
 	var val bytes.Buffer
-	enc := gob.NewEncoder(&val)
-	if err := enc.Encode(we); err != nil {
+	encoder := gob.NewEncoder(&val)
+	if err := encoder.Encode(we); err != nil {
 		panic("raft entry to bytes error")
 		return nil, err
 	}
@@ -84,8 +84,8 @@ func NewChainSnapshot(block *types.Block) *ChainSnapshot {
 func (csnap *ChainSnapshot) ToBytes() ([]byte, error) {
 	var val bytes.Buffer
 
-	enc := gob.NewEncoder(&val)
-	if err := enc.Encode(csnap); err != nil {
+	encoder := gob.NewEncoder(&val)
+	if err := encoder.Encode(csnap); err != nil {
 		logger.Fatal().Err(err).Msg("failed to encode chainsnap")
 		return nil, err
 	}
@@ -126,9 +126,11 @@ func ConfStateToString(conf *raftpb.ConfState) string {
 		buf = buf + fmt.Sprintf("[%d]", node)
 	}
 
-	buf = buf + fmt.Sprintf("\nlearner")
-	for _, learner := range conf.Learners {
-		buf = buf + fmt.Sprintf("[%d]", learner)
+	if len(conf.Learners) > 0 {
+		buf = buf + fmt.Sprintf(".learner")
+		for _, learner := range conf.Learners {
+			buf = buf + fmt.Sprintf("[%d]", learner)
+		}
 	}
 	return buf
 }

@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"runtime/debug"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -127,9 +128,8 @@ func (syncer *Syncer) BeforeStop() {
 
 func (syncer *Syncer) Reset(err error) {
 	if syncer.isRunning {
-		logger.Info().Msg("syncer stop#1")
+		logger.Info().Uint64("targetNo", syncer.ctx.TargetNo).Msg("syncer stop#1")
 
-		syncer.notifyStop(err)
 		syncer.finder.stop()
 		syncer.hashFetcher.stop()
 		syncer.blockFetcher.stop()
@@ -138,6 +138,9 @@ func (syncer *Syncer) Reset(err error) {
 		syncer.hashFetcher = nil
 		syncer.blockFetcher = nil
 		syncer.isRunning = false
+
+		syncer.notifyStop(err)
+
 		syncer.ctx = nil
 	}
 
@@ -314,7 +317,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
-	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("syncer requested")
+	logger.Debug().Uint64("targetNo", msg.TargetNo).Str("peer", p2putil.ShortForm(msg.PeerID)).Msg("syncer requested")
 
 	if syncer.isRunning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")

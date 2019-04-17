@@ -118,6 +118,7 @@ type BlockProgress struct {
 	block *types.Block //tracking last applied block. It's initillay set at repling wal
 	index uint64
 	term  uint64
+	confState    raftpb.ConfState
 }
 
 func (prog *BlockProgress) isEmpty() bool {
@@ -350,9 +351,9 @@ func (rs *raftServer) serveChannels() {
 	if err != nil {
 		panic(err)
 	}
-	rs.confState = snapshot.Metadata.ConfState
-	rs.snapshotIndex = snapshot.Metadata.Index
-	rs.appliedIndex = snapshot.Metadata.Index
+	rs.setConfState(snapshot.Metadata.ConfState)
+	rs.setSnapshotIndex(snapshot.Metadata.Index)
+	rs.setAppliedIndex(snapshot.Metadata.Index)
 
 	ticker := time.NewTicker(rs.tickMS)
 	defer ticker.Stop()
@@ -395,7 +396,7 @@ func (rs *raftServer) serveChannels() {
 
 			if rs.IsLeader() {
 				if err := rs.processMessages(rd.Messages); err != nil {
-					logger.Fatal().Err(err).Msg("process message error")
+					logger.Fatal().Err(err).Msg("leader process message error")
 				}
 			}
 
@@ -404,13 +405,6 @@ func (rs *raftServer) serveChannels() {
 			}
 
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
-				/*
-					if err := rs.snapshotter.syncSnap(&rd.Snapshot); err != nil {
-						logger.Fatal().Err(err).Msg("failed to save snapshot")
-					}
-					TODO check snap is ok
-				*/
-
 				if err := rs.raftStorage.ApplySnapshot(rd.Snapshot); err != nil {
 					logger.Fatal().Err(err).Msg("failed to apply snapshot")
 				}
@@ -463,17 +457,16 @@ func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
 				return err
 			}
 			snapMsgs = append(snapMsgs, tmpSnapMsg)
-			rs.transport.SendSnapshot(*tmpSnapMsg)
 
 			msgs[i].To = 0
 		}
 	}
 
 	rs.transport.Send(msgs)
-	/*
-		for _, snapMsg := range snapMsgs {
-			rs.transport.SendSnapshot(*snapMsg)
-		} */
+
+	for _, tmpSnapMsg := range snapMsgs {
+		rs.transport.SendSnapshot(*tmpSnapMsg)
+	}
 
 	return nil
 }
@@ -494,7 +487,7 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 	*/
 	// TODO add cluster info to snapshot.data
 
-	logger.Debug().Uint64("term", msg.Term).Uint64("index", msg.Index).Msg("new snapshot message")
+	logger.Debug().Uint64("term", msg.Term).Uint64("index", msg.Index).Msg("send merged snapshot message")
 
 	// not using pipe to send snapshot
 	pr, pw := io.Pipe()
@@ -609,13 +602,14 @@ func (rs *raftServer) updateBlockProgress(term uint64, index uint64, block *type
 		return
 	}
 
-	logger.Debug().Uint64("term", term).Uint64("index", index).Uint64("no", block.BlockNo()).Str("hash", block.ID()).Msg("set last applied block")
+	logger.Debug().Uint64("term", term).Uint64("index", index).Uint64("no", block.BlockNo()).Str("hash", block.ID()).Msg("set progress of last block")
 
 	rs.prevProgress = rs.progress
 
 	rs.progress.term = term
 	rs.progress.index = index
 	rs.progress.block = block
+	rs.progress.confState = rs.confState
 }
 
 // replayWAL replays WAL entries into the raft instance.
@@ -685,16 +679,18 @@ func (rs *raftServer) createSnapshot() ([]byte, error) {
 // maybeTriggerSnapshot create snapshot and make compaction for raft log storage
 // raft can not wait until last applied entry commits. so snapshot must create from rs.prevProgress.index
 func (rs *raftServer) maybeTriggerSnapshot() {
-	if rs.appliedIndex-rs.snapshotIndex <= rs.snapCount {
-		return
-	}
-
 	if rs.prevProgress.index == 0 || rs.prevProgress.block == nil {
 		logger.Debug().Msg("raft need to make snapshot, but does not exist target progress")
 		return
 	}
 
 	newSnapshotIndex := rs.prevProgress.index
+
+	if newSnapshotIndex-rs.snapshotIndex <= rs.snapCount {
+		return
+	}
+
+	logger.Info().Uint64("applied", rs.appliedIndex).Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
 
 	// make snapshot data of previous connected block
 	chainsnap, err := rs.snapshotter.createSnapshotData(rs.prevProgress.block)
@@ -704,17 +700,15 @@ func (rs *raftServer) maybeTriggerSnapshot() {
 
 	data, err := chainsnap.ToBytes()
 
-	logger.Info().Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
-
 	// snapshot.data is not used for snapshot transfer. At the time of transmission, a message is generated again with information at that time and sent.
-	snapshot, err := rs.raftStorage.CreateSnapshot(newSnapshotIndex, &rs.confState, data)
+	snapshot, err := rs.raftStorage.CreateSnapshot(newSnapshotIndex, &rs.prevProgress.confState, data)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create snapshot")
 	}
 
 	// save snapshot to wal
 	if err := rs.walDB.WriteSnapshot(&snapshot, true); err != nil {
-		logger.Fatal().Err(err).Msg("raft create snapshot failed")
+		logger.Fatal().Err(err).Msg("failed to write snapshot")
 	}
 
 	compactIndex := uint64(1)
@@ -722,11 +716,14 @@ func (rs *raftServer) maybeTriggerSnapshot() {
 		compactIndex = newSnapshotIndex - snapshotCatchUpEntriesN
 	}
 	if err := rs.raftStorage.Compact(compactIndex); err != nil {
+		if err == raftlib.ErrCompacted {
+			return
+		}
 		panic(err)
 	}
 
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")
-	rs.snapshotIndex = newSnapshotIndex
+	rs.setSnapshotIndex(newSnapshotIndex)
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
@@ -734,17 +731,20 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
 		return
 	}
 
-	logger.Info().Uint64("index", rs.snapshotIndex).Msg("publishing snapshot at index")
+	logger.Info().Uint64("index", rs.snapshotIndex).Str("snap", consensus.SnapToString(&snapshotToSave, nil)).Msg("publishing snapshot at index")
 	defer logger.Info().Uint64("index", rs.snapshotIndex).Msg("finished publishing snapshot at index")
 
 	if snapshotToSave.Metadata.Index <= rs.appliedIndex {
 		logger.Fatal().Msgf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snapshotToSave.Metadata.Index, rs.appliedIndex)
 	}
-	rs.commitC <- nil // trigger kvstore to load snapshot
+	//rs.commitC <- nil // trigger kvstore to load snapshot
 
-	rs.confState = snapshotToSave.Metadata.ConfState
-	rs.snapshotIndex = snapshotToSave.Metadata.Index
-	rs.appliedIndex = snapshotToSave.Metadata.Index
+	rs.setConfState(snapshotToSave.Metadata.ConfState)
+	rs.setSnapshotIndex(snapshotToSave.Metadata.Index)
+	rs.setAppliedIndex(snapshotToSave.Metadata.Index)
+
+	rs.prevProgress.index = 0
+	rs.progress.index = 0
 }
 
 func (rs *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
@@ -812,7 +812,7 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 		}
 
 		// after commit, update appliedIndex
-		rs.appliedIndex = ents[i].Index
+		rs.setAppliedIndex(ents[i].Index)
 
 		// special nil commit to signal replay has finished
 		if ents[i].Index == rs.lastIndex {
@@ -829,6 +829,24 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 		}
 	}
 	return true
+}
+
+func (rs *raftServer) setSnapshotIndex(idx uint64) {
+	logger.Debug().Uint64("index", idx).Msg("raft server set snapshotIndex")
+
+	rs.snapshotIndex = idx
+}
+
+func (rs *raftServer) setAppliedIndex(idx uint64) {
+	logger.Debug().Uint64("index", idx).Msg("raft server set appliedIndex")
+
+	rs.appliedIndex = idx
+}
+
+func (rs *raftServer) setConfState(state raftpb.ConfState) {
+	logger.Debug().Str("state", consensus.ConfStateToString(&state)).Msg("raft server set confstate")
+
+	rs.confState = state
 }
 
 func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {

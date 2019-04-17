@@ -100,7 +100,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	}
 
 	// write snapshot log in WAL for crash recovery
-	logger.Info().Str("snap", consensus.SnapToString(snap, snapBlock)).Msg("receive snapshot from remote")
+	logger.Info().Str("snap", consensus.SnapToString(snap, snapBlock)).Msg("start to sync snapshot")
 	/* TODO snapshot write temporary for crash recovery. after sync tmp snapshot to permanent */
 	if err := chainsnap.walDB.WriteSnapshot(snap, false); err != nil {
 		return err
@@ -113,6 +113,8 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 		return err
 	}
 
+	logger.Info().Str("snap", consensus.SnapToString(snap, snapBlock)).Msg("finished to sync snapshot")
+
 	return nil
 }
 
@@ -123,12 +125,13 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 		return ok
 	}
 
+	var leader uint64
 	getSyncLeader := func() (peer.ID, error) {
 		var peerID peer.ID
 		var err error
 
 		for {
-			leader := chainsnap.getLeaderFunc()
+			leader = chainsnap.getLeaderFunc()
 
 			if leader == HasNoLeader {
 				peerID, err = chainsnap.cluster.getMemberPeerAddressToSync()
@@ -148,12 +151,12 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 				break
 			}
 
-			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("peer is not live")
+			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", leader).Msg("peer is not live")
 
 			time.Sleep(DfltTimeWaitPeerLive)
 		}
 
-		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("target peer to sync")
+		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", leader).Msg("target peer to sync")
 
 		return peerID, err
 	}

@@ -342,8 +342,8 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	oldLatest := cp.cdb.connectToChain(&dbTx, block, cp.HasWAL())
-
+	// skip to add hash/block if wal of block is already written
+	oldLatest := cp.cdb.connectToChain(&dbTx, block, cp.isByBP && cp.HasWAL())
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
 		return 0, err
 	}

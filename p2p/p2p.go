@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
@@ -122,12 +123,15 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	}
 	p2ps.chainID = chainID
 
+	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFTV2]
+
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
+
 	mf := &v030MOFactory{}
 	//reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 
 	// connect managers each other
