@@ -250,23 +250,23 @@ exp_new_global(char *name)
 }
 
 ast_exp_t *
-exp_new_reg(uint32_t idx)
+exp_new_reg(uint32_t base_idx)
 {
     ast_exp_t *exp = ast_exp_new(EXP_REG, &null_pos_);
 
-    exp->u_reg.idx = idx;
+    exp->meta.base_idx = base_idx;
 
     return exp;
 }
 
 ast_exp_t *
-exp_new_mem(uint32_t base, uint32_t addr, uint32_t offset)
+exp_new_mem(uint32_t base_idx, uint32_t addr, uint32_t offset)
 {
     ast_exp_t *exp = ast_exp_new(EXP_MEM, &null_pos_);
 
-    exp->u_mem.base = base;
-    exp->u_mem.addr = addr;
-    exp->u_mem.offset = offset;
+    exp->meta.base_idx = base_idx;
+    exp->meta.rel_addr = addr;
+    exp->meta.rel_offset = offset;
 
     return exp;
 }
@@ -283,19 +283,19 @@ exp_set_lit(ast_exp_t *exp, value_t *val)
 }
 
 void
-exp_set_reg(ast_exp_t *exp, uint32_t idx)
+exp_set_reg(ast_exp_t *exp, uint32_t base_idx)
 {
     exp->kind = EXP_REG;
-    exp->u_reg.idx = idx;
+    exp->meta.base_idx = base_idx;
 }
 
 void
-exp_set_mem(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset)
+exp_set_mem(ast_exp_t *exp, uint32_t base_idx, uint32_t addr, uint32_t offset)
 {
     exp->kind = EXP_MEM;
-    exp->u_mem.base = base;
-    exp->u_mem.addr = addr;
-    exp->u_mem.offset = offset;
+    exp->meta.base_idx = base_idx;
+    exp->meta.rel_addr = addr;
+    exp->meta.rel_offset = offset;
 }
 
 ast_exp_t *
@@ -398,11 +398,11 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_REG:
-        res = exp_new_reg(exp->u_reg.idx);
+        res = exp_new_reg(exp->meta.base_idx);
         break;
 
     case EXP_MEM:
-        res = exp_new_mem(exp->u_mem.base, exp->u_mem.addr, exp->u_mem.offset);
+        res = exp_new_mem(exp->meta.base_idx, exp->meta.rel_addr, exp->meta.rel_offset);
         break;
 
     default:

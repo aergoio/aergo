@@ -229,6 +229,7 @@ typedef enum fn_kind_e {
     FN_MPZ_LSHIFT,
     FN_MPZ_CMP,
     FN_MPZ_NEG,
+    FN_MPZ_SIGN,
     FN_ARR_GET_I32,
     FN_ARR_GET_I64,
     FN_ARR_SET_I32,

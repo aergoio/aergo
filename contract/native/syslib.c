@@ -18,17 +18,21 @@
 
 char *lib_src =
 "library system {\n"
-"    func abs32(int32 i) int32 : \"abs32\";\n"
-"    func abs64(int64 i) int64 : \"abs64\";\n"
-"    func abs128(int128 i) int128 : \"mpz_abs\";\n"
+"    func abs32(int32 i) int32 : \"__abs32\";\n"
+"    func abs64(int64 i) int64 : \"__abs64\";\n"
+"    func abs128(int128 i) int128 : \"__mpz_abs\";\n"
 
-"    func pow32(int32 x, int32 y) int32 : \"pow32\";\n"
-"    func pow64(int64 x, int32 y) int64 : \"pow64\";\n"
-"    func pow128(int128 x, int32 y) int128 : \"mpz_pow_ui\";\n"
+"    func pow32(int32 x, int32 y) int32 : \"__pow32\";\n"
+"    func pow64(int64 x, int32 y) int64 : \"__pow64\";\n"
+"    func pow128(int128 x, int32 y) int128 : \"__mpz_pow_ui\";\n"
 
-"    func sqrt32(int32 x) int32 : \"sqrt32\";\n"
-"    func sqrt64(int64 x) int64 : \"sqrt64\";\n"
-"    func sqrt128(int128 x) int128 : \"mpz_sqrt\";\n"
+"    func sign32(int32 x) int8 : \"__sign32\";\n"
+"    func sign64(int64 x) int8 : \"__sign64\";\n"
+"    func sign128(int128 x) int8 : \"__mpz_sign\";\n"
+
+"    func sqrt32(int32 x) int32 : \"__sqrt32\";\n"
+"    func sqrt64(int64 x) int64 : \"__sqrt64\";\n"
+"    func sqrt128(int128 x) int128 : \"__mpz_sqrt\";\n"
 "}";
 
 sys_fn_t sys_fntab_[FN_MAX] = {
@@ -62,10 +66,11 @@ sys_fn_t sys_fntab_[FN_MAX] = {
     { "__mpz_lshift", SYSLIB_MODULE".__mpz_lshift", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
     { "__mpz_cmp", SYSLIB_MODULE".__mpz_cmp", 2, { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
     { "__mpz_neg", SYSLIB_MODULE".__mpz_neg", 1, { TYPE_UINT32 }, TYPE_UINT32 },
+    { "__mpz_sign", SYSLIB_MODULE".__mpz_sign", 1, { TYPE_UINT32 }, TYPE_INT8 },
     { "__array_get_i32", SYSLIB_MODULE".__array_get_i32", 2,
         { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
     { "__array_get_i64", SYSLIB_MODULE".__array_get_i64", 2,
-        { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT64 },
+        { TYPE_UINT32, TYPE_UINT32 }, TYPE_UINT32 },
     { "__array_set_i32", SYSLIB_MODULE".__array_set_i32", 3,
         { TYPE_UINT32, TYPE_UINT32, TYPE_UINT32 }, TYPE_VOID },
     { "__array_set_i64", SYSLIB_MODULE".__array_set_i64", 3,

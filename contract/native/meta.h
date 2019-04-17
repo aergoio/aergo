@@ -237,6 +237,7 @@ static inline uint32_t
 meta_bytes(meta_t *meta)
 {
     int i;
+    uint32_t dim_size = 1;
     uint32_t size = meta_size(meta);
 
     if (!is_tuple_meta(meta) && is_array_meta(meta)) {
@@ -245,9 +246,13 @@ meta_bytes(meta_t *meta)
             size *= meta->dim_sizes[i];
         }
 
-        size += meta_align(meta);
-        for (i = 1; i < meta->arr_dim; i++) {
-            size += meta->dim_sizes[i - 1] * meta_align(meta);
+        /* Each dimension has a current dimension in reverse order (4bytes) and the count of
+         * elements (4bytes) as a header. */
+
+        size += sizeof(uint64_t);
+        for (i = 0; i < meta->arr_dim - 1; i++) {
+            dim_size *= meta->dim_sizes[i];
+            size += dim_size * sizeof(uint64_t);
         }
     }
 

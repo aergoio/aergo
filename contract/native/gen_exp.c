@@ -73,11 +73,55 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     /* This function is used when the offset value needs to be computed dynamically */
 
     if (is_array_meta(&id->meta)) {
-        uint32_t offset = 0;
+        uint32_t offset;
+        /*
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
         BinaryenExpressionRef base, address;
+        */
+        fn_kind_t kind = FN_ARR_GET_I32;
+        ast_exp_t *id_exp = exp->u_arr.id_exp;
+        ast_exp_t *idx_exp = exp->u_arr.idx_exp;
+        BinaryenExpressionRef address;
 
+        ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
+
+        if (meta->arr_dim == meta->max_dim - 1)
+            address = BinaryenLoad(gen->module, sizeof(uint32_t), 1, 0, 0, BinaryenTypeInt32(),
+                                   exp_gen(gen, id_exp));
+        else
+            address = exp_gen(gen, id_exp);
+
+        if (is_lit_exp(idx_exp)) {
+            if (meta->arr_dim > 0 && meta->dim_sizes[0] == -1) {
+                if (is_int64_meta(meta) || is_uint64_meta(meta))
+                    kind = FN_ARR_GET_I64;
+
+                address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
+                offset = 0;
+            }
+            else {
+                offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) + sizeof(uint64_t);
+            }
+        }
+        else {
+            if (is_int64_meta(meta) || is_uint64_meta(meta))
+                kind = FN_ARR_GET_I64;
+
+            address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
+            offset = 0;
+        }
+
+        if (gen->is_lval || is_array_meta(meta) || is_struct_meta(meta)) {
+            if (offset == 0)
+                return address;
+
+            /* TODO: Need to change BinaryenBinary() to return structure */
+            return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
+        }
+
+        return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), offset, 0,
+                            meta_gen(meta), address);
 #if 0
         /* In array expression, the offset is calculated as follows:
          *
@@ -101,7 +145,6 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             offset = exp->meta.rel_offset;
         }
         else {
-#endif
             BinaryenExpressionRef index, size;
 
         ASSERT(!is_lit_exp(idx_exp));
@@ -140,6 +183,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
+#endif
     }
 
     ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
@@ -148,7 +192,51 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_cast_string(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta,
+exp_gen_cast_to_bool(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta,
+                     meta_t *to_meta)
+{
+    BinaryenOp op = 0;
+
+    switch (from_meta->type) {
+    case TYPE_BOOL:
+    case TYPE_INT8:
+    case TYPE_INT16:
+    case TYPE_INT32:
+    case TYPE_UINT8:
+    case TYPE_UINT16:
+    case TYPE_UINT32:
+        op = BinaryenEqZInt32();
+        break;
+
+    case TYPE_INT64:
+    case TYPE_UINT64:
+        op = BinaryenEqZInt64();
+        break;
+
+    case TYPE_INT128:
+    case TYPE_UINT128:
+        op = BinaryenEqZInt32();
+        value = syslib_gen(gen, FN_MPZ_SIGN, 1, value);
+        break;
+
+    case TYPE_STRING:
+        op = BinaryenEqZInt32();
+        value = syslib_gen(gen, FN_STRCMP, 2, value,
+                           i32_gen(gen, sgmt_add_str(&gen->md->sgmt, "false")));
+        break;
+
+    case TYPE_FLOAT:
+    case TYPE_DOUBLE:
+    default:
+        ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
+    }
+
+    return BinaryenSelect(gen->module, BinaryenUnary(gen->module, op, value),
+                          i32_gen(gen, 0), i32_gen(gen, 1));
+}
+
+static BinaryenExpressionRef
+exp_gen_cast_to_str(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta,
                     meta_t *to_meta)
 {
     fn_kind_t kind = FN_MAX;
@@ -188,15 +276,18 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     value = exp_gen(gen, val_exp);
 
+    if (is_bool_meta(to_meta))
+        return exp_gen_cast_to_bool(gen, value, from_meta, to_meta);
+
     if (is_string_meta(from_meta) || is_string_meta(to_meta))
-        return exp_gen_cast_string(gen, value, from_meta, to_meta);
+        return exp_gen_cast_to_str(gen, value, from_meta, to_meta);
 
     switch (from_meta->type) {
     case TYPE_INT8:
     case TYPE_INT16:
     case TYPE_INT32:
         if (is_int128_meta(to_meta) || is_uint128_meta(to_meta))
-            return syslib_call_2(gen, FN_MPZ_SET_I32, value, i32_gen(gen, true));
+            return syslib_call_2(gen, FN_MPZ_SET_I32, value, i32_gen(gen, is_signed_meta(to_meta)));
 
         if (is_float_meta(to_meta))
             op = BinaryenConvertSInt32ToFloat32();
@@ -213,7 +304,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
     case TYPE_UINT16:
     case TYPE_UINT32:
         if (is_int128_meta(to_meta) || is_uint128_meta(to_meta))
-            return syslib_call_2(gen, FN_MPZ_SET_I32, value, i32_gen(gen, false));
+            return syslib_call_2(gen, FN_MPZ_SET_I32, value, i32_gen(gen, is_signed_meta(to_meta)));
 
         if (is_float_meta(to_meta))
             op = BinaryenConvertUInt32ToFloat32();
@@ -227,7 +318,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_INT64:
         if (is_int128_meta(to_meta) || is_uint128_meta(to_meta))
-            return syslib_call_2(gen, FN_MPZ_SET_I64, value, i32_gen(gen, true));
+            return syslib_call_2(gen, FN_MPZ_SET_I64, value, i32_gen(gen, is_signed_meta(to_meta)));
 
         if (is_float_meta(to_meta))
             op = BinaryenConvertSInt64ToFloat32();
@@ -241,7 +332,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_UINT64:
         if (is_int128_meta(to_meta) || is_uint128_meta(to_meta))
-            return syslib_call_2(gen, FN_MPZ_SET_I64, value, i32_gen(gen, false));
+            return syslib_call_2(gen, FN_MPZ_SET_I64, value, i32_gen(gen, is_signed_meta(to_meta)));
 
         if (is_float_meta(to_meta))
             op = BinaryenConvertUInt64ToFloat32();
@@ -678,19 +769,26 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     /* If qualifier is a function and returns an array or a struct, "qual_exp" can be a binary
      * expression. Otherwise all are register expressions */
 
-    ASSERT1(is_reg_exp(qual_exp) || is_binary_exp(qual_exp), qual_exp->kind);
+    /*
+    ASSERT1(is_reg_exp(qual_exp) || is_binary_exp(qual_exp) || is_mem_exp(qual_exp),
+            qual_exp->kind);
+            */
 
     address = exp_gen(gen, qual_exp);
 
     if (is_fn_id(fld_id))
         return address;
 
-    if (gen->is_lval)
-        return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                              i32_gen(gen, fld_id->meta.rel_offset));
+    if (gen->is_lval || is_array_meta(meta) || is_struct_meta(meta)) {
+        if (meta->rel_offset == 0)
+            return address;
 
-    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta),
-                        fld_id->meta.rel_offset, 0, meta_gen(meta), address);
+        return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                              i32_gen(gen, meta->rel_offset));
+    }
+
+    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), meta->rel_offset,
+                        0, meta_gen(meta), address);
 }
 
 static BinaryenExpressionRef
@@ -811,17 +909,29 @@ exp_gen_global(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_reg(gen_t *gen, ast_exp_t *exp)
 {
-    return BinaryenGetLocal(gen->module, exp->u_reg.idx, meta_gen(&exp->meta));
+    return BinaryenGetLocal(gen->module, exp->meta.base_idx, meta_gen(&exp->meta));
+    /*
+    meta_t *meta = &exp->meta;
+    BinaryenExpressionRef address;
+
+    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, meta_gen(&exp->meta));
+
+    if (gen->is_lval || (!is_array_meta(meta) && !is_struct_meta(meta) && !is_object_meta(meta)))
+        return address;
+
+    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_type(meta->type),
+                        meta->rel_addr + meta->rel_offset, 0, meta_gen(meta), address);
+                        */
 }
 
 static BinaryenExpressionRef
 exp_gen_mem(gen_t *gen, ast_exp_t *exp)
 {
-    uint32_t offset = exp->u_mem.addr + exp->u_mem.offset;
+    uint32_t offset = exp->meta.rel_addr + exp->meta.rel_offset;
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
-    address = BinaryenGetLocal(gen->module, exp->u_mem.base, BinaryenTypeInt32());
+    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 
     if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
         if (offset == 0)

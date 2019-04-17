@@ -45,18 +45,18 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
         return BinaryenSetGlobal(gen->module, l_exp->u_glob.name, value);
 
     if (is_reg_exp(l_exp))
-        return BinaryenSetLocal(gen->module, l_exp->u_reg.idx, value);
+        return BinaryenSetLocal(gen->module, l_exp->meta.base_idx, value);
 
     if (is_mem_exp(l_exp)) {
-        address = BinaryenGetLocal(gen->module, l_exp->u_mem.base, BinaryenTypeInt32());
+        address = BinaryenGetLocal(gen->module, l_exp->meta.base_idx, BinaryenTypeInt32());
 
         if (is_array_meta(&l_exp->meta))
             return BinaryenStore(gen->module, sizeof(uint32_t),
-                                 l_exp->u_mem.addr + l_exp->u_mem.offset, 0, address, value,
+                                 l_exp->meta.rel_addr + l_exp->meta.rel_offset, 0, address, value,
                                  BinaryenTypeInt32());
 
         return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type),
-                             l_exp->u_mem.addr + l_exp->u_mem.offset, 0, address, value,
+                             l_exp->meta.rel_addr + l_exp->meta.rel_offset, 0, address, value,
                              meta_gen(&l_exp->meta));
     }
 

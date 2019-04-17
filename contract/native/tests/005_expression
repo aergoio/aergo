@@ -1,11 +1,12 @@
 @test(arithmetic_operator)
+@run(test.check)
 contract test {
-    int i1 = 1 + 1;
-    int i2 = 1 - 0x1;
-    int i3 = 1 * (1);
-    int i4 = (1) / 1;
-    int i5 = 1 % 1;
-    int i6 = (2 * 3) / (5 + 1) % 1;
+    int i1 = 2 + 3;
+    int i2 = 1 - 0x80;
+    int i3 = 8 * (9);
+    int i4 = i3 / 3;
+    int i5 = 33 % 12;
+    int i6 = (i4 * 3) / (5 + 1) % 5;
     int i7 = i1 + i2;
 
     int128 z1 = 1;
@@ -25,6 +26,29 @@ contract test {
     string s1 = "string" + "concat";
     string s2 = "string" + " " + "concat";
     string s3 = s1 + "->" + s2;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.i1 == 5);
+        pragma assert(t.i2 == -127);
+        pragma assert(t.i3 == 72);
+        pragma assert(t.i4 == 24);
+        pragma assert(t.i5 == 9);
+        pragma assert(t.i6 == 2);
+        pragma assert(t.i7 == -122);
+
+        pragma assert(t.z1 == 1);
+        pragma assert(t.z2 == 2);
+        pragma assert(t.z3 == 0);
+        pragma assert(t.z4 == 1);
+        pragma assert(t.z5 == 1);
+        pragma assert(t.z6 == 0);
+
+        pragma assert(t.s1 == "stringconcat");
+        pragma assert(t.s2 == "string concat");
+        pragma assert(t.s3 == "stringconcat->string concat");
+    }
 }
 
 @test(mismatched_arithmetic_type)
@@ -59,21 +83,41 @@ contract test {
 }
 
 @test(bitwise_operator)
+@run(test.check)
 contract test {
-    int i1 = (0x08 & 0x02);
-    int i2 = 0xFF ^ 0x02;
-    int i3 = i1 | i2 | 1;
+    int i1 = (0xab & 0xcd);
+    int i2 = 0xff ^ 0x02;
+    int i3 = i1 | i2 | 3;
 
     uint i4 = 1 + 1 << 1;
     int i5 = 0xff >> 1;
     int i6 = i5 >> i4;
 
-    uint128 z1 = 1;
-    uint128 z2 = 0xFF & z1;
-    uint128 z3 = 0xFF | z1;
-    uint128 z4 = 0xFF ^ z1;
+    uint128 z1 = 8;
+    uint128 z2 = 0x8012 & z1;
+    uint128 z3 = 0xaa34 | z1;
+    uint128 z4 = 0xcd56 ^ z1;
     uint128 z5 = z3 >> z1;
     uint128 z6 = z4 << z1;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.i1 == 137);
+        pragma assert(t.i2 == 253);
+        pragma assert(t.i3 == 255);
+
+        pragma assert(t.i4 == 3)
+        pragma assert(t.i5 == 127);
+        pragma assert(t.i6 == 15);
+
+        pragma assert(t.z1 == 8);
+        pragma assert(t.z2 == 0);
+        pragma assert(t.z3 == 43580);
+        pragma assert(t.z4 == 52574);
+        pragma assert(t.z5 == 170);
+        pragma assert(t.z6 == 13458944);
+    }
 }
 
 @test(negative_bitwise_operand)
@@ -83,12 +127,13 @@ contract test {
 }
 
 @test(non_integer_bitwise_operand)
-@error(ERROR_INVALID_OP_TYPE)
+//@error(ERROR_INVALID_OP_TYPE)
 contract test {
-    int i = 1.1 & 1.0;
+    //int i = 1.1 & 1.0;
 }
 
 @test(comparison_operator)
+@run(test.check)
 contract test {
     bool b1 = 1 == 1;
     bool b2 = 1 != 1;
@@ -96,24 +141,49 @@ contract test {
     bool b4 = 1 < 1;
     bool b5 = 1 >= 1;
     bool b6 = 1 <= 1;
-    bool b7 = (true == true);
+    bool b7 = (b6 == true);
 
     string s1 = "1";
     string s2 = "2";
-    bool b8 = (s1 != s2);
+    bool b8 = (s1 == "1");
+    bool b9 = (s1 != s2);
+    bool b10 = (s1 > s2);
+    bool b11 = (s1 < s2);
 
     int128 z1 = 1;
     int128 z2 = 2;
-    bool b9 = z1 == 1;
-    bool b10 = z1 != 1;
-    bool b11 = z1 < z2;
-    bool b12 = z1 > z2;
+    bool b12 = z1 == 1;
+    bool b13 = z1 != 1;
+    bool b14 = z1 < z2;
+    bool b15 = z1 > z2;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.b1 == true);
+        pragma assert(t.b2 == false);
+        pragma assert(t.b3 == false);
+        pragma assert(t.b4 == false);
+        pragma assert(t.b5 == true);
+        pragma assert(t.b6 == true);
+        pragma assert(t.b7 == true);
+
+        pragma assert(t.b8 == true);
+        pragma assert(t.b9 == true);
+        pragma assert(t.b10 == false);
+        pragma assert(t.b11 == true);
+
+        pragma assert(t.b12 == true);
+        pragma assert(t.b13 == false);
+        pragma assert(t.b14 == true);
+        pragma assert(t.b15 == false);
+    }
 }
 
 @test(mismatched_comparison_type)
-@error(ERROR_MISMATCHED_TYPE)
+//@error(ERROR_MISMATCHED_TYPE)
 contract test {
-    bool b = 1 == 1.0;
+    //bool b = 1 == 1.0;
 }
 
 @test(comparison_with_map)
@@ -130,12 +200,22 @@ contract test {
 }
 
 @test(logical_operator)
+@run(test.check)
 contract test {
     bool b1 = true && false;
     bool b2 = true || false;
 
     bool b3 = (true || false) && (true);
     bool b4 = b1 && b2;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.b1 == false);
+        pragma assert(t.b2 == true);
+        pragma assert(t.b3 == true);
+        pragma assert(t.b4 == false);
+    }
 }
 
 @test(non_boolean_operand_type)
@@ -145,6 +225,7 @@ contract test {
 }
 
 @test(unary_operator)
+@run(test.check)
 contract test {
     int i1 = 0;
     int i2 = i1++;
@@ -153,13 +234,32 @@ contract test {
     int i5 = --i1;
     int i6 = -i1;
 
-    uint128 z1 = 1;
-    uint128 z2 = z1++;
-    uint128 z3 = z1--;
-    uint128 z4 = -z1;
+    int128 z1 = 1;
+    int128 z2 = z1++;
+    int128 z3 = z1--;
+    int128 z4 = -z1;
 
     bool b1 = true;
     bool b2 = !b1;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.i1 == 0);
+        pragma assert(t.i2 == 0);
+        pragma assert(t.i3 == 2);
+        pragma assert(t.i4 == 2);
+        pragma assert(t.i5 == 0);
+        pragma assert(t.i6 == 0);
+
+        pragma assert(t.z1 == 1)
+        pragma assert(t.z2 == 1);
+        pragma assert(t.z3 == 2);
+        pragma assert(t.z4 == -1);
+
+        pragma assert(t.b1 == true);
+        pragma assert(t.b2 == false);
+    }
 }
 
 @test(invalid_unary_lvalue)
@@ -179,10 +279,19 @@ contract test {
 }
 
 @test(ternary_operator)
+@run(test.check)
 contract test {
     int i1 = true ? 1 : 0;
-    int i2 = true ? 1 : false ? 2 : 0;
+    int i2 = false ? 1 : false ? 2 : 0;
     int i3 = (1 == 1) ? 1 + 1 : 0;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.i1 == 1);
+        pragma assert(t.i2 == 0);
+        pragma assert(t.i3 == 2);
+    }
 }
 
 @test(non_boolean_prefix_type)
@@ -197,107 +306,288 @@ contract test {
     string s = 1 == 1 ? "true" : false;
 }
 
-@test(cast_from_constant)
+@test(typecast_from_constant)
+@run(test.check)
 contract test {
     bool b1 = (bool)false;
     bool b2 = (bool)1;
-    bool b3 = (bool)0.89;
+    bool b3 = (bool)-4;
     bool b4 = (bool)"1";
     bool b5 = (bool)"true";
 
     int16 i1 = (int16)8;
     int16 i2 = (int16)true;
-    int16 i3 = (int16)4.3154;
-    int16 i4 = (int16)"-0945";
+    int16 i3 = (int16)"-945";
 
     string s1 = (string)"self";
     string s2 = (string)true;
     string s3 = (string)124;
-    string s4 = (string)1.644;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.b1 == false);
+        pragma assert(t.b2 == true);
+        pragma assert(t.b3 == true);
+        pragma assert(t.b4 == true);
+        pragma assert(t.b5 == true);
+
+        pragma assert(t.i1 == 8);
+        pragma assert(t.i2 == 1);
+        pragma assert(t.i3 == -945);
+
+        pragma assert(t.s1 == "self");
+        pragma assert(t.s2 == "true");
+        pragma assert(t.s3 == "124");
+    }
 }
 
-@test(cast_from_variable)
+@test(typecast_to_bool)
+@run(test.check)
 contract test {
-    bool b1;
-    int8 i1;
-    int64 i2;
-    uint16 u1;
-    uint128 u2;
+    bool b1 = false;
+    int8 i1 = -1;
+    uint16 i2 = 0;
+    int64 i3 = 1;
+    uint128 i4 = 2;
     //float f;
     //double d;
-    string s;
+    string s = "false";
 
-    bool v11 = (bool)b1;
-    bool v12 = (bool)i1;
-    bool v13 = (bool)i2;
-    bool v14 = (bool)u1;
-    bool v15 = (bool)u2;
-    //bool v16 = (bool)f;
-    //bool v17 = (bool)d;
-    bool v18 = (bool)s;
+    bool v1 = (bool)b1;
+    bool v2 = (bool)i1;
+    bool v3 = (bool)i2;
+    bool v4 = (bool)i3;
+    bool v5 = (bool)i4;
+    //bool v6 = (bool)f;
+    //bool v7 = (bool)d;
+    bool v8 = (bool)s;
 
-    int8 v21 = (int8)b1;
-    int8 v22 = (int8)i1;
-    int8 v23 = (int8)i2;
-    int8 v24 = (int8)u1;
-    int8 v25 = (int8)u2;
-    //int8 v26 = (int8)f;
-    //int8 v27 = (int8)d;
-    int8 v28 = (int8)s;
+    public func check() {
+        test t = new test();
 
-    int64 v31 = (int64)b1;
-    int64 v32 = (int64)i1;
-    int64 v33 = (int64)i2;
-    int64 v34 = (int64)u1;
-    int64 v35 = (int64)u2;
-    //int64 v36 = (int64)f;
-    //int64 v37 = (int64)d;
-    int64 v38 = (int64)s;
+        pragma assert(t.v1 == false);
+        pragma assert(t.v2 == true);
+        pragma assert(t.v3 == false);
+        pragma assert(t.v4 == true);
+        pragma assert(t.v5 == true);
+        pragma assert(t.v8 == false);
+    }
+}
 
-    uint16 v41 = (uint16)b1;
-    uint16 v42 = (uint16)i1;
-    uint16 v43 = (uint16)i2;
-    uint16 v44 = (uint16)u1;
-    uint16 v45 = (uint16)u2;
-    //uint16 v46 = (uint16)f;
-    //uint16 v47 = (uint16)d;
-    uint16 v48 = (uint16)s;
+@test(typecast_to_int8)
+@run(test.check)
+contract test {
+    bool b1 = true;
+    int8 i1 = 98;
+    uint16 i2 = 127;
+    int64 i3 = -128;
+    uint128 i4 = 0;
+    //float f;
+    //double d;
+    string s = "17";
 
-    uint128 v51 = (uint128)b1;
-    uint128 v52 = (uint128)i1;
-    uint128 v53 = (uint128)i2;
-    uint128 v54 = (uint128)u1;
-    uint128 v55 = (uint128)u2;
-    //uint128 v56 = (uint128)f;
-    //uint128 v57 = (uint128)d;
-    uint128 v58 = (uint128)s;
+    int8 v1 = (int8)b1;
+    int8 v2 = (int8)i1;
+    int8 v3 = (int8)i2;
+    int8 v4 = (int8)i3;
+    int8 v5 = (int8)i4;
+    //int8 v6 = (int8)f;
+    //int8 v7 = (int8)d;
+    int8 v8 = (int8)s;
 
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.v1 == 1);
+        pragma assert(t.v2 == 98);
+        pragma assert(t.v3 == 127);
+        pragma assert(t.v4 == -128);
+        pragma assert(t.v5 == 0);
+        pragma assert(t.v8 == 17);
+    }
+}
+
+@test(typecast_to_uint16)
+@run(test.check)
+contract test {
+    bool b1 = false;
+    int8 i1 = -2;
+    uint16 i2 = 417;
+    int64 i3 = 0xf000;
+    uint128 i4 = 0x1234;
+    //float f;
+    //double d;
+    string s = "32000";
+
+    uint16 v1 = (uint16)b1;
+    uint16 v2 = (uint16)i1;
+    uint16 v3 = (uint16)i2;
+    uint16 v4 = (uint16)i3;
+    uint16 v5 = (uint16)i4;
+    //uint16 v6 = (uint16)f;
+    //uint16 v7 = (uint16)d;
+    uint16 v8 = (uint16)s;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.v1 == 0);
+        pragma assert(t.v2 == 65534);
+        pragma assert(t.v3 == 417);
+        pragma assert(t.v4 == 61440);
+        pragma assert(t.v5 == 4660);
+        pragma assert(t.v8 == 32000);
+    }
+}
+
+@test(typecast_to_int64)
+@run(test.check)
+contract test {
     /*
-    float v61 = (float)b1;
-    float v62 = (float)i1;
-    float v63 = (float)i2;
-    float v64 = (float)u1;
-    float v65 = (float)u2;
-    float v66 = (float)f;
-    float v67 = (float)d;
-    float v68 = (float)s;
+    bool b1 = true;
+    int8 i1 = 100;
+    uint16 i2 = 32768;
+    int64 i3 = 4294967296;
+    */
+    uint128 i4 = 0x8000000000000000;
+    /*
+    //float f;
+    //double d;
+    string s = "-9223372036854775808";
 
-    double v71 = (double)b1;
-    double v72 = (double)i1;
-    double v73 = (double)i2;
-    double v74 = (double)u1;
-    double v75 = (double)u2;
-    double v76 = (double)f;
-    double v77 = (double)d;
-    double v78 = (double)s;
+    int64 v1 = (int64)b1;
+    int64 v2 = (int64)i1;
+    int64 v3 = (int64)i2;
+    int64 v4 = (int64)i3;
+    */
+    int64 v5 = (int64)i4;
+    /*
+    //int64 v6 = (int64)f;
+    //int64 v7 = (int64)d;
+    int64 v8 = (int64)s;
     */
 
-    string v81 = (string)b1;
-    string v82 = (string)i1;
-    string v83 = (string)i2;
-    string v84 = (string)u1;
-    string v85 = (string)u2;
-    //string v86 = (string)f;
-    //string v87 = (string)d;
-    string v88 = (string)s;
+    public func check() {
+        test t = new test();
+
+        /*
+        pragma assert(t.v1 == 1);
+        pragma assert(t.v2 == 100);
+        pragma assert(t.v3 == 32768);
+        pragma assert(t.v4 == 4294967296);
+        pragma assert(t.v5 == -1, (string)t.i4);
+        pragma assert(t.v8 == -9223372036854775808);
+        */
+    }
+}
+
+@test(typecast_to_uint128)
+contract test {
+    bool b1 = 0xf;
+    int8 i1 = 0xf0;
+    uint16 i2 = 0xf00;
+    int64 i3 = 0xf000;
+    uint128 i4 = 0xf0000;
+    //float f;
+    //double d;
+    string s = "2019";
+
+    uint128 v1 = (uint128)b1;
+    uint128 v2 = (uint128)i1;
+    uint128 v3 = (uint128)i2;
+    uint128 v4 = (uint128)i3;
+    uint128 v5 = (uint128)i4;
+    //uint128 v6 = (uint128)f;
+    //uint128 v7 = (uint128)d;
+    uint128 v8 = (uint128)s;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.v1 == true);
+        pragma assert(t.v2 == true);
+        pragma assert(t.v3 == true);
+        pragma assert(t.v4 == true);
+        pragma assert(t.v5 == true);
+        pragma assert(t.v8 == true);
+    }
+}
+
+@test(typecast_to_float)
+contract test {
+    bool b1 = 0xf;
+    int8 i1 = 0xf0;
+    uint16 i2 = 0xf00;
+    int64 i3 = 0xf000;
+    uint128 i4 = 0xf0000;
+    //float f;
+    //double d;
+    string s = "2019";
+
+    /*
+    float v1 = (float)b1;
+    float v2 = (float)i1;
+    float v3 = (float)i2;
+    float v4 = (float)i3;
+    float v5 = (float)i4;
+    float v6 = (float)f;
+    float v7 = (float)d;
+    float v8 = (float)s;
+    */
+}
+
+@test(typecast_to_double)
+contract test {
+    bool b1 = 0xf;
+    int8 i1 = 0xf0;
+    uint16 i2 = 0xf00;
+    int64 i3 = 0xf000;
+    uint128 i4 = 0xf0000;
+    //float f;
+    //double d;
+    string s = "2019";
+
+    /*
+    double v1 = (double)b1;
+    double v2 = (double)i1;
+    double v3 = (double)i2;
+    double v4 = (double)i3;
+    double v5 = (double)i4;
+    double v6 = (double)f;
+    double v7 = (double)d;
+    double v8 = (double)s;
+    */
+}
+
+@test(typecast_to_string)
+contract test {
+    bool b1 = 0xf;
+    int8 i1 = 0xf0;
+    uint16 i2 = 0xf00;
+    int64 i3 = 0xf000;
+    uint128 i4 = 0xf0000;
+    //float f;
+    //double d;
+    string s = "2019";
+    
+    string v1 = (string)b1;
+    string v2 = (string)i1;
+    string v3 = (string)i2;
+    string v4 = (string)i3;
+    string v5 = (string)i4;
+    //string v6 = (string)f;
+    //string v7 = (string)d;
+    string v8 = (string)s;
+
+    public func check() {
+        test t = new test();
+
+        pragma assert(t.v1 == true);
+        pragma assert(t.v2 == true);
+        pragma assert(t.v3 == true);
+        pragma assert(t.v4 == true);
+        pragma assert(t.v5 == true);
+        pragma assert(t.v8 == true);
+    }
 }

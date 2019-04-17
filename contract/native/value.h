@@ -127,6 +127,7 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
 {
     switch (val->type) {
     case TYPE_BOOL:
+        ASSERT1((ptrdiff_t)buf % 4 == 0, buf);
         *(uint32_t *)buf = val_bool(val) ? 1 : 0;
         return sizeof(uint32_t);
 
@@ -134,10 +135,12 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
         ASSERT1(!is_int128_meta(meta) && !is_uint128_meta(meta), meta->type);
 
         if (is_int64_meta(meta) || is_uint64_meta(meta)) {
+            ASSERT1((ptrdiff_t)buf % 8 == 0, buf);
             *(uint64_t *)buf = val_i64(val);
             return sizeof(uint64_t);
         }
 
+        ASSERT1((ptrdiff_t)buf % 4 == 0, buf);
         *(uint32_t *)buf = (uint32_t)val_i64(val);
         return sizeof(uint32_t);
 

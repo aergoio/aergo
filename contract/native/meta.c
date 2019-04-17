@@ -442,7 +442,7 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
             y->arr_dim = x->arr_dim - dim;
             y->dim_sizes = &x->dim_sizes[dim];
 
-            y->size += meta_align(x);
+            y->size += sizeof(uint64_t);
         }
     }
     else {

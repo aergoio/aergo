@@ -79,6 +79,8 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
     }
     else if (is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
+        ASSERT1(is_object_meta(&exp->meta), exp->meta.type);
+
         exp_set_reg(exp, fn->cont_idx);
         meta_set_uint32(&exp->meta);
     }
@@ -97,6 +99,8 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
     exp_trans(trans, idx_exp);
 
     if (is_array_meta(&id->meta)) {
+#if 0
+        int i;
         uint32_t offset;
 
         /* In array expression, the offset is calculated as follows:
@@ -116,38 +120,21 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             /* We must dynamically determine the address and offset */
             return;
 
-#if 0
-        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&id->meta) + meta_align(&id->meta);
-
-        if (is_array_exp(id_exp)) {
-            exp->u_arr.id_exp = id_exp->u_arr.id_exp;
-
-            exp->meta.base_idx = id_exp->meta.base_idx;
-            exp->meta.rel_addr = id_exp->meta.rel_addr;
-            exp->meta.rel_offset = id_exp->meta.rel_offset + offset;
-        }
-        else if (is_mem_exp(id_exp)) {
-            exp->meta.base_idx = id_exp->u_mem.base;
-            exp->meta.rel_addr = id_exp->u_mem.addr;
-            exp->meta.rel_offset = id_exp->u_mem.offset + offset;
-        }
-        else {
-            ASSERT1(is_reg_exp(id_exp), id_exp->kind);
-
-            exp->meta.base_idx = id_exp->u_reg.idx;
-            exp->meta.rel_addr = 0;
-            exp->meta.rel_offset = offset;
-        }
-#endif
         ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
 
+        for (i = 0; i < exp->meta.arr_dim; i++) {
+            if (exp->meta.dim_sizes[i] == -1)
+                return;
+        }
+
         /* The following meta_bytes() is stripped size of array */
-        offset = val_i64(&idx_exp->u_lit.val) * meta_size(&id->meta) + meta_align(&id->meta);
+        offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) + sizeof(uint64_t);
 
         if (is_mem_exp(id_exp))
             exp_set_mem(exp, id_exp->u_mem.base, id_exp->u_mem.addr, id_exp->u_mem.offset + offset);
         else
             exp_set_mem(exp, id_exp->u_reg.idx, 0, offset);
+#endif
     }
     else {
         /* TODO
@@ -249,25 +236,31 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
     }
 
     if (is_reg_exp(qual_exp)) {
+        ASSERT1(qual_exp->meta.rel_addr == 0, qual_exp->meta.rel_addr);
+        ASSERT1(qual_exp->meta.rel_offset == 0, qual_exp->meta.rel_offset);
+
         /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global variable
          * belonging to the contract register */
-        exp_set_mem(exp, qual_exp->u_reg.idx, fld_id->meta.rel_addr, fld_id->meta.rel_offset);
+        exp_set_mem(exp, qual_exp->meta.base_idx, fld_id->meta.rel_addr, fld_id->meta.rel_offset);
     }
     else if (is_mem_exp(qual_exp)) {
         /* It can be a memroy expression when referring to a global variable directly */
-        ASSERT2(qual_exp->u_mem.offset == 0 || fld_id->meta.rel_offset == 0,
-                qual_exp->u_mem.offset, fld_id->meta.rel_offset);
+        /*
+        ASSERT2(qual_exp->meta.rel_offset == 0 || fld_id->meta.rel_offset == 0,
+                qual_exp->meta.rel_offset, fld_id->meta.rel_offset);
 
-        exp_set_mem(exp, qual_exp->u_mem.base, qual_exp->u_mem.addr,
-                    qual_exp->u_mem.offset + fld_id->meta.rel_offset);
+        if (is_struct_meta(&fld_id->meta))
+            exp_set_mem(exp, qual_exp->meta.base_idx, qual_exp->meta.rel_addr,
+                        qual_exp->meta.rel_offset + fld_id->meta.rel_offset);
+                */
+        exp->meta.rel_offset = fld_id->meta.rel_offset;
     }
-#if 0
     else {
         /* If qualifier is a function and returns an array or a struct, "qual_exp" can be a binary
          * expression (See exp_trans_call()) */
-        ASSERT1(is_binary_exp(qual_exp), qual_exp->kind);
+        //ASSERT1(is_binary_exp(qual_exp) || is_access_exp(qual_exp), qual_exp->kind);
+        exp->meta.rel_offset = fld_id->meta.rel_offset;
     }
-#endif
 }
 
 static void
@@ -415,9 +408,13 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
         }
 
         if (is_array_meta(meta)) {
+            ASSERT2((ptrdiff_t)(raw + offset) % 4 == 0, raw, offset);
             ASSERT(meta->dim_sizes[0] > 0);
 
-            memcpy(raw + offset, &meta->dim_sizes[0], sizeof(int));
+            *(int *)(raw + offset) = meta->arr_dim;
+            offset += sizeof(uint32_t);
+
+            *(int *)(raw + offset) = meta->dim_sizes[0];
             offset += sizeof(uint32_t);
         }
 
@@ -472,6 +469,15 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_mem(reg_idx, 0, offset);
                 meta_set_uint32(&l_exp->meta);
 
+                r_exp = exp_new_lit_int(meta->arr_dim - 1, &exp->pos);
+                meta_set_uint32(&r_exp->meta);
+
+                bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+                offset += sizeof(uint32_t);
+
+                l_exp = exp_new_mem(reg_idx, 0, offset);
+                meta_set_uint32(&l_exp->meta);
+
                 r_exp = exp_new_lit_int(meta->dim_sizes[0], &exp->pos);
                 meta_set_uint32(&r_exp->meta);
 
@@ -510,6 +516,46 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     }
 }
 
+static uint32_t
+exp_trans_array_header(trans_t *trans, ast_exp_t *exp, int dim_idx, uint32_t reg_idx, uint32_t addr,
+                       uint32_t offset)
+{
+    int i;
+    meta_t *meta = &exp->meta;
+    ast_exp_t *l_exp, *r_exp;
+
+    ASSERT(meta->dim_sizes[dim_idx] > 0);
+
+    /* current dimension in reverse order */
+    l_exp = exp_new_mem(reg_idx, addr, offset);
+    meta_set_uint32(&l_exp->meta);
+
+    r_exp = exp_new_lit_int(meta->max_dim - dim_idx, &exp->pos);
+    meta_set_uint32(&r_exp->meta);
+
+    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+    offset += sizeof(uint32_t);
+
+    /* the count of elements */
+    l_exp = exp_new_mem(reg_idx, addr, offset);
+    meta_set_uint32(&l_exp->meta);
+
+    r_exp = exp_new_lit_int(meta->dim_sizes[dim_idx], &exp->pos);
+    meta_set_uint32(&r_exp->meta);
+
+    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+    offset += sizeof(uint32_t);
+
+    if (dim_idx == meta->max_dim - 1)
+        return offset + ALIGN(meta_size(meta), meta_align(meta)) * meta->dim_sizes[dim_idx];
+
+    for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
+        offset = exp_trans_array_header(trans, exp, dim_idx + 1, reg_idx, addr, offset);
+    }
+
+    return offset;
+}
+
 static void
 exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 {
@@ -526,22 +572,16 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 
         bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
 
-        if (is_array_meta(meta)) {
-            ASSERT(meta->dim_sizes[0] > 0);
-
-            l_exp = exp_new_mem(reg_idx, 0, 0);
-            meta_set_uint32(&l_exp->meta);
-
-            r_exp = exp_new_lit_int(meta->dim_sizes[0], &exp->pos);
-            meta_set_uint32(&r_exp->meta);
-
-            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
-        }
+        if (is_array_meta(meta))
+            exp_trans_array_header(trans, exp, 0, reg_idx, 0, 0);
 
         exp_set_reg(exp, reg_idx);
     }
     else {
         fn_add_stack(trans->fn, meta_bytes(meta), meta);
+
+        if (is_array_meta(meta))
+            exp_trans_array_header(trans, exp, 0, meta->base_idx, meta->rel_addr, 0);
     }
 }
 

@@ -413,8 +413,8 @@ eval_fn_t eval_fntab_[OP_CF_MAX + 1] = {
     value_bit_and,
     value_bit_or,
     value_bit_xor,
-    value_shift_l,
     value_shift_r,
+    value_shift_l,
     value_neg,
     value_not,
     value_and,
@@ -478,9 +478,8 @@ value_cast_to_i128(value_t *val)
         break;
 
     case TYPE_STRING:
-        value_init_int(val);
-
         s = val_ptr(val);
+        value_init_int(val);
         if (s != NULL)
             mpz_set_str(val_mpz(val), s, 0);
         break;

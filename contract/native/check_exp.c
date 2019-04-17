@@ -189,13 +189,16 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta);
 
         if (is_lit_exp(idx_exp)) {
+            value_t *idx_val = &idx_exp->u_lit.val;
+
             ASSERT(id_meta->dim_sizes != NULL);
 
             /* The "dim_sizes[0]" can be negative if array is used as a parameter */
-            if (id_meta->dim_sizes[0] > 0 &&
-                (is_neg_val(&idx_exp->u_lit.val) ||
-                 val_i64(&idx_exp->u_lit.val) >= (uint)id_meta->dim_sizes[0]))
+            if (is_neg_val(&idx_exp->u_lit.val) || val_i64(idx_val) > INT32_MAX ||
+                (id_meta->dim_sizes[0] > 0 && val_i64(idx_val) >= (uint)id_meta->dim_sizes[0]))
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
+
+            meta_set_uint32(&idx_exp->meta);
         }
 
         /* Whenever an array element is accessed, strip it by one dimension */
@@ -614,17 +617,20 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     check->qual_id = qual_id;
 
-    if (exp_check(check, fld_exp)) {
-        if (is_lit_exp(fld_exp))
-            /* enum or contract constant */
-            exp_set_lit(exp, &fld_exp->u_lit.val);
-        else
-            exp->id = fld_exp->id;
-
-        meta_copy(&exp->meta, &fld_exp->meta);
+    if (!exp_check(check, fld_exp)) {
+        check->qual_id = NULL;
+        return false;
     }
 
     check->qual_id = NULL;
+
+    if (is_lit_exp(fld_exp))
+        /* enum or contract constant */
+        exp_set_lit(exp, &fld_exp->u_lit.val);
+    else
+        exp->id = fld_exp->id;
+
+    meta_copy(&exp->meta, &fld_exp->meta);
 
     exp->usable_lval = qual_exp->usable_lval && fld_exp->usable_lval;
 

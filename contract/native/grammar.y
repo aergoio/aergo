@@ -218,7 +218,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    ddl_stmt
 %type <stmt>    blk_stmt
 %type <stmt>    pragma_stmt
-%type <exp>     desc_opt
 %type <exp>     expression
 %type <exp>     sql_exp
 %type <sql>     sql_prefix
@@ -1030,18 +1029,20 @@ blk_stmt:
 ;
 
 pragma_stmt:
-    K_PRAGMA K_ASSERT '(' eq_exp desc_opt ')'
+    K_PRAGMA K_ASSERT '(' eq_exp ')'
     {
-        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4,
-                             xstrndup(parse->src + @$.first_offset + @3.last_col - 1,
-                                      @5.first_col - @3.last_col),
-                             $5, &@1);
-    }
-;
+        char *cond_str =
+            xstrndup(parse->src + @$.first_offset + @3.last_col - 1, @5.first_col - @3.last_col);
 
-desc_opt:
-    /* empty */         { $$ = NULL; }
-|   ',' add_exp         { $$ = $2; }
+        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, cond_str, NULL, &@1);
+    }
+|   K_PRAGMA K_ASSERT '(' eq_exp ',' add_exp ')'
+    {
+        char *cond_str =
+            xstrndup(parse->src + @$.first_offset + @3.last_col - 1, @5.first_col - @3.last_col);
+
+        $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, cond_str, $6, &@1);
+    }
 ;
 
 expression:
@@ -1374,6 +1375,7 @@ literal:
         $$ = exp_new_lit_int(0, &@$);
         mpz_set_str(val_mpz(&$$->u_lit.val), $1, 0);
     }
+/*
 |   L_FLOAT
     {
         double v;
@@ -1381,6 +1383,7 @@ literal:
         sscanf($1, "%lf", &v);
         $$ = exp_new_lit_f64(v, &@$);
     }
+*/
 |   L_STR
     {
         $$ = exp_new_lit_str($1, &@$);

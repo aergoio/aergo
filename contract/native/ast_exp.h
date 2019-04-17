@@ -153,16 +153,6 @@ typedef struct exp_global_s {
     char *name;
 } exp_global_t;
 
-typedef struct exp_reg_s {
-    uint32_t idx;
-} exp_reg_t;
-
-typedef struct exp_mem_s {
-    uint32_t base;
-    uint32_t addr;
-    uint32_t offset;
-} exp_mem_t;
-
 struct ast_exp_s {
     exp_kind_t kind;
 
@@ -182,8 +172,6 @@ struct ast_exp_s {
         exp_init_t u_init;
         exp_alloc_t u_alloc;
         exp_global_t u_glob;
-        exp_reg_t u_reg;
-        exp_mem_t u_mem;
     };
 
     ast_id_t *id;           /* referenced identifier */
@@ -216,12 +204,12 @@ ast_exp_t *exp_new_init(vector_t *elem_exps, src_pos_t *pos);
 ast_exp_t *exp_new_alloc(ast_exp_t *type_exp, src_pos_t *pos);
 
 ast_exp_t *exp_new_global(char *name);
-ast_exp_t *exp_new_reg(uint32_t idx);
-ast_exp_t *exp_new_mem(uint32_t base, uint32_t addr, uint32_t offset);
+ast_exp_t *exp_new_reg(uint32_t base_idx);
+ast_exp_t *exp_new_mem(uint32_t base_idx, uint32_t addr, uint32_t offset);
 
 void exp_set_lit(ast_exp_t *exp, value_t *val);
-void exp_set_reg(ast_exp_t *exp, uint32_t idx);
-void exp_set_mem(ast_exp_t *exp, uint32_t base, uint32_t addr, uint32_t offset);
+void exp_set_reg(ast_exp_t *exp, uint32_t base_idx);
+void exp_set_mem(ast_exp_t *exp, uint32_t base_idx, uint32_t addr, uint32_t offset);
 
 ast_exp_t *exp_clone(ast_exp_t *exp);
 
