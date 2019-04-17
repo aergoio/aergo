@@ -37,8 +37,8 @@ type WalEntry struct {
 
 func (we *WalEntry) ToBytes() ([]byte, error) {
 	var val bytes.Buffer
-	gob := gob.NewEncoder(&val)
-	if err := gob.Encode(we); err != nil {
+	enc := gob.NewEncoder(&val)
+	if err := enc.Encode(we); err != nil {
 		panic("raft entry to bytes error")
 		return nil, err
 	}
@@ -46,10 +46,17 @@ func (we *WalEntry) ToBytes() ([]byte, error) {
 	return val.Bytes(), nil
 }
 
+func (we *WalEntry) ToString() string {
+	if we == nil {
+		return "wal entry is nil"
+	}
+	return fmt.Sprintf("wal entry[type:%s, index:%d, term:%d", WalEntryType_name[we.Type], we.Index, we.Term)
+}
+
 type ChainWAL interface {
 	ChainDB
 
-	IsNew() bool
+	IsWALInited() bool
 	GetBlock(blockHash []byte) (*types.Block, error)
 	ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error)
 	WriteRaftEntry([]*WalEntry, []*types.Block) error
@@ -57,10 +64,8 @@ type ChainWAL interface {
 	GetRaftEntryLastIdx() (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
-	WriteSnapshot(snap *raftpb.Snapshot) error
+	WriteSnapshot(snap *raftpb.Snapshot, done bool) error
 	GetSnapshot() (*raftpb.Snapshot, error)
-	GetSnapshotDone() (bool, error)
-	WriteSnapshotDone() error
 }
 
 type ChainSnapshot struct {
@@ -79,8 +84,8 @@ func NewChainSnapshot(block *types.Block) *ChainSnapshot {
 func (csnap *ChainSnapshot) ToBytes() ([]byte, error) {
 	var val bytes.Buffer
 
-	gob := gob.NewEncoder(&val)
-	if err := gob.Encode(csnap); err != nil {
+	enc := gob.NewEncoder(&val)
+	if err := enc.Encode(csnap); err != nil {
 		logger.Fatal().Err(err).Msg("failed to encode chainsnap")
 		return nil, err
 	}
@@ -115,22 +120,25 @@ func DecodeChainSnapshot(data []byte) (*ChainSnapshot, error) {
 
 func ConfStateToString(conf *raftpb.ConfState) string {
 	var buf string
+
+	buf = fmt.Sprintf("node")
 	for _, node := range conf.Nodes {
-		buf = buf + fmt.Sprintf("node[%d]", node)
+		buf = buf + fmt.Sprintf("[%d]", node)
 	}
 
+	buf = buf + fmt.Sprintf("\nlearner")
 	for _, learner := range conf.Learners {
-		buf = buf + fmt.Sprintf("learner[%d]", learner)
+		buf = buf + fmt.Sprintf("[%d]", learner)
 	}
 	return buf
 }
 
 func SnapToString(snap *raftpb.Snapshot, chainSnap *ChainSnapshot) string {
 	var buf string
-	buf = buf + fmt.Sprintf("snap=[term:%d, index:%d conf:%s]", snap.Metadata.Index, snap.Metadata.Term, ConfStateToString(&snap.Metadata.ConfState))
+	buf = buf + fmt.Sprintf("snap=[index:%d term:%d conf:%s]", snap.Metadata.Index, snap.Metadata.Term, ConfStateToString(&snap.Metadata.ConfState))
 
 	if chainSnap != nil {
-		buf = buf + fmt.Sprintf(", chain=[no:%d, hash:%s]", chainSnap.No, chainSnap.Hash)
+		buf = buf + fmt.Sprintf(", chain=[no:%d hash:%s]", chainSnap.No, enc.ToString(chainSnap.Hash))
 	}
 
 	return buf

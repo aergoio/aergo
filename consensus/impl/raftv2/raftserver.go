@@ -17,13 +17,12 @@ package raftv2
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
-	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
-	"github.com/libp2p/go-libp2p-peer"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -61,8 +60,11 @@ func init() {
 }
 
 // A key-value stream backed by raft
+// A key-value stream backed by raft
 type raftServer struct {
 	*component.ComponentHub
+
+	pa p2pcommon.PeerAccessor
 
 	cluster *Cluster
 
@@ -78,7 +80,6 @@ type raftServer struct {
 	getSnapshot func() ([]byte, error)
 	lastIndex   uint64 // index of log at start
 
-	confState     raftpb.ConfState
 	snapshotIndex uint64
 	appliedIndex  uint64
 
@@ -88,7 +89,7 @@ type raftServer struct {
 	//wal         *wal.WAL
 	walDB *WalDB
 
-	snapshotter      *snap.Snapshotter
+	snapshotter      *ChainSnapshotter
 	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
 
 	snapCount uint64
@@ -108,7 +109,19 @@ type raftServer struct {
 
 	tickMS time.Duration
 
-	lastAppliedBlock *types.Block //tracking last applied block. It's initillay set at repling wal
+	confState    raftpb.ConfState
+	progress     BlockProgress
+	prevProgress BlockProgress // prev state before appling last block
+}
+
+type BlockProgress struct {
+	block *types.Block //tracking last applied block. It's initillay set at repling wal
+	index uint64
+	term  uint64
+}
+
+func (prog *BlockProgress) isEmpty() bool {
+	return prog.block == nil
 }
 
 type LeaderStatus struct {
@@ -175,6 +188,10 @@ func newRaftServer(hub *component.ComponentHub,
 	return rs
 }
 
+func (rs *raftServer) SetPeerAccessor(pa p2pcommon.PeerAccessor) {
+	rs.pa = pa
+}
+
 func (rs *raftServer) SetPromotable(val bool) {
 	defer rs.lock.Unlock()
 	rs.lock.Lock()
@@ -200,12 +217,7 @@ func (rs *raftServer) startRaft() {
 			logger.Error().Err(err).Msg("cannot create dir for snapshot")
 		}
 	}
-	rs.snapshotter = snap.New(rs.snapdir)
-	rs.snapshotterReady <- rs.snapshotter
-
-	isNew := func() bool {
-		return rs.walDB.IsNew()
-	}
+	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
 
 	if err := rs.replayWAL(); err != nil {
 		logger.Fatal().Err(err).Msg("replay wal failed for raft")
@@ -230,9 +242,17 @@ func (rs *raftServer) startRaft() {
 	}
 
 	var node raftlib.Node
-	if !isNew() {
+	last, err := rs.walDB.GetRaftEntryLastIdx()
+	if err != nil {
+		logger.Fatal().Msg("failed to get raft entry last index")
+	}
+	if last > 0 {
+		logger.Info().Msg("raft restart")
+
 		node = raftlib.RestartNode(c)
 	} else {
+		logger.Info().Msg("raft start at first time")
+
 		startPeers := rpeers
 		if rs.join {
 			startPeers = nil
@@ -251,12 +271,15 @@ func (rs *raftServer) startRaft() {
 		Raft:        rs,
 		ServerStats: stats.NewServerStats("", ""),
 		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.id, 10)),
+		Snapshotter: rs.snapshotter,
 		ErrorC:      make(chan error),
 	}
 
 	rs.transport.SetLogger(httpLogger)
 
-	rs.transport.Start()
+	if err := rs.transport.Start(); err != nil {
+		logger.Fatal().Err(err).Msg("failed to start raft http")
+	}
 	for i := range rs.peers {
 		if uint64(i+1) != rs.id {
 			rs.transport.AddPeer(etcdtypes.ID(i+1), []string{rs.peers[i]})
@@ -307,14 +330,19 @@ func (rs *raftServer) writeError(err error) {
 }
 
 // TODO timeout handling with context
-func (rs *raftServer) Propose(block *types.Block) {
+func (rs *raftServer) Propose(block *types.Block) error {
 	if data, err := marshalEntryData(block); err == nil {
 		// blocks until accepted by raft state machine
-		rs.node.Propose(context.TODO(), data)
+		if err := rs.node.Propose(context.TODO(), data); err != nil {
+			return err
+		}
+
 		logger.Debug().Int("len", len(data)).Msg("proposed data to raft node")
 	} else {
 		logger.Fatal().Err(err).Msg("poposed data is invalid")
 	}
+
+	return nil
 }
 
 func (rs *raftServer) serveChannels() {
@@ -341,7 +369,9 @@ func (rs *raftServer) serveChannels() {
 				} else {
 					confChangeCount += 1
 					cc.ID = confChangeCount
-					rs.node.ProposeConfChange(context.TODO(), cc)
+					if err := rs.node.ProposeConfChange(context.TODO(), cc); err != nil {
+						logger.Fatal().Err(err).Msg("failed to propose configure change")
+					}
 				}
 			}
 		}
@@ -360,21 +390,42 @@ func (rs *raftServer) serveChannels() {
 			// store raft entries to walDB, then publish over commit channel
 		case rd := <-rs.node.Ready():
 			if len(rd.Entries) > 0 || len(rd.CommittedEntries) > 0 || !raftlib.IsEmptyHardState(rd.HardState) {
-				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("term", rd.HardState.String()).Msg("ready to process")
+				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("hardstate", rd.HardState.String()).Msg("ready to process")
 			}
 
-			rs.walDB.SaveEntry(rd.HardState, rd.Entries)
+			if rs.IsLeader() {
+				if err := rs.processMessages(rd.Messages); err != nil {
+					logger.Fatal().Err(err).Msg("process message error")
+				}
+			}
+
+			if err := rs.walDB.SaveEntry(rd.HardState, rd.Entries); err != nil {
+				logger.Fatal().Err(err).Msg("failed to save entry to wal")
+			}
+
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
-				if err := rs.saveSnap(&rd.Snapshot); err != nil {
-					logger.Fatal().Err(err).Msg("failed to save snapshot")
-					//TODO handle sync failure , need to retry(it can be occurred when leader stops while synchronizing)
+				/*
+					if err := rs.snapshotter.syncSnap(&rd.Snapshot); err != nil {
+						logger.Fatal().Err(err).Msg("failed to save snapshot")
+					}
+					TODO check snap is ok
+				*/
+
+				if err := rs.raftStorage.ApplySnapshot(rd.Snapshot); err != nil {
+					logger.Fatal().Err(err).Msg("failed to apply snapshot")
 				}
 
-				rs.raftStorage.ApplySnapshot(rd.Snapshot)
 				rs.publishSnapshot(rd.Snapshot)
 			}
-			rs.raftStorage.Append(rd.Entries)
-			rs.transport.Send(rd.Messages)
+			if err := rs.raftStorage.Append(rd.Entries); err != nil {
+				logger.Fatal().Err(err).Msg("failed to append new entries to raft log")
+			}
+
+			if !rs.IsLeader() {
+				if err := rs.processMessages(rd.Messages); err != nil {
+					logger.Fatal().Err(err).Msg("process message error")
+				}
+			}
 			if ok := rs.publishEntries(rs.entriesToApply(rd.CommittedEntries)); !ok {
 				rs.stop()
 				return
@@ -396,6 +447,77 @@ func (rs *raftServer) serveChannels() {
 			return
 		}
 	}
+}
+
+func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
+	var err error
+	var tmpSnapMsg *snap.Message
+
+	snapMsgs := make([]*snap.Message, 0)
+
+	// reset MsgSnap to send snap.Message
+	for i, msg := range msgs {
+		if msg.Type == raftpb.MsgSnap {
+			tmpSnapMsg, err = rs.makeSnapMessage(&msg)
+			if err != nil {
+				return err
+			}
+			snapMsgs = append(snapMsgs, tmpSnapMsg)
+			rs.transport.SendSnapshot(*tmpSnapMsg)
+
+			msgs[i].To = 0
+		}
+	}
+
+	rs.transport.Send(msgs)
+	/*
+		for _, snapMsg := range snapMsgs {
+			rs.transport.SendSnapshot(*snapMsg)
+		} */
+
+	return nil
+}
+
+func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error) {
+	if msg.Type != raftpb.MsgSnap {
+		return nil, ErrNotMsgSnap
+	}
+
+	/*
+		// make snapshot with last progress of raftserver
+		snapshot, err := rs.snapshotter.createSnapshot(rs.prevProgress, rs.confState)
+		if err != nil {
+			return nil, err
+		}
+
+		msg.Snapshot = *snapshot
+	*/
+	// TODO add cluster info to snapshot.data
+
+	logger.Debug().Uint64("term", msg.Term).Uint64("index", msg.Index).Msg("new snapshot message")
+
+	// not using pipe to send snapshot
+	pr, pw := io.Pipe()
+
+	go func() {
+		buf := new(bytes.Buffer)
+		err := binary.Write(buf, binary.LittleEndian, int32(1))
+		if err != nil {
+			logger.Fatal().Err(err).Msg("raft pipe binary write err")
+		}
+
+		n, err := pw.Write(buf.Bytes())
+		if err == nil {
+			logger.Debug().Msgf("wrote database snapshot out [total bytes: %d]", n)
+		} else {
+			logger.Error().Msgf("failed to write database snapshot out [written bytes: %d]: %v", n, err)
+		}
+		if err := pw.CloseWithError(err); err != nil {
+			logger.Fatal().Err(err).Msg("raft pipe close error")
+		}
+	}()
+
+	return snap.NewMessage(*msg, pr, 4), nil
 }
 
 func (rs *raftServer) serveRaft() {
@@ -446,22 +568,7 @@ func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 		return nil, err
 	}
 
-	done, err := rs.walDB.GetSnapshotDone()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("get snapshot status")
-		return nil, err
-	}
-
-	logger.Info().Str("meta", snapshot.String()).Str("snap", chainSnap.ToString()).Msg("loaded snapshot meta")
-	if done {
-		return snapshot, nil
-	}
-
-	logger.Info().Str("meta", snapshot.String()).Str("snap", chainSnap.ToString()).Msg("need to sync with snapshot again")
-	if err := rs.requestSync(chainSnap); err != nil {
-		logger.Fatal().Err(err).Str("snap", chainSnap.ToString()).Msg("error sync snapshot")
-		return nil, err
-	}
+	logger.Info().Str("meta", consensus.SnapToString(snapshot, chainSnap)).Msg("loaded snapshot meta")
 
 	return snapshot, nil
 }
@@ -497,10 +604,23 @@ func (rs *raftServer) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 	return w
 }
 */
+func (rs *raftServer) updateBlockProgress(term uint64, index uint64, block *types.Block) {
+	if block == nil {
+		return
+	}
+
+	logger.Debug().Uint64("term", term).Uint64("index", index).Uint64("no", block.BlockNo()).Str("hash", block.ID()).Msg("set last applied block")
+
+	rs.prevProgress = rs.progress
+
+	rs.progress.term = term
+	rs.progress.index = index
+	rs.progress.block = block
+}
 
 // replayWAL replays WAL entries into the raft instance.
 func (rs *raftServer) replayWAL() error {
-	logger.Info().Uint64("raftid", rs.id).Msg("replaying WAL of member %d")
+	logger.Info().Uint64("raftid", rs.id).Msg("replaying WAL")
 
 	snapshot, err := rs.loadSnapshot()
 	if err != nil {
@@ -514,20 +634,20 @@ func (rs *raftServer) replayWAL() error {
 		return err
 	}
 
-	rs.lastAppliedBlock, err = rs.walDB.GetBestBlock()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("failed to get last applied block")
-		return err
-	}
-
 	rs.raftStorage = raftlib.NewMemoryStorage()
 	if snapshot != nil {
-		rs.raftStorage.ApplySnapshot(*snapshot)
+		if err := rs.raftStorage.ApplySnapshot(*snapshot); err != nil {
+			logger.Fatal().Err(err).Msg("failed to apply snapshot to reaply wal")
+		}
 	}
-	rs.raftStorage.SetHardState(st)
+	if err := rs.raftStorage.SetHardState(*st); err != nil {
+		logger.Fatal().Err(err).Msg("failed to set hard state to reaply wal")
+	}
 
 	// append to storage so raft starts at the right place in log
-	rs.raftStorage.Append(ents)
+	if err := rs.raftStorage.Append(ents); err != nil {
+		logger.Fatal().Err(err).Msg("failed to append entries to reaply wal")
+	}
 	// send nil once lastIndex is published so client knows commit channel is current
 	if len(ents) > 0 {
 		rs.lastIndex = ents[len(ents)-1].Index
@@ -542,23 +662,17 @@ func (rs *raftServer) replayWAL() error {
 	return nil
 }
 
-func (rs *raftServer) createSnapshot(snapshotIndex uint64) ([]byte, error) {
-	//get block of prev log
-	if rs.lastAppliedBlock == nil {
+/*
+// createSnapshot make marshalled data of chain & cluster info
+func (rs *raftServer) createSnapshot() ([]byte, error) {
+	// this snapshot is used when reboot and initialize raft log
+	if rs.prevProgress.isEmpty() {
 		logger.Fatal().Msg("last applied block is nil")
 	}
 
-	snapBlockNo := rs.lastAppliedBlock.BlockNo() - 1
-	snapBlock, err := rs.walDB.GetBlockByNo(snapBlockNo)
-	if err != nil {
-		logger.Fatal().Err(err).Uint64("no", snapBlockNo).Msg("failed to get prev of last applied block")
-	}
+	snapBlock := rs.prevProgress.block
 
-	if !bytes.Equal(snapBlock.GetHash(), rs.lastAppliedBlock.GetHeader().GetPrevBlockHash()) {
-		logger.Fatal().Err(err).Uint64("no", snapBlockNo).Str("snap", snapBlock.ID()).Str("prev of last", enc.ToString(rs.lastAppliedBlock.GetHeader().GetPrevBlockHash())).Msg("block in wal is not equal to raft")
-	}
-
-	logger.Info().Str("hash", snapBlock.ID()).Uint64("no", snapBlock.BlockNo()).Msg("create new snapshot")
+	logger.Info().Str("hash", snapBlock.ID()).Uint64("no", snapBlock.BlockNo()).Msg("create new snapshot of chain")
 
 	snap := consensus.NewChainSnapshot(snapBlock)
 	if snap == nil {
@@ -566,24 +680,40 @@ func (rs *raftServer) createSnapshot(snapshotIndex uint64) ([]byte, error) {
 	}
 
 	return snap.ToBytes()
-}
+}*/
 
 // maybeTriggerSnapshot create snapshot and make compaction for raft log storage
-// raft can not wait until last applied entry commits. so snapshot must create from rs.appliedIndex - 1
+// raft can not wait until last applied entry commits. so snapshot must create from rs.prevProgress.index
 func (rs *raftServer) maybeTriggerSnapshot() {
 	if rs.appliedIndex-rs.snapshotIndex <= rs.snapCount {
 		return
 	}
 
-	newSnapshotIndex := rs.appliedIndex - 1
+	if rs.prevProgress.index == 0 || rs.prevProgress.block == nil {
+		logger.Debug().Msg("raft need to make snapshot, but does not exist target progress")
+		return
+	}
+
+	newSnapshotIndex := rs.prevProgress.index
+
+	// make snapshot data of previous connected block
+	chainsnap, err := rs.snapshotter.createSnapshotData(rs.prevProgress.block)
+	if err != nil {
+		logger.Fatal().Msg("failed to create snapshot data from prev block")
+	}
+
+	data, err := chainsnap.ToBytes()
 
 	logger.Info().Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
-	data, err := rs.createSnapshot(newSnapshotIndex)
+
+	// snapshot.data is not used for snapshot transfer. At the time of transmission, a message is generated again with information at that time and sent.
+	snapshot, err := rs.raftStorage.CreateSnapshot(newSnapshotIndex, &rs.confState, data)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("raft getsnapshot failed")
+		logger.Fatal().Err(err).Msg("failed to create snapshot")
 	}
-	_, err = rs.raftStorage.CreateSnapshot(newSnapshotIndex, &rs.confState, data)
-	if err != nil {
+
+	// save snapshot to wal
+	if err := rs.walDB.WriteSnapshot(&snapshot, true); err != nil {
 		logger.Fatal().Err(err).Msg("raft create snapshot failed")
 	}
 
@@ -617,70 +747,6 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
 	rs.appliedIndex = snapshotToSave.Metadata.Index
 }
 
-func (rs *raftServer) saveSnap(snap *raftpb.Snapshot) error {
-	chainSnap, err := consensus.DecodeChainSnapshot(snap.Data)
-	if err != nil {
-		return err
-	}
-
-	// write snapshot log in WAL for crash recovery
-	logger.Info().Str("snap", consensus.SnapToString(snap, chainSnap)).Msg("receive snapshot from remote")
-	if err := rs.walDB.WriteSnapshot(snap); err != nil {
-		return err
-	}
-
-	// TODO	request sync for chain with snapshot.data
-	// wait to finish sync of chain
-	if err := rs.requestSync(chainSnap); err != nil {
-		logger.Fatal().Err(err).Msg("failed to sync. need to retry with other leader, try N times and shutdown")
-		return err
-	}
-
-	return nil
-}
-
-// TODO handle error case that leader stops while synchronizing
-func (rs *raftServer) requestSync(snap *consensus.ChainSnapshot) error {
-	getSyncLeader := func() (peer.ID, error) {
-		var peerID peer.ID
-		var err error
-
-		leader := rs.GetLeader()
-		if leader == HasNoLeader {
-			peerID, err = rs.cluster.getMemberPeerAddressToSync(snap.No)
-			if err != nil {
-				logger.Error().Err(err).Uint64("leader", leader).Msg("can't get peeraddress of leader")
-				return "", err
-			}
-		} else {
-			peerID, err = rs.cluster.getMemberPeerAddress(leader)
-			if err != nil {
-				logger.Error().Err(err).Uint64("leader", leader).Msg("can't get peeraddress of leader")
-				return "", err
-			}
-		}
-
-		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("target peer to sync")
-
-		return peerID, err
-	}
-
-	peerID, err := getSyncLeader()
-	if err != nil {
-		return err
-	}
-
-	if err := chain.SyncChain(rs.ComponentHub, snap.Hash, snap.No, peerID); err != nil {
-		return err
-	}
-
-	if err := rs.walDB.WriteSnapshotDone(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (rs *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
 	if len(ents) == 0 {
 		return
@@ -711,18 +777,22 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 					continue
 				}
 
-				rs.lastAppliedBlock = block
 			}
 			select {
 			case rs.commitC <- block:
 			case <-rs.stopc:
 				return false
 			}
+			rs.updateBlockProgress(ents[i].Term, ents[i].Index, block)
 
 		case raftpb.EntryConfChange:
 			var cc raftpb.ConfChange
 
-			cc.Unmarshal(ents[i].Data)
+			if err := cc.Unmarshal(ents[i].Data); err != nil {
+				logger.Fatal().Err(err).Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Msg("commit entry to change configure is corrupted")
+				continue
+			}
+
 			rs.confState = *rs.node.ApplyConfChange(cc)
 
 			logger.Debug().Int("idx", i).Str("type", raftpb.ConfChangeType_name[int32(cc.Type)]).Int("addrlen", len(cc.Context)).Msg("publish confchange entry")

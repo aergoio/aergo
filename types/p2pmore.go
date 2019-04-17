@@ -13,11 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
-// PeerAccessor is an interface for a another actor module to get info of peers
-type PeerAccessor interface {
-	GetPeerBlockInfos() []PeerBlockInfo
-}
-
 type PeerBlockInfo interface {
 	ID() peer.ID
 	State() PeerState
@@ -30,7 +25,6 @@ type LastBlockStatus struct {
 	BlockHash   []byte
 	BlockNumber uint64
 }
-
 
 // ResponseMessage contains response status
 type ResponseMessage interface {

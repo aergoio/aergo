@@ -12,14 +12,16 @@ import (
 )
 
 var (
-	ErrInvalidRaftEntry = errors.New("invalid raft entry")
-	ErrMismatchedEntry  = errors.New("mismatched entry")
+	ErrMismatchedEntry = errors.New("mismatched entry")
+	ErrNoWalEntry      = errors.New("no entry")
 )
 
 // implement ChainWAL interface
-func (cdb *ChainDB) IsNew() bool {
-	//TODO
-	return true
+func (cdb *ChainDB) IsWALInited() bool {
+	if idx, err := cdb.GetRaftEntryLastIdx(); idx > 0 && err != nil {
+		return true
+	}
+	return false
 }
 
 func (cdb *ChainDB) ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error) {
@@ -53,6 +55,8 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 		return nil, ErrInvalidHardState
 	}
 
+	logger.Info().Uint64("term", state.Term).Uint64("vote", state.Vote).Uint64("commit", state.Commit).Msg("load hard state")
+
 	return state, nil
 }
 
@@ -71,19 +75,18 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 	var lastIdx uint64
 
 	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
 	for i, entry := range ents {
 		logger.Debug().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Msg("add raft log entry")
 
 		if entry.Type == consensus.EntryBlock {
 			if err := cdb.addBlock(&dbTx, blocks[i]); err != nil {
-				dbTx.Discard()
 				panic("add block entry")
 				return err
 			}
 		}
 
 		if data, err = entry.ToBytes(); err != nil {
-			dbTx.Discard()
 			return err
 		}
 
@@ -92,6 +95,8 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 	}
 
 	// set lastindex
+	logger.Debug().Uint64("last wal entry index", lastIdx).Msg("set last wal entry")
+
 	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
 
 	dbTx.Commit()
@@ -101,6 +106,9 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	data := cdb.store.Get(getRaftEntryKey(idx))
+	if len(data) == 0 {
+		return nil, ErrNoWalEntry
+	}
 
 	var entry consensus.WalEntry
 	var b bytes.Buffer
@@ -127,6 +135,7 @@ func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 	return types.BlockNoFromBytes(lastBytes), nil
 }
 
+/*
 func encodeBool(v bool) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, v)
@@ -146,26 +155,28 @@ func decodeBool(data []byte) (bool, error) {
 
 	return val, nil
 }
+*/
 
-func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
-	data, err := proto.Marshal(snap)
+func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot, done bool) error {
+	chainSnap, err := consensus.DecodeChainSnapshot(snap.Data)
 	if err != nil {
 		return err
 	}
 
-	falseBytes, err := encodeBool(false)
+	logger.Debug().Str("snapshot", consensus.SnapToString(snap, chainSnap)).Msg("write snapshot to wal")
+	data, err := proto.Marshal(snap)
 	if err != nil {
 		return err
 	}
 
 	dbTx := cdb.store.NewTx()
 	dbTx.Set(raftSnapKey, data)
-	dbTx.Set(raftSnapStatusKey, falseBytes)
 	dbTx.Commit()
 
 	return nil
 }
 
+/*
 func (cdb *ChainDB) WriteSnapshotDone() error {
 	data, err := encodeBool(true)
 	if err != nil {
@@ -192,7 +203,7 @@ func (cdb *ChainDB) GetSnapshotDone() (bool, error) {
 
 	return val, nil
 }
-
+*/
 func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
 	data := cdb.store.Get(raftSnapKey)
 	if len(data) == 0 {

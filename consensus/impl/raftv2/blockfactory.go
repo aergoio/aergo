@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"runtime"
 	"sync"
 	"time"
@@ -99,15 +100,15 @@ func GetName() string {
 
 // GetConstructor build and returns consensus.Constructor from New function.
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
-	sdb *state.ChainStateDB) consensus.Constructor {
+	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub, cdb, sdb)
+		return New(cfg, hub, cdb, sdb, pa)
 	}
 }
 
 // New returns a BlockFactory.
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
-	sdb *state.ChainStateDB) (*BlockFactory, error) {
+	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) (*BlockFactory, error) {
 
 	bf := &BlockFactory{
 		ComponentHub:     hub,
@@ -126,6 +127,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 			logger.Error().Err(err).Msg("failed to init raft server")
 			return bf, err
 		}
+
+		bf.raftServer.SetPeerAccessor(pa)
 	}
 
 	bf.txOp = chain.NewCompTxOp(
@@ -166,7 +169,10 @@ func newRaftOperator(rs *raftServer) *RaftOperator {
 func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) {
 	rop.proposed = &Proposed{block: block, blockState: blockState}
 
-	rop.rs.Propose(block)
+	if err := rop.rs.Propose(block); err != nil {
+		logger.Error().Err(err).Msg("propose error to raft")
+		return
+	}
 
 	logger.Info().Msg("block proposed by blockfactory")
 }

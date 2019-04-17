@@ -108,15 +108,16 @@ func (cc *Cluster) addMember(id uint64, url string, peerID peer.ID) error {
 func (cc *Cluster) getMemberPeerAddress(id uint64) (peer.ID, error) {
 	member, ok := cc.Member[id]
 	if !ok {
+		logger.Debug().Uint64("id", id).Str("cluster", cc.toString()).Msg("no member")
 		return "", ErrNotExistRaftMember
 	}
 
-	logger.Debug().Uint64("rid", id).Str("peer", member.PeerID.Pretty()).Msg("raft member")
+	//logger.Debug().Uint64("rid", id).Str("peer", member.PeerID.Pretty()).Msg("raft member")
 	return member.PeerID, nil
 }
 
 // getMemberPeerAddressToSync returns peer address that has block of no for sync
-func (cc *Cluster) getMemberPeerAddressToSync(no uint64) (peer.ID, error) {
+func (cc *Cluster) getMemberPeerAddressToSync() (peer.ID, error) {
 	for _, member := range cc.Member {
 		if member.RaftID != cc.ID {
 			return member.PeerID, nil
@@ -213,7 +214,7 @@ func (cc *Cluster) toString() string {
 		bpbuf := fmt.Sprintf("{ id:%d, Url:%s, PeerID:%s }", bp.RaftID, bp.Url, bp.PeerID)
 		buf += bpbuf
 	}
-	fmt.Sprintf("]")
+	buf = buf + fmt.Sprintf("]")
 
 	return buf
 }

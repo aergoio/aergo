@@ -98,7 +98,7 @@ func (p2ps *P2P) GetNetworkTransport() p2pcommon.NetworkTransport {
 	return p2ps.nt
 }
 
-func (p2ps *P2P) GetPeerAccessor() types.PeerAccessor {
+func (p2ps *P2P) GetPeerAccessor() p2pcommon.PeerAccessor {
 	return p2ps.pm
 }
 
