@@ -183,12 +183,7 @@ func execBP(cmd *cobra.Command, args []string) {
 }
 
 func getVoteCmd(param string) string {
-	numberVote := map[string]string{
-		"numofbp":        types.VoteNumBP,
-		"gasprice":       types.VoteGasPrice,
-		"nameprice":      types.VoteNamePrice,
-		"minimumstaking": types.VoteMinStaking,
-	}
+	numberVote := map[string]string{}
 	return numberVote[election]
 }
 

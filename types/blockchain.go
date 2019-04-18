@@ -55,6 +55,9 @@ var MaxAER *big.Int
 //StakingMinimum is minimum amount for staking
 var StakingMinimum *big.Int
 
+///NamePrice is default value of creating agenda
+var AgendaPrice *big.Int
+
 ///NamePrice is default value of creating and updating name
 var NamePrice *big.Int
 
@@ -63,6 +66,7 @@ var lastIndexOfBH int
 func init() {
 	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
 	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
+	AgendaPrice, _ = new(big.Int).SetString("10000000000000000000000", 10)
 	NamePrice, _ = new(big.Int).SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
 }

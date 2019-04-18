@@ -31,12 +31,27 @@ var defaultVoteKey = []byte(types.VoteBP)[2:]
 
 func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
 	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	key := []byte(context.Call.Name)[2:]
+	var key []byte
+	var args []byte
+	var err error
+	if context.Agenda != nil {
+		key = context.Agenda.GetKey()
+		args, err = json.Marshal(context.Call.Args[2:]) //[0] is name, [1] is version
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		key = []byte(context.Call.Name)[2:]
+		args, err = json.Marshal(context.Call.Args)
+		if err != nil {
+			return nil, err
+		}
+	}
 	oldvote := context.Vote
 	staked := context.Staked
 	//update block number
 	staked.When = blockNo
-	err := setStaking(scs, sender.ID(), staked)
+	err = setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return nil, err
 	}
@@ -55,10 +70,6 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		return nil, types.ErrMustStakeBeforeVote
 	}
 	vote := &types.Vote{Amount: staked.GetAmount()}
-	args, err := json.Marshal(context.Call.Args)
-	if err != nil {
-		return nil, err
-	}
 	var candidates []byte
 	if bytes.Equal(key, defaultVoteKey) {
 		for _, v := range context.Call.Args {
@@ -98,8 +109,9 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 	account := context.Sender.ID()
 	staked := context.Staked
 	stakedAmount := new(big.Int).SetBytes(staked.Amount)
-	for _, keystr := range types.AllVotes {
-		key := []byte(keystr[2:])
+	allVotes := getAgendaHistory(scs, account)
+	allVotes = append(allVotes, []byte(types.VoteBP[2:]))
+	for _, key := range allVotes {
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {
 			return err

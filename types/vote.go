@@ -6,18 +6,17 @@ const (
 	AergoSystem     = "aergo.system"
 	AergoName       = "aergo.name"
 	AergoEnterprise = "aergo.enterprise"
-
-	MaxCandidates = 30
-
-	votePrefixLen  = 2
-	VoteBP         = "v1voteBP"
-	VoteGasPrice   = "v1voteGasPrice"
-	VoteNumBP      = "v1voteNumBP"
-	VoteNamePrice  = "v1voteNamePrice"
-	VoteMinStaking = "v1voteMinStaking"
 )
 
-//var AllVotes = [...]string{VoteBP, VoteGasPrice, VoteNumBP, VoteNamePrice, VoteMinStaking}
+const MaxCandidates = 30
+
+const CreateAgenda = "v1createAgenda"
+const VoteAgenda = "v1voteAgenda"
+const VoteBP = "v1voteBP"
+const VoteMinStaking = "v1voteMinStaking"
+
+const agendaPrefixKey = "agenda"
+
 var AllVotes = [...]string{VoteBP}
 
 func (vl VoteList) Len() int { return len(vl.Votes) }
@@ -35,6 +34,14 @@ func (vl VoteList) Less(i, j int) bool {
 }
 func (vl VoteList) Swap(i, j int) { vl.Votes[i], vl.Votes[j] = vl.Votes[j], vl.Votes[i] }
 
-func (v Vote) GetAmountBigInt() *big.Int {
+func (v *Vote) GetAmountBigInt() *big.Int {
 	return new(big.Int).SetBytes(v.Amount)
+}
+
+func (a *Proposal) GetKey() []byte {
+	return []byte(agendaPrefixKey + "\\" + a.Id)
+}
+
+func GenAgendaKey(name, version string) []byte {
+	return []byte(agendaPrefixKey + "\\" + name)
 }

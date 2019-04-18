@@ -476,38 +476,359 @@ func TestRemainStakingMinimum(t *testing.T) {
 	assert.EqualError(t, err, types.ErrMustStakeBeforeUnstake.Error(), "check error")
 }
 
-/*
-func TestValidateVoteNumpBP(t *testing.T) {
-scs,sender,receiver:=initTest(t)
+func TestAgendaExecute(t *testing.T) {
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
-	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
-	assert.NoError(t, err, "could not open contract state")
+	//balance0_5 := new(big.Int).Div(types.StakingMinimum, big.NewInt(2))
+	balance1 := types.StakingMinimum
+	//balance1_5 := new(big.Int).Add(balance1, balance0_5)
+	balance2 := new(big.Int).Mul(balance1, big.NewInt(2))
+	balance3 := new(big.Int).Mul(balance1, big.NewInt(3))
 
-	account, err := types.DecodeAddress(testSender)
-	assert.NoError(t, err, "could not decode test address")
+	sender.AddBalance(balance3)
+
+	blockNo := uint64(0)
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account: account,
-			Amount:  types.StakingMinimum.Bytes(),
-			Payload: buildStakingPayload(true),
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    balance1.Bytes(),
+			Type:      types.TxType_GOVERNANCE,
+			Payload:   []byte(`{"Name":"v1createAgenda", "Args":["numbp", "version1","1","10","2","this vote is for the number of bp",["13","23","27"]]}`),
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
-	sender.AddBalance(types.StakingMinimum)
+	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in creating agenda")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 2 after creating agenda")
+	if events[0] != nil {
+		assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	}
 
-	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 0)
-	assert.NoError(t, err, "Execute system tx failed in staking")
+	stakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  balance1.Bytes(),
+			Payload: buildStakingPayload(true),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance1, sender.Balance(), "sender.Balance() should be 1 after staking")
 
-	tx.Body.Payload = buildVotingPayloadEx(1, types.VoteBP)
-	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 1)
-	assert.NoError(t, err, "Execute system tx failed in voting")
-	tx.Body.Payload = buildVotingPayloadEx(1, types.VoteNumBP)
-	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, 2)
-	assert.NoError(t, err, "Execute system tx failed in voting")
+	blockNo++
+
+	votingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in voting agenda")
+
+	voteResult, err := getVoteResult(scs, types.GenAgendaKey("numbp", "version1"), 1)
+	assert.NoError(t, err, "get vote result")
+	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
+
+	blockNo += StakingDelay
+	unstakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  balance1.Bytes(),
+			Payload: buildStakingPayload(false),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 2 after unstaking")
+
+	voteResult, err = getVoteResult(scs, types.GenAgendaKey("numbp", "version1"), 1)
+	assert.NoError(t, err, "get vote result")
+	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
+	assert.Equal(t, 1, len(voteResult.Votes), "check result length")
 }
-*/
+
+func TestAgendaExecuteFail1(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	//balance0_5 := new(big.Int).Div(types.StakingMinimum, big.NewInt(2))
+	balance1 := types.StakingMinimum
+	//balance1_5 := new(big.Int).Add(balance1, balance0_5)
+	balance2 := new(big.Int).Mul(balance1, big.NewInt(2))
+	balance3 := new(big.Int).Mul(balance1, big.NewInt(3))
+
+	sender.AddBalance(balance3)
+
+	blockNo := uint64(0)
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    balance1.Bytes(),
+			Payload:   []byte(`{"Name":"v1createAgenda", "Args":["numbp", "version1","1","10","2","this vote is for the number of bp",["13","23","17"]]}`),
+		},
+	}
+	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in creating agenda")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 2 after creating agenda")
+	if events[0] != nil {
+		assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	}
+
+	stakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  balance1.Bytes(),
+			Payload: buildStakingPayload(true),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance1, sender.Balance(), "sender.Balance() should be 1 after staking")
+
+	invalidaVersionTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "non","13"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, invalidaVersionTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "the agenda is not created (numbp, non)")
+
+	tooEarlyTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, tooEarlyTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "the voting begins at 1")
+	blockNo += 10
+	tooManyCandiTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13","23","17"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, tooManyCandiTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "too many candidates arguments (max : 2)")
+
+	invalidCandiTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","ab"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "candidate should be in [13 23 17]")
+
+	blockNo += VotingDelay
+	tooLateTx := tooEarlyTx
+	_, err = ExecuteSystemTx(scs, tooLateTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "the voting was already done at 10")
+}
+
+func TestAgendaExecuteFail2(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	//balance0_5 := new(big.Int).Div(types.StakingMinimum, big.NewInt(2))
+	balance1 := types.StakingMinimum
+	//balance1_5 := new(big.Int).Add(balance1, balance0_5)
+	balance2 := new(big.Int).Mul(balance1, big.NewInt(2))
+	balance3 := new(big.Int).Mul(balance1, big.NewInt(3))
+
+	sender.AddBalance(balance3)
+
+	blockNo := uint64(0)
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    balance1.Bytes(),
+			Payload:   []byte(`{"Name":"v1createAgenda", "Args":["numbp", "version1","1","10","2","this vote is for the number of bp",[]]}`),
+		},
+	}
+	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in creating agenda")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 2 after creating agenda")
+	if events[0] != nil {
+		assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	}
+
+	stakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  balance1.Bytes(),
+			Payload: buildStakingPayload(true),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance1, sender.Balance(), "sender.Balance() should be 1 after staking")
+
+	invalidaVersionTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "non","13"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, invalidaVersionTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "the agenda is not created (numbp, non)")
+
+	tooEarlyTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, tooEarlyTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "the voting begins at 1")
+	blockNo += 10
+	tooManyCandiTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13","23","17"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, tooManyCandiTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "too many candidates arguments (max : 2)")
+
+	validCandiTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","ab"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "valid")
+
+	blockNo += VotingDelay
+	tooLateTx := tooEarlyTx
+	_, err = ExecuteSystemTx(scs, tooLateTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "the voting was already done at 10")
+}
+
+func TestAgendaExecute2(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	//balance0_5 := new(big.Int).Div(types.StakingMinimum, big.NewInt(2))
+	balance1 := types.StakingMinimum
+	//balance1_5 := new(big.Int).Add(balance1, balance0_5)
+	balance2 := new(big.Int).Mul(balance1, big.NewInt(2))
+	balance3 := new(big.Int).Mul(balance1, big.NewInt(3))
+
+	sender2 := getSender(t, "AmNqJN2P1MA2Uc6X5byA4mDg2iuo95ANAyWCmd3LkZe4GhJkSyr4")
+	sender3 := getSender(t, "AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7")
+	sender.AddBalance(balance3)
+	sender2.AddBalance(balance3)
+	sender3.AddBalance(balance3)
+
+	blockNo := uint64(0)
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    balance1.Bytes(),
+			Type:      types.TxType_GOVERNANCE,
+			Payload:   []byte(`{"Name":"v1createAgenda", "Args":["numbp", "version1","1","10","2","this vote is for the number of bp",["13","23","27"]]}`),
+		},
+	}
+	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in creating agenda")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 2 after creating agenda")
+	if events[0] != nil {
+		assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
+	}
+	tx.Body.Account = sender2.ID()
+	tx.Body.Payload = []byte(`{"Name":"v1createAgenda", "Args":["numbp", "version2","2","20","1","this vote is for the number of bp",["13","23","17","97"]]}`)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender2, receiver, blockNo)
+	assert.NoError(t, err, "failed in creating agenda")
+
+	stakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  balance1.Bytes(),
+			Payload: buildStakingPayload(true),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance1, sender.Balance(), "sender.Balance() should be 1 after staking")
+	stakingTx.Body.Account = sender2.ID()
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender2, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance1, sender2.Balance(), "sender.Balance() should be 1 after staking")
+	stakingTx.Body.Account = sender3.ID()
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender3, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance2, sender3.Balance(), "sender.Balance() should be 3 after staking")
+
+	blockNo++
+
+	votingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13","23"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in voting agenda")
+	votingTx.Body.Account = sender2.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13","27"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	votingTx.Body.Account = sender3.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteAgenda", "Args":["numbp", "version1","13","23"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+
+	voteResult, err := getVoteResult(scs, types.GenAgendaKey("numbp", "version1"), 3)
+	assert.NoError(t, err, "get vote result")
+	assert.Equal(t, balance3, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
+	assert.Equal(t, "13", string(voteResult.Votes[0].Candidate), "1st place")
+	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "")
+	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
+	assert.Equal(t, balance1, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "")
+	assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
+
+	blockNo += StakingDelay
+	unstakingTx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  balance1.Bytes(),
+			Payload: buildStakingPayload(false),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 2 after unstaking")
+
+	voteResult, err = getVoteResult(scs, types.GenAgendaKey("numbp", "version1"), 3)
+	assert.NoError(t, err, "get vote result")
+	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
+	assert.Equal(t, "13", string(voteResult.Votes[0].Candidate), "1st place")
+	assert.Equal(t, balance1, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "check result amount")
+	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
+	assert.Equal(t, balance1, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "check result amount")
+	assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
+}

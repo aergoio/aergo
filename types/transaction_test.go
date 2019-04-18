@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"strconv"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -88,16 +87,6 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	t.Log(string(transaction.GetTx().GetBody().Payload))
 	assert.NoError(t, err, "should success")
 
-	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestInvalidString)
-	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid, false)
-	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
-
-	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(2, TestInvalidString)
-	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid, false)
-	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "only one candidate allowed")
-
 	transaction.GetTx().GetBody().Recipient = []byte(`aergo.name`)
 	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1createName", "Args":["1"]}`)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
@@ -126,23 +115,6 @@ func buildVoteBPPayloadEx(count int, err int) []byte {
 			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 			peerid, _ := IDFromPublicKey(pub)
 			ci.Args = append(ci.Args, IDB58Encode(peerid))
-		}
-	}
-	payload, _ := json.Marshal(ci)
-	return payload
-}
-
-func buildVoteNumBPPayloadEx(count int, err int) []byte {
-	var ci CallInfo
-	ci.Name = VoteNumBP
-	candidate := 1
-	for i := 0; i < count; i++ {
-		if err == TestDuplicatePeerID {
-			ci.Args = append(ci.Args, candidate)
-		} else if err == TestInvalidString {
-			ci.Args = append(ci.Args, (i + 1))
-		} else {
-			ci.Args = append(ci.Args, strconv.Itoa(i+1))
 		}
 	}
 	payload, _ := json.Marshal(ci)
