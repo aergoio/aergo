@@ -29,6 +29,7 @@ const (
 	initial  = iota
 	running  = iota
 	stopping = iota
+	stopped  = iota
 )
 
 /**
@@ -50,7 +51,7 @@ type peerManager struct {
 
 	mutex        *sync.Mutex
 	manageNumber uint32
-	remotePeers  map[peer.ID]*remotePeerImpl
+	remotePeers  map[peer.ID]p2pcommon.RemotePeer
 	peerPool     map[peer.ID]p2pcommon.PeerMeta
 	conf         *cfg.P2PConfig
 	// peerCache is copy-on-write style
@@ -101,7 +102,7 @@ func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, i
 		designatedPeers: make(map[peer.ID]p2pcommon.PeerMeta, len(cfg.P2P.NPAddPeers)),
 		hiddenPeerSet:   make(map[peer.ID]bool, len(cfg.P2P.NPHiddenPeers)),
 
-		remotePeers: make(map[peer.ID]*remotePeerImpl, p2pConf.NPMaxPeers),
+		remotePeers: make(map[peer.ID]p2pcommon.RemotePeer, p2pConf.NPMaxPeers),
 
 		awaitPeers: make(map[peer.ID]*reconnectJob, p2pConf.NPPeerPool),
 		peerPool:   make(map[peer.ID]p2pcommon.PeerMeta, p2pConf.NPPeerPool),
@@ -125,12 +126,6 @@ func (pm *peerManager) SelfMeta() p2pcommon.PeerMeta {
 }
 func (pm *peerManager) SelfNodeID() peer.ID {
 	return pm.nt.ID()
-}
-
-func (pm *peerManager) RegisterEventListener(listener PeerEventListener) {
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
-	pm.eventListeners = append(pm.eventListeners, listener)
 }
 
 func (pm *peerManager) init() {
@@ -165,15 +160,17 @@ func (pm *peerManager) Start() error {
 		}()
 	}()
 
-	if !atomic.CompareAndSwapInt32(&pm.status, initial, running) {
-		panic("wrong internal status")
-	}
 	return nil
 }
 
 func (pm *peerManager) Stop() error {
-	if !atomic.CompareAndSwapInt32(&pm.status, running, stopping) {
+	if atomic.CompareAndSwapInt32(&pm.status, running, stopping) {
 		pm.finishChannel <- struct{}{}
+	} else {
+		// leave stopped if already stopped
+		if atomic.SwapInt32(&pm.status, stopping) == stopped {
+			atomic.StoreInt32(&pm.status, stopped)
+		}
 	}
 	return nil
 }
@@ -197,6 +194,9 @@ func (pm *peerManager) runManagePeers() {
 	initialAddrDelay := time.Second * 20
 	initialTimer := time.NewTimer(initialAddrDelay)
 	addrTicker := time.NewTicker(DiscoveryQueryInterval)
+	if !atomic.CompareAndSwapInt32(&pm.status, initial, running) {
+		panic("wrong internal status")
+	}
 MANLOOP:
 	for {
 		select {
@@ -228,7 +228,7 @@ MANLOOP:
 		}
 	}()
 	timer := time.NewTimer(time.Second * 30)
-	finishPoll := time.NewTicker(time.Second)
+	finishPoll := time.NewTicker(time.Millisecond << 6 )
 CLEANUPLOOP:
 	for {
 		select {
@@ -245,6 +245,7 @@ CLEANUPLOOP:
 			break CLEANUPLOOP
 		}
 	}
+	atomic.StoreInt32(&pm.status, stopped)
 }
 
 // addOutboundPeer try to connect and handshake to remote peer. it can be called after peermanager is inited.
@@ -393,7 +394,7 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 		pm.mutex.Unlock()
 		return false
 	}
-	if target.manageNum != peer.ManageNumber() {
+	if target.ManageNumber() != peer.ManageNumber() {
 		pm.logger.Debug().Uint32("remove_num", peer.ManageNumber()).Uint32("exist_num", target.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but already removed and other instance is on")
 		pm.mutex.Unlock()
 		return false
@@ -623,8 +624,12 @@ func (pm *peerManager) cancelAwait(id peer.ID) {
 }
 
 func (pm *peerManager) cancelAllAwait() {
+	cancelCnt := 0
 	for id, _ := range pm.awaitPeers {
 		go pm.cancelAwait(id)
+		cancelCnt++
 	}
-	<-pm.awaitDone
+	if cancelCnt > 0 {
+		<-pm.awaitDone
+	}
 }

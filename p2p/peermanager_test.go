@@ -1,26 +1,23 @@
-/*
- * @file
- * @copyright defined in aergo/LICENSE.txt
- */
 package p2p
 
 import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
-
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p-peer"
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
+	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/stretchr/testify/assert"
 )
 
 func FailTestGetPeers(t *testing.T) {
@@ -102,7 +99,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 		for _ = range target.GetPeers() {
 			cnt++
 		}
-		assert.True(t, cnt > (iterSize>>2))
+		assert.True(t, cnt > (iterSize >> 2))
 		waitChan <- 0
 	}()
 
@@ -125,7 +122,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pm := &peerManager{remotePeers: make(map[peer.ID]*remotePeerImpl)}
+			pm := &peerManager{remotePeers: make(map[peer.ID]p2pcommon.RemotePeer)}
 			for _, peer := range samplePeers {
 				pm.remotePeers[peer.ID()] = peer
 			}
@@ -179,5 +176,130 @@ func TestPeerManager_init(t *testing.T) {
 				pm.init()
 			}
 		})
+	}
+}
+
+func Test_peerManager_Stop(t *testing.T) {
+	// check if Stop is working.
+	tests := []struct {
+		name string
+
+		prevStatus int32
+
+		wantStatus      int32
+		wantSentChannel bool
+	}{
+		// never send to finish channel twice.
+		{"TInitial", initial, stopping, false},
+		{"TRunning", running, stopping, true},
+		{"TStopping", stopping, stopping, false},
+		{"TStopped", stopped, stopped, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pm := &peerManager{
+				logger:        logger,
+				finishChannel: make(chan struct{},1 ),
+			}
+
+			atomic.StoreInt32(&pm.status, tt.prevStatus)
+			pm.Stop()
+
+			if atomic.LoadInt32(&pm.status) != tt.wantStatus {
+				t.Errorf("mansger status %v, want %v ", toMStatusName(atomic.LoadInt32(&pm.status)),
+					toMStatusName(tt.wantStatus))
+			}
+			var sent bool
+			timeout := time.NewTimer(time.Millisecond<<6)
+			select {
+				case <-pm.finishChannel:
+					sent = true
+				case <-timeout.C:
+					sent = false
+			}
+			if sent != tt.wantSentChannel {
+				t.Errorf("signal sent %v, want %v ", sent, tt.wantSentChannel)
+			}
+		})
+	}
+}
+
+func Test_peerManager_StopInRun(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	// check if Stop is working.
+	tests := []struct {
+		name string
+
+		callCnt    int
+		wantStatus int32
+	}{
+		{"TStopOnce", 1, stopped},
+		{"TStopTwice", 2, stopped},
+		{"TInStopping", 3, stopped},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any()).AnyTimes()
+			mockNT.EXPECT().RemoveStreamHandler(gomock.Any()).AnyTimes()
+			pm := &peerManager{
+				logger:        logger,
+				nt:            mockNT,
+				mutex:         &sync.Mutex{},
+				awaitDone:     make(chan struct{}),
+				finishChannel: make(chan struct{}),
+			}
+			go pm.runManagePeers()
+			// wait status of pm is changed to running
+			for atomic.LoadInt32(&pm.status) != running {
+				time.Sleep(time.Millisecond)
+			}
+			// stopping will be done within one second if normal status
+			checkTimer := time.NewTimer(time.Second >> 3)
+			for i := 0; i < tt.callCnt; i++ {
+				pm.Stop()
+				time.Sleep(time.Millisecond << 6)
+			}
+			succ := false
+			failedTimeout := time.NewTimer(time.Second * 5)
+
+			// check if status changed
+		VERIFYLOOP:
+			for {
+				select {
+				case <-checkTimer.C:
+					if atomic.LoadInt32(&pm.status) == tt.wantStatus {
+						succ = true
+						break VERIFYLOOP
+					} else {
+						checkTimer.Stop()
+						checkTimer.Reset(time.Second)
+					}
+				case <-failedTimeout.C:
+					break VERIFYLOOP
+				}
+			}
+			if !succ {
+				t.Errorf("mansger status %v, want %v within %v", toMStatusName(atomic.LoadInt32(&pm.status)),
+					toMStatusName(tt.wantStatus), time.Second*5)
+			}
+		})
+	}
+}
+
+func toMStatusName(status int32) string {
+	switch status {
+	case initial:
+		return "initial"
+	case running:
+		return "running"
+	case stopping:
+		return "stopping"
+	case stopped:
+		return "stopped"
+	default:
+		return "(invalid)" + strconv.Itoa(int(status))
 	}
 }
