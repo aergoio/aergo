@@ -208,6 +208,8 @@ func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *typ
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
+	bakupService := stateSet.service
+	stateSet.service = -1
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
 	if cErrMsg := C.vm_loadbuff(
@@ -222,6 +224,7 @@ func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *typ
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("failed to load code")
 		return ce
 	}
+	stateSet.service = bakupService
 
 	if isCreate == false {
 		C.vm_remove_constructor(ce.L)
@@ -254,6 +257,7 @@ func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *typ
 		}
 		C.vm_get_constructor(ce.L)
 		if C.vm_isnil(ce.L, C.int(-1)) == 1 {
+			ce.close()
 			return nil
 		}
 		ce.numArgs = C.int(len(ci.Args))
@@ -628,7 +632,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 	if contractCode == nil {
 		contractCode = getContract(contractState, nil)
-		if contractCode != nil {
+		if contractCode != nil && bs != nil {
 			bs.CodeMap[contractAid] = contractCode
 		}
 	}
@@ -877,6 +881,10 @@ func (re *recoveryEntry) recovery() error {
 	}
 	if re.senderState != nil {
 		re.senderState.Nonce = re.senderNonce
+	}
+
+	if callState == nil {
+		return nil
 	}
 	if re.stateRevision != -1 {
 		err := callState.ctrState.Rollback(re.stateRevision)

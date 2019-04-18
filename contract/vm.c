@@ -54,6 +54,8 @@ const int *getLuaExecContext(lua_State *L)
 	lua_getglobal(L, luaExecContext);
 	service = (int *)lua_touserdata(L, -1);
 	lua_pop(L, 1);
+	if (*service == -1)
+	    luaL_error(L, "not permitted state referencing at global scope");
 
 	return service;
 }
