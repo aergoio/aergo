@@ -85,7 +85,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     }
 
     l_exp = exp_new_reg(fn->heap_idx);
-    meta_set_uint32(&l_exp->meta);
+    meta_set_int32(&l_exp->meta);
 
     r_exp = syslib_new_malloc(trans, fn->heap_usage, &id->pos);
 
@@ -113,10 +113,10 @@ set_stack_addr(ir_fn_t *fn, ast_id_t *id)
     stk_exp = exp_new_global("stack_top");
 
     reg_exp = exp_new_reg(fn->stack_idx);
-    meta_set_uint32(&reg_exp->meta);
+    meta_set_int32(&reg_exp->meta);
 
     val_exp = exp_new_lit_int(fn->stack_usage, pos);
-    meta_set_uint32(&val_exp->meta);
+    meta_set_int32(&val_exp->meta);
 
     bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
 
@@ -150,7 +150,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
     fn = fn_new(id);
 
-    meta_set_uint32(&addr_meta);
+    meta_set_int32(&addr_meta);
 
     /* All heap variables access memory by adding relative offset to this register */
     fn->heap_idx = fn_add_register(fn, &addr_meta);
@@ -194,7 +194,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 
         if (is_ctor_id(id)) {
             arg_exp = exp_new_reg(fn->cont_idx);
-            meta_set_uint32(&arg_exp->meta);
+            meta_set_int32(&arg_exp->meta);
         }
         else {
             arg_exp = exp_new_reg(fn->ret_idx);

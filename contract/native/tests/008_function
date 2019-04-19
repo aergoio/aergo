@@ -114,7 +114,7 @@ contract test {
 @test(return_array)
 contract test {
     func f1() int[2] { return new int[2]; }
-    func f2() uint16[2] { return new { 0, 32768 }; }
+    func f2() int16[2] { return new { 0, 32767 }; }
     //func f3() float[] { return new float[3]; }
     //func f4() double[] { return new { -29.2134 }; }
     func f5() string[][] { return new string[3][2]; }
@@ -123,7 +123,7 @@ contract test {
         int i[] = f1();
         i[0] = -87;
 
-        uint16 j[] = f2();
+        int16 j[] = f2();
         j[1] = 1027;
 
         /*
@@ -208,12 +208,12 @@ contract test {
     }
 
     //func f1(int x) int, double { return x + 1, (double)x; }
-    func f1(int x) uint { return (uint)x + 1; }
+    func f1(int16 x) int { return (int)x + 1; }
     //func f2(int x) double { return (double)x * 2.0; }
     func f3(int x, string y) s { return new { x, y }; }
 
     test() {
-        uint i;
+        int i;
         i = f1(9);
         //double d;
         //d = f2(-5);

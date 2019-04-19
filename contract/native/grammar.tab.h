@@ -128,14 +128,8 @@ extern int yydebug;
     K_TABLE = 333,
     K_TRUE = 334,
     K_TYPE = 335,
-    K_UINT = 336,
-    K_UINT8 = 337,
-    K_UINT16 = 338,
-    K_UINT32 = 339,
-    K_UINT64 = 340,
-    K_UINT128 = 341,
-    K_UPDATE = 342,
-    K_VIEW = 343
+    K_UPDATE = 336,
+    K_VIEW = 337
   };
 #endif
 
@@ -144,7 +138,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 154 "grammar.y" /* yacc.c:1921  */
+#line 148 "grammar.y" /* yacc.c:1921  */
 
     bool flag;
     char *str;
@@ -161,7 +155,7 @@ union YYSTYPE
     ast_stmt_t *stmt;
     meta_t *meta;
 
-#line 165 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1921  */
+#line 159 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1921  */
 };
 
 typedef union YYSTYPE YYSTYPE;

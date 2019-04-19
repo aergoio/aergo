@@ -12,16 +12,13 @@
 char *type_names_[TYPE_MAX] = {
     "undefined",
     "bool",
+    "byte",
     "int8",
-    "uint8",
     "int16",
-    "uint16",
     "int32",
-    "uint32",
     "int64",
-    "uint64",
     "int128",
-    "uint128",
+    "int256",
     "float",
     "double",
     "string",
@@ -43,16 +40,13 @@ char *type_names_[TYPE_MAX] = {
 int type_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     I32,                /* TYPE_BOOL */
+    I32,                /* TYPE_BYTE */
     I32,                /* TYPE_INT8 */
-    I32,                /* TYPE_UINT8 */
     I32,                /* TYPE_INT16 */
-    I32,                /* TYPE_UINT16 */
     I32,                /* TYPE_INT32 */
-    I32,                /* TYPE_UINT32 */
     I64,                /* TYPE_INT64 */
-    I64,                /* TYPE_UINT64 */
     ADDR,               /* TYPE_INT128 */
-    ADDR,               /* TYPE_UINT128 */
+    ADDR,               /* TYPE_INT256 */
     F32,                /* TYPE_FLOAT */
     F64,                /* TYPE_DOUBLE */
     ADDR,               /* TYPE_STRING */
@@ -68,14 +62,11 @@ int type_sizes_[TYPE_MAX] = {
 int type_bytes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     sizeof(bool),
-    sizeof(int8_t),
     sizeof(uint8_t),
+    sizeof(int8_t),
     sizeof(int16_t),
-    sizeof(uint16_t),
     sizeof(int32_t),
-    sizeof(uint32_t),
     sizeof(int64_t),
-    sizeof(uint64_t),
     sizeof(uint32_t),
     sizeof(uint32_t),
     sizeof(float),

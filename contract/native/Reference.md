@@ -192,10 +192,9 @@ select      update
 
 ```
 Type identifiers
-------------------------------------------------------
+------------------------------------------------------------------
 bool        byte
-int         int8        int16       int32       int64
-uint        uint8       uint16      uint32      uint64
+int         int8        int16       int32       int64       int128
 float       double
 string
 map
@@ -269,7 +268,6 @@ ASCL에서는 다음과 같은 타입을 지원한다.
 <pre>
 <a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
 <a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "int128"
-                 "uint" | "uint8" | "uint16" | "uint32" | "uint64" | "uint128"
                  "float" | "double" | "string" | "account" | "cursor" ;
 <a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
@@ -290,17 +288,12 @@ numeric type은 integer 타입과 floating-point 타입, 일부 타입의 alias�
 ```
 Type      Description                Value range
 --------  -------------------------  ------------------------------------------
+byte      8-bit unsigned integer     0 ~ 255
 int8      8-bit signed integer       -128 ~ 127
 int16     16-bit signed integer      -32768 ~ 32767
 int32     32-bit signed integer      -2147483648 ~ 2147483647
 int64     64-bit signed integer      -9223372036854775808 ~ 9223372036854775807
 int128    128-bit signed integer     -2^127 ~ (2^127 - 1)
-
-uint8     8-bit unsigned integer     0 ~ 255
-uint16    16-bit unsigned integer    0 ~ 65535
-uint32    32-bit unsigned integer    0 ~ 4294967295
-uint64    64-bit unsigned integer    0 ~ 18446744073709551615
-uint128   128-bit unsigned integer   0 ~ (2^128 - 1)
 ```
 
 ```
@@ -313,14 +306,11 @@ double    IEEE-754 64-bit floating-point numbers
 ```
 Type      Description
 --------  ----------------
-byte      alias for uint8
 int       alias for int32
-uint      alias for uint32
 ```
 
 ```
 int8 i = 0;
-uint32 j = 123;
 float f = 3.141592;
 ```
 
@@ -449,9 +439,9 @@ float f = i;        // raise error
 
 ```
 Constant  Comparable types
---------  -------------------------------------------------------------------------------
+--------  ---------------------------------------
 booleans  bool
-integers  byte, int8, int16, int32, int64, int128, uint8, uint16, uint32, uint64, uint128
+integers  byte, int8, int16, int32, int64, int128
 floats    float, double
 strings   string
 ```
@@ -897,7 +887,7 @@ allocator expression은 array나 struct, map의 메모리 공간을 할당할 �
 
 ```
 int levels[2] = new int[2];
-uint64 classes[] = new uint64[3];
+int64 classes[] = new int64[3];
 double areas[][] = new double[4][5];
 ```
 
@@ -905,7 +895,7 @@ double areas[][] = new double[4][5];
 
 ```
 type Game struct {
-    uint8 category;
+    int8 category;
     string name;
 }
 Game lol = new Game;

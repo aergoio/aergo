@@ -23,8 +23,8 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         meta_set_bool(&exp->meta);
         break;
 
-    case TYPE_UINT128:
-        meta_set_uint128(&exp->meta);
+    case TYPE_INT128:
+        meta_set_int128(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
 
@@ -198,7 +198,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
                 (id_meta->dim_sizes[0] > 0 && val_i64(idx_val) >= (uint)id_meta->dim_sizes[0]))
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
 
-            meta_set_uint32(&idx_exp->meta);
+            meta_set_int32(&idx_exp->meta);
         }
 
         /* Whenever an array element is accessed, strip it by one dimension */
@@ -384,8 +384,7 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
 
     case OP_RSHIFT:
     case OP_LSHIFT:
-        if (!is_unsigned_meta(r_meta) ||
-            (is_lit_exp(r_exp) && is_neg_val(&r_exp->u_lit.val)))
+        if (is_lit_exp(r_exp) && is_neg_val(&r_exp->u_lit.val))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 

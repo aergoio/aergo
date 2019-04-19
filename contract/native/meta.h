@@ -10,16 +10,13 @@
 
 #define is_none_type(type)          ((type) == TYPE_NONE)
 #define is_bool_type(type)          ((type) == TYPE_BOOL)
+#define is_byte_type(type)          ((type) == TYPE_BYTE)
 #define is_int8_type(type)          ((type) == TYPE_INT8)
-#define is_uint8_type(type)         ((type) == TYPE_UINT8)
 #define is_int16_type(type)         ((type) == TYPE_INT16)
-#define is_uint16_type(type)        ((type) == TYPE_UINT16)
 #define is_int32_type(type)         ((type) == TYPE_INT32)
-#define is_uint32_type(type)        ((type) == TYPE_UINT32)
 #define is_int64_type(type)         ((type) == TYPE_INT64)
-#define is_uint64_type(type)        ((type) == TYPE_UINT64)
 #define is_int128_type(type)        ((type) == TYPE_INT128)
-#define is_uint128_type(type)       ((type) == TYPE_UINT128)
+#define is_int256_type(type)        ((type) == TYPE_INT256)
 #define is_float_type(type)         ((type) == TYPE_FLOAT)
 #define is_double_type(type)        ((type) == TYPE_DOUBLE)
 #define is_string_type(type)        ((type) == TYPE_STRING)
@@ -30,25 +27,15 @@
 #define is_void_type(type)          ((type) == TYPE_VOID)
 #define is_tuple_type(type)         ((type) == TYPE_TUPLE)
 
-#define is_signed_type(type)                                                                       \
-    (is_int8_type(type) || is_int16_type(type) || is_int32_type(type) ||                           \
-     is_int64_type(type) || is_int128_type(type))
-#define is_unsigned_type(type)                                                                     \
-    (is_uint8_type(type) || is_uint16_type(type) || is_uint32_type(type) ||                        \
-     is_uint64_type(type) || is_uint128_type(type))
-
 #define is_none_meta(meta)          is_none_type((meta)->type)
 #define is_bool_meta(meta)          is_bool_type((meta)->type)
+#define is_byte_meta(meta)          is_byte_type((meta)->type)
 #define is_int8_meta(meta)          is_int8_type((meta)->type)
-#define is_uint8_meta(meta)         is_uint8_type((meta)->type)
 #define is_int16_meta(meta)         is_int16_type((meta)->type)
-#define is_uint16_meta(meta)        is_uint16_type((meta)->type)
 #define is_int32_meta(meta)         is_int32_type((meta)->type)
-#define is_uint32_meta(meta)        is_uint32_type((meta)->type)
 #define is_int64_meta(meta)         is_int64_type((meta)->type)
-#define is_uint64_meta(meta)        is_uint64_type((meta)->type)
 #define is_int128_meta(meta)        is_int128_type((meta)->type)
-#define is_uint128_meta(meta)       is_uint128_type((meta)->type)
+#define is_int256_meta(meta)        is_int256_type((meta)->type)
 #define is_float_meta(meta)         is_float_type((meta)->type)
 #define is_double_meta(meta)        is_double_type((meta)->type)
 #define is_string_meta(meta)        is_string_type((meta)->type)
@@ -59,10 +46,12 @@
 #define is_void_meta(meta)          is_void_type((meta)->type)
 #define is_tuple_meta(meta)         is_tuple_type((meta)->type)
 
-#define is_signed_meta(meta)        is_signed_type((meta)->type)
-#define is_unsigned_meta(meta)      is_unsigned_type((meta)->type)
+#define is_unsigned_meta(meta)      (is_bool_meta(meta) || is_byte_meta(meta))
+#define is_signed_meta(meta)        (!is_unsigned_meta(meta))
 
-#define is_integer_meta(meta)       (is_signed_meta(meta) || is_unsigned_meta(meta))
+#define is_integer_meta(meta)                                                                      \
+    (is_byte_meta(meta) || is_int8_meta(meta) || is_int16_meta(meta) || is_int32_meta(meta) ||     \
+     is_int64_meta(meta) || is_int128_meta(meta) || is_int256_meta(meta))
 #define is_fpoint_meta(meta)        (is_float_meta(meta) || is_double_meta(meta))
 #define is_numeric_meta(meta)       (is_integer_meta(meta) || is_fpoint_meta(meta))
 
@@ -80,16 +69,13 @@
 #define is_undef_meta(meta)         (meta)->is_undef
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
+#define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
 #define meta_set_int8(meta)         meta_set((meta), TYPE_INT8)
-#define meta_set_uint8(meta)        meta_set((meta), TYPE_UINT8)
 #define meta_set_int16(meta)        meta_set((meta), TYPE_INT16)
-#define meta_set_uint16(meta)       meta_set((meta), TYPE_UINT16)
 #define meta_set_int32(meta)        meta_set((meta), TYPE_INT32)
-#define meta_set_uint32(meta)       meta_set((meta), TYPE_UINT32)
 #define meta_set_int64(meta)        meta_set((meta), TYPE_INT64)
-#define meta_set_uint64(meta)       meta_set((meta), TYPE_UINT64)
 #define meta_set_int128(meta)       meta_set((meta), TYPE_INT128)
-#define meta_set_uint128(meta)      meta_set((meta), TYPE_UINT128)
+#define meta_set_int256(meta)       meta_set((meta), TYPE_INT256)
 #define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
 #define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
 #define meta_set_string(meta)       meta_set((meta), TYPE_STRING)

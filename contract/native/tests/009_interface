@@ -48,7 +48,7 @@ interface spec {
     //func f3(int16 x) float;
 }
 contract test implements spec {
-    func f2(uint16 x) { }
+    func f2(int16 x) { }
     //func f3(int16 x) double { return 1.0; }
 }
 
@@ -122,15 +122,15 @@ contract main {
 @test(inaccessble_function)
 @error(ERROR_UNDEFINED_ID)
 interface spec {
-    public func f1() uint16;
+    public func f1() int16;
 }
 contract test implements spec {
-    public func f1() uint16 { return 32768; }
+    public func f1() int16 { return 32768; }
     public func f2() string { return "aergo"; }
     //public func f2() int8, string { return 16, "aergo"; }
 }
 contract main {
-    uint16 i;
+    int16 i;
 
     main() {
         string s;

@@ -30,7 +30,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     switch (val->type) {
     case TYPE_BOOL:
-    case TYPE_UINT128:
+    case TYPE_INT128:
     case TYPE_DOUBLE:
         break;
 
@@ -38,7 +38,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         /* Since val_set_int() is a macro, do not combine the two lines below. */
         addr = sgmt_add_str(&md->sgmt, val_ptr(val));
         value_set_int(val, addr);
-        meta_set_uint32(meta);
+        meta_set_int32(meta);
         break;
 
     case TYPE_OBJECT:
@@ -50,7 +50,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
             addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
             value_set_int(val, addr);
         }
-        meta_set_uint32(meta);
+        meta_set_int32(meta);
         break;
 
     default:
@@ -82,7 +82,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
         ASSERT1(is_object_meta(&exp->meta), exp->meta.type);
 
         exp_set_reg(exp, fn->cont_idx);
-        meta_set_uint32(&exp->meta);
+        meta_set_int32(&exp->meta);
     }
 }
 
@@ -306,7 +306,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         /* If the expression is of type "x()", pass my first parameter as the first argument. */
         param_exp = exp_new_reg(0);
-        meta_set_uint32(&param_exp->meta);
+        meta_set_int32(&param_exp->meta);
 
         vector_add_first(exp->u_call.param_exps, param_exp);
     }
@@ -337,7 +337,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 mem_idx = fn_add_register(trans->fn, meta);
 
                 l_exp = exp_new_reg(mem_idx);
-                meta_set_uint32(&l_exp->meta);
+                meta_set_int32(&l_exp->meta);
 
                 r_exp = syslib_new_malloc(trans, size, &exp->pos);
 
@@ -352,10 +352,10 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
                 mem_idx = meta->base_idx;
 
                 l_exp = exp_new_reg(mem_idx);
-                meta_set_uint32(&l_exp->meta);
+                meta_set_int32(&l_exp->meta);
 
                 r_exp = exp_new_lit_int(meta->rel_addr, &exp->pos);
-                meta_set_uint32(&r_exp->meta);
+                meta_set_int32(&r_exp->meta);
 
                 addr_exp = exp_new_binary(OP_ADD, l_exp, r_exp, &exp->pos);
 
@@ -454,7 +454,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
                 reg_idx = fn_add_register(trans->fn, meta);
 
                 l_exp = exp_new_reg(reg_idx);
-                meta_set_uint32(&l_exp->meta);
+                meta_set_int32(&l_exp->meta);
 
                 r_exp = syslib_new_malloc(trans, meta_bytes(meta), &exp->pos);
 
@@ -467,19 +467,19 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
                 ASSERT(meta->dim_sizes[0] > 0);
 
                 l_exp = exp_new_mem(reg_idx, 0, offset);
-                meta_set_uint32(&l_exp->meta);
+                meta_set_int32(&l_exp->meta);
 
                 r_exp = exp_new_lit_int(meta->arr_dim - 1, &exp->pos);
-                meta_set_uint32(&r_exp->meta);
+                meta_set_int32(&r_exp->meta);
 
                 bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
                 offset += sizeof(uint32_t);
 
                 l_exp = exp_new_mem(reg_idx, 0, offset);
-                meta_set_uint32(&l_exp->meta);
+                meta_set_int32(&l_exp->meta);
 
                 r_exp = exp_new_lit_int(meta->dim_sizes[0], &exp->pos);
-                meta_set_uint32(&r_exp->meta);
+                meta_set_int32(&r_exp->meta);
 
                 bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
                 offset += sizeof(uint32_t);
@@ -528,20 +528,20 @@ exp_trans_array_header(trans_t *trans, ast_exp_t *exp, int dim_idx, uint32_t reg
 
     /* current dimension in reverse order */
     l_exp = exp_new_mem(reg_idx, addr, offset);
-    meta_set_uint32(&l_exp->meta);
+    meta_set_int32(&l_exp->meta);
 
     r_exp = exp_new_lit_int(meta->max_dim - dim_idx, &exp->pos);
-    meta_set_uint32(&r_exp->meta);
+    meta_set_int32(&r_exp->meta);
 
     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
     offset += sizeof(uint32_t);
 
     /* the count of elements */
     l_exp = exp_new_mem(reg_idx, addr, offset);
-    meta_set_uint32(&l_exp->meta);
+    meta_set_int32(&l_exp->meta);
 
     r_exp = exp_new_lit_int(meta->dim_sizes[dim_idx], &exp->pos);
-    meta_set_uint32(&r_exp->meta);
+    meta_set_int32(&r_exp->meta);
 
     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
     offset += sizeof(uint32_t);
@@ -566,7 +566,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
         ast_exp_t *l_exp, *r_exp;
 
         l_exp = exp_new_reg(reg_idx);
-        meta_set_uint32(&l_exp->meta);
+        meta_set_int32(&l_exp->meta);
 
         r_exp = syslib_new_malloc(trans, meta_bytes(meta), &exp->pos);
 

@@ -1,24 +1,18 @@
 @test(primitive_type)
 contract test {
     int8 v1;
-    uint8 v2;
-    int16 v3;
-    uint16 v4;
-    int32 v5;
-    uint32 v6;
-    int64 v7;
-    uint64 v8;
-    int128 v9;
-    uint128 v10;
-    int v11;
-    uint v12;
+    int16 v2;
+    int32 v3;
+    int64 v4;
+    int128 v5;
+    int v6;
 
-    //float v11;
-    //double v12;
-    bool v13;
-    byte v14;
-    string v15;
-    int v16, v17;
+    //float v7;
+    //double v8;
+    bool v9;
+    byte v10;
+    string v11;
+    int v12, v13;
 }
 
 @test(invalid_declaration)
@@ -252,24 +246,20 @@ contract test {
     map(int16, int16) m3;
     map(int32, int32) m4;
     map(int64, int64) m5;
-    map(uint8, uint8) m6;
-    map(uint16, uint16) m7;
-    map(uint32, uint32) m8;
-    map(uint64, uint64) m9;
-    //map(float, float) m10;
-    //map(double, double) m11;
-    map(bool, bool) m12;
-    map(byte, byte) m13;
-    map(string, string) m14;
-    map(int, int) m15, m16;
+    //map(float, float) m6;
+    //map(double, double) m7;
+    map(bool, bool) m8;
+    map(byte, byte) m9;
+    map(string, string) m10;
+    map(int, int) m11, m12;
 
     type x struct {
         int a;
     }
-    map(int, x) m17;
-    map(int, map(string, string)) m18;
-    map(x, x) m19;
-    map(x, map(string, string)) m20;
+    map(int, x) m13;
+    map(int, map(string, string)) m14;
+    map(x, x) m15;
+    map(x, map(string, string)) m16;
 }
 
 @test(map_array)

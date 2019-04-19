@@ -1,26 +1,40 @@
 @test(assignment)
+@run(test.test)
 contract test {
     int i1;
     string s1;
     test() {
         i1 = 1;
+        pragma assert(i1 == 1);
         i1 += 1;
+        pragma assert(i1 == 2);
         i1 -= 1;
+        pragma assert(i1 == 1);
         i1 *= 1 + 1;
+        pragma assert(i1 == 2);
         i1 /= 2;
+        pragma assert(i1 == 1);
         i1 %= 10;
+        pragma assert(i1 == 1);
 
         int i2;
         i2 = i1;
+        pragma assert(i2 == 1);
         i2 |= 0xff;
+        pragma assert(i2 == 0xff);
         i2 &= 0x01;
+        pragma assert(i2 == 1);
         i2 ^= 0x01;
+        pragma assert(i2 == 0);
 
         s1 = "first";
+        pragma assert(s1 == "first");
         s1 += ", second";
+        pragma assert(s1 == "first, second");
 
         string s2;
         s2 = s1;
+        pragma assert(s2 == "first, second");
     }
 }
 
@@ -43,38 +57,61 @@ contract test {
     int i;
     string s;
     test() {
-        i, s = 1, 2.0;
+        i, s = 1, 2;
     }
 }
 
 @test(array_assignment)
+@run(test.test)
 contract test {
     int i[2][3];
     test() {
         i[0][0] = 17;
+        /*
+        pragma assert(i[0][0] == 17);
         i[1][0] = 10;
+        pragma assert(i[1][0] == 10);
+        */
 
         int j[5] = new { 1, 2, 3, 4, 5 };
         j[0] = 0;
+        /*
+        pragma assert(j[0] == 0);
         j[0] += 1;
+        pragma assert(j[0] == 1, (string)j[0]);
         j[0]++;
+        pragma assert(j[0] == 2);
 
         int idx = 1;
         j[idx] = j[0];
+        pragma assert(j[1] == 2, (string)j[1]);
         j[idx]--;
+        pragma assert(j[1] == 1);
 
         j[idx + 1] = j[0] + j[idx];
+        pragma assert(j[2] == 3);
         j[idx + 2] = 7;
+        pragma assert(j[3] == 7);
 
-        uint64 k[3][2] = new { { 1, 2 }, { 3, 4 }, { 5, 6 } };
+        int64 k[3][2] = new { { 1, 2 }, { 3, 4 }, { 5, 6 } };
         k[0][1] = 7;
+        pragma assert(k[0][1] == 7);
         k[1][0] = 8;
+        pragma assert(k[1][0] == 8);
         k[2][1] = 9;
+        pragma assert(k[2][1] == 9);
         k[idx][idx - 1] = 10;
+        pragma assert(k[1][0] == 10);
         k[2][idx] = 11;
+        pragma assert(k[2][1] == 11);
 
         int l[][] = i;
         int m[] = i[1];
+        pragma assert(m.size == 3);
+        pragma assert(m[0] == 10);
+        pragma assert(m[1] == 0);
+        pragma assert(m[2] == 0);
+        */
     }
 }
 
@@ -275,7 +312,7 @@ contract test {
     enum e { a }
     test() {
         byte b = e.a;
-        uint8 i1 = e.a;
+        int8 i1 = e.a;
         int32 i2 = e.a;
         int64 i3 = e.a;
     }

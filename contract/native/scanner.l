@@ -262,12 +262,6 @@ id                          {L}({L}|{D})*
 "switch"                    yy_return(K_SWITCH);
 "true"                      yy_return(K_TRUE);
 "type"                      yy_return(K_TYPE);
-"uint"                      yy_return(K_UINT);
-"uint8"                     yy_return(K_UINT8);
-"uint16"                    yy_return(K_UINT16);
-"uint32"                    yy_return(K_UINT32);
-"uint64"                    yy_return(K_UINT64);
-"uint128"                   yy_return(K_UINT128);
 
 {alter}                     yy_return(K_ALTER);
 {create}                    yy_return(K_CREATE);

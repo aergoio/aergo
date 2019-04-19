@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "WAVM/ASCL/ASCLVM.h"
+#include "gmp.h"
 
 #include "strbuf.h"
 #include "iobuf.h"
@@ -76,6 +77,8 @@ env_reset(env_t *env)
     }
 
     error_clear();
+
+    mp_set_memory_functions(NULL, NULL, NULL);
 }
 
 static bool
@@ -181,7 +184,7 @@ run_test(env_t *env, char *path)
     gen(ir, env->flag, path);
 
     if (!has_error() && env->module[0] != '\0') {
-        char *argv[2] = { "0", NULL };
+        char *argv[1] = { NULL };
         char wasm[PATH_MAX_LEN + 6];
 
         snprintf(wasm, sizeof(wasm), "%s.wasm", env->module);

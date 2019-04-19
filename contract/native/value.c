@@ -11,13 +11,11 @@
 
 mpz_t int128_min_ = { { 0, 0, NULL } };
 mpz_t int128_max_ = { { 0, 0, NULL } };
-mpz_t uint128_max_ = { { 0, 0, NULL } };
 
 #define mpz_fits_schar_p(v)     (mpz_get_si(v) >= INT8_MIN && mpz_get_si(v) <= INT8_MAX)
 #define mpz_fits_uchar_p(v)     (mpz_get_si(v) >= 0 && mpz_get_si(v) <= UINT8_MAX)
 
 #define mpz_fits_int128_p(v)    (mpz_cmp(v, int128_min_) >= 0 && mpz_cmp(v, int128_max_) <= 0)
-#define mpz_fits_uint128_p(v)   (mpz_sgn(v) >= 0 && mpz_cmp(v, uint128_max_) <= 0)
 
 #define value_eval_cmp(op, x, y, res)                                                              \
     do {                                                                                           \
@@ -27,7 +25,7 @@ mpz_t uint128_max_ = { { 0, 0, NULL } };
         case TYPE_BOOL:                                                                            \
             v = val_bool(x) op val_bool(y);                                                        \
             break;                                                                                 \
-        case TYPE_UINT128:                                                                         \
+        case TYPE_INT128:                                                                          \
             v = mpz_cmp(val_mpz(x), val_mpz(y)) op 0;                                              \
             break;                                                                                 \
         case TYPE_DOUBLE:                                                                          \
@@ -62,7 +60,7 @@ value_fit(value_t *val, meta_t *meta)
         ASSERT1(is_bool_meta(meta), meta->type);
         break;
 
-    case TYPE_UINT128:
+    case TYPE_INT128:
         ASSERT1(is_integer_meta(meta), meta->type);
         if (mpz_size(int128_min_) == 0) {
             mpz_init_set_str(int128_min_, "170141183460469231731687303715884105728", 10);
@@ -72,19 +70,12 @@ value_fit(value_t *val, meta_t *meta)
         if (mpz_size(int128_max_) == 0)
             mpz_init_set_str(int128_max_, "170141183460469231731687303715884105727", 10);
 
-        if (mpz_size(uint128_max_) == 0)
-            mpz_init_set_str(uint128_max_, "340282366920938463463374607431768211455", 10);
-
-        if ((meta->type == TYPE_INT8 && !mpz_fits_schar_p(val_mpz(val))) ||
-            (meta->type == TYPE_UINT8 && !mpz_fits_uchar_p(val_mpz(val))) ||
+        if ((meta->type == TYPE_BYTE && !mpz_fits_uchar_p(val_mpz(val))) ||
+            (meta->type == TYPE_INT8 && !mpz_fits_schar_p(val_mpz(val))) ||
             (meta->type == TYPE_INT16 && !mpz_fits_sshort_p(val_mpz(val))) ||
-            (meta->type == TYPE_UINT16 && !mpz_fits_ushort_p(val_mpz(val))) ||
             (meta->type == TYPE_INT32 && !mpz_fits_sint_p(val_mpz(val))) ||
-            (meta->type == TYPE_UINT32 && !mpz_fits_uint_p(val_mpz(val))) ||
             (meta->type == TYPE_INT64 && !mpz_fits_slong_p(val_mpz(val))) ||
-            (meta->type == TYPE_UINT64 && !mpz_fits_ulong_p(val_mpz(val))) ||
-            (meta->type == TYPE_INT128 && !mpz_fits_int128_p(val_mpz(val))) ||
-            (meta->type == TYPE_UINT128 && !mpz_fits_uint128_p(val_mpz(val))))
+            (meta->type == TYPE_INT128 && !mpz_fits_int128_p(val_mpz(val))))
             return false;
         break;
 
@@ -120,7 +111,7 @@ value_cmp(value_t *x, value_t *y)
     case TYPE_BOOL:
         return val_bool(x) == val_bool(y) ? 0 : (val_bool(x) > val_bool(y) ? 1 : -1);
 
-    case TYPE_UINT128:
+    case TYPE_INT128:
         return mpz_cmp(val_mpz(x), val_mpz(y));
 
     case TYPE_DOUBLE:
@@ -142,7 +133,7 @@ value_add(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_add(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -167,7 +158,7 @@ value_sub(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_sub(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -187,7 +178,7 @@ value_mul(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_mul(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -212,7 +203,7 @@ value_div(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_tdiv_q(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -281,7 +272,7 @@ value_bit_and(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_and(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -296,7 +287,7 @@ value_bit_or(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_ior(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -311,7 +302,7 @@ value_bit_xor(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_init_int(res);
         mpz_xor(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -438,7 +429,7 @@ value_cast_to_bool(value_t *val)
     case TYPE_BOOL:
         break;
 
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_set_bool(val, mpz_sgn(val->z) != 0);
         break;
 
@@ -468,7 +459,7 @@ value_cast_to_i128(value_t *val)
         value_set_int(val, b ? 1 : 0);
         break;
 
-    case TYPE_UINT128:
+    case TYPE_INT128:
         break;
 
     case TYPE_DOUBLE:
@@ -499,7 +490,7 @@ value_cast_to_f64(value_t *val)
         value_set_f64(val, val_bool(val) ? 1.0 : 0.0);
         break;
 
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_set_f64(val, mpz_get_d(val->z));
         break;
 
@@ -526,7 +517,7 @@ value_cast_to_str(value_t *val)
         value_set_str(val, val->b ? xstrdup("true") : xstrdup("false"));
         break;
 
-    case TYPE_UINT128:
+    case TYPE_INT128:
         value_set_str(val, mpz_get_str(NULL, 10, val_mpz(val)));
         break;
 
@@ -551,9 +542,6 @@ cast_fn_t cast_fntab_[TYPE_COMPATIBLE + 1] = {
     value_cast_to_i128,
     value_cast_to_i128,
     value_cast_to_i128,
-    value_cast_to_i128,
-    NULL,
-    NULL,
     NULL,
     NULL,
     value_cast_to_f64,

@@ -1,5 +1,5 @@
 @test(numeric_value)
-@run(test.check)
+@run(test.test)
 contract test {
     byte b1 = 0;
     byte b2 = +1;
@@ -8,32 +8,17 @@ contract test {
     int8 i1 = +127;
     int8 i2 = -0x80;
 
-    uint8 ui1 = 0;
-    uint8 ui2 = 0xff;
-
     int16 i3 = +32767;
     int16 i4 = -0x8000;
-
-    uint16 ui3 = 0;
-    uint16 ui4 = 0xffff;
 
     int32 i5 = +0x80000000 - 1;
     int32 i6 = -2147483648;
 
-    uint32 ui5 = 0;
-    uint32 ui6 = 4294967295;
-
     int64 i7 = 9223372036854775807;
     int64 i8 = -0x8000000000000000;
 
-    uint64 ui7 = 0;
-    uint64 ui8 = 18446744073709551615;
-
     int128 i9 = 170141183460469231731687303715884105727;
     int128 i10 = -170141183460469231731687303715884105728;
-
-    uint128 ui9 = 0;
-    uint128 ui10 = 340282366920938463463374607431768211455;
 
     /*
     float f1 = 1.0;
@@ -50,45 +35,28 @@ contract test {
 
     int i, j = 1, 0;
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(b1 == 0);
+        pragma assert(b2 == 1);
+        pragma assert(b3 == 255);
 
-        pragma assert(t.b1 == 0);
-        pragma assert(t.b2 == 1);
-        pragma assert(t.b3 == 255);
+        pragma assert(i1 == 127);
+        pragma assert(i2 == -128);
 
-        pragma assert(t.i1 == 127);
-        pragma assert(t.i2 == -128);
+        pragma assert(i3 == 32767);
+        pragma assert(i4 == -32768);
 
-        pragma assert(t.ui1 == 0);
-        pragma assert(t.ui2 == 255);
+        pragma assert(i5 == 2147483647);
+        pragma assert(i6 == -2147483648);
 
-        pragma assert(t.i3 == 32767);
-        pragma assert(t.i4 == -32768);
+        pragma assert(i7 == 9223372036854775807);
+        pragma assert(i8 == -9223372036854775808);
 
-        pragma assert(t.ui3 == 0);
-        pragma assert(t.ui4 == 65535);
+        pragma assert(i9 == 170141183460469231731687303715884105727);
+        pragma assert(i10 == -170141183460469231731687303715884105728);
 
-        pragma assert(t.i5 == 2147483647);
-        pragma assert(t.i6 == -2147483648);
-
-        pragma assert(t.ui5 == 0);
-        pragma assert(t.ui6 == 4294967295);
-
-        pragma assert(t.i7 == 9223372036854775807);
-        pragma assert(t.i8 == -9223372036854775808);
-
-        pragma assert(t.ui7 == 0);
-        pragma assert(t.ui8 == 18446744073709551615);
-
-        pragma assert(t.i9 == 170141183460469231731687303715884105727);
-        pragma assert(t.i10 == -170141183460469231731687303715884105728);
-
-        pragma assert(t.ui9 == 0);
-        pragma assert(t.ui10 == 340282366920938463463374607431768211455);
-
-        pragma assert(t.i == 1);
-        pragma assert(t.j == 0);
+        pragma assert(i == 1);
+        pragma assert(j == 0);
     }
 }
 
@@ -100,7 +68,7 @@ contract test {
 }
 
 @test(numeric_overflow)
-@error(ERROR_NUMERIC_OVERFLOW,18)
+@error(ERROR_NUMERIC_OVERFLOW,12)
 contract test {
     byte b1 = -1;
     byte b2 = 257;
@@ -108,48 +76,37 @@ contract test {
     int8 i1 = -129;
     int8 i2 = 128;
 
-    uint8 ui1 = -1;
-    uint8 ui2 = 257;
-
     int16 i3 = -32769;
     int16 i4 = 32768;
-
-    uint16 ui3 = -1;
-    uint16 ui4 = 65537;
 
     int32 i5 = -2147483649;
     int32 i6 = 2147483648;
 
-    uint32 ui5 = -1;
-    uint32 ui6 = 4294967296;
-
-    int64 i7 = 9223372036854775808;
-    int64 i8 = -9223372036854775809;
-
-    uint64 ui7 = -1;
-    uint64 ui8 = 18446744073709551616;
+    int64 i7 = -9223372036854775809;
+    int64 i8 = 9223372036854775808;
 
     /*
     float f1 = -340282446638528959811704183484516925441.000000;
     float f2 = 340282446638528959811704183484516925441.000000;
     */
+
+    int128 i9 = -170141183460469231731687303715884105729;
+    int128 i10 = 170141183460469231731687303715884105728;
 }
 
 @test(character_value)
-@run(test.check)
+@run(test.test)
 contract test {
     string v1 = "";
     string v2 = "literal";
     string v3 = "literal \"include quotation\"";
     string v4 = "literal /* with */ // comments";
 
-    public func check() {
-        test t = new test();
-
-        pragma assert(t.v1 == "");
-        pragma assert(t.v2 == "literal");
-        pragma assert(t.v3 == "literal \"include quotation\"");
-        pragma assert(t.v4 == "literal /* with */ // comments");
+    test() {
+        pragma assert(v1 == "");
+        pragma assert(v2 == "literal");
+        pragma assert(v3 == "literal \"include quotation\"");
+        pragma assert(v4 == "literal /* with */ // comments");
     }
 }
 
@@ -160,25 +117,23 @@ contract test {
 }
 
 @test(predefined_constant)
-@run(test.check)
+@run(test.test)
 contract test {
     bool b1 = true;
     bool b2 = false;
     string s = null;
     map(int, string) m = null;
 
-    public func check() {
-        test t = new test();
-
-        pragma assert(t.b1 == true);
-        pragma assert(t.b2 == false);
-        pragma assert(t.s == null);
-        pragma assert(t.m == null);
+    test() {
+        pragma assert(b1 == true);
+        pragma assert(b2 == false);
+        pragma assert(s == null);
+        pragma assert(m == null);
     }
 }
 
 @test(array_initializer)
-@run(test.check)
+@run(test.test)
 contract test {
     bool b1[2] = new { true, false };
     byte b2[2] = new { 0xa, 0xb };
@@ -192,56 +147,44 @@ contract test {
     int i6[2][2] = new { { 1, 2 }, { 3, 4 } };
     int i7[] = new { 4, 5, 6 };
 
-    uint32 u1[3] = new { 0, 1, 2, };
-    uint64 u2[1], u3[2] = new { 1 }, new { 2, 3 } ;
-
     string s[3] = new { "a", "b", "c" };
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(b1[0] == true);
+        /*
+        pragma assert(b1[1] == false);
 
-        pragma assert(t.b1[0] == true);
-        pragma assert(t.b1[1] == false);
+        pragma assert(b2[0] == 10);
+        pragma assert(b2[1] == 11);
 
-        pragma assert(t.b2[0] == 10);
-        pragma assert(t.b2[1] == 11);
+        pragma assert(i1[0] == -1);
+        pragma assert(i1[1] == 0);
+        pragma assert(i1[2] == 1);
 
-        pragma assert(t.i1[0] == -1);
-        pragma assert(t.i1[1] == 0);
-        pragma assert(t.i1[2] == 1);
+        pragma assert(i2[0] == 1024);
 
-        pragma assert(t.i2[0] == 1024);
+        pragma assert(i3[0] == 0);
+        pragma assert(i3[1] == -1);
 
-        pragma assert(t.i3[0] == 0);
-        pragma assert(t.i3[1] == -1);
+        pragma assert(i4[0] == 1);
+        pragma assert(i4[1] == 2);
 
-        pragma assert(t.i4[0] == 1);
-        pragma assert(t.i4[1] == 2);
+        pragma assert(i5[0] == 3);
+        pragma assert(i5[1] == 4);
 
-        pragma assert(t.i5[0] == 3);
-        pragma assert(t.i5[1] == 4);
+        pragma assert(i6[0][0] == 1);
+        pragma assert(i6[0][1] == 2);
+        pragma assert(i6[1][0] == 3);
+        pragma assert(i6[1][1] == 4);
 
-        pragma assert(t.i6[0][0] == 1);
-        pragma assert(t.i6[0][1] == 2);
-        pragma assert(t.i6[1][0] == 3);
-        pragma assert(t.i6[1][1] == 4);
+        pragma assert(i7[0] == 4);
+        pragma assert(i7[1] == 5);
+        pragma assert(i7[2] == 6);
 
-        pragma assert(t.i7[0] == 4);
-        pragma assert(t.i7[1] == 5);
-        pragma assert(t.i7[2] == 6);
-
-        pragma assert(t.u1[0] == 0);
-        pragma assert(t.u1[1] == 1);
-        pragma assert(t.u1[2] == 2);
-
-        pragma assert(t.u2[0] == 1);
-
-        pragma assert(t.u3[0] == 2);
-        pragma assert(t.u3[1] == 3);
-
-        pragma assert(t.s[0] == "a");
-        pragma assert(t.s[1] == "b");
-        pragma assert(t.s[2] == "c");
+        pragma assert(s[0] == "a");
+        pragma assert(s[1] == "b");
+        pragma assert(s[2] == "c");
+        */
     }
 }
 
@@ -279,7 +222,7 @@ contract test {
 }
 
 @test(array_allocator)
-@run(test.check)
+@run(test.test)
 contract test {
     bool b[1] = new bool[1];
     int64 i[2] = new int64[2];
@@ -290,22 +233,20 @@ contract test {
     int v2[][] = new int[2][2];
     int v3[][4] = new int[2][4];
 
-    public func check() {
-        test t = new test();
-
-        pragma assert(t.b[0] == false);
-        pragma assert(t.i[1] == 0);
-        pragma assert(t.s[1] == "");
-        pragma assert(t.s[3] == null);
-        pragma assert(t.v1[1] == 0);
-        pragma assert(t.v2[1][1] == 0);
-        pragma assert(t.v3[0][2] == 0);
-        pragma assert(t.v3[1][3] == 0);
+    test() {
+        pragma assert(b[0] == false);
+        pragma assert(i[1] == 0);
+        pragma assert(s[1] == "");
+        pragma assert(s[3] == null);
+        pragma assert(v1[1] == 0);
+        pragma assert(v2[1][1] == 0);
+        pragma assert(v3[0][2] == 0);
+        pragma assert(v3[1][3] == 0);
     }
 }
 
 @test(struct_initializer)
-@run(test.check)
+@run(test.test)
 contract test {
     type s1 struct {
         int a;
@@ -317,7 +258,7 @@ contract test {
 
     /*
     type s2 struct {
-        uint16 a;
+        int16 a;
         double b[2];
     }
     s2 v4 = new { 128, { 5.34, 314e-2 } };
@@ -330,25 +271,23 @@ contract test {
     s3 v5 = new { 1, { 2, 3, "4" } };
     s3 v6, v7 = new { 1, { 1, 0x01, "a" } }, new { 2, { 2, 0x02, "b" } };
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(v1.a == 1);
+        pragma assert(v1.b == 1);
+        pragma assert(v1.c == "a");
 
-        pragma assert(t.v1.a == 1);
-        pragma assert(t.v1.b == 1);
-        pragma assert(t.v1.c == "a");
+        pragma assert(v2.a == 2);
+        pragma assert(v2.b == 2);
+        pragma assert(v2.c == "b");
 
-        pragma assert(t.v2.a == 2);
-        pragma assert(t.v2.b == 2);
-        pragma assert(t.v2.c == "b");
+        pragma assert(v3.a == 3);
+        pragma assert(v3.b == 3);
+        pragma assert(v3.c == "c");
 
-        pragma assert(t.v3.a == 3);
-        pragma assert(t.v3.b == 3);
-        pragma assert(t.v3.c == "c");
-
-        pragma assert(t.v5.x == 1);
-        pragma assert(t.v5.y.a == 2);
-        pragma assert(t.v5.y.b == 3);
-        pragma assert(t.v5.y.c == "4");
+        pragma assert(v5.x == 1);
+        pragma assert(v5.y.a == 2);
+        pragma assert(v5.y.b == 3);
+        pragma assert(v5.y.c == "4");
     }
 }
 
@@ -383,7 +322,7 @@ contract test {
 }
 
 @test(struct_allocator)
-@run(test.check)
+@run(test.test)
 contract test {
     type s1 struct {
         int a;
@@ -393,21 +332,19 @@ contract test {
     s1 v1 = new s1;
     s1 v2 = new s1;
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(v1.a == 0);
+        pragma assert(v1.b == 0);
+        pragma assert(v1.c == "");
 
-        pragma assert(t.v1.a == 0);
-        pragma assert(t.v1.b == 0);
-        pragma assert(t.v1.c == "");
-
-        pragma assert(t.v2.a == 0);
-        pragma assert(t.v2.b == 0);
-        pragma assert(t.v2.c == null);
+        pragma assert(v2.a == 0);
+        pragma assert(v2.b == 0);
+        pragma assert(v2.c == null);
     }
 }
 
 @test(struct_array_initializer)
-@run(test.check)
+@run(test.test)
 contract test {
     type s1 struct {
         int a;
@@ -434,54 +371,52 @@ contract test {
     s3 v8[1] = new { { { 10, 10, "v10" } } };
     s3 v9[2] = new { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(v1[0].a == 1);
+        pragma assert(v1[0].b == 128);
+        pragma assert(v1[0].c == "a");
+        pragma assert(v1[1].a == 2);
+        pragma assert(v1[1].b == 129);
+        pragma assert(v1[1].c == "b");
 
-        pragma assert(t.v1[0].a == 1);
-        pragma assert(t.v1[0].b == 128);
-        pragma assert(t.v1[0].c == "a");
-        pragma assert(t.v1[1].a == 2);
-        pragma assert(t.v1[1].b == 129);
-        pragma assert(t.v1[1].c == "b");
+        pragma assert(v3[0].a == 2);
+        pragma assert(v3[0].b == 2);
+        pragma assert(v3[0].c == "b");
 
-        pragma assert(t.v3[0].a == 2);
-        pragma assert(t.v3[0].b == 2);
-        pragma assert(t.v3[0].c == "b");
+        pragma assert(v4[0][0].a == 1);
+        pragma assert(v4[0][0].b == 1);
+        pragma assert(v4[0][0].c == "a");
+        pragma assert(v4[0][1].a == 2);
+        pragma assert(v4[0][1].b == 2);
+        pragma assert(v4[0][1].c == "b");
+        pragma assert(v4[1][0].a == 3);
+        pragma assert(v4[1][0].b == 3);
+        pragma assert(v4[1][0].c == "c");
+        pragma assert(v4[1][1].a == 4);
+        pragma assert(v4[1][1].b == 4);
+        pragma assert(v4[1][1].c == "d");
 
-        pragma assert(t.v4[0][0].a == 1);
-        pragma assert(t.v4[0][0].b == 1);
-        pragma assert(t.v4[0][0].c == "a");
-        pragma assert(t.v4[0][1].a == 2);
-        pragma assert(t.v4[0][1].b == 2);
-        pragma assert(t.v4[0][1].c == "b");
-        pragma assert(t.v4[1][0].a == 3);
-        pragma assert(t.v4[1][0].b == 3);
-        pragma assert(t.v4[1][0].c == "c");
-        pragma assert(t.v4[1][1].a == 4);
-        pragma assert(t.v4[1][1].b == 4);
-        pragma assert(t.v4[1][1].c == "d");
+        pragma assert(v5[0].x == 1);
+        pragma assert(v5[0].y.a == 1);
+        pragma assert(v5[0].y.b == 1);
+        pragma assert(v5[0].y.c == "1");
+        pragma assert(v5[1].x == 2);
+        pragma assert(v5[1].y.a == 2);
+        pragma assert(v5[1].y.b == 2);
+        pragma assert(v5[1].y.c == "2");
 
-        pragma assert(t.v5[0].x == 1);
-        pragma assert(t.v5[0].y.a == 1);
-        pragma assert(t.v5[0].y.b == 1);
-        pragma assert(t.v5[0].y.c == "1");
-        pragma assert(t.v5[1].x == 2);
-        pragma assert(t.v5[1].y.a == 2);
-        pragma assert(t.v5[1].y.b == 2);
-        pragma assert(t.v5[1].y.c == "2");
+        pragma assert(v8[0].x.a == 10);
+        pragma assert(v8[0].x.b == 10);
+        pragma assert(v8[0].x.c == "v10");
 
-        pragma assert(t.v8[0].x.a == 10);
-        pragma assert(t.v8[0].x.b == 10);
-        pragma assert(t.v8[0].x.c == "v10");
-
-        pragma assert(t.v9[1].x.a == 11);
-        pragma assert(t.v9[1].x.b == 11);
-        pragma assert(t.v9[1].x.c == "v11[1]");
+        pragma assert(v9[1].x.a == 11);
+        pragma assert(v9[1].x.b == 11);
+        pragma assert(v9[1].x.c == "v11[1]");
     }
 }
 
 @test(struct_array_allocator)
-@run(test.check)
+@run(test.test)
 contract test {
     type s1 struct {
         bool a;
@@ -491,25 +426,23 @@ contract test {
     s1 v1[2] = new s1[2];
     s1 v2[3] = new s1[3];
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(v1[0].a == false);
+        pragma assert(v1[0].b == 0);
+        pragma assert(v1[0].c == "");
+        pragma assert(v1[1].a == false);
+        pragma assert(v1[1].b == 0);
+        pragma assert(v1[1].c == null);
 
-        pragma assert(t.v1[0].a == false);
-        pragma assert(t.v1[0].b == 0);
-        pragma assert(t.v1[0].c == "");
-        pragma assert(t.v1[1].a == false);
-        pragma assert(t.v1[1].b == 0);
-        pragma assert(t.v1[1].c == null);
-
-        pragma assert(t.v2[0].a == false);
-        pragma assert(t.v2[0].b == 0);
-        pragma assert(t.v2[0].c == "");
-        pragma assert(t.v2[1].a == false);
-        pragma assert(t.v2[1].b == 0);
-        pragma assert(t.v2[1].c == null);
-        pragma assert(t.v2[2].a == false);
-        pragma assert(t.v2[2].b == 0);
-        pragma assert(t.v2[2].c == "");
+        pragma assert(v2[0].a == false);
+        pragma assert(v2[0].b == 0);
+        pragma assert(v2[0].c == "");
+        pragma assert(v2[1].a == false);
+        pragma assert(v2[1].b == 0);
+        pragma assert(v2[1].c == null);
+        pragma assert(v2[2].a == false);
+        pragma assert(v2[2].b == 0);
+        pragma assert(v2[2].c == "");
     }
 }
 
@@ -557,7 +490,7 @@ contract test {
 }
 
 @test(initializer_with_variable)
-@run(test.check)
+@run(test.test)
 contract test {
     bool b1 = false;
     bool b2[2] = new { true, b1 };
@@ -577,31 +510,29 @@ contract test {
     s v1 = new { -8, s1 };
     s v2[2] = new { { v1.a, s1 }, { i1 - 126, v1.b } };
 
-    public func check() {
-        test t = new test();
+    test() {
+        pragma assert(b2[0] == true);
+        pragma assert(b2[1] == false);
 
-        pragma assert(t.b2[0] == true);
-        pragma assert(t.b2[1] == false);
+        pragma assert(b3[0][0] == true);
+        pragma assert(b3[0][1] == false);
+        pragma assert(b3[0][2] == b1);
+        pragma assert(b3[1][0] == false);
+        pragma assert(b3[1][1] == true);
+        pragma assert(b3[1][2] == true);
 
-        pragma assert(t.b3[0][0] == true);
-        pragma assert(t.b3[0][1] == false);
-        pragma assert(t.b3[0][2] == b1);
-        pragma assert(t.b3[1][0] == false);
-        pragma assert(t.b3[1][1] == true);
-        pragma assert(t.b3[1][2] == true);
+        pragma assert(i3[0] == i1);
+        pragma assert(i3[1] == 256);
+        pragma assert(i3[2] == 512);
 
-        pragma assert(t.i3[0] == t.i1);
-        pragma assert(t.i3[1] == 256);
-        pragma assert(t.i3[2] == 512);
+        pragma assert(s2[0] == "No.1");
+        pragma assert(s2[1] == "No.2");
+        pragma assert(s2[2] == "No.3");
 
-        pragma assert(t.s2[0] == "No.1");
-        pragma assert(t.s2[1] == "No.2");
-        pragma assert(t.s2[2] == "No.3");
-
-        pragma assert(t.v2[0].a == -8);
-        pragma assert(t.v2[0].b == "No.2");
-        pragma assert(t.v2[1].a == 2);
-        pragma assert(t.v2[1].b == "No.2");
+        pragma assert(v2[0].a == -8);
+        pragma assert(v2[0].b == "No.2");
+        pragma assert(v2[1].a == 2);
+        pragma assert(v2[1].b == "No.2");
     }
 }
 

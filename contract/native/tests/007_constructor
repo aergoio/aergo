@@ -121,9 +121,9 @@ contract test {
 
 @test(self_accessor)
 contract test {
-    uint8 x;
+    int8 x;
     string y;
-    test(uint8 x, string y) {
+    test(int8 x, string y) {
         this.x = x;
         if (this.y == "") {
             this.y = "self";

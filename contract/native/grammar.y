@@ -124,12 +124,6 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_TABLE         "table"
         K_TRUE          "true"
         K_TYPE          "type"
-        K_UINT          "uint"
-        K_UINT8         "uint8"
-        K_UINT16        "uint16"
-        K_UINT32        "uint32"
-        K_UINT64        "uint64"
-        K_UINT128       "uint128"
         K_UPDATE        "update"
         K_VIEW          "view"
 
@@ -407,19 +401,13 @@ var_type:
 prim_type:
     K_ACCOUNT           { $$ = TYPE_ACCOUNT; }
 |   K_BOOL              { $$ = TYPE_BOOL; }
-|   K_BYTE              { $$ = TYPE_UINT8; }
+|   K_BYTE              { $$ = TYPE_BYTE; }
 |   K_INT8              { $$ = TYPE_INT8; }
 |   K_INT16             { $$ = TYPE_INT16; }
 |   K_INT32             { $$ = TYPE_INT32; }
 |   K_INT64             { $$ = TYPE_INT64; }
 |   K_INT128            { $$ = TYPE_INT128; }
 |   K_INT               { $$ = TYPE_INT32; }
-|   K_UINT8             { $$ = TYPE_UINT8; }
-|   K_UINT16            { $$ = TYPE_UINT16; }
-|   K_UINT32            { $$ = TYPE_UINT32; }
-|   K_UINT64            { $$ = TYPE_UINT64; }
-|   K_UINT128           { $$ = TYPE_UINT128; }
-|   K_UINT              { $$ = TYPE_UINT32; }
 //|   K_FLOAT             { $$ = TYPE_FLOAT; }
 //|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
 |   K_STRING            { $$ = TYPE_STRING; }
