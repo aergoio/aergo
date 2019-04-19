@@ -21,7 +21,8 @@ type RemotePeer interface {
 	Name() string
 
 	State() types.PeerState
-	LastNotice() *types.LastBlockStatus
+	// LastStatus returns last observed status of remote peer. this value will be changed by notice, or ping
+	LastStatus() *types.LastBlockStatus
 
 	RunPeer()
 	Stop()

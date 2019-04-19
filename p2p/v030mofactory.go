@@ -52,6 +52,7 @@ func (mf *v030MOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice
 	msgID := uuid.Must(uuid.NewV4())
 	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.NewBlockNotice, noticeMsg) {
 		rmo.blkHash = noticeMsg.BlockHash
+		rmo.blkNo = noticeMsg.BlockNo
 		return rmo
 	}
 	return nil

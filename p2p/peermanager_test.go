@@ -112,9 +112,9 @@ func TestPeerManager_GetPeers(t *testing.T) {
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastNotice: &types.LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastNotice: &types.LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastNotice: &types.LastBlockStatus{}}
+	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastStatus: &types.LastBlockStatus{}}
+	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastStatus: &types.LastBlockStatus{}}
+	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastStatus: &types.LastBlockStatus{}}
 	tests := []struct {
 		name string
 	}{
