@@ -48,7 +48,7 @@ interface spec {
     //func f3(int16 x) float;
 }
 contract test implements spec {
-    func f2(int16 x) { }
+    func f2(int32 x) { }
     //func f3(int16 x) double { return 1.0; }
 }
 
@@ -125,7 +125,7 @@ interface spec {
     public func f1() int16;
 }
 contract test implements spec {
-    public func f1() int16 { return 32768; }
+    public func f1() int16 { return 32767; }
     public func f2() string { return "aergo"; }
     //public func f2() int8, string { return 16, "aergo"; }
 }

@@ -151,7 +151,6 @@ contract test {
 
     test() {
         pragma assert(b1[0] == true);
-        /*
         pragma assert(b1[1] == false);
 
         pragma assert(b2[0] == 10);
@@ -184,7 +183,6 @@ contract test {
         pragma assert(s[0] == "a");
         pragma assert(s[1] == "b");
         pragma assert(s[2] == "c");
-        */
     }
 }
 

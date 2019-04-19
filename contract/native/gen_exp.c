@@ -86,14 +86,12 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
 
-        address = exp_gen(gen, id_exp);
-        /*
-        if (meta->arr_dim == meta->max_dim - 1)
+        /* XXX */
+        if (is_global_id(id_exp->id) && meta->arr_dim == meta->max_dim - 1)
             address = BinaryenLoad(gen->module, sizeof(uint32_t), 0, 0, 0, BinaryenTypeInt32(),
                                    exp_gen(gen, id_exp));
         else
             address = exp_gen(gen, id_exp);
-            */
 
         if (is_lit_exp(idx_exp)) {
             if (meta->arr_dim > 0 && meta->dim_sizes[0] == -1) {
