@@ -66,8 +66,8 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
 
     ASSERT(id != NULL);
 
+#if 0
     if (is_var_id(id)) {
-#if 1
         if (is_global_id(id)) {
             ASSERT1(id->meta.rel_offset == 0, id->meta.rel_offset);
 
@@ -77,28 +77,6 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
         else {
             exp_set_reg(exp, id->idx);
         }
-#else
-        int reg_idx = id->idx;
-
-        if (is_global_id(id)) {
-            ast_exp_t *l_exp, *r_exp;
-
-            ASSERT1(id->meta.rel_offset == 0, id->meta.rel_offset);
-
-            /* Global variables are always accessed through registers. */
-            reg_idx = fn_add_register(fn, &id->meta);
-
-            l_exp = exp_new_reg(reg_idx);
-            meta_set_int32(&l_exp->meta);
-
-            r_exp = exp_new_mem(id->meta.base_idx, id->meta.rel_addr, 0);
-            meta_set_int32(&r_exp->meta);
-
-            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
-        }
-
-        exp_set_reg(exp, reg_idx);
-#endif
     }
     else if (is_cont_id(id)) {
         /* In the case of a contract identifier, the "this" syntax is used */
@@ -107,6 +85,25 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
         exp_set_reg(exp, fn->cont_idx);
         //meta_set_int32(&exp->meta);
     }
+#else
+    if (is_var_id(id)) {
+        if (is_global_id(id)) {
+            ASSERT1(id->meta.rel_offset == 0, id->meta.rel_offset);
+
+            /* The global variable always refers to the memory. */
+            exp->meta.base_idx = id->meta.base_idx;
+            exp->meta.rel_addr = id->meta.rel_addr;
+        }
+        else {
+            exp->meta.base_idx = id->idx;
+        }
+    }
+    else if (is_cont_id(id)) {
+        /* In the case of a contract identifier, the "this" syntax is used */
+        ASSERT1(is_object_meta(&exp->meta), exp->meta.type);
+        exp_set_reg(exp, fn->cont_idx);
+    }
+#endif
 }
 
 static void
