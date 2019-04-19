@@ -11,6 +11,8 @@ import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/types"
 	net "github.com/libp2p/go-libp2p-net"
 	"github.com/libp2p/go-libp2p-peer"
 	"sort"
@@ -151,7 +153,7 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	if err != nil {
 		dpm.logger.Debug().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
 		if rw != nil {
-			dpm.pm.sendGoAway(rw, err.Error())
+			dpm.sendGoAway(rw, err.Error())
 		}
 		return meta, false
 	}
@@ -159,10 +161,15 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	receivedMeta := p2pcommon.NewMetaFromStatus(remoteStatus, outbound)
 	if receivedMeta.ID != peerID {
 		dpm.logger.Debug().Str("received_peer_id", receivedMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Inconsistent peerID")
-		dpm.pm.sendGoAway(rw, "Inconsistent peerID")
+		dpm.sendGoAway(rw, "Inconsistent peerID")
 		return meta, false
 	}
+	// override options by configurations of nodd
 	_, receivedMeta.Designated = dpm.pm.designatedPeers[peerID]
+	// hidden is set by either remote peer's asking or local node's config
+	if _, exist := dpm.pm.hiddenPeerSet[peerID]; exist {
+		receivedMeta.Hidden = true
+	}
 
 	newPeer := newRemotePeer(receivedMeta, dpm.pm.GetNextManageNum(), dpm.pm, dpm.pm.actorService, dpm.logger, dpm.pm.mf, dpm.pm.signer, s, rw)
 	newPeer.UpdateBlkCache(remoteStatus.GetBestBlockHash(), remoteStatus.GetBestHeight())
@@ -198,6 +205,16 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 	}
 
 }
+
+func (dpm *basePeerManager) sendGoAway(rw p2pcommon.MsgReadWriter, msg string) {
+	goMsg := &types.GoAwayNotice{Message: msg}
+	// TODO code smell. non safe casting. too many member depth
+	mo := dpm.pm.mf.NewMsgRequestOrder(false, subproto.GoAway, goMsg).(*pbRequestOrder)
+	container := mo.message
+
+	rw.WriteMsg(container)
+}
+
 
 type staticWPManager struct {
 	basePeerManager

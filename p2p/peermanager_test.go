@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -110,15 +111,27 @@ func TestPeerManager_GetPeers(t *testing.T) {
 }
 
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
-	peersLen := 3
+	peersLen := 6
+	hiddenCnt := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastStatus: &types.LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastStatus: &types.LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastStatus: &types.LastBlockStatus{}}
+	for i:=0; i<peersLen; i++ {
+		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		pid, _ := peer.IDFromPrivateKey(pkey)
+		samplePeers[i] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: pid, Hidden: i<hiddenCnt}, lastStatus: &types.LastBlockStatus{}}
+	}
+
 	tests := []struct {
 		name string
+
+		hidden bool
+		showself bool
+
+		wantCnt int
 	}{
-		// TODO: test cases
+		{"TDefault",false, false, peersLen},
+		{"TWSelf",false, true, peersLen+1},
+		{"TWOHidden",true, false, peersLen-hiddenCnt},
+		{"TWOHiddenWSelf",false, true, peersLen-hiddenCnt+1},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -126,6 +139,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 			for _, peer := range samplePeers {
 				pm.remotePeers[peer.ID()] = peer
 			}
+			pm.updatePeerCache()
 
 			actPeers := pm.GetPeerAddresses(false, false)
 			assert.Equal(t, peersLen, len(actPeers))
@@ -271,6 +285,7 @@ func Test_peerManager_Stop(t *testing.T) {
 	}
 }
 
+// It tests idempotent of Stop method
 func Test_peerManager_StopInRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -284,7 +299,6 @@ func Test_peerManager_StopInRun(t *testing.T) {
 		{"TStopOnce", 1, stopped},
 		{"TStopTwice", 2, stopped},
 		{"TInStopping", 3, stopped},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

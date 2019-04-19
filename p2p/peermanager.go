@@ -9,13 +9,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
-
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 
 	cfg "github.com/aergoio/aergo/config"
@@ -64,9 +62,9 @@ type peerManager struct {
 	inboundConnChan   chan inboundConnEvent
 	workDoneChannel   chan p2pcommon.ConnWorkResult
 
-	finishChannel     chan struct{}
+	finishChannel chan struct{}
 
-	eventListeners    []PeerEventListener
+	eventListeners []PeerEventListener
 
 	//
 	designatedPeers map[peer.ID]p2pcommon.PeerMeta
@@ -76,7 +74,7 @@ type peerManager struct {
 
 // getPeerChan is struct to get peer for concurrent use
 type getPeerChan struct {
-	id peer.ID
+	id  peer.ID
 	ret chan p2pcommon.RemotePeer
 }
 
@@ -165,21 +163,6 @@ func (pm *peerManager) init() {
 
 func (pm *peerManager) Start() error {
 	go pm.runManagePeers()
-	// need to start listen after chainservice is read to init
-	// FIXME: adhoc code
-	//go func() {
-	//time.Sleep(time.Second * 3)
-	//pm.logger.Info().Str("version", string(p2pcommon.AergoP2PSub)).Msg("Starting p2p listening")
-	//pm.nt.AddStreamHandler(p2pcommon.AergoP2PSub, pm.onConnect)
-
-	// addition should start after all modules are started
-	//time.Sleep(time.Second * 2)
-	//dPeers := make([]p2pcommon.PeerMeta, len(pm.designatedPeers))
-	//for _, meta := range pm.designatedPeers {
-	//	dPeers = append(dPeers, meta)
-	//}
-	//pm.fillPoolChannel <- dPeers
-	//}()
 
 	return nil
 }
@@ -226,7 +209,7 @@ func (pm *peerManager) runManagePeers() {
 MANLOOP:
 	for {
 		select {
-		case req := <- pm.getPeerChannel:
+		case req := <-pm.getPeerChannel:
 			peer, exist := pm.remotePeers[req.id]
 			if exist {
 				req.ret <- peer
@@ -237,6 +220,8 @@ MANLOOP:
 			if pm.tryRegister(peer) {
 				pm.peerFinder.OnPeerConnect(peer.ID())
 				pm.wpManager.OnPeerConnect(peer.ID())
+
+				pm.checkSync(peer)
 			}
 		case peer := <-pm.removePeerChannel:
 			if pm.removePeer(peer) {
@@ -292,7 +277,7 @@ MANLOOP:
 		}
 	}()
 	timer := time.NewTimer(time.Second * 30)
-	finishPoll := time.NewTicker(time.Millisecond << 6 )
+	finishPoll := time.NewTicker(time.Millisecond << 6)
 CLEANUPLOOP:
 	for {
 		select {
@@ -336,22 +321,16 @@ func (pm *peerManager) tryRegister(peer p2pcommon.RemotePeer) bool {
 
 	go peer.RunPeer()
 	// FIXME type casting is worse
-	pm.insertPeer(peerID, peer.(*remotePeerImpl))
+	pm.insertPeer(peerID, peer)
 	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, peer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
+
+	// TODO add triggering sync.
 
 	return true
 }
 
 func (pm *peerManager) GetNextManageNum() uint32 {
 	return atomic.AddUint32(&pm.manageNumber, 1)
-}
-func (pm *peerManager) sendGoAway(rw p2pcommon.MsgReadWriter, msg string) {
-	goMsg := &types.GoAwayNotice{Message: msg}
-	// TODO code smell. non safe casting.
-	mo := pm.mf.NewMsgRequestOrder(false, subproto.GoAway, goMsg).(*pbRequestOrder)
-	container := mo.message
-
-	rw.WriteMsg(container)
 }
 
 func (pm *peerManager) AddNewPeer(meta p2pcommon.PeerMeta) {
@@ -396,14 +375,13 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	return true
 }
 
-
 func (pm *peerManager) GetPeer(ID peer.ID) (p2pcommon.RemotePeer, bool) {
 
-	gc := getPeerChan{id:ID, ret:make(chan p2pcommon.RemotePeer)}
+	gc := getPeerChan{id: ID, ret: make(chan p2pcommon.RemotePeer)}
 	// vs code's lint does not allow direct return of map operation
 	pm.getPeerChannel <- gc
 	ptr := <-gc.ret
-	if ptr ==nil {
+	if ptr == nil {
 		return nil, false
 	}
 	return ptr, true
@@ -453,10 +431,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) insertPeer(ID peer.ID, peer *remotePeerImpl) {
-	if _, exist := pm.hiddenPeerSet[ID]; exist {
-		peer.meta.Hidden = true
-	}
+func (pm *peerManager) insertPeer(ID peer.ID, peer p2pcommon.RemotePeer) {
 	pm.remotePeers[ID] = peer
 	pm.updatePeerCache()
 }
@@ -474,4 +449,9 @@ func (pm *peerManager) updatePeerCache() {
 		newSlice = append(newSlice, rPeer)
 	}
 	pm.peerCache = newSlice
+}
+
+func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
+	pm.logger.Debug().Uint64("target", peer.LastStatus().BlockNumber).Msg("request new syncer")
+	pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
 }
