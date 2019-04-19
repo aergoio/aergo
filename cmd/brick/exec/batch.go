@@ -174,7 +174,6 @@ func (c *batch) Run(args string) (string, error) {
 		}
 
 		if c.level == 0 && enableWatch {
-			defer watcher.Close()
 			// wait and check file changes
 		fileWatching:
 			for {
@@ -188,6 +187,7 @@ func (c *batch) Run(args string) (string, error) {
 					break fileWatching
 				}
 			}
+			watcher.Close()
 			continue
 		}
 		break

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"path/filepath"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -90,8 +91,17 @@ func (c *deployContract) Run(args string) (string, error) {
 		contract.NewRawLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
 	)
 
+	if err != nil {
+		return "", err
+	}
+
 	Index(context.ContractSymbol, contractName)
 	Index(context.AccountSymbol, contractName)
+
+	if enableWatch {
+		absPath, _ := filepath.Abs(defPath)
+		watcher.Add(absPath)
+	}
 
 	return "deploy a smart contract successfully", nil
 }
