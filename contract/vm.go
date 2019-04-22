@@ -45,6 +45,7 @@ const (
 	callMaxInstLimit  = C.int(5000000)
 	queryMaxInstLimit = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit  = fee.StateDbMaxUpdateSize
+	maxCallDepth      = 5
 )
 
 var (
@@ -88,6 +89,7 @@ type StateSet struct {
 	seed              *rand.Rand
 	events            []*types.Event
 	eventCount        int32
+	callDepth         int32
 }
 
 type recoveryEntry struct {
@@ -198,6 +200,15 @@ func (L *LState) Close() {
 }
 
 func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *types.CallInfo, amount *big.Int, isCreate bool) *Executor {
+	if stateSet.callDepth > maxCallDepth {
+		ce := &Executor{
+			code:     contract,
+			stateSet: stateSet,
+		}
+		ce.err = errors.New(fmt.Sprintf("exceeded the maximum call depth(%d)", maxCallDepth))
+		return ce
+	}
+	stateSet.callDepth++
 	ce := &Executor{
 		code:     contract,
 		L:        GetLState(),
@@ -503,6 +514,9 @@ func (ce *Executor) rollbackToSavepoint() error {
 
 func (ce *Executor) close() {
 	if ce != nil {
+		if ce.stateSet != nil {
+			ce.stateSet.callDepth--
+		}
 		FreeLState(ce.L)
 	}
 }
