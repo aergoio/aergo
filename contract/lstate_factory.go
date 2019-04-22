@@ -7,7 +7,7 @@ var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-const MAX_LSTATE_SIZE = 100
+const MAX_LSTATE_SIZE = 150
 
 func StartLStateFactory() {
 	once.Do(func() {
