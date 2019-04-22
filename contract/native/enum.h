@@ -145,8 +145,7 @@ typedef enum modifier_e {
     MOD_PAYABLE     = 0x02,
     MOD_READONLY    = 0x04,
     MOD_CONST       = 0x08,
-    MOD_CTOR        = 0x10,
-    MOD_SYSTEM      = 0x20
+    MOD_CTOR        = 0x10
 } modifier_t;
 
 typedef enum op_kind_e {
@@ -199,7 +198,9 @@ typedef enum pragma_kind_e {
 } pragma_kind_t;
 
 typedef enum fn_kind_e {
-    FN_MALLOC       = 0,
+    FN_UDF          = 0,
+    FN_CTOR,
+    FN_MALLOC,
     FN_MEMCPY,
     FN_ASSERT,
     FN_STRCAT,

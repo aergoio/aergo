@@ -70,15 +70,8 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     ast_id_t *id = exp->id;
     meta_t *meta = &exp->meta;
 
-    /* This function is used when the offset value needs to be computed dynamically */
-
     if (is_array_meta(&id->meta)) {
         uint32_t offset;
-        /*
-        ast_exp_t *id_exp = exp->u_arr.id_exp;
-        ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        BinaryenExpressionRef base, address;
-        */
         fn_kind_t kind = FN_ARR_GET_I32;
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
@@ -87,14 +80,6 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
 
         address = exp_gen(gen, id_exp);
-#if 0
-        /* XXX */
-        if (is_global_id(id_exp->id) && meta->arr_dim == meta->max_dim - 1)
-            address = BinaryenLoad(gen->module, sizeof(uint32_t), 0, 0, 0, BinaryenTypeInt32(),
-                                   exp_gen(gen, id_exp));
-        else
-            address = exp_gen(gen, id_exp);
-#endif
 
         if (is_lit_exp(idx_exp)) {
             if (meta->arr_dim > 0 && meta->dim_sizes[0] == -1) {
@@ -153,68 +138,6 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
-#if 0
-        /* In array expression, the offset is calculated as follows:
-         *
-         * Suppose that "int i[x][y][z]" is defined.
-         *
-         * First, when we access "i[a]", the formula for calculating the offset is
-         * (a * sizeof(i[0])).
-         *
-         * Next, in the case of "i[a][b]",
-         * (a * sizeof(i[0])) + (b * sizeof(i[0][0])).
-         *
-         * Finally, in the case of "i[a][b][c]",
-         * (a * sizeof(i[0])) + (b * sizeof(i[0][0])) + (c * sizeof(int)). */
-
-        if (is_lit_exp(idx_exp)) {
-            ASSERT1(is_mem_exp(id_exp) || is_reg_exp(id_exp), id_exp->kind);
-
-            address = BinaryenLoad(gen->module, sizeof(uint32_t), 1, 0, 0, BinaryenTypeInt32(),
-                                   exp_gen(gen, id_exp));
-
-            offset = exp->meta.rel_offset;
-        }
-        else {
-            BinaryenExpressionRef index, size;
-
-        ASSERT(!is_lit_exp(idx_exp));
-
-            /* Because BinaryenLoad() takes an offset as uint32_t and "idx_exp" is a register or
-             * memory expression, we do not know the offset value, so we add the offset to the
-             * address and use BinaryenLoad(). */
-
-            base = exp_gen(gen, id_exp);
-            index = exp_gen(gen, idx_exp);
-
-            if (is_int64_meta(&idx_exp->meta))
-                /* TODO: need to check range of index in semantic checker */
-                index = BinaryenUnary(gen->module, BinaryenWrapInt64(), index);
-
-            size = BinaryenBinary(gen->module, BinaryenMulInt32(), index,
-                                  i32_gen(gen, meta_bytes(meta)));
-
-            if (id->meta.rel_addr > 0)
-                size = BinaryenBinary(gen->module, BinaryenAddInt32(), size,
-                                      i32_gen(gen, id->meta.rel_addr + meta_align(&id->meta)));
-            else
-                size = BinaryenBinary(gen->module, BinaryenAddInt32(), size,
-                                      i32_gen(gen, meta_align(&id->meta)));
-
-            address = BinaryenBinary(gen->module, BinaryenAddInt32(), base, size);
-        //}
-
-        if (gen->is_lval || is_array_meta(meta)) {
-            if (offset > 0)
-                return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                      i32_gen(gen, offset));
-
-            return address;
-        }
-
-        return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), 1, offset, 0,
-                            meta_gen(meta), address);
-#endif
     }
 
     ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
@@ -223,8 +146,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_cast_to_bool(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta,
-                     meta_t *to_meta)
+exp_gen_cast_to_bool(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta, meta_t *to_meta)
 {
     BinaryenOp op = 0;
 
@@ -263,8 +185,7 @@ exp_gen_cast_to_bool(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta,
 }
 
 static BinaryenExpressionRef
-exp_gen_cast_to_str(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta,
-                    meta_t *to_meta)
+exp_gen_cast_to_str(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta, meta_t *to_meta)
 {
     fn_kind_t kind = FN_MAX;
 
@@ -738,21 +659,12 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     ast_exp_t *qual_exp = exp->u_acc.qual_exp;
     BinaryenExpressionRef address;
 
-    /* If qualifier is a function and returns an array or a struct, "qual_exp" can be a binary
-     * expression. Otherwise all are register expressions */
-
-    /*
-    ASSERT1(is_reg_exp(qual_exp) || is_binary_exp(qual_exp) || is_mem_exp(qual_exp),
-            qual_exp->kind);
-            */
-
     address = exp_gen(gen, qual_exp);
 
     if (is_fn_id(fld_id))
         return address;
 
     if (gen->is_lval) {
-    //if (gen->is_lval || is_array_meta(meta) || is_struct_meta(meta)) {
         if (meta->rel_offset == 0)
             return address;
 
@@ -887,18 +799,6 @@ static BinaryenExpressionRef
 exp_gen_reg(gen_t *gen, ast_exp_t *exp)
 {
     return BinaryenGetLocal(gen->module, exp->meta.base_idx, meta_gen(&exp->meta));
-    /*
-    meta_t *meta = &exp->meta;
-    BinaryenExpressionRef address;
-
-    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, meta_gen(&exp->meta));
-
-    if (gen->is_lval || (!is_array_meta(meta) && !is_struct_meta(meta) && !is_object_meta(meta)))
-        return address;
-
-    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), 1,
-                        meta->rel_addr + meta->rel_offset, 0, meta_gen(meta), address);
-                        */
 }
 
 static BinaryenExpressionRef
@@ -910,7 +810,7 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
 
     address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 
-    if (is_array_meta(meta) || is_struct_meta(meta)) {
+    if (is_address_meta(meta)) {
         /* Since "address" is literally an address value, it must be of type I32. */
         ASSERT1(BinaryenExpressionGetType(address) == BinaryenTypeInt32(),
                 BinaryenExpressionGetType(address));
@@ -920,7 +820,6 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
     }
 
     if (gen->is_lval) {
-    //if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
         if (offset == 0)
             return address;
 

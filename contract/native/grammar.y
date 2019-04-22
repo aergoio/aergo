@@ -744,7 +744,7 @@ library_body:
     {
         $$ = blk_new_library(&@$);
 
-        $1->mod = MOD_SYSTEM;
+        $1->mod = MOD_PUBLIC;
         $1->u_fn.alias = $3;
 
         vector_add_last(&$$->ids, $1);
@@ -753,7 +753,7 @@ library_body:
     {
         $$ = blk_new_library(&@$);
 
-        $1->mod = MOD_SYSTEM;
+        $1->mod = MOD_PUBLIC;
         $1->u_fn.blk = $2;
 
         vector_add_last(&$$->ids, $1);
@@ -762,7 +762,7 @@ library_body:
     {
         $$ = $1;
 
-        $2->mod = MOD_SYSTEM;
+        $2->mod = MOD_PUBLIC;
         $2->u_fn.alias = $4;
 
         vector_add_last(&$$->ids, $2);
@@ -771,7 +771,7 @@ library_body:
     {
         $$ = $1;
 
-        $2->mod = MOD_SYSTEM;
+        $2->mod = MOD_PUBLIC;
         $2->u_fn.blk = $3;
 
         vector_add_last(&$$->ids, $2);
@@ -1285,7 +1285,7 @@ post_exp:
     }
 |   post_exp '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(false, $1, $3, &@$);
+        $$ = exp_new_call(FN_UDF, $1, $3, &@$);
     }
 |   post_exp '.' identifier
     {
@@ -1331,7 +1331,7 @@ prim_exp:
     }
 |   K_NEW identifier '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(true, exp_new_id($2, &@2), $4, &@2);
+        $$ = exp_new_call(FN_CTOR, exp_new_id($2, &@2), $4, &@2);
     }
 ;
 

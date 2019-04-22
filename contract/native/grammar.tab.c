@@ -1,9 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.3.2.  */
+/* A Bison parser, made by GNU Bison 3.0.5.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
-   Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,14 +40,11 @@
    define necessary library symbols; they are noted "INFRINGES ON
    USER NAME SPACE" below.  */
 
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
-
 /* Identify Bison output.  */
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.3.2"
+#define YYBISON_VERSION "3.0.5"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -65,8 +61,8 @@
 
 
 
-/* First part of user prologue.  */
-#line 1 "grammar.y" /* yacc.c:337  */
+/* Copy the first part of user declarations.  */
+#line 1 "grammar.y" /* yacc.c:339  */
 
 
 /**
@@ -94,16 +90,13 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
                     const char *msg);
 
 
-#line 98 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:337  */
+#line 94 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:339  */
+
 # ifndef YY_NULLPTR
-#  if defined __cplusplus
-#   if 201103L <= __cplusplus
-#    define YY_NULLPTR nullptr
-#   else
-#    define YY_NULLPTR 0
-#   endif
+#  if defined __cplusplus && 201103L <= __cplusplus
+#   define YY_NULLPTR nullptr
 #  else
-#   define YY_NULLPTR ((void*)0)
+#   define YY_NULLPTR 0
 #  endif
 # endif
 
@@ -221,7 +214,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 148 "grammar.y" /* yacc.c:352  */
+#line 148 "grammar.y" /* yacc.c:355  */
 
     bool flag;
     char *str;
@@ -238,7 +231,7 @@ union YYSTYPE
     ast_stmt_t *stmt;
     meta_t *meta;
 
-#line 242 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:352  */
+#line 235 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:355  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -266,7 +259,9 @@ int yyparse (parse_t *parse, void *yyscanner);
 
 #endif /* !YY_YY_HOME_WRPARK_BLOCKO_SRC_GITHUB_COM_AERGOIO_AERGO_CONTRACT_NATIVE_GRAMMAR_TAB_H_INCLUDED  */
 
+/* Copy the second part of user declarations.  */
 
+#line 265 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -287,13 +282,13 @@ typedef signed char yytype_int8;
 #ifdef YYTYPE_UINT16
 typedef YYTYPE_UINT16 yytype_uint16;
 #else
-typedef unsigned short yytype_uint16;
+typedef unsigned short int yytype_uint16;
 #endif
 
 #ifdef YYTYPE_INT16
 typedef YYTYPE_INT16 yytype_int16;
 #else
-typedef short yytype_int16;
+typedef short int yytype_int16;
 #endif
 
 #ifndef YYSIZE_T
@@ -305,7 +300,7 @@ typedef short yytype_int16;
 #  include <stddef.h> /* INFRINGES ON USER NAME SPACE */
 #  define YYSIZE_T size_t
 # else
-#  define YYSIZE_T unsigned
+#  define YYSIZE_T unsigned int
 # endif
 #endif
 
@@ -341,6 +336,15 @@ typedef short yytype_int16;
 # define YY_ATTRIBUTE_UNUSED YY_ATTRIBUTE ((__unused__))
 #endif
 
+#if !defined _Noreturn \
+     && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 201112)
+# if defined _MSC_VER && 1200 <= _MSC_VER
+#  define _Noreturn __declspec (noreturn)
+# else
+#  define _Noreturn YY_ATTRIBUTE ((__noreturn__))
+# endif
+#endif
+
 /* Suppress unused-variable warnings by "using" E.  */
 #if ! defined lint || defined __GNUC__
 # define YYUSE(E) ((void) (E))
@@ -348,7 +352,7 @@ typedef short yytype_int16;
 # define YYUSE(E) /* empty */
 #endif
 
-#if defined __GNUC__ && ! defined __ICC && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
+#if defined __GNUC__ && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
 /* Suppress an incorrect diagnostic about yylval being uninitialized.  */
 # define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN \
     _Pragma ("GCC diagnostic push") \
@@ -512,16 +516,16 @@ union yyalloc
 /* YYNSTATES -- Number of states.  */
 #define YYNSTATES  450
 
+/* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
+   by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
 #define YYMAXUTOK   337
 
-/* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
-   as returned by yylex, with out-of-bounds checking.  */
 #define YYTRANSLATE(YYX)                                                \
-  ((unsigned) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
+  ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
 
 /* YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to TOKEN-NUM
-   as returned by yylex.  */
+   as returned by yylex, without out-of-bounds checking.  */
 static const yytype_uint8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -1332,22 +1336,22 @@ static const yytype_uint8 yyr2[] =
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
-#define YYBACKUP(Token, Value)                                    \
-  do                                                              \
-    if (yychar == YYEMPTY)                                        \
-      {                                                           \
-        yychar = (Token);                                         \
-        yylval = (Value);                                         \
-        YYPOPSTACK (yylen);                                       \
-        yystate = *yyssp;                                         \
-        goto yybackup;                                            \
-      }                                                           \
-    else                                                          \
-      {                                                           \
-        yyerror (&yylloc, parse, yyscanner, YY_("syntax error: cannot back up")); \
-        YYERROR;                                                  \
-      }                                                           \
-  while (0)
+#define YYBACKUP(Token, Value)                                  \
+do                                                              \
+  if (yychar == YYEMPTY)                                        \
+    {                                                           \
+      yychar = (Token);                                         \
+      yylval = (Value);                                         \
+      YYPOPSTACK (yylen);                                       \
+      yystate = *yyssp;                                         \
+      goto yybackup;                                            \
+    }                                                           \
+  else                                                          \
+    {                                                           \
+      yyerror (&yylloc, parse, yyscanner, YY_("syntax error: cannot back up")); \
+      YYERROR;                                                  \
+    }                                                           \
+while (0)
 
 /* Error token number */
 #define YYTERROR        1
@@ -1406,10 +1410,10 @@ do {                                            \
 /* Print *YYLOCP on YYO.  Private, do not rely on its existence. */
 
 YY_ATTRIBUTE_UNUSED
-static int
+static unsigned
 yy_location_print_ (FILE *yyo, YYLTYPE const * const yylocp)
 {
-  int res = 0;
+  unsigned res = 0;
   int end_col = 0 != yylocp->last_column ? yylocp->last_column - 1 : 0;
   if (0 <= yylocp->first_line)
     {
@@ -1452,15 +1456,15 @@ do {                                                                      \
 } while (0)
 
 
-/*-----------------------------------.
-| Print this symbol's value on YYO.  |
-`-----------------------------------*/
+/*----------------------------------------.
+| Print this symbol's value on YYOUTPUT.  |
+`----------------------------------------*/
 
 static void
-yy_symbol_value_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, parse_t *parse, void *yyscanner)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, parse_t *parse, void *yyscanner)
 {
-  FILE *yyoutput = yyo;
-  YYUSE (yyoutput);
+  FILE *yyo = yyoutput;
+  YYUSE (yyo);
   YYUSE (yylocationp);
   YYUSE (parse);
   YYUSE (yyscanner);
@@ -1468,26 +1472,26 @@ yy_symbol_value_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep, YY
     return;
 # ifdef YYPRINT
   if (yytype < YYNTOKENS)
-    YYPRINT (yyo, yytoknum[yytype], *yyvaluep);
+    YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
 # endif
   YYUSE (yytype);
 }
 
 
-/*---------------------------.
-| Print this symbol on YYO.  |
-`---------------------------*/
+/*--------------------------------.
+| Print this symbol on YYOUTPUT.  |
+`--------------------------------*/
 
 static void
-yy_symbol_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, parse_t *parse, void *yyscanner)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, parse_t *parse, void *yyscanner)
 {
-  YYFPRINTF (yyo, "%s %s (",
+  YYFPRINTF (yyoutput, "%s %s (",
              yytype < YYNTOKENS ? "token" : "nterm", yytname[yytype]);
 
-  YY_LOCATION_PRINT (yyo, *yylocationp);
-  YYFPRINTF (yyo, ": ");
-  yy_symbol_value_print (yyo, yytype, yyvaluep, yylocationp, parse, yyscanner);
-  YYFPRINTF (yyo, ")");
+  YY_LOCATION_PRINT (yyoutput, *yylocationp);
+  YYFPRINTF (yyoutput, ": ");
+  yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp, parse, yyscanner);
+  YYFPRINTF (yyoutput, ")");
 }
 
 /*------------------------------------------------------------------.
@@ -1521,7 +1525,7 @@ do {                                                            \
 static void
 yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, YYLTYPE *yylsp, int yyrule, parse_t *parse, void *yyscanner)
 {
-  unsigned long yylno = yyrline[yyrule];
+  unsigned long int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
   int yyi;
   YYFPRINTF (stderr, "Reducing stack by rule %d (line %lu):\n",
@@ -1532,7 +1536,7 @@ yy_reduce_print (yytype_int16 *yyssp, YYSTYPE *yyvsp, YYLTYPE *yylsp, int yyrule
       YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr,
                        yystos[yyssp[yyi + 1 - yynrhs]],
-                       &yyvsp[(yyi + 1) - (yynrhs)]
+                       &(yyvsp[(yyi + 1) - (yynrhs)])
                        , &(yylsp[(yyi + 1) - (yynrhs)])                       , parse, yyscanner);
       YYFPRINTF (stderr, "\n");
     }
@@ -1636,10 +1640,7 @@ yytnamerr (char *yyres, const char *yystr)
           case '\\':
             if (*++yyp != '\\')
               goto do_not_strip_quotes;
-            else
-              goto append;
-
-          append:
+            /* Fall through.  */
           default:
             if (yyres)
               yyres[yyn] = *yyp;
@@ -1657,7 +1658,7 @@ yytnamerr (char *yyres, const char *yystr)
   if (! yyres)
     return yystrlen (yystr);
 
-  return (YYSIZE_T) (yystpcpy (yyres, yystr) - yyres);
+  return yystpcpy (yyres, yystr) - yyres;
 }
 # endif
 
@@ -1735,10 +1736,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yyarg[yycount++] = yytname[yyx];
                 {
                   YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
-                  if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
-                    yysize = yysize1;
-                  else
+                  if (! (yysize <= yysize1
+                         && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                     return 2;
+                  yysize = yysize1;
                 }
               }
         }
@@ -1762,10 +1763,9 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 
   {
     YYSIZE_T yysize1 = yysize + yystrlen (yyformat);
-    if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
-      yysize = yysize1;
-    else
+    if (! (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
       return 2;
+    yysize = yysize1;
   }
 
   if (*yymsg_alloc < yysize)
@@ -1917,40 +1917,32 @@ YYLTYPE yylloc = yyloc_default;
   yychar = YYEMPTY; /* Cause a token to be read.  */
 
 /* User initialization code.  */
-#line 36 "grammar.y" /* yacc.c:1431  */
+#line 36 "grammar.y" /* yacc.c:1430  */
 {
     src_pos_init(&yylloc, parse->src, parse->path);
 }
 
-#line 1926 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1431  */
+#line 1926 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1430  */
   yylsp[0] = yylloc;
   goto yysetstate;
 
-
 /*------------------------------------------------------------.
-| yynewstate -- push a new state, which is found in yystate.  |
+| yynewstate -- Push a new state, which is found in yystate.  |
 `------------------------------------------------------------*/
-yynewstate:
+ yynewstate:
   /* In all cases, when you get here, the value and location stacks
      have just been pushed.  So pushing a state here evens the stacks.  */
   yyssp++;
 
-
-/*--------------------------------------------------------------------.
-| yynewstate -- set current state (the top of the stack) to yystate.  |
-`--------------------------------------------------------------------*/
-yysetstate:
-  *yyssp = (yytype_int16) yystate;
+ yysetstate:
+  *yyssp = yystate;
 
   if (yyss + yystacksize - 1 <= yyssp)
-#if !defined yyoverflow && !defined YYSTACK_RELOCATE
-    goto yyexhaustedlab;
-#else
     {
       /* Get the current used size of the three stacks, in elements.  */
-      YYSIZE_T yysize = (YYSIZE_T) (yyssp - yyss + 1);
+      YYSIZE_T yysize = yyssp - yyss + 1;
 
-# if defined yyoverflow
+#ifdef yyoverflow
       {
         /* Give user a chance to reallocate the stack.  Use copies of
            these so that the &'s don't force the real ones into
@@ -1968,11 +1960,15 @@ yysetstate:
                     &yyvs1, yysize * sizeof (*yyvsp),
                     &yyls1, yysize * sizeof (*yylsp),
                     &yystacksize);
+
+        yyls = yyls1;
         yyss = yyss1;
         yyvs = yyvs1;
-        yyls = yyls1;
       }
-# else /* defined YYSTACK_RELOCATE */
+#else /* no yyoverflow */
+# ifndef YYSTACK_RELOCATE
+      goto yyexhaustedlab;
+# else
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
         goto yyexhaustedlab;
@@ -1989,23 +1985,23 @@ yysetstate:
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
         YYSTACK_RELOCATE (yyls_alloc, yyls);
-# undef YYSTACK_RELOCATE
+#  undef YYSTACK_RELOCATE
         if (yyss1 != yyssa)
           YYSTACK_FREE (yyss1);
       }
 # endif
+#endif /* no yyoverflow */
 
       yyssp = yyss + yysize - 1;
       yyvsp = yyvs + yysize - 1;
       yylsp = yyls + yysize - 1;
 
       YYDPRINTF ((stderr, "Stack size increased to %lu\n",
-                  (unsigned long) yystacksize));
+                  (unsigned long int) yystacksize));
 
       if (yyss + yystacksize - 1 <= yyssp)
         YYABORT;
     }
-#endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
@@ -2014,11 +2010,11 @@ yysetstate:
 
   goto yybackup;
 
-
 /*-----------.
 | yybackup.  |
 `-----------*/
 yybackup:
+
   /* Do appropriate processing given the current state.  Read a
      lookahead token if we need one and don't already have one.  */
 
@@ -2091,7 +2087,7 @@ yydefault:
 
 
 /*-----------------------------.
-| yyreduce -- do a reduction.  |
+| yyreduce -- Do a reduction.  |
 `-----------------------------*/
 yyreduce:
   /* yyn is the number of a rule to reduce with.  */
@@ -2114,7 +2110,7 @@ yyreduce:
   switch (yyn)
     {
         case 11:
-#line 274 "grammar.y" /* yacc.c:1652  */
+#line 274 "grammar.y" /* yacc.c:1648  */
     {
         ast_blk_t *blk = blk_new_contract(&(yylsp[-1]));
 
@@ -2123,11 +2119,11 @@ yyreduce:
 
         id_add(&ROOT->ids, id_new_contract((yyvsp[-3].str), (yyvsp[-2].exp), blk, &(yyloc)));
     }
-#line 2127 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2123 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 12:
-#line 283 "grammar.y" /* yacc.c:1652  */
+#line 283 "grammar.y" /* yacc.c:1648  */
     {
         if (is_empty_vector(&(yyvsp[-1].blk)->ids) || !is_ctor_id(vector_get_id(&(yyvsp[-1].blk)->ids, 0)))
             /* add default constructor */
@@ -2135,106 +2131,106 @@ yyreduce:
 
         id_add(&ROOT->ids, id_new_contract((yyvsp[-4].str), (yyvsp[-3].exp), (yyvsp[-1].blk), &(yyloc)));
     }
-#line 2139 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2135 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 13:
-#line 293 "grammar.y" /* yacc.c:1652  */
+#line 293 "grammar.y" /* yacc.c:1648  */
     { (yyval.exp) = NULL; }
-#line 2145 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2141 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 14:
-#line 295 "grammar.y" /* yacc.c:1652  */
+#line 295 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_id((yyvsp[0].str), &(yylsp[0]));
     }
-#line 2153 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2149 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 15:
-#line 302 "grammar.y" /* yacc.c:1652  */
+#line 302 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_contract(&(yyloc));
         stmt_add(&(yyval.blk)->stmts, stmt_new_id((yyvsp[0].id), &(yylsp[0])));
     }
-#line 2162 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2158 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 16:
-#line 307 "grammar.y" /* yacc.c:1652  */
+#line 307 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_contract(&(yyloc));
         id_add(&(yyval.blk)->ids, (yyvsp[0].id));
     }
-#line 2171 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2167 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 17:
-#line 312 "grammar.y" /* yacc.c:1652  */
+#line 312 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_contract(&(yyloc));
         id_add(&(yyval.blk)->ids, (yyvsp[0].id));
     }
-#line 2180 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2176 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 18:
-#line 317 "grammar.y" /* yacc.c:1652  */
+#line 317 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         stmt_add(&(yyval.blk)->stmts, stmt_new_id((yyvsp[0].id), &(yylsp[0])));
     }
-#line 2189 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2185 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 19:
-#line 322 "grammar.y" /* yacc.c:1652  */
+#line 322 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         id_add(&(yyval.blk)->ids, (yyvsp[0].id));
     }
-#line 2198 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2194 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 20:
-#line 327 "grammar.y" /* yacc.c:1652  */
+#line 327 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         id_add(&(yyval.blk)->ids, (yyvsp[0].id));
     }
-#line 2207 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2203 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 22:
-#line 336 "grammar.y" /* yacc.c:1652  */
+#line 336 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[0].id);
         (yyval.id)->mod |= MOD_PUBLIC;
     }
-#line 2216 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2212 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 23:
-#line 341 "grammar.y" /* yacc.c:1652  */
+#line 341 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.id) = NULL;
     }
-#line 2225 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2221 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 25:
-#line 350 "grammar.y" /* yacc.c:1652  */
+#line 350 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[0].id);
         (yyval.id)->mod |= MOD_CONST;
     }
-#line 2234 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2230 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 27:
-#line 359 "grammar.y" /* yacc.c:1652  */
+#line 359 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[-3].id);
 
@@ -2243,11 +2239,11 @@ yyreduce:
         else
             (yyval.id)->u_tup.dflt_exp = (yyvsp[-1].exp);
     }
-#line 2247 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2243 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 28:
-#line 371 "grammar.y" /* yacc.c:1652  */
+#line 371 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[0].id);
 
@@ -2256,106 +2252,106 @@ yyreduce:
         else
             (yyval.id)->u_tup.type_exp = (yyvsp[-1].exp);
     }
-#line 2260 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2256 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 29:
-#line 383 "grammar.y" /* yacc.c:1652  */
+#line 383 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_type((yyvsp[0].type), &(yylsp[0]));
     }
-#line 2268 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2264 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 30:
-#line 387 "grammar.y" /* yacc.c:1652  */
+#line 387 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_type(TYPE_NONE, &(yylsp[0]));
 
         (yyval.exp)->u_type.name = (yyvsp[0].str);
     }
-#line 2278 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2274 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 31:
-#line 393 "grammar.y" /* yacc.c:1652  */
+#line 393 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_type(TYPE_MAP, &(yylsp[-5]));
 
         (yyval.exp)->u_type.k_exp = (yyvsp[-3].exp);
         (yyval.exp)->u_type.v_exp = (yyvsp[-1].exp);
     }
-#line 2289 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2285 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 32:
-#line 402 "grammar.y" /* yacc.c:1652  */
+#line 402 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_ACCOUNT; }
-#line 2295 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2291 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 33:
-#line 403 "grammar.y" /* yacc.c:1652  */
+#line 403 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_BOOL; }
-#line 2301 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2297 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 34:
-#line 404 "grammar.y" /* yacc.c:1652  */
+#line 404 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_BYTE; }
-#line 2307 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2303 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 35:
-#line 405 "grammar.y" /* yacc.c:1652  */
+#line 405 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_INT8; }
-#line 2313 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2309 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 36:
-#line 406 "grammar.y" /* yacc.c:1652  */
+#line 406 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_INT16; }
-#line 2319 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2315 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 37:
-#line 407 "grammar.y" /* yacc.c:1652  */
+#line 407 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_INT32; }
-#line 2325 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2321 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 38:
-#line 408 "grammar.y" /* yacc.c:1652  */
+#line 408 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_INT64; }
-#line 2331 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2327 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 39:
-#line 409 "grammar.y" /* yacc.c:1652  */
+#line 409 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_INT128; }
-#line 2337 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2333 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 40:
-#line 410 "grammar.y" /* yacc.c:1652  */
+#line 410 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_INT32; }
-#line 2343 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2339 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 41:
-#line 413 "grammar.y" /* yacc.c:1652  */
+#line 413 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_STRING; }
-#line 2349 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2345 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 42:
-#line 414 "grammar.y" /* yacc.c:1652  */
+#line 414 "grammar.y" /* yacc.c:1648  */
     { (yyval.type) = TYPE_CURSOR; }
-#line 2355 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2351 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 44:
-#line 420 "grammar.y" /* yacc.c:1652  */
+#line 420 "grammar.y" /* yacc.c:1648  */
     {
         if (is_tuple_id((yyvsp[-2].id))) {
             (yyval.id) = (yyvsp[-2].id);
@@ -2367,19 +2363,19 @@ yyreduce:
 
         id_add((yyval.id)->u_tup.elem_ids, (yyvsp[0].id));
     }
-#line 2371 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2367 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 45:
-#line 435 "grammar.y" /* yacc.c:1652  */
+#line 435 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_var((yyvsp[0].str), MOD_PRIVATE, &(yylsp[0]));
     }
-#line 2379 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2375 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 46:
-#line 439 "grammar.y" /* yacc.c:1652  */
+#line 439 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[-3].id);
 
@@ -2388,25 +2384,25 @@ yyreduce:
 
         exp_add((yyval.id)->u_var.size_exps, (yyvsp[-1].exp));
     }
-#line 2392 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2388 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 47:
-#line 450 "grammar.y" /* yacc.c:1652  */
+#line 450 "grammar.y" /* yacc.c:1648  */
     { (yyval.exp) = exp_new_null(&(yyloc)); }
-#line 2398 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2394 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 49:
-#line 456 "grammar.y" /* yacc.c:1652  */
+#line 456 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[0].exp);
     }
-#line 2406 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2402 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 50:
-#line 460 "grammar.y" /* yacc.c:1652  */
+#line 460 "grammar.y" /* yacc.c:1648  */
     {
         if (is_tuple_exp((yyvsp[-2].exp))) {
             (yyval.exp) = (yyvsp[-2].exp);
@@ -2417,28 +2413,28 @@ yyreduce:
         }
         exp_add((yyval.exp)->u_tup.elem_exps, (yyvsp[0].exp));
     }
-#line 2421 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2417 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 53:
-#line 479 "grammar.y" /* yacc.c:1652  */
+#line 479 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_struct((yyvsp[-4].str), (yyvsp[-1].vect), &(yyloc));
     }
-#line 2429 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2425 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 54:
-#line 483 "grammar.y" /* yacc.c:1652  */
+#line 483 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.id) = NULL;
     }
-#line 2438 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2434 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 55:
-#line 491 "grammar.y" /* yacc.c:1652  */
+#line 491 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = vector_new();
 
@@ -2447,11 +2443,11 @@ yyreduce:
         else
             id_join((yyval.vect), id_strip((yyvsp[-1].id)));
     }
-#line 2451 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2447 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 56:
-#line 500 "grammar.y" /* yacc.c:1652  */
+#line 500 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = (yyvsp[-2].vect);
 
@@ -2460,63 +2456,63 @@ yyreduce:
         else
             id_join((yyval.vect), id_strip((yyvsp[-1].id)));
     }
-#line 2464 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2460 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 57:
-#line 512 "grammar.y" /* yacc.c:1652  */
+#line 512 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_enum((yyvsp[-4].str), (yyvsp[-2].vect), &(yyloc));
     }
-#line 2472 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2468 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 58:
-#line 516 "grammar.y" /* yacc.c:1652  */
+#line 516 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.id) = NULL;
     }
-#line 2481 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2477 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 59:
-#line 524 "grammar.y" /* yacc.c:1652  */
+#line 524 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = vector_new();
         id_add((yyval.vect), (yyvsp[0].id));
     }
-#line 2490 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2486 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 60:
-#line 529 "grammar.y" /* yacc.c:1652  */
+#line 529 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = (yyvsp[-2].vect);
         id_add((yyval.vect), (yyvsp[0].id));
     }
-#line 2499 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2495 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 61:
-#line 537 "grammar.y" /* yacc.c:1652  */
+#line 537 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_var((yyvsp[0].str), MOD_PUBLIC | MOD_CONST, &(yylsp[0]));
     }
-#line 2507 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2503 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 62:
-#line 541 "grammar.y" /* yacc.c:1652  */
+#line 541 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_var((yyvsp[-2].str), MOD_PUBLIC | MOD_CONST, &(yylsp[-2]));
         (yyval.id)->u_var.dflt_exp = (yyvsp[0].exp);
     }
-#line 2516 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2512 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 65:
-#line 554 "grammar.y" /* yacc.c:1652  */
+#line 554 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[-1].id);
         (yyval.id)->u_fn.blk = (yyvsp[0].blk);
@@ -2529,97 +2525,97 @@ yyreduce:
             vector_reset(LABELS);
         }
     }
-#line 2533 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2529 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 68:
-#line 575 "grammar.y" /* yacc.c:1652  */
+#line 575 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_ctor((yyvsp[-3].str), (yyvsp[-1].vect), NULL, &(yylsp[-3]));
     }
-#line 2541 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2537 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 69:
-#line 581 "grammar.y" /* yacc.c:1652  */
+#line 581 "grammar.y" /* yacc.c:1648  */
     { (yyval.vect) = NULL; }
-#line 2547 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2543 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 71:
-#line 587 "grammar.y" /* yacc.c:1652  */
+#line 587 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = vector_new();
         exp_add((yyval.vect), (yyvsp[0].id));
     }
-#line 2556 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2552 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 72:
-#line 592 "grammar.y" /* yacc.c:1652  */
+#line 592 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = (yyvsp[-2].vect);
         exp_add((yyval.vect), (yyvsp[0].id));
     }
-#line 2565 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2561 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 73:
-#line 600 "grammar.y" /* yacc.c:1652  */
+#line 600 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[0].id);
         (yyval.id)->u_var.is_param = true;
         (yyval.id)->u_var.type_exp = (yyvsp[-1].exp);
     }
-#line 2575 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2571 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 74:
-#line 609 "grammar.y" /* yacc.c:1652  */
+#line 609 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = id_new_func((yyvsp[-4].str), (yyvsp[-6].mod), (yyvsp[-2].vect), (yyvsp[0].id), NULL, &(yylsp[-4]));
     }
-#line 2583 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2579 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 75:
-#line 615 "grammar.y" /* yacc.c:1652  */
+#line 615 "grammar.y" /* yacc.c:1648  */
     { (yyval.mod) = MOD_PRIVATE; }
-#line 2589 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2585 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 76:
-#line 616 "grammar.y" /* yacc.c:1652  */
+#line 616 "grammar.y" /* yacc.c:1648  */
     { (yyval.mod) = MOD_PUBLIC; }
-#line 2595 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2591 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 77:
-#line 617 "grammar.y" /* yacc.c:1652  */
+#line 617 "grammar.y" /* yacc.c:1648  */
     { (yyval.mod) = MOD_PAYABLE; }
-#line 2601 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2597 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 78:
-#line 618 "grammar.y" /* yacc.c:1652  */
+#line 618 "grammar.y" /* yacc.c:1648  */
     { (yyval.mod) = MOD_PUBLIC | MOD_PAYABLE; }
-#line 2607 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2603 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 79:
-#line 622 "grammar.y" /* yacc.c:1652  */
+#line 622 "grammar.y" /* yacc.c:1648  */
     { (yyval.id) = NULL; }
-#line 2613 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2609 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 80:
-#line 623 "grammar.y" /* yacc.c:1652  */
+#line 623 "grammar.y" /* yacc.c:1648  */
     { (yyval.id) = (yyvsp[-1].id); }
-#line 2619 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2615 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 83:
-#line 630 "grammar.y" /* yacc.c:1652  */
+#line 630 "grammar.y" /* yacc.c:1648  */
     {
         yyerror(&(yylsp[0]), parse, yyscanner, "not supported yet");
 
@@ -2645,21 +2641,21 @@ yyreduce:
         id_add((yyval.id)->u_tup.elem_ids, (yyvsp[0].id));
 #endif
     }
-#line 2649 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2645 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 84:
-#line 659 "grammar.y" /* yacc.c:1652  */
+#line 659 "grammar.y" /* yacc.c:1648  */
     {
         /* We wanted to use a type expression, but we can not store size expressions
          * and declare it as an identifier. */
         (yyval.id) = id_new_param(NULL, (yyvsp[0].exp), &(yylsp[0]));
     }
-#line 2659 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2655 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 85:
-#line 665 "grammar.y" /* yacc.c:1652  */
+#line 665 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.id) = (yyvsp[-3].id);
 
@@ -2668,500 +2664,500 @@ yyreduce:
 
         exp_add((yyval.id)->u_var.size_exps, (yyvsp[-1].exp));
     }
-#line 2672 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2668 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 86:
-#line 676 "grammar.y" /* yacc.c:1652  */
+#line 676 "grammar.y" /* yacc.c:1648  */
     { (yyval.blk) = NULL; }
-#line 2678 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2674 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 87:
-#line 677 "grammar.y" /* yacc.c:1652  */
+#line 677 "grammar.y" /* yacc.c:1648  */
     { (yyval.blk) = (yyvsp[-1].blk); }
-#line 2684 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2680 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 88:
-#line 682 "grammar.y" /* yacc.c:1652  */
+#line 682 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_normal(&(yyloc));
         stmt_add(&(yyval.blk)->stmts, stmt_new_id((yyvsp[0].id), &(yylsp[0])));
     }
-#line 2693 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2689 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 89:
-#line 687 "grammar.y" /* yacc.c:1652  */
+#line 687 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_normal(&(yyloc));
         /* Unlike state variables, local variables are referenced according to their
          * order of declaration. */
         stmt_add(&(yyval.blk)->stmts, stmt_new_id((yyvsp[0].id), &(yylsp[0])));
     }
-#line 2704 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2700 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 90:
-#line 694 "grammar.y" /* yacc.c:1652  */
+#line 694 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_normal(&(yyloc));
         stmt_add(&(yyval.blk)->stmts, (yyvsp[0].stmt));
     }
-#line 2713 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2709 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 91:
-#line 699 "grammar.y" /* yacc.c:1652  */
+#line 699 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         stmt_add(&(yyval.blk)->stmts, stmt_new_id((yyvsp[0].id), &(yylsp[0])));
     }
-#line 2722 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2718 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 92:
-#line 704 "grammar.y" /* yacc.c:1652  */
+#line 704 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         stmt_add(&(yyval.blk)->stmts, stmt_new_id((yyvsp[0].id), &(yylsp[0])));
     }
-#line 2731 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2727 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 93:
-#line 709 "grammar.y" /* yacc.c:1652  */
+#line 709 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         stmt_add(&(yyval.blk)->stmts, (yyvsp[0].stmt));
     }
-#line 2740 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2736 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 94:
-#line 717 "grammar.y" /* yacc.c:1652  */
+#line 717 "grammar.y" /* yacc.c:1648  */
     {
         id_add(&ROOT->ids, id_new_interface((yyvsp[-3].str), (yyvsp[-1].blk), &(yylsp[-3])));
     }
-#line 2748 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2744 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 95:
-#line 724 "grammar.y" /* yacc.c:1652  */
+#line 724 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_interface(&(yyloc));
         id_add(&(yyval.blk)->ids, (yyvsp[-1].id));
     }
-#line 2757 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2753 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 96:
-#line 729 "grammar.y" /* yacc.c:1652  */
+#line 729 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-2].blk);
         id_add(&(yyval.blk)->ids, (yyvsp[-1].id));
     }
-#line 2766 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2762 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 97:
-#line 737 "grammar.y" /* yacc.c:1652  */
+#line 737 "grammar.y" /* yacc.c:1648  */
     {
         id_add(&ROOT->ids, id_new_library((yyvsp[-3].str), (yyvsp[-1].blk), &(yylsp[-3])));
     }
-#line 2774 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2770 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 98:
-#line 744 "grammar.y" /* yacc.c:1652  */
+#line 744 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_library(&(yyloc));
 
-        (yyvsp[-3].id)->mod = MOD_SYSTEM;
+        (yyvsp[-3].id)->mod = MOD_PUBLIC;
         (yyvsp[-3].id)->u_fn.alias = (yyvsp[-1].str);
 
         vector_add_last(&(yyval.blk)->ids, (yyvsp[-3].id));
     }
-#line 2787 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2783 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 99:
-#line 753 "grammar.y" /* yacc.c:1652  */
+#line 753 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_library(&(yyloc));
 
-        (yyvsp[-1].id)->mod = MOD_SYSTEM;
+        (yyvsp[-1].id)->mod = MOD_PUBLIC;
         (yyvsp[-1].id)->u_fn.blk = (yyvsp[0].blk);
 
         vector_add_last(&(yyval.blk)->ids, (yyvsp[-1].id));
     }
-#line 2800 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2796 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 100:
-#line 762 "grammar.y" /* yacc.c:1652  */
+#line 762 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-4].blk);
 
-        (yyvsp[-3].id)->mod = MOD_SYSTEM;
+        (yyvsp[-3].id)->mod = MOD_PUBLIC;
         (yyvsp[-3].id)->u_fn.alias = (yyvsp[-1].str);
 
         vector_add_last(&(yyval.blk)->ids, (yyvsp[-3].id));
     }
-#line 2813 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2809 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 101:
-#line 771 "grammar.y" /* yacc.c:1652  */
+#line 771 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-2].blk);
 
-        (yyvsp[-1].id)->mod = MOD_SYSTEM;
+        (yyvsp[-1].id)->mod = MOD_PUBLIC;
         (yyvsp[-1].id)->u_fn.blk = (yyvsp[0].blk);
 
         vector_add_last(&(yyval.blk)->ids, (yyvsp[-1].id));
     }
-#line 2826 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2822 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 113:
-#line 797 "grammar.y" /* yacc.c:1652  */
+#line 797 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_null(&(yyloc));
     }
-#line 2834 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2830 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 114:
-#line 804 "grammar.y" /* yacc.c:1652  */
+#line 804 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_exp((yyvsp[-1].exp), &(yyloc));
     }
-#line 2842 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2838 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 115:
-#line 808 "grammar.y" /* yacc.c:1652  */
+#line 808 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.stmt) = NULL;
     }
-#line 2851 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2847 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 116:
-#line 816 "grammar.y" /* yacc.c:1652  */
+#line 816 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_assign((yyvsp[-3].exp), (yyvsp[-1].exp), &(yylsp[-2]));
     }
-#line 2859 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2855 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 117:
-#line 820 "grammar.y" /* yacc.c:1652  */
+#line 820 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_assign((yyvsp[-3].exp), exp_new_binary((yyvsp[-2].op), (yyvsp[-3].exp), (yyvsp[-1].exp), &(yylsp[-2])), &(yylsp[-2]));
     }
-#line 2867 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2863 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 118:
-#line 826 "grammar.y" /* yacc.c:1652  */
+#line 826 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_ADD; }
-#line 2873 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2869 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 119:
-#line 827 "grammar.y" /* yacc.c:1652  */
+#line 827 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_SUB; }
-#line 2879 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2875 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 120:
-#line 828 "grammar.y" /* yacc.c:1652  */
+#line 828 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_MUL; }
-#line 2885 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2881 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 121:
-#line 829 "grammar.y" /* yacc.c:1652  */
+#line 829 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_DIV; }
-#line 2891 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2887 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 122:
-#line 830 "grammar.y" /* yacc.c:1652  */
+#line 830 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_MOD; }
-#line 2897 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2893 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 123:
-#line 831 "grammar.y" /* yacc.c:1652  */
+#line 831 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_BIT_AND; }
-#line 2903 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2899 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 124:
-#line 832 "grammar.y" /* yacc.c:1652  */
+#line 832 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_BIT_XOR; }
-#line 2909 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2905 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 125:
-#line 833 "grammar.y" /* yacc.c:1652  */
+#line 833 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_BIT_OR; }
-#line 2915 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2911 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 126:
-#line 834 "grammar.y" /* yacc.c:1652  */
+#line 834 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_RSHIFT; }
-#line 2921 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2917 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 127:
-#line 835 "grammar.y" /* yacc.c:1652  */
+#line 835 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_LSHIFT; }
-#line 2927 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2923 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 128:
-#line 840 "grammar.y" /* yacc.c:1652  */
+#line 840 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = (yyvsp[0].stmt);
         id_add(LABELS, id_new_label((yyvsp[-2].str), (yyvsp[0].stmt), &(yylsp[-2])));
     }
-#line 2936 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2932 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 129:
-#line 845 "grammar.y" /* yacc.c:1652  */
+#line 845 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_case((yyvsp[-1].exp), &(yyloc));
     }
-#line 2944 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2940 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 130:
-#line 849 "grammar.y" /* yacc.c:1652  */
+#line 849 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_case(NULL, &(yyloc));
     }
-#line 2952 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2948 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 131:
-#line 856 "grammar.y" /* yacc.c:1652  */
+#line 856 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_if((yyvsp[-2].exp), (yyvsp[0].blk), &(yyloc));
     }
-#line 2960 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2956 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 132:
-#line 860 "grammar.y" /* yacc.c:1652  */
+#line 860 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = (yyvsp[-6].stmt);
         stmt_add(&(yyval.stmt)->u_if.elif_stmts, stmt_new_if((yyvsp[-2].exp), (yyvsp[0].blk), &(yylsp[-5])));
     }
-#line 2969 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2965 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 133:
-#line 865 "grammar.y" /* yacc.c:1652  */
+#line 865 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = (yyvsp[-2].stmt);
         (yyval.stmt)->u_if.else_blk = (yyvsp[0].blk);
     }
-#line 2978 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2974 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 134:
-#line 870 "grammar.y" /* yacc.c:1652  */
+#line 870 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.stmt) = NULL;
     }
-#line 2987 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2983 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 135:
-#line 878 "grammar.y" /* yacc.c:1652  */
+#line 878 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_FOR, NULL, NULL, NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 2995 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2991 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 136:
-#line 882 "grammar.y" /* yacc.c:1652  */
+#line 882 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_FOR, NULL, (yyvsp[-2].exp), NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 3003 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 2999 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 137:
-#line 886 "grammar.y" /* yacc.c:1652  */
+#line 886 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_FOR, (yyvsp[-3].stmt), (yyvsp[-2].exp), NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 3011 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3007 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 138:
-#line 890 "grammar.y" /* yacc.c:1652  */
+#line 890 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_FOR, (yyvsp[-4].stmt), (yyvsp[-3].exp), (yyvsp[-2].exp), (yyvsp[0].blk), &(yyloc));
     }
-#line 3019 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3015 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 139:
-#line 894 "grammar.y" /* yacc.c:1652  */
+#line 894 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_FOR, stmt_new_id((yyvsp[-3].id), &(yylsp[-3])), (yyvsp[-2].exp), NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 3027 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3023 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 140:
-#line 898 "grammar.y" /* yacc.c:1652  */
+#line 898 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_FOR, stmt_new_id((yyvsp[-4].id), &(yylsp[-4])), (yyvsp[-3].exp), (yyvsp[-2].exp), (yyvsp[0].blk), &(yyloc));
     }
-#line 3035 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3031 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 141:
-#line 902 "grammar.y" /* yacc.c:1652  */
+#line 902 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_ARRAY, stmt_new_exp((yyvsp[-4].exp), &(yylsp[-4])), (yyvsp[-2].exp), NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 3043 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3039 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 142:
-#line 906 "grammar.y" /* yacc.c:1652  */
+#line 906 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_loop(LOOP_ARRAY, stmt_new_id((yyvsp[-4].id), &(yylsp[-4])), (yyvsp[-2].exp), NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 3051 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3047 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 143:
-#line 910 "grammar.y" /* yacc.c:1652  */
+#line 910 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.stmt) = NULL;
     }
-#line 3060 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3056 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 146:
-#line 922 "grammar.y" /* yacc.c:1652  */
+#line 922 "grammar.y" /* yacc.c:1648  */
     { (yyval.exp) = NULL; }
-#line 3066 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3062 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 148:
-#line 928 "grammar.y" /* yacc.c:1652  */
+#line 928 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_switch(NULL, (yyvsp[0].blk), &(yyloc));
     }
-#line 3074 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3070 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 149:
-#line 932 "grammar.y" /* yacc.c:1652  */
+#line 932 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_switch((yyvsp[-2].exp), (yyvsp[0].blk), &(yyloc));
     }
-#line 3082 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3078 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 150:
-#line 936 "grammar.y" /* yacc.c:1652  */
+#line 936 "grammar.y" /* yacc.c:1648  */
     {
         yyerrok;
         (yyval.stmt) = NULL;
     }
-#line 3091 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3087 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 151:
-#line 943 "grammar.y" /* yacc.c:1652  */
+#line 943 "grammar.y" /* yacc.c:1648  */
     { (yyval.blk) = NULL; }
-#line 3097 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3093 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 152:
-#line 944 "grammar.y" /* yacc.c:1652  */
+#line 944 "grammar.y" /* yacc.c:1648  */
     { (yyval.blk) = (yyvsp[-1].blk); }
-#line 3103 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3099 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 153:
-#line 949 "grammar.y" /* yacc.c:1652  */
+#line 949 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = blk_new_switch(&(yyloc));
         stmt_add(&(yyval.blk)->stmts, (yyvsp[0].stmt));
     }
-#line 3112 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3108 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 154:
-#line 954 "grammar.y" /* yacc.c:1652  */
+#line 954 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.blk) = (yyvsp[-1].blk);
         stmt_add(&(yyval.blk)->stmts, (yyvsp[0].stmt));
     }
-#line 3121 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3117 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 155:
-#line 962 "grammar.y" /* yacc.c:1652  */
+#line 962 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_jump(STMT_CONTINUE, NULL, &(yyloc));
     }
-#line 3129 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3125 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 156:
-#line 966 "grammar.y" /* yacc.c:1652  */
+#line 966 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_jump(STMT_BREAK, NULL, &(yyloc));
     }
-#line 3137 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3133 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 157:
-#line 970 "grammar.y" /* yacc.c:1652  */
+#line 970 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_return(NULL, &(yyloc));
     }
-#line 3145 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3141 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 158:
-#line 974 "grammar.y" /* yacc.c:1652  */
+#line 974 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_return((yyvsp[-1].exp), &(yyloc));
     }
-#line 3153 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3149 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 159:
-#line 978 "grammar.y" /* yacc.c:1652  */
+#line 978 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_goto((yyvsp[-1].str), &(yylsp[-1]));
     }
-#line 3161 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3157 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 160:
-#line 985 "grammar.y" /* yacc.c:1652  */
+#line 985 "grammar.y" /* yacc.c:1648  */
     {
         int len;
         char *ddl;
@@ -3177,41 +3173,41 @@ yyreduce:
         yylex_set_token(yyscanner, ';', &(yylsp[0]));
         yyclearin;
     }
-#line 3181 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3177 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 168:
-#line 1014 "grammar.y" /* yacc.c:1652  */
+#line 1014 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.stmt) = stmt_new_blk((yyvsp[0].blk), &(yyloc));
     }
-#line 3189 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3185 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 169:
-#line 1021 "grammar.y" /* yacc.c:1652  */
+#line 1021 "grammar.y" /* yacc.c:1648  */
     {
         char *cond_str =
             xstrndup(parse->src + (yyloc).first_offset + (yylsp[-2]).last_col - 1, (yylsp[0]).first_col - (yylsp[-2]).last_col);
 
         (yyval.stmt) = stmt_new_pragma(PRAGMA_ASSERT, (yyvsp[-1].exp), cond_str, NULL, &(yylsp[-4]));
     }
-#line 3200 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3196 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 170:
-#line 1028 "grammar.y" /* yacc.c:1652  */
+#line 1028 "grammar.y" /* yacc.c:1648  */
     {
         char *cond_str =
             xstrndup(parse->src + (yyloc).first_offset + (yylsp[-4]).last_col - 1, (yylsp[-2]).first_col - (yylsp[-4]).last_col);
 
         (yyval.stmt) = stmt_new_pragma(PRAGMA_ASSERT, (yyvsp[-3].exp), cond_str, (yyvsp[-1].exp), &(yylsp[-6]));
     }
-#line 3211 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3207 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 172:
-#line 1039 "grammar.y" /* yacc.c:1652  */
+#line 1039 "grammar.y" /* yacc.c:1648  */
     {
         if (is_tuple_exp((yyvsp[-2].exp))) {
             (yyval.exp) = (yyvsp[-2].exp);
@@ -3222,11 +3218,11 @@ yyreduce:
         }
         exp_add((yyval.exp)->u_tup.elem_exps, (yyvsp[0].exp));
     }
-#line 3226 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3222 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 174:
-#line 1054 "grammar.y" /* yacc.c:1652  */
+#line 1054 "grammar.y" /* yacc.c:1648  */
     {
         int len;
         char *sql;
@@ -3242,66 +3238,66 @@ yyreduce:
         yylex_set_token(yyscanner, ';', &(yylsp[0]));
         yyclearin;
     }
-#line 3246 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3242 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 175:
-#line 1072 "grammar.y" /* yacc.c:1652  */
+#line 1072 "grammar.y" /* yacc.c:1648  */
     { (yyval.sql) = SQL_DELETE; }
-#line 3252 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3248 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 176:
-#line 1073 "grammar.y" /* yacc.c:1652  */
+#line 1073 "grammar.y" /* yacc.c:1648  */
     { (yyval.sql) = SQL_INSERT; }
-#line 3258 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3254 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 177:
-#line 1074 "grammar.y" /* yacc.c:1652  */
+#line 1074 "grammar.y" /* yacc.c:1648  */
     { (yyval.sql) = SQL_REPLACE; }
-#line 3264 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3260 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 178:
-#line 1075 "grammar.y" /* yacc.c:1652  */
+#line 1075 "grammar.y" /* yacc.c:1648  */
     { (yyval.sql) = SQL_QUERY; }
-#line 3270 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3266 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 179:
-#line 1076 "grammar.y" /* yacc.c:1652  */
+#line 1076 "grammar.y" /* yacc.c:1648  */
     { (yyval.sql) = SQL_UPDATE; }
-#line 3276 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3272 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 181:
-#line 1082 "grammar.y" /* yacc.c:1652  */
+#line 1082 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[0].exp);
     }
-#line 3284 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3280 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 182:
-#line 1086 "grammar.y" /* yacc.c:1652  */
+#line 1086 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[0].exp);
         (yyval.exp)->u_init.is_outmost = true;
     }
-#line 3293 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3289 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 183:
-#line 1094 "grammar.y" /* yacc.c:1652  */
+#line 1094 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_alloc((yyvsp[0].exp), &(yylsp[0]));
     }
-#line 3301 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3297 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 184:
-#line 1098 "grammar.y" /* yacc.c:1652  */
+#line 1098 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[-3].exp);
 
@@ -3310,465 +3306,465 @@ yyreduce:
 
         exp_add((yyval.exp)->u_alloc.size_exps, (yyvsp[-1].exp));
     }
-#line 3314 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3310 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 185:
-#line 1110 "grammar.y" /* yacc.c:1652  */
+#line 1110 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_init((yyvsp[-2].vect), &(yyloc));
     }
-#line 3322 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3318 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 186:
-#line 1117 "grammar.y" /* yacc.c:1652  */
+#line 1117 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = vector_new();
         exp_add((yyval.vect), (yyvsp[0].exp));
     }
-#line 3331 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3327 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 187:
-#line 1122 "grammar.y" /* yacc.c:1652  */
+#line 1122 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = (yyvsp[-2].vect);
         exp_add((yyval.vect), (yyvsp[0].exp));
     }
-#line 3340 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3336 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 190:
-#line 1132 "grammar.y" /* yacc.c:1652  */
+#line 1132 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[0].exp);
     }
-#line 3348 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3344 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 192:
-#line 1140 "grammar.y" /* yacc.c:1652  */
+#line 1140 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_ternary((yyvsp[-4].exp), (yyvsp[-2].exp), (yyvsp[0].exp), &(yyloc));
     }
-#line 3356 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3352 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 194:
-#line 1148 "grammar.y" /* yacc.c:1652  */
+#line 1148 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary(OP_OR, (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3364 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3360 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 196:
-#line 1156 "grammar.y" /* yacc.c:1652  */
+#line 1156 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary(OP_AND, (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3372 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3368 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 198:
-#line 1164 "grammar.y" /* yacc.c:1652  */
+#line 1164 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary(OP_BIT_OR, (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3380 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3376 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 200:
-#line 1172 "grammar.y" /* yacc.c:1652  */
+#line 1172 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary(OP_BIT_XOR, (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3388 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3384 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 202:
-#line 1180 "grammar.y" /* yacc.c:1652  */
+#line 1180 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary(OP_BIT_AND, (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3396 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3392 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 204:
-#line 1188 "grammar.y" /* yacc.c:1652  */
+#line 1188 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary((yyvsp[-1].op), (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3404 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3400 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 205:
-#line 1194 "grammar.y" /* yacc.c:1652  */
+#line 1194 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_EQ; }
-#line 3410 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3406 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 206:
-#line 1195 "grammar.y" /* yacc.c:1652  */
+#line 1195 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_NE; }
-#line 3416 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3412 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 208:
-#line 1201 "grammar.y" /* yacc.c:1652  */
+#line 1201 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary((yyvsp[-1].op), (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3424 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3420 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 209:
-#line 1207 "grammar.y" /* yacc.c:1652  */
+#line 1207 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_LT; }
-#line 3430 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3426 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 210:
-#line 1208 "grammar.y" /* yacc.c:1652  */
+#line 1208 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_GT; }
-#line 3436 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3432 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 211:
-#line 1209 "grammar.y" /* yacc.c:1652  */
+#line 1209 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_LE; }
-#line 3442 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3438 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 212:
-#line 1210 "grammar.y" /* yacc.c:1652  */
+#line 1210 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_GE; }
-#line 3448 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3444 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 214:
-#line 1216 "grammar.y" /* yacc.c:1652  */
+#line 1216 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary((yyvsp[-1].op), (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3456 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3452 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 215:
-#line 1222 "grammar.y" /* yacc.c:1652  */
+#line 1222 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_ADD; }
-#line 3462 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3458 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 216:
-#line 1223 "grammar.y" /* yacc.c:1652  */
+#line 1223 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_SUB; }
-#line 3468 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3464 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 218:
-#line 1229 "grammar.y" /* yacc.c:1652  */
+#line 1229 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary((yyvsp[-1].op), (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3476 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3472 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 219:
-#line 1235 "grammar.y" /* yacc.c:1652  */
+#line 1235 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_RSHIFT; }
-#line 3482 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3478 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 220:
-#line 1236 "grammar.y" /* yacc.c:1652  */
+#line 1236 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_LSHIFT; }
-#line 3488 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3484 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 222:
-#line 1242 "grammar.y" /* yacc.c:1652  */
+#line 1242 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_binary((yyvsp[-1].op), (yyvsp[-2].exp), (yyvsp[0].exp), &(yylsp[-1]));
     }
-#line 3496 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3492 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 223:
-#line 1248 "grammar.y" /* yacc.c:1652  */
+#line 1248 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_MUL; }
-#line 3502 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3498 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 224:
-#line 1249 "grammar.y" /* yacc.c:1652  */
+#line 1249 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_DIV; }
-#line 3508 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3504 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 225:
-#line 1250 "grammar.y" /* yacc.c:1652  */
+#line 1250 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_MOD; }
-#line 3514 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3510 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 227:
-#line 1256 "grammar.y" /* yacc.c:1652  */
+#line 1256 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_cast((yyvsp[-2].type), (yyvsp[0].exp), &(yylsp[-2]));
     }
-#line 3522 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3518 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 229:
-#line 1264 "grammar.y" /* yacc.c:1652  */
+#line 1264 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_unary((yyvsp[-1].op), true, (yyvsp[0].exp), &(yyloc));
     }
-#line 3530 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3526 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 230:
-#line 1268 "grammar.y" /* yacc.c:1652  */
+#line 1268 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[0].exp);
     }
-#line 3538 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3534 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 231:
-#line 1274 "grammar.y" /* yacc.c:1652  */
+#line 1274 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_INC; }
-#line 3544 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3540 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 232:
-#line 1275 "grammar.y" /* yacc.c:1652  */
+#line 1275 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_DEC; }
-#line 3550 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3546 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 233:
-#line 1276 "grammar.y" /* yacc.c:1652  */
+#line 1276 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_NEG; }
-#line 3556 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3552 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 234:
-#line 1277 "grammar.y" /* yacc.c:1652  */
+#line 1277 "grammar.y" /* yacc.c:1648  */
     { (yyval.op) = OP_NOT; }
-#line 3562 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3558 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 236:
-#line 1283 "grammar.y" /* yacc.c:1652  */
+#line 1283 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_array((yyvsp[-3].exp), (yyvsp[-1].exp), &(yyloc));
     }
-#line 3570 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3566 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 237:
-#line 1287 "grammar.y" /* yacc.c:1652  */
+#line 1287 "grammar.y" /* yacc.c:1648  */
     {
-        (yyval.exp) = exp_new_call(false, (yyvsp[-3].exp), (yyvsp[-1].vect), &(yyloc));
+        (yyval.exp) = exp_new_call(FN_UDF, (yyvsp[-3].exp), (yyvsp[-1].vect), &(yyloc));
     }
-#line 3578 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3574 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 238:
-#line 1291 "grammar.y" /* yacc.c:1652  */
+#line 1291 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_access((yyvsp[-2].exp), exp_new_id((yyvsp[0].str), &(yylsp[0])), &(yyloc));
     }
-#line 3586 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3582 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 239:
-#line 1295 "grammar.y" /* yacc.c:1652  */
+#line 1295 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_unary(OP_INC, false, (yyvsp[-1].exp), &(yyloc));
     }
-#line 3594 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3590 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 240:
-#line 1299 "grammar.y" /* yacc.c:1652  */
+#line 1299 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_unary(OP_DEC, false, (yyvsp[-1].exp), &(yyloc));
     }
-#line 3602 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3598 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 241:
-#line 1305 "grammar.y" /* yacc.c:1652  */
+#line 1305 "grammar.y" /* yacc.c:1648  */
     { (yyval.vect) = NULL; }
-#line 3608 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3604 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 243:
-#line 1311 "grammar.y" /* yacc.c:1652  */
+#line 1311 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = vector_new();
         exp_add((yyval.vect), (yyvsp[0].exp));
     }
-#line 3617 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3613 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 244:
-#line 1316 "grammar.y" /* yacc.c:1652  */
+#line 1316 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.vect) = (yyvsp[-2].vect);
         exp_add((yyval.vect), (yyvsp[0].exp));
     }
-#line 3626 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3622 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 246:
-#line 1325 "grammar.y" /* yacc.c:1652  */
+#line 1325 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_id((yyvsp[0].str), &(yyloc));
     }
-#line 3634 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3630 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 247:
-#line 1329 "grammar.y" /* yacc.c:1652  */
+#line 1329 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = (yyvsp[-1].exp);
     }
-#line 3642 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3638 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 248:
-#line 1333 "grammar.y" /* yacc.c:1652  */
+#line 1333 "grammar.y" /* yacc.c:1648  */
     {
-        (yyval.exp) = exp_new_call(true, exp_new_id((yyvsp[-3].str), &(yylsp[-3])), (yyvsp[-1].vect), &(yylsp[-3]));
+        (yyval.exp) = exp_new_call(FN_CTOR, exp_new_id((yyvsp[-3].str), &(yylsp[-3])), (yyvsp[-1].vect), &(yylsp[-3]));
     }
-#line 3650 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3646 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 249:
-#line 1340 "grammar.y" /* yacc.c:1652  */
+#line 1340 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_null(&(yyloc));
     }
-#line 3658 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3654 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 250:
-#line 1344 "grammar.y" /* yacc.c:1652  */
+#line 1344 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_bool(true, &(yyloc));
     }
-#line 3666 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3662 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 251:
-#line 1348 "grammar.y" /* yacc.c:1652  */
+#line 1348 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_bool(false, &(yyloc));
     }
-#line 3674 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3670 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 252:
-#line 1352 "grammar.y" /* yacc.c:1652  */
+#line 1352 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_int(0, &(yyloc));
         mpz_set_str(val_mpz(&(yyval.exp)->u_lit.val), (yyvsp[0].str), 10);
     }
-#line 3683 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3679 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 253:
-#line 1357 "grammar.y" /* yacc.c:1652  */
+#line 1357 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_int(0, &(yyloc));
         mpz_set_str(val_mpz(&(yyval.exp)->u_lit.val), (yyvsp[0].str), 8);
     }
-#line 3692 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3688 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 254:
-#line 1362 "grammar.y" /* yacc.c:1652  */
+#line 1362 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_int(0, &(yyloc));
         mpz_set_str(val_mpz(&(yyval.exp)->u_lit.val), (yyvsp[0].str), 0);
     }
-#line 3701 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3697 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 255:
-#line 1376 "grammar.y" /* yacc.c:1652  */
+#line 1376 "grammar.y" /* yacc.c:1648  */
     {
         (yyval.exp) = exp_new_lit_str((yyvsp[0].str), &(yyloc));
     }
-#line 3709 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3705 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 256:
-#line 1382 "grammar.y" /* yacc.c:1652  */
+#line 1382 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("assert"); }
-#line 3715 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3711 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 257:
-#line 1383 "grammar.y" /* yacc.c:1652  */
+#line 1383 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("contract"); }
-#line 3721 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3717 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 258:
-#line 1384 "grammar.y" /* yacc.c:1652  */
+#line 1384 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("import"); }
-#line 3727 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3723 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 259:
-#line 1385 "grammar.y" /* yacc.c:1652  */
+#line 1385 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("index"); }
-#line 3733 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3729 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 260:
-#line 1386 "grammar.y" /* yacc.c:1652  */
+#line 1386 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("interface"); }
-#line 3739 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3735 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 261:
-#line 1387 "grammar.y" /* yacc.c:1652  */
+#line 1387 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("library"); }
-#line 3745 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3741 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 262:
-#line 1388 "grammar.y" /* yacc.c:1652  */
+#line 1388 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("table"); }
-#line 3751 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3747 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 263:
-#line 1389 "grammar.y" /* yacc.c:1652  */
+#line 1389 "grammar.y" /* yacc.c:1648  */
     { (yyval.str) = xstrdup("view"); }
-#line 3757 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3753 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
   case 264:
-#line 1394 "grammar.y" /* yacc.c:1652  */
+#line 1394 "grammar.y" /* yacc.c:1648  */
     {
         if (strlen((yyvsp[0].str)) > NAME_MAX_LEN)
             ERROR(ERROR_TOO_LONG_ID, &(yylsp[0]), NAME_MAX_LEN, strlen((yyvsp[0].str)));
 
         (yyval.str) = (yyvsp[0].str);
     }
-#line 3768 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3764 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
     break;
 
 
-#line 3772 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1652  */
+#line 3768 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.c" /* yacc.c:1648  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3794,13 +3790,14 @@ yyreduce:
   /* Now 'shift' the result of the reduction.  Determine what state
      that goes to, based on the state we popped back to and the rule
      number reduced by.  */
-  {
-    const int yylhs = yyr1[yyn] - YYNTOKENS;
-    const int yyi = yypgoto[yylhs] + *yyssp;
-    yystate = (0 <= yyi && yyi <= YYLAST && yycheck[yyi] == *yyssp
-               ? yytable[yyi]
-               : yydefgoto[yylhs]);
-  }
+
+  yyn = yyr1[yyn];
+
+  yystate = yypgoto[yyn - YYNTOKENS] + *yyssp;
+  if (0 <= yystate && yystate <= YYLAST && yycheck[yystate] == *yyssp)
+    yystate = yytable[yystate];
+  else
+    yystate = yydefgoto[yyn - YYNTOKENS];
 
   goto yynewstate;
 
@@ -3883,10 +3880,12 @@ yyerrlab:
 | yyerrorlab -- error raised explicitly by YYERROR.  |
 `---------------------------------------------------*/
 yyerrorlab:
-  /* Pacify compilers when the user code never invokes YYERROR and the
-     label yyerrorlab therefore never appears in user code.  */
-  if (0)
-    YYERROR;
+
+  /* Pacify compilers like GCC when the user code never invokes
+     YYERROR and the label yyerrorlab therefore never appears in user
+     code.  */
+  if (/*CONSTCOND*/ 0)
+     goto yyerrorlab;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -3953,14 +3952,12 @@ yyacceptlab:
   yyresult = 0;
   goto yyreturn;
 
-
 /*-----------------------------------.
 | yyabortlab -- YYABORT comes here.  |
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
   goto yyreturn;
-
 
 #if !defined yyoverflow || YYERROR_VERBOSE
 /*-------------------------------------------------.
@@ -3972,10 +3969,6 @@ yyexhaustedlab:
   /* Fall through.  */
 #endif
 
-
-/*-----------------------------------------------------.
-| yyreturn -- parsing is finished, return the result.  |
-`-----------------------------------------------------*/
 yyreturn:
   if (yychar != YYEMPTY)
     {
@@ -4005,7 +3998,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 1403 "grammar.y" /* yacc.c:1918  */
+#line 1403 "grammar.y" /* yacc.c:1907  */
 
 
 static void

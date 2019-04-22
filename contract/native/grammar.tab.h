@@ -1,9 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.3.2.  */
+/* A Bison parser, made by GNU Bison 3.0.5.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
-   Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +29,6 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
-
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_HOME_WRPARK_BLOCKO_SRC_GITHUB_COM_AERGOIO_AERGO_CONTRACT_NATIVE_GRAMMAR_TAB_H_INCLUDED
 # define YY_YY_HOME_WRPARK_BLOCKO_SRC_GITHUB_COM_AERGOIO_AERGO_CONTRACT_NATIVE_GRAMMAR_TAB_H_INCLUDED
@@ -138,7 +134,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 148 "grammar.y" /* yacc.c:1921  */
+#line 148 "grammar.y" /* yacc.c:1910  */
 
     bool flag;
     char *str;
@@ -155,7 +151,7 @@ union YYSTYPE
     ast_stmt_t *stmt;
     meta_t *meta;
 
-#line 159 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1921  */
+#line 155 "/home/wrpark/blocko/src/github.com/aergoio/aergo/contract/native/grammar.tab.h" /* yacc.c:1910  */
 };
 
 typedef union YYSTYPE YYSTYPE;

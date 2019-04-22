@@ -46,7 +46,6 @@ void syslib_load(ast_t *ast);
 
 ir_abi_t *syslib_abi(sys_fn_t *sys_fn);
 
-ast_exp_t *syslib_new_malloc(trans_t *trans, uint32_t size, src_pos_t *pos);
 ast_exp_t *syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp,
                               uint32_t size, src_pos_t *pos);
 

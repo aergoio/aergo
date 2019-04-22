@@ -92,7 +92,7 @@ typedef struct exp_cast_s {
 
 /* id(param, ...) */
 typedef struct exp_call_s {
-    bool is_ctor;
+    fn_kind_t kind;
     char *qname;
     ast_exp_t *id_exp;
     vector_t *param_exps;
@@ -138,7 +138,7 @@ typedef struct exp_tuple_s {
 
 /* new {exp, exp, exp, ...} */
 typedef struct exp_init_s {
-    bool is_aggr;
+    bool is_static;
     bool is_outmost;
     vector_t *elem_exps;
 } exp_init_t;
@@ -192,7 +192,7 @@ ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
-ast_exp_t *exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos);
+ast_exp_t *exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos);

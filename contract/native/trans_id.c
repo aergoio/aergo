@@ -54,7 +54,6 @@ static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
-    ast_exp_t *l_exp, *r_exp;
     ir_fn_t *fn = trans->fn;
     vector_t *stmts = vector_new();
 
@@ -65,7 +64,6 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     /* We use the "stmts" vector to keep the declaration order of variables */
     vector_foreach(&id->up->u_cont.blk->ids, i) {
         ast_id_t *elem_id = vector_get_id(&id->up->u_cont.blk->ids, i);
-        meta_t *elem_meta = &elem_id->meta;
         ast_exp_t *dflt_exp = NULL;
 
         if (is_var_id(elem_id)) {
@@ -85,14 +83,9 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             stmt_add(stmts, stmt_make_assign(elem_id, dflt_exp));
     }
 
-    l_exp = exp_new_reg(fn->heap_idx);
-    meta_set_int32(&l_exp->meta);
-
-    r_exp = syslib_new_malloc(trans, fn->heap_usage, &id->pos);
-
-    stmt_add(&fn->entry_bb->stmts, stmt_new_assign(l_exp, r_exp, &id->pos));
-
     trans->bb = fn->entry_bb;
+
+    stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, &id->pos));
 
     vector_foreach(stmts, i) {
         stmt_trans(trans, vector_get_stmt(stmts, i));

@@ -135,11 +135,13 @@ exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_call(bool is_ctor, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos)
+exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);
 
-    exp->u_call.is_ctor = is_ctor;
+    ASSERT1(kind >= 0 && kind < FN_MAX, kind);
+
+    exp->u_call.kind = kind;
     exp->u_call.id_exp = id_exp;
     exp->u_call.param_exps = param_exps;
 
@@ -364,7 +366,7 @@ exp_clone(ast_exp_t *exp)
         vector_foreach(elem_exps, i) {
             vector_add_last(res_exps, exp_clone(vector_get_exp(elem_exps, i)));
         }
-        res = exp_new_call(exp->u_call.is_ctor, exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
+        res = exp_new_call(exp->u_call.kind, exp_clone(exp->u_call.id_exp), res_exps, &exp->pos);
         res->u_call.qname = exp->u_call.qname;
         break;
 

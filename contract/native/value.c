@@ -92,7 +92,7 @@ value_fit(value_t *val, meta_t *meta)
 
     case TYPE_OBJECT:
         if (is_null_val(val))
-            ASSERT1(is_pointer_meta(meta), meta->type);
+            ASSERT1(is_nullable_meta(meta), meta->type);
         break;
 
     default:

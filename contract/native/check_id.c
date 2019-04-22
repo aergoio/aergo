@@ -66,7 +66,7 @@ id_check_array(check_t *check, ast_id_t *id)
 static bool
 id_check_var(check_t *check, ast_id_t *id)
 {
-    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+    ast_exp_t *dflt_exp;
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->name != NULL);
@@ -80,13 +80,12 @@ id_check_var(check_t *check, ast_id_t *id)
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    if (!is_param_id(id) && dflt_exp == NULL &&
-        (is_array_meta(&id->meta) || is_struct_meta(&id->meta))) {
-        dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
-
-        dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
-        id->u_var.dflt_exp = dflt_exp;
+    if (!is_param_id(id) && is_address_meta(&id->meta) && id->u_var.dflt_exp == NULL) {
+        id->u_var.dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
+        id->u_var.dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
     }
+
+    dflt_exp = id->u_var.dflt_exp;
 
     if (dflt_exp != NULL) {
         /* TODO: named initializer */

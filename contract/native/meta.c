@@ -284,7 +284,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
         if (x->type == y->type ||
             (is_integer_meta(x) && is_integer_meta(y)) ||
             (is_fpoint_meta(x) && is_fpoint_meta(y)) ||
-            (is_pointer_meta(x) && is_pointer_meta(y)))
+            (is_nullable_meta(x) && is_nullable_meta(y)))
             return true;
 
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
