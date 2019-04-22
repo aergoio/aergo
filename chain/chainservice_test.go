@@ -319,6 +319,10 @@ func testReorgCrashRecoverCond(t *testing.T, cond stopCond) {
 	debugger.clear()
 	cs.errBlocks.Purge()
 
+	// must recover chainDB before chainservice.Recover()
+	err = cs.cdb.recover()
+	assert.Nil(t, err)
+
 	// chain swap is not complete, so has nothing to do
 	err = cs.Recover()
 	assert.Nil(t, err)

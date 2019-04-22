@@ -583,7 +583,10 @@ func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, 
 		err := executeTx(cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
-			bState.Rollback(snapshot)
+			if err2 := bState.Rollback(snapshot); err2 != nil {
+				logger.Panic().Err(err).Msg("faield to rollback block state")
+			}
+
 			return err
 		}
 		return nil
@@ -674,8 +677,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
-	// TODO execute를 fn으로 빼서 argument로 받게 refactor
-	//      if를 한군데로 몰면 보기 좋다
+	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err

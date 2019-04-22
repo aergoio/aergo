@@ -59,7 +59,7 @@ func (cs *ChainService) Recover() error {
 
 	// check status of chain
 	if !bytes.Equal(best.BlockHash(), marker.BrBestHash) {
-		logger.Error().Msg("best block is not equal to old chain")
+		logger.Error().Str("best", best.ID()).Str("markerbest", enc.ToString(marker.BrBestHash)).Msg("best block is not equal to old chain")
 		return ErrRecoInvalidBest
 	}
 
@@ -140,8 +140,8 @@ func NewReorgMarker(reorg *reorganizer) *ReorgMarker {
 
 func (rm *ReorgMarker) toBytes() ([]byte, error) {
 	var val bytes.Buffer
-	gob := gob.NewEncoder(&val)
-	if err := gob.Encode(rm); err != nil {
+	encoder := gob.NewEncoder(&val)
+	if err := encoder.Encode(rm); err != nil {
 		return nil, err
 	}
 
@@ -152,13 +152,13 @@ func (rm *ReorgMarker) toString() string {
 	buf := ""
 
 	if len(rm.BrStartHash) != 0 {
-		buf = buf + fmt.Sprintf("branch root=(%d,%s)", rm.BrStartNo, enc.ToString(rm.BrStartHash))
+		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, enc.ToString(rm.BrStartHash))
 	}
 	if len(rm.BrTopHash) != 0 {
-		buf = buf + fmt.Sprintf("branch top=(%d,%s)", rm.BrTopNo, enc.ToString(rm.BrTopHash))
+		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, enc.ToString(rm.BrTopHash))
 	}
 	if len(rm.BrBestHash) != 0 {
-		buf = buf + fmt.Sprintf("org best=(%d,%s)", rm.BrTopNo, enc.ToString(rm.BrTopHash))
+		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, enc.ToString(rm.BrBestHash))
 	}
 
 	return buf
