@@ -36,6 +36,7 @@ var mulAergo, mulGaer, zeroBig *big.Int
 const maxEventCnt = 50
 const maxEventNameSize = 64
 const maxEventArgSize = 4096
+const luaCallCountDeduc = 1000
 
 func init() {
 	mulAergo, _ = new(big.Int).SetString("1000000000000000000", 10)
@@ -139,6 +140,14 @@ func setInstCount(parent *LState, child *LState) {
 	C.luaL_setinstcount(parent, C.luaL_instcount(child))
 }
 
+func minusCallCount(curCount C.int) C.int {
+	remain := curCount - luaCallCountDeduc
+	if remain <= 0 {
+		remain = 1
+	}
+	return remain
+}
+
 //export LuaCallContract
 func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.char, args *C.char,
 	amount *C.char, gas uint64) (C.int, *C.char) {
@@ -205,7 +214,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 		callState.curState.SqlRecoveryPoint, amountBig)
 
-	ce.setCountHook(C.luaL_instcount(L))
+	ce.setCountHook(minusCallCount(C.luaL_instcount(L)))
 	defer setInstCount(L, ce.L)
 
 	ret := ce.call(L)
@@ -273,7 +282,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		}
 	}
 
-	ce.setCountHook(C.luaL_instcount(L))
+	ce.setCountHook(minusCallCount(C.luaL_instcount(L)))
 	defer setInstCount(L, ce.L)
 
 	ret := ce.call(L)
@@ -355,7 +364,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 			callState.curState.SqlRecoveryPoint, amountBig)
 
-		ce.setCountHook(C.luaL_instcount(L))
+		ce.setCountHook(minusCallCount(C.luaL_instcount(L)))
 		defer setInstCount(L, ce.L)
 
 		ce.call(L)
@@ -874,7 +883,7 @@ func LuaDeployContract(
 	addr := C.CString(types.EncodeAddress(newContract.ID()))
 	ret := C.int(1)
 	if ce != nil {
-		ce.setCountHook(C.luaL_instcount(L))
+		ce.setCountHook(minusCallCount(C.luaL_instcount(L)))
 		defer setInstCount(L, ce.L)
 
 		ret += ce.call(L)

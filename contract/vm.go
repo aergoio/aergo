@@ -45,6 +45,7 @@ const (
 	callMaxInstLimit  = C.int(5000000)
 	queryMaxInstLimit = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit  = fee.StateDbMaxUpdateSize
+	maxCallDepth      = 5
 )
 
 var (
@@ -88,6 +89,7 @@ type StateSet struct {
 	seed              *rand.Rand
 	events            []*types.Event
 	eventCount        int32
+	callDepth         int32
 }
 
 type recoveryEntry struct {
@@ -198,6 +200,15 @@ func (L *LState) Close() {
 }
 
 func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *types.CallInfo, amount *big.Int, isCreate bool) *Executor {
+	if stateSet.callDepth > maxCallDepth {
+		ce := &Executor{
+			code:     contract,
+			stateSet: stateSet,
+		}
+		ce.err = errors.New(fmt.Sprintf("exceeded the maximum call depth(%d)", maxCallDepth))
+		return ce
+	}
+	stateSet.callDepth++
 	ce := &Executor{
 		code:     contract,
 		L:        GetLState(),
@@ -208,6 +219,8 @@ func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *typ
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
+	bakupService := stateSet.service
+	stateSet.service = -1
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
 	if cErrMsg := C.vm_loadbuff(
@@ -222,6 +235,7 @@ func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *typ
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("failed to load code")
 		return ce
 	}
+	stateSet.service = bakupService
 
 	if isCreate == false {
 		C.vm_remove_constructor(ce.L)
@@ -254,6 +268,7 @@ func newExecutor(contract []byte, contractId []byte, stateSet *StateSet, ci *typ
 		}
 		C.vm_get_constructor(ce.L)
 		if C.vm_isnil(ce.L, C.int(-1)) == 1 {
+			ce.close()
 			return nil
 		}
 		ce.numArgs = C.int(len(ci.Args))
@@ -499,6 +514,9 @@ func (ce *Executor) rollbackToSavepoint() error {
 
 func (ce *Executor) close() {
 	if ce != nil {
+		if ce.stateSet != nil {
+			ce.stateSet.callDepth--
+		}
 		FreeLState(ce.L)
 	}
 }
@@ -628,7 +646,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	}
 	if contractCode == nil {
 		contractCode = getContract(contractState, nil)
-		if contractCode != nil {
+		if contractCode != nil && bs != nil {
 			bs.CodeMap[contractAid] = contractCode
 		}
 	}
@@ -877,6 +895,10 @@ func (re *recoveryEntry) recovery() error {
 	}
 	if re.senderState != nil {
 		re.senderState.Nonce = re.senderNonce
+	}
+
+	if callState == nil {
+		return nil
 	}
 	if re.stateRevision != -1 {
 		err := callState.ctrState.Rollback(re.stateRevision)
