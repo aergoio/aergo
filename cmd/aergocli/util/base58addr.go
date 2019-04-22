@@ -261,11 +261,18 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 	}
 	out.Hash = base58.Encode(in.BestBlockHash)
 	out.Height = in.BestHeight
-	if len(in.ConsensusInfo) > 0 {
-		ci := json.RawMessage(in.ConsensusInfo)
-		out.ConsensusInfo = &ci
-	}
+
 	out.ChainIdHash = base58.Encode(in.BestChainIdHash)
+
+	toJRM := func(s string) *json.RawMessage {
+		if len(s) > 0 {
+			m := json.RawMessage(s)
+			return &m
+		}
+		return nil
+	}
+	out.ConsensusInfo = toJRM(in.ConsensusInfo)
+
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""

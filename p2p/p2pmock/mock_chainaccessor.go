@@ -62,6 +62,20 @@ func (mr *MockChainAccessorMockRecorder) GetConsensusInfo() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConsensusInfo", reflect.TypeOf((*MockChainAccessor)(nil).GetConsensusInfo))
 }
 
+// GetChainStats mocks base method
+func (m *MockChainAccessor) GetChainStats() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChainStats")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetConsensusInfo indicates an expected call of GetConsensusInfo
+func (mr *MockChainAccessorMockRecorder) GetChainStats() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainStats", reflect.TypeOf((*MockChainAccessor)(nil).GetChainStats))
+}
+
 // GetBestBlock mocks base method
 func (m *MockChainAccessor) GetBestBlock() (*types.Block, error) {
 	m.ctrl.T.Helper()

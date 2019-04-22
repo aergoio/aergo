@@ -12,6 +12,7 @@ type InOutBlockchainStatus struct {
 	Height        uint64
 	ConsensusInfo *json.RawMessage `json:",omitempty"`
 	ChainIdHash   string
+	ChainStat     *json.RawMessage `json:",omitempty"`
 }
 
 func ConvHexBlockchainStatus(in *types.BlockchainStatus) string {

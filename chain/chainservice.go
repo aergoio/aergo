@@ -198,13 +198,16 @@ type ChainService struct {
 
 	chainWorker  *ChainWorker
 	chainManager *ChainManager
+
+	stat stats
 }
 
 // NewChainService creates an instance of ChainService.
 func NewChainService(cfg *cfg.Config) *ChainService {
 	cs := &ChainService{
-		cfg: cfg,
-		op:  NewOrphanPool(),
+		cfg:  cfg,
+		op:   NewOrphanPool(),
+		stat: newStats(),
 	}
 
 	var err error
@@ -280,6 +283,10 @@ func (cs *ChainService) GetConsensusInfo() string {
 	}
 
 	return cs.Info()
+}
+
+func (cs *ChainService) GetChainStats() string {
+	return cs.stat.JSON()
 }
 
 // SetChainConsensus sets cs.cc to cc.

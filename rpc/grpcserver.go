@@ -1040,11 +1040,20 @@ func (rpc *AergoRPCService) GetServerInfo(ctx context.Context, in *types.KeyPara
 	return rsp, nil
 }
 
-// Blockchain handle rpc request blockchain. It has no additional input parameter
+// GetConsensusInfo handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) GetConsensusInfo(ctx context.Context, in *types.Empty) (*types.ConsensusInfo, error) {
 	if rpc.consensusAccessor == nil {
 		return nil, ErrUninitAccessor
 	}
 
 	return rpc.consensusAccessor.ConsensusInfo(), nil
+}
+
+// ChainStat handles rpc request chainstat.
+func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*types.ChainStats, error) {
+	ca := rpc.actorHelper.GetChainAccessor()
+	if ca == nil {
+		return nil, ErrUninitAccessor
+	}
+	return &types.ChainStats{Report: ca.GetChainStats()}, nil
 }
