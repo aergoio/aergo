@@ -114,28 +114,31 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	peersLen := 6
 	hiddenCnt := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	for i:=0; i<peersLen; i++ {
+	for i := 0; i < peersLen; i++ {
 		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		pid, _ := peer.IDFromPrivateKey(pkey)
-		samplePeers[i] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: pid, Hidden: i<hiddenCnt}, lastStatus: &types.LastBlockStatus{}}
+		samplePeers[i] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: pid, Hidden: i < hiddenCnt}, lastStatus: &types.LastBlockStatus{}}
 	}
 
 	tests := []struct {
 		name string
 
-		hidden bool
+		hidden   bool
 		showself bool
 
 		wantCnt int
 	}{
-		{"TDefault",false, false, peersLen},
-		{"TWSelf",false, true, peersLen+1},
-		{"TWOHidden",true, false, peersLen-hiddenCnt},
-		{"TWOHiddenWSelf",false, true, peersLen-hiddenCnt+1},
+		{"TDefault", false, false, peersLen},
+		{"TWSelf", false, true, peersLen + 1},
+		{"TWOHidden", true, false, peersLen - hiddenCnt},
+		{"TWOHiddenWSelf", false, true, peersLen - hiddenCnt + 1},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pm := &peerManager{remotePeers: make(map[peer.ID]p2pcommon.RemotePeer)}
+			pm := &peerManager{
+				remotePeers: make(map[peer.ID]p2pcommon.RemotePeer),
+				mutex:         &sync.Mutex{},
+			}
 			for _, peer := range samplePeers {
 				pm.remotePeers[peer.ID()] = peer
 			}
@@ -193,19 +196,38 @@ func TestPeerManager_init(t *testing.T) {
 	}
 }
 
-func Test_peerManager_runManagePeers_fillAddr(t *testing.T) {
-	// Test if polaris or other peer send addresses informations.
+func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
+	// Test if it works well when concurrent connections is handshaked.
 	ctrl := gomock.NewController(t)
 	logger := log.NewLogger("p2p.test")
+	type desc struct {
+		pid      peer.ID
+		outbound bool
+		hsTime   time.Duration
+	}
+	ds := make([]desc, 10)
+	for i := 0; i < 10; i++ {
+		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		pid, _ := peer.IDFromPrivateKey(pkey)
+		ds[i] = desc{hsTime: time.Millisecond * 10, outbound: true, pid: pid}
+	}
 	tests := []struct {
 		name string
+
+		conns []desc
 	}{
+		{"T10", ds},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPeerFinder := p2pmock.NewMockPeerFinder(ctrl)
 			mockWPManager := p2pmock.NewMockWaitingPeerManager(ctrl)
+			mockWPManager.EXPECT().CheckAndConnect().AnyTimes()
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any()).AnyTimes()
+			mockNT.EXPECT().RemoveStreamHandler(gomock.Any()).AnyTimes()
+
 			dummyCfg := &cfg.P2PConfig{}
 			pm := &peerManager{
 				peerFinder:   mockPeerFinder,
@@ -213,6 +235,7 @@ func Test_peerManager_runManagePeers_fillAddr(t *testing.T) {
 				remotePeers:  make(map[peer.ID]p2pcommon.RemotePeer, 10),
 				waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, 10),
 				conf:         dummyCfg,
+				nt:           mockNT,
 
 				getPeerChannel:    make(chan getPeerChan),
 				peerHandshaked:    make(chan p2pcommon.RemotePeer),
@@ -228,13 +251,34 @@ func Test_peerManager_runManagePeers_fillAddr(t *testing.T) {
 
 			go pm.runManagePeers()
 
-			metas := []p2pcommon.PeerMeta{}
-			pm.NotifyPeerAddressReceived(metas)
+			workWG := sync.WaitGroup{}
+			workWG.Add(len(tt.conns))
+			latch := sync.WaitGroup{}
+			latch.Add(len(tt.conns))
+			finCnt := uint32(0)
+			for i, conn := range tt.conns {
+				meta := p2pcommon.PeerMeta{ID: conn.pid, Outbound: conn.outbound}
+				wr := p2pcommon.ConnWorkResult{Meta: meta, Result: nil, Inbound: !conn.outbound, Seq: uint32(i)}
+				go func(conn desc, result p2pcommon.ConnWorkResult) {
+					latch.Done()
+					latch.Wait()
+					//fmt.Printf("work start  %s #%d",p2putil.ShortForm(meta.ID),i)
+					//time.Sleep(conn.hsTime)
+					fmt.Printf("work done   %s #%d\n", p2putil.ShortForm(meta.ID), wr.Seq)
+					pm.workDoneChannel <- result
+				}(conn, wr)
+			}
+			mockWPManager.EXPECT().OnWorkDone(gomock.AssignableToTypeOf(p2pcommon.ConnWorkResult{})).Do(
+				func(wr p2pcommon.ConnWorkResult) {
+					atomic.AddUint32(&finCnt,1)
+					workWG.Done()
+				}).AnyTimes()
 
+			workWG.Wait()
 			pm.Stop()
 
-			for atomic.LoadInt32(&pm.status) != stopped {
-				time.Sleep(time.Millisecond << 6)
+			if atomic.LoadUint32(&finCnt) != uint32(len(tt.conns)) {
+				t.Errorf("finished count %v want %v",finCnt, len(tt.conns))
 			}
 		})
 	}

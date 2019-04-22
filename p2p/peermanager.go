@@ -286,13 +286,10 @@ CLEANUPLOOP:
 		case peer := <-pm.removePeerChannel:
 			pm.removePeer(peer)
 		case <-finishPoll.C:
-			pm.mutex.Lock()
 			if len(pm.remotePeers) == 0 {
-				pm.mutex.Unlock()
 				pm.logger.Debug().Msg("All peers were finished peerManager")
 				break CLEANUPLOOP
 			}
-			pm.mutex.Unlock()
 		case <-timer.C:
 			pm.logger.Warn().Int("remained", len(pm.peerCache)).Msg("peermanager stop timeout. some peers were not finished.")
 			break CLEANUPLOOP
@@ -351,15 +348,12 @@ func (pm *peerManager) NotifyPeerAddressReceived(metas []p2pcommon.PeerMeta) {
 // it must called in peermanager goroutine
 func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	peerID := peer.ID()
-	pm.mutex.Lock()
 	target, ok := pm.remotePeers[peerID]
 	if !ok {
-		pm.mutex.Unlock()
 		return false
 	}
 	if target.ManageNumber() != peer.ManageNumber() {
 		pm.logger.Debug().Uint32("remove_num", peer.ManageNumber()).Uint32("exist_num", target.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but already removed and other instance is on")
-		pm.mutex.Unlock()
 		return false
 	}
 	if target.State() == types.RUNNING {
@@ -367,7 +361,6 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	}
 	pm.deletePeer(peerID)
 	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
-	pm.mutex.Unlock()
 	for _, listener := range pm.eventListeners {
 		listener.OnRemovePeer(peerID)
 	}
@@ -448,6 +441,8 @@ func (pm *peerManager) updatePeerCache() {
 	for _, rPeer := range pm.remotePeers {
 		newSlice = append(newSlice, rPeer)
 	}
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
 	pm.peerCache = newSlice
 }
 
