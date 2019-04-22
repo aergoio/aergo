@@ -18,17 +18,6 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
-// HSHandlerFactory is creator of HSHandler
-type HSHandlerFactory interface {
-	CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) HSHandler
-}
-
-// HSHandler will do handshake with remote peer
-type HSHandler interface {
-	// Handle peer handshake till ttl, and return msgrw for this connection, and status of remote peer.
-	Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error)
-}
-
 type InboundHSHandler struct {
 	*PeerHandshaker
 }

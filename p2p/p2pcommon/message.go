@@ -20,3 +20,8 @@ type Message interface {
 	// marshaled by google protocol buffer v3. object is determined by Subprotocol
 	Payload() []byte
 }
+
+type HandlerFactory interface {
+	InsertHandlers(peer RemotePeer)
+}
+

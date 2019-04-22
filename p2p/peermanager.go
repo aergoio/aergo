@@ -39,8 +39,8 @@ const (
 type peerManager struct {
 	status         int32
 	nt             p2pcommon.NetworkTransport
-	hsFactory      HSHandlerFactory
-	handlerFactory HandlerFactory
+	hsFactory      p2pcommon.HSHandlerFactory
+	handlerFactory p2pcommon.HandlerFactory
 	actorService   p2pcommon.ActorService
 	signer         p2pcommon.MsgSigner
 	mf             p2pcommon.MoFactory
@@ -83,7 +83,7 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory HandlerFactory, hsFactory HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory) p2pcommon.PeerManager {
+func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
@@ -334,7 +334,7 @@ func (pm *peerManager) registerPeer(peerID peer.ID, receivedMeta p2pcommon.PeerM
 	outboundPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
 
 	// insert Handlers
-	pm.handlerFactory.insertHandlers(outboundPeer)
+	pm.handlerFactory.InsertHandlers(outboundPeer)
 
 	go outboundPeer.RunPeer()
 	pm.insertPeer(peerID, outboundPeer)

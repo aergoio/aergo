@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	subproto "github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/p2p/subproto"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -52,13 +52,9 @@ type P2P struct {
 	mutex sync.Mutex
 }
 
-type HandlerFactory interface {
-	insertHandlers(peer *remotePeerImpl)
-}
-
 var (
-	_  p2pcommon.ActorService = (*P2P)(nil)
-	_  HSHandlerFactory       = (*P2P)(nil)
+	_  p2pcommon.ActorService     = (*P2P)(nil)
+	_  p2pcommon.HSHandlerFactory = (*P2P)(nil)
 	ni *nodeInfo
 )
 
@@ -338,40 +334,40 @@ func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
 	return p2ps.ca
 }
 
-func (p2ps *P2P) insertHandlers(peer *remotePeerImpl) {
+func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 	logger := p2ps.Logger
 
 	// PingHandlers
-	peer.handlers[subproto.PingRequest] = subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.PingResponse] = subproto.NewPingRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GoAway] = subproto.NewGoAwayHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.AddressesRequest] = subproto.NewAddressesReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.AddressesResponse] = subproto.NewAddressesRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.AddMessageHandler(subproto.PingRequest,subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.PingResponse,subproto.NewPingRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GoAway,subproto.NewGoAwayHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.AddressesRequest,subproto.NewAddressesReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.AddressesResponse,subproto.NewAddressesRespHandler(p2ps.pm, peer, logger, p2ps))
 
 	// BlockHandlers
-	peer.handlers[subproto.GetBlocksRequest] = subproto.NewBlockReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetBlocksResponse] = subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
-	peer.handlers[subproto.GetBlockHeadersRequest] = subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetBlockHeadersResponse] = subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.NewBlockNotice] = subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
-	peer.handlers[subproto.GetAncestorRequest] = subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetAncestorResponse] = subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetHashesRequest] = subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetHashesResponse] = subproto.NewGetHashesRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetHashByNoRequest] = subproto.NewGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetHashByNoResponse] = subproto.NewGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps)
+	peer.AddMessageHandler(subproto.GetBlocksRequest,subproto.NewBlockReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetBlocksResponse,subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	peer.AddMessageHandler(subproto.GetBlockHeadersRequest,subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetBlockHeadersResponse,subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.NewBlockNotice,subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	peer.AddMessageHandler(subproto.GetAncestorRequest,subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetAncestorResponse,subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetHashesRequest,subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetHashesResponse,subproto.NewGetHashesRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetHashByNoRequest,subproto.NewGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetHashByNoResponse,subproto.NewGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps))
 
 	// TxHandlers
-	peer.handlers[subproto.GetTXsRequest] = subproto.NewTxReqHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.GetTXsResponse] = subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps)
-	peer.handlers[subproto.NewTxNotice] = subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.AddMessageHandler(subproto.GetTXsRequest,subproto.NewTxReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.GetTXsResponse,subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.NewTxNotice,subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 
 	// BP protocol handlers
-	peer.handlers[subproto.BlockProducedNotice] = subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm)
+	peer.AddMessageHandler(subproto.BlockProducedNotice,subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 
 }
 
-func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) HSHandler {
+func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) p2pcommon.HSHandler {
 	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: p2ps.chainID, peerID: pid}
 	if outbound {
 		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
