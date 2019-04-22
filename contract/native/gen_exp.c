@@ -86,12 +86,15 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
 
+        address = exp_gen(gen, id_exp);
+#if 0
         /* XXX */
         if (is_global_id(id_exp->id) && meta->arr_dim == meta->max_dim - 1)
             address = BinaryenLoad(gen->module, sizeof(uint32_t), 0, 0, 0, BinaryenTypeInt32(),
                                    exp_gen(gen, id_exp));
         else
             address = exp_gen(gen, id_exp);
+#endif
 
         if (is_lit_exp(idx_exp)) {
             if (meta->arr_dim > 0 && meta->dim_sizes[0] == -1) {
@@ -101,8 +104,30 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
                 address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
                 offset = 0;
             }
+            else if (is_struct_meta(meta)) {
+                /* TODO Fix me... */
+                if (is_array_meta(meta)) {
+                    int i;
+                    uint32_t dim_size = 1;
+                    uint32_t unit_size = sizeof(uint32_t);
+
+                    for (i = 0; i < meta->arr_dim; i++) {
+                        ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
+                        unit_size *= meta->dim_sizes[i];
+                    }
+                    unit_size += sizeof(uint64_t);
+                    for (i = 0; i < meta->arr_dim - 1; i++) {
+                        dim_size *= meta->dim_sizes[i];
+                        unit_size += dim_size * sizeof(uint64_t);
+                    }
+                    offset = val_i64(&idx_exp->u_lit.val) * unit_size + sizeof(uint64_t);
+                }
+                else {
+                    offset = val_i64(&idx_exp->u_lit.val) * sizeof(uint32_t) + sizeof(uint64_t);
+                }
+            }
             else {
-                offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(&exp->meta) + sizeof(uint64_t);
+                offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(meta) + sizeof(uint64_t);
             }
         }
         else {
@@ -113,7 +138,12 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             offset = 0;
         }
 
-        if (gen->is_lval || is_array_meta(meta) || is_struct_meta(meta)) {
+        ASSERT1(offset % 4 == 0, offset);
+
+        if (gen->is_lval || is_array_meta(meta)) {
+            /* Even if it is not an lvalue, it should return address when accessing the
+             * intermediate element of a multi-dimensional array or accessing the field of a
+             * struct array. */
             if (offset == 0)
                 return address;
 
@@ -721,7 +751,8 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
     if (is_fn_id(fld_id))
         return address;
 
-    if (gen->is_lval || is_array_meta(meta) || is_struct_meta(meta)) {
+    if (gen->is_lval) {
+    //if (gen->is_lval || is_array_meta(meta) || is_struct_meta(meta)) {
         if (meta->rel_offset == 0)
             return address;
 
@@ -796,8 +827,12 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
 
     if (is_array_meta(meta)) {
         instr_add(gen, BinaryenStore(gen->module, sizeof(uint32_t), offset, 0, address,
+                                     i32_gen(gen, meta->arr_dim - 1), BinaryenTypeInt32()));
+        offset += sizeof(uint32_t);
+
+        instr_add(gen, BinaryenStore(gen->module, sizeof(uint32_t), offset, 0, address,
                                      i32_gen(gen, meta->dim_sizes[0]), BinaryenTypeInt32()));
-        offset += meta_align(meta);
+        offset += sizeof(uint32_t);
     }
 
     vector_foreach(elem_exps, i) {
@@ -875,7 +910,17 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
 
     address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
 
-    if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
+    if (is_array_meta(meta) || is_struct_meta(meta)) {
+        /* Since "address" is literally an address value, it must be of type I32. */
+        ASSERT1(BinaryenExpressionGetType(address) == BinaryenTypeInt32(),
+                BinaryenExpressionGetType(address));
+
+        return BinaryenLoad(gen->module, sizeof(uint32_t), 0, offset, 0, BinaryenTypeInt32(),
+                            address);
+    }
+
+    if (gen->is_lval) {
+    //if (gen->is_lval || is_array_meta(meta) || is_object_meta(meta)) {
         if (offset == 0)
             return address;
 

@@ -248,6 +248,7 @@ exp_trans_ternary(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_access(trans_t *trans, ast_exp_t *exp)
 {
+    uint32_t rel_addr, rel_offset;
     ast_exp_t *qual_exp = exp->u_acc.qual_exp;
     ast_id_t *fld_id = exp->id;
 
@@ -258,13 +259,28 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         return;
     }
 
+    if (is_array_meta(&qual_exp->meta)) {
+        /* TODO Make "size" field to identifier */
+        ast_exp_t *fld_exp = exp->u_acc.fld_exp;
+
+        ASSERT1(is_id_exp(fld_exp), fld_exp->kind);
+        ASSERT1(!strcmp(fld_exp->u_id.name, "size"), fld_exp->u_id.name);
+
+        rel_addr = 0;
+        rel_offset = sizeof(uint32_t);
+    }
+    else {
+        rel_addr = fld_id->meta.rel_addr;
+        rel_offset = fld_id->meta.rel_offset;
+    }
+
     if (is_reg_exp(qual_exp)) {
         ASSERT1(qual_exp->meta.rel_addr == 0, qual_exp->meta.rel_addr);
         ASSERT1(qual_exp->meta.rel_offset == 0, qual_exp->meta.rel_offset);
 
         /* The "rel_addr" of "fld_id" is greater than 0 when referring to a global variable
          * belonging to the contract register */
-        exp_set_mem(exp, qual_exp->meta.base_idx, fld_id->meta.rel_addr, fld_id->meta.rel_offset);
+        exp_set_mem(exp, qual_exp->meta.base_idx, rel_addr, rel_offset);
     }
     else if (is_mem_exp(qual_exp)) {
         /* It can be a memroy expression when referring to a global variable directly */
@@ -276,13 +292,13 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
             exp_set_mem(exp, qual_exp->meta.base_idx, qual_exp->meta.rel_addr,
                         qual_exp->meta.rel_offset + fld_id->meta.rel_offset);
                 */
-        exp->meta.rel_offset = fld_id->meta.rel_offset;
+        exp->meta.rel_offset = rel_offset;
     }
     else {
         /* If qualifier is a function and returns an array or a struct, "qual_exp" can be a binary
          * expression (See exp_trans_call()) */
         //ASSERT1(is_binary_exp(qual_exp) || is_access_exp(qual_exp), qual_exp->kind);
-        exp->meta.rel_offset = fld_id->meta.rel_offset;
+        exp->meta.rel_offset = rel_offset;
     }
 }
 
@@ -419,12 +435,13 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
-    ASSERT1(is_tuple_meta(meta), meta->type);
+    ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta), meta->type);
 
     if (exp->u_init.is_aggr) {
         uint32_t offset = 0;
         uint32_t size = meta_bytes(meta);
         char *raw = xcalloc(size);
+        ir_md_t *md = trans->md;
 
         vector_foreach(elem_exps, i) {
             exp_trans(trans, vector_get_exp(elem_exps, i));
@@ -445,20 +462,33 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
             uint32_t val_size;
             ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
             meta_t *elem_meta = &elem_exp->meta;
+            value_t *elem_val = &elem_exp->u_lit.val;
+
+            if (is_struct_meta(elem_meta)) {
+                uint32_t addr;
+
+                ASSERT1(is_ptr_val(elem_val), elem_val->type);
+                ASSERT1(val_size(elem_val) > 0, val_size(elem_val));
+
+                addr = sgmt_add_raw(&md->sgmt, val_ptr(elem_val), val_size(elem_val));
+
+                value_set_int(elem_val, addr);
+                meta_set_int32(elem_meta);
+            }
 
             offset = ALIGN(offset, meta_align(elem_meta));
+            val_size = value_serialize(elem_val, raw + offset, elem_meta);
 
-            val_size = value_serialize(&elem_exp->u_lit.val, raw + offset, elem_meta);
             ASSERT2(val_size <= meta_bytes(elem_meta), val_size, meta_bytes(elem_meta));
             ASSERT3(offset + val_size <= size, offset, val_size, size);
 
-            offset += meta_bytes(elem_meta);
+            offset += val_size;
         }
 
         ASSERT2(offset <= size, offset, size);
 
         exp_set_lit(exp, NULL);
-        value_set_ptr(&exp->u_lit.val, raw, size);
+        value_set_ptr(&exp->u_lit.val, raw, offset);
     }
     else {
         uint32_t size;
@@ -512,21 +542,50 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
                 ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
                 meta_t *elem_meta = &elem_exp->meta;
 
-                offset = ALIGN(offset, meta_align(elem_meta));
+                /* TODO Fix me... */
+                if (is_struct_meta(elem_meta)) {
+                    uint32_t st_idx = fn_add_register(trans->fn, elem_meta);
 
-                elem_meta->base_idx = reg_idx;
-                elem_meta->rel_offset = offset;
+                    l_exp = exp_new_reg(st_idx);
+                    meta_set_int32(&l_exp->meta);
 
-                exp_trans(trans, elem_exp);
+                    r_exp = syslib_new_malloc(trans, meta_bytes(elem_meta), &exp->pos);
 
-                if (!is_init_exp(elem_exp)) {
+                    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+
+                    offset = ALIGN32(offset);
+
+                    elem_meta->base_idx = st_idx;
+                    elem_meta->rel_offset = 0;
+
+                    exp_trans(trans, elem_exp);
+
+                    r_exp = l_exp;
+
                     l_exp = exp_new_mem(reg_idx, 0, offset);
                     meta_copy(&l_exp->meta, elem_meta);
 
-                    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
-                }
+                    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
 
-                offset += meta_bytes(elem_meta);
+                    offset += sizeof(uint32_t);
+                }
+                else {
+                    offset = ALIGN(offset, meta_align(elem_meta));
+
+                    elem_meta->base_idx = reg_idx;
+                    elem_meta->rel_offset = offset;
+
+                    exp_trans(trans, elem_exp);
+
+                    if (!is_init_exp(elem_exp)) {
+                        l_exp = exp_new_mem(reg_idx, 0, offset);
+                        meta_copy(&l_exp->meta, elem_meta);
+
+                        bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
+                    }
+
+                    offset += meta_bytes(elem_meta);
+                }
             }
         }
         else {

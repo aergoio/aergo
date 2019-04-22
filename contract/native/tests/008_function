@@ -42,6 +42,7 @@ contract test {
 }
 
 @test(access_parameters)
+@run(test.test)
 contract test {
     type s struct {
         int a;
@@ -58,8 +59,10 @@ contract test {
     }
     test() {
         f1(1, "1");
+        pragma assert(v.a == 1);
+        pragma assert(v.b == "1");
         f2(2, "2");
-        f3(v);
+        //f3(v);
     }
 }
 

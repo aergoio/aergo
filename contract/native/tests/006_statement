@@ -64,7 +64,7 @@ contract test {
 @test(array_assignment)
 @run(test.test)
 contract test {
-    int i[2][3];
+    int i[2][3] = new { { 1, 2, 3 }, { 4, 5, 6 } };
     test() {
         i[0][0] = 17;
         pragma assert(i[0][0] == 17);
@@ -79,7 +79,6 @@ contract test {
         j[0]++;
         pragma assert(j[0] == 2);
 
-        /*
         int idx = 1;
         j[idx] = j[0];
         pragma assert(j[1] == 2, (string)j[1]);
@@ -107,9 +106,8 @@ contract test {
         int m[] = i[1];
         pragma assert(m.size == 3);
         pragma assert(m[0] == 10);
-        pragma assert(m[1] == 0);
-        pragma assert(m[2] == 0);
-        */
+        pragma assert(m[1] == 5);
+        pragma assert(m[2] == 6);
     }
 }
 
@@ -155,30 +153,75 @@ contract test {
 }
 
 @test(struct_assignment)
+@run(test.test)
 contract test {
     type s1 struct { int a, b; }
     test() {
-        s1 v1, v2;
+        s1 v1;
+        s1 v2 = new { 11, -11 };
         v1 = v2;
+        pragma assert(v1.a == 11);
+        pragma assert(v1.b == -11);
+        v2.b = -13;
+        pragma assert(v1.a == 11);
+        pragma assert(v1.b == -13);
         v2 = v1;
+        pragma assert(v2.a == 11);
+        pragma assert(v2.b == -13);
     }
 }
 
 @test(struct_array_assignment)
+@run(test.test)
 contract test {
     type s1 struct { int a, b; }
     test() {
-        s1 v1[2][2];
+        s1 v1[2][2] = new {
+            { { 1, 2 }, { 3, 4 } },
+            { { 5, 6 }, { 7, 8 } },
+        };
         s1 v2[3];
-        s1 v3;
+        s1 v3 = new { 9, 10 };
 
         v1[0][1] = v3;
+        pragma assert(v1[0][1].a == 9);
+        pragma assert(v1[0][1].b == 10);
         v2[1] = v3;
+        pragma assert(v2[1].a == 9);
+        pragma assert(v2[1].b == 10);
         v3 = v1[1][0];
+        pragma assert(v3.a == 5);
+        pragma assert(v3.b == 6);
         v3 = v2[2];
+        pragma assert(v3.a == 0);
+        pragma assert(v3.b == 0);
         s1 v4[][] = v1;
+        pragma assert(v4[0][0].a == 1);
+        pragma assert(v4[0][0].b == 2);
+        pragma assert(v4[0][1].a == 9);
+        pragma assert(v4[0][1].b == 10);
+        pragma assert(v4[1][0].a == 5);
+        pragma assert(v4[1][0].b == 6);
+        pragma assert(v4[1][1].a == 7);
+        pragma assert(v4[1][1].b == 8);
         s1 v5[] = v1[0];
+        pragma assert(v5[0].a == 1);
+        pragma assert(v5[0].b == 2);
+        pragma assert(v5[1].a == 9);
+        pragma assert(v5[1].b == 10);
         s1 v6[] = v2;
+        pragma assert(v6[0].a == 0);
+        pragma assert(v6[0].b == 0);
+        pragma assert(v6[1].a == 9);
+        pragma assert(v6[1].b == 10);
+        pragma assert(v6[2].a == 0);
+        pragma assert(v6[2].b == 0);
+        v6[0].a = 0xf0;
+        v6[0].b = 0xf1;
+        /*
+        pragma assert(v2[0].a == 0xf0);
+        pragma assert(v2[0].b == 0xf1);
+        */
     }
 }
 
@@ -237,17 +280,28 @@ contract test {
 }
 
 @test(tuple_assignment)
+@run(test.test)
 contract test {
-    string s3, s4;
+    string s1, s2;
 
     test() {
         int i1, i2 = 1, 2;
-        (i1, i2) = 1 * 1, 2;
+        pragma assert(i1 == 1);
+        pragma assert(i2 == 2);
+        (i1, i2) = 1 * 3, 4;
+        pragma assert(i1 == 3);
+        pragma assert(i2 == 4);
 
-        s3, s4 = ("a", "b");
-        s3, s4 = "a", "b";
+        s1, s2 = ("a", "b");
+        pragma assert(s1 == "a");
+        pragma assert(s2 == "b");
+        s1, s2 = "c", "d";
+        pragma assert(s1 == "c");
+        pragma assert(s2 == "d");
 
-        i1, s3 = 3, "c";
+        i1, s1 = 5, "e";
+        pragma assert(i1 == 5);
+        pragma assert(s1 == "e");
     }
 }
 
@@ -261,6 +315,7 @@ contract test {
 }
 
 @test(array_access)
+@run(test.test)
 contract test {
     string s[][] = new {
         { "songtan", "osan", "suwon" },
@@ -269,9 +324,14 @@ contract test {
     test() {
         int i[5] = new { 1, 2, 3, 4, 5 };
         int j = i.size;
+        pragma assert(j == 5);
 
         j = s.size;
-        j = s[1].size + 1;
+        pragma assert(j == 2);
+        j = s[1].size;
+        pragma assert(j == 3);
+        j = s[1].size;
+        pragma assert(j == 3);
     }
 }
 
@@ -286,6 +346,7 @@ contract test {
 }
 
 @test(struct_access)
+@run(test.test)
 contract test {
     type s struct {
         int a;
@@ -297,22 +358,32 @@ contract test {
         s v = new { 1, "1", { { 1, true } } };
         //s v = new { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
         v.a++;
+        pragma assert(v.a == 2);
         v.a |= 0xabcd;
+        pragma assert(v.a == 43983);
         v.b += "2";
+        pragma assert(v.b == "12");
         v.a, v.b = 2, "2";
+        pragma assert(v.a == 2);
+        pragma assert(v.b == "2");
         v.c[1] = false;
         //v.d[1] = -v.d[0];
     }
 }
 
 @test(enum_access)
+@run(test.test)
 contract test {
-    enum e { a }
+    enum e { a, b, c, d }
     test() {
         byte b = e.a;
-        int8 i1 = e.a;
-        int32 i2 = e.a;
-        int64 i3 = e.a;
+        pragma assert(b == 0);
+        int8 i1 = e.b;
+        pragma assert(i1 == 1);
+        int32 i2 = e.c;
+        pragma assert(i2 == 2);
+        int64 i3 = e.d;
+        pragma assert(i3 == 3);
     }
 }
 
@@ -351,22 +422,31 @@ contract test {
 }
 
 @test(expression_statement)
+@run(test.test)
 contract test {
     test() {
         int x;
         x;
+        pragma assert(x == 0);
         x++;
+        pragma assert(x == 1);
         x == 1 ? 1 : 0;
     }
 }
 
 @test(if_else)
+@run(test.test)
 contract test {
     int v1 = 1;
     string v2;
 
     test() {
-        if (0 == 0) { }
+        if (0 == 0) { 
+            pragma assert(true);
+        }
+        else {
+            pragma assert(false);
+        }
 
         if (!true) {
             v2 = "this is if";
@@ -374,6 +454,7 @@ contract test {
         else {
             v2 = "this is else";
         }
+        pragma assert(v2 == "this is else");
 
         if (v1 == 1) {
             v2 = "first";
@@ -382,6 +463,7 @@ contract test {
         } else {
             v2 = "don't care";
         }
+        pragma assert(v2 == "first");
     }
 }
 
@@ -404,27 +486,33 @@ contract test {
 }
 
 @test(switch_case)
+@run(test.test)
 contract test {
     int i;
     string s;
 
     test() {
+        i = 2;
         switch (i) {
         case 1: s = "case 1"; break;
         case 2: { s = "case 2"; } break;
         case 3: case 4: s = "case unknown"; break;
         default: break;
         }
+        pragma assert(s == "case 2");
 
+        i = 1;
         switch (i) {
-        case 1: s = "case 1";
-        case 2: case 3: s = "case 2";
+        case 1: s += ",case 1";
+        case 2: case 3: s += ",case 2";
         }
+        pragma assert(s == "case 2,case 1,case 2");
 
         switch (i) {
         default: return;
         case 1: s = "fall through";
         }
+        pragma assert(s == "fall through");
     }
 }
 
@@ -484,6 +572,7 @@ fake_label:
 }
 
 @test(without_switch_variable)
+@run(test.test)
 contract test {
     int i;
     string s;
@@ -550,7 +639,7 @@ contract test {
 @test(iterator_scope)
 contract test {
     test() {
-        int i;
+        int i = 1;
         for (int i = 0; i <= 10; i++) { }
     }
 }

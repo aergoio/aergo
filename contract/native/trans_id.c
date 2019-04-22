@@ -65,6 +65,7 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     /* We use the "stmts" vector to keep the declaration order of variables */
     vector_foreach(&id->up->u_cont.blk->ids, i) {
         ast_id_t *elem_id = vector_get_id(&id->up->u_cont.blk->ids, i);
+        meta_t *elem_meta = &elem_id->meta;
         ast_exp_t *dflt_exp = NULL;
 
         if (is_var_id(elem_id)) {

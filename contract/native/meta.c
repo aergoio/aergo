@@ -360,7 +360,7 @@ meta_set_size(meta_t *meta)
 {
     int i;
 
-    ASSERT(is_tuple_meta(meta));
+    ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta), meta->type);
 
     meta->size = 0;
 
@@ -416,6 +416,10 @@ meta_eval_type(meta_t *x, meta_t *y)
     }
     else {
         ASSERT1(is_struct_meta(x), x->type);
+        ASSERT2(x->elem_cnt == y->elem_cnt, x->elem_cnt, y->elem_cnt);
+
+        y->type = x->type;
+        y->type_id = x->type_id;
 
         for (i = 0; i < y->elem_cnt; i++) {
             meta_eval(x->elems[i], y->elems[i]);
@@ -430,23 +434,22 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
-    if (is_tuple_meta(y)) {
+    ASSERT2(dim <= x->arr_dim, dim, x->arr_dim);
+
+    if (dim == x->arr_dim || !is_tuple_meta(y)) {
+        meta_eval_type(x, y);
+    }
+    else {
         for (i = 0; i < y->elem_cnt; i++) {
             meta_eval_array(x, dim + 1, y->elems[i]);
         }
 
         meta_set_size(y);
 
-        if (dim < x->arr_dim) {
-            y->max_dim = x->max_dim;
-            y->arr_dim = x->arr_dim - dim;
-            y->dim_sizes = &x->dim_sizes[dim];
-
-            y->size += sizeof(uint64_t);
-        }
-    }
-    else {
-        meta_eval_type(x, y);
+        y->max_dim = x->max_dim;
+        y->arr_dim = x->arr_dim - dim;
+        y->dim_sizes = &x->dim_sizes[dim];
+        y->size += sizeof(uint64_t);
     }
 }
 

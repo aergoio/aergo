@@ -66,6 +66,8 @@ id_check_array(check_t *check, ast_id_t *id)
 static bool
 id_check_var(check_t *check, ast_id_t *id)
 {
+    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->name != NULL);
     ASSERT(id->up != NULL);
@@ -78,9 +80,15 @@ id_check_var(check_t *check, ast_id_t *id)
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    if (id->u_var.dflt_exp != NULL) {
-        ast_exp_t *dflt_exp = id->u_var.dflt_exp;
+    if (!is_param_id(id) && dflt_exp == NULL &&
+        (is_array_meta(&id->meta) || is_struct_meta(&id->meta))) {
+        dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
 
+        dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
+        id->u_var.dflt_exp = dflt_exp;
+    }
+
+    if (dflt_exp != NULL) {
         /* TODO: named initializer */
         CHECK(exp_check(check, dflt_exp));
         CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
@@ -349,9 +357,11 @@ id_check_tuple(check_t *check, ast_id_t *id)
     ASSERT1(is_tuple_id(id), id->kind);
 
     if (dflt_exp != NULL) {
-        ASSERT1(is_tuple_exp(dflt_exp), dflt_exp->kind);
-        ASSERT2(vector_size(elem_ids) == vector_size(dflt_exp->u_tup.elem_exps),
-                vector_size(elem_ids), vector_size(dflt_exp->u_tup.elem_exps));
+        if (!is_tuple_exp(dflt_exp))
+            ERROR(ERROR_MISMATCHED_COUNT, &dflt_exp->pos, "assignment", vector_size(elem_ids), 1);
+        else if (vector_size(elem_ids) != vector_size(dflt_exp->u_tup.elem_exps))
+            ERROR(ERROR_MISMATCHED_COUNT, &dflt_exp->pos, "assignment", vector_size(elem_ids),
+                  vector_size(dflt_exp->u_tup.elem_exps));
     }
 
     id->meta.type = TYPE_TUPLE;
@@ -369,7 +379,8 @@ id_check_tuple(check_t *check, ast_id_t *id)
         elem_id->mod = id->mod;
         elem_id->u_var.type_exp = id->u_tup.type_exp;
 
-        if (dflt_exp != NULL)
+        if (dflt_exp != NULL && is_tuple_exp(dflt_exp) &&
+            i < vector_size(dflt_exp->u_tup.elem_exps))
             elem_id->u_var.dflt_exp = vector_get_exp(dflt_exp->u_tup.elem_exps, i);
 
         id_check(check, elem_id);

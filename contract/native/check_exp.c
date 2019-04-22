@@ -590,9 +590,9 @@ exp_check_access(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 
         meta_set_int32(&exp->meta);
-
         exp->id = qual_exp->id;
         exp->usable_lval = false;
+
         return true;
     }
 
