@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -46,6 +48,37 @@ func (c *deployContract) Validate(args string) error {
 	return err
 }
 
+func (c *deployContract) readDefFile(defPath string) ([]byte, error) {
+	if strings.HasPrefix(defPath, "http") {
+		// search in the web
+		req, err := http.NewRequest("GET", defPath, nil)
+		if err != nil {
+			return nil, err
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		defByte, _ := ioutil.ReadAll(resp.Body)
+
+		return defByte, nil
+	}
+
+	// search in a local file system
+	if _, err := os.Stat(defPath); os.IsNotExist(err) {
+		return nil, err
+	}
+	defByte, err := ioutil.ReadFile(defPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return defByte, nil
+
+}
+
 func (c *deployContract) parse(args string) (string, *big.Int, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 4 {
@@ -58,7 +91,7 @@ func (c *deployContract) parse(args string) (string, *big.Int, string, string, s
 	}
 
 	defPath := splitArgs[3].Text
-	if _, err := os.Stat(defPath); os.IsNotExist(err) {
+	if _, err := c.readDefFile(defPath); err != nil {
 		return "", nil, "", "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3].Text, err.Error())
 	}
 
@@ -80,7 +113,7 @@ func (c *deployContract) parse(args string) (string, *big.Int, string, string, s
 func (c *deployContract) Run(args string) (string, error) {
 	accountName, amount, contractName, defPath, constuctorArg, _ := c.parse(args)
 
-	defByte, err := ioutil.ReadFile(defPath)
+	defByte, err := c.readDefFile(defPath)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +131,7 @@ func (c *deployContract) Run(args string) (string, error) {
 	Index(context.ContractSymbol, contractName)
 	Index(context.AccountSymbol, contractName)
 
-	if enableWatch {
+	if enableWatch && !strings.HasPrefix(defPath, "http") {
 		absPath, _ := filepath.Abs(defPath)
 		watcher.Add(absPath)
 	}

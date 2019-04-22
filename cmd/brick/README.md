@@ -76,6 +76,13 @@ deploy a smart contract. `deploy <sender_name> <fee_amount> <contract_name> <def
   INF deploy a smart contract successfully cmd=deploy module=brick
 ```
 
+deploy a raw text file on http also available.
+
+``` lua
+2> deploy tester 0 helloContract https://raw.githubusercontent.com/aergoio/aergo-contract-ex/master/contracts/helloworld/test/test-helloworld.brick
+  INF deploy a smart contract successfully cmd=deploy module=brick
+```
+
 ### call
 
 call to execute a smart contract. `call <sender_name> <amount> <contract_name> <func_name> <call_json_str> [expected_error]`
@@ -105,7 +112,7 @@ query to a smart contract. `query <contract_name> <func_name> <query_json_str> [
 
 ### batch
 
-keeps commands in a text file and use at later. `batch <batch_file_path>`
+keeps commands in a text file (local or http) and use at later. `batch <batch_file_path>`
 
 ``` lua
 4> batch ./example/hello.brick
