@@ -64,6 +64,17 @@ const (
 	cachePlaceHolder = true
 )
 
+// constants for block notice tuning
+const (
+	GapToSkipAll    = 86400
+	GapToSkipHourly = 3600
+	GapToSkip5Min   = 300
+
+	HourlyInterval        = time.Hour
+	TenMiniteInterval     = time.Minute * 10
+	MinNewBlkNotiInterval = time.Second >> 2
+)
+
 // constants about private key
 const (
 	DefaultPkKeyPrefix = "aergo-peer"

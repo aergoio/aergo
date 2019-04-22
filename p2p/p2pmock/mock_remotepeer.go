@@ -77,18 +77,18 @@ func (mr *MockRemotePeerMockRecorder) ID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockRemotePeer)(nil).ID))
 }
 
-// LastNotice mocks base method
-func (m *MockRemotePeer) LastNotice() *types.LastBlockStatus {
+// LastStatus mocks base method
+func (m *MockRemotePeer) LastStatus() *types.LastBlockStatus {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LastNotice")
+	ret := m.ctrl.Call(m, "LastStatus")
 	ret0, _ := ret[0].(*types.LastBlockStatus)
 	return ret0
 }
 
-// LastNotice indicates an expected call of LastNotice
+// LastStatus indicates an expected call of LastStatus
 func (mr *MockRemotePeerMockRecorder) LastNotice() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastNotice", reflect.TypeOf((*MockRemotePeer)(nil).LastNotice))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastStatus", reflect.TypeOf((*MockRemotePeer)(nil).LastStatus))
 }
 
 // MF mocks base method

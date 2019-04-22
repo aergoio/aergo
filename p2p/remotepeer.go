@@ -73,10 +73,12 @@ type remotePeerImpl struct {
 	handlers map[p2pcommon.SubProtocol]p2pcommon.MessageHandler
 
 	// TODO make automatic disconnect if remote peer cause too many wrong message
-
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
-	lastNotice   *types.LastBlockStatus
+	lastStatus   *types.LastBlockStatus
+	// lastBlkNoticeTime is time that local peer sent NewBlockNotice to this remote peer
+	lastBlkNoticeTime time.Time
+	skipCnt           int32
 
 	txQueueLock         *sync.Mutex
 	txNoticeQueue       *p2putil.PressableQueue
@@ -97,7 +99,7 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
-		lastNotice: &types.LastBlockStatus{},
+		lastStatus: &types.LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 
@@ -152,8 +154,8 @@ func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
 }
 
-func (p *remotePeerImpl) LastNotice() *types.LastBlockStatus {
-	return p.lastNotice
+func (p *remotePeerImpl) LastStatus() *types.LastBlockStatus {
+	return p.lastStatus
 }
 
 // runPeer should be called by go routine
@@ -259,7 +261,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Error().Str(p2putil.LogProtoID,subProto.String()).Str("callstack", string(debug.Stack())).Interface("panic", r).Msg("There were panic in handler.")
+			p.logger.Error().Str(p2putil.LogProtoID, subProto.String()).Str("callstack", string(debug.Stack())).Interface("panic", r).Msg("There were panic in handler.")
 			err = fmt.Errorf("internal error")
 		}
 	}()
@@ -495,7 +497,7 @@ func (p *remotePeerImpl) UpdateTxCache(hashes []types.TxID) []types.TxID {
 }
 
 func (p *remotePeerImpl) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
-	p.lastNotice = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
+	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

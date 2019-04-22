@@ -560,7 +560,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 			continue
 		}
 		addr := meta.ToPeerAddress()
-		lastNoti := aPeer.LastNotice()
+		lastNoti := aPeer.LastStatus()
 		pi := &message.PeerInfo{
 			&addr, meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)

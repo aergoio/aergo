@@ -21,7 +21,7 @@ type PeerAccessor interface {
 type PeerBlockInfo interface {
 	ID() peer.ID
 	State() PeerState
-	LastNotice() *LastBlockStatus
+	LastStatus() *LastBlockStatus
 }
 
 // LastBlockStatus i
