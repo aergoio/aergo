@@ -339,10 +339,6 @@ func (cp *chainProcessor) execute(block *types.Block) error {
 }
 
 func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, error) {
-	if err := debugger.check(DEBUG_CHAIN_STOP_4); err != nil {
-		return 0, err
-	}
-
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
@@ -702,7 +698,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 }
 
 // TODO: Refactoring: batch
-func (cs *ChainService) executeBlockReco(bstate *state.BlockState, block *types.Block) error {
+func (cs *ChainService) executeBlockReco(_ *state.BlockState, block *types.Block) error {
 	// Caution: block must belong to the main chain.
 	logger.Debug().Str("hash", block.ID()).Uint64("no", block.GetHeader().BlockNo).Msg("start to execute for reco")
 

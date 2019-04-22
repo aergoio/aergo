@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -40,6 +41,7 @@ var (
 
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 	ErrRecoNoBestStateRoot   = errors.New("state root of best block is not exist")
+	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
 
 	debugger *Debugger
 )
@@ -206,7 +208,7 @@ type ChainService struct {
 
 	stat stats
 
-	recovered  bool
+	recovered  atomic.Value
 	debuggable bool
 }
 
@@ -217,6 +219,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		op:   NewOrphanPool(),
 		stat: newStats(),
 	}
+
+	cs.setRecovered(false)
 
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
@@ -350,9 +354,25 @@ func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 		})
 }
 
+func (cs *ChainService) setRecovered(val bool) {
+	cs.recovered.Store(val)
+	return
+}
+
+func (cs *ChainService) isRecovered() bool {
+	var val bool
+	aopv := cs.recovered.Load()
+	if aopv != nil {
+		val = aopv.(bool)
+	} else {
+		panic("ChainService: recovered is nil")
+	}
+	return val
+}
+
 // Receive actor message
 func (cs *ChainService) Receive(context actor.Context) {
-	if !cs.recovered {
+	if !cs.isRecovered() {
 		err := cs.Recover()
 		if err != nil {
 			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")

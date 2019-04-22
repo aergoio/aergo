@@ -32,6 +32,8 @@ func RecoverExit() {
 func (cs *ChainService) Recover() error {
 	defer RecoverExit()
 
+	cs.setRecovered(true)
+
 	// check if reorg marker exists
 	marker, err := cs.cdb.getReorgMarker()
 	if err != nil {
@@ -67,14 +69,11 @@ func (cs *ChainService) Recover() error {
 		return err
 	}
 
-	cs.recovered = true
-
 	return nil
 }
 
 // recover from normal
 // set stateroot for bestblock
-// TODO panic , shutdown server force.
 // when panic occured, memory state of server may not be consistent.
 // so restart server when panic in chainservice
 func (cs *ChainService) recoverNormal() error {
@@ -83,17 +82,16 @@ func (cs *ChainService) recoverNormal() error {
 		return err
 	}
 
+	logger.Info().Msg("check for crash recovery")
+
 	stateDB := cs.sdb.GetStateDB()
 	if !stateDB.HasMarker(best.GetHeader().GetBlocksRootHash()) {
+		logger.Error().Str("besthash", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("no marker")
 		return ErrRecoNoBestStateRoot
 	}
 
 	if !bytes.Equal(cs.sdb.GetStateDB().GetRoot(), best.GetHeader().GetBlocksRootHash()) {
-		logger.Info().Str("besthash", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).
-			Str("sroot", enc.ToString(best.GetHeader().GetBlocksRootHash())).Msg("set root of stateDB force for crash recovery")
-		if err := stateDB.SetRoot(best.GetHeader().GetBlocksRootHash()); err != nil {
-			return err
-		}
+		return ErrRecoInvalidSdbRoot
 	}
 
 	return nil
@@ -114,7 +112,7 @@ func (cs *ChainService) recoverReorg(marker *ReorgMarker) error {
 		return err
 	}
 
-	logger.Info().Msg("recovery succeeded")
+	logger.Info().Msg("recovery end")
 	return nil
 }
 
@@ -199,7 +197,7 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 	tmpBlkNo = tmpBlk.GetHeader().GetBlockNo()
 
 	for tmpBlkNo > rm.BrStartNo {
-		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("no", tmpBlk.GetHeader().GetBlockNo()).Msg("update chain mapping to old chain")
+		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("no", tmpBlkNo).Msg("update chain mapping to old chain")
 
 		bulk.Set(types.BlockNoToBytes(tmpBlkNo), tmpBlk.BlockHash())
 
