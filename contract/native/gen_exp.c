@@ -65,37 +65,6 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_id(gen_t *gen, ast_exp_t *exp)
-{
-    ast_id_t *id = exp->id;
-    meta_t *meta = &exp->meta;
-
-    ASSERT1(is_var_id(id), id->kind);
-
-    if (is_global_id(id)) {
-        BinaryenExpressionRef address =
-            BinaryenGetLocal(gen->module, meta->base_idx, BinaryenTypeInt32());
-
-        ASSERT1(meta->rel_offset == 0, meta->rel_offset);
-
-        if (gen->is_lval) {
-            if (meta->rel_addr == 0)
-                return address;
-
-            return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                  i32_gen(gen, meta->rel_addr));
-        }
-
-        return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta),
-                            meta->rel_addr, 0, meta_gen(&exp->meta), address);
-    }
-
-    ASSERT1(meta->rel_addr == 0, meta->rel_addr);
-
-    return BinaryenGetLocal(gen->module, meta->base_idx, meta_gen(&exp->meta));
-}
-
-static BinaryenExpressionRef
 exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
     ast_id_t *id = exp->id;
@@ -118,14 +87,11 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
 
         /* XXX */
-        address = exp_gen(gen, id_exp);
-        /*
         if (is_global_id(id_exp->id) && meta->arr_dim == meta->max_dim - 1)
             address = BinaryenLoad(gen->module, sizeof(uint32_t), 0, 0, 0, BinaryenTypeInt32(),
                                    exp_gen(gen, id_exp));
         else
             address = exp_gen(gen, id_exp);
-            */
 
         if (is_lit_exp(idx_exp)) {
             if (meta->arr_dim > 0 && meta->dim_sizes[0] == -1) {
@@ -928,9 +894,6 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
     switch (exp->kind) {
     case EXP_LIT:
         return exp_gen_lit(gen, exp);
-
-    case EXP_ID:
-        return exp_gen_id(gen, exp);
 
     case EXP_ARRAY:
         return exp_gen_array(gen, exp);
