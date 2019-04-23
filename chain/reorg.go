@@ -427,25 +427,31 @@ func (reorg *reorganizer) gatherReco() error {
 	reorg.brStartBlock = startBlock
 	reorg.bestBlock = bestBlock
 
-	for tmpBlk := bestBlock; tmpBlk.GetHeader().GetBlockNo() > startBlock.GetHeader().GetBlockNo(); {
-		reorg.oldBlocks = append(reorg.oldBlocks, tmpBlk)
-		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("blockNo", tmpBlk.GetHeader().GetBlockNo()).
-			Msg("gather rollback target for reco")
+	gatherBlocksToStart := func(top *types.Block, stage string) ([]*types.Block, error) {
+		blocks := make([]*types.Block, 0)
 
-		if tmpBlk, err = cdb.getBlock(tmpBlk.GetHeader().GetPrevBlockHash()); err != nil {
-			return err
+		for tmpBlk := top; tmpBlk.GetHeader().GetBlockNo() > startBlock.GetHeader().GetBlockNo(); {
+			blocks = append(blocks, tmpBlk)
+
+			logger.Debug().Str("stage", stage).Str("hash", tmpBlk.ID()).Uint64("blockNo", tmpBlk.GetHeader().GetBlockNo()).
+				Msg("gather target for reco")
+
+			if tmpBlk, err = cdb.getBlock(tmpBlk.GetHeader().GetPrevBlockHash()); err != nil {
+				return blocks, err
+			}
 		}
+
+		return blocks, nil
 	}
 
-	for tmpBlk := topBlock; tmpBlk.GetHeader().GetBlockNo() > startBlock.GetHeader().GetBlockNo(); {
-		reorg.newBlocks = append(reorg.newBlocks, tmpBlk)
+	reorg.oldBlocks, err = gatherBlocksToStart(bestBlock, "rollback")
+	if err != nil {
+		return err
+	}
 
-		logger.Debug().Str("hash", tmpBlk.ID()).Uint64("blockNo", tmpBlk.GetHeader().GetBlockNo()).
-			Msg("gather rollforward target for reco")
-
-		if tmpBlk, err = cdb.getBlock(tmpBlk.GetHeader().GetPrevBlockHash()); err != nil {
-			return err
-		}
+	reorg.newBlocks, err = gatherBlocksToStart(topBlock, "rollforward")
+	if err != nil {
+		return err
 	}
 
 	return nil
