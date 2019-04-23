@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -110,22 +111,38 @@ func TestPeerManager_GetPeers(t *testing.T) {
 }
 
 func TestPeerManager_GetPeerAddresses(t *testing.T) {
-	peersLen := 3
+	peersLen := 6
+	hiddenCnt := 3
 	samplePeers := make([]*remotePeerImpl, peersLen)
-	samplePeers[0] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID}, lastStatus: &types.LastBlockStatus{}}
-	samplePeers[1] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID2}, lastStatus: &types.LastBlockStatus{}}
-	samplePeers[2] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: dummyPeerID3}, lastStatus: &types.LastBlockStatus{}}
+	for i := 0; i < peersLen; i++ {
+		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		pid, _ := peer.IDFromPrivateKey(pkey)
+		samplePeers[i] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: pid, Hidden: i < hiddenCnt}, lastStatus: &types.LastBlockStatus{}}
+	}
+
 	tests := []struct {
 		name string
+
+		hidden   bool
+		showself bool
+
+		wantCnt int
 	}{
-		// TODO: test cases
+		{"TDefault", false, false, peersLen},
+		{"TWSelf", false, true, peersLen + 1},
+		{"TWOHidden", true, false, peersLen - hiddenCnt},
+		{"TWOHiddenWSelf", false, true, peersLen - hiddenCnt + 1},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pm := &peerManager{remotePeers: make(map[peer.ID]p2pcommon.RemotePeer)}
+			pm := &peerManager{
+				remotePeers: make(map[peer.ID]p2pcommon.RemotePeer),
+				mutex:         &sync.Mutex{},
+			}
 			for _, peer := range samplePeers {
 				pm.remotePeers[peer.ID()] = peer
 			}
+			pm.updatePeerCache()
 
 			actPeers := pm.GetPeerAddresses(false, false)
 			assert.Equal(t, peersLen, len(actPeers))
@@ -179,6 +196,94 @@ func TestPeerManager_init(t *testing.T) {
 	}
 }
 
+func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
+	// Test if it works well when concurrent connections is handshaked.
+	ctrl := gomock.NewController(t)
+	logger := log.NewLogger("p2p.test")
+	type desc struct {
+		pid      peer.ID
+		outbound bool
+		hsTime   time.Duration
+	}
+	ds := make([]desc, 10)
+	for i := 0; i < 10; i++ {
+		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		pid, _ := peer.IDFromPrivateKey(pkey)
+		ds[i] = desc{hsTime: time.Millisecond * 10, outbound: true, pid: pid}
+	}
+	tests := []struct {
+		name string
+
+		conns []desc
+	}{
+		{"T10", ds},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPeerFinder := p2pmock.NewMockPeerFinder(ctrl)
+			mockWPManager := p2pmock.NewMockWaitingPeerManager(ctrl)
+			mockWPManager.EXPECT().CheckAndConnect().AnyTimes()
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any()).AnyTimes()
+			mockNT.EXPECT().RemoveStreamHandler(gomock.Any()).AnyTimes()
+
+			dummyCfg := &cfg.P2PConfig{}
+			pm := &peerManager{
+				peerFinder:   mockPeerFinder,
+				wpManager:    mockWPManager,
+				remotePeers:  make(map[peer.ID]p2pcommon.RemotePeer, 10),
+				waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, 10),
+				conf:         dummyCfg,
+				nt:           mockNT,
+
+				getPeerChannel:    make(chan getPeerChan),
+				peerHandshaked:    make(chan p2pcommon.RemotePeer),
+				removePeerChannel: make(chan p2pcommon.RemotePeer),
+				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
+				inboundConnChan:   make(chan inboundConnEvent),
+				workDoneChannel:   make(chan p2pcommon.ConnWorkResult),
+				eventListeners:    make([]PeerEventListener, 0, 4),
+				finishChannel:     make(chan struct{}),
+
+				logger: logger,
+			}
+
+			go pm.runManagePeers()
+
+			workWG := sync.WaitGroup{}
+			workWG.Add(len(tt.conns))
+			latch := sync.WaitGroup{}
+			latch.Add(len(tt.conns))
+			finCnt := uint32(0)
+			for i, conn := range tt.conns {
+				meta := p2pcommon.PeerMeta{ID: conn.pid, Outbound: conn.outbound}
+				wr := p2pcommon.ConnWorkResult{Meta: meta, Result: nil, Inbound: !conn.outbound, Seq: uint32(i)}
+				go func(conn desc, result p2pcommon.ConnWorkResult) {
+					latch.Done()
+					latch.Wait()
+					//fmt.Printf("work start  %s #%d",p2putil.ShortForm(meta.ID),i)
+					//time.Sleep(conn.hsTime)
+					fmt.Printf("work done   %s #%d\n", p2putil.ShortForm(meta.ID), wr.Seq)
+					pm.workDoneChannel <- result
+				}(conn, wr)
+			}
+			mockWPManager.EXPECT().OnWorkDone(gomock.AssignableToTypeOf(p2pcommon.ConnWorkResult{})).Do(
+				func(wr p2pcommon.ConnWorkResult) {
+					atomic.AddUint32(&finCnt,1)
+					workWG.Done()
+				}).AnyTimes()
+
+			workWG.Wait()
+			pm.Stop()
+
+			if atomic.LoadUint32(&finCnt) != uint32(len(tt.conns)) {
+				t.Errorf("finished count %v want %v",finCnt, len(tt.conns))
+			}
+		})
+	}
+}
+
 func Test_peerManager_Stop(t *testing.T) {
 	// check if Stop is working.
 	tests := []struct {
@@ -199,7 +304,7 @@ func Test_peerManager_Stop(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pm := &peerManager{
 				logger:        logger,
-				finishChannel: make(chan struct{},1 ),
+				finishChannel: make(chan struct{}, 1),
 			}
 
 			atomic.StoreInt32(&pm.status, tt.prevStatus)
@@ -210,12 +315,12 @@ func Test_peerManager_Stop(t *testing.T) {
 					toMStatusName(tt.wantStatus))
 			}
 			var sent bool
-			timeout := time.NewTimer(time.Millisecond<<6)
+			timeout := time.NewTimer(time.Millisecond << 6)
 			select {
-				case <-pm.finishChannel:
-					sent = true
-				case <-timeout.C:
-					sent = false
+			case <-pm.finishChannel:
+				sent = true
+			case <-timeout.C:
+				sent = false
 			}
 			if sent != tt.wantSentChannel {
 				t.Errorf("signal sent %v, want %v ", sent, tt.wantSentChannel)
@@ -224,6 +329,7 @@ func Test_peerManager_Stop(t *testing.T) {
 	}
 }
 
+// It tests idempotent of Stop method
 func Test_peerManager_StopInRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -237,18 +343,23 @@ func Test_peerManager_StopInRun(t *testing.T) {
 		{"TStopOnce", 1, stopped},
 		{"TStopTwice", 2, stopped},
 		{"TInStopping", 3, stopped},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any()).AnyTimes()
 			mockNT.EXPECT().RemoveStreamHandler(gomock.Any()).AnyTimes()
+
+			mockPeerFinder := p2pmock.NewMockPeerFinder(ctrl)
+			mockWPManager := p2pmock.NewMockWaitingPeerManager(ctrl)
+
 			pm := &peerManager{
-				logger:        logger,
-				nt:            mockNT,
+				logger:     logger,
+				nt:         mockNT,
+				peerFinder: mockPeerFinder,
+				wpManager:  mockWPManager,
+
 				mutex:         &sync.Mutex{},
-				awaitDone:     make(chan struct{}),
 				finishChannel: make(chan struct{}),
 			}
 			go pm.runManagePeers()

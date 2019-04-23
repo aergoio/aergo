@@ -39,7 +39,7 @@ const (
 
 // constants for node discovery
 const (
-	DiscoveryQueryInterval = time.Minute * 5
+	DiscoveryQueryInterval = time.Minute * 1
 
 	MaxAddrListSizePolaris = 200
 	MaxAddrListSizePeer    = 50

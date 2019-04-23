@@ -54,8 +54,7 @@ type PeerManager interface {
 	AddNewPeer(peer PeerMeta)
 	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call RemovePeer to peermanager
 	RemovePeer(peer RemotePeer)
-	// NotifyPeerHandshake is called after remote peer is completed handshake and ready to receive or send
-	NotifyPeerHandshake(peerID peer.ID)
+
 	NotifyPeerAddressReceived([]PeerMeta)
 
 	// GetPeer return registered(handshaked) remote peer object
