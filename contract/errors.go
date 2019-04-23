@@ -5,12 +5,6 @@
 
 package contract
 
-import "errors"
-
-var (
-	errVmConstructorIsNotPayable = errors.New("constructor is not payable")
-)
-
 type ErrSystem interface {
 	System() bool
 }

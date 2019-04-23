@@ -2795,9 +2795,9 @@ abi.payable(save)
 		NewLuaTxDef("ktlee", "payable", 1, src),
 	)
 	if err == nil {
-		t.Error("expected: " + errVmConstructorIsNotPayable.Error())
+		t.Error("expected: 'constructor' is not payable")
 	} else {
-		if !strings.Contains(err.Error(), errVmConstructorIsNotPayable.Error()) {
+		if !strings.Contains(err.Error(), "'constructor' is not payable") {
 			t.Error(err)
 		}
 	}
@@ -3771,7 +3771,7 @@ func TestContractSend(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: attempt to call global 'default' (a nil value)`),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: not found function: default`),
 	)
 	if err != nil {
 		t.Error(err)
