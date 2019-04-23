@@ -925,12 +925,8 @@ func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.Accou
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
-	ids := []string{}
-	for _, v := range types.AllVotes {
-		ids = append(ids, v[2:])
-	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetVote{Addr: in.Value, Ids: ids}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
+		&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
 	if err != nil {
 		return nil, err
 	}

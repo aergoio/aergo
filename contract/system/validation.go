@@ -43,22 +43,22 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Staked = staked
-	case types.CreateAgenda:
-		name, version, err := parseNameVersionForAgenda(&ci)
+	case types.CreateProposal:
+		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err
 		}
-		agenda, err := getAgenda(scs, name, version)
+		proposal, err := getProposal(scs, id)
 		if err != nil {
 			return nil, err
 		}
-		if agenda != nil {
-			return nil, fmt.Errorf("already created agenda name:%s, version:%s", name, version)
+		if proposal != nil {
+			return nil, fmt.Errorf("already created proposal id: %s", proposal.GetId())
 		}
-		if len(ci.Args) != 7 {
+		if len(ci.Args) != 6 {
 			return nil, fmt.Errorf("the request should be have 7 arguments")
 		}
-		start, ok := ci.Args[2].(string)
+		start, ok := ci.Args[1].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not parse the start block number %v", ci.Args[2])
 		}
@@ -66,7 +66,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
-		end, ok := ci.Args[3].(string)
+		end, ok := ci.Args[2].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not parse the start block number %v", ci.Args[3])
 		}
@@ -74,7 +74,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
-		max := ci.Args[4].(string)
+		max := ci.Args[3].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not parse the max")
 		}
@@ -82,11 +82,11 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
-		desc, ok := ci.Args[5].(string)
+		desc, ok := ci.Args[4].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not parse the desc")
 		}
-		candis, ok := ci.Args[6].([]interface{})
+		candis, ok := ci.Args[5].([]interface{})
 		if !ok {
 			return nil, fmt.Errorf("could not parse the candidates %v %v", ci.Args[6], reflect.TypeOf(ci.Args[6]))
 		}
@@ -98,60 +98,59 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			}
 			candidates = append(candidates, c)
 		}
-		context.Agenda = &types.Agenda{
-			Name:        name,
-			Version:     version,
+		context.Proposal = &types.Proposal{
+			Id:          id,
 			Blockfrom:   blockfrom,
 			Blockto:     blockto,
 			Maxvote:     uint32(maxVote),
 			Description: desc,
 			Candidates:  candidates,
 		}
-	case types.VoteAgenda:
-		name, version, err := parseNameVersionForAgenda(&ci)
+	case types.VoteProposal:
+		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err
 		}
-		agenda, err := getAgenda(scs, name, version)
+		proposal, err := getProposal(scs, id)
 		if err != nil {
 			return nil, err
 		}
-		if agenda == nil {
-			return nil, fmt.Errorf("the agenda is not created (%s, %s)", name, version)
+		if proposal == nil {
+			return nil, fmt.Errorf("the proposal is not created (%s)", id)
 		}
-		if blockNo < agenda.Blockfrom {
-			return nil, fmt.Errorf("the voting begins at %d", agenda.Blockfrom)
+		if blockNo < proposal.Blockfrom {
+			return nil, fmt.Errorf("the voting begins at %d", proposal.Blockfrom)
 		}
-		if blockNo > agenda.Blockto {
-			return nil, fmt.Errorf("the voting was already done at %d", agenda.Blockto)
+		if blockNo > proposal.Blockto {
+			return nil, fmt.Errorf("the voting was already done at %d", proposal.Blockto)
 		}
-		candis := ci.Args[2:]
-		if int64(len(candis)) > int64(agenda.Maxvote) {
-			return nil, fmt.Errorf("too many candidates arguments (max : %d)", agenda.Maxvote)
+		candis := ci.Args[1:]
+		if int64(len(candis)) > int64(proposal.Maxvote) {
+			return nil, fmt.Errorf("too many candidates arguments (max : %d)", proposal.Maxvote)
 		}
-		sort.Slice(agenda.Candidates, func(i, j int) bool {
-			return agenda.Candidates[i] <= agenda.Candidates[j]
+		sort.Slice(proposal.Candidates, func(i, j int) bool {
+			return proposal.Candidates[i] <= proposal.Candidates[j]
 		})
-		if len(agenda.GetCandidates()) != 0 {
-			for _, c := range ci.Args[2:] {
+		if len(proposal.GetCandidates()) != 0 {
+			for _, c := range candis {
 				candidate, ok := c.(string)
 				if !ok {
 					return nil, fmt.Errorf("include invalid candidate")
 				}
-				i := sort.SearchStrings(agenda.GetCandidates(), candidate)
-				if i < len(agenda.Candidates) && agenda.Candidates[i] == candidate {
+				i := sort.SearchStrings(proposal.GetCandidates(), candidate)
+				if i < len(proposal.Candidates) && proposal.Candidates[i] == candidate {
 					//fmt.Printf("Found %s at index %d in %v.\n", x, i, a)
 				} else {
-					return nil, fmt.Errorf("candidate should be in %v", agenda.GetCandidates())
+					return nil, fmt.Errorf("candidate should be in %v", proposal.GetCandidates())
 				}
 			}
 		}
 
-		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, agenda.GetKey())
+		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, proposal.GetKey())
 		if err != nil {
 			return nil, err
 		}
-		context.Agenda = agenda
+		context.Proposal = proposal
 		context.Staked = staked
 		context.Vote = oldvote
 	default:
@@ -212,17 +211,12 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 	}
 	return staked, nil
 }
-func parseNameVersionForAgenda(ci *types.CallInfo) (string, string, error) {
-	if len(ci.Args) < 2 {
-		return "", "", types.ErrTxInvalidPayload
+
+func parseIDForProposal(ci *types.CallInfo) (string, error) {
+	//length should be checked before this function
+	id, ok := ci.Args[0].(string)
+	if !ok || len(id) < 1 {
+		return "", fmt.Errorf("args[%d] invalid id", 0)
 	}
-	name, ok := ci.Args[0].(string)
-	if !ok {
-		return "", "", types.ErrTxInvalidPayload
-	}
-	version, ok := ci.Args[1].(string)
-	if !ok {
-		return "", "", types.ErrTxInvalidPayload
-	}
-	return name, version, nil
+	return id, nil
 }

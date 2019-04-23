@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -208,6 +209,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 			block = nil
 			bs = nil
 			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
+			logger.Debug().Str("callstack", string(debug.Stack()))
 		}
 	}()
 

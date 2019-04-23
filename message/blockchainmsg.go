@@ -120,7 +120,6 @@ type GetElected struct {
 
 type GetVote struct {
 	Addr []byte
-	Ids  []string
 }
 
 // GetElectedRsp is return to get voting result

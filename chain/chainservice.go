@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -178,7 +177,7 @@ type IChainHandler interface {
 	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
 	getReceipt(txHash []byte) (*types.Receipt, error)
-	getAccountVote(id []string, addr []byte) (*types.AccountVoteInfo, error)
+	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
@@ -472,7 +471,7 @@ func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	}
 }
 
-func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.AccountVoteInfo, error) {
+func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, error) {
 	if cs.GetType() != consensus.ConsensusDPOS {
 		return nil, ErrNotSupportedConsensus
 	}
@@ -481,33 +480,16 @@ func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.Accoun
 	if err != nil {
 		return nil, err
 	}
-
-	var voteInfo types.AccountVoteInfo
-
-	for _, id := range ids {
-		vote, err := system.GetVote(scs, addr, []byte(id))
-		if err != nil {
-			return nil, err
-		}
-		var candidates []string
-		to := vote.GetCandidate()
-		if len(to) == 0 {
-			continue
-		}
-		if id == types.VoteBP[2:] {
-			for offset := 0; offset < len(to); offset += system.PeerIDLength {
-				candidates = append(candidates, types.EncodeB58(to[offset:offset+system.PeerIDLength]))
-			}
-		} else {
-			err := json.Unmarshal(to, &candidates)
-			if err != nil {
-				return nil, err
-			}
-		}
-		voteInfo.Voting = append(voteInfo.Voting, &types.VoteInfo{Id: id, Candidates: candidates})
+	namescs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	if err != nil {
+		return nil, err
+	}
+	voteInfo, err := system.GetVotes(scs, name.GetAddress(namescs, addr))
+	if err != nil {
+		return nil, err
 	}
 
-	return &voteInfo, nil
+	return &types.AccountVoteInfo{Voting: voteInfo}, nil
 }
 
 func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
@@ -806,7 +788,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err: err,
 		})
 	case *message.GetVote:
-		info, err := cw.getAccountVote(msg.Ids, msg.Addr)
+		info, err := cw.getAccountVote(msg.Addr)
 		context.Respond(&message.GetAccountVoteRsp{
 			Info: info,
 			Err:  err,

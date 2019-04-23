@@ -5,19 +5,24 @@
 package system
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58"
 )
 
+//SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
 	BlockNo  uint64
 	Call     *types.CallInfo
 	Args     []string
 	Staked   *types.Staking
 	Vote     *types.Vote
-	Agenda   *types.Agenda
+	Proposal *types.Proposal
 	Sender   *state.V
 	Receiver *state.V
 }
@@ -36,12 +41,12 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	case types.Stake:
 		event, err = staking(txBody, sender, receiver, scs, blockNo, context)
 	case types.VoteBP,
-		types.VoteAgenda:
+		types.VoteProposal:
 		event, err = voting(txBody, sender, receiver, scs, blockNo, context)
 	case types.Unstake:
 		event, err = unstaking(txBody, sender, receiver, scs, blockNo, context)
-	case types.CreateAgenda:
-		event, err = createAgenda(txBody, sender, receiver, scs, blockNo, context)
+	case types.CreateProposal:
+		event, err = createProposal(txBody, sender, receiver, scs, blockNo, context)
 	default:
 		err = types.ErrTxInvalidPayload
 	}
@@ -66,16 +71,44 @@ func GetNamePrice(scs *state.ContractState) *big.Int {
 }
 
 func GetMinimumStaking(scs *state.ContractState) *big.Int {
-	votelist, err := getVoteResult(scs, []byte(types.VoteMinStaking[2:]), 1)
-	if err != nil {
-		panic("could not get vote result for min staking")
+	//votelist, err := getVoteResult(scs, []byte(types.VoteMinStaking[2:]), 1)
+	//if err != nil {
+	//	panic("could not get vote result for min staking")
+	//}
+	//if len(votelist.Votes) == 0 {
+	//	return types.StakingMinimum
+	//}
+	//minimumStaking, ok := new(big.Int).SetString(string(votelist.Votes[0].GetCandidate()), 10)
+	//if !ok {
+	//	panic("could not get vote result for min staking")
+	//}
+	//return minimumStaking
+	return types.StakingMinimum
+}
+
+func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
+	votes := getProposalHistory(scs, address)
+	var results []*types.VoteInfo
+	votes = append(votes, []byte(defaultVoteKey))
+	for _, key := range votes {
+		result := &types.VoteInfo{Id: string(key)}
+		v, err := getVote(scs, key, address)
+		if err != nil {
+			return nil, err
+		}
+		if bytes.Equal(key, defaultVoteKey) {
+			for offset := 0; offset < len(v.Candidate); offset += PeerIDLength {
+				candi := base58.Encode(v.Candidate[offset : offset+PeerIDLength])
+				result.Candidates = append(result.Candidates, candi)
+			}
+		} else {
+			err := json.Unmarshal(v.Candidate, &result.Candidates)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %s", err.Error(), string(v.Candidate))
+			}
+		}
+		result.Amount = v.Amount
+		results = append(results, result)
 	}
-	if len(votelist.Votes) == 0 {
-		return types.StakingMinimum
-	}
-	minimumStaking, ok := new(big.Int).SetString(string(votelist.Votes[0].GetCandidate()), 10)
-	if !ok {
-		panic("could not get vote result for min staking")
-	}
-	return minimumStaking
+	return results, nil
 }

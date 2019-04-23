@@ -48,9 +48,9 @@ func init() {
 
 	voteCmd.Flags().StringVar(&address, "address", "", "Account address of voter")
 	voteCmd.MarkFlagRequired("address")
-	voteCmd.Flags().StringVar(&to, "to", "", "Json array which has base58 address of candidates(peer) or input file path")
+	voteCmd.Flags().StringVar(&to, "to", "", "Json string array which has candidates or input file path")
 	voteCmd.MarkFlagRequired("to")
-	voteCmd.Flags().StringVar(&election, "election", "bp", "election to vote")
+	voteCmd.Flags().StringVar(&voteId, "id", types.VoteBP, "id to vote")
 
 	stakeCmd.Flags().StringVar(&address, "address", "", "Account address")
 	stakeCmd.MarkFlagRequired("address")

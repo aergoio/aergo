@@ -34,10 +34,13 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 	var key []byte
 	var args []byte
 	var err error
-	if context.Agenda != nil {
-		key = context.Agenda.GetKey()
-		args, err = json.Marshal(context.Call.Args[2:]) //[0] is name, [1] is version
+	if context.Proposal != nil {
+		key = context.Proposal.GetKey()
+		args, err = json.Marshal(context.Call.Args[1:]) //[0] is name
 		if err != nil {
+			return nil, err
+		}
+		if err := addProposalHistory(scs, sender.ID(), context.Proposal); err != nil {
 			return nil, err
 		}
 	} else {
@@ -109,7 +112,7 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 	account := context.Sender.ID()
 	staked := context.Staked
 	stakedAmount := new(big.Int).SetBytes(staked.Amount)
-	allVotes := getAgendaHistory(scs, account)
+	allVotes := getProposalHistory(scs, account)
 	allVotes = append(allVotes, []byte(types.VoteBP[2:]))
 	for _, key := range allVotes {
 		oldvote, err := getVote(scs, key, account)

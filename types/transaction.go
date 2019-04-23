@@ -163,6 +163,39 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
+	case CreateProposal:
+		if len(ci.Args) != 6 {
+			return fmt.Errorf("the number of arguments invalid %d", len(ci.Args))
+		}
+		for i, v := range ci.Args {
+			if i == 5 { //string array = 5 : candidates
+				candis, ok := v.([]interface{})
+				if !ok {
+					return fmt.Errorf("arg[%d] wrong candidates", i)
+				}
+				for j, c := range candis {
+					s, ok := c.(string)
+					if !ok {
+						return fmt.Errorf("wrong candidate[%d]", j)
+					}
+					if strings.Contains(s, "/") {
+						return fmt.Errorf("'/' letter not allowed in cadidates list")
+					}
+				}
+				break
+			}
+			arg, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
+			}
+			if strings.Contains(arg, "/") {
+				return fmt.Errorf("'/' letter not allowed in creating argenda Args[%d]", i)
+			}
+		}
+	case VoteProposal:
+		if len(ci.Args) < 1 {
+			return fmt.Errorf("the number of args less then 2")
+		}
 	default:
 		return ErrTxInvalidPayload
 	}
