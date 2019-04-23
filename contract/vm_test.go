@@ -514,10 +514,13 @@ function infiniteLoop()
 	end
 	return t
 end
+function infiniteCall()
+	infiniteCall()
+end
 function catch()
 	return pcall(infiniteLoop)
 end
-abi.register(infiniteLoop, catch)`
+abi.register(infiniteLoop, infiniteCall, catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -557,6 +560,23 @@ abi.register(infiniteLoop, catch)`
 	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteCall"}`,
+		),
+	)
+	errMsg = "stack overflow"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
 }
 
 func TestUpdateSize(t *testing.T) {
