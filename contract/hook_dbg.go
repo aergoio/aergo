@@ -24,6 +24,7 @@ type contract_info struct {
 }
 
 var contract_info_map = make(map[string]*contract_info)
+var watchpoints = list.New()
 
 func (ce *Executor) setCountHook(limit C.int) {
 	if ce == nil || ce.L == nil {
@@ -143,7 +144,6 @@ func HasBreakPoint(contract_id_hex string, line uint64) bool {
 //export PrintBreakPoints
 func PrintBreakPoints() {
 	if len(contract_info_map) == 0 {
-		fmt.Printf("(empty)\n")
 		return
 	}
 	for _, info := range contract_info_map {
@@ -160,6 +160,42 @@ func ResetBreakPoints() {
 	for _, info := range contract_info_map {
 		info.breakpoints = list.New()
 	}
+}
+
+func SetWatchPoint(code string) error {
+	if code == "" {
+		return errors.New("Empty string cannot be set")
+	}
+
+	watchpoints.PushBack(code)
+
+	return nil
+}
+
+func DelWatchPoint(idx uint64) error {
+	if uint64(watchpoints.Len()) < idx {
+		return errors.New("invalid index")
+	}
+
+	var i uint64 = 0
+	for e := watchpoints.Front(); e != nil; e = e.Next() {
+		i++
+		if i >= idx {
+			watchpoints.Remove(e)
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func ListWatchPoints() *list.List {
+	return watchpoints
+}
+
+//export ResetWatchPoints
+func ResetWatchPoints() {
+	watchpoints = list.New()
 }
 
 func UpdateContractInfo(contract_id_hex string, path string) {
@@ -251,11 +287,50 @@ func CHasBreakPoint(contract_id_hex_c *C.char, line_c C.double) C.int {
 	return C.int(0)
 }
 
+//export CSetWatchPoint
+func CSetWatchPoint(code_c *C.char) {
+	code := C.GoString(code_c)
+
+	err := SetWatchPoint(code)
+	if err != nil {
+		ctrLog.Error().Err(err).Msg("Fail to set watchpoint")
+	}
+}
+
+//export CDelWatchPoint
+func CDelWatchPoint(idx_c C.double) {
+	idx := uint64(idx_c)
+
+	err := DelWatchPoint(idx)
+	if err != nil {
+		ctrLog.Error().Err(err).Msg("Fail to del watchpoint")
+	}
+}
+
+//export CGetWatchPoint
+func CGetWatchPoint(idx_c C.int) *C.char {
+	idx := int(idx_c)
+	var i int = 0
+	for e := watchpoints.Front(); e != nil; e = e.Next() {
+		i++
+		if i == idx {
+			return C.CString(e.Value.(string))
+		}
+	}
+
+	return C.CString("")
+}
+
+//export CLenWatchPoints
+func CLenWatchPoints() C.int {
+	return C.int(watchpoints.Len())
+}
+
 //export GetDebuggerCode
 func GetDebuggerCode() *C.char {
 
 	return C.CString(`
-package.preload['__debugger'] = function()
+	package.preload['__debugger'] = function()
 
 	--{{{  history
 
@@ -320,7 +395,6 @@ package.preload['__debugger'] = function()
 	local step_level  = {main=0}
 	local stack_level = {main=0}
 	local trace_level = {main=0}
-	local trace_lines = false
 	local ret_file, ret_line, ret_name
 	local current_thread = 'main'
 	local started = false
@@ -360,8 +434,8 @@ package.preload['__debugger'] = function()
 	currently set level (see 'set').
 	]],
 
-	delallb = [[
-	delallb             -- removes all breakpoints|
+	resetb = [[
+	resetb             -- removes all breakpoints|
 	]],
 
 	setw =    [[
@@ -378,8 +452,8 @@ package.preload['__debugger'] = function()
 	The index is that returned when the watch expression was set by setw.
 	]],
 
-	delallw = [[
-	delallw             -- removes all watch expressions|
+	resetw = [[
+	resetw             -- removes all watch expressions|
 	]],
 
 	run     = [[
@@ -482,14 +556,6 @@ package.preload['__debugger'] = function()
 	Can also be called from a script as dump(var,depth).
 	]],
 
-	tron    = [[
-	tron [crl]          -- turn trace on for (c)alls, (r)etuns, (l)lines|
-
-	If no parameter is given then tracing is turned off.
-	When tracing is turned on a line is printed to the console for each
-	debug 'event' selected. c=function calls, r=function returns, l=lines.
-	]],
-
 	trace   = [[
 	trace               -- dumps a stack trace|
 
@@ -531,10 +597,6 @@ package.preload['__debugger'] = function()
 	immediately. Any results returned are printed. Use '=' as a short-hand
 	for 'return', e.g. '=func(arg)' will call 'func' with 'arg' and print
 	the results, and '=var' will just print the value of 'var'.
-	]],
-
-	what    = [[
-	what <func>         -- show where <func> is defined (if known)|
 	]],
 
 	}
@@ -887,37 +949,12 @@ package.preload['__debugger'] = function()
 	--}}}
 	--{{{  local function trace_event(event, line, level)
 
-	local function print_trace(level,depth,event,file,line,name)
-
-		--NB: level here is relative to the caller of trace_event, so offset by 2 to get to there
-		level = level + 2
-
-		local contract_id_hex = contract_id_hex or getinfo(level,'short_src')
-		local line = line or getinfo(level,'currentline')
-		local name = name or getinfo(level,'name')
-
-		local prefix = ''
-		if current_thread ~= 'main' then prefix = '['..tostring(current_thread)..'] ' end
-
-		io.write(prefix..
-				string.format('%02i.', depth).. --os clock removed, but how about blockHeight? TODO
-				string.rep('.',depth%32)..
-				(contract_id_hex or '')..' ('..(line or '')..') '..
-				(name or '')..
-				' ('..event..')\n')
-
-	end
-
-	local function trace_event(event, line, level)
+		local function trace_event(event, line, level)
 
 		if event ~= 'line' then return end
 
 		local slevel = stack_level[current_thread]
 		local tlevel = trace_level[current_thread]
-
-		if trace_lines then
-		print_trace(level,slevel,'l')
-		end
 
 		trace_level[current_thread] = stack_level[current_thread]
 
@@ -937,7 +974,7 @@ package.preload['__debugger'] = function()
 		elseif ev == events.BREAK then
 		io.write(prefix..'Paused at contract '..contract_id_base58..' line '..line..' ('..stack_level[current_thread]..') (breakpoint)\n')
 		elseif ev == events.WATCH then
-		io.write(prefix..'Paused at contract '..contract_id_base58..' line '..line..' ('..stack_level[current_thread]..')'..' (watch expression '..idx_watch.. ': ['..watches[idx_watch].exp..'])\n')
+		io.write(prefix..'Paused at contract '..contract_id_base58..' line '..line..' ('..stack_level[current_thread]..')'..' (watch expression '..idx_watch.. ': ['..__get_watchpoint(idx_watch)..'])\n')
 		elseif ev == events.SET then
 		--do nothing
 		else
@@ -1040,7 +1077,7 @@ package.preload['__debugger'] = function()
 
 			--}}}
 
-		elseif command == 'delallb' then
+		elseif command == 'resetb' then
 			--{{{  delete all breakpoints
 			--TODO
 			io.write('All breakpoints deleted\n')
@@ -1055,10 +1092,8 @@ package.preload['__debugger'] = function()
 			--{{{  set watch expression
 
 			if args and args ~= '' then
-			local func = loadstring('return(' .. args .. ')')
-			local newidx = #watches + 1
-			watches[newidx] = {func = func, exp = args}
-			io.write('Set watch exp no. ' .. newidx..'\n')
+			__set_watchpoint(args)
+			io.write('Set watch exp no. ' .. __len_watchpoints() ..'\n')
 			else
 			io.write('Bad request\n')
 			end
@@ -1070,7 +1105,7 @@ package.preload['__debugger'] = function()
 
 			local index = tonumber(args)
 			if index then
-			watches[index] = nil
+			__delete_watchpoint(index)
 			io.write('Watch expression deleted\n')
 			else
 			io.write('Bad request\n')
@@ -1078,16 +1113,16 @@ package.preload['__debugger'] = function()
 
 			--}}}
 
-		elseif command == 'delallw' then
+		elseif command == 'resetw' then
 			--{{{  delete all watch expressions
-			watches = {}
+			__reset_watchpoints()
 			io.write('All watch expressions deleted\n')
 			--}}}
 
 		elseif command == 'listw' then
 			--{{{  list watch expressions
-			for i, v in pairs(watches) do
-			io.write('Watch exp. ' .. i .. ': ' .. v.exp..'\n')
+			for i, v in pairs(__list_watchpoints()) do
+			io.write(i .. ': ' .. v..'\n')
 			end
 			--}}}
 
@@ -1168,33 +1203,6 @@ package.preload['__debugger'] = function()
 			dumpvar(eval_env.__LOCALS__,2,'upvalues')
 			--}}}
 
-		elseif command == 'what' then
-			--{{{  show where a function is defined
-			if args and args ~= '' then
-			local v = eval_env
-			local n = nil
-			for w in string.gmatch(args,'[%w_]+') do
-				v = v[w]
-				if n then n = n..'.'..w else n = w end
-				if not v then break end
-			end
-			if type(n) ~= 'string' then
-				io.write('Invalid function name given\n')
-			elseif type(v) == 'function' then
-				local def = debug.getinfo(v,'S')
-				if def then
-				io.write(def.what..' in '..def.short_src..' '..def.linedefined..'..'..def.lastlinedefined..'\n')
-				else
-				io.write('Cannot get info for '..n..'\n')
-				end
-			else
-				io.write(n..' is not a function\n')
-			end
-			else
-			io.write('Bad request\n')
-			end
-			--}}}
-
 		elseif command == 'dump' then
 			--{{{  dump a variable
 			local name, depth = getargs('VN')
@@ -1229,17 +1237,6 @@ package.preload['__debugger'] = function()
 			else
 			io.write('Nothing to show\n')
 			end
-			--}}}
-
-		elseif command == 'tron' then
-			--{{{  turn tracing on/off
-			local option = getargs('S')
-			trace_calls   = false
-			trace_returns = false
-			trace_lines   = false
-			if string.find(option,'c') then trace_calls   = true end
-			if string.find(option,'r') then trace_returns = true end
-			if string.find(option,'l') then trace_lines   = true end
 			--}}}
 
 		elseif command == 'trace' then
@@ -1286,7 +1283,7 @@ package.preload['__debugger'] = function()
 
 			local ok, func = pcall(loadstring,line)
 			if ok and func==nil then -- auto-print variables
-				ok, func = pcall(loadstring,'print(' .. line .. ')')
+				ok, func = pcall(loadstring,'io.write(tostring(' .. line .. '))')
 			end
 			if func == nil then                             --Michael.Bringmann@lsi.com
 			io.write('Compile error: '..line..'\n')
@@ -1302,9 +1299,9 @@ package.preload['__debugger'] = function()
 					io.write(tostring(v))
 					io.write('\t')
 				end
-				io.write('\n')
 				end
 				--update in the context
+				io.write('\n')
 				return 0
 			else
 				io.write('Run error: '..res[2]..'\n')
@@ -1334,13 +1331,16 @@ package.preload['__debugger'] = function()
 		local vars,contract_id_hex,contract_id_base58,line = capture_vars(level,1,line)
 		local stop, ev, idx = false, events.STEP, 0
 		while true do
-			for index, value in pairs(watches) do
-			setfenv(value.func, vars)
-			local status, res = pcall(value.func)
-			if status and res then
+			for index, value in pairs(__list_watchpoints()) do
+			local func = loadstring('return(' .. value .. ')')
+			if func ~= nil then
+				setfenv(func, vars)
+				local status, res = pcall(func)
+				if status and res then
 				ev, idx = events.WATCH, index
 				stop = true
 				break
+				end
 			end
 			end
 			if stop then break end

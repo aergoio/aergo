@@ -193,11 +193,11 @@ Or user can set the option `-w` to display the batch execution results continuou
 
 ## Debugging
 
-If you build in debug mode, you can use `os, io, debug` modules which is not allowed in release mode. There is no limit to which debugger to use, but brick provides built-in debugger using customized [clidebugger](https://github.com/ToddWegner/clidebugger). For debugging purpose, brick has extended commands.
+If you build in debug mode (`make debug`), you can use `os, io, debug` modules which is not allowed in release mode. There is no limit to which debugger to use, but brick provides built-in debugger using customized [clidebugger](https://github.com/ToddWegner/clidebugger). For debugging purpose, brick has extended commands.
 
 ### setb (brick / debugmode)
 
-Set a breakpoint to the contract. When vm reach the line of breakpoint during a call or query of a contract, it enters debugmode. contract_name is optional in debugmode. `setb <line> [contract_name]`
+Set a breakpoint to the contract. When vm reach the line of breakpoint during a call or query of a contract, it enters debugmode only. contract_name is optional in debugmode. `setb <line> [contract_name]`
 
 ### delb (brick / debugmode) 
 
@@ -211,7 +211,24 @@ Prints all breakpoints. `listb`
 
 Clear all breakpoints. `resetb`
 
+### setw (brick / debugmode)
+
+Set an watchpoint expression. If one of watchpoint expressions is satisfied without regard to which contract is being executed, debug mode is activated. `setw <watch_expression>`
+
+### delw (brick / debugmode)
+
+Delete an existing watchpoint. `delw <watch_index>`
+
+### listw (brick / debugmode)
+
+Prints all watchpoints. `listw`
+
+### resetw (brick / debugmode)
+
+Clear all watchpoints. `resetw`
+
 ### in debugmode
+
 When vm enters debugmode, prompt changes to `[DEBUG]>`. In debugmode, command set is changed for debugging purpose, like `run`, `exit`, `show`, `vars`. For more detail, type `help`.
 
 ## Debug using Zerobrane Studio
