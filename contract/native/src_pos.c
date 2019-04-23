@@ -12,12 +12,12 @@
 src_pos_t null_pos_ = { NULL, NULL, 1, 1, 0, 1, 1, 0 };
 
 void
-src_pos_print(src_pos_t *pos, char *buf, int buf_size)
+src_pos_print(src_pos_t *pos, char *buf, int buf_sz)
 {
     int i;
     int idx = 0;
     int tok_len;
-    int line_max = (buf_size - 19) / 2;
+    int line_max = (buf_sz - 19) / 2;
     int adj_col, adj_offset, adj_len;
 
     adj_offset = pos->first_offset;

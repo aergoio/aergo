@@ -38,7 +38,7 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
-        ASSERT1(is_null_val(val), val_size(val));
+        ASSERT1(is_null_val(val), val_sz(val));
         meta_set_object(&exp->meta, NULL);
         meta_set_undef(&exp->meta);
         break;
@@ -798,7 +798,7 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
 
     if (exp->u_alloc.size_exps != NULL) {
         int i;
-        int dim_size;
+        int dim_sz;
         vector_t *size_exps = exp->u_alloc.size_exps;
 
         meta_set_arr_dim(meta, vector_size(size_exps));
@@ -821,11 +821,11 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
             ASSERT(size_val != NULL);
             ASSERT1(is_int_val(size_val), size_val->type);
 
-            dim_size = val_i64(size_val);
-            if (dim_size <= 0)
+            dim_sz = val_i64(size_val);
+            if (dim_sz <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            meta_set_dim_size(meta, i, dim_size);
+            meta_set_dim_sz(meta, i, dim_sz);
         }
     }
     else if (is_primitive_meta(meta) || is_object_meta(meta)) {

@@ -18,7 +18,7 @@ static bool
 id_check_array(check_t *check, ast_id_t *id)
 {
     int i;
-    int dim_size;
+    int dim_sz;
     vector_t *size_exps = id->u_var.size_exps;
 
     ASSERT1(is_var_id(id), id->kind);
@@ -35,7 +35,7 @@ id_check_array(check_t *check, ast_id_t *id)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
 
             /* "-1" means that the size is determined by the initializer */
-            meta_set_dim_size(&id->meta, i, -1);
+            meta_set_dim_sz(&id->meta, i, -1);
         }
         else {
             value_t *size_val = NULL;
@@ -52,11 +52,11 @@ id_check_array(check_t *check, ast_id_t *id)
             ASSERT(size_val != NULL);
             ASSERT1(is_int_val(size_val), size_val->type);
 
-            dim_size = val_i64(size_val);
-            if (dim_size <= 0)
+            dim_sz = val_i64(size_val);
+            if (dim_sz <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            meta_set_dim_size(&id->meta, i, dim_size);
+            meta_set_dim_sz(&id->meta, i, dim_sz);
         }
     }
 
@@ -132,7 +132,7 @@ id_check_struct(check_t *check, ast_id_t *id)
         BIT_SET(fld_id->mod, MOD_PUBLIC);
 
         fld_meta->rel_offset = ALIGN(offset, meta_align(fld_meta));
-        offset = fld_meta->rel_offset + meta_bytes(fld_meta);
+        offset = fld_meta->rel_offset + meta_memsz(fld_meta);
     }
 
     meta_set_struct(&id->meta, id);

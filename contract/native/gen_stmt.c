@@ -55,7 +55,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
                                  l_exp->meta.rel_addr + l_exp->meta.rel_offset, 0, address, value,
                                  BinaryenTypeInt32());
 
-        return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type),
+        return BinaryenStore(gen->module, meta_iosz(&l_exp->meta),
                              l_exp->meta.rel_addr + l_exp->meta.rel_offset, 0, address, value,
                              meta_gen(&l_exp->meta));
     }
@@ -68,7 +68,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     address = exp_gen(gen, l_exp);
     gen->is_lval = false;
 
-    return BinaryenStore(gen->module, TYPE_BYTE(l_exp->meta.type), 0, 0, address, value,
+    return BinaryenStore(gen->module, meta_iosz(&l_exp->meta), 0, 0, address, value,
                          meta_gen(&l_exp->meta));
 }
 

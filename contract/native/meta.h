@@ -84,7 +84,9 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_size(meta)             (meta)->size
+#define meta_iosz(meta)             TYPE_IO_SIZE((meta)->type)
+#define meta_regsz(meta)            TYPE_REG_SIZE((meta)->type)
+
 #define meta_align(meta)            (meta)->align
 
 #define meta_cnt(meta)                                                                             \
@@ -105,12 +107,8 @@ typedef struct vector_s vector_t;
 typedef struct ast_id_s ast_id_t;
 #endif /* ! _AST_ID_T */
 
-typedef struct mem_info_s {
-} mem_info_t;
-
 struct meta_s {
     type_t type;
-    int size;
 
     bool is_undef;          /* whether it is literal */
 
@@ -119,14 +117,14 @@ struct meta_s {
     int arr_dim;            /* current dimension */
     int *dim_sizes;         /* size of each dimension */
 
-    /* structured elements (e.g, struct, map) */
+    /* structured elements (e.g, struct, tuple, map) */
     int elem_cnt;
     meta_t **elems;
 
     ast_id_t *type_id;      /* identifier of struct, contract, interface */
 
     /* memory location to be stored */
-    uint8_t align;
+    uint8_t align;          /* memory alignment (if struct, alignment of first element) */
     uint32_t base_idx;      /* register index having base address */
     uint32_t rel_addr;      /* relative address from "base_idx" */
     uint32_t rel_offset;    /* relative offset from "rel_addr" */
@@ -156,30 +154,12 @@ meta_init(meta_t *meta, src_pos_t *pos)
     meta->pos = pos;
 }
 
-static inline meta_t *
-meta_new(type_t type, src_pos_t *pos)
-{
-    meta_t *meta = xmalloc(sizeof(meta_t));
-
-    meta_init(meta, pos);
-
-    meta->type = type;
-    meta->size = TYPE_SIZE(type);
-    meta->align = TYPE_ALIGN(type);
-
-    meta->pos = xmalloc(sizeof(src_pos_t));
-    memcpy(meta->pos, pos, sizeof(src_pos_t));
-
-    return meta;
-}
-
 static inline void
 meta_set(meta_t *meta, type_t type)
 {
     ASSERT1(is_valid_type(type), type);
 
     meta->type = type;
-    meta->size = TYPE_SIZE(type);
     meta->align = TYPE_ALIGN(type);
 }
 
@@ -200,7 +180,7 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
 }
 
 static inline void
-meta_set_dim_size(meta_t *meta, int dim, int size)
+meta_set_dim_sz(meta_t *meta, int dim, int size)
 {
     ASSERT(dim >= 0);
     ASSERT(meta->arr_dim > 0);
@@ -222,13 +202,30 @@ meta_strip_arr_dim(meta_t *meta)
 }
 
 static inline uint32_t
-meta_bytes(meta_t *meta)
+meta_memsz(meta_t *meta)
 {
     int i;
-    uint32_t dim_size = 1;
-    uint32_t size = meta_size(meta);
+    uint32_t size = 0;
 
-    if (!is_tuple_meta(meta) && is_array_meta(meta)) {
+    if (is_tuple_meta(meta)) {
+        if (is_array_meta(meta))
+            size = sizeof(uint64_t);
+
+        for (i = 0; i < meta->elem_cnt; i++) {
+            meta_t *elem_meta = meta->elems[i];
+
+            size = ALIGN(size, meta_align(elem_meta));
+
+            if (is_tuple_meta(elem_meta))
+                size += meta_memsz(elem_meta);
+            else
+                size += meta_regsz(elem_meta);
+        }
+    }
+    else if (is_array_meta(meta)) {
+        uint32_t dim_sz = 1;
+
+        size = meta_regsz(meta);
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size *= meta->dim_sizes[i];
@@ -236,12 +233,26 @@ meta_bytes(meta_t *meta)
 
         /* Each dimension has a current dimension in reverse order (4bytes) and the count of
          * elements (4bytes) as a header. */
-
         size += sizeof(uint64_t);
         for (i = 0; i < meta->arr_dim - 1; i++) {
-            dim_size *= meta->dim_sizes[i];
-            size += dim_size * sizeof(uint64_t);
+            dim_sz *= meta->dim_sizes[i];
+            size += dim_sz * sizeof(uint64_t);
         }
+    }
+    else if (is_struct_meta(meta)) {
+        for (i = 0; i < meta->elem_cnt; i++) {
+            meta_t *elem_meta = meta->elems[i];
+
+            ASSERT(!is_tuple_meta(elem_meta));
+
+            size = ALIGN(size, meta_align(elem_meta));
+            size += meta_regsz(elem_meta);
+        }
+    }
+    else {
+        ASSERT(!is_tuple_meta(meta));
+
+        size = meta_regsz(meta);
     }
 
     return size;
@@ -251,7 +262,6 @@ static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
     dest->type = src->type;
-    dest->size = src->size;
     dest->is_undef = src->is_undef;
     dest->align = src->align;
     dest->max_dim = src->max_dim;

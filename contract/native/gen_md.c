@@ -24,8 +24,8 @@ env_gen(gen_t *gen, ir_md_t *md)
     ir_sgmt_t *sgmt = &md->sgmt;
     BinaryenExpressionRef *addrs;
 
-    if (sgmt->offset >= gen->flag.stack_size)
-        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_size, sgmt->offset);
+    if (sgmt->offset >= gen->flag.stack_max)
+        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_max, sgmt->offset);
 
     addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
 
@@ -40,7 +40,7 @@ env_gen(gen_t *gen, ir_md_t *md)
     BinaryenAddGlobal(gen->module, "stack_top", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
     BinaryenAddGlobal(gen->module, "stack_max", BinaryenTypeInt32(), 0,
-                      i32_gen(gen, gen->flag.stack_size));
+                      i32_gen(gen, gen->flag.stack_max));
 
     vector_foreach(abis, i) {
         ir_abi_t *abi = vector_get_abi(abis, i);
@@ -57,8 +57,8 @@ void
 md_gen(gen_t *gen, ir_md_t *md)
 {
     int i, n;
-    int buf_size = WASM_MAX_LEN * 2;
-    char *buf = xmalloc(buf_size);
+    int buf_sz = WASM_MAX_LEN * 2;
+    char *buf = xmalloc(buf_sz);
 
     gen->module = BinaryenModuleCreate();
     gen->md = md;
@@ -87,7 +87,7 @@ md_gen(gen_t *gen, ir_md_t *md)
 
     ASSERT(BinaryenModuleValidate(gen->module));
 
-    n = BinaryenModuleWrite(gen->module, buf, buf_size);
+    n = BinaryenModuleWrite(gen->module, buf, buf_sz);
     if (n <= WASM_MAX_LEN) {
         char path[PATH_MAX_LEN + 1];
 

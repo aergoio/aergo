@@ -47,7 +47,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         }
         else {
             /* Same as above */
-            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
+            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_sz(val));
             value_set_int(val, addr);
         }
         meta_set_int32(meta);
@@ -295,7 +295,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         if (is_array_meta(&fn_id->meta) || is_struct_meta(&fn_id->meta)) {
             uint32_t mem_idx;
-            uint32_t size = meta_bytes(meta);
+            uint32_t size = meta_memsz(meta);
             ast_exp_t *l_exp, *r_exp;
             ast_exp_t *addr_exp, *cpy_exp;
 
@@ -363,12 +363,16 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
-    size = meta_bytes(meta);
-    raw = xcalloc(size);
-
     vector_foreach(elem_exps, i) {
         exp_trans(trans, vector_get_exp(elem_exps, i));
     }
+
+    if (is_map_meta(meta))
+        /* TODO */
+        return;
+
+    size = meta_memsz(meta);
+    raw = xcalloc(size);
 
     if (is_array_meta(meta)) {
         ASSERT2((ptrdiff_t)(raw + offset) % 4 == 0, raw, offset);
@@ -382,7 +386,7 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
     }
 
     vector_foreach(elem_exps, i) {
-        uint32_t val_size;
+        uint32_t write_sz;
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
         meta_t *elem_meta = &elem_exp->meta;
         value_t *elem_val = &elem_exp->u_lit.val;
@@ -392,21 +396,21 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
             ir_md_t *md = trans->md;
 
             ASSERT1(is_ptr_val(elem_val), elem_val->type);
-            ASSERT1(val_size(elem_val) > 0, val_size(elem_val));
+            ASSERT1(val_sz(elem_val) > 0, val_sz(elem_val));
 
-            addr = sgmt_add_raw(&md->sgmt, val_ptr(elem_val), val_size(elem_val));
+            addr = sgmt_add_raw(&md->sgmt, val_ptr(elem_val), val_sz(elem_val));
 
             value_set_int(elem_val, addr);
             meta_set_int32(elem_meta);
         }
 
         offset = ALIGN(offset, meta_align(elem_meta));
-        val_size = value_serialize(elem_val, raw + offset, elem_meta);
+        write_sz = value_serialize(elem_val, raw + offset, elem_meta);
 
-        ASSERT2(val_size <= meta_bytes(elem_meta), val_size, meta_bytes(elem_meta));
-        ASSERT3(offset + val_size <= size, offset, val_size, size);
+        ASSERT2(write_sz <= meta_memsz(elem_meta), write_sz, meta_memsz(elem_meta));
+        ASSERT3(offset + write_sz <= size, offset, write_sz, size);
 
-        offset += val_size;
+        offset += write_sz;
     }
 
     ASSERT2(offset <= size, offset, size);
@@ -444,7 +448,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
         if (exp->u_init.is_outmost) {
             reg_idx = fn_add_register(trans->fn, meta);
 
-            stmt_trans(trans, stmt_make_malloc(reg_idx, meta_bytes(meta), &exp->pos));
+            stmt_trans(trans, stmt_make_malloc(reg_idx, meta_memsz(meta), &exp->pos));
 
             exp_set_reg(exp, reg_idx);
         }
@@ -464,11 +468,10 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
             meta_t *elem_meta = &elem_exp->meta;
             ast_exp_t *l_exp, *r_exp;
 
-            /* TODO Fix me... */
             if (is_struct_meta(elem_meta)) {
                 uint32_t st_idx = fn_add_register(trans->fn, elem_meta);
 
-                stmt_trans(trans, stmt_make_malloc(st_idx, meta_bytes(elem_meta), &exp->pos));
+                stmt_trans(trans, stmt_make_malloc(st_idx, meta_memsz(elem_meta), &exp->pos));
 
                 offset = ALIGN32(offset);
 
@@ -485,7 +488,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
 
                 bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
 
-                offset += sizeof(uint32_t);
+                offset += meta_regsz(elem_meta);
             }
             else {
                 offset = ALIGN(offset, meta_align(elem_meta));
@@ -502,7 +505,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
                     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
                 }
 
-                offset += meta_bytes(elem_meta);
+                offset += meta_memsz(elem_meta);
             }
         }
     }
@@ -512,7 +515,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
         if (is_array_meta(meta) && meta->arr_dim == meta->max_dim)
             size = sizeof(uint32_t);
         else
-            size = meta_bytes(meta);
+            size = meta_memsz(meta);
 
         vector_foreach(elem_exps, i) {
             exp_trans(trans, vector_get_exp(elem_exps, i));
@@ -527,7 +530,7 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 {
     meta_t *meta = &exp->meta;
 
-    ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta), meta->type);
+    ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta) || is_map_meta(meta), meta->type);
 
     if (exp->u_init.is_static)
         trans_static_init(trans, exp);
@@ -553,7 +556,7 @@ trans_array_header(trans_t *trans, ast_exp_t *exp, int dim_idx, uint32_t reg_idx
     offset += sizeof(uint32_t);
 
     if (dim_idx == meta->max_dim - 1)
-        return offset + ALIGN(meta_size(meta), meta_align(meta)) * meta->dim_sizes[dim_idx];
+        return offset + ALIGN(meta_regsz(meta), meta_align(meta)) * meta->dim_sizes[dim_idx];
 
     for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
         offset = trans_array_header(trans, exp, dim_idx + 1, reg_idx, addr, offset);
@@ -570,7 +573,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
     if (trans->is_global) {
         uint32_t reg_idx = fn_add_register(trans->fn, meta);
 
-        stmt_trans(trans, stmt_make_malloc(reg_idx, meta_bytes(meta), &exp->pos));
+        stmt_trans(trans, stmt_make_malloc(reg_idx, meta_memsz(meta), &exp->pos));
 
         if (is_array_meta(meta))
             trans_array_header(trans, exp, 0, reg_idx, 0, 0);
@@ -579,7 +582,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
     }
     else {
         /* XXX */
-        fn_add_stack(trans->fn, meta_bytes(meta), meta);
+        fn_add_stack(trans->fn, meta_memsz(meta), meta);
 
         if (is_array_meta(meta))
             trans_array_header(trans, exp, 0, meta->base_idx, meta->rel_addr, 0);

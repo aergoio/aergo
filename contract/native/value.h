@@ -17,7 +17,7 @@
 #define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
 
 #define val_ptr(val)                ((val)->ptr)
-#define val_size(val)               ((val)->size)
+#define val_sz(val)                 ((val)->size)
 
 #define val_bool(val)               ((val)->b)
 #define val_i64(val)                mpz_get_si((val)->z)

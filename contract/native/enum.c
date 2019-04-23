@@ -35,9 +35,8 @@ char *type_names_[TYPE_MAX] = {
 #define I64             8
 #define F32             4
 #define F64             8
-#define ADDR            4
 
-int type_sizes_[TYPE_MAX] = {
+int type_reg_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     I32,                /* TYPE_BOOL */
     I32,                /* TYPE_BYTE */
@@ -45,32 +44,32 @@ int type_sizes_[TYPE_MAX] = {
     I32,                /* TYPE_INT16 */
     I32,                /* TYPE_INT32 */
     I64,                /* TYPE_INT64 */
-    ADDR,               /* TYPE_INT128 */
-    ADDR,               /* TYPE_INT256 */
+    I32,                /* TYPE_INT128 */
+    I32,                /* TYPE_INT256 */
     F32,                /* TYPE_FLOAT */
     F64,                /* TYPE_DOUBLE */
-    ADDR,               /* TYPE_STRING */
-    ADDR,               /* TYPE_ACCOUNT */
-    ADDR,               /* TYPE_STRUCT */
+    I32,                /* TYPE_STRING */
+    I32,                /* TYPE_ACCOUNT */
+    I32,                /* TYPE_STRUCT */
     I64,                /* TYPE_MAP */
-    ADDR,               /* TYPE_OBJECT */
-    ADDR,               /* TYPE_CURSOR */
+    I32,                /* TYPE_OBJECT */
+    I32,                /* TYPE_CURSOR */
     0,                  /* TYPE_VOID */
-    ADDR                /* TYPE_TUPLE */
+    0                   /* TYPE_TUPLE */
 };
 
-int type_bytes_[TYPE_MAX] = {
+int type_io_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
-    sizeof(bool),
-    sizeof(uint8_t),
-    sizeof(int8_t),
-    sizeof(int16_t),
-    sizeof(int32_t),
-    sizeof(int64_t),
-    sizeof(uint32_t),
-    sizeof(uint32_t),
-    sizeof(float),
-    sizeof(double),
+    sizeof(bool),       /* TYPE_BOOL */
+    sizeof(uint8_t),    /* TYPE_BYTE */
+    sizeof(int8_t),     /* TYPE_INT8 */
+    sizeof(int16_t),    /* TYPE_INT16 */
+    sizeof(int32_t),    /* TYPE_INT32 */
+    sizeof(int64_t),    /* TYPE_INT64 */
+    sizeof(uint32_t),   /* TYPE_INT128 */
+    sizeof(uint32_t),   /* TYPE_INT256 */
+    sizeof(float),      /* TYPE_FLOAT */
+    sizeof(double),     /* TYPE_DOUBLE */
     sizeof(int32_t),    /* TYPE_STRING */
     sizeof(int32_t),    /* TYPE_ACCOUNT */
     sizeof(int32_t),    /* TYPE_STRUCT */

@@ -23,7 +23,7 @@ typedef struct src_pos_s {
 
 extern src_pos_t null_pos_;
 
-void src_pos_print(src_pos_t *pos, char *buf, int buf_size);
+void src_pos_print(src_pos_t *pos, char *buf, int buf_sz);
 
 static inline void
 src_pos_init(src_pos_t *pos, char *src, char *path)

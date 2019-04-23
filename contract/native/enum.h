@@ -9,11 +9,9 @@
 #include "common.h"
 
 #define TYPE_NAME(type)             type_names_[(type)]
-#define TYPE_SIZE(type)             type_sizes_[(type)]
-#define TYPE_BYTE(type)             type_bytes_[(type)]
-#define TYPE_ALIGN                  TYPE_SIZE
-
-#define FN_NAME(kind)               fn_names_[(kind)]
+#define TYPE_REG_SIZE(type)         type_reg_sizes_[(type)]
+#define TYPE_IO_SIZE(type)          type_io_sizes_[(type)]
+#define TYPE_ALIGN                  TYPE_REG_SIZE
 
 #define is_valid_type(type)         (type > TYPE_NONE && type < TYPE_MAX)
 
@@ -239,7 +237,7 @@ typedef enum fn_kind_e {
 } fn_kind_t;
 
 extern char *type_names_[TYPE_MAX];
-extern int type_sizes_[TYPE_MAX];
-extern int type_bytes_[TYPE_MAX];
+extern int type_reg_sizes_[TYPE_MAX];
+extern int type_io_sizes_[TYPE_MAX];
 
 #endif /* ! _ENUM_H */

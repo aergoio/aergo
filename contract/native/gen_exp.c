@@ -55,7 +55,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
         return f32_gen(gen, val_f64(val));
 
     case TYPE_OBJECT:
-        return i32_gen(gen, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
+        return i32_gen(gen, sgmt_add_raw(&md->sgmt, val_ptr(val), val_sz(val)));
 
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
@@ -82,37 +82,21 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         address = exp_gen(gen, id_exp);
 
         if (is_lit_exp(idx_exp)) {
-            if (meta->arr_dim > 0 && meta->dim_sizes[0] == -1) {
-                if (is_int64_meta(meta))
-                    kind = FN_ARR_GET_I64;
+            if (is_array_meta(meta)) {
+                if (meta->dim_sizes[0] == -1) {
+                    if (is_int64_meta(meta))
+                        kind = FN_ARR_GET_I64;
 
-                address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
-                offset = 0;
-            }
-            else if (is_struct_meta(meta)) {
-                /* TODO Fix me... */
-                if (is_array_meta(meta)) {
-                    int i;
-                    uint32_t dim_size = 1;
-                    uint32_t unit_size = sizeof(uint32_t);
-
-                    for (i = 0; i < meta->arr_dim; i++) {
-                        ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
-                        unit_size *= meta->dim_sizes[i];
-                    }
-                    unit_size += sizeof(uint64_t);
-                    for (i = 0; i < meta->arr_dim - 1; i++) {
-                        dim_size *= meta->dim_sizes[i];
-                        unit_size += dim_size * sizeof(uint64_t);
-                    }
-                    offset = val_i64(&idx_exp->u_lit.val) * unit_size + sizeof(uint64_t);
+                    address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
+                    offset = 0;
                 }
                 else {
-                    offset = val_i64(&idx_exp->u_lit.val) * sizeof(uint32_t) + sizeof(uint64_t);
+                    /* The total size of the subdimensions is required. */
+                    offset = val_i64(&idx_exp->u_lit.val) * meta_memsz(meta) + sizeof(uint64_t);
                 }
             }
             else {
-                offset = val_i64(&idx_exp->u_lit.val) * meta_bytes(meta) + sizeof(uint64_t);
+                offset = val_i64(&idx_exp->u_lit.val) * meta_regsz(meta) + sizeof(uint64_t);
             }
         }
         else {
@@ -127,8 +111,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         if (gen->is_lval || is_array_meta(meta)) {
             /* Even if it is not an lvalue, it should return address when accessing the
-             * intermediate element of a multi-dimensional array or accessing the field of a
-             * struct array. */
+             * intermediate element of a multi-dimensional array. */
             if (offset == 0)
                 return address;
 
@@ -136,7 +119,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
             return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
         }
 
-        return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), offset, 0,
+        return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
     }
 
@@ -672,7 +655,7 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp)
                               i32_gen(gen, meta->rel_offset));
     }
 
-    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), meta->rel_offset,
+    return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), meta->rel_offset,
                         0, meta_gen(meta), address);
 }
 
@@ -763,11 +746,11 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
             value = exp_gen(gen, elem_exp);
             ASSERT(value != NULL);
 
-            instr_add(gen, BinaryenStore(gen->module, TYPE_BYTE(elem_meta->type), offset, 0,
+            instr_add(gen, BinaryenStore(gen->module, meta_iosz(elem_meta), offset, 0,
                                          address, value, meta_gen(elem_meta)));
         }
 
-        offset += meta_bytes(elem_meta);
+        offset += meta_memsz(elem_meta);
     }
 
     return address;
@@ -826,7 +809,7 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
         return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
     }
 
-    return BinaryenLoad(gen->module, TYPE_BYTE(meta->type), is_signed_meta(meta), offset, 0,
+    return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                         meta_gen(meta), address);
 }
 

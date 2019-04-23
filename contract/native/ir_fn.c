@@ -47,7 +47,7 @@ fn_add_global(ir_fn_t *fn, meta_t *meta)
 {
     ASSERT(fn != NULL);
 
-    if (is_array_meta(meta))
+    if (is_address_meta(meta))
         /* The array is always accessed as a reference */
         fn->heap_usage = ALIGN32(fn->heap_usage);
     else
@@ -60,10 +60,10 @@ fn_add_global(ir_fn_t *fn, meta_t *meta)
     meta->rel_addr = fn->heap_usage;
     meta->rel_offset = 0;
 
-    if (is_array_meta(meta))
+    if (is_address_meta(meta))
         fn->heap_usage += sizeof(uint32_t);
     else
-        fn->heap_usage += TYPE_SIZE(meta->type);
+        fn->heap_usage += meta_regsz(meta);
 }
 
 uint32_t
