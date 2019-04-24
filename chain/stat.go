@@ -107,8 +107,10 @@ type statItem interface {
 }
 
 type stReorg struct {
-	Count  int64
-	Latest *evReorg `json:",omitempty"`
+	totalElapsed   time.Duration
+	Count          int64
+	AverageElapsed float64  `json:",omitempty"`
+	Latest         *evReorg `json:",omitempty"`
 }
 
 func newStReorg() statItem {
@@ -136,13 +138,15 @@ func (sr *stReorg) getLatestEvent() interface{} {
 }
 
 func (sr *stReorg) updateEvent(args ...interface{}) {
-	if len(args) != 3 {
+	if len(args) != 4 {
 		logger.Info().Int("len", len(args)).Msg("invalid # of arguments for the reorg stat update")
 		return
 	}
 
+	et := args[0].(time.Duration)
+
 	bi := make([]*blockInfo, len(args))
-	for i, a := range args {
+	for i, a := range args[1:] {
 		var block *types.Block
 		ok := false
 		if block, ok = a.(*types.Block); !ok {
@@ -158,7 +162,10 @@ func (sr *stReorg) updateEvent(args ...interface{}) {
 		Fork:    bi[2],
 		Time:    time.Now(),
 	}
+
+	sr.totalElapsed += et
 	sr.Count++
+	sr.AverageElapsed = (sr.totalElapsed / time.Duration(sr.Count)).Seconds()
 }
 
 func (sr *stReorg) clone() interface{} {

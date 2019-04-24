@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -27,11 +28,11 @@ func TestChainStatReorgBasic(t *testing.T) {
 	stats := newStats()
 	i := ReorgStat
 	chk.Equal(int64(0), stats.getCount(i), "reorg stat's initial # of events must be 0.")
-	stats.updateEvent(i, block, block, block)
+	stats.updateEvent(i, time.Second, block, block, block)
 	chk.Equal(int64(1), stats.getCount(i))
-	stats.updateEvent(i, block, block, block)
-	stats.updateEvent(i, block, block, block)
-	stats.updateEvent(i, block, block, block)
+	stats.updateEvent(i, 2*time.Second, block, block, block)
+	stats.updateEvent(i, 3*time.Second, block, block, block)
+	stats.updateEvent(i, 4*time.Second, block, block, block)
 	chk.Equal(int64(4), stats.getCount(i))
 
 	b, err := json.Marshal(stats.getLastestEvent(i))
@@ -51,9 +52,9 @@ func TestChainStatReorgClone(t *testing.T) {
 	chk.Nil(err)
 	fmt.Println(string(b))
 
-	stats.updateEvent(i, block, block, block)
-	stats.updateEvent(i, block, block, block)
-	stats.updateEvent(i, block, block, block)
+	stats.updateEvent(i, time.Second*10, block, block, block)
+	stats.updateEvent(i, time.Second*10, block, block, block)
+	stats.updateEvent(i, time.Second*10, block, block, block)
 	r = stats.clone(i)
 	chk.NotNil(r)
 	b, err = json.Marshal(r)
@@ -66,9 +67,9 @@ func TestChainStatJSON(t *testing.T) {
 
 	stats := newStats()
 	i := ReorgStat
-	stats.updateEvent(i, block, block, block)
-	stats.updateEvent(i, block, block, block)
-	stats.updateEvent(i, block, block, block)
+	stats.updateEvent(i, time.Second*10, block, block, block)
+	stats.updateEvent(i, time.Second*10, block, block, block)
+	stats.updateEvent(i, time.Second*10, block, block, block)
 
 	s := stats.JSON()
 	chk.NotZero(len(s))
