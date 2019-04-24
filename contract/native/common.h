@@ -48,12 +48,9 @@ typedef unsigned char bool;
 #define __bool_true_false_are_defined
 #endif
 
-#include "gmp.h"
-
 #include "xalloc.h"
-#include "assert.h"
+#include "xassert.h"
 #include "src_pos.h"
-#include "error.h"
 
 #define CHECK(stmt)                                                                                \
     do {                                                                                           \

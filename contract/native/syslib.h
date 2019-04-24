@@ -12,6 +12,7 @@
 #include "gen.h"
 
 #define SYSLIB_MODULE               "system"
+#define SYSLIB_MAX_ARGS             16
 
 #define SYS_FN(kind)                (&sys_fntab_[(kind)])
 
@@ -35,7 +36,7 @@ typedef struct sys_fn_s {
     char *qname;
 
     int param_cnt;
-    type_t params[4];
+    type_t params[SYSLIB_MAX_ARGS];
 
     type_t result;
 } sys_fn_t;

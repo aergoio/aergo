@@ -28,8 +28,6 @@ void src_pos_print(src_pos_t *pos, char *buf, int buf_sz);
 static inline void
 src_pos_init(src_pos_t *pos, char *src, char *path)
 {
-    ASSERT(pos != NULL);
-
     pos->src = src;
     pos->path = path;
 

@@ -31,8 +31,8 @@
 typedef struct env_s {
     char *path;
 
-    bool fits_l;
-    bool fits_r;
+    bool is_begin_with;
+    bool is_end_with;
     char *needle;
 
     flag_t flag;
@@ -40,11 +40,16 @@ typedef struct env_s {
     char title[PATH_MAX_LEN + 1];
     char module[PATH_MAX_LEN + 1];
     char func[PATH_MAX_LEN + 1];
-    ec_t ec;
-    int ec_cnt;
 
-    int total_cnt;
-    int failed_cnt;
+    bool print_title;
+
+    ec_t ec;
+    int ex_err_cnt;
+
+    int total_exec_cnt;
+    int total_failed_cnt;
+    int cur_exec_cnt;
+    int cur_failed_cnt;
 
     stack_t exp;
 } env_t;
@@ -66,7 +71,7 @@ env_reset(env_t *env)
     env->module[0] = '\0';
     env->func[0] = '\0';
     env->ec = NO_ERROR;
-    env->ec_cnt = 0;
+    env->ex_err_cnt = 0;
 
     if (is_flag_off(env->flag, FLAG_VERBOSE)) {
         char *item;
@@ -92,8 +97,8 @@ match_title(env_t *env)
 
     size = strlen(needle);
 
-    if (env->fits_l) {
-        if (env->fits_r) {
+    if (env->is_begin_with) {
+        if (env->is_end_with) {
             if (strcmp(env->path, needle) == 0 || strcmp(env->title, needle) == 0)
                 return true;
         }
@@ -102,7 +107,7 @@ match_title(env_t *env)
             return true;
         }
     }
-    else if (env->fits_r) {
+    else if (env->is_end_with) {
         if (((int)strlen(env->path) >= size &&
              strcmp(env->path + strlen(env->path) - size, needle) == 0) ||
             ((int)strlen(env->title) >= size &&
@@ -120,27 +125,43 @@ static void
 print_results(env_t *env)
 {
     int i;
-    int ac_cnt = env->ec_cnt > 0 ? error_size() : 1;
+    int ac_err_cnt = env->ex_err_cnt > 0 ? error_size() : 1;
 
-    if (env->ec_cnt > 0 && env->ec_cnt != ac_cnt) {
-        printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+    if (env->ex_err_cnt > 0 && env->ex_err_cnt != ac_err_cnt) {
+        if (env->print_title) {
+            printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+        }
+        else {
+            if (env->cur_failed_cnt == 0)
+                printf("\n");
 
-        if (ac_cnt > 0)
+            printf("  + %-67s [ "ANSI_RED"fail"ANSI_NONE" ]\n", env->title);
+        }
+
+        if (ac_err_cnt > 0)
             error_print();
 
         printf("Expected: <%d errors>\n"
                "Actually: <"ANSI_YELLOW"%d errors"ANSI_NONE">\n",
-               env->ec_cnt, ac_cnt);
+               env->ex_err_cnt, ac_err_cnt);
 
-        env->failed_cnt++;
+        env->cur_failed_cnt++;
         return;
     }
 
-    for (i = 0; i < ac_cnt; i++) {
+    for (i = 0; i < ac_err_cnt; i++) {
         ec_t ac = error_item(i);
 
         if (ac != env->ec) {
-            printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+            if (env->print_title) {
+                printf("[ "ANSI_RED"fail"ANSI_NONE" ]\n");
+            }
+            else {
+                if (env->cur_failed_cnt == 0)
+                    printf("\n");
+
+                printf("  + %-67s [ "ANSI_RED"fail"ANSI_NONE" ]\n", env->title);
+            }
 
             if (ac != NO_ERROR)
                 error_print();
@@ -149,12 +170,13 @@ print_results(env_t *env)
                    "Actually: <"ANSI_YELLOW"%s"ANSI_NONE">\n",
                    error_to_str(env->ec), error_to_str(ac));
 
-            env->failed_cnt++;
+            env->cur_failed_cnt++;
             return;
         }
     }
 
-    printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
+    if (env->print_title)
+        printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
 
     if (is_flag_on(env->flag, FLAG_VERBOSE))
         error_print();
@@ -167,10 +189,12 @@ run_test(env_t *env, char *path)
     ast_t *ast = ast_new();
     ir_t *ir = ir_new();
 
-    env->total_cnt++;
+    env->cur_exec_cnt++;
 
-    printf("  + %-67s ", env->title);
-    fflush(stdout);
+    if (env->print_title) {
+        printf("  + %-67s ", env->title);
+        fflush(stdout);
+    }
 
     iobuf_init(&src, path);
     iobuf_load(&src);
@@ -184,12 +208,11 @@ run_test(env_t *env, char *path)
     gen(ir, env->flag, path);
 
     if (!has_error() && env->module[0] != '\0') {
-        char *argv[1] = { NULL };
         char wasm[PATH_MAX_LEN + 6];
 
         snprintf(wasm, sizeof(wasm), "%s.wasm", env->module);
 
-        vm_run(wasm, env->func, argv);
+        asclvm_test(path, iobuf_str(&src), wasm, env->func, error_push);
     }
 
     print_results(env);
@@ -207,8 +230,14 @@ read_test(env_t *env, char *path)
     FILE *out_fp = NULL;
     FILE *exp_fp = NULL;
 
-    printf("Checking %s...\n", FILENAME(path));
+    if (env->print_title)
+        printf("Checking %s...\n", FILENAME(path));
+    else
+        printf("Checking %-63s", FILENAME(path));
+
     env->path = path;
+    env->cur_exec_cnt = 0;
+    env->cur_failed_cnt = 0;
 
     while (fgets(buf, sizeof(buf), in_fp) != NULL) {
         if (strncasecmp(buf, TAG_TITLE, strlen(TAG_TITLE)) == 0) {
@@ -234,7 +263,7 @@ read_test(env_t *env, char *path)
                 }
 
                 if (feof(in_fp))
-                    return;
+                    goto report;
             }
 
             snprintf(out_file, sizeof(out_file), "%s", env->title);
@@ -251,7 +280,7 @@ read_test(env_t *env, char *path)
 
             if (strchr(args, ',') != NULL) {
                 env->ec = error_to_code(strtrim(strtok(args, ","), " \t\n\r"));
-                env->ec_cnt = atoi(strtrim(strtok(NULL, ","), " \t\n\r"));
+                env->ex_err_cnt = atoi(strtrim(strtok(NULL, ","), " \t\n\r"));
             }
             else {
                 env->ec = error_to_code(args);
@@ -301,6 +330,17 @@ read_test(env_t *env, char *path)
         close_file(out_fp);
         run_test(env, out_file);
     }
+
+report:
+    if (!env->print_title) {
+        if (env->cur_exec_cnt == 0)
+            printf("\n");
+        else if (env->cur_failed_cnt == 0)
+            printf("  [ "ANSI_GREEN"ok"ANSI_NONE" ]\n");
+    }
+
+    env->total_exec_cnt += env->cur_exec_cnt;
+    env->total_failed_cnt += env->cur_failed_cnt;
 }
 
 static void
@@ -312,7 +352,7 @@ get_opt(env_t *env, int argc, char **argv)
         if (*argv[i] != '-') {
             if (argv[i][0] == '^') {
                 env->needle = argv[i] + 1;
-                env->fits_l = true;
+                env->is_begin_with = true;
             }
             else {
                 env->needle = argv[i];
@@ -320,23 +360,32 @@ get_opt(env_t *env, int argc, char **argv)
 
             if (env->needle[(int)strlen(env->needle) - 1] == '$') {
                 env->needle[(int)strlen(env->needle) - 1] = '\0';
-                env->fits_r = true;
+                env->is_end_with = true;
             }
+
+            env->print_title = true;
             continue;
         }
 
-        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0)
+        if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0) {
             flag_set(env->flag, FLAG_VERBOSE);
-        else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--print-lex") == 0)
+            env->print_title = true;
+        }
+        else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--print-lex") == 0) {
             flag_set(env->flag, FLAG_DUMP_LEX);
-        else if (strcmp(argv[i], "-y") == 0 || strcmp(argv[i], "--print-yacc") == 0)
+        }
+        else if (strcmp(argv[i], "-y") == 0 || strcmp(argv[i], "--print-yacc") == 0) {
             flag_set(env->flag, FLAG_DUMP_YACC);
-        else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--print-wat") == 0)
+        }
+        else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--print-wat") == 0) {
             flag_set(env->flag, FLAG_DUMP_WAT);
-        else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--optimize") == 0)
+        }
+        else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--optimize") == 0) {
             env->flag.opt_lvl = 2;
-        else
+        }
+        else {
             FATAL(ERROR_INVALID_FLAG, argv[i]);
+        }
     }
 }
 
@@ -404,17 +453,17 @@ main(int argc, char **argv)
     closedir(dir);
 
     printf("%s\n", delim);
-    if (env.total_cnt == 0) {
+    if (env.total_exec_cnt == 0) {
         printf("%s\n", "* No tests found!!!");
     }
-    else if (env.failed_cnt > 0) {
+    else if (env.total_failed_cnt > 0) {
         sprintf(buf, "[ "ANSI_RED"%d"ANSI_NONE" / "ANSI_RED"%d"ANSI_NONE" ]",
-                env.total_cnt - env.failed_cnt, env.total_cnt);
+                env.total_exec_cnt - env.total_failed_cnt, env.total_exec_cnt);
         printf("%-66s %31s\n", "* Some tests failed with errors!!!", buf);
     }
     else {
         sprintf(buf, "[ "ANSI_GREEN"%d"ANSI_NONE" / "ANSI_GREEN"%d"ANSI_NONE" ]",
-                env.total_cnt - env.failed_cnt, env.total_cnt);
+                env.total_exec_cnt - env.total_failed_cnt, env.total_exec_cnt);
         printf("%-66s %31s\n", "* All tests passed!!!", buf);
     }
     printf("%s\n", delim);

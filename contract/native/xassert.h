@@ -1,10 +1,10 @@
 /**
- * @file    assert.h
+ * @file    xassert.h
  * @copyright defined in aergo/LICENSE.txt
  */
 
-#ifndef _ASSERT_H
-#define _ASSERT_H
+#ifndef _XASSERT_H
+#define _XASSERT_H
 
 #include "common.h"
 
@@ -33,6 +33,6 @@
                         #p3, sizeof(p3), p3);                                                      \
     } while (0)
 
-void assert_exit(char *cond, char *file, int line, int argc, ...);
+void assert_exit(char *cond, const char *file, int line, int argc, ...);
 
-#endif /* no _ASSERT_H */
+#endif /* no _XASSERT_H */

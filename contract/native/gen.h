@@ -9,6 +9,7 @@
 #include "common.h"
 
 #include "flag.h"
+#include "error.h"
 #include "ir.h"
 #include "array.h"
 #include "binaryen-c.h"

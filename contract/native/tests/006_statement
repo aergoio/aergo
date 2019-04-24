@@ -323,13 +323,16 @@ contract test {
     };
     test() {
         int i[5] = new { 1, 2, 3, 4, 5 };
+
         int j = i.size;
         pragma assert(j == 5);
 
         j = s.size;
         pragma assert(j == 2);
+
         j = s[1].size;
         pragma assert(j == 3);
+
         j = s[1].size;
         pragma assert(j == 3);
     }
@@ -350,24 +353,32 @@ contract test {
 contract test {
     type s struct {
         int a;
-        string b;
+        string b[2];
         map(int, bool) c;
         //double d[2];
     }
     test() {
-        s v = new { 1, "1", { { 1, true } } };
-        //s v = new { 1, "1", { { 1, true } }, { 0.1, 0.2 } };
+        s v = new { 1, { "apple", "orange" }, { { 1, true } } };
+        /*
+        pragma assert(v.a == 1);
+        pragma assert(v.b[0] == "apple");
+        pragma assert(v.b[1] == "orange");
+
         v.a++;
         pragma assert(v.a == 2);
+
         v.a |= 0xabcd;
         pragma assert(v.a == 43983);
-        v.b += "2";
-        pragma assert(v.b == "12");
-        v.a, v.b = 2, "2";
+
+        v.b[0] += " is delicious";
+        pragma assert(v.b[0] == "apple is delicious");
+
+        v.a, v.b[1] = 2, "banana";
         pragma assert(v.a == 2);
-        pragma assert(v.b == "2");
+        pragma assert(v.b[1] == "banana");
+
         v.c[1] = false;
-        //v.d[1] = -v.d[0];
+        */
     }
 }
 

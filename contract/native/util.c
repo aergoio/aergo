@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "strbuf.h"
+#include "error.h"
 
 #include "util.h"
 

@@ -16,28 +16,17 @@ src_pos_print(src_pos_t *pos, char *buf, int buf_sz)
 {
     int i;
     int idx = 0;
-    int tok_len;
-    int line_max = (buf_sz - 19) / 2;
-    int adj_col, adj_offset, adj_len;
+    int src_len;
 
-    adj_offset = pos->first_offset;
-    adj_col = pos->first_col;
+    ASSERT(pos->src != NULL);
+    ASSERT1(pos->first_offset >= 0, pos->first_offset);
+    ASSERT1(pos->first_col > 0, pos->first_col);
 
-    ASSERT(adj_offset >= 0);
-    ASSERT(adj_col > 0);
+    /* 18 = '\n' + strlen(ANSI_GREEN) + '^' + strlen(ANSI_NONE) + '\0' */
+    src_len = MIN((int)strlen(pos->src + pos->first_offset), buf_sz - pos->first_col - 18);
 
-    tok_len = MIN(pos->last_offset - pos->first_offset, line_max - 1);
-    ASSERT(tok_len >= 0);
-
-    if (adj_col + tok_len > line_max) {
-        adj_col = line_max - tok_len;
-        adj_offset += pos->first_col - adj_col;
-    }
-
-    adj_len = MIN((int)strlen(pos->src + adj_offset), line_max);
-
-    for (i = 0; i < adj_len; i++) {
-        char c = pos->src[i + adj_offset];
+    for (i = 0; i < src_len; i++) {
+        char c = pos->src[i + pos->first_offset];
 
         if (c == '\0' || c == '\n' || c == '\r')
             break;
@@ -47,8 +36,8 @@ src_pos_print(src_pos_t *pos, char *buf, int buf_sz)
 
     buf[idx++] = '\n';
 
-    for (i = 0; i < adj_col - 1; i++) {
-        char c = pos->src[i + adj_offset];
+    for (i = 0; i < pos->first_col - 1; i++) {
+        char c = pos->src[i + pos->first_offset];
 
         if (c == '\t' || c == '\f')
             buf[idx++] = c;

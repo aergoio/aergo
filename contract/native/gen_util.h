@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "enum.h"
 #include "binaryen-c.h"
 
 #define i32_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralInt32(v))

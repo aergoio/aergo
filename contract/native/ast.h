@@ -8,6 +8,9 @@
 
 #include "common.h"
 
+#include "src_pos.h"
+#include "error.h"
+
 #define AST_NODE_DECL               src_pos_t pos
 
 #define ast_node_init(node, npos)   (node)->pos = (npos)

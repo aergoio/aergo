@@ -49,7 +49,6 @@ set(ascl_sources
     gen_bb.c
     gen_stmt.c
     gen_exp.c
-    assert.c
     error.c
     strbuf.c
     iobuf.c
@@ -61,12 +60,14 @@ set(ascl_sources
     value.c
     util.c
     xalloc.c
+    xassert.c
     syslib.c
     grammar.tab.c
     scanner.yy.c
 )
 
-set(TEST_LIBS ascl ascl-rt CACHE STRING "test libraries for ascl")
+set(ASCL_TEST_LIBS ascl CACHE STRING "ASCL test libraries")
+set(ASCL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "ASCL include directories")
 
 link_directories(${TOOL_LIB_DIR})
 
@@ -78,20 +79,6 @@ target_link_libraries(ascl binaryen stdc++ m
     ${TOOL_LIB_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}gmp${CMAKE_SHARED_LIBRARY_SUFFIX})
 
 set_target_properties(ascl PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
-    COMPILE_FLAGS "-Wall -Wextra -Wno-unused-parameter")
-
-set(ascl_rt_sources
-    run.c
-)
-
-add_library(ascl-rt STATIC ${ascl_rt_sources})
-target_include_directories(ascl-rt PRIVATE ${TOOL_INCLUDE_DIR})
-
-add_dependencies(ascl-rt WAVM)
-target_link_libraries(ascl-rt WAVM)
-
-set_target_properties(ascl-rt PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
     COMPILE_FLAGS "-Wall -Wextra -Wno-unused-parameter")
 

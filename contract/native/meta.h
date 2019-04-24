@@ -8,6 +8,8 @@
 
 #include "common.h"
 
+#include "enum.h"
+
 #define is_none_type(type)          ((type) == TYPE_NONE)
 #define is_bool_type(type)          ((type) == TYPE_BOOL)
 #define is_byte_type(type)          ((type) == TYPE_BYTE)

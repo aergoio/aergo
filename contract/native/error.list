@@ -75,4 +75,9 @@ error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
 error(ERROR_STACK_OVERFLOW,         "stack overflows (<= %d bytes, but %d bytes)")
 error(ERROR_BINARY_OVERFLOW,        "binary length overflows (<= %d bytes, but %d bytes)")
 
+/******************************************************************************
+ * wasm vm
+ *****************************************************************************/
+error(ERROR_RUNTIME,                "%s")
+
 /* vim:set filetype=c: */

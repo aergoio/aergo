@@ -5,6 +5,7 @@
 
 #include "common.h"
 
+#include "error.h"
 #include "util.h"
 #include "stack.h"
 #include "parse.h"

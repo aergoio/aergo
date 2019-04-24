@@ -40,7 +40,8 @@ sys_fn_t sys_fntab_[FN_MAX] = {
     { "__ctor", NULL, 0, { TYPE_NONE }, TYPE_NONE },
     { "__malloc", SYSLIB_MODULE".__malloc", 1, { TYPE_INT32 }, TYPE_INT32 },
     { "__memcpy", SYSLIB_MODULE".__memcpy", 3, { TYPE_INT32, TYPE_INT32, TYPE_INT32 }, TYPE_VOID },
-    { "__assert", SYSLIB_MODULE".__assert", 3, { TYPE_BOOL, TYPE_STRING, TYPE_STRING }, TYPE_VOID },
+    { "__assert", SYSLIB_MODULE".__assert", 6,
+        { TYPE_BOOL, TYPE_STRING, TYPE_STRING, TYPE_INT32, TYPE_INT32, TYPE_INT32 }, TYPE_VOID },
     { "__strcat", SYSLIB_MODULE".__strcat", 2, { TYPE_STRING, TYPE_STRING }, TYPE_STRING },
     { "__strcmp", SYSLIB_MODULE".__strcmp", 2, { TYPE_STRING, TYPE_STRING }, TYPE_INT32 },
     { "__atoi32", SYSLIB_MODULE".__atoi32", 1, { TYPE_STRING }, TYPE_INT32 },
@@ -170,9 +171,9 @@ syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...)
     int i;
     va_list vargs;
     sys_fn_t *sys_fn = SYS_FN(kind);
-    BinaryenExpressionRef arguments[4];
+    BinaryenExpressionRef arguments[SYSLIB_MAX_ARGS];
 
-    ASSERT1(argc <= 4, argc);
+    ASSERT1(argc <= SYSLIB_MAX_ARGS, argc);
     ASSERT3(sys_fn->param_cnt == argc, kind, sys_fn->param_cnt, argc);
 
     va_start(vargs, argc);

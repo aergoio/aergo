@@ -8,6 +8,9 @@
 
 #include "common.h"
 
+#include "enum.h"
+#include "gmp.h"
+
 #define is_null_val(val)            ((val)->size == 0)
 
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)

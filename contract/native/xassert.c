@@ -1,18 +1,22 @@
 /**
- * @file    assert.c
+ * @file    xassert.c
  * @copyright defined in aergo/LICENSE.txt
  */
 
 #include "common.h"
 
-#include "assert.h"
+#include "error.h"
+
+#include "xassert.h"
  
 void
-assert_exit(char *cond, char *file, int line, int argc, ...)
+assert_exit(char *cond, const char *file, int line, int argc, ...)
 {
     int i;
     va_list vargs;
     char errdesc[DESC_MAX_LEN];
+
+    fflush(stdout);
 
     snprintf(errdesc, sizeof(errdesc), "%s:%d: internal error with condition '%s'", file, line, 
              cond);
@@ -55,4 +59,4 @@ assert_exit(char *cond, char *file, int line, int argc, ...)
     exit(EXIT_FAILURE);
 }
 
-/* end of assert.c */
+/* end of xassert.c */
