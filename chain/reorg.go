@@ -24,6 +24,7 @@ var (
 
 var (
 	ErrInvalidReorgMarker = errors.New("reorg marker is invalid")
+	ErrMarkerNil          = errors.New("reorg marker is nil")
 )
 
 type reorganizer struct {
@@ -42,6 +43,7 @@ type reorganizer struct {
 	recover bool
 
 	gatherFn       func() error
+	gatherPostFn   func()
 	executeBlockFn func(bstate *state.BlockState, block *types.Block) error
 }
 
@@ -93,10 +95,6 @@ func (cs *ChainService) needReorg(block *types.Block) bool {
 func newReorganizer(cs *ChainService, topBlock *types.Block, marker *ReorgMarker) (*reorganizer, error) {
 	isReco := (marker != nil)
 
-	if marker == nil {
-		marker = &ReorgMarker{}
-	}
-
 	reorg := &reorganizer{
 		cs:         cs,
 		brTopBlock: topBlock,
@@ -107,41 +105,24 @@ func newReorganizer(cs *ChainService, topBlock *types.Block, marker *ReorgMarker
 	}
 
 	if isReco {
-		var startBlock, bestBlock *types.Block
-		var err error
-		cdb := cs.cdb
+		marker.setCDB(reorg.cs.cdb)
 
-		logger.Info().Str("marker", marker.toString()).Msg("new reorganizer")
-
-		if startBlock, err = cdb.getBlock(marker.BrStartHash); err != nil {
+		if err := reorg.initRecovery(marker); err != nil {
 			return nil, err
 		}
-
-		if bestBlock, err = cdb.getBlock(marker.BrBestHash); err != nil {
-			return nil, err
-		}
-
-		if bestBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() ||
-			startBlock.GetHeader().GetBlockNo() >= bestBlock.GetHeader().GetBlockNo() ||
-			startBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() {
-			return nil, ErrInvalidReorgMarker
-		}
-
-		reorg.brStartBlock = startBlock
-		reorg.bestBlock = bestBlock
 
 		reorg.gatherFn = reorg.gatherReco
+		reorg.gatherPostFn = nil
 		reorg.executeBlockFn = cs.executeBlockReco
 	} else {
 		reorg.gatherFn = reorg.gather
+		reorg.gatherPostFn = reorg.newMarker
 		reorg.executeBlockFn = cs.executeBlock
 	}
 
 	return reorg, nil
 }
 
-//TODO: on booting, retry reorganizing
-//TODO: on booting, delete played tx of block. because deleting txs from mempool is done after commit
 //TODO: gather delete request of played tx (1 msg)
 func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error {
 	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
@@ -156,6 +137,10 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	err = reorg.gatherFn()
 	if err != nil {
 		return err
+	}
+
+	if reorg.gatherPostFn != nil {
+		reorg.gatherPostFn()
 	}
 
 	if !cs.NeedReorganization(reorg.brStartBlock.BlockNo()) {
@@ -188,22 +173,60 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	return nil
 }
 
+func (reorg *reorganizer) initRecovery(marker *ReorgMarker) error {
+	var startBlock, bestBlock, topBlock *types.Block
+	var err error
+
+	if marker == nil {
+		return ErrMarkerNil
+	}
+
+	topBlock = reorg.brTopBlock
+
+	cdb := reorg.cs.cdb
+
+	logger.Info().Str("marker", marker.toString()).Msg("new reorganizer")
+
+	if startBlock, err = cdb.getBlock(marker.BrStartHash); err != nil {
+		return err
+	}
+
+	if bestBlock, err = cdb.getBlock(marker.BrBestHash); err != nil {
+		return err
+	}
+
+	if bestBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() ||
+		startBlock.GetHeader().GetBlockNo() >= bestBlock.GetHeader().GetBlockNo() ||
+		startBlock.GetHeader().GetBlockNo() >= topBlock.GetHeader().GetBlockNo() {
+		return ErrInvalidReorgMarker
+	}
+
+	reorg.brStartBlock = startBlock
+	reorg.bestBlock = bestBlock
+
+	return nil
+}
+
+func (reorg *reorganizer) newMarker() {
+	if reorg.marker != nil {
+		return
+	}
+
+	reorg.marker = NewReorgMarker(reorg)
+}
+
 // swap oldchain to newchain oneshot (best effort)
 //  - chain height mapping
 //  - tx mapping
 //  - best block
 func (reorg *reorganizer) swapChain() error {
-	cdb := reorg.cs.cdb
-
 	logger.Info().Msg("swap chain to new branch")
-
-	marker := NewReorgMarker(reorg)
 
 	if err := debugger.check(DEBUG_CHAIN_STOP_1); err != nil {
 		return err
 	}
 
-	if err := cdb.writeReorgMarker(marker); err != nil {
+	if err := reorg.marker.write(); err != nil {
 		return err
 	}
 
@@ -227,7 +250,7 @@ func (reorg *reorganizer) swapChain() error {
 		return err
 	}
 
-	cdb.deleteReorgMarker()
+	reorg.marker.delete()
 
 	return nil
 }

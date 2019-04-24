@@ -117,6 +117,7 @@ func (cs *ChainService) recoverReorg(marker *ReorgMarker) error {
 }
 
 type ReorgMarker struct {
+	cdb         *ChainDB
 	BrStartHash []byte
 	BrStartNo   types.BlockNo
 	BrBestHash  []byte
@@ -127,6 +128,7 @@ type ReorgMarker struct {
 
 func NewReorgMarker(reorg *reorganizer) *ReorgMarker {
 	return &ReorgMarker{
+		cdb:         reorg.cs.cdb,
 		BrStartHash: reorg.brStartBlock.BlockHash(),
 		BrStartNo:   reorg.brStartBlock.GetHeader().GetBlockNo(),
 		BrBestHash:  reorg.bestBlock.BlockHash(),
@@ -134,32 +136,6 @@ func NewReorgMarker(reorg *reorganizer) *ReorgMarker {
 		BrTopHash:   reorg.brTopBlock.BlockHash(),
 		BrTopNo:     reorg.brTopBlock.GetHeader().GetBlockNo(),
 	}
-}
-
-func (rm *ReorgMarker) toBytes() ([]byte, error) {
-	var val bytes.Buffer
-	encoder := gob.NewEncoder(&val)
-	if err := encoder.Encode(rm); err != nil {
-		return nil, err
-	}
-
-	return val.Bytes(), nil
-}
-
-func (rm *ReorgMarker) toString() string {
-	buf := ""
-
-	if len(rm.BrStartHash) != 0 {
-		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, enc.ToString(rm.BrStartHash))
-	}
-	if len(rm.BrTopHash) != 0 {
-		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, enc.ToString(rm.BrTopHash))
-	}
-	if len(rm.BrBestHash) != 0 {
-		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, enc.ToString(rm.BrBestHash))
-	}
-
-	return buf
 }
 
 // RecoverChainMapping rollback chain (no/hash) mapping to old chain of reorg.
@@ -220,4 +196,46 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 
 	logger.Info().Msg("succeed to recover chain mapping")
 	return nil
+}
+
+func (rm *ReorgMarker) setCDB(cdb *ChainDB) {
+	rm.cdb = cdb
+}
+
+func (rm *ReorgMarker) write() error {
+	if err := rm.cdb.writeReorgMarker(rm); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rm *ReorgMarker) delete() {
+	rm.cdb.deleteReorgMarker()
+}
+
+func (rm *ReorgMarker) toBytes() ([]byte, error) {
+	var val bytes.Buffer
+	encoder := gob.NewEncoder(&val)
+	if err := encoder.Encode(rm); err != nil {
+		return nil, err
+	}
+
+	return val.Bytes(), nil
+}
+
+func (rm *ReorgMarker) toString() string {
+	buf := ""
+
+	if len(rm.BrStartHash) != 0 {
+		buf = buf + fmt.Sprintf("branch root=(%d, %s).", rm.BrStartNo, enc.ToString(rm.BrStartHash))
+	}
+	if len(rm.BrTopHash) != 0 {
+		buf = buf + fmt.Sprintf("branch top=(%d, %s).", rm.BrTopNo, enc.ToString(rm.BrTopHash))
+	}
+	if len(rm.BrBestHash) != 0 {
+		buf = buf + fmt.Sprintf("org best=(%d, %s).", rm.BrBestNo, enc.ToString(rm.BrBestHash))
+	}
+
+	return buf
 }
