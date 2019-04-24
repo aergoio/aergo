@@ -32,7 +32,7 @@ vector_add(vector_t *vect, int idx, void *item)
         vect->items[vect->size++] = item;
     }
     else {
-        memmove(&vect->items[idx + 1], &vect->items[idx], sizeof(void *) * vect->size);
+        memmove(&vect->items[idx + 1], &vect->items[idx], sizeof(void *) * (vect->size - idx));
 
         vect->items[idx] = item;
         vect->size++;

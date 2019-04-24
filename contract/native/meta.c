@@ -36,19 +36,13 @@ meta_to_str(meta_t *meta)
         strbuf_cat(&buf, ")");
     }
     else if (is_tuple_meta(meta)) {
-        int i;
-
-        strbuf_cat(&buf, "{");
-        for (i = 0; i < meta->elem_cnt; i++) {
-            if (i > 0)
-                strbuf_cat(&buf, ", ");
-
-            strbuf_cat(&buf, meta_to_str(meta->elems[i]));
-        }
-        strbuf_cat(&buf, "}");
+        strbuf_cat(&buf, "tuple");
     }
     else if (is_object_meta(meta) && meta->type_id != NULL) {
         strbuf_cat(&buf, meta->type_id->name);
+    }
+    else if (is_undef_meta(meta) && is_numeric_meta(meta)) {
+        strbuf_cat(&buf, "number");
     }
     else {
         strbuf_cat(&buf, TYPE_NAME(meta->type));
@@ -285,7 +279,7 @@ meta_cmp_type(meta_t *x, meta_t *y)
         return meta_cmp_object(x, y);
 
     if (x->type != y->type)
-        RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
+        RETURN(ERROR_MISMATCHED_TYPE, y->pos, TYPE_NAME(x->type), TYPE_NAME(y->type));
 
     return true;
 }
@@ -389,21 +383,25 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
-    ASSERT2(dim <= x->arr_dim, dim, x->arr_dim);
+    ASSERT2(x->max_dim == x->arr_dim, x->max_dim, x->arr_dim);
+    ASSERT2(dim <= x->max_dim, dim, x->max_dim);
 
-    if (dim == x->arr_dim || !is_tuple_meta(y)) {
-        meta_eval_type(x, y);
+    if (is_tuple_meta(y)) {
+        if (dim == x->max_dim) {
+            meta_eval_type(x, y);
+        }
+        else {
+            for (i = 0; i < y->elem_cnt; i++) {
+                meta_eval_array(x, dim + 1, y->elems[i]);
+            }
+
+            y->max_dim = x->max_dim;
+            y->arr_dim = x->max_dim - dim;
+            y->dim_sizes = &x->dim_sizes[dim];
+        }
     }
     else {
-        for (i = 0; i < y->elem_cnt; i++) {
-            meta_eval_array(x, dim + 1, y->elems[i]);
-        }
-
-        ASSERT2(x->max_dim == x->arr_dim, x->max_dim, x->arr_dim);
-
-        y->max_dim = x->max_dim;
-        y->arr_dim = x->max_dim - dim;
-        y->dim_sizes = &x->dim_sizes[dim];
+        meta_eval_type(x, y);
     }
 }
 

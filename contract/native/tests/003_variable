@@ -176,6 +176,15 @@ contract test {
     s2 v2;
 }
 
+@test(array_field_of_struct)
+@error(ERROR_MISSING_ARR_SIZE)
+contract test {
+    type s struct {
+        string a[];
+    }
+    s v;
+}
+
 @test(struct_array)
 contract test {
     type s struct {

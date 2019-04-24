@@ -98,7 +98,7 @@ id_check_var(check_t *check, ast_id_t *id)
         if (is_const_id(id) && is_lit_exp(dflt_exp))
             id->val = &dflt_exp->u_lit.val;
     }
-    else if (!is_tuple_id(id->up) && is_const_id(id)) {
+    else if (is_const_id(id)) {
         /* The constant value of the tuple element is checked by id_check_tuple() */
         RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
     }
@@ -124,9 +124,10 @@ id_check_struct(check_t *check, ast_id_t *id)
         ast_id_t *fld_id = vector_get_id(fld_ids, i);
         meta_t *fld_meta = &fld_id->meta;
 
-        ASSERT1(is_var_id(fld_id), fld_id->kind);
+        fld_id->up = id;
+        fld_id->is_checked = true;
 
-        id_check(check, fld_id);
+        CHECK(id_check_var(check, fld_id));
 
         BIT_SET(fld_id->mod, MOD_PUBLIC);
 
@@ -212,18 +213,24 @@ id_check_fn(check_t *check, ast_id_t *id)
     vector_foreach(param_ids, i) {
         ast_id_t *param_id = vector_get_id(param_ids, i);
 
-        ASSERT1(is_var_id(param_id), param_id->kind);
         ASSERT(is_param_id(param_id));
         ASSERT(param_id->u_var.dflt_exp == NULL);
 
-        id_check(check, param_id);
+        param_id->up = id;
+        param_id->is_checked = true;
+
+        CHECK(id_check_var(check, param_id));
     }
 
     if (id->u_fn.ret_id != NULL) {
-        /* The return identifier may be a tuple */
-        id_check(check, id->u_fn.ret_id);
+        ast_id_t *ret_id = id->u_fn.ret_id;
 
-        meta_copy(&id->meta, &id->u_fn.ret_id->meta);
+        ret_id->up = id;
+        ret_id->is_checked = true;
+
+        CHECK(id_check_var(check, ret_id));
+
+        meta_copy(&id->meta, &ret_id->meta);
     }
     else {
         meta_set_void(&id->meta);
@@ -367,7 +374,6 @@ id_check_tuple(check_t *check, ast_id_t *id)
     id->meta.elem_cnt = vector_size(elem_ids);
     id->meta.elems = xmalloc(sizeof(meta_t *) * id->meta.elem_cnt);
 
-    /* The meta size of the tuple identifier is not used and is not calculated. */
     vector_foreach(elem_ids, i) {
         ast_id_t *elem_id = vector_get_id(elem_ids, i);
 
@@ -381,13 +387,12 @@ id_check_tuple(check_t *check, ast_id_t *id)
             i < vector_size(dflt_exp->u_tup.elem_exps))
             elem_id->u_var.dflt_exp = vector_get_exp(dflt_exp->u_tup.elem_exps, i);
 
-        id_check(check, elem_id);
         elem_id->up = id->up;
+        elem_id->is_checked = true;
+
+        id_check_var(check, elem_id);
 
         id->meta.elems[i] = &elem_id->meta;
-
-        if (is_const_id(elem_id) && elem_id->u_var.dflt_exp == NULL)
-            ERROR(ERROR_MISSING_CONST_VAL, &elem_id->pos);
     }
 
     return true;

@@ -10,6 +10,8 @@ Gopkg.lock
 *.o
 *.a
 *.output
+*.tab.*
+*.yy.c
 
 # vim swp file
 *.swp

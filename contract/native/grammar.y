@@ -301,6 +301,7 @@ contract_body:
     variable
     {
         $$ = blk_new_contract(&@$);
+        /* The variable declaration is added as statement for scope management. */
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   compound
@@ -316,6 +317,7 @@ contract_body:
 |   contract_body variable
     {
         $$ = $1;
+        /* same as above */
         stmt_add(&$$->stmts, stmt_new_id($2, &@2));
     }
 |   contract_body compound

@@ -359,7 +359,6 @@ contract test {
     }
     test() {
         s v = new { 1, { "apple", "orange" }, { { 1, true } } };
-        /*
         pragma assert(v.a == 1);
         pragma assert(v.b[0] == "apple");
         pragma assert(v.b[1] == "orange");
@@ -378,7 +377,6 @@ contract test {
         pragma assert(v.b[1] == "banana");
 
         v.c[1] = false;
-        */
     }
 }
 
