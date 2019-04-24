@@ -66,22 +66,6 @@ func (s stats) clone(idx statIndex) interface{} {
 	return i.clone()
 }
 
-func (s stats) getCount(idx statIndex) int64 {
-	i := s.get(idx)
-	i.RLock()
-	defer i.RUnlock()
-
-	return i.getCount()
-}
-
-func (s stats) getLastestEvent(idx statIndex) interface{} {
-	i := s.get(idx)
-	i.RLock()
-	defer i.RUnlock()
-
-	return i.getLatestEvent()
-}
-
 func (s stats) updateEvent(idx statIndex, args ...interface{}) {
 	i := s.get(idx)
 	i.Lock()
@@ -100,15 +84,15 @@ func newStat(i statItem) *stat {
 }
 
 type statItem interface {
-	getCount() int64
-	getLatestEvent() interface{}
 	updateEvent(args ...interface{})
 	clone() interface{}
 }
 
 type stReorg struct {
-	Count  int64
-	Latest *evReorg `json:",omitempty"`
+	totalElapsed   time.Duration
+	Count          int64
+	AverageElapsed float64  `json:"Average Elapsed Time,omitempty"`
+	Latest         *evReorg `json:",omitempty"`
 }
 
 func newStReorg() statItem {
@@ -116,9 +100,9 @@ func newStReorg() statItem {
 }
 
 type evReorg struct {
-	OldBest *blockInfo
-	NewBest *blockInfo
-	Fork    *blockInfo
+	OldBest *blockInfo `json:"Old Best,omitempty"`
+	Fork    *blockInfo `json:"Fork At,omitempty"`
+	NewBest *blockInfo `json:"New Best,omitempty"`
 	Time    time.Time
 }
 
@@ -136,13 +120,15 @@ func (sr *stReorg) getLatestEvent() interface{} {
 }
 
 func (sr *stReorg) updateEvent(args ...interface{}) {
-	if len(args) != 3 {
+	if len(args) != 4 {
 		logger.Info().Int("len", len(args)).Msg("invalid # of arguments for the reorg stat update")
 		return
 	}
 
+	et := args[0].(time.Duration)
+
 	bi := make([]*blockInfo, len(args))
-	for i, a := range args {
+	for i, a := range args[1:] {
 		var block *types.Block
 		ok := false
 		if block, ok = a.(*types.Block); !ok {
@@ -158,7 +144,10 @@ func (sr *stReorg) updateEvent(args ...interface{}) {
 		Fork:    bi[2],
 		Time:    time.Now(),
 	}
+
+	sr.totalElapsed += et
 	sr.Count++
+	sr.AverageElapsed = (sr.totalElapsed / time.Duration(sr.Count)).Seconds()
 }
 
 func (sr *stReorg) clone() interface{} {

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/state"
+	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -128,6 +129,8 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
 		Bool("recovery", (marker != nil)).Msg("reorg started")
 
+	begT := time.Now()
+
 	reorg, err := newReorganizer(cs, topBlock, marker)
 	if err != nil {
 		logger.Error().Err(err).Msg("new reorganazier failed")
@@ -166,8 +169,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 		return err
 	}
 
-	cs.stat.updateEvent(ReorgStat, reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brStartBlock)
-
+	cs.stat.updateEvent(ReorgStat, time.Since(begT), reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brStartBlock)
 	logger.Info().Msg("reorg end")
 
 	return nil
