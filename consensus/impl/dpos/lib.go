@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/types"
@@ -211,7 +212,7 @@ func (ls *libStatus) load(endBlockNo types.BlockNo) {
 	}
 }
 
-func (ls *libStatus) save(tx db.Transaction) error {
+func (ls *libStatus) save(tx consensus.TxWriter) error {
 	b, err := common.GobEncode(ls)
 	if err != nil {
 		return err

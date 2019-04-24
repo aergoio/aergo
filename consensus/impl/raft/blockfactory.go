@@ -9,9 +9,8 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-crypto"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
@@ -224,7 +223,7 @@ func (bf *BlockFactory) Update(block *types.Block) {
 }
 
 // Save has nothging to do.
-func (bf *BlockFactory) Save(tx db.Transaction) error {
+func (bf *BlockFactory) Save(tx consensus.TxWriter) error {
 	return nil
 }
 

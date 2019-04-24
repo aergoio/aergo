@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
@@ -154,7 +153,7 @@ func (s *SimpleBlockFactory) Update(block *types.Block) {
 }
 
 // Save has nothging to do.
-func (s *SimpleBlockFactory) Save(tx db.Transaction) error {
+func (s *SimpleBlockFactory) Save(tx consensus.TxWriter) error {
 	return nil
 }
 

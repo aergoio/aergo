@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -309,9 +308,9 @@ func (reorg *reorganizer) swapTxMapping() error {
 		}
 
 		dbTx := cs.cdb.store.NewTx()
-		defer dbTx.Discard()
 
 		if err := cdb.addTxsOfBlock(&dbTx, newBlock.GetBody().GetTxs(), newBlock.BlockHash()); err != nil {
+			dbTx.Discard()
 			return err
 		}
 
@@ -319,25 +318,14 @@ func (reorg *reorganizer) swapTxMapping() error {
 	}
 
 	// delete old tx mapping
-	txCnt := 0
-	var dbTx db.Transaction
+	bulk := cdb.store.NewBulk()
+	defer bulk.DiscardLast()
 
 	for _, oldTx := range oldTxs {
-		if dbTx == nil {
-			dbTx = cs.cdb.store.NewTx()
-		}
-		defer dbTx.Discard()
-
-		cdb.deleteTx(&dbTx, oldTx)
-
-		txCnt++
-
-		if txCnt >= TxBatchMax {
-			dbTx.Commit()
-			dbTx = nil
-			txCnt = 0
-		}
+		bulk.Delete(oldTx.Hash)
 	}
+
+	bulk.Flush()
 
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	count := len(oldTxs)
