@@ -3804,11 +3804,21 @@ function oom()
 		 s = s .. s
 	 end
 end
-abi.register(oom)`
+
+function p()
+	pcall(oom)
+end
+
+function cp()
+	contract.pcall(oom)
+end
+abi.register(oom, p, cp)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "oom", 0, definition),
+	)
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"oom",
@@ -3821,6 +3831,28 @@ abi.register(oom)`
 		t.Errorf("expected: %s", errMsg)
 	}
 	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"p"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"cp"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
 		t.Error(err)
 	}
 }
