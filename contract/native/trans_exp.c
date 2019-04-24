@@ -391,7 +391,8 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
         meta_t *elem_meta = &elem_exp->meta;
         value_t *elem_val = &elem_exp->u_lit.val;
 
-        if (is_struct_meta(elem_meta)) {
+        /* Only struct, or array which is a member of struct, is stored in separate memory. */
+        if (is_struct_meta(elem_meta) || (is_struct_meta(meta) && is_tuple_meta(elem_meta))) {
             uint32_t addr;
             ir_md_t *md = trans->md;
 
@@ -468,7 +469,8 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
             meta_t *elem_meta = &elem_exp->meta;
             ast_exp_t *l_exp, *r_exp;
 
-            if (is_struct_meta(elem_meta)) {
+            /* Only struct, or array which is a member of struct, is stored in separate memory. */
+            if (is_struct_meta(elem_meta) || (is_struct_meta(meta) && is_tuple_meta(elem_meta))) {
                 uint32_t st_idx = fn_add_register(trans->fn, elem_meta);
 
                 stmt_trans(trans, stmt_make_malloc(st_idx, meta_memsz(elem_meta), &exp->pos));
@@ -500,7 +502,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
 
                 if (!is_init_exp(elem_exp)) {
                     l_exp = exp_new_mem(reg_idx, 0, offset);
-                    meta_set_int32(&l_exp->meta);
+                    meta_copy(&l_exp->meta, elem_meta);
 
                     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
                 }

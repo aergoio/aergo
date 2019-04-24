@@ -49,6 +49,17 @@ contract test {
     }
 }
 
+@test(arithmetic_overflow)
+@run(test.test)
+contract test {
+    int8 i1 = 100;
+    int8 i2 = i1 + 100;
+
+    test() {
+        pragma assert(i2 == -56);
+    }
+}
+
 @test(mismatched_arithmetic_type)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {

@@ -86,8 +86,8 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_iosz(meta)             TYPE_IO_SIZE((meta)->type)
-#define meta_regsz(meta)            TYPE_REG_SIZE((meta)->type)
+#define meta_iosz(meta)             (is_array_meta(meta) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
+#define meta_regsz(meta)            (is_array_meta(meta) ? ADDR_SIZE : TYPE_SIZE((meta)->type))
 
 #define meta_align(meta)            (meta)->align
 
@@ -227,7 +227,7 @@ meta_memsz(meta_t *meta)
     else if (is_array_meta(meta)) {
         uint32_t dim_sz = 1;
 
-        size = meta_regsz(meta);
+        size = TYPE_SIZE(meta->type);
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size *= meta->dim_sizes[i];
@@ -245,10 +245,13 @@ meta_memsz(meta_t *meta)
         for (i = 0; i < meta->elem_cnt; i++) {
             meta_t *elem_meta = meta->elems[i];
 
-            ASSERT(!is_tuple_meta(elem_meta));
-
-            size = ALIGN(size, meta_align(elem_meta));
-            size += meta_regsz(elem_meta);
+            if (is_tuple_meta(elem_meta)) {
+                ASSERT(is_array_meta(elem_meta));
+                size = ALIGN32(size) + ADDR_SIZE;
+            }
+            else {
+                size = ALIGN(size, meta_align(elem_meta)) + meta_regsz(elem_meta);
+            }
         }
     }
     else {

@@ -131,8 +131,8 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         BIT_SET(fld_id->mod, MOD_PUBLIC);
 
-        fld_meta->rel_offset = ALIGN(offset, meta_align(fld_meta));
-        offset = fld_meta->rel_offset + meta_memsz(fld_meta);
+        fld_meta->rel_offset = ALIGN(offset, TYPE_ALIGN(fld_meta->type));
+        offset += meta_regsz(fld_meta);
     }
 
     meta_set_struct(&id->meta, id);

@@ -798,8 +798,7 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
         ASSERT1(BinaryenExpressionGetType(address) == BinaryenTypeInt32(),
                 BinaryenExpressionGetType(address));
 
-        return BinaryenLoad(gen->module, sizeof(uint32_t), 0, offset, 0, BinaryenTypeInt32(),
-                            address);
+        return BinaryenLoad(gen->module, ADDR_SIZE, 0, offset, 0, BinaryenTypeInt32(), address);
     }
 
     if (gen->is_lval) {

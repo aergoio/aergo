@@ -36,7 +36,7 @@ char *type_names_[TYPE_MAX] = {
 #define F32             4
 #define F64             8
 
-int type_reg_sizes_[TYPE_MAX] = {
+int type_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     I32,                /* TYPE_BOOL */
     I32,                /* TYPE_BYTE */
@@ -58,7 +58,7 @@ int type_reg_sizes_[TYPE_MAX] = {
     0                   /* TYPE_TUPLE */
 };
 
-int type_io_sizes_[TYPE_MAX] = {
+int type_c_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
     sizeof(bool),       /* TYPE_BOOL */
     sizeof(uint8_t),    /* TYPE_BYTE */
