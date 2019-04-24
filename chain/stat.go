@@ -91,7 +91,7 @@ type statItem interface {
 type stReorg struct {
 	totalElapsed   time.Duration
 	Count          int64
-	AverageElapsed float64  `json:",omitempty"`
+	AverageElapsed float64  `json:"Average Elapsed Time,omitempty"`
 	Latest         *evReorg `json:",omitempty"`
 }
 
@@ -100,9 +100,9 @@ func newStReorg() statItem {
 }
 
 type evReorg struct {
-	OldBest *blockInfo
-	NewBest *blockInfo
-	Fork    *blockInfo
+	OldBest *blockInfo `json:"Old Best,omitempty"`
+	Fork    *blockInfo `json:"Fork At,omitempty"`
+	NewBest *blockInfo `json:"New Best,omitempty"`
 	Time    time.Time
 }
 
