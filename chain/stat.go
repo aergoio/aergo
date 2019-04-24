@@ -66,22 +66,6 @@ func (s stats) clone(idx statIndex) interface{} {
 	return i.clone()
 }
 
-func (s stats) getCount(idx statIndex) int64 {
-	i := s.get(idx)
-	i.RLock()
-	defer i.RUnlock()
-
-	return i.getCount()
-}
-
-func (s stats) getLastestEvent(idx statIndex) interface{} {
-	i := s.get(idx)
-	i.RLock()
-	defer i.RUnlock()
-
-	return i.getLatestEvent()
-}
-
 func (s stats) updateEvent(idx statIndex, args ...interface{}) {
 	i := s.get(idx)
 	i.Lock()
@@ -100,8 +84,6 @@ func newStat(i statItem) *stat {
 }
 
 type statItem interface {
-	getCount() int64
-	getLatestEvent() interface{}
 	updateEvent(args ...interface{})
 	clone() interface{}
 }
