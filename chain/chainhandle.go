@@ -30,6 +30,7 @@ var (
 	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
 	ErrBlockCachedErrLRU     = errors.New("block is in errored blocks cache")
 	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
+	ErrStateNoMarker         = errors.New("statedb marker of block is not exists")
 
 	errBlockStale     = errors.New("produced block becomes stale")
 	errBlockTimestamp = errors.New("invalid timestamp")
@@ -356,7 +357,7 @@ func (cp *chainProcessor) reorganize() error {
 	// - Reorganize if new bestblock then process Txs
 	// - Add block if new bestblock then update context connect next orphan
 	if !cp.isMainChain && cp.needReorg(cp.lastBlock) {
-		err := cp.reorg(cp.lastBlock)
+		err := cp.reorg(cp.lastBlock, nil)
 		if e, ok := err.(consensus.ErrorConsensus); ok {
 			logger.Info().Err(e).Msg("reorg stopped by consensus error")
 			return nil
@@ -578,7 +579,10 @@ func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, 
 		err := executeTx(cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
-			bState.Rollback(snapshot)
+			if err2 := bState.Rollback(snapshot); err2 != nil {
+				logger.Panic().Err(err).Msg("faield to rollback block state")
+			}
+
 			return err
 		}
 		return nil
@@ -669,6 +673,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 
+	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
 	ex, err := newBlockExecutor(cs, bstate, block)
 	if err != nil {
 		return err
@@ -688,6 +693,44 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	cs.Update(block)
 
 	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end to execute")
+
+	return nil
+}
+
+// TODO: Refactoring: batch
+func (cs *ChainService) executeBlockReco(_ *state.BlockState, block *types.Block) error {
+	// Caution: block must belong to the main chain.
+	logger.Debug().Str("hash", block.ID()).Uint64("no", block.GetHeader().BlockNo).Msg("start to execute for reco")
+
+	var (
+		bestBlock *types.Block
+		err       error
+	)
+
+	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
+		return err
+	}
+
+	// Check consensus info validity
+	// TODO remove bestblock
+	if err = cs.IsBlockValid(block, bestBlock); err != nil {
+		return err
+	}
+
+	if !cs.sdb.GetStateDB().HasMarker(block.GetHeader().GetBlocksRootHash()) {
+		logger.Error().Str("hash", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).Msg("state marker is not exist")
+		return ErrStateNoMarker
+	}
+
+	// move stateroot
+	if err := cs.sdb.SetRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
+		return fmt.Errorf("failed to set sdb(branchRoot:no=%d,hash=%v)", block.GetHeader().GetBlockNo(),
+			block.ID())
+	}
+
+	cs.Update(block)
+
+	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end to execute for reco")
 
 	return nil
 }

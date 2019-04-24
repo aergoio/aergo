@@ -231,3 +231,21 @@ func TestStateDBParallel(t *testing.T) {
 	}
 	assert.True(t, stateEquals(&testStates[4], st2))
 }
+
+func TestStateDBMarker(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	assert.Nil(t, stateDB.GetRoot())
+
+	for _, v := range testStates {
+		_ = stateDB.PutState(testAccount, &v)
+	}
+	_ = stateDB.Update()
+	_ = stateDB.Commit()
+	assert.Equal(t, testRoot, stateDB.GetRoot())
+
+	assert.True(t, stateDB.HasMarker(stateDB.GetRoot()))
+	assert.False(t, stateDB.HasMarker(testSecondRoot))
+	assert.False(t, stateDB.HasMarker([]byte{}))
+	assert.False(t, stateDB.HasMarker(nil))
+}

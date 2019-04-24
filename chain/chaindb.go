@@ -93,6 +93,13 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if err := cdb.loadChainData(); err != nil {
 		return err
 	}
+
+	// recover from reorg marker
+	if err := cdb.recover(); err != nil {
+		logger.Error().Err(err).Msg("failed to recover chain database from crash")
+		return err
+	}
+
 	// // if empty then create new genesis block
 	// // if cdb.getBestBlockNo() == 0 && len(cdb.blocks) == 0 {
 	// blockIdx := types.BlockNoToBytes(0)
@@ -100,6 +107,23 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	// if cdb.getBestBlockNo() == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
+	return nil
+}
+
+func (cdb *ChainDB) recover() error {
+	marker, err := cdb.getReorgMarker()
+	if err != nil {
+		return err
+	}
+
+	if marker == nil {
+		return nil
+	}
+
+	if err := marker.RecoverChainMapping(cdb); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -358,7 +382,7 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 	return
 }
 
-func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
+func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 	oldNo := cdb.getBestBlockNo()
 	newNo := newBlocks[0].GetHeader().GetBlockNo()
 
@@ -443,6 +467,10 @@ func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHa
 			logger.Error().Err(err).Str("hash", enc.ToString(blockHash)).Int("txidx", i).
 				Msg("failed to add tx")
 
+			return err
+		}
+
+		if err := debugger.check(DEBUG_CHAIN_STOP_4); err != nil {
 			return err
 		}
 	}
@@ -691,4 +719,44 @@ func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
 	binary.LittleEndian.PutUint64(l[:], blockNo)
 	key.Write(l)
 	return key.Bytes()
+}
+
+func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	val, err := marker.toBytes()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to serialize reorg marker")
+		return err
+	}
+
+	dbTx.Set(reorgKey, val)
+
+	dbTx.Commit()
+	return nil
+}
+
+func (cdb *ChainDB) deleteReorgMarker() {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	dbTx.Delete(reorgKey)
+
+	dbTx.Commit()
+}
+
+func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
+	data := cdb.store.Get(reorgKey)
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var marker ReorgMarker
+	var b bytes.Buffer
+	b.Write(data)
+	decoder := gob.NewDecoder(&b)
+	err := decoder.Decode(&marker)
+
+	return &marker, err
 }

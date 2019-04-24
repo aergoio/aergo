@@ -10,8 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"reflect"
 	"runtime"
+	"strconv"
+	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -37,6 +40,10 @@ var (
 	dfltErrBlocks = 128
 
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
+	ErrRecoNoBestStateRoot   = errors.New("state root of best block is not exist")
+	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
+
+	debugger *Debugger
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -200,6 +207,9 @@ type ChainService struct {
 	chainManager *ChainManager
 
 	stat stats
+
+	recovered  atomic.Value
+	debuggable bool
 }
 
 // NewChainService creates an instance of ChainService.
@@ -209,6 +219,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		op:   NewOrphanPool(),
 		stat: newStats(),
 	}
+
+	cs.setRecovered(false)
 
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
@@ -262,7 +274,25 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.StartLStateFactory()
 
+	// init Debugger
+	cs.initDebugger()
+
 	return cs
+}
+
+func (cs *ChainService) initDebugger() {
+	envStr := os.Getenv("DEBUG_CHAIN_CRASH")
+	if len(envStr) > 0 {
+		cond, err := strconv.Atoi(envStr)
+		if err != nil {
+			logger.Error().Err(err).Msgf("DEBUG_CHAIN_CRASH environment varialble must be integer (1 <= var <= %d", DEBUG_CHAIN_STOP_INF)
+			return
+		}
+		logger.Debug().Int("stop", cond).Msgf("DEBUG_CHAIN_CRASH is set")
+
+		debugger = newDebugger()
+		debugger.set(stopCond(cond))
+	}
 }
 
 // SDB returns cs.sdb.
@@ -324,8 +354,30 @@ func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 		})
 }
 
+func (cs *ChainService) setRecovered(val bool) {
+	cs.recovered.Store(val)
+	return
+}
+
+func (cs *ChainService) isRecovered() bool {
+	var val bool
+	aopv := cs.recovered.Load()
+	if aopv != nil {
+		val = aopv.(bool)
+	} else {
+		panic("ChainService: recovered is nil")
+	}
+	return val
+}
+
 // Receive actor message
 func (cs *ChainService) Receive(context actor.Context) {
+	if !cs.isRecovered() {
+		err := cs.Recover()
+		if err != nil {
+			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
+		}
+	}
 
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,
@@ -503,6 +555,8 @@ func newChainWorker(cs *ChainService, cntWorker int, core *Core) *ChainWorker {
 }
 
 func (cm *ChainManager) Receive(context actor.Context) {
+	defer RecoverExit()
+
 	switch msg := context.Message().(type) {
 
 	case *message.AddBlock:

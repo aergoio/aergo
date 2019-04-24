@@ -513,7 +513,7 @@ func (bc *DummyChain) DisConnectBlock() error {
 	if bestBlock != nil {
 		sroot = bestBlock.GetHeader().GetBlocksRootHash()
 	}
-	return bc.sdb.Rollback(sroot)
+	return bc.sdb.SetRoot(sroot)
 }
 
 func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs ...string) error {

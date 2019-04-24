@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -208,6 +209,7 @@ func TestSideChainReorg(t *testing.T) {
 	//check if reorg is succeed
 	mainBestBlock, _ = cs.GetBestBlock()
 	assert.Equal(t, sideBestBlock.GetHeader().BlockNo, mainBestBlock.GetHeader().BlockNo)
+
 	assert.Equal(t, sideBestBlock.BlockHash(), mainBestBlock.BlockHash())
 }
 
@@ -249,7 +251,124 @@ func TestResetChain(t *testing.T) {
 	}
 }
 
-//TODO
-func TestParallelAccess(t *testing.T) {
+func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
+	cs, mainChain, sideChain := testSideBranch(t, 5)
 
+	// add heigher block to sideChain
+	sideChain.GenAddBlock()
+	assert.Equal(t, mainChain.Best+1, sideChain.Best)
+
+	sideBestBlock, err := sideChain.GetBestBlock()
+	assert.NoError(t, err)
+
+	//check top block before reorg
+	orgBestBlock, _ := cs.GetBestBlock()
+	assert.Equal(t, mainChain.Best, int(orgBestBlock.GetHeader().BlockNo))
+	assert.Equal(t, mainChain.BestBlock.BlockHash(), orgBestBlock.BlockHash())
+	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
+
+	debugger = newDebugger()
+	debugger.set(DEBUG_CHAIN_STOP_1)
+
+	err = cs.addBlock(sideBestBlock, nil, testPeer)
+	assert.Error(t, &ErrReorg{})
+	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: DEBUG_CHAIN_STOP_1})
+
+	// check if chain meta is not changed
+	newBestBlock, _ := cs.GetBestBlock()
+	assert.Equal(t, newBestBlock.GetHeader().BlockNo, orgBestBlock.GetHeader().BlockNo)
+
+	debugger.clear()
+	cs.errBlocks.Purge()
+
+	// chain swap is not complete, so has nothing to do
+	err = cs.Recover()
+	assert.Nil(t, err)
+}
+
+func TestReorgCrashRecoverAfterReorgMarker(t *testing.T) {
+	testReorgCrashRecoverCond(t, DEBUG_CHAIN_STOP_2)
+	testReorgCrashRecoverCond(t, DEBUG_CHAIN_STOP_3)
+}
+
+func testReorgCrashRecoverCond(t *testing.T, cond stopCond) {
+	cs, mainChain, sideChain := testSideBranch(t, 5)
+
+	// add heigher block to sideChain
+	sideChain.GenAddBlock()
+	assert.Equal(t, mainChain.Best+1, sideChain.Best)
+
+	sideBestBlock, err := sideChain.GetBestBlock()
+	assert.NoError(t, err)
+
+	//check top block before reorg
+	orgBestBlock, _ := cs.GetBestBlock()
+	assert.Equal(t, mainChain.Best, int(orgBestBlock.GetHeader().BlockNo))
+	assert.Equal(t, mainChain.BestBlock.BlockHash(), orgBestBlock.BlockHash())
+	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
+
+	debugger = newDebugger()
+	debugger.set(cond)
+
+	err = cs.addBlock(sideBestBlock, nil, testPeer)
+	assert.Error(t, &ErrReorg{})
+	assert.Equal(t, err.(*ErrReorg).err, &ErrDebug{cond: cond})
+
+	assert.True(t, !checkRecoveryDone(t, cs.cdb, sideChain))
+
+	debugger.clear()
+	cs.errBlocks.Purge()
+
+	// must recover chainDB before chainservice.Recover()
+	err = cs.cdb.recover()
+	assert.Nil(t, err)
+
+	// chain swap is not complete, so has nothing to do
+	err = cs.Recover()
+	assert.Nil(t, err)
+
+	assert.True(t, checkRecoveryDone(t, cs.cdb, sideChain))
+
+	var marker *ReorgMarker
+	marker, err = cs.cdb.getReorgMarker()
+	assert.Nil(t, err)
+	assert.Nil(t, marker)
+}
+
+// checkRecoveryDone checks if recovery is complete.
+// 1. all blocks of chain has (no/hash) mapping
+// 2. old receipts is deleted and new receipt is added if blocks have tx
+// 3. old tx mapping is deleted and new tx mapping is added
+func checkRecoveryDone(t *testing.T, cdb *ChainDB, chain *StubBlockChain) bool {
+	// check block mapping
+	for i := 0; i <= chain.Best; i++ {
+		block := chain.Blocks[i]
+		dbBlk, err := cdb.GetBlockByNo(block.GetHeader().GetBlockNo())
+		assert.Nil(t, err)
+		assert.NotNil(t, dbBlk)
+
+		if !checkBlockEqual(t, block, dbBlk) {
+			return false
+		}
+	}
+
+	if marker, err := cdb.getReorgMarker(); err == nil && marker != nil {
+		return false
+	}
+
+	return true
+}
+
+func checkBlockEqual(t *testing.T, x *types.Block, y *types.Block) bool {
+	if (x == nil) != (y == nil) {
+		t.Log("x or y is nil")
+		return false
+	}
+
+	if !bytes.Equal(x.BlockHash(), y.BlockHash()) || x.Header.GetBlockNo() != y.Header.GetBlockNo() {
+		t.Logf("stubchain<no=%d, %s>:db<no=%d, %s>", x.GetHeader().GetBlockNo(), x.ID(), y.GetHeader().GetBlockNo(), y.ID())
+		return false
+	}
+
+	return true
 }
