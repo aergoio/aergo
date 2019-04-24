@@ -393,41 +393,24 @@ func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 	}
 
 	var blockIdx []byte
-	var dbTx db.Transaction
 
-	txCnt := 0
-
-	dbTx = cdb.store.NewTx()
-	defer dbTx.Discard()
+	bulk := cdb.store.NewBulk()
+	defer bulk.DiscardLast()
 
 	//make newTx because of batchsize limit of DB
-	getNewTx := func(remainTxCnt int) {
-		if txCnt+remainTxCnt >= TxBatchMax {
-			dbTx.Commit()
-			dbTx = cdb.store.NewTx()
-			txCnt = 0
-		}
-	}
-
 	for i := len(newBlocks) - 1; i >= 0; i-- {
 		block := newBlocks[i]
 		blockIdx = types.BlockNoToBytes(block.GetHeader().GetBlockNo())
 
-		dbTx.Set(blockIdx, block.BlockHash())
-
-		txCnt++
-
-		getNewTx(0)
+		bulk.Set(blockIdx, block.BlockHash())
 	}
 
-	getNewTx(5)
-
-	dbTx.Set(latestKey, blockIdx)
+	bulk.Set(latestKey, blockIdx)
 
 	// Save the last consensus status.
-	cdb.cc.Save(dbTx)
+	cdb.cc.Save(bulk)
 
-	dbTx.Commit()
+	bulk.Flush()
 
 	cdb.setLatest(newBlocks[0])
 

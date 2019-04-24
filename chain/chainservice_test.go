@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/state"
@@ -41,7 +40,7 @@ func (stubC *StubConsensus) IsBlockValid(block *types.Block, bestBlock *types.Bl
 func (stubC *StubConsensus) Update(block *types.Block) {
 
 }
-func (stubC *StubConsensus) Save(tx db.Transaction) error {
+func (stubC *StubConsensus) Save(tx consensus.TxWriter) error {
 	return nil
 }
 func (stubC *StubConsensus) NeedReorganization(rootNo types.BlockNo) bool {

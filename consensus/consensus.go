@@ -95,9 +95,13 @@ type ChainConsensus interface {
 	VerifySign(block *types.Block) error
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	Update(block *types.Block)
-	Save(tx db.Transaction) error
+	Save(tx TxWriter) error
 	NeedReorganization(rootNo types.BlockNo) bool
 	Info() string
+}
+
+type TxWriter interface {
+	Set(key, value []byte)
 }
 
 // Info represents an information for a consensus implementation.

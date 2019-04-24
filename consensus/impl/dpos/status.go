@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/state"
@@ -148,7 +147,7 @@ func (s *Status) updateLIB(lib *blockInfo) {
 }
 
 // Save saves the consensus status information for the later recovery.
-func (s *Status) Save(tx db.Transaction) error {
+func (s *Status) Save(tx consensus.TxWriter) error {
 	s.Lock()
 	defer s.Unlock()
 
