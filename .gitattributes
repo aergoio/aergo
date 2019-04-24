@@ -1,3 +1,5 @@
 *.go	text eol=lf
 *       text=auto
-contract/sqlite3-binding.*	linguist-vendored
+contract/sqlite3*	linguist-vendored
+libtool/src/gmp-*	linguist-vendored
+
