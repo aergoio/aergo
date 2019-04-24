@@ -44,6 +44,10 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 		context.Staked = staked
 	case types.CreateProposal:
+		staked, err := checkStakingBefore(account, scs)
+		if err != nil {
+			return nil, err
+		}
 		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err
@@ -98,6 +102,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			}
 			candidates = append(candidates, c)
 		}
+		context.Staked = staked
 		context.Proposal = &types.Proposal{
 			Id:          id,
 			Blockfrom:   blockfrom,
@@ -159,6 +164,17 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	return context, nil
 }
 
+func checkStakingBefore(account []byte, scs *state.ContractState) (*types.Staking, error) {
+	staked, err := getStaking(scs, account)
+	if err != nil {
+		return nil, err
+	}
+	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
+		return nil, fmt.Errorf("not staking before")
+	}
+	return staked, nil
+}
+
 func validateForStaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
 	staked, err := getStaking(scs, account)
 	if err != nil {
@@ -173,12 +189,10 @@ func validateForStaking(account []byte, txBody *types.TxBody, scs *state.Contrac
 	}
 	return staked, nil
 }
+
 func validateForVote(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64, voteKey []byte) (*types.Staking, *types.Vote, error) {
-	staked, err := getStaking(scs, account)
+	staked, err := checkStakingBefore(account, scs)
 	if err != nil {
-		return nil, nil, err
-	}
-	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, nil, types.ErrMustStakeBeforeVote
 	}
 	oldvote, err := GetVote(scs, account, voteKey)
@@ -192,11 +206,8 @@ func validateForVote(account []byte, txBody *types.TxBody, scs *state.ContractSt
 }
 
 func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
-	staked, err := getStaking(scs, account)
+	staked, err := checkStakingBefore(account, scs)
 	if err != nil {
-		return nil, err
-	}
-	if staked.GetAmountBigInt().Cmp(big.NewInt(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeUnstake
 	}
 	if staked.GetAmountBigInt().Cmp(txBody.GetAmountBigInt()) < 0 {
