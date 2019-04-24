@@ -27,6 +27,14 @@ type PeerMeta struct {
 	Outbound bool
 }
 
+func (m *PeerMeta) GetVersion() string {
+	if m.Version == "" {
+		return "(old)"
+	} else {
+		return m.Version
+	}
+}
+
 // FromStatusToMeta create peerMeta from Status message
 func NewMetaFromStatus(status *types.Status, outbound bool) PeerMeta {
 	meta := FromPeerAddress(status.Sender)

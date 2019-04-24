@@ -23,8 +23,8 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/p2p/pmap"
 	"github.com/aergoio/aergo/pkg/component"
+	polarisclient "github.com/aergoio/aergo/polaris/client"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
 	"github.com/opentracing/opentracing-go"
@@ -159,7 +159,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	rpcSvc := rpc.NewRPC(cfg, chainSvc, githash)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
-	pmapSvc := pmap.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
+	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
 
 	var accountSvc component.IComponent
 	if cfg.Personal {

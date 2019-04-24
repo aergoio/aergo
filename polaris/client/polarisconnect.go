@@ -3,11 +3,14 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package pmap
+package client
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/polaris/common"
 	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -17,7 +20,6 @@ import (
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-net"
@@ -60,12 +62,12 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		if !pcs.PrivateChain {
 			servers := make([]string, 0)
 			// add hardcoded built-in servers if net is ONE net.
-			if *pcs.ntc.ChainID() == ONEMainNet {
+			if *pcs.ntc.ChainID() == common.ONEMainNet {
 				pcs.Logger.Info().Msg("chain is ONE Mainnet so use default polaris for mainnet")
-				servers = MainnetMapServer
-			} else if *pcs.ntc.ChainID() == ONETestNet {
+				servers = common.MainnetMapServer
+			} else if *pcs.ntc.ChainID() == common.ONETestNet {
 				pcs.Logger.Info().Msg("chain is ONE Testnet so use default polaris for testnet")
-				servers = TestnetMapServer
+				servers = common.TestnetMapServer
 			} else {
 				pcs.Logger.Info().Msg("chain is custom public network so only custom polaris in configuration file will be used")
 			}
@@ -105,12 +107,12 @@ func (pcs *PolarisConnectSvc) BeforeStart() {}
 
 func (pcs *PolarisConnectSvc) AfterStart() {
 	pcs.nt = pcs.ntc.GetNetworkTransport()
-	pcs.nt.AddStreamHandler(PolarisPingSub, pcs.onPing)
+	pcs.nt.AddStreamHandler(common.PolarisPingSub, pcs.onPing)
 
 }
 
 func (pcs *PolarisConnectSvc) BeforeStop() {
-	pcs.nt.RemoveStreamHandler(PolarisPingSub)
+	pcs.nt.RemoveStreamHandler(common.PolarisPingSub)
 }
 
 func (pcs *PolarisConnectSvc) Statistics() *map[string]interface{} {
@@ -152,7 +154,7 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 }
 
 func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
-	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, PolarisMapSub, PolarisConnectionTTL)
+	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, common.PolarisMapSub, common.PolarisConnectionTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +170,8 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 
 	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
-	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID: chainBytes}
+	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID: chainBytes,
+		Version:p2pkey.NodeVersion()}
 	// receive input
 	err = pcs.sendRequest(peerStatus, mapServerMeta, pcs.exposeself, 100, rw)
 	if err != nil {
@@ -187,12 +190,13 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgWriter) error {
 	msgID := p2pcommon.NewMsgID()
 	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
-	respMsg, err := createV030Message(msgID, EmptyMsgID, MapQuery, queryReq)
+	bytes, err := p2putil.MarshalMessage(queryReq)
 	if err != nil {
 		return err
 	}
+	reqMsg := common.NewPolarisMessage(msgID, common.MapQuery, bytes)
 
-	return wt.WriteMsg(respMsg)
+	return wt.WriteMsg(reqMsg)
 }
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
@@ -230,12 +234,12 @@ func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
 	}
 	// TODO: check if sender is known polaris or peer and it not, ban or write to blacklist .
 	pingResp := &types.Ping{}
-	msgID := p2pcommon.NewMsgID()
-	respMsg, err := createV030Message(msgID, req.ID(), subproto.PingResponse, pingResp)
+	bytes, err := p2putil.MarshalMessage(pingResp)
 	if err != nil {
 		return
 	}
-
+	msgID := p2pcommon.NewMsgID()
+	respMsg := common.NewPolarisRespMessage(msgID, req.ID(), subproto.PingResponse, bytes)
 	err = rw.WriteMsg(respMsg)
 	if err != nil {
 		return

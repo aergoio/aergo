@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package pmap
+package server
 
 import (
 	"github.com/aergoio/aergo/p2p/transport"

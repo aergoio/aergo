@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package pmap
+package server
 
 import (
 	"bufio"
@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/protobuf/proto"
@@ -30,8 +31,7 @@ import (
 
 // internal
 const (
-	PolarisConnectionTTL = time.Second * 30
-	PolarisPingTTL       = PolarisConnectionTTL >> 1
+	PolarisPingTTL       = common.PolarisConnectionTTL >> 1
 
 	// polaris will return peers list at most this number
 	ResponseMaxPeerLimit = 500
@@ -46,36 +46,6 @@ const (
 var (
 	EmptyMsgID = p2pcommon.MsgID(uuid.Nil)
 )
-
-var (
-	// 89.16 is ceiling of declination of Polaris
-	MainnetMapServer = []string{
-		"/dns/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa",
-	}
-
-	// 89.16 is ceiling of declination of Polaris
-	TestnetMapServer = []string{
-		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
-	}
-
-	// Hardcoded chainID of ONE MAINNET and ONE TESTNET
-	ONEMainNet types.ChainID
-	ONETestNet types.ChainID
-)
-
-func init() {
-	mnGen := types.GetMainNetGenesis()
-	if mnGen == nil {
-		panic("Failed to get MainNet GenesisInfo")
-	}
-	ONEMainNet = mnGen.ID
-
-	tnGen := types.GetTestNetGenesis()
-	if tnGen == nil {
-		panic("Failed to get TestNet GenesisInfo")
-	}
-	ONETestNet = tnGen.ID
-}
 
 type mapService interface {
 	getPeerCheckers() []peerChecker
@@ -130,15 +100,15 @@ func (pms *PeerMapService) BeforeStart() {}
 
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
-	pms.Logger.Info().Str("version", string(PolarisMapSub)).Msg("Starting polaris listening")
-	pms.nt.AddStreamHandler(PolarisMapSub, pms.onConnect)
+	pms.Logger.Info().Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
+	pms.nt.AddStreamHandler(common.PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
 }
 
 func (pms *PeerMapService) BeforeStop() {
 	if pms.nt != nil {
 		pms.hc.Stop()
-		pms.nt.RemoveStreamHandler(PolarisMapSub)
+		pms.nt.RemoveStreamHandler(common.PolarisMapSub)
 	}
 }
 
@@ -205,6 +175,7 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 		return nil, fmt.Errorf("malformed query %v", query)
 	}
 	receivedMeta := p2pcommon.FromPeerAddress(query.Status.Sender)
+	receivedMeta.Version = query.Status.Version
 	maxPeers := int(query.Size)
 	if maxPeers <= 0 {
 		return nil, fmt.Errorf("invalid argument count %d", maxPeers)
@@ -276,7 +247,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta) error {
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
 		newState := &peerState{connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
-		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Msg("Registering new peer info")
+		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Str("version",receivedMeta.GetVersion()).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
 		if prev.meta != receivedMeta {
@@ -299,7 +270,7 @@ func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
 
 func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2pcommon.MsgWriter) error {
 	msgID := p2pcommon.NewMsgID()
-	respMsg, err := createV030Message(msgID, reqContainer.ID(), MapResponse, resp)
+	respMsg, err := createV030Message(msgID, reqContainer.ID(), common.MapResponse, resp)
 	if err != nil {
 		return err
 	}
@@ -308,13 +279,13 @@ func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2
 }
 
 // TODO code duplication. it can result in a bug.
-func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubProtocol, innerMsg proto.Message) (*p2p.V030Message, error) {
+func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubProtocol, innerMsg proto.Message) (p2pcommon.Message, error) {
 	bytes, err := p2putil.MarshalMessage(innerMsg)
 	if err != nil {
 		return nil, err
 	}
 
-	msg := p2p.NewV030Message(msgID, orgID, time.Now().UnixNano(), subProtocol, bytes)
+	msg := common.NewPolarisRespMessage(msgID, orgID, subProtocol, bytes)
 	return msg, nil
 }
 
@@ -375,7 +346,7 @@ func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types
 	pms.rwmutex.Lock()
 	pms.rwmutex.Unlock()
 	for _, rPeer := range pms.peerRegistry {
-		pList[addSize] = &types.PolarisPeer{Address: &rPeer.addr, Connected: rPeer.connected.UnixNano(), LastCheck: rPeer.lastCheck().UnixNano()}
+		pList[addSize] = &types.PolarisPeer{Address: &rPeer.addr, Connected: rPeer.connected.UnixNano(), LastCheck: rPeer.lastCheck().UnixNano(), Verion:rPeer.meta.Version}
 		addSize++
 		if addSize >= listSize {
 			break

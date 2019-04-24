@@ -255,7 +255,7 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	if p.Version != "" {
 		out.Version = p.Version
 	} else {
-		out.Version = "(unknown)"
+		out.Version = "(old)"
 	}
 	return out
 }

@@ -25,13 +25,13 @@ add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X 
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(polaris GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/polaris/...
+add_custom_target(polaris GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/polaris/cmd.githash=`git rev-parse HEAD`\" ./cmd/polaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    DEPENDS vendor libtool)
+    DEPENDS vendor)
 
 add_custom_target(colaris GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/colaris/cmd.githash=`git rev-parse HEAD`\" ./cmd/colaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    DEPENDS vendor libtool)
+    DEPENDS vendor)
 
 add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}

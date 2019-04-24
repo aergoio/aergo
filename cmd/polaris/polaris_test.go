@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/aergoio/aergo/p2p/pmap"
+	"github.com/aergoio/aergo/polaris/common"
 	_ "net/http/pprof"
 	"testing"
 
@@ -24,11 +24,11 @@ func Test_arrangeDefaultCfgForPolaris(t *testing.T) {
 				t.Errorf("Assumption failure: default cfg.P2P.NetProtocolPort = %d, want %d",cfg.P2P.NetProtocolPort, 7846)
 			}
 			arrangeDefaultCfgForPolaris(cfg)
-			if cfg.RPC.NetServicePort != pmap.DefaultRPCPort {
-				t.Errorf("cfg.RPC.NetServicePort = %d, want %d",cfg.RPC.NetServicePort, pmap.DefaultRPCPort)
+			if cfg.RPC.NetServicePort != common.DefaultRPCPort {
+				t.Errorf("cfg.RPC.NetServicePort = %d, want %d",cfg.RPC.NetServicePort, common.DefaultRPCPort)
 			}
-			if cfg.P2P.NetProtocolPort != pmap.DefaultSrvPort {
-				t.Errorf("cfg.P2P.NetProtocolPort = %d, want %d",cfg.P2P.NetProtocolPort, pmap.DefaultSrvPort)
+			if cfg.P2P.NetProtocolPort != common.DefaultSrvPort {
+				t.Errorf("cfg.P2P.NetProtocolPort = %d, want %d",cfg.P2P.NetProtocolPort, common.DefaultSrvPort)
 			}
 		})
 	}

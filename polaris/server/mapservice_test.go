@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package pmap
+package server
 
 import (
 	"fmt"
@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -64,8 +65,8 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 			pmapDummyNTC.nt = mockNT
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 
-			mockNT.EXPECT().AddStreamHandler(PolarisMapSub, gomock.Any()).Times(1)
-			mockNT.EXPECT().RemoveStreamHandler(PolarisMapSub).Times(1)
+			mockNT.EXPECT().AddStreamHandler(common.PolarisMapSub, gomock.Any()).Times(1)
+			mockNT.EXPECT().RemoveStreamHandler(common.PolarisMapSub).Times(1)
 
 			pms.AfterStart()
 
@@ -99,7 +100,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
 			pmapDummyNTC.nt = mockNT
-			mockNT.EXPECT().AddStreamHandler(PolarisMapSub, gomock.Any()).Times(1)
+			mockNT.EXPECT().AddStreamHandler(common.PolarisMapSub, gomock.Any()).Times(1)
 
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()
@@ -135,9 +136,9 @@ func TestPeerMapService_readRequest(t *testing.T) {
 }
 
 func TestPeerMapService_handleQuery(t *testing.T) {
-	mainnetbytes, err := ONEMainNet.Bytes()
+	mainnetbytes, err := common.ONEMainNet.Bytes()
 	if err != nil {
-		t.Error("mainnet var is not set properly", ONEMainNet)
+		t.Error("mainnet var is not set properly", common.ONEMainNet)
 	}
 	dummyPeerID2, err := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
@@ -175,10 +176,10 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 			mockStream := p2pmock.NewMockStream(ctrl)
 			mockStream.EXPECT().Write(gomock.Any()).MaxTimes(1).Return(100, nil)
 			mockStream.EXPECT().Close().MaxTimes(1).Return(nil)
-			pmapDummyNTC.chainID = &ONEMainNet
+			pmapDummyNTC.chainID = &common.ONEMainNet
 			pmapDummyNTC.nt = mockNT
 			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any())
-			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), PolarisPingSub, gomock.Any()).Return(mockStream, nil)
+			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), common.PolarisPingSub, gomock.Any()).Return(mockStream, nil)
 
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()

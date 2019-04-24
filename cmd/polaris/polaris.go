@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/pmap"
+	common2 "github.com/aergoio/aergo/polaris/common"
+	"github.com/aergoio/aergo/polaris/server"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -67,8 +68,8 @@ func initConfig() {
 }
 
 func arrangeDefaultCfgForPolaris(cfg *config.Config) {
-	cfg.RPC.NetServicePort = pmap.DefaultRPCPort
-	cfg.P2P.NetProtocolPort = pmap.DefaultSrvPort
+	cfg.RPC.NetServicePort = common2.DefaultRPCPort
+	cfg.P2P.NetProtocolPort = common2.DefaultSrvPort
 }
 
 func rootRun(cmd *cobra.Command, args []string) {
@@ -92,9 +93,9 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	lntc := pmap.NewNTContainer(cfg)
-	pmapSvc := pmap.NewPolarisService(cfg, lntc)
-	rpcSvc := pmap.NewPolarisRPC(cfg)
+	lntc := server.NewNTContainer(cfg)
+	pmapSvc := server.NewPolarisService(cfg, lntc)
+	rpcSvc := server.NewPolarisRPC(cfg)
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
@@ -109,7 +110,6 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// All the services objects including Consensus must be created before the
 	// actors are started.
 	compMng.Start()
-
 
 	common.HandleKillSig(func() {
 		//consensus.Stop(consensusSvc)
@@ -127,7 +127,7 @@ type RedirectService struct {
 }
 
 func NewRedirectService(cfg *config.Config, svcPid string) *RedirectService {
-	logger :=  log.NewLogger(svcPid)
+	logger := log.NewLogger(svcPid)
 	rs := &RedirectService{}
 	rs.BaseComponent = component.NewBaseComponent(svcPid, rs, logger)
 
@@ -138,10 +138,9 @@ func (rs *RedirectService) Receive(context actor.Context) {
 	// ignore for now
 }
 
-func (rs *RedirectService)  BeforeStart() {}
-func (rs *RedirectService) AfterStart() {}
-func (rs *RedirectService) BeforeStop() {}
-
+func (rs *RedirectService) BeforeStart() {}
+func (rs *RedirectService) AfterStart()  {}
+func (rs *RedirectService) BeforeStop()  {}
 
 func (rs *RedirectService) Statistics() *map[string]interface{} {
 	dummy := make(map[string]interface{})

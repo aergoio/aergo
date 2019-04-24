@@ -3,9 +3,10 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package pmap
+package server
 
 import (
+	"github.com/aergoio/aergo/polaris/common"
 	"sync"
 	"time"
 
@@ -74,7 +75,7 @@ func (hcm *healthCheckManager) checkPeers() {
 	wg.Add(len(toCheck))
 	for _, ps := range toCheck {
 		// TODO make a pool and limit count of concurrent pings
-		go ps.check(wg, PolarisConnectionTTL)
+		go ps.check(wg, common.PolarisConnectionTTL)
 	}
 	wg.Wait()
 	hcm.logger.Debug().Msg("Finished checks")
