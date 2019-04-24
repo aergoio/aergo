@@ -14,21 +14,27 @@ import (
 )
 
 type VoteResult struct {
-	rmap map[string]*big.Int
-	key  []byte
-	ex   bool
+	rmap  map[string]*big.Int
+	key   []byte
+	ex    bool
+	total *big.Int
 }
 
-func newVoteResult(key []byte) *VoteResult {
+func newVoteResult(key []byte, total *big.Int) *VoteResult {
 	voteResult := &VoteResult{}
 	voteResult.rmap = map[string]*big.Int{}
 	if bytes.Equal(key, defaultVoteKey) {
 		voteResult.ex = false
 	} else {
 		voteResult.ex = true
+		voteResult.total = total
 	}
 	voteResult.key = key
 	return voteResult
+}
+
+func (voteResult *VoteResult) GetTotal() *big.Int {
+	return voteResult.total
 }
 
 func (voteResult *VoteResult) SubVote(vote *types.Vote) error {
@@ -43,6 +49,7 @@ func (voteResult *VoteResult) SubVote(vote *types.Vote) error {
 				voteResult.rmap[v] = new(big.Int).Sub(voteResult.rmap[v], vote.GetAmountBigInt())
 			}
 		}
+		voteResult.total = new(big.Int).Sub(voteResult.total, vote.GetAmountBigInt())
 	} else {
 		for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
 			peer := vote.Candidate[offset : offset+PeerIDLength]
@@ -66,6 +73,7 @@ func (voteResult *VoteResult) AddVote(vote *types.Vote) error {
 			}
 			voteResult.rmap[v] = new(big.Int).Add(voteResult.rmap[v], vote.GetAmountBigInt())
 		}
+		voteResult.total = new(big.Int).Add(voteResult.total, vote.GetAmountBigInt())
 	} else {
 		for offset := 0; offset < len(vote.Candidate); offset += PeerIDLength {
 			key := vote.Candidate[offset : offset+PeerIDLength]
@@ -97,6 +105,11 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 }
 
 func (vr *VoteResult) Sync(scs *state.ContractState) error {
+	if vr.ex {
+		if err := scs.SetData(append(totalKey, vr.key...), vr.total.Bytes()); err != nil {
+			return err
+		}
+	}
 	return scs.SetData(append(sortKey, vr.key...), serializeVoteList(vr.buildVoteList(), vr.ex))
 }
 
@@ -105,7 +118,11 @@ func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	voteResult := newVoteResult(key)
+	total, err := scs.GetData(append(totalKey, key...))
+	if err != nil {
+		return nil, err
+	}
+	voteResult := newVoteResult(key, new(big.Int).SetBytes(total))
 	if len(data) != 0 {
 		voteList := deserializeVoteList(data, voteResult.ex)
 		if voteList != nil {
@@ -125,7 +142,7 @@ func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 	if voteResult == nil {
 		return errors.New("Invalid argument : voteReult should not nil")
 	}
-	res := newVoteResult(defaultVoteKey)
+	res := newVoteResult(defaultVoteKey, nil)
 	res.rmap = voteResult
 	return res.Sync(scs)
 }

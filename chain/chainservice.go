@@ -462,6 +462,9 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
+		if n == 0 {
+			return system.GetVoteResult(cs.sdb, []byte(id), system.GetBpCount(cs.sdb.GetStateDB()))
+		}
 		return system.GetVoteResult(cs.sdb, []byte(id), int(n))
 	case consensus.ConsensusName[consensus.ConsensusRAFT]:
 		//return cs.GetBPs()

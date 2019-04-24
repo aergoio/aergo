@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
+	"strconv"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -20,6 +21,7 @@ import (
 var defaultBpCount int
 
 var voteKey = []byte("vote")
+var totalKey = []byte("total")
 var sortKey = []byte("sort")
 
 const PeerIDLength = 39
@@ -123,6 +125,13 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
+		proposal, err := getProposal(scs, types.ProposalIDfromKey(key))
+		if err != nil {
+			return err
+		}
+		if proposal != nil && proposal.GetBlockto() < context.BlockNo {
+			continue
+		}
 		voteResult, err := loadVoteResult(scs, key)
 		if err != nil {
 			return err
@@ -179,7 +188,7 @@ func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) erro
 // BuildOrderedCandidates returns a candidate list ordered by votes.xs
 func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	// TODO: cleanup
-	voteResult := newVoteResult(defaultVoteKey)
+	voteResult := newVoteResult(defaultVoteKey, nil)
 	voteResult.rmap = vote
 	l := voteResult.buildVoteList()
 	bps := make([]string, 0, len(l.Votes))
@@ -219,10 +228,35 @@ func InitDefaultBpCount(bpCount int) {
 func getDefaultBpCount() int {
 	return defaultBpCount
 }
+func GetBpCount(ar AccountStateReader) int {
+	result, err := GetVoteResultEx(ar, types.GenProposalKey("BPCOUNT"), 1)
+	if err != nil {
+		panic("could not get vote result for min staking")
+	}
+	if len(result.Votes) == 0 {
+		return getDefaultBpCount()
+	}
+	power := result.Votes[0].GetAmountBigInt()
+	if power.Cmp(big.NewInt(0)) == 0 {
+		return getDefaultBpCount()
+	}
+	total, err := getTotal(ar)
+	if err != nil {
+		panic("failed to get staking total when calculate bp count")
+	}
+	if new(big.Int).Div(total, new(big.Int).Div(power, big.NewInt(100))).Cmp(big.NewInt(150)) <= 0 {
+		bpcount, err := strconv.Atoi(string(result.Votes[0].GetCandidate()))
+		if err != nil {
+			return getDefaultBpCount()
+		}
+		return bpcount
+	}
+	return getDefaultBpCount()
+}
 
 // GetRankers returns the IDs of the top n rankers.
 func GetRankers(ar AccountStateReader) ([]string, error) {
-	n := getDefaultBpCount()
+	n := GetBpCount(ar)
 
 	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
@@ -233,7 +267,6 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 	for _, v := range vl.Votes {
 		bps = append(bps, enc.ToString(v.Candidate))
 	}
-
 	return bps, nil
 }
 

@@ -126,7 +126,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if blockNo < proposal.Blockfrom {
 			return nil, fmt.Errorf("the voting begins at %d", proposal.Blockfrom)
 		}
-		if blockNo > proposal.Blockto {
+		if proposal.Blockto != 0 && blockNo > proposal.Blockto {
 			return nil, fmt.Errorf("the voting was already done at %d", proposal.Blockto)
 		}
 		candis := ci.Args[1:]

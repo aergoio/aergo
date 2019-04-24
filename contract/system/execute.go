@@ -91,7 +91,8 @@ func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, erro
 	var results []*types.VoteInfo
 	votes = append(votes, []byte(defaultVoteKey))
 	for _, key := range votes {
-		result := &types.VoteInfo{Id: string(key)}
+		id := types.ProposalIDfromKey(key)
+		result := &types.VoteInfo{Id: id}
 		v, err := getVote(scs, key, address)
 		if err != nil {
 			return nil, err
@@ -107,7 +108,7 @@ func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, erro
 				return nil, fmt.Errorf("%s: %s", err.Error(), string(v.Candidate))
 			}
 		}
-		result.Amount = v.Amount
+		result.Amount = new(big.Int).SetBytes(v.Amount).String()
 		results = append(results, result)
 	}
 	return results, nil

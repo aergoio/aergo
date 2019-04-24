@@ -27,7 +27,7 @@ func init() {
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
 	voteStatCmd.MarkFlagRequired("address")
 	rootCmd.AddCommand(bpCmd)
-	bpCmd.Flags().Uint64Var(&number, "count", 23, "the number of elected")
+	bpCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 }
 
 var voteStatCmd = &cobra.Command{
@@ -104,7 +104,7 @@ func execVote(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	cmd.Println(string(payload))
+	//cmd.Println(string(payload))
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Account:   account,

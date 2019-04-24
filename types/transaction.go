@@ -167,6 +167,13 @@ func ValidateSystemTx(tx *TxBody) error {
 		if len(ci.Args) != 6 {
 			return fmt.Errorf("the number of arguments invalid %d", len(ci.Args))
 		}
+		id, ok := ci.Args[0].(string)
+		if !ok {
+			return fmt.Errorf("could not create proposal id")
+		}
+		if err := validateAllowedChar([]byte(id)); err != nil {
+			return err
+		}
 		for i, v := range ci.Args {
 			if i == 5 { //string array = 5 : candidates
 				candis, ok := v.([]interface{})
@@ -361,7 +368,7 @@ const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"
 
 func validateAllowedChar(param []byte) error {
 	if param == nil {
-		return fmt.Errorf("invalid parameter in NameTx")
+		return fmt.Errorf("not allowed character : nil")
 	}
 	for _, char := range string(param) {
 		if !strings.Contains(allowedNameChar, strings.ToLower(string(char))) {
