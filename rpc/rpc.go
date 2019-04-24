@@ -7,8 +7,8 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net"
 	"net/http"
 	"reflect"
@@ -225,7 +225,7 @@ func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo {
 	statusInfo["version"] = ns.version
 	if err != nil {
 		ns.Logger.Error().Err(err).Msg("p2p actor error")
-		statusInfo["id"] = p2p.NodeSID()
+		statusInfo["id"] = p2pkey.NodeSID()
 	} else {
 		meta := rsp.(p2pcommon.PeerMeta)
 		statusInfo["id"] = meta.ID.Pretty()

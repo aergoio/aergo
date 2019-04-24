@@ -6,8 +6,7 @@
 package p2p
 
 import (
-	"os"
-	"path/filepath"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"sync"
 	"time"
 
@@ -20,20 +19,11 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
-
-type nodeInfo struct {
-	id      peer.ID
-	sid     string
-	pubKey  crypto.PubKey
-	privKey crypto.PrivKey
-}
 
 // P2P is actor component for p2p
 type P2P struct {
@@ -55,82 +45,13 @@ type P2P struct {
 var (
 	_  p2pcommon.ActorService     = (*P2P)(nil)
 	_  p2pcommon.HSHandlerFactory = (*P2P)(nil)
-	ni *nodeInfo
 )
-
-// InitNodeInfo initializes node-specific informations like node id.
-// Caution: this must be called before all the goroutines are started.
-func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, logger *log.Logger) {
-	// check Key and address
-	var (
-		priv crypto.PrivKey
-		pub  crypto.PubKey
-		err  error
-	)
-
-	if p2pCfg.NPKey != "" {
-		priv, pub, err = LoadKeyFile(p2pCfg.NPKey)
-		if err != nil {
-			panic("Failed to load Keyfile '" + p2pCfg.NPKey + "' " + err.Error())
-		}
-	} else {
-		logger.Info().Msg("No private key file is configured, so use auto-generated pk file instead.")
-
-		autogenFilePath := filepath.Join(baseCfg.AuthDir, DefaultPkKeyPrefix+DefaultPkKeyExt)
-		if _, err := os.Stat(autogenFilePath); os.IsNotExist(err) {
-			logger.Info().Str("pk_file", autogenFilePath).Msg("Generate new private key file.")
-			priv, pub, err = GenerateKeyFile(baseCfg.AuthDir, DefaultPkKeyPrefix)
-			if err != nil {
-				panic("Failed to generate new pk file: " + err.Error())
-			}
-		} else {
-			logger.Info().Str("pk_file", autogenFilePath).Msg("Load existing generated private key file.")
-			priv, pub, err = LoadKeyFile(autogenFilePath)
-			if err != nil {
-				panic("Failed to load generated pk file '" + autogenFilePath + "' " + err.Error())
-			}
-		}
-	}
-	id, _ := peer.IDFromPublicKey(pub)
-
-	ni = &nodeInfo{
-		id:      id,
-		sid:     enc.ToString([]byte(id)),
-		pubKey:  pub,
-		privKey: priv,
-	}
-
-	p2putil.UseFullID = p2pCfg.LogFullPeerID
-}
-
-// NodeID returns the node id.
-func NodeID() peer.ID {
-	return ni.id
-}
-
-// NodeSID returns the string representation of the node id.
-func NodeSID() string {
-	if ni == nil {
-		return ""
-	}
-	return ni.sid
-}
-
-// NodePrivKey returns the private key of the node.
-func NodePrivKey() crypto.PrivKey {
-	return ni.privKey
-}
-
-// NodePubKey returns the public key of the node.
-func NodePubKey() crypto.PubKey {
-	return ni.pubKey
-}
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(cfg *config.Config, chainsvc *chain.ChainService) *P2P {
 	p2psvc := &P2P{}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
-	p2psvc.init(cfg, chainsvc)
+	p2psvc.initP2P(cfg, chainsvc)
 	return p2psvc
 }
 
@@ -184,7 +105,7 @@ func (p2ps *P2P) ChainID() *types.ChainID {
 	return p2ps.chainID
 }
 
-func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
+func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.ca = chainsvc
 
 	// check genesis block and get meta informations from it
@@ -201,7 +122,7 @@ func (p2ps *P2P) init(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.chainID = chainID
 
 	netTransport := NewNetworkTransport(cfg.P2P, p2ps.Logger)
-	signer := newDefaultMsgSigner(ni.privKey, ni.pubKey, ni.id)
+	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 	mf := &v030MOFactory{}
 	//reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
@@ -314,7 +235,7 @@ func (p2ps *P2P) FutureRequest(actor string, msg interface{}, timeout time.Durat
 
 // FutureRequestDefaultTimeout implement interface method of ActorService
 func (p2ps *P2P) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
-	return p2ps.RequestToFuture(actor, msg, DefaultActorMsgTTL)
+	return p2ps.RequestToFuture(actor, msg, p2pcommon.DefaultActorMsgTTL)
 }
 
 // CallRequest implement interface method of ActorService
@@ -325,7 +246,7 @@ func (p2ps *P2P) CallRequest(actor string, msg interface{}, timeout time.Duratio
 
 // CallRequest implement interface method of ActorService
 func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
-	future := p2ps.RequestToFuture(actor, msg, DefaultActorMsgTTL)
+	future := p2ps.RequestToFuture(actor, msg, p2pcommon.DefaultActorMsgTTL)
 	return future.Result()
 }
 

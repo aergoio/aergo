@@ -3,12 +3,12 @@ package dpos
 import (
 	"container/list"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"sort"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -53,7 +53,7 @@ func newLibStatus(confirmsRequired uint16) *libStatus {
 		Prpsd:            make(proposed),
 		Lib:              &blockInfo{},
 		confirms:         list.New(),
-		bpid:             p2p.NodeSID(),
+		bpid:             p2pkey.NodeSID(),
 		confirmsRequired: confirmsRequired,
 	}
 }

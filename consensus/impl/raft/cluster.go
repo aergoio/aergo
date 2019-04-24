@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -88,7 +88,7 @@ func (cc *Cluster) addMember(id uint64, url string, peerID peer.ID) error {
 	}
 
 	// check if mapping between raft id and PeerID is valid
-	if cc.ID == id && peerID != p2p.NodeID() {
+	if cc.ID == id && peerID != p2pkey.NodeID() {
 		return ErrInvalidRaftPeerID
 	}
 

@@ -8,6 +8,7 @@ package dpos
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -15,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -164,7 +164,7 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 }
 
 func (dpos *DPoS) bpid() peer.ID {
-	return p2p.NodeID()
+	return p2pkey.NodeID()
 }
 
 // VerifyTimestamp checks the validity of the block timestamp.

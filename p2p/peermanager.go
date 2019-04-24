@@ -3,6 +3,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net"
 	"strconv"
 	"sync"
@@ -135,7 +136,7 @@ func (pm *peerManager) SelfMeta() p2pcommon.PeerMeta {
 	return pm.nt.SelfMeta()
 }
 func (pm *peerManager) SelfNodeID() peer.ID {
-	return pm.nt.ID()
+	return p2pkey.NodeID()
 }
 
 func (pm *peerManager) init() {
@@ -182,7 +183,7 @@ func (pm *peerManager) Stop() error {
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
 	for _, target := range pm.conf.NPAddPeers {
-		peerMeta, err := ParseMultiAddrString(target)
+		peerMeta, err := p2putil.ParseMultiAddrString(target)
 		if err != nil {
 			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
 			continue

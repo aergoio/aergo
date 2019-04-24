@@ -6,11 +6,12 @@
 package pmap
 
 import (
+	"github.com/aergoio/aergo/p2p"
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	peer "github.com/libp2p/go-libp2p-peer"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -122,7 +123,7 @@ func (lntc *LiteContainerService) Receive(context actor.Context) {
 
 // TODO need refactoring. this code is copied from subprotcoladdrs.go
 func (lntc *LiteContainerService) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
-	selfPeerID := lntc.nt.SelfNodeID()
+	selfPeerID := p2pkey.NodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := peer.ID(rPeerAddr.PeerID)
@@ -151,7 +152,7 @@ func (lntc *LiteContainerService) FutureRequest(actor string, msg interface{}, t
 
 // FutureRequestDefaultTimeout implement interface method of ActorService
 func (lntc *LiteContainerService) FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future {
-	return lntc.RequestToFuture(actor, msg, p2p.DefaultActorMsgTTL)
+	return lntc.RequestToFuture(actor, msg, p2pcommon.DefaultActorMsgTTL)
 }
 
 // CallRequest implement interface method of ActorService
@@ -162,6 +163,6 @@ func (lntc *LiteContainerService) CallRequest(actor string, msg interface{}, tim
 
 // CallRequest implement interface method of ActorService
 func (lntc *LiteContainerService) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
-	future := lntc.RequestToFuture(actor, msg, p2p.DefaultActorMsgTTL)
+	future := lntc.RequestToFuture(actor, msg, p2pcommon.DefaultActorMsgTTL)
 	return future.Result()
 }

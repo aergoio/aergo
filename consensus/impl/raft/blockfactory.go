@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/libp2p/go-libp2p-crypto"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -106,8 +106,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		blockInterval:    time.Second * time.Duration(cfg.Consensus.BlockInterval),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
-		ID:               p2p.NodeSID(),
-		privKey:          p2p.NodePrivKey(),
+		ID:               p2pkey.NodeSID(),
+		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
 	}
 

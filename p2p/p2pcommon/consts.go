@@ -7,6 +7,7 @@ package p2pcommon
 
 import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
+	"time"
 )
 
 // constants of p2p protocol since v0.3
@@ -29,3 +30,18 @@ const (
 const (
 	AergoP2PSub protocol.ID = "/aergop2p/0.3"
 )
+
+// constants about private key
+const (
+	DefaultPkKeyPrefix = "aergo-peer"
+	DefaultPkKeyExt    = ".key"
+	DefaultPubKeyExt   = ".pub"
+	DefaultPeerIDExt   = ".id"
+)
+
+// constants for inter-communication of aergosvr
+const (
+	// other actor
+	DefaultActorMsgTTL = time.Second * 4
+)
+

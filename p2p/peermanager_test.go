@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	"strconv"
 	"sync"
@@ -70,7 +71,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
-	InitNodeInfo(&tConfig.BaseConfig, tConfig.P2P, tLogger)
+	p2pkey.InitNodeInfo(&tConfig.BaseConfig, tConfig.P2P, "1.0.0-test", tLogger)
 	target := NewPeerManager(nil, nil, mockActorServ,
 		tConfig,
 		nil, nil, nil,
@@ -153,7 +154,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 func TestPeerManager_init(t *testing.T) {
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
 	defaultCfg := tConfig.P2P
-	InitNodeInfo(&tConfig.BaseConfig, defaultCfg, logger)
+	p2pkey.InitNodeInfo(&tConfig.BaseConfig, defaultCfg, "1.0.0-test", logger)
 	localIP, _ := p2putil.ExternalIP()
 
 	tests := []struct {

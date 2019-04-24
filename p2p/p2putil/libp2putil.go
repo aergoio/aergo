@@ -3,12 +3,11 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package p2putil
 
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/multiformats/go-multiaddr"
@@ -41,7 +40,7 @@ func ToMultiAddr(ipAddr net.IP, port uint32) (multiaddr.Multiaddr, error) {
 
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
-	ipAddr, err := p2putil.GetSingleIPAddress(m.IPAddress)
+	ipAddr, err := GetSingleIPAddress(m.IPAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +95,7 @@ func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 			return nil, err
 		}
 		domainName := splitted[2]
-		ips, err := p2putil.ResolveHostDomain(domainName)
+		ips, err := ResolveHostDomain(domainName)
 		if err != nil {
 			return nil, fmt.Errorf("Could not get IPs: %v\n", err)
 		}
@@ -166,9 +165,9 @@ func GenerateKeyFile(dir, prefix string) (crypto.PrivKey, crypto.PubKey, error) 
 
 func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string) error {
 
-	pkFile := filepath.Join(dir, prefix+DefaultPkKeyExt)
+	pkFile := filepath.Join(dir, prefix+p2pcommon.DefaultPkKeyExt)
 //	pubFile := filepath.Join(dir, prefix+".pub")
-	idFile := filepath.Join(dir, prefix+DefaultPeerIDExt)
+	idFile := filepath.Join(dir, prefix+p2pcommon.DefaultPeerIDExt)
 
 	// Write private key file
 	pkf, err := os.Create(pkFile)

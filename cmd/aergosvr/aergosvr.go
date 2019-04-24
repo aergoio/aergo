@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -148,7 +149,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
 	}
 
-	p2p.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, svrlog)
+	p2pkey.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, githash, svrlog)
 
 	compMng := component.NewComponentHub()
 

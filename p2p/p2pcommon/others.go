@@ -7,7 +7,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
@@ -126,10 +125,7 @@ type NetworkTransport interface {
 	Start() error
 	Stop() error
 
-	PrivateKey() crypto.PrivKey
-	PublicKey() crypto.PubKey
 	SelfMeta() PeerMeta
-	SelfNodeID() peer.ID
 
 	GetAddressesOfPeer(peerID peer.ID) []string
 

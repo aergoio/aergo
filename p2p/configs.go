@@ -7,12 +7,6 @@ package p2p
 
 import "time"
 
-// constants for inter-communication of aergosvr
-const (
-	// other actor
-	DefaultActorMsgTTL = time.Second * 4
-)
-
 // constants for peer communicating
 const (
 	// peer handshake will be failed when taken more than defaultHandshakeTTL
@@ -75,10 +69,3 @@ const (
 	MinNewBlkNotiInterval = time.Second >> 2
 )
 
-// constants about private key
-const (
-	DefaultPkKeyPrefix = "aergo-peer"
-	DefaultPkKeyExt    = ".key"
-	DefaultPubKeyExt   = ".pub"
-	DefaultPeerIDExt   = ".id"
-)

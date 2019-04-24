@@ -7,6 +7,7 @@ package dpos
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -66,8 +66,8 @@ func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC
 		bpTimeoutC:       make(chan interface{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             quitC,
-		ID:               p2p.NodeSID(),
-		privKey:          p2p.NodePrivKey(),
+		ID:               p2pkey.NodeSID(),
+		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
 	}
 

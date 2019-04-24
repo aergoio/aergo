@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package p2putil
 
 import (
 	"net"
@@ -15,7 +15,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	peer "github.com/libp2p/go-libp2p-peer"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 )
@@ -98,7 +97,7 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 				assert.Nil(t, err)
 				expIp := net.ParseIP(tt.fields.IPAddress)
 				if expIp == nil {
-					ips, _ := p2putil.ResolveHostDomain(tt.fields.IPAddress)
+					ips, _ := ResolveHostDomain(tt.fields.IPAddress)
 					expIp = ips[0]
 				}
 				assert.Equal(t, expIp, net.ParseIP(val))
@@ -204,7 +203,7 @@ func TestGenerateKeyFile(t *testing.T) {
 				return
 			}
 
-			file := filepath.Join(tt.args.dir, tt.args.prefix+DefaultPkKeyExt)
+			file := filepath.Join(tt.args.dir, tt.args.prefix+p2pcommon.DefaultPkKeyExt)
 			if !tt.wantErr {
 				if !gotPriv.GetPublic().Equals(gotPub) {
 					t.Errorf("priv key and pub key check failed")

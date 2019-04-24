@@ -8,6 +8,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net"
 	"strconv"
 	"sync"
@@ -52,17 +53,8 @@ type networkTransport struct {
 
 var _ p2pcommon.NetworkTransport = (*networkTransport)(nil)
 
-func (sl *networkTransport) PrivateKey() crypto.PrivKey {
-	return sl.privateKey
-}
-func (sl *networkTransport) PublicKey() crypto.PubKey {
-	return sl.publicKey
-}
 func (sl *networkTransport) SelfMeta() p2pcommon.PeerMeta {
 	return sl.selfMeta
-}
-func (sl *networkTransport) SelfNodeID() peer.ID {
-	return sl.selfMeta.ID
 }
 
 func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransport {
@@ -79,9 +71,9 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransp
 
 func (sl *networkTransport) initNT() {
 	// check Key and address
-	priv := NodePrivKey()
-	pub := NodePubKey()
-	peerID := NodeID()
+	priv := p2pkey.NodePrivKey()
+	pub := p2pkey.NodePubKey()
+	peerID := p2pkey.NodeID()
 	sl.privateKey = priv
 	sl.publicKey = pub
 
@@ -163,7 +155,7 @@ func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.Strea
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
 func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error) {
-	var peerAddr, err = PeerMetaToMultiAddr(meta)
+	var peerAddr, err = p2putil.PeerMetaToMultiAddr(meta)
 	if err != nil {
 		sl.logger.Warn().Err(err).Str("addr", meta.IPAddress).Msg("invalid NPAddPeer address")
 		return nil, fmt.Errorf("invalid IP address %s:%d", meta.IPAddress, meta.Port)
@@ -215,7 +207,7 @@ func (sl *networkTransport) ClosePeerConnection(peerID peer.ID) bool {
 func (sl *networkTransport) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
-	listen, err := ToMultiAddr(sl.bindAddress, sl.bindPort)
+	listen, err := p2putil.ToMultiAddr(sl.bindAddress, sl.bindPort)
 	if err != nil {
 		panic("Can't estabilish listening address: " + err.Error())
 	}
@@ -228,10 +220,8 @@ func (sl *networkTransport) startListener() {
 		sl.logger.Fatal().Err(err).Str("addr", listen.String()).Msg("Couldn't listen from")
 		panic(err.Error())
 	}
-
-	sl.logger.Info().Str(p2putil.LogFullID, sl.SelfNodeID().Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(sl.SelfNodeID())).Str("addr[0]", listens[0].String()).
-		Msg("Set self node's pid, and listening for connections")
 	sl.Host = newHost
+	sl.logger.Info().Str(p2putil.LogFullID, sl.ID().Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(sl.ID())).Str("addr[0]", listens[0].String()).	Msg("Set self node's pid, and listening for connections")
 }
 
 func (sl *networkTransport) Stop() error {
