@@ -166,16 +166,30 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	switch (lua_type(L, idx)) {
 	case LUA_TNUMBER: {
 		if (json_form && iskey) {
-			if (luaL_isinteger(L, idx))
+			if (luaL_isinteger(L, idx)) {
 				len = sprintf (tmp, "\"%ld\",", lua_tointeger(L, idx));
-			else
-				len = sprintf (tmp, "\"%.14g\",", lua_tonumber(L, idx));
+			}
+			else {
+			    double d = lua_tonumber(L, idx);
+			    if (isinf(d) || isnan(d)) {
+			        lua_pushstring(L, "not support nan or infinity");
+			        return false;
+			    }
+				len = sprintf (tmp, "\"%.14g\",", d);
+			}
 		}
 		else {
-			if (luaL_isinteger(L, idx))
+			if (luaL_isinteger(L, idx)) {
 				len = sprintf (tmp, "%ld,", lua_tointeger(L, idx));
-			else
-				len = sprintf (tmp, "%.14g,", lua_tonumber(L, idx));
+			}
+			else {
+				double d = lua_tonumber(L, idx);
+			    if (isinf(d) || isnan(d)) {
+			        lua_pushstring(L, "not support nan or infinity");
+			        return false;
+			    }
+			    len = sprintf (tmp, "%.14g,", lua_tonumber(L, idx));
+			}
 		}
 		src_val = tmp;
 		break;
