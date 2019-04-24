@@ -718,7 +718,7 @@ func (cs *ChainService) executeBlockReco(_ *state.BlockState, block *types.Block
 	}
 
 	if !cs.sdb.GetStateDB().HasMarker(block.GetHeader().GetBlocksRootHash()) {
-		logger.Error().Str("hash", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).Msg("state marker is not exist")
+		logger.Error().Str("hash", block.ID()).Uint64("no", block.GetHeader().GetBlockNo()).Msg("state marker does not exist")
 		return ErrStateNoMarker
 	}
 

@@ -86,8 +86,7 @@ func (cs *ChainService) recoverNormal() error {
 
 	stateDB := cs.sdb.GetStateDB()
 	if !stateDB.HasMarker(best.GetHeader().GetBlocksRootHash()) {
-		logger.Error().Str("besthash", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("no marker")
-		return ErrRecoNoBestStateRoot
+		logger.Warn().Str("besthash", best.ID()).Uint64("no", best.GetHeader().GetBlockNo()).Msg("marker of state root does not exist")
 	}
 
 	if !bytes.Equal(cs.sdb.GetStateDB().GetRoot(), best.GetHeader().GetBlocksRootHash()) {
