@@ -102,6 +102,7 @@ func NodePubKey() crypto.PubKey {
 	return ni.pubKey
 }
 
+// NodeVersion returns the version of this binary. TODO: It's not good that version info is in p2pkey package
 func NodeVersion() string {
 	return ni.version
 }

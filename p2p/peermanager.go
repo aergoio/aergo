@@ -407,7 +407,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 			return nil
 		}
 		selfpi := &message.PeerInfo{
-			&addr, meta.Hidden, time.Now(), bestBlk.BlockHash(), bestBlk.Header.BlockNo, types.RUNNING, true}
+			&addr, meta.Version, meta.Hidden, time.Now(), bestBlk.BlockHash(), bestBlk.Header.BlockNo, types.RUNNING, true}
 		peers = append(peers, selfpi)
 	}
 	for _, aPeer := range pm.peerCache {
@@ -418,7 +418,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		addr := meta.ToPeerAddress()
 		lastNoti := aPeer.LastStatus()
 		pi := &message.PeerInfo{
-			&addr, meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
+			&addr, meta.Version, meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers

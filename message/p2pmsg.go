@@ -124,6 +124,7 @@ type GetPeers struct {
 
 type PeerInfo struct {
 	Addr            *types.PeerAddress
+	Version         string
 	Hidden          bool
 	CheckTime       time.Time
 	LastBlockHash   []byte

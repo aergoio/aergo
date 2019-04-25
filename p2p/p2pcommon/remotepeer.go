@@ -16,6 +16,7 @@ type RemotePeer interface {
 	Meta() PeerMeta
 	ManageNumber() uint32
 	Name() string
+	Version() string
 
 	AddMessageHandler(subProtocol SubProtocol, handler MessageHandler)
 

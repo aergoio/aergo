@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"io"
 	"time"
 
@@ -177,6 +178,7 @@ func createStatusMsg(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService,
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 		NoExpose:      pm.SelfMeta().Hidden,
+		Version:       p2pkey.NodeVersion(),
 	}
 
 	return statusMsg, nil

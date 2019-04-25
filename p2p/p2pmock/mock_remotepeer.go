@@ -84,6 +84,18 @@ func (mr *MockRemotePeerMockRecorder) Name() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockRemotePeer)(nil).Name))
 }
 
+// Version mocks base method
+func (m *MockRemotePeer) Version() string {
+	ret := m.ctrl.Call(m, "Version")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Version indicates an expected call of Version
+func (mr *MockRemotePeerMockRecorder) Version() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockRemotePeer)(nil).Version))
+}
+
 // AddMessageHandler mocks base method
 func (m *MockRemotePeer) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
 	m.ctrl.Call(m, "AddMessageHandler", subProtocol, handler)

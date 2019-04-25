@@ -81,6 +81,7 @@ type InOutPeer struct {
 	State     string
 	Hidden    bool
 	Self      bool
+	Version   string
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -251,6 +252,11 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.State = types.PeerState(p.State).String()
 	out.Hidden = p.Hidden
 	out.Self = p.Selfpeer
+	if p.Version != "" {
+		out.Version = p.Version
+	} else {
+		out.Version = "(unknown)"
+	}
 	return out
 }
 

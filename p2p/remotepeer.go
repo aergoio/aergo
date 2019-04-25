@@ -143,6 +143,10 @@ func (p *remotePeerImpl) Name() string {
 	return p.name
 }
 
+func (p *remotePeerImpl) Version() string {
+	return p.meta.Version
+}
+
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
 	p.handlers[subProtocol] = handler
 }

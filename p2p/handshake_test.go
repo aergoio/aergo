@@ -9,6 +9,9 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/p2p/p2pkey"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"reflect"
 	"testing"
 	"time"
@@ -22,6 +25,21 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const (
+	sampleKeyFile = "../test/sample.key"
+)
+
+var (
+	// sampleID matches the key defined in test config file
+	sampleID peer.ID
+)
+
+func init() {
+	sampleID = "16Uiu2HAmP2iRDpPumUbKhNnEngoxAUQWBmCyn7FaYUrkaDAMXJPJ"
+	baseCfg := &config.BaseConfig{AuthDir: "test"}
+	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
+	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", logger)
+}
 func Test_runFuncTimeout(t *testing.T) {
 	type args struct {
 		m   targetFunc
