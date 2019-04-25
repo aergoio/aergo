@@ -82,11 +82,10 @@ type ConsensusType int
 const (
 	ConsensusDPOS ConsensusType = iota
 	ConsensusRAFT
-	ConsensusRAFTV2
 	ConsensusSBP
 )
 
-var ConsensusName = []string{"dpos", "raft", "raftv2", "sbp"}
+var ConsensusName = []string{"dpos", "raft", "sbp"}
 
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {

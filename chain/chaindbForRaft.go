@@ -95,7 +95,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 	}
 
 	// set lastindex
-	logger.Debug().Uint64("last wal entry index", lastIdx).Msg("set last wal entry")
+	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
 
 	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
 

@@ -50,7 +50,7 @@ var (
 )
 
 func init() {
-	logger = log.NewLogger("raftv2")
+	logger = log.NewLogger("raft")
 	httpLogger = log.NewLogger("rafthttp")
 }
 
@@ -95,7 +95,7 @@ type BlockFactory struct {
 
 // GetName returns the name of the consensus.
 func GetName() string {
-	return consensus.ConsensusName[consensus.ConsensusRAFTV2]
+	return consensus.ConsensusName[consensus.ConsensusRAFT]
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
@@ -201,10 +201,10 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
 
-	logger.Info().Uint64("RaftID", bf.bpc.ID).Msg("raft server start")
+	logger.Info().Uint64("RaftID", uint64(bf.bpc.NodeID)).Msg("raft server start")
 
-	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.RaftListenUrl, false, snapdir,
-		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false, snapdir,
+		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile,
 		nil, RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
@@ -240,7 +240,7 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 }
 
 func (bf *BlockFactory) GetType() consensus.ConsensusType {
-	return consensus.ConsensusRAFTV2
+	return consensus.ConsensusRAFT
 }
 
 // IsTransactionValid checks the onsensus level validity of a transaction
@@ -420,6 +420,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 	return nil
 }
 
+/*
 // waitUntilStartable wait until this chain synchronizes with more than half of all peers
 func (bf *BlockFactory) waitSyncWithMajority() error {
 	ticker := time.NewTicker(peerCheckInterval)
@@ -441,7 +442,7 @@ func (bf *BlockFactory) waitSyncWithMajority() error {
 		}
 	}
 }
-
+*/
 // JobQueue returns the queue for block production triggering.
 func (bf *BlockFactory) JobQueue() chan<- interface{} {
 	return bf.jobQueue

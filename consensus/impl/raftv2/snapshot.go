@@ -20,7 +20,7 @@ var (
 	ErrEmptyProgress     = errors.New("snap target block is not set")
 )
 
-type getLeaderFuncType func() uint64
+type getLeaderFuncType func() MemberID
 
 type ChainSnapshotter struct {
 	p2pcommon.PeerAccessor
@@ -125,7 +125,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 		return ok
 	}
 
-	var leader uint64
+	var leader MemberID
 	getSyncLeader := func() (peer.ID, error) {
 		var peerID peer.ID
 		var err error
@@ -134,15 +134,15 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 			leader = chainsnap.getLeaderFunc()
 
 			if leader == HasNoLeader {
-				peerID, err = chainsnap.cluster.getMemberPeerAddressToSync()
+				peerID, err = chainsnap.cluster.getAnyPeerAddressToSync()
 				if err != nil {
-					logger.Error().Err(err).Uint64("leader", leader).Msg("can't get peeraddress of leader")
+					logger.Error().Err(err).Uint64("leader", uint64(leader)).Msg("can't get peeraddress of leader")
 					return "", err
 				}
 			} else {
-				peerID, err = chainsnap.cluster.getMemberPeerAddress(leader)
+				peerID, err = chainsnap.cluster.getEffectiveMembers().getMemberPeerAddress(leader)
 				if err != nil {
-					logger.Error().Err(err).Uint64("leader", leader).Msg("can't get peeraddress of leader")
+					logger.Error().Err(err).Uint64("leader", uint64(leader)).Msg("can't get peeraddress of leader")
 					return "", err
 				}
 			}
@@ -151,12 +151,12 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 				break
 			}
 
-			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", leader).Msg("peer is not live")
+			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", uint64(leader)).Msg("peer is not live")
 
 			time.Sleep(DfltTimeWaitPeerLive)
 		}
 
-		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", leader).Msg("target peer to sync")
+		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", uint64(leader)).Msg("target peer to sync")
 
 		return peerID, err
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos"
-	"github.com/aergoio/aergo/consensus/impl/raft"
 	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/consensus/impl/sbp"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -52,7 +51,6 @@ func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 	impl := map[string]consensus.Constructor{
 		dpos.GetName():   dpos.GetConstructor(cfg, hub, cdb, sdb),              // DPoS
 		sbp.GetName():    sbp.GetConstructor(cfg, hub, cdb, sdb),               // Simple BP
-		raft.GetName():   raft.GetConstructor(cfg, hub, cdb, sdb),              // Raft BP
 		raftv2.GetName(): raftv2.GetConstructor(cfg, hub, cs.WalDB(), sdb, pa), // Raft BP
 	}
 
