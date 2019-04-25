@@ -903,7 +903,7 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 			var err error
 
 			if cc, member, err = rs.ValidateConfChangeEntry(&ents[i]); err != nil {
-				logger.Warn().Err(err).Msg("failed to validate conf change")
+				logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
 				// reset pending conf change
 				cc.NodeID = raftlib.None
 				rs.node.ApplyConfChange(*cc)

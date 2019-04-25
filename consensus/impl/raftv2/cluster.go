@@ -27,6 +27,7 @@ const (
 type RaftInfo struct {
 	Leader string
 	Total  string
+	Name   string
 	RaftId string
 	Status *json.RawMessage
 }
@@ -354,7 +355,16 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 		leader = cl.rs.GetLeader()
 	}
 
-	rinfo := &RaftInfo{Leader: strconv.FormatUint(uint64(leader), 10), Total: strconv.FormatUint(uint64(cl.Size), 10), RaftId: strconv.FormatUint(uint64(cl.NodeID), 10)}
+	var leaderName string
+	var m *Member
+
+	if m = cl.getEffectiveMembers().getMember(leader); m != nil {
+		leaderName = m.Name
+	} else {
+		leaderName = "id=" + strconv.FormatUint(uint64(leader), 10)
+	}
+
+	rinfo := &RaftInfo{Leader: leaderName, Total: strconv.FormatUint(uint64(cl.Size), 10), Name: cl.NodeName, RaftId: strconv.FormatUint(uint64(cl.NodeID), 10)}
 
 	if withStatus && cl.rs != nil {
 		b, err := cl.rs.Status().MarshalJSON()
@@ -374,6 +384,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	}
 
 	type PeerInfo struct {
+		Name   string
 		RaftID string
 		PeerID string
 	}
@@ -391,7 +402,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	bps := make([]string, cl.Size)
 
 	for id, m := range cl.getEffectiveMembers().MapByID {
-		bp := &PeerInfo{RaftID: strconv.FormatUint(uint64(m.ID), 10), PeerID: m.PeerID.Pretty()}
+		bp := &PeerInfo{Name: m.Name, RaftID: strconv.FormatUint(uint64(m.ID), 10), PeerID: m.PeerID.Pretty()}
 		b, err = json.Marshal(bp)
 		if err != nil {
 			logger.Error().Err(err).Str("raftid", MemberIDToString(id)).Msg("failed to marshalEntryData raft consensus bp")
