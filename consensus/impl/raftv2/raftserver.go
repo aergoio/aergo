@@ -670,8 +670,6 @@ func (rs *raftServer) replayWAL() error {
 	if len(ents) > 0 {
 		rs.lastIndex = ents[len(ents)-1].Index
 	} else {
-		//commitChannel used for syncing startup
-		rs.commitC <- nil
 		rs.startSync = true
 	}
 

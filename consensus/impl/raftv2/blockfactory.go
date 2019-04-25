@@ -307,9 +307,6 @@ func (bf *BlockFactory) Start() {
 
 	runtime.LockOSThread()
 
-	// wait to commit all uncommited log in WAL, and start
-	bf.raftServer.WaitStartup()
-
 	for {
 		select {
 		case e := <-bf.jobQueue:
@@ -319,6 +316,8 @@ func (bf *BlockFactory) Start() {
 				}
 			}
 		case block, ok := <-bf.commitC():
+			logger.Debug().Msg("received block from raft")
+
 			if !ok {
 				logger.Fatal().Msg("commit channel for raft is closed")
 				return
