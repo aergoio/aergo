@@ -18,10 +18,6 @@ const (
 	// writeMsgBufferSize is queue size of message to a peer. connection will be closed when queue is exceeded.
 	writeMsgBufferSize = 40
 
-	// time to determine which the remote designated peer is not working.
-	DesignatedNodeTTL = time.Minute * 60
-	// time to determine which the remote peer is not working.
-	DefaultNodeTTL = time.Minute * 10
 )
 
 // constants for legacy sync algorithm. DEPRECATED newer sync loging in syncer package is used now.

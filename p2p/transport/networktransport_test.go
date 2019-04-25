@@ -3,9 +3,10 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package transport
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -26,11 +27,14 @@ import (
 // TODO split this test into two... one is to attempt make connection and the other is test peermanager if same peerid is given
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
 func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
+	var sampleBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
+	var sampleBlockHeight uint64 = 100215
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockActor := p2pmock.NewMockActorService(ctrl)
-	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
+	dummyBlock := types.Block{Hash: sampleBlockHash, Header: &types.BlockHeader{BlockNo: sampleBlockHeight}}
 	mockActor.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	//mockMF := new(MockMoFactory)
 	target := &networkTransport{conf: config.NewServerContext("", "").GetDefaultConfig().(*config.Config).P2P,
@@ -56,6 +60,9 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 }
 
 func Test_networkTransport_initSelfMeta(t *testing.T) {
+	logger := log.NewLogger("p2ptransport")
+	samplePeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+
 	type args struct {
 		peerID   peer.ID
 		noExpose bool
@@ -71,11 +78,11 @@ func Test_networkTransport_initSelfMeta(t *testing.T) {
 		wantID       peer.ID
 		wantHidden   bool
 	}{
-		{"TIP6", &cfg.P2PConfig{NetProtocolAddr: "fe80::dcbf:beff:fe87:e30a", NetProtocolPort: 7845}, args{dummyPeerID, false}, true, 7845, dummyPeerID, false},
-		{"TIP4", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{dummyPeerID, false}, true, 7845, dummyPeerID, false},
-		{"TDN", &cfg.P2PConfig{NetProtocolAddr: "www.aergo.io", NetProtocolPort: 7845}, args{dummyPeerID, false}, true, 7845, dummyPeerID, false},
-		{"TDefault", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7845}, args{dummyPeerID, false}, false, 7845, dummyPeerID, false},
-		{"THidden", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{dummyPeerID, true}, true, 7845, dummyPeerID, true},
+		{"TIP6", &cfg.P2PConfig{NetProtocolAddr: "fe80::dcbf:beff:fe87:e30a", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
+		{"TIP4", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
+		{"TDN", &cfg.P2PConfig{NetProtocolAddr: "www.aergo.io", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
+		{"TDefault", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7845}, args{samplePeerID, false}, false, 7845, samplePeerID, false},
+		{"THidden", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{samplePeerID, true}, true, 7845, samplePeerID, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

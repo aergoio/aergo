@@ -45,3 +45,10 @@ const (
 	DefaultActorMsgTTL = time.Second * 4
 )
 
+const (
+	// DesignatedNodeTTL is time to determine which the remote designated peer is not working.
+	DesignatedNodeTTL = time.Minute * 60
+
+	// DefaultNodeTTL is time to determine which the remote peer is not working.
+	DefaultNodeTTL = time.Minute * 10
+)

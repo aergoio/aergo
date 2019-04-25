@@ -3,18 +3,18 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package transport
 
 import (
 	"context"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	host "github.com/libp2p/go-libp2p-host"
 	inet "github.com/libp2p/go-libp2p-net"
@@ -240,7 +240,7 @@ func (sl *networkTransport) GetAddressesOfPeer(peerID peer.ID) []string {
 // TTL return node's ttl
 func getTTL(m p2pcommon.PeerMeta) time.Duration {
 	if m.Designated {
-		return DesignatedNodeTTL
+		return p2pcommon.DesignatedNodeTTL
 	}
-	return DefaultNodeTTL
+	return p2pcommon.DefaultNodeTTL
 }

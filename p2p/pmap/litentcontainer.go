@@ -6,7 +6,7 @@
 package pmap
 
 import (
-	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/transport"
 	"sync"
 	"time"
 
@@ -102,7 +102,7 @@ func (lntc *LiteContainerService) init(cfg *config.Config) {
 
 	lntc.Logger.Info().Str("genesis", chainID.ToJSON()).Msg("genesis block loaded")
 
-	netTransport := p2p.NewNetworkTransport(cfg.P2P, lntc.Logger)
+	netTransport := transport.NewNetworkTransport(cfg.P2P, lntc.Logger)
 
 	lntc.mutex.Lock()
 	lntc.nt = netTransport
