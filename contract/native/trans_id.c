@@ -126,6 +126,30 @@ set_stack_addr(ir_fn_t *fn, ast_id_t *id)
 }
 
 static void
+check_return_stmt(ir_fn_t *fn, src_pos_t *pos)
+{
+    int i, j;
+
+    vector_foreach(&fn->bbs, i) {
+        ir_bb_t *bb = vector_get_bb(&fn->bbs, i);
+
+        vector_foreach(&bb->brs, j) {
+            ast_stmt_t *stmt;
+            ir_br_t *br = vector_get_br(&bb->brs, j);
+
+            if (br->bb != fn->exit_bb)
+                continue;
+
+            stmt = vector_get_last(&bb->stmts, ast_stmt_t);
+            if (stmt == NULL || !is_return_stmt(stmt)) {
+                ERROR(ERROR_MISSING_RETURN, pos);
+                return;
+            }
+        }
+    }
+}
+
+static void
 id_trans_fn(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *ret_id = id->u_fn.ret_id;
@@ -136,9 +160,6 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     ASSERT(id->up != NULL);
     ASSERT1(is_cont_id(id->up), id->up->kind);
     ASSERT(md != NULL);
-
-    if (!is_public_id(id) && !id->is_used)
-        return;
 
     id_trans_param(trans, id);
 
@@ -182,29 +203,29 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     fn_add_basic_blk(fn, fn->exit_bb);
 
     if (ret_id != NULL) {
-        /* The contract address or return value is returned at the end of "exit_bb" */
         ast_exp_t *arg_exp;
         ast_stmt_t *ret_stmt;
 
         if (is_ctor_id(id)) {
+            /* The contract address is returned at the end of "exit_bb" */
             arg_exp = exp_new_reg(fn->cont_idx);
             meta_set_int32(&arg_exp->meta);
+
+            ret_stmt = stmt_new_return(arg_exp, &id->pos);
+            ret_stmt->u_ret.ret_id = ret_id;
+
+            vector_add_last(&fn->exit_bb->stmts, ret_stmt);
         }
         else {
-            arg_exp = exp_new_reg(fn->ret_idx);
-            meta_copy(&arg_exp->meta, &ret_id->meta);
+            check_return_stmt(fn, &id->pos);
         }
-
-        ret_stmt = stmt_new_return(arg_exp, &id->pos);
-        ret_stmt->u_ret.ret_id = ret_id;
-
-        vector_add_last(&fn->exit_bb->stmts, ret_stmt);
     }
 
     trans->fn = NULL;
     trans->bb = NULL;
 
-    md_add_fn(md, fn);
+    if (is_public_id(id) || id->is_used)
+        md_add_fn(md, fn);
 }
 
 static void

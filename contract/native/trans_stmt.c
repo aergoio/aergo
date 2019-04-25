@@ -412,24 +412,17 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 {
-    ast_exp_t *arg_exp = stmt->u_ret.arg_exp;
     ir_fn_t *fn = trans->fn;
 
     ASSERT(fn != NULL);
 
-    if (arg_exp != NULL) {
-        ast_exp_t *reg_exp;
-        ast_id_t *ret_id = stmt->u_ret.ret_id;
+    if (stmt->u_ret.arg_exp != NULL) {
+        ASSERT(stmt->u_ret.ret_id != NULL);
+        ASSERT(!is_ctor_id(stmt->u_ret.ret_id->up));
 
-        ASSERT(ret_id != NULL);
-        ASSERT(!is_ctor_id(ret_id->up));
+        exp_trans(trans, stmt->u_ret.arg_exp);
 
-        reg_exp = exp_new_reg(fn->ret_idx);
-        meta_copy(&reg_exp->meta, &ret_id->meta);
-
-        exp_trans(trans, arg_exp);
-
-        bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, arg_exp, &stmt->pos));
+        bb_add_stmt(trans->bb, stmt);
     }
 
     /* The current basic block branches directly to the exit block */

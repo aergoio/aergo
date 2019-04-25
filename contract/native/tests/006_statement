@@ -446,34 +446,53 @@ contract test {
 @test(if_else)
 @run(test.test)
 contract test {
-    int v1 = 1;
-    string v2;
+    /*
+    string s;
+
+    func f1(bool cond) {
+        if (cond) {
+            s = "this is if";
+        }
+        else {
+            s = "this is else";
+        }
+    }
+
+    func f2(int v) string {
+        if (v == 1) {
+            return "gold";
+        }
+        else if (v == 2) {
+            return "silver";
+        }
+        else if (v == 3) {
+            return "bronze";
+        }
+        else {
+            return "out of range";
+        }
+    }
 
     test() {
-        if (0 == 0) { 
+        if (0 == 0) {
             pragma assert(true);
         }
         else {
             pragma assert(false);
         }
 
-        if (!true) {
-            v2 = "this is if";
-        }
-        else {
-            v2 = "this is else";
-        }
-        pragma assert(v2 == "this is else");
+        f1(true);
+        pragma assert(s == "this is if");
 
-        if (v1 == 1) {
-            v2 = "first";
-        } else if (v1 == 2 || v1 == 3) {
-            v2 = "second";
-        } else {
-            v2 = "don't care";
-        }
-        pragma assert(v2 == "first");
+        f1(false);
+        pragma assert(s == "this is else");
+
+        pragma assert(f2(1) == "first");
+        pragma assert(f2(2) == "silver");
+        pragma assert(f2(3) == "bronze");
+        pragma assert(f2(4) == "out of range");
     }
+    */
 }
 
 @test(missing_if_parenthesis)
@@ -497,31 +516,46 @@ contract test {
 @test(switch_case)
 @run(test.test)
 contract test {
-    int i;
     string s;
 
-    test() {
-        i = 2;
+    func f1(int i) {
         switch (i) {
         case 1: s = "case 1"; break;
         case 2: { s = "case 2"; } break;
         case 3: case 4: s = "case unknown"; break;
         default: break;
         }
+    }
+
+    func f2(int64 i) {
+        switch (i) {
+        case 1: s = "case 1";
+        case 2: case 3: s = "case 2";
+        }
+    }
+
+    test() {
+        f1(1);
+        pragma assert(s == "case 1");
+        f1(2);
+        pragma assert(s == "case 2");
+        f1(3);
+        pragma assert(s == "case unknown");
+        f1(4);
+        pragma assert(s == "case unknown");
+        s = "default";
+        f1(5);
+        pragma assert(s == "default");
+
+        s = null;
+        f2(1);
+        pragma assert(s == "case 2");
+        f2(2);
         pragma assert(s == "case 2");
 
-        i = 1;
-        switch (i) {
-        case 1: s += ",case 1";
-        case 2: case 3: s += ",case 2";
-        }
-        pragma assert(s == "case 2,case 1,case 2");
-
-        switch (i) {
-        default: return;
-        case 1: s = "fall through";
-        }
-        pragma assert(s == "fall through");
+        s = null;
+        f2(4);
+        pragma assert(s == null);
     }
 }
 
