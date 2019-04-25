@@ -3856,6 +3856,7 @@ abi.register(oom, p, cp)`
 		t.Error(err)
 	}
 }
+
 func TestDeploy2(t *testing.T) {
 	deploy := `
 function hello()
@@ -3919,6 +3920,106 @@ abi.payable(constructor)
 	}
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`[Contract.LuaDeployContract]newExecutor Error :not permitted state referencing at global scope`)
 	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInvalidKey(t *testing.T) {
+	src := `
+state.var {
+	h = state.map(),
+	arr = state.array(10),
+	v = state.value()
+}
+
+t = {}
+
+function key_table()
+	local k = {}
+	t[k] = "table"
+end
+
+function key_func()
+	t[key_table] = "function"
+end
+
+function key_statemap(key)
+	t[h] = "state.map"
+end
+
+function key_statearray(key)
+	t[arr] = "state.array"
+end
+
+function key_statevalue(key)
+	t[v] = "state.value"
+end
+
+function key_upval(key)
+	local k = {}
+	local f = function()
+		t[k] = "upval"
+	end
+	f()
+end
+
+abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "invalidkey", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_table"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_func"}`).Fail(
+		"cannot use 'function' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statearray"}`).Fail(
+			"cannot use 'userdata' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_upval"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
 	if err != nil {
 		t.Error(err)
 	}
