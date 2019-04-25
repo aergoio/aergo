@@ -92,6 +92,8 @@ stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp, ast_
 
     if (stmt->u_loop.blk != NULL)
         stmt->u_loop.blk->kind = BLK_LOOP;
+    else
+        stmt->u_loop.blk = blk_new_loop(&stmt->pos);
 
     return stmt;
 }

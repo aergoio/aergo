@@ -52,6 +52,8 @@ bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb)
     ASSERT(bb != NULL);
 
     vector_add_last(&bb->brs, br_new(cond_exp, br_bb));
+
+    br_bb->ref_cnt++;
 }
 
 void

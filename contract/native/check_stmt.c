@@ -219,6 +219,9 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ast_exp_t *loop_exp = stmt->u_loop.loop_exp;
     ast_blk_t *blk = stmt->u_loop.blk;
+    ast_blk_t *wrap_blk = blk_new_normal(&blk->pos);
+
+    ASSERT(blk != NULL);
 
     /* for-loop is converted like this:
      *
@@ -231,6 +234,12 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
      *  }
      */
 
+    if (stmt->u_loop.init_stmt != NULL)
+        vector_add_last(&wrap_blk->stmts, stmt->u_loop.init_stmt);
+
+    /* inline original block */
+    vector_add_last(&wrap_blk->stmts, stmt_new_blk(blk, &blk->pos));
+
     if (cond_exp != NULL) {
         ast_exp_t *not_exp;
         ast_stmt_t *break_stmt;
@@ -241,11 +250,10 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         vector_add_first(&blk->stmts, break_stmt);
     }
 
-    if (stmt->u_loop.init_stmt != NULL)
-        vector_add_first(&blk->stmts, stmt->u_loop.init_stmt);
-
     if (loop_exp != NULL)
         vector_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
+
+    stmt->u_loop.blk = wrap_blk;
 
     return true;
 }
@@ -253,8 +261,9 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 static bool
 stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 {
-    ast_id_t *iter_id;
-    ast_exp_t *iter_exp;
+    int i = 0;
+    ast_id_t *idx_id;
+    ast_exp_t *idx_exp;
     ast_exp_t *val_exp;
     ast_exp_t *arr_exp;
     ast_exp_t *size_exp;
@@ -263,6 +272,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     ast_stmt_t *init_stmt = stmt->u_loop.init_stmt;
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ast_blk_t *blk = stmt->u_loop.blk;
+    ast_blk_t *wrap_blk = blk_new_normal(&blk->pos);
     src_pos_t *pos = &stmt->pos;
 
     ASSERT(init_stmt != NULL);
@@ -287,43 +297,51 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
      *  }
      */
 
-    /* Make "int arr_idx = 0" */
-    iter_id = id_new_var("array$idx", MOD_PRIVATE, pos);
+    /* identifier for array iteration */
+    idx_id = id_new_var("array$idx", MOD_PRIVATE, pos);
 
-    iter_id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
-    iter_id->u_var.size_exps = NULL;
-    iter_id->u_var.dflt_exp = exp_new_lit_int(0, pos);
+    idx_id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
+    idx_id->u_var.size_exps = NULL;
+    idx_id->u_var.dflt_exp = exp_new_lit_int(0, pos);
 
-    /* Make "arr_idx" expression */
-    iter_exp = exp_new_id(iter_id->name, pos);
+    /* "arr_idx" expression */
+    idx_exp = exp_new_id(idx_id->name, pos);
 
-    /* Make "array" expression */
+    /* "array" expression */
     if (is_id_stmt(init_stmt)) {
+        vector_add_last(&wrap_blk->stmts, init_stmt);
+
         val_exp = exp_new_id(init_stmt->u_id.id->name, pos);
     }
     else {
         ASSERT1(is_exp_stmt(init_stmt), init_stmt->kind);
+
         val_exp = init_stmt->u_exp.exp;
     }
 
-    /* Make "val = array[arr_idx]" statement */
-    arr_exp = exp_new_array(cond_exp, iter_exp, pos);
-    vector_add_first(&blk->stmts, stmt_new_assign(val_exp, arr_exp, pos));
+    /* "int arr_idx = 0" statement */
+    vector_add_last(&wrap_blk->stmts, stmt_new_id(idx_id, pos));
 
-    /* Make "break if arr_idx >= array.size" statement */
+    /* inline original block */
+    vector_add_last(&wrap_blk->stmts, stmt_new_blk(blk, &blk->pos));
+
+    /* "break if arr_idx >= array.size" statement */
     size_exp = exp_new_access(cond_exp, exp_new_id("size", pos), pos);
-    cmp_exp = exp_new_binary(OP_GE, iter_exp, size_exp, pos);
+    cmp_exp = exp_new_binary(OP_GE, idx_exp, size_exp, pos);
 
-    vector_add_first(&blk->stmts, stmt_new_jump(STMT_BREAK, cmp_exp, pos));
+    vector_add(&blk->stmts, i++, stmt_new_jump(STMT_BREAK, cmp_exp, pos));
 
-    if (is_id_stmt(init_stmt))
-        vector_add_first(&blk->stmts, init_stmt);
+    /* "val = array[arr_idx]" statement */
+    arr_exp = exp_new_array(cond_exp, idx_exp, pos);
 
-    vector_add_first(&blk->stmts, stmt_new_id(iter_id, pos));
+    vector_add(&blk->stmts, i++, stmt_new_assign(val_exp, arr_exp, pos));
 
-    /* Make "arr_idx++" expression */
-    loop_exp = exp_new_unary(OP_INC, false, iter_exp, pos);
+    /* "arr_idx++" expression */
+    loop_exp = exp_new_unary(OP_INC, false, idx_exp, pos);
+
     vector_add_last(&blk->stmts, stmt_new_exp(loop_exp, pos));
+
+    stmt->u_loop.blk = wrap_blk;
 
     return true;
 }
@@ -332,9 +350,6 @@ static bool
 stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 {
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
-
-    if (stmt->u_loop.blk == NULL)
-        stmt->u_loop.blk = blk_new_loop(&stmt->pos);
 
     switch (stmt->u_loop.kind) {
     case LOOP_FOR:

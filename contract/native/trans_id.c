@@ -133,17 +133,20 @@ check_return_stmt(ir_fn_t *fn, src_pos_t *pos)
     vector_foreach(&fn->bbs, i) {
         ir_bb_t *bb = vector_get_bb(&fn->bbs, i);
 
-        vector_foreach(&bb->brs, j) {
-            ast_stmt_t *stmt;
-            ir_br_t *br = vector_get_br(&bb->brs, j);
+        /* except unreachable block */
+        if (bb->ref_cnt > 0) {
+            vector_foreach(&bb->brs, j) {
+                ast_stmt_t *stmt;
+                ir_br_t *br = vector_get_br(&bb->brs, j);
 
-            if (br->bb != fn->exit_bb)
-                continue;
+                if (br->bb != fn->exit_bb)
+                    continue;
 
-            stmt = vector_get_last(&bb->stmts, ast_stmt_t);
-            if (stmt == NULL || !is_return_stmt(stmt)) {
-                ERROR(ERROR_MISSING_RETURN, pos);
-                return;
+                stmt = vector_get_last(&bb->stmts, ast_stmt_t);
+                if (stmt == NULL || !is_return_stmt(stmt)) {
+                    ERROR(ERROR_MISSING_RETURN, pos);
+                    return;
+                }
             }
         }
     }

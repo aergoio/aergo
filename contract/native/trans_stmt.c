@@ -7,6 +7,7 @@
 
 #include "ir_bb.h"
 #include "ir_fn.h"
+#include "ir_abi.h"
 #include "trans_id.h"
 #include "trans_blk.h"
 #include "trans_exp.h"
@@ -270,9 +271,12 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
         if (elif_stmt->u_if.if_blk != NULL)
             blk_trans(trans, elif_stmt->u_if.if_blk);
 
-        bb_add_branch(trans->bb, NULL, next_bb);
+        /* same as above */
+        if (trans->bb != NULL) {
+            bb_add_branch(trans->bb, NULL, next_bb);
 
-        fn_add_basic_blk(trans->fn, trans->bb);
+            fn_add_basic_blk(trans->fn, trans->bb);
+        }
     }
 
     if (stmt->u_if.else_blk != NULL) {
@@ -281,9 +285,12 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 
         blk_trans(trans, stmt->u_if.else_blk);
 
-        bb_add_branch(trans->bb, NULL, next_bb);
+        /* same as above */
+        if (trans->bb != NULL) {
+            bb_add_branch(trans->bb, NULL, next_bb);
 
-        fn_add_basic_blk(trans->fn, trans->bb);
+            fn_add_basic_blk(trans->fn, trans->bb);
+        }
     }
     else {
         bb_add_branch(prev_bb, NULL, next_bb);
@@ -295,7 +302,7 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
 static void
 stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
 {
-    ir_bb_t *prev_bb = trans->bb;
+    //ir_bb_t *prev_bb = trans->bb;
     ir_bb_t *cond_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
@@ -316,12 +323,14 @@ stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
      *       '-----------' '------------'
      */
 
+#if 0
     /* previous basic block */
     bb_add_branch(prev_bb, NULL, cond_bb);
 
     fn_add_basic_blk(trans->fn, prev_bb);
 
     trans->bb = cond_bb;
+#endif
 
     trans->cont_bb = cond_bb;
     trans->break_bb = next_bb;
@@ -399,6 +408,7 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, next_bb);
+
         fn_add_basic_blk(trans->fn, trans->bb);
     }
 
@@ -424,11 +434,12 @@ stmt_trans_return(trans_t *trans, ast_stmt_t *stmt)
 
         bb_add_stmt(trans->bb, stmt);
     }
-
-    /* The current basic block branches directly to the exit block */
-    bb_add_branch(trans->bb, NULL, fn->exit_bb);
+    else {
+        bb_add_branch(trans->bb, NULL, fn->exit_bb);
+    }
 
     fn_add_basic_blk(fn, trans->bb);
+
     trans->bb = NULL;
 }
 
@@ -440,6 +451,7 @@ stmt_trans_continue(trans_t *trans, ast_stmt_t *stmt)
     bb_add_branch(trans->bb, NULL, trans->cont_bb);
 
     fn_add_basic_blk(trans->fn, trans->bb);
+
     trans->bb = NULL;
 }
 
@@ -473,6 +485,7 @@ stmt_trans_goto(trans_t *trans, ast_stmt_t *stmt)
     ASSERT(jump_id->u_lab.stmt->label_bb != NULL);
 
     bb_add_branch(trans->bb, NULL, jump_id->u_lab.stmt->label_bb);
+
     fn_add_basic_blk(trans->fn, trans->bb);
 
     trans->bb = NULL;
@@ -518,6 +531,7 @@ stmt_trans(trans_t *trans, ast_stmt_t *stmt)
         /* A labeled statement always creates a new basic block */
         if (trans->bb != NULL) {
             bb_add_branch(trans->bb, NULL, stmt->label_bb);
+
             fn_add_basic_blk(trans->fn, trans->bb);
         }
 

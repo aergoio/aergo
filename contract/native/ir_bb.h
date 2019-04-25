@@ -26,6 +26,8 @@ typedef struct ir_br_s {
 } ir_br_t;
 
 struct ir_bb_s {
+    int ref_cnt;
+
     vector_t stmts;
     vector_t brs;
     vector_t pgbacks;

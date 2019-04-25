@@ -33,6 +33,8 @@ fn_new(ast_id_t *id)
     fn->entry_bb = bb_new();
     fn->exit_bb = bb_new();
 
+    fn->entry_bb->ref_cnt++;
+
     fn->cont_idx = -1;
     fn->heap_idx = -1;
     fn->stack_idx = -1;

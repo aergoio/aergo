@@ -446,7 +446,6 @@ contract test {
 @test(if_else)
 @run(test.test)
 contract test {
-    /*
     string s;
 
     func f1(bool cond) {
@@ -457,7 +456,6 @@ contract test {
             s = "this is else";
         }
     }
-
     func f2(int v) string {
         if (v == 1) {
             return "gold";
@@ -469,7 +467,7 @@ contract test {
             return "bronze";
         }
         else {
-            return "out of range";
+            return "out of rank";
         }
     }
 
@@ -487,12 +485,11 @@ contract test {
         f1(false);
         pragma assert(s == "this is else");
 
-        pragma assert(f2(1) == "first");
+        pragma assert(f2(1) == "gold");
         pragma assert(f2(2) == "silver");
         pragma assert(f2(3) == "bronze");
-        pragma assert(f2(4) == "out of range");
+        pragma assert(f2(4) == "out of rank");
     }
-    */
 }
 
 @test(missing_if_parenthesis)
@@ -521,12 +518,15 @@ contract test {
     func f1(int i) {
         switch (i) {
         case 1: s = "case 1"; break;
-        case 2: { s = "case 2"; } break;
+        case 2:
+            {
+                s = "case 2";
+            }
+            break;
         case 3: case 4: s = "case unknown"; break;
         default: break;
         }
     }
-
     func f2(int64 i) {
         switch (i) {
         case 1: s = "case 1";
@@ -654,56 +654,97 @@ contract test {
 }
 
 @test(for_loop)
+@run(test.test)
 contract test {
-    int v1;
+    int v;
 
     test() {
         int i;
-        for (i = 0; i < 10; i++) { v1 += i; }
-        for (i = 0; i < 10; ) { }
-        for (i = 0; ; ) { }
-        for ( ; i < 10; ) { }
-        for ( ; i < 10; i++) { }
-        for ( ; ; i++) { }
-        for ( ; ; ) { }
-        for (true) { }
-        for { }
+        for (i = 0; i < 10; i++) { break; }
+        for (i = 0; i < 10; ) { break; }
+        for (i = 0; ; ) { break; }
+        for ( ; i < 10; ) { break; }
+        for ( ; i < 10; i++) { break; }
+        for ( ; ; i++) { break; }
+        for ( ; ; ) { break; }
+        for (true) { break; }
+        for { break; }
 
-        for (int j = 1; j >= 0; i--) { }
-        for (int j = i; j >= 0; ) { }
-        for (int j = i; ; ) { }
+        for (int j = 1; j >= 0; j--) { }
+        for (int j = i; j >= 0; ) { break; }
+        for (int j = i; ; ) { break; }
 
         int j;
         for (i, j = 0, 5; i < 10 && j >= 0; i++, j--) { }
-        // for (i, j = 0, 5; i < 10 && j >= 0; i++, j += 2) { }
+
+        for (i = 0; i < 10; i++) { v += i; }
+        pragma assert(v == 45);
+
+        v = 1;
+        for (i, j = 0, 5; i < 10 && j >= 0; i++, j--) { v *= 2; }
+        pragma assert(v == 64);
     }
 }
 
 @test(iterator_scope)
+@run(test.test)
 contract test {
     test() {
         int i = 1;
         for (int i = 0; i <= 10; i++) { }
+        pragma assert(i == 1);
     }
 }
 
 @test(array_loop)
+@run(test.test)
 contract test {
-    string v1[10];
+    int64 v1[2] = new { 194, -228 };
+    string v2[2][3] = new {
+        { "hello", " ", "world" },
+        { "thank", " ", "you" },
+    };
 
     test() {
-        for (string s1 in v1) { }
+        int64 j;
 
-        string s2;
-        for (s2 in v1) { }
+        for (int64 i in v1) { j += i; }
+        pragma assert(j == -34);
+
+        int64 i;
+        for (i in v1) { j++; }
+        pragma assert(j == -32);
+
+        /*
+        for (string s1[3] in v2) {
+            string s;
+            for (string s2 in s1) {
+                s += s2;
+            }
+            pragma assert(s == "hello world");
+        }
+        */
+    }
+}
+
+@test(invalid_array_iterator)
+@error(ERROR_MISMATCHED_TYPE)
+contract test {
+    int64 v[2] = new { 1, 2 };
+    test() {
+        for (int i in v) { }
     }
 }
 
 @test(loop_jump)
+@run(test.test)
 contract test {
     test() {
-        for { break; }
-        for (int i = 0; i < 10; i++) { continue; }
+        //for { break; }
+
+        int v;
+        for (int i = 0; i < 10; i++) { continue; v += i; }
+        pragma assert(v == 0);
     }
 }
 
