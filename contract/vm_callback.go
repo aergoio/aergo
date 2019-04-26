@@ -922,25 +922,13 @@ func IsPublic() C.int {
 	}
 }
 
-//export LuaRandomNumber
-func LuaRandomNumber(L *LState, service C.int) C.double {
-	stateSet := curStateSet[service]
-	if stateSet.seed == nil {
-		setRandomSeed(stateSet)
-	}
-	return C.double(stateSet.seed.Float64())
-}
-
 //export LuaRandomInt
-func LuaRandomInt(L *LState, min, max C.int, service C.int) C.lua_Integer {
+func LuaRandomInt(min, max, service C.int) C.int {
 	stateSet := curStateSet[service]
 	if stateSet.seed == nil {
 		setRandomSeed(stateSet)
 	}
-	if C.lua_gettop(L) == 1 {
-		return C.lua_Integer(stateSet.seed.Intn(int(min)) + int(1))
-	}
-	return C.lua_Integer(stateSet.seed.Intn(int(max+C.int(1)-min)) + int(min))
+	return C.int(stateSet.seed.Intn(int(max+C.int(1)-min)) + int(min))
 }
 
 //export LuaEvent

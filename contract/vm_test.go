@@ -3431,21 +3431,13 @@ abi.register(random)`
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
-	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
-	err = bc.ConnectBlock(tx, tx1)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`).Fail(
+			"1 or 2 arguments required",
+		),
+	)
 	if err != nil {
 		t.Error(err)
-	}
-	receipt := bc.getReceipt(tx.hash())
-	err = checkRandomFloatValue(receipt.GetRet())
-	if err != nil {
-		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
-	}
-	receipt = bc.getReceipt(tx1.hash())
-	err = checkRandomFloatValue(receipt.GetRet())
-	if err != nil {
-		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
 	}
 
 	err = bc.ConnectBlock(
@@ -3459,12 +3451,12 @@ abi.register(random)`
 		t.Error(err)
 	}
 
-	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
+	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt = bc.getReceipt(tx.hash())
+	receipt := bc.getReceipt(tx.hash())
 	err = checkRandomIntValue(receipt.GetRet(), 1, 3)
 	if err != nil {
 		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
