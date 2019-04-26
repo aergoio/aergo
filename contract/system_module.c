@@ -18,7 +18,7 @@ static int systemPrint(lua_State *L)
     if (jsonValue == NULL) {
 		luaL_throwerror(L);
 	}
-    LuaPrint(service, jsonValue);
+    LuaPrint(L, service, jsonValue);
     free(jsonValue);
 	return 0;
 }
