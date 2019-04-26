@@ -310,10 +310,22 @@ contract test {
 }
 
 @test(builtin_functions)
+@run(test.test)
 contract test {
-    int8 v1 = (int8)abs32((int32)-1);
-    int16 v2 = (int16)abs32((int32)-2);
-    int32 v3 = abs32(-3);
-    int64 v4 = abs64(-4);
-    int128 v5 = abs128(-5);
+    int8 v1 = (int8)abs32((int32)1);
+    int16 v2 = (int16)abs32((int32)0);
+    int32 v3 = abs32(-1);
+    int64 v4 = abs64(-2);
+    int128 v5 = abs128(-3);
+
+    test() {
+        pragma assert(v1 == 1);
+        pragma assert(v2 == 0);
+        pragma assert(v3 == 1);
+        pragma assert(v4 == 2);
+        pragma assert(v5 == 3);
+
+        pragma assert(lower("LOWER") == "lower");
+        pragma assert(upper("upper") == "UPPER");
+    }
 }
