@@ -95,7 +95,7 @@ typedef struct exp_call_s {
     fn_kind_t kind;
     char *qname;
     ast_exp_t *id_exp;
-    vector_t *param_exps;
+    vector_t *arg_exps;
 } exp_call_t;
 
 /* id.fld */
@@ -192,7 +192,7 @@ ast_exp_t *exp_new_id(char *name, src_pos_t *pos);
 ast_exp_t *exp_new_type(type_t type, src_pos_t *pos);
 ast_exp_t *exp_new_array(ast_exp_t *id_exp, ast_exp_t *idx_exp, src_pos_t *pos);
 ast_exp_t *exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos);
-ast_exp_t *exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos);
+ast_exp_t *exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *arg_exps, src_pos_t *pos);
 ast_exp_t *exp_new_access(ast_exp_t *qual_exp, ast_exp_t *fld_exp, src_pos_t *pos);
 ast_exp_t *exp_new_unary(op_kind_t kind, bool is_prefix, ast_exp_t *val_exp, src_pos_t *pos);
 ast_exp_t *exp_new_binary(op_kind_t kind, ast_exp_t *l_exp, ast_exp_t *r_exp, src_pos_t *pos);

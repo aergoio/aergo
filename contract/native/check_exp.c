@@ -69,7 +69,7 @@ exp_check_id(check_t *check, ast_exp_t *exp)
             id = id_search_param(check->fn_id, name);
 
         if (id == NULL) {
-            id = blk_search_id(check->blk, name, false);
+            id = blk_search_id(check->blk, name);
 
             if (id == NULL && strcmp(name, "this") == 0)
                 id = check->cont_id;
@@ -109,9 +109,11 @@ exp_check_type(check_t *check, ast_exp_t *exp)
         ASSERT(exp->u_type.k_exp == NULL);
         ASSERT(exp->u_type.v_exp == NULL);
 
-        id = blk_search_id(check->blk, name, true);
-        if (id == NULL || !is_type_id(id))
+        id = blk_search_type(check->blk, name);
+        if (id == NULL)
             RETURN(ERROR_UNDEFINED_TYPE, &exp->pos, name);
+
+        ASSERT1(is_type_id(id), id->kind);
 
         id_trycheck(check, id);
 
@@ -641,14 +643,14 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 {
     int i;
     ast_exp_t *id_exp;
-    vector_t *param_exps;
+    vector_t *arg_exps;
     ast_id_t *id;
     vector_t *param_ids;
 
     ASSERT1(is_call_exp(exp), exp->kind);
 
     id_exp = exp->u_call.id_exp;
-    param_exps = exp->u_call.param_exps;
+    arg_exps = exp->u_call.arg_exps;
 
     CHECK(exp_check(check, id_exp));
 
@@ -659,7 +661,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     if (exp->u_call.kind == FN_CTOR) {
         if (is_cont_id(id)) {
             /* In case of the contract identifier, the constructor is searched again */
-            id = blk_search_id(id->u_cont.blk, id->name, false);
+            id = blk_search_id(id->u_cont.blk, id->name);
             ASSERT(id != NULL);
 
             id_trycheck(check, id);
@@ -677,24 +679,24 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
     param_ids = id->u_fn.param_ids;
 
-    if (vector_size(param_ids) != vector_size(param_exps))
+    if (vector_size(param_ids) != vector_size(arg_exps))
         RETURN(ERROR_MISMATCHED_COUNT, &id_exp->pos, "parameter", vector_size(param_ids),
-               vector_size(param_exps));
+               vector_size(arg_exps));
 
-    vector_foreach(param_exps, i) {
+    vector_foreach(arg_exps, i) {
         ast_id_t *param_id = vector_get_id(param_ids, i);
-        ast_exp_t *param_exp = vector_get_exp(param_exps, i);
+        ast_exp_t *arg_exp = vector_get_exp(arg_exps, i);
 
-        CHECK(exp_check(check, param_exp));
+        CHECK(exp_check(check, arg_exp));
 
-        if (!is_call_exp(param_exp) && param_exp->id != NULL && !is_var_id(param_exp->id) &&
-            (!is_cont_id(param_exp->id) || !is_id_exp(param_exp) ||
-             strcmp(param_exp->u_id.name, "this") != 0))
-            ERROR(ERROR_NOT_ALLOWED_PARAM, &param_exp->pos);
+        if (!is_call_exp(arg_exp) && arg_exp->id != NULL && !is_var_id(arg_exp->id) &&
+            (!is_cont_id(arg_exp->id) || !is_id_exp(arg_exp) ||
+             strcmp(arg_exp->u_id.name, "this") != 0))
+            ERROR(ERROR_NOT_ALLOWED_PARAM, &arg_exp->pos);
 
-        meta_eval(&param_id->meta, &param_exp->meta);
+        meta_eval(&param_id->meta, &arg_exp->meta);
 
-        exp_check_overflow(param_exp, &param_id->meta);
+        exp_check_overflow(arg_exp, &param_id->meta);
     }
 
     exp->id = id;

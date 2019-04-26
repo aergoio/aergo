@@ -42,7 +42,7 @@ error(ERROR_NOT_SUPPORTED,          "not supported yet")
 error(ERROR_NOT_COMPARABLE_TYPE,    "not comparable type %s")
 error(ERROR_NOT_CALLABLE_EXP,       "not callable expression")
 error(ERROR_NOT_IMPLEMENTED,        "function '%s' must be implemented")
-error(ERROR_NOT_ALLOWED_PARAM,      "cannot be used as parameter")
+error(ERROR_NOT_ALLOWED_PARAM,      "not allowed as parameter")
 error(ERROR_INACCESSIBLE_TYPE,      "inaccessible type %s")
 error(ERROR_INCOMPATIBLE_TYPE,      "incompatible types %s and %s")
 error(ERROR_MISSING_ARR_SIZE,       "array size is missing")
@@ -68,6 +68,7 @@ error(ERROR_DUPLICATED_LABEL,       "duplicated %s label")
 error(ERROR_IGNORED_STMT,           "statement is ignored")
 error(ERROR_NUMERIC_OVERFLOW,       "numeric value overflows %s")
 error(ERROR_DIVIDE_BY_ZERO,         "division by zero")
+error(ERROR_RECURSIVE_CALL,         "recursive call detected")
 
 /******************************************************************************
  * wasm generator

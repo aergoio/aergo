@@ -135,7 +135,7 @@ exp_new_cast(type_t type, ast_exp_t *val_exp, src_pos_t *pos)
 }
 
 ast_exp_t *
-exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t *pos)
+exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *arg_exps, src_pos_t *pos)
 {
     ast_exp_t *exp = ast_exp_new(EXP_CALL, pos);
 
@@ -143,7 +143,7 @@ exp_new_call(fn_kind_t kind, ast_exp_t *id_exp, vector_t *param_exps, src_pos_t 
 
     exp->u_call.kind = kind;
     exp->u_call.id_exp = id_exp;
-    exp->u_call.param_exps = param_exps;
+    exp->u_call.arg_exps = arg_exps;
 
     return exp;
 }
@@ -361,7 +361,7 @@ exp_clone(ast_exp_t *exp)
         break;
 
     case EXP_CALL:
-        elem_exps = exp->u_call.param_exps;
+        elem_exps = exp->u_call.arg_exps;
         res_exps = vector_new();
         vector_foreach(elem_exps, i) {
             vector_add_last(res_exps, exp_clone(vector_get_exp(elem_exps, i)));
@@ -468,12 +468,12 @@ exp_equals(ast_exp_t *x, ast_exp_t *y)
             exp_equals(x->u_acc.fld_exp, y->u_acc.fld_exp);
 
     case EXP_CALL:
-        if (vector_size(x->u_call.param_exps) != vector_size(y->u_call.param_exps))
+        if (vector_size(x->u_call.arg_exps) != vector_size(y->u_call.arg_exps))
             return false;
 
-        vector_foreach(x->u_call.param_exps, i) {
-            if (!exp_equals(vector_get_exp(x->u_call.param_exps, i),
-                            vector_get_exp(y->u_call.param_exps, i)))
+        vector_foreach(x->u_call.arg_exps, i) {
+            if (!exp_equals(vector_get_exp(x->u_call.arg_exps, i),
+                            vector_get_exp(y->u_call.arg_exps, i)))
                 return false;
         }
         return exp_equals(x->u_acc.qual_exp, y->u_acc.qual_exp);

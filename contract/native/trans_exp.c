@@ -262,16 +262,16 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
     if (is_ctor_id(fn_id) || is_lib_id(fn_id->up)) {
         /* The constructor does not change the parameter, it always returns address. */
-        vector_foreach(exp->u_call.param_exps, i) {
-            exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
+        vector_foreach(exp->u_call.arg_exps, i) {
+            exp_trans(trans, vector_get_exp(exp->u_call.arg_exps, i));
         }
         return;
     }
 
     /* Since non-constructor functions are added the contract base address as a first parameter,
      * we must also add the address as a call argument here. */
-    if (exp->u_call.param_exps == NULL)
-        exp->u_call.param_exps = vector_new();
+    if (exp->u_call.arg_exps == NULL)
+        exp->u_call.arg_exps = vector_new();
 
     if (is_access_exp(id_exp)) {
         ast_exp_t *qual_exp = id_exp->u_acc.qual_exp;
@@ -280,7 +280,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         ASSERT1(is_object_meta(&qual_exp->meta), qual_exp->meta.type);
 
         /* If the expression is of type "x.y()", pass "x" as the first argument. */
-        vector_add_first(exp->u_call.param_exps, qual_exp);
+        vector_add_first(exp->u_call.arg_exps, qual_exp);
     }
     else {
         ast_exp_t *param_exp;
@@ -291,11 +291,11 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         param_exp = exp_new_reg(0);
         meta_set_int32(&param_exp->meta);
 
-        vector_add_first(exp->u_call.param_exps, param_exp);
+        vector_add_first(exp->u_call.arg_exps, param_exp);
     }
 
-    vector_foreach(exp->u_call.param_exps, i) {
-        exp_trans(trans, vector_get_exp(exp->u_call.param_exps, i));
+    vector_foreach(exp->u_call.arg_exps, i) {
+        exp_trans(trans, vector_get_exp(exp->u_call.arg_exps, i));
     }
 
     if (fn_id->u_fn.ret_id != NULL) {

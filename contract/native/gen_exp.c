@@ -663,19 +663,19 @@ static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
     int i;
-    BinaryenIndex param_cnt;
+    BinaryenIndex arg_cnt;
     BinaryenExpressionRef *arguments;
 
     ASSERT(exp->u_call.qname != NULL);
 
-    param_cnt = vector_size(exp->u_call.param_exps);
-    arguments = xmalloc(sizeof(BinaryenExpressionRef) * param_cnt);
+    arg_cnt = vector_size(exp->u_call.arg_exps);
+    arguments = xmalloc(sizeof(BinaryenExpressionRef) * arg_cnt);
 
-    vector_foreach(exp->u_call.param_exps, i) {
-        arguments[i] = exp_gen(gen, vector_get_exp(exp->u_call.param_exps, i));
+    vector_foreach(exp->u_call.arg_exps, i) {
+        arguments[i] = exp_gen(gen, vector_get_exp(exp->u_call.arg_exps, i));
     }
 
-    return BinaryenCall(gen->module, exp->u_call.qname, arguments, param_cnt, meta_gen(&exp->meta));
+    return BinaryenCall(gen->module, exp->u_call.qname, arguments, arg_cnt, meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef

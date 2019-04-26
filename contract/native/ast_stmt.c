@@ -222,18 +222,18 @@ ast_stmt_t *
 stmt_make_malloc(uint32_t reg_idx, uint32_t size, src_pos_t *pos)
 {
     ast_exp_t *reg_exp, *call_exp;
-    ast_exp_t *param_exp;
-    vector_t *param_exps = vector_new();
+    ast_exp_t *arg_exp;
+    vector_t *arg_exps = vector_new();
 
     reg_exp = exp_new_reg(reg_idx);
     meta_set_int32(&reg_exp->meta);
 
-    param_exp = exp_new_lit_int(size, pos);
-    meta_set_int32(&param_exp->meta);
+    arg_exp = exp_new_lit_int(size, pos);
+    meta_set_int32(&arg_exp->meta);
 
-    exp_add(param_exps, param_exp);
+    exp_add(arg_exps, arg_exp);
 
-    call_exp = exp_new_call(FN_MALLOC, NULL, param_exps, pos);
+    call_exp = exp_new_call(FN_MALLOC, NULL, arg_exps, pos);
     meta_set_int32(&call_exp->meta);
 
     return stmt_new_assign(reg_exp, call_exp, pos);

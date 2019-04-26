@@ -83,17 +83,8 @@ blk_search(ast_blk_t *blk, blk_kind_t kind)
     return NULL;
 }
 
-static inline bool
-is_visible_id(ast_id_t *id, char *name, bool is_type)
-{
-    if (is_type)
-        return is_type_id(id) && strcmp(name, id->name) == 0;
-
-    return strcmp(name, id->name) == 0;
-}
-
 ast_id_t *
-blk_search_id(ast_blk_t *blk, char *name, bool is_type)
+blk_search_id(ast_blk_t *blk, char *name)
 {
     int i, j;
 
@@ -114,7 +105,7 @@ blk_search_id(ast_blk_t *blk, char *name, bool is_type)
                 vector_foreach(id->u_tup.elem_ids, j) {
                     ast_id_t *elem_id = vector_get_id(id->u_tup.elem_ids, j);
 
-                    if (is_visible_id(elem_id, name, is_type))
+                    if (strcmp(name, elem_id->name) == 0)
                         return elem_id;
                 }
             }
@@ -122,11 +113,42 @@ blk_search_id(ast_blk_t *blk, char *name, bool is_type)
                 vector_foreach(&id->u_lib.blk->ids, j) {
                     ast_id_t *lib_id = vector_get_id(&id->u_lib.blk->ids, j);
 
-                    if (is_visible_id(lib_id, name, is_type))
+                    if (strcmp(name, lib_id->name) == 0)
                         return lib_id;
                 }
             }
-            else if (is_visible_id(id, name, is_type)) {
+            else if (strcmp(name, id->name) == 0) {
+                return id;
+            }
+        }
+    } while ((blk = blk->up) != NULL);
+
+    return NULL;
+}
+
+ast_id_t *
+blk_search_type(ast_blk_t *blk, char *name)
+{
+    int i, j;
+
+    ASSERT(name != NULL);
+
+    if (blk == NULL)
+        return NULL;
+
+    do {
+        vector_foreach(&blk->ids, i) {
+            ast_id_t *id = vector_get_id(&blk->ids, i);
+
+            if (is_tuple_id(id)) {
+                vector_foreach(id->u_tup.elem_ids, j) {
+                    ast_id_t *elem_id = vector_get_id(id->u_tup.elem_ids, j);
+
+                    if (is_type_id(elem_id) && strcmp(name, elem_id->name) == 0)
+                        return elem_id;
+                }
+            }
+            else if (is_type_id(id) && strcmp(name, id->name) == 0) {
                 return id;
             }
         }
