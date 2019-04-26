@@ -32,6 +32,9 @@
 #define vector_add_first(vect, item)    vector_add((vect), 0, (item))
 #define vector_add_last(vect, item)     vector_add((vect), (vect)->size, (item))
 
+#define vector_del_first(vect)          vector_del((vect), 0)
+#define vector_del_last(vect)           vector_del((vect), (vect)->size - 1)
+
 #define vector_join_first(dest, src)    vector_join((dest), 0, (src))
 #define vector_join_last(dest, src)     vector_join((dest), (dest)->size, (src))
 

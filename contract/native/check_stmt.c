@@ -217,7 +217,7 @@ static bool
 stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
 {
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
-    ast_exp_t *loop_exp = stmt->u_loop.loop_exp;
+    ast_stmt_t *post_stmt = stmt->u_loop.post_stmt;
     ast_blk_t *blk = stmt->u_loop.blk;
     ast_blk_t *wrap_blk = blk_new_normal(&blk->pos);
 
@@ -230,7 +230,7 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
      *      if (!cond_exp)
      *          break;
      *      ...
-     *      loop_exp;
+     *      post_stmt;
      *  }
      */
 
@@ -250,10 +250,16 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
         vector_add_first(&blk->stmts, break_stmt);
     }
 
-    if (loop_exp != NULL)
-        vector_add_last(&blk->stmts, stmt_new_exp(loop_exp, &loop_exp->pos));
+    if (post_stmt != NULL)
+        vector_add_last(&blk->stmts, post_stmt);
+
+    blk_check(check, wrap_blk);
 
     stmt->u_loop.blk = wrap_blk;
+
+    /* The "post_stmt" must be stored in another basic block, so it is removed from the loop. */
+    if (post_stmt != NULL)
+        vector_del_last(&blk->stmts);
 
     return true;
 }
@@ -268,7 +274,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     ast_exp_t *arr_exp;
     ast_exp_t *size_exp;
     ast_exp_t *cmp_exp;
-    ast_exp_t *loop_exp;
+    ast_stmt_t *post_stmt;
     ast_stmt_t *init_stmt = stmt->u_loop.init_stmt;
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ast_blk_t *blk = stmt->u_loop.blk;
@@ -277,7 +283,7 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 
     ASSERT(init_stmt != NULL);
     ASSERT(cond_exp != NULL);
-    ASSERT(stmt->u_loop.loop_exp == NULL);
+    ASSERT(stmt->u_loop.post_stmt == NULL);
 
     /* TODO: map & sql iteration */
     CHECK(exp_check(check, cond_exp));
@@ -310,12 +316,10 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     /* "array" expression */
     if (is_id_stmt(init_stmt)) {
         vector_add_last(&wrap_blk->stmts, init_stmt);
-
-        val_exp = exp_new_id(init_stmt->u_id.id->name, pos);
+        val_exp = exp_new_id(init_stmt->u_id.id->name, &init_stmt->pos);
     }
     else {
         ASSERT1(is_exp_stmt(init_stmt), init_stmt->kind);
-
         val_exp = init_stmt->u_exp.exp;
     }
 
@@ -332,16 +336,22 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
     vector_add(&blk->stmts, i++, stmt_new_jump(STMT_BREAK, cmp_exp, pos));
 
     /* "val = array[arr_idx]" statement */
-    arr_exp = exp_new_array(cond_exp, idx_exp, pos);
+    arr_exp = exp_new_array(cond_exp, idx_exp, &val_exp->pos);
 
-    vector_add(&blk->stmts, i++, stmt_new_assign(val_exp, arr_exp, pos));
+    vector_add(&blk->stmts, i++, stmt_new_assign(val_exp, arr_exp, &val_exp->pos));
 
     /* "arr_idx++" expression */
-    loop_exp = exp_new_unary(OP_INC, false, idx_exp, pos);
+    post_stmt = stmt_new_exp(exp_new_unary(OP_INC, false, idx_exp, pos), pos);
 
-    vector_add_last(&blk->stmts, stmt_new_exp(loop_exp, pos));
+    vector_add_last(&blk->stmts, post_stmt);
+
+    blk_check(check, wrap_blk);
+
+    /* The "post_stmt" must be stored in another basic block, so it is removed from the loop. */
+    vector_del_last(&blk->stmts);
 
     stmt->u_loop.blk = wrap_blk;
+    stmt->u_loop.post_stmt = post_stmt;
 
     return true;
 }
@@ -363,8 +373,6 @@ stmt_check_loop(check_t *check, ast_stmt_t *stmt)
     default:
         ASSERT1(!"invalid loop", stmt->u_loop.kind);
     }
-
-    blk_check(check, stmt->u_loop.blk);
 
     return true;
 }

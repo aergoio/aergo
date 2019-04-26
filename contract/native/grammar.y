@@ -205,6 +205,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <stmt>    loop_stmt
 %type <stmt>    init_stmt
 %type <exp>     cond_exp
+%type <stmt>    post_stmt
 %type <stmt>    switch_stmt
 %type <blk>     switch_blk
 %type <blk>     case_blk
@@ -557,8 +558,8 @@ function:
         $$ = $1;
         $$->u_fn.blk = $2;
 
-        /* The label is added to the topmost block because it can be referenced
-         * regardless of the order of declaration. */
+        /* The label is added to the topmost block because it can be referenced regardless of the
+         * order of declaration. */
         if (!is_empty_vector(LABELS)) {
             ASSERT($2 != NULL);
             id_join(&$2->ids, LABELS);
@@ -634,13 +635,12 @@ return_list:
 
         /* TODO multiple return values
          *
-         * Since WebAssembly does not support this syntax at present, it is better to
-         * implement it when it is formally supported than implementing arbitarily
+         * Since WebAssembly does not support this syntax at present, it is better to implement it
+         * when it is formally supported than implementing arbitarily
          */
 #if 0
-        /* The reason for making the return list as tuple is because of
-         * the convenience of meta comparison. If vector_t is used,
-         * it must be looped for each id and compared directly,
+        /* The reason for making the return list as tuple is because of the convenience of meta
+         * comparison. If vector_t is used, it must be looped for each id and compared directly,
          * but for tuples, meta_cmp() is sufficient */
 
         if (is_tuple_id($1)) {
@@ -659,8 +659,8 @@ return_list:
 return_decl:
     var_type
     {
-        /* We wanted to use a type expression, but we can not store size expressions
-         * and declare it as an identifier. */
+        /* We wanted to use a type expression, but we can not store size expressions and declare
+         * it as an identifier. */
         $$ = id_new_param(NULL, $1, &@1);
     }
 |   return_decl '[' size_opt ']'
@@ -688,8 +688,6 @@ blk_decl:
 |   compound
     {
         $$ = blk_new_normal(&@$);
-        /* Unlike state variables, local variables are referenced according to their
-         * order of declaration. */
         stmt_add(&$$->stmts, stmt_new_id($1, &@1));
     }
 |   statement
@@ -888,7 +886,7 @@ loop_stmt:
     {
         $$ = stmt_new_loop(LOOP_FOR, $3, $4, NULL, $6, &@$);
     }
-|   K_FOR '(' init_stmt cond_exp expression ')' block
+|   K_FOR '(' init_stmt cond_exp post_stmt ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, $3, $4, $5, $7, &@$);
     }
@@ -896,7 +894,7 @@ loop_stmt:
     {
         $$ = stmt_new_loop(LOOP_FOR, stmt_new_id($3, &@3), $4, NULL, $6, &@$);
     }
-|   K_FOR '(' var_decl cond_exp expression ')' block
+|   K_FOR '(' var_decl cond_exp post_stmt ')' block
     {
         $$ = stmt_new_loop(LOOP_FOR, stmt_new_id($3, &@3), $4, $5, $7, &@$);
     }
@@ -923,6 +921,10 @@ init_stmt:
 cond_exp:
     ';'                 { $$ = NULL; }
 |   ternary_exp ';'
+;
+
+post_stmt:
+    expression          { $$ = stmt_new_exp($1, &@1); }
 ;
 
 switch_stmt:

@@ -253,6 +253,10 @@ contract test {
         pragma assert(i5 == 0);
         pragma assert(i6 == 0);
 
+        i1 = 1;
+        i1++, i1++;
+        pragma assert(i1 == 3);
+
         pragma assert(z1 == 1)
         pragma assert(z2 == 1);
         pragma assert(z3 == 2);

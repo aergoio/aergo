@@ -115,10 +115,11 @@ exp_trans_cast(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_unary(trans_t *trans, ast_exp_t *exp)
 {
+    op_kind_t op = exp->u_un.kind;
     ast_exp_t *val_exp = exp->u_un.val_exp;
     ast_exp_t *var_exp, *bi_exp, *lit_exp;
 
-    switch (exp->u_un.kind) {
+    switch (op) {
     case OP_INC:
     case OP_DEC:
         /* Clone value expression because we have to transform it to "x op 1" */
@@ -130,6 +131,21 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
         lit_exp = exp_new_lit_int(1, &exp->pos);
         meta_copy(&lit_exp->meta, &val_exp->meta);
 
+        if (!exp->u_un.is_prefix) {
+            ast_exp_t *reg_exp = exp_new_reg(fn_add_register(trans->fn, &val_exp->meta));
+
+            meta_copy(&reg_exp->meta, &val_exp->meta);
+
+            bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, val_exp, &exp->pos));
+            val_exp = reg_exp;
+        }
+
+        bi_exp = exp_new_binary(op == OP_INC ? OP_ADD : OP_SUB, val_exp, lit_exp, &exp->pos);
+        meta_copy(&bi_exp->meta, &val_exp->meta);
+
+        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
+        *exp = *val_exp;
+#if 0
         bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp, lit_exp,
                                 &exp->pos);
         meta_copy(&bi_exp->meta, &val_exp->meta);
@@ -140,8 +156,7 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
             /* The postfix operator is added as a piggybacked statement since it must
              * be executed after the current statement is executed */
             bb_add_piggyback(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
-
-        *exp = *val_exp;
+#endif
         break;
 
     case OP_NEG:

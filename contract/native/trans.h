@@ -34,6 +34,7 @@ typedef struct trans_s {
     ir_fn_t *fn;            /* current function */
     ir_bb_t *bb;            /* current basic block */
 
+    ir_bb_t *loop_bb;       /* for loop */
     ir_bb_t *cont_bb;       /* for continue */
     ir_bb_t *break_bb;      /* for break */
 

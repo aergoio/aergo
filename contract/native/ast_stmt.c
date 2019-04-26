@@ -79,7 +79,7 @@ stmt_new_if(ast_exp_t *cond_exp, ast_blk_t *if_blk, src_pos_t *pos)
 }
 
 ast_stmt_t *
-stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp, ast_exp_t *loop_exp,
+stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp, ast_stmt_t *post_stmt,
               ast_blk_t *blk, src_pos_t *pos)
 {
     ast_stmt_t *stmt = ast_stmt_new(STMT_LOOP, pos);
@@ -87,7 +87,7 @@ stmt_new_loop(loop_kind_t kind, ast_stmt_t *init_stmt, ast_exp_t *cond_exp, ast_
     stmt->u_loop.kind = kind;
     stmt->u_loop.init_stmt = init_stmt;
     stmt->u_loop.cond_exp = cond_exp;
-    stmt->u_loop.loop_exp = loop_exp;
+    stmt->u_loop.post_stmt = post_stmt;
     stmt->u_loop.blk = blk;
 
     if (stmt->u_loop.blk != NULL)

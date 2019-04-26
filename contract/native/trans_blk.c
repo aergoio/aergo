@@ -24,14 +24,15 @@ blk_trans(trans_t *trans, ast_blk_t *blk)
 
     if (is_loop_blk(blk)) {
         ASSERT(trans->bb != NULL);
+        ASSERT(trans->loop_bb != NULL);
         ASSERT(trans->cont_bb != NULL);
         ASSERT(trans->break_bb != NULL);
 
-        bb_add_branch(trans->bb, NULL, trans->cont_bb);
+        bb_add_branch(trans->bb, NULL, trans->loop_bb);
 
         fn_add_basic_blk(trans->fn, trans->bb);
 
-        trans->bb = trans->cont_bb;
+        trans->bb = trans->loop_bb;
     }
 
     vector_foreach(&blk->ids, i) {

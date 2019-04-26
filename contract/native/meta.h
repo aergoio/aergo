@@ -174,11 +174,17 @@ meta_set_undef(meta_t *meta)
 static inline void
 meta_set_arr_dim(meta_t *meta, int arr_dim)
 {
+    int i;
+
     ASSERT(arr_dim > 0);
 
     meta->max_dim = arr_dim;
     meta->arr_dim = arr_dim;
-    meta->dim_sizes = xcalloc(sizeof(int) * arr_dim);
+
+    meta->dim_sizes = xmalloc(sizeof(int) * arr_dim);
+    for (i = 0; i < arr_dim; i++) {
+        meta->dim_sizes[i] = -1;
+    }
 }
 
 static inline void

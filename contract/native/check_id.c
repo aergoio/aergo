@@ -32,9 +32,6 @@ id_check_array(check_t *check, ast_id_t *id)
         if (is_null_exp(size_exp)) {
             if (!is_param_id(id) && id->u_var.dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
-
-            /* "-1" means that the size is determined by the initializer */
-            meta_set_dim_sz(&id->meta, i, -1);
         }
         else {
             value_t *size_val = NULL;
@@ -62,6 +59,29 @@ id_check_array(check_t *check, ast_id_t *id)
     return true;
 }
 
+static void
+make_default_exp(ast_id_t *id)
+{
+    ast_exp_t *dflt_exp;
+
+    if (is_address_meta(&id->meta)) {
+        dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
+
+        dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
+    }
+    else if (is_bool_meta(&id->meta)) {
+        dflt_exp = exp_new_lit_bool(false, &id->pos);
+    }
+    else if (is_nullable_meta(&id->meta)) {
+        dflt_exp = exp_new_lit_null(&id->pos);
+    }
+    else {
+        dflt_exp = exp_new_lit_int(0, &id->pos);
+    }
+
+    id->u_var.dflt_exp = dflt_exp;
+}
+
 static bool
 id_check_var(check_t *check, ast_id_t *id)
 {
@@ -79,29 +99,24 @@ id_check_var(check_t *check, ast_id_t *id)
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    if (!is_param_id(id) && is_address_meta(&id->meta) && id->u_var.dflt_exp == NULL) {
-        id->u_var.dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
-        id->u_var.dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
-    }
+    if (is_const_id(id) && id->u_var.dflt_exp == NULL)
+        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+
+    if (id->u_var.dflt_exp == NULL)
+        make_default_exp(id);
 
     dflt_exp = id->u_var.dflt_exp;
 
-    if (dflt_exp != NULL) {
-        /* TODO: named initializer */
-        CHECK(exp_check(check, dflt_exp));
-        CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
+    /* TODO: named initializer */
+    CHECK(exp_check(check, dflt_exp));
+    CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
 
-        meta_eval(&id->meta, &dflt_exp->meta);
+    meta_eval(&id->meta, &dflt_exp->meta);
 
-        exp_check_overflow(dflt_exp, &id->meta);
+    exp_check_overflow(dflt_exp, &id->meta);
 
-        if (is_const_id(id) && is_lit_exp(dflt_exp))
-            id->val = &dflt_exp->u_lit.val;
-    }
-    else if (is_const_id(id)) {
-        /* The constant value of the tuple element is checked by id_check_tuple() */
-        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
-    }
+    if (is_const_id(id) && is_lit_exp(dflt_exp))
+        id->val = &dflt_exp->u_lit.val;
 
     return true;
 }
@@ -197,6 +212,25 @@ id_check_enum(check_t *check, ast_id_t *id)
 }
 
 static bool
+id_check_param(check_t *check, ast_id_t *id)
+{
+    ASSERT1(is_param_id(id), id->kind);
+    ASSERT(id->name != NULL);
+    ASSERT(id->up != NULL);
+    ASSERT(id->u_var.type_exp != NULL);
+    ASSERT(id->u_var.dflt_exp == NULL);
+
+    CHECK(exp_check(check, id->u_var.type_exp));
+
+    meta_copy(&id->meta, &id->u_var.type_exp->meta);
+
+    if (id->u_var.size_exps != NULL)
+        CHECK(id_check_array(check, id));
+
+    return true;
+}
+
+static bool
 id_check_fn(check_t *check, ast_id_t *id)
 {
     int i;
@@ -213,13 +247,10 @@ id_check_fn(check_t *check, ast_id_t *id)
     vector_foreach(param_ids, i) {
         ast_id_t *param_id = vector_get_id(param_ids, i);
 
-        ASSERT(is_param_id(param_id));
-        ASSERT(param_id->u_var.dflt_exp == NULL);
-
         param_id->up = id;
         param_id->is_checked = true;
 
-        CHECK(id_check_var(check, param_id));
+        CHECK(id_check_param(check, param_id));
     }
 
     if (id->u_fn.ret_id != NULL) {
@@ -228,7 +259,7 @@ id_check_fn(check_t *check, ast_id_t *id)
         ret_id->up = id;
         ret_id->is_checked = true;
 
-        CHECK(id_check_var(check, ret_id));
+        CHECK(id_check_param(check, ret_id));
 
         meta_copy(&id->meta, &ret_id->meta);
     }

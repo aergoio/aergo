@@ -243,12 +243,13 @@ stmt_trans_if(trans_t *trans, ast_stmt_t *stmt)
      *         '---------------------------'
      */
 
+    exp_trans(trans, stmt->u_if.cond_exp);
+
     fn_add_basic_blk(trans->fn, prev_bb);
 
     trans->bb = bb_new();
-    bb_add_branch(prev_bb, stmt->u_if.cond_exp, trans->bb);
 
-    exp_trans(trans, stmt->u_if.cond_exp);
+    bb_add_branch(prev_bb, stmt->u_if.cond_exp, trans->bb);
 
     if (stmt->u_if.if_blk != NULL)
         blk_trans(trans, stmt->u_if.if_blk);
@@ -303,47 +304,53 @@ static void
 stmt_trans_loop(trans_t *trans, ast_stmt_t *stmt)
 {
     //ir_bb_t *prev_bb = trans->bb;
-    ir_bb_t *cond_bb = bb_new();
+    ir_bb_t *loop_bb = bb_new();
+    ir_bb_t *post_bb = bb_new();
     ir_bb_t *next_bb = bb_new();
 
     /* The initial expression is added to the end of prev_bb, the conditional expression is added
-     * at the beginning of cond_bb, and the afterthought expression is added at the end of the
+     * at the beginning of post_bb, and the afterthought expression is added at the end of the
      * loop block
-     *
      *         .---------------------.
      *         | prev_bb + init_stmt |
      *         '---------------------'
      *                    |
-     *              .-----------.
-     *              |  cond_bb  |<---------.
-     *              '-----------'          |
-     *                  /   \              |
-     *       .-----------. .------------.  |
-     *       |  next_bb  | |  loop blk  |--'
-     *       '-----------' '------------'
+     *               .---------.
+     *               | loop_bb |<--------.
+     *               '---------'         |
+     *                    |              |
+     *               .----------.        |
+     *               | loop blk |        |
+     *               '----------'        |
+     *               /          \        |
+     *        .----------.  .---------.  |
+     *        | break_bb |  | cont_bb |--'
+     *        '----------'  '---------'
      */
 
-#if 0
-    /* previous basic block */
-    bb_add_branch(prev_bb, NULL, cond_bb);
-
-    fn_add_basic_blk(trans->fn, prev_bb);
-
-    trans->bb = cond_bb;
-#endif
-
-    trans->cont_bb = cond_bb;
+    trans->loop_bb = loop_bb;
+    trans->cont_bb = post_bb;
     trans->break_bb = next_bb;
 
     blk_trans(trans, stmt->u_loop.blk);
 
     if (trans->bb != NULL) {
-        /* Make loop using last block and entry block */
-        bb_add_branch(trans->bb, NULL, cond_bb);
+        bb_add_branch(trans->bb, NULL, post_bb);
 
         fn_add_basic_blk(trans->fn, trans->bb);
     }
 
+    trans->bb = post_bb;
+
+    if (stmt->u_loop.post_stmt != NULL)
+        stmt_trans(trans, stmt->u_loop.post_stmt);
+
+    /* Make loop using post block and loop block */
+    bb_add_branch(post_bb, NULL, loop_bb);
+
+    fn_add_basic_blk(trans->fn, post_bb);
+
+    trans->loop_bb = NULL;
     trans->cont_bb = NULL;
     trans->break_bb = NULL;
 
@@ -408,7 +415,6 @@ stmt_trans_switch(trans_t *trans, ast_stmt_t *stmt)
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, next_bb);
-
         fn_add_basic_blk(trans->fn, trans->bb);
     }
 

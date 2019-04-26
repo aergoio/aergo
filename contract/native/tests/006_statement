@@ -112,15 +112,12 @@ contract test {
 }
 
 @test(invalid_array_assignment)
-@error(ERROR_INVALID_LVALUE,3)
+@error(ERROR_INVALID_LVALUE)
 contract test {
     int i[2][2];
     int j[2];
-    int k[2];
     test() {
         i[0] = j;
-        j = i;
-        k = j;
     }
 }
 
@@ -699,31 +696,40 @@ contract test {
 @test(array_loop)
 @run(test.test)
 contract test {
-    int64 v1[2] = new { 194, -228 };
-    string v2[2][3] = new {
+    int64 a1[2] = new { 194, -228 };
+    string a2[2][3] = new {
         { "hello", " ", "world" },
-        { "thank", " ", "you" },
+        { "this is", " ", "aergo" },
     };
 
     test() {
         int64 j;
 
-        for (int64 i in v1) { j += i; }
+        for (int64 i in a1) { j += i; }
         pragma assert(j == -34);
 
         int64 i;
-        for (i in v1) { j++; }
+        for (i in a1) { j++; }
         pragma assert(j == -32);
 
-        /*
-        for (string s1[3] in v2) {
+        int idx = 0;
+        string v;
+        for (string s1[] in a2) {
             string s;
             for (string s2 in s1) {
                 s += s2;
             }
-            pragma assert(s == "hello world");
+            if (idx++ == 0) {
+                pragma assert(s == "hello world");
+                v += s + ", ";
+            }
+            else {
+                pragma assert(s == "this is aergo");
+                v += s;
+            }
         }
-        */
+        pragma assert(idx == 2);
+        pragma assert(v == "hello world, this is aergo");
     }
 }
 
@@ -740,7 +746,7 @@ contract test {
 @run(test.test)
 contract test {
     test() {
-        //for { break; }
+        for { break; }
 
         int v;
         for (int i = 0; i < 10; i++) { continue; v += i; }
