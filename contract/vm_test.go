@@ -3964,7 +3964,11 @@ function key_upval(key)
 	f()
 end
 
-abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval)
+function key_nil(key)
+	h[nil] = "nil"
+end
+
+abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval, key_nil)
 `
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
@@ -4018,6 +4022,14 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_upval"}`).Fail(
 			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_nil"}`).Fail(
+			"bad argument #2 to '__newindex' (number or string expected)",
 		),
 	)
 	if err != nil {
