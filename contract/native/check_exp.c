@@ -675,6 +675,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     if (!is_fn_id(id))
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
+    if (id == check->fn_id)
+        WARN(ERROR_RECURSIVE_CALL, &id_exp->pos);
+
     ASSERT1(is_id_exp(id_exp) || is_access_exp(id_exp), id_exp->kind);
 
     param_ids = id->u_fn.param_ids;

@@ -309,15 +309,13 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
         bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, exp_clone(exp), &exp->pos));
 
         if (is_array_meta(&fn_id->meta) || is_struct_meta(&fn_id->meta)) {
-            uint32_t mem_idx;
             uint32_t size = meta_memsz(meta);
-            ast_exp_t *l_exp, *r_exp;
             ast_exp_t *addr_exp, *cpy_exp;
 
             /* If the return value is an array or struct, we must copy the value because we do
              * share memory space between the caller and the callee */
             if (trans->is_global) {
-                mem_idx = fn_add_register(trans->fn, meta);
+                uint32_t mem_idx = fn_add_register(trans->fn, meta);
 
                 stmt_trans(trans, stmt_make_malloc(mem_idx, size, &exp->pos));
 
@@ -328,17 +326,17 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
             }
             else {
                 fn_add_stack(fn, size, meta);
-                mem_idx = meta->base_idx;
 
-                l_exp = exp_new_reg(mem_idx);
-                meta_set_int32(&l_exp->meta);
+                exp->kind = EXP_BINARY;
+                exp->u_bin.kind = OP_ADD;
+                exp->u_bin.l_exp = exp_new_reg(meta->base_idx);
+                exp->u_bin.r_exp = exp_new_lit_int(meta->rel_addr, &exp->pos);
 
-                r_exp = exp_new_lit_int(meta->rel_addr, &exp->pos);
-                meta_set_int32(&r_exp->meta);
+                meta_set_int32(&exp->u_bin.l_exp->meta);
+                meta_set_int32(&exp->u_bin.r_exp->meta);
+                meta_set_int32(&exp->meta);
 
-                addr_exp = exp_new_binary(OP_ADD, l_exp, r_exp, &exp->pos);
-
-                exp_set_mem(exp, mem_idx, meta->rel_addr, 0);
+                addr_exp = exp;
             }
 
             cpy_exp = syslib_new_memcpy(trans, addr_exp, reg_exp, size, &exp->pos);

@@ -54,10 +54,12 @@ contract test {
     map(int, string) m;
     func f1(int x, string y) { v.a = x; v.b = y; }
     func f2(int x, string y) { m[x] = y; }
-    func f3(s x) {
+    func f3(s p) int128 {
         int i;
-        for (i = 0; i < x.a; i++) { }
-        if (x.b == "b") { }
+        int128 j;
+        for (i = 0; i < p.a; i++) { j++; }
+        if (p.b == "b") { j++; }
+        return j;
     }
     test() {
         f1(1, "1");
@@ -65,7 +67,12 @@ contract test {
         pragma assert(v.b == "1");
 
         f2(2, "2");
-        //f3(v);
+
+        int128 v;
+        v = f3(new { 5, "b" });
+        pragma assert(v == 6);
+        v = f3(new { 5, "b1" });
+        pragma assert(v == 5);
     }
 }
 
@@ -136,11 +143,9 @@ contract test {
     }
 
     test() {
-        test c = new test();
-
-        f1(c);
-        pragma assert(c.a == -10);
-        pragma assert(c.b == "train");
+        f1(this);
+        pragma assert(a == -10);
+        pragma assert(b == "train");
     }
 }
 
@@ -153,34 +158,55 @@ contract test {
 }
 
 @test(return_primitive)
+@run(test.test)
 contract test {
     func f1(int x) int { return x + 1; }
-    //func f2(double x) bool { return x == 1.0; }
-    //func f3(bool x, int y) bool, int { return !x, y << 1; }
+    func f2(int x, int y) int { return x * y; }
+    func f3(int x) string { return (string)x; }
 
     int i = f1(5);
-    bool b;
 
     test() {
-        //b = f2(1.0);
-        //b, i = f3(true, 2);
+        pragma assert(i == 6);
+
+        pragma assert(f2(3, 3) == 9);
+        pragma assert(f2(6, 8) == 48);
+        pragma assert(f2(-9, 4) == -36);
+        pragma assert(f2(-7, -10) == 70);
+
+        pragma assert(f3(218) == "218");
+        pragma assert(f3(0) == "0");
+        pragma assert(f3(-27) == "-27");
+        pragma assert(f3(0xa8) == "168");
     }
 }
 
 @test(return_array)
+@run(test.test)
 contract test {
     func f1() int[2] { return new int[2]; }
-    func f2() int16[2] { return new { 0, 32767 }; }
+    func f2() int16[3] { return new { -32768, 0, 32767 }; }
     //func f3() float[] { return new float[3]; }
     //func f4() double[] { return new { -29.2134 }; }
-    func f5() string[][] { return new string[3][2]; }
+    func f5() string[][] {
+        return new { { "January", null }, { "March", "April" }, { null, "June" } };
+    }
 
     test() {
         int i[] = f1();
+        pragma assert(i.size == 2);
+
         i[0] = -87;
+        pragma assert(i[0] == -87);
+        pragma assert(i[1] == 0);
 
         int16 j[] = f2();
+        pragma assert(j.size == 3);
+
         j[1] = 1027;
+        pragma assert(j[0] == -32768);
+        pragma assert(j[1] == 1027);
+        pragma assert(j[2] == 32767);
 
         /*
         float f[] = f3();
@@ -191,11 +217,23 @@ contract test {
         */
 
         string s[][] = f5();
-        s[2][1] = "April";
+        pragma assert(s.size == 3);
+        pragma assert(s[0].size == 2);
+        pragma assert(s[1].size == 2);
+        pragma assert(s[2].size == 2);
+
+        s[2][0] = "May";
+        pragma assert(s[0][0] == "January");
+        pragma assert(s[0][1] == null);
+        pragma assert(s[1][0] == "March");
+        pragma assert(s[1][1] == "April");
+        pragma assert(s[2][0] == "May");
+        pragma assert(s[2][1] == "June");
     }
 }
 
 @test(return_struct)
+@run(test.test)
 contract test {
     type s struct {
         int a;
@@ -206,9 +244,15 @@ contract test {
     func f2(int x, string y) s { return new { x, y }; }
 
     test() {
-        s v = f1(1, "1");
-        int a = f1(2, "2").a;
-        string b = f2(2, "2").b;
+        s v = f1(1, "google");
+        pragma assert(v.a == 1);
+        pragma assert(v.b == "google");
+
+        pragma assert(f1(2, "apple").a == 2);
+        pragma assert(f1(2, "apple").b == "apple");
+
+        pragma assert(f2(3, "blocko").a == 3);
+        pragma assert(f2(3, "blocko").b == "blocko");
     }
 }
 
@@ -223,15 +267,18 @@ contract test {
 }
 
 @test(return_function)
+@run(test.test)
 contract test {
-    /*
-    func f1(double x) double { return x * 2.0; }
-    func f2(float x) double { return f1((double)x); }
+    func f1(int64 x) int128 { return (int128)x * 2; }
+    func f2(int32 x) int64 { return (int64)f1((int64)x); }
 
     test() {
-        double v = f2(1.0);
+        int64 v = f2(128);
+        pragma assert(v == 256);
+
+        pragma assert(f2(-99) == -198);
+        pragma assert(f2(2147483647) == 4294967294);
     }
-    */
 }
 
 @test(return_contract)
@@ -253,35 +300,6 @@ contract test {
         int a2 = f().a;
         string b2 = f().b;
         bool c2 = f().f();
-    }
-}
-
-@test(return_value_assignment)
-contract test {
-    type s struct {
-        int a;
-        string b;
-    }
-
-    //func f1(int x) int, double { return x + 1, (double)x; }
-    func f1(int16 x) int { return (int)x + 1; }
-    //func f2(int x) double { return (double)x * 2.0; }
-    func f3(int x, string y) s { return new { x, y }; }
-
-    test() {
-        int i;
-        i = f1(9);
-        //double d;
-        //d = f2(-5);
-
-        s v;
-        i, v = f1(3), f3(5, "tuple");
-        /*
-        i, d = f1(0);
-
-        s v;
-        i, d, v = f1(1), f2(3, "3");
-        */
     }
 }
 
@@ -365,18 +383,12 @@ contract test {
 @test(builtin_functions)
 @run(test.test)
 contract test {
-    int8 v1 = (int8)abs32((int32)1);
-    int16 v2 = (int16)abs32((int32)0);
-    int32 v3 = abs32(-1);
-    int64 v4 = abs64(-2);
-    int128 v5 = abs128(-3);
-
     test() {
-        pragma assert(v1 == 1);
-        pragma assert(v2 == 0);
-        pragma assert(v3 == 1);
-        pragma assert(v4 == 2);
-        pragma assert(v5 == 3);
+        pragma assert((int8)abs32((int32)1) == 1);
+        pragma assert((int16)abs32((int32)0) == 0);
+        pragma assert(abs32(-1) == 1);
+        pragma assert(abs64(-2) == 2);
+        pragma assert(abs128(-3) == 3);
 
         pragma assert(lower("LOWER") == "lower");
         pragma assert(upper("upper") == "UPPER");
