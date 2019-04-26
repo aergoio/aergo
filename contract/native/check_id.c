@@ -99,11 +99,12 @@ id_check_var(check_t *check, ast_id_t *id)
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    if (is_const_id(id) && id->u_var.dflt_exp == NULL)
-        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+    if (id->u_var.dflt_exp == NULL) {
+        if (is_const_id(id))
+            RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
 
-    if (id->u_var.dflt_exp == NULL)
         make_default_exp(id);
+    }
 
     dflt_exp = id->u_var.dflt_exp;
 

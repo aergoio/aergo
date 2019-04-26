@@ -267,14 +267,14 @@ contract test {
     }
 }
 
-@test(invalid_unary_lvalue)
+@test(constant_unary_operand)
 @error(ERROR_INVALID_LVALUE)
 contract test {
     const int i = 0;
     int j = i++;
 }
 
-@test(non_integer_operand_type)
+@test(non_integer_unary_operand)
 //@error(ERROR_INVALID_OP_TYPE)
 contract test {
     /*
