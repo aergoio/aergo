@@ -719,7 +719,7 @@ contract test {
 
         int idx = 0;
         string v;
-        for (string s1[] in a2) {
+        for (string s1[3] in a2) {
             string s;
             for (string s2 in s1) {
                 s += s2;
@@ -738,12 +738,21 @@ contract test {
     }
 }
 
-@test(invalid_array_iterator)
+@test(invalid_array_iterator_type)
 @error(ERROR_MISMATCHED_TYPE)
 contract test {
     int64 v[2] = new { 1, 2 };
     test() {
         for (int i in v) { }
+    }
+}
+
+@test(invalid_array_iterator_count)
+@error(ERROR_MISMATCHED_COUNT)
+contract test {
+    int v[2][2] = new { { 1, 2 }, { 3, 4 } };
+    test() {
+        for (int i[3] in v) { }
     }
 }
 

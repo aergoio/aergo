@@ -472,7 +472,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
         if (is_array_meta(meta)) {
             ASSERT1(meta->dim_sizes[0] > 0, meta->dim_sizes[0]);
 
-            make_array_header(trans, reg_idx, 0, offset, meta->arr_dim - 1, &exp->pos);
+            make_array_header(trans, reg_idx, 0, offset, meta->arr_dim, &exp->pos);
             offset += sizeof(uint32_t);
 
             make_array_header(trans, reg_idx, 0, offset, meta->dim_sizes[0], &exp->pos);
