@@ -39,6 +39,8 @@ contract test {
     func f2(int p1, string p2) { }
     func f3(int p1, map(int, string) p2) { }
     func f4(int p1[]) { }
+    func f5(const int p1) { }
+    func f6(string p1, const string p2) { }
 }
 
 @test(access_parameters)
@@ -63,6 +65,31 @@ contract test {
         pragma assert(v.b == "1");
         f2(2, "2");
         //f3(v);
+    }
+}
+
+@test(overwrite_parameter)
+@run(test.test)
+contract test {
+    func f(int x, string y) {
+        x++;
+        y += "invalid";
+    }
+    test() {
+        int p1 = 1;
+        string p2 = "time";
+
+        f(p1, p2);
+        pragma assert(p1 == 1);
+        pragma assert(p2 == "time");
+    }
+}
+
+@test(access_constant_parameter)
+@error(ERROR_INVALID_LVALUE)
+contract test {
+    func f1(const int x) {
+        x = 1;
     }
 }
 

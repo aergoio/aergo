@@ -186,6 +186,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <vect>    param_list_opt
 %type <vect>    param_list
 %type <id>      param_decl
+%type <mod>     const_opt
 %type <id>      udf_spec
 %type <mod>     modifier_opt
 %type <id>      return_opt
@@ -599,12 +600,18 @@ param_list:
 ;
 
 param_decl:
-    var_type declarator
+    const_opt var_type declarator
     {
-        $$ = $2;
+        $$ = $3;
+        $$->mod |= $1;
         $$->u_var.is_param = true;
-        $$->u_var.type_exp = $1;
+        $$->u_var.type_exp = $2;
     }
+;
+
+const_opt:
+    /* empty */             { $$ = MOD_PRIVATE; }
+|   K_CONST                 { $$ = MOD_CONST; }
 ;
 
 udf_spec:
