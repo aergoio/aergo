@@ -144,7 +144,7 @@ contract test {
 @test(self_accessor_as_parameter)
 contract test {
     test() {
-        f(test);
+        f(this);
     }
     func f (test p) { }
 }

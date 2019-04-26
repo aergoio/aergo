@@ -656,21 +656,22 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     if (id == NULL)
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
-    if (is_cont_id(id)) {
-        /* In case of the contract identifier, the constructor is searched again */
-        id = blk_search_id(id->u_cont.blk, id->name, false);
-        ASSERT(id != NULL);
+    if (exp->u_call.kind == FN_CTOR) {
+        if (is_cont_id(id)) {
+            /* In case of the contract identifier, the constructor is searched again */
+            id = blk_search_id(id->u_cont.blk, id->name, false);
+            ASSERT(id != NULL);
 
-        id_trycheck(check, id);
+            id_trycheck(check, id);
+            ASSERT(id->up != NULL);
+        }
 
-        ASSERT(id->up != NULL);
+        if (!is_ctor_id(id))
+            RETURN(ERROR_UNDEFINED_ID, &id_exp->pos, id->name);
     }
 
     if (!is_fn_id(id))
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
-
-    if (exp->u_call.kind == FN_CTOR && !is_ctor_id(id))
-        RETURN(ERROR_UNDEFINED_ID, &id_exp->pos, id->name);
 
     ASSERT1(is_id_exp(id_exp) || is_access_exp(id_exp), id_exp->kind);
 
@@ -686,7 +687,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, param_exp));
 
-        if (param_exp->id != NULL && !is_var_id(param_exp->id) && !is_fn_id(param_exp->id))
+        if (!is_call_exp(param_exp) && param_exp->id != NULL && !is_var_id(param_exp->id) &&
+            (!is_cont_id(param_exp->id) || !is_id_exp(param_exp) ||
+             strcmp(param_exp->u_id.name, "this") != 0))
             ERROR(ERROR_NOT_ALLOWED_PARAM, &param_exp->pos);
 
         meta_eval(&param_id->meta, &param_exp->meta);
