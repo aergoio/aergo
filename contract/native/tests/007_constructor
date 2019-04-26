@@ -120,22 +120,31 @@ contract test {
 }
 
 @test(self_accessor)
+@run(test.test)
 contract test {
     int8 x;
     string y;
-    test(int8 x, string y) {
+    func f(int8 x, string y) {
         this.x = x;
-        if (this.y == "") {
-            this.y = "self";
-        }
+        this.y = y;
+    }
+    test() {
+        this.x = 9;
+        pragma assert(this.x == 9);
+
+        this.y = "self";
+        pragma assert(this.y == "self");
+
+        f(10, "reference");
+        pragma assert(this.x == 10);
+        pragma assert(this.y == "reference");
     }
 }
 
 @test(self_accessor_as_parameter)
-@error(ERROR_NOT_ALLOWED_PARAM)
 contract test {
     test() {
-        f(this);
+        f(test);
     }
     func f (test p) { }
 }
