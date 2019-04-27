@@ -58,12 +58,10 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 
             exp_trans(trans, elem_exp);
 
-            /* For unary increase/decrease expressions, which are postfixes, add them as
-             * piggybacked statements */
+            /* Other expressions such as unary expressions have already been added, and only
+             * the call expression needs to be added. */
             if (is_call_exp(elem_exp))
                 bb_add_stmt(trans->bb, stmt_new_exp(elem_exp, &elem_exp->pos));
-            else
-                bb_add_stmt(trans->bb, NULL);
         }
     }
     else {
@@ -72,8 +70,6 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
         /* same as above */
         if (is_call_exp(exp))
             bb_add_stmt(trans->bb, stmt);
-        else
-            bb_add_stmt(trans->bb, NULL);
     }
 }
 
@@ -82,8 +78,8 @@ resolve_var_meta(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp)
 {
     meta_t *meta = &var_exp->meta;
 
-    /* Here we override the meta of the variable declared in the form "interface variable = rvalue;"
-     * with the contract meta */
+    /* Here we override the meta of the variable declared in the form
+     * "interface variable = rvalue;" with the contract meta */
 
     /* If rvalue is the "null" literal, "val_exp->id" can be null */
     if (val_exp->id == NULL || !is_object_meta(meta) || !is_itf_id(meta->type_id))

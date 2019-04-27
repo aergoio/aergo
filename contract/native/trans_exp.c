@@ -145,18 +145,6 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
 
         bb_add_stmt(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
         *exp = *val_exp;
-#if 0
-        bi_exp = exp_new_binary(exp->u_un.kind == OP_INC ? OP_ADD : OP_SUB, val_exp, lit_exp,
-                                &exp->pos);
-        meta_copy(&bi_exp->meta, &val_exp->meta);
-
-        if (exp->u_un.is_prefix)
-            bb_add_stmt(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
-        else
-            /* The postfix operator is added as a piggybacked statement since it must
-             * be executed after the current statement is executed */
-            bb_add_piggyback(trans->bb, stmt_new_assign(var_exp, bi_exp, &exp->pos));
-#endif
         break;
 
     case OP_NEG:
