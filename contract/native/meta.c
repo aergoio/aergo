@@ -350,6 +350,8 @@ meta_eval_type(meta_t *x, meta_t *y)
     if (!is_tuple_meta(y))
         return;
 
+    ASSERT1(y->elem_cnt > 0, y->elem_cnt);
+
     if (is_map_meta(x)) {
         for (i = 0; i < y->elem_cnt; i++) {
             for (j = 0; j < x->elem_cnt; j++) {
@@ -376,6 +378,8 @@ meta_eval_type(meta_t *x, meta_t *y)
             meta_eval(x->elems[i], y->elems[i]);
         }
     }
+
+    y->align = y->elems[0]->align;
 }
 
 static void
@@ -391,6 +395,8 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
             meta_eval_type(x, y);
         }
         else {
+            ASSERT1(y->elem_cnt > 0, y->elem_cnt);
+
             for (i = 0; i < y->elem_cnt; i++) {
                 meta_eval_array(x, dim + 1, y->elems[i]);
             }
@@ -398,6 +404,8 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
             y->max_dim = x->max_dim;
             y->arr_dim = x->max_dim - dim;
             y->dim_sizes = &x->dim_sizes[dim];
+
+            y->align = y->elems[0]->align;
         }
     }
     else {

@@ -218,7 +218,7 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
         ASSERT1(!strcmp(fld_exp->u_id.name, "size"), fld_exp->u_id.name);
 
         rel_addr = 0;
-        rel_offset = sizeof(uint32_t);
+        rel_offset = 0;
     }
     else {
         rel_addr = fld_id->meta.rel_addr;
@@ -388,14 +388,16 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
     raw = xcalloc(size);
 
     if (is_array_meta(meta)) {
-        ASSERT2((ptrdiff_t)(raw + offset) % 4 == 0, raw, offset);
         ASSERT(meta->dim_sizes[0] > 0);
+        ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
+        ASSERT2((ptrdiff_t)(raw + offset) % meta_align(meta) == 0, raw, offset);
 
-        *(int *)(raw + offset) = meta->arr_dim;
-        offset += sizeof(uint32_t);
+        if (meta_align(meta) == 8)
+            *(int64_t *)(raw + offset) = meta->dim_sizes[0];
+        else
+            *(int *)(raw + offset) = meta->dim_sizes[0];
 
-        *(int *)(raw + offset) = meta->dim_sizes[0];
-        offset += sizeof(uint32_t);
+        offset += meta_align(meta);
     }
 
     vector_foreach(elem_exps, i) {
@@ -469,12 +471,10 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
 
         if (is_array_meta(meta)) {
             ASSERT1(meta->dim_sizes[0] > 0, meta->dim_sizes[0]);
-
-            make_array_header(trans, reg_idx, 0, offset, meta->arr_dim, &exp->pos);
-            offset += sizeof(uint32_t);
+            ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
 
             make_array_header(trans, reg_idx, 0, offset, meta->dim_sizes[0], &exp->pos);
-            offset += sizeof(uint32_t);
+            offset += meta_align(meta);
         }
 
         vector_foreach(elem_exps, i) {
@@ -561,14 +561,11 @@ trans_array_header(trans_t *trans, ast_exp_t *exp, int dim_idx, uint32_t reg_idx
     meta_t *meta = &exp->meta;
 
     ASSERT1(meta->dim_sizes[dim_idx] > 0, meta->dim_sizes[dim_idx]);
-
-    /* current dimension in reverse order */
-    make_array_header(trans, reg_idx, addr, offset, meta->max_dim - dim_idx, &exp->pos);
-    offset += sizeof(uint32_t);
+    ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
 
     /* the count of elements */
     make_array_header(trans, reg_idx, addr, offset, meta->dim_sizes[dim_idx], &exp->pos);
-    offset += sizeof(uint32_t);
+    offset += meta_align(meta);
 
     if (dim_idx == meta->max_dim - 1)
         return offset + ALIGN(meta_regsz(meta), meta_align(meta)) * meta->dim_sizes[dim_idx];

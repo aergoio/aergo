@@ -71,7 +71,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
 
     if (is_array_meta(&id->meta)) {
-        uint32_t offset;
+        uint32_t offset = 0;
         fn_kind_t kind = FN_ARR_GET_I32;
         ast_exp_t *id_exp = exp->u_arr.id_exp;
         ast_exp_t *idx_exp = exp->u_arr.idx_exp;
@@ -87,27 +87,27 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
                     if (is_int64_meta(meta))
                         kind = FN_ARR_GET_I64;
 
-                    address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
-                    offset = 0;
+                    address = syslib_gen(gen, kind, 3, address, i32_gen(gen, meta->arr_dim),
+                                         exp_gen(gen, idx_exp));
                 }
                 else {
                     /* The total size of the subdimensions is required. */
-                    offset = val_i64(&idx_exp->u_lit.val) * meta_memsz(meta) + sizeof(uint64_t);
+                    offset = val_i64(&idx_exp->u_lit.val) * meta_memsz(meta) + meta_align(meta);
                 }
             }
             else {
-                offset = val_i64(&idx_exp->u_lit.val) * meta_regsz(meta) + sizeof(uint64_t);
+                offset = val_i64(&idx_exp->u_lit.val) * meta_regsz(meta) + meta_align(meta);
             }
         }
         else {
             if (is_int64_meta(meta))
                 kind = FN_ARR_GET_I64;
 
-            address = syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp));
-            offset = 0;
+            address = syslib_gen(gen, kind, 3, address, i32_gen(gen, meta->arr_dim),
+                                 exp_gen(gen, idx_exp));
         }
 
-        ASSERT1(offset % 4 == 0, offset);
+        ASSERT1(offset % meta_align(meta) == 0, offset);
 
         if (gen->is_lval || is_array_meta(meta)) {
             /* Even if it is not an lvalue, it should return address when accessing the
@@ -721,13 +721,9 @@ exp_gen_init(gen_t *gen, ast_exp_t *exp)
                                  i32_gen(gen, meta->rel_addr));
 
     if (is_array_meta(meta)) {
-        instr_add(gen, BinaryenStore(gen->module, sizeof(uint32_t), offset, 0, address,
-                                     i32_gen(gen, meta->arr_dim - 1), BinaryenTypeInt32()));
-        offset += sizeof(uint32_t);
-
-        instr_add(gen, BinaryenStore(gen->module, sizeof(uint32_t), offset, 0, address,
+        instr_add(gen, BinaryenStore(gen->module, meta_align(meta), offset, 0, address,
                                      i32_gen(gen, meta->dim_sizes[0]), BinaryenTypeInt32()));
-        offset += sizeof(uint32_t);
+        offset += meta_align(meta);
     }
 
     vector_foreach(elem_exps, i) {

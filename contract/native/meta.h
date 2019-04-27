@@ -217,7 +217,7 @@ meta_memsz(meta_t *meta)
 
     if (is_tuple_meta(meta)) {
         if (is_array_meta(meta))
-            size = sizeof(uint64_t);
+            size = meta_align(meta);
 
         for (i = 0; i < meta->elem_cnt; i++) {
             meta_t *elem_meta = meta->elems[i];
@@ -233,18 +233,19 @@ meta_memsz(meta_t *meta)
     else if (is_array_meta(meta)) {
         uint32_t dim_sz = 1;
 
+        ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
+
         size = TYPE_SIZE(meta->type);
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size *= meta->dim_sizes[i];
         }
 
-        /* Each dimension has a current dimension in reverse order (4bytes) and the count of
-         * elements (4bytes) as a header. */
-        size += sizeof(uint64_t);
+        /* Each dimension has the count of elements (4 or 8 bytes) as a header. */
+        size += meta_align(meta);
         for (i = 0; i < meta->arr_dim - 1; i++) {
             dim_sz *= meta->dim_sizes[i];
-            size += dim_sz * sizeof(uint64_t);
+            size += dim_sz * meta_align(meta);
         }
     }
     else if (is_struct_meta(meta)) {
