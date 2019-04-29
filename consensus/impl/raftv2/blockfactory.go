@@ -1,11 +1,13 @@
-package raft
+package raftv2
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
@@ -33,11 +35,6 @@ var (
 	httpLogger         *log.Logger
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
-	peerCheckInterval  = time.Second * 3
-)
-
-var (
-	ErrBFQuit = errors.New("block factory quit")
 )
 
 func init() {
@@ -66,7 +63,7 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 // This can be used for testing purpose.
 type BlockFactory struct {
 	*component.ComponentHub
-	consensus.ChainDB
+	consensus.ChainWAL
 
 	bpc              *Cluster
 	jobQueue         chan interface{}
@@ -78,7 +75,9 @@ type BlockFactory struct {
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block // best block of last job
+	jobLock          sync.RWMutex
 
+	raftOp     *RaftOperator
 	raftServer *raftServer
 }
 
@@ -88,20 +87,20 @@ func GetName() string {
 }
 
 // GetConstructor build and returns consensus.Constructor from New function.
-func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
-	sdb *state.ChainStateDB) consensus.Constructor {
+func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
+	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg, hub, cdb, sdb)
+		return New(cfg, hub, cdb, sdb, pa)
 	}
 }
 
 // New returns a BlockFactory.
-func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
-	sdb *state.ChainStateDB) (*BlockFactory, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
+	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) (*BlockFactory, error) {
 
 	bf := &BlockFactory{
 		ComponentHub:     hub,
-		ChainDB:          cdb,
+		ChainWAL:         cdb,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		blockInterval:    time.Second * time.Duration(cfg.Consensus.BlockInterval),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
@@ -116,6 +115,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 			logger.Error().Err(err).Msg("failed to init raft server")
 			return bf, err
 		}
+
+		bf.raftServer.SetPeerAccessor(pa)
 	}
 
 	bf.txOp = chain.NewCompTxOp(
@@ -132,24 +133,68 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	return bf, nil
 }
 
+type Proposed struct {
+	block      *types.Block
+	blockState *state.BlockState
+}
+
+type RaftOperator struct {
+	confChangeC chan raftpb.ConfChange
+	commitC     chan *types.Block
+
+	rs *raftServer
+
+	proposed *Proposed
+}
+
+func newRaftOperator(rs *raftServer) *RaftOperator {
+	confChangeC := make(chan raftpb.ConfChange, 1)
+	commitC := make(chan *types.Block)
+
+	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
+}
+
+func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) {
+	rop.proposed = &Proposed{block: block, blockState: blockState}
+
+	if err := rop.rs.Propose(block); err != nil {
+		logger.Error().Err(err).Msg("propose error to raft")
+		return
+	}
+
+	logger.Info().Msg("block proposed by blockfactory")
+}
+
+func (rop *RaftOperator) resetPropose() {
+	rop.proposed = nil
+	logger.Debug().Msg("reset proposed block")
+}
+
+func (rop *RaftOperator) toString() string {
+	buf := "proposed:"
+	if rop.proposed != nil && rop.proposed.block != nil {
+		buf = buf + fmt.Sprintf("[no=%d, hash=%s]", rop.proposed.block.BlockNo(), rop.proposed.block.BlockID().String())
+	} else {
+		buf = buf + "empty"
+	}
+	return buf
+}
+
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 	if err := bf.InitCluster(cfg); err != nil {
 		return err
 	}
 
-	proposeC := make(chan string, 1)
-	confChangeC := make(chan raftpb.ConfChange, 1)
+	bf.raftOp = newRaftOperator(bf.raftServer)
 
-	waldir := fmt.Sprintf("%s/raft/wal", cfg.DataDir)
-	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
+	logger.Info().Str("RaftID", MemberIDToString(bf.bpc.NodeID)).Msg("raft server start")
 
-	logger.Info().Uint64("RaftID", bf.bpc.ID).Str("waldir", waldir).Str("snapdir", snapdir).Msg("raft server start")
-
-	bf.raftServer = newRaftServer(bf.bpc.ID, cfg.Consensus.Raft.RaftListenUrl, bf.bpc.BPUrls, false, waldir, snapdir,
-		cfg.Consensus.Raft.RaftCertFile, cfg.Consensus.Raft.RaftKeyFile,
-		nil, RaftTick, proposeC, confChangeC, true)
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false,
+		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
+		RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
+	bf.raftOp.rs = bf.raftServer
 
 	return nil
 }
@@ -161,6 +206,9 @@ func (bf *BlockFactory) Ticker() *time.Ticker {
 
 // QueueJob send a block triggering information to jq.
 func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
+	bf.jobLock.Lock()
+	defer bf.jobLock.Unlock()
+
 	if !bf.raftServer.IsLeader() {
 		logger.Debug().Msg("skip producing block because this bp is not leader")
 		return
@@ -245,63 +293,31 @@ func (bf *BlockFactory) Start() {
 
 	runtime.LockOSThread()
 
-	// 1. sync blockchain
-	if err := bf.waitSyncWithMajority(); err != nil {
-		logger.Error().Err(err).Msg("wait sync with majority failed")
-		return
-	}
-
-	// 2. raft can be candidate
-	//    if this node hasn't been synchronized, it must not be candidate.
-	// 	  otherwise producing block will be stop until synchronization complete
-	bf.raftServer.SetPromotable(true)
-
-	// 3. wait to commit all uncommited log in WAL, and start
-	bf.raftServer.WaitStartup()
-
 	for {
 		select {
 		case e := <-bf.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				blockState := bf.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
-
-				ts := time.Now().UnixNano()
-
-				txOp := chain.NewCompTxOp(
-					bf.txOp,
-					newTxExec(bf.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
-				)
-
-				block, err := chain.GenerateBlock(bf, prevBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
-				if err == chain.ErrQuit {
+				if err := bf.build(prevBlock); err != nil {
 					return
-				} else if err == chain.ErrBlockEmpty {
-					continue
-				} else if err != nil {
-					logger.Info().Err(err).Msg("failed to produce block")
-					continue
 				}
+			}
+		case block, ok := <-bf.commitC():
+			logger.Debug().Msg("received block from raft")
 
-				if err = block.Sign(bf.privKey); err != nil {
-					logger.Error().Err(err).Msg("failed to sign in block")
-					continue
-				}
+			if !ok {
+				logger.Fatal().Msg("commit channel for raft is closed")
+				return
+			}
 
-				logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
-					Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
-					Uint64("no", block.GetHeader().GetBlockNo()).
-					Str("hash", block.ID()).
-					Msg("block produced")
+			if block == nil {
+				bf.reset()
+				continue
+			}
 
-				if !bf.raftServer.IsLeader() {
-					logger.Info().Msg("skip producing block because this bp is not leader")
-					continue
-				}
-
-				//if bestblock is changed, connecting block failed. new block is generated in next tick
-				if err := chain.ConnectBlock(bf, block, blockState); err != nil {
-					logger.Error().Msg(err.Error())
-				}
+			// add block that has produced by remote BP
+			if err := bf.connect(block); err != nil {
+				logger.Fatal().Err(err).Msg("failed to connect block")
+				return
 			}
 		case <-bf.quit:
 			return
@@ -309,6 +325,87 @@ func (bf *BlockFactory) Start() {
 	}
 }
 
+func (bf *BlockFactory) build(prevBlock *types.Block) error {
+	blockState := bf.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
+
+	ts := time.Now().UnixNano()
+
+	txOp := chain.NewCompTxOp(
+		bf.txOp,
+		newTxExec(bf.ChainWAL, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
+	)
+
+	block, err := chain.GenerateBlock(bf, prevBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
+	if err == chain.ErrBlockEmpty {
+		return nil
+	} else if err != nil {
+		logger.Info().Err(err).Msg("failed to produce block")
+		return err
+	}
+
+	if err = block.Sign(bf.privKey); err != nil {
+		logger.Error().Err(err).Msg("failed to sign in block")
+		return nil
+	}
+
+	logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
+		Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
+		Uint64("no", block.GetHeader().GetBlockNo()).
+		Str("hash", block.ID()).
+		Msg("block produced")
+
+	if !bf.raftServer.IsLeader() {
+		logger.Info().Msg("skip producing block because this bp is not leader")
+		return nil
+	}
+
+	bf.raftOp.propose(block, blockState)
+
+	return nil
+}
+
+func (bf *BlockFactory) commitC() chan *types.Block {
+	return bf.raftOp.commitC
+}
+
+func (bf *BlockFactory) reset() {
+	bf.jobLock.Lock()
+	defer bf.jobLock.Unlock()
+
+	logger.Debug().Str("prev proposed", bf.raftOp.toString()).Msg("commit nil data, so reset block factory")
+
+	bf.prevBlock = nil
+}
+
+// save block/block state to connect after commit
+func (bf *BlockFactory) connect(block *types.Block) error {
+	proposed := bf.raftOp.proposed
+	var blockState *state.BlockState
+
+	if proposed != nil {
+		if !bytes.Equal(block.BlockHash(), proposed.block.BlockHash()) {
+			logger.Warn().Uint64("prop-no", proposed.block.GetHeader().GetBlockNo()).Str("prop", proposed.block.ID()).Uint64("commit-no", block.GetHeader().GetBlockNo()).Str("commit", block.ID()).Msg("commited block is not commited. this node is probably not leader")
+			bf.raftOp.resetPropose()
+		} else {
+			blockState = proposed.blockState
+		}
+	}
+
+	logger.Debug().Uint64("no", block.BlockNo()).
+		Str("hash", block.ID()).
+		Str("prev", block.PrevID()).
+		Msg("connect block")
+
+	//if bestblock is changed, connecting block failed. new block is generated in next tick
+	if err := chain.ConnectBlock(bf, block, blockState); err != nil {
+		logger.Error().Msg(err.Error())
+		return err
+	}
+
+	return nil
+}
+
+/*
 // waitUntilStartable wait until this chain synchronizes with more than half of all peers
 func (bf *BlockFactory) waitSyncWithMajority() error {
 	ticker := time.NewTicker(peerCheckInterval)
@@ -330,7 +427,7 @@ func (bf *BlockFactory) waitSyncWithMajority() error {
 		}
 	}
 }
-
+*/
 // JobQueue returns the queue for block production triggering.
 func (bf *BlockFactory) JobQueue() chan<- interface{} {
 	return bf.jobQueue
@@ -347,7 +444,7 @@ func (bf *BlockFactory) Info() string {
 
 	b, err := json.Marshal(bf.bpc.getRaftInfo(false))
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to marshal raft consensus")
+		logger.Error().Err(err).Msg("failed to marshalEntryData raft consensus")
 	} else {
 		m := json.RawMessage(b)
 		info.Status = &m
@@ -361,4 +458,12 @@ func (bf *BlockFactory) ConsensusInfo() *types.ConsensusInfo {
 		return &types.ConsensusInfo{Type: GetName()}
 	}
 	return bf.bpc.toConsensusInfo()
+}
+
+func (bf *BlockFactory) NeedNotify() bool {
+	return false
+}
+
+func (bf *BlockFactory) HasWAL() bool {
+	return true
 }

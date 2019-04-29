@@ -106,17 +106,17 @@ type ConsensusConfig struct {
 }
 
 type RaftConfig struct {
-	RaftID        uint64         `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
-	RaftListenUrl string         `mapstructure:"raftlistenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
-	RaftBPs       []RaftBPConfig `mapstructure:"raftbps"`
-	RaftSkipEmpty bool           `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
-	RaftKeyFile   string         `mapstructure:"raftkeyfile" description:"Private Key file for raft https server"`
-	RaftCertFile  string         `mapstructure:"raftcertfile" description:"Certificate file for raft https server"`
-	RaftTick      uint           `mapstructure:"rafttick" description:"tick of raft server (millisec)"`
+	Name      string         `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
+	ListenUrl string         `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
+	BPs       []RaftBPConfig `mapstructure:"bps"`
+	SkipEmpty bool           `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
+	KeyFile   string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
+	CertFile  string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
+	Tick      uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
 }
 
 type RaftBPConfig struct {
-	ID    uint64 `mapstructure:"id" description:"raft ID"`
+	Name  string `mapstructure:"name" description:"raft node name"`
 	Url   string `mapstructure:"url" description:"raft url"`
 	P2pID string `mapstructure:"p2pid" description:"p2p ID of this bp"`
 }

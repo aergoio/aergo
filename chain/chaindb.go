@@ -26,19 +26,24 @@ const (
 	chainDBName       = "chain"
 	genesisKey        = chainDBName + ".genesisInfo"
 	genesisBalanceKey = chainDBName + ".genesisBalance"
-
-	TxBatchMax = 10000
 )
 
 var (
 	// ErrNoChainDB reports chaindb is not prepared.
-	ErrNoChainDB         = fmt.Errorf("chaindb not prepared")
-	ErrorLoadBestBlock   = errors.New("failed to load latest block from DB")
-	ErrCantDropGenesis   = errors.New("can't drop genesis block")
-	ErrTooBigResetHeight = errors.New("reset height is too big")
+	ErrNoChainDB           = fmt.Errorf("chaindb not prepared")
+	ErrorLoadBestBlock     = errors.New("failed to load latest block from DB")
+	ErrCantDropGenesis     = errors.New("can't drop genesis block")
+	ErrTooBigResetHeight   = errors.New("reset height is too big")
+	ErrInvalidHardState    = errors.New("invalid hard state")
+	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
+
+	raftStateKey        = []byte("r_state")
+	raftSnapKey         = []byte("r_snap")
+	raftEntryLastIdxKey = []byte("r_last")
+	raftEntryPrefix     = []byte("r_entry.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -299,7 +304,7 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 		block.BlockID()
 	}
 
-	cdb.connectToChain(&tx, block)
+	cdb.connectToChain(&tx, block, false)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
 		tx.Set([]byte(genesisBalanceKey), totalBalance.Bytes())
@@ -356,12 +361,14 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 	return
 }
 
-func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (oldLatest types.BlockNo) {
+func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block, skipAdd bool) (oldLatest types.BlockNo) {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
 
-	if err := cdb.addBlock(dbtx, block); err != nil {
-		return 0
+	if !skipAdd {
+		if err := cdb.addBlock(dbtx, block); err != nil {
+			return 0
+		}
 	}
 
 	// Update best block hash
@@ -575,6 +582,10 @@ func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	return cdb.getBlock(blockHash)
 }
 
+func (cdb *ChainDB) GetBlock(blockHash []byte) (*types.Block, error) {
+	return cdb.getBlock(blockHash)
+}
+
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	if blockHash == nil {
 		return nil, fmt.Errorf("block hash invalid(nil)")
@@ -742,4 +753,10 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 	err := decoder.Decode(&marker)
 
 	return &marker, err
+}
+
+// implement ChainWAL interface
+func (cdb *ChainDB) IsNew() bool {
+	//TODO
+	return true
 }

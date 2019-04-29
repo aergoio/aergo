@@ -219,3 +219,11 @@ func (s *SimpleBlockFactory) Info() string {
 func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
 	return &types.ConsensusInfo{Type: GetName()}
 }
+
+func (s *SimpleBlockFactory) NeedNotify() bool {
+	return true
+}
+
+func (s *SimpleBlockFactory) HasWAL() bool {
+	return false
+}

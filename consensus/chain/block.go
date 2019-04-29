@@ -3,6 +3,9 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/libp2p/go-libp2p-peer"
 	"time"
 
 	"github.com/aergoio/aergo/chain"
@@ -17,6 +20,7 @@ var (
 	ErrQuit           = errors.New("shutdown initiated")
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 	ErrBlockEmpty     = errors.New("no transactions in block")
+	ErrSyncChain      = errors.New("failed to sync request")
 )
 
 // ErrTimeout can be used to indicatefor any kind of timeout.
@@ -103,5 +107,29 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 		return &ErrBlockConnect{id: block.ID(), prevID: block.PrevID(), ec: err}
 	}
 
+	return nil
+}
+
+func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID peer.ID) error {
+	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Uint64("no", targetNo).
+		Str("hash", enc.ToString(targetHash)).Msg("request to sync for consensus")
+
+	notiC := make(chan error)
+	hs.Tell(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: targetNo, NotifyC: notiC})
+
+	// wait end of sync every 1sec
+	select {
+	case err := <-notiC:
+		if err != nil {
+			logger.Error().Err(err).Uint64("no", targetNo).
+				Str("hash", enc.ToString(targetHash)).
+				Msg("failed to sync")
+
+			return ErrSyncChain
+		}
+	}
+
+	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Msg("succeeded to sync for consensus")
+	// TODO check best block is equal to target Hash/no
 	return nil
 }

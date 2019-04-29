@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"runtime/debug"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -121,13 +122,13 @@ func (syncer *Syncer) AfterStart() {
 func (syncer *Syncer) BeforeStop() {
 	if syncer.isRunning {
 		logger.Info().Msg("syncer BeforeStop")
-		syncer.Reset()
+		syncer.Reset(nil)
 	}
 }
 
-func (syncer *Syncer) Reset() {
+func (syncer *Syncer) Reset(err error) {
 	if syncer.isRunning {
-		logger.Info().Msg("syncer stop#1")
+		logger.Info().Uint64("targetNo", syncer.ctx.TargetNo).Msg("syncer stop#1")
 
 		syncer.finder.stop()
 		syncer.hashFetcher.stop()
@@ -137,10 +138,27 @@ func (syncer *Syncer) Reset() {
 		syncer.hashFetcher = nil
 		syncer.blockFetcher = nil
 		syncer.isRunning = false
+
+		syncer.notifyStop(err)
+
 		syncer.ctx = nil
 	}
 
 	logger.Info().Msg("syncer stopped")
+}
+
+func (syncer *Syncer) notifyStop(err error) {
+	if syncer.ctx == nil || syncer.ctx.NotifyC == nil {
+		return
+	}
+
+	logger.Info().Err(err).Msg("notify syncer stop")
+
+	select {
+	case syncer.ctx.NotifyC <- err:
+	default:
+		logger.Debug().Msg("failed to notify syncer stop")
+	}
 }
 
 func (syncer *Syncer) GetSeq() uint64 {
@@ -250,7 +268,7 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 	case *message.FinderResult:
 		err := syncer.handleFinderResult(msg)
 		if err != nil {
-			syncer.Reset()
+			syncer.Reset(err)
 			logger.Error().Err(err).Msg("FinderResult failed")
 		}
 	case *message.GetHashesRsp:
@@ -259,13 +277,13 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 	case *message.GetBlockChunksRsp:
 		err := syncer.blockFetcher.handleBlockRsp(msg)
 		if err != nil {
-			syncer.Reset()
+			syncer.Reset(err)
 			logger.Error().Err(err).Msg("GetBlockChunksRsp failed")
 		}
 	case *message.AddBlockRsp:
 		err := syncer.blockFetcher.handleBlockRsp(msg)
 		if err != nil {
-			syncer.Reset()
+			syncer.Reset(err)
 			logger.Error().Err(err).Msg("AddBlockRsp failed")
 		}
 	case *message.SyncStop:
@@ -274,7 +292,7 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 		} else {
 			logger.Error().Str("from", msg.FromWho).Err(msg.Err).Msg("syncer try to stop by error")
 		}
-		syncer.Reset()
+		syncer.Reset(msg.Err)
 	case *message.CloseFetcher:
 		if msg.FromWho == NameHashFetcher {
 			syncer.hashFetcher.stop()
@@ -299,7 +317,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
-	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("syncer requested")
+	logger.Debug().Uint64("targetNo", msg.TargetNo).Str("peer", p2putil.ShortForm(msg.PeerID)).Msg("syncer requested")
 
 	if syncer.isRunning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
@@ -326,7 +344,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	logger.Info().Uint64("seq", syncer.GetSeq()).Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
 
 	//TODO BP stop
-	syncer.ctx = types.NewSyncCtx(syncer.GetSeq(), msg.PeerID, msg.TargetNo, bestBlockNo)
+	syncer.ctx = types.NewSyncCtx(syncer.GetSeq(), msg.PeerID, msg.TargetNo, bestBlockNo, msg.NotifyC)
 	syncer.isRunning = true
 
 	syncer.finder = newFinder(syncer.ctx, syncer.getCompRequester(), syncer.chain, syncer.syncerCfg)
@@ -439,7 +457,7 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 func (syncer *Syncer) RecoverSyncerSelf() {
 	if r := recover(); r != nil {
 		logger.Error().Str("dest", "SYNCER").Str("callstack", string(debug.Stack())).Msg("syncer recovered it's panic")
-		syncer.Reset()
+		syncer.Reset(ErrSyncerPanic)
 	}
 }
 

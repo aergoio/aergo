@@ -1,5 +1,5 @@
-hash: d159573adefc8682d7a81bf843426f1b152518aeef4c894b7c05b8d8ab06b24c
-updated: 2019-03-08T15:40:19.009606+09:00
+hash: 85031aaa08774c0d6ee90152b5d374507f75f25ab9beaa3bdc67ca6e0d53cd55
+updated: 2019-04-29T11:02:01.527894+09:00
 imports:
 - name: github.com/aergoio/aergo-actor
   version: 562037d5fec70391e3c047a5293b49a443237386
@@ -17,10 +17,9 @@ imports:
   - db
   - log
 - name: github.com/aergoio/etcd
-  version: 197cce8d36e4826d252c024d4e4025d7ac78385b
+  version: e8b3f96f63998eaaf57b2718477975735f0a3b85
   subpackages:
   - etcdserver/stats
-  - pkg/crc
   - pkg/fileutil
   - pkg/httputil
   - pkg/ioutil
@@ -35,8 +34,6 @@ imports:
   - snap
   - snap/snappb
   - version
-  - wal
-  - wal/walpb
 - name: github.com/agl/ed25519
   version: 5312a61534124124185d41f09206b9fef1d88403
   subpackages:
@@ -113,6 +110,7 @@ imports:
 - name: github.com/funkygao/golib
   version: 90d4905c196196cce46e129063a1658fc20619de
   subpackages:
+  - rand
   - threadlocal
 - name: github.com/go-logfmt/logfmt
   version: 07c9b44f60d7ffdfb7d8efe1ad539965737836dc
@@ -302,7 +300,9 @@ imports:
 - name: github.com/mattn/go-isatty
   version: 369ecd8cea9851e459abb67eb171853e3986591e
 - name: github.com/mattn/go-runewidth
-  version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
+  version: 9e777a8366cce605130a531d2cd6363d07ad7317
+  subpackages:
+  - runewidth.go
 - name: github.com/mattn/go-tty
   version: e4f871175a2f903ed2e6353334fdccb507c1d09e
 - name: github.com/matttproud/golang_protobuf_extensions
@@ -391,7 +391,7 @@ imports:
 - name: github.com/rs/cors
   version: 76f58f330d76a55c5badc74f6212e8a15e742c77
 - name: github.com/rs/zerolog
-  version: 6d6350a51143b5c0d0a6a3b736ee2b41315f7269
+  version: acf3980132bfcdc48638724e6e3d9e5749b85999
   subpackages:
   - internal/cbor
   - internal/json
@@ -416,7 +416,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
-  version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
+  version: 9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9
 - name: github.com/stretchr/objx
   version: c61a9dfcced1815e7d40e214d00d1a8669a9f58c
 - name: github.com/stretchr/testify

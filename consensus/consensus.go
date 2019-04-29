@@ -97,6 +97,8 @@ type ChainConsensus interface {
 	Update(block *types.Block)
 	Save(tx TxWriter) error
 	NeedReorganization(rootNo types.BlockNo) bool
+	NeedNotify() bool
+	HasWAL() bool // if consensus has WAL, block has already written in db
 	Info() string
 }
 

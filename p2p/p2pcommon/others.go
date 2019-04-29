@@ -13,6 +13,12 @@ import (
 	protocol "github.com/libp2p/go-libp2p-protocol"
 )
 
+// PeerAccessor is an interface for a another actor module to get info of peers
+type PeerAccessor interface {
+	GetPeerBlockInfos() []types.PeerBlockInfo
+	GetPeer(ID peer.ID) (RemotePeer, bool)
+}
+
 // msgOrder is abstraction information about the message that will be sent to peer
 // some type of msgOrder, such as notice mo, should thread-safe and re-entrant
 type MsgOrder interface {

@@ -1,4 +1,4 @@
-package raft
+package raftv2
 
 import (
 	"fmt"

@@ -101,7 +101,7 @@ import:
 - package: github.com/willf/bloom
   version: =2.0.3
 - package: github.com/aergoio/etcd
-  version: aergo
+  version: e8b3f96f63998eaaf57b2718477975735f0a3b85
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

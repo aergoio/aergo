@@ -342,8 +342,8 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	oldLatest := cp.cdb.connectToChain(&dbTx, block)
-
+	// skip to add hash/block if wal of block is already written
+	oldLatest := cp.cdb.connectToChain(&dbTx, block, cp.isByBP && cp.HasWAL())
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
 		return 0, err
 	}
@@ -461,7 +461,13 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return ErrBlockCachedErrLRU
 	}
 
-	_, err := cs.getBlock(newBlock.BlockHash())
+	var err error
+	if !cs.HasWAL() {
+		_, err = cs.getBlock(newBlock.BlockHash())
+	} else {
+		// check alread connect block
+		_, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
+	}
 	if err == nil {
 		logger.Warn().Msg("block already exists")
 		return nil

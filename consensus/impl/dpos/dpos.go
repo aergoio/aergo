@@ -317,3 +317,11 @@ func isBpTiming(block *types.Block, s *slot.Slot) bool {
 
 	return true
 }
+
+func (dpos *DPoS) NeedNotify() bool {
+	return true
+}
+
+func (dpos *DPoS) HasWAL() bool {
+	return false
+}

@@ -11,6 +11,7 @@ const SyncerSvc = "SyncerSvc"
 type SyncStart struct {
 	PeerID   peer.ID
 	TargetNo types.BlockNo
+	NotifyC  chan error
 }
 
 type FinderResult struct {

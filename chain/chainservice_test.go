@@ -52,6 +52,12 @@ func (stubC *StubConsensus) Info() string {
 func (stubC *StubConsensus) GetType() consensus.ConsensusType {
 	return consensus.ConsensusSBP
 }
+func (stubC *StubConsensus) NeedNotify() bool {
+	return true
+}
+func (stubC *StubConsensus) HasWAL() bool {
+	return false
+}
 
 func makeBlockChain() *ChainService {
 	serverCtx := config.NewServerContext("", "")

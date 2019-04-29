@@ -41,6 +41,7 @@ type peerManager struct {
 	signer         p2pcommon.MsgSigner
 	mf             p2pcommon.MoFactory
 	mm             metric.MetricsManager
+	skipHandshakeSync bool
 
 	peerFinder p2pcommon.PeerFinder
 	wpManager  p2pcommon.WaitingPeerManager
@@ -91,7 +92,7 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory) p2pcommon.PeerManager {
+func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
@@ -105,6 +106,7 @@ func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon
 		mm:             mm,
 		logger:         logger,
 		mutex:          &sync.Mutex{},
+		skipHandshakeSync: skipHandshakeSync,
 
 		status:          initial,
 		designatedPeers: make(map[peer.ID]p2pcommon.PeerMeta, len(cfg.P2P.NPAddPeers)),
@@ -448,6 +450,10 @@ func (pm *peerManager) updatePeerCache() {
 }
 
 func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
+	if pm.skipHandshakeSync {
+		return
+	}
+
 	pm.logger.Debug().Uint64("target", peer.LastStatus().BlockNumber).Msg("request new syncer")
 	pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
 }
