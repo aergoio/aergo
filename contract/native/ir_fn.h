@@ -38,7 +38,7 @@ typedef struct meta_s meta_t;
 
 struct ir_fn_s {
     char *name;
-    char *symbol;           /* name to export */
+    char *apiname;          /* name to export */
 
     ir_abi_t *abi;
 

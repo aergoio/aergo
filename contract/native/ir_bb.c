@@ -18,6 +18,8 @@ bb_new(void)
     vector_init(&bb->stmts);
     vector_init(&bb->brs);
 
+    array_init(&bb->instrs, BinaryenExpressionRef);
+
     return bb;
 }
 
@@ -48,6 +50,15 @@ bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb)
     vector_add_last(&bb->brs, br_new(cond_exp, br_bb));
 
     br_bb->ref_cnt++;
+}
+
+void
+bb_add_instr(ir_bb_t *bb, BinaryenExpressionRef instr)
+{
+    if (instr == NULL)
+        return;
+
+    array_add(&bb->instrs, instr, BinaryenExpressionRef);
 }
 
 /* end of ir_bb.c */

@@ -85,7 +85,8 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     trans->bb = fn->entry_bb;
 
-    stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, &id->pos));
+    if (fn->heap_usage > 0)
+        stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, &id->pos));
 
     vector_foreach(stmts, i) {
         stmt_trans(trans, vector_get_stmt(stmts, i));

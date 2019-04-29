@@ -147,8 +147,6 @@ contract test {
     int i6[2][2] = new { { 1, 2 }, { 3, 4 } };
     int i7[] = new { 4, 5, 6 };
 
-    string s[3] = new { "a", "b", "c" };
-
     test() {
         pragma assert(b1[0] == true);
         pragma assert(b1[1] == false);
@@ -179,6 +177,17 @@ contract test {
         pragma assert(i7[0] == 4);
         pragma assert(i7[1] == 5);
         pragma assert(i7[2] == 6);
+
+        int64 i8[][] = new { { 44, 28, 41 }, { 5, 9, 14 } };
+
+        pragma assert(i8[0][0] == 44);
+        pragma assert(i8[0][1] == 28);
+        pragma assert(i8[0][2] == 41);
+        pragma assert(i8[1][0] == 5);
+        pragma assert(i8[1][1] == 9);
+        pragma assert(i8[1][2] == 14);
+
+        string s[3] = new { "a", "b", "c" };
 
         pragma assert(s[0] == "a");
         pragma assert(s[1] == "b");
@@ -227,15 +236,16 @@ contract test {
     //double d[3] = new double[3];
     string s[4] = new string[4];
 
-    int v1[] = new int[2];
-    int v2[][] = new int[2][2];
-    int v3[][4] = new int[2][4];
-
     test() {
         pragma assert(b[0] == false);
         pragma assert(i[1] == 0);
         pragma assert(s[1] == "");
         pragma assert(s[3] == null);
+
+        int16 v1[] = new int16[2];
+        int32 v2[][] = new int32[2][2];
+        int64 v3[][4] = new int64[2][4];
+
         pragma assert(v1[1] == 0);
         pragma assert(v2[1][1] == 0);
         pragma assert(v3[0][2] == 0);
@@ -265,12 +275,6 @@ contract test {
     }
     s3 v5 = new { 9, { 10, 11 } };
 
-    type s4 struct {
-        bool x;
-        s2 y;
-    }
-    s4 v6, v7 = new { true, { 6, { "white", "red" } } }, new { false, { 7, { "green", "blue" } } };
-
     test() {
         pragma assert(v1.a == 1);
         pragma assert(v1.b == 16);
@@ -288,6 +292,13 @@ contract test {
         pragma assert(v5.x == 9);
         pragma assert(v5.y.a == 10);
         pragma assert(v5.y.b == 11);
+
+        type s4 struct {
+            bool x;
+            s2 y;
+        }
+        s4 v6, v7 = new { true, { 6, { "white", "red" } } },
+           new { false, { 7, { "green", "blue" } } };
 
         pragma assert(v6.x);
         pragma assert(v6.y.a == 6);
@@ -340,12 +351,13 @@ contract test {
         string c;
     }
     s1 v1 = new s1;
-    s1 v2;
 
     test() {
         pragma assert(v1.a == 0);
         pragma assert(v1.b == 0);
         pragma assert(v1.c == "");
+
+        s1 v2;
 
         pragma assert(v2.a == 0);
         pragma assert(v2.b == 0);
@@ -374,12 +386,6 @@ contract test {
     }
     s2 v5[2] = new { { 1, { 1, 1, "1" } }, { 2, { 2, 2, "2" } } };
     s2 v6[1], v7[1] = new { { 1, { 1, 1, "1" } } }, new { { 2, { 2, 2, "2" } } };
-
-    type s3 struct {
-        s1 x;
-    }
-    s3 v8[1] = new { { { 10, 10, "v10" } } };
-    s3 v9[2] = new { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
 
     test() {
         pragma assert(v1[0].a == 1);
@@ -415,6 +421,12 @@ contract test {
         pragma assert(v5[1].y.b == 2);
         pragma assert(v5[1].y.c == "2");
 
+        type s3 struct {
+            s1 x;
+        }
+        s3 v8[1] = new { { { 10, 10, "v10" } } };
+        s3 v9[2] = new { { { 11, 11, "v11[0]" } }, { { 11, 11, "v11[1]" } } };
+
         pragma assert(v8[0].x.a == 10);
         pragma assert(v8[0].x.b == 10);
         pragma assert(v8[0].x.c == "v10");
@@ -434,7 +446,6 @@ contract test {
         string c;
     }
     s1 v1[2] = new s1[2];
-    s1 v2[3] = new s1[3];
 
     test() {
         pragma assert(v1[0].a == false);
@@ -443,6 +454,8 @@ contract test {
         pragma assert(v1[1].a == false);
         pragma assert(v1[1].b == 0);
         pragma assert(v1[1].c == null);
+
+        s1 v2[3] = new s1[3];
 
         pragma assert(v2[0].a == false);
         pragma assert(v2[0].b == 0);
@@ -518,14 +531,6 @@ contract test {
         string b;
     }
     r1 v1 = new { -8, s2[0] };
-    r1 v2[2] = new { { v1.a, s1 }, { i1 - 126, v1.b } };
-
-    type r2 struct {
-        int64 a;
-        bool b[3];
-        string c;
-    }
-    r2 v3 = new { 0x9ffffffff, { true, b3[1][0], b1 }, s2[2] };
 
     test() {
         pragma assert(b2[0] == true);
@@ -549,10 +554,19 @@ contract test {
         pragma assert(v1.a == -8);
         pragma assert(v1.b == "shark");
 
+        r1 v2[2] = new { { v1.a, s1 }, { i1 - 126, v1.b } };
+
         pragma assert(v2[0].a == -8);
         pragma assert(v2[0].b == "whale");
         pragma assert(v2[1].a == 2);
         pragma assert(v2[1].b == "shark");
+
+        type r2 struct {
+            int64 a;
+            bool b[3];
+            string c;
+        }
+        r2 v3 = new { 0x9ffffffff, { true, b3[1][0], b1 }, s2[2] };
 
         pragma assert(v3.a == 42949672959);
         pragma assert(v3.b[0] == true);

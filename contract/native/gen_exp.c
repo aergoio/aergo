@@ -109,15 +109,11 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
 
         ASSERT1(offset % meta_align(meta) == 0, offset);
 
-        if (gen->is_lval || is_array_meta(meta)) {
+        if (gen->is_lval || is_array_meta(meta))
             /* Even if it is not an lvalue, it should return address when accessing the
              * intermediate element of a multi-dimensional array. */
-            if (offset == 0)
-                return address;
-
             /* TODO: Need to change BinaryenBinary() to return structure */
             return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
-        }
 
         return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
@@ -637,26 +633,20 @@ exp_gen_ternary(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_access(gen_t *gen, ast_exp_t *exp)
 {
-    ast_id_t *fld_id = exp->id;
     meta_t *meta = &exp->meta;
-    ast_exp_t *qual_exp = exp->u_acc.qual_exp;
     BinaryenExpressionRef address;
 
-    address = exp_gen(gen, qual_exp);
+    address = exp_gen(gen, exp->u_acc.qual_exp);
 
-    if (is_fn_id(fld_id))
+    if (is_fn_id(exp->id))
         return address;
 
-    if (gen->is_lval) {
-        if (meta->rel_offset == 0)
-            return address;
-
+    if (gen->is_lval)
         return BinaryenBinary(gen->module, BinaryenAddInt32(), address,
                               i32_gen(gen, meta->rel_offset));
-    }
 
-    return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), meta->rel_offset,
-                        0, meta_gen(meta), address);
+    return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), meta->rel_offset, 0,
+                        meta_gen(meta), address);
 }
 
 static BinaryenExpressionRef
@@ -686,87 +676,6 @@ exp_gen_sql(gen_t *gen, ast_exp_t *exp)
 }
 
 static BinaryenExpressionRef
-exp_gen_init(gen_t *gen, ast_exp_t *exp)
-{
-    int i;
-    uint32_t offset = 0;
-    meta_t *meta = &exp->meta;
-    vector_t *elem_exps = exp->u_init.elem_exps;
-    BinaryenExpressionRef address, value;
-
-    if (is_map_meta(meta)) {
-        /* elem_exps is the vector of key-value pair */
-        BinaryenExpressionRef args[2];
-
-        vector_foreach(elem_exps, i) {
-            ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
-
-            ASSERT1(is_tuple_exp(elem_exp), elem_exp->kind);
-
-            args[0] = exp_gen(gen, vector_get_exp(elem_exp->u_tup.elem_exps, 0));
-            args[1] = exp_gen(gen, vector_get_exp(elem_exp->u_tup.elem_exps, 1));
-
-            instr_add(gen, BinaryenCall(gen->module, xstrdup("map-put$"), args, 2,
-                                        BinaryenTypeNone()));
-        }
-
-        return NULL;
-    }
-
-    /* The heap or stack memory is already allocated in exp_trans_init() */
-    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
-
-    if (meta->rel_addr > 0)
-        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                 i32_gen(gen, meta->rel_addr));
-
-    if (is_array_meta(meta)) {
-        instr_add(gen, BinaryenStore(gen->module, meta_align(meta), offset, 0, address,
-                                     i32_gen(gen, meta->dim_sizes[0]), BinaryenTypeInt32()));
-        offset += meta_align(meta);
-    }
-
-    vector_foreach(elem_exps, i) {
-        ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
-        meta_t *elem_meta = &elem_exp->meta;
-
-        offset = ALIGN(offset, meta_align(elem_meta));
-
-        if (is_init_exp(elem_exp)) {
-            elem_exp->meta.base_idx = exp->meta.base_idx;
-            elem_exp->meta.rel_addr = exp->meta.rel_addr + offset;
-
-            exp_gen(gen, elem_exp);
-        }
-        else {
-            value = exp_gen(gen, elem_exp);
-            ASSERT(value != NULL);
-
-            instr_add(gen, BinaryenStore(gen->module, meta_iosz(elem_meta), offset, 0,
-                                         address, value, meta_gen(elem_meta)));
-        }
-
-        offset += meta_memsz(elem_meta);
-    }
-
-    return address;
-}
-
-static BinaryenExpressionRef
-exp_gen_alloc(gen_t *gen, ast_exp_t *exp)
-{
-    BinaryenExpressionRef address;
-
-    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
-
-    if (exp->meta.rel_addr > 0)
-        address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
-                                 i32_gen(gen, exp->meta.rel_addr));
-
-    return address;
-}
-
-static BinaryenExpressionRef
 exp_gen_global(gen_t *gen, ast_exp_t *exp)
 {
     ASSERT(exp->u_glob.name != NULL);
@@ -787,7 +696,7 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
-    address = BinaryenGetLocal(gen->module, exp->meta.base_idx, BinaryenTypeInt32());
+    address = BinaryenGetLocal(gen->module, meta->base_idx, BinaryenTypeInt32());
 
     if (is_address_meta(meta)) {
         /* Since "address" is literally an address value, it must be of type I32. */
@@ -797,12 +706,8 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp)
         return BinaryenLoad(gen->module, ADDR_SIZE, 0, offset, 0, BinaryenTypeInt32(), address);
     }
 
-    if (gen->is_lval) {
-        if (offset == 0)
-            return address;
-
+    if (gen->is_lval)
         return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
-    }
 
     return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                         meta_gen(meta), address);
@@ -840,12 +745,6 @@ exp_gen(gen_t *gen, ast_exp_t *exp)
 
     case EXP_SQL:
         return exp_gen_sql(gen, exp);
-
-    case EXP_INIT:
-        return exp_gen_init(gen, exp);
-
-    case EXP_ALLOC:
-        return exp_gen_alloc(gen, exp);
 
     case EXP_GLOBAL:
         return exp_gen_global(gen, exp);

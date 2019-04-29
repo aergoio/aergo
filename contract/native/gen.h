@@ -11,15 +11,7 @@
 #include "flag.h"
 #include "error.h"
 #include "ir.h"
-#include "array.h"
 #include "binaryen-c.h"
-
-#define instr_add(gen, stmt)                                                                       \
-    do {                                                                                           \
-        BinaryenExpressionRef instr = (stmt);                                                      \
-        if (instr != NULL)                                                                         \
-            array_add(&(gen)->instrs, instr, BinaryenExpressionRef);                               \
-    } while (0)
 
 #ifndef _IR_SGMT_T
 #define _IR_SGMT_T
@@ -33,8 +25,6 @@ typedef struct gen_s {
 
     BinaryenModuleRef module;
     RelooperRef relooper;
-
-    array_t instrs;
 
     bool is_lval;
 } gen_t;

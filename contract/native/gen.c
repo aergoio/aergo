@@ -15,8 +15,6 @@ gen_init(gen_t *gen, flag_t flag)
     memset(gen, 0x00, sizeof(gen_t));
 
     gen->flag = flag;
-
-    array_init(&gen->instrs, BinaryenExpressionRef);
 }
 
 void

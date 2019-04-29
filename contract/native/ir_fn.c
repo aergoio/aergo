@@ -23,7 +23,7 @@ fn_new(ast_id_t *id)
     ASSERT1(is_cont_id(id->up), id->up->kind);
 
     fn->name = id->u_fn.qname;
-    fn->symbol = is_public_id(id) ? id->name : NULL;
+    fn->apiname = is_public_id(id) ? id->name : NULL;
 
     fn->abi = abi_new(id);
 

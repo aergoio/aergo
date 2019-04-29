@@ -40,12 +40,13 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     body = RelooperRenderAndDispose(gen->relooper, fn->entry_bb->rb, fn->reloop_idx);
 
+    /* The ABI of the built-in function can be added during the generation of the basic block. */
     BinaryenAddFunction(gen->module, fn->name, abi_gen(gen, abi),
                         (BinaryenType *)array_items(&fn->types), array_size(&fn->types),
                         BinaryenBlock(gen->module, NULL, &body, 1, abi->result));
 
-    if (fn->symbol != NULL)
-        BinaryenAddFunctionExport(gen->module, fn->name, fn->symbol);
+    if (fn->apiname != NULL)
+        BinaryenAddFunctionExport(gen->module, fn->name, fn->apiname);
 }
 
 /* end of gen_fn.c */

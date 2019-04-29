@@ -289,6 +289,8 @@ exp_set_reg(ast_exp_t *exp, uint32_t base_idx)
 {
     exp->kind = EXP_REG;
     exp->meta.base_idx = base_idx;
+    exp->meta.rel_addr = 0;
+    exp->meta.rel_offset = 0;
 }
 
 void

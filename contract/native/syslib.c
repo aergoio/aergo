@@ -133,7 +133,7 @@ syslib_new_memcpy(trans_t *trans, ast_exp_t *dest_exp, ast_exp_t *src_exp, uint3
     res_exp->u_call.qname = sys_fn->qname;
     meta_set_void(&res_exp->meta);
 
-    md_add_imp(trans->md, syslib_abi(sys_fn));
+    md_add_abi(trans->md, syslib_abi(sys_fn));
 
     return res_exp;
 }
@@ -145,7 +145,7 @@ syslib_call_1(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument)
 
     ASSERT2(sys_fn->param_cnt == 1, kind, sys_fn->param_cnt);
 
-    md_add_imp(gen->md, syslib_abi(sys_fn));
+    md_add_abi(gen->md, syslib_abi(sys_fn));
 
     return BinaryenCall(gen->module, sys_fn->qname, &argument, 1, type_gen(sys_fn->result));
 }
@@ -159,7 +159,7 @@ syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument1,
 
     ASSERT2(sys_fn->param_cnt == 2, kind, sys_fn->param_cnt);
 
-    md_add_imp(gen->md, syslib_abi(sys_fn));
+    md_add_abi(gen->md, syslib_abi(sys_fn));
 
     return BinaryenCall(gen->module, sys_fn->qname, arguments, 2, type_gen(sys_fn->result));
 }
@@ -183,7 +183,7 @@ syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...)
 
     va_end(vargs);
 
-    md_add_imp(gen->md, syslib_abi(sys_fn));
+    md_add_abi(gen->md, syslib_abi(sys_fn));
 
     return BinaryenCall(gen->module, sys_fn->qname, arguments, argc, type_gen(sys_fn->result));
 }

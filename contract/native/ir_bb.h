@@ -11,6 +11,7 @@
 #include "ast_exp.h"
 #include "ast_stmt.h"
 #include "ir.h"
+#include "array.h"
 #include "binaryen-c.h"
 
 #ifndef _IR_BB_T
@@ -29,6 +30,7 @@ struct ir_bb_s {
     vector_t stmts;
     vector_t brs;
 
+    array_t instrs;
     RelooperBlockRef rb;
 };
 
@@ -36,5 +38,7 @@ ir_bb_t *bb_new(void);
 
 void bb_add_stmt(ir_bb_t *bb, ast_stmt_t *stmt);
 void bb_add_branch(ir_bb_t *bb, ast_exp_t *cond_exp, ir_bb_t *br_bb);
+
+void bb_add_instr(ir_bb_t *bb, BinaryenExpressionRef instr);
 
 #endif /* no _IR_BB_H */

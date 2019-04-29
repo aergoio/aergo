@@ -36,7 +36,6 @@ env_gen(gen_t *gen, ir_md_t *md)
     BinaryenSetMemory(gen->module, 1, 128 + sgmt->offset / WASM_MEM_UNIT + 1, NULL,
                       (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
 
-
     BinaryenAddGlobal(gen->module, "stack_top", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
     BinaryenAddGlobal(gen->module, "stack_max", BinaryenTypeInt32(), 0,

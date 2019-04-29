@@ -130,13 +130,20 @@ contract test {
 contract test {
     int16 a;
     string b;
+    type t struct {
+        int64 x;
+        string y;
+    }
+    t c;
 
     func f1(test p) {
         p.a = f2();
         p.b = p.f3();
+        p.c.x = 747;
+        p.c.y = "airplane";
     }
     func f2() int16 {
-        return -10;
+        return 905;
     }
     func f3() string {
         return "train";
@@ -144,8 +151,10 @@ contract test {
 
     test() {
         f1(this);
-        pragma assert(a == -10);
+        pragma assert(a == 905);
         pragma assert(b == "train");
+        pragma assert(c.x == 747);
+        pragma assert(c.y == "airplane");
     }
 }
 
