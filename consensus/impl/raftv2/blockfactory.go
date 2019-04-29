@@ -3,7 +3,6 @@ package raftv2
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"runtime"
@@ -37,16 +36,6 @@ var (
 	httpLogger         *log.Logger
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
-	peerCheckInterval  = time.Second * 3
-)
-
-var (
-	ErrBFQuit = errors.New("block factory quit")
-
-	/*
-		ErrEmptyProposed = errors.New("proposed block is not exist")
-		ErrInvalidPropsedBlock = errors.New("proposed block is not equal to commited block")
-	*/
 )
 
 func init() {
@@ -199,13 +188,11 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.raftOp = newRaftOperator(bf.raftServer)
 
-	snapdir := fmt.Sprintf("%s/raft/snap", cfg.DataDir)
+	logger.Info().Str("RaftID", MemberIDToString(bf.bpc.NodeID)).Msg("raft server start")
 
-	logger.Info().Uint64("RaftID", uint64(bf.bpc.NodeID)).Msg("raft server start")
-
-	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false, snapdir,
-		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile,
-		nil, RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false,
+		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
+		RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
 	bf.raftOp.rs = bf.raftServer

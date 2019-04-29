@@ -3,32 +3,27 @@ package raftv2
 import (
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/libp2p/go-libp2p-peer"
-	"net"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
 	ErrNotIncludedRaftMember = errors.New("this node isn't included in initial raft members")
-	ErrInvalidRaftID         = errors.New("invalid raft raftID")
-	ErrDupRaftUrl            = errors.New("duplicated raft bp urls")
 	ErrRaftEmptyTLSFile      = errors.New("cert or key file name is empty")
 	ErrNotHttpsURL           = errors.New("url scheme is not https")
-	ErrURLInvalidScheme      = errors.New("url has invalid scheme")
-	ErrURLInvalidPort        = errors.New("url must have host:port style")
-	ErrInvalidRaftBPID       = errors.New("raft bp raftID is not ordered. raftID must start with 1 and be sorted")
 	ErrDupBP                 = errors.New("raft bp description is duplicated")
 	ErrInvalidRaftPeerID     = errors.New("peerID of current raft bp is not equals to p2p configure")
 )
 
 const (
-	DefaultMarginChainDiff = 1
-	DefaultTickMS          = time.Millisecond * 30
+	DefaultTickMS = time.Millisecond * 30
 )
 
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
@@ -119,7 +114,7 @@ func isValidURL(urlstr string, useTls bool) error {
 	var urlobj *url.URL
 	var err error
 
-	if urlobj, err = parseToUrl(urlstr); err != nil {
+	if urlobj, err = consensus.ParseToUrl(urlstr); err != nil {
 		logger.Error().Str("url", urlstr).Err(err).Msg("raft bp urlstr is not vaild form")
 		return err
 	}
@@ -151,9 +146,9 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 			return fmt.Errorf("invalid raft peerID %s", raftBP.P2pID)
 		}
 
-		m := newMember(raftBP.Name, trimUrl, peerID, cl.chainID, cl.chainTimestamp)
+		m := consensus.NewMember(raftBP.Name, trimUrl, peerID, cl.chainID, cl.chainTimestamp)
 
-		if err := cl.configMembers.add(m, cl.NodeName); err != nil {
+		if err := cl.addMember(m, true); err != nil {
 			return err
 		}
 	}
@@ -162,7 +157,7 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 }
 
 func (cl *Cluster) SetThisNode() error {
-	var member *Member
+	var member *consensus.Member
 
 	if member = cl.configMembers.getMemberByName(cl.NodeName); member == nil {
 		return ErrNotIncludedRaftMember
@@ -171,23 +166,4 @@ func (cl *Cluster) SetThisNode() error {
 	cl.NodeID = member.ID
 
 	return nil
-}
-
-func parseToUrl(urlstr string) (*url.URL, error) {
-	var urlObj *url.URL
-	var err error
-
-	if urlObj, err = url.Parse(urlstr); err != nil {
-		return nil, err
-	}
-
-	if urlObj.Scheme != "http" && urlObj.Scheme != "https" {
-		return nil, ErrURLInvalidScheme
-	}
-
-	if _, _, err := net.SplitHostPort(urlObj.Host); err != nil {
-		return nil, ErrURLInvalidPort
-	}
-
-	return urlObj, nil
 }

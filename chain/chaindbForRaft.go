@@ -36,6 +36,8 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 	var data []byte
 	var err error
 
+	logger.Info().Uint64("term", hardstate.Term).Uint64("vote", hardstate.Vote).Uint64("commit", hardstate.Commit).Msg("save hard state")
+
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
 		return err
@@ -157,13 +159,15 @@ func decodeBool(data []byte) (bool, error) {
 }
 */
 
-func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot, done bool) error {
-	chainSnap, err := consensus.DecodeChainSnapshot(snap.Data)
+func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
+	var snapdata = consensus.SnapshotData{}
+	err := snapdata.Decode(snap.Data)
 	if err != nil {
+		logger.Fatal().Msg("failed to unmarshal snapshot data to write")
 		return err
 	}
 
-	logger.Debug().Str("snapshot", consensus.SnapToString(snap, chainSnap)).Msg("write snapshot to wal")
+	logger.Debug().Str("snapshot", consensus.SnapToString(snap, &snapdata)).Msg("write snapshot to wal")
 	data, err := proto.Marshal(snap)
 	if err != nil {
 		return err

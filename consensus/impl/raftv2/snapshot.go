@@ -15,12 +15,12 @@ import (
 )
 
 var (
-	DfltTimeWaitPeerLive = time.Second * 5
-	ErrNotMsgSnap        = errors.New("not pb.MsgSnap")
-	ErrEmptyProgress     = errors.New("snap target block is not set")
+	DfltTimeWaitPeerLive        = time.Second * 5
+	ErrNotMsgSnap               = errors.New("not pb.MsgSnap")
+	ErrClusterMismatchConfState = errors.New("members of cluster doesn't match with raft confstate")
 )
 
-type getLeaderFuncType func() MemberID
+type getLeaderFuncType func() consensus.MemberID
 
 type ChainSnapshotter struct {
 	p2pcommon.PeerAccessor
@@ -37,18 +37,21 @@ func newChainSnapshotter(pa p2pcommon.PeerAccessor, hub *component.ComponentHub,
 	return &ChainSnapshotter{PeerAccessor: pa, ComponentHub: hub, cluster: cluster, walDB: walDB, getLeaderFunc: getLeader}
 }
 
+/* createSnapshot isn't used this api since new MsgSnap isn't made
 // createSnapshot make marshalled data of chain & cluster info
 func (chainsnap *ChainSnapshotter) createSnapshot(prevProgress BlockProgress, confState raftpb.ConfState) (*raftpb.Snapshot, error) {
 	if prevProgress.isEmpty() {
 		return nil, ErrEmptyProgress
 	}
 
-	chainSnap, err := chainsnap.createSnapshotData(prevProgress.block)
+	snapdata, err := chainsnap.createSnapshotData(chainsnap.cluster, prevProgress.block)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("make snapshot of chain")
 		return nil, err
 	}
-	data, err := chainSnap.ToBytes()
+
+
+	data, err := snapdata.Encode()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to marshale snapshot of chain")
 		return nil, err
@@ -63,17 +66,27 @@ func (chainsnap *ChainSnapshotter) createSnapshot(prevProgress BlockProgress, co
 		Data: data,
 	}
 
-	logger.Info().Str("snapshot", consensus.SnapToString(snapshot, chainSnap)).Msg("raft snapshot for remote")
+	logger.Info().Str("snapshot", consensus.SnapToString(snapshot, snapdata)).Msg("raft snapshot for remote")
 
 	return snapshot, nil
 }
+*/
 
 // createSnapshotData generate serialized data of chain and cluster info
-// TODO add cluster info to data
-func (chainsnap *ChainSnapshotter) createSnapshotData(snapBlock *types.Block) (*consensus.ChainSnapshot, error) {
+func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBlock *types.Block, confstate *raftpb.ConfState) (*consensus.SnapshotData, error) {
 	logger.Info().Str("hash", snapBlock.ID()).Uint64("no", snapBlock.BlockNo()).Msg("create new snapshot data of block")
 
-	snap := consensus.NewChainSnapshot(snapBlock)
+	if !cluster.isMatch(confstate) {
+		logger.Error().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
+		return nil, ErrClusterMismatchConfState
+	}
+
+	if cluster.effectiveMembers != cluster.members {
+		return nil, ErrNotExistRuntimeMembers
+	}
+	members := cluster.effectiveMembers.ToArray()
+
+	snap := consensus.NewSnapshotData(members, snapBlock)
 	if snap == nil {
 		panic("new snap failed")
 	}
@@ -94,26 +107,23 @@ func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg ra
 }
 
 func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
-	snapBlock, err := consensus.DecodeChainSnapshot(snap.Data)
+	var snapdata = &consensus.SnapshotData{}
+	err := snapdata.Decode(snap.Data)
 	if err != nil {
+		logger.Fatal().Msg("failed to unmarshal snapshot data to write")
 		return err
 	}
 
 	// write snapshot log in WAL for crash recovery
-	logger.Info().Str("snap", consensus.SnapToString(snap, snapBlock)).Msg("start to sync snapshot")
-	/* TODO snapshot write temporary for crash recovery. after sync tmp snapshot to permanent */
-	if err := chainsnap.walDB.WriteSnapshot(snap, false); err != nil {
-		return err
-	}
-
+	logger.Info().Str("snap", consensus.SnapToString(snap, snapdata)).Msg("start to sync snapshot")
 	// TODO	request sync for chain with snapshot.data
 	// wait to finish sync of chain
-	if err := chainsnap.requestSync(snapBlock); err != nil {
+	if err := chainsnap.requestSync(&snapdata.Chain); err != nil {
 		logger.Fatal().Err(err).Msg("failed to sync. need to retry with other leader, try N times and shutdown")
 		return err
 	}
 
-	logger.Info().Str("snap", consensus.SnapToString(snap, snapBlock)).Msg("finished to sync snapshot")
+	logger.Info().Str("snap", consensus.SnapToString(snap, snapdata)).Msg("finished to sync snapshot")
 
 	return nil
 }
@@ -125,7 +135,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 		return ok
 	}
 
-	var leader MemberID
+	var leader consensus.MemberID
 	getSyncLeader := func() (peer.ID, error) {
 		var peerID peer.ID
 		var err error
@@ -136,13 +146,13 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 			if leader == HasNoLeader {
 				peerID, err = chainsnap.cluster.getAnyPeerAddressToSync()
 				if err != nil {
-					logger.Error().Err(err).Uint64("leader", uint64(leader)).Msg("can't get peeraddress of leader")
+					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err
 				}
 			} else {
 				peerID, err = chainsnap.cluster.getEffectiveMembers().getMemberPeerAddress(leader)
 				if err != nil {
-					logger.Error().Err(err).Uint64("leader", uint64(leader)).Msg("can't get peeraddress of leader")
+					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err
 				}
 			}
@@ -151,12 +161,12 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 				break
 			}
 
-			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", uint64(leader)).Msg("peer is not live")
+			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", MemberIDToString(leader)).Msg("peer is not alive")
 
 			time.Sleep(DfltTimeWaitPeerLive)
 		}
 
-		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Uint64("leader", uint64(leader)).Msg("target peer to sync")
+		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", MemberIDToString(leader)).Msg("target peer to sync")
 
 		return peerID, err
 	}

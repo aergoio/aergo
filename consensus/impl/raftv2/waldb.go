@@ -22,21 +22,22 @@ func NewWalDB(chainWal consensus.ChainWAL) *WalDB {
 }
 
 func (wal *WalDB) SaveEntry(state raftpb.HardState, entries []raftpb.Entry) error {
+	if len(entries) != 0 {
+		walEnts, blocks := wal.convertFromRaft(entries)
+
+		if err := wal.WriteRaftEntry(walEnts, blocks); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// hardstate must save after entries since entries may include commited one
 	if !raft.IsEmptyHardState(state) {
 		// save hardstate
 		if err := wal.WriteHardState(&state); err != nil {
 			return err
 		}
-	}
-
-	if len(entries) == 0 {
-		return nil
-	}
-
-	walEnts, blocks := wal.convertFromRaft(entries)
-
-	if err := wal.WriteRaftEntry(walEnts, blocks); err != nil {
-		return err
 	}
 
 	return nil

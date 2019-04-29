@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
@@ -25,7 +26,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -35,7 +35,6 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	"github.com/aergoio/etcd/etcdserver/stats"
-	"github.com/aergoio/etcd/pkg/fileutil"
 	etcdtypes "github.com/aergoio/etcd/pkg/types"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -54,13 +53,13 @@ var (
 	ErrNoSnapshot         = errors.New("no snapshot")
 	ErrCCAlreadyApplied   = errors.New("conf change entry is already applied")
 	ErrInvalidMember      = errors.New("member of conf change is invalid")
-	ErrInvalidMemberID    = errors.New("member id of conf change doesn't match")
 	ErrCCAlreadyAdded     = errors.New("member has already added")
 	ErrCCNoMemberToRemove = errors.New("there is no member to remove")
+	ErrEmptySnapshot      = errors.New("received empty snapshot")
 )
 
 const (
-	HasNoLeader MemberID = 0
+	HasNoLeader consensus.MemberID = 0
 )
 
 func init() {
@@ -80,10 +79,9 @@ type raftServer struct {
 	commitC     chan *types.Block        // entries committed to log (k,v)
 	errorC      chan error               // errors from raft session
 
-	id          MemberID // client ID for raft session
+	id          consensus.MemberID // client ID for raft session
 	listenUrl   string
-	join        bool   // node is joining an existing cluster
-	snapdir     string // path to snapshot directory
+	join        bool // node is joining an existing cluster
 	getSnapshot func() ([]byte, error)
 	lastIndex   uint64 // index of log at start
 
@@ -144,7 +142,7 @@ type LeaderStatus struct {
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftServer(hub *component.ComponentHub,
 	cluster *Cluster,
-	listenUrl string, join bool, snapdir string,
+	listenUrl string, join bool,
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
@@ -165,7 +163,6 @@ func newRaftServer(hub *component.ComponentHub,
 		id:           cluster.NodeID,
 		listenUrl:    listenUrl,
 		join:         join,
-		snapdir:      snapdir,
 		getSnapshot:  getSnapshot,
 		snapCount:    defaultSnapCount,
 		stopc:        make(chan struct{}),
@@ -218,7 +215,7 @@ func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
 
 	var i int
 	for _, member := range rs.cluster.configMembers.MapByID {
-		data, err := member.Marshal()
+		data, err := json.Marshal(member)
 		if err != nil {
 			return nil, err
 		}
@@ -230,15 +227,21 @@ func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
 }
 
 func (rs *raftServer) startRaft() {
-	if !fileutil.Exist(rs.snapdir) {
-		if err := os.MkdirAll(rs.snapdir, 0750); err != nil {
-			logger.Error().Err(err).Msg("cannot create dir for snapshot")
-		}
-	}
-	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() MemberID { return rs.GetLeader() })
+	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() consensus.MemberID { return rs.GetLeader() })
 
-	if err := rs.replayWAL(); err != nil {
+	snapshot, err := rs.loadSnapshot()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to read snapshot")
+	}
+
+	if err := rs.replayWAL(snapshot); err != nil {
 		logger.Fatal().Err(err).Msg("replay wal failed for raft")
+	}
+
+	if snapshot != nil {
+		if err := rs.cluster.Recover(snapshot); err != nil {
+			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
+		}
 	}
 
 	c := &raftlib.Config{
@@ -427,11 +430,17 @@ func (rs *raftServer) serveChannels() {
 			}
 
 			if !raftlib.IsEmptySnap(rd.Snapshot) {
+				if err := rs.walDB.WriteSnapshot(&rd.Snapshot); err != nil {
+					logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
+				}
+
 				if err := rs.raftStorage.ApplySnapshot(rd.Snapshot); err != nil {
 					logger.Fatal().Err(err).Msg("failed to apply snapshot")
 				}
 
-				rs.publishSnapshot(rd.Snapshot)
+				if err := rs.publishSnapshot(rd.Snapshot); err != nil {
+					logger.Fatal().Err(err).Msg("failed to publish snapshot")
+				}
 			}
 			if err := rs.raftStorage.Append(rd.Entries); err != nil {
 				logger.Fatal().Err(err).Msg("failed to append new entries to raft log")
@@ -446,7 +455,7 @@ func (rs *raftServer) serveChannels() {
 				rs.stop()
 				return
 			}
-			rs.maybeTriggerSnapshot()
+			rs.triggerSnapshot()
 
 			// New block must be created after connecting all commited block
 			if rd.SoftState != nil {
@@ -577,13 +586,16 @@ func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 		logger.Info().Msg("snapshot does not exist")
 		return nil, nil
 	}
-	chainSnap, err := consensus.DecodeChainSnapshot(snapshot.Data)
+
+	snapdata := &consensus.SnapshotData{}
+
+	err = snapdata.Decode(snapshot.Data)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("error decoding snapshot")
 		return nil, err
 	}
 
-	logger.Info().Str("meta", consensus.SnapToString(snapshot, chainSnap)).Msg("loaded snapshot meta")
+	logger.Info().Str("meta", consensus.SnapToString(snapshot, snapdata)).Msg("loaded snapshot meta")
 
 	return snapshot, nil
 }
@@ -635,14 +647,8 @@ func (rs *raftServer) updateBlockProgress(term uint64, index uint64, block *type
 }
 
 // replayWAL replays WAL entries into the raft instance.
-func (rs *raftServer) replayWAL() error {
-	logger.Info().Uint64("raftid", uint64(rs.id)).Msg("replaying WAL")
-
-	snapshot, err := rs.loadSnapshot()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("failed to read WAL")
-		return err
-	}
+func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
+	logger.Info().Str("raftid", MemberIDToString(rs.id)).Msg("replaying WAL")
 
 	// TODO recover cluster from snapshot
 
@@ -695,12 +701,12 @@ func (rs *raftServer) createSnapshot() ([]byte, error) {
 		panic("new snap failed")
 	}
 
-	return snap.ToBytes()
+	return snap.Encode()
 }*/
 
-// maybeTriggerSnapshot create snapshot and make compaction for raft log storage
+// triggerSnapshot create snapshot and make compaction for raft log storage
 // raft can not wait until last applied entry commits. so snapshot must create from rs.prevProgress.index
-func (rs *raftServer) maybeTriggerSnapshot() {
+func (rs *raftServer) triggerSnapshot() {
 	if rs.prevProgress.index == 0 || rs.prevProgress.block == nil {
 		logger.Debug().Msg("raft need to make snapshot, but does not exist target progress")
 		return
@@ -715,12 +721,15 @@ func (rs *raftServer) maybeTriggerSnapshot() {
 	logger.Info().Uint64("applied", rs.appliedIndex).Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
 
 	// make snapshot data of previous connected block
-	chainsnap, err := rs.snapshotter.createSnapshotData(rs.prevProgress.block)
+	snapdata, err := rs.snapshotter.createSnapshotData(rs.cluster, rs.prevProgress.block, &rs.prevProgress.confState)
 	if err != nil {
-		logger.Fatal().Msg("failed to create snapshot data from prev block")
+		logger.Fatal().Err(err).Msg("failed to create snapshot data from prev block")
 	}
 
-	data, err := chainsnap.ToBytes()
+	data, err := snapdata.Encode()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to marshal snapshot data")
+	}
 
 	// snapshot.data is not used for snapshot transfer. At the time of transmission, a message is generated again with information at that time and sent.
 	snapshot, err := rs.raftStorage.CreateSnapshot(newSnapshotIndex, &rs.prevProgress.confState, data)
@@ -729,7 +738,7 @@ func (rs *raftServer) maybeTriggerSnapshot() {
 	}
 
 	// save snapshot to wal
-	if err := rs.walDB.WriteSnapshot(&snapshot, true); err != nil {
+	if err := rs.walDB.WriteSnapshot(&snapshot); err != nil {
 		logger.Fatal().Err(err).Msg("failed to write snapshot")
 	}
 
@@ -748,9 +757,9 @@ func (rs *raftServer) maybeTriggerSnapshot() {
 	rs.setSnapshotIndex(newSnapshotIndex)
 }
 
-func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
+func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 	if raftlib.IsEmptySnap(snapshotToSave) {
-		return
+		return ErrEmptySnapshot
 	}
 
 	logger.Info().Uint64("index", rs.snapshotIndex).Str("snap", consensus.SnapToString(&snapshotToSave, nil)).Msg("publishing snapshot at index")
@@ -768,7 +777,27 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) {
 	rs.prevProgress.index = 0
 	rs.progress.index = 0
 
-	// TODO reconnect peers
+	if err := rs.cluster.Recover(&snapshotToSave); err != nil {
+		return err
+	}
+
+	rs.recoverTransport()
+
+	return nil
+}
+
+func (rs *raftServer) recoverTransport() {
+	logger.Info().Msg("remove all peers")
+	rs.transport.RemoveAllPeers()
+
+	for _, m := range rs.cluster.members.MapByID {
+		if m.ID == rs.cluster.NodeID {
+			continue
+		}
+
+		logger.Info().Str("member", m.ToString()).Msg("add raft peer")
+		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Url})
+	}
 }
 
 func (rs *raftServer) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
@@ -789,13 +818,13 @@ var (
 	ErrInvCCType = errors.New("change type of ")
 )
 
-func (rs *raftServer) validateConfChange(cc *raftpb.ConfChange, member *Member) error {
-	if !member.isValid() {
+func (rs *raftServer) validateConfChange(cc *raftpb.ConfChange, member *consensus.Member) error {
+	if !member.IsValid() {
 		return ErrInvalidMember
 	}
 
 	if cc.NodeID != uint64(member.ID) {
-		return ErrInvalidMemberID
+		return consensus.ErrInvalidMemberID
 	}
 
 	cluster := rs.cluster
@@ -821,10 +850,10 @@ func (rs *raftServer) validateConfChange(cc *raftpb.ConfChange, member *Member) 
 	return nil
 }
 
-func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *Member, error) {
+func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consensus.Member, error) {
 	// TODO XXX validate from current cluster configure
 	var cc *raftpb.ConfChange
-	var member *Member
+	var member *consensus.Member
 	var err error
 
 	alreadyApplied := func(entry *raftpb.Entry) bool {
@@ -835,7 +864,7 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 		return nil, nil, ErrCCAlreadyApplied
 	}
 
-	unmarshalConfChangeEntry := func() (*raftpb.ConfChange, *Member, error) {
+	unmarshalConfChangeEntry := func() (*raftpb.ConfChange, *consensus.Member, error) {
 		var cc raftpb.ConfChange
 
 		if err := cc.Unmarshal(entry.Data); err != nil {
@@ -848,13 +877,13 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 			return nil, nil, nil
 		}
 
-		var member = &Member{}
-		if err := member.Unmarshal(cc.Context); err != nil {
+		var member = consensus.Member{}
+		if err := json.Unmarshal(cc.Context, &member); err != nil {
 			logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
 			return nil, nil, err
 		}
 
-		return &cc, member, nil
+		return &cc, &member, nil
 	}
 
 	cc, member, err = unmarshalConfChangeEntry()
@@ -864,6 +893,51 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 	}
 
 	return cc, member, nil
+}
+
+// TODO refactoring by cc.Type
+//      separate unmarshal & apply[type]
+// applyConfChange returns false if this node is removed from cluster
+func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
+	var cc *raftpb.ConfChange
+	var member *consensus.Member
+	var err error
+
+	if cc, member, err = rs.ValidateConfChangeEntry(ent); err != nil {
+		logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
+		// reset pending conf change
+		cc.NodeID = raftlib.None
+		rs.node.ApplyConfChange(*cc)
+
+		return true
+	}
+
+	rs.confState = *rs.node.ApplyConfChange(*cc)
+
+	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confchange entry")
+
+	switch cc.Type {
+	case raftpb.ConfChangeAddNode:
+		if err := rs.cluster.addMember(member, false); err != nil {
+			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
+		}
+
+		if len(cc.Context) > 0 {
+			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
+		}
+	case raftpb.ConfChangeRemoveNode:
+		if err := rs.cluster.removeMember(member); err != nil {
+			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
+		}
+
+		if cc.NodeID == uint64(rs.id) {
+			logger.Info().Msg("I've been removed from the cluster! Shutting down.")
+			return false
+		}
+		rs.transport.RemovePeer(etcdtypes.ID(cc.NodeID))
+	}
+
+	return true
 }
 
 // publishEntries writes committed log entries to commit channel and returns
@@ -896,32 +970,8 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 			rs.updateBlockProgress(ents[i].Term, ents[i].Index, block)
 
 		case raftpb.EntryConfChange:
-			var cc *raftpb.ConfChange
-			var member *Member
-			var err error
-
-			if cc, member, err = rs.ValidateConfChangeEntry(&ents[i]); err != nil {
-				logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
-				// reset pending conf change
-				cc.NodeID = raftlib.None
-				rs.node.ApplyConfChange(*cc)
-			} else {
-				rs.confState = *rs.node.ApplyConfChange(*cc)
-
-				logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confchange entry")
-
-				switch cc.Type {
-				case raftpb.ConfChangeAddNode:
-					if len(cc.Context) > 0 {
-						rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
-					}
-				case raftpb.ConfChangeRemoveNode:
-					if cc.NodeID == uint64(rs.id) {
-						logger.Info().Msg("I've been removed from the cluster! Shutting down.")
-						return false
-					}
-					rs.transport.RemovePeer(etcdtypes.ID(cc.NodeID))
-				}
+			if !rs.applyConfChange(&ents[i]) {
+				return false
 			}
 		}
 
@@ -982,17 +1032,17 @@ func (rs *raftServer) WaitStartup() {
 }
 
 func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
-	if MemberID(softState.Lead) != rs.GetLeader() {
+	if consensus.MemberID(softState.Lead) != rs.GetLeader() {
 		atomic.StoreUint64(&rs.leaderStatus.leader, softState.Lead)
 
 		rs.leaderStatus.leaderChanged++
 
-		logger.Info().Str("ID", MemberIDToString(rs.id)).Uint64("leader", softState.Lead).Msg("leader changed")
+		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(consensus.MemberID(softState.Lead))).Msg("leader changed")
 	}
 }
 
-func (rs *raftServer) GetLeader() MemberID {
-	return MemberID(atomic.LoadUint64(&rs.leaderStatus.leader))
+func (rs *raftServer) GetLeader() consensus.MemberID {
+	return consensus.MemberID(atomic.LoadUint64(&rs.leaderStatus.leader))
 }
 
 func (rs *raftServer) IsLeader() bool {
