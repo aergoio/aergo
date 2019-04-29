@@ -96,30 +96,53 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 }
 
 static void
-set_stack_addr(ir_fn_t *fn, ast_id_t *id)
+set_stack_addr(trans_t *trans, ast_id_t *id)
 {
+    ir_fn_t *fn = trans->fn;
     src_pos_t *pos = &id->pos;
     ast_exp_t *stk_exp, *reg_exp;
     ast_exp_t *val_exp, *bin_exp;
+    ast_exp_t *max_exp, *cond_exp, *call_exp;
+    ast_blk_t *if_blk;
 
     if (fn->stack_usage == 0)
         return;
 
-    stk_exp = exp_new_global("stack_top");
-
+    /* At the beginning of "entry_bb", set the current stack offset to the register */
     reg_exp = exp_new_reg(fn->stack_idx);
     meta_set_int32(&reg_exp->meta);
+
+    stk_exp = exp_new_global("stack_top");
+
+    /* Make "r1 = stack_top" */
+    vector_add(&fn->entry_bb->stmts, 0, stmt_new_assign(reg_exp, stk_exp, pos));
 
     val_exp = exp_new_lit_int(fn->stack_usage, pos);
     meta_set_int32(&val_exp->meta);
 
     bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
+    meta_set_int32(&bin_exp->meta);
 
-    /* At the beginning of "entry_bb", set the current stack offset to the register */
-    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(stk_exp, bin_exp, pos));
-    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, stk_exp, pos));
+    /* Make "stack_top = r1 + usage" */
+    vector_add(&fn->entry_bb->stmts, 1, stmt_new_assign(stk_exp, bin_exp, pos));
 
-    /* TODO: checking stack overflow */
+    max_exp = exp_new_global("stack_max");
+    meta_set_int32(&max_exp->meta);
+
+    cond_exp = exp_new_binary(OP_GE, stk_exp, max_exp, pos);
+    meta_set_int32(&cond_exp->meta);
+
+    if_blk = blk_new_normal(&id->pos);
+
+    call_exp = exp_new_call(FN_STACK_OVF, NULL, NULL, pos);
+    meta_set_void(&call_exp->meta);
+
+    exp_trans(trans, call_exp);
+
+    stmt_add(&if_blk->stmts, stmt_new_exp(call_exp, pos));
+
+    /* Make "if (stack_top >= stack_max) __stack_overflow();" */
+    vector_add(&fn->entry_bb->stmts, 2, stmt_new_if(cond_exp, if_blk, pos));
 
     /* If there is any stack variable in the function, it has to be restored to the original value
      * at the end of "exit_bb" because "stack_top" has been changed */
@@ -197,7 +220,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
     if (id->u_fn.blk != NULL)
         blk_trans(trans, id->u_fn.blk);
 
-    set_stack_addr(fn, id);
+    set_stack_addr(trans, id);
 
     if (trans->bb != NULL) {
         bb_add_branch(trans->bb, NULL, fn->exit_bb);

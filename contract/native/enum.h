@@ -202,6 +202,7 @@ typedef enum fn_kind_e {
     FN_CTOR,
     FN_MALLOC,
     FN_MEMCPY,
+    FN_STACK_OVF,
     FN_ASSERT,
     FN_STRCAT,
     FN_STRCMP,

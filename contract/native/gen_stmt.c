@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include "ast_id.h"
+#include "ast_blk.h"
 #include "ir_md.h"
 #include "gen_exp.h"
 #include "gen_util.h"
@@ -73,6 +74,26 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 }
 
 static BinaryenExpressionRef
+stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
+{
+    ast_exp_t *cond_exp = stmt->u_if.cond_exp;
+    ast_blk_t *if_blk = stmt->u_if.if_blk;
+
+    /* All user-defined if statements are transformed into basic blocks, so stmt_gen_if() is for
+     * internal use only. */
+
+    ASSERT(cond_exp != NULL);
+    ASSERT(if_blk != NULL);
+    ASSERT1(is_empty_vector(&if_blk->ids), vector_size(&if_blk->ids));
+    ASSERT1(vector_size(&if_blk->stmts) == 1, vector_size(&if_blk->stmts));
+    ASSERT(stmt->u_if.else_blk == NULL);
+    ASSERT1(is_empty_vector(&stmt->u_if.elif_stmts), vector_size(&stmt->u_if.elif_stmts));
+
+    return BinaryenIf(gen->module, exp_gen(gen, cond_exp),
+                      stmt_gen(gen, vector_get_stmt(&if_blk->stmts, 0)), NULL);
+}
+
+static BinaryenExpressionRef
 stmt_gen_ddl(gen_t *gen, ast_stmt_t *stmt)
 {
     /* TODO */
@@ -108,6 +129,9 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
 
     case STMT_ASSIGN:
         return stmt_gen_assign(gen, stmt);
+
+    case STMT_IF:
+        return stmt_gen_if(gen, stmt);
 
     case STMT_RETURN:
         return BinaryenReturn(gen->module, exp_gen(gen, stmt->u_ret.arg_exp));
