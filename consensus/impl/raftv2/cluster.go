@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -201,7 +201,7 @@ func (cl *Cluster) addMember(member *consensus.Member, fromConfig bool) error {
 		}
 
 		// check if peerID of this node is valid
-		if cl.NodeName == member.Name && member.PeerID != p2p.NodeID() {
+		if cl.NodeName == member.Name && member.PeerID != p2pkey.NodeID() {
 			return ErrInvalidRaftPeerID
 		}
 	}

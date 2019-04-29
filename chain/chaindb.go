@@ -19,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
-	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -27,8 +26,6 @@ const (
 	chainDBName       = "chain"
 	genesisKey        = chainDBName + ".genesisInfo"
 	genesisBalanceKey = chainDBName + ".genesisBalance"
-
-	TxBatchMax = 10000
 )
 
 var (
@@ -45,7 +42,6 @@ var (
 
 	raftStateKey        = []byte("r_state")
 	raftSnapKey         = []byte("r_snap")
-	raftSnapStatusKey   = []byte("r_snapstatus")
 	raftEntryLastIdxKey = []byte("r_last")
 	raftEntryPrefix     = []byte("r_entry.")
 )
@@ -763,75 +759,4 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 func (cdb *ChainDB) IsNew() bool {
 	//TODO
 	return true
-}
-
-func (cdb *ChainDB) ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error) {
-	//TODO
-	return raftpb.HardState{}, nil, nil
-}
-
-func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
-	dbTx := cdb.store.NewTx()
-	defer dbTx.Discard()
-
-	var data []byte
-	var err error
-
-	if data, err = proto.Marshal(hardstate); err != nil {
-		logger.Panic().Msg("failed to marshal raft state")
-		return err
-	}
-	dbTx.Set(raftstateKey, data)
-	dbTx.Commit()
-
-	return nil
-}
-
-func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
-	data := cdb.store.Get(raftstateKey)
-
-	state := &raftpb.HardState{}
-	if err := proto.Unmarshal(data, state); err != nil {
-		logger.Panic().Msg("failed to unmarshal raft state")
-		return nil, ErrInvalidHardState
-	}
-
-	return state, nil
-}
-
-func getRaftEntryKey(idx uint64) []byte {
-	var key bytes.Buffer
-	key.Write(raftEntryPrefix)
-	l := make([]byte, 8)
-	binary.LittleEndian.PutUint64(l[:], idx)
-	key.Write(l)
-	return key.Bytes()
-}
-
-func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block) error {
-	var data []byte
-	var err error
-
-	for i, entry := range ents {
-		dbTx := cdb.store.NewTx()
-		logger.Debug().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Msg("add raft log entry")
-
-		if entry.Type == consensus.EntryBlock {
-			if err := cdb.addBlock(&dbTx, blocks[i]); err != nil {
-				dbTx.Discard()
-				panic("add block entry")
-				return err
-			}
-		}
-
-		if data, err = entry.ToBytes(); err != nil {
-			dbTx.Discard()
-			return err
-		}
-
-		dbTx.Set(getRaftEntryKey(entry.Index), data)
-		dbTx.Commit()
-	}
-
-	return nil
 }
