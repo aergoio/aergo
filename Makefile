@@ -41,5 +41,5 @@ clean:
 realclean: clean
 	@rm -rf $(BUILD_DIR)
 
-%:
+%: $(BUILD_FILE)
 	@$(MAKE) --no-print-directory -C $(BUILD_DIR) $(MAKECMDGOALS)
