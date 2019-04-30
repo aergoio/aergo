@@ -264,57 +264,30 @@ stmt_check_for_loop(check_t *check, ast_stmt_t *stmt)
     return true;
 }
 
-static bool
-stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
+static void
+stmt_check_loop_blk(check_t *check, ast_stmt_t *stmt, ast_exp_t *size_exp, ast_blk_t *wrap_blk)
 {
-    int i = 0;
     ast_id_t *idx_id;
     ast_exp_t *idx_exp;
+    ast_exp_t *cmp_exp;
     ast_exp_t *val_exp;
     ast_exp_t *arr_exp;
-    ast_exp_t *size_exp;
-    ast_exp_t *cmp_exp;
-    ast_stmt_t *post_stmt;
-    ast_stmt_t *init_stmt = stmt->u_loop.init_stmt;
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
+    ast_stmt_t *init_stmt = stmt->u_loop.init_stmt;
+    ast_stmt_t *post_stmt;
     ast_blk_t *blk = stmt->u_loop.blk;
-    ast_blk_t *wrap_blk = blk_new_normal(&blk->pos);
-    src_pos_t *pos = &stmt->pos;
+    src_pos_t *pos = &cond_exp->pos;
 
-    ASSERT(init_stmt != NULL);
-    ASSERT(cond_exp != NULL);
-    ASSERT(stmt->u_loop.post_stmt == NULL);
+    /* "idx" identifier */
+    idx_id = id_new_tmp_var("$idx", TYPE_INT32, pos);
 
-    /* TODO: map & sql iteration */
-    CHECK(exp_check(check, cond_exp));
-
-    if (is_map_meta(&cond_exp->meta))
-        RETURN(ERROR_NOT_SUPPORTED, &cond_exp->pos);
-
-    /* array-loop is converted like this:
-     *
-     *  int arr_idx = 0;
-     *  loop {
-     *      if (arr_idx >= array.size)
-     *          break;
-     *      val = array[arr_idx];
-     *      ...
-     *      arr_idx++;
-     *  }
-     */
-
-    /* identifier for array iteration */
-    idx_id = id_new_var("array$idx", MOD_PRIVATE, pos);
-
-    idx_id->u_var.type_exp = exp_new_type(TYPE_INT32, pos);
-    idx_id->u_var.size_exps = NULL;
     idx_id->u_var.dflt_exp = exp_new_lit_int(0, pos);
 
-    /* "arr_idx" expression */
+    /* "$idx" expression */
     idx_exp = exp_new_id(idx_id->name, pos);
 
-    /* "array" expression */
     if (is_id_stmt(init_stmt)) {
+        /* "val" declaration */
         vector_add_last(&wrap_blk->stmts, init_stmt);
         val_exp = exp_new_id(init_stmt->u_id.id->name, &init_stmt->pos);
     }
@@ -323,26 +296,25 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
         val_exp = init_stmt->u_exp.exp;
     }
 
-    /* "int arr_idx = 0" statement */
+    /* "int $idx = 0" statement */
     vector_add_last(&wrap_blk->stmts, stmt_new_id(idx_id, pos));
 
     /* inline original block */
     vector_add_last(&wrap_blk->stmts, stmt_new_blk(blk, &blk->pos));
 
-    /* "break if arr_idx >= array.size" statement */
-    size_exp = exp_new_access(cond_exp, exp_new_id("size", pos), pos);
     cmp_exp = exp_new_binary(OP_GE, idx_exp, size_exp, pos);
 
-    vector_add(&blk->stmts, i++, stmt_new_jump(STMT_BREAK, cmp_exp, pos));
+    /* "break if $idx >= $size" statement */
+    vector_add(&blk->stmts, 0, stmt_new_jump(STMT_BREAK, cmp_exp, pos));
 
-    /* "val = array[arr_idx]" statement */
     arr_exp = exp_new_array(cond_exp, idx_exp, &val_exp->pos);
 
-    vector_add(&blk->stmts, i++, stmt_new_assign(val_exp, arr_exp, &val_exp->pos));
+    /* "val = var[$idx]" statement */
+    vector_add(&blk->stmts, 1, stmt_new_assign(val_exp, arr_exp, &val_exp->pos));
 
-    /* "arr_idx++" expression */
     post_stmt = stmt_new_exp(exp_new_unary(OP_INC, false, idx_exp, pos), pos);
 
+    /* "$idx++" expression */
     vector_add_last(&blk->stmts, post_stmt);
 
     blk_check(check, wrap_blk);
@@ -352,6 +324,90 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 
     stmt->u_loop.blk = wrap_blk;
     stmt->u_loop.post_stmt = post_stmt;
+}
+
+static bool
+stmt_check_map_loop(check_t *check, ast_stmt_t *stmt)
+{
+    ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
+
+    RETURN(ERROR_NOT_SUPPORTED, &cond_exp->pos);
+}
+
+static bool
+stmt_check_str_loop(check_t *check, ast_stmt_t *stmt)
+{
+    ast_id_t *size_id;
+    vector_t *arg_exps;
+    ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
+    ast_blk_t *wrap_blk = blk_new_normal(&stmt->pos);
+    src_pos_t *pos = &cond_exp->pos;
+
+    ASSERT(stmt->u_loop.init_stmt != NULL);
+    ASSERT(stmt->u_loop.post_stmt == NULL);
+
+    /* string-loop is converted like this:
+     *
+     *  int $size = strlen(str);
+     *  int $idx = 0;
+     *  loop {
+     *      if ($idx >= $size)
+     *          break;
+     *      val = str[$idx];
+     *      ...
+     *      $idx++;
+     *  }
+     */
+
+    /* "$size" identifier */
+    size_id = id_new_tmp_var("$size", TYPE_INT32, pos);
+
+    arg_exps = vector_new();
+    exp_add(arg_exps, cond_exp);
+
+    size_id->u_var.dflt_exp = exp_new_call(FN_STRLEN, NULL, arg_exps, pos);
+
+    /* "int $size = strlen(str)" statement */
+    vector_add_last(&wrap_blk->stmts, stmt_new_id(size_id, pos));
+
+    stmt_check_loop_blk(check, stmt, exp_new_id(size_id->name, pos), wrap_blk);
+
+    return true;
+}
+
+static bool
+stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
+{
+    ast_id_t *size_id;
+    ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
+    ast_blk_t *wrap_blk = blk_new_normal(&stmt->pos);
+    src_pos_t *pos = &cond_exp->pos;
+
+    ASSERT(stmt->u_loop.init_stmt != NULL);
+    ASSERT(stmt->u_loop.post_stmt == NULL);
+
+    /* array-loop is converted like this:
+     *
+     *  int $size = array.size;
+     *  int $idx = 0;
+     *  loop {
+     *      if ($idx >= $size)
+     *          break;
+     *      val = array[$idx];
+     *      ...
+     *      $idx++;
+     *  }
+     */
+
+    /* "$size" identifier */
+    size_id = id_new_tmp_var("$size", TYPE_INT32, pos);
+
+    size_id->u_var.dflt_exp = exp_new_access(cond_exp, exp_new_id("size", pos), pos);
+
+    /* "int $size = array.size" statement */
+    vector_add_last(&wrap_blk->stmts, stmt_new_id(size_id, pos));
+
+    stmt_check_loop_blk(check, stmt, exp_new_id(size_id->name, pos), wrap_blk);
 
     return true;
 }
@@ -359,22 +415,32 @@ stmt_check_array_loop(check_t *check, ast_stmt_t *stmt)
 static bool
 stmt_check_loop(check_t *check, ast_stmt_t *stmt)
 {
+    ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
+
     ASSERT1(is_loop_stmt(stmt), stmt->kind);
 
     switch (stmt->u_loop.kind) {
     case LOOP_FOR:
-        stmt_check_for_loop(check, stmt);
-        break;
+        return stmt_check_for_loop(check, stmt);
 
     case LOOP_ARRAY:
-        stmt_check_array_loop(check, stmt);
-        break;
+        ASSERT(cond_exp != NULL);
+
+        CHECK(exp_check(check, cond_exp));
+
+        if (is_array_meta(&cond_exp->meta))
+            return stmt_check_array_loop(check, stmt);
+
+        if (is_map_meta(&cond_exp->meta))
+            return stmt_check_map_loop(check, stmt);
+
+        return stmt_check_str_loop(check, stmt);
 
     default:
         ASSERT1(!"invalid loop", stmt->u_loop.kind);
     }
 
-    return true;
+    return false;
 }
 
 static bool

@@ -67,7 +67,10 @@
 #define is_comparable_meta(meta)    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
 #define is_compatible_meta(x, y)                                                                   \
     ((x)->type > TYPE_NONE && (x)->type <= TYPE_COMPATIBLE &&                                      \
-     (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE)
+     (y)->type > TYPE_NONE && (y)->type <= TYPE_COMPATIBLE &&                                      \
+     (((x)->type == (y)->type) || is_string_meta(y) ||                                             \
+      (is_string_meta(x) && !is_bool_meta(y)) ||                                                   \
+      (is_numeric_meta(x) && is_numeric_meta(y))))
 
 #define is_array_meta(meta)         ((meta)->arr_dim > 0)
 #define is_undef_meta(meta)         (meta)->is_undef

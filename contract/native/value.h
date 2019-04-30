@@ -14,18 +14,20 @@
 #define is_null_val(val)            ((val)->size == 0)
 
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
+#define is_byte_val(val)            ((val)->type == TYPE_BYTE)
 #define is_int_val(val)             ((val)->type == TYPE_INT128)
 #define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)
 #define is_str_val(val)             ((val)->type == TYPE_STRING)
 #define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
 
 #define val_ptr(val)                ((val)->ptr)
-#define val_sz(val)                 ((val)->size)
+#define val_size(val)               ((val)->size)
 
 #define val_bool(val)               ((val)->b)
+#define val_byte(val)               ((val)->c)
 #define val_i64(val)                mpz_get_si((val)->z)
 #define val_f64(val)                ((val)->d)
-#define val_str(val)                ((char *)((val)->ptr))
+#define val_str(val)                ((val)->ptr)
 
 #define val_mpz(val)                ((val)->z)
 
@@ -39,7 +41,7 @@
         (val)->type = TYPE_INT128;                                                                 \
         (val)->size = sizeof(mpz_t);                                                               \
         (val)->ptr = (val)->z;                                                                     \
-        mpz_init2((val)->z, 256);                                                                  \
+        mpz_init((val)->z);                                                                        \
     } while (0)
 
 #define value_set_null(val)         value_set_ptr(val, NULL, 0)
@@ -50,6 +52,14 @@
         (val)->size = sizeof(bool);                                                                \
         (val)->ptr = &(val)->b;                                                                    \
         (val)->b = (v);                                                                            \
+    } while (0)
+
+#define value_set_byte(val, v)                                                                     \
+    do {                                                                                           \
+        (val)->type = TYPE_BYTE;                                                                   \
+        (val)->size = sizeof(uint8_t);                                                             \
+        (val)->ptr = &(val)->c;                                                                    \
+        (val)->c = (v);                                                                            \
     } while (0)
 
 #define value_set_int(val, v)                                                                      \
@@ -103,9 +113,9 @@ struct value_s {
     void *ptr;
     union {
         bool b;
+        uint8_t c;
         mpz_t z;
         double d;
-        char *s;
     };
 };
 
@@ -132,6 +142,11 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
         *(uint32_t *)buf = val_bool(val) ? 1 : 0;
         return sizeof(uint32_t);
 
+    case TYPE_BYTE:
+        ASSERT1((ptrdiff_t)buf % 4 == 0, buf);
+        *(uint32_t *)buf = val_byte(val);
+        return sizeof(uint32_t);
+
     case TYPE_INT128:
         ASSERT1(!is_int128_meta(meta), meta->type);
 
@@ -156,8 +171,8 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
 
     case TYPE_STRING:
     case TYPE_OBJECT:
-        memcpy(buf, val->ptr, val->size);
-        return val->size;
+        memcpy(buf, val_ptr(val), val_size(val));
+        return val_size(val);
 
     default:
         ASSERT2(!"invalid value", val->type, meta->type);

@@ -313,38 +313,26 @@ contract test {
 @run(test.test)
 contract test {
     bool b1 = (bool)false;
-    bool b2 = (bool)1;
-    bool b3 = (bool)-4;
-    bool b4 = (bool)"1";
-    bool b5 = (bool)"true";
 
     int16 i1 = (int16)8;
-    int16 i2 = (int16)true;
-    int16 i3 = (int16)"-945";
+    int16 i2 = (int16)"-945";
 
     string s1 = (string)"self";
-    string s2 = (string)true;
-    string s3 = (string)124;
+    string s2 = (string)124;
 
     test() {
         pragma assert(b1 == false);
-        pragma assert(b2 == true);
-        pragma assert(b3 == true);
-        pragma assert(b4 == true);
-        pragma assert(b5 == true);
 
         pragma assert(i1 == 8);
-        pragma assert(i2 == 1);
-        pragma assert(i3 == -945);
+        pragma assert(i2 == -945);
 
         pragma assert(s1 == "self");
-        pragma assert(s2 == "true");
-        pragma assert(s3 == "124");
+        pragma assert(s2 == "124");
     }
 }
 
 @test(typecast_to_bool)
-@run(test.test)
+@error(ERROR_INCOMPATIBLE_TYPE,6)
 contract test {
     byte b1 = 0;
     int8 i1 = -1;
@@ -359,128 +347,107 @@ contract test {
     bool v4 = (bool)i3;
     bool v5 = (bool)i4;
     bool v8 = (bool)s;
-
-    test() {
-        pragma assert(v1 == false);
-        pragma assert(v2 == true);
-        pragma assert(v3 == false);
-        pragma assert(v4 == true);
-        pragma assert(v5 == true);
-        pragma assert(v8 == false);
-    }
 }
 
 @test(typecast_to_int8)
 @run(test.test)
 contract test {
-    bool b1 = false;
-    byte b2 = 255;
+    byte b1 = 255;
     int16 i1 = 127;
     int64 i2 = -128;
     int128 i3 = 0;
     string s = "17";
 
     int8 v1 = (int8)b1;
-    int8 v2 = (int8)b2;
-    int8 v3 = (int8)i1;
-    int8 v4 = (int8)i2;
-    int8 v5 = (int8)i3;
-    int8 v8 = (int8)s;
+    int8 v2 = (int8)i1;
+    int8 v3 = (int8)i2;
+    int8 v4 = (int8)i3;
+    int8 v5 = (int8)s;
 
     test() {
-        pragma assert(v1 == 0);
-        pragma assert(v2 == -1);
-        pragma assert(v3 == 127);
-        pragma assert(v4 == -128);
-        pragma assert(v5 == 0);
-        pragma assert(v8 == 17);
+        pragma assert(v1 == -1);
+        pragma assert(v2 == 127);
+        pragma assert(v3 == -128);
+        pragma assert(v4 == 0);
+        pragma assert(v5 == 17);
     }
 }
 
 @test(typecast_to_int16)
 @run(test.test)
 contract test {
-    bool b1 = true;
-    byte b2 = 58;
+    byte b1 = 58;
     int8 i1 = -2;
     int64 i2 = 0xf000;
     int128 i3 = 0x1234;
     string s = "32000";
 
     int16 v1 = (int16)b1;
-    int16 v2 = (int16)b2;
-    int16 v3 = (int16)i1;
-    int16 v4 = (int16)i2;
-    int16 v5 = (int16)i3;
-    int16 v8 = (int16)s;
+    int16 v2 = (int16)i1;
+    int16 v3 = (int16)i2;
+    int16 v4 = (int16)i3;
+    int16 v5 = (int16)s;
 
     test() {
-        pragma assert(v1 == 1);
-        pragma assert(v2 == 58);
-        pragma assert(v3 == -2);
-        pragma assert(v4 == -4096);
-        pragma assert(v5 == 4660);
-        pragma assert(v8 == 32000);
+        pragma assert(v1 == 58);
+        pragma assert(v2 == -2);
+        pragma assert(v3 == -4096);
+        pragma assert(v4 == 4660);
+        pragma assert(v5 == 32000);
     }
 }
 
 @test(typecast_to_int64)
 @run(test.test)
 contract test {
-    bool b1 = true;
-    byte b2 = 0;
+    byte b1 = 0;
     int8 i1 = 100;
     int16 i2 = 32760;
     int128 i3 = 0x8000000000000000;
     string s = "3.141592";
 
     int64 v1 = (int64)b1;
-    int64 v2 = (int64)b2;
-    int64 v3 = (int64)i1;
-    int64 v4 = (int64)i2;
-    int64 v5 = (int64)i3;
-    int64 v8 = (int64)s;
+    int64 v2 = (int64)i1;
+    int64 v3 = (int64)i2;
+    int64 v4 = (int64)i3;
+    int64 v5 = (int64)s;
 
     test() {
-        pragma assert(v1 == 1);
-        pragma assert(v2 == 0);
-        pragma assert(v3 == 100);
-        pragma assert(v4 == 32760);
-        pragma assert(v5 == -9223372036854775808);
-        pragma assert(v8 == 3);
+        pragma assert(v1 == 0);
+        pragma assert(v2 == 100);
+        pragma assert(v3 == 32760);
+        pragma assert(v4 == -9223372036854775808);
+        pragma assert(v5 == 3);
     }
 }
 
 @test(typecast_to_int128)
 contract test {
-    bool b1 = false;
-    byte b2 = 196;
+    byte b1 = 196;
     int8 i1 = -23;
     int16 i2 = 14452;
     int64 i3 = -50000000000000;
     string s = "2019";
 
     int128 v1 = (int128)b1;
-    int128 v2 = (int128)b2;
-    int128 v3 = (int128)i1;
-    int128 v4 = (int128)i2;
-    int128 v5 = (int128)i3;
-    int128 v8 = (int128)s;
+    int128 v2 = (int128)i1;
+    int128 v3 = (int128)i2;
+    int128 v4 = (int128)i3;
+    int128 v5 = (int128)s;
 
     test() {
-        pragma assert(v1 == 0);
-        pragma assert(v2 == 196);
-        pragma assert(v3 == -23);
-        pragma assert(v4 == 14452);
-        pragma assert(v5 == -50000000000000);
-        pragma assert(v8 == 2019);
+        pragma assert(v1 == 196);
+        pragma assert(v2 == -23);
+        pragma assert(v3 == 14452);
+        pragma assert(v4 == -50000000000000);
+        pragma assert(v5 == 2019);
     }
 }
 
 @test(typecast_to_string)
 contract test {
     bool b1 = true;
-    byte b2 = 0;
+    byte b2 = 65;
     int8 i1 = 118;
     int16 i2 = -32000;
     int64 i3 = 9000000000000000000;
@@ -494,8 +461,8 @@ contract test {
     string v6 = (string)i4;
 
     test() {
-        pragma assert(v1 == "1");
-        pragma assert(v2 == "0");
+        pragma assert(v1 == "true");
+        pragma assert(v2 == "A");
         pragma assert(v3 == "118");
         pragma assert(v4 == "-32000");
         pragma assert(v5 == "9000000000000000000");

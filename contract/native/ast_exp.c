@@ -62,6 +62,16 @@ exp_new_lit_bool(bool v, src_pos_t *pos)
 }
 
 ast_exp_t *
+exp_new_lit_byte(uint8_t v, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_lit(pos);
+
+    value_set_byte(&exp->u_lit.val, v);
+
+    return exp;
+}
+
+ast_exp_t *
 exp_new_lit_int(uint64_t v, src_pos_t *pos)
 {
     ast_exp_t *exp = exp_new_lit(pos);

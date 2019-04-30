@@ -61,8 +61,9 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
                              meta_gen(&l_exp->meta));
     }
 
-    /* For an array whose index is a variable, we must dynamically determine the offset */
-    // XXX ASSERT1(is_array_meta(&id->meta), id->meta.type);
+    /* When assigning to an element of a multi-dimensional array or element of a struct array,
+     * the original expression can exist. */
+
     ASSERT(!is_array_meta(&l_exp->meta));
 
     gen->is_lval = true;

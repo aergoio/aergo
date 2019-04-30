@@ -27,6 +27,7 @@ typedef struct gen_s {
     RelooperRef relooper;
 
     bool is_lval;
+    BinaryenExpressionRef rvalue;
 } gen_t;
 
 void gen(ir_t *ir, flag_t flag, char *path);

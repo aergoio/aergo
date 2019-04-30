@@ -5,6 +5,8 @@
 
 #include "common.h"
 
+#include "util.h"
+
 #include "ir_sgmt.h"
 
 static void
@@ -28,6 +30,37 @@ sgmt_lookup(ir_sgmt_t *sgmt, void *ptr, uint32_t len)
     }
 
     return -1;
+}
+
+int
+sgmt_add_str(ir_sgmt_t *sgmt, char *str)
+{
+    int i, j;
+    int len;
+    char *esc_str;
+
+    ASSERT(str != NULL);
+
+    len = strlen(str);
+
+    if (strchr(str, '\\') == NULL) {
+        return sgmt_add_raw(sgmt, str, len + 1);
+    }
+
+    esc_str = xmalloc(len + 1);
+
+    for (i = 0, j = 0; i < len; i++) {
+        if (str[i] == '\\' && isesc(str[i + 1]))
+            esc_str[j++] = etoc(str[i++ + 1]);
+        else
+            esc_str[j++] = str[i];
+    }
+
+    ASSERT2(j < len, j, len);
+
+    esc_str[j++] = '\0';
+
+    return sgmt_add_raw(sgmt, esc_str, j);
 }
 
 int

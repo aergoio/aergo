@@ -17,7 +17,7 @@
 #define f64_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralFloat64(v))
 
 #define meta_gen(meta)                                                                             \
-    (is_array_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
+    (is_address_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
 
 static inline BinaryenType
 type_gen(type_t type)

@@ -219,6 +219,7 @@ contract test {
         pragma assert(v6[2].a == 0);
         pragma assert(v6[2].b == 0);
         v6[0].a = 0xf0;
+        /*
         v6[0].b = 0xf1;
         /*
         pragma assert(v2[0].a == 0xf0);
@@ -753,6 +754,32 @@ contract test {
     int v[2][2] = new { { 1, 2 }, { 3, 4 } };
     test() {
         for (int i[3] in v) { }
+    }
+}
+
+@test(string_loop)
+@run(test.test)
+contract test {
+    string x = "Game of Thrones";
+
+    test() {
+        int i;
+
+        for (byte b in x) {
+            pragma assert(b == x[i++]);
+        }
+        pragma assert(i == 15);
+        pragma assert(x[8] == 'T');
+
+        i = 0;
+        string y = "Summers span decades.\n\tWinters can last a lifetime.";
+
+        for (byte b in y) {
+            pragma assert(b == y[i++]);
+        }
+        pragma assert(i == 51);
+        pragma assert(y[21] == '\n');
+        pragma assert(y[22] == '\t');
     }
 }
 

@@ -42,12 +42,14 @@ sys_fn_t sys_fntab_[FN_MAX] = {
     { "__stack_overflow", SYSLIB_MODULE".__stack_overflow", 0, { TYPE_NONE }, TYPE_VOID },
     { "__assert", SYSLIB_MODULE".__assert", 6,
         { TYPE_BOOL, TYPE_STRING, TYPE_STRING, TYPE_INT32, TYPE_INT32, TYPE_INT32 }, TYPE_VOID },
+    { "__strlen", SYSLIB_MODULE".__strlen", 1, { TYPE_STRING }, TYPE_INT32 },
     { "__strcat", SYSLIB_MODULE".__strcat", 2, { TYPE_STRING, TYPE_STRING }, TYPE_STRING },
     { "__strcmp", SYSLIB_MODULE".__strcmp", 2, { TYPE_STRING, TYPE_STRING }, TYPE_INT32 },
     { "__atoi32", SYSLIB_MODULE".__atoi32", 1, { TYPE_STRING }, TYPE_INT32 },
     { "__atoi64", SYSLIB_MODULE".__atoi64", 1, { TYPE_STRING }, TYPE_INT64 },
     { "__itoa32", SYSLIB_MODULE".__itoa32", 1, { TYPE_INT32 }, TYPE_STRING },
     { "__itoa64", SYSLIB_MODULE".__itoa64", 1, { TYPE_INT64 }, TYPE_STRING },
+    { "__ctoa", SYSLIB_MODULE".__ctoa", 1, { TYPE_BYTE }, TYPE_STRING },
     { "__mpz_get_i32", SYSLIB_MODULE".__mpz_get_i32", 1, { TYPE_INT32 }, TYPE_INT32 },
     { "__mpz_get_i64", SYSLIB_MODULE".__mpz_get_i64", 1, { TYPE_INT32 }, TYPE_INT64 },
     { "__mpz_get_str", SYSLIB_MODULE".__mpz_get_str", 1, { TYPE_INT32 }, TYPE_STRING },
@@ -75,6 +77,9 @@ sys_fn_t sys_fntab_[FN_MAX] = {
         { TYPE_INT32, TYPE_INT32, TYPE_INT32 }, TYPE_VOID },
     { "__array_set_i64", SYSLIB_MODULE".__array_set_i64", 3,
         { TYPE_INT32, TYPE_INT32, TYPE_INT64 }, TYPE_VOID },
+    { "__char_get", SYSLIB_MODULE".__char_get", 2, { TYPE_INT32, TYPE_INT32 }, TYPE_BYTE },
+    { "__char_set", SYSLIB_MODULE".__char_set", 3,
+        { TYPE_INT32, TYPE_INT32, TYPE_BYTE }, TYPE_VOID },
 };
 
 void

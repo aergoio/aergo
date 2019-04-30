@@ -30,6 +30,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     switch (val->type) {
     case TYPE_BOOL:
+    case TYPE_BYTE:
     case TYPE_INT128:
     case TYPE_DOUBLE:
         break;
@@ -47,7 +48,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         }
         else {
             /* Same as above */
-            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_sz(val));
+            addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
             value_set_int(val, addr);
         }
         meta_set_int32(meta);
@@ -363,9 +364,9 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
             ir_md_t *md = trans->md;
 
             ASSERT1(is_ptr_val(elem_val), elem_val->type);
-            ASSERT1(val_sz(elem_val) > 0, val_sz(elem_val));
+            ASSERT1(val_size(elem_val) > 0, val_size(elem_val));
 
-            addr = sgmt_add_raw(&md->sgmt, val_ptr(elem_val), val_sz(elem_val));
+            addr = sgmt_add_raw(&md->sgmt, val_ptr(elem_val), val_size(elem_val));
 
             value_set_int(elem_val, addr);
             meta_set_int32(elem_meta);

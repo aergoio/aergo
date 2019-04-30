@@ -39,7 +39,7 @@ id_trans_param(trans_t *trans, ast_id_t *id)
     /* All functions that are not constructors must be added the contract address as the first
      * argument, and must also be added to the param_ids to reflect the abi */
 
-    param_id = id_new_tmp_var("cont$addr");
+    param_id = id_new_tmp_var("cont$addr", TYPE_OBJECT, &id->pos);
     param_id->u_var.is_param = true;
     param_id->up = id;
     meta_set_object(&param_id->meta, id->up);

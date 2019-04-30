@@ -185,6 +185,7 @@ struct ast_exp_s {
 ast_exp_t *exp_new_null(src_pos_t *pos);
 ast_exp_t *exp_new_lit_null(src_pos_t *pos);
 ast_exp_t *exp_new_lit_bool(bool v, src_pos_t *pos);
+ast_exp_t *exp_new_lit_byte(uint8_t v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_int(uint64_t v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_f64(double v, src_pos_t *pos);
 ast_exp_t *exp_new_lit_str(char *v, src_pos_t *pos);

@@ -21,6 +21,8 @@
 #define STR_ARG(v)                  ((v) == NULL ? "" : (v))
 #define BOOL_ARG(v)                 ((v) ? "true" : "false")
 
+#define isesc(v)                    (strchr("0tfvrn\\\'\"", (v)) != NULL)
+
 FILE *open_file(char *path, char *mode);
 void close_file(FILE *fp);
 
@@ -28,5 +30,7 @@ void write_file(char *path, char *str, int len);
 
 char *strtrim(char *str, char *ptn);
 void strset(char *buf, char ch, int size);
+
+char etoc(char ch);
 
 #endif /* ! _UTIL_H */

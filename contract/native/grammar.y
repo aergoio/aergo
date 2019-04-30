@@ -47,7 +47,9 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         L_HEX           "hexadecimal"
         L_INT           "integer"
         L_OCTAL         "octal"
-        L_STR           "characters"
+        L_STR           "string literal"
+        <chr>
+        L_CHR           "character"
 
 /* operator */
 %token  ASSIGN_ADD      "+="
@@ -147,6 +149,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 /* type */
 %union {
     bool flag;
+    uint8_t chr;
     char *str;
     vector_t *vect;
 
@@ -1383,6 +1386,10 @@ literal:
         $$ = exp_new_lit_f64(v, &@$);
     }
 */
+|   L_CHR
+    {
+        $$ = exp_new_lit_byte($1, &@$);
+    }
 |   L_STR
     {
         $$ = exp_new_lit_str($1, &@$);

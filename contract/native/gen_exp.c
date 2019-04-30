@@ -24,6 +24,9 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
     case TYPE_BOOL:
         return i32_gen(gen, val_bool(val) ? 1 : 0);
 
+    case TYPE_BYTE:
+        return i32_gen(gen, val_byte(val));
+
     case TYPE_INT128:
         if (is_int128_meta(meta)) {
             char *z_str;
@@ -55,7 +58,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
         return f32_gen(gen, val_f64(val));
 
     case TYPE_OBJECT:
-        return i32_gen(gen, sgmt_add_raw(&md->sgmt, val_ptr(val), val_sz(val)));
+        return i32_gen(gen, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
 
     default:
         ASSERT2(!"invalid value", val->type, meta->type);
@@ -67,19 +70,19 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_array(gen_t *gen, ast_exp_t *exp)
 {
+    ast_exp_t *id_exp = exp->u_arr.id_exp;
+    ast_exp_t *idx_exp = exp->u_arr.idx_exp;
     ast_id_t *id = exp->id;
     meta_t *meta = &exp->meta;
+    BinaryenExpressionRef address;
+
+    address = exp_gen(gen, id_exp);
 
     if (is_array_meta(&id->meta)) {
         uint32_t offset = 0;
         fn_kind_t kind = FN_ARR_GET_I32;
-        ast_exp_t *id_exp = exp->u_arr.id_exp;
-        ast_exp_t *idx_exp = exp->u_arr.idx_exp;
-        BinaryenExpressionRef address;
 
         ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
-
-        address = exp_gen(gen, id_exp);
 
         if (is_lit_exp(idx_exp)) {
             if (is_array_meta(meta)) {
@@ -118,78 +121,16 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp)
         return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
     }
+    else if (is_string_meta(&id->meta)) {
+        /* XXX */
+        ASSERT(!gen->is_lval);
+
+        return syslib_gen(gen, FN_CHAR_GET, 2, address, exp_gen(gen, idx_exp));
+    }
 
     ERROR(ERROR_NOT_SUPPORTED, &exp->pos);
 
     return NULL;
-}
-
-static BinaryenExpressionRef
-exp_gen_cast_to_bool(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta, meta_t *to_meta)
-{
-    BinaryenOp op = 0;
-
-    switch (from_meta->type) {
-    case TYPE_BOOL:
-    case TYPE_BYTE:
-    case TYPE_INT8:
-    case TYPE_INT16:
-    case TYPE_INT32:
-        op = BinaryenEqZInt32();
-        break;
-
-    case TYPE_INT64:
-        op = BinaryenEqZInt64();
-        break;
-
-    case TYPE_INT128:
-        op = BinaryenEqZInt32();
-        value = syslib_gen(gen, FN_MPZ_SIGN, 1, value);
-        break;
-
-    case TYPE_STRING:
-        op = BinaryenEqZInt32();
-        value = syslib_gen(gen, FN_STRCMP, 2, value,
-                           i32_gen(gen, sgmt_add_str(&gen->md->sgmt, "false")));
-        break;
-
-    case TYPE_FLOAT:
-    case TYPE_DOUBLE:
-    default:
-        ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
-    }
-
-    return BinaryenSelect(gen->module, BinaryenUnary(gen->module, op, value),
-                          i32_gen(gen, 0), i32_gen(gen, 1));
-}
-
-static BinaryenExpressionRef
-exp_gen_cast_to_str(gen_t *gen, BinaryenExpressionRef value, meta_t *from_meta, meta_t *to_meta)
-{
-    fn_kind_t kind = FN_MAX;
-
-    if (is_string_meta(from_meta)) {
-        if (is_int128_meta(to_meta))
-            kind = FN_MPZ_SET_STR;
-        else if (is_int64_meta(to_meta))
-            kind = FN_ATOI64;
-        else if (is_bool_meta(to_meta) || is_integer_meta(to_meta))
-            kind = FN_ATOI32;
-        else
-            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
-    }
-    else if (is_string_meta(to_meta)) {
-        if (is_int128_meta(from_meta))
-            kind = FN_MPZ_GET_STR;
-        else if (is_int64_meta(from_meta))
-            kind = FN_ITOA64;
-        else if (is_bool_meta(from_meta) || is_integer_meta(from_meta))
-            kind = FN_ITOA32;
-        else
-            ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
-    }
-
-    return syslib_call_1(gen, kind, value);
 }
 
 static BinaryenExpressionRef
@@ -198,21 +139,29 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
     ast_exp_t *val_exp = exp->u_cast.val_exp;
     meta_t *from_meta = &val_exp->meta;
     meta_t *to_meta = &exp->meta;
+    ir_md_t *md = gen->md;
     BinaryenOp op = 0;
     BinaryenExpressionRef value;
 
     value = exp_gen(gen, val_exp);
 
-    if (is_bool_meta(to_meta))
-        return exp_gen_cast_to_bool(gen, value, from_meta, to_meta);
-
-    if (is_string_meta(from_meta) || is_string_meta(to_meta))
-        return exp_gen_cast_to_str(gen, value, from_meta, to_meta);
-
     switch (from_meta->type) {
+    case TYPE_BOOL:
+        ASSERT1(is_string_meta(to_meta), to_meta->type);
+        return BinaryenSelect(gen->module, value, i32_gen(gen, sgmt_add_str(&md->sgmt, "true")),
+                              i32_gen(gen, sgmt_add_str(&md->sgmt, "false")));
+
+    case TYPE_BYTE:
+        if (is_string_meta(to_meta))
+            return syslib_gen(gen, FN_CTOA, 1, value);
+        /* fall through */
+
     case TYPE_INT8:
     case TYPE_INT16:
     case TYPE_INT32:
+        if (is_string_meta(to_meta))
+            return syslib_gen(gen, FN_ITOA32, 1, value);
+
         if (is_int128_meta(to_meta))
             return syslib_gen(gen, FN_MPZ_SET_I32, 1, value);
 
@@ -226,22 +175,10 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             return value;
         break;
 
-    case TYPE_BOOL:
-    case TYPE_BYTE:
-        if (is_int128_meta(to_meta))
-            return syslib_gen(gen, FN_MPZ_SET_I32, 1, value);
-
-        if (is_float_meta(to_meta))
-            op = BinaryenConvertUInt32ToFloat32();
-        else if (is_double_meta(to_meta))
-            op = BinaryenConvertUInt32ToFloat64();
-        else if (is_int64_meta(to_meta))
-            op = BinaryenExtendUInt32();
-        else
-            return value;
-        break;
-
     case TYPE_INT64:
+        if (is_string_meta(to_meta))
+            return syslib_gen(gen, FN_ITOA64, 1, value);
+
         if (is_int128_meta(to_meta))
             return syslib_gen(gen, FN_MPZ_SET_I64, 1, value);
 
@@ -256,15 +193,16 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         break;
 
     case TYPE_INT128:
+        if (is_string_meta(to_meta))
+            return syslib_gen(gen, FN_MPZ_GET_STR, 1, value);
+
         if (is_int64_meta(to_meta))
             return syslib_call_1(gen, FN_MPZ_GET_I64, value);
 
         return syslib_call_1(gen, FN_MPZ_GET_I32, value);
 
     case TYPE_FLOAT:
-        if (is_bool_meta(to_meta) || is_byte_meta(to_meta))
-            op = BinaryenTruncUFloat32ToInt32();
-        else if (is_int64_meta(to_meta))
+        if (is_int64_meta(to_meta))
             op = BinaryenTruncSFloat32ToInt64();
         else if (is_integer_meta(to_meta))
             op = BinaryenTruncSFloat32ToInt32();
@@ -275,9 +213,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         break;
 
     case TYPE_DOUBLE:
-        if (is_bool_meta(to_meta) || is_byte_meta(to_meta))
-            op = BinaryenTruncUFloat64ToInt32();
-        else if (is_int64_meta(to_meta))
+        if (is_int64_meta(to_meta))
             op = BinaryenTruncSFloat64ToInt64();
         else if (is_integer_meta(to_meta))
             op = BinaryenTruncSFloat64ToInt32();
@@ -286,6 +222,15 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         else
             return value;
         break;
+
+    case TYPE_STRING:
+        if (is_int64_meta(to_meta))
+            return syslib_gen(gen, FN_ATOI64, 1, value);
+
+        if (is_int128_meta(to_meta))
+            return syslib_gen(gen, FN_MPZ_SET_STR, 1, value);
+
+        return syslib_gen(gen, FN_ATOI32, 1, value);
 
     default:
         ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);
@@ -309,12 +254,14 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
 
         if (is_int64_meta(meta))
             return BinaryenBinary(gen->module, BinaryenSubInt64(), i64_gen(gen, 0), value);
-        else if (is_float_meta(meta))
+
+        if (is_float_meta(meta))
             return BinaryenUnary(gen->module, BinaryenNegFloat32(), value);
-        else if (is_double_meta(meta))
+
+        if (is_double_meta(meta))
             return BinaryenUnary(gen->module, BinaryenNegFloat64(), value);
-        else
-            return BinaryenBinary(gen->module, BinaryenSubInt32(), i32_gen(gen, 0), value);
+
+        return BinaryenBinary(gen->module, BinaryenSubInt32(), i32_gen(gen, 0), value);
 
     case OP_NOT:
         return BinaryenUnary(gen->module, BinaryenEqZInt32(), value);

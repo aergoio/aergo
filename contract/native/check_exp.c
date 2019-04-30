@@ -7,7 +7,7 @@
 
 #include "ast_blk.h"
 #include "check_id.h"
-#include "syscall.h"
+#include "syslib.h"
 
 #include "check_exp.h"
 
@@ -21,6 +21,10 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
     switch (val->type) {
     case TYPE_BOOL:
         meta_set_bool(&exp->meta);
+        break;
+
+    case TYPE_BYTE:
+        meta_set_byte(&exp->meta);
         break;
 
     case TYPE_INT128:
@@ -38,7 +42,7 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         break;
 
     case TYPE_OBJECT:
-        ASSERT1(is_null_val(val), val_sz(val));
+        ASSERT1(is_null_val(val), val_size(val));
         meta_set_object(&exp->meta, NULL);
         meta_set_undef(&exp->meta);
         break;
@@ -196,7 +200,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
             ASSERT(id_meta->dim_sizes != NULL);
 
             /* The "dim_sizes[0]" can be negative if array is used as a parameter */
-            if (is_neg_val(&idx_exp->u_lit.val) || val_i64(idx_val) > INT32_MAX ||
+            if (is_neg_val(idx_val) || val_i64(idx_val) > INT32_MAX ||
                 (id_meta->dim_sizes[0] > 0 && val_i64(idx_val) >= (uint)id_meta->dim_sizes[0]))
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
 
@@ -211,6 +215,21 @@ exp_check_array(check_t *check, ast_exp_t *exp)
 
         meta_eval(id_meta->elems[0], idx_meta);
         meta_copy(&exp->meta, id_meta->elems[1]);
+    }
+    else if (is_string_meta(id_meta)) {
+        if (!is_integer_meta(idx_meta))
+            RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
+
+        if (is_lit_exp(idx_exp)) {
+            value_t *idx_val = &idx_exp->u_lit.val;
+
+            if (is_neg_val(idx_val) || val_i64(idx_val) > INT32_MAX)
+                RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
+
+            meta_set_int32(&idx_exp->meta);
+        }
+
+        meta_set_byte(&exp->meta);
     }
     else {
         RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
@@ -239,7 +258,7 @@ exp_check_cast(check_t *check, ast_exp_t *exp)
 
     meta_copy(&exp->meta, &exp->u_cast.to_meta);
 
-    if (is_array_meta(val_meta) || !is_compatible_meta(&exp->meta, val_meta))
+    if (is_array_meta(val_meta) || !is_compatible_meta(val_meta, &exp->meta))
         RETURN(ERROR_INCOMPATIBLE_TYPE, &val_exp->pos, meta_to_str(val_meta),
                meta_to_str(&exp->meta));
 
@@ -286,7 +305,7 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
         break;
 
     case OP_NEG:
-        if (!is_numeric_meta(val_meta))
+        if (is_byte_meta(val_meta) || !is_numeric_meta(val_meta))
             RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
 
         meta_copy(&exp->meta, val_meta);
@@ -639,6 +658,38 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 }
 
 static bool
+exp_check_syscall(check_t *check, ast_exp_t *exp)
+{
+    int i;
+    sys_fn_t *sys_fn;
+    vector_t *arg_exps = exp->u_call.arg_exps;
+
+    ASSERT1(is_call_exp(exp), exp->kind);
+    ASSERT1(exp->u_call.kind < FN_MAX, exp->u_call.kind);
+    ASSERT(exp->u_call.id_exp == NULL);
+    ASSERT(arg_exps != NULL);
+
+    sys_fn = SYS_FN(exp->u_call.kind);
+
+    ASSERT2(sys_fn->param_cnt == vector_size(arg_exps), sys_fn->param_cnt, vector_size(arg_exps));
+
+    vector_foreach(arg_exps, i) {
+        ast_exp_t *arg_exp = vector_get_exp(arg_exps, i);
+
+        CHECK(exp_check(check, arg_exp));
+
+        ASSERT2(sys_fn->params[i] == arg_exp->meta.type, sys_fn->params[i], arg_exp->meta.type);
+    }
+
+    meta_set(&exp->meta, sys_fn->result);
+
+    exp->usable_lval = false;
+    exp->u_call.qname = sys_fn->qname;
+
+    return true;
+}
+
+static bool
 exp_check_call(check_t *check, ast_exp_t *exp)
 {
     int i;
@@ -648,6 +699,9 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     vector_t *param_ids;
 
     ASSERT1(is_call_exp(exp), exp->kind);
+
+    if (exp->u_call.kind > FN_CTOR)
+        return exp_check_syscall(check, exp);
 
     id_exp = exp->u_call.id_exp;
     arg_exps = exp->u_call.arg_exps;
@@ -778,7 +832,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, elem_exp));
 
-        if ((is_lit_exp(elem_exp) && is_integer_meta(&elem_exp->meta) &&
+        if ((is_lit_exp(elem_exp) && is_int_val(&elem_exp->u_lit.val) &&
              !mpz_fits_slong_p(val_mpz(&elem_exp->u_lit.val)) &&
              !mpz_fits_ulong_p(val_mpz(&elem_exp->u_lit.val))) ||
             (!is_lit_exp(elem_exp) && (!is_init_exp(elem_exp) || !elem_exp->u_init.is_static)))

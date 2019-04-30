@@ -161,9 +161,13 @@ id_new_tuple(src_pos_t *pos)
 }
 
 ast_id_t *
-id_new_tmp_var(char *name)
+id_new_tmp_var(char *name, type_t type, src_pos_t *pos)
 {
-    return ast_id_new(ID_VAR, MOD_PRIVATE, name, &null_pos_);
+    ast_id_t *id = ast_id_new(ID_VAR, MOD_PRIVATE, name, pos);
+
+    id->u_var.type_exp = exp_new_type(type, pos);
+
+    return id;
 }
 
 ast_id_t *

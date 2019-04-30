@@ -87,4 +87,31 @@ strset(char *buf, char ch, int size)
     buf[size] = '\0';
 }
 
+char
+etoc(char ch)
+{
+    switch (ch) {
+    case '0':
+        return '\0';
+    case 't':
+        return '\t';
+    case 'f':
+        return '\f';
+    case 'v':
+        return '\v';
+    case 'r':
+        return '\r';
+    case 'n':
+        return '\n';
+    case '\\':
+        return '\\';
+    case '\'':
+        return '\'';
+    case '"':
+        return '\"';
+    default:
+        ASSERT1(!"invalid character", ch);
+    }
+}
+
 /* end of util.c */

@@ -143,7 +143,8 @@ id_check_struct(check_t *check, ast_id_t *id)
         fld_id->up = id;
         fld_id->is_checked = true;
 
-        CHECK(id_check_var(check, fld_id));
+        if (!id_check_var(check, fld_id))
+            continue;
 
         BIT_SET(fld_id->mod, MOD_PUBLIC);
 

@@ -25,6 +25,9 @@ mpz_t int128_max_ = { { 0, 0, NULL } };
         case TYPE_BOOL:                                                                            \
             v = val_bool(x) op val_bool(y);                                                        \
             break;                                                                                 \
+        case TYPE_BYTE:                                                                            \
+            v = val_byte(x) op val_byte(y);                                                        \
+            break;                                                                                 \
         case TYPE_INT128:                                                                          \
             v = mpz_cmp(val_mpz(x), val_mpz(y)) op 0;                                              \
             break;                                                                                 \
@@ -60,6 +63,12 @@ value_fit(value_t *val, meta_t *meta)
         ASSERT1(is_bool_meta(meta), meta->type);
         break;
 
+    case TYPE_BYTE:
+        ASSERT1(is_byte_meta(meta), meta->type);
+        if (meta->type == TYPE_INT8 && val_byte(val) > INT8_MAX)
+            return false;
+        break;
+
     case TYPE_INT128:
         ASSERT1(is_integer_meta(meta), meta->type);
         if (mpz_size(int128_min_) == 0) {
@@ -82,7 +91,7 @@ value_fit(value_t *val, meta_t *meta)
     case TYPE_DOUBLE:
         ASSERT1(is_fpoint_meta(meta), meta->type);
         if (meta->type == TYPE_FLOAT &&
-            ((float)val->d > FLT_MAX || (float)val->d < -FLT_MAX))
+            ((float)val_f64(val) > FLT_MAX || (float)val_f64(val) < -FLT_MAX))
             return false;
         break;
 
@@ -111,6 +120,9 @@ value_cmp(value_t *x, value_t *y)
     case TYPE_BOOL:
         return val_bool(x) == val_bool(y) ? 0 : (val_bool(x) > val_bool(y) ? 1 : -1);
 
+    case TYPE_BYTE:
+        return val_byte(x) == val_byte(y) ? 0 : (val_byte(x) > val_byte(y) ? 1 : -1);
+
     case TYPE_INT128:
         return mpz_cmp(val_mpz(x), val_mpz(y));
 
@@ -133,6 +145,11 @@ value_add(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        /* TODO Do we have to check overflow??? */
+        value_set_byte(res, val_byte(x) + val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_add(val_mpz(res), val_mpz(x), val_mpz(y));
@@ -158,6 +175,10 @@ value_sub(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) - val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_sub(val_mpz(res), val_mpz(x), val_mpz(y));
@@ -178,6 +199,10 @@ value_mul(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) * val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_mul(val_mpz(res), val_mpz(x), val_mpz(y));
@@ -203,6 +228,10 @@ value_div(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) / val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_tdiv_q(val_mpz(res), val_mpz(x), val_mpz(y));
@@ -220,13 +249,21 @@ value_div(value_t *x, value_t *y, value_t *res)
 static void
 value_mod(value_t *x, value_t *y, value_t *res)
 {
-    if (is_int_val(x)) {
+    ASSERT2(x->type == y->type, x->type, y->type);
+
+    switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) % val_byte(y));
+        break;
+
+    case TYPE_INT128:
         ASSERT(mpz_sgn(val_mpz(y)) != 0);
         value_init_int(res);
         mpz_mod(val_mpz(res), val_mpz(x), val_mpz(y));
-    }
-    else {
-        ASSERT1(!"invalid value", res->type);
+        break;
+
+    default:
+        ASSERT1(!"invalid value", x->type);
     }
 }
 
@@ -272,10 +309,15 @@ value_bit_and(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) & val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_and(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
+
     default:
         ASSERT1(!"invalid value", x->type);
     }
@@ -287,10 +329,15 @@ value_bit_or(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) | val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_ior(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
+
     default:
         ASSERT1(!"invalid value", x->type);
     }
@@ -302,10 +349,15 @@ value_bit_xor(value_t *x, value_t *y, value_t *res)
     ASSERT2(x->type == y->type, x->type, y->type);
 
     switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) ^ val_byte(y));
+        break;
+
     case TYPE_INT128:
         value_init_int(res);
         mpz_xor(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
+
     default:
         ASSERT1(!"invalid value", x->type);
     }
@@ -316,11 +368,17 @@ value_shift_l(value_t *x, value_t *y, value_t *res)
 {
     ASSERT2(x->type == y->type, x->type, y->type);
 
-    if (is_int_val(x)) {
+    switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) << val_byte(y));
+        break;
+
+    case TYPE_INT128:
         value_init_int(res);
         mpz_mul_2exp(val_mpz(res), val_mpz(x), mpz_get_ui(val_mpz(y)));
-    }
-    else {
+        break;
+
+    default:
         ASSERT1(!"invalid value", x->type);
     }
 }
@@ -330,11 +388,17 @@ value_shift_r(value_t *x, value_t *y, value_t *res)
 {
     ASSERT2(x->type == y->type, x->type, y->type);
 
-    if (is_int_val(x)) {
+    switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, val_byte(x) >> val_byte(y));
+        break;
+
+    case TYPE_INT128:
         value_init_int(res);
         mpz_tdiv_q_2exp(val_mpz(res), val_mpz(x), mpz_get_ui(val_mpz(y)));
-    }
-    else {
+        break;
+
+    default:
         ASSERT1(!"invalid value", x->type);
     }
 }
@@ -429,16 +493,29 @@ value_cast_to_bool(value_t *val)
     case TYPE_BOOL:
         break;
 
+    default:
+        ASSERT1(!"invalid value", val->type);
+    }
+}
+
+static void
+value_cast_to_byte(value_t *val)
+{
+    int64_t i;
+    double d;
+
+    switch (val->type) {
+    case TYPE_BYTE:
+        break;
+
     case TYPE_INT128:
-        value_set_bool(val, mpz_sgn(val->z) != 0);
+        i = val_i64(val);
+        value_set_byte(val, (int8_t)i);
         break;
 
     case TYPE_DOUBLE:
-        value_set_bool(val, val->d != 0.0f);
-        break;
-
-    case TYPE_STRING:
-        value_set_bool(val, val_str(val) != NULL && strcmp(val_str(val), "false") != 0);
+        d = val_f64(val);
+        value_set_byte(val, (int8_t)d);
         break;
 
     default:
@@ -449,14 +526,14 @@ value_cast_to_bool(value_t *val)
 static void
 value_cast_to_i128(value_t *val)
 {
-    bool b;
+    uint8_t c;
     double d;
     char *s;
 
     switch (val->type) {
-    case TYPE_BOOL:
-        b = val_bool(val);
-        value_set_int(val, b ? 1 : 0);
+    case TYPE_BYTE:
+        c = val_byte(val);
+        value_set_int(val, c);
         break;
 
     case TYPE_INT128:
@@ -490,6 +567,10 @@ value_cast_to_f64(value_t *val)
         value_set_f64(val, val_bool(val) ? 1.0 : 0.0);
         break;
 
+    case TYPE_BYTE:
+        value_set_f64(val, val_byte(val));
+        break;
+
     case TYPE_INT128:
         value_set_f64(val, mpz_get_d(val->z));
         break;
@@ -498,7 +579,7 @@ value_cast_to_f64(value_t *val)
         break;
 
     case TYPE_STRING:
-        sscanf(val->s, "%lf", &d);
+        sscanf(val_str(val), "%lf", &d);
         value_set_f64(val, d);
         break;
 
@@ -514,7 +595,12 @@ value_cast_to_str(value_t *val)
 
     switch (val->type) {
     case TYPE_BOOL:
-        value_set_str(val, val->b ? xstrdup("true") : xstrdup("false"));
+        value_set_str(val, val_bool(val) ? xstrdup("true") : xstrdup("false"));
+        break;
+
+    case TYPE_BYTE:
+        snprintf(buf, sizeof(buf), "%c", val_byte(val));
+        value_set_str(val, xstrdup(buf));
         break;
 
     case TYPE_INT128:
@@ -537,7 +623,7 @@ value_cast_to_str(value_t *val)
 cast_fn_t cast_fntab_[TYPE_COMPATIBLE + 1] = {
     NULL,
     value_cast_to_bool,
-    value_cast_to_i128,
+    value_cast_to_byte,
     value_cast_to_i128,
     value_cast_to_i128,
     value_cast_to_i128,
