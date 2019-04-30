@@ -327,9 +327,6 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid contractId: " + err.Error())
 	}
-	if amountBig.Cmp(zeroBig) == 0 {
-		return nil
-	}
 
 	aid := types.ToAccountID(cid)
 	callState, err := getCallState(stateSet, aid)
@@ -358,11 +355,17 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			return C.CString("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
 		}
 
-		if r := sendBalance(L, senderState, callState.curState, amountBig); r != nil {
-			return r
+		if amountBig.Cmp(zeroBig) > 0 {
+			if r := sendBalance(L, senderState, callState.curState, amountBig); r != nil {
+				return r
+			}
 		}
 		if stateSet.lastRecoveryEntry != nil {
-			_ = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, true)
+			err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
+			if err != nil {
+				C.luaL_setsyserror(L)
+				return C.CString("[System.LuaSendAmount] database error: " + err.Error())
+			}
 		}
 		prevContractInfo := stateSet.curContract
 		stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
@@ -377,6 +380,9 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			return C.CString("[Contract.LuaSendAmount] call err: " + ce.err.Error())
 		}
 		stateSet.curContract = prevContractInfo
+		return nil
+	}
+	if amountBig.Cmp(zeroBig) == 0 {
 		return nil
 	}
 

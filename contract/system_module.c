@@ -89,6 +89,7 @@ int getItemWithPrefix(lua_State *L)
 	if (ret.r0 == NULL)
 		return 0;
 
+    minus_inst_count(L, strlen(ret.r0));
 	if (lua_util_json_to_lua(L, ret.r0, false) != 0) {
 	    strPushAndRelease(L, ret.r0);
 		luaL_error(L, "getItem error : can't convert %s", lua_tostring(L, -1));
