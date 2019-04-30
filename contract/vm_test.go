@@ -1903,6 +1903,13 @@ func TestArray(t *testing.T) {
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).Fail("index out of range"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1.00000001]}`).Fail("integer expected, got number"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":["1"]}`).Fail("integer expected, got string)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[true]}`).Fail("integer expected, got boolean"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[[1, 2]]}`).Fail("integer expected, got table"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[null]}`).Fail("integer expected, got nil)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[{}]}`).Fail("integer expected, got table)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[""]}`).Fail("integer expected, got string)"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`),
 	)
 	if err != nil {
