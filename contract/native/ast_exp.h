@@ -177,7 +177,7 @@ struct ast_exp_s {
     ast_id_t *id;           /* referenced identifier */
     meta_t meta;
 
-    bool usable_lval;       /* whether is used as lvalue */
+    bool usable_lval;       /* whether it can be used as lvalue */
 
     AST_NODE_DECL;
 };

@@ -20,58 +20,32 @@ stmt_gen_exp(gen_t *gen, ast_stmt_t *stmt)
     ast_exp_t *exp = stmt->u_exp.exp;
 
     if (is_call_exp(exp) && !is_void_meta(&exp->meta))
-        return BinaryenDrop(gen->module, exp_gen(gen, exp));
+        return BinaryenDrop(gen->module, exp_gen(gen, exp, NULL));
 
-    return exp_gen(gen, exp);
+    return exp_gen(gen, exp, NULL);
 }
 
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
-    ast_exp_t *l_exp = stmt->u_assign.l_exp;
-    ast_exp_t *r_exp = stmt->u_assign.r_exp;
-    ast_id_t *id = l_exp->id;
-    BinaryenExpressionRef address, value;
+    BinaryenExpressionRef value, statement;
 
-    if (id != NULL && is_map_meta(&id->meta))
+    if (stmt->u_assign.l_exp->id != NULL && is_map_meta(&stmt->u_assign.l_exp->id->meta))
         /* TODO: If the type of identifier is map, lvalue and rvalue must be combined
          * into a call expression */
         return NULL;
 
-    value = exp_gen(gen, r_exp);
+    value = exp_gen(gen, stmt->u_assign.r_exp, NULL);
     if (value == NULL)
         return NULL;
 
-    if (is_global_exp(l_exp))
-        return BinaryenSetGlobal(gen->module, l_exp->u_glob.name, value);
-
-    if (is_reg_exp(l_exp))
-        return BinaryenSetLocal(gen->module, l_exp->meta.base_idx, value);
-
-    if (is_mem_exp(l_exp)) {
-        address = BinaryenGetLocal(gen->module, l_exp->meta.base_idx, BinaryenTypeInt32());
-
-        if (is_array_meta(&l_exp->meta))
-            return BinaryenStore(gen->module, sizeof(uint32_t),
-                                 l_exp->meta.rel_addr + l_exp->meta.rel_offset, 0, address, value,
-                                 BinaryenTypeInt32());
-
-        return BinaryenStore(gen->module, meta_iosz(&l_exp->meta),
-                             l_exp->meta.rel_addr + l_exp->meta.rel_offset, 0, address, value,
-                             meta_gen(&l_exp->meta));
-    }
-
-    /* When assigning to an element of a multi-dimensional array or element of a struct array,
-     * the original expression can exist. */
-
-    ASSERT(!is_array_meta(&l_exp->meta));
-
     gen->is_lval = true;
-    address = exp_gen(gen, l_exp);
+
+    statement = exp_gen(gen, stmt->u_assign.l_exp, value);
+
     gen->is_lval = false;
 
-    return BinaryenStore(gen->module, meta_iosz(&l_exp->meta), 0, 0, address, value,
-                         meta_gen(&l_exp->meta));
+    return statement;
 }
 
 static BinaryenExpressionRef
@@ -80,8 +54,8 @@ stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
     ast_exp_t *cond_exp = stmt->u_if.cond_exp;
     ast_blk_t *if_blk = stmt->u_if.if_blk;
 
-    /* All user-defined if statements are transformed into basic blocks, so stmt_gen_if() is for
-     * internal use only. */
+    /* All user-defined "if" statements are transformed into basic blocks, so stmt_gen_if() is for
+     * internal use only. (see stmt_check_if()) */
 
     ASSERT(cond_exp != NULL);
     ASSERT(if_blk != NULL);
@@ -90,7 +64,7 @@ stmt_gen_if(gen_t *gen, ast_stmt_t *stmt)
     ASSERT(stmt->u_if.else_blk == NULL);
     ASSERT1(is_empty_vector(&stmt->u_if.elif_stmts), vector_size(&stmt->u_if.elif_stmts));
 
-    return BinaryenIf(gen->module, exp_gen(gen, cond_exp),
+    return BinaryenIf(gen->module, exp_gen(gen, cond_exp, NULL),
                       stmt_gen(gen, vector_get_stmt(&if_blk->stmts, 0)), NULL);
 }
 
@@ -108,10 +82,10 @@ stmt_gen_pragma(gen_t *gen, ast_stmt_t *stmt)
     ir_md_t *md = gen->md;
     BinaryenExpressionRef condition, description;
 
-    condition = exp_gen(gen, val_exp);
+    condition = exp_gen(gen, val_exp, NULL);
 
     if (stmt->u_pragma.desc_exp != NULL)
-        description = exp_gen(gen, stmt->u_pragma.desc_exp);
+        description = exp_gen(gen, stmt->u_pragma.desc_exp, NULL);
     else
         description = i32_gen(gen, 0);
 
@@ -135,7 +109,7 @@ stmt_gen(gen_t *gen, ast_stmt_t *stmt)
         return stmt_gen_if(gen, stmt);
 
     case STMT_RETURN:
-        return BinaryenReturn(gen->module, exp_gen(gen, stmt->u_ret.arg_exp));
+        return BinaryenReturn(gen->module, exp_gen(gen, stmt->u_ret.arg_exp, NULL));
 
     case STMT_DDL:
         return stmt_gen_ddl(gen, stmt);

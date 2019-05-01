@@ -66,6 +66,24 @@ contract test {
     }
 }
 
+@test(byte_assignment)
+@run(test.test)
+contract test {
+    string v1 = "merry";
+    test() {
+        string v2 = "christmas!";
+
+        v1[0] = 'M';
+        v2[0] = 'C';
+
+        string v = v1 + " " + v2;
+
+        pragma assert(v == "Merry Christmas!");
+        pragma assert(v[0] == 'M');
+        pragma assert(v[6] == 'C');
+    }
+}
+
 @test(array_assignment)
 @run(test.test)
 contract test {
@@ -219,7 +237,6 @@ contract test {
         pragma assert(v6[2].a == 0);
         pragma assert(v6[2].b == 0);
         v6[0].a = 0xf0;
-        /*
         v6[0].b = 0xf1;
         /*
         pragma assert(v2[0].a == 0xf0);

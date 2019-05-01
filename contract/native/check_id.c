@@ -64,7 +64,7 @@ make_default_exp(ast_id_t *id)
 {
     ast_exp_t *dflt_exp;
 
-    if (is_address_meta(&id->meta)) {
+    if (is_array_meta(&id->meta) || is_struct_meta(&id->meta)) {
         dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
 
         dflt_exp->u_alloc.size_exps = id->u_var.size_exps;

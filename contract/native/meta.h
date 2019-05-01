@@ -61,7 +61,8 @@
     (is_array_meta(meta) || is_string_meta(meta) || is_struct_meta(meta) ||                        \
      is_map_meta(meta) || is_object_meta(meta))
 
-#define is_address_meta(meta)       (is_array_meta(meta) || is_struct_meta(meta))
+#define is_address_meta(meta)                                                                      \
+    (is_string_meta(meta) || is_array_meta(meta) || is_struct_meta(meta))
 
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_STRING)
 #define is_comparable_meta(meta)    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
@@ -89,8 +90,8 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_iosz(meta)             (is_array_meta(meta) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
-#define meta_regsz(meta)            (is_array_meta(meta) ? ADDR_SIZE : TYPE_SIZE((meta)->type))
+#define meta_iosz(meta)             (is_address_meta(meta) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
+#define meta_regsz(meta)            (is_address_meta(meta) ? ADDR_SIZE : TYPE_SIZE((meta)->type))
 
 #define meta_align(meta)            (meta)->align
 

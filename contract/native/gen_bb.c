@@ -41,7 +41,7 @@ br_gen(gen_t *gen, ir_bb_t *bb)
         ASSERT(br->bb->rb != NULL);
 
         if (br->cond_exp != NULL)
-            cond = exp_gen(gen, br->cond_exp);
+            cond = exp_gen(gen, br->cond_exp, NULL);
 
         RelooperAddBranch(bb->rb, br->bb->rb, cond, NULL);
     }
