@@ -11,10 +11,9 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 type listBlockHeadersRequestHandler struct {
@@ -53,11 +52,11 @@ func NewListBlockHeadersReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.Remo
 	return bh
 }
 
-func (bh *listBlockHeadersRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *listBlockHeadersRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *listBlockHeadersRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
 	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
@@ -116,11 +115,11 @@ func NewListBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer
 	return bh
 }
 
-func (bh *listBlockHeadersResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *listBlockHeadersResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *listBlockHeadersResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
 	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, len(data.Hashes))
@@ -137,11 +136,11 @@ func NewNewBlockNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePee
 	return bh
 }
 
-func (bh *newBlockNoticeHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *newBlockNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.NewBlockNotice{})
 }
 
-func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
 	// remove to verbose log
@@ -177,11 +176,11 @@ func NewGetAncestorReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePee
 	return bh
 }
 
-func (bh *getAncestorRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *getAncestorRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetAncestorRequest{})
 }
 
-func (bh *getAncestorRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *getAncestorRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorRequest)
 	status := types.ResultStatus_OK
@@ -225,11 +224,11 @@ func NewGetAncestorRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePe
 	return bh
 }
 
-func (bh *getAncestorResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *getAncestorResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetAncestorResponse{})
 }
 
-func (bh *getAncestorResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *getAncestorResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetAncestorResponse)
 	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))
 

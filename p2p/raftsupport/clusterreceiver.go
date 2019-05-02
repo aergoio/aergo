@@ -79,7 +79,7 @@ func (br *ClusterInfoReceiver) trySendNextPeer() bool {
 }
 
 // ReceiveResp must be called just in read go routine
-func (br *ClusterInfoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.Message) (ret bool) {
+func (br *ClusterInfoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) (ret bool) {
 	// cases in waiting
 	//   normal not status => wait
 	//   normal status (last response)  => finish

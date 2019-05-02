@@ -78,7 +78,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
 				containerMsg.subProtocol = subproto.StatusRequest
-				statusBytes, _ := p2putil.MarshalMessage(tt.readReturn)
+				statusBytes, _ := p2putil.MarshalMessageBody(tt.readReturn)
 				containerMsg.payload = statusBytes
 			} else {
 				containerMsg.subProtocol = subproto.AddressesRequest
@@ -151,7 +151,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 			containerMsg := &V030Message{}
 			if tt.readReturn != nil {
 				containerMsg.subProtocol = subproto.StatusRequest
-				statusBytes, _ := p2putil.MarshalMessage(tt.readReturn)
+				statusBytes, _ := p2putil.MarshalMessageBody(tt.readReturn)
 				containerMsg.payload = statusBytes
 			} else {
 				containerMsg.subProtocol = subproto.AddressesRequest

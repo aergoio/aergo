@@ -5,11 +5,10 @@
 package p2pmock
 
 import (
-	reflect "reflect"
+	"reflect"
 
-	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
-	gomock "github.com/golang/mock/gomock"
-	proto "github.com/golang/protobuf/proto"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/golang/mock/gomock"
 )
 
 // MockMessageHandler is a mock of MessageHandler interface
@@ -36,7 +35,7 @@ func (m *MockMessageHandler) EXPECT() *MockMessageHandlerMockRecorder {
 }
 
 // CheckAuth mocks base method
-func (m *MockMessageHandler) CheckAuth(arg0 p2pcommon.Message, arg1 proto.Message) error {
+func (m *MockMessageHandler) CheckAuth(arg0 p2pcommon.Message, arg1 p2pcommon.MessageBody) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckAuth", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -50,7 +49,7 @@ func (mr *MockMessageHandlerMockRecorder) CheckAuth(arg0, arg1 interface{}) *gom
 }
 
 // Handle mocks base method
-func (m *MockMessageHandler) Handle(arg0 p2pcommon.Message, arg1 proto.Message) {
+func (m *MockMessageHandler) Handle(arg0 p2pcommon.Message, arg1 p2pcommon.MessageBody) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Handle", arg0, arg1)
 }
@@ -62,10 +61,10 @@ func (mr *MockMessageHandlerMockRecorder) Handle(arg0, arg1 interface{}) *gomock
 }
 
 // ParsePayload mocks base method
-func (m *MockMessageHandler) ParsePayload(arg0 []byte) (proto.Message, error) {
+func (m *MockMessageHandler) ParsePayload(arg0 []byte) (p2pcommon.MessageBody, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ParsePayload", arg0)
-	ret0, _ := ret[0].(proto.Message)
+	ret0, _ := ret[0].(p2pcommon.MessageBody)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -77,7 +76,7 @@ func (mr *MockMessageHandlerMockRecorder) ParsePayload(arg0 interface{}) *gomock
 }
 
 // PostHandle mocks base method
-func (m *MockMessageHandler) PostHandle(arg0 p2pcommon.Message, arg1 proto.Message) {
+func (m *MockMessageHandler) PostHandle(arg0 p2pcommon.Message, arg1 p2pcommon.MessageBody) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "PostHandle", arg0, arg1)
 }

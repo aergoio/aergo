@@ -190,7 +190,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgWriter) error {
 	msgID := p2pcommon.NewMsgID()
 	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
-	bytes, err := p2putil.MarshalMessage(queryReq)
+	bytes, err := p2putil.MarshalMessageBody(queryReq)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 		return nil, nil, err
 	}
 	queryResp := &types.MapResponse{}
-	err = p2putil.UnmarshalMessage(data.Payload(), queryResp)
+	err = p2putil.UnmarshalMessageBody(data.Payload(), queryResp)
 	if err != nil {
 		return data, nil, err
 	}
@@ -228,13 +228,13 @@ func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
 		return
 	}
 	pingReq := &types.Ping{}
-	err = p2putil.UnmarshalMessage(req.Payload(), pingReq)
+	err = p2putil.UnmarshalMessageBody(req.Payload(), pingReq)
 	if err != nil {
 		return
 	}
 	// TODO: check if sender is known polaris or peer and it not, ban or write to blacklist .
 	pingResp := &types.Ping{}
-	bytes, err := p2putil.MarshalMessage(pingResp)
+	bytes, err := p2putil.MarshalMessageBody(pingResp)
 	if err != nil {
 		return
 	}

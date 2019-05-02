@@ -19,7 +19,7 @@ import (
 type v030MOFactory struct {
 }
 
-func (mf *v030MOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (mf *v030MOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
 	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
@@ -28,7 +28,7 @@ func (mf *v030MOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pc
 	return nil
 }
 
-func (mf *v030MOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (mf *v030MOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
 	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
@@ -38,7 +38,7 @@ func (mf *v030MOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.Response
 	return nil
 }
 
-func (mf *v030MOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (mf *v030MOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	rmo := &pbResponseOrder{}
 	msgID := uuid.Must(uuid.NewV4())
 	if newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.FromBytesOrNil(reqID[:]), protocolID, message) {
@@ -78,7 +78,7 @@ func (mf *v030MOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNo
 	return nil
 }
 
-func (mf *v030MOFactory) newHandshakeMessage(protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.Message {
+func (mf *v030MOFactory) newHandshakeMessage(protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.Message {
 	// TODO define handshake specific datatype
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
@@ -89,8 +89,8 @@ func (mf *v030MOFactory) newHandshakeMessage(protocolID p2pcommon.SubProtocol, m
 }
 
 // newPbMsgOrder is base form of making sendrequest struct
-func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) bool {
-	bytes, err := p2putil.MarshalMessage(message)
+func newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) bool {
+	bytes, err := p2putil.MarshalMessageBody(message)
 	if err != nil {
 		return false
 	}

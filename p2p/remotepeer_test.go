@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/aergoio/aergo/p2p/p2pmock"
@@ -387,7 +386,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	for i := 0; i < idSize; i++ {
 		idList[i] = p2pcommon.NewMsgID()
 		if i < 5 {
-			recvList[idList[i]] = func(msg p2pcommon.Message, msgBody proto.Message) bool {
+			recvList[idList[i]] = func(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 				logger.Debug().Int("seq", i).Msg("receiver called")
 				return true
 			}

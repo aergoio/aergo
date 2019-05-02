@@ -5,8 +5,6 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-
-	"github.com/golang/protobuf/proto"
 )
 
 // func(msg *types.P2PMessage)
@@ -22,10 +20,9 @@ type BaseMsgHandler struct {
 
 	logger    *log.Logger
 	timestamp time.Time
-	prototype proto.Message
 }
 
-func (bh *BaseMsgHandler) CheckAuth(msg p2pcommon.Message, msgBody proto.Message) error {
+func (bh *BaseMsgHandler) CheckAuth(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) error {
 	// check permissions
 	// or etc...
 
@@ -36,7 +33,7 @@ func (bh *BaseMsgHandler) PreHandle() {
 	bh.timestamp = time.Now()
 }
 
-func (bh *BaseMsgHandler) PostHandle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *BaseMsgHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	bh.logger.Debug().
 		Str("elapsed", time.Since(bh.timestamp).String()).
 		Str("protocol", msg.Subprotocol().String()).

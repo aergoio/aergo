@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -42,11 +41,11 @@ func NewGetClusterReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer
 	return ph
 }
 
-func (ph *getClusterRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *getClusterRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetClusterInfoRequest{})
 }
 
-func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	//peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.GetClusterInfoRequest)
@@ -76,11 +75,11 @@ func NewGetClusterRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePee
 	return ph
 }
 
-func (ph *getClusterResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *getClusterResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetClusterInfoResponse{})
 }
 
-func (ph *getClusterResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *getClusterResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.GetClusterInfoResponse)
 	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data.String())

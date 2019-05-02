@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 	"time"
 )
 
@@ -42,7 +41,7 @@ func (br *AncestorReceiver) StartGet() {
 }
 
 // ReceiveResp must be called just in read go routine
-func (br *AncestorReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.Message) (ret bool) {
+func (br *AncestorReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) (ret bool) {
 	ret = true
 	// timeout
 	if br.finished || br.timeout.Before(time.Now()) {

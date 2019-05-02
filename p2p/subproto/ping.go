@@ -10,10 +10,9 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 type pingRequestHandler struct {
@@ -40,11 +39,11 @@ func NewPingReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logg
 	return ph
 }
 
-func (ph *pingRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *pingRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.Ping{})
 }
 
-func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	pingData := msgBody.(*types.Ping)
 	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, fmt.Sprintf("blockHash=%s blockNo=%d", enc.ToString(pingData.BestBlockHash), pingData.BestHeight))
@@ -66,11 +65,11 @@ func NewPingRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, log
 	return ph
 }
 
-func (ph *pingResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *pingResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.Pong{})
 }
 
-func (ph *pingResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *pingResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Pong)
 	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
@@ -83,11 +82,11 @@ func NewGoAwayHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logge
 	return ph
 }
 
-func (ph *goAwayHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *goAwayHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GoAwayNotice{})
 }
 
-func (ph *goAwayHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *goAwayHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GoAwayNotice)
 	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), ph.peer, data.Message)
 

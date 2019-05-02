@@ -127,7 +127,7 @@ func (hc *peerState) receivePingResp(reqID p2pcommon.MsgID, rd p2pcommon.MsgRead
 		return nil, nil, fmt.Errorf("Not expected response %s : req_id=%s", resp.Subprotocol().String(), resp.OriginalID().String())
 	}
 	pingResp := &types.Ping{}
-	err = p2putil.UnmarshalMessage(resp.Payload(), pingResp)
+	err = p2putil.UnmarshalMessageBody(resp.Payload(), pingResp)
 	if err != nil {
 		return resp, nil, err
 	}

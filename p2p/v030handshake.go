@@ -100,7 +100,7 @@ func (h *V030Handshaker) doForOutbound(ctx context.Context) (*types.Status, erro
 		}
 	}
 	remotePeerStatus := &types.Status{}
-	err = p2putil.UnmarshalMessage(data.Payload(), remotePeerStatus)
+	err = p2putil.UnmarshalMessageBody(data.Payload(), remotePeerStatus)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (h *V030Handshaker) doForInbound(ctx context.Context) (*types.Status, error
 	}
 
 	statusMsg := &types.Status{}
-	if err := p2putil.UnmarshalMessage(data.Payload(), statusMsg); err != nil {
+	if err := p2putil.UnmarshalMessageBody(data.Payload(), statusMsg); err != nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Failed to decode status message.")
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func (h *V030Handshaker) doForInbound(ctx context.Context) (*types.Status, error
 
 func (h *V030Handshaker) handleGoAway(peerID peer.ID, data p2pcommon.Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
-	if err := p2putil.UnmarshalMessage(data.Payload(), goAway); err != nil {
+	if err := p2putil.UnmarshalMessageBody(data.Payload(), goAway); err != nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")
 		return nil, err
 	}

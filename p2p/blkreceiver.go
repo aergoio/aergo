@@ -15,7 +15,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
@@ -64,7 +63,7 @@ func (br *BlocksChunkReceiver) StartGet() {
 }
 
 // ReceiveResp must be called just in read go routine
-func (br *BlocksChunkReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.Message) (ret bool) {
+func (br *BlocksChunkReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) (ret bool) {
 	// cases in waiting
 	//   normal not status => wait
 	//   normal status (last response)  => finish
@@ -86,7 +85,7 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.
 	return
 }
 
-func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody proto.Message) {
+func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	// consuming request id when timeoutm, no more resp expected (i.e. hasNext == false ) or malformed body.
 	// timeout
 	if br.timeout.Before(time.Now()) {
@@ -174,7 +173,7 @@ func (br *BlocksChunkReceiver) finishReceiver() {
 }
 
 // ignoreMsg is silently ignore following responses, which is not useless anymore.
-func (br *BlocksChunkReceiver) ignoreMsg(msg p2pcommon.Message, msgBody proto.Message) {
+func (br *BlocksChunkReceiver) ignoreMsg(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	body, ok := msgBody.(*types.GetBlockResponse)
 	if !ok {
 		return

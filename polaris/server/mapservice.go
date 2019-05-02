@@ -24,7 +24,6 @@ import (
 	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/proto"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -161,7 +160,7 @@ func (pms *PeerMapService) readRequest(meta p2pcommon.PeerMeta, rd p2pcommon.Msg
 		return nil, nil, err
 	}
 	queryReq := &types.MapQuery{}
-	err = p2putil.UnmarshalMessage(data.Payload(), queryReq)
+	err = p2putil.UnmarshalMessageBody(data.Payload(), queryReq)
 	if err != nil {
 		return data, nil, err
 	}
@@ -279,8 +278,8 @@ func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2
 }
 
 // TODO code duplication. it can result in a bug.
-func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubProtocol, innerMsg proto.Message) (p2pcommon.Message, error) {
-	bytes, err := p2putil.MarshalMessage(innerMsg)
+func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubProtocol, innerMsg p2pcommon.MessageBody) (p2pcommon.Message, error) {
+	bytes, err := p2putil.MarshalMessageBody(innerMsg)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +317,7 @@ func (pms *PeerMapService) onPing(s inet.Stream) {
 		return
 	}
 	pingReq := &types.Ping{}
-	err = p2putil.UnmarshalMessage(req.Payload(), pingReq)
+	err = p2putil.UnmarshalMessageBody(req.Payload(), pingReq)
 	if err != nil {
 		return
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 // BlockHashesReceiver is send p2p GetHashesRequest to target peer and receive p2p responses till all requested hashes are received
@@ -49,7 +48,7 @@ func (br *BlockHashesReceiver) StartGet() {
 }
 
 // ReceiveResp must be called just in read go routine
-func (br *BlockHashesReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.Message) (ret bool) {
+func (br *BlockHashesReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) (ret bool) {
 	// TODO this code is exact copy of BlocksChunkReceiver, so be lots of other codes in this file. consider refactoring
 	ret = true
 	switch br.status {
@@ -66,7 +65,7 @@ func (br *BlockHashesReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.
 	return
 }
 
-func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody proto.Message) {
+func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	// consuming request id when timeoutm, no more resp expected (i.e. hasNext == false ) or malformed body.
 	// timeout
 	if br.timeout.Before(time.Now()) {
@@ -141,7 +140,7 @@ func (br *BlockHashesReceiver) finishReceiver() {
 }
 
 // ignoreMsg is silently ignore following responses, which is not useless anymore.
-func (br *BlockHashesReceiver) ignoreMsg(msg p2pcommon.Message, msgBody proto.Message) {
+func (br *BlockHashesReceiver) ignoreMsg(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	body, ok := msgBody.(*types.GetBlockResponse)
 	if !ok {
 		return

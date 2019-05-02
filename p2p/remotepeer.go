@@ -7,8 +7,8 @@ package p2p
 
 import (
 	"fmt"
-	"runtime/debug"
 	"github.com/pkg/errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 
 	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/golang/protobuf/proto"
 	net "github.com/libp2p/go-libp2p-net"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -34,13 +33,6 @@ type requestInfo struct {
 	cTime    time.Time
 	reqMO    p2pcommon.MsgOrder
 	receiver p2pcommon.ResponseReceiver
-}
-
-// ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
-// NOTE: the return value is temporal works for old implementation and will be remove later.
-
-func dummyResponseReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
-	return false
 }
 
 // remotePeerImpl represent remote peer to which is connected
@@ -371,12 +363,12 @@ func (p *remotePeerImpl) ConsumeRequest(originalID p2pcommon.MsgID) {
 }
 
 // requestIDNotFoundReceiver is to handle response msg which the original message is not identified
-func (p *remotePeerImpl) requestIDNotFoundReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
+func (p *remotePeerImpl) requestIDNotFoundReceiver(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 	return true
 }
 
 // passThroughReceiver is bypass message to legacy handler.
-func (p *remotePeerImpl) passThroughReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
+func (p *remotePeerImpl) passThroughReceiver(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 	return false
 }
 
