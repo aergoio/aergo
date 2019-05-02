@@ -90,13 +90,14 @@
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)
 
-#define meta_iosz(meta)             (is_address_meta(meta) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
-#define meta_regsz(meta)            (is_address_meta(meta) ? ADDR_SIZE : TYPE_SIZE((meta)->type))
-
 #define meta_align(meta)            (meta)->align
 
 #define meta_cnt(meta)                                                                             \
     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1)
+
+#define meta_iosz(meta)             (is_address_meta(meta) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
+#define meta_regsz(meta)            (is_address_meta(meta) ? ADDR_SIZE : TYPE_SIZE((meta)->type))
+#define meta_alsz(meta)             (meta_iosz(meta) < 4 ? meta_iosz(meta) : meta_iosz(meta) / 2)
 
 #ifndef _META_T
 #define _META_T

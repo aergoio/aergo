@@ -62,17 +62,18 @@ id_check_array(check_t *check, ast_id_t *id)
 static void
 make_default_exp(ast_id_t *id)
 {
+    meta_t *meta = &id->meta;
     ast_exp_t *dflt_exp;
 
-    if (is_array_meta(&id->meta) || is_struct_meta(&id->meta)) {
+    if (is_array_meta(meta) || is_struct_meta(meta) || is_map_meta(meta)) {
         dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
 
         dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
     }
-    else if (is_bool_meta(&id->meta)) {
+    else if (is_bool_meta(meta)) {
         dflt_exp = exp_new_lit_bool(false, &id->pos);
     }
-    else if (is_nullable_meta(&id->meta)) {
+    else if (is_nullable_meta(meta)) {
         dflt_exp = exp_new_lit_null(&id->pos);
     }
     else {

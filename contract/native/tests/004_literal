@@ -514,8 +514,13 @@ contract test {
 }
 
 @test(map_allocator)
+@run(test.test)
 contract test {
     map(int, string) m1 = new map(int, string);
+    map(int64, int128) m2 = new map(int64, int128);
+    map(int16, int64) m3 = new map(int16, int64);
+    map(int64, int64) m4 = new map(int64, int64);
+    map(int, map(int64, int64)) m5 = new map(int, map(int64, int64));
 }
 
 @test(map_array_initializer)

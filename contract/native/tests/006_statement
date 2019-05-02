@@ -244,28 +244,43 @@ contract test {
 }
 
 @test(map_assignment)
+//@run(test.test)
 contract test {
     test() {
         map(int, string) m1;
-        m1[1] = "1";
-        m1[2] = "2";
+        m1[1] = "Tom";
+        m1[2] = "James";
+
+        pragma assert(m1[1] == "Tom");
+        pragma assert(m1[2] == "James");
 
         map(int, string) m2 = m1;
+
+        pragma assert(m2[1] == "Tom");
+        pragma assert(m2[2] == "James");
 
         type s struct {
             int a;
             string b;
         }
-        s v1 = new { 1, "1" };
-        s v2 = new { 2, "2" };
+        s v1 = new { 1001, "Micheal" };
+        s v2 = new { 1002, "Bob" };
 
         map(string, s) m3;
-        m3["1"] = v1;
-        m3["2"] = v2;
+        m3["Manager"] = v1;
+        m3["Employee"] = v2;
+
+        pragma assert(m3["Manager"].a == 1001);
+        pragma assert(m3["Manager"].b == "Micheal");
+        pragma assert(m3["Employee"].a == 1002);
+        pragma assert(m3["Employee"].b == "Bob");
 
         map(s, int) m4;
-        m4[v1] = 1;
-        m4[v2] = 2;
+        m4[v1] = 8443;
+        m4[v2] = 298;
+
+        pragma assert(m4[v1] == 8443);
+        pragma assert(m4[v2] == 298);
     }
 }
 

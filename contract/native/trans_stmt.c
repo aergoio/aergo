@@ -18,36 +18,26 @@ void
 stmt_trans_malloc(trans_t *trans, meta_t *meta, uint32_t reg_idx)
 {
     ast_exp_t *l_exp, *r_exp;
+    ast_exp_t *stk_exp, *addr_exp;
+
+    if (trans->is_global) {
+        stmt_trans(trans, stmt_make_malloc(reg_idx, meta_memsz(meta), meta_align(meta), meta->pos));
+        return;
+    }
 
     l_exp = exp_new_reg(reg_idx);
     meta_set_int32(&l_exp->meta);
 
-    if (trans->is_global) {
-        ast_exp_t *arg_exp;
-        vector_t *arg_exps = vector_new();
+    fn_add_stack(trans->fn, meta_memsz(meta), meta);
 
-        arg_exp = exp_new_lit_int(meta_memsz(meta), meta->pos);
-        meta_set_int32(&arg_exp->meta);
+    stk_exp = exp_new_reg(meta->base_idx);
+    meta_set_int32(&stk_exp->meta);
 
-        exp_add(arg_exps, arg_exp);
+    addr_exp = exp_new_lit_int(meta->rel_addr, meta->pos);
+    meta_set_int32(&addr_exp->meta);
 
-        r_exp = exp_new_call(FN_MALLOC, NULL, arg_exps, meta->pos);
-        meta_set_int32(&r_exp->meta);
-    }
-    else {
-        ast_exp_t *stk_exp, *addr_exp;
-
-        fn_add_stack(trans->fn, meta_memsz(meta), meta);
-
-        stk_exp = exp_new_reg(meta->base_idx);
-        meta_set_int32(&stk_exp->meta);
-
-        addr_exp = exp_new_lit_int(meta->rel_addr, meta->pos);
-        meta_set_int32(&addr_exp->meta);
-
-        r_exp = exp_new_binary(OP_ADD, stk_exp, addr_exp, meta->pos);
-        meta_set_int32(&r_exp->meta);
-    }
+    r_exp = exp_new_binary(OP_ADD, stk_exp, addr_exp, meta->pos);
+    meta_set_int32(&r_exp->meta);
 
     stmt_trans(trans, stmt_new_assign(l_exp, r_exp, meta->pos));
 }

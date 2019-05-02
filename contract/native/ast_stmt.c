@@ -219,11 +219,13 @@ stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp)
 }
 
 ast_stmt_t *
-stmt_make_malloc(uint32_t reg_idx, uint32_t size, src_pos_t *pos)
+stmt_make_malloc(uint32_t reg_idx, uint32_t size, uint8_t align, src_pos_t *pos)
 {
     ast_exp_t *reg_exp, *call_exp;
     ast_exp_t *arg_exp;
     vector_t *arg_exps = vector_new();
+
+    ASSERT1(align == 4 || align == 8, align);
 
     reg_exp = exp_new_reg(reg_idx);
     meta_set_int32(&reg_exp->meta);
@@ -233,7 +235,7 @@ stmt_make_malloc(uint32_t reg_idx, uint32_t size, src_pos_t *pos)
 
     exp_add(arg_exps, arg_exp);
 
-    call_exp = exp_new_call(FN_MALLOC, NULL, arg_exps, pos);
+    call_exp = exp_new_call(align == 4 ? FN_MALLOC32 : FN_MALLOC64, NULL, arg_exps, pos);
     meta_set_int32(&call_exp->meta);
 
     return stmt_new_assign(reg_exp, call_exp, pos);

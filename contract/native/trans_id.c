@@ -54,6 +54,7 @@ static void
 id_trans_ctor(trans_t *trans, ast_id_t *id)
 {
     int i, j;
+    uint8_t align = 0;
     ir_fn_t *fn = trans->fn;
     vector_t *stmts = vector_new();
 
@@ -63,30 +64,38 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     /* We use the "stmts" vector to keep the declaration order of variables */
     vector_foreach(&id->up->u_cont.blk->ids, i) {
-        ast_id_t *elem_id = vector_get_id(&id->up->u_cont.blk->ids, i);
+        ast_id_t *glob_id = vector_get_id(&id->up->u_cont.blk->ids, i);
         ast_exp_t *dflt_exp = NULL;
 
-        if (is_var_id(elem_id)) {
-            fn_add_global(fn, &elem_id->meta);
+        if (is_var_id(glob_id)) {
+            fn_add_global(fn, &glob_id->meta);
 
-            dflt_exp = elem_id->u_var.dflt_exp;
+            if (align == 0)
+                align = meta_align(&glob_id->meta);
+
+            dflt_exp = glob_id->u_var.dflt_exp;
         }
-        else if (is_tuple_id(elem_id)) {
-            vector_foreach(elem_id->u_tup.elem_ids, j) {
-                fn_add_global(fn, &vector_get_id(elem_id->u_tup.elem_ids, j)->meta);
+        else if (is_tuple_id(glob_id)) {
+            vector_foreach(glob_id->u_tup.elem_ids, j) {
+                ast_id_t *elem_id = vector_get_id(glob_id->u_tup.elem_ids, j);
+
+                fn_add_global(fn, &elem_id->meta);
+
+                if (align == 0)
+                    align = meta_align(&elem_id->meta);
             }
 
-            dflt_exp = elem_id->u_tup.dflt_exp;
+            dflt_exp = glob_id->u_tup.dflt_exp;
         }
 
         if (dflt_exp != NULL)
-            stmt_add(stmts, stmt_make_assign(elem_id, dflt_exp));
+            stmt_add(stmts, stmt_make_assign(glob_id, dflt_exp));
     }
 
     trans->bb = fn->entry_bb;
 
     if (fn->heap_usage > 0)
-        stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, &id->pos));
+        stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, align, &id->pos));
 
     vector_foreach(stmts, i) {
         stmt_trans(trans, vector_get_stmt(stmts, i));

@@ -306,6 +306,49 @@ exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
     }
 }
 
+/*
+static void
+make_map_init(trans_t *trans, ast_exp_t *exp)
+{
+    int i;
+    uint32_t reg_idx;
+    meta_t *meta = &exp->meta;
+    vector_t *elem_exps = exp->u_init.elem_exps;
+
+    reg_idx = meta->base_idx;
+
+    if (exp->u_init.is_topmost) {
+        fn_kind_t kind;
+        ast_exp_t *l_exp, *r_exp;
+
+        reg_idx = fn_add_register(trans->fn, meta);
+
+        l_exp = exp_new_reg(reg_idx);
+        meta_set_int32(&l_exp->meta);
+
+        if (is_int64_meta(meta->elems[0]) && is_int64_meta(meta->elems[1]))
+            kind = FN_MAP_NEW_I64_I64;
+        else if (is_int64_meta(meta->elems[0]))
+            kind = FN_MAP_NEW_I64_I32;
+        else if (is_int64_meta(meta->elems[1]))
+            kind = FN_MAP_NEW_I32_I64;
+        else
+            kind = FN_MAP_NEW_I32_I32;
+
+        r_exp = exp_new_call(kind, NULL, NULL, meta->pos);
+        meta_set_int32(&r_exp->meta);
+
+        stmt_trans(trans, stmt_new_assign(l_exp, r_exp, meta->pos));
+
+        exp_set_reg(exp, reg_idx);
+    }
+
+    vector_foreach(elem_exps, i) {
+        exp_trans(trans, vector_get_exp(elem_exps, i));
+    }
+}
+*/
+
 static void
 make_static_init(trans_t *trans, ast_exp_t *exp)
 {
@@ -316,15 +359,15 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
-    vector_foreach(elem_exps, i) {
-        exp_trans(trans, vector_get_exp(elem_exps, i));
+    if (is_map_meta(meta)) {
+        exp_set_lit(exp, NULL);
+        value_set_int(&exp->u_lit.val, 0);
+        //make_map_init(trans, exp);
+        return;
     }
 
-    if (is_map_meta(meta)) {
-        /* TODO */
-        exp_set_lit(exp, NULL);
-        value_set_null(&exp->u_lit.val);
-        return;
+    vector_foreach(elem_exps, i) {
+        exp_trans(trans, vector_get_exp(elem_exps, i));
     }
 
     size = meta_memsz(meta);
@@ -489,11 +532,31 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 static uint32_t
 make_map_alloc(trans_t *trans, meta_t *meta)
 {
-    uint32_t reg_idx = fn_add_register(trans->fn, meta);
+    fn_kind_t kind;
+    uint32_t reg_idx;
+    ast_exp_t *l_exp, *r_exp;
 
     ASSERT1(is_map_meta(meta), meta->type);
+    ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
 
-    stmt_trans_malloc(trans, meta, reg_idx);
+    reg_idx = fn_add_register(trans->fn, meta);
+
+    l_exp = exp_new_reg(reg_idx);
+    meta_set_int32(&l_exp->meta);
+
+    if (is_int64_meta(meta->elems[0]) && is_int64_meta(meta->elems[1]))
+        kind = FN_MAP_NEW_I64_I64;
+    else if (is_int64_meta(meta->elems[0]))
+        kind = FN_MAP_NEW_I64_I32;
+    else if (is_int64_meta(meta->elems[1]))
+        kind = FN_MAP_NEW_I32_I64;
+    else
+        kind = FN_MAP_NEW_I32_I32;
+
+    r_exp = exp_new_call(kind, NULL, NULL, meta->pos);
+    meta_set_int32(&r_exp->meta);
+
+    stmt_trans(trans, stmt_new_assign(l_exp, r_exp, meta->pos));
 
     return reg_idx;
 }

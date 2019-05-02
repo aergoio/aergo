@@ -99,7 +99,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
                                  exp_gen(gen, idx_exp, NULL));
         }
 
-        ASSERT1(offset % meta_align(meta) == 0, offset);
+        ASSERT2(offset % meta_align(meta) == 0, offset, meta_align(meta));
 
         if (value != NULL)
             return BinaryenStore(gen->module, meta_iosz(meta), offset, 0, address, value,
@@ -112,6 +112,33 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 
         return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
+    }
+    else if (is_map_meta(&id->meta)) {
+        fn_kind_t kind;
+
+        if (value != NULL) {
+            if (is_int64_meta(&idx_exp->meta) && is_int64_meta(&exp->meta))
+                kind = FN_MAP_PUT_I64_I64;
+            else if (is_int64_meta(&idx_exp->meta))
+                kind = FN_MAP_PUT_I64_I32;
+            else if (is_int64_meta(&exp->meta))
+                kind = FN_MAP_PUT_I32_I64;
+            else
+                kind = FN_MAP_PUT_I32_I32;
+
+            return syslib_gen(gen, kind, 3, address, exp_gen(gen, idx_exp, NULL), value);
+        }
+
+        if (is_int64_meta(&idx_exp->meta) && is_int64_meta(&exp->meta))
+            kind = FN_MAP_GET_I64_I64;
+        else if (is_int64_meta(&idx_exp->meta))
+            kind = FN_MAP_GET_I64_I32;
+        else if (is_int64_meta(&exp->meta))
+            kind = FN_MAP_GET_I32_I64;
+        else
+            kind = FN_MAP_GET_I32_I32;
+
+        return syslib_gen(gen, kind, 2, address, exp_gen(gen, idx_exp, NULL));
     }
     else if (is_string_meta(&id->meta)) {
         ASSERT1(is_byte_meta(meta), meta->type);
