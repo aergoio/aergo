@@ -26,52 +26,70 @@ static int state_array_pairs(lua_State *L);
 
 /* map */
 
+typedef struct {
+    char *id;
+    int key_type;
+} state_map_t;
+
 static int state_map(lua_State *L)
 {
-    lua_newtable(L);                                /* m */
-    lua_pushstring(L, TYPE_NAME);                   /* m _type_ */
-    lua_pushstring(L, "map");                       /* m _type_ map */
-    lua_rawset(L, -3);                              /* m */
-    lua_pushcfunction(L, state_map_delete);         /* m delete f */
-    lua_setfield(L, -2, "delete");                  /* m */
-    luaL_getmetatable(L, STATE_MAP_ID);             /* m mt */
-    lua_setmetatable(L, -2);                        /* m */
+    state_map_t *m = lua_newuserdata(L, sizeof(state_map_t));   /* m */
+    m->id = NULL;
+    m->key_type = LUA_TNONE;
+    luaL_getmetatable(L, STATE_MAP_ID);                         /* m mt */
+    lua_setmetatable(L, -2);                                    /* m */
     return 1;
 }
 
-static void state_map_check_index(lua_State *L, int index)
+static void state_map_check_index(lua_State *L, state_map_t *m, int store)
 {
-    int expected;
-    int type = lua_type(L, index);
-    lua_pushstring(L, KEY_TYPE_NAME);
-    lua_rawget(L, 1);
-    if (lua_isnil(L, -1)) {
-        lua_pushcfunction(L, getItemWithPrefix);    /* f */
-        lua_getfield(L, 1, "id");                   /* f id */
-        if (!lua_isstring(L, -1)) {
-            luaL_error(L, "the value is not a state.map type");
-        }
-        lua_pushstring(L, STATE_VAR_META_TYPE);     /* f id prefix */
-        lua_call(L, 2, 1);                          /* t */
+    /* m key */
+    int key_type = lua_type(L, 2);
+    int stored_type = m->key_type;
+
+    if (key_type != LUA_TNUMBER && key_type != LUA_TSTRING) {
+        luaL_error(L, "invalid key type: " LUA_QS ", state.map: " LUA_QS,
+                   lua_typename(L, key_type), m->id);
     }
-    if (lua_isnil(L, -1)) {
-        luaL_argcheck(L, (type == LUA_TNUMBER || type == LUA_TSTRING),
-                      index, "number or string expected");
-    } else {
-        expected = (int)lua_tointeger(L, -1);
-        if (type != expected) {
-            luaL_typerror(L, 2, lua_typename(L, expected));
+    if (stored_type == LUA_TNONE) {
+        lua_pushcfunction(L, getItemWithPrefix);    /* m key f */
+        lua_pushstring(L, m->id);                   /* m key f id */
+        lua_pushstring(L, STATE_VAR_META_TYPE);     /* m key f id prefix */
+        lua_call(L, 2, 1);                          /* m key t */
+        if (lua_isnil(L, -1)) {
+            lua_pop(L, 1);
+            if (store) {
+                lua_pushcfunction(L, setItemWithPrefix);    /* m key f */
+                lua_pushstring(L, m->id);                   /* m key f id */
+                lua_pushinteger(L, key_type);               /* m key f id type */
+                lua_pushstring(L, STATE_VAR_META_TYPE);     /* m key f id type prefix */
+                lua_call(L, 3, 0);                          /* m key */
+                m->key_type = key_type;
+            }
+            return;
         }
+        if (!luaL_isinteger(L, -1)) {
+            luaL_error(L, "invalid stored key type: " LUA_QS ", state.map: " LUA_QS,
+                       lua_typename(L, lua_type(L, -1)), m->id);
+        }
+        stored_type = (int)lua_tointeger(L, -1);
+        if (stored_type != LUA_TNUMBER && stored_type != LUA_TSTRING) {
+            luaL_error(L, "invalid stored key type: " LUA_QS ", state.map: " LUA_QS,
+                       lua_typename(L, stored_type), m->id);
+        }
+        lua_pop(L, 1);
     }
-    lua_pop(L, 1);
+    /* m key t */
+    if (key_type != stored_type) {
+        luaL_typerror(L, 2, lua_typename(L, stored_type));
+    }
+
+    m->key_type = stored_type;
 }
 
-static void state_map_push_key(lua_State *L)
+static void state_map_push_key(lua_State *L, state_map_t *m)
 {
-    lua_getfield(L, 1, "id");                       /* m key value f id */
-    if (!lua_isstring(L, -1)) {
-        luaL_error(L, "the value is not a state.map type");
-    }
+    lua_pushstring(L, m->id);                       /* m key value f id */
     lua_pushstring(L, "-");
     lua_pushvalue(L, 2);                            /* m key value f id '-' key */
     lua_concat(L, 3);                               /* m key value f id-key */
@@ -79,43 +97,51 @@ static void state_map_push_key(lua_State *L)
 
 static int state_map_get(lua_State *L)
 {
+    int key_type = LUA_TNONE;
     int arg = lua_gettop(L);
-    luaL_checktype(L, 1, LUA_TTABLE);               /* m key */
-    state_map_check_index(L, 2);
+    state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID); /* m key */
+
+    key_type = lua_type(L, 2);
+    if (key_type == LUA_TSTRING) {
+        const char *method = lua_tostring(L, 2);
+        if (method != NULL && strcmp(method, "delete") == 0) {
+            lua_pushcfunction(L, state_map_delete);
+            return 1;
+        }
+    }
+
+    state_map_check_index(L, m, 0);
+    if (m->key_type == LUA_TNONE) {
+        lua_pushnil(L);
+        return 1;
+    }
     lua_pushcfunction(L, getItemWithPrefix);        /* m key f */
-    state_map_push_key(L);                          /* m key f id-key */
+    state_map_push_key(L, m);                       /* m key f id-key */
     if (arg == 3) {
         lua_pushvalue(L, 3);
     }
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* m key f id-key prefix */
-    lua_call(L, arg, 1);                              /* m key rv */
+    lua_call(L, arg, 1);                            /* m key rv */
     return 1;
 }
 
 static int state_map_set(lua_State *L)
 {
-    luaL_checktype(L, 1, LUA_TTABLE);               /* m key value */
-    state_map_check_index(L, 2);
-    lua_pushstring(L, KEY_TYPE_NAME);               /* m key value _key_type_ */
-    lua_rawget(L, 1);                               /* m key value n */
-    if (lua_isnil(L, -1)) {
-        int type = lua_type(L, 2);
-        lua_pushcfunction(L, setItemWithPrefix);    /* m key value n f */
-        lua_getfield(L, 1, "id");                   /* m key value n f id */
-        if (!lua_isstring(L, -1)) {
-            luaL_error(L, "the value is not a state.map type");
+    /* m key value */
+    int key_type = LUA_TNONE;
+    state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
+
+    key_type = lua_type(L, 2);
+    if (key_type == LUA_TSTRING) {
+        const char *method = lua_tostring(L, 2);
+        if (method != NULL && strcmp(method, "delete") == 0) {
+            luaL_error(L, "can't use " LUA_QL("delete") " as a key");
         }
-        lua_pushinteger(L, type);         /* m key value n f id type */
-        lua_pushstring(L, STATE_VAR_META_TYPE);     /* m key value n f id type prefix */
-        lua_call(L, 3, 0);                          /* m key value n */
-        lua_pushstring(L, KEY_TYPE_NAME);           /* m key value n _key_name_ */
-        lua_pushinteger(L, type);                   /* m key value n _key_name_ type */
-        lua_rawset(L, 1);
     }
-    lua_pop(L, 1);                                  /* T key value "type_name" */
+    state_map_check_index(L, m, 1);
     luaL_checkany(L, 3);
     lua_pushcfunction(L, setItemWithPrefix);        /* m key value f */
-    state_map_push_key(L);                          /* m key value f id-key */
+    state_map_push_key(L, m);                       /* m key value f id-key */
     lua_pushvalue(L, 3);                            /* m key value f id-key value */
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* m key value f id-key value prefix */
     lua_call(L, 3, 0);                              /* t key value */
@@ -124,12 +150,26 @@ static int state_map_set(lua_State *L)
 
 static int state_map_delete(lua_State *L)
 {
-    luaL_checktype(L, 1, LUA_TTABLE);               /* m key */
-    state_map_check_index(L, 2);
+    /* m key */
+    state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
+    state_map_check_index(L, m, 1);
+    if (m->key_type == LUA_TNONE) {
+        return 0;
+    }
     lua_pushcfunction(L, delItemWithPrefix);        /* m key f */
-    state_map_push_key(L);                          /* m key f id-key */
+    state_map_push_key(L, m);                       /* m key f id-key */
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* m key f id-key prefix */
     lua_call(L, 2, 1);                              /* m key rv */
+    return 0;
+}
+
+static int state_map_gc(lua_State *L)
+{
+    state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
+    if (m->id) {
+        free(m->id);
+        m->id = NULL;
+    }
     return 0;
 }
 
@@ -256,7 +296,7 @@ static int state_array_append(lua_State *L)
     state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
     luaL_checkany(L, 2);
     if (arr->is_fixed) {
-        return luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
+        luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
     }
     arr->len++;
     lua_pushcfunction(L, state_array_set);          /* a v f */
@@ -309,59 +349,65 @@ static int state_array_pairs(lua_State *L)
 
 /* scalar value */
 
+typedef struct {
+    char *id;
+} state_value_t;
+
 static int state_value(lua_State *L)
 {
-    lua_newtable(L);                                /* T */
-    lua_pushstring(L, TYPE_NAME);                   /* T _type_ */
-    lua_pushstring(L, "value");                     /* T _type_ map */
-    lua_rawset(L, -3);                              /* T */
-    luaL_getmetatable(L, STATE_VALUE_ID);           /* T mt */
-    lua_setmetatable(L, -2);                        /* T */
+    state_value_t *v = lua_newuserdata(L, sizeof(state_value_t));   /* v */
+    v->id = NULL;
+    luaL_getmetatable(L, STATE_VALUE_ID);                           /* v mt */
+    lua_setmetatable(L, -2);                                        /* v */
     return 1;
 }
 
 static int state_value_get(lua_State *L)
 {
-    luaL_checktype(L, 1, LUA_TTABLE);               /* t */
-    lua_pushcfunction(L, getItemWithPrefix);        /* t f */
-    lua_getfield(L, 1, "id");                       /* t f id */
-    if (!lua_isstring(L, -1)) {
-        luaL_error(L, "the value is not a state.value type");
-    }
-    lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* t f id prefix */
-    lua_call(L, 2, 1);                              /* t rv */
+    state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);
+    lua_pushcfunction(L, getItemWithPrefix);        /* v f */
+    lua_pushstring(L, v->id);                       /* v f id */
+    lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* v f id prefix */
+    lua_call(L, 2, 1);                              /* v rv */
     return 1;
 }
 
 static int state_value_snapget(lua_State *L)
 {
     int arg = lua_gettop(L);
-    luaL_checktype(L, 1, LUA_TTABLE);               /* t */
-    lua_pushcfunction(L, getItemWithPrefix);        /* t f */
-    lua_getfield(L, 1, "id");                       /* t f id */
-    if (!lua_isstring(L, -1)) {
-        luaL_error(L, "the value is not a state.value type");
-    }
+    state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);   /* v */
+    lua_pushcfunction(L, getItemWithPrefix);                    /* v f */
+    lua_pushstring(L, v->id);                                   /* v f id */
     if (arg == 2) {
         lua_pushvalue(L, 2);
     }
-    lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* t f id prefix */
-    lua_call(L, arg + 1, 1);                              /* t rv */
+    lua_pushstring(L, STATE_VAR_KEY_PREFIX);                    /* v f id prefix */
+    lua_call(L, arg + 1, 1);                                    /* v rv */
     return 1;
 }
 
 static int state_value_set(lua_State *L)
 {
-    luaL_checktype(L, 1, LUA_TTABLE);               /* t */
+    state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);   /* v */
     luaL_checkany(L, 2);
     lua_pushcfunction(L, setItemWithPrefix);        /* t f */
-    lua_getfield(L, 1, "id");                       /* t f id */
-    if (!lua_isstring(L, -1)) {
-        luaL_error(L, "the value is not a state.value type");
+    if (v->id == NULL) {
+        luaL_error(L, "invalid state.value: (nil)");
     }
+    lua_pushstring(L, v->id);                       /* v f id */
     lua_pushvalue(L, 2);                            /* t f id value */
-    lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* t f id value prefix */
-    lua_call(L, 3, 0);                              /* t */
+    lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* v f id value prefix */
+    lua_call(L, 3, 0);                              /* v */
+    return 0;
+}
+
+static int state_value_gc(lua_State *L)
+{
+    state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);
+    if (v->id) {
+        free(v->id);
+        v->id = NULL;
+    }
     return 0;
 }
 
@@ -379,87 +425,94 @@ static void insert_var(lua_State *L, const char *var_name)
 
 static int state_var(lua_State *L)
 {
-    int t, i = 1;
     const char *var_name;
+    state_map_t *m = NULL;
+    state_array_t *arr = NULL;
+    state_value_t *v = NULL;
 
-    luaL_checktype(L, 1, LUA_TTABLE);                                   /* T */
-    lua_pushnil(L);                                                     /* T nil ; push the first key */
-    while (lua_next(L, -2) != 0) {                                      /* T key value */
+    luaL_checktype(L, 1, LUA_TTABLE);                   /* T */
+    lua_pushnil(L);                                     /* T nil ; push the first key */
+    while (lua_next(L, -2) != 0) {                      /* T key value */
         var_name = luaL_checkstring(L, -2);
-        t = lua_type(L, -1);
-        if (LUA_TTABLE == t) {
-            lua_pushstring(L, "id");                                    /* T key value id */
-            lua_pushvalue(L, -3);                                       /* T key value id key */
-            lua_rawset(L, -3);                                          /* T key value{id=key} */
-            lua_pushstring(L, TYPE_NAME);                               /* T key value _type_ */
-            lua_rawget(L, -2);                                          /* T key value "type_name" */
-            if (lua_isnil(L, -1)) {
-                lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state.value, state.map or state.array expected, got %s",
-                        var_name, lua_typename(L, t));
-                lua_error(L);
-            }
-            lua_pop(L, 1);                                              /* T key value */
-            lua_pushvalue(L, -1);                                       /* T key value value*/
-            insert_var(L, var_name);
-            lua_setglobal(L, var_name);                                 /* T key */
-        } else if (LUA_TUSERDATA == t) {
-            state_array_t *arr = luaL_checkudata(L, -1, STATE_ARRAY_ID);
-            arr->id = strdup((const char *)lua_tostring(L, -2));        /* T key value */
-            lua_newtable(L);                                            /* T key value VT*/
-            lua_pushstring(L, TYPE_NAME);                               /* T key value VT _type_ */
-            lua_pushstring(L, "array");                                 /* T key value VT _type_ "type_name" */
-            lua_rawset(L, -3);                                          /* T key value VT{_type_="type_name"} */
-            lua_pushstring(L, TYPE_LEN);                                /* T key value VT _len_ */
-            lua_pushinteger(L, arr->len);                               /* T key value VT _len_ len */
-            lua_rawset(L, -3);                                          /* T key value VT{_len_=len} */
-            insert_var(L, var_name);
-            lua_setglobal(L, var_name);                                 /* T key */
-        } else {
-            lua_pushfstring(L, "bad argument " LUA_QL("%s") ": state.value, state.map or state.array expected, got %s",
-                            var_name, lua_typename(L, t));
+        if (!lua_isuserdata(L, -1)) {
+            lua_pushfstring(L, "bad argument " LUA_QS ": state.value, state.map or state.array expected, got %s",
+                            var_name, lua_typename(L, lua_type(L, -1)));
             lua_error(L);
         }
-        i++;
+
+        m = luaL_testudata(L, -1, STATE_MAP_ID);
+        if (m != NULL) {
+            m->id = strdup(var_name);
+            lua_newtable(L);                            /* T key value VT */
+            lua_pushstring(L, TYPE_NAME);               /* T key value VT _type_ */
+            lua_pushstring(L, "map");                   /* T key value VT _type_ "map" */
+            lua_rawset(L, -3);                          /* T key value VT{_type="map"} */
+        }
+
+        arr = luaL_testudata(L, -1, STATE_ARRAY_ID);
+        if (arr != NULL) {
+            arr->id = strdup(var_name);                 /* T key value */
+            lua_newtable(L);                            /* T key value VT*/
+            lua_pushstring(L, TYPE_NAME);               /* T key value VT _type_ */
+            lua_pushstring(L, "array");                 /* T key value VT _type_ "array" */
+            lua_rawset(L, -3);                          /* T key value VT{_type_="array"} */
+            lua_pushstring(L, TYPE_LEN);                /* T key value VT _len_ */
+            lua_pushinteger(L, arr->len);               /* T key value VT _len_ len */
+            lua_rawset(L, -3);                          /* T key value VT{_type_="array", _len_=len} */
+        }
+
+        v = luaL_testudata(L, -1, STATE_VALUE_ID);
+        if (v != NULL) {
+            v->id = strdup(var_name);
+            lua_newtable(L);                            /* T key value VT */
+            lua_pushstring(L, TYPE_NAME);               /* T key value VT _type_ */
+            lua_pushstring(L, "value");                 /* T key value VT _type_ "value" */
+            lua_rawset(L, -3);                          /* T key value VT{_type="value"} */
+        }
+
+        if (lua_istable(L, -1)) {
+            insert_var(L, var_name);
+            lua_setglobal(L, var_name);                 /* T key */
+        } else {
+            lua_pushfstring(L, "bad argument " LUA_QS ": state.value, state.map or state.array expected", var_name);
+            lua_error(L);
+        }
     }
     return 0;
 }
 
 static int state_get_snap(lua_State *L)
 {
-    const char *state_name;
-    int type = lua_type(L, 1);
-    switch(type) {
-        case LUA_TUSERDATA:
-            if (lua_gettop(L) != 3)
-                luaL_error(L, "invalid argument at getsnap, need (state.array, index, blockheight)");
-            return state_array_get(L);
-        case LUA_TTABLE:
-            lua_pushstring(L, TYPE_NAME);                               /* T key value _type_ */
-            lua_rawget(L, 1);                                          /* T key value "type_name" */
-            if (lua_isnil (L, -1)) {
-                lua_pushfstring(L, "bad argument #1 at getsnap: state.value, state.map or state.array expected, got %s",
-                        lua_typename(L, type));
-                lua_error(L);
-            }
-            state_name = lua_tostring(L, -1);
+    state_map_t *m = NULL;
+    state_array_t *arr = NULL;
+    state_value_t *v = NULL;
 
-            if (strcmp(state_name,"map") == 0) {
-                lua_pop(L, 1);
-                if (lua_gettop(L) != 3)
-                    luaL_error(L, "invalid argument at getsnap, need (state.map, key, blockheight)");
-                return state_map_get(L);
-            }
-            else if (strcmp(state_name,"value") == 0) {
-                lua_pop(L, 1);
-                if (lua_gettop(L) != 2)
-                    luaL_error(L, "invalid argument at getsnap, need (state.value, blockheight)");
-                return state_value_snapget(L);
-            }
-        default:
-            lua_pushfstring(L, "bad argument #1 at getsnap: state.value, state.map or state.array expected, got %s",
-                    lua_typename(L, type));
-                lua_error(L);
+    if (!lua_isuserdata(L, 1)) {
+        luaL_typerror(L, 1, "state.value, state.map or state.array");
     }
+
+    m = luaL_testudata(L, 1, STATE_MAP_ID);
+    if (m != NULL) {
+        if (lua_gettop(L) != 3)
+            luaL_error(L, "invalid argument at getsnap, need (state.map, key, blockheight)");
+        return state_map_get(L);
+    }
+
+    arr = luaL_testudata(L, 1, STATE_ARRAY_ID);
+    if (arr != NULL) {
+        if (lua_gettop(L) != 3)
+            luaL_error(L, "invalid argument at getsnap, need (state.array, index, blockheight)");
+        return state_array_get(L);
+    }
+
+    v = luaL_testudata(L, 1, STATE_VALUE_ID);
+    if (v != NULL) {
+        if (lua_gettop(L) != 2)
+            luaL_error(L, "invalid argument at getsnap, need (state.value, blockheight)");
+        return state_value_snapget(L);
+    }
+
+    luaL_typerror(L, 1, "state.value, state.map or state.array");
     return 0;
 }
 
@@ -468,6 +521,7 @@ int luaopen_state(lua_State *L)
     static const luaL_Reg state_map_metas[] = {
         {"__index",  state_map_get},
         {"__newindex", state_map_set},
+        {"__gc", state_map_gc},
         {NULL, NULL}
     };
 
@@ -504,6 +558,8 @@ int luaopen_state(lua_State *L)
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
     luaL_register(L, NULL, state_value_methods);
+    lua_pushcfunction(L, state_value_gc);
+    lua_setfield(L, -2, "__gc");
 
     luaL_register(L, "state", state_lib);
 

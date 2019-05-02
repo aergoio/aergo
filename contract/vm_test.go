@@ -2416,7 +2416,7 @@ func TestMapKey(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
-		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("number expected, got string)"),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("(number expected, got string)"),
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
 	)
 	if err != nil {
@@ -2437,7 +2437,7 @@ func TestMapKey(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0,
 			`{"Name":"setCount", "Args":[true, 40]}`,
-		).Fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
+		).Fail(`invalid key type: 'boolean', state.map: 'counts'`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -4017,7 +4017,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail(
-			"cannot use 'table' as a key",
+			"cannot use 'userdata' as a key",
 		),
 	)
 	if err != nil {
@@ -4033,7 +4033,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail(
-			"cannot use 'table' as a key",
+			"cannot use 'userdata' as a key",
 		),
 	)
 	if err != nil {
@@ -4049,7 +4049,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_nil"}`).Fail(
-			"bad argument #2 to '__newindex' (number or string expected)",
+			"invalid key type: 'nil', state.map: 'h'",
 		),
 	)
 	if err != nil {
