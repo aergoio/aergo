@@ -195,6 +195,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta);
 
         if (is_lit_exp(idx_exp)) {
+            int i;
             value_t *idx_val = &idx_exp->u_lit.val;
 
             ASSERT(id_meta->dim_sizes != NULL);
@@ -205,6 +206,14 @@ exp_check_array(check_t *check, ast_exp_t *exp)
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
 
             meta_set_int32(&idx_exp->meta);
+
+            exp->u_arr.is_static = true;
+            for (i = 0; i < exp->meta.arr_dim; i++) {
+                if (exp->meta.dim_sizes[i] == -1) {
+                    exp->u_arr.is_static = false;
+                    break;
+                }
+            }
         }
 
         /* Whenever an array element is accessed, strip it by one dimension */

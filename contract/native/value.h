@@ -171,6 +171,12 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
 
     case TYPE_STRING:
     case TYPE_OBJECT:
+        if (is_null_val(val)) {
+            ASSERT1((ptrdiff_t)buf % 4 == 0, buf);
+            *(int32_t *)buf = 0;
+            return sizeof(int32_t);
+        }
+
         memcpy(buf, val_ptr(val), val_size(val));
         return val_size(val);
 

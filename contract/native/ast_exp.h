@@ -80,6 +80,7 @@ typedef struct exp_type_s {
 
 /* id[idx] */
 typedef struct exp_array_s {
+    bool is_static;
     ast_exp_t *id_exp;
     ast_exp_t *idx_exp;
 } exp_array_t;
@@ -139,7 +140,7 @@ typedef struct exp_tuple_s {
 /* new {exp, exp, exp, ...} */
 typedef struct exp_init_s {
     bool is_static;
-    bool is_outmost;
+    bool is_topmost;
     vector_t *elem_exps;
 } exp_init_t;
 

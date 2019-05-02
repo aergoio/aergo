@@ -46,7 +46,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 
     case TYPE_OBJECT:
         if (is_null_val(val)) {
-            value_init_int(val);
+            value_set_int(val, 0);
         }
         else {
             /* Same as above */
@@ -81,7 +81,7 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
         }
     }
     else if (is_cont_id(id)) {
-        /* In the case of a contract identifier, the "this" syntax is used */
+        /* If "id" is a contract identifier, it means the "this" identifier */
         ASSERT1(is_object_meta(&exp->meta), exp->meta.type);
 
         exp_set_reg(exp, fn->cont_idx);
@@ -91,22 +91,8 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_array(trans_t *trans, ast_exp_t *exp)
 {
-    ast_id_t *id = exp->id;
-
-    ASSERT(id != NULL);
-
     exp_trans(trans, exp->u_arr.id_exp);
     exp_trans(trans, exp->u_arr.idx_exp);
-
-    if (is_map_meta(&id->meta)) {
-        /* TODO
-         * int addr = fn_add_stack_var(trans->fn);
-         * ast_exp_t *call_exp = exp_new_call("$map_get", &exp->pos);
-         *
-         * bb_add_stmt(trans->bb, stmt_new_exp(call_exp, &exp->pos));
-         *
-         * return <return address of call>; */
-    }
 }
 
 static void
@@ -334,9 +320,12 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
         exp_trans(trans, vector_get_exp(elem_exps, i));
     }
 
-    if (is_map_meta(meta))
+    if (is_map_meta(meta)) {
         /* TODO */
+        exp_set_lit(exp, NULL);
+        value_set_null(&exp->u_lit.val);
         return;
+    }
 
     size = meta_memsz(meta);
     raw = xcalloc(size);
@@ -359,6 +348,8 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
         meta_t *elem_meta = &elem_exp->meta;
         value_t *elem_val = &elem_exp->u_lit.val;
+
+        ASSERT1(is_lit_exp(elem_exp), elem_exp->kind);
 
         /* Only struct, or array which is a member of struct, is stored in separate memory. */
         if (is_struct_meta(elem_meta) || (is_struct_meta(meta) && is_tuple_meta(elem_meta))) {
@@ -419,7 +410,7 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
     uint32_t reg_idx = meta->base_idx;
     uint32_t offset = meta->rel_offset;
 
-    if (exp->u_init.is_outmost) {
+    if (exp->u_init.is_topmost) {
         reg_idx = fn_add_register(trans->fn, meta);
 
         stmt_trans_malloc(trans, meta, reg_idx);

@@ -77,29 +77,21 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 
     if (is_array_meta(&id->meta)) {
         uint32_t offset = 0;
-        fn_kind_t kind = FN_ARR_GET_I32;
 
         ASSERT2(meta->arr_dim < meta->max_dim, meta->arr_dim, meta->max_dim);
 
-        if (is_lit_exp(idx_exp)) {
-            if (is_array_meta(meta)) {
-                if (meta->dim_sizes[0] == -1) {
-                    if (is_int64_meta(meta))
-                        kind = FN_ARR_GET_I64;
+        if (exp->u_arr.is_static) {
+            ASSERT1(is_lit_exp(idx_exp), idx_exp->kind);
 
-                    address = syslib_gen(gen, kind, 3, address, i32_gen(gen, meta->arr_dim),
-                                         exp_gen(gen, idx_exp, NULL));
-                }
-                else {
-                    /* The total size of the subdimensions is required. */
-                    offset = val_i64(&idx_exp->u_lit.val) * meta_memsz(meta) + meta_align(meta);
-                }
-            }
-            else {
-                offset = val_i64(&idx_exp->u_lit.val) * meta_regsz(meta) + meta_align(meta);
-            }
+            if (is_array_meta(meta))
+                /* The total size of the subdimensions is required. */
+                offset = meta_align(meta) + val_i64(&idx_exp->u_lit.val) * meta_memsz(meta);
+            else
+                offset = meta_align(meta) + val_i64(&idx_exp->u_lit.val) * meta_regsz(meta);
         }
         else {
+            fn_kind_t kind = FN_ARR_GET_I32;
+
             if (is_int64_meta(meta))
                 kind = FN_ARR_GET_I64;
 
