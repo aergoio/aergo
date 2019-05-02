@@ -1071,5 +1071,13 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 		}
 	}
 
-	return nil, nil
+	var errMsg string
+
+	err := rpc.consensusAccessor.ConfChange(in)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &types.MembershipChangeReply{Success: (err != nil), Error: errMsg}
+	return reply, nil
 }

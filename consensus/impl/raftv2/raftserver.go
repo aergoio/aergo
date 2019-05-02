@@ -75,9 +75,9 @@ type raftServer struct {
 
 	cluster *Cluster
 
-	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
-	commitC     chan *types.Block        // entries committed to log (k,v)
-	errorC      chan error               // errors from raft session
+	confChangeC <-chan *consensus.ConfChangePropose // proposed cluster config changes
+	commitC     chan *types.Block                   // entries committed to log (k,v)
+	errorC      chan error                          // errors from raft session
 
 	id          consensus.MemberID // client ID for raft session
 	listenUrl   string
@@ -146,7 +146,7 @@ func newRaftServer(hub *component.ComponentHub,
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
-	confChangeC <-chan raftpb.ConfChange,
+	confChangeC chan *consensus.ConfChangePropose,
 	commitC chan *types.Block,
 	delayPromote bool,
 	chainWal consensus.ChainWAL) *raftServer {
@@ -211,19 +211,7 @@ func (rs *raftServer) Start() {
 }
 
 func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
-	rpeers := make([]raftlib.Peer, rs.cluster.Size)
-
-	var i int
-	for _, member := range rs.cluster.configMembers.MapByID {
-		data, err := json.Marshal(member)
-		if err != nil {
-			return nil, err
-		}
-		rpeers[i] = raftlib.Peer{ID: uint64(member.ID), Context: data}
-		i++
-	}
-
-	return rpeers, nil
+	return rs.cluster.getStartPeers()
 }
 
 func (rs *raftServer) startRaft() {
@@ -371,6 +359,30 @@ func (rs *raftServer) Propose(block *types.Block) error {
 	return nil
 }
 
+func (rs *raftServer) serveConfChange() {
+	handleConfChange := func(propose *consensus.ConfChangePropose) {
+		if err := rs.node.ProposeConfChange(context.TODO(), *propose.Cc); err != nil {
+			logger.Error().Err(err).Msg("failed to propose configure change")
+			rs.cluster.sendConfChangeReply(propose.Cc, err)
+			return
+		}
+	}
+
+	// send proposals over raft
+	for rs.confChangeC != nil {
+		select {
+		case confChangePropose, ok := <-rs.confChangeC:
+			if !ok {
+				rs.confChangeC = nil
+			} else {
+				handleConfChange(confChangePropose)
+			}
+		}
+	}
+	// client closed channel; shutdown raft if not already
+	close(rs.stopc)
+}
+
 func (rs *raftServer) serveChannels() {
 	snapshot, err := rs.raftStorage.Snapshot()
 	if err != nil {
@@ -383,27 +395,7 @@ func (rs *raftServer) serveChannels() {
 	ticker := time.NewTicker(rs.tickMS)
 	defer ticker.Stop()
 
-	// send proposals over raft
-	go func() {
-		var confChangeCount uint64 = 0
-
-		for rs.confChangeC != nil {
-			select {
-			case cc, ok := <-rs.confChangeC:
-				if !ok {
-					rs.confChangeC = nil
-				} else {
-					confChangeCount += 1
-					cc.ID = confChangeCount
-					if err := rs.node.ProposeConfChange(context.TODO(), cc); err != nil {
-						logger.Fatal().Err(err).Msg("failed to propose configure change")
-					}
-				}
-			}
-		}
-		// client closed channel; shutdown raft if not already
-		close(rs.stopc)
-	}()
+	go rs.serveConfChange()
 
 	// event loop on raft state machine updates
 	for {
@@ -818,38 +810,6 @@ var (
 	ErrInvCCType = errors.New("change type of ")
 )
 
-func (rs *raftServer) validateConfChange(cc *raftpb.ConfChange, member *consensus.Member) error {
-	if !member.IsValid() {
-		return ErrInvalidMember
-	}
-
-	if cc.NodeID != uint64(member.ID) {
-		return consensus.ErrInvalidMemberID
-	}
-
-	cluster := rs.cluster
-	switch cc.Type {
-	case raftpb.ConfChangeAddNode:
-		if m := cluster.members.getMember(member.ID); m != nil {
-			return ErrCCAlreadyAdded
-		}
-
-		if err := cluster.members.hasDuplicatedMember(member); err != nil {
-			return err
-		}
-
-	case raftpb.ConfChangeRemoveNode:
-		if m := cluster.members.getMember(member.ID); m == nil {
-			return ErrCCNoMemberToRemove
-		}
-	default:
-		return ErrInvCCType
-	}
-
-	// - TODO UPDATE
-	return nil
-}
-
 func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consensus.Member, error) {
 	// TODO XXX validate from current cluster configure
 	var cc *raftpb.ConfChange
@@ -872,7 +832,7 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 			return nil, nil, err
 		}
 
-		// skip confchange of empty context
+		// skip confChange of empty context
 		if len(cc.Context) == 0 {
 			return nil, nil, nil
 		}
@@ -888,7 +848,7 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 
 	cc, member, err = unmarshalConfChangeEntry()
 
-	if err = rs.validateConfChange(cc, member); err != nil {
+	if err = rs.cluster.validateChangeMembership(cc, member, true); err != nil {
 		return cc, member, err
 	}
 
@@ -914,7 +874,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 
 	rs.confState = *rs.node.ApplyConfChange(*cc)
 
-	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confchange entry")
+	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confChange entry")
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
@@ -936,6 +896,10 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 		rs.transport.RemovePeer(etcdtypes.ID(cc.NodeID))
 	}
+
+	logger.Debug().Str("cluster", rs.cluster.toString()).Msg("after conf changed")
+
+	rs.cluster.sendConfChangeReply(cc, nil)
 
 	return true
 }

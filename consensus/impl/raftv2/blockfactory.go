@@ -3,6 +3,7 @@ package raftv2
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
@@ -22,8 +23,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-
-	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 const (
@@ -35,6 +34,11 @@ var (
 	httpLogger         *log.Logger
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
+)
+
+var (
+	ErrClusterNotReady = errors.New("cluster is not ready")
+	ErrNotRaftLeader   = errors.New("this node is not leader")
 )
 
 func init() {
@@ -139,7 +143,7 @@ type Proposed struct {
 }
 
 type RaftOperator struct {
-	confChangeC chan raftpb.ConfChange
+	confChangeC chan *types.MembershipChange
 	commitC     chan *types.Block
 
 	rs *raftServer
@@ -148,7 +152,7 @@ type RaftOperator struct {
 }
 
 func newRaftOperator(rs *raftServer) *RaftOperator {
-	confChangeC := make(chan raftpb.ConfChange, 1)
+	confChangeC := make(chan *types.MembershipChange, 1)
 	commitC := make(chan *types.Block)
 
 	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
@@ -191,7 +195,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false,
 		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
-		RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
+		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
 	bf.raftOp.rs = bf.raftServer
@@ -466,4 +470,28 @@ func (bf *BlockFactory) NeedNotify() bool {
 
 func (bf *BlockFactory) HasWAL() bool {
 	return true
+}
+
+type ErrorMembershipChange struct {
+	Err error
+}
+
+func (e ErrorMembershipChange) Error() string {
+	return fmt.Sprintf("failed to change membership: %s", e.Err.Error())
+}
+
+func (bf *BlockFactory) ConfChange(req *types.MembershipChange) error {
+	if bf.bpc == nil {
+		return ErrorMembershipChange{ErrClusterNotReady}
+	}
+
+	if !bf.raftServer.IsLeader() {
+		return ErrorMembershipChange{ErrNotRaftLeader}
+	}
+
+	if err := bf.bpc.ChangeMembership(req); err != nil {
+		return ErrorMembershipChange{err}
+	}
+
+	return nil
 }

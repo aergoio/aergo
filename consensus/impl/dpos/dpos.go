@@ -325,3 +325,7 @@ func (dpos *DPoS) NeedNotify() bool {
 func (dpos *DPoS) HasWAL() bool {
 	return false
 }
+
+func (dpos *DPoS) ConfChange(req *types.MembershipChange) error {
+	return nil
+}

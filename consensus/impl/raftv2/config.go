@@ -40,14 +40,12 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		RaftTick = time.Duration(raftConfig.Tick * 1000000)
 	}
 
-	lenBPs := len(raftConfig.BPs)
-
 	chainID, err := chain.Genesis.ID.Bytes()
 	if err != nil {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, uint16(lenBPs), chain.Genesis.Timestamp)
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, chain.Genesis.Timestamp)
 
 	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).

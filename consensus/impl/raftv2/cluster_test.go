@@ -59,7 +59,7 @@ func TestMemberJson(t *testing.T) {
 
 	t.Logf("peer=%s", newJsonMbr.PeerID)
 
-	data, err = json.Marshal(&mbr)
+	data, err = json.Marshal(mbr)
 	assert.NoError(t, err)
 
 	var newMbr = consensus.Member{}

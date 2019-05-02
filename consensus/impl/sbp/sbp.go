@@ -227,3 +227,7 @@ func (s *SimpleBlockFactory) NeedNotify() bool {
 func (s *SimpleBlockFactory) HasWAL() bool {
 	return false
 }
+
+func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) error {
+	return nil
+}

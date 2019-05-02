@@ -274,7 +274,7 @@ func (m *Member) Equal(other *Member) bool {
 }
 
 func (m *Member) ToString() string {
-	return fmt.Sprintf("member{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(m.PeerID))
+	return fmt.Sprintf("{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(m.PeerID))
 }
 
 func (m *Member) HasDuplicatedAttr(x *Member) bool {
