@@ -166,16 +166,30 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	switch (lua_type(L, idx)) {
 	case LUA_TNUMBER: {
 		if (json_form && iskey) {
-			if (luaL_isinteger(L, idx))
+			if (luaL_isinteger(L, idx)) {
 				len = sprintf (tmp, "\"%ld\",", lua_tointeger(L, idx));
-			else
-				len = sprintf (tmp, "\"%.14g\",", lua_tonumber(L, idx));
+			}
+			else {
+			    double d = lua_tonumber(L, idx);
+			    if (isinf(d) || isnan(d)) {
+			        lua_pushstring(L, "not support nan or infinity");
+			        return false;
+			    }
+				len = sprintf (tmp, "\"%.14g\",", d);
+			}
 		}
 		else {
-			if (luaL_isinteger(L, idx))
+			if (luaL_isinteger(L, idx)) {
 				len = sprintf (tmp, "%ld,", lua_tointeger(L, idx));
-			else
-				len = sprintf (tmp, "%.14g,", lua_tonumber(L, idx));
+			}
+			else {
+				double d = lua_tonumber(L, idx);
+			    if (isinf(d) || isnan(d)) {
+			        lua_pushstring(L, "not support nan or infinity");
+			        return false;
+			    }
+			    len = sprintf (tmp, "%.14g,", lua_tonumber(L, idx));
+			}
 		}
 		src_val = tmp;
 		break;
@@ -549,6 +563,15 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 	return 0;
 }
 
+void minus_inst_count(lua_State *L, int count) {
+    int cnt = luaL_instcount(L);
+
+    cnt -= count;
+    if (cnt <= 0)
+        cnt = 1;
+    luaL_setinstcount(L, cnt);
+}
+
 int lua_util_json_to_lua (lua_State *L, char *json, bool check)
 {
 	if (json_to_lua (L, &json, check, false) != 0)
@@ -586,6 +609,7 @@ char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_
 		sbuf.buf[sbuf.idx] = '\0';
 	}
 
+    minus_inst_count(L, strlen(sbuf.buf));
 	return sbuf.buf;
 }
 
@@ -605,6 +629,7 @@ char *lua_util_get_json (lua_State *L, int idx, bool json_form)
 	if (sbuf.idx != 0)
 		sbuf.buf[sbuf.idx - 1] = '\0';
 
+    minus_inst_count(L, strlen(sbuf.buf));
 	return sbuf.buf;
 }
 
@@ -623,6 +648,7 @@ static int lua_json_decode (lua_State *L)
 	char *org = (char *)luaL_checkstring(L, -1);
 	char *json = strdup(org);
 
+    minus_inst_count(L, strlen(json));
 	if (lua_util_json_to_lua(L, json, true) != 0) {
 		free (json);
 		luaL_error(L, "not proper json format");

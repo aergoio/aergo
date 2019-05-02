@@ -4,6 +4,7 @@
 #include "lua.h"
 #include "lauxlib.h"
 #include "lgmp.h"
+#include "math.h"
 
 #define lua_boxpointer(L,u) \
 	(*(void **)(lua_newuserdata(L, sizeof(void *))) = (u))
@@ -83,6 +84,9 @@ static mp_num Bget(lua_State *L, int i)
 			x = bn_alloc(BN_Integer);
 			if (x == NULL)
 				luaL_error(L, mp_num_memory_error);
+			if (isnan(d) || isinf(d)) {
+			    luaL_error(L, "can't convert nan or infinity");
+			}
 			mpz_init_set_d(x->mpptr, d);
 			Bnew(L, x);
 			lua_replace(L, i);

@@ -178,7 +178,11 @@ static void state_array_load_len(lua_State *L, state_array_t *arr)
 
 static void state_array_checkarg(lua_State *L, state_array_t *arr)
 {
-    int idx = luaL_checkint(L, -1);
+    int idx;
+    if (!luaL_isinteger(L, 2)) {
+        luaL_typerror(L, 2, "integer");
+    }
+    idx = luaL_checkint(L, 2);
     luaL_argcheck(L, idx >= 1 && idx <= arr->len, 2, "index out of range");
 }
 
@@ -192,15 +196,14 @@ static void state_array_push_key(lua_State *L, const char *id)
 
 static int state_array_get(lua_State *L)
 {
-    const char *method;
-    const char *idx;
     state_array_t *arr;
+    int key_type = LUA_TNONE;
 
     arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
     state_array_load_len(L, arr);
 
-    method = lua_tostring(L, 2);
-    if (method != NULL) {                           /* methods */
+    if (lua_type(L, 2) == LUA_TSTRING) {            /* methods */
+        const char *method = lua_tostring(L, 2);
         if (strcmp(method, "append") == 0) {
             lua_pushcfunction(L, state_array_append);
             return 1;
@@ -211,6 +214,7 @@ static int state_array_get(lua_State *L)
             lua_pushcfunction(L, state_array_len);
             return 1;
         }
+        luaL_typerror(L, 2, "integer");
     }
     state_array_checkarg(L, arr);                   /* a i */
     lua_pushcfunction(L, getItemWithPrefix);        /* a i f */
@@ -222,16 +226,12 @@ static int state_array_get(lua_State *L)
 
 static int state_array_set(lua_State *L)
 {
-    const char *idx;
     state_array_t *arr;
 
     arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
     state_array_load_len(L, arr);
 
-    lua_pushvalue(L, 1);                            /* a i v a */
-    lua_pushvalue(L, 2);                            /* a i v a i */
-    state_array_checkarg(L, arr);                   /* a i v a i */
-    lua_pop(L, 2);                                  /* a i v */
+    state_array_checkarg(L, arr);                   /* a i v */
     lua_pushcfunction(L, setItemWithPrefix);        /* a i v f */
     state_array_push_key(L, arr->id);               /* a i v f id-i */
     lua_pushvalue(L, 3);                            /* a i v f id-i v */

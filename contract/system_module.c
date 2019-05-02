@@ -18,7 +18,7 @@ static int systemPrint(lua_State *L)
     if (jsonValue == NULL) {
 		luaL_throwerror(L);
 	}
-    LuaPrint(service, jsonValue);
+    LuaPrint(L, service, jsonValue);
     free(jsonValue);
 	return 0;
 }
@@ -89,6 +89,7 @@ int getItemWithPrefix(lua_State *L)
 	if (ret.r0 == NULL)
 		return 0;
 
+    minus_inst_count(L, strlen(ret.r0));
 	if (lua_util_json_to_lua(L, ret.r0, false) != 0) {
 	    strPushAndRelease(L, ret.r0);
 		luaL_error(L, "getItem error : can't convert %s", lua_tostring(L, -1));
@@ -378,38 +379,33 @@ static int os_difftime(lua_State *L)
 static int lua_random(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
-	lua_Number n;
-	lua_Number min, max;
-	double d;
+	int min, max;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
     }
 
 	switch (lua_gettop(L)) {
-	case 0:
-        d = LuaRandomNumber(L, *service);
-        lua_pushnumber(L, d);
-        break;
 	case 1:
-        n = luaL_checkinteger(L, 1);
-        if (n < 1) {
+        max = luaL_checkint(L, 1);
+        if (max < 1) {
             luaL_error(L, "system.random: the maximum value must be greater than zero");
         }
-        n = LuaRandomInt(L, n, 0, *service);
-        lua_pushinteger(L, n);
+        lua_pushinteger(L, LuaRandomInt(1, max, *service));
         break;
-	default:
-		min = luaL_checkinteger(L, 1);
-		max = luaL_checkinteger(L, 2);
+	case 2:
+		min = luaL_checkint(L, 1);
+		max = luaL_checkint(L, 2);
 		if (min < 1) {
 			luaL_error(L, "system.random: the minimum value must be greater than zero");
 		}
 		if (min > max) {
 			luaL_error(L, "system.random: the maximum value must be greater than the minimum value");
 		}
-        n = LuaRandomInt(L, min, max, *service);
-        lua_pushinteger(L, n);
+        lua_pushinteger(L, LuaRandomInt(min, max, *service));
+        break;
+	default:
+        luaL_error(L, "system.random: 1 or 2 arguments required");
         break;
 	}
 

@@ -1903,6 +1903,13 @@ func TestArray(t *testing.T) {
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).Fail("index out of range"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1.00000001]}`).Fail("integer expected, got number"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":["1"]}`).Fail("integer expected, got string)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[true]}`).Fail("integer expected, got boolean"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[[1, 2]]}`).Fail("integer expected, got table"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[null]}`).Fail("integer expected, got nil)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[{}]}`).Fail("integer expected, got table)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[""]}`).Fail("integer expected, got string)"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`),
 	)
 	if err != nil {
@@ -3431,21 +3438,13 @@ abi.register(random)`
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
-	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
-	err = bc.ConnectBlock(tx, tx1)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`).Fail(
+			"1 or 2 arguments required",
+		),
+	)
 	if err != nil {
 		t.Error(err)
-	}
-	receipt := bc.getReceipt(tx.hash())
-	err = checkRandomFloatValue(receipt.GetRet())
-	if err != nil {
-		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
-	}
-	receipt = bc.getReceipt(tx1.hash())
-	err = checkRandomFloatValue(receipt.GetRet())
-	if err != nil {
-		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
 	}
 
 	err = bc.ConnectBlock(
@@ -3459,12 +3458,12 @@ abi.register(random)`
 		t.Error(err)
 	}
 
-	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
+	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt = bc.getReceipt(tx.hash())
+	receipt := bc.getReceipt(tx.hash())
 	err = checkRandomIntValue(receipt.GetRet(), 1, 3)
 	if err != nil {
 		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
@@ -3804,11 +3803,21 @@ function oom()
 		 s = s .. s
 	 end
 end
-abi.register(oom)`
+
+function p()
+	pcall(oom)
+end
+
+function cp()
+	contract.pcall(oom)
+end
+abi.register(oom, p, cp)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "oom", 0, definition),
+	)
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"oom",
@@ -3823,7 +3832,30 @@ abi.register(oom)`
 	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"p"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"cp"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
 }
+
 func TestDeploy2(t *testing.T) {
 	deploy := `
 function hello()
@@ -3887,6 +3919,118 @@ abi.payable(constructor)
 	}
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`[Contract.LuaDeployContract]newExecutor Error :not permitted state referencing at global scope`)
 	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInvalidKey(t *testing.T) {
+	src := `
+state.var {
+	h = state.map(),
+	arr = state.array(10),
+	v = state.value()
+}
+
+t = {}
+
+function key_table()
+	local k = {}
+	t[k] = "table"
+end
+
+function key_func()
+	t[key_table] = "function"
+end
+
+function key_statemap(key)
+	t[h] = "state.map"
+end
+
+function key_statearray(key)
+	t[arr] = "state.array"
+end
+
+function key_statevalue(key)
+	t[v] = "state.value"
+end
+
+function key_upval(key)
+	local k = {}
+	local f = function()
+		t[k] = "upval"
+	end
+	f()
+end
+
+function key_nil(key)
+	h[nil] = "nil"
+end
+
+abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval, key_nil)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "invalidkey", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_table"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_func"}`).Fail(
+		"cannot use 'function' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statearray"}`).Fail(
+			"cannot use 'userdata' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_upval"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_nil"}`).Fail(
+			"bad argument #2 to '__newindex' (number or string expected)",
+		),
+	)
 	if err != nil {
 		t.Error(err)
 	}

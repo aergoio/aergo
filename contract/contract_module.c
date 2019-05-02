@@ -250,6 +250,7 @@ static int modulePcall(lua_State *L)
 	int argc = lua_gettop(L) - 1;
 	int *service = (int *)getLuaExecContext(L);
 	struct LuaSetRecoveryPoint_return start_seq;
+	int ret;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -261,7 +262,10 @@ static int modulePcall(lua_State *L)
 	    luaL_throwerror(L);
     }
 
-	if (lua_pcall(L, argc, LUA_MULTRET, 0) != 0) {
+	if ((ret = lua_pcall(L, argc, LUA_MULTRET, 0)) != 0) {
+	    if (ret == LUA_ERRMEM) {
+			luaL_throwerror(L);
+	    }
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
 		if (start_seq.r0 > 0) {

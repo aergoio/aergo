@@ -560,7 +560,6 @@ func (ev *Event) MarshalJSON() ([]byte, error) {
 }
 
 func (ev *Event) SetMemoryInfo(receipt *Receipt, blkHash []byte, blkNo BlockNo, txIdx int32) {
-	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
 	ev.TxHash = receipt.TxHash
 	ev.TxIndex = txIdx
 	ev.BlockHash = blkHash
@@ -613,6 +612,7 @@ func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 			}
 		}
 	}
+	ev.ContractAddress = AddressOrigin(ev.ContractAddress)
 	return true
 }
 
@@ -677,7 +677,7 @@ func (fi *FilterInfo) GetExArgFilter() ([]ArgFilter, error) {
 	for key, value := range argMap {
 		idx, err := strconv.ParseInt(key, 10, 32)
 		if err != nil || idx < 0 {
-			return nil, errors.New("invalid argument number:" + err.Error())
+			return nil, errors.New("invalid argument number:" + key)
 		}
 		argFilter[i].argNo = int(idx)
 		argFilter[i].value = value
