@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -37,7 +38,8 @@ var (
 )
 
 var (
-	ErrUninitAccessor = errors.New("accessor is not initilized")
+	ErrUninitAccessor        = errors.New("accessor is not initilized")
+	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 type EventStream struct {
@@ -807,7 +809,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version:pi.Version}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -1056,4 +1058,18 @@ func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*ty
 		return nil, ErrUninitAccessor
 	}
 	return &types.ChainStats{Report: ca.GetChainStats()}, nil
+}
+
+func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.MembershipChange) (*types.MembershipChangeReply, error) {
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
+		if genesisInfo.ID.Consensus != raftv2.GetName() {
+			return nil, ErrNotSupportedConsensus
+		}
+	}
+
+	return nil, nil
 }
