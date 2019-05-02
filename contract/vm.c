@@ -189,6 +189,7 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 		if (json == NULL)
 			return lua_tostring(L, -1);
 
+		minus_inst_count(L, strlen(json));
 		lua_util_json_to_lua(target, json, false);
 		free (json);
 	}
