@@ -112,6 +112,7 @@ etoc(char ch)
     default:
         ASSERT1(!"invalid character", ch);
     }
+    return ch;
 }
 
 /* end of util.c */

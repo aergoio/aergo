@@ -29,8 +29,7 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_INT128:
         if (is_int128_meta(meta)) {
-            char *z_str;
-            BinaryenExpressionRef argument;
+            char *str;
 
             if (value_fits_i32(val))
                 return syslib_gen(gen, FN_MPZ_SET_I32, 1, i32_gen(gen, val_i64(val)));
@@ -38,12 +37,10 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
             if (value_fits_i64(val))
                 return syslib_gen(gen, FN_MPZ_SET_I64, 1, i64_gen(gen, val_i64(val)));
 
-            z_str = mpz_get_str(NULL, 10, val_mpz(val));
-            ASSERT(z_str != NULL && z_str[0] != '\0');
+            str = mpz_get_str(NULL, 10, val_mpz(val));
+            ASSERT(str != NULL && str[0] != '\0');
 
-            argument = i32_gen(gen, sgmt_add_str(&md->sgmt, z_str));
-
-            return syslib_call_1(gen, FN_MPZ_SET_STR, argument);
+            return syslib_gen(gen, FN_MPZ_SET_STR, 1, i32_gen(gen, sgmt_add_str(&md->sgmt, str)));
         }
 
         if (is_int64_meta(meta))
@@ -116,19 +113,19 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
             return BinaryenStore(gen->module, meta_iosz(meta), offset, 0, address, value,
                                  meta_gen(meta));
 
-        if (gen->is_lval || is_array_meta(meta))
-            /* Even if it is not an lvalue, it should return address when accessing the
-             * intermediate element of a multi-dimensional array. */
+        if (is_array_meta(meta))
+            /* We should return address when accessing the intermediate element of a
+             * multi-dimensional array. */
             return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
 
         return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                             meta_gen(meta), address);
     }
     else if (is_string_meta(&id->meta)) {
-        if (gen->is_lval) {
-            ASSERT(value != NULL);
+        ASSERT1(is_byte_meta(meta), meta->type);
+
+        if (value != NULL)
             return syslib_gen(gen, FN_CHAR_SET, 3, address, exp_gen(gen, idx_exp, NULL), value);
-        }
 
         return syslib_gen(gen, FN_CHAR_GET, 2, address, exp_gen(gen, idx_exp, NULL));
     }
@@ -586,7 +583,6 @@ exp_gen_ternary(gen_t *gen, ast_exp_t *exp)
 static BinaryenExpressionRef
 exp_gen_access(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 {
-    uint32_t offset;
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
@@ -595,16 +591,11 @@ exp_gen_access(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
     if (is_fn_id(exp->id))
         return address;
 
-    offset = meta->rel_offset;
-
     if (value != NULL)
-        return BinaryenStore(gen->module, meta_iosz(meta), offset, 0, address, value,
+        return BinaryenStore(gen->module, meta_iosz(meta), meta->rel_offset, 0, address, value,
                              meta_gen(meta));
 
-    if (gen->is_lval)
-        return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
-
-    return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
+    return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), meta->rel_offset, 0,
                         meta_gen(meta), address);
 }
 
@@ -657,18 +648,17 @@ exp_gen_reg(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 static BinaryenExpressionRef
 exp_gen_mem(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 {
-    uint32_t offset = exp->meta.rel_addr + exp->meta.rel_offset;
+    uint32_t offset;
     meta_t *meta = &exp->meta;
     BinaryenExpressionRef address;
 
     address = BinaryenGetLocal(gen->module, meta->base_idx, BinaryenTypeInt32());
 
+    offset = meta->rel_addr + meta->rel_offset;
+
     if (value != NULL)
         return BinaryenStore(gen->module, meta_iosz(meta), offset, 0, address, value,
                              meta_gen(meta));
-
-    if (gen->is_lval && !is_address_meta(meta))
-        return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
 
     return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,
                         meta_gen(meta), address);

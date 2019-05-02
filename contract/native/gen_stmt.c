@@ -28,7 +28,7 @@ stmt_gen_exp(gen_t *gen, ast_stmt_t *stmt)
 static BinaryenExpressionRef
 stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
-    BinaryenExpressionRef value, statement;
+    BinaryenExpressionRef value;
 
     if (stmt->u_assign.l_exp->id != NULL && is_map_meta(&stmt->u_assign.l_exp->id->meta))
         /* TODO: If the type of identifier is map, lvalue and rvalue must be combined
@@ -39,13 +39,7 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
     if (value == NULL)
         return NULL;
 
-    gen->is_lval = true;
-
-    statement = exp_gen(gen, stmt->u_assign.l_exp, value);
-
-    gen->is_lval = false;
-
-    return statement;
+    return exp_gen(gen, stmt->u_assign.l_exp, value);
 }
 
 static BinaryenExpressionRef

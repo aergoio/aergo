@@ -127,13 +127,11 @@ id_check_struct(check_t *check, ast_id_t *id)
 {
     int i;
     uint32_t offset = 0;
-    vector_t *fld_ids;
+    vector_t *fld_ids = id->u_struc.fld_ids;
 
     ASSERT1(is_struct_id(id), id->kind);
     ASSERT(id->name != NULL);
     ASSERT(id->up != NULL);
-
-    fld_ids = id->u_struc.fld_ids;
     ASSERT(fld_ids != NULL);
 
     vector_foreach(fld_ids, i) {
@@ -147,6 +145,8 @@ id_check_struct(check_t *check, ast_id_t *id)
             continue;
 
         BIT_SET(fld_id->mod, MOD_PUBLIC);
+
+        ASSERT1(fld_meta->rel_addr == 0, fld_meta->rel_addr);
 
         fld_meta->rel_offset = ALIGN(offset, TYPE_ALIGN(fld_meta->type));
         offset += meta_regsz(fld_meta);

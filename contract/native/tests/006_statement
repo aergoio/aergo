@@ -238,10 +238,8 @@ contract test {
         pragma assert(v6[2].b == 0);
         v6[0].a = 0xf0;
         v6[0].b = 0xf1;
-        /*
         pragma assert(v2[0].a == 0xf0);
         pragma assert(v2[0].b == 0xf1);
-        */
     }
 }
 

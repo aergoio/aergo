@@ -18,6 +18,8 @@
 
 #include "trans_exp.h"
 
+static uint32_t make_array_alloc(trans_t *trans, meta_t *meta);
+
 static void
 exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
@@ -319,7 +321,7 @@ exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-trans_static_init(trans_t *trans, ast_exp_t *exp)
+make_static_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
     uint32_t offset = 0;
@@ -388,11 +390,11 @@ trans_static_init(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-make_array_header(trans_t *trans, meta_t *meta, uint32_t offset, uint32_t size)
+make_elem_count(trans_t *trans, meta_t *meta, uint32_t reg_idx, uint32_t offset, uint32_t size)
 {
     ast_exp_t *l_exp, *r_exp;
 
-    l_exp = exp_new_mem(meta->base_idx, meta->rel_addr, offset);
+    l_exp = exp_new_mem(reg_idx, meta->rel_addr, offset);
     r_exp = exp_new_lit_int(size, meta->pos);
 
     /* TODO We need more precise measure for meta */
@@ -409,7 +411,7 @@ make_array_header(trans_t *trans, meta_t *meta, uint32_t offset, uint32_t size)
 }
 
 static void
-trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
+make_dynamic_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
     meta_t *meta = &exp->meta;
@@ -428,7 +430,7 @@ trans_dynamic_init(trans_t *trans, ast_exp_t *exp)
         ASSERT1(meta->dim_sizes[0] > 0, meta->dim_sizes[0]);
         ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
 
-        make_array_header(trans, meta, offset, meta->dim_sizes[0]);
+        make_elem_count(trans, meta, reg_idx, offset, meta->dim_sizes[0]);
         offset += meta_align(meta);
     }
 
@@ -488,45 +490,141 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
     ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta) || is_map_meta(meta), meta->type);
 
     if (exp->u_init.is_static)
-        trans_static_init(trans, exp);
+        make_static_init(trans, exp);
     else
-        trans_dynamic_init(trans, exp);
+        make_dynamic_init(trans, exp);
 }
 
 static uint32_t
-trans_array_header(trans_t *trans, meta_t *meta, uint32_t offset, int dim_idx)
+make_map_alloc(trans_t *trans, meta_t *meta)
+{
+    uint32_t reg_idx = fn_add_register(trans->fn, meta);
+
+    ASSERT1(is_map_meta(meta), meta->type);
+
+    stmt_trans_malloc(trans, meta, reg_idx);
+
+    return reg_idx;
+}
+
+static uint32_t
+make_struct_alloc(trans_t *trans, meta_t *meta)
+{
+    int i;
+    uint32_t offset = 0;
+    uint32_t reg_idx;
+    ast_exp_t *l_exp, *r_exp;
+
+    ASSERT1(is_struct_meta(meta), meta->type);
+    ASSERT1(meta->elem_cnt > 0, meta->elem_cnt);
+
+    reg_idx = fn_add_register(trans->fn, meta);
+
+    stmt_trans_malloc(trans, meta, reg_idx);
+
+    for (i = 0; i < meta->elem_cnt; i++) {
+        meta_t *elem_meta = meta->elems[i];
+
+        if (is_array_meta(elem_meta) || is_struct_meta(elem_meta) || is_map_meta(elem_meta)) {
+            uint32_t mem_idx;
+
+            l_exp = exp_new_mem(reg_idx, 0, offset);
+            meta_set_int32(&l_exp->meta);
+
+            if (is_array_meta(elem_meta))
+                mem_idx = make_array_alloc(trans, elem_meta);
+            else if (is_struct_meta(elem_meta))
+                mem_idx = make_struct_alloc(trans, elem_meta);
+            else
+                mem_idx = make_map_alloc(trans, elem_meta);
+
+            r_exp = exp_new_reg(mem_idx);
+            meta_set_int32(&r_exp->meta);
+
+            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, elem_meta->pos));
+        }
+
+        offset += ALIGN(meta_regsz(elem_meta), meta_align(elem_meta));
+    }
+
+    return reg_idx;
+}
+
+static uint32_t
+make_elem_alloc(trans_t *trans, meta_t *meta, uint32_t reg_idx, uint32_t offset, int dim_idx)
 {
     int i;
 
-    ASSERT1(meta->dim_sizes[dim_idx] > 0, meta->dim_sizes[dim_idx]);
+    ASSERT2(dim_idx < meta->max_dim, dim_idx, meta->max_dim);
+    ASSERT2(meta->dim_sizes[dim_idx] > 0, dim_idx, meta->dim_sizes[dim_idx]);
     ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
 
     /* the count of elements */
-    make_array_header(trans, meta, offset, meta->dim_sizes[dim_idx]);
+    make_elem_count(trans, meta, reg_idx, offset, meta->dim_sizes[dim_idx]);
     offset += meta_align(meta);
 
-    if (dim_idx == meta->max_dim - 1)
-        return offset + ALIGN(meta_regsz(meta), meta_align(meta)) * meta->dim_sizes[dim_idx];
+    if (dim_idx == meta->max_dim - 1) {
+        if (is_struct_meta(meta) || is_map_meta(meta)) {
+            uint32_t mem_idx;
+            ast_exp_t *l_exp, *r_exp;
 
-    for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
-        offset = trans_array_header(trans, meta, offset, dim_idx + 1);
+            for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
+                l_exp = exp_new_mem(reg_idx, 0, offset);
+                meta_set_int32(&l_exp->meta);
+
+                if (is_struct_meta(meta))
+                    mem_idx = make_struct_alloc(trans, meta);
+                else
+                    mem_idx = make_map_alloc(trans, meta);
+
+                r_exp = exp_new_reg(mem_idx);
+                meta_set_int32(&r_exp->meta);
+
+                bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, meta->pos));
+
+                offset += ALIGN(meta_regsz(meta), meta_align(meta));
+            }
+        }
+        else {
+            offset += ALIGN(meta_regsz(meta), meta_align(meta)) * meta->dim_sizes[dim_idx];
+        }
+    }
+    else {
+        for (i = 0; i < meta->dim_sizes[dim_idx]; i++) {
+            offset = make_elem_alloc(trans, meta, reg_idx, offset, dim_idx + 1);
+        }
     }
 
     return offset;
+}
+
+static uint32_t
+make_array_alloc(trans_t *trans, meta_t *meta)
+{
+    uint32_t reg_idx = fn_add_register(trans->fn, meta);
+
+    ASSERT1(is_array_meta(meta), meta->type);
+
+    stmt_trans_malloc(trans, meta, reg_idx);
+
+    make_elem_alloc(trans, meta, reg_idx, 0, 0);
+
+    return reg_idx;
 }
 
 static void
 exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 {
     meta_t *meta = &exp->meta;
-    uint32_t reg_idx = fn_add_register(trans->fn, meta);
-
-    stmt_trans_malloc(trans, meta, reg_idx);
-
-    exp_set_reg(exp, reg_idx);
 
     if (is_array_meta(meta))
-        trans_array_header(trans, meta, 0, 0);
+        exp_set_reg(exp, make_array_alloc(trans, meta));
+    else if (is_struct_meta(meta))
+        exp_set_reg(exp, make_struct_alloc(trans, meta));
+    else if (is_map_meta(meta))
+        exp_set_reg(exp, make_map_alloc(trans, meta));
+    else
+        ASSERT1(!"invalid allocation type", meta->type);
 }
 
 void
