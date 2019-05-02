@@ -124,17 +124,17 @@ func (c *deployContract) Run(args string) (string, error) {
 		contract.NewRawLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
 	)
 
+	if enableWatch && !strings.HasPrefix(defPath, "http") {
+		absPath, _ := filepath.Abs(defPath)
+		watcher.Add(absPath)
+	}
+
 	if err != nil {
 		return "", err
 	}
 
 	Index(context.ContractSymbol, contractName)
 	Index(context.AccountSymbol, contractName)
-
-	if enableWatch && !strings.HasPrefix(defPath, "http") {
-		absPath, _ := filepath.Abs(defPath)
-		watcher.Add(absPath)
-	}
 
 	return "deploy a smart contract successfully", nil
 }
