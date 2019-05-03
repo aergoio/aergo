@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "vm.h"
 #include "system_module.h"
 
@@ -137,18 +138,21 @@ static int state_map_delete(lua_State *L)
 
 typedef struct {
     char *id;
-    int len;
+    int32_t len;
     int is_fixed;
 } state_array_t;
 
 static int state_array(lua_State *L)
 {
     int is_fixed;
-    int len = 0;
+    int32_t len = 0;
     state_array_t *arr;
 
     is_fixed = lua_gettop(L) != 0;
     if (is_fixed) {
+        if (!luaL_isinteger(L, 1)) {
+            luaL_typerror(L, 1, "integer");
+        }
         len = luaL_checkint(L, 1);                      /* size */
         luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
     }
@@ -256,7 +260,10 @@ static int state_array_append(lua_State *L)
     state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
     luaL_checkany(L, 2);
     if (arr->is_fixed) {
-        return luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
+        luaL_error(L, "the fixed array cannot use " LUA_QL("append") " method");
+    }
+    if (arr->len + 1 <= 0) {
+        luaL_error(L, "state.array " LUA_QS " overflow", arr->id);
     }
     arr->len++;
     lua_pushcfunction(L, state_array_set);          /* a v f */
