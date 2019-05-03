@@ -21,9 +21,12 @@ static int state_map(lua_State *L)
 
 static int state_array(lua_State *L)
 {
-    int len = 0;
+    int32_t len = 0;
     int is_fixed = lua_gettop(L) != 0;
     if (is_fixed) {
+        if (!luaL_isinteger(L, 1)) {
+            luaL_typerror(L, 1, "integer");
+        }
         len = luaL_checkint(L, 1);      /* size */
         luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
     }
