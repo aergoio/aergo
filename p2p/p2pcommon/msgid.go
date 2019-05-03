@@ -46,5 +46,5 @@ func (id MsgID) UUID() uuid.UUID {
 }
 
 func (id MsgID) String() string {
-	return uuid.Must(uuid.FromBytes(id[:])).String()
+	return id.UUID().String()
 }
