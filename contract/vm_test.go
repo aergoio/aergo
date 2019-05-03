@@ -1955,26 +1955,6 @@ func TestArray(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	overflow := `
-	state.var{
-		counts = state.array(1000000000000)
-	}
-
-	function get()
-		return "hello"
-	end
-	
-	abi.register(get)
-	`
-	err = bc.ConnectBlock(
-		NewLuaTxDef("ktlee", "overflow", 0, overflow),
-	)
-	errMsg := "integer expected, got number"
-	if err == nil {
-		t.Errorf("expected: '%s', but got: nil", errMsg)
-	} else if !strings.Contains(err.Error(), errMsg) {
-		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
-	}
 }
 
 func TestPcall(t *testing.T) {
