@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
 	"time"
 
@@ -132,7 +133,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			br := NewBlockReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := &V030Message{subProtocol: subproto.GetBlocksResponse, id: sampleMsgID}
+			msg := p2pcommon.NewSimpleMsgVal(subproto.GetBlocksResponse, sampleMsgID)
 			for i, blks := range test.blkInput {
 				if test.blkInterval > 0 {
 					time.Sleep(test.blkInterval)

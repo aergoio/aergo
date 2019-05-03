@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
@@ -105,7 +104,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()
 
-			msgStub := &p2p.V030Message{}
+			msgStub := &p2pcommon.MessageValue{}
 			mockRd := p2pmock.NewMockMsgReader(ctrl)
 
 			mockRd.EXPECT().ReadMsg().Times(1).Return(msgStub, tt.args.readErr)
@@ -525,7 +524,7 @@ func Test_createV030Message(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *p2p.V030Message
+		want    *p2pcommon.MessageValue
 		wantErr bool
 	}{
 		// TODO: Add test cases.

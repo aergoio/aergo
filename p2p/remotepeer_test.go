@@ -120,9 +120,9 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, nil)
 		t.Run(tt.name, func(t *testing.T) {
 			mid1, mid2, midn := p2pcommon.NewMsgID(), p2pcommon.NewMsgID(), p2pcommon.NewMsgID()
-			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid1}}, nil}}
-			p.requests[mid2] = &requestInfo{cTime: time.Now().Add(time.Minute * -60).Add(time.Second * -1), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid2}}, nil}}
-			p.requests[midn] = &requestInfo{cTime: time.Now().Add(time.Minute * -59), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: midn}}, nil}}
+			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &MessageValue{id: mid1}}, nil}}
+			p.requests[mid2] = &requestInfo{cTime: time.Now().Add(time.Minute * -60).Add(time.Second * -1), reqMO: &pbRequestOrder{pbMessageOrder{message: &MessageValue{id: mid2}}, nil}}
+			p.requests[midn] = &requestInfo{cTime: time.Now().Add(time.Minute * -59), reqMO: &pbRequestOrder{pbMessageOrder{message: &MessageValue{id: midn}}, nil}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
@@ -421,7 +421,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
-			dummyMsg := &V030Message{id: p2pcommon.NewMsgID(), originalID: test.inID}
+			dummyMsg := p2pcommon.NewSimpleRespMsgVal(subproto.AddressesResponse, p2pcommon.NewMsgID(), test.inID)
 			assert.Equal(t, test.receiverReturn, actual(dummyMsg, nil))
 
 			// after consuming request, GetReceiver always return requestIDNotFoundReceiver, which always return true

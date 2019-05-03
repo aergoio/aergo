@@ -18,7 +18,7 @@ type PeerAccessor interface {
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 }
 
-// MsgOrder is abstraction information about the message that will be sent to peer.
+// MsgOrder is abstraction of information about the message that will be sent to peer.
 // Some type of msgOrder, such as notice mo, should thread-safe and re-entrant
 type MsgOrder interface {
 	GetMsgID() MsgID

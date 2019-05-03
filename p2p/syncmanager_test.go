@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"bytes"
+	"github.com/aergoio/aergo/p2p/subproto"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -246,7 +247,7 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 			dummyMsgID := p2pcommon.NewMsgID()
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
 
-			msg := &V030Message{originalID: dummyMsgID}
+			msg := p2pcommon.NewSimpleRespMsgVal(subproto.PingResponse, p2pcommon.NewMsgID(), dummyMsgID)
 			resp := &types.GetBlockResponse{Blocks: test.respBlocks}
 			target.HandleGetBlockResponse(mockPeer, msg, resp)
 

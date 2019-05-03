@@ -44,6 +44,8 @@ func init() {
 }
 
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
+	var myChainID = &types.ChainID{Magic:"itSmain1"}
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -104,12 +106,12 @@ func TestPeerHandshaker_Select(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		hsheader HSHeader
+		hsheader p2pcommon.HSHeader
 		wantErr  bool
 	}{
-		{"TVer030", HSHeader{p2pcommon.MAGICMain, p2pcommon.P2PVersion030}, false},
-		{"Tver020", HSHeader{p2pcommon.MAGICMain, 0x00000200}, true},
-		{"TInavlid", HSHeader{p2pcommon.MAGICMain, 0x000001}, true},
+		{"TVer030", p2pcommon.HSHeader{p2pcommon.MAGICMain, p2pcommon.P2PVersion030}, false},
+		{"Tver020", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x00000200}, true},
+		{"TInavlid", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x000001}, true},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -142,7 +144,7 @@ func TestHSHeader_Marshal(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			hs := HSHeader{}
+			hs := p2pcommon.HSHeader{}
 			hs.Unmarshal(test.input)
 			assert.Equal(t, test.expectedNewwork, hs.Magic)
 			assert.Equal(t, test.expectedVersion, hs.Version)

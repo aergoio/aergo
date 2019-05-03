@@ -11,7 +11,7 @@ import (
 )
 
 // PolarisMessage is data struct for transferring between polaris server and client.
-// as of 2019.04.23, this is copy of V030Message.
+// as of 2019.04.23, this is copy of MessageValue.
 type PolarisMessage struct {
 	subProtocol p2pcommon.SubProtocol
 	// Length is lenght of payload

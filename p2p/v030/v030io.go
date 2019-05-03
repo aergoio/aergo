@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2p
+package v030
 
 import (
 	"bufio"
@@ -59,20 +59,20 @@ func (r *V030Reader) ReadMsg() (p2pcommon.Message, error) {
 		return nil, fmt.Errorf("invalid msgHeader")
 	}
 
-	msg := parseHeader(r.headBuf)
-	if msg.length > p2pcommon.MaxPayloadLength {
+	msg, bodyLen := parseHeader(r.headBuf)
+	if bodyLen > p2pcommon.MaxPayloadLength {
 		return nil, fmt.Errorf("too big payload")
 	}
-	payload := make([]byte, msg.length)
-	read, err = r.readToLen(payload, int(msg.length))
+	payload := make([]byte, bodyLen)
+	read, err = r.readToLen(payload, int(bodyLen))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read paylod of msg %s %s : %s", msg.subProtocol.String(), msg.id, err.Error())
+		return nil, fmt.Errorf("failed to read paylod of msg %s %s : %s", msg.Subprotocol().String(), msg.ID(), err.Error())
 	}
-	if read != int(msg.length) {
-		return nil, fmt.Errorf("failed to read paylod of msg %s %s : payload length mismatch", msg.subProtocol.String(), msg.id)
+	if read != int(bodyLen) {
+		return nil, fmt.Errorf("failed to read paylod of msg %s %s : payload length mismatch", msg.Subprotocol().String(), msg.ID())
 	}
 
-	msg.payload = payload
+	msg.SetPayload(payload)
 	return msg, nil
 }
 
@@ -123,14 +123,13 @@ func (w *V030Writer) WriteMsg(msg p2pcommon.Message) error {
 	return nil
 }
 
-func parseHeader(buf [msgHeaderLength]byte) *V030Message {
-	m := &V030Message{}
-	m.subProtocol = p2pcommon.SubProtocol(binary.BigEndian.Uint32(buf[0:4]))
-	m.length = binary.BigEndian.Uint32(buf[4:8])
-	m.timestamp = int64(binary.BigEndian.Uint64(buf[8:16]))
-	copy(m.id[:], buf[16:32])
-	copy(m.originalID[:], buf[32:48])
-	return m
+func parseHeader(buf [msgHeaderLength]byte) (*p2pcommon.MessageValue, uint32) {
+	subProtocol := p2pcommon.SubProtocol(binary.BigEndian.Uint32(buf[0:4]))
+	length := binary.BigEndian.Uint32(buf[4:8])
+	timestamp := int64(binary.BigEndian.Uint64(buf[8:16]))
+	msgID := p2pcommon.MustParseBytes(buf[16:32])
+	orgID := p2pcommon.MustParseBytes(buf[32:48])
+	return p2pcommon.NewLiteMessageValue(subProtocol, msgID, orgID, timestamp), length
 }
 
 func (w *V030Writer) marshalHeader(m p2pcommon.Message) {

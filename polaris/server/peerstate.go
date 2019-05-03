@@ -8,12 +8,12 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
@@ -84,7 +84,7 @@ func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 	}
 	defer s.Close()
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	pc := &pingChecker{peerState: hc, rw: rw}
 	pingResp, err := p2putil.InvokeWithTimer(pc, time.NewTimer(timeout))
 	if pingResp.(*types.Ping) == nil {
