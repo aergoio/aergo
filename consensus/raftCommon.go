@@ -72,6 +72,7 @@ type ChainWAL interface {
 	ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error)
 	WriteRaftEntry([]*WalEntry, []*types.Block) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
+	HasWal() (bool, error)
 	GetRaftEntryLastIdx() (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
@@ -304,6 +305,23 @@ func (m *Member) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// IsCompatible checks if name, url and peerid of this member are the same with other member
+func (m *Member) IsCompatible(other *Member) bool {
+	return m.Name == other.Name && m.Url == other.Url && m.PeerID == other.PeerID
+}
+
+type MembersByName []*Member
+
+func (mbrs MembersByName) Len() int {
+	return len(mbrs)
+}
+func (mbrs MembersByName) Less(i, j int) bool {
+	return mbrs[i].Name < mbrs[j].Name
+}
+func (mbrs MembersByName) Swap(i, j int) {
+	mbrs[i], mbrs[j] = mbrs[j], mbrs[i]
 }
 
 type JsonMember struct {

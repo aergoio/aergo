@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -281,6 +282,34 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	return nil
 }
 
+// CompatibleExistingCluster tests if members of existing cluster are matched with this cluster
+func (cl *Cluster) CompatibleExistingCluster(existingCl *Cluster) bool {
+	myMembers := cl.configMembers.ToArray()
+	exMembers := existingCl.members.ToArray()
+
+	if len(myMembers) != len(exMembers) {
+		return false
+	}
+
+	// sort by name
+	sort.Sort(consensus.MembersByName(myMembers))
+	sort.Sort(consensus.MembersByName(exMembers))
+
+	for i, myMember := range myMembers {
+		exMember := exMembers[i]
+		if !myMember.IsCompatible(exMember) {
+			logger.Error().Str("my", myMember.ToString()).Str("existing", exMember.ToString()).Msg("not compatible with existing member configuration")
+			return false
+		}
+
+		myMember.ID = exMember.ID
+
+		cl.addMember(myMember, false)
+	}
+
+	return true
+}
+
 func (mbrs *Members) add(member *consensus.Member) {
 	logger.Debug().Str("member", MemberIDToString(member.ID)).Msg("added raft member")
 
@@ -447,10 +476,10 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 	if m = cl.getEffectiveMembers().getMember(leader); m != nil {
 		leaderName = m.Name
 	} else {
-		leaderName = "id=" + strconv.FormatUint(uint64(leader), 10)
+		leaderName = "id=" + MemberIDToString(leader)
 	}
 
-	rinfo := &RaftInfo{Leader: leaderName, Total: strconv.FormatUint(uint64(cl.Size), 10), Name: cl.NodeName, RaftId: strconv.FormatUint(uint64(cl.NodeID), 10)}
+	rinfo := &RaftInfo{Leader: leaderName, Total: strconv.FormatUint(uint64(cl.Size), 10), Name: cl.NodeName, RaftId: MemberIDToString(cl.NodeID)}
 
 	if withStatus && cl.rs != nil {
 		b, err := cl.rs.Status().MarshalJSON()
@@ -491,7 +520,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	bps := make([]string, cl.Size)
 
 	for id, m := range cl.getEffectiveMembers().MapByID {
-		bp := &PeerInfo{Name: m.Name, RaftID: strconv.FormatUint(uint64(m.ID), 10), PeerID: m.PeerID.Pretty()}
+		bp := &PeerInfo{Name: m.Name, RaftID: MemberIDToString(m.ID), PeerID: m.PeerID.Pretty()}
 		b, err = json.Marshal(bp)
 		if err != nil {
 			logger.Error().Err(err).Str("raftid", MemberIDToString(id)).Msg("failed to marshalEntryData raft consensus bp")

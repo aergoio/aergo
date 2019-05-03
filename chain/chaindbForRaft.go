@@ -137,6 +137,19 @@ func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 	return types.BlockNoFromBytes(lastBytes), nil
 }
 
+func (cdb *ChainDB) HasWal() (bool, error) {
+	last, err := cdb.GetRaftEntryLastIdx()
+	if err != nil {
+		return false, err
+	}
+
+	if last > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 /*
 func encodeBool(v bool) ([]byte, error) {
 	buf := new(bytes.Buffer)

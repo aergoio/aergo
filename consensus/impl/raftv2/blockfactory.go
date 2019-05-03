@@ -193,7 +193,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	logger.Info().Str("RaftID", MemberIDToString(bf.bpc.NodeID)).Msg("raft server start")
 
-	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false,
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, !cfg.Consensus.Raft.NewCluster,
 		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
 		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 

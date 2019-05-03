@@ -108,7 +108,6 @@ type raftServer struct {
 	certFile string
 	keyFile  string
 
-	startSync  bool // maybe this flag is unnecessary
 	lock       sync.RWMutex
 	promotable bool
 
@@ -246,26 +245,42 @@ func (rs *raftServer) startRaft() {
 	}
 
 	var node raftlib.Node
-	last, err := rs.walDB.GetRaftEntryLastIdx()
+	var hasWal bool
+
+	hasWal, err = rs.walDB.HasWal()
 	if err != nil {
 		logger.Fatal().Msg("failed to get raft entry last index")
 	}
-	if last > 0 {
+
+	if hasWal {
 		logger.Info().Msg("raft restart")
 
 		node = raftlib.RestartNode(c)
-	} else {
-		logger.Info().Msg("raft start at first time")
+	} else if rs.join {
+		logger.Info().Msg("raft start at first time and join existing cluster")
 
-		rpeers, err := rs.makeStartPeers()
+		// get cluster info from existing cluster member
+		existCluster, err := rs.GetExistingCluster()
+		if err != nil {
+			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
+		}
+
+		// config validate
+		if !rs.cluster.CompatibleExistingCluster(existCluster) {
+			logger.Fatal().Str("existing", existCluster.toString()).Str("mine", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
+		}
+
+		node = raftlib.StartNode(c, nil)
+	} else {
+		logger.Info().Msg("raft start at first time and makes new cluster")
+
+		var startPeers []raftlib.Peer
+
+		startPeers, err := rs.makeStartPeers()
 		if err != nil {
 			logger.Fatal().Err(err).Msg("failed to make raft peer list")
 		}
 
-		startPeers := rpeers
-		if rs.join {
-			startPeers = nil
-		}
 		node = raftlib.StartNode(c, startPeers)
 	}
 
@@ -667,8 +682,6 @@ func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 	// send nil once lastIndex is published so client knows commit channel is current
 	if len(ents) > 0 {
 		rs.lastIndex = ents[len(ents)-1].Index
-	} else {
-		rs.startSync = true
 	}
 
 	logger.Info().Msg("replaying WAL done")
@@ -1020,6 +1033,13 @@ func (rs *raftServer) Status() raftlib.Status {
 	}
 
 	return node.Status()
+}
+
+// GetExistingCluster returns information of existing cluster.
+// It request member info to all of peers.
+func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
+	// TODO XXX implement with p2p
+	return rs.cluster, nil
 }
 
 func marshalEntryData(block *types.Block) ([]byte, error) {
