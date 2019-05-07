@@ -12,13 +12,14 @@ import (
 	"github.com/aergoio/aergo/consensus/impl/dpos"
 	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/consensus/impl/sbp"
+	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/rpc"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService, pa p2pcommon.PeerAccessor, rpcSvc *rpc.RPC) (consensus.Consensus, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService, p2psvc *p2p.P2P, rpcSvc *rpc.RPC) (consensus.Consensus, error) {
 	var (
 		c   consensus.Consensus
 		err error
@@ -34,10 +35,11 @@ func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService
 
 	consensus.InitBlockInterval(blockInterval)
 
-	if c, err = newConsensus(cfg, hub, cs, pa); err == nil {
+	if c, err = newConsensus(cfg, hub, cs, p2psvc.GetPeerAccessor()); err == nil {
 		// Link mutual references.
 		cs.SetChainConsensus(c)
 		rpcSvc.SetConsensusAccessor(c)
+		p2psvc.SetConsensusAccessor(c)
 	}
 
 	return c, err

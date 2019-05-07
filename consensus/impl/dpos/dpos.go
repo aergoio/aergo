@@ -329,3 +329,7 @@ func (dpos *DPoS) HasWAL() bool {
 func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
 	return nil, consensus.ErrNotSupportedMethod
 }
+
+func (dpos *DPoS) ClusterMemberAttrs() ([]*types.MemberAttr, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}

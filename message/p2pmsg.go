@@ -183,3 +183,11 @@ type GetHashByNoRsp struct {
 
 type GetSelf struct {
 }
+
+type GetClusterMembers struct {
+}
+
+type GetClusterMembersRsp struct {
+	Members []*types.MemberAttr
+	Err     error
+}

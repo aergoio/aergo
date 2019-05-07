@@ -60,7 +60,7 @@ type Cluster struct {
 	appliedTerm  uint64
 
 	NodeName string
-	NodeID   consensus.MemberID
+	NodeID   uint64
 
 	Size uint32
 
@@ -76,19 +76,19 @@ type Cluster struct {
 }
 
 type Members struct {
-	MapByID   map[consensus.MemberID]*consensus.Member // restore from DB or snapshot
+	MapByID   map[uint64]*consensus.Member // restore from DB or snapshot
 	MapByName map[string]*consensus.Member
 
-	Index map[peer.ID]consensus.MemberID // peer ID to raft ID mapping
+	Index map[peer.ID]uint64 // peer ID to raft ID mapping
 
 	BPUrls []string //for raft server TODO remove
 }
 
 func newMembers() *Members {
 	return &Members{
-		MapByID:   make(map[consensus.MemberID]*consensus.Member),
+		MapByID:   make(map[uint64]*consensus.Member),
 		MapByName: make(map[string]*consensus.Member),
-		Index:     make(map[peer.ID]consensus.MemberID),
+		Index:     make(map[peer.ID]uint64),
 		BPUrls:    make([]string, 0),
 	}
 }
@@ -173,7 +173,7 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
 func (cl *Cluster) isMatch(confstate *raftpb.ConfState) bool {
 	var matched int
 	for _, confID := range confstate.Nodes {
-		if _, ok := cl.members.MapByID[consensus.MemberID(confID)]; !ok {
+		if _, ok := cl.members.MapByID[confID]; !ok {
 			return false
 		}
 
@@ -231,7 +231,7 @@ func (cl *Cluster) getAnyPeerAddressToSync() (peer.ID, error) {
 
 	for _, member := range cl.getEffectiveMembers().MapByID {
 		if member.Name != cl.NodeName {
-			return member.PeerID, nil
+			return member.GetPeerID(), nil
 		}
 	}
 
@@ -257,7 +257,7 @@ func (cl *Cluster) addMember(member *consensus.Member, fromConfig bool) error {
 		}
 
 		// check if peerID of this node is valid
-		if cl.NodeName == member.Name && member.PeerID != p2pkey.NodeID() {
+		if cl.NodeName == member.Name && member.GetPeerID() != p2pkey.NodeID() {
 			return ErrInvalidRaftPeerID
 		}
 	}
@@ -315,7 +315,7 @@ func (mbrs *Members) add(member *consensus.Member) {
 
 	mbrs.MapByID[member.ID] = member
 	mbrs.MapByName[member.Name] = member
-	mbrs.Index[member.PeerID] = member.ID
+	mbrs.Index[member.GetPeerID()] = member.ID
 	mbrs.BPUrls = append(mbrs.BPUrls, member.Url)
 }
 
@@ -324,7 +324,7 @@ func (mbrs *Members) remove(member *consensus.Member) {
 
 	delete(mbrs.MapByID, member.ID)
 	delete(mbrs.MapByName, member.Name)
-	delete(mbrs.Index, member.PeerID)
+	delete(mbrs.Index, member.GetPeerID())
 }
 
 func (mbrs *Members) getMemberByName(name string) *consensus.Member {
@@ -336,7 +336,7 @@ func (mbrs *Members) getMemberByName(name string) *consensus.Member {
 	return member
 }
 
-func (mbrs *Members) getMember(id consensus.MemberID) *consensus.Member {
+func (mbrs *Members) getMember(id uint64) *consensus.Member {
 	member, ok := mbrs.MapByID[id]
 	if !ok {
 		return nil
@@ -345,13 +345,13 @@ func (mbrs *Members) getMember(id consensus.MemberID) *consensus.Member {
 	return member
 }
 
-func (mbrs *Members) getMemberPeerAddress(id consensus.MemberID) (peer.ID, error) {
+func (mbrs *Members) getMemberPeerAddress(id uint64) (peer.ID, error) {
 	member := mbrs.getMember(id)
 	if member == nil {
 		return "", ErrNotExistRaftMember
 	}
 
-	return member.PeerID, nil
+	return member.GetPeerID(), nil
 }
 
 // hasDuplicatedMember returns true if any attributes of the given member is equal to the attributes of cluster members
@@ -465,7 +465,7 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 	cl.Lock()
 	defer cl.Unlock()
 
-	var leader consensus.MemberID
+	var leader uint64
 	if cl.rs != nil {
 		leader = cl.rs.GetLeader()
 	}
@@ -520,7 +520,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	bps := make([]string, cl.Size)
 
 	for id, m := range cl.getEffectiveMembers().MapByID {
-		bp := &PeerInfo{Name: m.Name, RaftID: MemberIDToString(m.ID), PeerID: m.PeerID.Pretty()}
+		bp := &PeerInfo{Name: m.Name, RaftID: MemberIDToString(m.ID), PeerID: m.GetPeerID().Pretty()}
 		b, err = json.Marshal(bp)
 		if err != nil {
 			logger.Error().Err(err).Str("raftid", MemberIDToString(id)).Msg("failed to marshalEntryData raft consensus bp")
@@ -536,7 +536,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 }
 
 func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.Member, error) {
-	peerID, err := peer.IDB58Decode(req.Attr.PeerID)
+	peerID, err := peer.IDB58Decode(string(req.Attr.PeerID))
 	if err != nil {
 		return nil, err
 	}
@@ -734,6 +734,6 @@ func (cl *Cluster) makeConfChange(reqType types.MembershipChangeType, member *co
 	return cc, nil
 }
 
-func MemberIDToString(id consensus.MemberID) string {
+func MemberIDToString(id uint64) string {
 	return fmt.Sprintf("%x", id)
 }

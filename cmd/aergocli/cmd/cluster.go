@@ -45,7 +45,7 @@ var addCmd = &cobra.Command{
 
 		var changeReq = &aergorpc.MembershipChange{
 			Type: aergorpc.MembershipChangeType_ADD_MEMBER,
-			Attr: &aergorpc.MemberAttr{Name: nodename, Url: url, PeerID: peerid},
+			Attr: &aergorpc.MemberAttr{Name: nodename, Url: url, PeerID: []byte(peerid)},
 		}
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {
@@ -68,7 +68,7 @@ var removeCmd = &cobra.Command{
 
 		changeReq := &aergorpc.MembershipChange{
 			Type: aergorpc.MembershipChangeType_REMOVE_MEMBER,
-			Attr: &aergorpc.MemberAttr{NodeID: nodeid},
+			Attr: &aergorpc.MemberAttr{ID: nodeid},
 		}
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {

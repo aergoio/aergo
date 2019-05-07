@@ -231,3 +231,7 @@ func (s *SimpleBlockFactory) HasWAL() bool {
 func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
 	return nil, consensus.ErrNotSupportedMethod
 }
+
+func (s *SimpleBlockFactory) ClusterMemberAttrs() ([]*types.MemberAttr, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}

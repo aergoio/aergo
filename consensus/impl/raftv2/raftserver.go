@@ -59,7 +59,7 @@ var (
 )
 
 const (
-	HasNoLeader consensus.MemberID = 0
+	HasNoLeader uint64 = 0
 )
 
 func init() {
@@ -79,7 +79,7 @@ type raftServer struct {
 	commitC     chan *types.Block                   // entries committed to log (k,v)
 	errorC      chan error                          // errors from raft session
 
-	id          consensus.MemberID // client ID for raft session
+	id          uint64 // client ID for raft session
 	listenUrl   string
 	join        bool // node is joining an existing cluster
 	getSnapshot func() ([]byte, error)
@@ -214,7 +214,7 @@ func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
 }
 
 func (rs *raftServer) startRaft() {
-	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() consensus.MemberID { return rs.GetLeader() })
+	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
 
 	c := &raftlib.Config{
 		ID:                        uint64(rs.id),
@@ -1020,17 +1020,17 @@ func (rs *raftServer) WaitStartup() {
 }
 
 func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
-	if consensus.MemberID(softState.Lead) != rs.GetLeader() {
+	if softState.Lead != rs.GetLeader() {
 		atomic.StoreUint64(&rs.leaderStatus.leader, softState.Lead)
 
 		rs.leaderStatus.leaderChanged++
 
-		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(consensus.MemberID(softState.Lead))).Msg("leader changed")
+		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(softState.Lead)).Msg("leader changed")
 	}
 }
 
-func (rs *raftServer) GetLeader() consensus.MemberID {
-	return consensus.MemberID(atomic.LoadUint64(&rs.leaderStatus.leader))
+func (rs *raftServer) GetLeader() uint64 {
+	return atomic.LoadUint64(&rs.leaderStatus.leader)
 }
 
 func (rs *raftServer) IsLeader() bool {

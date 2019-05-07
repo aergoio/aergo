@@ -20,7 +20,7 @@ var (
 	ErrClusterMismatchConfState = errors.New("members of cluster doesn't match with raft confstate")
 )
 
-type getLeaderFuncType func() consensus.MemberID
+type getLeaderFuncType func() uint64
 
 type ChainSnapshotter struct {
 	p2pcommon.PeerAccessor
@@ -135,7 +135,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 		return ok
 	}
 
-	var leader consensus.MemberID
+	var leader uint64
 	getSyncLeader := func() (peer.ID, error) {
 		var peerID peer.ID
 		var err error

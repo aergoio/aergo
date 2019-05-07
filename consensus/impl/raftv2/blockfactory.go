@@ -498,3 +498,7 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 
 	return member, nil
 }
+
+func (bf *BlockFactory) ClusterMemberAttrs() ([]*types.MemberAttr, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}

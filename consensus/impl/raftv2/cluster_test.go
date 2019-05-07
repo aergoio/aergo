@@ -22,24 +22,24 @@ func init() {
 	testPeerID, _ = peer.IDB58Decode(testEncID)
 
 	testMbrs = []*consensus.Member{
-		{
+		{types.MemberAttr{
 			ID:     1,
 			Name:   "testm1",
 			Url:    "http://127.0.0.1:13001",
-			PeerID: testPeerID,
-		},
-		{
+			PeerID: []byte(testPeerID),
+		}},
+		{types.MemberAttr{
 			ID:     2,
 			Name:   "testm2",
 			Url:    "http://127.0.0.1:13002",
-			PeerID: testPeerID,
-		},
-		{
+			PeerID: []byte(testPeerID),
+		}},
+		{types.MemberAttr{
 			ID:     3,
 			Name:   "testm3",
 			Url:    "http://127.0.0.1:13003",
-			PeerID: testPeerID,
-		},
+			PeerID: []byte(testPeerID),
+		}},
 	}
 
 	testBlock := types.NewBlock(nil, nil, nil, nil, nil, 0)
@@ -50,16 +50,7 @@ func init() {
 func TestMemberJson(t *testing.T) {
 	mbr := testMbrs[0]
 
-	jm := consensus.NewJsonMember(mbr)
-	data, err := json.Marshal(jm)
-	assert.NoError(t, err)
-
-	var newJsonMbr = consensus.JsonMember{}
-	err = json.Unmarshal(data, &newJsonMbr)
-
-	t.Logf("peer=%s", newJsonMbr.PeerID)
-
-	data, err = json.Marshal(mbr)
+	data, err := json.Marshal(mbr)
 	assert.NoError(t, err)
 
 	var newMbr = consensus.Member{}
@@ -67,7 +58,9 @@ func TestMemberJson(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, err)
-	t.Logf("peer=%s", peer.IDB58Encode(newMbr.PeerID))
+	//t.Logf("peer=%s", peer.IDB58Encode(newMbr.GetPeerID()))
+
+	assert.True(t, mbr.Equal(&newMbr))
 }
 
 func TestSnapDataJson(t *testing.T) {
