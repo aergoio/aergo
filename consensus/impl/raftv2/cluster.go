@@ -535,22 +535,22 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	return &cons
 }
 
-func (cl *Cluster) NewMemberFromAddReq(req *types.MemberAdd) (*consensus.Member, error) {
-	peerID, err := peer.IDB58Decode(req.PeerID)
+func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.Member, error) {
+	peerID, err := peer.IDB58Decode(req.Attr.PeerID)
 	if err != nil {
 		return nil, err
 	}
-	return consensus.NewMember(req.Name, req.Url, peerID, cl.chainID, time.Now().UnixNano()), nil
+	return consensus.NewMember(req.Attr.Name, req.Attr.Url, peerID, cl.chainID, time.Now().UnixNano()), nil
 }
 
-func (cl *Cluster) ChangeMembership(req *types.MembershipChange) error {
+func (cl *Cluster) ChangeMembership(req *types.MembershipChange) (*consensus.Member, error) {
 	var (
 		propose *consensus.ConfChangePropose
 		err     error
 	)
 
 	if propose, err = cl.requestConfChange(req); err != nil {
-		return err
+		return nil, err
 	}
 
 	return cl.recvConfChangeReply(propose.ReplyC)
@@ -571,7 +571,7 @@ func (cl *Cluster) requestConfChange(req *types.MembershipChange) (*consensus.Co
 	}
 
 	// make member
-	member, err := cl.NewMemberFromAddReq(req.GetAdd())
+	member, err := cl.NewMemberFromAddReq(req)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to make new member")
 		return nil, err
@@ -592,7 +592,7 @@ func (cl *Cluster) requestConfChange(req *types.MembershipChange) (*consensus.Co
 		return nil, err
 	}
 
-	replyC := make(chan error)
+	replyC := make(chan *consensus.ConfChangeReply)
 
 	// TODO check cancel
 	ctx, cancel := context.WithTimeout(context.Background(), MaxConfChangeTimeOut)
@@ -617,30 +617,30 @@ func (cl *Cluster) requestConfChange(req *types.MembershipChange) (*consensus.Co
 	return cl.savedChange, nil
 }
 
-func (cl *Cluster) recvConfChangeReply(replyC chan error) error {
+func (cl *Cluster) recvConfChangeReply(replyC chan *consensus.ConfChangeReply) (*consensus.Member, error) {
 	select {
-	case err, ok := <-replyC:
+	case reply, ok := <-replyC:
 		if !ok {
-			logger.Panic().Err(err).Msg("reply channel of change request must not be closed")
+			logger.Panic().Msg("reply channel of change request must not be closed")
 		}
 
-		if err != nil {
-			logger.Error().Err(err).Msg("failed confChange")
-			return err
+		if reply.Err != nil {
+			logger.Error().Err(reply.Err).Msg("failed confChange")
+			return nil, reply.Err
 		}
 
 		logger.Info().Str("cluster", cl.toString()).Msg("reply of confChange is succeed")
 
-		return nil
+		return reply.Member, nil
 	case <-time.After(MaxConfChangeTimeOut):
 		// saved conf change must be reset in raft server after request completes
 		logger.Warn().Msg("proposal of confChange is time-out")
 
-		return ErrConChangeTimeOut
+		return nil, ErrConChangeTimeOut
 	}
 }
 
-func (cl *Cluster) sendConfChangeReply(cc *raftpb.ConfChange, err error) {
+func (cl *Cluster) sendConfChangeReply(cc *raftpb.ConfChange, member *consensus.Member, err error) {
 	cl.Lock()
 	defer cl.Unlock()
 
@@ -653,7 +653,7 @@ func (cl *Cluster) sendConfChangeReply(cc *raftpb.ConfChange, err error) {
 
 	logger.Debug().Str("req", util.JSON(propose.Cc)).Msg("send reply of conf change")
 
-	propose.ReplyC <- err
+	propose.ReplyC <- &consensus.ConfChangeReply{Member: member, Err: err}
 	close(propose.ReplyC)
 }
 
@@ -698,9 +698,11 @@ func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *conse
 		}
 
 	case raftpb.ConfChangeRemoveNode:
-		if m := cl.members.getMember(member.ID); m == nil {
+		var m *consensus.Member
+		if m = cl.members.getMember(member.ID); m == nil {
 			return ErrCCNoMemberToRemove
 		}
+		*member = *m
 	default:
 		return ErrInvCCType
 	}

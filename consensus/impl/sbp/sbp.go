@@ -228,6 +228,6 @@ func (s *SimpleBlockFactory) HasWAL() bool {
 	return false
 }
 
-func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) error {
-	return nil
+func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
+	return nil, consensus.ErrNotSupportedMethod
 }

@@ -480,18 +480,21 @@ func (e ErrorMembershipChange) Error() string {
 	return fmt.Sprintf("failed to change membership: %s", e.Err.Error())
 }
 
-func (bf *BlockFactory) ConfChange(req *types.MembershipChange) error {
+// ConfChange change membership of raft cluster and returns new membership
+func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
 	if bf.bpc == nil {
-		return ErrorMembershipChange{ErrClusterNotReady}
+		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
 
 	if !bf.raftServer.IsLeader() {
-		return ErrorMembershipChange{ErrNotRaftLeader}
+		return nil, ErrorMembershipChange{ErrNotRaftLeader}
 	}
 
-	if err := bf.bpc.ChangeMembership(req); err != nil {
-		return ErrorMembershipChange{err}
+	var member *consensus.Member
+	var err error
+	if member, err = bf.bpc.ChangeMembership(req); err != nil {
+		return nil, ErrorMembershipChange{err}
 	}
 
-	return nil
+	return member, nil
 }

@@ -225,6 +225,10 @@ func SnapToString(snap *raftpb.Snapshot, snapd *SnapshotData) string {
 
 type MemberID uint64
 
+func (mid *MemberID) ToString() string {
+	return fmt.Sprintf("%d", mid)
+}
+
 type Member struct {
 	ID     MemberID `json:"id"`
 	Name   string   `json:"name"`

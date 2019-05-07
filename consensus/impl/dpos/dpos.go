@@ -326,6 +326,6 @@ func (dpos *DPoS) HasWAL() bool {
 	return false
 }
 
-func (dpos *DPoS) ConfChange(req *types.MembershipChange) error {
-	return nil
+func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
+	return nil, consensus.ErrNotSupportedMethod
 }

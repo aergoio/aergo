@@ -9,7 +9,7 @@ import (
 
 var (
 	nodename string
-	nodeid   string
+	nodeid   uint64
 	url      string
 	peerid   string
 )
@@ -27,7 +27,7 @@ func init() {
 	addCmd.Flags().StringVar(&peerid, "peerid", "", "peer id of node to add to the cluster")
 	addCmd.MarkFlagRequired("peerid")
 
-	removeCmd.Flags().StringVar(&nodeid, "id", "", "node id to add to the cluster")
+	removeCmd.Flags().Uint64Var(&nodeid, "nodeid", 0, "node id to remove to the cluster")
 	removeCmd.MarkFlagRequired("id")
 
 	clusterCmd.AddCommand(addCmd, removeCmd)
@@ -36,7 +36,7 @@ func init() {
 
 var addCmd = &cobra.Command{
 	Use:   "add [flags]",
-	Short: "add new member node to cluster. This command can only be used for raft consensus.",
+	Short: "Add new member node to cluster. This command can only be used for raft consensus.",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(nodename) == 0 || len(url) == 0 || len(peerid) == 0 {
 			cmd.Printf("Failed: name, len, peerid flag must have value\n")
@@ -45,34 +45,30 @@ var addCmd = &cobra.Command{
 
 		var changeReq = &aergorpc.MembershipChange{
 			Type: aergorpc.MembershipChangeType_ADD_MEMBER,
-			Cmd: &aergorpc.MembershipChange_Add{
-				Add: &aergorpc.MemberAdd{Name: nodename, Url: url, PeerID: peerid},
-			},
+			Attr: &aergorpc.MemberAttr{Name: nodename, Url: url, PeerID: peerid},
 		}
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {
 			cmd.Printf("Failed to add member: %s\n", err.Error())
 		}
 
-		cmd.Println(util.JSON(reply))
+		cmd.Println(util.JSON(reply.Attr))
 		return
 	},
 }
 
 var removeCmd = &cobra.Command{
 	Use:   "remove [flags]",
-	Short: "Get account list in the node or cli",
+	Short: "Remove raft node with given node id from cluster. This command can only be used for raft consensus.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(nodeid) == 0 {
-			cmd.Printf("Failed: id flag must have value\n")
+		if nodeid == 0 {
+			cmd.Printf("Failed: nodeid flag must have value more than 0\n")
 			return
 		}
 
 		changeReq := &aergorpc.MembershipChange{
 			Type: aergorpc.MembershipChangeType_REMOVE_MEMBER,
-			Cmd: &aergorpc.MembershipChange_Remove{
-				Remove: &aergorpc.MemberRemove{NodeID: name},
-			},
+			Attr: &aergorpc.MemberAttr{NodeID: nodeid},
 		}
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {

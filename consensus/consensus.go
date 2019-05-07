@@ -8,6 +8,7 @@ package consensus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,6 +29,10 @@ var (
 	BlockInterval = time.Second * time.Duration(DefaultBlockIntervalSec)
 
 	logger = log.NewLogger("consensus")
+)
+
+var (
+	ErrNotSupportedMethod = errors.New("not supported metehod in this consensus")
 )
 
 // InitBlockInterval initializes block interval parameters.
@@ -68,7 +73,7 @@ type Consensus interface {
 
 type ConsensusAccessor interface {
 	ConsensusInfo() *types.ConsensusInfo
-	ConfChange(req *types.MembershipChange) error
+	ConfChange(req *types.MembershipChange) (*Member, error)
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -113,7 +118,12 @@ type ConfChangePropose struct {
 	Ctx context.Context
 	Cc  *raftpb.ConfChange
 
-	ReplyC chan error
+	ReplyC chan *ConfChangeReply
+}
+
+type ConfChangeReply struct {
+	Member *Member
+	Err    error
 }
 
 // Info represents an information for a consensus implementation.
