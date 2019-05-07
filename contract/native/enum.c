@@ -51,7 +51,7 @@ int type_sizes_[TYPE_MAX] = {
     I32,                /* TYPE_STRING */
     I32,                /* TYPE_ACCOUNT */
     I32,                /* TYPE_STRUCT */
-    I64,                /* TYPE_MAP */
+    I32,                /* TYPE_MAP */
     I32,                /* TYPE_OBJECT */
     I32,                /* TYPE_CURSOR */
     0,                  /* TYPE_VOID */

@@ -353,13 +353,17 @@ meta_eval_type(meta_t *x, meta_t *y)
     ASSERT1(y->elem_cnt > 0, y->elem_cnt);
 
     if (is_map_meta(x)) {
+        ASSERT1(x->elem_cnt == 2, x->elem_cnt);
+
         for (i = 0; i < y->elem_cnt; i++) {
+            ASSERT1(y->elems[i]->elem_cnt == 2, y->elems[i]->elem_cnt);
+
             for (j = 0; j < x->elem_cnt; j++) {
                 meta_eval(x->elems[j], y->elems[i]->elems[j]);
             }
         }
 
-        meta_set(y, TYPE_MAP);
+        meta_copy(y, x);
     }
     else if (is_struct_meta(x)) {
         ASSERT2(x->elem_cnt == y->elem_cnt, x->elem_cnt, y->elem_cnt);

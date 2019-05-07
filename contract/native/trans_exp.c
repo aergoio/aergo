@@ -306,48 +306,76 @@ exp_trans_tuple(trans_t *trans, ast_exp_t *exp)
     }
 }
 
-/*
 static void
 make_map_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
     uint32_t reg_idx;
+    fn_kind_t kind;
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
+    ast_exp_t *l_exp, *r_exp;
 
-    reg_idx = meta->base_idx;
+    //ASSERT(exp->u_init.is_topmost);
+    ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
 
-    if (exp->u_init.is_topmost) {
-        fn_kind_t kind;
-        ast_exp_t *l_exp, *r_exp;
+    reg_idx = fn_add_register(trans->fn, meta);
 
-        reg_idx = fn_add_register(trans->fn, meta);
+    l_exp = exp_new_reg(reg_idx);
+    meta_set_int32(&l_exp->meta);
 
-        l_exp = exp_new_reg(reg_idx);
-        meta_set_int32(&l_exp->meta);
+    if (is_int64_meta(meta->elems[0]) && is_int64_meta(meta->elems[1]))
+        kind = FN_MAP_NEW_I64_I64;
+    else if (is_int64_meta(meta->elems[0]))
+        kind = FN_MAP_NEW_I64_I32;
+    else if (is_int64_meta(meta->elems[1]))
+        kind = FN_MAP_NEW_I32_I64;
+    else
+        kind = FN_MAP_NEW_I32_I32;
 
-        if (is_int64_meta(meta->elems[0]) && is_int64_meta(meta->elems[1]))
-            kind = FN_MAP_NEW_I64_I64;
-        else if (is_int64_meta(meta->elems[0]))
-            kind = FN_MAP_NEW_I64_I32;
-        else if (is_int64_meta(meta->elems[1]))
-            kind = FN_MAP_NEW_I32_I64;
-        else
-            kind = FN_MAP_NEW_I32_I32;
+    r_exp = exp_new_call(kind, NULL, NULL, meta->pos);
+    meta_set_int32(&r_exp->meta);
 
-        r_exp = exp_new_call(kind, NULL, NULL, meta->pos);
-        meta_set_int32(&r_exp->meta);
-
-        stmt_trans(trans, stmt_new_assign(l_exp, r_exp, meta->pos));
-
-        exp_set_reg(exp, reg_idx);
-    }
+    stmt_trans(trans, stmt_new_assign(l_exp, r_exp, meta->pos));
 
     vector_foreach(elem_exps, i) {
-        exp_trans(trans, vector_get_exp(elem_exps, i));
+        /* key-value pair */
+        ast_exp_t *kvp_exp = vector_get_exp(elem_exps, i);
+        ast_exp_t *k_exp, *v_exp;
+        ast_exp_t *call_exp;
+        vector_t *arg_exps = vector_new();
+
+        ASSERT1(is_init_exp(kvp_exp), kvp_exp->kind);
+        ASSERT1(vector_size(kvp_exp->u_init.elem_exps) == 2,
+                vector_size(kvp_exp->u_init.elem_exps));
+
+        k_exp = vector_get_first(kvp_exp->u_init.elem_exps, ast_exp_t);
+        v_exp = vector_get_last(kvp_exp->u_init.elem_exps, ast_exp_t);
+
+        exp_trans(trans, k_exp);
+        exp_trans(trans, v_exp);
+
+        exp_add(arg_exps, l_exp);
+        exp_add(arg_exps, k_exp);
+        exp_add(arg_exps, v_exp);
+
+        if (is_int64_meta(&k_exp->meta) && is_int64_meta(&v_exp->meta))
+            kind = FN_MAP_PUT_I64_I64;
+        else if (is_int64_meta(&k_exp->meta))
+            kind = FN_MAP_PUT_I64_I32;
+        else if (is_int64_meta(&v_exp->meta))
+            kind = FN_MAP_PUT_I32_I64;
+        else
+            kind = FN_MAP_PUT_I32_I32;
+
+        call_exp = exp_new_call(kind, NULL, arg_exps, meta->pos);
+        meta_set_void(&call_exp->meta);
+
+        stmt_trans(trans, stmt_new_exp(call_exp, meta->pos));
     }
+
+    exp_set_reg(exp, reg_idx);
 }
-*/
 
 static void
 make_static_init(trans_t *trans, ast_exp_t *exp)
@@ -360,14 +388,8 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
     vector_t *elem_exps = exp->u_init.elem_exps;
 
     if (is_map_meta(meta)) {
-        exp_set_lit(exp, NULL);
-        value_set_int(&exp->u_lit.val, 0);
-        //make_map_init(trans, exp);
+        exp->u_init.is_static = false;
         return;
-    }
-
-    vector_foreach(elem_exps, i) {
-        exp_trans(trans, vector_get_exp(elem_exps, i));
     }
 
     size = meta_memsz(meta);
@@ -386,11 +408,23 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
         offset += meta_align(meta);
     }
 
+    exp->u_init.is_static = true;
+
     vector_foreach(elem_exps, i) {
         uint32_t write_sz;
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
         meta_t *elem_meta = &elem_exp->meta;
         value_t *elem_val = &elem_exp->u_lit.val;
+
+        exp_trans(trans, elem_exp);
+
+        if ((is_lit_exp(elem_exp) && is_int_val(elem_val) &&
+             !mpz_fits_slong_p(val_mpz(elem_val)) && !mpz_fits_ulong_p(val_mpz(elem_val))) ||
+            is_map_meta(elem_meta) ||
+            (!is_lit_exp(elem_exp) && (!is_init_exp(elem_exp) || !elem_exp->u_init.is_static))) {
+            exp->u_init.is_static = false;
+            return;
+        }
 
         ASSERT1(is_lit_exp(elem_exp), elem_exp->kind);
 
@@ -496,6 +530,22 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
 
             offset += meta_regsz(elem_meta);
         }
+        else if (is_map_meta(elem_meta)) {
+            offset = ALIGN32(offset);
+
+            make_map_init(trans, elem_exp);
+            ASSERT1(is_reg_exp(elem_exp), elem_exp->kind);
+
+            l_exp = exp_new_mem(reg_idx, 0, offset);
+            meta_set_int32(&l_exp->meta);
+
+            r_exp = exp_new_reg(elem_exp->meta.base_idx);
+            meta_set_int32(&r_exp->meta);
+
+            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+
+            offset += meta_regsz(elem_meta);
+        }
         else {
             offset = ALIGN(offset, meta_align(elem_meta));
 
@@ -523,9 +573,11 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 
     ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta) || is_map_meta(meta), meta->type);
 
-    if (exp->u_init.is_static)
-        make_static_init(trans, exp);
-    else
+    make_static_init(trans, exp);
+
+    if (is_map_meta(meta))
+        make_map_init(trans, exp);
+    else if (!exp->u_init.is_static)
         make_dynamic_init(trans, exp);
 }
 

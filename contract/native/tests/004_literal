@@ -503,6 +503,7 @@ contract test {
 }
 
 @test(map_initializer)
+@run(test.test)
 contract test {
     map(int, string) m1 = new { { 1, "value1" } };
     map(int, string) m2 = new { { 1, "value1" }, { 2, "value2" } };
@@ -511,10 +512,23 @@ contract test {
         new { { true, { { 3, "3" } } }, { false, { { 4, "4" } } } };
 
     map(bool, map(int, string)) m4 = new { { true, m1 }, { false, m2 } };
+
+    test() {
+        pragma assert(m1[1] == "value1");
+
+        pragma assert(m2[1] == "value1");
+        pragma assert(m2[2] == "value2");
+
+        pragma assert(m3[true][3] == "3");
+        pragma assert(m3[false][4] == "4");
+
+        pragma assert(m4[true][1] == "value1");
+        pragma assert(m4[false][1] == "value1");
+        pragma assert(m4[false][2] == "value2");
+    }
 }
 
 @test(map_allocator)
-@run(test.test)
 contract test {
     map(int, string) m1 = new map(int, string);
     map(int64, int128) m2 = new map(int64, int128);
@@ -524,6 +538,7 @@ contract test {
 }
 
 @test(map_array_initializer)
+@run(test.test)
 contract test {
     map(int, string) m1[1] = new {
         { { 1, "value1" } }
@@ -532,6 +547,17 @@ contract test {
         { { 1, "value1" }, { 2, "value2" }, { 3, "value3" } },
         { { 1, "value1" }, { 2, "value2" }, { 3, "value3" } }
     };
+
+    test() {
+        pragma assert(m1[0][1] == "value1");
+
+        pragma assert(m2[0][1] == "value1");
+        pragma assert(m2[0][2] == "value2");
+        pragma assert(m2[0][3] == "value3");
+        pragma assert(m2[1][1] == "value1");
+        pragma assert(m2[1][2] == "value2");
+        pragma assert(m2[1][3] == "value3");
+    }
 }
 
 @test(map_array_allocator)

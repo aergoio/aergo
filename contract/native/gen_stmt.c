@@ -30,10 +30,12 @@ stmt_gen_assign(gen_t *gen, ast_stmt_t *stmt)
 {
     BinaryenExpressionRef value;
 
+#if 0
     if (stmt->u_assign.l_exp->id != NULL && is_map_meta(&stmt->u_assign.l_exp->id->meta))
         /* TODO: If the type of identifier is map, lvalue and rvalue must be combined
          * into a call expression */
         return NULL;
+#endif
 
     value = exp_gen(gen, stmt->u_assign.r_exp, NULL);
     if (value == NULL)
