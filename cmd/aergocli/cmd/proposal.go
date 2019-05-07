@@ -44,6 +44,8 @@ func init() {
 	createProposalCmd.Flags().StringVar(&proposal, "json", "", "An proposal in json form")
 	createProposalCmd.MarkFlagRequired("json")
 	execProposalCmd.Flags().StringVar(&proposalId, "id", "", "An proposal in json form")
+	execProposalCmd.MarkFlagRequired("id")
+	execProposalCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 	proposalCmd.AddCommand(createProposalCmd)
 	proposalCmd.AddCommand(execProposalCmd)
 	rootCmd.AddCommand(proposalCmd)
