@@ -216,21 +216,6 @@ func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
 func (rs *raftServer) startRaft() {
 	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() consensus.MemberID { return rs.GetLeader() })
 
-	snapshot, err := rs.loadSnapshot()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("failed to read snapshot")
-	}
-
-	if err := rs.replayWAL(snapshot); err != nil {
-		logger.Fatal().Err(err).Msg("replay wal failed for raft")
-	}
-
-	if snapshot != nil {
-		if err := rs.cluster.Recover(snapshot); err != nil {
-			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
-		}
-	}
-
 	c := &raftlib.Config{
 		ID:                        uint64(rs.id),
 		ElectionTick:              10,
@@ -244,8 +229,11 @@ func (rs *raftServer) startRaft() {
 		DisableProposalForwarding: true,
 	}
 
-	var node raftlib.Node
-	var hasWal bool
+	var (
+		node   raftlib.Node
+		hasWal bool
+		err    error
+	)
 
 	hasWal, err = rs.walDB.HasWal()
 	if err != nil {
@@ -254,6 +242,23 @@ func (rs *raftServer) startRaft() {
 
 	if hasWal {
 		logger.Info().Msg("raft restart")
+
+		snapshot, err := rs.loadSnapshot()
+		if err != nil {
+			logger.Fatal().Err(err).Msg("failed to read snapshot")
+		}
+
+		if err := rs.replayWAL(snapshot); err != nil {
+			logger.Fatal().Err(err).Msg("replay wal failed for raft")
+		}
+
+		if snapshot != nil {
+			if err := rs.cluster.Recover(snapshot); err != nil {
+				logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
+			}
+		}
+
+		c.Storage = rs.raftStorage
 
 		node = raftlib.RestartNode(c)
 	} else if rs.join {
@@ -267,8 +272,11 @@ func (rs *raftServer) startRaft() {
 
 		// config validate
 		if !rs.cluster.CompatibleExistingCluster(existCluster) {
-			logger.Fatal().Str("existing", existCluster.toString()).Str("mine", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
+			logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
 		}
+
+		rs.raftStorage = raftlib.NewMemoryStorage()
+		c.Storage = rs.raftStorage
 
 		node = raftlib.StartNode(c, nil)
 	} else {
@@ -280,6 +288,9 @@ func (rs *raftServer) startRaft() {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("failed to make raft peer list")
 		}
+
+		rs.raftStorage = raftlib.NewMemoryStorage()
+		c.Storage = rs.raftStorage
 
 		node = raftlib.StartNode(c, startPeers)
 	}
@@ -684,7 +695,7 @@ func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 		rs.lastIndex = ents[len(ents)-1].Index
 	}
 
-	logger.Info().Msg("replaying WAL done")
+	logger.Info().Uint64("lastindex", rs.lastIndex).Msg("replaying WAL done")
 
 	return nil
 }
@@ -1039,7 +1050,17 @@ func (rs *raftServer) Status() raftlib.Status {
 // It request member info to all of peers.
 func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
 	// TODO XXX implement with p2p
-	return rs.cluster, nil
+	var excluster Cluster
+
+	excluster = *rs.cluster
+	excluster.configMembers = nil
+	excluster.members = newMembers()
+
+	for _, member := range rs.cluster.configMembers.ToArray() {
+		excluster.addMember(member, false)
+	}
+
+	return &excluster, nil
 }
 
 func marshalEntryData(block *types.Block) ([]byte, error) {

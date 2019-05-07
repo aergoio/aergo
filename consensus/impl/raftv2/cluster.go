@@ -160,12 +160,12 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
 	logger.Info().Str("snap", snapdata.ToString()).Msg("cluster recover from snapshot")
 	cl.members.reset()
 
-	cl.setEffectiveMembers(cl.members)
-
 	// members restore
 	for _, mbr := range snapdata.Members {
 		cl.members.add(mbr)
 	}
+
+	cl.setEffectiveMembers(cl.members)
 
 	return nil
 }
@@ -298,7 +298,7 @@ func (cl *Cluster) CompatibleExistingCluster(existingCl *Cluster) bool {
 	for i, myMember := range myMembers {
 		exMember := exMembers[i]
 		if !myMember.IsCompatible(exMember) {
-			logger.Error().Str("my", myMember.ToString()).Str("existing", exMember.ToString()).Msg("not compatible with existing member configuration")
+			logger.Error().Str("mymember", myMember.ToString()).Str("existmember", exMember.ToString()).Msg("not compatible with existing member configuration")
 			return false
 		}
 
@@ -454,7 +454,7 @@ func (cl *Cluster) toString() string {
 
 	myNode := cl.configMembers.getMemberByName(cl.NodeName)
 
-	buf = fmt.Sprintf("raft cluster configure: total=%d, NodeName=%s, RaftID=%d", cl.Size, cl.NodeName, myNode.ID)
+	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%d", cl.Size, cl.NodeName, myNode.ID)
 	buf += ", config members: " + cl.configMembers.toString()
 	buf += ", runtime members: " + cl.members.toString()
 
