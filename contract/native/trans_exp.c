@@ -387,10 +387,7 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
 
-    if (is_map_meta(meta)) {
-        exp->u_init.is_static = false;
-        return;
-    }
+    ASSERT(!is_map_meta(meta));
 
     size = meta_memsz(meta);
     raw = xcalloc(size);
@@ -408,23 +405,18 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
         offset += meta_align(meta);
     }
 
-    exp->u_init.is_static = true;
-
     vector_foreach(elem_exps, i) {
         uint32_t write_sz;
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
         meta_t *elem_meta = &elem_exp->meta;
         value_t *elem_val = &elem_exp->u_lit.val;
 
-        exp_trans(trans, elem_exp);
-
-        if ((is_lit_exp(elem_exp) && is_int_val(elem_val) &&
-             !mpz_fits_slong_p(val_mpz(elem_val)) && !mpz_fits_ulong_p(val_mpz(elem_val))) ||
-            is_map_meta(elem_meta) ||
-            (!is_lit_exp(elem_exp) && (!is_init_exp(elem_exp) || !elem_exp->u_init.is_static))) {
+        if (is_map_meta(elem_meta)) {
             exp->u_init.is_static = false;
             return;
         }
+
+        exp_trans(trans, elem_exp);
 
         ASSERT1(is_lit_exp(elem_exp), elem_exp->kind);
 
@@ -507,8 +499,36 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
         meta_t *elem_meta = &elem_exp->meta;
         ast_exp_t *l_exp, *r_exp;
 
-        /* Only struct, or array which is a member of struct, is stored in separate memory. */
-        if (is_struct_meta(elem_meta) || (is_struct_meta(meta) && is_tuple_meta(elem_meta))) {
+        if (is_map_meta(elem_meta)) {
+            offset = ALIGN32(offset);
+
+            make_map_init(trans, elem_exp);
+            ASSERT1(is_reg_exp(elem_exp), elem_exp->kind);
+
+            l_exp = exp_new_mem(reg_idx, 0, offset);
+            meta_set_int32(&l_exp->meta);
+
+            r_exp = exp_new_reg(elem_exp->meta.base_idx);
+            meta_set_int32(&r_exp->meta);
+
+            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
+
+            offset += meta_regsz(elem_meta);
+        }
+        else if (is_lit_exp(elem_exp)) {
+            offset = ALIGN(offset, meta_align(elem_meta));
+
+            l_exp = exp_new_mem(reg_idx, 0, offset);
+            meta_copy(&l_exp->meta, elem_meta);
+
+            exp_trans(trans, elem_exp);
+
+            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
+
+            offset += meta_regsz(elem_meta);
+        }
+        else if (is_struct_meta(elem_meta) || (is_struct_meta(meta) && is_array_meta(elem_meta))) {
+            /* Only struct, or array which is a member of struct, is stored in separate memory. */
             uint32_t tmp_idx = fn_add_register(trans->fn, elem_meta);
 
             stmt_trans_malloc(trans, elem_meta, tmp_idx);
@@ -524,22 +544,6 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
             meta_set_int32(&l_exp->meta);
 
             r_exp = exp_new_reg(tmp_idx);
-            meta_set_int32(&r_exp->meta);
-
-            bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
-
-            offset += meta_regsz(elem_meta);
-        }
-        else if (is_map_meta(elem_meta)) {
-            offset = ALIGN32(offset);
-
-            make_map_init(trans, elem_exp);
-            ASSERT1(is_reg_exp(elem_exp), elem_exp->kind);
-
-            l_exp = exp_new_mem(reg_idx, 0, offset);
-            meta_set_int32(&l_exp->meta);
-
-            r_exp = exp_new_reg(elem_exp->meta.base_idx);
             meta_set_int32(&r_exp->meta);
 
             bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, &exp->pos));
@@ -573,11 +577,15 @@ exp_trans_init(trans_t *trans, ast_exp_t *exp)
 
     ASSERT1(is_tuple_meta(meta) || is_struct_meta(meta) || is_map_meta(meta), meta->type);
 
-    make_static_init(trans, exp);
-
-    if (is_map_meta(meta))
+    if (is_map_meta(meta)) {
         make_map_init(trans, exp);
-    else if (!exp->u_init.is_static)
+        return;
+    }
+
+    if (exp->u_init.is_static)
+        make_static_init(trans, exp);
+
+    if (!exp->u_init.is_static)
         make_dynamic_init(trans, exp);
 }
 

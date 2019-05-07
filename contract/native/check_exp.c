@@ -832,7 +832,7 @@ exp_check_init(check_t *check, ast_exp_t *exp)
     ASSERT1(is_init_exp(exp), exp->kind);
     ASSERT(elem_exps != NULL);
 
-    //exp->u_init.is_static = true;
+    exp->u_init.is_static = true;
 
     vector_foreach(elem_exps, i) {
         ast_exp_t *elem_exp = vector_get_exp(elem_exps, i);
@@ -841,13 +841,11 @@ exp_check_init(check_t *check, ast_exp_t *exp)
 
         CHECK(exp_check(check, elem_exp));
 
-        /*
         if ((is_lit_exp(elem_exp) && is_int_val(&elem_exp->u_lit.val) &&
              !mpz_fits_slong_p(val_mpz(&elem_exp->u_lit.val)) &&
              !mpz_fits_ulong_p(val_mpz(&elem_exp->u_lit.val))) ||
             (!is_lit_exp(elem_exp) && (!is_init_exp(elem_exp) || !elem_exp->u_init.is_static)))
             exp->u_init.is_static = false;
-            */
     }
 
     meta_set_tuple(&exp->meta, elem_exps);
