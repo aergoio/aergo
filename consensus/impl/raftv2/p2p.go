@@ -11,7 +11,7 @@ import (
 var (
 	MaxTimeOutCluter = time.Second * 10
 
-	ErrClusterReplyC     = errors.New("reply channel of getcluster request is closed")
+	ErrGetClusterReplyC  = errors.New("reply channel of getcluster request is closed")
 	ErrGetClusterTimeout = errors.New("timeout for getcluster")
 )
 
@@ -28,7 +28,7 @@ func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
 	select {
 	case rsp, ok = <-replyC:
 		if !ok {
-			return nil, ErrClusterReplyC
+			return nil, ErrGetClusterReplyC
 		}
 	case <-time.After(MaxTimeOutCluter):
 		return nil, ErrGetClusterTimeout

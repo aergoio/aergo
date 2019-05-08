@@ -124,7 +124,7 @@ func (mbrs *Members) toString() string {
 
 	buf += fmt.Sprintf("[")
 	for _, bp := range mbrs.MapByID {
-		buf += fmt.Sprintf("{%s}", bp.ToString())
+		buf += fmt.Sprintf("%s", bp.ToString())
 	}
 	buf += fmt.Sprintf("]")
 
@@ -493,7 +493,7 @@ func (cl *Cluster) toString() string {
 
 	myNode := cl.configMembers.getMemberByName(cl.NodeName)
 
-	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%d", cl.Size, cl.NodeName, myNode.ID)
+	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%x", cl.Size, cl.NodeName, myNode.ID)
 	buf += ", config members: " + cl.configMembers.toString()
 	buf += ", runtime members: " + cl.members.toString()
 
@@ -582,6 +582,17 @@ func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.
 	return consensus.NewMember(req.Attr.Name, req.Attr.Url, peerID, cl.chainID, time.Now().UnixNano()), nil
 }
 
+func (cl *Cluster) NewMemberFromRemoveReq(req *types.MembershipChange) (*consensus.Member, error) {
+	if req.Attr.ID == consensus.InvalidMemberID {
+		return nil, consensus.ErrInvalidMemberID
+	}
+
+	member := consensus.NewMember("", "", peer.ID(""), cl.chainID, 0)
+	member.SetMemberID(req.Attr.ID)
+
+	return member, nil
+}
+
 func (cl *Cluster) ChangeMembership(req *types.MembershipChange) (*consensus.Member, error) {
 	var (
 		propose *consensus.ConfChangePropose
@@ -603,20 +614,28 @@ func (cl *Cluster) requestConfChange(req *types.MembershipChange) (*consensus.Co
 		return nil, ErrPendingConfChange
 	}
 
-	logger.Info().Str("request", util.JSON(req)).Msg("start change memgership of cluster")
+	logger.Info().Str("request", req.ToString()).Msg("start change membership of cluster")
 
-	if req.Type == types.MembershipChangeType_REMOVE_MEMBER {
-		panic("not implemented yet")
+	var (
+		member *consensus.Member
+		err    error
+	)
+
+	switch req.Type {
+	case types.MembershipChangeType_ADD_MEMBER:
+		member, err = cl.NewMemberFromAddReq(req)
+
+	case types.MembershipChangeType_REMOVE_MEMBER:
+		member, err = cl.NewMemberFromRemoveReq(req)
+
+	default:
+		return nil, ErrInvalidMembershipReqType
 	}
 
-	// make member
-	member, err := cl.NewMemberFromAddReq(req)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to make new member")
 		return nil, err
 	}
-
-	// TODO remove member
 
 	// make raft confChange
 	cc, err := cl.makeConfChange(req.Type, member)
@@ -668,7 +687,7 @@ func (cl *Cluster) recvConfChangeReply(replyC chan *consensus.ConfChangeReply) (
 			return nil, reply.Err
 		}
 
-		logger.Info().Str("cluster", cl.toString()).Msg("reply of confChange is succeed")
+		logger.Info().Str("cluster", cl.toString()).Str("target", reply.Member.ToString()).Msg("reply of conf change is succeed")
 
 		return reply.Member, nil
 	case <-time.After(MaxConfChangeTimeOut):
@@ -717,17 +736,13 @@ func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *conse
 		defer cl.Unlock()
 	}
 
-	if !member.IsValid() {
-		logger.Error().Str("member", member.ToString()).Msg("member has invalid fields")
-		return ErrInvalidMember
-	}
-
-	if cc.NodeID != uint64(member.ID) {
-		return consensus.ErrInvalidMemberID
-	}
-
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
+		if !member.IsValid() {
+			logger.Error().Str("member", member.ToString()).Msg("member has invalid fields")
+			return ErrInvalidMember
+		}
+
 		if m := cl.members.getMember(member.ID); m != nil {
 			return ErrCCAlreadyAdded
 		}
@@ -738,9 +753,14 @@ func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *conse
 
 	case raftpb.ConfChangeRemoveNode:
 		var m *consensus.Member
+		if member.ID == consensus.InvalidMemberID {
+			return consensus.ErrInvalidMemberID
+		}
+
 		if m = cl.members.getMember(member.ID); m == nil {
 			return ErrCCNoMemberToRemove
 		}
+
 		*member = *m
 	default:
 		return ErrInvCCType
@@ -760,6 +780,8 @@ func (cl *Cluster) makeConfChange(reqType types.MembershipChangeType, member *co
 	default:
 		return nil, ErrInvalidMembershipReqType
 	}
+
+	logger.Debug().Str("member", member.ToString()).Msg("target member")
 
 	cl.changeSeq++
 

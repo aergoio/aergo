@@ -237,7 +237,7 @@ func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int
 	m := &Member{types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
 
 	//make ID
-	m.SetMemberID(chainID, when)
+	m.CalculateMemberID(chainID, when)
 
 	return m
 }
@@ -246,7 +246,11 @@ func (m *Member) SetAttr(attr *types.MemberAttr) {
 	m.MemberAttr = *attr
 }
 
-func (m *Member) SetMemberID(chainID []byte, curTimestamp int64) {
+func (m *Member) SetMemberID(id uint64) {
+	m.ID = id
+}
+
+func (m *Member) CalculateMemberID(chainID []byte, curTimestamp int64) {
 	var buf []byte
 
 	buf = append(buf, []byte(m.Name)...)

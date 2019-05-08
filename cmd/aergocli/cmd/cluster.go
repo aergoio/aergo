@@ -2,16 +2,16 @@ package cmd
 
 import (
 	"context"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
+	"strconv"
 )
 
 var (
-	nodename string
-	nodeid   uint64
-	url      string
-	peerid   string
+	nodename  string
+	nodeidStr string
+	url       string
+	peerid    string
 )
 
 func init() {
@@ -27,8 +27,8 @@ func init() {
 	addCmd.Flags().StringVar(&peerid, "peerid", "", "peer id of node to add to the cluster")
 	addCmd.MarkFlagRequired("peerid")
 
-	removeCmd.Flags().Uint64Var(&nodeid, "nodeid", 0, "node id to remove to the cluster")
-	removeCmd.MarkFlagRequired("id")
+	removeCmd.Flags().StringVar(&nodeidStr, "nodeid", "", "node id to remove to the cluster")
+	removeCmd.MarkFlagRequired("nodeid")
 
 	clusterCmd.AddCommand(addCmd, removeCmd)
 	rootCmd.AddCommand(clusterCmd)
@@ -50,9 +50,10 @@ var addCmd = &cobra.Command{
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {
 			cmd.Printf("Failed to add member: %s\n", err.Error())
+			return
 		}
 
-		cmd.Println(util.JSON(reply.Attr))
+		cmd.Printf("added member to cluster: %s\n", reply.Attr.ToString())
 		return
 	},
 }
@@ -61,8 +62,14 @@ var removeCmd = &cobra.Command{
 	Use:   "remove [flags]",
 	Short: "Remove raft node with given node id from cluster. This command can only be used for raft consensus.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if nodeid == 0 {
-			cmd.Printf("Failed: nodeid flag must have value more than 0\n")
+		if len(nodeidStr) == 0 {
+			cmd.Printf("Failed: nodeid flag must be string of hex format\n")
+			return
+		}
+
+		nodeid, err := strconv.ParseUint(nodeidStr, 16, 64)
+		if err != nil {
+			cmd.Printf("Failed to add member: %s\n", err.Error())
 			return
 		}
 
@@ -75,7 +82,7 @@ var removeCmd = &cobra.Command{
 			cmd.Printf("Failed to remove member: %s\n", err.Error())
 		}
 
-		cmd.Println(util.JSON(reply))
+		cmd.Printf("removed member from cluster: %s\n", reply.Attr.ToString())
 		return
 	},
 }

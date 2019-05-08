@@ -1077,8 +1077,6 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 		return nil, err
 	}
 
-	// To print easy, set peerID with base58 encoded format
-	peerEncodedBytes := []byte(peer.IDB58Encode(peer.ID(member.PeerID)))
-	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: peerEncodedBytes}}
+	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(peer.ID(member.PeerID))}}
 	return reply, nil
 }
