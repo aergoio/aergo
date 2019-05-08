@@ -1,31 +1,45 @@
 package raftv2
 
 import (
-	"github.com/aergoio/aergo/consensus"
+	"errors"
+	"fmt"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"time"
 )
 
+var (
+	MaxTimeOutCluter = time.Second * 10
+
+	ErrClusterReplyC     = errors.New("reply channel of getcluster request is closed")
+	ErrGetClusterTimeout = errors.New("timeout for getcluster")
+)
+
 // GetBestBlock returns the current best block from chainservice
-func GetClusterMembers(hs component.ICompSyncRequester) ([]*consensus.Member, error) {
-	result, err := hs.RequestFuture(message.P2PSvc, &message.GetClusterMembers{}, time.Second*10,
-		"consensus/raft/info.GetClusterMembers").Result()
+func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
+	replyC := make(chan *message.GetClusterRsp)
+	hs.Tell(message.P2PSvc, &message.GetCluster{ReplyC: replyC})
 
-	if result.(message.GetClusterMembersRsp).Err != nil {
-		err = result.(message.GetClusterMembersRsp).Err
+	var (
+		rsp *message.GetClusterRsp
+		ok  bool
+	)
+
+	select {
+	case rsp, ok = <-replyC:
+		if !ok {
+			return nil, ErrClusterReplyC
+		}
+	case <-time.After(MaxTimeOutCluter):
+		return nil, ErrGetClusterTimeout
 	}
 
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to get cluster members from remote peers")
-		return nil, err
+	if rsp.Err != nil {
+		return nil, fmt.Errorf("get cluster failed: %s", rsp.Err)
 	}
 
-	mbrs := make([]*consensus.Member, len(result.(message.GetClusterMembersRsp).Members))
+	newCl := NewClusterFromMemberAttrs(rsp.ChainID, rsp.Members)
 
-	for i, mbrAttr := range result.(message.GetClusterMembersRsp).Members {
-		mbrs[i].SetAttr(mbrAttr)
-	}
-
-	return mbrs, nil
+	logger.Debug().Str("info", newCl.toString()).Msg("get remote cluster info")
+	return newCl, nil
 }

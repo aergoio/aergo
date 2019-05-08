@@ -232,6 +232,6 @@ func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus
 	return nil, consensus.ErrNotSupportedMethod
 }
 
-func (s *SimpleBlockFactory) ClusterMemberAttrs() ([]*types.MemberAttr, error) {
-	return nil, consensus.ErrNotSupportedMethod
+func (s *SimpleBlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
+	return nil, nil, consensus.ErrNotSupportedMethod
 }

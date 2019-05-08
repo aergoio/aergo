@@ -52,17 +52,18 @@ func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.
 	data := msgBody.(*types.GetClusterInfoRequest)
 	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, data.String())
 
-	// TODO get cluster info
 	resp := &types.GetClusterInfoResponse{}
 
+	// GetClusterInfo from consensus
 	if ph.consAcc == nil {
 		resp.Error = ErrConsensusAccessorNotReady.Error()
 	} else {
-		mbrs, err := ph.consAcc.ClusterMemberAttrs()
+		mbrs, chainID, err := ph.consAcc.ClusterInfo()
 		if err != nil {
 			resp.Error = err.Error()
 		} else {
 			resp.MbrAttrs = mbrs
+			resp.ChainID = chainID
 		}
 	}
 

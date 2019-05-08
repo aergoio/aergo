@@ -1049,18 +1049,7 @@ func (rs *raftServer) Status() raftlib.Status {
 // GetExistingCluster returns information of existing cluster.
 // It request member info to all of peers.
 func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
-	// TODO XXX implement with p2p
-	var excluster Cluster
-
-	excluster = *rs.cluster
-	excluster.configMembers = nil
-	excluster.members = newMembers()
-
-	for _, member := range rs.cluster.configMembers.ToArray() {
-		excluster.addMember(member, false)
-	}
-
-	return &excluster, nil
+	return GetClusterInfo(rs.ComponentHub)
 }
 
 func marshalEntryData(block *types.Block) ([]byte, error) {

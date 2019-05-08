@@ -93,6 +93,10 @@ func newMembers() *Members {
 	}
 }
 
+func (mbrs *Members) len() int {
+	return len(mbrs.MapByID)
+}
+
 func (mbrs *Members) reset() {
 	*mbrs = *newMembers()
 }
@@ -143,6 +147,22 @@ func NewCluster(chainID []byte, bf *BlockFactory, raftName string, chainTimestam
 	cl.changeSeq = 0
 	cl.setEffectiveMembers(cl.configMembers)
 	cl.Unlock()
+
+	return cl
+}
+
+func NewClusterFromMemberAttrs(chainID []byte, memberAttrs []*types.MemberAttr) *Cluster {
+	cl := NewCluster(chainID, nil, "", 0)
+
+	for _, mbrAttr := range memberAttrs {
+		var mbr consensus.Member
+
+		mbr.SetAttr(mbrAttr)
+
+		if err := cl.addMember(&mbr, false); err != nil {
+			logger.Error().Err(err).Msg("fail to add member")
+		}
+	}
 
 	return cl
 }
@@ -304,10 +324,29 @@ func (cl *Cluster) CompatibleExistingCluster(existingCl *Cluster) bool {
 
 		myMember.ID = exMember.ID
 
-		cl.addMember(myMember, false)
+		if err := cl.addMember(myMember, false); err != nil {
+			logger.Error().Err(err).Msg("fail to add member")
+		}
 	}
 
 	return true
+}
+
+func (cl *Cluster) getMemberAttrs() []*types.MemberAttr {
+	cl.Lock()
+	defer cl.Unlock()
+
+	attrs := make([]*types.MemberAttr, cl.members.len())
+
+	var i = 0
+	for _, mbr := range cl.members.MapByID {
+		// copy attr since it can be modified
+		attr := mbr.MemberAttr
+		attrs[i] = &attr
+		i++
+	}
+
+	return attrs
 }
 
 func (mbrs *Members) add(member *consensus.Member) {

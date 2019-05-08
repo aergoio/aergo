@@ -330,6 +330,6 @@ func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, er
 	return nil, consensus.ErrNotSupportedMethod
 }
 
-func (dpos *DPoS) ClusterMemberAttrs() ([]*types.MemberAttr, error) {
-	return nil, consensus.ErrNotSupportedMethod
+func (dpos *DPoS) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
+	return nil, nil, consensus.ErrNotSupportedMethod
 }
