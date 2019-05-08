@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
 	"sync"
 	"time"
@@ -205,6 +206,10 @@ func (p2ps *P2P) Receive(context actor.Context) {
 				p2ps.checkAndAddPeerAddresses(msg.Peers)
 			}
 		}
+	case *message.GetCluster:
+		peers := p2ps.pm.GetPeers()
+		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
+		clusterReceiver.StartGet()
 	}
 }
 

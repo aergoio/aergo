@@ -87,5 +87,10 @@ func (ph *getClusterResponseHandler) Handle(msg p2pcommon.Message, msgBody proto
 
 	remotePeer.ConsumeRequest(msg.OriginalID())
 
-	// TODO do handle response
+	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
+		// ignore dangling response
+		// TODO add penalty if needed
+		remotePeer.ConsumeRequest(msg.OriginalID())
+	}
+
 }
