@@ -28,8 +28,6 @@ func (wal *WalDB) SaveEntry(state raftpb.HardState, entries []raftpb.Entry) erro
 		if err := wal.WriteRaftEntry(walEnts, blocks); err != nil {
 			return err
 		}
-
-		return nil
 	}
 
 	// hardstate must save after entries since entries may include commited one
