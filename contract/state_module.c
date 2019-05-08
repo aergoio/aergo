@@ -152,7 +152,7 @@ static int state_map_delete(lua_State *L)
 {
     /* m key */
     state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
-    state_map_check_index(L, m, 1);
+    state_map_check_index(L, m, 0);
     if (m->key_type == LUA_TNONE) {
         return 0;
     }
@@ -447,6 +447,7 @@ static int state_var(lua_State *L)
             lua_pushstring(L, TYPE_NAME);               /* T key value VT _type_ */
             lua_pushstring(L, "map");                   /* T key value VT _type_ "map" */
             lua_rawset(L, -3);                          /* T key value VT{_type="map"} */
+            goto found;
         }
 
         arr = luaL_testudata(L, -1, STATE_ARRAY_ID);
@@ -459,6 +460,7 @@ static int state_var(lua_State *L)
             lua_pushstring(L, TYPE_LEN);                /* T key value VT _len_ */
             lua_pushinteger(L, arr->len);               /* T key value VT _len_ len */
             lua_rawset(L, -3);                          /* T key value VT{_type_="array", _len_=len} */
+            goto found;
         }
 
         v = luaL_testudata(L, -1, STATE_VALUE_ID);
@@ -468,8 +470,10 @@ static int state_var(lua_State *L)
             lua_pushstring(L, TYPE_NAME);               /* T key value VT _type_ */
             lua_pushstring(L, "value");                 /* T key value VT _type_ "value" */
             lua_rawset(L, -3);                          /* T key value VT{_type="value"} */
+            goto found;
         }
 
+found:
         if (lua_istable(L, -1)) {
             insert_var(L, var_name);
             lua_setglobal(L, var_name);                 /* T key */
