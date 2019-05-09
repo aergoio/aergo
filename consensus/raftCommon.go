@@ -242,6 +242,14 @@ func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int
 	return m
 }
 
+func (m *Member) Clone() *Member {
+	newM := Member{MemberAttr: types.MemberAttr{ID: m.ID, Name: m.Name, Url: m.Url}}
+
+	copy(newM.PeerID, m.PeerID)
+
+	return &newM
+}
+
 func (m *Member) SetAttr(attr *types.MemberAttr) {
 	m.MemberAttr = *attr
 }

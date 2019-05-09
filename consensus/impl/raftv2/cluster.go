@@ -139,14 +139,13 @@ func NewCluster(chainID []byte, bf *BlockFactory, raftName string, chainTimestam
 		NodeName:           raftName,
 		configMembers:      newMembers(),
 		members:            newMembers(),
-		cdb:                bf.ChainWAL,
 		confChangeC:        make(chan *consensus.ConfChangePropose),
 	}
+	if bf != nil {
+		cl.cdb = bf.ChainWAL
+	}
 
-	cl.Lock()
-	cl.changeSeq = 0
 	cl.setEffectiveMembers(cl.configMembers)
-	cl.Unlock()
 
 	return cl
 }
@@ -302,8 +301,8 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	return nil
 }
 
-// CompatibleExistingCluster tests if members of existing cluster are matched with this cluster
-func (cl *Cluster) CompatibleExistingCluster(existingCl *Cluster) bool {
+// ValidateAndMergeExistingCluster tests if members of existing cluster are matched with this cluster
+func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	myMembers := cl.configMembers.ToArray()
 	exMembers := existingCl.members.ToArray()
 
@@ -321,14 +320,14 @@ func (cl *Cluster) CompatibleExistingCluster(existingCl *Cluster) bool {
 			logger.Error().Str("mymember", myMember.ToString()).Str("existmember", exMember.ToString()).Msg("not compatible with existing member configuration")
 			return false
 		}
-
-		myMember.ID = exMember.ID
-
-		if err := cl.addMember(myMember, false); err != nil {
-			logger.Error().Err(err).Msg("fail to add member")
-		}
 	}
 
+	cl.members = existingCl.members
+	cl.setEffectiveMembers(cl.members)
+	// reset self nodeID of cluster
+	cl.NodeID = cl.getNodeID(cl.NodeName)
+
+	logger.Debug().Str("my", cl.toString()).Msg("cluster merged with existing cluster")
 	return true
 }
 
@@ -490,14 +489,26 @@ func (cl *Cluster) toString() string {
 	defer cl.Unlock()
 
 	var buf string
+	var myNodeID uint64
 
-	myNode := cl.configMembers.getMemberByName(cl.NodeName)
+	if len(cl.NodeName) != 0 {
+		myNodeID = cl.getNodeID(cl.NodeName)
+	}
 
-	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%x", cl.Size, cl.NodeName, myNode.ID)
+	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%x", cl.Size, cl.NodeName, myNodeID)
 	buf += ", config members: " + cl.configMembers.toString()
 	buf += ", runtime members: " + cl.members.toString()
 
 	return buf
+}
+
+func (cl *Cluster) getNodeID(name string) uint64 {
+	m, ok := cl.getEffectiveMembers().MapByName[name]
+	if !ok {
+		return consensus.InvalidMemberID
+	}
+
+	return m.ID
 }
 
 func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
@@ -541,6 +552,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 		Name   string
 		RaftID string
 		PeerID string
+		Addr   string
 	}
 
 	b, err := json.Marshal(cl.getRaftInfo(true))
@@ -559,7 +571,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 	bps := make([]string, cl.Size)
 
 	for id, m := range cl.getEffectiveMembers().MapByID {
-		bp := &PeerInfo{Name: m.Name, RaftID: MemberIDToString(m.ID), PeerID: m.GetPeerID().Pretty()}
+		bp := &PeerInfo{Name: m.Name, RaftID: MemberIDToString(m.ID), PeerID: m.GetPeerID().Pretty(), Addr: m.Url}
 		b, err = json.Marshal(bp)
 		if err != nil {
 			logger.Error().Err(err).Str("raftid", MemberIDToString(id)).Msg("failed to marshalEntryData raft consensus bp")
@@ -614,7 +626,7 @@ func (cl *Cluster) requestConfChange(req *types.MembershipChange) (*consensus.Co
 		return nil, ErrPendingConfChange
 	}
 
-	logger.Info().Str("request", req.ToString()).Msg("start change membership of cluster")
+	logger.Info().Str("request", req.ToString()).Msg("start to change membership of cluster")
 
 	var (
 		member *consensus.Member

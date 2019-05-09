@@ -85,8 +85,6 @@ func (ph *getClusterResponseHandler) Handle(msg p2pcommon.Message, msgBody proto
 	data := msgBody.(*types.GetClusterInfoResponse)
 	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data.String())
 
-	remotePeer.ConsumeRequest(msg.OriginalID())
-
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
 		// ignore dangling response
 		// TODO add penalty if needed

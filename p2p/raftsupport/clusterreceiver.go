@@ -48,7 +48,7 @@ const (
 )
 
 func NewClusterInfoReceiver(actor p2pcommon.ActorService, mf p2pcommon.MoFactory, peers []p2pcommon.RemotePeer, ttl time.Duration, req *message.GetCluster) *ClusterInfoReceiver {
-	return &ClusterInfoReceiver{actor: actor, mf: mf, peers: peers, ttl:ttl, req: req, sents: make(map[p2pcommon.MsgID]p2pcommon.RemotePeer)}
+	return &ClusterInfoReceiver{actor: actor, mf: mf, peers: peers, ttl: ttl, req: req, sents: make(map[p2pcommon.MsgID]p2pcommon.RemotePeer)}
 }
 
 func (br *ClusterInfoReceiver) StartGet() {
@@ -128,7 +128,6 @@ func (br *ClusterInfoReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 		}
 		return
 	}
-
 
 	// return the result
 	br.finishReceiver()

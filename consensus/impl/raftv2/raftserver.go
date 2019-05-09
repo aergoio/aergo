@@ -134,6 +134,23 @@ type LeaderStatus struct {
 	leaderChanged uint64
 }
 
+func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
+	c := &raftlib.Config{
+		ID:                        nodeID,
+		ElectionTick:              10,
+		HeartbeatTick:             1,
+		Storage:                   storage,
+		MaxSizePerMsg:             1024 * 1024,
+		MaxInflightMsgs:           256,
+		Logger:                    raftLogger,
+		CheckQuorum:               true,
+		PreVote:                   true,
+		DisableProposalForwarding: true,
+	}
+
+	return c
+}
+
 // newRaftServer initiates a raft instance and returns a committed log entry
 // channel and error channel. Proposals for log updates are sent over the
 // provided the proposal channel. All log entries are replayed over the
@@ -183,7 +200,13 @@ func newRaftServer(hub *component.ComponentHub,
 		rs.SetPromotable(false)
 	}
 
+	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
+
 	return rs
+}
+
+func (rs *raftServer) SetID(id uint64) {
+	rs.id = id
 }
 
 func (rs *raftServer) SetPeerAccessor(pa p2pcommon.PeerAccessor) {
@@ -214,21 +237,6 @@ func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
 }
 
 func (rs *raftServer) startRaft() {
-	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
-
-	c := &raftlib.Config{
-		ID:                        uint64(rs.id),
-		ElectionTick:              10,
-		HeartbeatTick:             1,
-		Storage:                   rs.raftStorage,
-		MaxSizePerMsg:             1024 * 1024,
-		MaxInflightMsgs:           256,
-		Logger:                    raftLogger,
-		CheckQuorum:               true,
-		PreVote:                   true,
-		DisableProposalForwarding: true,
-	}
-
 	var (
 		node   raftlib.Node
 		hasWal bool
@@ -258,7 +266,7 @@ func (rs *raftServer) startRaft() {
 			}
 		}
 
-		c.Storage = rs.raftStorage
+		c := makeConfig(rs.id, rs.raftStorage)
 
 		node = raftlib.RestartNode(c)
 	} else if rs.join {
@@ -271,12 +279,15 @@ func (rs *raftServer) startRaft() {
 		}
 
 		// config validate
-		if !rs.cluster.CompatibleExistingCluster(existCluster) {
+		if !rs.cluster.ValidateAndMergeExistingCluster(existCluster) {
 			logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
 		}
 
 		rs.raftStorage = raftlib.NewMemoryStorage()
-		c.Storage = rs.raftStorage
+
+		// reset my raft nodeID from existing cluster
+		rs.SetID(rs.cluster.NodeID)
+		c := makeConfig(rs.id, rs.raftStorage)
 
 		node = raftlib.StartNode(c, nil)
 	} else {
@@ -290,7 +301,8 @@ func (rs *raftServer) startRaft() {
 		}
 
 		rs.raftStorage = raftlib.NewMemoryStorage()
-		c.Storage = rs.raftStorage
+
+		c := makeConfig(rs.id, rs.raftStorage)
 
 		node = raftlib.StartNode(c, startPeers)
 	}
@@ -1049,7 +1061,26 @@ func (rs *raftServer) Status() raftlib.Status {
 // GetExistingCluster returns information of existing cluster.
 // It request member info to all of peers.
 func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
-	return GetClusterInfo(rs.ComponentHub)
+	var (
+		cl  *Cluster
+		err error
+	)
+	for i := 1; i <= MaxTryGetCluster; i++ {
+		cl, err = GetClusterInfo(rs.ComponentHub)
+		if err != nil {
+			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
+				logger.Debug().Int("try", i).Msg("failed try to get cluster. and sleep")
+				time.Sleep(time.Second * 10)
+			} else {
+				logger.Warn().Err(err).Int("try", i).Msg("failed try to get cluster")
+			}
+			continue
+		}
+
+		return cl, nil
+	}
+
+	return nil, ErrGetClusterFail
 }
 
 func marshalEntryData(block *types.Block) ([]byte, error) {
