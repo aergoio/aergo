@@ -166,5 +166,8 @@ ast_stmt_t *stmt_new_pragma(pragma_kind_t kind, ast_exp_t *val_exp, char *val_st
 
 ast_stmt_t *stmt_make_assign(ast_id_t *var_id, ast_exp_t *val_exp);
 ast_stmt_t *stmt_make_malloc(uint32_t reg_idx, uint32_t size, uint8_t align, src_pos_t *pos);
+ast_stmt_t *stmt_make_memcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, uint32_t size,
+                             src_pos_t *pos);
+ast_stmt_t *stmt_make_strcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, src_pos_t *pos);
 
 #endif /* ! _AST_STMT_H */

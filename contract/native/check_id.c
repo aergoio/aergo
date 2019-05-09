@@ -18,6 +18,7 @@ id_check_array(check_t *check, ast_id_t *id)
 {
     int i;
     int dim_sz;
+    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
     vector_t *size_exps = id->u_var.size_exps;
 
     ASSERT1(is_var_id(id), id->kind);
@@ -30,8 +31,10 @@ id_check_array(check_t *check, ast_id_t *id)
         CHECK(exp_check(check, size_exp));
 
         if (is_null_exp(size_exp)) {
-            if (!is_param_id(id) && id->u_var.dflt_exp == NULL)
+            if (!is_param_id(id) && dflt_exp == NULL)
                 RETURN(ERROR_MISSING_ARR_SIZE, &size_exp->pos);
+
+            id->meta.is_fixed = false;
         }
         else {
             value_t *size_val = NULL;
@@ -56,37 +59,16 @@ id_check_array(check_t *check, ast_id_t *id)
         }
     }
 
+    if (id->meta.is_fixed && dflt_exp != NULL && is_alloc_exp(dflt_exp))
+        RETURN(ERROR_NOT_ALLOWED_ALLOC, &dflt_exp->pos);
+
     return true;
-}
-
-static void
-make_default_exp(ast_id_t *id)
-{
-    meta_t *meta = &id->meta;
-    ast_exp_t *dflt_exp;
-
-    if (is_array_meta(meta) || is_struct_meta(meta) || is_map_meta(meta)) {
-        dflt_exp = exp_new_alloc(id->u_var.type_exp, &id->pos);
-
-        dflt_exp->u_alloc.size_exps = id->u_var.size_exps;
-    }
-    else if (is_bool_meta(meta)) {
-        dflt_exp = exp_new_lit_bool(false, &id->pos);
-    }
-    else if (is_nullable_meta(meta)) {
-        dflt_exp = exp_new_lit_null(&id->pos);
-    }
-    else {
-        dflt_exp = exp_new_lit_int(0, &id->pos);
-    }
-
-    id->u_var.dflt_exp = dflt_exp;
 }
 
 static bool
 id_check_var(check_t *check, ast_id_t *id)
 {
-    ast_exp_t *dflt_exp;
+    ast_exp_t *dflt_exp = id->u_var.dflt_exp;
 
     ASSERT1(is_var_id(id), id->kind);
     ASSERT(id->name != NULL);
@@ -100,25 +82,21 @@ id_check_var(check_t *check, ast_id_t *id)
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
 
-    if (id->u_var.dflt_exp == NULL) {
-        if (is_const_id(id))
-            RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+    if (dflt_exp != NULL) {
+        /* TODO: named initializer */
+        CHECK(exp_check(check, dflt_exp));
+        CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
 
-        make_default_exp(id);
+        meta_eval(&id->meta, &dflt_exp->meta);
+
+        exp_check_overflow(dflt_exp, &id->meta);
+
+        if (is_const_id(id) && is_lit_exp(dflt_exp))
+            id->val = &dflt_exp->u_lit.val;
     }
-
-    dflt_exp = id->u_var.dflt_exp;
-
-    /* TODO: named initializer */
-    CHECK(exp_check(check, dflt_exp));
-    CHECK(meta_cmp(&id->meta, &dflt_exp->meta));
-
-    meta_eval(&id->meta, &dflt_exp->meta);
-
-    exp_check_overflow(dflt_exp, &id->meta);
-
-    if (is_const_id(id) && is_lit_exp(dflt_exp))
-        id->val = &dflt_exp->u_lit.val;
+    else if (is_const_id(id)) {
+        RETURN(ERROR_MISSING_CONST_VAL, &id->pos);
+    }
 
     return true;
 }
@@ -149,8 +127,8 @@ id_check_struct(check_t *check, ast_id_t *id)
 
         ASSERT1(fld_meta->rel_addr == 0, fld_meta->rel_addr);
 
-        fld_meta->rel_offset = ALIGN(offset, TYPE_ALIGN(fld_meta->type));
-        offset += meta_regsz(fld_meta);
+        fld_meta->rel_offset = ALIGN(offset, meta_align(fld_meta));
+        offset += meta_memsz(fld_meta);
     }
 
     meta_set_struct(&id->meta, id);

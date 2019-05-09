@@ -125,12 +125,17 @@ contract test {
         k[2][idx] = 11;
         pragma assert(k[2][1] == 11);
 
-        int l[][] = i;
-        int m[] = i[1];
-        pragma assert(m.size == 3);
-        pragma assert(m[0] == 10);
-        pragma assert(m[1] == 5);
-        pragma assert(m[2] == 6);
+        int l[] = i[1];
+        pragma assert(l.size == 3);
+        pragma assert(l[0] == 10);
+        pragma assert(l[1] == 5);
+        pragma assert(l[2] == 6);
+
+        l = i[0];
+        pragma assert(l.size == 3);
+        pragma assert(l[0] == 17);
+        pragma assert(l[1] == 2);
+        pragma assert(l[2] == 3);
     }
 }
 
@@ -178,16 +183,16 @@ contract test {
     type s1 struct { int a, b; }
     test() {
         s1 v1;
-        s1 v2 = new { 11, -11 };
+        s1 v2 = new { 11, -8 };
         v1 = v2;
         pragma assert(v1.a == 11);
-        pragma assert(v1.b == -11);
-        v2.b = -13;
-        pragma assert(v1.a == 11);
-        pragma assert(v1.b == -13);
+        pragma assert(v1.b == -8);
+        v2.b = -17;
+        pragma assert(v2.a == 11);
+        pragma assert(v2.b == -17);
         v2 = v1;
         pragma assert(v2.a == 11);
-        pragma assert(v2.b == -13);
+        pragma assert(v2.b == -8);
     }
 }
 
@@ -204,17 +209,26 @@ contract test {
         s1 v3 = new { 9, 10 };
 
         v1[0][1] = v3;
+        pragma assert(v1[0][0].a == 1);
+        pragma assert(v1[0][0].b == 2);
         pragma assert(v1[0][1].a == 9);
         pragma assert(v1[0][1].b == 10);
+        pragma assert(v1[1][0].a == 5);
+        pragma assert(v1[1][0].b == 6);
+        pragma assert(v1[1][1].a == 7);
+        pragma assert(v1[1][1].b == 8);
         v2[1] = v3;
         pragma assert(v2[1].a == 9);
         pragma assert(v2[1].b == 10);
+
         v3 = v1[1][0];
         pragma assert(v3.a == 5);
         pragma assert(v3.b == 6);
+
         v3 = v2[2];
         pragma assert(v3.a == 0);
         pragma assert(v3.b == 0);
+
         s1 v4[][] = v1;
         pragma assert(v4[0][0].a == 1);
         pragma assert(v4[0][0].b == 2);
@@ -224,11 +238,13 @@ contract test {
         pragma assert(v4[1][0].b == 6);
         pragma assert(v4[1][1].a == 7);
         pragma assert(v4[1][1].b == 8);
+
         s1 v5[] = v1[0];
         pragma assert(v5[0].a == 1);
         pragma assert(v5[0].b == 2);
         pragma assert(v5[1].a == 9);
         pragma assert(v5[1].b == 10);
+
         s1 v6[] = v2;
         pragma assert(v6[0].a == 0);
         pragma assert(v6[0].b == 0);
@@ -236,6 +252,7 @@ contract test {
         pragma assert(v6[1].b == 10);
         pragma assert(v6[2].a == 0);
         pragma assert(v6[2].b == 0);
+
         v6[0].a = 0xf0;
         v6[0].b = 0xf1;
         pragma assert(v2[0].a == 0xf0);

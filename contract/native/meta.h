@@ -58,8 +58,8 @@
 #define is_numeric_meta(meta)       (is_integer_meta(meta) || is_fpoint_meta(meta))
 
 #define is_nullable_meta(meta)                                                                     \
-    (is_array_meta(meta) || is_string_meta(meta) || is_struct_meta(meta) ||                        \
-     is_map_meta(meta) || is_object_meta(meta))
+    ((is_array_meta(meta) && !is_fixed_array(meta)) || is_string_meta(meta) ||                     \
+     is_struct_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
 
 #define is_address_meta(meta)                                                                      \
     (is_string_meta(meta) || is_array_meta(meta) || is_struct_meta(meta) || is_map_meta(meta))
@@ -73,8 +73,10 @@
       (is_string_meta(x) && !is_bool_meta(y)) ||                                                   \
       (is_numeric_meta(x) && is_numeric_meta(y))))
 
-#define is_array_meta(meta)         ((meta)->arr_dim > 0)
 #define is_undef_meta(meta)         (meta)->is_undef
+
+#define is_array_meta(meta)         ((meta)->arr_dim > 0)
+#define is_fixed_array(meta)        ((meta)->is_fixed)
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -95,9 +97,8 @@
 #define meta_cnt(meta)                                                                             \
     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1)
 
-#define meta_iosz(meta)             (is_address_meta(meta) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
-#define meta_regsz(meta)            (is_address_meta(meta) ? ADDR_SIZE : TYPE_SIZE((meta)->type))
-#define meta_alsz(meta)             (meta_iosz(meta) < 4 ? meta_iosz(meta) : meta_iosz(meta) / 2)
+#define meta_iosz(meta)                                                                            \
+    ((is_array_meta(meta) && !is_fixed_array(meta)) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
 
 #ifndef _META_T
 #define _META_T
@@ -120,6 +121,7 @@ struct meta_s {
     bool is_undef;          /* whether it is literal */
 
     /* array specifications */
+    bool is_fixed;          /* whether it is fixed-length array */
     int max_dim;            /* maximum dimension */
     int arr_dim;            /* current dimension */
     int *dim_sizes;         /* size of each dimension */
@@ -149,6 +151,8 @@ void meta_set_object(meta_t *meta, ast_id_t *id);
 
 bool meta_cmp(meta_t *x, meta_t *y);
 void meta_eval(meta_t *x, meta_t *y);
+
+static inline uint32_t meta_memsz(meta_t *meta);
 
 static inline void
 meta_init(meta_t *meta, src_pos_t *pos)
@@ -181,8 +185,9 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
 {
     int i;
 
-    ASSERT(arr_dim > 0);
+    ASSERT1(arr_dim > 0, arr_dim);
 
+    meta->is_fixed = true;
     meta->max_dim = arr_dim;
     meta->arr_dim = arr_dim;
 
@@ -195,9 +200,11 @@ meta_set_arr_dim(meta_t *meta, int arr_dim)
 static inline void
 meta_set_dim_sz(meta_t *meta, int dim, int size)
 {
-    ASSERT(dim >= 0);
-    ASSERT(meta->arr_dim > 0);
+    ASSERT1(dim >= 0, dim);
+    ASSERT1(size > 0, size);
+    ASSERT1(meta->arr_dim > 0, meta->arr_dim);
 
+    meta->is_fixed = true;
     meta->dim_sizes[dim] = size;
 }
 
@@ -215,32 +222,41 @@ meta_strip_arr_dim(meta_t *meta)
 }
 
 static inline uint32_t
-meta_memsz(meta_t *meta)
+meta_typsz(meta_t *meta)
 {
-    int i;
     uint32_t size = 0;
 
-    if (is_tuple_meta(meta)) {
-        if (is_array_meta(meta))
-            size = meta_align(meta);
+    if (is_struct_meta(meta)) {
+        int i;
 
         for (i = 0; i < meta->elem_cnt; i++) {
-            meta_t *elem_meta = meta->elems[i];
-
-            size = ALIGN(size, meta_align(elem_meta));
-
-            if (is_tuple_meta(elem_meta))
-                size += meta_memsz(elem_meta);
-            else
-                size += meta_regsz(elem_meta);
+            size = ALIGN(size, meta_align(meta->elems[i])) + meta_memsz(meta->elems[i]);
         }
     }
-    else if (is_array_meta(meta)) {
+    else {
+        size = TYPE_SIZE(meta->type);
+    }
+
+    return size;
+}
+
+static inline uint32_t
+meta_memsz(meta_t *meta)
+{
+    uint32_t size = meta_typsz(meta);
+
+    ASSERT(!is_tuple_meta(meta));
+
+    if (is_array_meta(meta)) {
+        int i;
         uint32_t dim_sz = 1;
 
         ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
 
-        size = TYPE_SIZE(meta->type);
+        if (!is_fixed_array(meta))
+            return ADDR_SIZE;
+
+        /* element size */
         for (i = 0; i < meta->arr_dim; i++) {
             ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
             size *= meta->dim_sizes[i];
@@ -253,24 +269,6 @@ meta_memsz(meta_t *meta)
             size += dim_sz * meta_align(meta);
         }
     }
-    else if (is_struct_meta(meta)) {
-        for (i = 0; i < meta->elem_cnt; i++) {
-            meta_t *elem_meta = meta->elems[i];
-
-            if (is_tuple_meta(elem_meta)) {
-                ASSERT(is_array_meta(elem_meta));
-                size = ALIGN32(size) + ADDR_SIZE;
-            }
-            else {
-                size = ALIGN(size, meta_align(elem_meta)) + meta_regsz(elem_meta);
-            }
-        }
-    }
-    else {
-        ASSERT(!is_tuple_meta(meta));
-
-        size = meta_regsz(meta);
-    }
 
     return size;
 }
@@ -278,18 +276,8 @@ meta_memsz(meta_t *meta)
 static inline void
 meta_copy(meta_t *dest, meta_t *src)
 {
-    dest->type = src->type;
-    dest->is_undef = src->is_undef;
-    dest->align = src->align;
-    dest->max_dim = src->max_dim;
-    dest->arr_dim = src->arr_dim;
-    dest->dim_sizes = src->dim_sizes;
-    dest->is_undef = src->is_undef;
-    dest->elem_cnt = src->elem_cnt;
-    dest->elems = src->elems;
-    dest->type_id = src->type_id;
-
     /* deliberately excluded base_idx, rel_addr, rel_offset, pos */
+    memcpy(dest, src, offsetof(meta_t, base_idx));
 }
 
 #endif /* ! _META_H */

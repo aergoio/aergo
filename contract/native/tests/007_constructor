@@ -57,7 +57,7 @@ contract test {
         c1[0] = new callee();
         c1[1] = new callee();
 
-        callee c2[2] = new callee[2];
+        callee c2[] = new callee[2];
         c2[0] = c1[0];
         c2[1] = c1[1];
     }
@@ -80,7 +80,7 @@ contract test {
 }
 
 @test(missing_parenthesis)
-@error(ERROR_INVALID_INITIALIZER)
+@error(ERROR_NOT_ALLOWED_ALLOC)
 contract callee { }
 
 contract test {

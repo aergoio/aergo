@@ -80,7 +80,6 @@ typedef struct exp_type_s {
 
 /* id[idx] */
 typedef struct exp_array_s {
-    bool is_static;
     ast_exp_t *id_exp;
     ast_exp_t *idx_exp;
 } exp_array_t;

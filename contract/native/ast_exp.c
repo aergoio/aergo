@@ -346,7 +346,6 @@ exp_clone(ast_exp_t *exp)
 
     case EXP_ARRAY:
         res = exp_new_array(exp_clone(exp->u_arr.id_exp), exp_clone(exp->u_arr.idx_exp), &exp->pos);
-        res->u_arr.is_static = exp->u_arr.is_static;
         break;
 
     case EXP_CAST:

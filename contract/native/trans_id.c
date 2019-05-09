@@ -17,18 +17,6 @@
 #include "trans_id.h"
 
 static void
-id_trans_var(trans_t *trans, ast_id_t *id)
-{
-    if (is_global_id(id))
-        /* Initialization of the global variable will be done in the constructor */
-        return;
-
-    ASSERT(trans->fn != NULL);
-
-    id->idx = fn_add_register(trans->fn, &id->meta);
-}
-
-static void
 id_trans_param(trans_t *trans, ast_id_t *id)
 {
     ast_id_t *param_id;
@@ -58,14 +46,16 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
     ir_fn_t *fn = trans->fn;
     vector_t *stmts = vector_new();
 
+    ASSERT(id->up != NULL);
+    ASSERT1(is_cont_id(id->up), id->up->kind);
     ASSERT1(fn->heap_usage == 0, fn->heap_usage);
 
     fn->cont_idx = fn->heap_idx;
 
-    /* We use the "stmts" vector to keep the declaration order of variables */
+    trans->bb = fn->entry_bb;
+
     vector_foreach(&id->up->u_cont.blk->ids, i) {
         ast_id_t *glob_id = vector_get_id(&id->up->u_cont.blk->ids, i);
-        ast_exp_t *dflt_exp = NULL;
 
         if (is_var_id(glob_id)) {
             fn_add_global(fn, &glob_id->meta);
@@ -73,27 +63,26 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
             if (align == 0)
                 align = meta_align(&glob_id->meta);
 
-            dflt_exp = glob_id->u_var.dflt_exp;
+            stmt_add(stmts, stmt_new_id(glob_id, &glob_id->pos));
         }
         else if (is_tuple_id(glob_id)) {
             vector_foreach(glob_id->u_tup.elem_ids, j) {
                 ast_id_t *elem_id = vector_get_id(glob_id->u_tup.elem_ids, j);
 
+                ASSERT1(is_var_id(elem_id), elem_id->kind);
+
                 fn_add_global(fn, &elem_id->meta);
 
                 if (align == 0)
                     align = meta_align(&elem_id->meta);
+
+                stmt_add(stmts, stmt_new_id(elem_id, &elem_id->pos));
             }
-
-            dflt_exp = glob_id->u_tup.dflt_exp;
         }
-
-        if (dflt_exp != NULL)
-            stmt_add(stmts, stmt_make_assign(glob_id, dflt_exp));
     }
 
-    trans->bb = fn->entry_bb;
-
+    /* A contiguous memory space is required because the contract address must be passed to the
+     * member function. */
     if (fn->heap_usage > 0)
         stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, align, &id->pos));
 
@@ -267,13 +256,13 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
 static void
 id_trans_contract(trans_t *trans, ast_id_t *id)
 {
+    int i;
+    ast_blk_t *up = trans->blk;
     ast_blk_t *blk = id->u_cont.blk;
 
     ASSERT(blk != NULL);
 
     if (id->is_imported) {
-        int i;
-
         vector_foreach(&blk->ids, i) {
             ast_id_t *elem_id = vector_get_id(&blk->ids, i);
 
@@ -285,11 +274,16 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
 
     trans->id = id;
     trans->md = md_new(id->name);
+    trans->blk = blk;
 
-    blk_trans(trans, blk);
+    /* "blk->stmts" is no longer used. */
+    vector_foreach(&blk->ids, i) {
+        id_trans(trans, vector_get_id(&blk->ids, i));
+    }
 
     ir_add_md(trans->ir, trans->md);
 
+    trans->blk = up;
     trans->md = NULL;
     trans->id = NULL;
 }
@@ -321,26 +315,12 @@ id_trans_label(trans_t *trans, ast_id_t *id)
     id->u_lab.stmt->label_bb = bb_new();
 }
 
-static void
-id_trans_tuple(trans_t *trans, ast_id_t *id)
-{
-    int i;
-
-    vector_foreach(id->u_tup.elem_ids, i) {
-        id_trans_var(trans, vector_get_id(id->u_tup.elem_ids, i));
-    }
-}
-
 void
 id_trans(trans_t *trans, ast_id_t *id)
 {
     ASSERT(id != NULL);
 
     switch (id->kind) {
-    case ID_VAR:
-        id_trans_var(trans, id);
-        break;
-
     case ID_FN:
         id_trans_fn(trans, id);
         break;
@@ -357,12 +337,10 @@ id_trans(trans_t *trans, ast_id_t *id)
         id_trans_label(trans, id);
         break;
 
-    case ID_TUPLE:
-        id_trans_tuple(trans, id);
-        break;
-
+    case ID_VAR:
     case ID_STRUCT:
     case ID_ENUM:
+    case ID_TUPLE:
     case ID_LIB:
         break;
 

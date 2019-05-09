@@ -186,8 +186,8 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, idx_exp));
 
     if (is_array_meta(id_meta)) {
-        ASSERT(id_meta->arr_dim > 0);
-        ASSERT(id_meta->dim_sizes != NULL);
+        ASSERT1(id_meta->arr_dim > 0, id_meta->arr_dim);
+        ASSERT1(id_meta->dim_sizes != NULL, id_meta->arr_dim);
 
         if (!is_integer_meta(idx_meta))
             RETURN(ERROR_INVALID_SIZE_VAL, &idx_exp->pos, meta_to_str(idx_meta));
@@ -195,10 +195,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, id_meta);
 
         if (is_lit_exp(idx_exp)) {
-            int i;
             value_t *idx_val = &idx_exp->u_lit.val;
-
-            ASSERT(id_meta->dim_sizes != NULL);
 
             /* The "dim_sizes[0]" can be negative if array is used as a parameter */
             if (is_neg_val(idx_val) || val_i64(idx_val) > INT32_MAX ||
@@ -206,18 +203,13 @@ exp_check_array(check_t *check, ast_exp_t *exp)
                 RETURN(ERROR_INVALID_ARR_IDX, &idx_exp->pos);
 
             meta_set_int32(&idx_exp->meta);
-
-            exp->u_arr.is_static = true;
-            for (i = 0; i < exp->meta.arr_dim; i++) {
-                if (exp->meta.dim_sizes[i] == -1) {
-                    exp->u_arr.is_static = false;
-                    break;
-                }
-            }
         }
 
         /* Whenever an array element is accessed, strip it by one dimension */
         meta_strip_arr_dim(&exp->meta);
+
+        if (is_array_meta(&exp->meta))
+            exp->usable_lval = false;
     }
     else if (is_map_meta(id_meta)) {
         CHECK(meta_cmp(id_meta->elems[0], idx_meta));
@@ -243,9 +235,6 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     else {
         RETURN(ERROR_INVALID_SUBSCRIPT, &id_exp->pos);
     }
-
-    if (is_array_meta(&exp->meta) && exp->meta.arr_dim < exp->meta.max_dim)
-        exp->usable_lval = false;
 
     return true;
 }
@@ -859,18 +848,18 @@ static bool
 exp_check_alloc(check_t *check, ast_exp_t *exp)
 {
     meta_t *meta = &exp->meta;
+    ast_exp_t *type_exp = exp->u_alloc.type_exp;
+    vector_t *size_exps = exp->u_alloc.size_exps;
 
     ASSERT1(is_alloc_exp(exp), exp->kind);
-    ASSERT(exp->u_alloc.type_exp != NULL);
+    ASSERT(type_exp != NULL);
 
-    CHECK(exp_check(check, exp->u_alloc.type_exp));
+    CHECK(exp_check(check, type_exp));
 
-    meta_copy(meta, &exp->u_alloc.type_exp->meta);
+    meta_copy(meta, &type_exp->meta);
 
-    if (exp->u_alloc.size_exps != NULL) {
-        int i;
-        int dim_sz;
-        vector_t *size_exps = exp->u_alloc.size_exps;
+    if (size_exps != NULL) {
+        int i, dim_sz;
 
         meta_set_arr_dim(meta, vector_size(size_exps));
 
@@ -899,8 +888,8 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
             meta_set_dim_sz(meta, i, dim_sz);
         }
     }
-    else if (is_primitive_meta(meta) || is_object_meta(meta)) {
-        RETURN(ERROR_INVALID_INITIALIZER, &exp->pos);
+    else if (!is_array_meta(meta) && (is_primitive_meta(meta) || is_object_meta(meta))) {
+        RETURN(ERROR_NOT_ALLOWED_ALLOC, &exp->pos);
     }
 
     exp->usable_lval = false;

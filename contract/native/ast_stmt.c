@@ -241,4 +241,40 @@ stmt_make_malloc(uint32_t reg_idx, uint32_t size, uint8_t align, src_pos_t *pos)
     return stmt_new_assign(reg_exp, call_exp, pos);
 }
 
+ast_stmt_t *
+stmt_make_memcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, uint32_t size, src_pos_t *pos)
+{
+    ast_exp_t *call_exp;
+    ast_exp_t *arg_exp;
+    vector_t *arg_exps = vector_new();
+
+    exp_add(arg_exps, dest_exp);
+    exp_add(arg_exps, src_exp);
+
+    arg_exp = exp_new_lit_int(size, pos);
+    meta_set_int32(&arg_exp->meta);
+
+    exp_add(arg_exps, arg_exp);
+
+    call_exp = exp_new_call(FN_MEMCPY, NULL, arg_exps, pos);
+    meta_set_void(&call_exp->meta);
+
+    return stmt_new_exp(call_exp, pos);
+}
+
+ast_stmt_t *
+stmt_make_strcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, src_pos_t *pos)
+{
+    ast_exp_t *call_exp;
+    vector_t *arg_exps = vector_new();
+
+    exp_add(arg_exps, dest_exp);
+    exp_add(arg_exps, src_exp);
+
+    call_exp = exp_new_call(FN_STRCPY, NULL, arg_exps, pos);
+    meta_set_void(&call_exp->meta);
+
+    return stmt_new_exp(call_exp, pos);
+}
+
 /* end of ast_stmt.c */

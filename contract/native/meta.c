@@ -295,17 +295,16 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
         if (x->arr_dim != y->arr_dim)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
-        for (i = 0; i < x->arr_dim; i++) {
-            if (x->dim_sizes[i] == -1)
-                meta_set_dim_sz(x, i, y->dim_sizes[i]);
-            else if (x->dim_sizes[i] != y->dim_sizes[i])
-                RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[i], y->dim_sizes[i]);
+        if (is_fixed_array(x)) {
+            for (i = 0; i < x->arr_dim; i++) {
+                if (x->dim_sizes[i] != y->dim_sizes[i])
+                    RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[i],
+                           y->dim_sizes[i]);
+            }
         }
     }
     else if (is_tuple_meta(y)) {
-        if (x->dim_sizes[dim] == -1)
-            meta_set_dim_sz(x, dim, y->elem_cnt);
-        else if (x->dim_sizes[dim] != y->elem_cnt)
+        if (is_fixed_array(x) && x->dim_sizes[dim] != y->elem_cnt)
             RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[dim], y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {
@@ -316,6 +315,7 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
         }
     }
     else if (!is_undef_meta(y) || !is_object_meta(y)) {
+        /* not allowed except "null" */
         RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
     }
 
@@ -405,10 +405,12 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
                 meta_eval_array(x, dim + 1, y->elems[i]);
             }
 
+            y->type = x->type;
+            y->is_fixed = true;
             y->max_dim = x->max_dim;
             y->arr_dim = x->max_dim - dim;
             y->dim_sizes = &x->dim_sizes[dim];
-
+            y->dim_sizes[0] = y->elem_cnt;
             y->align = y->elems[0]->align;
         }
     }
