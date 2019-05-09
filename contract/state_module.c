@@ -477,7 +477,6 @@ static int state_var(lua_State *L)
             lua_pushstring(L, TYPE_NAME);               /* T key value VT _type_ */
             lua_pushstring(L, "value");                 /* T key value VT _type_ "value" */
             lua_rawset(L, -3);                          /* T key value VT{_type="value"} */
-            goto found;
         }
 
 found:
