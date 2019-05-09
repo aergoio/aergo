@@ -18,7 +18,7 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-var defaultBpCount int
+var lastBpCount int
 
 var voteKey = []byte("vote")
 var totalKey = []byte("total")
@@ -213,32 +213,33 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	return getVoteResult(scs, id, n)
 }
 
-// InitDefaultBpCount sets defaultBpCount to bpCount.
+// InitDefaultBpCount sets lastBpCount to bpCount.
 //
 // Caution: This function must be called only once before all the aergosvr
 // services start.
 func InitDefaultBpCount(bpCount int) {
 	// Ensure that it is not modified after it is initialized.
-	if defaultBpCount > 0 {
+	if lastBpCount > 0 {
 		return
 	}
-	defaultBpCount = bpCount
+	lastBpCount = bpCount
 }
 
-func getDefaultBpCount() int {
-	return defaultBpCount
+func getLastBpCount() int {
+	return lastBpCount
 }
+
 func GetBpCount(ar AccountStateReader) int {
 	result, err := GetVoteResultEx(ar, types.GenProposalKey("BPCOUNT"), 1)
 	if err != nil {
 		panic("could not get vote result for min staking")
 	}
 	if len(result.Votes) == 0 {
-		return getDefaultBpCount()
+		return getLastBpCount()
 	}
 	power := result.Votes[0].GetAmountBigInt()
 	if power.Cmp(big.NewInt(0)) == 0 {
-		return getDefaultBpCount()
+		return getLastBpCount()
 	}
 	total, err := getTotal(ar)
 	if err != nil {
@@ -247,11 +248,12 @@ func GetBpCount(ar AccountStateReader) int {
 	if new(big.Int).Div(total, new(big.Int).Div(power, big.NewInt(100))).Cmp(big.NewInt(150)) <= 0 {
 		bpcount, err := strconv.Atoi(string(result.Votes[0].GetCandidate()))
 		if err != nil {
-			return getDefaultBpCount()
+			return getLastBpCount()
 		}
+		lastBpCount = bpcount
 		return bpcount
 	}
-	return getDefaultBpCount()
+	return getLastBpCount()
 }
 
 // GetRankers returns the IDs of the top n rankers.

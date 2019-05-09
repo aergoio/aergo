@@ -184,7 +184,7 @@ func validateForStaking(account []byte, txBody *types.TxBody, scs *state.Contrac
 		return nil, types.ErrLessTimeHasPassed
 	}
 	toBe := new(big.Int).Add(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	if GetMinimumStaking(scs).Cmp(toBe) > 0 {
+	if getMinimumStaking(scs).Cmp(toBe) > 0 {
 		return nil, types.ErrTooSmallAmount
 	}
 	return staked, nil
@@ -217,7 +217,7 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 		return nil, types.ErrLessTimeHasPassed
 	}
 	toBe := new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	if toBe.Cmp(big.NewInt(0)) != 0 && GetMinimumStaking(scs).Cmp(toBe) > 0 {
+	if toBe.Cmp(big.NewInt(0)) != 0 && getMinimumStaking(scs).Cmp(toBe) > 0 {
 		return nil, types.ErrTooSmallAmount
 	}
 	return staked, nil

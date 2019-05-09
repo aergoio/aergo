@@ -6,6 +6,8 @@
 package message
 
 import (
+	"math/big"
+
 	"github.com/aergoio/aergo/types"
 )
 
@@ -193,5 +195,12 @@ type ListEventsRsp struct {
 	Err    error
 }
 
-type VerifyStart struct {
+type VerifyStart struct{}
+
+type GetParams struct{}
+
+type GetParamsRsp struct {
+	BpCount      int
+	MinStaking   *big.Int
+	MaxBlockSize uint64
 }

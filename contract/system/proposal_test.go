@@ -137,7 +137,7 @@ func TestProposalBPCount(t *testing.T) {
 
 	ar := &TestAccountStateReader{Scs: scs}
 	InitDefaultBpCount(3)
-	assert.Equal(t, defaultBpCount, GetBpCount(ar), "check event")
+	assert.Equal(t, lastBpCount, GetBpCount(ar), "check event")
 
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
@@ -149,7 +149,7 @@ func TestProposalBPCount(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "valid")
 
-	assert.Equal(t, defaultBpCount, GetBpCount(ar), "check bp")
+	assert.Equal(t, lastBpCount, GetBpCount(ar), "check bp")
 
 	validCandiTx.Body.Account = sender2.ID()
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["bpcount", "13", "17"]}`)

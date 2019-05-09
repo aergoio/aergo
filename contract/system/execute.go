@@ -70,7 +70,11 @@ func GetNamePrice(scs *state.ContractState) *big.Int {
 	return types.NamePrice
 }
 
-func GetMinimumStaking(scs *state.ContractState) *big.Int {
+func GetMinimumStaking(ar AccountStateReader) *big.Int {
+	return types.StakingMinimum
+}
+
+func getMinimumStaking(scs *state.ContractState) *big.Int {
 	//votelist, err := getVoteResult(scs, []byte(types.VoteMinStaking[2:]), 1)
 	//if err != nil {
 	//	panic("could not get vote result for min staking")
