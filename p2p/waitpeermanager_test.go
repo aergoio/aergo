@@ -228,7 +228,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			// in cases of handshake error
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMF.EXPECT().NewMsgRequestOrder(false, subproto.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
-			mockRW.EXPECT().WriteMsg(nil).MaxTimes(1)
+			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
 				mf: mockMF,

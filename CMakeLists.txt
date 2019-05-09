@@ -33,7 +33,7 @@ add_custom_target(colaris GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X g
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor)
 
-add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergoluac/...
+add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 

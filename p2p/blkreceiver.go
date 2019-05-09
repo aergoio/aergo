@@ -94,7 +94,7 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 		br.finishReceiver()
 		return
 	}
-	// responses malformed data will not expectec remained chunk.
+	// malformed responses means that later responses will be also malformed..
 	respBody, ok := msgBody.(types.ResponseMessage)
 	if !ok || respBody.GetStatus() != types.ResultStatus_OK {
 		br.cancelReceiving(message.RemotePeerFailError, false)

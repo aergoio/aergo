@@ -294,7 +294,7 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 }
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) p2pcommon.HSHandler {
-	handshakeHandler := &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: p2ps.chainID, peerID: pid}
+	handshakeHandler := newHandshaker(pm, actor, log, p2ps.chainID, pid)
 	if outbound {
 		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
 	} else {
