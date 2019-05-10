@@ -43,7 +43,7 @@ type PeerFinder interface {
 	CheckAndFill()
 }
 
-// WaitingPeerManager manage waint peer pool.
+// WaitingPeerManager manage wait peer pool.
 type WaitingPeerManager interface {
 	PeerEventListener
 	// OnDiscoveredPeers is called when response of discover query came from polaris or other peer.

@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -87,7 +88,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 
 			h := newV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
 			h.msgRW = mockRW
-			got, err := h.doForOutbound()
+			got, err := h.doForOutbound(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -161,7 +162,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 
 			h := newV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
 			h.msgRW = mockRW
-			got, err := h.doForInbound()
+			got, err := h.doForInbound(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerHandshaker.handshakeInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return

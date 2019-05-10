@@ -8,11 +8,13 @@ package p2p
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	peer "github.com/libp2p/go-libp2p-peer"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,40 +41,6 @@ func init() {
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", logger)
-}
-func Test_runFuncTimeout(t *testing.T) {
-	type args struct {
-		m   targetFunc
-		ttl time.Duration
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    interface{}
-		wantErr bool
-	}{
-		{"Tnorm", args{func(done chan<- interface{}) {
-			done <- "success"
-		}, time.Millisecond * 10}, "success", false},
-		{"Tnorm2", args{func(done chan<- interface{}) {
-			done <- -3
-		}, time.Millisecond * 10}, -3, false},
-		{"Ttimeout1", args{func(done chan<- interface{}) {
-			time.Sleep(time.Millisecond * 11)
-		}, time.Millisecond * 10}, nil, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := runFuncTimeout(tt.args.m, tt.args.ttl)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("runFuncTimeout() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("runFuncTimeout() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
@@ -111,10 +79,12 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 				time.Sleep(tt.delay)
 				return -1, fmt.Errorf("must not reach")
 			})
-
-			_, got, err := h.handshakeOutboundPeerTimeout(mockReader, mockWriter, time.Millisecond*50)
-			if err != TimeoutError {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, TimeoutError)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+			defer cancel()
+			_, got, err := h.handshakeOutboundPeer(ctx, mockReader, mockWriter)
+			//_, got, err := h.handshakeOutboundPeerTimeout(mockReader, mockWriter, time.Millisecond*50)
+			if !strings.Contains(err.Error(),"context deadline exceeded") {
+				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {

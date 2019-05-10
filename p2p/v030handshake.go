@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 
@@ -50,7 +51,7 @@ func newV030StateHS(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService, 
 }
 
 // handshakeOutboundPeer start handshake with outbound peer
-func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
+func (h *V030Handshaker) doForOutbound(ctx context.Context) (*types.Status, error) {
 	rw := h.msgRW
 	peerID := h.peerID
 
@@ -71,12 +72,24 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 	if err = rw.WriteMsg(container); err != nil {
 		return nil, err
 	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		// go on
+	}
 
 	// and wait to response status
 	data, err := rw.ReadMsg()
 	if err != nil {
 		// h.logger.Info().Err(err).Msg("fail to decode")
 		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		// go on
 	}
 
 	if data.Subprotocol() != subproto.StatusRequest {
@@ -112,7 +125,7 @@ func (h *V030Handshaker) doForOutbound() (*types.Status, error) {
 }
 
 // onConnect is handle handshake from inbound peer
-func (h *V030Handshaker) doForInbound() (*types.Status, error) {
+func (h *V030Handshaker) doForInbound(ctx context.Context) (*types.Status, error) {
 	rw := h.msgRW
 	peerID := h.peerID
 
@@ -124,6 +137,12 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	if err != nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		// go on
 	}
 
 	if data.Subprotocol() != subproto.StatusRequest {
@@ -171,6 +190,12 @@ func (h *V030Handshaker) doForInbound() (*types.Status, error) {
 	if err = rw.WriteMsg(container); err != nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("failed to send response status ")
 		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		// go on
 	}
 	return statusMsg, nil
 

@@ -8,6 +8,7 @@ package p2p
 import (
 	"bufio"
 	"encoding/binary"
+	"context"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"io"
@@ -24,7 +25,9 @@ type InboundHSHandler struct {
 }
 
 func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	return ih.handshakeInboundPeerTimeout(r, w, ttl)
+	ctx, cancel := context.WithTimeout(context.Background(), ttl)
+	defer cancel()
+	return ih.handshakeInboundPeer(ctx, r, w)
 }
 
 type OutboundHSHandler struct {
@@ -32,7 +35,9 @@ type OutboundHSHandler struct {
 }
 
 func (oh *OutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	return oh.handshakeOutboundPeerTimeout(r, w, ttl)
+	ctx, cancel := context.WithTimeout(context.Background(), ttl)
+	defer cancel()
+	return oh.handshakeOutboundPeer(ctx, r, w)
 }
 
 // PeerHandshaker works to handshake to just connected peer, it detect chain networks
@@ -50,8 +55,8 @@ type PeerHandshaker struct {
 
 // InnerHandshaker do handshake work and msgreadwriter for a protocol version
 type innerHandshaker interface {
-	doForOutbound() (*types.Status, error)
-	doForInbound() (*types.Status, error)
+	doForOutbound(ctx context.Context) (*types.Status, error)
+	doForInbound(ctx context.Context) (*types.Status, error)
 	GetMsgRW() p2pcommon.MsgReadWriter
 }
 
@@ -65,48 +70,19 @@ func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *
 	return &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: chainID, peerID: peerID}
 }
 
-func (h *PeerHandshaker) handshakeOutboundPeerTimeout(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	ret, err := runFuncTimeout(func(doneChan chan<- interface{}) {
-		rw, statusMsg, err := h.handshakeOutboundPeer(r, w)
-		doneChan <- &hsResult{rw: rw, statusMsg: statusMsg, err: err}
-	}, ttl)
-	if err != nil {
-		return nil, nil, err
-	}
-	return ret.(*hsResult).rw, ret.(*hsResult).statusMsg, ret.(*hsResult).err
-}
-
-func (h *PeerHandshaker) handshakeInboundPeerTimeout(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	ret, err := runFuncTimeout(func(doneChan chan<- interface{}) {
-		rw, statusMsg, err := h.handshakeInboundPeer(r, w)
-		doneChan <- &hsResult{rw: rw, statusMsg: statusMsg, err: err}
-	}, ttl)
-	if err != nil {
-		return nil, nil, err
-	}
-	return ret.(*hsResult).rw, ret.(*hsResult).statusMsg, ret.(*hsResult).err
-}
-
-type targetFunc func(chan<- interface{})
-
-func runFuncTimeout(m targetFunc, ttl time.Duration) (interface{}, error) {
-	done := make(chan interface{})
-	go m(done)
-	select {
-	case hsResult := <-done:
-		return hsResult, nil
-	case <-time.NewTimer(ttl).C:
-		return nil, TimeoutError
-	}
-}
-
-func (h *PeerHandshaker) handshakeOutboundPeer(r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *PeerHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// send initial hsmessage
 	hsHeader := HSHeader{Magic: p2pcommon.MAGICTest, Version: p2pcommon.P2PVersion030}
 	sent, err := bufWriter.Write(hsHeader.Marshal())
 	if err != nil {
 		return nil, nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	default:
+		// go on
 	}
 	if sent != len(hsHeader.Marshal()) {
 		return nil, nil, fmt.Errorf("transport error")
@@ -116,12 +92,12 @@ func (h *PeerHandshaker) handshakeOutboundPeer(r io.Reader, w io.Writer) (p2pcom
 	if err != nil {
 		return nil, nil, err
 	}
-	status, err := innerHS.doForOutbound()
+	status, err := innerHS.doForOutbound(ctx)
 	h.remoteStatus = status
 	return innerHS.GetMsgRW(), status, err
 }
 
-func (h *PeerHandshaker) handshakeInboundPeer(r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *PeerHandshaker) handshakeInboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	var hsHeader HSHeader
 	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// wait initial hsmessage
@@ -129,6 +105,12 @@ func (h *PeerHandshaker) handshakeInboundPeer(r io.Reader, w io.Writer) (p2pcomm
 	read, err := h.readToLen(bufReader, headBuf, 8)
 	if err != nil {
 		return nil, nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	default:
+		// go on
 	}
 	if read != 8 {
 		return nil, nil, fmt.Errorf("transport error")
@@ -140,7 +122,7 @@ func (h *PeerHandshaker) handshakeInboundPeer(r io.Reader, w io.Writer) (p2pcomm
 	if err != nil {
 		return nil, nil, err
 	}
-	status, err := innerHS.doForInbound()
+	status, err := innerHS.doForInbound(ctx)
 	// send hsresponse
 	h.remoteStatus = status
 	return innerHS.GetMsgRW(), status, err
