@@ -20,7 +20,7 @@ import (
 )
 
 type InboundHSHandler struct {
-	*PeerHandshaker
+	*LegacyWireHandshaker
 }
 
 func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
@@ -30,7 +30,7 @@ func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) 
 }
 
 type OutboundHSHandler struct {
-	*PeerHandshaker
+	*LegacyWireHandshaker
 }
 
 func (oh *OutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
@@ -39,9 +39,9 @@ func (oh *OutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration)
 	return oh.handshakeOutboundPeer(ctx, r, w)
 }
 
-// PeerHandshaker works to handshake to just connected peer, it detect chain networks
+// LegacyWireHandshaker works to handshake to just connected peer, it detect chain networks
 // and protocol versions, and then select InnerHandshaker for that protocol version.
-type PeerHandshaker struct {
+type LegacyWireHandshaker struct {
 	pm        p2pcommon.PeerManager
 	actorServ p2pcommon.ActorService
 	logger    *log.Logger
@@ -58,11 +58,11 @@ type hsResult struct {
 	err       error
 }
 
-func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID peer.ID) *PeerHandshaker {
-	return &PeerHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: chainID, peerID: peerID}
+func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID peer.ID) *LegacyWireHandshaker {
+	return &LegacyWireHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: chainID, peerID: peerID}
 }
 
-func (h *PeerHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *LegacyWireHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// send initial hsmessage
 	hsHeader := p2pcommon.HSHeader{Magic: p2pcommon.MAGICTest, Version: p2pcommon.P2PVersion030}
@@ -80,7 +80,7 @@ func (h *PeerHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader,
 		return nil, nil, fmt.Errorf("transport error")
 	}
 	// continue to handshake with VersionedHandshaker
-	innerHS, err := h.selectProtocolVersion(hsHeader, bufReader, bufWriter)
+	innerHS, err := h.selectProtocolVersion(hsHeader.Version, bufReader, bufWriter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -89,11 +89,11 @@ func (h *PeerHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader,
 	return innerHS.GetMsgRW(), status, err
 }
 
-func (h *PeerHandshaker) handshakeInboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *LegacyWireHandshaker) handshakeInboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	var hsHeader p2pcommon.HSHeader
 	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// wait initial hsmessage
-	headBuf := make([]byte, 8)
+	headBuf := make([]byte, p2pcommon.V030HSHeaderLength)
 	read, err := h.readToLen(bufReader, headBuf, 8)
 	if err != nil {
 		return nil, nil, err
@@ -104,13 +104,13 @@ func (h *PeerHandshaker) handshakeInboundPeer(ctx context.Context, r io.Reader, 
 	default:
 		// go on
 	}
-	if read != 8 {
+	if read != p2pcommon.V030HSHeaderLength {
 		return nil, nil, fmt.Errorf("transport error")
 	}
 	hsHeader.Unmarshal(headBuf)
 
 	// continue to handshake with VersionedHandshaker
-	innerHS, err := h.selectProtocolVersion(hsHeader, bufReader, bufWriter)
+	innerHS, err := h.selectProtocolVersion(hsHeader.Version, bufReader, bufWriter)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +120,7 @@ func (h *PeerHandshaker) handshakeInboundPeer(ctx context.Context, r io.Reader, 
 	return innerHS.GetMsgRW(), status, err
 }
 
-func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error) {
+func (h *LegacyWireHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error) {
 	remain := max
 	offset := 0
 	for remain > 0 {
@@ -134,18 +134,13 @@ func (h *PeerHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int, error
 	return offset, nil
 }
 
-func (h *PeerHandshaker) selectProtocolVersion(head p2pcommon.HSHeader, r *bufio.Reader, w *bufio.Writer) (p2pcommon.VersionedHandshaker, error) {
-	switch head.Version {
+func (h *LegacyWireHandshaker) selectProtocolVersion(version p2pcommon.P2PVersion, r *bufio.Reader, w *bufio.Writer) (p2pcommon.VersionedHandshaker, error) {
+	switch version {
 	case p2pcommon.P2PVersion030:
 		v030hs := v030.NewV030StateHS(h.pm, h.actorServ, h.logger, h.localChainID, h.peerID, r, w)
 		return v030hs, nil
 	default:
 		return nil, fmt.Errorf("not supported version")
 	}
-}
-
-func (h *PeerHandshaker) checkProtocolVersion(versionStr string) error {
-	// TODO modify interface and put check code here
-	return nil
 }
 

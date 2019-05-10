@@ -331,8 +331,8 @@ func (mr *MockNetworkTransportMockRecorder) AddStreamHandler(pid, handler interf
 }
 
 // GetOrCreateStream mocks base method
-func (m *MockNetworkTransport) GetOrCreateStream(meta p2pcommon.PeerMeta, protocolID go_libp2p_protocol.ID) (go_libp2p_net.Stream, error) {
-	ret := m.ctrl.Call(m, "GetOrCreateStream", meta, protocolID)
+func (m *MockNetworkTransport) GetOrCreateStream(meta p2pcommon.PeerMeta, protocolIDs ...go_libp2p_protocol.ID) (go_libp2p_net.Stream, error) {
+	ret := m.ctrl.Call(m, "GetOrCreateStream", meta, protocolIDs)
 	ret0, _ := ret[0].(go_libp2p_net.Stream)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -344,8 +344,8 @@ func (mr *MockNetworkTransportMockRecorder) GetOrCreateStream(meta, protocolID i
 }
 
 // GetOrCreateStreamWithTTL mocks base method
-func (m *MockNetworkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, protocolID go_libp2p_protocol.ID, ttl time.Duration) (go_libp2p_net.Stream, error) {
-	ret := m.ctrl.Call(m, "GetOrCreateStreamWithTTL", meta, protocolID, ttl)
+func (m *MockNetworkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, ttl time.Duration, protocolIDs ...go_libp2p_protocol.ID) (go_libp2p_net.Stream, error) {
+	ret := m.ctrl.Call(m, "GetOrCreateStreamWithTTL", meta, protocolIDs, ttl)
 	ret0, _ := ret[0].(go_libp2p_net.Stream)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1

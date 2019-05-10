@@ -154,7 +154,7 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 }
 
 func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
-	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, common.PolarisMapSub, common.PolarisConnectionTTL)
+	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, common.PolarisConnectionTTL, common.PolarisMapSub)
 	if err != nil {
 		return nil, err
 	}

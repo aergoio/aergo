@@ -4,6 +4,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 	"net"
 	"strconv"
 	"sync"
@@ -198,8 +199,10 @@ func (pm *peerManager) initDesignatedPeerList() {
 }
 
 func (pm *peerManager) runManagePeers() {
-	pm.logger.Info().Str("version", string(p2pcommon.AergoP2PSub)).Msg("Starting p2p listening")
-	pm.nt.AddStreamHandler(p2pcommon.AergoP2PSub, pm.wpManager.OnInboundConn)
+
+	pm.logger.Info().Str("p2p_proto", p2putil.ProtocolIDsToString([]protocol.ID{p2pcommon.P2PSubAddr, p2pcommon.LegacyP2PSubAddr})).Msg("Starting p2p listening")
+	pm.nt.AddStreamHandler(p2pcommon.LegacyP2PSubAddr, pm.wpManager.OnInboundConnLegacy)
+	pm.nt.AddStreamHandler(p2pcommon.P2PSubAddr, pm.wpManager.OnInboundConn)
 
 	if !atomic.CompareAndSwapInt32(&pm.status, initial, running) {
 		panic("wrong internal status")
@@ -225,6 +228,12 @@ MANLOOP:
 				pm.wpManager.OnPeerConnect(peer.ID())
 
 				pm.checkSync(peer)
+
+				// query other peers
+				if !finderTimer.Stop() {
+					<-finderTimer.C
+				}
+				finderTimer.Reset(instantStart)
 			}
 		case peer := <-pm.removePeerChannel:
 			if pm.removePeer(peer) {
@@ -270,7 +279,7 @@ MANLOOP:
 		}
 	}
 	// guarrenty no new peer connection will be made
-	pm.nt.RemoveStreamHandler(p2pcommon.AergoP2PSub)
+	pm.nt.RemoveStreamHandler(p2pcommon.LegacyP2PSubAddr)
 	pm.logger.Info().Msg("Finishing peerManager")
 
 	go func() {

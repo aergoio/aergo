@@ -220,7 +220,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockHSFactory := p2pmock.NewMockHSHandlerFactory(ctrl)
 			mockHSHandler := p2pmock.NewMockHSHandler(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
-			mockHSFactory.EXPECT().CreateHSHandler(tt.args.outbound, gomock.Any(), gomock.Any(), gomock.Any(), tt.args.meta.ID).Return(mockHSHandler)
+			//mockHSFactory.EXPECT().CreateHSHandler(gomock.Any(), tt.args.outbound, tt.args.meta.ID).Return(mockHSHandler)
 			mockHSHandler.EXPECT().Handle(gomock.Any(),gomock.Any(),gomock.Any()).Return(mockRW, tt.hsRet,tt.hsErr)
 			mockHandlerFactory := p2pmock.NewMockHandlerFactory(ctrl)
 			mockHandlerFactory.EXPECT().InsertHandlers(gomock.AssignableToTypeOf(&remotePeerImpl{})).MaxTimes(1)
@@ -242,7 +242,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 				pm:          pm,
 				logger:      logger,
 			}
-			got, got1 := dpm.tryAddPeer(tt.args.outbound, tt.args.meta, mockStream)
+			got, got1 := dpm.tryAddPeer(tt.args.outbound, tt.args.meta, mockStream, mockHSHandler)
 			if got1 != tt.wantSucc {
 				t.Errorf("basePeerManager.tryAddPeer() got1 = %v, want %v", got1, tt.wantSucc)
 			}

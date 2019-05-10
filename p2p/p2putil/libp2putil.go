@@ -6,10 +6,12 @@
 package p2putil
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/libp2p/go-libp2p-peer"
+	protocol "github.com/libp2p/go-libp2p-protocol"
 	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
 	"net"
@@ -191,4 +193,19 @@ func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string)
 	idf.Write(idBytes)
 	idf.Sync()
 	return nil
+}
+
+func ProtocolIDsToString(sli []protocol.ID) string {
+	sb := bytes.NewBuffer(nil)
+	sb.WriteByte('[')
+	if len(sli) > 0 {
+		stop := len(sli)-1
+		for i:=0 ; i<stop; i++ {
+			sb.WriteString(string(sli[i]))
+			sb.WriteByte(',')
+		}
+		sb.WriteString(string(sli[stop]))
+	}
+	sb.WriteByte(']')
+	return sb.String()
 }

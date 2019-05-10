@@ -36,6 +36,7 @@ type P2P struct {
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
 	pm      p2pcommon.PeerManager
+	vm 		p2pcommon.VersionedManager
 	sm      p2pcommon.SyncManager
 	mm      metric.MetricsManager
 	mf      p2pcommon.MoFactory
@@ -141,7 +142,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-
+	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
 	// connect managers each other
 	//reconMan.pm = peerMan
 
@@ -150,6 +151,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.nt = netTransport
 	p2ps.mf = mf
 	p2ps.pm = peerMan
+	p2ps.vm = versionMan
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
@@ -309,11 +311,19 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 
 }
 
-func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) p2pcommon.HSHandler {
-	handshakeHandler := newHandshaker(pm, actor, log, p2ps.chainID, pid)
-	if outbound {
-		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
+func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid peer.ID) p2pcommon.HSHandler {
+	if p2pVersion == p2pcommon.P2PVersion030 {
+		handshakeHandler := newHandshaker(p2ps.pm, p2ps, p2ps.Logger, p2ps.chainID, pid)
+		if outbound {
+			return &OutboundHSHandler{LegacyWireHandshaker: handshakeHandler}
+		} else {
+			return &InboundHSHandler{LegacyWireHandshaker: handshakeHandler}
+		}
 	} else {
-		return &InboundHSHandler{PeerHandshaker: handshakeHandler}
+		if outbound {
+			return NewOutbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+		} else {
+			return NewInbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+		}
 	}
 }

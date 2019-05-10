@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/config"
@@ -86,11 +85,11 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 			_, got, err := h.handshakeOutboundPeer(ctx, mockReader, mockWriter)
 			//_, got, err := h.handshakeOutboundPeerTimeout(mockReader, mockWriter, time.Millisecond*50)
 			if !strings.Contains(err.Error(),"context deadline exceeded") {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
+				t.Errorf("LegacyWireHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
+				t.Errorf("LegacyWireHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -121,36 +120,12 @@ func TestPeerHandshaker_Select(t *testing.T) {
 
 			h := newHandshaker(mockPM, mockActor, logger, nil, samplePeerID)
 
-			actual, err := h.selectProtocolVersion(test.hsheader, bufio.NewReader(mockReader),
+			actual, err := h.selectProtocolVersion(test.hsheader.Version, bufio.NewReader(mockReader),
 				bufio.NewWriter(mockWriter))
 			assert.Equal(t, test.wantErr, err != nil)
 			if !test.wantErr {
 				assert.NotNil(t, actual)
 			}
-		})
-	}
-}
-
-func TestHSHeader_Marshal(t *testing.T) {
-	tests := []struct {
-		name            string
-		input           []byte
-		expectedNewwork uint32
-		expectedVersion uint32
-	}{
-		{"TMain030", []byte{0x047, 0x041, 0x68, 0x41, 0, 0, 3, 0}, p2pcommon.MAGICMain, p2pcommon.P2PVersion030},
-		{"TMain020", []byte{0x02e, 0x041, 0x54, 0x29, 0, 1, 3, 5}, p2pcommon.MAGICTest, 0x010305},
-		// TODO: test cases
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			hs := p2pcommon.HSHeader{}
-			hs.Unmarshal(test.input)
-			assert.Equal(t, test.expectedNewwork, hs.Magic)
-			assert.Equal(t, test.expectedVersion, hs.Version)
-
-			actualBytes := hs.Marshal()
-			assert.True(t, bytes.Equal(test.input, actualBytes))
 		})
 	}
 }

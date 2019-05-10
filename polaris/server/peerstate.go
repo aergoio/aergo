@@ -75,7 +75,7 @@ func (hc *peerState) check(wg *sync.WaitGroup, timeout time.Duration) {
 func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 	hc.Logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(hc.meta.ID)).Msg("staring up healthcheck")
 	hc.lCheckTime = time.Now()
-	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, common.PolarisPingSub, PolarisPingTTL)
+	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, PolarisPingTTL, common.PolarisPingSub)
 	if err != nil {
 		hc.contFail++
 		hc.Logger.Debug().Err(err).Msg("Healthcheck failed to get network stream")

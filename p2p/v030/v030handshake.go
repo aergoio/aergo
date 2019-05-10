@@ -36,14 +36,6 @@ type V030Handshaker struct {
 
 var _ p2pcommon.VersionedHandshaker = (*V030Handshaker)(nil)
 
-type V030HSMessage struct {
-	p2pcommon.HSHeader
-	Sigature  [p2pcommon.SigLength]byte
-	PubKeyB   []byte
-	Timestamp uint64
-	Nonce     uint16
-}
-
 func (h *V030Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 	return h.msgRW
 }
