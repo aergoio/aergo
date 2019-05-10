@@ -10,10 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"reflect"
 	"runtime"
-	"strconv"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -30,8 +28,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	lru "github.com/hashicorp/golang-lru"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/hashicorp/golang-lru"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -281,18 +279,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 }
 
 func (cs *ChainService) initDebugger() {
-	envStr := os.Getenv("DEBUG_CHAIN_CRASH")
-	if len(envStr) > 0 {
-		cond, err := strconv.Atoi(envStr)
-		if err != nil {
-			logger.Error().Err(err).Msgf("DEBUG_CHAIN_CRASH environment varialble must be integer (1 <= var <= %d", DEBUG_CHAIN_STOP_INF)
-			return
-		}
-		logger.Debug().Int("stop", cond).Msgf("DEBUG_CHAIN_CRASH is set")
-
-		debugger = newDebugger()
-		debugger.set(stopCond(cond))
-	}
+	debugger = newDebugger()
 }
 
 // SDB returns cs.sdb.

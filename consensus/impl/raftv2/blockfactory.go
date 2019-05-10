@@ -316,7 +316,7 @@ func (bf *BlockFactory) Start() {
 
 			// add block that has produced by remote BP
 			if err := bf.connect(block); err != nil {
-				logger.Fatal().Err(err).Msg("failed to connect block")
+				logger.Error().Err(err).Msg("failed to connect block")
 				return
 			}
 		case <-bf.quit:

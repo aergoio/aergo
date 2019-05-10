@@ -460,7 +460,7 @@ func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHa
 			return err
 		}
 
-		if err := debugger.check(DEBUG_CHAIN_STOP_4); err != nil {
+		if err := debugger.check(DEBUG_CHAIN_STOP, 4); err != nil {
 			return err
 		}
 	}
