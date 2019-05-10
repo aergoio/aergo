@@ -2924,10 +2924,16 @@ function calcBignum()
 	assert(bignum.compare(div1, 1) == 0)
 	div = bg6 / 0
 end
+
+function negativeBignum()
+	bg1 = bignum.number("-2")
+	bg2 = bignum.sqrt(bg1)
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2985,6 +2991,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", `{"Name":"calcBignum"}`, "bignum divide by zero", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"negativeBignum"}`, "bignum not allowed negative value", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3988,7 +3998,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_func"}`).Fail(
-		"cannot use 'function' as a key",
+			"cannot use 'function' as a key",
 		),
 	)
 	if err != nil {
