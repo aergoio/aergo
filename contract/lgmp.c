@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "lua.h"
 #include "lauxlib.h"
@@ -263,7 +264,7 @@ static int Bpow(lua_State *L)			/** pow(x,y) */
 	mp_num a = Bget(L, 1);
 	mp_num b = Bget(L, 2);
 	mp_num c;
-	uint remainder;
+	uint32_t remainder;
 
 	if (mpz_sgn(MPZ(b)) < 0)
 		luaL_error(L, mp_num_is_negative);
