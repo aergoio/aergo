@@ -375,10 +375,6 @@ func (rs *raftServer) startTransport() {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
 	}
 
-	if rs.cluster.getEffectiveMembers().len() == 0 {
-		logger.Fatal().Str("cluster", rs.cluster.toString()).Msg("can't start raft server because there are no members in cluster")
-	}
-
 	for _, member := range rs.cluster.getEffectiveMembers().MapByID {
 		if rs.cluster.NodeID() != member.ID {
 			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})

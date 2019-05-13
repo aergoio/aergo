@@ -186,6 +186,7 @@ func (cl *Cluster) RecoverIdentity(id *consensus.RaftIdentity) error {
 
 	// check name
 	if cl.identity.Name != id.Name {
+		logger.Error().Str("walidentity", id.ToString()).Str("configname", cl.identity.Name)
 		return ErrNotMatchedRaftName
 	}
 

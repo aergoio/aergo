@@ -69,6 +69,10 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
 
+	if bf.bpc.getEffectiveMembers().len() == 0 {
+		logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
+	}
+
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
