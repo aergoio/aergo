@@ -221,7 +221,7 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	if b, _ := bf.GetBestBlock(); b != nil {
 		//TODO is it ok if last job was failed?
 		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
-			logger.Debug().Msg("previous block not connected. skip to generate block")
+			logger.Debug().Uint64("bestno", b.BlockNo()).Msg("previous block not connected. skip to generate block")
 			return
 		}
 		bf.prevBlock = b
@@ -320,7 +320,7 @@ func (bf *BlockFactory) Start() {
 
 			// add block that has produced by remote BP
 			if err := bf.connect(block); err != nil {
-				logger.Fatal().Err(err).Msg("failed to connect block")
+				logger.Error().Err(err).Msg("failed to connect block")
 				return
 			}
 		case <-bf.quit:
@@ -388,7 +388,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 
 	if proposed != nil {
 		if !bytes.Equal(block.BlockHash(), proposed.block.BlockHash()) {
-			logger.Warn().Uint64("prop-no", proposed.block.GetHeader().GetBlockNo()).Str("prop", proposed.block.ID()).Uint64("commit-no", block.GetHeader().GetBlockNo()).Str("commit", block.ID()).Msg("commited block is not commited. this node is probably not leader")
+			logger.Warn().Uint64("prop-no", proposed.block.GetHeader().GetBlockNo()).Str("prop", proposed.block.ID()).Uint64("commit-no", block.GetHeader().GetBlockNo()).Str("commit", block.ID()).Msg("commited block is not proposed by me. this node is probably not leader")
 			bf.raftOp.resetPropose()
 		} else {
 			blockState = proposed.blockState
@@ -400,8 +400,9 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 		Str("prev", block.PrevID()).
 		Msg("connect block")
 
-	//if bestblock is changed, connecting block failed. new block is generated in next tick
-	if err := chain.ConnectBlock(bf, block, blockState); err != nil {
+	// if bestblock is changed, connecting block failed. new block is generated in next tick
+	// On a slow server, chain service takes too long to add block in blockchain. In this case, raft server waits to send new block to commit channel.
+	if err := chain.ConnectBlock(bf, block, blockState, time.Second*300); err != nil {
 		logger.Error().Msg(err.Error())
 		return err
 	}

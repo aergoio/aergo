@@ -93,11 +93,11 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 }
 
 // ConnectBlock send an AddBlock request to the chain service.
-func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) error {
+func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState, timeout time.Duration) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
-		time.Second, "consensus/chain/info.ConnectBlock").Result()
+		timeout, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", block.Header.BlockNo).
 			Str("hash", block.ID()).

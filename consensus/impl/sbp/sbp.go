@@ -197,7 +197,7 @@ func (s *SimpleBlockFactory) Start() {
 					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block, blockState)
+				chain.ConnectBlock(s, block, blockState, time.Second)
 			}
 		case <-s.quit:
 			return
