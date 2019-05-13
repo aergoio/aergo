@@ -279,7 +279,7 @@ static int modulePcall(lua_State *L)
 	}
 	lua_pushboolean(L, true);
 	lua_insert(L, 1);
-	if (start_seq.r0 > 0) {
+	if (start_seq.r0 == 1) {
         char *errStr = LuaClearRecovery(L, service, start_seq.r0, false);
 		if (errStr != NULL) {
 			strPushAndRelease(L, errStr);
