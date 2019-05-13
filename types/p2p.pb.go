@@ -110,18 +110,19 @@ func (x ResultStatus) String() string {
 	return proto.EnumName(ResultStatus_name, int32(x))
 }
 func (ResultStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{0}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{0}
 }
 
-// MessageData has datas shared between all app protocols
+// MsgHeader contains common properties of all p2p messages
 type MsgHeader struct {
-	// client version
+	// Deprecated client version.
 	ClientVersion string `protobuf:"bytes,1,opt,name=clientVersion,proto3" json:"clientVersion,omitempty"`
 	// unix time
 	Timestamp int64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// allows requesters to use request data when processing a response
 	Id string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 	// Gossip is flag to have receiver peer gossip the message to neighbors
+	// Deprecated whether to gossip other peers is determined by subprotocol since version 0.3.0 .
 	Gossip bool `protobuf:"varint,4,opt,name=gossip,proto3" json:"gossip,omitempty"`
 	// PeerID is id of node that created the message (not the peer that may have sent it). =base58(mh(sha256(nodePubKey)))
 	PeerID []byte `protobuf:"bytes,5,opt,name=peerID,proto3" json:"peerID,omitempty"`
@@ -129,9 +130,9 @@ type MsgHeader struct {
 	NodePubKey []byte `protobuf:"bytes,6,opt,name=nodePubKey,proto3" json:"nodePubKey,omitempty"`
 	// signature of message data + method specific data by message authoring node. format: string([]bytes)
 	Sign []byte `protobuf:"bytes,7,opt,name=sign,proto3" json:"sign,omitempty"`
-	//
+	// sub category of message. the receiving peer determines how to deserialize payload data and whether to spread messages to other peers
 	Subprotocol uint32 `protobuf:"varint,8,opt,name=subprotocol,proto3" json:"subprotocol,omitempty"`
-	//
+	// size of bytes of the payload
 	Length               uint32   `protobuf:"varint,9,opt,name=length,proto3" json:"length,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -142,7 +143,7 @@ func (m *MsgHeader) Reset()         { *m = MsgHeader{} }
 func (m *MsgHeader) String() string { return proto.CompactTextString(m) }
 func (*MsgHeader) ProtoMessage()    {}
 func (*MsgHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{0}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{0}
 }
 func (m *MsgHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MsgHeader.Unmarshal(m, b)
@@ -225,6 +226,7 @@ func (m *MsgHeader) GetLength() uint32 {
 	return 0
 }
 
+// Deprecated P2PMessage is data structure for aergo v0.2 or earlier. This structure is not used anymore since v0.3.0.
 type P2PMessage struct {
 	Header               *MsgHeader `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	Data                 []byte     `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
@@ -237,7 +239,7 @@ func (m *P2PMessage) Reset()         { *m = P2PMessage{} }
 func (m *P2PMessage) String() string { return proto.CompactTextString(m) }
 func (*P2PMessage) ProtoMessage()    {}
 func (*P2PMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{1}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{1}
 }
 func (m *P2PMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_P2PMessage.Unmarshal(m, b)
@@ -284,7 +286,7 @@ func (m *Ping) Reset()         { *m = Ping{} }
 func (m *Ping) String() string { return proto.CompactTextString(m) }
 func (*Ping) ProtoMessage()    {}
 func (*Ping) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{2}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{2}
 }
 func (m *Ping) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Ping.Unmarshal(m, b)
@@ -319,7 +321,6 @@ func (m *Ping) GetBestHeight() uint64 {
 }
 
 // Ping response message
-// TODO unify to Ping? If did, how to distinguish message is request or response?
 type Pong struct {
 	BestBlockHash        []byte   `protobuf:"bytes,1,opt,name=bestBlockHash,proto3" json:"bestBlockHash,omitempty"`
 	BestHeight           uint64   `protobuf:"varint,2,opt,name=bestHeight,proto3" json:"bestHeight,omitempty"`
@@ -332,7 +333,7 @@ func (m *Pong) Reset()         { *m = Pong{} }
 func (m *Pong) String() string { return proto.CompactTextString(m) }
 func (*Pong) ProtoMessage()    {}
 func (*Pong) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{3}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{3}
 }
 func (m *Pong) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Pong.Unmarshal(m, b)
@@ -366,14 +367,15 @@ func (m *Pong) GetBestHeight() uint64 {
 	return 0
 }
 
-// Ping request message
+// Status is peer status exchanged during handshaking.
 type Status struct {
 	Sender        *PeerAddress `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
 	BestBlockHash []byte       `protobuf:"bytes,2,opt,name=bestBlockHash,proto3" json:"bestBlockHash,omitempty"`
 	BestHeight    uint64       `protobuf:"varint,3,opt,name=bestHeight,proto3" json:"bestHeight,omitempty"`
 	ChainID       []byte       `protobuf:"bytes,4,opt,name=chainID,proto3" json:"chainID,omitempty"`
 	// noExpose means that peer doesn't want to be known to other peers.
-	NoExpose             bool     `protobuf:"varint,5,opt,name=noExpose,proto3" json:"noExpose,omitempty"`
+	NoExpose bool `protobuf:"varint,5,opt,name=noExpose,proto3" json:"noExpose,omitempty"`
+	// version of server binary
 	Version              string   `protobuf:"bytes,6,opt,name=version,proto3" json:"version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -384,7 +386,7 @@ func (m *Status) Reset()         { *m = Status{} }
 func (m *Status) String() string { return proto.CompactTextString(m) }
 func (*Status) ProtoMessage()    {}
 func (*Status) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{4}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{4}
 }
 func (m *Status) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Status.Unmarshal(m, b)
@@ -446,6 +448,7 @@ func (m *Status) GetVersion() string {
 	return ""
 }
 
+// GoAwayNotice is sent before host peer is closing connection to remote peer. it contains why the host closing connection.
 type GoAwayNotice struct {
 	Message              string   `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -457,7 +460,7 @@ func (m *GoAwayNotice) Reset()         { *m = GoAwayNotice{} }
 func (m *GoAwayNotice) String() string { return proto.CompactTextString(m) }
 func (*GoAwayNotice) ProtoMessage()    {}
 func (*GoAwayNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{5}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{5}
 }
 func (m *GoAwayNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GoAwayNotice.Unmarshal(m, b)
@@ -496,7 +499,7 @@ func (m *AddressesRequest) Reset()         { *m = AddressesRequest{} }
 func (m *AddressesRequest) String() string { return proto.CompactTextString(m) }
 func (*AddressesRequest) ProtoMessage()    {}
 func (*AddressesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{6}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{6}
 }
 func (m *AddressesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddressesRequest.Unmarshal(m, b)
@@ -542,7 +545,7 @@ func (m *AddressesResponse) Reset()         { *m = AddressesResponse{} }
 func (m *AddressesResponse) String() string { return proto.CompactTextString(m) }
 func (*AddressesResponse) ProtoMessage()    {}
 func (*AddressesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{7}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{7}
 }
 func (m *AddressesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddressesResponse.Unmarshal(m, b)
@@ -576,6 +579,9 @@ func (m *AddressesResponse) GetPeers() []*PeerAddress {
 	return nil
 }
 
+// NewBlockNotice is sent to other peers when host node add a block, which is not produced by this host peer (i.e. added block
+// that other bp node produced.) It contains just hash and blockNo. The host node will not send notice if target receiving peer
+// knows that block already at best effort.
 type NewBlockNotice struct {
 	BlockHash            []byte   `protobuf:"bytes,1,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
 	BlockNo              uint64   `protobuf:"varint,2,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
@@ -588,7 +594,7 @@ func (m *NewBlockNotice) Reset()         { *m = NewBlockNotice{} }
 func (m *NewBlockNotice) String() string { return proto.CompactTextString(m) }
 func (*NewBlockNotice) ProtoMessage()    {}
 func (*NewBlockNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{8}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{8}
 }
 func (m *NewBlockNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewBlockNotice.Unmarshal(m, b)
@@ -622,6 +628,8 @@ func (m *NewBlockNotice) GetBlockNo() uint64 {
 	return 0
 }
 
+// BlockProducedNotice is sent when BP created blocks and host peer is BP (or surrogate of BP) and receiving peer is also trusted BP or surrogate of BP.
+// It contains whole block information
 type BlockProducedNotice struct {
 	ProducerID           []byte   `protobuf:"bytes,1,opt,name=producerID,proto3" json:"producerID,omitempty"`
 	BlockNo              uint64   `protobuf:"varint,2,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
@@ -635,7 +643,7 @@ func (m *BlockProducedNotice) Reset()         { *m = BlockProducedNotice{} }
 func (m *BlockProducedNotice) String() string { return proto.CompactTextString(m) }
 func (*BlockProducedNotice) ProtoMessage()    {}
 func (*BlockProducedNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{9}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{9}
 }
 func (m *BlockProducedNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockProducedNotice.Unmarshal(m, b)
@@ -695,7 +703,7 @@ func (m *GetBlockHeadersRequest) Reset()         { *m = GetBlockHeadersRequest{}
 func (m *GetBlockHeadersRequest) String() string { return proto.CompactTextString(m) }
 func (*GetBlockHeadersRequest) ProtoMessage()    {}
 func (*GetBlockHeadersRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{10}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{10}
 }
 func (m *GetBlockHeadersRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockHeadersRequest.Unmarshal(m, b)
@@ -765,7 +773,7 @@ func (m *GetBlockHeadersResponse) Reset()         { *m = GetBlockHeadersResponse
 func (m *GetBlockHeadersResponse) String() string { return proto.CompactTextString(m) }
 func (*GetBlockHeadersResponse) ProtoMessage()    {}
 func (*GetBlockHeadersResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{11}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{11}
 }
 func (m *GetBlockHeadersResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockHeadersResponse.Unmarshal(m, b)
@@ -825,7 +833,7 @@ func (m *GetBlockRequest) Reset()         { *m = GetBlockRequest{} }
 func (m *GetBlockRequest) String() string { return proto.CompactTextString(m) }
 func (*GetBlockRequest) ProtoMessage()    {}
 func (*GetBlockRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{12}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{12}
 }
 func (m *GetBlockRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockRequest.Unmarshal(m, b)
@@ -866,7 +874,7 @@ func (m *GetBlockResponse) Reset()         { *m = GetBlockResponse{} }
 func (m *GetBlockResponse) String() string { return proto.CompactTextString(m) }
 func (*GetBlockResponse) ProtoMessage()    {}
 func (*GetBlockResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{13}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{13}
 }
 func (m *GetBlockResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockResponse.Unmarshal(m, b)
@@ -918,7 +926,7 @@ func (m *NewTransactionsNotice) Reset()         { *m = NewTransactionsNotice{} }
 func (m *NewTransactionsNotice) String() string { return proto.CompactTextString(m) }
 func (*NewTransactionsNotice) ProtoMessage()    {}
 func (*NewTransactionsNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{14}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{14}
 }
 func (m *NewTransactionsNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewTransactionsNotice.Unmarshal(m, b)
@@ -956,7 +964,7 @@ func (m *GetTransactionsRequest) Reset()         { *m = GetTransactionsRequest{}
 func (m *GetTransactionsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionsRequest) ProtoMessage()    {}
 func (*GetTransactionsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{15}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{15}
 }
 func (m *GetTransactionsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTransactionsRequest.Unmarshal(m, b)
@@ -997,7 +1005,7 @@ func (m *GetTransactionsResponse) Reset()         { *m = GetTransactionsResponse
 func (m *GetTransactionsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionsResponse) ProtoMessage()    {}
 func (*GetTransactionsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{16}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{16}
 }
 func (m *GetTransactionsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTransactionsResponse.Unmarshal(m, b)
@@ -1060,7 +1068,7 @@ func (m *GetMissingRequest) Reset()         { *m = GetMissingRequest{} }
 func (m *GetMissingRequest) String() string { return proto.CompactTextString(m) }
 func (*GetMissingRequest) ProtoMessage()    {}
 func (*GetMissingRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{17}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{17}
 }
 func (m *GetMissingRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMissingRequest.Unmarshal(m, b)
@@ -1106,7 +1114,7 @@ func (m *GetAncestorRequest) Reset()         { *m = GetAncestorRequest{} }
 func (m *GetAncestorRequest) String() string { return proto.CompactTextString(m) }
 func (*GetAncestorRequest) ProtoMessage()    {}
 func (*GetAncestorRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{18}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{18}
 }
 func (m *GetAncestorRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAncestorRequest.Unmarshal(m, b)
@@ -1146,7 +1154,7 @@ func (m *GetAncestorResponse) Reset()         { *m = GetAncestorResponse{} }
 func (m *GetAncestorResponse) String() string { return proto.CompactTextString(m) }
 func (*GetAncestorResponse) ProtoMessage()    {}
 func (*GetAncestorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{19}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{19}
 }
 func (m *GetAncestorResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAncestorResponse.Unmarshal(m, b)
@@ -1198,7 +1206,7 @@ func (m *GetHashByNo) Reset()         { *m = GetHashByNo{} }
 func (m *GetHashByNo) String() string { return proto.CompactTextString(m) }
 func (*GetHashByNo) ProtoMessage()    {}
 func (*GetHashByNo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{20}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{20}
 }
 func (m *GetHashByNo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashByNo.Unmarshal(m, b)
@@ -1237,7 +1245,7 @@ func (m *GetHashByNoResponse) Reset()         { *m = GetHashByNoResponse{} }
 func (m *GetHashByNoResponse) String() string { return proto.CompactTextString(m) }
 func (*GetHashByNoResponse) ProtoMessage()    {}
 func (*GetHashByNoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{21}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{21}
 }
 func (m *GetHashByNoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashByNoResponse.Unmarshal(m, b)
@@ -1288,7 +1296,7 @@ func (m *GetHashesRequest) Reset()         { *m = GetHashesRequest{} }
 func (m *GetHashesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetHashesRequest) ProtoMessage()    {}
 func (*GetHashesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{22}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{22}
 }
 func (m *GetHashesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashesRequest.Unmarshal(m, b)
@@ -1343,7 +1351,7 @@ func (m *GetHashesResponse) Reset()         { *m = GetHashesResponse{} }
 func (m *GetHashesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetHashesResponse) ProtoMessage()    {}
 func (*GetHashesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_p2p_5b2ea3fe81ddec74, []int{23}
+	return fileDescriptor_p2p_390ac5131dab0dbf, []int{23}
 }
 func (m *GetHashesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashesResponse.Unmarshal(m, b)
@@ -1412,9 +1420,9 @@ func init() {
 	proto.RegisterEnum("types.ResultStatus", ResultStatus_name, ResultStatus_value)
 }
 
-func init() { proto.RegisterFile("p2p.proto", fileDescriptor_p2p_5b2ea3fe81ddec74) }
+func init() { proto.RegisterFile("p2p.proto", fileDescriptor_p2p_390ac5131dab0dbf) }
 
-var fileDescriptor_p2p_5b2ea3fe81ddec74 = []byte{
+var fileDescriptor_p2p_390ac5131dab0dbf = []byte{
 	// 1203 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xdd, 0x72, 0xda, 0x46,
 	0x14, 0xae, 0x00, 0x63, 0x38, 0x80, 0x2d, 0xaf, 0x9b, 0x84, 0x71, 0x33, 0x2e, 0xa3, 0xc9, 0xb4,
