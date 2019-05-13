@@ -38,13 +38,13 @@ func (x TxType) String() string {
 	return proto.EnumName(TxType_name, int32(x))
 }
 func (TxType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{0}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{0}
 }
 
 type Block struct {
 	Hash                 []byte       `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
-	Header               *BlockHeader `protobuf:"bytes,2,opt,name=header" json:"header,omitempty"`
-	Body                 *BlockBody   `protobuf:"bytes,3,opt,name=body" json:"body,omitempty"`
+	Header               *BlockHeader `protobuf:"bytes,2,opt,name=header,proto3" json:"header,omitempty"`
+	Body                 *BlockBody   `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -54,7 +54,7 @@ func (m *Block) Reset()         { *m = Block{} }
 func (m *Block) String() string { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()    {}
 func (*Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{0}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{0}
 }
 func (m *Block) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Block.Unmarshal(m, b)
@@ -98,12 +98,12 @@ func (m *Block) GetBody() *BlockBody {
 type BlockHeader struct {
 	ChainID              []byte   `protobuf:"bytes,1,opt,name=chainID,proto3" json:"chainID,omitempty"`
 	PrevBlockHash        []byte   `protobuf:"bytes,2,opt,name=prevBlockHash,proto3" json:"prevBlockHash,omitempty"`
-	BlockNo              uint64   `protobuf:"varint,3,opt,name=blockNo" json:"blockNo,omitempty"`
-	Timestamp            int64    `protobuf:"varint,4,opt,name=timestamp" json:"timestamp,omitempty"`
+	BlockNo              uint64   `protobuf:"varint,3,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
+	Timestamp            int64    `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	BlocksRootHash       []byte   `protobuf:"bytes,5,opt,name=blocksRootHash,proto3" json:"blocksRootHash,omitempty"`
 	TxsRootHash          []byte   `protobuf:"bytes,6,opt,name=txsRootHash,proto3" json:"txsRootHash,omitempty"`
 	ReceiptsRootHash     []byte   `protobuf:"bytes,7,opt,name=receiptsRootHash,proto3" json:"receiptsRootHash,omitempty"`
-	Confirms             uint64   `protobuf:"varint,8,opt,name=confirms" json:"confirms,omitempty"`
+	Confirms             uint64   `protobuf:"varint,8,opt,name=confirms,proto3" json:"confirms,omitempty"`
 	PubKey               []byte   `protobuf:"bytes,9,opt,name=pubKey,proto3" json:"pubKey,omitempty"`
 	CoinbaseAccount      []byte   `protobuf:"bytes,10,opt,name=coinbaseAccount,proto3" json:"coinbaseAccount,omitempty"`
 	Sign                 []byte   `protobuf:"bytes,11,opt,name=sign,proto3" json:"sign,omitempty"`
@@ -116,7 +116,7 @@ func (m *BlockHeader) Reset()         { *m = BlockHeader{} }
 func (m *BlockHeader) String() string { return proto.CompactTextString(m) }
 func (*BlockHeader) ProtoMessage()    {}
 func (*BlockHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{1}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{1}
 }
 func (m *BlockHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockHeader.Unmarshal(m, b)
@@ -214,7 +214,7 @@ func (m *BlockHeader) GetSign() []byte {
 }
 
 type BlockBody struct {
-	Txs                  []*Tx    `protobuf:"bytes,1,rep,name=txs" json:"txs,omitempty"`
+	Txs                  []*Tx    `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -224,7 +224,7 @@ func (m *BlockBody) Reset()         { *m = BlockBody{} }
 func (m *BlockBody) String() string { return proto.CompactTextString(m) }
 func (*BlockBody) ProtoMessage()    {}
 func (*BlockBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{2}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{2}
 }
 func (m *BlockBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockBody.Unmarshal(m, b)
@@ -252,7 +252,7 @@ func (m *BlockBody) GetTxs() []*Tx {
 }
 
 type TxList struct {
-	Txs                  []*Tx    `protobuf:"bytes,1,rep,name=txs" json:"txs,omitempty"`
+	Txs                  []*Tx    `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -262,7 +262,7 @@ func (m *TxList) Reset()         { *m = TxList{} }
 func (m *TxList) String() string { return proto.CompactTextString(m) }
 func (*TxList) ProtoMessage()    {}
 func (*TxList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{3}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{3}
 }
 func (m *TxList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxList.Unmarshal(m, b)
@@ -291,7 +291,7 @@ func (m *TxList) GetTxs() []*Tx {
 
 type Tx struct {
 	Hash                 []byte   `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
-	Body                 *TxBody  `protobuf:"bytes,2,opt,name=body" json:"body,omitempty"`
+	Body                 *TxBody  `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -301,7 +301,7 @@ func (m *Tx) Reset()         { *m = Tx{} }
 func (m *Tx) String() string { return proto.CompactTextString(m) }
 func (*Tx) ProtoMessage()    {}
 func (*Tx) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{4}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{4}
 }
 func (m *Tx) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Tx.Unmarshal(m, b)
@@ -336,14 +336,14 @@ func (m *Tx) GetBody() *TxBody {
 }
 
 type TxBody struct {
-	Nonce                uint64   `protobuf:"varint,1,opt,name=nonce" json:"nonce,omitempty"`
+	Nonce                uint64   `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	Account              []byte   `protobuf:"bytes,2,opt,name=account,proto3" json:"account,omitempty"`
 	Recipient            []byte   `protobuf:"bytes,3,opt,name=recipient,proto3" json:"recipient,omitempty"`
 	Amount               []byte   `protobuf:"bytes,4,opt,name=amount,proto3" json:"amount,omitempty"`
 	Payload              []byte   `protobuf:"bytes,5,opt,name=payload,proto3" json:"payload,omitempty"`
-	GasLimit             uint64   `protobuf:"varint,6,opt,name=gasLimit" json:"gasLimit,omitempty"`
+	GasLimit             uint64   `protobuf:"varint,6,opt,name=gasLimit,proto3" json:"gasLimit,omitempty"`
 	GasPrice             []byte   `protobuf:"bytes,7,opt,name=gasPrice,proto3" json:"gasPrice,omitempty"`
-	Type                 TxType   `protobuf:"varint,8,opt,name=type,enum=types.TxType" json:"type,omitempty"`
+	Type                 TxType   `protobuf:"varint,8,opt,name=type,proto3,enum=types.TxType" json:"type,omitempty"`
 	ChainIdHash          []byte   `protobuf:"bytes,9,opt,name=chainIdHash,proto3" json:"chainIdHash,omitempty"`
 	Sign                 []byte   `protobuf:"bytes,10,opt,name=sign,proto3" json:"sign,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -355,7 +355,7 @@ func (m *TxBody) Reset()         { *m = TxBody{} }
 func (m *TxBody) String() string { return proto.CompactTextString(m) }
 func (*TxBody) ProtoMessage()    {}
 func (*TxBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{5}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{5}
 }
 func (m *TxBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxBody.Unmarshal(m, b)
@@ -448,7 +448,7 @@ func (m *TxBody) GetSign() []byte {
 // TxIdx specifies a transaction's block hash and index within the block body
 type TxIdx struct {
 	BlockHash            []byte   `protobuf:"bytes,1,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
-	Idx                  int32    `protobuf:"varint,2,opt,name=idx" json:"idx,omitempty"`
+	Idx                  int32    `protobuf:"varint,2,opt,name=idx,proto3" json:"idx,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -458,7 +458,7 @@ func (m *TxIdx) Reset()         { *m = TxIdx{} }
 func (m *TxIdx) String() string { return proto.CompactTextString(m) }
 func (*TxIdx) ProtoMessage()    {}
 func (*TxIdx) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{6}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{6}
 }
 func (m *TxIdx) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxIdx.Unmarshal(m, b)
@@ -493,8 +493,8 @@ func (m *TxIdx) GetIdx() int32 {
 }
 
 type TxInBlock struct {
-	TxIdx                *TxIdx   `protobuf:"bytes,1,opt,name=txIdx" json:"txIdx,omitempty"`
-	Tx                   *Tx      `protobuf:"bytes,2,opt,name=tx" json:"tx,omitempty"`
+	TxIdx                *TxIdx   `protobuf:"bytes,1,opt,name=txIdx,proto3" json:"txIdx,omitempty"`
+	Tx                   *Tx      `protobuf:"bytes,2,opt,name=tx,proto3" json:"tx,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -504,7 +504,7 @@ func (m *TxInBlock) Reset()         { *m = TxInBlock{} }
 func (m *TxInBlock) String() string { return proto.CompactTextString(m) }
 func (*TxInBlock) ProtoMessage()    {}
 func (*TxInBlock) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{7}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{7}
 }
 func (m *TxInBlock) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxInBlock.Unmarshal(m, b)
@@ -539,11 +539,11 @@ func (m *TxInBlock) GetTx() *Tx {
 }
 
 type State struct {
-	Nonce                uint64   `protobuf:"varint,1,opt,name=nonce" json:"nonce,omitempty"`
+	Nonce                uint64   `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	Balance              []byte   `protobuf:"bytes,2,opt,name=balance,proto3" json:"balance,omitempty"`
 	CodeHash             []byte   `protobuf:"bytes,3,opt,name=codeHash,proto3" json:"codeHash,omitempty"`
 	StorageRoot          []byte   `protobuf:"bytes,4,opt,name=storageRoot,proto3" json:"storageRoot,omitempty"`
-	SqlRecoveryPoint     uint64   `protobuf:"varint,5,opt,name=sqlRecoveryPoint" json:"sqlRecoveryPoint,omitempty"`
+	SqlRecoveryPoint     uint64   `protobuf:"varint,5,opt,name=sqlRecoveryPoint,proto3" json:"sqlRecoveryPoint,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -553,7 +553,7 @@ func (m *State) Reset()         { *m = State{} }
 func (m *State) String() string { return proto.CompactTextString(m) }
 func (*State) ProtoMessage()    {}
 func (*State) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{8}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{8}
 }
 func (m *State) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_State.Unmarshal(m, b)
@@ -609,13 +609,13 @@ func (m *State) GetSqlRecoveryPoint() uint64 {
 }
 
 type AccountProof struct {
-	State                *State   `protobuf:"bytes,1,opt,name=state" json:"state,omitempty"`
-	Inclusion            bool     `protobuf:"varint,2,opt,name=inclusion" json:"inclusion,omitempty"`
+	State                *State   `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	Inclusion            bool     `protobuf:"varint,2,opt,name=inclusion,proto3" json:"inclusion,omitempty"`
 	Key                  []byte   `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
 	ProofKey             []byte   `protobuf:"bytes,4,opt,name=proofKey,proto3" json:"proofKey,omitempty"`
 	ProofVal             []byte   `protobuf:"bytes,5,opt,name=proofVal,proto3" json:"proofVal,omitempty"`
 	Bitmap               []byte   `protobuf:"bytes,6,opt,name=bitmap,proto3" json:"bitmap,omitempty"`
-	Height               uint32   `protobuf:"varint,7,opt,name=height" json:"height,omitempty"`
+	Height               uint32   `protobuf:"varint,7,opt,name=height,proto3" json:"height,omitempty"`
 	AuditPath            [][]byte `protobuf:"bytes,8,rep,name=auditPath,proto3" json:"auditPath,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -626,7 +626,7 @@ func (m *AccountProof) Reset()         { *m = AccountProof{} }
 func (m *AccountProof) String() string { return proto.CompactTextString(m) }
 func (*AccountProof) ProtoMessage()    {}
 func (*AccountProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{9}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{9}
 }
 func (m *AccountProof) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AccountProof.Unmarshal(m, b)
@@ -704,12 +704,12 @@ func (m *AccountProof) GetAuditPath() [][]byte {
 
 type ContractVarProof struct {
 	Value                []byte   `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	Inclusion            bool     `protobuf:"varint,2,opt,name=inclusion" json:"inclusion,omitempty"`
-	Key                  string   `protobuf:"bytes,3,opt,name=key" json:"key,omitempty"`
+	Inclusion            bool     `protobuf:"varint,2,opt,name=inclusion,proto3" json:"inclusion,omitempty"`
+	Key                  string   `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
 	ProofKey             []byte   `protobuf:"bytes,4,opt,name=proofKey,proto3" json:"proofKey,omitempty"`
 	ProofVal             []byte   `protobuf:"bytes,5,opt,name=proofVal,proto3" json:"proofVal,omitempty"`
 	Bitmap               []byte   `protobuf:"bytes,6,opt,name=bitmap,proto3" json:"bitmap,omitempty"`
-	Height               uint32   `protobuf:"varint,7,opt,name=height" json:"height,omitempty"`
+	Height               uint32   `protobuf:"varint,7,opt,name=height,proto3" json:"height,omitempty"`
 	AuditPath            [][]byte `protobuf:"bytes,8,rep,name=auditPath,proto3" json:"auditPath,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -720,7 +720,7 @@ func (m *ContractVarProof) Reset()         { *m = ContractVarProof{} }
 func (m *ContractVarProof) String() string { return proto.CompactTextString(m) }
 func (*ContractVarProof) ProtoMessage()    {}
 func (*ContractVarProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{10}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{10}
 }
 func (m *ContractVarProof) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ContractVarProof.Unmarshal(m, b)
@@ -797,8 +797,8 @@ func (m *ContractVarProof) GetAuditPath() [][]byte {
 }
 
 type StateQueryProof struct {
-	ContractProof        *AccountProof       `protobuf:"bytes,1,opt,name=contractProof" json:"contractProof,omitempty"`
-	VarProofs            []*ContractVarProof `protobuf:"bytes,2,rep,name=varProofs" json:"varProofs,omitempty"`
+	ContractProof        *AccountProof       `protobuf:"bytes,1,opt,name=contractProof,proto3" json:"contractProof,omitempty"`
+	VarProofs            []*ContractVarProof `protobuf:"bytes,2,rep,name=varProofs,proto3" json:"varProofs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
 	XXX_unrecognized     []byte              `json:"-"`
 	XXX_sizecache        int32               `json:"-"`
@@ -808,7 +808,7 @@ func (m *StateQueryProof) Reset()         { *m = StateQueryProof{} }
 func (m *StateQueryProof) String() string { return proto.CompactTextString(m) }
 func (*StateQueryProof) ProtoMessage()    {}
 func (*StateQueryProof) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{11}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{11}
 }
 func (m *StateQueryProof) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateQueryProof.Unmarshal(m, b)
@@ -844,16 +844,16 @@ func (m *StateQueryProof) GetVarProofs() []*ContractVarProof {
 
 type Receipt struct {
 	ContractAddress      []byte   `protobuf:"bytes,1,opt,name=contractAddress,proto3" json:"contractAddress,omitempty"`
-	Status               string   `protobuf:"bytes,2,opt,name=status" json:"status,omitempty"`
-	Ret                  string   `protobuf:"bytes,3,opt,name=ret" json:"ret,omitempty"`
+	Status               string   `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Ret                  string   `protobuf:"bytes,3,opt,name=ret,proto3" json:"ret,omitempty"`
 	TxHash               []byte   `protobuf:"bytes,4,opt,name=txHash,proto3" json:"txHash,omitempty"`
 	FeeUsed              []byte   `protobuf:"bytes,5,opt,name=feeUsed,proto3" json:"feeUsed,omitempty"`
 	CumulativeFeeUsed    []byte   `protobuf:"bytes,6,opt,name=cumulativeFeeUsed,proto3" json:"cumulativeFeeUsed,omitempty"`
 	Bloom                []byte   `protobuf:"bytes,7,opt,name=bloom,proto3" json:"bloom,omitempty"`
-	Events               []*Event `protobuf:"bytes,8,rep,name=events" json:"events,omitempty"`
-	BlockNo              uint64   `protobuf:"varint,9,opt,name=blockNo" json:"blockNo,omitempty"`
+	Events               []*Event `protobuf:"bytes,8,rep,name=events,proto3" json:"events,omitempty"`
+	BlockNo              uint64   `protobuf:"varint,9,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
 	BlockHash            []byte   `protobuf:"bytes,10,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
-	TxIndex              int32    `protobuf:"varint,11,opt,name=txIndex" json:"txIndex,omitempty"`
+	TxIndex              int32    `protobuf:"varint,11,opt,name=txIndex,proto3" json:"txIndex,omitempty"`
 	From                 []byte   `protobuf:"bytes,12,opt,name=from,proto3" json:"from,omitempty"`
 	To                   []byte   `protobuf:"bytes,13,opt,name=to,proto3" json:"to,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -865,7 +865,7 @@ func (m *Receipt) Reset()         { *m = Receipt{} }
 func (m *Receipt) String() string { return proto.CompactTextString(m) }
 func (*Receipt) ProtoMessage()    {}
 func (*Receipt) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{12}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{12}
 }
 func (m *Receipt) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Receipt.Unmarshal(m, b)
@@ -978,13 +978,13 @@ func (m *Receipt) GetTo() []byte {
 
 type Event struct {
 	ContractAddress      []byte   `protobuf:"bytes,1,opt,name=contractAddress,proto3" json:"contractAddress,omitempty"`
-	EventName            string   `protobuf:"bytes,2,opt,name=eventName" json:"eventName,omitempty"`
-	JsonArgs             string   `protobuf:"bytes,3,opt,name=jsonArgs" json:"jsonArgs,omitempty"`
-	EventIdx             int32    `protobuf:"varint,4,opt,name=eventIdx" json:"eventIdx,omitempty"`
+	EventName            string   `protobuf:"bytes,2,opt,name=eventName,proto3" json:"eventName,omitempty"`
+	JsonArgs             string   `protobuf:"bytes,3,opt,name=jsonArgs,proto3" json:"jsonArgs,omitempty"`
+	EventIdx             int32    `protobuf:"varint,4,opt,name=eventIdx,proto3" json:"eventIdx,omitempty"`
 	TxHash               []byte   `protobuf:"bytes,5,opt,name=txHash,proto3" json:"txHash,omitempty"`
 	BlockHash            []byte   `protobuf:"bytes,6,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
-	BlockNo              uint64   `protobuf:"varint,7,opt,name=blockNo" json:"blockNo,omitempty"`
-	TxIndex              int32    `protobuf:"varint,8,opt,name=txIndex" json:"txIndex,omitempty"`
+	BlockNo              uint64   `protobuf:"varint,7,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
+	TxIndex              int32    `protobuf:"varint,8,opt,name=txIndex,proto3" json:"txIndex,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -994,7 +994,7 @@ func (m *Event) Reset()         { *m = Event{} }
 func (m *Event) String() string { return proto.CompactTextString(m) }
 func (*Event) ProtoMessage()    {}
 func (*Event) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{13}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{13}
 }
 func (m *Event) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Event.Unmarshal(m, b)
@@ -1071,7 +1071,7 @@ func (m *Event) GetTxIndex() int32 {
 }
 
 type FnArgument struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1081,7 +1081,7 @@ func (m *FnArgument) Reset()         { *m = FnArgument{} }
 func (m *FnArgument) String() string { return proto.CompactTextString(m) }
 func (*FnArgument) ProtoMessage()    {}
 func (*FnArgument) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{14}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{14}
 }
 func (m *FnArgument) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FnArgument.Unmarshal(m, b)
@@ -1109,10 +1109,10 @@ func (m *FnArgument) GetName() string {
 }
 
 type Function struct {
-	Name                 string        `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Arguments            []*FnArgument `protobuf:"bytes,2,rep,name=arguments" json:"arguments,omitempty"`
-	Payable              bool          `protobuf:"varint,3,opt,name=payable" json:"payable,omitempty"`
-	View                 bool          `protobuf:"varint,4,opt,name=view" json:"view,omitempty"`
+	Name                 string        `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Arguments            []*FnArgument `protobuf:"bytes,2,rep,name=arguments,proto3" json:"arguments,omitempty"`
+	Payable              bool          `protobuf:"varint,3,opt,name=payable,proto3" json:"payable,omitempty"`
+	View                 bool          `protobuf:"varint,4,opt,name=view,proto3" json:"view,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -1122,7 +1122,7 @@ func (m *Function) Reset()         { *m = Function{} }
 func (m *Function) String() string { return proto.CompactTextString(m) }
 func (*Function) ProtoMessage()    {}
 func (*Function) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{15}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{15}
 }
 func (m *Function) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Function.Unmarshal(m, b)
@@ -1171,9 +1171,9 @@ func (m *Function) GetView() bool {
 }
 
 type StateVar struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Type                 string   `protobuf:"bytes,2,opt,name=type" json:"type,omitempty"`
-	Len                  int32    `protobuf:"varint,3,opt,name=len" json:"len,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type                 string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Len                  int32    `protobuf:"varint,3,opt,name=len,proto3" json:"len,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1183,7 +1183,7 @@ func (m *StateVar) Reset()         { *m = StateVar{} }
 func (m *StateVar) String() string { return proto.CompactTextString(m) }
 func (*StateVar) ProtoMessage()    {}
 func (*StateVar) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{16}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{16}
 }
 func (m *StateVar) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateVar.Unmarshal(m, b)
@@ -1225,10 +1225,10 @@ func (m *StateVar) GetLen() int32 {
 }
 
 type ABI struct {
-	Version              string      `protobuf:"bytes,1,opt,name=version" json:"version,omitempty"`
-	Language             string      `protobuf:"bytes,2,opt,name=language" json:"language,omitempty"`
-	Functions            []*Function `protobuf:"bytes,3,rep,name=functions" json:"functions,omitempty"`
-	StateVariables       []*StateVar `protobuf:"bytes,4,rep,name=state_variables,json=stateVariables" json:"state_variables,omitempty"`
+	Version              string      `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Language             string      `protobuf:"bytes,2,opt,name=language,proto3" json:"language,omitempty"`
+	Functions            []*Function `protobuf:"bytes,3,rep,name=functions,proto3" json:"functions,omitempty"`
+	StateVariables       []*StateVar `protobuf:"bytes,4,rep,name=state_variables,json=stateVariables,proto3" json:"state_variables,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -1238,7 +1238,7 @@ func (m *ABI) Reset()         { *m = ABI{} }
 func (m *ABI) String() string { return proto.CompactTextString(m) }
 func (*ABI) ProtoMessage()    {}
 func (*ABI) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{17}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{17}
 }
 func (m *ABI) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ABI.Unmarshal(m, b)
@@ -1298,7 +1298,7 @@ func (m *Query) Reset()         { *m = Query{} }
 func (m *Query) String() string { return proto.CompactTextString(m) }
 func (*Query) ProtoMessage()    {}
 func (*Query) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{18}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{18}
 }
 func (m *Query) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Query.Unmarshal(m, b)
@@ -1334,9 +1334,9 @@ func (m *Query) GetQueryinfo() []byte {
 
 type StateQuery struct {
 	ContractAddress      []byte   `protobuf:"bytes,1,opt,name=contractAddress,proto3" json:"contractAddress,omitempty"`
-	StorageKeys          []string `protobuf:"bytes,2,rep,name=storageKeys" json:"storageKeys,omitempty"`
+	StorageKeys          []string `protobuf:"bytes,2,rep,name=storageKeys,proto3" json:"storageKeys,omitempty"`
 	Root                 []byte   `protobuf:"bytes,3,opt,name=root,proto3" json:"root,omitempty"`
-	Compressed           bool     `protobuf:"varint,4,opt,name=compressed" json:"compressed,omitempty"`
+	Compressed           bool     `protobuf:"varint,4,opt,name=compressed,proto3" json:"compressed,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1346,7 +1346,7 @@ func (m *StateQuery) Reset()         { *m = StateQuery{} }
 func (m *StateQuery) String() string { return proto.CompactTextString(m) }
 func (*StateQuery) ProtoMessage()    {}
 func (*StateQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{19}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{19}
 }
 func (m *StateQuery) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateQuery.Unmarshal(m, b)
@@ -1396,12 +1396,12 @@ func (m *StateQuery) GetCompressed() bool {
 
 type FilterInfo struct {
 	ContractAddress      []byte   `protobuf:"bytes,1,opt,name=contractAddress,proto3" json:"contractAddress,omitempty"`
-	EventName            string   `protobuf:"bytes,2,opt,name=eventName" json:"eventName,omitempty"`
-	Blockfrom            uint64   `protobuf:"varint,3,opt,name=blockfrom" json:"blockfrom,omitempty"`
-	Blockto              uint64   `protobuf:"varint,4,opt,name=blockto" json:"blockto,omitempty"`
-	Desc                 bool     `protobuf:"varint,5,opt,name=desc" json:"desc,omitempty"`
+	EventName            string   `protobuf:"bytes,2,opt,name=eventName,proto3" json:"eventName,omitempty"`
+	Blockfrom            uint64   `protobuf:"varint,3,opt,name=blockfrom,proto3" json:"blockfrom,omitempty"`
+	Blockto              uint64   `protobuf:"varint,4,opt,name=blockto,proto3" json:"blockto,omitempty"`
+	Desc                 bool     `protobuf:"varint,5,opt,name=desc,proto3" json:"desc,omitempty"`
 	ArgFilter            []byte   `protobuf:"bytes,6,opt,name=argFilter,proto3" json:"argFilter,omitempty"`
-	RecentBlockCnt       int32    `protobuf:"varint,7,opt,name=recentBlockCnt" json:"recentBlockCnt,omitempty"`
+	RecentBlockCnt       int32    `protobuf:"varint,7,opt,name=recentBlockCnt,proto3" json:"recentBlockCnt,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1411,7 +1411,7 @@ func (m *FilterInfo) Reset()         { *m = FilterInfo{} }
 func (m *FilterInfo) String() string { return proto.CompactTextString(m) }
 func (*FilterInfo) ProtoMessage()    {}
 func (*FilterInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_blockchain_c7f13acaf0991c73, []int{20}
+	return fileDescriptor_blockchain_3ca6f2ff3d6b6983, []int{20}
 }
 func (m *FilterInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FilterInfo.Unmarshal(m, b)
@@ -1505,9 +1505,9 @@ func init() {
 	proto.RegisterEnum("types.TxType", TxType_name, TxType_value)
 }
 
-func init() { proto.RegisterFile("blockchain.proto", fileDescriptor_blockchain_c7f13acaf0991c73) }
+func init() { proto.RegisterFile("blockchain.proto", fileDescriptor_blockchain_3ca6f2ff3d6b6983) }
 
-var fileDescriptor_blockchain_c7f13acaf0991c73 = []byte{
+var fileDescriptor_blockchain_3ca6f2ff3d6b6983 = []byte{
 	// 1338 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x57, 0x4d, 0x6f, 0x23, 0x45,
 	0x13, 0x7e, 0xc7, 0xf6, 0x38, 0x76, 0xe5, 0xcb, 0xdb, 0xef, 0x0a, 0x06, 0x58, 0xad, 0xcc, 0x28,

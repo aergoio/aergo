@@ -3,6 +3,7 @@ package raftv2
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
@@ -22,8 +23,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-
-	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 const (
@@ -35,6 +34,11 @@ var (
 	httpLogger         *log.Logger
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
+)
+
+var (
+	ErrClusterNotReady = errors.New("cluster is not ready")
+	ErrNotRaftLeader   = errors.New("this node is not leader")
 )
 
 func init() {
@@ -139,7 +143,7 @@ type Proposed struct {
 }
 
 type RaftOperator struct {
-	confChangeC chan raftpb.ConfChange
+	confChangeC chan *types.MembershipChange
 	commitC     chan *types.Block
 
 	rs *raftServer
@@ -148,7 +152,7 @@ type RaftOperator struct {
 }
 
 func newRaftOperator(rs *raftServer) *RaftOperator {
-	confChangeC := make(chan raftpb.ConfChange, 1)
+	confChangeC := make(chan *types.MembershipChange, 1)
 	commitC := make(chan *types.Block)
 
 	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
@@ -187,11 +191,11 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.raftOp = newRaftOperator(bf.raftServer)
 
-	logger.Info().Str("RaftID", MemberIDToString(bf.bpc.NodeID)).Msg("raft server start")
+	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
-	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, false,
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, !cfg.Consensus.Raft.NewCluster,
 		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
-		RaftTick, bf.raftOp.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
+		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
 	bf.raftOp.rs = bf.raftServer
@@ -217,7 +221,7 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	if b, _ := bf.GetBestBlock(); b != nil {
 		//TODO is it ok if last job was failed?
 		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
-			logger.Debug().Msg("previous block not connected. skip to generate block")
+			logger.Debug().Uint64("bestno", b.BlockNo()).Msg("previous block not connected. skip to generate block")
 			return
 		}
 		bf.prevBlock = b
@@ -384,7 +388,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 
 	if proposed != nil {
 		if !bytes.Equal(block.BlockHash(), proposed.block.BlockHash()) {
-			logger.Warn().Uint64("prop-no", proposed.block.GetHeader().GetBlockNo()).Str("prop", proposed.block.ID()).Uint64("commit-no", block.GetHeader().GetBlockNo()).Str("commit", block.ID()).Msg("commited block is not commited. this node is probably not leader")
+			logger.Warn().Uint64("prop-no", proposed.block.GetHeader().GetBlockNo()).Str("prop", proposed.block.ID()).Uint64("commit-no", block.GetHeader().GetBlockNo()).Str("commit", block.ID()).Msg("commited block is not proposed by me. this node is probably not leader")
 			bf.raftOp.resetPropose()
 		} else {
 			blockState = proposed.blockState
@@ -396,8 +400,9 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 		Str("prev", block.PrevID()).
 		Msg("connect block")
 
-	//if bestblock is changed, connecting block failed. new block is generated in next tick
-	if err := chain.ConnectBlock(bf, block, blockState); err != nil {
+	// if bestblock is changed, connecting block failed. new block is generated in next tick
+	// On a slow server, chain service takes too long to add block in blockchain. In this case, raft server waits to send new block to commit channel.
+	if err := chain.ConnectBlock(bf, block, blockState, time.Second*300); err != nil {
 		logger.Error().Msg(err.Error())
 		return err
 	}
@@ -466,4 +471,35 @@ func (bf *BlockFactory) NeedNotify() bool {
 
 func (bf *BlockFactory) HasWAL() bool {
 	return true
+}
+
+type ErrorMembershipChange struct {
+	Err error
+}
+
+func (e ErrorMembershipChange) Error() string {
+	return fmt.Sprintf("failed to change membership: %s", e.Err.Error())
+}
+
+// ConfChange change membership of raft cluster and returns new membership
+func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
+	if bf.bpc == nil {
+		return nil, ErrorMembershipChange{ErrClusterNotReady}
+	}
+
+	if !bf.raftServer.IsLeader() {
+		return nil, ErrorMembershipChange{ErrNotRaftLeader}
+	}
+
+	var member *consensus.Member
+	var err error
+	if member, err = bf.bpc.ChangeMembership(req); err != nil {
+		return nil, ErrorMembershipChange{err}
+	}
+
+	return member, nil
+}
+
+func (bf *BlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
+	return bf.bpc.getMemberAttrs(), bf.bpc.chainID, nil
 }

@@ -106,13 +106,14 @@ type ConsensusConfig struct {
 }
 
 type RaftConfig struct {
-	Name      string         `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
-	ListenUrl string         `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
-	BPs       []RaftBPConfig `mapstructure:"bps"`
-	SkipEmpty bool           `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
-	KeyFile   string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
-	CertFile  string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
-	Tick      uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
+	Name       string         `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
+	ListenUrl  string         `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
+	BPs        []RaftBPConfig `mapstructure:"bps"`
+	SkipEmpty  bool           `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
+	KeyFile    string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
+	CertFile   string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
+	Tick       uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
+	NewCluster bool           `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
 }
 
 type RaftBPConfig struct {

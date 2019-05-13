@@ -325,3 +325,11 @@ func (dpos *DPoS) NeedNotify() bool {
 func (dpos *DPoS) HasWAL() bool {
 	return false
 }
+
+func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (dpos *DPoS) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
+	return nil, nil, consensus.ErrNotSupportedMethod
+}

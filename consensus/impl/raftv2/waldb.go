@@ -28,8 +28,6 @@ func (wal *WalDB) SaveEntry(state raftpb.HardState, entries []raftpb.Entry) erro
 		if err := wal.WriteRaftEntry(walEnts, blocks); err != nil {
 			return err
 		}
-
-		return nil
 	}
 
 	// hardstate must save after entries since entries may include commited one
@@ -155,16 +153,20 @@ var (
 // ReadAll returns hard state, all uncommitted entries
 // - read last hard state
 // - read  all uncommited entries after snapshot index
-func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (state *raftpb.HardState, ents []raftpb.Entry, err error) {
+func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (id *consensus.RaftIdentity, state *raftpb.HardState, ents []raftpb.Entry, err error) {
+	if id, err = wal.GetIdentity(); err != nil {
+		return nil, state, ents, err
+	}
+
 	state, err = wal.GetHardState()
 	if err != nil {
-		return state, ents, ErrWalGetHardState
+		return id, state, ents, ErrWalGetHardState
 	}
 
 	commitIdx := state.Commit
 	lastIdx, err := wal.GetRaftEntryLastIdx()
 	if err != nil {
-		return state, ents, ErrWalGetLastIdx
+		return id, state, ents, ErrWalGetLastIdx
 	}
 
 	var snapIdx, snapTerm uint64
@@ -179,22 +181,22 @@ func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (state *raftpb.HardState, e
 		walEntry, err := wal.GetRaftEntry(i)
 		if err != nil {
 			logger.Error().Err(err).Uint64("idx", i).Msg("failed to get raft entry")
-			return state, nil, err
+			return id, state, nil, err
 		}
 
 		if walEntry.Term < snapTerm {
 			logger.Error().Str("wal", walEntry.ToString()).Err(ErrWalEntryTooLowTerm).Msg("invalid wal entry")
-			return state, nil, ErrWalEntryTooLowTerm
+			return id, state, nil, ErrWalEntryTooLowTerm
 		}
 
 		raftEntry, err := wal.convertWalToRaft(walEntry)
 		if err != nil {
-			return state, nil, err
+			return id, state, nil, err
 		}
 
 		logger.Debug().Str("walentry", walEntry.ToString()).Msg("read wal entry")
 		ents = append(ents, *raftEntry)
 	}
 
-	return state, ents, nil
+	return id, state, ents, nil
 }

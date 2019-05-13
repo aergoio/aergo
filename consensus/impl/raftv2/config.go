@@ -40,14 +40,12 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		RaftTick = time.Duration(raftConfig.Tick * 1000000)
 	}
 
-	lenBPs := len(raftConfig.BPs)
-
 	chainID, err := chain.Genesis.ID.Bytes()
 	if err != nil {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, uint16(lenBPs), chain.Genesis.Timestamp)
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, chain.Genesis.Timestamp)
 
 	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).
@@ -69,11 +67,11 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	if err = bf.bpc.SetThisNode(); err != nil {
-		return err
-	}
-
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
+
+	if bf.bpc.getEffectiveMembers().len() == 0 {
+		logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
+	}
 
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
 
@@ -128,6 +126,7 @@ func isValidURL(urlstr string, useTls bool) error {
 }
 
 func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) error {
+	logger.Debug().Msg("add cluster members from config file")
 	lenBPs := len(raftCfg.BPs)
 	if lenBPs == 0 {
 		return fmt.Errorf("config of raft bp is empty")
@@ -156,14 +155,15 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 	return nil
 }
 
-func (cl *Cluster) SetThisNode() error {
+func (cl *Cluster) SetThisNodeID() error {
 	var member *consensus.Member
 
-	if member = cl.configMembers.getMemberByName(cl.NodeName); member == nil {
+	if member = cl.getEffectiveMembers().getMemberByName(cl.NodeName()); member == nil {
 		return ErrNotIncludedRaftMember
 	}
 
-	cl.NodeID = member.ID
+	// it can be reset when this node is added to cluster
+	cl.SetNodeID(member.ID)
 
 	return nil
 }

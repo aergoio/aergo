@@ -23,7 +23,7 @@ const (
 	EntryBlock EntryType = iota
 	EntryEmpty           // it is generated when node becomes leader
 	EntryConfChange
-	InvalidMemberID = MemberID(0)
+	InvalidMemberID = 0
 )
 
 var (
@@ -64,6 +64,18 @@ func (we *WalEntry) ToString() string {
 	return fmt.Sprintf("wal entry[type:%s, index:%d, term:%d", WalEntryType_name[we.Type], we.Index, we.Term)
 }
 
+type RaftIdentity struct {
+	ID   uint64
+	Name string
+}
+
+func (rid *RaftIdentity) ToString() string {
+	if rid == nil {
+		return "raft identity is nil"
+	}
+	return fmt.Sprintf("raft identity[name:%s, nodeid:%x]", rid.Name, rid.ID)
+}
+
 type ChainWAL interface {
 	ChainDB
 
@@ -72,11 +84,14 @@ type ChainWAL interface {
 	ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error)
 	WriteRaftEntry([]*WalEntry, []*types.Block) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
+	HasWal() (bool, error)
 	GetRaftEntryLastIdx() (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
 	WriteSnapshot(snap *raftpb.Snapshot) error
 	GetSnapshot() (*raftpb.Snapshot, error)
+	WriteIdentity(id *RaftIdentity) error
+	GetIdentity() (*RaftIdentity, error)
 }
 
 type SnapshotData struct {
@@ -222,26 +237,42 @@ func SnapToString(snap *raftpb.Snapshot, snapd *SnapshotData) string {
 	return buf
 }
 
-type MemberID uint64
-
 type Member struct {
-	ID     MemberID `json:"id"`
-	Name   string   `json:"name"`
-	Url    string   `json:"url"`
-	PeerID peer.ID  `json:"peerid"`
+	/*
+		ID     MemberID `json:"id"`
+		Name   string   `json:"name"`
+		Url    string   `json:"url"`
+		PeerID peer.ID  `json:"peerid"`*/
+	types.MemberAttr
 }
 
 func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int64) *Member {
 	//check unique
-	m := &Member{Name: name, Url: url, PeerID: peerID}
+	m := &Member{types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
 
 	//make ID
-	m.SetMemberID(chainID, when)
+	m.CalculateMemberID(chainID, when)
 
 	return m
 }
 
-func (m *Member) SetMemberID(chainID []byte, curTimestamp int64) {
+func (m *Member) Clone() *Member {
+	newM := Member{MemberAttr: types.MemberAttr{ID: m.ID, Name: m.Name, Url: m.Url}}
+
+	copy(newM.PeerID, m.PeerID)
+
+	return &newM
+}
+
+func (m *Member) SetAttr(attr *types.MemberAttr) {
+	m.MemberAttr = *attr
+}
+
+func (m *Member) SetMemberID(id uint64) {
+	m.ID = id
+}
+
+func (m *Member) CalculateMemberID(chainID []byte, curTimestamp int64) {
 	var buf []byte
 
 	buf = append(buf, []byte(m.Name)...)
@@ -249,7 +280,7 @@ func (m *Member) SetMemberID(chainID []byte, curTimestamp int64) {
 	buf = append(buf, []byte(fmt.Sprintf("%d", curTimestamp))...)
 
 	hash := sha1.Sum(buf)
-	m.ID = MemberID(binary.LittleEndian.Uint64(hash[:8]))
+	m.ID = binary.LittleEndian.Uint64(hash[:8])
 }
 
 func (m *Member) IsValid() bool {
@@ -265,26 +296,31 @@ func (m *Member) IsValid() bool {
 	return true
 }
 
+func (m *Member) GetPeerID() peer.ID {
+	return peer.ID(m.PeerID)
+}
+
 func (m *Member) Equal(other *Member) bool {
 	return m.ID == other.ID &&
-		m.PeerID == other.PeerID &&
+		bytes.Equal(m.PeerID, other.PeerID) &&
 		m.Name == other.Name &&
 		m.Url == other.Url &&
 		bytes.Equal([]byte(m.PeerID), []byte(other.PeerID))
 }
 
 func (m *Member) ToString() string {
-	return fmt.Sprintf("member{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(m.PeerID))
+	return fmt.Sprintf("{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(peer.ID(m.PeerID)))
 }
 
 func (m *Member) HasDuplicatedAttr(x *Member) bool {
-	if m.Name == x.Name || m.ID == x.ID || m.Url == x.Url || m.PeerID == x.PeerID {
+	if m.Name == x.Name || m.ID == x.ID || m.Url == x.Url || bytes.Equal(m.PeerID, x.PeerID) {
 		return true
 	}
 
 	return false
 }
 
+/*
 func (m *Member) MarshalJSON() ([]byte, error) {
 	nj := NewJsonMember(m)
 	return json.Marshal(nj)
@@ -305,7 +341,6 @@ func (m *Member) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
-
 type JsonMember struct {
 	ID     MemberID `json:"id"`
 	Name   string   `json:"name"`
@@ -329,6 +364,24 @@ func (jm *JsonMember) Member() (Member, error) {
 		Url:    jm.Url,
 		PeerID: peerID,
 	}, nil
+}
+*/
+
+// IsCompatible checks if name, url and peerid of this member are the same with other member
+func (m *Member) IsCompatible(other *Member) bool {
+	return m.Name == other.Name && m.Url == other.Url && bytes.Equal(m.PeerID, other.PeerID)
+}
+
+type MembersByName []*Member
+
+func (mbrs MembersByName) Len() int {
+	return len(mbrs)
+}
+func (mbrs MembersByName) Less(i, j int) bool {
+	return mbrs[i].Name < mbrs[j].Name
+}
+func (mbrs MembersByName) Swap(i, j int) {
+	mbrs[i], mbrs[j] = mbrs[j], mbrs[i]
 }
 
 func ParseToUrl(urlstr string) (*url.URL, error) {

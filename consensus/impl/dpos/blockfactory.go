@@ -189,7 +189,7 @@ func (bf *BlockFactory) worker() {
 				continue
 			}
 
-			err = chain.ConnectBlock(bf, block, blockState)
+			err = chain.ConnectBlock(bf, block, blockState, time.Second)
 			if err == nil {
 				lpbNo = block.BlockNo()
 			} else {

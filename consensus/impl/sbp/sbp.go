@@ -197,7 +197,7 @@ func (s *SimpleBlockFactory) Start() {
 					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block, blockState)
+				chain.ConnectBlock(s, block, blockState, time.Second)
 			}
 		case <-s.quit:
 			return
@@ -226,4 +226,12 @@ func (s *SimpleBlockFactory) NeedNotify() bool {
 
 func (s *SimpleBlockFactory) HasWAL() bool {
 	return false
+}
+
+func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (s *SimpleBlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
+	return nil, nil, consensus.ErrNotSupportedMethod
 }

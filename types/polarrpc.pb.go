@@ -35,7 +35,7 @@ func (m *Paginations) Reset()         { *m = Paginations{} }
 func (m *Paginations) String() string { return proto.CompactTextString(m) }
 func (*Paginations) ProtoMessage()    {}
 func (*Paginations) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_2b3b2813fa132042, []int{0}
+	return fileDescriptor_polarrpc_391626a3f37c108a, []int{0}
 }
 func (m *Paginations) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Paginations.Unmarshal(m, b)
@@ -82,7 +82,7 @@ func (m *PolarisPeerList) Reset()         { *m = PolarisPeerList{} }
 func (m *PolarisPeerList) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeerList) ProtoMessage()    {}
 func (*PolarisPeerList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_2b3b2813fa132042, []int{1}
+	return fileDescriptor_polarrpc_391626a3f37c108a, []int{1}
 }
 func (m *PolarisPeerList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeerList.Unmarshal(m, b)
@@ -138,7 +138,7 @@ func (m *PolarisPeer) Reset()         { *m = PolarisPeer{} }
 func (m *PolarisPeer) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeer) ProtoMessage()    {}
 func (*PolarisPeer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_2b3b2813fa132042, []int{2}
+	return fileDescriptor_polarrpc_391626a3f37c108a, []int{2}
 }
 func (m *PolarisPeer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeer.Unmarshal(m, b)
@@ -400,9 +400,9 @@ var _PolarisRPCService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "polarrpc.proto",
 }
 
-func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_polarrpc_2b3b2813fa132042) }
+func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_polarrpc_391626a3f37c108a) }
 
-var fileDescriptor_polarrpc_2b3b2813fa132042 = []byte{
+var fileDescriptor_polarrpc_391626a3f37c108a = []byte{
 	// 401 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x52, 0xc1, 0x6e, 0xd3, 0x40,
 	0x10, 0x8d, 0xeb, 0x26, 0xc5, 0x93, 0x36, 0xc0, 0x08, 0x2a, 0xcb, 0x42, 0xc8, 0xf2, 0xc9, 0x07,

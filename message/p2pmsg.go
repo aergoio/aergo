@@ -183,3 +183,13 @@ type GetHashByNoRsp struct {
 
 type GetSelf struct {
 }
+
+type GetCluster struct {
+	ReplyC chan *GetClusterRsp
+}
+
+type GetClusterRsp struct {
+	ChainID BlockHash
+	Members []*types.MemberAttr
+	Err     error
+}

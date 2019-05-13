@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
 	"sync"
 	"time"
@@ -40,13 +41,14 @@ type P2P struct {
 	mf      p2pcommon.MoFactory
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
+	consacc consensus.ConsensusAccessor
 
 	mutex sync.Mutex
 }
 
 var (
-	_  p2pcommon.ActorService     = (*P2P)(nil)
-	_  p2pcommon.HSHandlerFactory = (*P2P)(nil)
+	_ p2pcommon.ActorService     = (*P2P)(nil)
+	_ p2pcommon.HSHandlerFactory = (*P2P)(nil)
 )
 
 // NewP2P create a new ActorService for p2p
@@ -101,6 +103,10 @@ func (p2ps *P2P) GetNetworkTransport() p2pcommon.NetworkTransport {
 
 func (p2ps *P2P) GetPeerAccessor() p2pcommon.PeerAccessor {
 	return p2ps.pm
+}
+
+func (p2ps *P2P) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
+	p2ps.consacc = ca
 }
 
 func (p2ps *P2P) ChainID() *types.ChainID {
@@ -200,6 +206,10 @@ func (p2ps *P2P) Receive(context actor.Context) {
 				p2ps.checkAndAddPeerAddresses(msg.Peers)
 			}
 		}
+	case *message.GetCluster:
+		peers := p2ps.pm.GetPeers()
+		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
+		clusterReceiver.StartGet()
 	}
 }
 
@@ -290,6 +300,10 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 
 	// BP protocol handlers
 	peer.AddMessageHandler(subproto.BlockProducedNotice, subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+
+	// Raft support
+	peer.AddMessageHandler(subproto.GetClusterRequest, subproto.NewGetClusterReqHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
+	peer.AddMessageHandler(subproto.GetClusterResponse, subproto.NewGetClusterRespHandler(p2ps.pm, peer, logger, p2ps))
 
 }
 
