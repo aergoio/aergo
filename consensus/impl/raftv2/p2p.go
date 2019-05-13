@@ -50,6 +50,6 @@ func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
 
 	newCl := NewClusterFromMemberAttrs(rsp.ChainID, rsp.Members)
 
-	logger.Debug().Str("info", newCl.toString()).Msg("get remote cluster info")
+	//logger.Debug().Str("info", newCl.toString()).Msg("get remote cluster info")
 	return newCl, nil
 }

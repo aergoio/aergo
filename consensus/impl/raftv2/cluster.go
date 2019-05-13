@@ -33,6 +33,7 @@ var (
 	ErrConChangeTimeOut         = errors.New("timeouted membership change request")
 	ErrConfChangeChannelBusy    = errors.New("channel of conf change propose is busy")
 	ErrCCMemberIsNil            = errors.New("memeber is nil")
+	ErrNotMatchedRaftName       = errors.New("mismatched name of raft identity")
 )
 
 type RaftInfo struct {
@@ -59,8 +60,7 @@ type Cluster struct {
 	appliedIndex uint64
 	appliedTerm  uint64
 
-	NodeName string
-	NodeID   uint64
+	identity consensus.RaftIdentity
 
 	Size uint32
 
@@ -136,7 +136,7 @@ func NewCluster(chainID []byte, bf *BlockFactory, raftName string, chainTimestam
 		chainID:            chainID,
 		chainTimestamp:     chainTimestamp,
 		ICompSyncRequester: bf,
-		NodeName:           raftName,
+		identity:           consensus.RaftIdentity{Name: raftName},
 		configMembers:      newMembers(),
 		members:            newMembers(),
 		confChangeC:        make(chan *consensus.ConfChangePropose),
@@ -158,12 +158,42 @@ func NewClusterFromMemberAttrs(chainID []byte, memberAttrs []*types.MemberAttr) 
 
 		mbr.SetAttr(mbrAttr)
 
-		if err := cl.addMember(&mbr, false); err != nil {
+		if err := cl.addMember(&mbr, true); err != nil {
 			logger.Error().Err(err).Msg("fail to add member")
 		}
 	}
 
 	return cl
+}
+
+func (cl *Cluster) NodeName() string {
+	return cl.identity.Name
+}
+
+func (cl *Cluster) NodeID() uint64 {
+	return cl.identity.ID
+}
+
+func (cl *Cluster) SetNodeID(nodeid uint64) {
+	cl.identity.ID = nodeid
+}
+
+// RecoverIdentity reset node id and name of cluster.
+// raft identity is saved in WAL and reset when server is restarted
+func (cl *Cluster) RecoverIdentity(id *consensus.RaftIdentity) error {
+	cl.Lock()
+	defer cl.Unlock()
+
+	// check name
+	if cl.identity.Name != id.Name {
+		return ErrNotMatchedRaftName
+	}
+
+	cl.identity = *id
+
+	logger.Info().Str("identity", id.ToString()).Msg("recover raft identity of this node")
+
+	return nil
 }
 
 func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
@@ -185,6 +215,8 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
 	}
 
 	cl.setEffectiveMembers(cl.members)
+
+	logger.Info().Str("info", cl.toStringWithLock()).Msg("cluster recovered")
 
 	return nil
 }
@@ -249,7 +281,7 @@ func (cl *Cluster) getAnyPeerAddressToSync() (peer.ID, error) {
 	defer cl.Unlock()
 
 	for _, member := range cl.getEffectiveMembers().MapByID {
-		if member.Name != cl.NodeName {
+		if member.Name != cl.NodeName() {
 			return member.GetPeerID(), nil
 		}
 	}
@@ -263,8 +295,6 @@ func (cl *Cluster) addMember(member *consensus.Member, fromConfig bool) error {
 
 	mbrs := cl.members
 
-	logger.Debug().Bool("fromconfig", fromConfig).Str("member", member.ToString()).Msg("add member to members")
-
 	if fromConfig {
 		mbrs = cl.configMembers
 
@@ -276,9 +306,11 @@ func (cl *Cluster) addMember(member *consensus.Member, fromConfig bool) error {
 		}
 
 		// check if peerID of this node is valid
-		if cl.NodeName == member.Name && member.GetPeerID() != p2pkey.NodeID() {
+		if cl.NodeName() == member.Name && member.GetPeerID() != p2pkey.NodeID() {
 			return ErrInvalidRaftPeerID
 		}
+	} else {
+		logger.Debug().Str("member", member.ToString()).Msg("add member to members")
 	}
 
 	mbrs.add(member)
@@ -304,7 +336,7 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 // ValidateAndMergeExistingCluster tests if members of existing cluster are matched with this cluster
 func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	myMembers := cl.configMembers.ToArray()
-	exMembers := existingCl.members.ToArray()
+	exMembers := existingCl.getEffectiveMembers().ToArray()
 
 	if len(myMembers) != len(exMembers) {
 		return false
@@ -322,10 +354,13 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 		}
 	}
 
-	cl.members = existingCl.members
+	cl.members = existingCl.getEffectiveMembers()
 	cl.setEffectiveMembers(cl.members)
+
+	myNodeID := existingCl.getNodeID(cl.NodeName())
+
 	// reset self nodeID of cluster
-	cl.NodeID = cl.getNodeID(cl.NodeName)
+	cl.SetNodeID(myNodeID)
 
 	logger.Debug().Str("my", cl.toString()).Msg("cluster merged with existing cluster")
 	return true
@@ -483,23 +518,21 @@ func (cc *Cluster) hasSynced() (bool, error) {
 	return true, nil
 }
 */
+func (cl *Cluster) toStringWithLock() string {
+	var buf string
+
+	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%x", cl.Size, cl.NodeName(), cl.NodeID())
+	buf += ", config members: " + cl.configMembers.toString()
+	buf += ", runtime members: " + cl.members.toString()
+
+	return buf
+}
 
 func (cl *Cluster) toString() string {
 	cl.Lock()
 	defer cl.Unlock()
 
-	var buf string
-	var myNodeID uint64
-
-	if len(cl.NodeName) != 0 {
-		myNodeID = cl.getNodeID(cl.NodeName)
-	}
-
-	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%x", cl.Size, cl.NodeName, myNodeID)
-	buf += ", config members: " + cl.configMembers.toString()
-	buf += ", runtime members: " + cl.members.toString()
-
-	return buf
+	return cl.toStringWithLock()
 }
 
 func (cl *Cluster) getNodeID(name string) uint64 {
@@ -529,7 +562,7 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 		leaderName = "id=" + MemberIDToString(leader)
 	}
 
-	rinfo := &RaftInfo{Leader: leaderName, Total: strconv.FormatUint(uint64(cl.Size), 10), Name: cl.NodeName, RaftId: MemberIDToString(cl.NodeID)}
+	rinfo := &RaftInfo{Leader: leaderName, Total: strconv.FormatUint(uint64(cl.Size), 10), Name: cl.NodeName(), RaftId: MemberIDToString(cl.NodeID())}
 
 	if withStatus && cl.rs != nil {
 		b, err := cl.rs.Status().MarshalJSON()

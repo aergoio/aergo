@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	ErrMismatchedEntry = errors.New("mismatched entry")
-	ErrNoWalEntry      = errors.New("no entry")
+	ErrMismatchedEntry    = errors.New("mismatched entry")
+	ErrNoWalEntry         = errors.New("no entry")
+	ErrEncodeRaftIdentity = errors.New("failed encoding of raft identity")
+	ErrDecodeRaftIdentity = errors.New("failed decoding of raft identity")
 )
 
 // implement ChainWAL interface
@@ -239,4 +241,42 @@ func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
 	}
 
 	return snap, nil
+}
+
+func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	logger.Info().Str("id", identity.ToString()).Msg("save raft identity")
+
+	var val bytes.Buffer
+
+	gob := gob.NewEncoder(&val)
+	if err := gob.Encode(identity); err != nil {
+		return ErrEncodeRaftIdentity
+	}
+
+	dbTx.Set(raftIdentityKey, val.Bytes())
+	dbTx.Commit()
+
+	return nil
+}
+
+func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
+	data := cdb.store.Get(raftIdentityKey)
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var id consensus.RaftIdentity
+	var b bytes.Buffer
+	b.Write(data)
+	decoder := gob.NewDecoder(&b)
+	if err := decoder.Decode(&id); err != nil {
+		return nil, ErrDecodeRaftIdentity
+	}
+
+	logger.Info().Uint64("id", id.ID).Str("name", id.Name).Msg("save raft identity")
+
+	return &id, nil
 }

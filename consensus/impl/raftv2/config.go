@@ -67,10 +67,6 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	if err = bf.bpc.SetThisNode(); err != nil {
-		return err
-	}
-
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
 
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
@@ -126,6 +122,7 @@ func isValidURL(urlstr string, useTls bool) error {
 }
 
 func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) error {
+	logger.Debug().Msg("add cluster members from config file")
 	lenBPs := len(raftCfg.BPs)
 	if lenBPs == 0 {
 		return fmt.Errorf("config of raft bp is empty")
@@ -154,14 +151,15 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 	return nil
 }
 
-func (cl *Cluster) SetThisNode() error {
+func (cl *Cluster) SetThisNodeID() error {
 	var member *consensus.Member
 
-	if member = cl.configMembers.getMemberByName(cl.NodeName); member == nil {
+	if member = cl.getEffectiveMembers().getMemberByName(cl.NodeName()); member == nil {
 		return ErrNotIncludedRaftMember
 	}
 
-	cl.NodeID = member.ID
+	// it can be reset when this node is added to cluster
+	cl.SetNodeID(member.ID)
 
 	return nil
 }

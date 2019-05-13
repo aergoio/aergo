@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/libp2p/go-libp2p-peer"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -23,7 +24,9 @@ var (
 type getLeaderFuncType func() uint64
 
 type ChainSnapshotter struct {
-	p2pcommon.PeerAccessor
+	sync.Mutex
+
+	pa p2pcommon.PeerAccessor
 
 	*component.ComponentHub
 	cluster *Cluster
@@ -34,7 +37,14 @@ type ChainSnapshotter struct {
 }
 
 func newChainSnapshotter(pa p2pcommon.PeerAccessor, hub *component.ComponentHub, cluster *Cluster, walDB *WalDB, getLeader getLeaderFuncType) *ChainSnapshotter {
-	return &ChainSnapshotter{PeerAccessor: pa, ComponentHub: hub, cluster: cluster, walDB: walDB, getLeaderFunc: getLeader}
+	return &ChainSnapshotter{pa: pa, ComponentHub: hub, cluster: cluster, walDB: walDB, getLeaderFunc: getLeader}
+}
+
+func (chainsnap *ChainSnapshotter) setPeerAccessor(pa p2pcommon.PeerAccessor) {
+	chainsnap.Lock()
+	defer chainsnap.Unlock()
+
+	chainsnap.pa = pa
 }
 
 /* createSnapshot isn't used this api since new MsgSnap isn't made
@@ -97,6 +107,8 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 // chainSnapshotter rece ives snapshot from http request
 // TODO replace rafthttp with p2p
 func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+	defer RecoverExit()
+
 	if msg.Type != raftpb.MsgSnap {
 		logger.Error().Int32("type", int32(msg.Type)).Msg("received msg snap is invalid type")
 		return 0, ErrNotMsgSnap
@@ -108,6 +120,7 @@ func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg ra
 
 func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	var snapdata = &consensus.SnapshotData{}
+
 	err := snapdata.Decode(snap.Data)
 	if err != nil {
 		logger.Fatal().Msg("failed to unmarshal snapshot data to write")
@@ -128,12 +141,17 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	return nil
 }
 
+func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
+	if chainsnap.pa == nil {
+		logger.Fatal().Msg("peer accessor of chain snapshotter is not set")
+	}
+
+	_, ok := chainsnap.pa.GetPeer(peerID)
+	return ok
+}
+
 // TODO handle error case that leader stops while synchronizing
 func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) error {
-	checkPeerLive := func(peerID peer.ID) bool {
-		_, ok := chainsnap.GetPeer(peerID)
-		return ok
-	}
 
 	var leader uint64
 	getSyncLeader := func() (peer.ID, error) {
@@ -157,7 +175,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 				}
 			}
 
-			if checkPeerLive(peerID) {
+			if chainsnap.checkPeerLive(peerID) {
 				break
 			}
 

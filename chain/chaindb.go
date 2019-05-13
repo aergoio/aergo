@@ -40,6 +40,7 @@ var (
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 
+	raftIdentityKey     = []byte("r_identity")
 	raftStateKey        = []byte("r_state")
 	raftSnapKey         = []byte("r_snap")
 	raftEntryLastIdxKey = []byte("r_last")

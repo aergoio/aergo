@@ -64,6 +64,18 @@ func (we *WalEntry) ToString() string {
 	return fmt.Sprintf("wal entry[type:%s, index:%d, term:%d", WalEntryType_name[we.Type], we.Index, we.Term)
 }
 
+type RaftIdentity struct {
+	ID   uint64
+	Name string
+}
+
+func (rid *RaftIdentity) ToString() string {
+	if rid == nil {
+		return "raft identity is nil"
+	}
+	return fmt.Sprintf("raft identity[name:%s, nodeid:%x]", rid.Name, rid.ID)
+}
+
 type ChainWAL interface {
 	ChainDB
 
@@ -78,6 +90,8 @@ type ChainWAL interface {
 	WriteHardState(hardstate *raftpb.HardState) error
 	WriteSnapshot(snap *raftpb.Snapshot) error
 	GetSnapshot() (*raftpb.Snapshot, error)
+	WriteIdentity(id *RaftIdentity) error
+	GetIdentity() (*RaftIdentity, error)
 }
 
 type SnapshotData struct {

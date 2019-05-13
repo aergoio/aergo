@@ -26,6 +26,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -50,12 +52,13 @@ var (
 )
 
 var (
-	ErrNoSnapshot         = errors.New("no snapshot")
-	ErrCCAlreadyApplied   = errors.New("conf change entry is already applied")
-	ErrInvalidMember      = errors.New("member of conf change is invalid")
-	ErrCCAlreadyAdded     = errors.New("member has already added")
-	ErrCCNoMemberToRemove = errors.New("there is no member to remove")
-	ErrEmptySnapshot      = errors.New("received empty snapshot")
+	ErrNoSnapshot          = errors.New("no snapshot")
+	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
+	ErrInvalidMember       = errors.New("member of conf change is invalid")
+	ErrCCAlreadyAdded      = errors.New("member has already added")
+	ErrCCNoMemberToRemove  = errors.New("there is no member to remove")
+	ErrEmptySnapshot       = errors.New("received empty snapshot")
+	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
 )
 
 const (
@@ -134,6 +137,13 @@ type LeaderStatus struct {
 	leaderChanged uint64
 }
 
+func RecoverExit() {
+	if r := recover(); r != nil {
+		logger.Error().Str("callstack", string(debug.Stack())).Msg("panic occurred in raft server")
+		os.Exit(10)
+	}
+}
+
 func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 	c := &raftlib.Config{
 		ID:                        nodeID,
@@ -176,7 +186,6 @@ func newRaftServer(hub *component.ComponentHub,
 		confChangeC:  confChangeC,
 		commitC:      commitC,
 		errorC:       errorC,
-		id:           cluster.NodeID,
 		listenUrl:    listenUrl,
 		join:         join,
 		getSnapshot:  getSnapshot,
@@ -200,7 +209,7 @@ func newRaftServer(hub *component.ComponentHub,
 		rs.SetPromotable(false)
 	}
 
-	rs.snapshotter = newChainSnapshotter(rs.pa, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
+	rs.snapshotter = newChainSnapshotter(nil, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
 
 	return rs
 }
@@ -211,6 +220,7 @@ func (rs *raftServer) SetID(id uint64) {
 
 func (rs *raftServer) SetPeerAccessor(pa p2pcommon.PeerAccessor) {
 	rs.pa = pa
+	rs.snapshotter.setPeerAccessor(pa)
 }
 
 func (rs *raftServer) SetPromotable(val bool) {
@@ -236,20 +246,39 @@ func (rs *raftServer) makeStartPeers() ([]raftlib.Peer, error) {
 	return rs.cluster.getStartPeers()
 }
 
-func (rs *raftServer) startRaft() {
-	var (
-		node   raftlib.Node
-		hasWal bool
-		err    error
-	)
+type RaftServerState int
 
-	hasWal, err = rs.walDB.HasWal()
-	if err != nil {
-		logger.Fatal().Msg("failed to get raft entry last index")
+const (
+	RaftServerStateRestart = iota
+	RaftServerStateNewCluster
+	RaftServerStateJoinCluster
+)
+
+func (rs *raftServer) startRaft() {
+	var node raftlib.Node
+
+	getState := func() RaftServerState {
+		hasWal, err := rs.walDB.HasWal()
+		if err != nil {
+			logger.Fatal().Msg("failed to check if wal has initializeded")
+		}
+
+		switch {
+		case hasWal:
+			return RaftServerStateRestart
+		case rs.join:
+			return RaftServerStateJoinCluster
+		default:
+			return RaftServerStateNewCluster
+		}
+
 	}
 
-	if hasWal {
-		logger.Info().Msg("raft restart")
+	switch getState() {
+	case RaftServerStateRestart:
+		logger.Info().Msg("raft restart from wal")
+
+		rs.cluster.configMembers.reset()
 
 		snapshot, err := rs.loadSnapshot()
 		if err != nil {
@@ -260,6 +289,10 @@ func (rs *raftServer) startRaft() {
 			logger.Fatal().Err(err).Msg("replay wal failed for raft")
 		}
 
+		// cluster identity is recoverd from wal
+		rs.SetID(rs.cluster.NodeID())
+
+		// members of cluster will be loaded from snapshot or wal
 		if snapshot != nil {
 			if err := rs.cluster.Recover(snapshot); err != nil {
 				logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
@@ -268,8 +301,9 @@ func (rs *raftServer) startRaft() {
 
 		c := makeConfig(rs.id, rs.raftStorage)
 
+		logger.Info().Msg("raft node restart")
 		node = raftlib.RestartNode(c)
-	} else if rs.join {
+	case RaftServerStateJoinCluster:
 		logger.Info().Msg("raft start at first time and join existing cluster")
 
 		// get cluster info from existing cluster member
@@ -283,17 +317,24 @@ func (rs *raftServer) startRaft() {
 			logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
 		}
 
+		rs.SetID(rs.cluster.NodeID())
+		rs.SaveIdentity()
+
 		rs.raftStorage = raftlib.NewMemoryStorage()
 
 		// reset my raft nodeID from existing cluster
-		rs.SetID(rs.cluster.NodeID)
 		c := makeConfig(rs.id, rs.raftStorage)
 
+		logger.Info().Msg("raft node start")
 		node = raftlib.StartNode(c, nil)
-	} else {
+	case RaftServerStateNewCluster:
 		logger.Info().Msg("raft start at first time and makes new cluster")
 
 		var startPeers []raftlib.Peer
+
+		rs.cluster.SetThisNodeID()
+		rs.SetID(rs.cluster.NodeID())
+		rs.SaveIdentity()
 
 		startPeers, err := rs.makeStartPeers()
 		if err != nil {
@@ -304,10 +345,9 @@ func (rs *raftServer) startRaft() {
 
 		c := makeConfig(rs.id, rs.raftStorage)
 
+		logger.Info().Msg("raft node start")
 		node = raftlib.StartNode(c, startPeers)
 	}
-
-	logger.Debug().Msg("raft core node is started")
 
 	// need locking for sync with consensusAccessor
 	rs.setNodeSync(node)
@@ -335,11 +375,28 @@ func (rs *raftServer) startTransport() {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
 	}
 
+	if rs.cluster.getEffectiveMembers().len() == 0 {
+		logger.Fatal().Str("cluster", rs.cluster.toString()).Msg("can't start raft server because there are no members in cluster")
+	}
+
 	for _, member := range rs.cluster.getEffectiveMembers().MapByID {
-		if rs.cluster.NodeID != member.ID {
+		if rs.cluster.NodeID() != member.ID {
 			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})
 		}
 	}
+}
+
+func (rs *raftServer) SaveIdentity() error {
+	if rs.cluster.NodeID() == consensus.InvalidMemberID || len(rs.cluster.NodeName()) == 0 {
+		return ErrInvalidRaftIdentity
+	}
+
+	if err := rs.walDB.WriteIdentity(&rs.cluster.identity); err != nil {
+		logger.Fatal().Err(err).Msg("failed to write raft identity to wal")
+		return err
+	}
+
+	return nil
 }
 
 func (rs *raftServer) setNodeSync(node raftlib.Node) {
@@ -422,6 +479,8 @@ func (rs *raftServer) serveConfChange() {
 }
 
 func (rs *raftServer) serveChannels() {
+	defer RecoverExit()
+
 	snapshot, err := rs.raftStorage.Snapshot()
 	if err != nil {
 		panic(err)
@@ -575,6 +634,8 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 }
 
 func (rs *raftServer) serveRaft() {
+	defer RecoverExit()
+
 	urlstr := rs.listenUrl
 	urlData, err := url.Parse(urlstr)
 	if err != nil {
@@ -678,14 +739,16 @@ func (rs *raftServer) updateBlockProgress(term uint64, index uint64, block *type
 
 // replayWAL replays WAL entries into the raft instance.
 func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
-	logger.Info().Str("raftid", MemberIDToString(rs.id)).Msg("replaying WAL")
+	logger.Info().Msg("replaying WAL")
 
-	// TODO recover cluster from snapshot
-
-	st, ents, err := rs.walDB.ReadAll(snapshot)
+	identity, st, ents, err := rs.walDB.ReadAll(snapshot)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to read WAL")
 		return err
+	}
+
+	if err := rs.cluster.RecoverIdentity(identity); err != nil {
+		logger.Fatal().Err(err).Msg("failed to recover raft identity from wal")
 	}
 
 	rs.raftStorage = raftlib.NewMemoryStorage()
@@ -736,7 +799,6 @@ func (rs *raftServer) createSnapshot() ([]byte, error) {
 // raft can not wait until last applied entry commits. so snapshot must create from rs.prevProgress.index
 func (rs *raftServer) triggerSnapshot() {
 	if rs.prevProgress.index == 0 || rs.prevProgress.block == nil {
-		logger.Debug().Msg("raft need to make snapshot, but does not exist target progress")
 		return
 	}
 
@@ -819,7 +881,7 @@ func (rs *raftServer) recoverTransport() {
 	rs.transport.RemoveAllPeers()
 
 	for _, m := range rs.cluster.members.MapByID {
-		if m.ID == rs.cluster.NodeID {
+		if m.ID == rs.cluster.NodeID() {
 			continue
 		}
 
@@ -1046,7 +1108,7 @@ func (rs *raftServer) GetLeader() uint64 {
 }
 
 func (rs *raftServer) IsLeader() bool {
-	return rs.id == rs.GetLeader()
+	return rs.id != consensus.InvalidMemberID && rs.id == rs.GetLeader()
 }
 
 func (rs *raftServer) Status() raftlib.Status {

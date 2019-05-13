@@ -191,7 +191,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	bf.raftOp = newRaftOperator(bf.raftServer)
 
-	logger.Info().Str("RaftID", MemberIDToString(bf.bpc.NodeID)).Msg("raft server start")
+	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
 	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl, !cfg.Consensus.Raft.NewCluster,
 		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
