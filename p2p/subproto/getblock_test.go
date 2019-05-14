@@ -70,7 +70,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			}).MinTimes(1)
 
 			h := NewBlockReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &testMessage{subProtocol:GetBlocksRequest,id: p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{subProtocol: GetBlocksRequest,id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
 			h.Handle(dummyMsg, msgBody)
 

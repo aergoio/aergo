@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"time"
 
 	"github.com/aergoio/aergo/types"
@@ -16,6 +17,8 @@ import (
 )
 
 type baseMOFactory struct {
+	trace bool
+
 }
 
 func (mf *baseMOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
@@ -77,12 +80,17 @@ func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNo
 	return nil
 }
 
-func (mf *baseMOFactory) newHandshakeMessage(protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.Message {
-	// TODO define handshake specific datatype
-	rmo := &pbRequestOrder{}
+func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
+	rmo := &pbRaftMsgOrder{msg:raftMsg}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
-		return rmo.message
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.RaftWrapperMessage, raftMsg) {
+		switch msgType {
+		case raftpb.MsgHeartbeat, raftpb.MsgHeartbeatResp:
+			rmo.trace = false
+		default:
+			// follow default policy
+		}
+		return rmo
 	}
 	return nil
 }
@@ -99,6 +107,7 @@ func (mf *baseMOFactory)newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UU
 	mo.protocolID = protocolID
 	mo.needSign = true
 	mo.message = msg
+	mo.trace = true
 
 	return true
 }

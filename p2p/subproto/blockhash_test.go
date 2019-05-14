@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -267,6 +268,7 @@ type testDoubleHashesRespFactory struct {
 	lastStatus types.ResultStatus
 }
 
+
 func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
@@ -292,6 +294,11 @@ func (f *testDoubleHashesRespFactory) NewMsgTxBroadcastOrder(noticeMsg *types.Ne
 func (f *testDoubleHashesRespFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) p2pcommon.MsgOrder {
 	panic("implement me")
 }
+
+func (f *testDoubleHashesRespFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
 
 
 // testDoubleMOFactory keep last created message and last result status of response message
@@ -325,6 +332,11 @@ func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protoco
 	f.lastStatus = f.lastResp.(types.ResponseMessage).GetStatus()
 	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
 }
+
+func (f *testDoubleMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
 
 type testMo struct {
 	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.

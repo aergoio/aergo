@@ -253,6 +253,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		peers := p2ps.pm.GetPeers()
 		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
 		clusterReceiver.StartGet()
+	case *message.SendRaft:
+		p2ps.SendRaftMessage(context, msg)
 	case *message.RaftClusterEvent:
 		p2ps.Logger.Debug().Int("added", len(msg.BPAdded)).Int("removed", len(msg.BPRemoved)).Msg("bp changed")
 		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
@@ -355,6 +357,7 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 	// Raft support
 	peer.AddMessageHandler(subproto.GetClusterRequest, subproto.NewGetClusterReqHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
 	peer.AddMessageHandler(subproto.GetClusterResponse, subproto.NewGetClusterRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(subproto.RaftWrapperMessage, subproto.NewRaftWrapperHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
 
 }
 

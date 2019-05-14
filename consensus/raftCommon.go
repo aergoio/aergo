@@ -358,11 +358,11 @@ type JsonMember struct {
 }
 
 func NewJsonMember(m *Member) JsonMember {
-	return JsonMember{ID: m.ID, Name: m.Name, Url: m.Url, PeerID: peer.IDB58Encode(m.PeerID)}
+	return JsonMember{ID: m.ID, Name: m.Name, Url: m.Url, PeerID: types.IDB58Encode(m.PeerID)}
 }
 
 func (jm *JsonMember) Member() (Member, error) {
-	peerID, err := peer.IDB58Decode(jm.PeerID)
+	peerID, err := types.IDB58Decode(jm.PeerID)
 	if err != nil {
 		return Member{}, err
 	}

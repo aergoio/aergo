@@ -7,13 +7,15 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/etcd/raft/raftpb"
+	"reflect"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -222,4 +224,24 @@ func (p2ps *P2P) GetSyncAncestor(context actor.Context, msg *message.GetSyncAnce
 	receiver := NewAncestorReceiver(p2ps, remotePeer, msg.Seq, msg.Hashes, fetchTimeOut)
 	receiver.StartGet()
 	return
+}
+
+func (p2ps *P2P) SendRaftMessage(context actor.Context, msg *message.SendRaft) {
+	body, ok := msg.Body.(raftpb.Message)
+	if !ok {
+		p2ps.Error().Str("actual", reflect.TypeOf(msg.Body).String() ).Msg("body is not raftpb.Message")
+		context.Respond(&message.SendRaftRsp{Err: message.PeerNotFoundError})
+		return
+	}
+	peerID := msg.ToWhom
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		// temporarily comment out warning log, since current http/p2p hybrid env can cause too much logs
+		//p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("peer not exists")
+		context.Respond(&message.SendRaftRsp{Err: message.PeerNotFoundError})
+		return
+	}
+	remotePeer.SendMessage(p2ps.mf.NewRaftMsgOrder(body.Type, &body))
+	// return success
+	context.Respond(&message.SendRaftRsp{Err: nil})
 }

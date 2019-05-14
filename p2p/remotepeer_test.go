@@ -52,7 +52,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 
 func TestRemotePeer_sendPing(t *testing.T) {
 	t.Skip("Send ping is not used for now, and will be reused after")
-	selfPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	selfPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	sampleSelf := p2pcommon.PeerMeta{ID: selfPeerID, IPAddress: "192.168.1.1", Port: 6845}
 
 	dummyBestBlockRsp := message.GetBestBlockRsp{Block: &types.Block{Header: &types.BlockHeader{}}}

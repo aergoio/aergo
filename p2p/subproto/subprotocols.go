@@ -1,3 +1,8 @@
+/*
+ * @file
+ * @copyright defined in aergo/LICENSE.txt
+ */
+
 package subproto
 
 import "github.com/aergoio/aergo/p2p/p2pcommon"
@@ -43,7 +48,8 @@ const (
 	_ p2pcommon.SubProtocol = 0x3100 + iota
 	GetClusterRequest
 	GetClusterResponse
+	RaftWrapperMessage  //
 )
 
 // stringer is not works when the package of type definition and const is differ.
-// go:generate stringer -type=SubProtocol ../p2pcommon
+// go:generate stringer -type=SubProtocol

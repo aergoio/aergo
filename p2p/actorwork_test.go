@@ -7,14 +7,15 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/golang/mock/gomock"
 )
@@ -143,4 +144,50 @@ func TestP2P_GetBlockHashByNo(t *testing.T) {
 	ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
 	ps.pm = mockPM
 	ps.GetBlockHashByNo(mockCtx, sampleMsg)
+}
+
+func TestP2P_SendRaftMessage(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	type args struct {
+		pid 	types.PeerID
+		body    interface{}
+	}
+	tests := []struct {
+		name   string
+		args   args
+
+		wantErr bool
+	}{
+		{"TSucc", args{samplePeerID, raftpb.Message{Type:raftpb.MsgVote}}, false },
+		{"TNoPeer", args{dummyPeerID, raftpb.Message{Type:raftpb.MsgVote}}, true },
+		{"TWrongBody", args{samplePeerID, types.Status{}}, true },
+		//{"TNilBody", args{samplePeerID, &types.Status{}}, true },
+
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sentCnt := 1
+			if tt.wantErr {
+				sentCnt = 0
+			}
+			dummyMo = createDummyMo(ctrl)
+
+			mockCtx := p2pmock.NewMockContext(ctrl)
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
+			mockMF.EXPECT().NewRaftMsgOrder(raftpb.MsgVote,gomock.Any() ).Return(dummyMo).MaxTimes(1)
+			mockPM.EXPECT().GetPeer(gomock.Eq(samplePeerID)).Return(mockPeer, true).MaxTimes(1)
+			mockPM.EXPECT().GetPeer(gomock.Not(samplePeerID)).Return(nil, false).MaxTimes(1)
+			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(sentCnt)
+			mockCtx.EXPECT().Respond(gomock.Any()).Times(1)
+			ps := &P2P{pm:mockPM, mf:mockMF}
+			ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
+
+			ps.SendRaftMessage(mockCtx, &message.SendRaft{ToWhom:tt.args.pid, Body:tt.args.body})
+
+		})
+	}
 }

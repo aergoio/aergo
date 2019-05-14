@@ -228,7 +228,7 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			mockActor.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.AssignableToTypeOf(&message.MemPoolExistEx{})).Return(validBigMempoolRsp, nil)
 
 			h := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &testMessage{subProtocol:GetTXsRequest, id:p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{subProtocol: GetTXsRequest, id:p2pcommon.NewMsgID()}
 			msgBody := &types.GetTransactionsRequest{Hashes: make([][]byte, test.hashCnt)}
 			h.Handle(dummyMsg, msgBody)
 
