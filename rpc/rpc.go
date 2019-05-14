@@ -7,14 +7,15 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
@@ -132,11 +133,7 @@ func (ns *RPC) Receive(context actor.Context) {
 	case *types.Block:
 		server := ns.actualServer
 		server.BroadcastToListBlockStream(msg)
-		meta := &types.BlockMetadata{
-			Hash:    msg.BlockHash(),
-			Header:  msg.GetHeader(),
-			Txcount: int32(len(msg.GetBody().GetTxs())),
-		}
+		meta := msg.GetMetadata()
 		server.BroadcastToListBlockMetadataStream(meta)
 	case []*types.Event:
 		server := ns.actualServer

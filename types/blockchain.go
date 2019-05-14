@@ -468,6 +468,16 @@ func (block *Block) SetBlocksRootHash(blockRootHash []byte) {
 	block.GetHeader().BlocksRootHash = blockRootHash
 }
 
+// GetMetadata generates Metadata object for block
+func (block *Block) GetMetadata() *BlockMetadata {
+	return &BlockMetadata{
+		Hash:    block.BlockHash(),
+		Header:  block.GetHeader(),
+		Txcount: int32(len(block.GetBody().GetTxs())),
+		Size:    int64(proto.Size(block)),
+	}
+}
+
 // CalculateTxsRootHash generates merkle tree of transactions and returns root hash.
 func CalculateTxsRootHash(txs []*Tx) []byte {
 	mes := make([]merkle.MerkleEntry, len(txs))

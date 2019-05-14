@@ -175,11 +175,7 @@ func (rpc *AergoRPCService) ListBlockMetadata(ctx context.Context, in *types.Lis
 	}
 	var metas []*types.BlockMetadata
 	for _, block := range blocks {
-		metas = append(metas, &types.BlockMetadata{
-			Hash:    block.BlockHash(),
-			Header:  block.GetHeader(),
-			Txcount: int32(len(block.GetBody().GetTxs())),
-		})
+		metas = append(metas, block.GetMetadata())
 	}
 	return &types.BlockMetadataList{Blocks: metas}, nil
 }
@@ -297,7 +293,7 @@ func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.Block
 	rpc.blockMetadataStreamLock.RUnlock()
 }
 
-// real-time streaming most recent block header
+// ListBlockStream starts a stream of new blocks
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
 	streamId := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockStreamLock.Lock()
@@ -317,20 +313,21 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 	}
 }
 
+// ListBlockMetadataStream starts a stream of new blocks' metadata
 func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream types.AergoRPCService_ListBlockMetadataStreamServer) error {
-	streamId := atomic.AddUint32(&rpc.streamID, 1)
+	streamID := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockMetadataStreamLock.Lock()
-	rpc.blockMetadataStream[streamId] = stream
+	rpc.blockMetadataStream[streamID] = stream
 	rpc.blockMetadataStreamLock.Unlock()
-	logger.Info().Uint32("id", streamId).Msg("block meta stream added")
+	logger.Info().Uint32("id", streamID).Msg("block meta stream added")
 
 	for {
 		select {
 		case <-stream.Context().Done():
 			rpc.blockMetadataStreamLock.Lock()
-			delete(rpc.blockMetadataStream, streamId)
+			delete(rpc.blockMetadataStream, streamID)
 			rpc.blockMetadataStreamLock.Unlock()
-			logger.Info().Uint32("id", streamId).Msg("block meta stream deleted")
+			logger.Info().Uint32("id", streamID).Msg("block meta stream deleted")
 			return nil
 		}
 	}
@@ -399,12 +396,7 @@ func (rpc *AergoRPCService) GetBlockMetadata(ctx context.Context, in *types.Sing
 	if err != nil {
 		return nil, err
 	}
-
-	meta := &types.BlockMetadata{
-		Hash:    block.BlockHash(),
-		Header:  block.GetHeader(),
-		Txcount: int32(len(block.GetBody().GetTxs())),
-	}
+	meta := block.GetMetadata()
 	return meta, nil
 }
 
