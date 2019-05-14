@@ -19,20 +19,23 @@ type stopCond int
 const (
 	DEBUG_CHAIN_STOP stopCond = 0 + iota
 	DEBUG_CHAIN_RANDOM_STOP
+	DEBUG_CHAIN_SLEEP
 )
 
 const (
-	DEBUG_CHAIN_STOP_INF = DEBUG_CHAIN_RANDOM_STOP
+	DEBUG_CHAIN_STOP_INF = DEBUG_CHAIN_SLEEP
 )
 
 var (
 	EnvNameStaticCrash     = "DEBUG_CHAIN_CRASH"       // 1 ~ 4
 	EnvNameRandomCrashTime = "DEBUG_RANDOM_CRASH_TIME" // 1 ~ 600000(=10min) ms
+	EnvNameChainSleep      = "DEBUG_CHAIN_SLEEP"       // sleep before connecting block for each block (ms). used
 )
 
 var stopConds = [...]string{
 	EnvNameStaticCrash,
 	EnvNameRandomCrashTime,
+	EnvNameChainSleep,
 }
 
 func (c stopCond) String() string { return stopConds[c] }
@@ -68,6 +71,7 @@ func newDebugger() *Debugger {
 
 	checkEnv(DEBUG_CHAIN_STOP)
 	checkEnv(DEBUG_CHAIN_RANDOM_STOP)
+	checkEnv(DEBUG_CHAIN_SLEEP)
 
 	return dbg
 }
@@ -130,15 +134,31 @@ func (debug *Debugger) check(cond stopCond, value int) error {
 
 		case DEBUG_CHAIN_RANDOM_STOP:
 			go crashRandom(setVal)
+			handleCrashRandom(setVal)
+
+		case DEBUG_CHAIN_SLEEP:
+			handleChainSleep(setVal)
 		}
 	}
 
 	return nil
 }
 
-func crashRandom(waitMils int) {
+func handleChainSleep(sleepMils int) {
+	logger.Debug().Int("sleep(ms)", sleepMils).Msg("before chain sleep")
+
+	time.Sleep(time.Millisecond * time.Duration(sleepMils))
+
+	logger.Debug().Msg("after chain sleep")
+}
+
+func handleCrashRandom(waitMils int) {
 	logger.Debug().Int("after(ms)", waitMils).Msg("before random crash")
 
+	go crashRandom(waitMils)
+}
+
+func crashRandom(waitMils int) {
 	if waitMils <= 0 {
 		return
 	}

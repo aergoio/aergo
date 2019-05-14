@@ -398,6 +398,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 	logger.Debug().Uint64("no", block.BlockNo()).
 		Str("hash", block.ID()).
 		Str("prev", block.PrevID()).
+		Bool("proposed", blockState != nil).
 		Msg("connect block")
 
 	// if bestblock is changed, connecting block failed. new block is generated in next tick

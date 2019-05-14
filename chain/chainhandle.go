@@ -373,6 +373,8 @@ func (cp *chainProcessor) reorganize() error {
 }
 
 func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
+	debugger.check(DEBUG_CHAIN_SLEEP, 0)
+
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,
