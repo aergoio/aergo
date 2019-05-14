@@ -92,8 +92,42 @@ exp_trans_id(trans_t *trans, ast_exp_t *exp)
 static void
 exp_trans_array(trans_t *trans, ast_exp_t *exp)
 {
-    exp_trans(trans, exp->u_arr.id_exp);
-    exp_trans(trans, exp->u_arr.idx_exp);
+    ast_exp_t *id_exp = exp->u_arr.id_exp;
+    ast_exp_t *idx_exp = exp->u_arr.idx_exp;
+
+    exp_trans(trans, id_exp);
+    exp_trans(trans, idx_exp);
+
+    if (!trans->is_lval && !is_array_meta(&id_exp->meta)) {
+        vector_t *arg_exps = vector_new();
+
+        ASSERT1(is_map_meta(&id_exp->meta) || is_string_meta(&id_exp->meta), id_exp->meta.type);
+
+        exp_add(arg_exps, exp->u_arr.id_exp);
+        exp_add(arg_exps, exp->u_arr.idx_exp);
+
+        exp->kind = EXP_CALL;
+
+        if (is_map_meta(&id_exp->meta)) {
+            if (is_int64_meta(&idx_exp->meta) && is_int64_meta(&exp->meta))
+                exp->u_call.kind = FN_MAP_GET_I64_I64;
+            else if (is_int64_meta(&idx_exp->meta))
+                exp->u_call.kind = FN_MAP_GET_I64_I32;
+            else if (is_int64_meta(&exp->meta))
+                exp->u_call.kind = FN_MAP_GET_I32_I64;
+            else
+                exp->u_call.kind = FN_MAP_GET_I32_I32;
+        }
+        else {
+            exp->u_call.kind = FN_CHAR_GET;
+        }
+
+        exp->u_call.qname = NULL;
+        exp->u_call.id_exp = NULL;
+        exp->u_call.arg_exps = arg_exps;
+
+        exp_trans(trans, exp);
+    }
 }
 
 static void
@@ -205,7 +239,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     ast_id_t *fn_id = exp->id;
     ir_fn_t *fn = trans->fn;
 
-    if (exp->u_call.kind != FN_UDF && exp->u_call.kind != FN_CTOR) {
+    if (exp->u_call.kind > FN_CTOR) {
         sys_fn_t *sys_fn = SYS_FN(exp->u_call.kind);
 
         ASSERT(id_exp == NULL);
@@ -267,7 +301,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
          * and so on. */
         reg_idx = fn_add_register(fn, meta);
         reg_exp = exp_new_reg(reg_idx);
-        meta_set(&reg_exp->meta, meta->type == TYPE_INT64 ? TYPE_INT64 : TYPE_INT32);
+        meta_set(&reg_exp->meta, meta_align(meta) == 8 ? TYPE_INT64 : TYPE_INT32);
 
         /* We have to clone it because the call expression itself is transformed */
         bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, exp_clone(exp), &exp->pos));

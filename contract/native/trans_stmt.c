@@ -313,6 +313,52 @@ stmt_trans_exp(trans_t *trans, ast_stmt_t *stmt)
 }
 
 static void
+make_map_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *pos)
+{
+    fn_kind_t kind;
+    ast_exp_t *id_exp = var_exp->u_arr.id_exp;
+    ast_exp_t *key_exp = var_exp->u_arr.idx_exp;
+    ast_exp_t *call_exp;
+	vector_t *arg_exps = vector_new();
+
+    if (is_int64_meta(&key_exp->meta) && is_int64_meta(&id_exp->meta))
+        kind = FN_MAP_PUT_I64_I64;
+    else if (is_int64_meta(&key_exp->meta))
+        kind = FN_MAP_PUT_I64_I32;
+    else if (is_int64_meta(&id_exp->meta))
+        kind = FN_MAP_PUT_I32_I64;
+    else
+        kind = FN_MAP_PUT_I32_I32;
+
+    exp_add(arg_exps, id_exp);
+    exp_add(arg_exps, key_exp);
+    exp_add(arg_exps, val_exp);
+
+    call_exp = exp_new_call(kind, NULL, arg_exps, pos);
+    meta_set_void(&call_exp->meta);
+
+    stmt_trans(trans, stmt_new_exp(call_exp, pos));
+}
+
+static void
+make_byte_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *pos)
+{
+    ast_exp_t *id_exp = var_exp->u_arr.id_exp;
+    ast_exp_t *idx_exp = var_exp->u_arr.idx_exp;
+    ast_exp_t *call_exp;
+	vector_t *arg_exps = vector_new();
+
+    exp_add(arg_exps, id_exp);
+    exp_add(arg_exps, idx_exp);
+    exp_add(arg_exps, val_exp);
+
+    call_exp = exp_new_call(FN_CHAR_SET, NULL, arg_exps, pos);
+    meta_set_void(&call_exp->meta);
+
+    stmt_trans(trans, stmt_new_exp(call_exp, pos));
+}
+
+static void
 make_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *pos)
 {
     ast_id_t *var_id = var_exp->id;
@@ -336,17 +382,20 @@ make_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *p
         exp_trans(trans, val_exp);
     }
 
-    if ((var_id != NULL &&
-         /* when assigning to value of map */
-         ((is_map_meta(&var_id->meta) && !is_map_meta(var_meta)) ||
-         /* when assigning to byte value of string */
-          (is_string_meta(&var_id->meta) && is_byte_meta(var_meta)))) ||
-         /* when assigning to neither fixed-length arrays nor struct variable */
-        ((!is_array_meta(var_meta) || !is_fixed_array(var_meta)) &&
-         (is_array_meta(var_meta) || !is_struct_meta(var_meta))))
-        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
-    else
+    if (is_array_exp(var_exp) && !is_array_meta(&var_exp->u_arr.id_exp->meta) &&
+        var_id != NULL && is_map_meta(&var_id->meta))
+        /* when assigning to value of map */
+        make_map_assign(trans, var_exp, val_exp, pos);
+    else if (is_array_exp(var_exp) && !is_array_meta(&var_exp->u_arr.id_exp->meta) &&
+             var_id != NULL && is_string_meta(&var_id->meta) && is_byte_meta(var_meta))
+        /* when assigning to byte value of string */
+        make_byte_assign(trans, var_exp, val_exp, pos);
+    else if ((is_array_meta(var_meta) && is_fixed_array(var_meta)) ||
+             (!is_array_meta(var_meta) && is_struct_meta(var_meta)))
+        /* when assigning to fixed-length arrays or struct variable */
         stmt_trans_memcpy(trans, var_exp, val_exp, meta_memsz(var_meta), pos);
+    else
+        bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
 }
 
 static void
@@ -358,7 +407,9 @@ stmt_trans_assign(trans_t *trans, ast_stmt_t *stmt)
     /* We should not use memcpy here because the left operand of an assignment may be a map
      * variable with a struct as its value type. In this case, we must create it with map_put(). */
 
+    trans->is_lval = true;
     exp_trans(trans, l_exp);
+    trans->is_lval = false;
 
     if (is_tuple_exp(l_exp)) {
         /* Make each expression a separate assignment statement */
