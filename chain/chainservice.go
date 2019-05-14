@@ -41,7 +41,7 @@ var (
 	ErrRecoNoBestStateRoot   = errors.New("state root of best block is not exist")
 	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
 
-	debugger *Debugger
+	TestDebugger *Debugger
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -279,7 +279,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 }
 
 func (cs *ChainService) initDebugger() {
-	debugger = newDebugger()
+	TestDebugger = newDebugger()
 }
 
 // SDB returns cs.sdb.

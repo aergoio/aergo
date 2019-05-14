@@ -2,6 +2,7 @@ package raftv2
 
 import (
 	"errors"
+	chainsvc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -114,7 +115,8 @@ func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg ra
 		return 0, ErrNotMsgSnap
 	}
 
-	//receive chain & request sync & wait
+	// not return until block sync is complete
+	// receive chain & request sync & wait
 	return 0, chainsnap.syncSnap(&msg.Snapshot)
 }
 
@@ -188,6 +190,8 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 
 		return peerID, err
 	}
+
+	chainsvc.TestDebugger.Check(chainsvc.DEBUG_SYNCER_CRASH, 0)
 
 	peerID, err := getSyncLeader()
 	if err != nil {
