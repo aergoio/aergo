@@ -33,13 +33,20 @@ env_gen(gen_t *gen, ir_md_t *md)
         addrs[i] = i32_gen(gen, sgmt->addrs[i]);
     }
 
-    BinaryenSetMemory(gen->module, 1, 128 + sgmt->offset / WASM_MEM_UNIT + 1, NULL,
-                      (const char **)sgmt->datas, addrs, sgmt->lens, sgmt->size, 0);
+    /* Temporarily maximum memory is limited to 64MB. If the Fee system is introduced in the
+     * future, this limitation will be changed. */
+    ASSERT1(sgmt->offset / WASM_MEM_UNIT + 1 <= 1024, sgmt->offset);
+
+    BinaryenSetMemory(gen->module, 1, 1024, NULL, (const char **)sgmt->datas, addrs, sgmt->lens,
+                      sgmt->size, 0);
 
     BinaryenAddGlobal(gen->module, "stack_top", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
     BinaryenAddGlobal(gen->module, "stack_max", BinaryenTypeInt32(), 0,
                       i32_gen(gen, gen->flag.stack_max));
+
+    BinaryenAddGlobalExport(gen->module, "stack_top", "stack_top");
+    BinaryenAddGlobalExport(gen->module, "stack_max", "stack_max");
 
     vector_foreach(abis, i) {
         ir_abi_t *abi = vector_get_abi(abis, i);
