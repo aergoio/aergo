@@ -29,7 +29,7 @@ func (m *Account) Reset()         { *m = Account{} }
 func (m *Account) String() string { return proto.CompactTextString(m) }
 func (*Account) ProtoMessage()    {}
 func (*Account) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_e24eda885a5c6a02, []int{0}
+	return fileDescriptor_account_db19a7e03edcf29e, []int{0}
 }
 func (m *Account) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Account.Unmarshal(m, b)
@@ -57,7 +57,7 @@ func (m *Account) GetAddress() []byte {
 }
 
 type AccountList struct {
-	Accounts             []*Account `protobuf:"bytes,1,rep,name=accounts" json:"accounts,omitempty"`
+	Accounts             []*Account `protobuf:"bytes,1,rep,name=accounts,proto3" json:"accounts,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
 	XXX_sizecache        int32      `json:"-"`
@@ -67,7 +67,7 @@ func (m *AccountList) Reset()         { *m = AccountList{} }
 func (m *AccountList) String() string { return proto.CompactTextString(m) }
 func (*AccountList) ProtoMessage()    {}
 func (*AccountList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_e24eda885a5c6a02, []int{1}
+	return fileDescriptor_account_db19a7e03edcf29e, []int{1}
 }
 func (m *AccountList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AccountList.Unmarshal(m, b)
@@ -99,9 +99,9 @@ func init() {
 	proto.RegisterType((*AccountList)(nil), "types.AccountList")
 }
 
-func init() { proto.RegisterFile("account.proto", fileDescriptor_account_e24eda885a5c6a02) }
+func init() { proto.RegisterFile("account.proto", fileDescriptor_account_db19a7e03edcf29e) }
 
-var fileDescriptor_account_e24eda885a5c6a02 = []byte{
+var fileDescriptor_account_db19a7e03edcf29e = []byte{
 	// 137 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4d, 0x4c, 0x4e, 0xce,
 	0x2f, 0xcd, 0x2b, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x2d, 0xa9, 0x2c, 0x48, 0x2d,

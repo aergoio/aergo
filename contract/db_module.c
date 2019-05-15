@@ -5,7 +5,7 @@
 #include <sqlite3-binding.h>
 #include "vm.h"
 #include "sqlcheck.h"
-#include "lbc.h"
+#include "lgmp.h"
 
 #define LAST_ERROR(L,db,rc)                         \
     do {                                            \
@@ -14,14 +14,29 @@
         }                                           \
     } while(0)
 
+#define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
+#define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
+
+static int append_resource(lua_State *L, const char *key, void *data)
+{
+    int refno;
+    if (luaL_findtable(L, LUA_REGISTRYINDEX, key, 0) != NULL) {
+        luaL_error(L, "cannot find the environment of the db module");
+    }
+    /* tab */
+    lua_pushlightuserdata(L, data);     /* tab pstmt */
+    refno = luaL_ref(L, -2);            /* tab */
+    lua_pop(L, 1);                      /* remove tab */
+    return refno;
+}
+
 #define DB_PSTMT_ID "__db_pstmt__"
 
 typedef struct {
     sqlite3 *db;
     sqlite3_stmt *s;
     int closed;
-    int ref;
-    int refcnt;
+    int refno;
 } db_pstmt_t;
 
 #define DB_RS_ID "__db_rs__"
@@ -31,11 +46,10 @@ typedef struct {
     sqlite3_stmt *s;
     int closed;
     int nc;
-    int ref;
+    int shared_stmt;
     char **decltypes;
+    int refno;
 } db_rs_t;
-
-static void db_pstmt_close(lua_State *L, int ref);
 
 static db_rs_t *get_db_rs(lua_State *L, int pos)
 {
@@ -137,7 +151,7 @@ static int db_rs_get(lua_State *L)
     return rs->nc;
 }
 
-static void db_rs_close(lua_State *L, db_rs_t *rs)
+static void db_rs_close(lua_State *L, db_rs_t *rs, int remove)
 {
     if (rs->closed) {
         return;
@@ -146,16 +160,15 @@ static void db_rs_close(lua_State *L, db_rs_t *rs)
     if (rs->decltypes) {
         free_decltypes(rs);
     }
-    if (rs->ref == -1) {
+    if (rs->shared_stmt == 0) {
         sqlite3_finalize(rs->s);
-    } else {
-        db_pstmt_t *pstmt;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, rs->ref);
-        pstmt = (db_pstmt_t *)luaL_checkudata(L, -1, DB_PSTMT_ID);
-        pstmt->refcnt--;
-        if (pstmt->refcnt == 0) {
-            db_pstmt_close(L, rs->ref);
+    }
+    if (remove) {
+        if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY, 0) != NULL) {
+            luaL_error(L, "cannot find the environment of the db module");
         }
+        luaL_unref(L, -1, rs->refno);
+        lua_pop(L, 1);
     }
 }
 
@@ -166,12 +179,12 @@ static int db_rs_next(lua_State *L)
 
     rc = sqlite3_step(rs->s);
     if (rc == SQLITE_DONE) {
-        db_rs_close(L, rs);
+        db_rs_close(L, rs, 1);
         lua_pushboolean(L, 0);
     } else if (rc != SQLITE_ROW) {
         rc = sqlite3_reset(rs->s);
         LAST_ERROR(L, rs->db, rc);
-        db_rs_close(L, rs);
+        db_rs_close(L, rs, 1);
         lua_pushboolean(L, 0);
     } else {
         if (rs->decltypes == NULL) {
@@ -188,26 +201,7 @@ static int db_rs_next(lua_State *L)
 
 static int db_rs_gc(lua_State *L)
 {
-    db_rs_t *rs = luaL_checkudata(L, 1, DB_RS_ID);
-
-    if (rs->closed) {
-        return 0;
-    }
-    rs->closed = 1;
-    if (rs->decltypes) {
-        free_decltypes(rs);
-    }
-    if (rs->ref == -1) {
-        sqlite3_finalize(rs->s);
-    } else {
-        db_pstmt_t *pstmt;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, rs->ref);
-        pstmt = (db_pstmt_t *)luaL_checkudata(L, -1, DB_PSTMT_ID);
-        pstmt->refcnt--;
-        if (pstmt->refcnt == 0) {
-            db_pstmt_close(L, rs->ref);
-        }
-    }
+    db_rs_close(L, luaL_checkudata(L, 1, DB_RS_ID), 1);
     return 0;
 }
 
@@ -231,14 +225,22 @@ static int db_pstmt_tostr(lua_State *L)
     return 1;
 }
 
-static int bind(lua_State *L, db_pstmt_t *pstmt)
+static int bind(lua_State *L, sqlite3 *db, sqlite3_stmt *pstmt)
 {
     int rc, i;
     int argc = lua_gettop(L) - 1;
+    int param_count;
 
-    rc = sqlite3_reset(pstmt->s);
+    param_count = sqlite3_bind_parameter_count(pstmt);
+    if (argc != param_count) {
+        lua_pushfstring(L, "parameter count mismatch: want %d got %d", param_count, argc);
+        return -1;
+    }
+
+    rc = sqlite3_reset(pstmt);
+    sqlite3_clear_bindings(pstmt);
     if (rc != SQLITE_ROW && rc != SQLITE_OK && rc != SQLITE_DONE) {
-        lua_pushfstring(L, sqlite3_errmsg(pstmt->db));
+        lua_pushfstring(L, sqlite3_errmsg(db));
         return -1;
     }
 
@@ -254,47 +256,40 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
         case LUA_TNUMBER:
             if (luaL_isinteger(L, n)) {
                 lua_Integer d = lua_tointeger(L, n);
-                rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
+                rc = sqlite3_bind_int64(pstmt, i, (sqlite3_int64)d);
             } else {
                 lua_Number d = lua_tonumber(L, n);
-                rc = sqlite3_bind_double(pstmt->s, i, (double)d);
+                rc = sqlite3_bind_double(pstmt, i, (double)d);
             }
             break;
         case LUA_TSTRING:
             s = lua_tolstring(L, n, &l);
-            rc = sqlite3_bind_text(pstmt->s, i, s, l, SQLITE_TRANSIENT);
+            rc = sqlite3_bind_text(pstmt, i, s, l, SQLITE_TRANSIENT);
             break;
         case LUA_TBOOLEAN:
             b = lua_toboolean(L, i+1);
             if (b) {
-                rc = sqlite3_bind_int(pstmt->s, i, 1);
+                rc = sqlite3_bind_int(pstmt, i, 1);
             } else {
-                rc = sqlite3_bind_int(pstmt->s, i, 0);
+                rc = sqlite3_bind_int(pstmt, i, 0);
             }
             break;
         case LUA_TNIL:
-            rc = sqlite3_bind_null(pstmt->s, i);
+            rc = sqlite3_bind_null(pstmt, i);
             break;
         case LUA_TUSERDATA:
         {
             if (lua_isbignumber(L, n)) {
-                bc_num bnum = Bgetbnum(L, n);
-                if (bnum->n_scale == 0) {
-                    long d = bc_num2long(bnum);
-                    if (d == 0 && bnum->n_len > 0) {
-                        char *s = bc_num2str(bnum);
+                long int d = lua_get_bignum_si(L, n);
+                if (d == 0 && lua_bignum_is_zero(L, n) != 0) {
+                    char *s = lua_get_bignum_str(L, n);
+                    if (s != NULL) {
                         lua_pushfstring(L, "bignum value overflow for binding %s", s);
                         free(s);
                     }
-                    rc = sqlite3_bind_int64(pstmt->s, i, (sqlite3_int64)d);
+                    return -1;
                 }
-                else {
-                    double d;
-                    char *s = bc_num2str(bnum);
-                    sscanf(s, "%lf", &d);
-                    free(s);
-                    rc = sqlite3_bind_double(pstmt->s, i, d);
-                }
+                rc = sqlite3_bind_int64(pstmt, i, (sqlite3_int64)d);
                 break;
             }
         }
@@ -303,7 +298,7 @@ static int bind(lua_State *L, db_pstmt_t *pstmt)
             return -1;
         }
         if (rc != SQLITE_OK) {
-            lua_pushfstring(L, sqlite3_errmsg(pstmt->db));
+            lua_pushfstring(L, sqlite3_errmsg(db));
             return -1;
         }
     }
@@ -316,7 +311,7 @@ static int db_pstmt_exec(lua_State *L)
     int rc, n;
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
-    rc = bind(L, pstmt);
+    rc = bind(L, pstmt->db, pstmt->s);
     if (rc == -1) {
         sqlite3_reset(pstmt->s);
         sqlite3_clear_bindings(pstmt->s);
@@ -339,7 +334,7 @@ static int db_pstmt_query(lua_State *L)
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
     db_rs_t *rs;
 
-    rc = bind(L, pstmt);
+    rc = bind(L, pstmt->db, pstmt->s);
     if (rc != 0) {
         sqlite3_reset(pstmt->s);
         sqlite3_clear_bindings(pstmt->s);
@@ -353,31 +348,31 @@ static int db_pstmt_query(lua_State *L)
     rs->s = pstmt->s;
     rs->closed = 0;
     rs->nc = sqlite3_column_count(pstmt->s);
-    rs->ref = pstmt->ref;
+    rs->shared_stmt = 1;
     rs->decltypes = NULL;
-    pstmt->refcnt++;
+    rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
+
     return 1;
 }
 
-static void db_pstmt_close(lua_State *L, int ref)
+static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove)
 {
-    db_pstmt_t *pstmt = luaL_checkudata(L, -1, DB_PSTMT_ID);
-
-    if (!pstmt->closed) {
-        pstmt->closed = 1;
-        sqlite3_finalize(pstmt->s);
-        luaL_unref(L, LUA_REGISTRYINDEX, ref);
+    if (pstmt->closed)
+        return;
+    pstmt->closed = 1;
+    sqlite3_finalize(pstmt->s);
+    if (remove) {
+        if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_PSTMT_KEY, 0) != NULL) {
+            luaL_error(L, "cannot find the environment of the db module");
+        }
+        luaL_unref(L, -1, pstmt->refno);
+        lua_pop(L, 1);
     }
 }
 
 static int db_pstmt_gc(lua_State *L)
 {
-    db_pstmt_t *pstmt = luaL_checkudata(L, 1, DB_PSTMT_ID);
-
-    if (!pstmt->closed) {
-        pstmt->closed = 1;
-        sqlite3_finalize(pstmt->s);
-    }
+    db_pstmt_close(L, luaL_checkudata(L, 1, DB_PSTMT_ID), 1);
     return 0;
 }
 
@@ -385,17 +380,31 @@ static int db_exec(lua_State *L)
 {
     const char *cmd;
     sqlite3 *db;
-    int rc, n;
+    sqlite3_stmt *s;
+    int rc;
 
     cmd = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(cmd)) {
         luaL_error(L, "invalid sql command");
     }
     db = vm_get_db(L);
-    rc = sqlite3_exec(db, cmd, 0, 0, 0);
+    rc = sqlite3_prepare_v2(db, cmd, -1, &s, NULL);
     LAST_ERROR(L, db, rc);
-    n = sqlite3_changes(db);
-    lua_pushinteger(L, n);
+
+    rc = bind(L, db, s);
+    if (rc == -1) {
+        sqlite3_finalize(s);
+        luaL_error(L, lua_tostring(L, -1));
+    }
+
+    rc = sqlite3_step(s);
+    if (rc != SQLITE_ROW && rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(s);
+        luaL_error(L, sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(s);
+
+    lua_pushinteger(L, sqlite3_changes(db));
     return 1;
 }
 
@@ -415,6 +424,12 @@ static int db_query(lua_State *L)
     rc = sqlite3_prepare_v2(db, query, -1, &s, NULL);
     LAST_ERROR(L, db, rc);
 
+    rc = bind(L, db, s);
+    if (rc == -1) {
+        sqlite3_finalize(s);
+        luaL_error(L, lua_tostring(L, -1));
+    }
+
     rs = (db_rs_t *)lua_newuserdata(L, sizeof(db_rs_t));
     luaL_getmetatable(L, DB_RS_ID);
     lua_setmetatable(L, -2);
@@ -422,8 +437,10 @@ static int db_query(lua_State *L)
     rs->s = s;
     rs->closed = 0;
     rs->nc = sqlite3_column_count(s);
-    rs->ref = -1;
+    rs->shared_stmt = 0;
     rs->decltypes = NULL;
+    rs->refno = append_resource(L, RESOURCE_RS_KEY, (void *)rs);
+
     return 1;
 }
 
@@ -447,15 +464,39 @@ static int db_prepare(lua_State *L)
     pstmt = (db_pstmt_t *)lua_newuserdata(L, sizeof(db_pstmt_t));
     luaL_getmetatable(L, DB_PSTMT_ID);
     lua_setmetatable(L, -2);
-    lua_pushvalue(L, -1);
-    ref = luaL_ref(L, LUA_REGISTRYINDEX);
     pstmt->db = db;
     pstmt->s = s;
     pstmt->closed = 0;
-    pstmt->refcnt = 0;
-    pstmt->ref = ref;
+    pstmt->refno = append_resource(L, RESOURCE_PSTMT_KEY, (void *)pstmt);
 
     return 1;
+}
+
+int lua_db_release_resource(lua_State *L)
+{
+    lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY);
+    if (lua_istable(L, -1)) {
+        /* T */
+        lua_pushnil(L); /* T nil(key) */
+        while (lua_next(L, -2)) {
+            if (lua_islightuserdata(L, -1))
+                db_rs_close(L, (db_rs_t *)lua_topointer(L, -1), 0);
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+    }
+    lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_PSTMT_KEY);
+    if (lua_istable(L, -1)) {
+        /* T */
+        lua_pushnil(L); /* T nil(key) */
+        while (lua_next(L, -2)) {
+            if (lua_islightuserdata(L, -1))
+                db_pstmt_close(L, (db_pstmt_t *)lua_topointer(L, -1), 0);
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+    }
+    return 0;
 }
 
 int luaopen_db(lua_State *L)

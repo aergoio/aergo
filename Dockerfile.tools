@@ -1,5 +1,5 @@
 FROM golang:alpine as builder
-RUN apk update && apk add git glide cmake build-base
+RUN apk update && apk add git glide cmake build-base m4
 ENV GOPATH $HOME/go
 ARG GIT_TAG
 RUN go get -d github.com/aergoio/aergo
@@ -13,5 +13,8 @@ COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/bin/aergocli /usr/loca
 COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/bin/aergoluac /usr/local/bin/
 COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/bin/brick /usr/local/bin/
 COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/cmd/brick/arglog.toml /tools/arglog.toml
+COPY --from=builder $HOME/go/src/github.com/aergoio/aergo/libtool/lib/* /usr/local/lib/
+
+ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 WORKDIR /tools/
 CMD ["aergocli"]

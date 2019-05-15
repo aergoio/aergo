@@ -12,6 +12,7 @@ set(PROTO_DIR ${CMAKE_CURRENT_LIST_DIR}/aergo-protobuf/proto)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(GCFLAGS "-gcflags=\"-N" "-l\"")
+    set(GFLAG -tags Debug)
 endif()
 
 add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac aergoscc brick)
@@ -24,19 +25,20 @@ add_custom_target(aergosvr GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X 
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(polaris GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/polaris/...
+add_custom_target(polaris GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/polaris/cmd.githash=`git rev-parse HEAD`\" ./cmd/polaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    DEPENDS vendor libtool)
+    DEPENDS vendor)
 
 add_custom_target(colaris GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/colaris/cmd.githash=`git rev-parse HEAD`\" ./cmd/colaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    DEPENDS vendor libtool)
+    DEPENDS vendor)
 
-add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} ./cmd/aergoluac/...
+add_custom_target(aergoluac GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 
-add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`' -X 'github.com/aergoio/aergo/vendor/github.com/aergoio/aergo-lib/log.defaultConfStr=`cat ./cmd/brick/arglog.toml`'\"  ./cmd/brick/...
+add_custom_target(brick GOBIN=${BIN_DIR} go install ${GCFLAGS}  ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`' 
+-X 'github.com/aergoio/aergo/vendor/github.com/aergoio/aergo-lib/log.defaultConfStr=`cat ./cmd/brick/arglog.toml`'\"  ./cmd/brick/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS vendor libtool)
 

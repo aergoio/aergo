@@ -40,11 +40,11 @@ func (x MetricType) String() string {
 	return proto.EnumName(MetricType_name, int32(x))
 }
 func (MetricType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metric_295631cc212b5411, []int{0}
+	return fileDescriptor_metric_00420d7062d0a7ff, []int{0}
 }
 
 type MetricsRequest struct {
-	Types                []MetricType `protobuf:"varint,1,rep,packed,name=types,enum=types.MetricType" json:"types,omitempty"`
+	Types                []MetricType `protobuf:"varint,1,rep,packed,name=types,proto3,enum=types.MetricType" json:"types,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -54,7 +54,7 @@ func (m *MetricsRequest) Reset()         { *m = MetricsRequest{} }
 func (m *MetricsRequest) String() string { return proto.CompactTextString(m) }
 func (*MetricsRequest) ProtoMessage()    {}
 func (*MetricsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metric_295631cc212b5411, []int{0}
+	return fileDescriptor_metric_00420d7062d0a7ff, []int{0}
 }
 func (m *MetricsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MetricsRequest.Unmarshal(m, b)
@@ -82,7 +82,7 @@ func (m *MetricsRequest) GetTypes() []MetricType {
 }
 
 type Metrics struct {
-	Peers                []*PeerMetric `protobuf:"bytes,1,rep,name=peers" json:"peers,omitempty"`
+	Peers                []*PeerMetric `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -92,7 +92,7 @@ func (m *Metrics) Reset()         { *m = Metrics{} }
 func (m *Metrics) String() string { return proto.CompactTextString(m) }
 func (*Metrics) ProtoMessage()    {}
 func (*Metrics) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metric_295631cc212b5411, []int{1}
+	return fileDescriptor_metric_00420d7062d0a7ff, []int{1}
 }
 func (m *Metrics) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics.Unmarshal(m, b)
@@ -121,10 +121,10 @@ func (m *Metrics) GetPeers() []*PeerMetric {
 
 type PeerMetric struct {
 	PeerID               []byte   `protobuf:"bytes,1,opt,name=peerID,proto3" json:"peerID,omitempty"`
-	SumIn                int64    `protobuf:"varint,2,opt,name=sumIn" json:"sumIn,omitempty"`
-	AvrIn                int64    `protobuf:"varint,3,opt,name=avrIn" json:"avrIn,omitempty"`
-	SumOut               int64    `protobuf:"varint,4,opt,name=sumOut" json:"sumOut,omitempty"`
-	AvrOut               int64    `protobuf:"varint,5,opt,name=avrOut" json:"avrOut,omitempty"`
+	SumIn                int64    `protobuf:"varint,2,opt,name=sumIn,proto3" json:"sumIn,omitempty"`
+	AvrIn                int64    `protobuf:"varint,3,opt,name=avrIn,proto3" json:"avrIn,omitempty"`
+	SumOut               int64    `protobuf:"varint,4,opt,name=sumOut,proto3" json:"sumOut,omitempty"`
+	AvrOut               int64    `protobuf:"varint,5,opt,name=avrOut,proto3" json:"avrOut,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -134,7 +134,7 @@ func (m *PeerMetric) Reset()         { *m = PeerMetric{} }
 func (m *PeerMetric) String() string { return proto.CompactTextString(m) }
 func (*PeerMetric) ProtoMessage()    {}
 func (*PeerMetric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metric_295631cc212b5411, []int{2}
+	return fileDescriptor_metric_00420d7062d0a7ff, []int{2}
 }
 func (m *PeerMetric) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerMetric.Unmarshal(m, b)
@@ -196,9 +196,9 @@ func init() {
 	proto.RegisterEnum("types.MetricType", MetricType_name, MetricType_value)
 }
 
-func init() { proto.RegisterFile("metric.proto", fileDescriptor_metric_295631cc212b5411) }
+func init() { proto.RegisterFile("metric.proto", fileDescriptor_metric_00420d7062d0a7ff) }
 
-var fileDescriptor_metric_295631cc212b5411 = []byte{
+var fileDescriptor_metric_00420d7062d0a7ff = []byte{
 	// 251 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x44, 0x90, 0x4d, 0x4b, 0xc3, 0x40,
 	0x10, 0x40, 0x5d, 0x63, 0x5a, 0x98, 0x94, 0x5a, 0x17, 0x91, 0x9c, 0x24, 0xf4, 0x62, 0xe8, 0x21,

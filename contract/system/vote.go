@@ -17,34 +17,26 @@ import (
 	"github.com/mr-tron/base58"
 )
 
+var defaultBpCount int
+
 var voteKey = []byte("vote")
 var sortKey = []byte("sort")
 
 const PeerIDLength = 39
+
 const VotingDelay = 60 * 60 * 24 //block interval
+//const VotingDelay = 5
 
 var defaultVoteKey = []byte(types.VoteBP)[2:]
 
 func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
-	key := []byte(ci.Name)[2:]
-	oldvote, err := getVote(scs, key, sender.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
-		return nil, types.ErrLessTimeHasPassed
-	}
-
+	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	key := []byte(context.Call.Name)[2:]
+	oldvote := context.Vote
+	staked := context.Staked
 	//update block number
 	staked.When = blockNo
-	err = setStaking(scs, sender.ID(), staked)
+	err := setStaking(scs, sender.ID(), staked)
 	if err != nil {
 		return nil, err
 	}
@@ -63,13 +55,13 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		return nil, types.ErrMustStakeBeforeVote
 	}
 	vote := &types.Vote{Amount: staked.GetAmount()}
-	args, err := json.Marshal(ci.Args)
+	args, err := json.Marshal(context.Call.Args)
 	if err != nil {
 		return nil, err
 	}
 	var candidates []byte
 	if bytes.Equal(key, defaultVoteKey) {
-		for _, v := range ci.Args {
+		for _, v := range context.Call.Args {
 			candidate, _ := base58.Decode(v.(string))
 			candidates = append(candidates, candidate...)
 		}
@@ -94,25 +86,28 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
-		EventName:       ci.Name[2:],
+		EventName:       context.Call.Name[2:],
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(txBody.Account) +
 			`", "vote":` + string(args) + `}`,
 	}, nil
 }
 
-func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo) error {
-	var allVote = [][]byte{[]byte(types.VoteBP[2:]), []byte(types.VoteNumBP[2:])}
-	for _, key := range allVote {
-		oldvote, err := getVote(scs, key, sender.ID())
+func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
+	context *SystemContext) error {
+	account := context.Sender.ID()
+	staked := context.Staked
+	stakedAmount := new(big.Int).SetBytes(staked.Amount)
+	for _, keystr := range types.AllVotes {
+		key := []byte(keystr[2:])
+		oldvote, err := getVote(scs, key, account)
 		if err != nil {
 			return err
 		}
-		if oldvote.Amount == nil {
+		if oldvote.Amount == nil ||
+			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
-
 		voteResult, err := loadVoteResult(scs, key)
 		if err != nil {
 			return err
@@ -120,13 +115,8 @@ func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 		if err = voteResult.SubVote(oldvote); err != nil {
 			return err
 		}
-
-		staked, err := getStaking(scs, sender.ID())
-		if err != nil {
-			return err
-		}
 		oldvote.Amount = staked.GetAmount()
-		if err = setVote(scs, key, sender.ID(), oldvote); err != nil {
+		if err = setVote(scs, key, account, oldvote); err != nil {
 			return err
 		}
 		if err = voteResult.AddVote(oldvote); err != nil {
@@ -136,13 +126,12 @@ func refreshAllVote(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 			return err
 		}
 	}
-
 	return nil
 }
 
 //GetVote return amount, to, err
-func GetVote(scs *state.ContractState, voter []byte) (*types.Vote, error) {
-	return getVote(scs, defaultVoteKey, voter)
+func GetVote(scs *state.ContractState, voter []byte, title []byte) (*types.Vote, error) {
+	return getVote(scs, title, voter)
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
@@ -192,17 +181,35 @@ type AccountStateReader interface {
 }
 
 // GetVoteResult returns the top n voting result from the system account state.
-func GetVoteResult(ar AccountStateReader, n int) (*types.VoteList, error) {
+func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, error) {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	return getVoteResult(scs, defaultVoteKey, n)
+	return getVoteResult(scs, id, n)
+}
+
+// InitDefaultBpCount sets defaultBpCount to bpCount.
+//
+// Caution: This function must be called only once before all the aergosvr
+// services start.
+func InitDefaultBpCount(bpCount int) {
+	// Ensure that it is not modified after it is initialized.
+	if defaultBpCount > 0 {
+		return
+	}
+	defaultBpCount = bpCount
+}
+
+func getDefaultBpCount() int {
+	return defaultBpCount
 }
 
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader, n int) ([]string, error) {
-	vl, err := GetVoteResult(ar, n)
+func GetRankers(ar AccountStateReader) ([]string, error) {
+	n := getDefaultBpCount()
+
+	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
 		return nil, err
 	}

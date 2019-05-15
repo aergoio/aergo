@@ -23,7 +23,7 @@ func (c *getStateAccount) Syntax() string {
 }
 
 func (c *getStateAccount) Usage() string {
-	return fmt.Sprintf("getstate <account_name>")
+	return fmt.Sprintf("getstate <account_name> `[expected_balance]`")
 }
 
 func (c *getStateAccount) Describe() string {
@@ -49,6 +49,8 @@ func (c *getStateAccount) parse(args string) (string, string, error) {
 	expectedResult := ""
 	if len(splitArgs) == 2 {
 		expectedResult = splitArgs[1].Text
+	} else if len(splitArgs) > 2 {
+		return "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, expectedResult, nil

@@ -90,6 +90,11 @@ func (st *ContractState) GetCode() ([]byte, error) {
 	return st.code, nil
 }
 
+// HasKey returns existence of the key
+func (st *ContractState) HasKey(key []byte) bool {
+	return st.storage.has(types.GetHashID(key), true)
+}
+
 // SetData store key and value pair to the storage.
 func (st *ContractState) SetData(key, value []byte) error {
 	st.storage.put(newValueEntry(types.GetHashID(key), value))

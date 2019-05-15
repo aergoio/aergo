@@ -61,7 +61,7 @@ func newDefaultChannelPipe(bufsize int, listener PipeEventListener) *channelPipe
 }
 
 func (c *channelPipe) Put(item interface{}) bool {
-	c.in<-item
+	c.in <- item
 	return true
 }
 

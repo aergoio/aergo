@@ -26,19 +26,25 @@ const (
 	chainDBName       = "chain"
 	genesisKey        = chainDBName + ".genesisInfo"
 	genesisBalanceKey = chainDBName + ".genesisBalance"
-
-	TxBatchMax = 10000
 )
 
 var (
 	// ErrNoChainDB reports chaindb is not prepared.
-	ErrNoChainDB         = fmt.Errorf("chaindb not prepared")
-	ErrorLoadBestBlock   = errors.New("failed to load latest block from DB")
-	ErrCantDropGenesis   = errors.New("can't drop genesis block")
-	ErrTooBigResetHeight = errors.New("reset height is too big")
+	ErrNoChainDB           = fmt.Errorf("chaindb not prepared")
+	ErrorLoadBestBlock     = errors.New("failed to load latest block from DB")
+	ErrCantDropGenesis     = errors.New("can't drop genesis block")
+	ErrTooBigResetHeight   = errors.New("reset height is too big")
+	ErrInvalidHardState    = errors.New("invalid hard state")
+	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
+
+	raftIdentityKey     = []byte("r_identity")
+	raftStateKey        = []byte("r_state")
+	raftSnapKey         = []byte("r_snap")
+	raftEntryLastIdxKey = []byte("r_last")
+	raftEntryPrefix     = []byte("r_entry.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -93,6 +99,13 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if err := cdb.loadChainData(); err != nil {
 		return err
 	}
+
+	// recover from reorg marker
+	if err := cdb.recover(); err != nil {
+		logger.Error().Err(err).Msg("failed to recover chain database from crash")
+		return err
+	}
+
 	// // if empty then create new genesis block
 	// // if cdb.getBestBlockNo() == 0 && len(cdb.blocks) == 0 {
 	// blockIdx := types.BlockNoToBytes(0)
@@ -100,6 +113,23 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	// if cdb.getBestBlockNo() == 0 && (blockHash == nil || len(blockHash) == 0) {
 	// 	cdb.generateGenesisBlock(seed)
 	// }
+	return nil
+}
+
+func (cdb *ChainDB) recover() error {
+	marker, err := cdb.getReorgMarker()
+	if err != nil {
+		return err
+	}
+
+	if marker == nil {
+		return nil
+	}
+
+	if err := marker.RecoverChainMapping(cdb); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -271,13 +301,19 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 
 	tx := cdb.store.NewTx()
 
-	cdb.connectToChain(&tx, block)
+	if len(block.Hash) == 0 {
+		block.BlockID()
+	}
+
+	cdb.connectToChain(&tx, block, false)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
 		tx.Set([]byte(genesisBalanceKey), totalBalance.Bytes())
 	}
 
 	tx.Commit()
+
+	logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("hash", block.ID()).Msg("Genesis Block Added")
 
 	//logger.Info().Str("chain id", genesis.ID.ToJSON()).Str("chain id (raw)",
 	//	enc.ToString(block.GetHeader().GetChainID())).Msg("Genesis Block Added")
@@ -326,12 +362,14 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 	return
 }
 
-func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (oldLatest types.BlockNo) {
+func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block, skipAdd bool) (oldLatest types.BlockNo) {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
 
-	if err := cdb.addBlock(dbtx, block); err != nil {
-		return 0
+	if !skipAdd {
+		if err := cdb.addBlock(dbtx, block); err != nil {
+			return 0
+		}
 	}
 
 	// Update best block hash
@@ -347,12 +385,12 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block) (ol
 
 	oldLatest = cdb.setLatest(block)
 
-	logger.Debug().Str("hash", block.ID()).Msg("connect block to mainchain")
+	logger.Debug().Msg("connected block to mainchain")
 
 	return
 }
 
-func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
+func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 	oldNo := cdb.getBestBlockNo()
 	newNo := newBlocks[0].GetHeader().GetBlockNo()
 
@@ -363,41 +401,24 @@ func (cdb *ChainDB) swapChain(newBlocks []*types.Block) error {
 	}
 
 	var blockIdx []byte
-	var dbTx db.Transaction
 
-	txCnt := 0
-
-	dbTx = cdb.store.NewTx()
-	defer dbTx.Discard()
+	bulk := cdb.store.NewBulk()
+	defer bulk.DiscardLast()
 
 	//make newTx because of batchsize limit of DB
-	getNewTx := func(remainTxCnt int) {
-		if txCnt+remainTxCnt >= TxBatchMax {
-			dbTx.Commit()
-			dbTx = cdb.store.NewTx()
-			txCnt = 0
-		}
-	}
-
 	for i := len(newBlocks) - 1; i >= 0; i-- {
 		block := newBlocks[i]
 		blockIdx = types.BlockNoToBytes(block.GetHeader().GetBlockNo())
 
-		dbTx.Set(blockIdx, block.BlockHash())
-
-		txCnt++
-
-		getNewTx(0)
+		bulk.Set(blockIdx, block.BlockHash())
 	}
 
-	getNewTx(5)
-
-	dbTx.Set(latestKey, blockIdx)
+	bulk.Set(latestKey, blockIdx)
 
 	// Save the last consensus status.
-	cdb.cc.Save(dbTx)
+	cdb.cc.Save(bulk)
 
-	dbTx.Commit()
+	bulk.Flush()
 
 	cdb.setLatest(newBlocks[0])
 
@@ -408,7 +429,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 	blockNo := block.GetHeader().GetBlockNo()
 	bestNo := cdb.getBestBlockNo()
 	if blockNo > 0 && blockNo != bestNo+1 {
-		logger.Debug().Uint64("blkno", blockNo).Uint64("latest", bestNo).Msg("block is branch")
+		logger.Debug().Uint64("no", blockNo).Uint64("latest", bestNo).Msg("block is branch")
 
 		return false, nil
 	}
@@ -421,9 +442,7 @@ func (cdb *ChainDB) isMainChain(block *types.Block) (bool, error) {
 
 	isMainChain := bytes.Equal(prevHash, latestHash)
 
-	logger.Debug().Bool("isMainChain", isMainChain).Uint64("blkno", blockNo).Str("hash", block.ID()).
-		Str("latest", enc.ToString(latestHash)).Str("prev", enc.ToString(prevHash)).
-		Msg("check if block is in main chain")
+	logger.Debug().Bool("isMainChain", isMainChain).Msg("check if block is in main chain")
 
 	return isMainChain, nil
 }
@@ -439,6 +458,10 @@ func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHa
 			logger.Error().Err(err).Str("hash", enc.ToString(blockHash)).Int("txidx", i).
 				Msg("failed to add tx")
 
+			return err
+		}
+
+		if err := debugger.check(DEBUG_CHAIN_STOP, 4); err != nil {
 			return err
 		}
 	}
@@ -476,7 +499,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	// FIXME: blockNo 0 exception handling
 	// assumption: not an orphan
 	// fork can be here
-	logger.Debug().Uint64("blockNo", blockNo).Str("hash", block.ID()).Msg("add block to db")
+	logger.Debug().Uint64("blockNo", blockNo).Msg("add block to db")
 	blockBytes, err := proto.Marshal(block)
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", blockNo).Str("hash", block.ID()).Msg("failed to add block")
@@ -557,6 +580,10 @@ func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 		return nil, err
 	}
 	//logger.Debugf("getblockbyNo No=%d Hash=%v", blockNo, enc.ToString(blockHash))
+	return cdb.getBlock(blockHash)
+}
+
+func (cdb *ChainDB) GetBlock(blockHash []byte) (*types.Block, error) {
 	return cdb.getBlock(blockHash)
 }
 
@@ -687,4 +714,50 @@ func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
 	binary.LittleEndian.PutUint64(l[:], blockNo)
 	key.Write(l)
 	return key.Bytes()
+}
+
+func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	val, err := marker.toBytes()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to serialize reorg marker")
+		return err
+	}
+
+	dbTx.Set(reorgKey, val)
+
+	dbTx.Commit()
+	return nil
+}
+
+func (cdb *ChainDB) deleteReorgMarker() {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	dbTx.Delete(reorgKey)
+
+	dbTx.Commit()
+}
+
+func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
+	data := cdb.store.Get(reorgKey)
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var marker ReorgMarker
+	var b bytes.Buffer
+	b.Write(data)
+	decoder := gob.NewDecoder(&b)
+	err := decoder.Decode(&marker)
+
+	return &marker, err
+}
+
+// implement ChainWAL interface
+func (cdb *ChainDB) IsNew() bool {
+	//TODO
+	return true
 }

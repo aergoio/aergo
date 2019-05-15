@@ -1,7 +1,6 @@
 datadir = "/aergo/data"
 enableprofile = false
 profileport = 6060
-enablerest = false
 enabletestmode = true
 
 [rpc]
@@ -11,9 +10,6 @@ nstls = false
 nscert = ""
 nskey = ""
 nsallowcors = false
-
-[rest]
-restport = "8080"
 
 [p2p]
 netprotocoladdr = "127.0.0.1"
@@ -27,9 +23,7 @@ npaddpeers = [
 ]
 npmaxpeers = "0"
 nppeerpool = "0"
-
-[blockchain]
-blockchainplaceholder = false
+npusepolaris = false
 
 [mempool]
 showmetrics = false

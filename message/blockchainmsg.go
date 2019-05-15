@@ -115,17 +115,23 @@ type SyncBlockState struct {
 
 // GetElected is request to get voting result about top N elect
 type GetElected struct {
-	N int
+	Id string
+	N  uint32
 }
 
 type GetVote struct {
 	Addr []byte
+	Ids  []string
 }
 
 // GetElectedRsp is return to get voting result
 type GetVoteRsp struct {
 	Top *types.VoteList
 	Err error
+}
+type GetAccountVoteRsp struct {
+	Info *types.AccountVoteInfo
+	Err  error
 }
 
 type GetStaking struct {
@@ -146,8 +152,12 @@ type GetNameInfoRsp struct {
 	Err   error
 }
 
-type GetAnchors struct{}
+type GetAnchors struct {
+	Seq uint64
+}
+
 type GetAnchorsRsp struct {
+	Seq    uint64
 	Hashes [][]byte
 	LastNo types.BlockNo
 	Err    error

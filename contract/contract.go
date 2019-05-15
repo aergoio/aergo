@@ -2,8 +2,10 @@ package contract
 
 import "C"
 import (
+	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -47,31 +49,32 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preLoadInfos[service].requestedTx = tx
 }
 
-func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (string, []*types.Event, error) {
+func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
+	sender, receiver *state.V, preLoadService int) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	txBody := tx.GetBody()
+
+	usedFee = fee.PayloadTxFee(len(txBody.GetPayload()))
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
 		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
-			return "", nil, types.ErrInsufficientBalance
+			err = types.ErrInsufficientBalance
+			return
 		}
 		sender.SubBalance(txBody.GetAmountBigInt())
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
 	if !receiver.IsCreate() && len(receiver.State().CodeHash) == 0 {
-		return "", nil, nil
+		return
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
-		return "", nil, err
+		return
 	}
 
-	var rv string
-	var events []*types.Event
 	var ex *Executor
 	if !receiver.IsCreate() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
@@ -86,35 +89,40 @@ func Execute(bs *state.BlockState, tx *types.Tx, blockNo uint64, ts int64, prevB
 			break
 		}
 		if err != nil {
-			return "", events, err
+			return
 		}
 	}
+
+	var cFee *big.Int
 	if ex != nil {
-		rv, events, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
+		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
 	} else {
-		stateSet := NewContext(bs, sender, receiver, contractState, sender.ID(),
+		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
 		if receiver.IsCreate() {
-			rv, events, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, events, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
+
+	usedFee.Add(usedFee, cFee)
+
 	if err != nil {
 		if isSystemError(err) {
-			return "", events, err
+			return "", events, usedFee, err
 		}
-		return "", events, newVmError(err)
+		return "", events, usedFee, newVmError(err)
 	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
-		return "", events, err
+		return "", events, usedFee, err
 	}
 
-	return rv, events, nil
+	return rv, events, usedFee, nil
 }
 
 func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {
@@ -159,7 +167,7 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		stateSet := NewContext(bs, nil, receiver, contractState, txBody.GetAccount(),
+		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), 0, 0, nil, "", false,
 			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 

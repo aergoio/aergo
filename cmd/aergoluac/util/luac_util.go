@@ -14,12 +14,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
 	"io/ioutil"
 	"os"
 	"runtime"
 	"unsafe"
-
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 )
 
 var (
@@ -83,7 +82,7 @@ func DumpFromFile(srcFileName string) error {
 		return errors.New(C.GoString(errMsg))
 	}
 
-	fmt.Println(util.EncodeCode(b.Bytes()))
+	fmt.Println(encoding.EncodeCode(b.Bytes()))
 	return nil
 }
 
@@ -120,7 +119,7 @@ func DumpFromStdin() error {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		return errors.New(C.GoString(errMsg))
 	}
-	fmt.Println(util.EncodeCode(b.Bytes()))
+	fmt.Println(encoding.EncodeCode(b.Bytes()))
 	return nil
 }
 

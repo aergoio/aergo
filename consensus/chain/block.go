@@ -3,6 +3,9 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/libp2p/go-libp2p-peer"
 	"time"
 
 	"github.com/aergoio/aergo/chain"
@@ -10,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -18,6 +20,7 @@ var (
 	ErrQuit           = errors.New("shutdown initiated")
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 	ErrBlockEmpty     = errors.New("no transactions in block")
+	ErrSyncChain      = errors.New("failed to sync request")
 )
 
 // ErrTimeout can be used to indicatefor any kind of timeout.
@@ -57,10 +60,8 @@ func GetBestBlock(hs component.ICompSyncRequester) *types.Block {
 }
 
 // MaxBlockBodySize returns the maximum block body size.
-//
-// TODO: This is not an exact size. Let's make it exact!
 func MaxBlockBodySize() uint32 {
-	return chain.MaxBlockSize() - uint32(proto.Size(&types.BlockHeader{}))
+	return chain.MaxBlockBodySize()
 }
 
 // GenerateBlock generate & return a new block
@@ -92,11 +93,11 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 }
 
 // ConnectBlock send an AddBlock request to the chain service.
-func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState) error {
+func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState, timeout time.Duration) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
 	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
-		time.Second, "consensus/chain/info.ConnectBlock").Result()
+		timeout, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", block.Header.BlockNo).
 			Str("hash", block.ID()).
@@ -106,5 +107,29 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 		return &ErrBlockConnect{id: block.ID(), prevID: block.PrevID(), ec: err}
 	}
 
+	return nil
+}
+
+func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID peer.ID) error {
+	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Uint64("no", targetNo).
+		Str("hash", enc.ToString(targetHash)).Msg("request to sync for consensus")
+
+	notiC := make(chan error)
+	hs.Tell(message.SyncerSvc, &message.SyncStart{PeerID: peerID, TargetNo: targetNo, NotifyC: notiC})
+
+	// wait end of sync every 1sec
+	select {
+	case err := <-notiC:
+		if err != nil {
+			logger.Error().Err(err).Uint64("no", targetNo).
+				Str("hash", enc.ToString(targetHash)).
+				Msg("failed to sync")
+
+			return ErrSyncChain
+		}
+	}
+
+	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Msg("succeeded to sync for consensus")
+	// TODO check best block is equal to target Hash/no
 	return nil
 }

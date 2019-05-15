@@ -514,11 +514,23 @@ function infiniteLoop()
 	end
 	return t
 end
-abi.register(infiniteLoop)`
+function infiniteCall()
+	infiniteCall()
+end
+function catch()
+	return pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, infiniteCall, catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "loop", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"loop",
@@ -533,6 +545,38 @@ abi.register(infiniteLoop)`
 	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"catch"}`,
+		),
+	)
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteCall"}`,
+		),
+	)
+	errMsg = "stack overflow"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
 }
 
 func TestUpdateSize(t *testing.T) {
@@ -686,7 +730,7 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 	err = bc.Query(
 		"simple-query",
 		`{"Name": "count", "Args":[]}`,
-		"cannot find contract",
+		"not found contract",
 		"",
 	)
 	if err != nil {
@@ -769,7 +813,8 @@ func TestSqlVmDateTime(t *testing.T) {
 	definition := `
 function init()
     db.exec("create table if not exists dt_test (n datetime, b bool)")
-	db.exec("insert into dt_test values (10000, 1),(date('2004-10-24', '+1 month', '-1 day'), 0)")
+	local n = db.exec("insert into dt_test values (?, ?),(date('2004-10-24', '+1 month', '-1 day'), 0)", 10000, 1)
+	assert(n == 2, "change count mismatch");
 end
 
 function nowNull()
@@ -777,7 +822,7 @@ function nowNull()
 end
 
 function localtimeNull()
-	db.exec("insert into dt_test values (datetime('2018-05-25', 'localtime'), 1)")
+	db.exec("insert into dt_test values (datetime('2018-05-25', ?), 1)", 'localtime')
 end
 
 function get()
@@ -928,8 +973,7 @@ end
 
 function query(id)
     local rt = {}
-    local stmt = db.prepare("select * from customer where id like '%' || ? || '%'")
-    local rs = stmt:query(id)
+    local rs = db.query("select * from customer where id like '%' || ? || '%'", id)
     while rs:next() do
         local col1, col2, col3, col4, col5 = rs:get()
         local item = {
@@ -945,18 +989,18 @@ function query(id)
 end
 
 function insert(id , passwd, name, birth, mobile)
-    local stmt = db.prepare("insert into customer values (?,?,?,?,?)")
-    stmt:exec(id, passwd, name, birth, mobile)
+    local n = db.exec("insert into customer values (?,?,?,?,?)", id, passwd, name, birth, mobile)
+	assert(n == 1, "insert count mismatch")
 end
 
 function update(id , passwd)
-    local stmt = db.prepare("update customer set passwd =? where id =?")
-    stmt:exec(passwd, id)
+    local n = db.exec("update customer set passwd =? where id =?", passwd, id)
+	assert(n == 1, "update count mismatch")
 end
 
 function delete(id)
-    local stmt = db.prepare("delete from customer where id =?")
-    stmt:exec(id)
+    local n = db.exec("delete from customer where id =?", id)
+	assert(n == 1, "delete count mismatch")
 end
 
 function count()
@@ -1879,6 +1923,13 @@ func TestArray(t *testing.T) {
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).Fail("index out of range"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1.00000001]}`).Fail("integer expected, got number"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":["1"]}`).Fail("integer expected, got string)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[true]}`).Fail("integer expected, got boolean"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[[1, 2]]}`).Fail("integer expected, got table"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[null]}`).Fail("integer expected, got nil)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[{}]}`).Fail("integer expected, got table)"),
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[""]}`).Fail("integer expected, got string)"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`),
 	)
 	if err != nil {
@@ -1903,6 +1954,26 @@ func TestArray(t *testing.T) {
 	err = bc.Query("array", `{"Name":"iter"}`, "", `[2,"ktlee","nil","nil","nil","nil","nil","nil","nil","nil"]`)
 	if err != nil {
 		t.Error(err)
+	}
+	overflow := `
+	state.var{
+		counts = state.array(1000000000000)
+	}
+
+	function get()
+		return "hello"
+	end
+	
+	abi.register(get)
+	`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "overflow", 0, overflow),
+	)
+	errMsg := "integer expected, got number"
+	if err == nil {
+		t.Errorf("expected: '%s', but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), errMsg) {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
 	}
 }
 
@@ -2365,7 +2436,7 @@ func TestMapKey(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
-		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("number expected, got string)"),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("(number expected, got string)"),
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
 	)
 	if err != nil {
@@ -2386,7 +2457,7 @@ func TestMapKey(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0,
 			`{"Name":"setCount", "Args":[true, 40]}`,
-		).Fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
+		).Fail(`invalid key type: 'boolean', state.map: 'counts'`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2771,14 +2842,14 @@ abi.payable(save)
 		NewLuaTxDef("ktlee", "payable", 1, src),
 	)
 	if err == nil {
-		t.Error("expected: " + errVmConstructorIsNotPayable.Error())
+		t.Error("expected: 'constructor' is not payable")
 	} else {
-		if !strings.Contains(err.Error(), errVmConstructorIsNotPayable.Error()) {
+		if !strings.Contains(err.Error(), "'constructor' is not payable") {
 			t.Error(err)
 		}
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("cannot find contract "),
+		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("not found contract"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2870,11 +2941,33 @@ function checkBignum()
 	
 	return bignum.isbignum(a), bignum.isbignum(b), bignum.isbignum("2333")
 end
-
+function calcBignum()
+	bg1 = bignum.number("999999999999999999999999999999")
+	bg2 = bignum.number("999999999999999999999999999999")
+	bg3 = bg1 + bg2
+	bg4 = bg1 * 2
+	bg5 = 2 * bg1
+	n1 = 999999999999999
+	system.print(n1)
+	bg6 = bignum.number(n1)
+	assert (bg3 == bg4 and bg4 == bg5)
+	bg5 = bg1 - bg3 
+	assert (bignum.isneg(bg5) and bg5 == bignum.neg(bg1))
+	system.print(bg3, bg5, bg6)
+	bg6 = bignum.number(1)
+	assert (bg6 > bg5)
+	pow = bignum.number(2) ^ 8
+	assert(pow == bignum.number(256))
+	assert(bignum.compare(bg6, 1) == 0)
+	system.print((bg6 == 1), bignum.isbignum(pow))
+	div1 = bignum.number(3)/2
+	assert(bignum.compare(div1, 1) == 0)
+	div = bg6 / 0
+end
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2931,16 +3024,231 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
+	err = bc.Query("bigNum", `{"Name":"calcBignum"}`, "bignum divide by zero", "")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestDeploy(t *testing.T) {
 	deploy := `
 function hello()
 	hello = [[
-	function hello(say) 
-		return "Hello " .. say 
-	end 
-	abi.register(hello)
+function hello(say)
+	return "Hello " .. say 
+end
+
+local type_check = {}
+function type_check.isValidAddress(address)
+    -- check existence of invalid alphabets
+    if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
+        return false
+    end
+    -- check lenght is in range
+    if 52 ~= string.len(address) then
+        return false
+    end
+    -- TODO add checksum verification?
+    return true
+end
+function type_check.isValidNumber(value)
+    if nil ~= string.match(value, '[^0123456789]') then
+        return false
+    end
+    return true
+end
+
+-- The a bridge token is a mintable and burnable token controlled by
+-- the bridge contract. It represents all tokens locked on the other side of the 
+-- bridge with a 1:1 ratio.
+-- This contract is depoyed by the merkle bridge when a new type of token 
+-- is transfered
+state.var {
+    Symbol = state.value(),
+    Name = state.value(),
+    Decimals = state.value(),
+    TotalSupply = state.value(),
+    Balances = state.map(),
+    Nonces = state.map(),
+    -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
+    -- This is neeeded for replay protection of signed transfer, because users might have the same private key
+    -- on different sidechains
+    ContractID = state.value(),
+    Owner = state.value(),
+}
+
+function constructor() 
+    Symbol:set("TOKEN")
+    Name:set("Standard Token on Aergo")
+    Decimals:set(18)
+    TotalSupply:set(bignum.number(0))
+    Owner:set(system.getSender())
+    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
+    -- take the first 16 bytes to save size of signed message
+    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+    id = string.sub(id, 3, 32)
+    ContractID:set(id)
+    return true
+end
+
+---------------------------------------
+-- Transfer sender's token to target 'to'
+-- @type        call
+-- @param to    a target address
+-- @param value string amount of tokens to send
+-- @return      success
+---------------------------------------
+function transfer(to, value) 
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
+    local from = system.getSender()
+    local bvalue = bignum.number(value)
+    local b0 = bignum.number(0)
+    assert(bvalue > b0, "invalid value")
+    assert(to ~= from, "same sender and receiver")
+    assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
+    Balances[from] = Balances[from] - bvalue
+    Nonces[from] = (Nonces[from] or 0) + 1
+    Balances[to] = (Balances[to] or b0) + bvalue
+    -- TODO event notification
+    return true
+end
+
+---------------------------------------
+-- Transfer tokens according to signed data from the owner
+-- @type  call
+-- @param from      sender's address
+-- @param to        receiver's address
+-- @param value     string amount of token to send in aer
+-- @param nonce     nonce of the sender to prevent replay
+-- @param fee       string fee given to the tx broadcaster
+-- @param deadline  block number before which the tx can be executed
+-- @param signature signature proving sender's consent
+-- @return          success
+---------------------------------------
+function signed_transfer(from, to, value, nonce, signature, fee, deadline)
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
+    local bfee = bignum.number(fee)
+    local bvalue = bignum.number(value)
+    local b0 = bignum.number(0)
+    -- check addresses
+    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
+    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
+    assert(to ~= from, "same sender and receiver")
+    -- check amounts, fee
+    assert(bfee >= b0, "fee must be positive")
+    assert(bvalue >= b0, "value must be positive")
+    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
+    -- check deadline
+    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
+    -- check nonce
+    if Nonces[from] == nil then Nonces[from] = 0 end
+    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
+    -- construct signed transfer and verifiy signature
+    data = crypto.sha256(to..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
+    -- execute transfer
+    Balances[from] = Balances[from] - bvalue - bfee
+    Balances[to] = (Balances[to] or b0) + bvalue
+    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
+    Nonces[from] = Nonces[from] + 1
+    -- TODO event notification
+    return true
+end
+
+
+---------------------------------------
+-- mint, burn and signed_burn are specific to the token contract controlled by
+-- the merkle bridge contract and representing transfered assets.
+---------------------------------------
+
+---------------------------------------
+-- Mint tokens to 'to'
+-- @type        call
+-- @param to    a target address
+-- @param value string amount of token to mint
+-- @return      success
+---------------------------------------
+function mint(to, value)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    local bvalue = bignum.number(value)
+    local b0 = bignum.number(0)
+    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
+    local new_total = TotalSupply:get() + bvalue
+    TotalSupply:set(new_total)
+    Balances[to] = (Balances[to] or b0) + bvalue;
+    -- TODO event notification
+    return true
+end
+
+---------------------------------------
+-- burn the tokens of 'from'
+-- @type        call
+-- @param from  a target address
+-- @param value an amount of token to send
+-- @return      success
+---------------------------------------
+function burn(from, value)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    local bvalue = bignum.number(value)
+    local b0 = bignum.number(0)
+    assert(type_check.isValidAddress(from), "invalid address format: " ..from)
+    assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
+    new_total = TotalSupply:get() - bvalue
+    TotalSupply:set(new_total)
+    Balances[from] = Balances[from] - bvalue
+    -- TODO event notification
+    return true
+end
+
+---------------------------------------
+-- signed_burn the tokens of 'from' according to signed data from the owner
+-- @type            call
+-- @param from      a target address
+-- @param value     an amount of token to send
+-- @param nonce     nonce of the sender to prevent replay
+-- @param fee       string fee given to the tx broadcaster
+-- @param deadline  block number before which the tx can be executed
+-- @param signature signature proving sender's consent
+-- @return          success
+---------------------------------------
+function signed_burn(from, value, nonce, signature, fee, deadline)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
+    local bfee = bignum.number(fee)
+    local bvalue = bignum.number(value)
+    local b0 = bignum.number(0)
+    -- check addresses
+    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
+    -- check amounts, fee
+    assert(bfee >= b0, "fee must be positive")
+    assert(bvalue >= b0, "value must be positive")
+    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
+    -- check deadline
+    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
+    -- check nonce
+    if Nonces[from] == nil then Nonces[from] = 0 end
+    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
+    -- construct signed transfer and verifiy signature
+    data = crypto.sha256(system.getSender()..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
+    -- execute burn
+    new_total = TotalSupply:get() - bvalue
+    TotalSupply:set(new_total)
+    Balances[from] = Balances[from] - bvalue - bfee
+    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
+    Nonces[from] = Nonces[from] + 1
+    -- TODO event notification
+    return true
+end
+
+
+-- register functions to abi
+abi.register(transfer, signed_transfer, mint, burn, signed_burn, hello)
 	]]
 	addr = contract.deploy(hello)
 	ret = contract.call(addr, "hello", "world")
@@ -3170,21 +3478,13 @@ abi.register(random)`
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
-	tx1 := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`)
-	err = bc.ConnectBlock(tx, tx1)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[]}`).Fail(
+			"1 or 2 arguments required",
+		),
+	)
 	if err != nil {
 		t.Error(err)
-	}
-	receipt := bc.getReceipt(tx.hash())
-	err = checkRandomFloatValue(receipt.GetRet())
-	if err != nil {
-		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
-	}
-	receipt = bc.getReceipt(tx1.hash())
-	err = checkRandomFloatValue(receipt.GetRet())
-	if err != nil {
-		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
 	}
 
 	err = bc.ConnectBlock(
@@ -3198,12 +3498,12 @@ abi.register(random)`
 		t.Error(err)
 	}
 
-	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
+	tx := NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3]}`)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt = bc.getReceipt(tx.hash())
+	receipt := bc.getReceipt(tx.hash())
 	err = checkRandomIntValue(receipt.GetRet(), 1, 3)
 	if err != nil {
 		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
@@ -3388,12 +3688,12 @@ func TestGovernance(t *testing.T) {
 	}
 	definition := `
     function test_gov()
-		contract.stake("5 aergo")
+		contract.stake("10000 aergo")
 		contract.vote("16Uiu2HAm2gtByd6DQu95jXURJXnS59Dyb9zTe16rDrcwKQaxma4p")
     end
 
 	function error_case()
-		contract.stake("5 aergo")
+		contract.stake("10000 aergo")
 		assert(false)
 	end
 	
@@ -3412,8 +3712,9 @@ func TestGovernance(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	amount, _ := new(big.Int).SetString("10000000000000000000000", 10)
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "gov", 10000000000000000000, `{"Name": "test_gov", "Args":[]}`),
+		NewLuaTxCallBig("ktlee", "gov", amount, `{"Name": "test_gov", "Args":[]}`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3461,4 +3762,394 @@ func TestGovernance(t *testing.T) {
 	}
 }
 
+func TestContractSend(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function constructor()
+	end
+    function send(addr)
+        contract.send(addr,1)
+    end
+    abi.register(send, constructor)
+	abi.payable(constructor)
+`
+	definition2 := `
+    function default()
+		system.print("default called")
+    end
+    abi.register(default)
+	abi.payable(default)
+`
+	definition3 := `
+    function test()
+    end
+    abi.register(test)
+`
+	definition4 := `
+    function default()
+    end
+    abi.register(default)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "test1", 50, definition),
+		NewLuaTxDef("ktlee", "test2", 0, definition2),
+		NewLuaTxDef("ktlee", "test3", 0, definition3),
+		NewLuaTxDef("ktlee", "test4", 0, definition4),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test2")))),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: not found function: default`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test4")))).Fail(`[Contract.LuaSendAmount] newExecutor error: 'default' is not payable`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee")))),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMaxMemSize(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+
+	definition := `
+function oom()
+	 local s = "hello"
+
+	 while 1 do
+		 s = s .. s
+	 end
+end
+
+function p()
+	pcall(oom)
+end
+
+function cp()
+	contract.pcall(oom)
+end
+abi.register(oom, p, cp)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "oom", 0, definition),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"oom"}`,
+		),
+	)
+	errMsg := "not enough memory"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"p"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"cp"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeploy2(t *testing.T) {
+	deploy := `
+function hello()
+	src = [[
+state.var{
+  counts = state.array(10)
+}
+
+counts[1] = 10
+function inc(key)
+  if counts[key] == nil then
+    counts[key] = 0
+  end
+  counts[key] = counts[key] + 1
+end
+
+function get(key)
+  return counts[key]
+end
+
+function set(key,val)
+  counts[key] = val
+end
+
+function len()
+  return counts:length()
+end
+
+function iter()
+  local rv = {}
+  for i, v in counts:ipairs() do
+    if v == nil then
+      rv[i] = "nil"
+    else
+      rv[i] = v
+    end
+  end
+  return rv
+end
+
+abi.register(inc,get,set,len,iter)
+	]]
+	paddr = contract.deploy(src)
+	system.print("addr :", paddr)
+	ret = contract.call(paddr, "hello", "world", "key")
+end
+
+function constructor()
+end
+
+abi.register(hello)
+abi.payable(constructor)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`[Contract.LuaDeployContract]newExecutor Error :not permitted state referencing at global scope`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInvalidKey(t *testing.T) {
+	src := `
+state.var {
+	h = state.map(),
+	arr = state.array(10),
+	v = state.value()
+}
+
+t = {}
+
+function key_table()
+	local k = {}
+	t[k] = "table"
+end
+
+function key_func()
+	t[key_table] = "function"
+end
+
+function key_statemap(key)
+	t[h] = "state.map"
+end
+
+function key_statearray(key)
+	t[arr] = "state.array"
+end
+
+function key_statevalue(key)
+	t[v] = "state.value"
+end
+
+function key_upval(key)
+	local k = {}
+	local f = function()
+		t[k] = "upval"
+	end
+	f()
+end
+
+function key_nil(key)
+	h[nil] = "nil"
+end
+
+abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval, key_nil)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "invalidkey", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_table"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_func"}`).Fail(
+		"cannot use 'function' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail(
+			"cannot use 'userdata' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statearray"}`).Fail(
+			"cannot use 'userdata' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail(
+			"cannot use 'userdata' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_upval"}`).Fail(
+			"cannot use 'table' as a key",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_nil"}`).Fail(
+			"invalid key type: 'nil', state.map: 'h'",
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSnapshot(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	state.var{
+		counts = state.map(),
+		data = state.value(),
+		array = state.array(10)
+	}
+
+	function inc()
+		a = system.getItem("key1")
+		if (a == nil) then
+			system.setItem("key1", 1)
+			return
+		end
+		system.setItem("key1", a + 1)
+		counts["key1"] = a + 1
+		data:set(a+1)
+		array[1] = a + 1
+	end
+	function query(a)
+			return system.getItem("key1", a), state.getsnap(counts, "key1", a), state.getsnap(data,a), state.getsnap(array, 1, a)
+	end
+	function query2()
+			return state.getsnap(array, 1)
+	end
+	abi.register(inc, query, query2)
+	abi.payable(inc)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "snap", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query"}`, "", "[3,3,3,3]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query", "Args":[2]}`, "", "[1,{},{},{}]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query", "Args":[3]}`, "", "[2,2,2,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query2", "Args":[]}`,
+		"invalid argument at getsnap, need (state.array, index, blockheight)", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
 // end of test-cases

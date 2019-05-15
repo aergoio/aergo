@@ -184,12 +184,12 @@ func (bf *BlockFetcher) Start() {
 	}
 
 	run := func() {
-		defer RecoverSyncer(NameBlockFetcher, bf.compRequester, func() { bf.waitGroup.Done() })
+		defer RecoverSyncer(NameBlockFetcher, bf.GetSeq(), bf.compRequester, func() { bf.waitGroup.Done() })
 
 		logger.Debug().Msg("start block fetcher")
 
 		if err := bf.init(); err != nil {
-			stopSyncer(bf.compRequester, bf.name, err)
+			stopSyncer(bf.compRequester, bf.GetSeq(), bf.name, err)
 			return
 		}
 
@@ -200,7 +200,7 @@ func (bf *BlockFetcher) Start() {
 			case <-schedTicker.C:
 				if err := bf.checkTaskTimeout(); err != nil {
 					logger.Error().Err(err).Msg("failed checkTaskTimeout")
-					stopSyncer(bf.compRequester, bf.name, err)
+					stopSyncer(bf.compRequester, bf.GetSeq(), bf.name, err)
 					return
 				}
 
@@ -213,7 +213,7 @@ func (bf *BlockFetcher) Start() {
 				err := bf.blockProcessor.run(msg)
 				if err != nil {
 					logger.Error().Err(err).Msg("invalid block response message")
-					stopSyncer(bf.compRequester, bf.name, err)
+					stopSyncer(bf.compRequester, bf.GetSeq(), bf.name, err)
 					return
 				}
 
@@ -230,7 +230,7 @@ func (bf *BlockFetcher) Start() {
 				}
 
 				logger.Error().Err(err).Msg("BlockFetcher schedule failed & finished")
-				stopSyncer(bf.compRequester, bf.name, err)
+				stopSyncer(bf.compRequester, bf.GetSeq(), bf.name, err)
 				return
 			}
 		}
@@ -271,6 +271,10 @@ func (bf *BlockFetcher) init() error {
 	}
 
 	return nil
+}
+
+func (bf *BlockFetcher) GetSeq() uint64 {
+	return bf.ctx.Seq
 }
 
 func (bf *BlockFetcher) schedule() error {
@@ -513,7 +517,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 
 	logger.Debug().Int("peerno", task.syncPeer.No).Int("count", task.count).Uint64("StartNo", task.startNo).Str("start", enc.ToString(task.hashes[0])).Int("runqueue", bf.runningQueue.Len()).Msg("send block fetch request")
 
-	bf.compRequester.TellTo(message.P2PSvc, &message.GetBlockChunks{GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
+	bf.compRequester.TellTo(message.P2PSvc, &message.GetBlockChunks{Seq: bf.GetSeq(), GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
 }
 
 //TODO refactoring matchFunc

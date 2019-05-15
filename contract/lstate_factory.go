@@ -1,8 +1,5 @@
 package contract
 
-/*
-#include "lbc.h"
- */
 import "C"
 import "sync"
 
@@ -10,29 +7,25 @@ var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-const MAX_LSTATE_SIZE = 100
+const MAX_LSTATE_SIZE = 150
 
 func StartLStateFactory() {
 	once.Do(func() {
-		C.bc_init_numbers()
 		getCh = make(chan *LState, MAX_LSTATE_SIZE)
 		freeCh = make(chan *LState, MAX_LSTATE_SIZE)
 
-		go stateCreator()
-		go stateDestructor()
+		for i := 0; i < MAX_LSTATE_SIZE; i++ {
+			getCh <- NewLState()
+		}
+		go statePool()
 	})
 }
 
-func stateCreator() {
-	for {
-		getCh <- NewLState()
-	}
-}
-
-func stateDestructor() {
+func statePool() {
 	for {
 		state := <-freeCh
 		state.Close()
+		getCh <- NewLState()
 	}
 }
 

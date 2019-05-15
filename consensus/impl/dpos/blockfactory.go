@@ -7,6 +7,7 @@ package dpos
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -31,10 +31,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte) chain.TxOp {
+func newTxExec(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -66,8 +66,8 @@ func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC
 		bpTimeoutC:       make(chan interface{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             quitC,
-		ID:               p2p.NodeSID(),
-		privKey:          p2p.NodePrivKey(),
+		ID:               p2pkey.NodeSID(),
+		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
 	}
 
@@ -189,7 +189,7 @@ func (bf *BlockFactory) worker() {
 				continue
 			}
 
-			err = chain.ConnectBlock(bf, block, blockState)
+			err = chain.ConnectBlock(bf, block, blockState, time.Second)
 			if err == nil {
 				lpbNo = block.BlockNo()
 			} else {
@@ -217,7 +217,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 
 	txOp := chain.NewCompTxOp(
 		bf.txOp,
-		newTxExec(bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.GetHeader().GetPrevBlockHash()),
+		newTxExec(contract.ChainAccessor(bpi.ChainDB), bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.BlockHash(), bpi.bestBlock.GetHeader().ChainID),
 	)
 
 	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts, false)

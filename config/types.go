@@ -86,6 +86,7 @@ type BlockchainConfig struct {
 	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
 	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
 	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
+	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(works only on private network)"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -99,17 +100,24 @@ type MempoolConfig struct {
 
 // ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
-	EnableBp      bool           `mapstructure:"enablebp" description:"enable block production"`
-	BlockInterval int64          `mapstructure:"blockinterval" description:"block production interval (sec)"`
-	RaftID        uint64         `mapstructure:"raftid" description:"raft bp id. this value should be index of raftbpurls(1 <= raftid <= length of raftbpruls)"`
-	RaftBPs       []RaftBPConfig `mapstructure:"raftbps"`
-	RaftSkipEmpty bool           `mapstructure:"raftskipempty" description:"skip producing block if there is no tx in block"`
-	RaftKeyFile   string         `mapstructure:"raftkeyfile" description:"Private Key file for raft https server"`
-	RaftCertFile  string         `mapstructure:"raftcertfile" description:"Certificate file for raft https server"`
+	EnableBp      bool        `mapstructure:"enablebp" description:"enable block production"`
+	BlockInterval int64       `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	Raft          *RaftConfig `mapstructure:"raft"`
+}
+
+type RaftConfig struct {
+	Name       string         `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
+	ListenUrl  string         `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
+	BPs        []RaftBPConfig `mapstructure:"bps"`
+	SkipEmpty  bool           `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
+	KeyFile    string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
+	CertFile   string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
+	Tick       uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
+	NewCluster bool           `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
 }
 
 type RaftBPConfig struct {
-	ID    uint64 `mapstructure:"id" description:"raft ID"`
+	Name  string `mapstructure:"name" description:"raft node name"`
 	Url   string `mapstructure:"url" description:"raft url"`
 	P2pID string `mapstructure:"p2pid" description:"p2p ID of this bp"`
 }

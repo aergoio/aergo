@@ -51,7 +51,7 @@ creates an account and deposite aergo. `inject inject <account_name> <amount>`
 
 ### getstate
 
-get current balance of an account. `getstate getstate <account_name>` This will returns in a form of `<internal_address>=<remaining_balance>`
+get current balance of an account. `getstate getstate <account_name> [expected_balance]` This will returns in a form of `<internal_address>=<remaining_balance>`
 
 ``` lua
 1> getstate tester
@@ -73,6 +73,13 @@ deploy a smart contract. `deploy <sender_name> <fee_amount> <contract_name> <def
 
 ``` lua
 2> deploy tester 0 helloContract ./example/hello.lua
+  INF deploy a smart contract successfully cmd=deploy module=brick
+```
+
+deploy a raw text file on http also available.
+
+``` lua
+2> deploy tester 0 helloContract https://raw.githubusercontent.com/aergoio/aergo-contract-ex/master/contracts/helloworld/test/test-helloworld.brick
   INF deploy a smart contract successfully cmd=deploy module=brick
 ```
 
@@ -105,7 +112,7 @@ query to a smart contract. `query <contract_name> <func_name> <query_json_str> [
 
 ### batch
 
-keeps commands in a text file and use at later. `batch <batch_file_path>`
+keeps commands in a text file (local or http) and use at later. `batch <batch_file_path>`
 
 ``` lua
 4> batch ./example/hello.brick
@@ -122,12 +129,21 @@ cancels the last tx (inject, send, deploy, call). `undo`
   INF Undo, Succesfully cmd=undo module=brick
 ```
 
+### forward
+
+skip blocks. `forward [height_to_skip]`
+
+``` lua
+7> forward 100
+  INF fast forward blocks successfully cmd=forward module=brick
+```
+
 ### reset
 
 clear all txs and reset the chain. `reset`
 
 ``` lua
-7> reset
+107> reset
   INF reset a dummy chain successfully cmd=reset module=brick
 0>
 ```
@@ -177,7 +193,47 @@ Or user can set the option `-w` to display the batch execution results continuou
 
 ## Debugging
 
-If you build in debug mode, you can use `os, io, coroutine` modules which is not allowed in release mode. There is no limit to which debugger to use, but here we describe the zerobrane studio, which provides ui and is easy to install.
+If you build in debug mode (`make debug`), you can use `os, io, debug` modules which is not allowed in release mode. There is no limit to which debugger to use, but brick provides built-in debugger using customized [clidebugger](https://github.com/ToddWegner/clidebugger). For debugging purpose, brick has extended commands.
+
+### setb (brick / debugmode)
+
+Set a breakpoint to the contract. When vm reach the line of breakpoint during a call or query of a contract, it enters debugmode only. contract_name is optional in debugmode. `setb <line> [contract_name]`
+
+### delb (brick / debugmode) 
+
+Delete an existing breakpoint. contract_name is optional in debugmode. `delb <line> [contract_name]`
+
+### listb (brick / debugmode)
+
+Prints all breakpoints. `listb`
+
+### resetb (brick / debugmode)
+
+Clear all breakpoints. `resetb`
+
+### setw (brick / debugmode)
+
+Set an watchpoint expression. If one of watchpoint expressions is satisfied without regard to which contract is being executed, debug mode is activated. `setw <watch_expression>`
+
+### delw (brick / debugmode)
+
+Delete an existing watchpoint. `delw <watch_index>`
+
+### listw (brick / debugmode)
+
+Prints all watchpoints. `listw`
+
+### resetw (brick / debugmode)
+
+Clear all watchpoints. `resetw`
+
+### in debugmode
+
+When vm enters debugmode, prompt changes to `[DEBUG]>`. In debugmode, command set is changed for debugging purpose, like `run`, `exit`, `show`, `vars`. For more detail, type `help`.
+
+## Debug using Zerobrane Studio
+
+Here we describe GUI based debugging using the zerobrane studio.
 
 1. download [zerobrane studio](https://studio.zerobrane.com/support) (lua ide)
 2. set envoronment var `LUA_PATH, LUACPATH` following an [instruction](https://studio.zerobrane.com/doc-remote-debugging)

@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	testNet        bool
-	privateGenesis string
+	testNet     bool
+	jsonGenesis string
 )
 
 func init() {
 	initGenesis.Flags().BoolVar(&testNet, "testnet", false, "create genesis block for Aergo TestNet")
-	initGenesis.Flags().StringVar(&privateGenesis, "privnet", "", "genesis json file for private net")
+	initGenesis.Flags().StringVar(&jsonGenesis, "genesis", "", "genesis json file for private net")
 
 	rootCmd.AddCommand(initGenesis)
 }
@@ -41,24 +41,22 @@ var initGenesis = &cobra.Command{
 			}
 		}
 
-		if privateGenesis != "" {
+		if jsonGenesis != "" {
 			fmt.Println("create genesis block for PrivateNet")
-			genesis = getGenesis(privateGenesis)
+			genesis = getGenesis(jsonGenesis)
 			if genesis == nil {
 				fmt.Printf("failed to obtain GenesisInfo\n")
 				return
 			}
 			if err := genesis.Validate(); err != nil {
-				fmt.Printf(" %s (error:%s)\n", privateGenesis, err)
+				fmt.Printf(" %s (error:%s)\n", jsonGenesis, err)
 				return
 			}
 		}
 
 		if genesis == nil {
 			if testNet == false {
-				fmt.Println("mainnet will be launched soon")
-				fmt.Println("use --testnet or --privnet option instead")
-				return
+				fmt.Println("create genesis block for Aergo Mainnet")
 			} else {
 				fmt.Println("create genesis block for Aergo Testnet")
 			}
@@ -77,15 +75,15 @@ var initGenesis = &cobra.Command{
 }
 
 func getGenesis(path string) *types.Genesis {
-	file, err := os.Open(privateGenesis)
+	file, err := os.Open(jsonGenesis)
 	if err != nil {
-		fmt.Printf("fail to open %s \n", privateGenesis)
+		fmt.Printf("fail to open %s \n", jsonGenesis)
 		return nil
 	}
 	defer file.Close()
 	genesis := new(types.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {
-		fmt.Printf("fail to deserialize %s (error:%s)\n", privateGenesis, err)
+		fmt.Printf("fail to deserialize %s (error:%s)\n", jsonGenesis, err)
 		return nil
 	}
 	return genesis

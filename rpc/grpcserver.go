@@ -8,6 +8,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -19,18 +20,27 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/consensus/impl/raftv2"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/libp2p/go-libp2p-peer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 var (
 	logger = log.NewLogger("rpc")
+)
+
+var (
+	ErrUninitAccessor        = errors.New("accessor is not initilized")
+	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 type EventStream struct {
@@ -40,9 +50,10 @@ type EventStream struct {
 
 // AergoRPCService implements GRPC server which is defined in rpc.proto
 type AergoRPCService struct {
-	hub         *component.ComponentHub
-	actorHelper p2p.ActorService
-	msgHelper   message.Helper
+	hub               *component.ComponentHub
+	actorHelper       p2pcommon.ActorService
+	consensusAccessor consensus.ConsensusAccessor //TODO refactor with actorHelper
+	msgHelper         message.Helper
 
 	streamID                uint32
 	blockStreamLock         sync.RWMutex
@@ -59,6 +70,14 @@ const halfMinute = time.Second * 30
 const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
+
+func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
+	if rpc == nil {
+		return
+	}
+
+	rpc.consensusAccessor = ca
+}
 
 func (rpc *AergoRPCService) Metric(ctx context.Context, req *types.MetricsRequest) (*types.Metrics, error) {
 	result := &types.Metrics{}
@@ -106,10 +125,15 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 		return nil, err
 	}
 
+	digest := sha256.New()
+	digest.Write(last.GetHeader().GetChainID())
+	bestChainIdHash := digest.Sum(nil)
+
 	return &types.BlockchainStatus{
-		BestBlockHash: last.BlockHash(),
-		BestHeight:    last.GetHeader().GetBlockNo(),
-		ConsensusInfo: ca.GetConsensusInfo(),
+		BestBlockHash:   last.BlockHash(),
+		BestHeight:      last.GetHeader().GetBlockNo(),
+		ConsensusInfo:   ca.GetConsensusInfo(),
+		BestChainIdHash: bestChainIdHash,
 	}, nil
 }
 
@@ -120,18 +144,14 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
 		id := genesisInfo.ID
 
-		chainInfo.Chainid = &types.ChainId{
+		chainInfo.Id = &types.ChainId{
 			Magic:     id.Magic,
 			Public:    id.PublicNet,
 			Mainnet:   id.MainNet,
 			Consensus: id.Consensus,
 		}
 
-		if fee, success := id.GetCoinbaseFee(); success {
-			chainInfo.Chainid.Coinbasefee = fee.Bytes()
-		}
-
-		chainInfo.Bpnumber = uint32(len(genesisInfo.BPs))
+		chainInfo.BpNumber = uint32(len(genesisInfo.BPs))
 
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
 			chainInfo.Maxtokens = totalBalance.Bytes()
@@ -249,34 +269,32 @@ func (rpc *AergoRPCService) getBlocks(ctx context.Context, in *types.ListParams)
 	return blocks, err
 }
 
-func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) error {
+func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) {
 	var err error
 	rpc.blockStreamLock.RLock()
 	for _, stream := range rpc.blockStream {
 		if stream != nil {
 			err = stream.Send(block)
+			if err != nil {
+				logger.Warn().Err(err).Msg("failed to broadcast block stream")
+			}
 		}
 	}
 	rpc.blockStreamLock.RUnlock()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
-func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.BlockMetadata) error {
+func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.BlockMetadata) {
 	var err error
 	rpc.blockMetadataStreamLock.RLock()
 	for _, stream := range rpc.blockMetadataStream {
 		if stream != nil {
 			err = stream.Send(meta)
+			if err != nil {
+				logger.Warn().Err(err).Msg("failed to broadcast block meta stream")
+			}
 		}
 	}
 	rpc.blockMetadataStreamLock.RUnlock()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // real-time streaming most recent block header
@@ -285,6 +303,7 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 	rpc.blockStreamLock.Lock()
 	rpc.blockStream[streamId] = stream
 	rpc.blockStreamLock.Unlock()
+	logger.Info().Uint32("id", streamId).Msg("block stream added")
 
 	for {
 		select {
@@ -292,6 +311,7 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 			rpc.blockStreamLock.Lock()
 			delete(rpc.blockStream, streamId)
 			rpc.blockStreamLock.Unlock()
+			logger.Info().Uint32("id", streamId).Msg("block stream deleted")
 			return nil
 		}
 	}
@@ -302,6 +322,7 @@ func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream type
 	rpc.blockMetadataStreamLock.Lock()
 	rpc.blockMetadataStream[streamId] = stream
 	rpc.blockMetadataStreamLock.Unlock()
+	logger.Info().Uint32("id", streamId).Msg("block meta stream added")
 
 	for {
 		select {
@@ -309,6 +330,7 @@ func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream type
 			rpc.blockMetadataStreamLock.Lock()
 			delete(rpc.blockMetadataStream, streamId)
 			rpc.blockMetadataStreamLock.Unlock()
+			logger.Info().Uint32("id", streamId).Msg("block meta stream deleted")
 			return nil
 		}
 	}
@@ -460,7 +482,7 @@ func (rpc *AergoRPCService) GetBlockTX(ctx context.Context, in *types.SingleByte
 
 var emptyBytes = make([]byte, 0)
 
-// SendTX try to fill the nonce, sign, hash in the transaction automatically and commit it
+// SendTX try to fill the nonce, sign, hash, chainIdHash in the transaction automatically and commit it
 func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.CommitResult, error) {
 
 	if tx.Body.Nonce == 0 {
@@ -477,6 +499,15 @@ func (rpc *AergoRPCService) SendTX(ctx context.Context, tx *types.Tx) (*types.Co
 			return nil, status.Errorf(codes.Internal, "internal error : %s", getStateRsp.Err.Error())
 		}
 		tx.Body.Nonce = getStateRsp.State.GetNonce() + 1
+	}
+
+	if tx.Body.ChainIdHash == nil {
+		ca := rpc.actorHelper.GetChainAccessor()
+		last, err := ca.GetBestBlock()
+		if err != nil {
+			return nil, err
+		}
+		tx.Body.ChainIdHash = common.Hasher(last.GetHeader().GetChainID())
 	}
 
 	signTxResult, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
@@ -779,7 +810,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -806,21 +837,11 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*
 }
 
 //GetVotes handle rpc request getvotes
-func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes) (*types.VoteList, error) {
-	var number int
-	var err error
-	var result interface{}
+func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.VoteParams) (*types.VoteList, error) {
 
-	if len(in.Value) == 8 {
-		number = int(binary.LittleEndian.Uint64(in.Value))
-		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetElected{N: number}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
-	} else if len(in.Value) == types.AddressLength {
-		result, err = rpc.hub.RequestFuture(message.ChainSvc,
-			&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
-	} else {
-		return nil, status.Errorf(codes.InvalidArgument, "Only support count parameter")
-	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetElected{Id: in.GetId(), N: in.GetCount()}, defaultActorTimeout, "rpc.(*AergoRPCService).GetVote").Result()
+
 	if err != nil {
 		return nil, err
 	}
@@ -831,8 +852,25 @@ func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.SingleBytes)
 	return rsp.Top, rsp.Err
 }
 
+func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.AccountAddress) (*types.AccountVoteInfo, error) {
+	ids := []string{}
+	for _, v := range types.AllVotes {
+		ids = append(ids, v[2:])
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetVote{Addr: in.Value, Ids: ids}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*message.GetAccountVoteRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Info, rsp.Err
+}
+
 //GetStaking handle rpc request getstaking
-func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.SingleBytes) (*types.Staking, error) {
+func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.AccountAddress) (*types.Staking, error) {
 	var err error
 	var result interface{}
 
@@ -968,9 +1006,10 @@ func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error 
 			for _, event := range events {
 				if event.Filter(es.filter, argFilter) {
 					err = es.stream.Send(event)
-				}
-				if err != nil {
-					return err
+					if err != nil {
+						logger.Warn().Err(err).Msg("failed to broadcast block stream")
+						break
+					}
 				}
 			}
 		}
@@ -989,4 +1028,55 @@ func (rpc *AergoRPCService) ListEvents(ctx context.Context, in *types.FilterInfo
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &types.EventList{Events: rsp.Events}, rsp.Err
+}
+
+func (rpc *AergoRPCService) GetServerInfo(ctx context.Context, in *types.KeyParams) (*types.ServerInfo, error) {
+	result, err := rpc.hub.RequestFuture(message.RPCSvc,
+		&message.GetServerInfo{Categories: in.Key}, defaultActorTimeout, "rpc.(*AergoRPCService).GetServerInfo").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*types.ServerInfo)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp, nil
+}
+
+// GetConsensusInfo handle rpc request blockchain. It has no additional input parameter
+func (rpc *AergoRPCService) GetConsensusInfo(ctx context.Context, in *types.Empty) (*types.ConsensusInfo, error) {
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	return rpc.consensusAccessor.ConsensusInfo(), nil
+}
+
+// ChainStat handles rpc request chainstat.
+func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*types.ChainStats, error) {
+	ca := rpc.actorHelper.GetChainAccessor()
+	if ca == nil {
+		return nil, ErrUninitAccessor
+	}
+	return &types.ChainStats{Report: ca.GetChainStats()}, nil
+}
+
+func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.MembershipChange) (*types.MembershipChangeReply, error) {
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
+		if genesisInfo.ID.Consensus != raftv2.GetName() {
+			return nil, ErrNotSupportedConsensus
+		}
+	}
+
+	member, err := rpc.consensusAccessor.ConfChange(in)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(peer.ID(member.PeerID))}}
+	return reply, nil
 }

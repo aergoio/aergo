@@ -6,14 +6,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/aergoio/aergo/p2p/pmap"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
@@ -25,6 +24,7 @@ import (
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/pkg/component"
+	polarisclient "github.com/aergoio/aergo/polaris/client"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/syncer"
 	"github.com/opentracing/opentracing-go"
@@ -149,17 +149,17 @@ func rootRun(cmd *cobra.Command, args []string) {
 		svrlog.Warn().Msgf("Running with unsafe test mode. Turn off test mode for production use!")
 	}
 
-	p2p.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, svrlog)
+	p2pkey.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, githash, svrlog)
 
 	compMng := component.NewComponentHub()
 
 	chainSvc := chain.NewChainService(cfg)
 
 	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc)
-	rpcSvc := rpc.NewRPC(cfg, chainSvc)
+	rpcSvc := rpc.NewRPC(cfg, chainSvc, githash)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
-	pmapSvc := pmap.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
+	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
 
 	var accountSvc component.IComponent
 	if cfg.Personal {
@@ -170,7 +170,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// function skips nil parameters.
 	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
 
-	consensusSvc, err := impl.New(cfg, compMng, chainSvc)
+	consensusSvc, err := impl.New(cfg, compMng, chainSvc, p2pSvc, rpcSvc)
 	if err != nil {
 		svrlog.Error().Err(err).Msg("Failed to start consensus service.")
 		os.Exit(1)

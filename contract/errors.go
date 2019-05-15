@@ -5,12 +5,6 @@
 
 package contract
 
-import "errors"
-
-var (
-	errVmConstructorIsNotPayable = errors.New("constructor is not payable")
-)
-
 type ErrSystem interface {
 	System() bool
 }
@@ -20,7 +14,7 @@ func isSystemError(err error) bool {
 	return ok && sErr.System()
 }
 
-type vmStartError struct {}
+type vmStartError struct{}
 
 func newVmStartError() error {
 	return &vmStartError{}
@@ -43,6 +37,18 @@ func newDbSystemError(e error) error {
 }
 
 func (e *DbSystemError) System() bool {
+	return e != nil
+}
+
+type VmSystemError struct {
+	error
+}
+
+func newVmSystemError(e error) error {
+	return &VmSystemError{e}
+}
+
+func (e *VmSystemError) System() bool {
 	return e != nil
 }
 

@@ -9,6 +9,8 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 )
 
 const msgHeaderLength int = 48
@@ -20,34 +22,34 @@ type V030ReadWriter struct {
 
 func NewV030ReadWriter(r *bufio.Reader, w *bufio.Writer) *V030ReadWriter {
 	return &V030ReadWriter{
-		r: &V030Reader{rd:r},
-		w: &V030Writer{wr:w},
+		r: &V030Reader{rd: r},
+		w: &V030Writer{wr: w},
 	}
 }
 
-func (rw *V030ReadWriter) ReadMsg() (Message, error) {
+func (rw *V030ReadWriter) ReadMsg() (p2pcommon.Message, error) {
 	return rw.r.ReadMsg()
 }
 
-func (rw *V030ReadWriter) WriteMsg(msg Message) error {
+func (rw *V030ReadWriter) WriteMsg(msg p2pcommon.Message) error {
 	return rw.w.WriteMsg(msg)
 }
 
 func NewV030Reader(rd *bufio.Reader) *V030Reader {
-	return &V030Reader{rd:rd}
+	return &V030Reader{rd: rd}
 }
 
 func NewV030Writer(wr *bufio.Writer) *V030Writer {
-	return &V030Writer{wr:wr}
+	return &V030Writer{wr: wr}
 }
 
 type V030Reader struct {
-	rd *bufio.Reader
+	rd      *bufio.Reader
 	headBuf [msgHeaderLength]byte
 }
 
 // ReadMsg() must be used in single thread
-func (r *V030Reader) ReadMsg() (Message, error) {
+func (r *V030Reader) ReadMsg() (p2pcommon.Message, error) {
 	// fill data
 	read, err := r.readToLen(r.headBuf[:], msgHeaderLength)
 	if err != nil {
@@ -58,7 +60,7 @@ func (r *V030Reader) ReadMsg() (Message, error) {
 	}
 
 	msg := parseHeader(r.headBuf)
-	if msg.length > MaxPayloadLength {
+	if msg.length > p2pcommon.MaxPayloadLength {
 		return nil, fmt.Errorf("too big payload")
 	}
 	payload := make([]byte, msg.length)
@@ -74,10 +76,10 @@ func (r *V030Reader) ReadMsg() (Message, error) {
 	return msg, nil
 }
 
-func (r *V030Reader)readToLen(bf []byte, max int ) (int, error) {
+func (r *V030Reader) readToLen(bf []byte, max int) (int, error) {
 	remain := max
 	offset := 0
-	for remain>0 {
+	for remain > 0 {
 		read, err := r.rd.Read(bf[offset:])
 		if err != nil {
 			return offset, err
@@ -89,16 +91,16 @@ func (r *V030Reader)readToLen(bf []byte, max int ) (int, error) {
 }
 
 type V030Writer struct {
-	wr *bufio.Writer
+	wr      *bufio.Writer
 	headBuf [msgHeaderLength]byte
 }
 
 // WriteMsg() must be used in single thread
-func (w *V030Writer) WriteMsg(msg Message) error {
+func (w *V030Writer) WriteMsg(msg p2pcommon.Message) error {
 	if msg.Length() != uint32(len(msg.Payload())) {
 		return fmt.Errorf("Invalid payload size")
 	}
-	if msg.Length() > MaxPayloadLength {
+	if msg.Length() > p2pcommon.MaxPayloadLength {
 		return fmt.Errorf("too big payload")
 	}
 
@@ -114,7 +116,7 @@ func (w *V030Writer) WriteMsg(msg Message) error {
 	if err != nil {
 		return err
 	}
-	if written !=  int(msg.Length())  {
+	if written != int(msg.Length()) {
 		return fmt.Errorf("wrong write")
 	}
 	w.wr.Flush()
@@ -123,15 +125,15 @@ func (w *V030Writer) WriteMsg(msg Message) error {
 
 func parseHeader(buf [msgHeaderLength]byte) *V030Message {
 	m := &V030Message{}
-	m.subProtocol = SubProtocol(binary.BigEndian.Uint32(buf[0:4]))
-	m.length =  binary.BigEndian.Uint32(buf[4:8])
-	m.timestamp =  int64(binary.BigEndian.Uint64(buf[8:16]))
+	m.subProtocol = p2pcommon.SubProtocol(binary.BigEndian.Uint32(buf[0:4]))
+	m.length = binary.BigEndian.Uint32(buf[4:8])
+	m.timestamp = int64(binary.BigEndian.Uint64(buf[8:16]))
 	copy(m.id[:], buf[16:32])
 	copy(m.originalID[:], buf[32:48])
 	return m
 }
 
-func (w *V030Writer)marshalHeader(m Message) {
+func (w *V030Writer) marshalHeader(m p2pcommon.Message) {
 	binary.BigEndian.PutUint32(w.headBuf[0:4], m.Subprotocol().Uint32())
 	binary.BigEndian.PutUint32(w.headBuf[4:8], m.Length())
 	binary.BigEndian.PutUint64(w.headBuf[8:16], uint64(m.Timestamp()))

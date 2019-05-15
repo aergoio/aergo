@@ -11,6 +11,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -25,7 +26,7 @@ import (
 var cdb *state.ChainStateDB
 var sdb *state.StateDB
 
-func initTest(t *testing.T) {
+func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
@@ -34,6 +35,18 @@ func initTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
+	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
+
+	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	assert.NoError(t, err, "could not open contract state")
+
+	account, err := types.DecodeAddress(testSender)
+	assert.NoError(t, err, "could not decode test address")
+	sender, err := sdb.GetAccountStateV(account)
+	assert.NoError(t, err, "could not get test address state")
+	receiver, err := sdb.GetAccountStateV([]byte(types.AergoSystem))
+	assert.NoError(t, err, "could not get test address state")
+	return scs, sender, receiver
 }
 
 func deinitTest() {
@@ -80,7 +93,7 @@ func TestVoteData(t *testing.T) {
 	for i := 0; i < testSize; i++ {
 		from := fmt.Sprintf("from%d", i)
 		to := fmt.Sprintf("%39d", i)
-		vote, err := GetVote(scs, []byte(from))
+		vote, err := GetVote(scs, []byte(from), defaultVoteKey)
 		assert.NoError(t, err, "failed to getVote")
 		assert.Zero(t, vote.Amount, "new amount value is already set")
 		assert.Nil(t, vote.Candidate, "new candidates value is already set")
@@ -91,7 +104,7 @@ func TestVoteData(t *testing.T) {
 		err = setVote(scs, defaultVoteKey, []byte(from), testVote)
 		assert.NoError(t, err, "failed to setVote")
 
-		vote, err = GetVote(scs, []byte(from))
+		vote, err = GetVote(scs, []byte(from), defaultVoteKey)
 		assert.NoError(t, err, "failed to getVote after set")
 		assert.Equal(t, uint64(math.MaxInt64+i), new(big.Int).SetBytes(vote.Amount).Uint64(), "invalid amount")
 		assert.Equal(t, []byte(to), vote.Candidate, "invalid candidates")
@@ -99,53 +112,45 @@ func TestVoteData(t *testing.T) {
 }
 
 func TestBasicStakingVotingUnstaking(t *testing.T) {
-	initTest(t)
+	scs, sender, receiver := initTest(t)
 	defer deinitTest()
-	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
-	assert.NoError(t, err, "could not open contract state")
-
-	account, err := types.DecodeAddress(testSender)
-	assert.NoError(t, err, "could not decode test address")
-
+	sender.AddBalance(types.MaxAER)
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Account: account,
+			Account: sender.ID(),
 			Amount:  types.StakingMinimum.Bytes(),
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
-	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
-	assert.NoError(t, err, "could not get test address state")
-	sender.AddBalance(types.MaxAER)
 
 	tx.Body.Payload = buildStakingPayload(true)
-	_, err = staking(tx.Body, sender, receiver, scs, 0)
+
+	context, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, 0)
+	assert.NoError(t, err, "staking validation")
+	_, err = staking(tx.Body, sender, receiver, scs, 0, context)
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
-	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
+	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, context)
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
-	assert.Equal(t, ci.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
+	assert.Equal(t, context.Call.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	ci, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
+	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
-	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, ci)
+	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, context)
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, defaultVoteKey, 23)
@@ -155,6 +160,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 }
 
+/*
 func TestBasicStakeVoteExUnstake(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
@@ -184,8 +190,9 @@ func TestBasicStakeVoteExUnstake(t *testing.T) {
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
-	testsize := 20
+	testsize := 1
 	tx.Body.Payload = buildVotingPayloadEx(testsize, types.VoteNumBP)
+	t.Log("payload = ", string(tx.Body.Payload))
 	ci, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
 	event, err := voting(tx.Body, sender, receiver, scs, VotingDelay, ci)
@@ -214,6 +221,7 @@ func TestBasicStakeVoteExUnstake(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 
 }
+*/
 
 func buildVotingPayload(count int) []byte {
 	var ci types.CallInfo
@@ -230,10 +238,17 @@ func buildVotingPayload(count int) []byte {
 func buildVotingPayloadEx(count int, name string) []byte {
 	var ci types.CallInfo
 	ci.Name = name
-	for i := 0; i < count; i++ {
-		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPublicKey(pub)
-		ci.Args = append(ci.Args, peer.IDB58Encode(pid))
+	switch name {
+	case types.VoteBP:
+		for i := 0; i < count; i++ {
+			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+			pid, _ := peer.IDFromPublicKey(pub)
+			ci.Args = append(ci.Args, peer.IDB58Encode(pid))
+		}
+	case types.VoteNumBP:
+		for i := 12; i < 12+count; i++ {
+			ci.Args = append(ci.Args, strconv.Itoa(i))
+		}
 	}
 	payload, _ := json.Marshal(ci)
 	return payload

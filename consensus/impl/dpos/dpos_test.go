@@ -15,7 +15,7 @@ const (
 )
 
 func TestDposFutureBlock(t *testing.T) {
-	slot.Init(bpInterval, nSlots)
+	slot.Init(bpInterval)
 
 	dpos := &DPoS{}
 
@@ -31,7 +31,7 @@ func TestDposFutureBlock(t *testing.T) {
 }
 
 func TestDposPastBlock(t *testing.T) {
-	slot.Init(bpInterval, nSlots)
+	slot.Init(bpInterval)
 
 	dpos := &DPoS{}
 

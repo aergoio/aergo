@@ -3,8 +3,10 @@ package exec
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/fsnotify/fsnotify"
@@ -64,23 +66,60 @@ func (c *batch) Validate(args string) error {
 	return err
 }
 
+func (c *batch) readBatchFile(batchFilePath string) ([]string, error) {
+	if strings.HasPrefix(batchFilePath, "http") {
+		// search in the web
+		req, err := http.NewRequest("GET", batchFilePath, nil)
+		if err != nil {
+			return nil, err
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		var cmdLines []string
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			cmdLines = append(cmdLines, scanner.Text())
+		}
+
+		return cmdLines, nil
+	}
+
+	batchFile, err := os.Open(batchFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer batchFile.Close()
+
+	var cmdLines []string
+	scanner := bufio.NewScanner(batchFile)
+	for scanner.Scan() {
+		cmdLines = append(cmdLines, scanner.Text())
+	}
+
+	return cmdLines, nil
+}
+
 func (c *batch) parse(args string) (string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) != 1 {
 		return "", fmt.Errorf("invalid format. usage: %s", c.Usage())
 	}
 
-	batchFilePath := splitArgs[0]
+	batchFilePath := splitArgs[0].Text
 
-	if _, err := os.Stat(batchFilePath.Text); os.IsNotExist(err) {
-		return "", fmt.Errorf("fail to read a brick batch file %s: %s", batchFilePath.Text, err.Error())
+	if _, err := c.readBatchFile(batchFilePath); err != nil {
+		return "", fmt.Errorf("fail to read a brick batch file %s: %s", batchFilePath, err.Error())
 	}
 
-	return batchFilePath.Text, nil
+	return batchFilePath, nil
 }
 
 func (c *batch) Run(args string) (string, error) {
-	batchFilePath, _ := c.parse(args)
 	stdOut := colorable.NewColorableStdout()
 
 	var err error
@@ -97,28 +136,21 @@ func (c *batch) Run(args string) (string, error) {
 
 		prefix := ""
 
-		batchFile, err := os.Open(batchFilePath)
+		batchFilePath, _ := c.parse(args)
+		cmdLines, err := c.readBatchFile(batchFilePath)
 		if err != nil {
 			return "", err
 		}
-
-		var cmdLines []string
-		scanner := bufio.NewScanner(batchFile)
-		for scanner.Scan() {
-			cmdLines = append(cmdLines, scanner.Text())
-		}
-
-		batchFile.Close()
 
 		c.level++
 
 		// set highest log level to turn off verbose
 		if false == verboseBatch {
 			zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-			fmt.Fprintf(stdOut, "> %s\n", batchFile.Name())
+			fmt.Fprintf(stdOut, "> %s\n", batchFilePath)
 		} else if verboseBatch && c.level != 1 {
 			prefix = fmt.Sprintf("%d-", c.level-1)
-			fmt.Fprintf(stdOut, "\n<<<<<<< %s\n", batchFile.Name())
+			fmt.Fprintf(stdOut, "\n<<<<<<< %s\n", batchFilePath)
 		}
 
 		for i, line := range cmdLines {
@@ -144,13 +176,13 @@ func (c *batch) Run(args string) (string, error) {
 
 			if letBatchKnowErr != nil {
 				// if there is error during execution, then print line for error trace
-				fmt.Fprintf(stdOut, "\x1B[0;37m%s:%d \x1B[34;1m%s \x1B[0m%s\n\n", batchFile.Name(), lineNum, cmd, args)
+				fmt.Fprintf(stdOut, "\x1B[0;37m%s:%d \x1B[34;1m%s \x1B[0m%s\n\n", batchFilePath, lineNum, cmd, args)
 				letBatchKnowErr = nil
 			}
 		}
 
 		if c.level != 1 && verboseBatch {
-			fmt.Fprintf(stdOut, ">>>>>>> %s\n", batchFile.Name())
+			fmt.Fprintf(stdOut, ">>>>>>> %s\n", batchFilePath)
 		}
 
 		c.level--
@@ -168,13 +200,12 @@ func (c *batch) Run(args string) (string, error) {
 		}
 
 		// add file to watch list
-		if enableWatch {
-			absPath, _ := filepath.Abs(batchFile.Name())
+		if enableWatch && !strings.HasPrefix(batchFilePath, "http") {
+			absPath, _ := filepath.Abs(batchFilePath)
 			watcher.Add(absPath)
 		}
 
 		if c.level == 0 && enableWatch {
-			defer watcher.Close()
 			// wait and check file changes
 		fileWatching:
 			for {
@@ -183,11 +214,12 @@ func (c *batch) Run(args string) (string, error) {
 					break fileWatching
 				case err, _ := <-watcher.Errors:
 					if err != nil {
-						fmt.Fprintf(stdOut, "\x1B[0;37mWatching File %s Error: %s\x1B[0m\n", batchFile.Name(), err.Error())
+						fmt.Fprintf(stdOut, "\x1B[0;37mWatching File %s Error: %s\x1B[0m\n", batchFilePath, err.Error())
 					}
 					break fileWatching
 				}
 			}
+			watcher.Close()
 			continue
 		}
 		break

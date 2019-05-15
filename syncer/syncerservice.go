@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"runtime/debug"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -21,6 +22,7 @@ import (
 type Syncer struct {
 	*component.BaseComponent
 
+	Seq       uint64
 	cfg       *cfg.Config
 	syncerCfg *SyncerConfig
 	chain     types.ChainAccessor
@@ -101,8 +103,9 @@ func NewSyncer(cfg *cfg.Config, chain types.ChainAccessor, syncerCfg *SyncerConf
 	syncer.BaseComponent = component.NewBaseComponent(message.SyncerSvc, syncer, logger)
 	syncer.compRequester = syncer.BaseComponent
 	syncer.chain = chain
+	syncer.Seq = 1
 
-	logger.Info().Msg("Syncer started")
+	logger.Info().Uint64("seq", syncer.Seq).Msg("Syncer started")
 
 	return syncer
 }
@@ -119,13 +122,13 @@ func (syncer *Syncer) AfterStart() {
 func (syncer *Syncer) BeforeStop() {
 	if syncer.isRunning {
 		logger.Info().Msg("syncer BeforeStop")
-		syncer.Reset()
+		syncer.Reset(nil)
 	}
 }
 
-func (syncer *Syncer) Reset() {
+func (syncer *Syncer) Reset(err error) {
 	if syncer.isRunning {
-		logger.Info().Msg("syncer stop#1")
+		logger.Info().Uint64("targetNo", syncer.ctx.TargetNo).Msg("syncer stop#1")
 
 		syncer.finder.stop()
 		syncer.hashFetcher.stop()
@@ -135,10 +138,36 @@ func (syncer *Syncer) Reset() {
 		syncer.hashFetcher = nil
 		syncer.blockFetcher = nil
 		syncer.isRunning = false
+
+		syncer.notifyStop(err)
+
 		syncer.ctx = nil
 	}
 
 	logger.Info().Msg("syncer stopped")
+}
+
+func (syncer *Syncer) notifyStop(err error) {
+	if syncer.ctx == nil || syncer.ctx.NotifyC == nil {
+		return
+	}
+
+	logger.Info().Err(err).Msg("notify syncer stop")
+
+	select {
+	case syncer.ctx.NotifyC <- err:
+	default:
+		logger.Debug().Msg("failed to notify syncer stop")
+	}
+}
+
+func (syncer *Syncer) GetSeq() uint64 {
+	return syncer.Seq
+}
+
+func (syncer *Syncer) IncSeq() uint64 {
+	syncer.Seq++
+	return syncer.Seq
 }
 
 func (syncer *Syncer) getCompRequester() component.IComponentRequester {
@@ -175,8 +204,56 @@ func (syncer *Syncer) Receive(context actor.Context) {
 	syncer.handleMessage(context.Message())
 }
 
+func (syncer *Syncer) verifySeq(inmsg interface{}) bool {
+	isMatch := func(seq uint64) bool {
+		return syncer.Seq == seq
+	}
+
+	var seq uint64
+	var match bool
+
+	switch msg := inmsg.(type) {
+	case *message.GetAnchorsRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetSyncAncestorRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.FinderResult:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetHashesRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetHashByNoRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.GetBlockChunksRsp:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.SyncStop:
+		seq = msg.Seq
+		match = isMatch(seq)
+	case *message.CloseFetcher:
+		seq = msg.Seq
+		match = isMatch(seq)
+	default:
+		match = true
+	}
+
+	if !match {
+		logger.Debug().Msgf("syncer(seq=%d) message(%T, seq=%d) is dropped", syncer.GetSeq(), inmsg, seq)
+	}
+
+	return match
+}
+
 func (syncer *Syncer) handleMessage(inmsg interface{}) {
 	defer syncer.RecoverSyncerSelf()
+
+	if !syncer.verifySeq(inmsg) {
+		return
+	}
 
 	switch msg := inmsg.(type) {
 	case *message.SyncStart:
@@ -191,7 +268,7 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 	case *message.FinderResult:
 		err := syncer.handleFinderResult(msg)
 		if err != nil {
-			syncer.Reset()
+			syncer.Reset(err)
 			logger.Error().Err(err).Msg("FinderResult failed")
 		}
 	case *message.GetHashesRsp:
@@ -200,22 +277,22 @@ func (syncer *Syncer) handleMessage(inmsg interface{}) {
 	case *message.GetBlockChunksRsp:
 		err := syncer.blockFetcher.handleBlockRsp(msg)
 		if err != nil {
-			syncer.Reset()
+			syncer.Reset(err)
 			logger.Error().Err(err).Msg("GetBlockChunksRsp failed")
 		}
 	case *message.AddBlockRsp:
 		err := syncer.blockFetcher.handleBlockRsp(msg)
 		if err != nil {
-			syncer.Reset()
+			syncer.Reset(err)
 			logger.Error().Err(err).Msg("AddBlockRsp failed")
 		}
 	case *message.SyncStop:
 		if msg.Err == nil {
-			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer succeed")
+			logger.Info().Str("from", msg.FromWho).Msg("syncer try to stop successfully")
 		} else {
-			logger.Info().Str("from", msg.FromWho).Err(msg.Err).Msg("Syncer finished by error")
+			logger.Error().Str("from", msg.FromWho).Err(msg.Err).Msg("syncer try to stop by error")
 		}
-		syncer.Reset()
+		syncer.Reset(msg.Err)
 	case *message.CloseFetcher:
 		if msg.FromWho == NameHashFetcher {
 			syncer.hashFetcher.stop()
@@ -240,7 +317,7 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 	var err error
 	var bestBlock *types.Block
 
-	logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("syncer requested")
+	logger.Debug().Uint64("targetNo", msg.TargetNo).Str("peer", p2putil.ShortForm(msg.PeerID)).Msg("syncer requested")
 
 	if syncer.isRunning {
 		logger.Debug().Uint64("targetNo", msg.TargetNo).Msg("skipped syncer is running")
@@ -262,10 +339,12 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 		return nil
 	}
 
-	logger.Info().Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
+	syncer.IncSeq()
+
+	logger.Info().Uint64("seq", syncer.GetSeq()).Uint64("targetNo", msg.TargetNo).Uint64("bestNo", bestBlockNo).Msg("syncer started")
 
 	//TODO BP stop
-	syncer.ctx = types.NewSyncCtx(msg.PeerID, msg.TargetNo, bestBlockNo)
+	syncer.ctx = types.NewSyncCtx(syncer.GetSeq(), msg.PeerID, msg.TargetNo, bestBlockNo, msg.NotifyC)
 	syncer.isRunning = true
 
 	syncer.finder = newFinder(syncer.ctx, syncer.getCompRequester(), syncer.chain, syncer.syncerCfg)
@@ -275,14 +354,26 @@ func (syncer *Syncer) handleSyncStart(msg *message.SyncStart) error {
 }
 
 func (syncer *Syncer) handleAncestorRsp(msg *message.GetSyncAncestorRsp) {
-	logger.Debug().Msg("syncer received ancestor response")
+	var ancestorNo uint64
+
+	if msg.Ancestor != nil {
+		ancestorNo = msg.Ancestor.No
+	}
+
+	logger.Debug().Uint64("no", ancestorNo).Msg("syncer received ancestor response")
 
 	if syncer.finder == nil {
 		logger.Debug().Msg("finder already stopped. so drop unexpected AncestorRsp message")
 		return
 	}
+
 	//set ancestor in types.SyncContext
-	syncer.finder.lScanCh <- msg.Ancestor
+	select {
+	case syncer.finder.lScanCh <- msg.Ancestor:
+		logger.Debug().Uint64("seq", msg.Seq).Msg("syncer transfer response to finder")
+	default:
+		logger.Debug().Uint64("seq", msg.Seq).Msg("syncer dropped response of finder")
+	}
 }
 
 func (syncer *Syncer) handleGetHashByNoRsp(msg *message.GetHashByNoRsp) {
@@ -366,24 +457,24 @@ func (syncer *Syncer) Statistics() *map[string]interface{} {
 func (syncer *Syncer) RecoverSyncerSelf() {
 	if r := recover(); r != nil {
 		logger.Error().Str("dest", "SYNCER").Str("callstack", string(debug.Stack())).Msg("syncer recovered it's panic")
-		syncer.Reset()
+		syncer.Reset(ErrSyncerPanic)
 	}
 }
 
-func stopSyncer(compRequester component.IComponentRequester, who string, err error) {
+func stopSyncer(compRequester component.IComponentRequester, seq uint64, who string, err error) {
 	logger.Info().Str("who", who).Err(err).Msg("request syncer stop")
 
-	compRequester.TellTo(message.SyncerSvc, &message.SyncStop{FromWho: who, Err: err})
+	compRequester.TellTo(message.SyncerSvc, &message.SyncStop{Seq: seq, FromWho: who, Err: err})
 }
 
-func closeFetcher(compRequester component.IComponentRequester, who string) {
-	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{FromWho: who})
+func closeFetcher(compRequester component.IComponentRequester, seq uint64, who string) {
+	compRequester.TellTo(message.SyncerSvc, &message.CloseFetcher{Seq: seq, FromWho: who})
 }
 
-func RecoverSyncer(name string, compRequester component.IComponentRequester, finalize func()) {
+func RecoverSyncer(name string, seq uint64, compRequester component.IComponentRequester, finalize func()) {
 	if r := recover(); r != nil {
 		logger.Error().Str("child", name).Str("callstack", string(debug.Stack())).Msg("syncer recovered child panic")
-		stopSyncer(compRequester, name, ErrSyncerPanic)
+		stopSyncer(compRequester, seq, name, ErrSyncerPanic)
 	}
 
 	if finalize != nil {

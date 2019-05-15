@@ -7,7 +7,7 @@
 #include "state_module.h"
 #include "crypto_module.h"
 #include "util.h"
-#include "lbc.h"
+#include "lgmp.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext= "__exec_context__";
@@ -22,7 +22,7 @@ static void preloadModules(lua_State *L)
 	luaopen_state(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
-	luaopen_bc(L);
+	luaopen_gmp(L);
 	if (!IsPublic()) {
         luaopen_db(L);
 	}
@@ -54,37 +54,57 @@ const int *getLuaExecContext(lua_State *L)
 	lua_getglobal(L, luaExecContext);
 	service = (int *)lua_touserdata(L, -1);
 	lua_pop(L, 1);
+	if (*service == -1)
+	    luaL_error(L, "not permitted state referencing at global scope");
 
 	return service;
+}
+
+static int loadLibs(lua_State *L)
+{
+	luaL_openlibs(L);
+	preloadModules(L);
+	return 0;
 }
 
 lua_State *vm_newstate()
 {
 	lua_State *L = luaL_newstate();
+	int status;
 	if (L == NULL)
 		return NULL;
-	luaL_openlibs(L);
-	preloadModules(L);
+	status = lua_cpcall(L, loadLibs, NULL);
+	if (status != 0)
+	    return NULL;
 	return L;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, int *service)
+static int pcall(lua_State *L, int narg, int nret, int maxinstcount)
+{
+    int err;
+
+    vm_set_count_hook(L, maxinstcount);
+    luaL_enablemaxmem(L);
+
+    err = lua_pcall(L, narg, nret, 0);
+
+    luaL_disablemaxmem(L);
+    lua_sethook(L, NULL, 0, 0);
+
+    return err;
+}
+
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
 	int err;
-	const char *errMsg = NULL;
 
 	setLuaExecContext(L, service);
 
-	err = luaL_loadbuffer(L, code, sz, "lua contract");
+	err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0, 5000000);
 	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+	    return lua_tostring(L, -1);
 	}
-	err = lua_pcall(L, 0, 0, 0);
-	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
-	}
+
 	return NULL;
 }
 
@@ -111,26 +131,35 @@ void vm_remove_constructor(lua_State *L)
 
 static void count_hook(lua_State *L, lua_Debug *ar)
 {
+    luaL_setuncatchablerror(L);
 	lua_pushstring(L, "exceeded the maximum instruction count");
-	lua_error(L);
+	luaL_throwerror(L);
 }
 
 void vm_set_count_hook(lua_State *L, int limit)
 {
-	lua_sethook (L, count_hook, LUA_MASKCOUNT, limit);
+	lua_sethook(L, count_hook, LUA_MASKCOUNT, limit);
 }
 
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
-	const char *errMsg = NULL;
 	int nr = lua_gettop(L) - argc - 1;
 
+    luaL_enablemaxmem(L);
+
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
+
+	luaL_disablemaxmem(L);
+
 	if (err != 0) {
-		errMsg = strdup(lua_tostring(L, -1));
-		return errMsg;
+        lua_cpcall(L, lua_db_release_resource, NULL);
+		return lua_tostring(L, -1);
 	}
+    err = lua_cpcall(L, lua_db_release_resource, NULL);
+    if (err != 0) {
+		return lua_tostring(L, -1);
+    }
 	*nresult = lua_gettop(L) - nr;
 	return NULL;
 }
@@ -149,11 +178,6 @@ const char *vm_get_json_ret(lua_State *L, int nresult)
 	return lua_tostring(L, -1);
 }
 
-const char *vm_tostring(lua_State *L, int idx)
-{
-	return lua_tolstring(L, idx, NULL);
-}
-
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 {
 	int i;
@@ -165,6 +189,7 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 		if (json == NULL)
 			return lua_tostring(L, -1);
 
+		minus_inst_count(L, strlen(json));
 		lua_util_json_to_lua(target, json, false);
 		free (json);
 	}
@@ -179,8 +204,9 @@ sqlite3 *vm_get_db(lua_State *L)
     service = (int *)getLuaExecContext(L);
     db = LuaGetDbHandle(service);
     if (db == NULL) {
+        luaL_setsyserror(L);
         lua_pushstring(L, "can't open a database connection");
-        lua_error(L);
+        luaL_throwerror(L);
     }
     return db;
 }
@@ -192,35 +218,3 @@ void vm_get_abi_function(lua_State *L, char *fname)
 	lua_pushstring(L, fname);
 }
 
-int vm_is_payable_function(lua_State *L, char *fname)
-{
-    int err;
-	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
-	lua_getfield(L, -1, "is_payable");
-	lua_pushstring(L, fname);
-	err = lua_pcall(L, 1, 1, 0);
-	if (err != 0) {
-	    return 0;
-	}
-	return lua_tointeger(L, -1);
-}
-
-char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag)
-{
-    int err;
-
-	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
-	lua_getfield(L, -1, "resolve");
-	lua_pushstring(L, fname);
-	err = lua_pcall(L, 1, 3, 0);
-	if (err != 0) {
-		return NULL;
-	}
-    fname = (char *)lua_tostring(L, -3);
-	if (fname == NULL)
-	    return fname;
-	*payflag = lua_tointeger(L, -2);
-	*viewflag = lua_tointeger(L, -1);
-
-	return fname;
-}

@@ -27,7 +27,7 @@ func (c *callContract) Syntax() string {
 }
 
 func (c *callContract) Usage() string {
-	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]`")
+	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]` `[expected_error_str]`")
 }
 
 func (c *callContract) Describe() string {
@@ -65,6 +65,8 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 	expectedResult := ""
 	if len(splitArgs) == 6 {
 		expectedResult = splitArgs[5].Text
+	} else if len(splitArgs) > 6 {
+		return "", nil, "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, //accountName

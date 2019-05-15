@@ -54,6 +54,17 @@ func newBufferedStorage(root []byte, store db.DB) *bufferedStorage {
 	}
 }
 
+func (storage *bufferedStorage) has(key types.HashID, lookupTrie bool) bool {
+	if storage.buffer.has(key) {
+		return true
+	}
+	if lookupTrie {
+		if buf, _ := storage.trie.Get(key.Bytes()); buf != nil {
+			return true
+		}
+	}
+	return false
+}
 func (storage *bufferedStorage) get(key types.HashID) entry {
 	return storage.buffer.get(key)
 }

@@ -109,8 +109,16 @@ func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
 	return system.GetStaking(scs, strHash(name))
 }
 
+func (bc *DummyChain) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
+	return bc.blocks[blockNo], nil
+}
+
+func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
+	return bc.bestBlock, nil
+}
+
 type luaTx interface {
-	run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte, receiptTx db.Transaction) error
+	run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte, receiptTx db.Transaction) error
 }
 
 type luaTxAccount struct {
@@ -132,7 +140,7 @@ func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
 	}
 }
 
-func (l *luaTxAccount) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
 	id := types.ToAccountID(l.name)
@@ -160,7 +168,7 @@ func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	}
 }
 
-func (l *luaTxSend) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
 	senderID := types.ToAccountID(l.sender)
@@ -224,6 +232,49 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 			contract: strHash(contract),
 			code:     codeWithInit,
 			amount:   new(big.Int).SetUint64(amount),
+			id:       newTxId(),
+		},
+		cErr: nil,
+	}
+}
+
+func getCompiledABI(code string) ([]byte, error) {
+
+	L := luac_util.NewLState()
+	if L == nil {
+		return nil, newVmStartError()
+	}
+	defer luac_util.CloseLState(L)
+	b, err := luac_util.Compile(L, code)
+	if err != nil {
+		return nil, err
+	}
+
+	codeLen := binary.LittleEndian.Uint32(b[:4])
+
+	return b[4+codeLen:], nil
+}
+
+func NewRawLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {
+
+	byteAbi, err := getCompiledABI(code)
+	if err != nil {
+		return &luaTxDef{cErr: err}
+	}
+
+	byteCode := []byte(code)
+	payload := make([]byte, 8+len(byteCode)+len(byteAbi))
+	binary.LittleEndian.PutUint32(payload[0:], uint32(len(byteCode)+len(byteAbi)+8))
+	binary.LittleEndian.PutUint32(payload[4:], uint32(len(byteCode)))
+	codeLen := copy(payload[8:], byteCode)
+	copy(payload[8+codeLen:], byteAbi)
+
+	return &luaTxDef{
+		luaTxCommon: luaTxCommon{
+			sender:   strHash(sender),
+			contract: strHash(contract),
+			code:     payload,
+			amount:   amount,
 			id:       newTxId(),
 		},
 		cErr: nil,
@@ -307,7 +358,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 
 }
 
-func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 
 	if l.cErr != nil {
@@ -318,11 +369,11 @@ func (l *luaTxDef) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlock
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
 			contract.State().SqlRecoveryPoint = 1
 
-			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
+			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
-			_, _, err := Create(eContractState, l.code, l.contract, stateSet)
+			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
 			}
@@ -376,15 +427,14 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBlockHash []byte,
+func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
 	receiptTx db.Transaction) error {
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
-			stateSet := NewContext(bs, sender, contract, eContractState, sender.ID(),
+			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
-			rv, evs, err := Call(eContractState, l.code, l.contract, stateSet)
-			_ = bs.StageContractState(eContractState)
+			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				r.TxHash = l.hash()
@@ -392,6 +442,7 @@ func (l *luaTxCall) run(bs *state.BlockState, blockNo uint64, ts int64, prevBloc
 				receiptTx.Set(l.hash(), b)
 				return err
 			}
+			_ = bs.StageContractState(eContractState)
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
 			r.Events = evs
 			r.TxHash = l.hash()
@@ -423,7 +474,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	defer tx.Commit()
 
 	for _, x := range txs {
-		if err := x.run(blockState, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,
+		if err := x.run(blockState, bc, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,
 			bc.cBlock.Header.PrevBlockHash, tx); err != nil {
 			return err
 		}
@@ -439,6 +490,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	//FIXME newblock must be created after sdb.apply()
 	bc.cBlock.SetBlocksRootHash(bc.sdb.GetRoot())
 	bc.bestBlockNo = bc.bestBlockNo + 1
+	bc.bestBlock = bc.cBlock
 	bc.bestBlockId = types.ToBlockID(bc.cBlock.BlockHash())
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, bc.cBlock)
@@ -461,7 +513,7 @@ func (bc *DummyChain) DisConnectBlock() error {
 	if bestBlock != nil {
 		sroot = bestBlock.GetHeader().GetBlocksRootHash()
 	}
-	return bc.sdb.Rollback(sroot)
+	return bc.sdb.SetRoot(sroot)
 }
 
 func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs ...string) error {
@@ -469,7 +521,7 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	if err != nil {
 		return err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -498,7 +550,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), nil, cState, []byte(queryInfo))
 
 	if err != nil {
 		return "", err

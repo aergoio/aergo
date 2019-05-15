@@ -14,11 +14,13 @@ func TestExcuteNameTx(t *testing.T) {
 	txBody := &types.TxBody{}
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	txBody.Recipient = []byte(types.AergoName)
+	txBody.Amount = types.NamePrice.Bytes()
 
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")
 
 	sender, _ := sdb.GetStateDB().GetAccountStateV(txBody.Account)
+	sender.AddBalance(types.MaxAER)
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(txBody.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
@@ -93,10 +95,21 @@ func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState 
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
+
+func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
+	systemContractID := types.ToAccountID([]byte(types.AergoSystem))
+	systemContract, err := bs.GetAccountState(systemContractID)
+	assert.NoError(t, err, "could not get account state")
+	scs, err := bs.OpenContractState(systemContractID, systemContract)
+	assert.NoError(t, err, "could not open contract state")
+	return scs
+}
+
 func commitContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) {
 	bs.StageContractState(scs)
 	bs.Update()
 	bs.Commit()
+	sdb.UpdateRoot(bs)
 }
 func nextBlockContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) *state.ContractState {
 	commitContractState(t, bs, scs)

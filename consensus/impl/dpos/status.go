@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/state"
@@ -143,11 +142,12 @@ func (s *Status) updateLIB(lib *blockInfo) {
 		Str("block hash", s.libState.Lib.BlockHash).
 		Uint64("block no", s.libState.Lib.BlockNo).
 		Int("confirms len", s.libState.confirms.Len()).
+		Int("pm len", len(s.libState.Prpsd)).
 		Msg("last irreversible block (BFT) updated")
 }
 
 // Save saves the consensus status information for the later recovery.
-func (s *Status) Save(tx db.Transaction) error {
+func (s *Status) Save(tx consensus.TxWriter) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -193,6 +193,10 @@ func (s *Status) String() string {
 	info.Status = s.libAsJSON()
 
 	return info.AsJSON()
+}
+
+func (s *Status) lpbNo() types.BlockNo {
+	return s.libState.LpbNo
 }
 
 // init recovers the last DPoS status including pre-LIB map and confirms

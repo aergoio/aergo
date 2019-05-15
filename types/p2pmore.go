@@ -8,10 +8,25 @@ package types
 import (
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+type PeerBlockInfo interface {
+	ID() peer.ID
+	State() PeerState
+	LastStatus() *LastBlockStatus
+}
+
+// LastBlockStatus i
+type LastBlockStatus struct {
+	CheckTime   time.Time
+	BlockHash   []byte
+	BlockNumber uint64
+}
+
+// ResponseMessage contains response status
 type ResponseMessage interface {
 	GetStatus() ResultStatus
 }

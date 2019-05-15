@@ -11,21 +11,23 @@ const SyncerSvc = "SyncerSvc"
 type SyncStart struct {
 	PeerID   peer.ID
 	TargetNo types.BlockNo
+	NotifyC  chan error
 }
 
 type FinderResult struct {
+	Seq      uint64
 	Ancestor *types.BlockInfo
 	Err      error
 }
 
 //HashDownloader
-type StartFetch struct{}
-
 type SyncStop struct {
+	Seq     uint64
 	FromWho string
 	Err     error
 }
 
 type CloseFetcher struct {
+	Seq     uint64
 	FromWho string
 }

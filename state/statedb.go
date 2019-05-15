@@ -6,6 +6,7 @@
 package state
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -22,6 +23,10 @@ import (
 const (
 	stateName   = "state"
 	stateLatest = stateName + ".latest"
+)
+
+var (
+	stateMarker = []byte{0x54, 0x45} // marker: tail end
 )
 
 var (
@@ -154,7 +159,8 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 	}
 	if st == nil {
 		if states.testmode {
-			return &types.State{Balance: new(big.Int).SetUint64(10000000000000000000).Bytes()}, nil
+			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
+			return &types.State{Balance: amount.Bytes()}, nil
 		}
 		return &types.State{}, nil
 	}
@@ -246,12 +252,13 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 	}
 	if st == nil {
 		if states.testmode {
+			amount := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 			return &V{
 				sdb:    states,
 				id:     id,
 				aid:    aid,
 				oldV:   &types.State{},
-				newV:   &types.State{Balance: new(big.Int).SetUint64(10000000000000000000).Bytes()},
+				newV:   &types.State{Balance: amount.Bytes()},
 				newOne: true,
 			}, nil
 		}
@@ -499,9 +506,33 @@ func (states *StateDB) stage(txn trie.DbTx) error {
 	if err := states.buffer.stage(txn); err != nil {
 		return err
 	}
+	// set marker
+	states.setMarker(txn)
 	// reset buffer
 	if err := states.buffer.reset(); err != nil {
 		return err
 	}
 	return nil
+}
+
+// setMarker store the marker that represents finalization of the state root.
+func (states *StateDB) setMarker(txn trie.DbTx) {
+	if states.trie.Root == nil {
+		return
+	}
+	// logger.Debug().Str("stateRoot", enc.ToString(states.trie.Root)).Msg("setMarker")
+	txn.Set(common.Hasher(states.trie.Root), stateMarker)
+}
+
+// HasMarker represents that the state root is finalized or not.
+func (states *StateDB) HasMarker(root []byte) bool {
+	if root == nil {
+		return false
+	}
+	marker := (*states.store).Get(common.Hasher(root))
+	if marker != nil && bytes.Equal(marker, stateMarker) {
+		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.EncodeToString(marker)).Msg("IsMarked")
+		return true
+	}
+	return false
 }

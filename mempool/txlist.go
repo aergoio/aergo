@@ -6,7 +6,6 @@
 package mempool
 
 import (
-	"math/big"
 	"sort"
 	"sync"
 	"time"
@@ -124,7 +123,7 @@ func (tl *TxList) Put(tx types.Transaction) (int, error) {
 
 // SetMinNonce sets new minimum nonce for TxList
 // evict on some transactions is possible due to minimum nonce
-func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []types.Transaction) {
+func (tl *TxList) FilterByState(st *types.State) (int, []types.Transaction) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -144,7 +143,7 @@ func (tl *TxList) FilterByState(st *types.State, coinbasefee *big.Int) (int, []t
 	var left []types.Transaction
 	removed := tl.list[:0]
 	for i, x := range tl.list {
-		err := x.ValidateWithSenderState(st, coinbasefee)
+		err := x.ValidateWithSenderState(st)
 		if err == nil || err == types.ErrTxNonceToohigh {
 			if err != nil && !balCheck {
 				left = append(left, tl.list[i:]...)

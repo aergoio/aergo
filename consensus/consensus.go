@@ -6,13 +6,16 @@
 package consensus
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // DefaultBlockIntervalSec  is the default block generation interval in seconds.
@@ -26,6 +29,10 @@ var (
 	BlockInterval = time.Second * time.Duration(DefaultBlockIntervalSec)
 
 	logger = log.NewLogger("consensus")
+)
+
+var (
+	ErrNotSupportedMethod = errors.New("not supported metehod in this consensus")
 )
 
 // InitBlockInterval initializes block interval parameters.
@@ -57,10 +64,17 @@ type Constructor func() (Consensus, error)
 // Consensus is an interface for a consensus implementation.
 type Consensus interface {
 	ChainConsensus
+	ConsensusAccessor
 	Ticker() *time.Ticker
 	QueueJob(now time.Time, jq chan<- interface{})
 	BlockFactory() BlockFactory
 	QuitChan() chan interface{}
+}
+
+type ConsensusAccessor interface {
+	ConsensusInfo() *types.ConsensusInfo
+	ConfChange(req *types.MembershipChange) (*Member, error)
+	ClusterInfo() ([]*types.MemberAttr, []byte, error)
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -72,16 +86,45 @@ type ChainDB interface {
 	NewTx() db.Transaction
 }
 
+type ConsensusType int
+
+const (
+	ConsensusDPOS ConsensusType = iota
+	ConsensusRAFT
+	ConsensusSBP
+)
+
+var ConsensusName = []string{"dpos", "raft", "sbp"}
+
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
+	GetType() ConsensusType
 	IsTransactionValid(tx *types.Tx) bool
 	VerifyTimestamp(block *types.Block) bool
 	VerifySign(block *types.Block) error
 	IsBlockValid(block *types.Block, bestBlock *types.Block) error
 	Update(block *types.Block)
-	Save(tx db.Transaction) error
+	Save(tx TxWriter) error
 	NeedReorganization(rootNo types.BlockNo) bool
+	NeedNotify() bool
+	HasWAL() bool // if consensus has WAL, block has already written in db
 	Info() string
+}
+
+type TxWriter interface {
+	Set(key, value []byte)
+}
+
+type ConfChangePropose struct {
+	Ctx context.Context
+	Cc  *raftpb.ConfChange
+
+	ReplyC chan *ConfChangeReply
+}
+
+type ConfChangeReply struct {
+	Member *Member
+	Err    error
 }
 
 // Info represents an information for a consensus implementation.

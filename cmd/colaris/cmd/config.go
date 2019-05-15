@@ -7,7 +7,7 @@ package cmd
 
 import (
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/p2p/pmap"
+	"github.com/aergoio/aergo/polaris/common"
 )
 
 const (
@@ -37,7 +37,7 @@ type CliConfig struct {
 func (ctx *CliContext) GetDefaultConfig() interface{} {
 	return CliConfig{
 		Host: "localhost",
-		Port: pmap.DefaultRPCPort,
+		Port: common.DefaultRPCPort,
 	}
 }
 

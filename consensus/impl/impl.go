@@ -10,13 +10,16 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos"
-	"github.com/aergoio/aergo/consensus/impl/raft"
+	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/consensus/impl/sbp"
+	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/rpc"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
-func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService) (consensus.Consensus, error) {
+func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService, p2psvc *p2p.P2P, rpcSvc *rpc.RPC) (consensus.Consensus, error) {
 	var (
 		c   consensus.Consensus
 		err error
@@ -32,23 +35,25 @@ func New(cfg *config.Config, hub *component.ComponentHub, cs *chain.ChainService
 
 	consensus.InitBlockInterval(blockInterval)
 
-	if c, err = newConsensus(cfg, hub, cs); err == nil {
+	if c, err = newConsensus(cfg, hub, cs, p2psvc.GetPeerAccessor()); err == nil {
 		// Link mutual references.
 		cs.SetChainConsensus(c)
+		rpcSvc.SetConsensusAccessor(c)
+		p2psvc.SetConsensusAccessor(c)
 	}
 
 	return c, err
 }
 
 func newConsensus(cfg *config.Config, hub *component.ComponentHub,
-	cs *chain.ChainService) (consensus.Consensus, error) {
+	cs *chain.ChainService, pa p2pcommon.PeerAccessor) (consensus.Consensus, error) {
 	cdb := cs.CDB()
 	sdb := cs.SDB()
 
 	impl := map[string]consensus.Constructor{
-		dpos.GetName(): dpos.GetConstructor(cfg, hub, cdb, sdb), // DPoS
-		sbp.GetName():  sbp.GetConstructor(cfg, hub, cdb, sdb),  // Simple BP
-		raft.GetName(): raft.GetConstructor(cfg, hub, cdb, sdb), // Raft BP
+		dpos.GetName():   dpos.GetConstructor(cfg, hub, cdb, sdb),              // DPoS
+		sbp.GetName():    sbp.GetConstructor(cfg, hub, cdb, sdb),               // Simple BP
+		raftv2.GetName(): raftv2.GetConstructor(cfg, hub, cs.WalDB(), sdb, pa), // Raft BP
 	}
 
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()

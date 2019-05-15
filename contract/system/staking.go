@@ -13,27 +13,27 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-var stakingkey = []byte("staking")
+var stakingKey = []byte("staking")
+var stakingTotalKey = []byte("stakingtotal")
 
 const StakingDelay = 60 * 60 * 24 //block interval
+//const StakingDelay = 5
 
 func staking(txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo types.BlockNo) (*types.Event, error) {
-
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
+	scs *state.ContractState, blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	staked := context.Staked
 	beforeStaked := staked.GetAmountBigInt()
 	amount := txBody.GetAmountBigInt()
 	staked.Amount = new(big.Int).Add(beforeStaked, amount).Bytes()
 	staked.When = blockNo
-	err = setStaking(scs, sender.ID(), staked)
-	if err != nil {
+	if err := setStaking(scs, sender.ID(), staked); err != nil {
+		return nil, err
+	}
+	if err := addTotal(scs, amount); err != nil {
 		return nil, err
 	}
 	sender.SubBalance(amount)
-
+	receiver.AddBalance(amount)
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
@@ -45,11 +45,8 @@ func staking(txBody *types.TxBody, sender, receiver *state.V,
 }
 
 func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, ci *types.CallInfo) (*types.Event, error) {
-	staked, err := getStaking(scs, sender.ID())
-	if err != nil {
-		return nil, err
-	}
+	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	staked := context.Staked
 	amount := txBody.GetAmountBigInt()
 	var backToBalance *big.Int
 	if staked.GetAmountBigInt().Cmp(amount) < 0 {
@@ -63,14 +60,17 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 	//blockNo will be updated in voting
 	staked.When = blockNo
 
-	err = setStaking(scs, sender.ID(), staked)
-	if err != nil {
+	if err := setStaking(scs, sender.ID(), staked); err != nil {
 		return nil, err
 	}
-	if err = refreshAllVote(txBody, sender, receiver, scs, blockNo); err != nil {
+	if err := refreshAllVote(txBody, scs, context); err != nil {
+		return nil, err
+	}
+	if err := subTotal(scs, backToBalance); err != nil {
 		return nil, err
 	}
 	sender.AddBalance(backToBalance)
+	receiver.SubBalance(backToBalance)
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
@@ -82,12 +82,12 @@ func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contr
 }
 
 func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
-	key := append(stakingkey, who...)
+	key := append(stakingKey, who...)
 	return scs.SetData(key, serializeStaking(staking))
 }
 
 func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
-	key := append(stakingkey, who...)
+	key := append(stakingKey, who...)
 	data, err := scs.GetData(key)
 	if err != nil {
 		return nil, err
@@ -104,6 +104,40 @@ func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error
 		return getStaking(scs, address)
 	}
 	return nil, errors.New("invalid argument: address should not be nil")
+}
+
+func GetTotal(ar AccountStateReader) (*big.Int, error) {
+	scs, err := ar.GetSystemAccountState()
+	if err != nil {
+		return nil, err
+	}
+	return GetStakingTotal(scs)
+}
+
+func GetStakingTotal(scs *state.ContractState) (*big.Int, error) {
+	data, err := scs.GetData(stakingTotalKey)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Int).SetBytes(data), nil
+}
+
+func addTotal(scs *state.ContractState, amount *big.Int) error {
+	data, err := scs.GetData(stakingTotalKey)
+	if err != nil {
+		return err
+	}
+	total := new(big.Int).SetBytes(data)
+	return scs.SetData(stakingTotalKey, new(big.Int).Add(total, amount).Bytes())
+}
+
+func subTotal(scs *state.ContractState, amount *big.Int) error {
+	data, err := scs.GetData(stakingTotalKey)
+	if err != nil {
+		return err
+	}
+	total := new(big.Int).SetBytes(data)
+	return scs.SetData(stakingTotalKey, new(big.Int).Sub(total, amount).Bytes())
 }
 
 func serializeStaking(v *types.Staking) []byte {
