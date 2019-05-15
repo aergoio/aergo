@@ -144,7 +144,9 @@ func (debug *Debugger) Check(cond StopCond, value int) error {
 			handleChainSleep(setVal)
 
 		case DEBUG_SYNCER_CRASH:
-			handleSyncerCrash(setVal)
+			if setVal == value {
+				return handleSyncerCrash(setVal, cond)
+			}
 		}
 	}
 
@@ -165,8 +167,13 @@ func handleCrashRandom(waitMils int) {
 	go crashRandom(waitMils)
 }
 
-func handleSyncerCrash(val int) {
-	logger.Fatal().Int("val", val).Msg("sync crash by DEBUG_SYNC_CRASH")
+func handleSyncerCrash(val int, cond StopCond) error {
+	if val == 1 {
+		logger.Fatal().Int("val", val).Msg("sync crash by DEBUG_SYNC_CRASH")
+		return nil
+	} else {
+		return &ErrDebug{cond: cond, value: val}
+	}
 }
 
 func crashRandom(waitMils int) {

@@ -125,7 +125,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 
 	err := snapdata.Decode(snap.Data)
 	if err != nil {
-		logger.Fatal().Msg("failed to unmarshal snapshot data to write")
+		logger.Error().Msg("failed to unmarshal snapshot data to write")
 		return err
 	}
 
@@ -134,7 +134,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	// TODO	request sync for chain with snapshot.data
 	// wait to finish sync of chain
 	if err := chainsnap.requestSync(&snapdata.Chain); err != nil {
-		logger.Fatal().Err(err).Msg("failed to sync. need to retry with other leader, try N times and shutdown")
+		logger.Error().Err(err).Msg("failed to sync snapshot")
 		return err
 	}
 
@@ -191,7 +191,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 		return peerID, err
 	}
 
-	chainsvc.TestDebugger.Check(chainsvc.DEBUG_SYNCER_CRASH, 0)
+	chainsvc.TestDebugger.Check(chainsvc.DEBUG_SYNCER_CRASH, 1)
 
 	peerID, err := getSyncLeader()
 	if err != nil {
