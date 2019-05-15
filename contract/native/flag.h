@@ -19,7 +19,7 @@ typedef struct flag_s {
     flag_val_t val;
 
     uint8_t opt_lvl;
-    uint32_t stack_max;
+    uint32_t stack_size;
 } flag_t;
 
 #endif /* ! _FLAG_H */

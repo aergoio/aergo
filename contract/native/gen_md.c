@@ -24,8 +24,8 @@ env_gen(gen_t *gen, ir_md_t *md)
     ir_sgmt_t *sgmt = &md->sgmt;
     BinaryenExpressionRef *addrs;
 
-    if (sgmt->offset >= gen->flag.stack_max)
-        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_max, sgmt->offset);
+    if (sgmt->offset >= gen->flag.stack_size)
+        FATAL(ERROR_STACK_OVERFLOW, gen->flag.stack_size, sgmt->offset);
 
     addrs = xmalloc(sizeof(BinaryenExpressionRef) * sgmt->size);
 
@@ -43,7 +43,7 @@ env_gen(gen_t *gen, ir_md_t *md)
     BinaryenAddGlobal(gen->module, "__STACK_TOP", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
     BinaryenAddGlobal(gen->module, "__STACK_MAX", BinaryenTypeInt32(), 0,
-                      i32_gen(gen, gen->flag.stack_max));
+                      i32_gen(gen, gen->flag.stack_size));
 
     BinaryenAddGlobalExport(gen->module, "__STACK_TOP", "__STACK_TOP");
     BinaryenAddGlobalExport(gen->module, "__STACK_MAX", "__STACK_MAX");
