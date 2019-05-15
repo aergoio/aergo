@@ -39,7 +39,8 @@ $(BUILD_FILE): $(BUILD_DIR)
 		cd $(BUILD_DIR) && $(CMAKE_CMD) -G "Unix Makefiles" -D CMAKE_BUILD_TYPE="Release" $(MAKE_FLAG) ..; \
 	fi
 
-release: $(BUILD_FILE)
+release: $(BUILD_DIR)
+	cd $(BUILD_DIR) && $(CMAKE_CMD) -G "Unix Makefiles" -D CMAKE_BUILD_TYPE="Release" $(MAKE_FLAG) ..
 	@$(MAKE) --no-print-directory -C $(BUILD_DIR)
 
 debug: $(BUILD_DIR)
