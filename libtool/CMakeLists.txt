@@ -49,8 +49,7 @@ ExternalProject_Add(libgmp
    STAMP_DIR ${GMP_BUILD_DIR}
    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
    PREFIX ${GMP_SRC_DIR}
-   BUILD_COMMAND $(MAKE) all install > make.log
-   BUILD_ALWAYS 1)
+   BUILD_COMMAND $(MAKE) all install > make.log)
 
 add_custom_target(libtool DEPENDS libluajit liblmdb libgmp)
 
