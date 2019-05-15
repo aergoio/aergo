@@ -110,9 +110,9 @@ set_stack_addr(trans_t *trans, ast_id_t *id)
     reg_exp = exp_new_reg(fn->stack_idx);
     meta_set_int32(&reg_exp->meta);
 
-    stk_exp = exp_new_global("stack_top");
+    stk_exp = exp_new_global("__STACK_TOP");
 
-    /* Make "r1 = stack_top" */
+    /* Make "r1 = __STACK_TOP" */
     vector_add(&fn->entry_bb->stmts, 0, stmt_new_assign(reg_exp, stk_exp, pos));
 
     val_exp = exp_new_lit_int(fn->stack_usage, pos);
@@ -121,10 +121,10 @@ set_stack_addr(trans_t *trans, ast_id_t *id)
     bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
     meta_set_int32(&bin_exp->meta);
 
-    /* Make "stack_top = r1 + usage" */
+    /* Make "__STACK_TOP = r1 + usage" */
     vector_add(&fn->entry_bb->stmts, 1, stmt_new_assign(stk_exp, bin_exp, pos));
 
-    max_exp = exp_new_global("stack_max");
+    max_exp = exp_new_global("__STACK_MAX");
     meta_set_int32(&max_exp->meta);
 
     cond_exp = exp_new_binary(OP_GE, stk_exp, max_exp, pos);
@@ -139,11 +139,11 @@ set_stack_addr(trans_t *trans, ast_id_t *id)
 
     stmt_add(&if_blk->stmts, stmt_new_exp(call_exp, pos));
 
-    /* Make "if (stack_top >= stack_max) __stack_overflow();" */
+    /* Make "if (__STACK_TOP >= __STACK_MAX) __stack_overflow();" */
     vector_add(&fn->entry_bb->stmts, 2, stmt_new_if(cond_exp, if_blk, pos));
 
     /* If there is any stack variable in the function, it has to be restored to the original value
-     * at the end of "exit_bb" because "stack_top" has been changed */
+     * at the end of "exit_bb" because "__STACK_TOP" has been changed */
     vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(stk_exp, reg_exp, pos));
 }
 

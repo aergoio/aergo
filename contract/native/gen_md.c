@@ -40,13 +40,13 @@ env_gen(gen_t *gen, ir_md_t *md)
     BinaryenSetMemory(gen->module, 1, 1024, NULL, (const char **)sgmt->datas, addrs, sgmt->lens,
                       sgmt->size, 0);
 
-    BinaryenAddGlobal(gen->module, "stack_top", BinaryenTypeInt32(), 1,
+    BinaryenAddGlobal(gen->module, "__STACK_TOP", BinaryenTypeInt32(), 1,
                       i32_gen(gen, ALIGN64(sgmt->offset)));
-    BinaryenAddGlobal(gen->module, "stack_max", BinaryenTypeInt32(), 0,
+    BinaryenAddGlobal(gen->module, "__STACK_MAX", BinaryenTypeInt32(), 0,
                       i32_gen(gen, gen->flag.stack_max));
 
-    BinaryenAddGlobalExport(gen->module, "stack_top", "stack_top");
-    BinaryenAddGlobalExport(gen->module, "stack_max", "stack_max");
+    BinaryenAddGlobalExport(gen->module, "__STACK_TOP", "__STACK_TOP");
+    BinaryenAddGlobalExport(gen->module, "__STACK_MAX", "__STACK_MAX");
 
     vector_foreach(abis, i) {
         ir_abi_t *abi = vector_get_abi(abis, i);
