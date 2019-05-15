@@ -42,7 +42,7 @@ static int state_map(lua_State *L)
     return 1;
 }
 
-static void state_map_check_index(lua_State *L, state_map_t *m, int store)
+static void state_map_check_index(lua_State *L, state_map_t *m)
 {
     /* m key */
     int key_type = lua_type(L, 2);
@@ -57,35 +57,18 @@ static void state_map_check_index(lua_State *L, state_map_t *m, int store)
         lua_pushstring(L, m->id);                   /* m key f id */
         lua_pushstring(L, STATE_VAR_META_TYPE);     /* m key f id prefix */
         lua_call(L, 2, 1);                          /* m key t */
-        if (lua_isnil(L, -1)) {
-            lua_pop(L, 1);
-            if (store) {
-                lua_pushcfunction(L, setItemWithPrefix);    /* m key f */
-                lua_pushstring(L, m->id);                   /* m key f id */
-                lua_pushinteger(L, key_type);               /* m key f id type */
-                lua_pushstring(L, STATE_VAR_META_TYPE);     /* m key f id type prefix */
-                lua_call(L, 3, 0);                          /* m key */
-                m->key_type = key_type;
+        if (!lua_isnil(L, -1)) {
+            stored_type = luaL_checkint(L, -1);
+            if (stored_type != LUA_TNUMBER && stored_type != LUA_TSTRING) {
+                luaL_error(L, "invalid stored key type: " LUA_QS ", state.map: " LUA_QS,
+                           lua_typename(L, stored_type), m->id);
             }
-            return;
-        }
-        if (!luaL_isinteger(L, -1)) {
-            luaL_error(L, "invalid stored key type: " LUA_QS ", state.map: " LUA_QS,
-                       lua_typename(L, lua_type(L, -1)), m->id);
-        }
-        stored_type = (int)lua_tointeger(L, -1);
-        if (stored_type != LUA_TNUMBER && stored_type != LUA_TSTRING) {
-            luaL_error(L, "invalid stored key type: " LUA_QS ", state.map: " LUA_QS,
-                       lua_typename(L, stored_type), m->id);
         }
         lua_pop(L, 1);
     }
-    /* m key t */
-    if (key_type != stored_type) {
+    if (stored_type != LUA_TNONE && key_type != stored_type) {
         luaL_typerror(L, 2, lua_typename(L, stored_type));
     }
-
-    m->key_type = stored_type;
 }
 
 static void state_map_push_key(lua_State *L, state_map_t *m)
@@ -111,11 +94,7 @@ static int state_map_get(lua_State *L)
         }
     }
 
-    state_map_check_index(L, m, 0);
-    if (m->key_type == LUA_TNONE) {
-        lua_pushnil(L);
-        return 1;
-    }
+    state_map_check_index(L, m);
     lua_pushcfunction(L, getItemWithPrefix);        /* m key f */
     state_map_push_key(L, m);                       /* m key f id-key */
     if (arg == 3) {
@@ -139,7 +118,15 @@ static int state_map_set(lua_State *L)
             luaL_error(L, "can't use " LUA_QL("delete") " as a key");
         }
     }
-    state_map_check_index(L, m, 1);
+    state_map_check_index(L, m);
+    if (m->key_type == LUA_TNONE) {
+        lua_pushcfunction(L, setItemWithPrefix);    /* m key f */
+        lua_pushstring(L, m->id);                   /* m key f id */
+        lua_pushinteger(L, key_type);               /* m key f id type */
+        lua_pushstring(L, STATE_VAR_META_TYPE);     /* m key f id type prefix */
+        lua_call(L, 3, 0);                          /* m key */
+        m->key_type = key_type;
+    }
     luaL_checkany(L, 3);
     lua_pushcfunction(L, setItemWithPrefix);        /* m key value f */
     state_map_push_key(L, m);                       /* m key value f id-key */
@@ -153,10 +140,7 @@ static int state_map_delete(lua_State *L)
 {
     /* m key */
     state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
-    state_map_check_index(L, m, 0);
-    if (m->key_type == LUA_TNONE) {
-        return 0;
-    }
+    state_map_check_index(L, m);
     lua_pushcfunction(L, delItemWithPrefix);        /* m key f */
     state_map_push_key(L, m);                       /* m key f id-key */
     lua_pushstring(L, STATE_VAR_KEY_PREFIX);        /* m key f id-key prefix */

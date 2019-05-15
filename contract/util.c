@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdint.h>
 #include "util.h"
 #include "vm.h"
 #include "math.h"
@@ -527,7 +526,6 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
         }
 	} else if (isdigit(*json) || *json == '-' || *json == '+') {
 		double d;
-		int64_t i64;
 		char *end = json + 1;
 
 	    if (is_bignum)
@@ -540,12 +538,7 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 			++end;
 		}
         sscanf(json, "%lf", &d);
-        i64 = (int64_t)d;
-        if ((double)i64 == d) {
-            lua_pushinteger(L, i64);
-        } else {
-            lua_pushnumber(L, d);
-        }
+        lua_pushnumber(L, d);
 		json = end;
 	} else if (*json == '{') {
 		if (json_to_lua_table(L, &json, check) != 0)
