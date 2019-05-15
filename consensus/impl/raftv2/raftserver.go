@@ -318,7 +318,9 @@ func (rs *raftServer) startRaft() {
 		}
 
 		rs.SetID(rs.cluster.NodeID())
-		rs.SaveIdentity()
+		if err := rs.SaveIdentity(); err != nil {
+			logger.Fatal().Err(err).Msg("fafiled to save identity")
+		}
 
 		rs.raftStorage = raftlib.NewMemoryStorage()
 
@@ -332,9 +334,13 @@ func (rs *raftServer) startRaft() {
 
 		var startPeers []raftlib.Peer
 
-		rs.cluster.SetThisNodeID()
+		if err := rs.cluster.SetThisNodeID(); err != nil {
+			logger.Fatal().Err(err).Msg("failed to set id of this node")
+		}
 		rs.SetID(rs.cluster.NodeID())
-		rs.SaveIdentity()
+		if err := rs.SaveIdentity(); err != nil {
+			logger.Fatal().Err(err).Msg("fafiled to save identity")
+		}
 
 		startPeers, err := rs.makeStartPeers()
 		if err != nil {
@@ -1075,9 +1081,24 @@ func (rs *raftServer) setConfState(state raftpb.ConfState) {
 func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
 	return rs.node.Step(ctx, m)
 }
-func (rs *raftServer) IsIDRemoved(id uint64) bool                              { return false }
-func (rs *raftServer) ReportUnreachable(id uint64)                             {}
-func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {}
+
+func (rs *raftServer) IsIDRemoved(id uint64) bool {
+	return rs.cluster.IsIDRemoved(id)
+}
+
+func (rs *raftServer) ReportUnreachable(id uint64) {
+	logger.Debug().Str("toID", MemberIDToString(id)).Msg("report snapshot result")
+
+	rs.node.ReportUnreachable(id)
+}
+
+func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {
+	if status == raftlib.SnapshotFinish {
+		logger.Debug().Str("toID", MemberIDToString(id)).Bool("isSucceed", status == raftlib.SnapshotFinish).Msg("report snapshot result")
+	}
+
+	rs.node.ReportSnapshot(id, status)
+}
 
 func (rs *raftServer) WaitStartup() {
 	logger.Debug().Msg("raft start wait")

@@ -384,6 +384,11 @@ func (cl *Cluster) getMemberAttrs() []*types.MemberAttr {
 	return attrs
 }
 
+// IsIDRemoved return true if given raft id is not exist in cluster
+func (cl *Cluster) IsIDRemoved(id uint64) bool {
+	return !cl.getEffectiveMembers().isExist(id)
+}
+
 func (mbrs *Members) add(member *consensus.Member) {
 	logger.Debug().Str("member", MemberIDToString(member.ID)).Msg("added raft member")
 
@@ -408,6 +413,10 @@ func (mbrs *Members) getMemberByName(name string) *consensus.Member {
 	}
 
 	return member
+}
+
+func (mbrs *Members) isExist(id uint64) bool {
+	return mbrs.getMember(id) != nil
 }
 
 func (mbrs *Members) getMember(id uint64) *consensus.Member {
