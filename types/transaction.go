@@ -28,7 +28,7 @@ type Transaction interface {
 	GetBody() *TxBody
 	GetHash() []byte
 	CalculateTxHash() []byte
-	Validate([]byte) error
+	Validate([]byte, bool) error
 	ValidateWithSenderState(senderState *State) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
@@ -67,7 +67,7 @@ func (tx *transaction) CalculateTxHash() []byte {
 	return tx.Tx.CalculateTxHash()
 }
 
-func (tx *transaction) Validate(chainidhash []byte) error {
+func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 	if tx.GetTx() == nil || tx.GetTx().GetBody() == nil {
 		return ErrTxFormatInvalid
 	}
@@ -120,6 +120,10 @@ func (tx *transaction) Validate(chainidhash []byte) error {
 			return ValidateSystemTx(tx.GetBody())
 		case AergoName:
 			return validateNameTx(tx.GetBody())
+		case AergoEnterprise:
+			if isPublic {
+				return ErrTxInvalidRecipient
+			}
 		default:
 			return ErrTxInvalidRecipient
 		}
@@ -275,6 +279,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 				return ErrInsufficientBalance
 			}
 		case AergoName:
+		case AergoEnterprise:
 		default:
 			return ErrTxInvalidRecipient
 		}

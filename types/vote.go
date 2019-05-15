@@ -3,8 +3,9 @@ package types
 import "math/big"
 
 const (
-	AergoSystem = "aergo.system"
-	AergoName   = "aergo.name"
+	AergoSystem     = "aergo.system"
+	AergoName       = "aergo.name"
+	AergoEnterprise = "aergo.enterprise"
 
 	MaxCandidates = 30
 

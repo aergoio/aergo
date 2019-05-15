@@ -37,77 +37,77 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	transaction := NewTransaction(tx)
 
 	transaction.GetBody().ChainIdHash = fakechainid
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, ErrTxInvalidChainIdHash, err.Error(), "invalid chainid")
 
 	transaction.GetBody().ChainIdHash = chainid
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, ErrTxHasInvalidHash, err.Error(), "empty hash")
 
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, ErrTxInvalidRecipient, err.Error(), "recipient null")
 
 	transaction.GetTx().GetBody().Recipient = tx.Body.Payload
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, ErrTxInvalidRecipient, err.Error(), "wrong recipient case")
 
 	transaction.GetTx().GetBody().Recipient = recipient
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, ErrTxInvalidRecipient, err.Error(), "recipient should be aergo.*")
 
 	transaction.GetTx().GetBody().Recipient = []byte(AergoSystem)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Amount = StakingMinimum.Bytes()
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestInvalidString)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestInvalidPeerID)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid peer id")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestDuplicatePeerID)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "dup peer id")
 
 	transaction.GetTx().GetBody().Payload = buildVoteBPPayloadEx(2, TestNormal)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	t.Log(string(transaction.GetTx().GetBody().Payload))
 	assert.NoError(t, err, "should success")
 
 	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(1, TestInvalidString)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "invalid string")
 
 	transaction.GetTx().GetBody().Payload = buildVoteNumBPPayloadEx(2, TestInvalidString)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.EqualError(t, err, ErrTxInvalidPayload.Error(), "only one candidate allowed")
 
 	transaction.GetTx().GetBody().Recipient = []byte(`aergo.name`)
 	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1createName", "Args":["1"]}`)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.Error(t, err, "invalid name length in create")
 
 	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1updateName", "Args":["1234567890","AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid)
+	err = transaction.Validate(chainid, false)
 	assert.Error(t, err, "invalid name length in update")
 }
 

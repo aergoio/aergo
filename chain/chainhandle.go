@@ -803,7 +803,7 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 		account = name.Resolve(bs, txBody.GetAccount())
 	}
 
-	err := tx.Validate(chainIDHash)
+	err := tx.Validate(chainIDHash, IsPublic())
 	if err != nil {
 		return err
 	}

@@ -47,7 +47,7 @@ const AddressVersion = 0x42
 const PrivKeyVersion = 0xAA
 
 func EncodeAddress(addr Address) string {
-	if len(addr) <= NameLength {
+	if len(addr) == NameLength || strings.Contains(string(addr), ".") {
 		return string(addr)
 	}
 	encoded, _ := base58check.Encode(fmt.Sprintf("%x", AddressVersion), hex.EncodeToString(addr))
@@ -57,7 +57,7 @@ func EncodeAddress(addr Address) string {
 const allowed = "abcdefghijklmnopqrstuvwxyz1234567890."
 
 func DecodeAddress(encodedAddr string) (Address, error) {
-	if len(encodedAddr) <= NameLength {
+	if len(encodedAddr) == NameLength || strings.Contains(encodedAddr, ".") {
 		name := encodedAddr
 		for _, char := range string(name) {
 			if !strings.Contains(allowed, strings.ToLower(string(char))) {
