@@ -48,6 +48,8 @@ env_gen(gen_t *gen, ir_md_t *md)
     BinaryenAddGlobalExport(gen->module, "__STACK_TOP", "__STACK_TOP");
     BinaryenAddGlobalExport(gen->module, "__STACK_MAX", "__STACK_MAX");
 
+    syslib_gen(gen, FN_ALLOCA);
+
     vector_foreach(abis, i) {
         ir_abi_t *abi = vector_get_abi(abis, i);
 

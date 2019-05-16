@@ -232,9 +232,48 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 }
 
 static void
-exp_trans_call(trans_t *trans, ast_exp_t *exp)
+exp_trans_args(trans_t *trans, ast_exp_t *exp)
 {
     int i;
+    int j = 0;
+    ast_id_t *fn_id = exp->id;
+
+    vector_foreach(exp->u_call.arg_exps, i) {
+        meta_t *param_meta;
+        ast_exp_t *arg_exp = vector_get_exp(exp->u_call.arg_exps, i);
+
+        exp_trans(trans, arg_exp);
+
+        if (i == 0 && !is_ctor_id(fn_id) && !is_lib_id(fn_id->up)) {
+            ASSERT1(is_object_meta(&arg_exp->meta), arg_exp->meta.type);
+            continue;
+        }
+
+        param_meta = &vector_get_id(fn_id->u_fn.param_ids, j++)->meta;
+
+        if ((arg_exp->id == NULL || !is_global_id(arg_exp->id)) &&
+            ((is_array_meta(param_meta) && is_fixed_array(param_meta)) ||
+             (!is_array_meta(param_meta) && is_struct_meta(param_meta)))) {
+            uint32_t reg_idx;
+            ast_exp_t *reg_exp;
+
+            reg_idx = fn_add_register(trans->fn, param_meta);
+
+            reg_exp = exp_new_reg(reg_idx);
+            meta_set_int32(&reg_exp->meta);
+
+            stmt_trans_malloc(trans, reg_idx, trans->is_global, param_meta);
+            stmt_trans_memcpy(trans, reg_exp, exp_clone(arg_exp), meta_memsz(param_meta),
+                              &exp->pos);
+
+            exp_set_reg(arg_exp, reg_idx);
+        }
+    }
+}
+
+static void
+exp_trans_call(trans_t *trans, ast_exp_t *exp)
+{
     ast_exp_t *id_exp = exp->u_call.id_exp;
     ast_id_t *fn_id = exp->id;
     ir_fn_t *fn = trans->fn;
@@ -244,8 +283,10 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         ASSERT(id_exp == NULL);
 
+        if (exp->u_call.kind != FN_ALLOCA)
+            md_add_abi(trans->md, syslib_abi(sys_fn));
+
         exp->u_call.qname = sys_fn->qname;
-        md_add_abi(trans->md, syslib_abi(sys_fn));
         return;
     }
 
@@ -256,9 +297,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
     if (is_ctor_id(fn_id) || is_lib_id(fn_id->up)) {
         /* The constructor does not change the parameter, it always returns address. */
-        vector_foreach(exp->u_call.arg_exps, i) {
-            exp_trans(trans, vector_get_exp(exp->u_call.arg_exps, i));
-        }
+        exp_trans_args(trans, exp);
         return;
     }
 
@@ -283,14 +322,12 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
 
         /* If the expression is of type "x()", pass my first parameter as the first argument. */
         param_exp = exp_new_reg(0);
-        meta_set_int32(&param_exp->meta);
+        meta_set(&param_exp->meta, TYPE_OBJECT);
 
         vector_add_first(exp->u_call.arg_exps, param_exp);
     }
 
-    vector_foreach(exp->u_call.arg_exps, i) {
-        exp_trans(trans, vector_get_exp(exp->u_call.arg_exps, i));
-    }
+    exp_trans_args(trans, exp);
 
     if (fn_id->u_fn.ret_id != NULL) {
         uint32_t reg_idx;

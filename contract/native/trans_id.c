@@ -96,12 +96,13 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 static void
 set_stack_addr(trans_t *trans, ast_id_t *id)
 {
+    ast_exp_t *reg_exp;
+    ast_exp_t *size_exp;
+    ast_exp_t *align_exp;
+    ast_exp_t *call_exp;
+    ast_exp_t *stk_exp;
+    vector_t *arg_exps;
     ir_fn_t *fn = trans->fn;
-    src_pos_t *pos = &id->pos;
-    ast_exp_t *stk_exp, *reg_exp;
-    ast_exp_t *val_exp, *bin_exp;
-    ast_exp_t *max_exp, *cond_exp, *call_exp;
-    ast_blk_t *if_blk;
 
     if (fn->stack_usage == 0)
         return;
@@ -110,41 +111,31 @@ set_stack_addr(trans_t *trans, ast_id_t *id)
     reg_exp = exp_new_reg(fn->stack_idx);
     meta_set_int32(&reg_exp->meta);
 
-    stk_exp = exp_new_global("__STACK_TOP");
+    arg_exps = vector_new();
 
-    /* Make "r1 = __STACK_TOP" */
-    vector_add(&fn->entry_bb->stmts, 0, stmt_new_assign(reg_exp, stk_exp, pos));
+    size_exp = exp_new_lit_int(fn->stack_usage, &id->pos);
+    meta_set_int32(&size_exp->meta);
 
-    val_exp = exp_new_lit_int(fn->stack_usage, pos);
-    meta_set_int32(&val_exp->meta);
+    exp_add(arg_exps, size_exp);
 
-    bin_exp = exp_new_binary(OP_ADD, reg_exp, val_exp, pos);
-    meta_set_int32(&bin_exp->meta);
+    align_exp = exp_new_lit_int(8, &id->pos);
+    meta_set_int32(&align_exp->meta);
 
-    /* Make "__STACK_TOP = r1 + usage" */
-    vector_add(&fn->entry_bb->stmts, 1, stmt_new_assign(stk_exp, bin_exp, pos));
+    exp_add(arg_exps, align_exp);
 
-    max_exp = exp_new_global("__STACK_MAX");
-    meta_set_int32(&max_exp->meta);
-
-    cond_exp = exp_new_binary(OP_GE, stk_exp, max_exp, pos);
-    meta_set_int32(&cond_exp->meta);
-
-    if_blk = blk_new_normal(&id->pos);
-
-    call_exp = exp_new_call(FN_STACK_OVF, NULL, NULL, pos);
-    meta_set_void(&call_exp->meta);
+    call_exp = exp_new_call(FN_ALLOCA, NULL, arg_exps, &id->pos);
+    meta_set_int32(&call_exp->meta);
 
     exp_trans(trans, call_exp);
 
-    stmt_add(&if_blk->stmts, stmt_new_exp(call_exp, pos));
+    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, call_exp, &id->pos));
 
-    /* Make "if (__STACK_TOP >= __STACK_MAX) __stack_overflow();" */
-    vector_add(&fn->entry_bb->stmts, 2, stmt_new_if(cond_exp, if_blk, pos));
+    stk_exp = exp_new_global("__STACK_TOP");
+    meta_set_int32(&stk_exp->meta);
 
     /* If there is any stack variable in the function, it has to be restored to the original value
      * at the end of "exit_bb" because "__STACK_TOP" has been changed */
-    vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(stk_exp, reg_exp, pos));
+    vector_add_last(&fn->exit_bb->stmts, stmt_new_assign(stk_exp, reg_exp, &id->pos));
 }
 
 static void

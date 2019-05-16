@@ -106,6 +106,7 @@ contract test {
 contract test {
     func f1(int p1[]) {
         p1[0] = 1;
+        p1[1] = 2;
     }
     func f2(int p1[2]) {
         p1[0] = 5;
@@ -117,11 +118,11 @@ contract test {
 
         f1(x);
         pragma assert(x[0] == 1);
-        pragma assert(x[1] == 4);
+        pragma assert(x[1] == 2);
 
         f2(x);
-        pragma assert(x[0] == 5);
-        pragma assert(x[1] == 6);
+        pragma assert(x[0] == 1);
+        pragma assert(x[1] == 2);
     }
 }
 

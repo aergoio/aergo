@@ -79,33 +79,7 @@ syslib_abi(sys_fn_t *sys_fn)
 }
 
 BinaryenExpressionRef
-syslib_call_1(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument)
-{
-    sys_fn_t *sys_fn = SYS_FN(kind);
-
-    ASSERT2(sys_fn->param_cnt == 1, kind, sys_fn->param_cnt);
-
-    md_add_abi(gen->md, syslib_abi(sys_fn));
-
-    return BinaryenCall(gen->module, sys_fn->qname, &argument, 1, type_gen(sys_fn->result));
-}
-
-BinaryenExpressionRef
-syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument1,
-              BinaryenExpressionRef argument2)
-{
-    sys_fn_t *sys_fn = SYS_FN(kind);
-    BinaryenExpressionRef arguments[2] = { argument1, argument2 };
-
-    ASSERT2(sys_fn->param_cnt == 2, kind, sys_fn->param_cnt);
-
-    md_add_abi(gen->md, syslib_abi(sys_fn));
-
-    return BinaryenCall(gen->module, sys_fn->qname, arguments, 2, type_gen(sys_fn->result));
-}
-
-BinaryenExpressionRef
-syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...)
+syslib_call(gen_t *gen, fn_kind_t kind, int argc, ...)
 {
     int i;
     va_list vargs;
@@ -126,6 +100,48 @@ syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...)
     md_add_abi(gen->md, syslib_abi(sys_fn));
 
     return BinaryenCall(gen->module, sys_fn->qname, arguments, argc, type_gen(sys_fn->result));
+}
+
+void
+syslib_gen(gen_t *gen, fn_kind_t kind)
+{
+    BinaryenType params[2] = { BinaryenTypeInt32(), BinaryenTypeInt32() };
+    BinaryenType locals[2] = { BinaryenTypeInt32(), BinaryenTypeInt32() };
+    BinaryenExpressionRef arguments[2];
+    BinaryenExpressionRef children[4];
+    BinaryenFunctionTypeRef type;
+    sys_fn_t *sys_fn;
+
+    arguments[0] = BinaryenGetGlobal(gen->module, "__STACK_TOP", BinaryenTypeInt32());
+    arguments[1] = BinaryenGetLocal(gen->module, 1, BinaryenTypeInt32());
+
+    sys_fn = SYS_FN(FN_ALIGN);
+    md_add_abi(gen->md, syslib_abi(sys_fn));
+
+    children[0] = BinaryenSetLocal(gen->module, 2,
+        BinaryenCall(gen->module, sys_fn->qname, arguments, 2, BinaryenTypeInt32()));
+
+    children[1] = BinaryenSetGlobal(gen->module, "__STACK_TOP",
+        BinaryenBinary(gen->module, BinaryenAddInt32(),
+                       BinaryenGetLocal(gen->module, 2, BinaryenTypeInt32()),
+                       BinaryenGetLocal(gen->module, 0, BinaryenTypeInt32())));
+
+    sys_fn = SYS_FN(FN_STACK_OVF);
+    md_add_abi(gen->md, syslib_abi(sys_fn));
+
+    children[2] = BinaryenIf(gen->module,
+        BinaryenBinary(gen->module, BinaryenGeSInt32(),
+                       BinaryenGetGlobal(gen->module, "__STACK_TOP", BinaryenTypeInt32()),
+                       BinaryenGetGlobal(gen->module, "__STACK_MAX", BinaryenTypeInt32())),
+        BinaryenCall(gen->module, sys_fn->qname, NULL, 0, BinaryenTypeNone()), NULL);
+
+    children[3] =
+        BinaryenReturn(gen->module, BinaryenGetLocal(gen->module, 2, BinaryenTypeInt32()));
+
+    type = BinaryenAddFunctionType(gen->module, NULL, BinaryenTypeInt32(), params, 2);
+
+    BinaryenAddFunction(gen->module, SYS_FN(kind)->qname, type, locals, 2,
+                        BinaryenBlock(gen->module, NULL, children, 4, BinaryenTypeInt32()));
 }
 
 /* end of syslib.c */

@@ -16,6 +16,12 @@
 
 #define SYS_FN(kind)                (&sys_fntab_[(kind)])
 
+#define syslib_call_1(gen, kind, arg)                                                              \
+    syslib_call((gen), (kind), 1, (arg))
+
+#define syslib_call_2(gen, kind, arg1, arg2)                                                       \
+    syslib_call((gen), (kind), 2, (arg1), (arg2))
+
 #ifndef _IR_ABI_T
 #define _IR_ABI_T
 typedef struct ir_abi_s ir_abi_t;
@@ -47,11 +53,8 @@ void syslib_load(ast_t *ast);
 
 ir_abi_t *syslib_abi(sys_fn_t *sys_fn);
 
-BinaryenExpressionRef syslib_call_1(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef argument);
+BinaryenExpressionRef syslib_call(gen_t *gen, fn_kind_t kind, int argc, ...);
 
-BinaryenExpressionRef syslib_call_2(gen_t *gen, fn_kind_t kind, BinaryenExpressionRef left,
-                                    BinaryenExpressionRef right);
-
-BinaryenExpressionRef syslib_gen(gen_t *gen, fn_kind_t kind, int argc, ...);
+void syslib_gen(gen_t *gen, fn_kind_t kind);
 
 #endif /* ! _SYSLIB_H */

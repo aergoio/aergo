@@ -32,15 +32,15 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
             char *str;
 
             if (value_fits_i32(val))
-                return syslib_gen(gen, FN_MPZ_SET_I32, 1, i32_gen(gen, val_i64(val)));
+                return syslib_call(gen, FN_MPZ_SET_I32, 1, i32_gen(gen, val_i64(val)));
 
             if (value_fits_i64(val))
-                return syslib_gen(gen, FN_MPZ_SET_I64, 1, i64_gen(gen, val_i64(val)));
+                return syslib_call(gen, FN_MPZ_SET_I64, 1, i64_gen(gen, val_i64(val)));
 
             str = mpz_get_str(NULL, 10, val_mpz(val));
             ASSERT(str != NULL && str[0] != '\0');
 
-            return syslib_gen(gen, FN_MPZ_SET_STR, 1, i32_gen(gen, sgmt_add_str(&md->sgmt, str)));
+            return syslib_call(gen, FN_MPZ_SET_STR, 1, i32_gen(gen, sgmt_add_str(&md->sgmt, str)));
         }
 
         if (is_int64_meta(meta))
@@ -87,7 +87,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
         if (is_int64_meta(meta))
             kind = FN_ARR_GET_I64;
 
-        address = syslib_gen(gen, kind, 4, address, i32_gen(gen, meta->arr_dim),
+        address = syslib_call(gen, kind, 4, address, i32_gen(gen, meta->arr_dim),
                              exp_gen(gen, idx_exp, NULL), i32_gen(gen, meta_typsz(meta)));
     }
 
@@ -128,17 +128,17 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_BYTE:
         if (is_string_meta(to_meta))
-            return syslib_gen(gen, FN_CTOA, 1, value);
+            return syslib_call(gen, FN_CTOA, 1, value);
         /* fall through */
 
     case TYPE_INT8:
     case TYPE_INT16:
     case TYPE_INT32:
         if (is_string_meta(to_meta))
-            return syslib_gen(gen, FN_ITOA32, 1, value);
+            return syslib_call(gen, FN_ITOA32, 1, value);
 
         if (is_int128_meta(to_meta))
-            return syslib_gen(gen, FN_MPZ_SET_I32, 1, value);
+            return syslib_call(gen, FN_MPZ_SET_I32, 1, value);
 
         if (is_float_meta(to_meta))
             op = BinaryenConvertSInt32ToFloat32();
@@ -152,10 +152,10 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_INT64:
         if (is_string_meta(to_meta))
-            return syslib_gen(gen, FN_ITOA64, 1, value);
+            return syslib_call(gen, FN_ITOA64, 1, value);
 
         if (is_int128_meta(to_meta))
-            return syslib_gen(gen, FN_MPZ_SET_I64, 1, value);
+            return syslib_call(gen, FN_MPZ_SET_I64, 1, value);
 
         if (is_float_meta(to_meta))
             op = BinaryenConvertSInt64ToFloat32();
@@ -169,7 +169,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_INT128:
         if (is_string_meta(to_meta))
-            return syslib_gen(gen, FN_MPZ_GET_STR, 1, value);
+            return syslib_call(gen, FN_MPZ_GET_STR, 1, value);
 
         if (is_int64_meta(to_meta))
             return syslib_call_1(gen, FN_MPZ_GET_I64, value);
@@ -200,12 +200,12 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
 
     case TYPE_STRING:
         if (is_int64_meta(to_meta))
-            return syslib_gen(gen, FN_ATOI64, 1, value);
+            return syslib_call(gen, FN_ATOI64, 1, value);
 
         if (is_int128_meta(to_meta))
-            return syslib_gen(gen, FN_MPZ_SET_STR, 1, value);
+            return syslib_call(gen, FN_MPZ_SET_STR, 1, value);
 
-        return syslib_gen(gen, FN_ATOI32, 1, value);
+        return syslib_call(gen, FN_ATOI32, 1, value);
 
     default:
         ASSERT2(!"invalid conversion", from_meta->type, to_meta->type);

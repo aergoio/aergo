@@ -42,8 +42,7 @@ fn_gen(gen_t *gen, ir_fn_t *fn)
 
     /* The ABI of the built-in function can be added during the generation of the basic block. */
     BinaryenAddFunction(gen->module, fn->name, abi_gen(gen, abi),
-                        (BinaryenType *)array_items(&fn->types), array_size(&fn->types),
-                        BinaryenBlock(gen->module, NULL, &body, 1, abi->result));
+                        (BinaryenType *)array_items(&fn->types), array_size(&fn->types), body);
 
     if (fn->apiname != NULL)
         BinaryenAddFunctionExport(gen->module, fn->name, fn->apiname);
