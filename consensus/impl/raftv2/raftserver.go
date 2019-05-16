@@ -154,7 +154,6 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 		MaxInflightMsgs:           256,
 		Logger:                    raftLogger,
 		CheckQuorum:               true,
-		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 
@@ -177,7 +176,7 @@ func newRaftServer(hub *component.ComponentHub,
 	delayPromote bool,
 	chainWal consensus.ChainWAL) *raftServer {
 
-	errorC := make(chan error)
+	errorC := make(chan error, 1)
 
 	rs := &raftServer{
 		ComponentHub: hub,
@@ -372,7 +371,7 @@ func (rs *raftServer) startTransport() {
 		ServerStats: stats.NewServerStats("", ""),
 		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(uint64(rs.id), 10)),
 		Snapshotter: rs.snapshotter,
-		ErrorC:      make(chan error),
+		ErrorC:      rs.errorC,
 	}
 
 	rs.transport.SetLogger(httpLogger)
@@ -433,11 +432,7 @@ func (rs *raftServer) stopHTTP() {
 }
 
 func (rs *raftServer) writeError(err error) {
-	rs.stopHTTP()
-	close(rs.commitC)
-	rs.errorC <- err
-	close(rs.errorC)
-	rs.node.Stop()
+	logger.Error().Err(err).Msg("write err has occurend raft server. ")
 }
 
 // TODO timeout handling with context
@@ -554,7 +549,7 @@ func (rs *raftServer) serveChannels() {
 			}
 
 			rs.node.Advance()
-		case err := <-rs.transport.ErrorC:
+		case err := <-rs.errorC:
 			rs.writeError(err)
 			return
 
@@ -813,7 +808,7 @@ func (rs *raftServer) triggerSnapshot() {
 	logger.Info().Uint64("applied", rs.appliedIndex).Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
 
 	// make snapshot data of previous connected block
-	snapdata, err := rs.snapshotter.createSnapshotData(rs.cluster, rs.prevProgress.block, &rs.prevProgress.confState)
+	snapdata, err := rs.snapshotter.createSnapshotData(rs.cluster, rs.prevProgress.block, &rs.confState)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create snapshot data from prev block")
 	}
@@ -982,7 +977,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
 		}
 
-		if len(cc.Context) > 0 {
+		if len(cc.Context) > 0 && rs.id != cc.NodeID {
 			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
 		}
 	case raftpb.ConfChangeRemoveNode:
@@ -1087,7 +1082,7 @@ func (rs *raftServer) IsIDRemoved(id uint64) bool {
 }
 
 func (rs *raftServer) ReportUnreachable(id uint64) {
-	logger.Debug().Str("toID", MemberIDToString(id)).Msg("report snapshot result")
+	logger.Debug().Str("toID", MemberIDToString(id)).Msg("report unreachable")
 
 	rs.node.ReportUnreachable(id)
 }

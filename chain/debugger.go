@@ -19,7 +19,8 @@ type StopCond int
 const (
 	DEBUG_CHAIN_STOP StopCond = 0 + iota
 	DEBUG_CHAIN_RANDOM_STOP
-	DEBUG_CHAIN_SLEEP
+	DEBUG_CHAIN_BP_SLEEP
+	DEBUG_CHAIN_OTHER_SLEEP
 	DEBUG_SYNCER_CRASH
 )
 
@@ -30,14 +31,16 @@ const (
 var (
 	EnvNameStaticCrash     = "DEBUG_CHAIN_CRASH"       // 1 ~ 4
 	EnvNameRandomCrashTime = "DEBUG_RANDOM_CRASH_TIME" // 1 ~ 600000(=10min) ms
-	EnvNameChainSleep      = "DEBUG_CHAIN_SLEEP"       // sleep before connecting block for each block (ms). used
+	EnvNameChainBPSleep    = "DEBUG_CHAIN_BP_SLEEP"    // bp node sleeps before connecting block for each block (ms). used
+	EnvNameChainOtherSleep = "DEBUG_CHAIN_OTHER_SLEEP" // non bp node sleeps before connecting block for each block (ms).
 	EnvNameSyncCrash       = "DEBUG_SYNCER_CRASH"      // case 1
 )
 
 var stopConds = [...]string{
 	EnvNameStaticCrash,
 	EnvNameRandomCrashTime,
-	EnvNameChainSleep,
+	EnvNameChainBPSleep,
+	EnvNameChainOtherSleep,
 	EnvNameSyncCrash,
 }
 
@@ -74,7 +77,8 @@ func newDebugger() *Debugger {
 
 	checkEnv(DEBUG_CHAIN_STOP)
 	checkEnv(DEBUG_CHAIN_RANDOM_STOP)
-	checkEnv(DEBUG_CHAIN_SLEEP)
+	checkEnv(DEBUG_CHAIN_BP_SLEEP)
+	checkEnv(DEBUG_CHAIN_OTHER_SLEEP)
 	checkEnv(DEBUG_SYNCER_CRASH)
 
 	return dbg
@@ -140,7 +144,7 @@ func (debug *Debugger) Check(cond StopCond, value int) error {
 			go crashRandom(setVal)
 			handleCrashRandom(setVal)
 
-		case DEBUG_CHAIN_SLEEP:
+		case DEBUG_CHAIN_OTHER_SLEEP, DEBUG_CHAIN_BP_SLEEP:
 			handleChainSleep(setVal)
 
 		case DEBUG_SYNCER_CRASH:

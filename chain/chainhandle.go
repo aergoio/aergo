@@ -306,7 +306,17 @@ func (cp *chainProcessor) notifyBlockByOther(block *types.Block) {
 	}
 }
 
+func checkDebugSleep(isBP bool) {
+	if isBP {
+		_ = TestDebugger.Check(DEBUG_CHAIN_BP_SLEEP, 0)
+	} else {
+		_ = TestDebugger.Check(DEBUG_CHAIN_OTHER_SLEEP, 0)
+	}
+}
+
 func (cp *chainProcessor) executeBlock(block *types.Block) error {
+	checkDebugSleep(cp.isByBP)
+
 	err := cp.ChainService.executeBlock(cp.state, block)
 	cp.state = nil
 	return err
@@ -373,8 +383,6 @@ func (cp *chainProcessor) reorganize() error {
 }
 
 func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
-	TestDebugger.Check(DEBUG_CHAIN_SLEEP, 0)
-
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,
