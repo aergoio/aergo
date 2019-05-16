@@ -18,6 +18,11 @@ type NameMap struct {
 	Destination []byte
 }
 
+// AccountStateReader is an interface for getting a name account state.
+type AccountStateReader interface {
+	GetNameAccountState() (*state.ContractState, error)
+}
+
 func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
 	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
@@ -136,6 +141,15 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	return deserializeNameMap(ownerdata)
 }
 
+func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
+	scs, err := r.GetNameAccountState()
+	if err != nil {
+		return nil, err
+	}
+	owner := getOwner(scs, []byte(name), true)
+	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddress(scs, []byte(name))}, err
+}
+
 func registerOwner(scs *state.ContractState, name, owner, destination []byte) error {
 	nameMap := &NameMap{Version: 1, Owner: owner, Destination: destination}
 	return setNameMap(scs, name, nameMap)
@@ -191,25 +205,3 @@ func deserializeNameMap(data []byte) *NameMap {
 	}
 	return nil
 }
-
-/*
-version 0
-
-func setAddress(scs *state.ContractState, name, address []byte) error {
-	owner := &Owner{Address: address}
-	return setOwner(scs, name, owner)
-}
-
-func serializeOwner(owner *Owner) []byte {
-	if owner != nil {
-		return owner.Address
-	}
-	return nil
-}
-func deserializeOwner(data []byte) *Owner {
-	if data != nil {
-		return &Owner{Address: data}
-	}
-	return nil
-}
-*/

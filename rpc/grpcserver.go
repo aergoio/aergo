@@ -892,7 +892,7 @@ func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.AccountAdd
 
 func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*types.NameInfo, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetNameInfo{Name: in.Name}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
+		&message.GetNameInfo{Name: in.Name, BlockNo: in.BlockNo}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
 	if err != nil {
 		return nil, err
 	}
