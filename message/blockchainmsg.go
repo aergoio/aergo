@@ -144,7 +144,8 @@ type GetStakingRsp struct {
 }
 
 type GetNameInfo struct {
-	Name string
+	Name    string
+	BlockNo types.BlockNo
 }
 
 type GetNameInfoRsp struct {

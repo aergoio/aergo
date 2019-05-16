@@ -181,7 +181,7 @@ type IChainHandler interface {
 	getAccountVote(id []string, addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
-	getNameInfo(name string) (*types.NameInfo, error)
+	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
@@ -507,16 +507,18 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	return staking, nil
 }
 
-func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
-	if err != nil {
-		return nil, err
+func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types.NameInfo, error) {
+	var stateDB *state.StateDB
+	if blockNo != 0 {
+		block, err := cs.cdb.GetBlockByNo(blockNo)
+		if err != nil {
+			return nil, err
+		}
+		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
+	} else {
+		stateDB = cs.sdb.GetStateDB()
 	}
-	owner := name.GetOwner(scs, []byte(qname))
-	if owner == nil {
-		return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: nil}, types.ErrNameNotFound
-	}
-	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner, Destination: name.GetAddress(scs, []byte(qname))}, err
+	return name.GetNameInfo(stateDB, qname)
 }
 
 type ChainManager struct {
@@ -592,7 +594,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	case *message.GetAncestor:
 		hashes := msg.Hashes
 		ancestor, err := cm.findAncestor(hashes)
-
 		context.Respond(message.GetAncestorRsp{
 			Ancestor: ancestor,
 			Err:      err,
@@ -785,7 +786,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetNameInfo:
-		owner, err := cw.getNameInfo(msg.Name)
+		owner, err := cw.getNameInfo(msg.Name, msg.BlockNo)
 		context.Respond(&message.GetNameInfoRsp{
 			Owner: owner,
 			Err:   err,

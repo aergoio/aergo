@@ -22,6 +22,7 @@ var nameCmd = &cobra.Command{
 	Short: "Name command",
 }
 var spending string
+var blockNo uint64
 
 func init() {
 	rootCmd.AddCommand(nameCmd)
@@ -59,6 +60,7 @@ func init() {
 	}
 	ownerCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
 	ownerCmd.MarkFlagRequired("name")
+	ownerCmd.Flags().Uint64VarP(&blockNo, "blockno", "n", 0, "Block height")
 
 	nameCmd.AddCommand(newCmd, updateCmd, ownerCmd)
 }
@@ -160,7 +162,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 }
 
 func execNameOwner(cmd *cobra.Command, args []string) {
-	msg, err := client.GetNameInfo(context.Background(), &types.Name{Name: name})
+	msg, err := client.GetNameInfo(context.Background(), &types.Name{Name: name, BlockNo: blockNo})
 	if err != nil {
 		cmd.Println(err.Error())
 		return
