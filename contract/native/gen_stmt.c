@@ -85,10 +85,9 @@ stmt_gen_pragma(gen_t *gen, ast_stmt_t *stmt)
     else
         description = i32_gen(gen, 0);
 
-    return syslib_call(gen, FN_ASSERT, 6, condition,
-                      i32_gen(gen, sgmt_add_str(&md->sgmt, stmt->u_pragma.val_str)), description,
-                      i32_gen(gen, val_exp->pos.first_line), i32_gen(gen, val_exp->pos.first_col),
-                      i32_gen(gen, val_exp->pos.first_offset));
+    return syslib_call(gen, FN_ASSERT, 4, condition,
+                       i32_gen(gen, sgmt_add_str(&md->sgmt, stmt->u_pragma.val_str)), description,
+                       i32_gen(gen, val_exp->pos.first_line));
 }
 
 BinaryenExpressionRef
