@@ -46,9 +46,9 @@ import (
 
 //noinspection ALL
 var (
-	raftLogger              raftlib.Logger
-	defaultSnapCount        uint64 = 10
-	snapshotCatchUpEntriesN uint64 = 10
+	raftLogger                  raftlib.Logger
+	ConfSnapFrequency           uint64 = 10
+	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
 )
 
 var (
@@ -100,11 +100,11 @@ type raftServer struct {
 	snapshotter      *ChainSnapshotter
 	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
 
-	snapCount uint64
-	transport *rafthttp.Transport
-	stopc     chan struct{} // signals proposal channel closed
-	httpstopc chan struct{} // signals http server to shutdown
-	httpdonec chan struct{} // signals http server shutdown complete
+	snapFrequency uint64
+	transport     *rafthttp.Transport
+	stopc         chan struct{} // signals proposal channel closed
+	httpstopc     chan struct{} // signals http server to shutdown
+	httpdonec     chan struct{} // signals http server shutdown complete
 
 	leaderStatus LeaderStatus
 
@@ -179,19 +179,19 @@ func newRaftServer(hub *component.ComponentHub,
 	errorC := make(chan error, 1)
 
 	rs := &raftServer{
-		ComponentHub: hub,
-		cluster:      cluster,
-		walDB:        NewWalDB(chainWal),
-		confChangeC:  confChangeC,
-		commitC:      commitC,
-		errorC:       errorC,
-		listenUrl:    listenUrl,
-		join:         join,
-		getSnapshot:  getSnapshot,
-		snapCount:    defaultSnapCount,
-		stopc:        make(chan struct{}),
-		httpstopc:    make(chan struct{}),
-		httpdonec:    make(chan struct{}),
+		ComponentHub:  hub,
+		cluster:       cluster,
+		walDB:         NewWalDB(chainWal),
+		confChangeC:   confChangeC,
+		commitC:       commitC,
+		errorC:        errorC,
+		listenUrl:     listenUrl,
+		join:          join,
+		getSnapshot:   getSnapshot,
+		snapFrequency: ConfSnapFrequency,
+		stopc:         make(chan struct{}),
+		httpstopc:     make(chan struct{}),
+		httpdonec:     make(chan struct{}),
 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
@@ -801,7 +801,7 @@ func (rs *raftServer) triggerSnapshot() {
 
 	newSnapshotIndex := rs.prevProgress.index
 
-	if newSnapshotIndex-rs.snapshotIndex <= rs.snapCount {
+	if newSnapshotIndex-rs.snapshotIndex <= rs.snapFrequency {
 		return
 	}
 
@@ -830,8 +830,8 @@ func (rs *raftServer) triggerSnapshot() {
 	}
 
 	compactIndex := uint64(1)
-	if newSnapshotIndex > snapshotCatchUpEntriesN {
-		compactIndex = newSnapshotIndex - snapshotCatchUpEntriesN
+	if newSnapshotIndex > ConfSnapshotCatchUpEntriesN {
+		compactIndex = newSnapshotIndex - ConfSnapshotCatchUpEntriesN
 	}
 	if err := rs.raftStorage.Compact(compactIndex); err != nil {
 		if err == raftlib.ErrCompacted {
@@ -979,6 +979,8 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 
 		if len(cc.Context) > 0 && rs.id != cc.NodeID {
 			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
+		} else {
+			logger.Debug().Msg("skip add peer myself for addnode ")
 		}
 	case raftpb.ConfChangeRemoveNode:
 		if err := rs.cluster.removeMember(member); err != nil {

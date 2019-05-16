@@ -40,6 +40,11 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		RaftTick = time.Duration(raftConfig.Tick * 1000000)
 	}
 
+	if raftConfig.SnapFrequency != 0 {
+		ConfSnapFrequency = raftConfig.SnapFrequency
+		ConfSnapshotCatchUpEntriesN = raftConfig.SnapFrequency
+	}
+
 	chainID, err := chain.Genesis.ID.Bytes()
 	if err != nil {
 		return err
