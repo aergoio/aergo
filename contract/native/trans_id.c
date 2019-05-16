@@ -83,8 +83,16 @@ id_trans_ctor(trans_t *trans, ast_id_t *id)
 
     /* A contiguous memory space is required because the contract address must be passed to the
      * member function. */
-    if (fn->heap_usage > 0)
-        stmt_trans(trans, stmt_make_malloc(fn->heap_idx, fn->heap_usage, align, &id->pos));
+    if (fn->heap_usage > 0) {
+        ast_exp_t *reg_exp, *addr_exp;
+
+        reg_exp = exp_new_reg(fn->heap_idx);
+        meta_set_int32(&reg_exp->meta);
+
+        addr_exp = syslib_make_malloc(fn->heap_usage, align, &id->pos);
+
+        stmt_trans(trans, stmt_new_assign(reg_exp, addr_exp, &id->pos));
+    }
 
     vector_foreach(stmts, i) {
         stmt_trans(trans, vector_get_stmt(stmts, i));
@@ -97,11 +105,8 @@ static void
 set_stack_addr(trans_t *trans, ast_id_t *id)
 {
     ast_exp_t *reg_exp;
-    ast_exp_t *size_exp;
-    ast_exp_t *align_exp;
-    ast_exp_t *call_exp;
+    ast_exp_t *addr_exp;
     ast_exp_t *stk_exp;
-    vector_t *arg_exps;
     ir_fn_t *fn = trans->fn;
 
     if (fn->stack_usage == 0)
@@ -111,24 +116,9 @@ set_stack_addr(trans_t *trans, ast_id_t *id)
     reg_exp = exp_new_reg(fn->stack_idx);
     meta_set_int32(&reg_exp->meta);
 
-    arg_exps = vector_new();
+    addr_exp = syslib_make_alloca(fn->stack_usage, 8, &id->pos);
 
-    size_exp = exp_new_lit_int(fn->stack_usage, &id->pos);
-    meta_set_int32(&size_exp->meta);
-
-    exp_add(arg_exps, size_exp);
-
-    align_exp = exp_new_lit_int(8, &id->pos);
-    meta_set_int32(&align_exp->meta);
-
-    exp_add(arg_exps, align_exp);
-
-    call_exp = exp_new_call(FN_ALLOCA, NULL, arg_exps, &id->pos);
-    meta_set_int32(&call_exp->meta);
-
-    exp_trans(trans, call_exp);
-
-    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, call_exp, &id->pos));
+    vector_add_first(&fn->entry_bb->stmts, stmt_new_assign(reg_exp, addr_exp, &id->pos));
 
     stk_exp = exp_new_global("__STACK_TOP");
     meta_set_int32(&stk_exp->meta);

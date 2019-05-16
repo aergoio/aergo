@@ -202,7 +202,7 @@ typedef enum fn_kind_e {
     FN_CTOR,
 #undef fn_def
 #define fn_def(kind, name, ...)		kind,
-#include "syslib.list"
+#include "fn.list"
     FN_MAX
 } fn_kind_t;
 

@@ -8,6 +8,7 @@
 #include "check_id.h"
 #include "check_exp.h"
 #include "check_blk.h"
+#include "syslib.h"
 
 #include "check_stmt.h"
 
@@ -338,7 +339,6 @@ static bool
 stmt_check_str_loop(check_t *check, ast_stmt_t *stmt)
 {
     ast_id_t *size_id;
-    vector_t *arg_exps;
     ast_exp_t *cond_exp = stmt->u_loop.cond_exp;
     ast_blk_t *wrap_blk = blk_new_normal(&stmt->pos);
     src_pos_t *pos = &cond_exp->pos;
@@ -362,10 +362,7 @@ stmt_check_str_loop(check_t *check, ast_stmt_t *stmt)
     /* "$size" identifier */
     size_id = id_new_tmp_var("$size", TYPE_INT32, pos);
 
-    arg_exps = vector_new();
-    exp_add(arg_exps, cond_exp);
-
-    size_id->u_var.dflt_exp = exp_new_call(FN_STRLEN, NULL, arg_exps, pos);
+    size_id->u_var.dflt_exp = syslib_make_strlen(cond_exp, pos);
 
     /* "int $size = strlen(str)" statement */
     vector_add_last(&wrap_blk->stmts, stmt_new_id(size_id, pos));

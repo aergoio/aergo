@@ -256,15 +256,19 @@ exp_trans_args(trans_t *trans, ast_exp_t *exp)
              (!is_array_meta(param_meta) && is_struct_meta(param_meta)))) {
             uint32_t reg_idx;
             ast_exp_t *reg_exp;
+            ast_exp_t *call_exp;
 
             reg_idx = fn_add_register(trans->fn, param_meta);
+
+            stmt_trans_alloc(trans, reg_idx, trans->is_global, param_meta);
 
             reg_exp = exp_new_reg(reg_idx);
             meta_set_int32(&reg_exp->meta);
 
-            stmt_trans_malloc(trans, reg_idx, trans->is_global, param_meta);
-            stmt_trans_memcpy(trans, reg_exp, exp_clone(arg_exp), meta_memsz(param_meta),
-                              &exp->pos);
+            call_exp =
+                syslib_make_memcpy(reg_exp, exp_clone(arg_exp), meta_memsz(param_meta), &exp->pos);
+
+            stmt_trans(trans, stmt_new_exp(call_exp, &exp->pos));
 
             exp_set_reg(arg_exp, reg_idx);
         }
@@ -278,15 +282,8 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     ast_id_t *fn_id = exp->id;
     ir_fn_t *fn = trans->fn;
 
-    if (exp->u_call.kind > FN_CTOR) {
-        sys_fn_t *sys_fn = SYS_FN(exp->u_call.kind);
-
+    if (exp->u_call.kind != FN_UDF && exp->u_call.kind != FN_CTOR) {
         ASSERT(id_exp == NULL);
-
-        if (exp->u_call.kind != FN_ALLOCA)
-            md_add_abi(trans->md, syslib_abi(sys_fn));
-
-        exp->u_call.qname = sys_fn->qname;
         return;
     }
 
@@ -531,7 +528,7 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
     if (exp->u_init.is_topmost) {
         reg_idx = fn_add_register(trans->fn, meta);
 
-        stmt_trans_malloc(trans, reg_idx, trans->is_global, meta);
+        stmt_trans_alloc(trans, reg_idx, trans->is_global, meta);
         exp_set_reg(exp, reg_idx);
     }
 
@@ -577,10 +574,15 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_mem(reg_idx, 0, offset);
                 meta_copy(&l_exp->meta, elem_meta);
 
-                if (is_array_meta(elem_meta) || is_struct_meta(elem_meta))
-                    stmt_trans_memcpy(trans, l_exp, elem_exp, meta_memsz(elem_meta), &exp->pos);
-                else
+                if (is_array_meta(elem_meta) || is_struct_meta(elem_meta)) {
+                    ast_exp_t *call_exp =
+                        syslib_make_memcpy(l_exp, elem_exp, meta_memsz(elem_meta), &exp->pos);
+
+                    stmt_trans(trans, stmt_new_exp(call_exp, &exp->pos));
+                }
+                else {
                     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
+                }
             }
 
             offset += meta_memsz(elem_meta);
@@ -619,7 +621,7 @@ exp_trans_alloc(trans_t *trans, ast_exp_t *exp)
 
     reg_idx = fn_add_register(trans->fn, meta);
 
-    stmt_trans_malloc(trans, reg_idx, true, meta);
+    stmt_trans_alloc(trans, reg_idx, true, meta);
 
     exp_set_reg(exp, reg_idx);
 

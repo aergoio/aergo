@@ -11,37 +11,41 @@
 #include "trans_id.h"
 #include "trans_blk.h"
 #include "trans_exp.h"
+#include "syslib.h"
 
 #include "trans_stmt.h"
 
 static uint32_t make_array_initz(trans_t *trans, ast_exp_t *var_exp, uint32_t offset, int dim_idx);
 
 void
-stmt_trans_malloc(trans_t *trans, uint32_t reg_idx, bool is_heap, meta_t *meta)
+stmt_trans_alloc(trans_t *trans, uint32_t reg_idx, bool is_heap, meta_t *meta)
 {
-    ast_exp_t *l_exp, *r_exp;
-    ast_exp_t *stk_exp, *addr_exp;
+    uint32_t size = meta_memsz(meta);
+    ast_exp_t *reg_exp;
+    ast_exp_t *addr_exp;
+
+    reg_exp = exp_new_reg(reg_idx);
+    meta_set_int32(&reg_exp->meta);
 
     if (is_heap) {
-        stmt_trans(trans, stmt_make_malloc(reg_idx, meta_memsz(meta), meta_align(meta), meta->pos));
-        return;
+        addr_exp = syslib_make_malloc(size, meta_align(meta), meta->pos);
+    }
+    else {
+        ast_exp_t *l_exp, *r_exp;
+
+        fn_add_stack(trans->fn, size, meta);
+
+        l_exp = exp_new_reg(meta->base_idx);
+        meta_set_int32(&l_exp->meta);
+
+        r_exp = exp_new_lit_int(meta->rel_addr, meta->pos);
+        meta_set_int32(&r_exp->meta);
+
+        addr_exp = exp_new_binary(OP_ADD, l_exp, r_exp, meta->pos);
+        meta_set_int32(&addr_exp->meta);
     }
 
-    l_exp = exp_new_reg(reg_idx);
-    meta_set_int32(&l_exp->meta);
-
-    fn_add_stack(trans->fn, meta_memsz(meta), meta);
-
-    stk_exp = exp_new_reg(meta->base_idx);
-    meta_set_int32(&stk_exp->meta);
-
-    addr_exp = exp_new_lit_int(meta->rel_addr, meta->pos);
-    meta_set_int32(&addr_exp->meta);
-
-    r_exp = exp_new_binary(OP_ADD, stk_exp, addr_exp, meta->pos);
-    meta_set_int32(&r_exp->meta);
-
-    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, meta->pos));
+    stmt_trans(trans, stmt_new_assign(reg_exp, addr_exp, meta->pos));
 }
 
 static uint32_t
@@ -208,24 +212,9 @@ make_mem_initz(trans_t *trans, ast_id_t *id)
 
         if ((is_array_meta(meta) && is_fixed_array(meta)) ||
             (!is_array_meta(meta) && is_struct_meta(meta))) {
-            ast_exp_t *call_exp;
-            ast_exp_t *arg_exp;
-            vector_t *arg_exps = vector_new();
+            ast_exp_t *call_exp = syslib_make_memset(var_exp, 0, meta_memsz(meta), &id->pos);
 
-            exp_add(arg_exps, var_exp);
-
-            arg_exp = exp_new_lit_int(0, meta->pos);
-            meta_set_int32(&arg_exp->meta);
-            exp_add(arg_exps, arg_exp);
-
-            arg_exp = exp_new_lit_int(meta_memsz(meta), meta->pos);
-            meta_set_int32(&arg_exp->meta);
-            exp_add(arg_exps, arg_exp);
-
-            call_exp = exp_new_call(FN_MEMSET, NULL, arg_exps, meta->pos);
-            meta_set_void(&call_exp->meta);
-
-            stmt_trans(trans, stmt_new_exp(call_exp, meta->pos));
+            stmt_trans(trans, stmt_new_exp(call_exp, &id->pos));
         }
     }
 
@@ -250,7 +239,7 @@ make_id_initz(trans_t *trans, ast_id_t *id)
 
         if ((is_array_meta(meta) && is_fixed_array(meta)) ||
             (!is_array_meta(meta) && is_struct_meta(meta)))
-            stmt_trans_malloc(trans, id->idx, dflt_exp != NULL && is_alloc_exp(dflt_exp), meta);
+            stmt_trans_alloc(trans, id->idx, dflt_exp != NULL && is_alloc_exp(dflt_exp), meta);
 
         meta->base_idx = id->idx;
         meta->rel_addr = 0;
@@ -341,24 +330,6 @@ make_map_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_
 }
 
 static void
-make_byte_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *pos)
-{
-    ast_exp_t *id_exp = var_exp->u_arr.id_exp;
-    ast_exp_t *idx_exp = var_exp->u_arr.idx_exp;
-    ast_exp_t *call_exp;
-	vector_t *arg_exps = vector_new();
-
-    exp_add(arg_exps, id_exp);
-    exp_add(arg_exps, idx_exp);
-    exp_add(arg_exps, val_exp);
-
-    call_exp = exp_new_call(FN_CHAR_SET, NULL, arg_exps, pos);
-    meta_set_void(&call_exp->meta);
-
-    stmt_trans(trans, stmt_new_exp(call_exp, pos));
-}
-
-static void
 make_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *pos)
 {
     ast_id_t *var_id = var_exp->id;
@@ -383,19 +354,28 @@ make_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *p
     }
 
     if (is_array_exp(var_exp) && !is_array_meta(&var_exp->u_arr.id_exp->meta) &&
-        var_id != NULL && is_map_meta(&var_id->meta))
+        var_id != NULL && is_map_meta(&var_id->meta)) {
         /* when assigning to value of map */
         make_map_assign(trans, var_exp, val_exp, pos);
+    }
     else if (is_array_exp(var_exp) && !is_array_meta(&var_exp->u_arr.id_exp->meta) &&
-             var_id != NULL && is_string_meta(&var_id->meta) && is_byte_meta(var_meta))
+             var_id != NULL && is_string_meta(&var_id->meta) && is_byte_meta(var_meta)) {
         /* when assigning to byte value of string */
-        make_byte_assign(trans, var_exp, val_exp, pos);
+        ast_exp_t *call_exp =
+            syslib_make_char_set(var_exp->u_arr.id_exp, var_exp->u_arr.idx_exp, val_exp, pos);
+
+        stmt_trans(trans, stmt_new_exp(call_exp, pos));
+    }
     else if ((is_array_meta(var_meta) && is_fixed_array(var_meta)) ||
-             (!is_array_meta(var_meta) && is_struct_meta(var_meta)))
+             (!is_array_meta(var_meta) && is_struct_meta(var_meta))) {
         /* when assigning to fixed-length arrays or struct variable */
-        stmt_trans_memcpy(trans, var_exp, val_exp, meta_memsz(var_meta), pos);
-    else
+        ast_exp_t *call_exp = syslib_make_memcpy(var_exp, val_exp, meta_memsz(var_meta), pos);
+
+        stmt_trans(trans, stmt_new_exp(call_exp, pos));
+    }
+    else {
         bb_add_stmt(trans->bb, stmt_new_assign(var_exp, val_exp, pos));
+    }
 }
 
 static void

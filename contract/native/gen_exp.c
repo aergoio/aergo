@@ -583,10 +583,23 @@ static BinaryenExpressionRef
 exp_gen_call(gen_t *gen, ast_exp_t *exp)
 {
     int i;
+    char *name;
     BinaryenIndex arg_cnt;
     BinaryenExpressionRef *arguments;
 
-    ASSERT(exp->u_call.qname != NULL);
+    if (exp->u_call.kind == FN_UDF || exp->u_call.kind == FN_CTOR) {
+        name = exp->u_call.qname;
+    }
+    else {
+        sys_fn_t *sys_fn = SYS_FN(exp->u_call.kind);
+
+        if (exp->u_call.kind != FN_ALLOCA)
+            md_add_abi(gen->md, syslib_abi(sys_fn));
+
+        name = sys_fn->qname;
+    }
+
+    ASSERT1(name != NULL, exp->u_call.kind);
 
     arg_cnt = vector_size(exp->u_call.arg_exps);
     arguments = xmalloc(sizeof(BinaryenExpressionRef) * arg_cnt);
@@ -595,7 +608,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
         arguments[i] = exp_gen(gen, vector_get_exp(exp->u_call.arg_exps, i), NULL);
     }
 
-    return BinaryenCall(gen->module, exp->u_call.qname, arguments, arg_cnt, meta_gen(&exp->meta));
+    return BinaryenCall(gen->module, name, arguments, arg_cnt, meta_gen(&exp->meta));
 }
 
 static BinaryenExpressionRef

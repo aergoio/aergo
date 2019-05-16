@@ -40,7 +40,7 @@ sys_fn_t sys_fntab_[FN_MAX] = {
 #undef fn_def
 #define fn_def(kind, name, ...)                                                                    \
     { name, SYSLIB_MODULE"."name, __VA_ARGS__ },
-#include "syslib.list"
+#include "fn.list"
 };
 
 void
@@ -142,6 +142,115 @@ syslib_gen(gen_t *gen, fn_kind_t kind)
 
     BinaryenAddFunction(gen->module, SYS_FN(kind)->qname, type, locals, 2,
                         BinaryenBlock(gen->module, NULL, children, 4, BinaryenTypeInt32()));
+}
+
+ast_exp_t *
+syslib_make_alloc(fn_kind_t kind, uint32_t size, uint32_t align, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_call(kind, NULL, NULL, pos);
+    ast_exp_t *arg_exp;
+
+    exp->u_call.arg_exps = vector_new();
+
+    arg_exp = exp_new_lit_int(size, pos);
+    meta_set_int32(&arg_exp->meta);
+    exp_add(exp->u_call.arg_exps, arg_exp);
+
+    arg_exp = exp_new_lit_int(align, pos);
+    meta_set_int32(&arg_exp->meta);
+    exp_add(exp->u_call.arg_exps, arg_exp);
+
+    meta_set_int32(&exp->meta);
+
+    return exp;
+}
+
+ast_exp_t *
+syslib_make_memcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, uint32_t size, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_call(FN_MEMCPY, NULL, NULL, pos);
+    ast_exp_t *arg_exp;
+
+    exp->u_call.arg_exps = vector_new();
+
+    exp_add(exp->u_call.arg_exps, dest_exp);
+    exp_add(exp->u_call.arg_exps, src_exp);
+
+    arg_exp = exp_new_lit_int(size, pos);
+    meta_set_int32(&arg_exp->meta);
+    exp_add(exp->u_call.arg_exps, arg_exp);
+
+    meta_set_void(&exp->meta);
+
+    return exp;
+}
+
+ast_exp_t *
+syslib_make_memset(ast_exp_t *addr_exp, uint32_t val, uint32_t size, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_call(FN_MEMSET, NULL, NULL, pos);
+    ast_exp_t *arg_exp;
+
+    exp->u_call.arg_exps = vector_new();
+
+    exp_add(exp->u_call.arg_exps, addr_exp);
+
+    arg_exp = exp_new_lit_int(val, pos);
+    meta_set_int32(&arg_exp->meta);
+    exp_add(exp->u_call.arg_exps, arg_exp);
+
+    arg_exp = exp_new_lit_int(size, pos);
+    meta_set_int32(&arg_exp->meta);
+    exp_add(exp->u_call.arg_exps, arg_exp);
+
+    meta_set_void(&exp->meta);
+
+    return exp;
+}
+
+ast_exp_t *
+syslib_make_strcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_call(FN_STRCPY, NULL, NULL, pos);
+
+    exp->u_call.arg_exps = vector_new();
+
+    exp_add(exp->u_call.arg_exps, dest_exp);
+    exp_add(exp->u_call.arg_exps, src_exp);
+
+    meta_set_void(&exp->meta);
+
+    return exp;
+}
+
+ast_exp_t *
+syslib_make_strlen(ast_exp_t *addr_exp, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_call(FN_STRLEN, NULL, NULL, pos);
+
+    exp->u_call.arg_exps = vector_new();
+
+    exp_add(exp->u_call.arg_exps, addr_exp);
+
+    meta_set_int32(&exp->meta);
+
+    return exp;
+}
+
+ast_exp_t *
+syslib_make_char_set(ast_exp_t *addr_exp, ast_exp_t *idx_exp, ast_exp_t *val_exp, src_pos_t *pos)
+{
+    ast_exp_t *exp = exp_new_call(FN_CHAR_SET, NULL, NULL, pos);
+
+    exp->u_call.arg_exps = vector_new();
+
+    exp_add(exp->u_call.arg_exps, addr_exp);
+    exp_add(exp->u_call.arg_exps, idx_exp);
+    exp_add(exp->u_call.arg_exps, val_exp);
+
+    meta_set_void(&exp->meta);
+
+    return exp;
 }
 
 /* end of syslib.c */

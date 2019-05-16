@@ -22,15 +22,16 @@
 #define syslib_call_2(gen, kind, arg1, arg2)                                                       \
     syslib_call((gen), (kind), 2, (arg1), (arg2))
 
+#define syslib_make_malloc(size, align, pos)                                                       \
+    syslib_make_alloc(FN_MALLOC, (size), (align), (pos))
+
+#define syslib_make_alloca(size, align, pos)                                                       \
+    syslib_make_alloc(FN_ALLOCA, (size), (align), (pos))
+
 #ifndef _IR_ABI_T
 #define _IR_ABI_T
 typedef struct ir_abi_s ir_abi_t;
 #endif /* ! _IR_ABI_T */
-
-#ifndef _AST_ID_T
-#define _AST_ID_T
-typedef struct ast_id_s ast_id_t;
-#endif /* ! _AST_ID_T */
 
 #ifndef _AST_EXP_T
 #define _AST_EXP_T
@@ -56,5 +57,14 @@ ir_abi_t *syslib_abi(sys_fn_t *sys_fn);
 BinaryenExpressionRef syslib_call(gen_t *gen, fn_kind_t kind, int argc, ...);
 
 void syslib_gen(gen_t *gen, fn_kind_t kind);
+
+ast_exp_t *syslib_make_alloc(fn_kind_t kind, uint32_t size, uint32_t align, src_pos_t *pos);
+ast_exp_t *syslib_make_memcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, uint32_t size,
+                              src_pos_t *pos);
+ast_exp_t *syslib_make_memset(ast_exp_t *addr_exp, uint32_t val, uint32_t size, src_pos_t *pos);
+ast_exp_t *syslib_make_strcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, src_pos_t *pos);
+ast_exp_t *syslib_make_strlen(ast_exp_t *addr_exp, src_pos_t *pos);
+ast_exp_t *syslib_make_char_set(ast_exp_t *addr_exp, ast_exp_t *idx_exp, ast_exp_t *val_exp,
+                                src_pos_t *pos);
 
 #endif /* ! _SYSLIB_H */
