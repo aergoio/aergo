@@ -99,6 +99,7 @@ static int moduleCall(lua_State *L)
 	char *amount;
 
 	if (service == NULL) {
+	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
 	}
 
@@ -119,12 +120,14 @@ static int moduleCall(lua_State *L)
 	fname = (char *)luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {
+	    reset_amount_info(L);
 		luaL_throwerror(L);
 	}
 
     ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas);
 	if (ret.r1 != NULL) {
 		free(json_args);
+	    reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
@@ -148,6 +151,7 @@ static int moduleDelegateCall(lua_State *L)
 	lua_Integer gas;
 
 	if (service == NULL) {
+	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
 	}
 
@@ -162,11 +166,13 @@ static int moduleDelegateCall(lua_State *L)
 	fname = (char *)luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {
+	    reset_amount_info(L);
 		luaL_throwerror(L);
 	}
 	ret = LuaDelegateCallContract(L, service, contract, fname, json_args, gas);
 	if (ret.r1 != NULL) {
 		free(json_args);
+	    reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
@@ -304,6 +310,7 @@ static int moduleDeploy(lua_State *L)
 	char *amount;
 
 	if (service == NULL) {
+	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
 	}
 
@@ -316,12 +323,14 @@ static int moduleDeploy(lua_State *L)
 	contract = (char *)luaL_checkstring(L, 2);
 	json_args = lua_util_get_json_from_stack (L, 3, lua_gettop(L), false);
 	if (json_args == NULL) {
+	    reset_amount_info(L);
 		luaL_throwerror(L);
 	}
 
 	ret = LuaDeployContract(L, service, contract, json_args, amount);
 	if (ret.r0 < 0) {
 		free(json_args);
+	    reset_amount_info(L);
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
