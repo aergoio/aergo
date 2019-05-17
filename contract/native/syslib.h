@@ -62,7 +62,6 @@ ast_exp_t *syslib_make_alloc(fn_kind_t kind, uint32_t size, uint32_t align, src_
 ast_exp_t *syslib_make_memcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, uint32_t size,
                               src_pos_t *pos);
 ast_exp_t *syslib_make_memset(ast_exp_t *addr_exp, uint32_t val, uint32_t size, src_pos_t *pos);
-ast_exp_t *syslib_make_strcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, src_pos_t *pos);
 ast_exp_t *syslib_make_strlen(ast_exp_t *addr_exp, src_pos_t *pos);
 ast_exp_t *syslib_make_char_set(ast_exp_t *addr_exp, ast_exp_t *idx_exp, ast_exp_t *val_exp,
                                 src_pos_t *pos);

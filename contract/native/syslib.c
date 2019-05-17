@@ -209,21 +209,6 @@ syslib_make_memset(ast_exp_t *addr_exp, uint32_t val, uint32_t size, src_pos_t *
 }
 
 ast_exp_t *
-syslib_make_strcpy(ast_exp_t *dest_exp, ast_exp_t *src_exp, src_pos_t *pos)
-{
-    ast_exp_t *exp = exp_new_call(FN_STRCPY, NULL, NULL, pos);
-
-    exp->u_call.arg_exps = vector_new();
-
-    exp_add(exp->u_call.arg_exps, dest_exp);
-    exp_add(exp->u_call.arg_exps, src_exp);
-
-    meta_set_void(&exp->meta);
-
-    return exp;
-}
-
-ast_exp_t *
 syslib_make_strlen(ast_exp_t *addr_exp, src_pos_t *pos)
 {
     ast_exp_t *exp = exp_new_call(FN_STRLEN, NULL, NULL, pos);
