@@ -63,13 +63,12 @@ typedef enum type_e {
     TYPE_ARRAY      = 11,
     TYPE_COMPARABLE = TYPE_ARRAY,
 
-    TYPE_LIST       = 12,
-    TYPE_MAP        = 13,
-    TYPE_OBJECT     = 14,           /* contract, interface or null */
-    TYPE_CURSOR     = 15,
+    TYPE_MAP        = 12,
+    TYPE_OBJECT     = 13,           /* contract, interface or null */
+    TYPE_CURSOR     = 14,
 
-    TYPE_VOID       = 16,           /* return type of function */
-    TYPE_TUPLE      = 17,           /* tuple expression */
+    TYPE_VOID       = 15,           /* return type of function */
+    TYPE_TUPLE      = 16,           /* tuple expression */
     TYPE_MAX
 } type_t;
 

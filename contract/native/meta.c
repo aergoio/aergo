@@ -35,13 +35,6 @@ meta_to_str(meta_t *meta)
             strbuf_cat(&buf, "[]");
         }
     }
-    else if (is_list_meta(meta)) {
-        ASSERT1(meta->elem_cnt == 1, meta->elem_cnt);
-
-        strbuf_cat(&buf, "list(");
-        strbuf_cat(&buf, meta_to_str(meta->elems[0]));
-        strbuf_cat(&buf, ")");
-    }
     else if (is_map_meta(meta)) {
         ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
 

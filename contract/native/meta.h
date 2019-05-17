@@ -22,7 +22,6 @@
 #define is_account_type(type)       ((type) == TYPE_ACCOUNT)
 #define is_struct_type(type)        ((type) == TYPE_STRUCT)
 #define is_array_type(type)         ((type) == TYPE_ARRAY)
-#define is_list_type(type)          ((type) == TYPE_LIST)
 #define is_map_type(type)           ((type) == TYPE_MAP)
 #define is_object_type(type)        ((type) == TYPE_OBJECT)
 #define is_void_type(type)          ((type) == TYPE_VOID)
@@ -40,7 +39,6 @@
 #define is_account_meta(meta)       is_account_type((meta)->type)
 #define is_struct_meta(meta)        is_struct_type((meta)->type)
 #define is_array_meta(meta)         is_array_type((meta)->type)
-#define is_list_meta(meta)          is_list_type((meta)->type)
 #define is_map_meta(meta)           is_map_type((meta)->type)
 #define is_object_meta(meta)        is_object_type((meta)->type)
 #define is_void_meta(meta)          is_void_type((meta)->type)
@@ -56,7 +54,7 @@
 
 #define is_nullable_meta(meta)                                                                     \
     ((is_array_meta(meta) && !is_fixed_meta(meta)) || is_string_meta(meta) ||                      \
-     is_list_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
+     is_map_meta(meta) || is_object_meta(meta))
 
 #define is_raw_meta(meta)                                                                          \
     (is_struct_meta(meta) || (is_array_meta(meta) && is_fixed_meta(meta)))
@@ -120,7 +118,7 @@ struct meta_s {
     int arr_dim;            /* current dimension */
     int *dim_sizes;         /* size of each dimension */
 
-    /* structured elements (e.g, struct, array, list, map, tuple) */
+    /* structured elements (e.g, struct, array, map, tuple) */
     int elem_cnt;
     meta_t **elems;
 
