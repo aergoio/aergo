@@ -272,8 +272,8 @@ func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
 	assert.Equal(t, mainChain.BestBlock.BlockHash(), orgBestBlock.BlockHash())
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
-	debugger = newDebugger()
-	debugger.set(DEBUG_CHAIN_STOP, 1, false)
+	TestDebugger = newDebugger()
+	TestDebugger.set(DEBUG_CHAIN_STOP, 1, false)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})
@@ -283,7 +283,7 @@ func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
 	newBestBlock, _ := cs.GetBestBlock()
 	assert.Equal(t, newBestBlock.GetHeader().BlockNo, orgBestBlock.GetHeader().BlockNo)
 
-	debugger.clear()
+	TestDebugger.clear()
 	cs.errBlocks.Purge()
 
 	// chain swap is not complete, so has nothing to do
@@ -296,7 +296,7 @@ func TestReorgCrashRecoverAfterReorgMarker(t *testing.T) {
 	testReorgCrashRecoverCond(t, DEBUG_CHAIN_STOP, 3)
 }
 
-func testReorgCrashRecoverCond(t *testing.T, cond stopCond, value int) {
+func testReorgCrashRecoverCond(t *testing.T, cond StopCond, value int) {
 	cs, mainChain, sideChain := testSideBranch(t, 5)
 
 	// add heigher block to sideChain
@@ -312,8 +312,8 @@ func testReorgCrashRecoverCond(t *testing.T, cond stopCond, value int) {
 	assert.Equal(t, mainChain.BestBlock.BlockHash(), orgBestBlock.BlockHash())
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
-	debugger = newDebugger()
-	debugger.set(cond, value, false)
+	TestDebugger = newDebugger()
+	TestDebugger.set(cond, value, false)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})
@@ -321,7 +321,7 @@ func testReorgCrashRecoverCond(t *testing.T, cond stopCond, value int) {
 
 	assert.True(t, !checkRecoveryDone(t, cs.cdb, sideChain))
 
-	debugger.clear()
+	TestDebugger.clear()
 	cs.errBlocks.Purge()
 
 	// must recover chainDB before chainservice.Recover()

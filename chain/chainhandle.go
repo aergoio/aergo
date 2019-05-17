@@ -306,7 +306,17 @@ func (cp *chainProcessor) notifyBlockByOther(block *types.Block) {
 	}
 }
 
+func checkDebugSleep(isBP bool) {
+	if isBP {
+		_ = TestDebugger.Check(DEBUG_CHAIN_BP_SLEEP, 0, nil)
+	} else {
+		_ = TestDebugger.Check(DEBUG_CHAIN_OTHER_SLEEP, 0, nil)
+	}
+}
+
 func (cp *chainProcessor) executeBlock(block *types.Block) error {
+	checkDebugSleep(cp.isByBP)
+
 	err := cp.ChainService.executeBlock(cp.state, block)
 	cp.state = nil
 	return err

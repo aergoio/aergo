@@ -1,6 +1,7 @@
 package syncer
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"runtime/debug"
 
@@ -385,6 +386,10 @@ func (syncer *Syncer) handleGetHashByNoRsp(msg *message.GetHashByNoRsp) {
 
 func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	logger.Debug().Msg("syncer received finder result message")
+
+	if err := chain.TestDebugger.Check(chain.DEBUG_SYNCER_CRASH, 0, nil); err != nil {
+		return err
+	}
 
 	if msg.Err != nil || msg.Ancestor == nil {
 		logger.Error().Err(msg.Err).Msg("Find Ancestor failed")

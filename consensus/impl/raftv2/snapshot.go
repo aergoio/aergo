@@ -2,6 +2,7 @@ package raftv2
 
 import (
 	"errors"
+	chainsvc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -91,10 +92,7 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 		return nil, ErrClusterMismatchConfState
 	}
 
-	if cluster.effectiveMembers != cluster.members {
-		return nil, ErrNotExistRuntimeMembers
-	}
-	members := cluster.effectiveMembers.ToArray()
+	members := cluster.getMembers().ToArray()
 
 	snap := consensus.NewSnapshotData(members, snapBlock)
 	if snap == nil {
@@ -114,7 +112,8 @@ func (chainsnap *ChainSnapshotter) SaveFromRemote(r io.Reader, id uint64, msg ra
 		return 0, ErrNotMsgSnap
 	}
 
-	//receive chain & request sync & wait
+	// not return until block sync is complete
+	// receive chain & request sync & wait
 	return 0, chainsnap.syncSnap(&msg.Snapshot)
 }
 
@@ -123,7 +122,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 
 	err := snapdata.Decode(snap.Data)
 	if err != nil {
-		logger.Fatal().Msg("failed to unmarshal snapshot data to write")
+		logger.Error().Msg("failed to unmarshal snapshot data to write")
 		return err
 	}
 
@@ -132,7 +131,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	// TODO	request sync for chain with snapshot.data
 	// wait to finish sync of chain
 	if err := chainsnap.requestSync(&snapdata.Chain); err != nil {
-		logger.Fatal().Err(err).Msg("failed to sync. need to retry with other leader, try N times and shutdown")
+		logger.Error().Err(err).Msg("failed to sync snapshot")
 		return err
 	}
 
@@ -168,7 +167,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 					return "", err
 				}
 			} else {
-				peerID, err = chainsnap.cluster.getEffectiveMembers().getMemberPeerAddress(leader)
+				peerID, err = chainsnap.cluster.getMembers().getMemberPeerAddress(leader)
 				if err != nil {
 					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err
@@ -188,6 +187,8 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 
 		return peerID, err
 	}
+
+	chainsvc.TestDebugger.Check(chainsvc.DEBUG_SYNCER_CRASH, 1, nil)
 
 	peerID, err := getSyncLeader()
 	if err != nil {

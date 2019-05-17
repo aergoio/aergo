@@ -125,7 +125,7 @@ func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.Blo
 				Str("hash", enc.ToString(targetHash)).
 				Msg("failed to sync")
 
-			return ErrSyncChain
+			return err
 		}
 	}
 

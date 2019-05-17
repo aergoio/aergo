@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
@@ -46,9 +47,9 @@ import (
 
 //noinspection ALL
 var (
-	raftLogger              raftlib.Logger
-	defaultSnapCount        uint64 = 10
-	snapshotCatchUpEntriesN uint64 = 10
+	raftLogger                  raftlib.Logger
+	ConfSnapFrequency           uint64 = 10
+	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
 )
 
 var (
@@ -100,11 +101,11 @@ type raftServer struct {
 	snapshotter      *ChainSnapshotter
 	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
 
-	snapCount uint64
-	transport *rafthttp.Transport
-	stopc     chan struct{} // signals proposal channel closed
-	httpstopc chan struct{} // signals http server to shutdown
-	httpdonec chan struct{} // signals http server shutdown complete
+	snapFrequency uint64
+	transport     *rafthttp.Transport
+	stopc         chan struct{} // signals proposal channel closed
+	httpstopc     chan struct{} // signals http server to shutdown
+	httpdonec     chan struct{} // signals http server shutdown complete
 
 	leaderStatus LeaderStatus
 
@@ -154,7 +155,6 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 		MaxInflightMsgs:           256,
 		Logger:                    raftLogger,
 		CheckQuorum:               true,
-		PreVote:                   true,
 		DisableProposalForwarding: true,
 	}
 
@@ -177,22 +177,22 @@ func newRaftServer(hub *component.ComponentHub,
 	delayPromote bool,
 	chainWal consensus.ChainWAL) *raftServer {
 
-	errorC := make(chan error)
+	errorC := make(chan error, 1)
 
 	rs := &raftServer{
-		ComponentHub: hub,
-		cluster:      cluster,
-		walDB:        NewWalDB(chainWal),
-		confChangeC:  confChangeC,
-		commitC:      commitC,
-		errorC:       errorC,
-		listenUrl:    listenUrl,
-		join:         join,
-		getSnapshot:  getSnapshot,
-		snapCount:    defaultSnapCount,
-		stopc:        make(chan struct{}),
-		httpstopc:    make(chan struct{}),
-		httpdonec:    make(chan struct{}),
+		ComponentHub:  hub,
+		cluster:       cluster,
+		walDB:         NewWalDB(chainWal),
+		confChangeC:   confChangeC,
+		commitC:       commitC,
+		errorC:        errorC,
+		listenUrl:     listenUrl,
+		join:          join,
+		getSnapshot:   getSnapshot,
+		snapFrequency: ConfSnapFrequency,
+		stopc:         make(chan struct{}),
+		httpstopc:     make(chan struct{}),
+		httpdonec:     make(chan struct{}),
 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
@@ -278,7 +278,7 @@ func (rs *raftServer) startRaft() {
 	case RaftServerStateRestart:
 		logger.Info().Msg("raft restart from wal")
 
-		rs.cluster.configMembers.reset()
+		rs.cluster.ResetMembers()
 
 		snapshot, err := rs.loadSnapshot()
 		if err != nil {
@@ -318,7 +318,9 @@ func (rs *raftServer) startRaft() {
 		}
 
 		rs.SetID(rs.cluster.NodeID())
-		rs.SaveIdentity()
+		if err := rs.SaveIdentity(); err != nil {
+			logger.Fatal().Err(err).Msg("fafiled to save identity")
+		}
 
 		rs.raftStorage = raftlib.NewMemoryStorage()
 
@@ -332,9 +334,13 @@ func (rs *raftServer) startRaft() {
 
 		var startPeers []raftlib.Peer
 
-		rs.cluster.SetThisNodeID()
+		if err := rs.cluster.SetThisNodeID(); err != nil {
+			logger.Fatal().Err(err).Msg("failed to set id of this node")
+		}
 		rs.SetID(rs.cluster.NodeID())
-		rs.SaveIdentity()
+		if err := rs.SaveIdentity(); err != nil {
+			logger.Fatal().Err(err).Msg("fafiled to save identity")
+		}
 
 		startPeers, err := rs.makeStartPeers()
 		if err != nil {
@@ -366,7 +372,7 @@ func (rs *raftServer) startTransport() {
 		ServerStats: stats.NewServerStats("", ""),
 		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(uint64(rs.id), 10)),
 		Snapshotter: rs.snapshotter,
-		ErrorC:      make(chan error),
+		ErrorC:      rs.errorC,
 	}
 
 	rs.transport.SetLogger(httpLogger)
@@ -375,7 +381,7 @@ func (rs *raftServer) startTransport() {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
 	}
 
-	for _, member := range rs.cluster.getEffectiveMembers().MapByID {
+	for _, member := range rs.cluster.getMembers().MapByID {
 		if rs.cluster.NodeID() != member.ID {
 			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})
 		}
@@ -427,11 +433,7 @@ func (rs *raftServer) stopHTTP() {
 }
 
 func (rs *raftServer) writeError(err error) {
-	rs.stopHTTP()
-	close(rs.commitC)
-	rs.errorC <- err
-	close(rs.errorC)
-	rs.node.Stop()
+	logger.Error().Err(err).Msg("write err has occurend raft server. ")
 }
 
 // TODO timeout handling with context
@@ -548,7 +550,7 @@ func (rs *raftServer) serveChannels() {
 			}
 
 			rs.node.Advance()
-		case err := <-rs.transport.ErrorC:
+		case err := <-rs.errorC:
 			rs.writeError(err)
 			return
 
@@ -800,14 +802,14 @@ func (rs *raftServer) triggerSnapshot() {
 
 	newSnapshotIndex := rs.prevProgress.index
 
-	if newSnapshotIndex-rs.snapshotIndex <= rs.snapCount {
+	if newSnapshotIndex-rs.snapshotIndex <= rs.snapFrequency {
 		return
 	}
 
 	logger.Info().Uint64("applied", rs.appliedIndex).Uint64("new snap index", newSnapshotIndex).Uint64("last snapshot index", rs.snapshotIndex).Msg("start snapshot")
 
 	// make snapshot data of previous connected block
-	snapdata, err := rs.snapshotter.createSnapshotData(rs.cluster, rs.prevProgress.block, &rs.prevProgress.confState)
+	snapdata, err := rs.snapshotter.createSnapshotData(rs.cluster, rs.prevProgress.block, &rs.confState)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create snapshot data from prev block")
 	}
@@ -829,8 +831,8 @@ func (rs *raftServer) triggerSnapshot() {
 	}
 
 	compactIndex := uint64(1)
-	if newSnapshotIndex > snapshotCatchUpEntriesN {
-		compactIndex = newSnapshotIndex - snapshotCatchUpEntriesN
+	if newSnapshotIndex > ConfSnapshotCatchUpEntriesN {
+		compactIndex = newSnapshotIndex - ConfSnapshotCatchUpEntriesN
 	}
 	if err := rs.raftStorage.Compact(compactIndex); err != nil {
 		if err == raftlib.ErrCompacted {
@@ -841,6 +843,12 @@ func (rs *raftServer) triggerSnapshot() {
 
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")
 	rs.setSnapshotIndex(newSnapshotIndex)
+
+	chain.TestDebugger.Check(chain.DEBUG_RAFT_SNAP_FREQ, 0,
+		func(freq int) error {
+			rs.snapFrequency = uint64(freq)
+			return nil
+		})
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
@@ -976,8 +984,10 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
 		}
 
-		if len(cc.Context) > 0 {
+		if len(cc.Context) > 0 && rs.id != cc.NodeID {
 			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
+		} else {
+			logger.Debug().Msg("skip add peer myself for addnode ")
 		}
 	case raftpb.ConfChangeRemoveNode:
 		if err := rs.cluster.removeMember(member); err != nil {
@@ -1075,9 +1085,24 @@ func (rs *raftServer) setConfState(state raftpb.ConfState) {
 func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
 	return rs.node.Step(ctx, m)
 }
-func (rs *raftServer) IsIDRemoved(id uint64) bool                              { return false }
-func (rs *raftServer) ReportUnreachable(id uint64)                             {}
-func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {}
+
+func (rs *raftServer) IsIDRemoved(id uint64) bool {
+	return rs.cluster.IsIDRemoved(id)
+}
+
+func (rs *raftServer) ReportUnreachable(id uint64) {
+	logger.Debug().Str("toID", MemberIDToString(id)).Msg("report unreachable")
+
+	rs.node.ReportUnreachable(id)
+}
+
+func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {
+	if status == raftlib.SnapshotFinish {
+		logger.Debug().Str("toID", MemberIDToString(id)).Bool("isSucceed", status == raftlib.SnapshotFinish).Msg("report snapshot result")
+	}
+
+	rs.node.ReportSnapshot(id, status)
+}
 
 func (rs *raftServer) WaitStartup() {
 	logger.Debug().Msg("raft start wait")
@@ -1127,7 +1152,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
 		cl, err = GetClusterInfo(rs.ComponentHub)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
-				logger.Debug().Int("try", i).Msg("failed try to get cluster. and sleep")
+				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
 				time.Sleep(time.Second * 10)
 			} else {
 				logger.Warn().Err(err).Int("try", i).Msg("failed try to get cluster")
