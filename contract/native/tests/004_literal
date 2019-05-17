@@ -563,7 +563,7 @@ contract test {
 }
 
 @test(not_allowed_allocator)
-@error(ERROR_NOT_ALLOWED_ALLOC,3)
+@error(ERROR_NOT_ALLOWED_ALLOC,2)
 contract test {
     int i[2] = new int[2];
     type t struct {
@@ -571,7 +571,6 @@ contract test {
         string b;
     }
     map(string, t) m[2] = new map(string, t)[2];
-    byte b[][4] = new byte[3][4];
 }
 
 @test(contract_initializer)

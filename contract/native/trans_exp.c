@@ -23,7 +23,6 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
 {
     int addr;
     value_t *val = &exp->u_lit.val;
-    meta_t *meta = &exp->meta;
     ir_md_t *md = trans->md;
 
     ASSERT(md != NULL);
@@ -38,7 +37,6 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
         /* Since val_set_int() is a macro, DO NOT combine the next two lines. */
         addr = sgmt_add_str(&md->sgmt, val_ptr(val));
         value_set_int(val, addr);
-        meta_set_int32(meta);
         break;
 
     case TYPE_OBJECT:
@@ -50,7 +48,6 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
             addr = sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val));
             value_set_int(val, addr);
         }
-        meta_set_int32(meta);
         break;
 
     default:
@@ -252,8 +249,8 @@ exp_trans_args(trans_t *trans, ast_exp_t *exp)
         param_meta = &vector_get_id(fn_id->u_fn.param_ids, j++)->meta;
 
         if ((arg_exp->id == NULL || !is_global_id(arg_exp->id)) &&
-            ((is_array_meta(param_meta) && is_fixed_array(param_meta)) ||
-             (!is_array_meta(param_meta) && is_struct_meta(param_meta)))) {
+            ((is_array_meta(param_meta) && is_fixed_meta(param_meta)) ||
+             is_struct_meta(param_meta))) {
             uint32_t reg_idx;
             ast_exp_t *reg_exp;
             ast_exp_t *call_exp;
@@ -449,7 +446,7 @@ make_static_init(trans_t *trans, ast_exp_t *exp)
     raw = xcalloc(size);
 
     if (is_array_meta(meta)) {
-        ASSERT(is_fixed_array(meta));
+        ASSERT(is_fixed_meta(meta));
         ASSERT(meta->dim_sizes[0] > 0);
         ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
         ASSERT2((ptrdiff_t)(raw + offset) % meta_align(meta) == 0, offset, meta_align(meta));
@@ -533,12 +530,12 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
     }
 
     if (is_array_meta(meta)) {
-        ASSERT(is_fixed_array(meta));
+        ASSERT(is_fixed_meta(meta));
         ASSERT1(meta->dim_sizes[0] > 0, meta->dim_sizes[0]);
         ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
         ASSERT2(offset % meta_align(meta) == 0, offset, meta_align(meta));
 
-        make_elem_count(trans, meta, reg_idx, offset, meta->dim_sizes[0]);
+        make_elem_count(trans, meta->elems[0], reg_idx, offset, meta->dim_sizes[0]);
         offset += meta_align(meta);
     }
 

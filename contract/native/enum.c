@@ -21,6 +21,8 @@ char *type_names_[TYPE_MAX] = {
     "string",
     "account",
     "struct",
+    "array",
+    "list",
     "map",
     "object",
     "cursor",
@@ -43,6 +45,8 @@ int type_sizes_[TYPE_MAX] = {
     I32,                /* TYPE_STRING */
     I32,                /* TYPE_ACCOUNT */
     I32,                /* TYPE_STRUCT */
+    I32,                /* TYPE_ARRAY */
+    I32,                /* TYPE_LIST */
     I32,                /* TYPE_MAP */
     I32,                /* TYPE_OBJECT */
     I32,                /* TYPE_CURSOR */
@@ -62,6 +66,8 @@ int type_c_sizes_[TYPE_MAX] = {
     sizeof(int32_t),    /* TYPE_STRING */
     sizeof(int32_t),    /* TYPE_ACCOUNT */
     sizeof(int32_t),    /* TYPE_STRUCT */
+    sizeof(int32_t),    /* TYPE_ARRAY */
+    sizeof(int32_t),    /* TYPE_LIST */
     sizeof(int32_t),    /* TYPE_MAP */
     sizeof(int32_t),    /* TYPE_OBJECT */
     sizeof(int32_t),    /* TYPE_CURSOR */

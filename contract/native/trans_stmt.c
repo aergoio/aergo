@@ -88,8 +88,7 @@ make_struct_initz(trans_t *trans, ast_exp_t *var_exp, uint32_t offset)
     for (i = 0; i < meta->elem_cnt; i++) {
         meta_t *elem_meta = meta->elems[i];
 
-        if ((is_array_meta(elem_meta) && is_fixed_array(elem_meta)) ||
-            (!is_array_meta(elem_meta) && is_struct_meta(elem_meta))) {
+        if (is_raw_meta(elem_meta)) {
             ast_exp_t *mem_exp;
 
             mem_exp = exp_new_mem(meta->base_idx, meta->rel_addr, offset);
@@ -166,7 +165,7 @@ stmt_trans_initz(trans_t *trans, ast_exp_t *var_exp)
     /* Since variables may be defined in the loop, they are explicitly initialized. */
 
     if (is_array_meta(meta)) {
-        if (is_fixed_array(meta)) {
+        if (is_fixed_meta(meta)) {
             make_array_initz(trans, var_exp, 0, 0);
         }
         else {
@@ -210,8 +209,7 @@ make_mem_initz(trans_t *trans, ast_id_t *id)
         var_exp = exp_new_reg(meta->base_idx);
         meta_copy(&var_exp->meta, meta);
 
-        if ((is_array_meta(meta) && is_fixed_array(meta)) ||
-            (!is_array_meta(meta) && is_struct_meta(meta))) {
+        if (is_raw_meta(meta)) {
             ast_exp_t *call_exp = syslib_make_memset(var_exp, 0, meta_memsz(meta), &id->pos);
 
             stmt_trans(trans, stmt_new_exp(call_exp, &id->pos));
@@ -237,8 +235,7 @@ make_id_initz(trans_t *trans, ast_id_t *id)
 
         id->idx = fn_add_register(trans->fn, meta);
 
-        if ((is_array_meta(meta) && is_fixed_array(meta)) ||
-            (!is_array_meta(meta) && is_struct_meta(meta)))
+        if (is_raw_meta(meta))
             stmt_trans_alloc(trans, id->idx, dflt_exp != NULL && is_alloc_exp(dflt_exp), meta);
 
         meta->base_idx = id->idx;
@@ -353,21 +350,18 @@ make_assign(trans_t *trans, ast_exp_t *var_exp, ast_exp_t *val_exp, src_pos_t *p
         exp_trans(trans, val_exp);
     }
 
-    if (is_array_exp(var_exp) && !is_array_meta(&var_exp->u_arr.id_exp->meta) &&
-        var_id != NULL && is_map_meta(&var_id->meta)) {
+    if (is_array_exp(var_exp) && is_map_meta(&var_exp->u_arr.id_exp->meta)) {
         /* when assigning to value of map */
         make_map_assign(trans, var_exp, val_exp, pos);
     }
-    else if (is_array_exp(var_exp) && !is_array_meta(&var_exp->u_arr.id_exp->meta) &&
-             var_id != NULL && is_string_meta(&var_id->meta) && is_byte_meta(var_meta)) {
+    else if (is_array_exp(var_exp) && is_string_meta(&var_exp->u_arr.id_exp->meta)) {
         /* when assigning to byte value of string */
         ast_exp_t *call_exp =
             syslib_make_char_set(var_exp->u_arr.id_exp, var_exp->u_arr.idx_exp, val_exp, pos);
 
         stmt_trans(trans, stmt_new_exp(call_exp, pos));
     }
-    else if ((is_array_meta(var_meta) && is_fixed_array(var_meta)) ||
-             (!is_array_meta(var_meta) && is_struct_meta(var_meta))) {
+    else if (is_raw_meta(var_meta)) {
         /* when assigning to fixed-length arrays or struct variable */
         ast_exp_t *call_exp = syslib_make_memcpy(var_exp, val_exp, meta_memsz(var_meta), pos);
 

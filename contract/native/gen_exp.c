@@ -71,18 +71,19 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 
     address = exp_gen(gen, id_exp, NULL);
 
-    if (is_fixed_array(&id_exp->meta) && is_lit_exp(idx_exp)) {
+    if (is_fixed_meta(&id_exp->meta) && is_lit_exp(idx_exp)) {
         /* The total size of the subdimensions is required. */
         offset = meta_align(meta) + val_i64(&idx_exp->u_lit.val) * meta_memsz(meta);
     }
     else {
         fn_kind_t kind = FN_ARR_GET_I32;
+        meta_t *elem_meta = id_exp->meta.elems[0];
 
-        if (is_int64_meta(meta))
+        if (is_int64_meta(elem_meta))
             kind = FN_ARR_GET_I64;
 
         address = syslib_call(gen, kind, 4, address, i32_gen(gen, meta->arr_dim),
-                             exp_gen(gen, idx_exp, NULL), i32_gen(gen, meta_typsz(meta)));
+                             exp_gen(gen, idx_exp, NULL), i32_gen(gen, meta_typsz(elem_meta)));
     }
 
     ASSERT2(offset % meta_align(meta) == 0, offset, meta_align(meta));
@@ -584,8 +585,7 @@ exp_gen_mem(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
         return BinaryenStore(gen->module, meta_iosz(meta), offset, 0, address, value,
                              meta_gen(meta));
 
-    if ((is_array_meta(meta) && is_fixed_array(meta)) ||
-        (!is_array_meta(meta) && is_struct_meta(meta)))
+    if (is_raw_meta(meta))
         return BinaryenBinary(gen->module, BinaryenAddInt32(), address, i32_gen(gen, offset));
 
     return BinaryenLoad(gen->module, meta_iosz(meta), is_signed_meta(meta), offset, 0,

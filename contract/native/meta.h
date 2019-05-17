@@ -21,6 +21,8 @@
 #define is_string_type(type)        ((type) == TYPE_STRING)
 #define is_account_type(type)       ((type) == TYPE_ACCOUNT)
 #define is_struct_type(type)        ((type) == TYPE_STRUCT)
+#define is_array_type(type)         ((type) == TYPE_ARRAY)
+#define is_list_type(type)          ((type) == TYPE_LIST)
 #define is_map_type(type)           ((type) == TYPE_MAP)
 #define is_object_type(type)        ((type) == TYPE_OBJECT)
 #define is_void_type(type)          ((type) == TYPE_VOID)
@@ -37,6 +39,8 @@
 #define is_string_meta(meta)        is_string_type((meta)->type)
 #define is_account_meta(meta)       is_account_type((meta)->type)
 #define is_struct_meta(meta)        is_struct_type((meta)->type)
+#define is_array_meta(meta)         is_array_type((meta)->type)
+#define is_list_meta(meta)          is_list_type((meta)->type)
 #define is_map_meta(meta)           is_map_type((meta)->type)
 #define is_object_meta(meta)        is_object_type((meta)->type)
 #define is_void_meta(meta)          is_void_type((meta)->type)
@@ -51,11 +55,11 @@
 #define is_numeric_meta(meta)       (is_integer_meta(meta))
 
 #define is_nullable_meta(meta)                                                                     \
-    ((is_array_meta(meta) && !is_fixed_array(meta)) || is_string_meta(meta) ||                     \
-     is_struct_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
+    ((is_array_meta(meta) && !is_fixed_meta(meta)) || is_string_meta(meta) ||                      \
+     is_list_meta(meta) || is_map_meta(meta) || is_object_meta(meta))
 
-#define is_address_meta(meta)                                                                      \
-    (is_string_meta(meta) || is_array_meta(meta) || is_struct_meta(meta) || is_map_meta(meta))
+#define is_raw_meta(meta)                                                                          \
+    (is_struct_meta(meta) || (is_array_meta(meta) && is_fixed_meta(meta)))
 
 #define is_primitive_meta(meta)     ((meta)->type <= TYPE_STRING)
 #define is_comparable_meta(meta)    ((meta)->type > TYPE_NONE && (meta)->type <= TYPE_COMPARABLE)
@@ -67,9 +71,7 @@
       (is_numeric_meta(x) && is_numeric_meta(y))))
 
 #define is_undef_meta(meta)         (meta)->is_undef
-
-#define is_array_meta(meta)         ((meta)->arr_dim > 0)
-#define is_fixed_array(meta)        ((meta)->is_fixed)
+#define is_fixed_meta(meta)         (meta)->is_fixed
 
 #define meta_set_bool(meta)         meta_set((meta), TYPE_BOOL)
 #define meta_set_byte(meta)         meta_set((meta), TYPE_BYTE)
@@ -88,7 +90,9 @@
     ((is_tuple_meta(meta) || is_struct_meta(meta)) ? (meta)->elem_cnt : 1)
 
 #define meta_iosz(meta)                                                                            \
-    ((is_array_meta(meta) && !is_fixed_array(meta)) ? ADDR_SIZE : TYPE_C_SIZE((meta)->type))
+    (is_array_meta(meta) ?                                                                         \
+     (is_fixed_meta(meta) ? TYPE_C_SIZE((meta)->elems[0]->type) : ADDR_SIZE) :                     \
+     TYPE_C_SIZE((meta)->type))
 
 #ifndef _META_T
 #define _META_T
@@ -116,7 +120,7 @@ struct meta_s {
     int arr_dim;            /* current dimension */
     int *dim_sizes;         /* size of each dimension */
 
-    /* structured elements (e.g, struct, tuple, map) */
+    /* structured elements (e.g, struct, array, list, map, tuple) */
     int elem_cnt;
     meta_t **elems;
 
@@ -133,7 +137,8 @@ struct meta_s {
 
 char *meta_to_str(meta_t *x);
 
-void meta_set_map(meta_t *meta, meta_t *k, meta_t *v);
+void meta_set_array(meta_t *meta, meta_t *elem_meta, int arr_dim);
+void meta_set_map(meta_t *meta, meta_t *key_meta, meta_t *val_meta);
 void meta_set_tuple(meta_t *meta, vector_t *elem_exps);
 
 void meta_set_struct(meta_t *meta, ast_id_t *id);
@@ -165,48 +170,39 @@ meta_set(meta_t *meta, type_t type)
 }
 
 static inline void
+meta_copy(meta_t *dest, meta_t *src)
+{
+    /* deliberately excluded base_idx, rel_addr, rel_offset, pos */
+    memcpy(dest, src, offsetof(meta_t, base_idx));
+}
+
+static inline void
 meta_set_undef(meta_t *meta)
 {
     meta->is_undef = true;
 }
 
 static inline void
-meta_set_arr_dim(meta_t *meta, int arr_dim)
-{
-    int i;
-
-    ASSERT1(arr_dim > 0, arr_dim);
-
-    meta->is_fixed = true;
-    meta->max_dim = arr_dim;
-    meta->arr_dim = arr_dim;
-
-    meta->dim_sizes = xmalloc(sizeof(int) * arr_dim);
-    for (i = 0; i < arr_dim; i++) {
-        meta->dim_sizes[i] = -1;
-    }
-}
-
-static inline void
-meta_set_dim_sz(meta_t *meta, int dim, int size)
+meta_set_arr_dim(meta_t *meta, int dim, int size)
 {
     ASSERT1(dim >= 0, dim);
     ASSERT1(size > 0, size);
+    ASSERT1(meta->elem_cnt == 1, meta->elem_cnt);
     ASSERT1(meta->arr_dim > 0, meta->arr_dim);
 
-    meta->is_fixed = true;
     meta->dim_sizes[dim] = size;
 }
 
 static inline void
 meta_strip_arr_dim(meta_t *meta)
 {
+    ASSERT1(meta->elem_cnt == 1, meta->elem_cnt);
     ASSERT1(meta->arr_dim > 0, meta->arr_dim);
 
     meta->arr_dim--;
 
     if (meta->arr_dim == 0)
-        meta->dim_sizes = NULL;
+        meta_copy(meta, meta->elems[0]);
     else
         meta->dim_sizes = &meta->dim_sizes[1];
 }
@@ -214,11 +210,10 @@ meta_strip_arr_dim(meta_t *meta)
 static inline uint32_t
 meta_typsz(meta_t *meta)
 {
+    int i;
     uint32_t size = 0;
 
     if (is_struct_meta(meta)) {
-        int i;
-
         for (i = 0; i < meta->elem_cnt; i++) {
             size = ALIGN(size, meta_align(meta->elems[i])) + meta_memsz(meta->elems[i]);
         }
@@ -233,41 +228,36 @@ meta_typsz(meta_t *meta)
 static inline uint32_t
 meta_memsz(meta_t *meta)
 {
-    uint32_t size = meta_typsz(meta);
+    int i;
+    uint32_t size;
+    uint32_t dim_sz = 1;
 
     ASSERT(!is_tuple_meta(meta));
 
-    if (is_array_meta(meta)) {
-        int i;
-        uint32_t dim_sz = 1;
+    if (!is_array_meta(meta))
+        return meta_typsz(meta);
 
-        ASSERT2(meta_align(meta) > 0, meta->type, meta_align(meta));
+    if (!is_fixed_meta(meta))
+        return ADDR_SIZE;
 
-        if (!is_fixed_array(meta))
-            return ADDR_SIZE;
+    ASSERT2(meta_align(meta) == 4 || meta_align(meta) == 8, meta->type, meta_align(meta));
 
-        /* element size */
-        for (i = 0; i < meta->arr_dim; i++) {
-            ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
-            size *= meta->dim_sizes[i];
-        }
+    size = meta_typsz(meta->elems[0]);
 
-        /* Each dimension has the count of elements (4 or 8 bytes) as a header. */
-        size += meta_align(meta);
-        for (i = 0; i < meta->arr_dim - 1; i++) {
-            dim_sz *= meta->dim_sizes[i];
-            size += dim_sz * meta_align(meta);
-        }
+    /* element size */
+    for (i = 0; i < meta->arr_dim; i++) {
+        ASSERT1(meta->dim_sizes[i] > 0, meta->dim_sizes[i]);
+        size *= meta->dim_sizes[i];
+    }
+
+    /* Each dimension has the count of elements (4 or 8 bytes) as a header. */
+    size += meta_align(meta);
+    for (i = 0; i < meta->arr_dim - 1; i++) {
+        dim_sz *= meta->dim_sizes[i];
+        size += dim_sz * meta_align(meta);
     }
 
     return size;
-}
-
-static inline void
-meta_copy(meta_t *dest, meta_t *src)
-{
-    /* deliberately excluded base_idx, rel_addr, rel_offset, pos */
-    memcpy(dest, src, offsetof(meta_t, base_idx));
 }
 
 #endif /* ! _META_H */

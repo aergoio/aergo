@@ -15,7 +15,6 @@
 char *
 meta_to_str(meta_t *meta)
 {
-    int i;
     strbuf_t buf;
 
     strbuf_init(&buf);
@@ -25,6 +24,23 @@ meta_to_str(meta_t *meta)
 
         strbuf_cat(&buf, "struct ");
         strbuf_cat(&buf, meta->type_id->name);
+    }
+    else if (is_array_meta(meta)) {
+        int i;
+
+        ASSERT1(meta->elem_cnt == 1, meta->elem_cnt);
+
+        strbuf_cat(&buf, meta_to_str(meta->elems[0]));
+        for (i = 0; i < meta->arr_dim; i++) {
+            strbuf_cat(&buf, "[]");
+        }
+    }
+    else if (is_list_meta(meta)) {
+        ASSERT1(meta->elem_cnt == 1, meta->elem_cnt);
+
+        strbuf_cat(&buf, "list(");
+        strbuf_cat(&buf, meta_to_str(meta->elems[0]));
+        strbuf_cat(&buf, ")");
     }
     else if (is_map_meta(meta)) {
         ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
@@ -48,23 +64,44 @@ meta_to_str(meta_t *meta)
         strbuf_cat(&buf, TYPE_NAME(meta->type));
     }
 
-    for (i = 0; i < meta->arr_dim; i++) {
-        strbuf_cat(&buf, "[]");
-    }
-
     return strbuf_str(&buf);
 }
 
 void
-meta_set_map(meta_t *meta, meta_t *k, meta_t *v)
+meta_set_array(meta_t *meta, meta_t *elem_meta, int arr_dim)
+{
+    int i;
+
+    ASSERT1(arr_dim > 0, arr_dim);
+
+    meta_set(meta, TYPE_ARRAY);
+
+    meta->is_fixed = true;
+    meta->max_dim = arr_dim;
+    meta->arr_dim = arr_dim;
+
+    meta->dim_sizes = xmalloc(sizeof(int) * arr_dim);
+    for (i = 0; i < arr_dim; i++) {
+        meta->dim_sizes[i] = -1;
+    }
+
+    meta->elem_cnt = 1;
+    meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
+    meta->elems[0] = elem_meta;
+
+    meta->align = TYPE_ALIGN(elem_meta->type);
+}
+
+void
+meta_set_map(meta_t *meta, meta_t *key_meta, meta_t *val_meta)
 {
     meta_set(meta, TYPE_MAP);
 
     meta->elem_cnt = 2;
     meta->elems = xmalloc(sizeof(meta_t *) * meta->elem_cnt);
 
-    meta->elems[0] = k;
-    meta->elems[1] = v;
+    meta->elems[0] = key_meta;
+    meta->elems[1] = val_meta;
 }
 
 void
@@ -288,29 +325,33 @@ meta_cmp_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
+    ASSERT1(x->elem_cnt == 1, x->elem_cnt);
+
     if (is_array_meta(y)) {
-        CHECK(meta_cmp_type(x, y));
+        ASSERT1(y->elem_cnt == 1, y->elem_cnt);
 
         if (x->arr_dim != y->arr_dim)
             RETURN(ERROR_MISMATCHED_TYPE, y->pos, meta_to_str(x), meta_to_str(y));
 
-        if (is_fixed_array(x)) {
+        if (is_fixed_meta(x)) {
             for (i = 0; i < x->arr_dim; i++) {
                 if (x->dim_sizes[i] != y->dim_sizes[i])
                     RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[i],
                            y->dim_sizes[i]);
             }
         }
+
+        CHECK(meta_cmp_type(x->elems[0], y->elems[0]));
     }
     else if (is_tuple_meta(y)) {
-        if (is_fixed_array(x) && x->dim_sizes[dim] != y->elem_cnt)
+        if (is_fixed_meta(x) && x->dim_sizes[dim] != y->elem_cnt)
             RETURN(ERROR_MISMATCHED_COUNT, y->pos, "element", x->dim_sizes[dim], y->elem_cnt);
 
         for (i = 0; i < y->elem_cnt; i++) {
             if (dim < x->arr_dim - 1)
                 CHECK(meta_cmp_array(x, dim + 1, y->elems[i]));
             else
-                CHECK(meta_cmp_type(x, y->elems[i]));
+                CHECK(meta_cmp_type(x->elems[0], y->elems[i]));
         }
     }
     else if (!is_undef_meta(y) || !is_object_meta(y)) {
@@ -390,31 +431,35 @@ meta_eval_array(meta_t *x, int dim, meta_t *y)
 {
     int i;
 
+    ASSERT1(x->elem_cnt == 1, x->elem_cnt);
     ASSERT2(x->max_dim == x->arr_dim, x->max_dim, x->arr_dim);
     ASSERT2(dim <= x->max_dim, dim, x->max_dim);
 
     if (is_tuple_meta(y)) {
         if (dim == x->max_dim) {
-            meta_eval_type(x, y);
+            meta_eval_type(x->elems[0], y);
         }
         else {
-            ASSERT1(y->elem_cnt > 0, y->elem_cnt);
+            ASSERT2(x->dim_sizes[dim] == -1 || x->dim_sizes[dim] == y->elem_cnt,
+                    x->dim_sizes[dim], y->elem_cnt);
 
             for (i = 0; i < y->elem_cnt; i++) {
                 meta_eval_array(x, dim + 1, y->elems[i]);
             }
 
-            y->type = x->type;
+            y->type = TYPE_ARRAY;
             y->is_fixed = true;
             y->max_dim = x->max_dim;
             y->arr_dim = x->max_dim - dim;
             y->dim_sizes = &x->dim_sizes[dim];
             y->dim_sizes[0] = y->elem_cnt;
             y->align = y->elems[0]->align;
+            y->elem_cnt = 1;
+            y->elems[0] = x->elems[0];
         }
     }
     else {
-        meta_eval_type(x, y);
+        meta_eval_type(x->elems[0], y);
     }
 }
 

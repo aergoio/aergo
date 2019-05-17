@@ -23,7 +23,7 @@ id_check_array(check_t *check, ast_id_t *id)
 
     ASSERT1(is_var_id(id), id->kind);
 
-    meta_set_arr_dim(&id->meta, vector_size(size_exps));
+    meta_set_array(&id->meta, &id->u_var.type_exp->meta, vector_size(size_exps));
 
     vector_foreach(size_exps, i) {
         ast_exp_t *size_exp = vector_get_exp(size_exps, i);
@@ -55,7 +55,7 @@ id_check_array(check_t *check, ast_id_t *id)
             if (dim_sz <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            meta_set_dim_sz(&id->meta, i, dim_sz);
+            meta_set_arr_dim(&id->meta, i, dim_sz);
         }
     }
 
@@ -77,10 +77,10 @@ id_check_var(check_t *check, ast_id_t *id)
 
     CHECK(exp_check(check, id->u_var.type_exp));
 
-    meta_copy(&id->meta, &id->u_var.type_exp->meta);
-
     if (id->u_var.size_exps != NULL)
         CHECK(id_check_array(check, id));
+    else
+        meta_copy(&id->meta, &id->u_var.type_exp->meta);
 
     if (dflt_exp != NULL) {
         /* TODO: named initializer */

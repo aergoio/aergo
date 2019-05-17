@@ -181,6 +181,7 @@ exp_check_array(check_t *check, ast_exp_t *exp)
     CHECK(exp_check(check, idx_exp));
 
     if (is_array_meta(id_meta)) {
+        ASSERT1(id_meta->elem_cnt == 1, id_meta->elem_cnt);
         ASSERT1(id_meta->arr_dim > 0, id_meta->arr_dim);
         ASSERT1(id_meta->dim_sizes != NULL, id_meta->arr_dim);
 
@@ -858,12 +859,16 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
 
     CHECK(exp_check(check, type_exp));
 
-    meta_copy(meta, &type_exp->meta);
+    if (size_exps == NULL) {
+        meta_copy(meta, &type_exp->meta);
 
-    if (size_exps != NULL) {
+        if (is_primitive_meta(meta) || is_object_meta(meta))
+            RETURN(ERROR_NOT_ALLOWED_ALLOC, &exp->pos);
+    }
+    else {
         int i, dim_sz;
 
-        meta_set_arr_dim(meta, vector_size(size_exps));
+        meta_set_array(meta, &type_exp->meta, vector_size(size_exps));
 
         vector_foreach(size_exps, i) {
             value_t *size_val = NULL;
@@ -887,11 +892,8 @@ exp_check_alloc(check_t *check, ast_exp_t *exp)
             if (dim_sz <= 0)
                 RETURN(ERROR_INVALID_SIZE_VAL, &size_exp->pos);
 
-            meta_set_dim_sz(meta, i, dim_sz);
+            meta_set_arr_dim(meta, i, dim_sz);
         }
-    }
-    else if (!is_array_meta(meta) && (is_primitive_meta(meta) || is_object_meta(meta))) {
-        RETURN(ERROR_NOT_ALLOWED_ALLOC, &exp->pos);
     }
 
     exp->usable_lval = false;

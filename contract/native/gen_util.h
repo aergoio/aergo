@@ -14,8 +14,7 @@
 #define i32_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralInt32(v))
 #define i64_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralInt64(v))
 
-#define meta_gen(meta)                                                                             \
-    (is_address_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
+#define meta_gen(meta)              type_gen((meta)->type)
 
 static inline BinaryenType
 type_gen(type_t type)
@@ -39,6 +38,8 @@ type_gen(type_t type)
     case TYPE_STRING:
     case TYPE_ACCOUNT:
     case TYPE_STRUCT:
+    case TYPE_ARRAY:
+    case TYPE_LIST:
     case TYPE_MAP:
     case TYPE_OBJECT:
     case TYPE_TUPLE:
