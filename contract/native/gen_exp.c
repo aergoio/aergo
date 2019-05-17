@@ -208,7 +208,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
 
     case OP_BIT_NOT:
         if (is_int256_meta(meta))
-            return syslib_call(gen, FN_MPZ_COM, 1, value);
+            return syslib_call(gen, FN_MPZ_NOT, 1, value);
 
         if (is_int64_meta(meta))
             return BinaryenBinary(gen->module, BinaryenXorInt64(), value, i64_gen(gen, -1));
