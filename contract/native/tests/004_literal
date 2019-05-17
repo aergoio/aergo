@@ -678,9 +678,15 @@ contract test {
 }
 
 @test(mismatched_allocator_type)
-@error(ERROR_MISMATCHED_TYPE,2)
+@error(ERROR_MISMATCHED_TYPE,3)
 contract test {
     int i[] = new int16[2];
+
+    type s struct {
+        bool x;
+        int256 y;
+    }
+    s v[] = new s;
 
     map(int, string) m[] = new map(int64, string)[2];
 }
