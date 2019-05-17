@@ -32,6 +32,38 @@ sgmt_lookup(ir_sgmt_t *sgmt, void *ptr, uint32_t len)
     return -1;
 }
 
+static int
+sgmt_add(ir_sgmt_t *sgmt, void *ptr, int len, int8_t align)
+{
+    int addr;
+
+    ASSERT(ptr != NULL);
+    ASSERT1(len > 0, len);
+    ASSERT1(align == 1 || align == 4 || align == 8, align);
+
+    ASSERT(ptr != NULL);
+    ASSERT1(len > 0, len);
+
+    addr = sgmt_lookup(sgmt, ptr, len);
+    if (addr >= 0)
+        return addr;
+
+    if (sgmt->size >= sgmt->cap)
+        sgmt_extend(sgmt);
+
+    sgmt->offset = ALIGN(sgmt->offset, align);
+    addr = sgmt->offset;
+
+    sgmt->lens[sgmt->size] = len;
+    sgmt->addrs[sgmt->size] = addr;
+    sgmt->datas[sgmt->size] = ptr;
+
+    sgmt->size++;
+    sgmt->offset += len;
+
+    return addr;
+}
+
 int
 sgmt_add_str(ir_sgmt_t *sgmt, char *str)
 {
@@ -43,9 +75,8 @@ sgmt_add_str(ir_sgmt_t *sgmt, char *str)
 
     len = strlen(str);
 
-    if (strchr(str, '\\') == NULL) {
-        return sgmt_add_raw(sgmt, str, len + 1);
-    }
+    if (strchr(str, '\\') == NULL)
+        return sgmt_add(sgmt, str, len + 1, 1);
 
     esc_str = xmalloc(len + 1);
 
@@ -60,40 +91,13 @@ sgmt_add_str(ir_sgmt_t *sgmt, char *str)
 
     esc_str[j++] = '\0';
 
-    return sgmt_add_raw(sgmt, esc_str, j);
+    return sgmt_add(sgmt, esc_str, j, 1);
 }
 
 int
-sgmt_add_raw(ir_sgmt_t *sgmt, void *ptr, uint32_t len)
+sgmt_add_raw(ir_sgmt_t *sgmt, void *ptr, int len)
 {
-    int addr;
-
-    ASSERT(ptr != NULL);
-    ASSERT1(len > 0, len);
-
-    addr = sgmt_lookup(sgmt, ptr, len);
-    if (addr >= 0)
-        return addr;
-
-    if (sgmt->size >= sgmt->cap)
-        sgmt_extend(sgmt);
-
-    /* TODO: Apply proper alignment */
-    if (len > 4)
-        sgmt->offset = ALIGN64(sgmt->offset);
-    else
-        sgmt->offset = ALIGN32(sgmt->offset);
-
-    addr = sgmt->offset;
-
-    sgmt->lens[sgmt->size] = len;
-    sgmt->addrs[sgmt->size] = addr;
-    sgmt->datas[sgmt->size] = ptr;
-
-    sgmt->size++;
-    sgmt->offset += len;
-
-    return addr;
+    return sgmt_add(sgmt, ptr, len, 8);
 }
 
 /* end of ir_sgmt.c */

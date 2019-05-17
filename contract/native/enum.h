@@ -199,7 +199,7 @@ typedef enum pragma_kind_e {
 
 typedef enum fn_kind_e {
     FN_UDF          = 0,
-    FN_CTOR,
+    FN_NEW,
 #undef fn_def
 #define fn_def(kind, name, ...)		kind,
 #include "fn.list"

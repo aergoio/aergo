@@ -656,7 +656,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 }
 
 static bool
-exp_check_syscall(check_t *check, ast_exp_t *exp)
+exp_check_syslib(check_t *check, ast_exp_t *exp)
 {
     int i;
     sys_fn_t *sys_fn;
@@ -698,8 +698,8 @@ exp_check_call(check_t *check, ast_exp_t *exp)
 
     ASSERT1(is_call_exp(exp), exp->kind);
 
-    if (exp->u_call.kind > FN_CTOR)
-        return exp_check_syscall(check, exp);
+    if (exp->u_call.kind != FN_UDF && exp->u_call.kind != FN_NEW)
+        return exp_check_syslib(check, exp);
 
     id_exp = exp->u_call.id_exp;
     arg_exps = exp->u_call.arg_exps;
@@ -710,7 +710,7 @@ exp_check_call(check_t *check, ast_exp_t *exp)
     if (id == NULL)
         RETURN(ERROR_NOT_CALLABLE_EXP, &id_exp->pos);
 
-    if (exp->u_call.kind == FN_CTOR) {
+    if (exp->u_call.kind == FN_NEW) {
         if (is_cont_id(id)) {
             /* In case of the contract identifier, the constructor is searched again */
             id = blk_search_id(id->u_cont.blk, id->name);

@@ -282,7 +282,7 @@ exp_trans_call(trans_t *trans, ast_exp_t *exp)
     ast_id_t *fn_id = exp->id;
     ir_fn_t *fn = trans->fn;
 
-    if (exp->u_call.kind != FN_UDF && exp->u_call.kind != FN_CTOR) {
+    if (exp->u_call.kind != FN_UDF && exp->u_call.kind != FN_NEW) {
         ASSERT(id_exp == NULL);
         return;
     }
@@ -500,7 +500,7 @@ make_elem_count(trans_t *trans, meta_t *meta, uint32_t reg_idx, uint32_t offset,
     l_exp = exp_new_mem(reg_idx, meta->rel_addr, offset);
     r_exp = exp_new_lit_int(size, meta->pos);
 
-    /* TODO We need more precise measure for meta */
+    /* TODO need more intuitive measure for meta */
     if (meta_align(meta) == 8) {
         meta_set_int64(&l_exp->meta);
         meta_set_int64(&r_exp->meta);

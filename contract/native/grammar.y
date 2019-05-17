@@ -1345,7 +1345,7 @@ prim_exp:
     }
 |   K_NEW identifier '(' arg_list_opt ')'
     {
-        $$ = exp_new_call(FN_CTOR, exp_new_id($2, &@2), $4, &@2);
+        $$ = exp_new_call(FN_NEW, exp_new_id($2, &@2), $4, &@2);
     }
 ;
 

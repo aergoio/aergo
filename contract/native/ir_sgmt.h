@@ -28,7 +28,7 @@ struct ir_sgmt_s {
 };
 
 int sgmt_add_str(ir_sgmt_t *sgmt, char *str);
-int sgmt_add_raw(ir_sgmt_t *sgmt, void *ptr, uint32_t len);
+int sgmt_add_raw(ir_sgmt_t *sgmt, void *ptr, int len);
 
 static inline void
 sgmt_init(ir_sgmt_t *sgmt)

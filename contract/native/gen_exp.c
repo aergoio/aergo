@@ -587,7 +587,7 @@ exp_gen_call(gen_t *gen, ast_exp_t *exp)
     BinaryenIndex arg_cnt;
     BinaryenExpressionRef *arguments;
 
-    if (exp->u_call.kind == FN_UDF || exp->u_call.kind == FN_CTOR) {
+    if (exp->u_call.kind == FN_UDF || exp->u_call.kind == FN_NEW) {
         name = exp->u_call.qname;
     }
     else {
