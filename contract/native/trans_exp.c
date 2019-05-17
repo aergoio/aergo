@@ -175,6 +175,7 @@ exp_trans_unary(trans_t *trans, ast_exp_t *exp)
 
     case OP_NEG:
     case OP_NOT:
+    case OP_BIT_NOT:
         exp_trans(trans, val_exp);
         break;
 

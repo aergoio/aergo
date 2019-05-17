@@ -163,17 +163,18 @@ typedef enum op_kind_e {
     OP_GE           = 10,
     OP_BIT_AND      = 11,
     OP_BIT_OR       = 12,
-    OP_BIT_XOR      = 13,
-    OP_RSHIFT       = 14,
-    OP_LSHIFT       = 15,
-    OP_NEG          = 16,
-    OP_NOT          = 17,
-    OP_AND          = 18,
-    OP_OR           = 19,
+    OP_BIT_NOT      = 13,
+    OP_BIT_XOR      = 14,
+    OP_BIT_SHR      = 15,
+    OP_BIT_SHL      = 16,
+    OP_NEG          = 17,
+    OP_NOT          = 18,
+    OP_AND          = 19,
+    OP_OR           = 20,
     OP_CF_MAX       = OP_OR,
 
-    OP_INC          = 20,
-    OP_DEC          = 21,
+    OP_INC          = 21,
+    OP_DEC          = 22,
     OP_MAX
 } op_kind_t;
 

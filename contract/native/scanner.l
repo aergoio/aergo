@@ -248,6 +248,7 @@ id                          {L}({L}|{D})*
 "^"                         yy_return('^');
 "!"                         yy_return('!');
 "'"                         yy_return('\'');
+"~"                         yy_return('~');
 
 "account"                   yy_return(K_ACCOUNT);
 "assert"                    yy_return(K_ASSERT);

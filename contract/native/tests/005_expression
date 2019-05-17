@@ -97,33 +97,39 @@ contract test {
     int i1 = (0xab & 0xcd);
     int i2 = 0xff ^ 0x02;
     int i3 = i1 | i2 | 3;
-
-    int i4 = 1 + 1 << 1;
-    int i5 = 0xff >> 1;
-    int i6 = i5 >> i4;
+    int i4 = ~0xffabc;
+    int i5 = ~i3;
+    int i6 = 1 + 1 << 1;
+    int i7 = 0xff >> 1;
+    int i8 = i7 >> i6;
 
     int128 z1 = 8;
     int128 z2 = 0x8012 & z1;
     int128 z3 = 0xaa34 | z1;
-    int128 z4 = 0xcd56 ^ z1;
-    int128 z5 = z3 >> z1;
-    int128 z6 = z4 << z1;
+    int128 z4 = ~-105918;
+    int128 z5 = ~z3;
+    int128 z6 = 0xcd56 ^ z1;
+    int128 z7 = z3 >> z1;
+    int128 z8 = z6 << z1;
 
     test() {
         pragma assert(i1 == 137);
         pragma assert(i2 == 253);
         pragma assert(i3 == 255);
-
-        pragma assert(i4 == 3)
-        pragma assert(i5 == 127);
-        pragma assert(i6 == 15);
+        pragma assert(i4 == -1047229);
+        pragma assert(i5 == -256);
+        pragma assert(i6 == 3);
+        pragma assert(i7 == 127);
+        pragma assert(i8 == 15);
 
         pragma assert(z1 == 8);
         pragma assert(z2 == 0);
         pragma assert(z3 == 43580);
-        pragma assert(z4 == 52574);
-        pragma assert(z5 == 170);
-        pragma assert(z6 == 13458944);
+        pragma assert(z4 == 105917);
+        pragma assert(z5 == -43581);
+        pragma assert(z6 == 52574);
+        pragma assert(z7 == 170);
+        pragma assert(z8 == 13458944);
     }
 }
 
@@ -257,7 +263,7 @@ contract test {
         i1++, i1++;
         pragma assert(i1 == 3);
 
-        pragma assert(z1 == 1)
+        pragma assert(z1 == 1);
         pragma assert(z2 == 1);
         pragma assert(z3 == 2);
         pragma assert(z4 == -1);

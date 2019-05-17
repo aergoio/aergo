@@ -344,6 +344,26 @@ value_bit_or(value_t *x, value_t *y, value_t *res)
 }
 
 static void
+value_bit_not(value_t *x, value_t *y, value_t *res)
+{
+    ASSERT(y == NULL);
+
+    switch (x->type) {
+    case TYPE_BYTE:
+        value_set_byte(res, ~val_byte(x));
+        break;
+
+    case TYPE_INT128:
+        value_init_int(res);
+        mpz_com(val_mpz(res), val_mpz(x));
+        break;
+
+    default:
+        ASSERT1(!"invalid value", x->type);
+    }
+}
+
+static void
 value_bit_xor(value_t *x, value_t *y, value_t *res)
 {
     ASSERT2(x->type == y->type, x->type, y->type);
@@ -364,7 +384,7 @@ value_bit_xor(value_t *x, value_t *y, value_t *res)
 }
 
 static void
-value_shift_l(value_t *x, value_t *y, value_t *res)
+value_bit_shl(value_t *x, value_t *y, value_t *res)
 {
     ASSERT2(x->type == y->type, x->type, y->type);
 
@@ -384,7 +404,7 @@ value_shift_l(value_t *x, value_t *y, value_t *res)
 }
 
 static void
-value_shift_r(value_t *x, value_t *y, value_t *res)
+value_bit_shr(value_t *x, value_t *y, value_t *res)
 {
     ASSERT2(x->type == y->type, x->type, y->type);
 
@@ -467,9 +487,10 @@ eval_fn_t eval_fntab_[OP_CF_MAX + 1] = {
     value_cmp_ge,
     value_bit_and,
     value_bit_or,
+    value_bit_not,
     value_bit_xor,
-    value_shift_r,
-    value_shift_l,
+    value_bit_shr,
+    value_bit_shl,
     value_neg,
     value_not,
     value_and,

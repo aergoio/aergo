@@ -241,6 +241,15 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
     case OP_NOT:
         return BinaryenUnary(gen->module, BinaryenEqZInt32(), value);
 
+    case OP_BIT_NOT:
+        if (is_int128_meta(meta))
+            return syslib_call(gen, FN_MPZ_COM, 1, value);
+
+        if (is_int64_meta(meta))
+            return BinaryenBinary(gen->module, BinaryenXorInt64(), value, i64_gen(gen, -1));
+
+        return BinaryenBinary(gen->module, BinaryenXorInt32(), value, i32_gen(gen, -1));
+
     default:
         ASSERT1(!"invalid operator", exp->u_un.kind);
     }
@@ -357,9 +366,9 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
             op = BinaryenXorInt32();
         break;
 
-    case OP_RSHIFT:
+    case OP_BIT_SHR:
         if (is_int128_meta(meta))
-            return syslib_call_2(gen, FN_MPZ_RSHIFT, left, right);
+            return syslib_call_2(gen, FN_MPZ_SHR, left, right);
 
         if (is_int64_meta(meta))
             op = BinaryenShrSInt64();
@@ -367,9 +376,9 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
             op = BinaryenShrSInt32();
         break;
 
-    case OP_LSHIFT:
+    case OP_BIT_SHL:
         if (is_int128_meta(meta))
-            return syslib_call_2(gen, FN_MPZ_LSHIFT, left, right);
+            return syslib_call_2(gen, FN_MPZ_SHL, left, right);
 
         if (is_int64_meta(meta))
             op = BinaryenShlInt64();
@@ -524,8 +533,8 @@ exp_gen_binary(gen_t *gen, ast_exp_t *exp)
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
-    case OP_RSHIFT:
-    case OP_LSHIFT:
+    case OP_BIT_SHR:
+    case OP_BIT_SHL:
         return exp_gen_op_arith(gen, exp, &exp->meta);
 
     case OP_AND:

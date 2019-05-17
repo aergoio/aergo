@@ -925,6 +925,7 @@ Operator  Description                 Applicable types
 +         positive                    integer, float
 -         negative                    integer, float
 !         logical NOT                 boolean
+~         bitwise NOT                 integer
 ```
 
 * \+ operator는 양수임을 표현할 뿐 값에는 아무런 영향을 끼치지 않는다.

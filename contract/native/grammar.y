@@ -841,8 +841,8 @@ assign_op:
 |   ASSIGN_AND          { $$ = OP_BIT_AND; }
 |   ASSIGN_XOR          { $$ = OP_BIT_XOR; }
 |   ASSIGN_OR           { $$ = OP_BIT_OR; }
-|   ASSIGN_RS           { $$ = OP_RSHIFT; }
-|   ASSIGN_LS           { $$ = OP_LSHIFT; }
+|   ASSIGN_RS           { $$ = OP_BIT_SHR; }
+|   ASSIGN_LS           { $$ = OP_BIT_SHL; }
 ;
 
 label_stmt:
@@ -1031,14 +1031,14 @@ blk_stmt:
 ;
 
 pragma_stmt:
-    K_PRAGMA K_ASSERT '(' eq_exp ')'
+    K_PRAGMA K_ASSERT '(' eq_exp ')' ';'
     {
         char *cond_str =
             xstrndup(parse->src + @$.first_offset + @3.last_col - 1, @5.first_col - @3.last_col);
 
         $$ = stmt_new_pragma(PRAGMA_ASSERT, $4, cond_str, NULL, &@1);
     }
-|   K_PRAGMA K_ASSERT '(' eq_exp ',' add_exp ')'
+|   K_PRAGMA K_ASSERT '(' eq_exp ',' add_exp ')' ';'
     {
         char *cond_str =
             xstrndup(parse->src + @$.first_offset + @3.last_col - 1, @5.first_col - @3.last_col);
@@ -1246,8 +1246,8 @@ shift_exp:
 ;
 
 shift_op:
-    SHIFT_R             { $$ = OP_RSHIFT; }
-|   SHIFT_L             { $$ = OP_LSHIFT; }
+    SHIFT_R             { $$ = OP_BIT_SHR; }
+|   SHIFT_L             { $$ = OP_BIT_SHL; }
 ;
 
 mul_exp:
@@ -1289,6 +1289,7 @@ unary_op:
 |   UNARY_DEC           { $$ = OP_DEC; }
 |   '-'                 { $$ = OP_NEG; }
 |   '!'                 { $$ = OP_NOT; }
+|   '~'                 { $$ = OP_BIT_NOT; }
 ;
 
 post_exp:

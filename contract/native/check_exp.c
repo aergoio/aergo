@@ -316,6 +316,13 @@ exp_check_unary(check_t *check, ast_exp_t *exp)
         meta_copy(&exp->meta, val_meta);
         break;
 
+    case OP_BIT_NOT:
+        if (!is_integer_meta(val_meta))
+            RETURN(ERROR_INVALID_OP_TYPE, &val_exp->pos, meta_to_str(val_meta));
+
+        meta_copy(&exp->meta, val_meta);
+        break;
+
     default:
         ASSERT1(!"invalid operator", exp->u_un.kind);
     }
@@ -401,8 +408,8 @@ exp_check_op_bit(check_t *check, ast_exp_t *exp)
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
 
-    case OP_RSHIFT:
-    case OP_LSHIFT:
+    case OP_BIT_SHR:
+    case OP_BIT_SHL:
         if (is_lit_exp(r_exp) && is_neg_val(&r_exp->u_lit.val))
             RETURN(ERROR_INVALID_OP_TYPE, &r_exp->pos, meta_to_str(r_meta));
         break;
@@ -502,8 +509,8 @@ exp_check_binary(check_t *check, ast_exp_t *exp)
     case OP_BIT_AND:
     case OP_BIT_OR:
     case OP_BIT_XOR:
-    case OP_RSHIFT:
-    case OP_LSHIFT:
+    case OP_BIT_SHR:
+    case OP_BIT_SHL:
         CHECK(exp_check_op_bit(check, exp));
         break;
 
