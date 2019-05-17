@@ -7,8 +7,6 @@ contract test {
     int256 v5;
     int v6;
 
-    //float v7;
-    //double v8;
     bool v9;
     byte v10;
     string v11;
@@ -55,7 +53,7 @@ contract test {
 @test(constant_tuple_variables)
 contract test {
     const byte x, y = 0, 255;
-    //const double x, y = 0.1, 0.2;
+    const int256 z1, z2, z3 = -1, 0, 1;
 }
 
 @test(missing_constant_value)
@@ -255,8 +253,8 @@ contract test {
     map(int16, int16) m3;
     map(int32, int32) m4;
     map(int64, int64) m5;
-    //map(float, float) m6;
-    //map(double, double) m7;
+    map(int64, int256) m6;
+    map(int256, int256) m7;
     map(bool, bool) m8;
     map(byte, byte) m9;
     map(string, string) m10;

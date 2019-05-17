@@ -259,7 +259,6 @@ meta_cmp_type(meta_t *x, meta_t *y)
     if (is_undef_meta(x) || is_undef_meta(y)) {
         if (x->type == y->type ||
             (is_integer_meta(x) && is_integer_meta(y)) ||
-            (is_fpoint_meta(x) && is_fpoint_meta(y)) ||
             (is_nullable_meta(x) && is_nullable_meta(y)))
             return true;
 

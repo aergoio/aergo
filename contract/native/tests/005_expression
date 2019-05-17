@@ -16,13 +16,6 @@ contract test {
     int256 z5 = z1 / 1;
     int256 z6 = z1 % 1;
 
-    /*
-    float f1 = 1.0 + (1.0 + .1);
-    float f2 = 1.0e1 - 1.0;
-    float f3 = 1.0 * 1.0;
-    float f4 = 1.0 / 1.0;
-    */
-
     string s1 = "string" + "concat";
     string s2 = "string" + " " + "concat";
     string s3 = s1 + "->" + s2;
@@ -71,12 +64,6 @@ contract test {
 @error(ERROR_INVALID_OP_TYPE)
 contract test {
     bool b = true + false;
-}
-
-@test(invalid_modulo_type)
-//@error(ERROR_INVALID_OP_TYPE)
-contract test {
-    //float f = 10.0 % 1.0;
 }
 
 @test(zero_divisor_in_modulo)
@@ -281,12 +268,10 @@ contract test {
 }
 
 @test(non_integer_unary_operand)
-//@error(ERROR_INVALID_OP_TYPE)
+@error(ERROR_INVALID_OP_TYPE)
 contract test {
-    /*
-    float f = 1.0;
-    int i = f++;
-    */
+    string s = "1";
+    int i = s++;
 }
 
 @test(ternary_operator)

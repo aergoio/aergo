@@ -80,7 +80,7 @@ comments는 다음과 같은 두가지 형식을 지원한다.
 
 ### Constants
 
-상수는 프로그램내에서 절대 변하지 않는 값을 나타내며, boolean, integer, floating-point, string 타입 상수등이 있다.
+상수는 프로그램내에서 절대 변하지 않는 값을 나타내며, boolean, integer, string 타입 상수등이 있다.
 
 #### Boolean literals
 
@@ -108,29 +108,6 @@ integer constant는 8진수, 10진수, 16진수 형태로 표기할 수 있다.
 0700
 0xff
 0xABCD
-```
-
-#### Floating-point literals
-
-floating-point constant는 소수점을 사용하거나 exponent를 사용하여 표기할 수 있다.
-
-<pre>
-<a name="float_lit">float_lit</a> = <a href="#natural">natural</a> "." [ <a href="#natural">natural</a> ] [ <a href="#exponent">exponent</a> ] |
-            "." <a href="#natural">natural</a> [ <a href="#exponent">exponent</a> ] |
-            <a href="#natural">natural</a> <a href="#exponent">exponent</a> ;
-
-<a name="natural">natural</a>   = <a href="#decimal_digit">decimal_digit</a> { <a href="#decimal_digit">decimal_digit</a> } ;
-<a name="exponent">exponent</a>  = ( "e" | "E" ) [ "+" | "-" ] <a href="#natural">natural</a> ;
-</pre>
-
-```
-1.23
-71.
-.009
-1E3
-1e+19
-3.14e-02
-.4E+3
 ```
 
 #### String literals
@@ -195,7 +172,6 @@ Type identifiers
 ------------------------------------------------------------------
 bool        byte
 int         int8        int16       int32       int64       int256
-float       double
 string
 map
 account
@@ -267,8 +243,8 @@ ASCL에서는 다음과 같은 타입을 지원한다.
 
 <pre>
 <a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
-<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "int256"
-                 "float" | "double" | "string" | "account" | "cursor" ;
+<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" |
+                 "int256" | "string" | "account" ;
 <a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
 
@@ -283,7 +259,7 @@ bool isReceived = false;
 
 #### Numeric types
 
-numeric type은 integer 타입과 floating-point 타입, 일부 타입의 alias를 사용할 수 있다.
+numeric type은 integer 타입과 alias를 사용할 수 있다.
 
 ```
 Type      Description                Value range
@@ -298,20 +274,13 @@ int256    256-bit signed integer     -2^255 ~ (2^255 - 1)
 
 ```
 Type      Description
---------  --------------------------------------
-float     IEEE-754 32-bit floating-point numbers
-double    IEEE-754 64-bit floating-point numbers
-```
-
-```
-Type      Description
 --------  ----------------
 int       alias for int32
 ```
 
 ```
 int8 i = 0;
-float f = 3.141592;
+int256 j = -170141183460469231731687303715884105729;
 ```
 
 #### String type
@@ -384,7 +353,7 @@ map(int, string)
 map(int, User)
 map(int, map(string, string))
 
-map(map(double, int), string)   // raise error
+map(map(bool, int), string)   // raise error
 ```
 
 map 타입은 <a href="#init_exp">initializer expression</a>이나 <a href="#alloc_exp">allocator expression</a>을 사용하여 초기화할 수 있다.
@@ -432,7 +401,6 @@ ASCL은 strongly typed language로서 implicit type conversion을 지원하지 �
 int16 i = 0;
 int32 j = 1;
 int32 k = i + j;    // raise error
-float f = i;        // raise error
 ```
 
 다만, 예외적으로 operand가 constant인 경우엔 implicit conversion을 허용하나, 다음과 같이 같은 유형의 타입이 아닌 경우엔 위와 마찬가지로 에러가 발생한다.
@@ -442,14 +410,12 @@ Constant  Comparable types
 --------  ---------------------------------------
 booleans  bool
 integers  byte, int8, int16, int32, int64, int256
-floats    float, double
 strings   string
 ```
 
 ```
 bool b = 1;         // raise error
-int i = 1.23;       // raise error
-float f = 1024;     // raise error
+int i = true;       // raise error
 string s = 61;      // raise error
 ```
 
@@ -585,7 +551,6 @@ variable은 타입과 이름을 차례로 나열하여 선언할 수 있다.
 ```
 bool isMale;
 int userId;
-double profitRate;
 string address;
 ```
 
@@ -684,7 +649,7 @@ array를 선언하기 위해선 크기를 지정해야 하는데, 이 값은 반
 int i[10];
 int j[3][4];
 string s[1 + 1];
-map(int64, double) m[2];
+map(int64, string) m[2];
 
 const int MAX_SIZE = 16;
 int cars[MAX_SIZE];
@@ -728,10 +693,10 @@ identifier expression은 이름을 참조하기 위한 것으로 variable, struc
 
 ##### Value expressions
 
-value expression은 boolean, integer, floating point, string constant다.
+value expression은 boolean, integer, string constant다.
 
 <pre>
-<a name="val_exp">ValueExp</a> = <a href="#bool_lit">bool_lit</a> | <a href="#integer_lit">integer_lit</a> | <a href="#float_lit">float_lit</a> | <a href="#string_lit">string_lit</a> ;
+<a name="val_exp">ValueExp</a> = <a href="#bool_lit">bool_lit</a> | <a href="#integer_lit">integer_lit</a> | <a href="#string_lit">string_lit</a> ;
 </pre>
 
 ```
@@ -753,7 +718,7 @@ cast expression은 <a href="#primitive_type">primitive type</a>대한 explicit t
 ```
 int i = 0;
 bool b = (bool)i;
-double d = (double)i;
+int256 z = (int256)i;
 string s = (string)i;
 ```
 
@@ -846,11 +811,11 @@ string classes[3] = new { "magician", "barbarian", "archer" };
 
 const int DIVISION = 2;
 const int WEEK = 7;
-double salesPerWeek[DIVISION][WEEK] = new {
+int256 salesPerWeek[DIVISION][WEEK] = new {
     // first division
-    { 1.3, 2.0, 2.1, 0.3, 1.8, 6.4, 5.7 },
+    { 13, 20, 21, 3, 18, 64, 57 },
     // second division
-    { 1.7, 3.8, 2.1, 1.1, 7.3, 5.0, 2.5 },
+    { 17, 38, 21, 11, 73, 50, 25 },
 };
 ```
 
@@ -887,8 +852,7 @@ allocator expression은 array나 struct, map의 메모리 공간을 할당할 �
 
 ```
 int levels[2] = new int[2];
-int64 classes[] = new int64[3];
-double areas[][] = new double[4][5];
+int64 classes[] = new int64[3][5];
 ```
 
 다음은 struct, map variable에 대한 allocator다.
@@ -920,10 +884,10 @@ unary operator는 단일 expression에 적용되어 같은 타입의 값을 반�
 ```
 Operator  Description                 Applicable types
 --------  --------------------------  ----------------
-++        increase and assign         integer, float
---        decrease and assign         integer, float
-+         positive                    integer, float
--         negative                    integer, float
+++        increase and assign         integer
+--        decrease and assign         integer
++         positive                    integer
+-         negative                    integer
 !         logical NOT                 boolean
 ~         bitwise NOT                 integer
 ```
@@ -942,11 +906,11 @@ arithmetic operator는 binary operator로 정수나 부동소수 혹은 string�
 
 ```
 Operator  Description                 Applicable types
---------  --------------------------  -------------------------
-+         add                         integers, floats, strings
--         subtract                    integers, floats
-*         multiply                    integers, floats
-/         divide                      integers, floats
+--------  --------------------------  -----------------
++         add                         integers, strings
+-         subtract                    integers
+*         multiply                    integers
+/         divide                      integers
 %         remainder                   integers
 ```
 
@@ -983,16 +947,16 @@ comparison operator는 binary operator로 operands의 값을 비교하여 bool �
 
 ```
 Operator  Description                 Applicable types
---------  --------------------------  --------------------------------
-==        equals                      bools, integers, floats, strings
-!=        not equals                  bools, integers, floats, strings
-<         less than                   bools, integers, floats, strings
->         greater than                bools, integers, floats, strings
-<=        less than or equals         bools, integers, floats, strings
->=        greater than or equals      bools, integers, floats, strings
+--------  --------------------------  ---------------------------
+==        equals                      booleans, integers, strings
+!=        not equals                  booleans, integers, strings
+<         less than                   booleans, integers, strings
+>         greater than                booleans, integers, strings
+<=        less than or equals         booleans, integers, strings
+>=        greater than or equals      booleans, integers, strings
 ```
 
-* bool, integer, float, string 타입은 comparable이다.
+* boolean, integer, string 타입은 comparable이다.
 * comparable 타입의 array는 comparable이다.
 * comparable 타입으로 이뤄진 struct는 comparable이다.
 * map, contract 타입은 comparable하지 않다.
@@ -1113,10 +1077,10 @@ assignment statement는 right operand의 값을 left operand에 저장한다.
 Operator  Description                 Applicable types
 --------  --------------------------  -------------------------
 =         assign                      any types
-+=        add and assign              integers, floats, strings
--=        subtract and assign         integers, floats
-*=        multiply and assign         integers, floats
-/=        divide and assign           integers, floats
++=        add and assign              integers, strings
+-=        subtract and assign         integers
+*=        multiply and assign         integers
+/=        divide and assign           integers
 &=        bitwise AND and assign      integers
 |=        bitwise OR and assign       integers
 ^=        bitwise XOR and assign      integers

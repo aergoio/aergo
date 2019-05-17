@@ -45,11 +45,9 @@ contract test implements spec {
 interface spec {
     func f1();
     func f2(int16 x);
-    //func f3(int16 x) float;
 }
 contract test implements spec {
     func f2(int32 x) { }
-    //func f3(int16 x) double { return 1.0; }
 }
 
 @test(interface_as_type)

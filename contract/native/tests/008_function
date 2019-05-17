@@ -196,8 +196,6 @@ contract test {
 contract test {
     func f1() int[2] { return new int[2]; }
     func f2() int16[3] { return new { -32768, 0, 32767 }; }
-    //func f3() float[] { return new float[3]; }
-    //func f4() double[] { return new { -29.2134 }; }
     func f5() string[][] {
         return new { { "January", null }, { "March", "April" }, { null, "June" } };
     }
@@ -217,14 +215,6 @@ contract test {
         pragma assert(j[0] == -32768);
         pragma assert(j[1] == 1027);
         pragma assert(j[2] == 32767);
-
-        /*
-        float f[] = f3();
-        f[2] = 12.50;
-
-        double d[] = f4();
-        d[0] += 29.2133;
-        */
 
         string s[][] = f5();
         pragma assert(s.size == 3);
@@ -322,9 +312,7 @@ contract test {
 @test(missing_return_statement)
 @error(ERROR_MISSING_RETURN,2)
 contract test {
-    //func f1() double { }
     func f2() string {
-        //double v = f1();
     }
     func f3() int {
         int x;

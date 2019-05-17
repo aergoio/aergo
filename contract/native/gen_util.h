@@ -13,8 +13,6 @@
 
 #define i32_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralInt32(v))
 #define i64_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralInt64(v))
-#define f32_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralFloat32(v))
-#define f64_gen(gen, v)             BinaryenConst((gen)->module, BinaryenLiteralFloat64(v))
 
 #define meta_gen(meta)                                                                             \
     (is_address_meta(meta) ? BinaryenTypeInt32() : type_gen((meta)->type))
@@ -37,12 +35,6 @@ type_gen(type_t type)
 
     case TYPE_INT64:
         return BinaryenTypeInt64();
-
-    case TYPE_FLOAT:
-        return BinaryenTypeFloat32();
-
-    case TYPE_DOUBLE:
-        return BinaryenTypeFloat64();
 
     case TYPE_STRING:
     case TYPE_ACCOUNT:

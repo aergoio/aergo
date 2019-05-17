@@ -88,12 +88,10 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_CURSOR        "cursor"
         K_DEFAULT       "default"
         K_DELETE        "delete"
-        K_DOUBLE        "double"
         K_DROP          "drop"
         K_ELSE          "else"
         K_ENUM          "enum"
         K_FALSE         "false"
-        K_FLOAT         "float"
         K_FOR           "for"
         K_FUNC          "func"
         K_GOTO          "goto"
@@ -415,8 +413,6 @@ prim_type:
 |   K_INT64             { $$ = TYPE_INT64; }
 |   K_INT256            { $$ = TYPE_INT256; }
 |   K_INT               { $$ = TYPE_INT32; }
-//|   K_FLOAT             { $$ = TYPE_FLOAT; }
-//|   K_DOUBLE            { $$ = TYPE_DOUBLE; }
 |   K_STRING            { $$ = TYPE_STRING; }
 |   K_CURSOR            { $$ = TYPE_CURSOR; }
 ;
@@ -1378,15 +1374,6 @@ literal:
         $$ = exp_new_lit_int(0, &@$);
         mpz_set_str(val_mpz(&$$->u_lit.val), $1, 0);
     }
-/*
-|   L_FLOAT
-    {
-        double v;
-
-        sscanf($1, "%lf", &v);
-        $$ = exp_new_lit_f64(v, &@$);
-    }
-*/
 |   L_CHR
     {
         $$ = exp_new_lit_byte($1, &@$);

@@ -48,12 +48,6 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
 
         return i32_gen(gen, val_i64(val));
 
-    case TYPE_DOUBLE:
-        if (is_double_meta(meta))
-            return f64_gen(gen, val_f64(val));
-
-        return f32_gen(gen, val_f64(val));
-
     case TYPE_OBJECT:
         return i32_gen(gen, sgmt_add_raw(&md->sgmt, val_ptr(val), val_size(val)));
 
@@ -140,11 +134,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         if (is_int256_meta(to_meta))
             return syslib_call(gen, FN_MPZ_SET_I32, 1, value);
 
-        if (is_float_meta(to_meta))
-            op = BinaryenConvertSInt32ToFloat32();
-        else if (is_double_meta(to_meta))
-            op = BinaryenConvertSInt32ToFloat64();
-        else if (is_int64_meta(to_meta))
+        if (is_int64_meta(to_meta))
             op = BinaryenExtendSInt32();
         else
             return value;
@@ -157,11 +147,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         if (is_int256_meta(to_meta))
             return syslib_call(gen, FN_MPZ_SET_I64, 1, value);
 
-        if (is_float_meta(to_meta))
-            op = BinaryenConvertSInt64ToFloat32();
-        else if (is_double_meta(to_meta))
-            op = BinaryenConvertSInt64ToFloat64();
-        else if (!is_int64_meta(to_meta))
+        if (!is_int64_meta(to_meta))
             op = BinaryenWrapInt64();
         else
             return value;
@@ -175,28 +161,6 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             return syslib_call_1(gen, FN_MPZ_GET_I64, value);
 
         return syslib_call_1(gen, FN_MPZ_GET_I32, value);
-
-    case TYPE_FLOAT:
-        if (is_int64_meta(to_meta))
-            op = BinaryenTruncSFloat32ToInt64();
-        else if (is_integer_meta(to_meta))
-            op = BinaryenTruncSFloat32ToInt32();
-        else if (is_double_meta(to_meta))
-            op = BinaryenPromoteFloat32();
-        else
-            return value;
-        break;
-
-    case TYPE_DOUBLE:
-        if (is_int64_meta(to_meta))
-            op = BinaryenTruncSFloat64ToInt64();
-        else if (is_integer_meta(to_meta))
-            op = BinaryenTruncSFloat64ToInt32();
-        else if (is_float_meta(to_meta))
-            op = BinaryenDemoteFloat64();
-        else
-            return value;
-        break;
 
     case TYPE_STRING:
         if (is_int64_meta(to_meta))
@@ -229,12 +193,6 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
 
         if (is_int64_meta(meta))
             return BinaryenBinary(gen->module, BinaryenSubInt64(), i64_gen(gen, 0), value);
-
-        if (is_float_meta(meta))
-            return BinaryenUnary(gen->module, BinaryenNegFloat32(), value);
-
-        if (is_double_meta(meta))
-            return BinaryenUnary(gen->module, BinaryenNegFloat64(), value);
 
         return BinaryenBinary(gen->module, BinaryenSubInt32(), i32_gen(gen, 0), value);
 
@@ -276,10 +234,6 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenAddInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenAddFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenAddFloat64();
         else
             op = BinaryenAddInt32();
         break;
@@ -290,10 +244,6 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenSubInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenSubFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenSubFloat64();
         else
             op = BinaryenSubInt32();
         break;
@@ -304,10 +254,6 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenMulInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenMulFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenMulFloat64();
         else
             op = BinaryenMulInt32();
         break;
@@ -318,10 +264,6 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenDivSInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenDivFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenDivFloat64();
         else
             op = BinaryenDivSInt32();
         break;
@@ -421,10 +363,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenEqInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenEqFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenEqFloat64();
         else
             op = BinaryenEqInt32();
         break;
@@ -437,10 +375,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenNeInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenNeFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenNeFloat64();
         else
             op = BinaryenNeInt32();
         break;
@@ -453,10 +387,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenLtSInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenLtFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenLtFloat64();
         else
             op = BinaryenLtSInt32();
         break;
@@ -469,10 +399,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenGtSInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenGtFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenGtFloat64();
         else
             op = BinaryenGtSInt32();
         break;
@@ -485,10 +411,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenLeSInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenLeFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenLeFloat64();
         else
             op = BinaryenLeSInt32();
         break;
@@ -501,10 +423,6 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
 
         if (is_int64_meta(meta))
             op = BinaryenGeSInt64();
-        else if (is_float_meta(meta))
-            op = BinaryenGeFloat32();
-        else if (is_double_meta(meta))
-            op = BinaryenGeFloat64();
         else
             op = BinaryenGeSInt32();
         break;

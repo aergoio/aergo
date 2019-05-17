@@ -18,8 +18,6 @@ char *type_names_[TYPE_MAX] = {
     "int32",
     "int64",
     "int256",
-    "float",
-    "double",
     "string",
     "account",
     "struct",
@@ -32,8 +30,6 @@ char *type_names_[TYPE_MAX] = {
 
 #define I32             4
 #define I64             8
-#define F32             4
-#define F64             8
 
 int type_sizes_[TYPE_MAX] = {
     0,                  /* TYPE_NONE */
@@ -44,8 +40,6 @@ int type_sizes_[TYPE_MAX] = {
     I32,                /* TYPE_INT32 */
     I64,                /* TYPE_INT64 */
     I32,                /* TYPE_INT256 */
-    F32,                /* TYPE_FLOAT */
-    F64,                /* TYPE_DOUBLE */
     I32,                /* TYPE_STRING */
     I32,                /* TYPE_ACCOUNT */
     I32,                /* TYPE_STRUCT */
@@ -65,8 +59,6 @@ int type_c_sizes_[TYPE_MAX] = {
     sizeof(int32_t),    /* TYPE_INT32 */
     sizeof(int64_t),    /* TYPE_INT64 */
     sizeof(uint32_t),   /* TYPE_INT256 */
-    sizeof(float),      /* TYPE_FLOAT */
-    sizeof(double),     /* TYPE_DOUBLE */
     sizeof(int32_t),    /* TYPE_STRING */
     sizeof(int32_t),    /* TYPE_ACCOUNT */
     sizeof(int32_t),    /* TYPE_STRUCT */

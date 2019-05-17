@@ -18,8 +18,6 @@
 #define is_int32_type(type)         ((type) == TYPE_INT32)
 #define is_int64_type(type)         ((type) == TYPE_INT64)
 #define is_int256_type(type)        ((type) == TYPE_INT256)
-#define is_float_type(type)         ((type) == TYPE_FLOAT)
-#define is_double_type(type)        ((type) == TYPE_DOUBLE)
 #define is_string_type(type)        ((type) == TYPE_STRING)
 #define is_account_type(type)       ((type) == TYPE_ACCOUNT)
 #define is_struct_type(type)        ((type) == TYPE_STRUCT)
@@ -36,8 +34,6 @@
 #define is_int32_meta(meta)         is_int32_type((meta)->type)
 #define is_int64_meta(meta)         is_int64_type((meta)->type)
 #define is_int256_meta(meta)        is_int256_type((meta)->type)
-#define is_float_meta(meta)         is_float_type((meta)->type)
-#define is_double_meta(meta)        is_double_type((meta)->type)
 #define is_string_meta(meta)        is_string_type((meta)->type)
 #define is_account_meta(meta)       is_account_type((meta)->type)
 #define is_struct_meta(meta)        is_struct_type((meta)->type)
@@ -52,8 +48,7 @@
 #define is_integer_meta(meta)                                                                      \
     (is_byte_meta(meta) || is_int8_meta(meta) || is_int16_meta(meta) || is_int32_meta(meta) ||     \
      is_int64_meta(meta) || is_int256_meta(meta))
-#define is_fpoint_meta(meta)        (is_float_meta(meta) || is_double_meta(meta))
-#define is_numeric_meta(meta)       (is_integer_meta(meta) || is_fpoint_meta(meta))
+#define is_numeric_meta(meta)       (is_integer_meta(meta))
 
 #define is_nullable_meta(meta)                                                                     \
     ((is_array_meta(meta) && !is_fixed_array(meta)) || is_string_meta(meta) ||                     \
@@ -83,8 +78,6 @@
 #define meta_set_int32(meta)        meta_set((meta), TYPE_INT32)
 #define meta_set_int64(meta)        meta_set((meta), TYPE_INT64)
 #define meta_set_int256(meta)       meta_set((meta), TYPE_INT256)
-#define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
-#define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)
 #define meta_set_string(meta)       meta_set((meta), TYPE_STRING)
 #define meta_set_account(meta)      meta_set((meta), TYPE_ACCOUNT)
 #define meta_set_void(meta)         meta_set((meta), TYPE_VOID)

@@ -21,19 +21,6 @@ contract test {
     int256 i9 = 170141183460469231731687303715884105727;
     int256 i10 = -170141183460469231731687303715884105728;
 
-    /*
-    float f1 = 1.0;
-    float f2 = +1.1;
-    float f3 = -1.2;
-    float f4 = 1e1;
-    float f5 = -.2e+1;
-    float f6 = 3.e-1;
-    float f7 = 340282346638528859811704183484516925440.000000;
-
-    double d1 = 1.;
-    double d2 = .234;
-    */
-
     int i, j = 1, 0;
 
     test() {
@@ -86,11 +73,6 @@ contract test {
 
     int64 i7 = -9223372036854775809;
     int64 i8 = 9223372036854775808;
-
-    /*
-    float f1 = -340282446638528959811704183484516925441.000000;
-    float f2 = 340282446638528959811704183484516925441.000000;
-    */
 
     int256 i9 = -57896044618658097711785492504343953926634992332820282019728792003956564819969;
     int256 i10 = 57896044618658097711785492504343953926634992332820282019728792003956564819968;
@@ -266,7 +248,6 @@ contract test {
 contract test {
     bool b[] = new bool[1];
     int64 i[] = new int64[2];
-    //double d[] = new double[3];
     string s[] = new string[4];
 
     test() {
@@ -700,14 +681,6 @@ contract test {
 @error(ERROR_MISMATCHED_TYPE,2)
 contract test {
     int i[] = new int16[2];
-
-    /*
-    type s1 struct {
-        bool a;
-        double b;
-    }
-    s1 s[1] = new s1;
-    */
 
     map(int, string) m[] = new map(int64, string)[2];
 }

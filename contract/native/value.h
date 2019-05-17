@@ -16,7 +16,6 @@
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
 #define is_byte_val(val)            ((val)->type == TYPE_BYTE)
 #define is_int_val(val)             ((val)->type == TYPE_INT256)
-#define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)
 #define is_str_val(val)             ((val)->type == TYPE_STRING)
 #define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
 
@@ -26,14 +25,11 @@
 #define val_bool(val)               ((val)->b)
 #define val_byte(val)               ((val)->c)
 #define val_i64(val)                mpz_get_si((val)->z)
-#define val_f64(val)                ((val)->d)
 #define val_str(val)                ((val)->ptr)
 
 #define val_mpz(val)                ((val)->z)
 
-#define is_zero_val(val)                                                                           \
-    (is_int_val(val) ? mpz_sgn(val_mpz(val)) == 0 : (is_f64_val(val) ? (val)->d == 0.0f : false))
-
+#define is_zero_val(val)            (is_int_val(val) ? mpz_sgn(val_mpz(val)) == 0 : false)
 #define is_neg_val(val)             (mpz_sgn(val_mpz(val)) < 0)
 
 #define value_init_int(val)                                                                        \
@@ -66,14 +62,6 @@
     do {                                                                                           \
         value_init_int(val);                                                                       \
         mpz_set_si((val)->z, (v));                                                                 \
-    } while (0)
-
-#define value_set_f64(val, v)                                                                      \
-    do {                                                                                           \
-        (val)->type = TYPE_DOUBLE;                                                                 \
-        (val)->size = sizeof(double);                                                              \
-        (val)->ptr = &(val)->d;                                                                    \
-        (val)->d = (v);                                                                            \
     } while (0)
 
 #define value_set_str(val, v)                                                                      \
@@ -115,7 +103,6 @@ struct value_s {
         bool b;
         uint8_t c;
         mpz_t z;
-        double d;
     };
 };
 
@@ -159,15 +146,6 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
         ASSERT1((ptrdiff_t)buf % 4 == 0, buf);
         *(int32_t *)buf = (int32_t)val_i64(val);
         return sizeof(int32_t);
-
-    case TYPE_DOUBLE:
-        if (is_double_meta(meta)) {
-            *(double *)buf = val_f64(val);
-            return sizeof(double);
-        }
-
-        *(float *)buf = (float)val_f64(val);
-        return sizeof(float);
 
     case TYPE_STRING:
     case TYPE_OBJECT:

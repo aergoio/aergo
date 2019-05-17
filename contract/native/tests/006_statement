@@ -417,7 +417,6 @@ contract test {
         int a;
         string b[2];
         map(int, bool) c;
-        //double d[2];
     }
     test() {
         s v = new { 1, { "apple", "orange" }, { { 1, true } } };
@@ -446,7 +445,7 @@ contract test {
 @test(enum_access)
 @run(test.test)
 contract test {
-    enum e { a, b, c, d }
+    enum e { a, b, c, d, e }
     test() {
         byte b = e.a;
         pragma assert(b == 0);
@@ -456,6 +455,8 @@ contract test {
         pragma assert(i2 == 2);
         int64 i3 = e.d;
         pragma assert(i3 == 3);
+        int256 z = e.e;
+        pragma assert(z == 4);
     }
 }
 
@@ -465,10 +466,6 @@ contract test {
     enum e { a }
     test() {
         bool b = e.a;
-        /*
-        float f = e.a;
-        double d = e.a;
-        */
     }
 }
 

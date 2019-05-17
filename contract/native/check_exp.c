@@ -32,11 +32,6 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         meta_set_undef(&exp->meta);
         break;
 
-    case TYPE_DOUBLE:
-        meta_set_double(&exp->meta);
-        meta_set_undef(&exp->meta);
-        break;
-
     case TYPE_STRING:
         meta_set_string(&exp->meta);
         break;

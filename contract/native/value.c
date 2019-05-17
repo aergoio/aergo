@@ -31,9 +31,6 @@
         case TYPE_INT256:                                                                          \
             v = mpz_cmp(val_mpz(x), val_mpz(y)) op 0;                                              \
             break;                                                                                 \
-        case TYPE_DOUBLE:                                                                          \
-            v = val_f64(x) op val_f64(y);                                                          \
-            break;                                                                                 \
         case TYPE_STRING:                                                                          \
             if (is_null_val(x) || is_null_val(y))                                                  \
                 v = is_null_val(x) && is_null_val(y);                                              \
@@ -89,13 +86,6 @@ value_fit(value_t *val, meta_t *meta)
             return false;
         break;
 
-    case TYPE_DOUBLE:
-        ASSERT1(is_fpoint_meta(meta), meta->type);
-        if (meta->type == TYPE_FLOAT &&
-            ((float)val_f64(val) > FLT_MAX || (float)val_f64(val) < -FLT_MAX))
-            return false;
-        break;
-
     case TYPE_STRING:
         ASSERT1(is_string_meta(meta), meta->type);
         break;
@@ -127,9 +117,6 @@ value_cmp(value_t *x, value_t *y)
     case TYPE_INT256:
         return mpz_cmp(val_mpz(x), val_mpz(y));
 
-    case TYPE_DOUBLE:
-        return val_f64(x) == val_f64(y) ? 0 : (val_f64(x) > val_f64(y) ? 1 : -1);
-
     case TYPE_STRING:
         return strcmp(val_str(x), val_str(y));
 
@@ -154,10 +141,6 @@ value_add(value_t *x, value_t *y, value_t *res)
     case TYPE_INT256:
         value_init_int(res);
         mpz_add(val_mpz(res), val_mpz(x), val_mpz(y));
-        break;
-
-    case TYPE_DOUBLE:
-        value_set_f64(res, val_f64(x) + val_f64(y));
         break;
 
     case TYPE_STRING:
@@ -185,10 +168,6 @@ value_sub(value_t *x, value_t *y, value_t *res)
         mpz_sub(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
 
-    case TYPE_DOUBLE:
-        value_set_f64(res, val_f64(x) - val_f64(y));
-        break;
-
     default:
         ASSERT1(!"invalid value", x->type);
     }
@@ -209,10 +188,6 @@ value_mul(value_t *x, value_t *y, value_t *res)
         mpz_mul(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
 
-    case TYPE_DOUBLE:
-        value_set_f64(res, val_f64(x) * val_f64(y));
-        break;
-
     default:
         ASSERT1(!"invalid value", x->type);
     }
@@ -223,8 +198,6 @@ value_div(value_t *x, value_t *y, value_t *res)
 {
     if (is_int_val(x))
         ASSERT(mpz_sgn(val_mpz(y)) != 0);
-    else if (is_f64_val(x))
-        ASSERT(y->d != 0.0f);
 
     ASSERT2(x->type == y->type, x->type, y->type);
 
@@ -236,10 +209,6 @@ value_div(value_t *x, value_t *y, value_t *res)
     case TYPE_INT256:
         value_init_int(res);
         mpz_tdiv_q(val_mpz(res), val_mpz(x), val_mpz(y));
-        break;
-
-    case TYPE_DOUBLE:
-        value_set_f64(res, val_f64(x) / val_f64(y));
         break;
 
     default:
@@ -433,9 +402,6 @@ value_neg(value_t *x, value_t *y, value_t *res)
         value_init_int(res);
         mpz_neg(val_mpz(res), val_mpz(x));
     }
-    else if (is_f64_val(x)) {
-        value_set_f64(res, -val_f64(x));
-    }
     else {
         ASSERT1(!"invalid value", x->type);
     }
@@ -524,7 +490,6 @@ static void
 value_cast_to_byte(value_t *val)
 {
     int64_t i;
-    double d;
 
     switch (val->type) {
     case TYPE_BYTE:
@@ -533,11 +498,6 @@ value_cast_to_byte(value_t *val)
     case TYPE_INT256:
         i = val_i64(val);
         value_set_byte(val, (int8_t)i);
-        break;
-
-    case TYPE_DOUBLE:
-        d = val_f64(val);
-        value_set_byte(val, (int8_t)d);
         break;
 
     default:
@@ -549,7 +509,6 @@ static void
 value_cast_to_i256(value_t *val)
 {
     uint8_t c;
-    double d;
     char *s;
 
     switch (val->type) {
@@ -561,48 +520,11 @@ value_cast_to_i256(value_t *val)
     case TYPE_INT256:
         break;
 
-    case TYPE_DOUBLE:
-        d = val_f64(val);
-        value_init_int(val);
-        mpz_set_d(val_mpz(val), d);
-        break;
-
     case TYPE_STRING:
         s = val_ptr(val);
         value_init_int(val);
         if (s != NULL)
             mpz_set_str(val_mpz(val), s, 0);
-        break;
-
-    default:
-        ASSERT1(!"invalid value", val->type);
-    }
-}
-
-static void
-value_cast_to_f64(value_t *val)
-{
-    double d;
-
-    switch (val->type) {
-    case TYPE_BOOL:
-        value_set_f64(val, val_bool(val) ? 1.0 : 0.0);
-        break;
-
-    case TYPE_BYTE:
-        value_set_f64(val, val_byte(val));
-        break;
-
-    case TYPE_INT256:
-        value_set_f64(val, mpz_get_d(val->z));
-        break;
-
-    case TYPE_DOUBLE:
-        break;
-
-    case TYPE_STRING:
-        sscanf(val_str(val), "%lf", &d);
-        value_set_f64(val, d);
         break;
 
     default:
@@ -629,11 +551,6 @@ value_cast_to_str(value_t *val)
         value_set_str(val, mpz_get_str(NULL, 10, val_mpz(val)));
         break;
 
-    case TYPE_DOUBLE:
-        snprintf(buf, sizeof(buf), "%lf", val_f64(val));
-        value_set_str(val, xstrdup(buf));
-        break;
-
     case TYPE_STRING:
         break;
 
@@ -649,10 +566,8 @@ cast_fn_t cast_fntab_[TYPE_COMPATIBLE + 1] = {
     value_cast_to_i256,
     value_cast_to_i256,
     value_cast_to_i256,
-    NULL,
-    NULL,
-    value_cast_to_f64,
-    value_cast_to_f64,
+    value_cast_to_i256,
+    value_cast_to_i256,
     value_cast_to_str
 };
 
