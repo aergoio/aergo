@@ -11,7 +11,7 @@
 #include "enum.h"
 
 #define flag_set(x, y)              BIT_SET((x).val, (y))
-#define flag_unset(x, y)            BIT_SET((x).val, ~(y))
+#define flag_unset(x, y)            BIT_UNSET((x).val, (y))
 
 #define is_flag_on(x, y)            IS_BIT_ON((x).val, (y))
 #define is_flag_off(x, y)           IS_BIT_OFF((x).val, (y))

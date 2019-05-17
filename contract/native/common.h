@@ -38,6 +38,7 @@
 #define ALIGN64(v)                  ALIGN(v, 8)
 
 #define BIT_SET(x, y)               ((x) |= (y))
+#define BIT_UNSET(x, y)             ((x) &= ~(y))
 #define IS_BIT_ON(x, y)             (((x) & (y)) == (y))
 #define IS_BIT_OFF(x, y)            (((x) & (y)) != (y))
 
