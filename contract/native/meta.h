@@ -17,7 +17,6 @@
 #define is_int16_type(type)         ((type) == TYPE_INT16)
 #define is_int32_type(type)         ((type) == TYPE_INT32)
 #define is_int64_type(type)         ((type) == TYPE_INT64)
-#define is_int128_type(type)        ((type) == TYPE_INT128)
 #define is_int256_type(type)        ((type) == TYPE_INT256)
 #define is_float_type(type)         ((type) == TYPE_FLOAT)
 #define is_double_type(type)        ((type) == TYPE_DOUBLE)
@@ -36,7 +35,6 @@
 #define is_int16_meta(meta)         is_int16_type((meta)->type)
 #define is_int32_meta(meta)         is_int32_type((meta)->type)
 #define is_int64_meta(meta)         is_int64_type((meta)->type)
-#define is_int128_meta(meta)        is_int128_type((meta)->type)
 #define is_int256_meta(meta)        is_int256_type((meta)->type)
 #define is_float_meta(meta)         is_float_type((meta)->type)
 #define is_double_meta(meta)        is_double_type((meta)->type)
@@ -53,7 +51,7 @@
 
 #define is_integer_meta(meta)                                                                      \
     (is_byte_meta(meta) || is_int8_meta(meta) || is_int16_meta(meta) || is_int32_meta(meta) ||     \
-     is_int64_meta(meta) || is_int128_meta(meta) || is_int256_meta(meta))
+     is_int64_meta(meta) || is_int256_meta(meta))
 #define is_fpoint_meta(meta)        (is_float_meta(meta) || is_double_meta(meta))
 #define is_numeric_meta(meta)       (is_integer_meta(meta) || is_fpoint_meta(meta))
 
@@ -84,7 +82,6 @@
 #define meta_set_int16(meta)        meta_set((meta), TYPE_INT16)
 #define meta_set_int32(meta)        meta_set((meta), TYPE_INT32)
 #define meta_set_int64(meta)        meta_set((meta), TYPE_INT64)
-#define meta_set_int128(meta)       meta_set((meta), TYPE_INT128)
 #define meta_set_int256(meta)       meta_set((meta), TYPE_INT256)
 #define meta_set_float(meta)        meta_set((meta), TYPE_FLOAT)
 #define meta_set_double(meta)       meta_set((meta), TYPE_DOUBLE)

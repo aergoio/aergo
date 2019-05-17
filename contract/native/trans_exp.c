@@ -31,7 +31,7 @@ exp_trans_lit(trans_t *trans, ast_exp_t *exp)
     switch (val->type) {
     case TYPE_BOOL:
     case TYPE_BYTE:
-    case TYPE_INT128:
+    case TYPE_INT256:
     case TYPE_DOUBLE:
         break;
 

@@ -9,12 +9,12 @@ contract test {
     int i6 = (i4 * 3) / (5 + 1) % 5;
     int i7 = i1 + i2;
 
-    int128 z1 = 1;
-    int128 z2 = z1 + 1;
-    int128 z3 = z1 - 0x1;
-    int128 z4 = z1 * (1);
-    int128 z5 = z1 / 1;
-    int128 z6 = z1 % 1;
+    int256 z1 = 1;
+    int256 z2 = z1 + 1;
+    int256 z3 = z1 - 0x1;
+    int256 z4 = z1 * (1);
+    int256 z5 = z1 / 1;
+    int256 z6 = z1 % 1;
 
     /*
     float f1 = 1.0 + (1.0 + .1);
@@ -103,14 +103,14 @@ contract test {
     int i7 = 0xff >> 1;
     int i8 = i7 >> i6;
 
-    int128 z1 = 8;
-    int128 z2 = 0x8012 & z1;
-    int128 z3 = 0xaa34 | z1;
-    int128 z4 = ~-105918;
-    int128 z5 = ~z3;
-    int128 z6 = 0xcd56 ^ z1;
-    int128 z7 = z3 >> z1;
-    int128 z8 = z6 << z1;
+    int256 z1 = 8;
+    int256 z2 = 0x8012 & z1;
+    int256 z3 = 0xaa34 | z1;
+    int256 z4 = ~-105918;
+    int256 z5 = ~z3;
+    int256 z6 = 0xcd56 ^ z1;
+    int256 z7 = z3 >> z1;
+    int256 z8 = z6 << z1;
 
     test() {
         pragma assert(i1 == 137);
@@ -163,8 +163,8 @@ contract test {
     bool b10 = (s1 > s2);
     bool b11 = (s1 < s2);
 
-    int128 z1 = 1;
-    int128 z2 = 2;
+    int256 z1 = 1;
+    int256 z2 = 2;
     bool b12 = z1 == 1;
     bool b13 = z1 != 1;
     bool b14 = z1 < z2;
@@ -243,10 +243,10 @@ contract test {
     int i5 = --i1;
     int i6 = -i1;
 
-    int128 z1 = 1;
-    int128 z2 = z1++;
-    int128 z3 = z1--;
-    int128 z4 = -z1;
+    int256 z1 = 1;
+    int256 z2 = z1++;
+    int256 z3 = z1--;
+    int256 z4 = -z1;
 
     bool b1 = true;
     bool b2 = !b1;
@@ -344,7 +344,7 @@ contract test {
     int8 i1 = -1;
     int16 i2 = 0;
     int64 i3 = 1;
-    int128 i4 = 2;
+    int256 i4 = 2;
     string s = "false";
 
     bool v1 = (bool)b1;
@@ -361,7 +361,7 @@ contract test {
     byte b1 = 255;
     int16 i1 = 127;
     int64 i2 = -128;
-    int128 i3 = 0;
+    int256 i3 = 0;
     string s = "17";
 
     int8 v1 = (int8)b1;
@@ -385,7 +385,7 @@ contract test {
     byte b1 = 58;
     int8 i1 = -2;
     int64 i2 = 0xf000;
-    int128 i3 = 0x1234;
+    int256 i3 = 0x1234;
     string s = "32000";
 
     int16 v1 = (int16)b1;
@@ -409,7 +409,7 @@ contract test {
     byte b1 = 0;
     int8 i1 = 100;
     int16 i2 = 32760;
-    int128 i3 = 0x8000000000000000;
+    int256 i3 = 0x8000000000000000;
     string s = "3.141592";
 
     int64 v1 = (int64)b1;
@@ -427,7 +427,7 @@ contract test {
     }
 }
 
-@test(typecast_to_int128)
+@test(typecast_to_int256)
 contract test {
     byte b1 = 196;
     int8 i1 = -23;
@@ -435,11 +435,11 @@ contract test {
     int64 i3 = -50000000000000;
     string s = "2019";
 
-    int128 v1 = (int128)b1;
-    int128 v2 = (int128)i1;
-    int128 v3 = (int128)i2;
-    int128 v4 = (int128)i3;
-    int128 v5 = (int128)s;
+    int256 v1 = (int256)b1;
+    int256 v2 = (int256)i1;
+    int256 v3 = (int256)i2;
+    int256 v4 = (int256)i3;
+    int256 v5 = (int256)s;
 
     test() {
         pragma assert(v1 == 196);
@@ -457,7 +457,7 @@ contract test {
     int8 i1 = 118;
     int16 i2 = -32000;
     int64 i3 = 9000000000000000000;
-    int128 i4 = -170000000000000000000000000000000000000;
+    int256 i4 = -170000000000000000000000000000000000000;
 
     string v1 = (string)b1;
     string v2 = (string)b2;

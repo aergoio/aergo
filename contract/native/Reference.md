@@ -194,7 +194,7 @@ select      update
 Type identifiers
 ------------------------------------------------------------------
 bool        byte
-int         int8        int16       int32       int64       int128
+int         int8        int16       int32       int64       int256
 float       double
 string
 map
@@ -267,7 +267,7 @@ ASCL에서는 다음과 같은 타입을 지원한다.
 
 <pre>
 <a name="type">Type</a>           = <a href="#primitive_type">primitive_type</a> | <a href="#complex_type">ComplexType</a> ;
-<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "int128"
+<a name="primitive_type">primitive_type</a> = "bool" | "byte" | "int" | "int8" | "int16" | "int32" | "int64" | "int256"
                  "float" | "double" | "string" | "account" | "cursor" ;
 <a name="complex_type">ComplexType</a>    = <a href="#struct_decl">StructDecl</a> | <a href="#enum_decl">EnumDecl</a> | <a href="#map_decl">MapDecl</a> ;
 </pre>
@@ -293,7 +293,7 @@ int8      8-bit signed integer       -128 ~ 127
 int16     16-bit signed integer      -32768 ~ 32767
 int32     32-bit signed integer      -2147483648 ~ 2147483647
 int64     64-bit signed integer      -9223372036854775808 ~ 9223372036854775807
-int128    128-bit signed integer     -2^127 ~ (2^127 - 1)
+int256    256-bit signed integer     -2^255 ~ (2^255 - 1)
 ```
 
 ```
@@ -441,7 +441,7 @@ float f = i;        // raise error
 Constant  Comparable types
 --------  ---------------------------------------
 booleans  bool
-integers  byte, int8, int16, int32, int64, int128
+integers  byte, int8, int16, int32, int64, int256
 floats    float, double
 strings   string
 ```

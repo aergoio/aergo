@@ -27,8 +27,8 @@ exp_check_lit(check_t *check, ast_exp_t *exp)
         meta_set_byte(&exp->meta);
         break;
 
-    case TYPE_INT128:
-        meta_set_int128(&exp->meta);
+    case TYPE_INT256:
+        meta_set_int256(&exp->meta);
         meta_set_undef(&exp->meta);
         break;
 

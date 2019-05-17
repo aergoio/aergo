@@ -32,7 +32,7 @@ type_gen(type_t type)
     case TYPE_INT8:
     case TYPE_INT16:
     case TYPE_INT32:
-    case TYPE_INT128:
+    case TYPE_INT256:
         return BinaryenTypeInt32();
 
     case TYPE_INT64:

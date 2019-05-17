@@ -15,7 +15,7 @@
 
 #define is_bool_val(val)            ((val)->type == TYPE_BOOL)
 #define is_byte_val(val)            ((val)->type == TYPE_BYTE)
-#define is_int_val(val)             ((val)->type == TYPE_INT128)
+#define is_int_val(val)             ((val)->type == TYPE_INT256)
 #define is_f64_val(val)             ((val)->type == TYPE_DOUBLE)
 #define is_str_val(val)             ((val)->type == TYPE_STRING)
 #define is_ptr_val(val)             ((val)->type == TYPE_OBJECT)
@@ -38,7 +38,7 @@
 
 #define value_init_int(val)                                                                        \
     do {                                                                                           \
-        (val)->type = TYPE_INT128;                                                                 \
+        (val)->type = TYPE_INT256;                                                                 \
         (val)->size = sizeof(mpz_t);                                                               \
         (val)->ptr = (val)->z;                                                                     \
         mpz_init((val)->z);                                                                        \
@@ -147,8 +147,8 @@ value_serialize(value_t *val, char *buf, meta_t *meta)
         *(uint32_t *)buf = val_byte(val);
         return sizeof(uint32_t);
 
-    case TYPE_INT128:
-        ASSERT1(!is_int128_meta(meta), meta->type);
+    case TYPE_INT256:
+        ASSERT1(!is_int256_meta(meta), meta->type);
 
         if (is_int64_meta(meta)) {
             ASSERT1((ptrdiff_t)buf % 8 == 0, buf);

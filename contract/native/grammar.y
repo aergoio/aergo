@@ -108,7 +108,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
         K_INT16         "int16"
         K_INT32         "int32"
         K_INT64         "int64"
-        K_INT128        "int128"
+        K_INT256        "int256"
         K_INTERFACE     "interface"
         K_LIBRARY       "library"
         K_MAP           "map"
@@ -413,7 +413,7 @@ prim_type:
 |   K_INT16             { $$ = TYPE_INT16; }
 |   K_INT32             { $$ = TYPE_INT32; }
 |   K_INT64             { $$ = TYPE_INT64; }
-|   K_INT128            { $$ = TYPE_INT128; }
+|   K_INT256            { $$ = TYPE_INT256; }
 |   K_INT               { $$ = TYPE_INT32; }
 //|   K_FLOAT             { $$ = TYPE_FLOAT; }
 //|   K_DOUBLE            { $$ = TYPE_DOUBLE; }

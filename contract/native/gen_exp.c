@@ -27,8 +27,8 @@ exp_gen_lit(gen_t *gen, ast_exp_t *exp)
     case TYPE_BYTE:
         return i32_gen(gen, val_byte(val));
 
-    case TYPE_INT128:
-        if (is_int128_meta(meta)) {
+    case TYPE_INT256:
+        if (is_int256_meta(meta)) {
             char *str;
 
             if (value_fits_i32(val))
@@ -137,7 +137,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         if (is_string_meta(to_meta))
             return syslib_call(gen, FN_ITOA32, 1, value);
 
-        if (is_int128_meta(to_meta))
+        if (is_int256_meta(to_meta))
             return syslib_call(gen, FN_MPZ_SET_I32, 1, value);
 
         if (is_float_meta(to_meta))
@@ -154,7 +154,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         if (is_string_meta(to_meta))
             return syslib_call(gen, FN_ITOA64, 1, value);
 
-        if (is_int128_meta(to_meta))
+        if (is_int256_meta(to_meta))
             return syslib_call(gen, FN_MPZ_SET_I64, 1, value);
 
         if (is_float_meta(to_meta))
@@ -167,7 +167,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
             return value;
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         if (is_string_meta(to_meta))
             return syslib_call(gen, FN_MPZ_GET_STR, 1, value);
 
@@ -202,7 +202,7 @@ exp_gen_cast(gen_t *gen, ast_exp_t *exp)
         if (is_int64_meta(to_meta))
             return syslib_call(gen, FN_ATOI64, 1, value);
 
-        if (is_int128_meta(to_meta))
+        if (is_int256_meta(to_meta))
             return syslib_call(gen, FN_MPZ_SET_STR, 1, value);
 
         return syslib_call(gen, FN_ATOI32, 1, value);
@@ -224,7 +224,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
 
     switch (exp->u_un.kind) {
     case OP_NEG:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_1(gen, FN_MPZ_NEG, value);
 
         if (is_int64_meta(meta))
@@ -242,7 +242,7 @@ exp_gen_unary(gen_t *gen, ast_exp_t *exp)
         return BinaryenUnary(gen->module, BinaryenEqZInt32(), value);
 
     case OP_BIT_NOT:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call(gen, FN_MPZ_COM, 1, value);
 
         if (is_int64_meta(meta))
@@ -271,7 +271,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         if (is_string_meta(meta))
             return syslib_call_2(gen, FN_STRCAT, left, right);
 
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_ADD, left, right);
 
         if (is_int64_meta(meta))
@@ -285,7 +285,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_SUB:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_SUB, left, right);
 
         if (is_int64_meta(meta))
@@ -299,7 +299,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_MUL:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_MUL, left, right);
 
         if (is_int64_meta(meta))
@@ -313,7 +313,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_DIV:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_DIV, left, right);
 
         if (is_int64_meta(meta))
@@ -327,7 +327,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_MOD:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_MOD, left, right);
 
         if (is_int64_meta(meta))
@@ -337,7 +337,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_BIT_AND:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_AND, left, right);
 
         if (is_int64_meta(meta))
@@ -347,7 +347,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_BIT_OR:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_OR, left, right);
 
         if (is_int64_meta(meta))
@@ -357,7 +357,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_BIT_XOR:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_XOR, left, right);
 
         if (is_int64_meta(meta))
@@ -367,7 +367,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_BIT_SHR:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_SHR, left, right);
 
         if (is_int64_meta(meta))
@@ -377,7 +377,7 @@ exp_gen_op_arith(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_BIT_SHL:
-        if (is_int128_meta(meta))
+        if (is_int256_meta(meta))
             return syslib_call_2(gen, FN_MPZ_SHL, left, right);
 
         if (is_int64_meta(meta))
@@ -414,7 +414,7 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_EQ:
-        if (is_int128_meta(meta)) {
+        if (is_int256_meta(meta)) {
             left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
             right = i32_gen(gen, 0);
         }
@@ -430,7 +430,7 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_NE:
-        if (is_int128_meta(meta)) {
+        if (is_int256_meta(meta)) {
             left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
             right = i32_gen(gen, 0);
         }
@@ -446,7 +446,7 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_LT:
-        if (is_int128_meta(meta)) {
+        if (is_int256_meta(meta)) {
             left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
             right = i32_gen(gen, 0);
         }
@@ -462,7 +462,7 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_GT:
-        if (is_int128_meta(meta)) {
+        if (is_int256_meta(meta)) {
             left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
             right = i32_gen(gen, 0);
         }
@@ -478,7 +478,7 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_LE:
-        if (is_int128_meta(meta)) {
+        if (is_int256_meta(meta)) {
             left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
             right = i32_gen(gen, 0);
         }
@@ -494,7 +494,7 @@ exp_gen_op_cmp(gen_t *gen, ast_exp_t *exp, meta_t *meta)
         break;
 
     case OP_GE:
-        if (is_int128_meta(meta)) {
+        if (is_int256_meta(meta)) {
             left = syslib_call_2(gen, FN_MPZ_CMP, left, right);
             right = i32_gen(gen, 0);
         }

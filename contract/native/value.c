@@ -9,13 +9,13 @@
 
 #include "value.h"
 
-mpz_t int128_min_ = { { 0, 0, NULL } };
-mpz_t int128_max_ = { { 0, 0, NULL } };
+#define INT256_MIN_STR      "-0x8000000000000000000000000000000000000000000000000000000000000000"
+#define INT256_MAX_STR      "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 
 #define mpz_fits_schar_p(v)     (mpz_get_si(v) >= INT8_MIN && mpz_get_si(v) <= INT8_MAX)
 #define mpz_fits_uchar_p(v)     (mpz_get_si(v) >= 0 && mpz_get_si(v) <= UINT8_MAX)
 
-#define mpz_fits_int128_p(v)    (mpz_cmp(v, int128_min_) >= 0 && mpz_cmp(v, int128_max_) <= 0)
+#define mpz_fits_int256_p(v)    (mpz_cmp(v, int256_min_) >= 0 && mpz_cmp(v, int256_max_) <= 0)
 
 #define value_eval_cmp(op, x, y, res)                                                              \
     do {                                                                                           \
@@ -28,7 +28,7 @@ mpz_t int128_max_ = { { 0, 0, NULL } };
         case TYPE_BYTE:                                                                            \
             v = val_byte(x) op val_byte(y);                                                        \
             break;                                                                                 \
-        case TYPE_INT128:                                                                          \
+        case TYPE_INT256:                                                                          \
             v = mpz_cmp(val_mpz(x), val_mpz(y)) op 0;                                              \
             break;                                                                                 \
         case TYPE_DOUBLE:                                                                          \
@@ -53,6 +53,9 @@ mpz_t int128_max_ = { { 0, 0, NULL } };
         value_set_bool((res), v);                                                                  \
     } while (0)
 
+mpz_t int256_min_ = { { 0, 0, NULL } };
+mpz_t int256_max_ = { { 0, 0, NULL } };
+
 bool
 value_fit(value_t *val, meta_t *meta)
 {
@@ -69,22 +72,20 @@ value_fit(value_t *val, meta_t *meta)
             return false;
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         ASSERT1(is_integer_meta(meta), meta->type);
-        if (mpz_size(int128_min_) == 0) {
-            mpz_init_set_str(int128_min_, "170141183460469231731687303715884105728", 10);
-            mpz_neg(int128_min_, int128_min_);
-        }
+        if (mpz_size(int256_min_) == 0)
+            mpz_init_set_str(int256_min_, INT256_MIN_STR, 0);
 
-        if (mpz_size(int128_max_) == 0)
-            mpz_init_set_str(int128_max_, "170141183460469231731687303715884105727", 10);
+        if (mpz_size(int256_max_) == 0)
+            mpz_init_set_str(int256_max_, INT256_MAX_STR, 0);
 
         if ((meta->type == TYPE_BYTE && !mpz_fits_uchar_p(val_mpz(val))) ||
             (meta->type == TYPE_INT8 && !mpz_fits_schar_p(val_mpz(val))) ||
             (meta->type == TYPE_INT16 && !mpz_fits_sshort_p(val_mpz(val))) ||
             (meta->type == TYPE_INT32 && !mpz_fits_sint_p(val_mpz(val))) ||
             (meta->type == TYPE_INT64 && !mpz_fits_slong_p(val_mpz(val))) ||
-            (meta->type == TYPE_INT128 && !mpz_fits_int128_p(val_mpz(val))))
+            (meta->type == TYPE_INT256 && !mpz_fits_int256_p(val_mpz(val))))
             return false;
         break;
 
@@ -123,7 +124,7 @@ value_cmp(value_t *x, value_t *y)
     case TYPE_BYTE:
         return val_byte(x) == val_byte(y) ? 0 : (val_byte(x) > val_byte(y) ? 1 : -1);
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         return mpz_cmp(val_mpz(x), val_mpz(y));
 
     case TYPE_DOUBLE:
@@ -150,7 +151,7 @@ value_add(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) + val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_add(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -179,7 +180,7 @@ value_sub(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) - val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_sub(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -203,7 +204,7 @@ value_mul(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) * val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_mul(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -232,7 +233,7 @@ value_div(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) / val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_tdiv_q(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -256,7 +257,7 @@ value_mod(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) % val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         ASSERT(mpz_sgn(val_mpz(y)) != 0);
         value_init_int(res);
         mpz_mod(val_mpz(res), val_mpz(x), val_mpz(y));
@@ -313,7 +314,7 @@ value_bit_and(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) & val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_and(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -333,7 +334,7 @@ value_bit_or(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) | val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_ior(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -353,7 +354,7 @@ value_bit_not(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, ~val_byte(x));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_com(val_mpz(res), val_mpz(x));
         break;
@@ -373,7 +374,7 @@ value_bit_xor(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) ^ val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_xor(val_mpz(res), val_mpz(x), val_mpz(y));
         break;
@@ -393,7 +394,7 @@ value_bit_shl(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) << val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_mul_2exp(val_mpz(res), val_mpz(x), mpz_get_ui(val_mpz(y)));
         break;
@@ -413,7 +414,7 @@ value_bit_shr(value_t *x, value_t *y, value_t *res)
         value_set_byte(res, val_byte(x) >> val_byte(y));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_init_int(res);
         mpz_tdiv_q_2exp(val_mpz(res), val_mpz(x), mpz_get_ui(val_mpz(y)));
         break;
@@ -529,7 +530,7 @@ value_cast_to_byte(value_t *val)
     case TYPE_BYTE:
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         i = val_i64(val);
         value_set_byte(val, (int8_t)i);
         break;
@@ -545,7 +546,7 @@ value_cast_to_byte(value_t *val)
 }
 
 static void
-value_cast_to_i128(value_t *val)
+value_cast_to_i256(value_t *val)
 {
     uint8_t c;
     double d;
@@ -557,7 +558,7 @@ value_cast_to_i128(value_t *val)
         value_set_int(val, c);
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         break;
 
     case TYPE_DOUBLE:
@@ -592,7 +593,7 @@ value_cast_to_f64(value_t *val)
         value_set_f64(val, val_byte(val));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_set_f64(val, mpz_get_d(val->z));
         break;
 
@@ -624,7 +625,7 @@ value_cast_to_str(value_t *val)
         value_set_str(val, xstrdup(buf));
         break;
 
-    case TYPE_INT128:
+    case TYPE_INT256:
         value_set_str(val, mpz_get_str(NULL, 10, val_mpz(val)));
         break;
 
@@ -645,10 +646,9 @@ cast_fn_t cast_fntab_[TYPE_COMPATIBLE + 1] = {
     NULL,
     value_cast_to_bool,
     value_cast_to_byte,
-    value_cast_to_i128,
-    value_cast_to_i128,
-    value_cast_to_i128,
-    value_cast_to_i128,
+    value_cast_to_i256,
+    value_cast_to_i256,
+    value_cast_to_i256,
     NULL,
     NULL,
     value_cast_to_f64,

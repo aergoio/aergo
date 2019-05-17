@@ -54,9 +54,9 @@ contract test {
     map(int, string) m;
     func f1(int x, string y) { v.a = x; v.b = y; }
     func f2(int x, string y) { m[x] = y; }
-    func f3(s p) int128 {
+    func f3(s p) int256 {
         int i;
-        int128 j;
+        int256 j;
         for (i = 0; i < p.a; i++) { j++; }
         if (p.b == "b") { j++; }
         return j;
@@ -68,7 +68,7 @@ contract test {
 
         f2(2, "2");
 
-        int128 v;
+        int256 v;
         v = f3(new { 5, "b" });
         pragma assert(v == 6);
         v = f3(new { 5, "b1" });
@@ -279,7 +279,7 @@ contract test {
 @test(return_function)
 @run(test.test)
 contract test {
-    func f1(int64 x) int128 { return (int128)x * 2; }
+    func f1(int64 x) int256 { return (int256)x * 2; }
     func f2(int32 x) int64 { return (int64)f1((int64)x); }
 
     test() {

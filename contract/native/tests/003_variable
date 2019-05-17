@@ -4,7 +4,7 @@ contract test {
     int16 v2;
     int32 v3;
     int64 v4;
-    int128 v5;
+    int256 v5;
     int v6;
 
     //float v7;
