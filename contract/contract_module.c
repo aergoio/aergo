@@ -355,7 +355,7 @@ static int moduleEvent(lua_State *L)
 	}
 
 	event_name = (char *)luaL_checkstring(L, 1);
-	json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), true);
+	json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), false);
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
