@@ -215,7 +215,7 @@ id_trans_fn(trans_t *trans, ast_id_t *id)
         if (is_ctor_id(id)) {
             /* The contract address is returned at the end of "exit_bb" */
             arg_exp = exp_new_reg(fn->cont_idx);
-            meta_set_int32(&arg_exp->meta);
+            meta_set(&arg_exp->meta, TYPE_OBJECT);
 
             ret_stmt = stmt_new_return(arg_exp, &id->pos);
             ret_stmt->u_ret.ret_id = ret_id;

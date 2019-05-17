@@ -65,5 +65,8 @@ ast_exp_t *syslib_make_memset(ast_exp_t *addr_exp, uint32_t val, uint32_t size, 
 ast_exp_t *syslib_make_strlen(ast_exp_t *addr_exp, src_pos_t *pos);
 ast_exp_t *syslib_make_char_set(ast_exp_t *addr_exp, ast_exp_t *idx_exp, ast_exp_t *val_exp,
                                 src_pos_t *pos);
+ast_exp_t *syslib_make_map_new(meta_t *key_meta, meta_t *val_meta, src_pos_t *pos);
+ast_exp_t *syslib_make_map_put(ast_exp_t *addr_exp, ast_exp_t *key_exp, ast_exp_t *val_exp,
+                               src_pos_t *pos);
 
 #endif /* ! _SYSLIB_H */

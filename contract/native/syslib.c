@@ -238,4 +238,51 @@ syslib_make_char_set(ast_exp_t *addr_exp, ast_exp_t *idx_exp, ast_exp_t *val_exp
     return exp;
 }
 
+ast_exp_t *
+syslib_make_map_new(meta_t *key_meta, meta_t *val_meta, src_pos_t *pos)
+{
+    fn_kind_t kind;
+    ast_exp_t *exp;
+
+    if (is_int64_meta(key_meta) && is_int64_meta(val_meta))
+        kind = FN_MAP_NEW_I64_I64;
+    else if (is_int64_meta(key_meta))
+        kind = FN_MAP_NEW_I64_I32;
+    else if (is_int64_meta(val_meta))
+        kind = FN_MAP_NEW_I32_I64;
+    else
+        kind = FN_MAP_NEW_I32_I32;
+
+    exp = exp_new_call(kind, NULL, NULL, pos);
+    meta_set(&exp->meta, TYPE_MAP);
+
+    return exp;
+}
+
+ast_exp_t *
+syslib_make_map_put(ast_exp_t *addr_exp, ast_exp_t *key_exp, ast_exp_t *val_exp, src_pos_t *pos)
+{
+    fn_kind_t kind;
+    ast_exp_t *exp;
+    vector_t *arg_exps = vector_new();
+
+    exp_add(arg_exps, addr_exp);
+    exp_add(arg_exps, key_exp);
+    exp_add(arg_exps, val_exp);
+
+    if (is_int64_meta(&key_exp->meta) && is_int64_meta(&val_exp->meta))
+        kind = FN_MAP_PUT_I64_I64;
+    else if (is_int64_meta(&key_exp->meta))
+        kind = FN_MAP_PUT_I64_I32;
+    else if (is_int64_meta(&val_exp->meta))
+        kind = FN_MAP_PUT_I32_I64;
+    else
+        kind = FN_MAP_PUT_I32_I32;
+
+    exp = exp_new_call(kind, NULL, arg_exps, pos);
+    meta_set_void(&exp->meta);
+
+    return exp;
+}
+
 /* end of syslib.c */

@@ -253,7 +253,6 @@ exp_trans_args(trans_t *trans, ast_exp_t *exp)
              is_struct_meta(param_meta))) {
             uint32_t reg_idx;
             ast_exp_t *reg_exp;
-            ast_exp_t *call_exp;
 
             reg_idx = fn_add_register(trans->fn, param_meta);
 
@@ -262,10 +261,9 @@ exp_trans_args(trans_t *trans, ast_exp_t *exp)
             reg_exp = exp_new_reg(reg_idx);
             meta_set_int32(&reg_exp->meta);
 
-            call_exp =
-                syslib_make_memcpy(reg_exp, exp_clone(arg_exp), meta_memsz(param_meta), &exp->pos);
-
-            stmt_trans(trans, stmt_new_exp(call_exp, &exp->pos));
+            stmt_trans(trans, stmt_new_exp(
+                syslib_make_memcpy(reg_exp, exp_clone(arg_exp), meta_memsz(param_meta), &exp->pos),
+                &exp->pos));
 
             exp_set_reg(arg_exp, reg_idx);
         }
@@ -363,68 +361,40 @@ make_map_init(trans_t *trans, ast_exp_t *exp)
 {
     int i;
     uint32_t reg_idx;
-    fn_kind_t kind;
     meta_t *meta = &exp->meta;
     vector_t *elem_exps = exp->u_init.elem_exps;
-    ast_exp_t *l_exp, *r_exp;
+    ast_exp_t *reg_exp;
+    ast_exp_t *call_exp;
 
     ASSERT1(meta->elem_cnt == 2, meta->elem_cnt);
 
     reg_idx = fn_add_register(trans->fn, meta);
 
-    l_exp = exp_new_reg(reg_idx);
-    meta_set_int32(&l_exp->meta);
+    reg_exp = exp_new_reg(reg_idx);
+    meta_set(&reg_exp->meta, TYPE_MAP);
 
-    if (is_int64_meta(meta->elems[0]) && is_int64_meta(meta->elems[1]))
-        kind = FN_MAP_NEW_I64_I64;
-    else if (is_int64_meta(meta->elems[0]))
-        kind = FN_MAP_NEW_I64_I32;
-    else if (is_int64_meta(meta->elems[1]))
-        kind = FN_MAP_NEW_I32_I64;
-    else
-        kind = FN_MAP_NEW_I32_I32;
+    call_exp = syslib_make_map_new(meta->elems[0], meta->elems[1], &exp->pos);
 
-    r_exp = exp_new_call(kind, NULL, NULL, meta->pos);
-    meta_set_int32(&r_exp->meta);
-
-    exp_trans(trans, r_exp);
-
-    bb_add_stmt(trans->bb, stmt_new_assign(l_exp, r_exp, meta->pos));
+    bb_add_stmt(trans->bb, stmt_new_assign(reg_exp, call_exp, &exp->pos));
 
     vector_foreach(elem_exps, i) {
         /* key-value pair */
         ast_exp_t *kvp_exp = vector_get_exp(elem_exps, i);
         ast_exp_t *k_exp, *v_exp;
-        ast_exp_t *call_exp;
-        vector_t *arg_exps = vector_new();
 
         ASSERT1(is_init_exp(kvp_exp), kvp_exp->kind);
         ASSERT1(vector_size(kvp_exp->u_init.elem_exps) == 2,
                 vector_size(kvp_exp->u_init.elem_exps));
 
-        k_exp = vector_get_first(kvp_exp->u_init.elem_exps, ast_exp_t);
-        v_exp = vector_get_last(kvp_exp->u_init.elem_exps, ast_exp_t);
+        k_exp = vector_get(kvp_exp->u_init.elem_exps, 0, ast_exp_t);
+        v_exp = vector_get(kvp_exp->u_init.elem_exps, 1, ast_exp_t);
 
         exp_trans(trans, k_exp);
         exp_trans(trans, v_exp);
 
-        exp_add(arg_exps, l_exp);
-        exp_add(arg_exps, k_exp);
-        exp_add(arg_exps, v_exp);
+        call_exp = syslib_make_map_put(reg_exp, k_exp, v_exp, &kvp_exp->pos);
 
-        if (is_int64_meta(&k_exp->meta) && is_int64_meta(&v_exp->meta))
-            kind = FN_MAP_PUT_I64_I64;
-        else if (is_int64_meta(&k_exp->meta))
-            kind = FN_MAP_PUT_I64_I32;
-        else if (is_int64_meta(&v_exp->meta))
-            kind = FN_MAP_PUT_I32_I64;
-        else
-            kind = FN_MAP_PUT_I32_I32;
-
-        call_exp = exp_new_call(kind, NULL, arg_exps, meta->pos);
-        meta_set_void(&call_exp->meta);
-
-        stmt_trans(trans, stmt_new_exp(call_exp, meta->pos));
+        stmt_trans(trans, stmt_new_exp(call_exp, &kvp_exp->pos));
     }
 
     exp_set_reg(exp, reg_idx);
@@ -571,15 +541,12 @@ make_dynamic_init(trans_t *trans, ast_exp_t *exp)
                 l_exp = exp_new_mem(reg_idx, 0, offset);
                 meta_copy(&l_exp->meta, elem_meta);
 
-                if (is_array_meta(elem_meta) || is_struct_meta(elem_meta)) {
-                    ast_exp_t *call_exp =
-                        syslib_make_memcpy(l_exp, elem_exp, meta_memsz(elem_meta), &exp->pos);
-
-                    stmt_trans(trans, stmt_new_exp(call_exp, &exp->pos));
-                }
-                else {
+                if (is_array_meta(elem_meta) || is_struct_meta(elem_meta))
+                    stmt_trans(trans, stmt_new_exp(
+                        syslib_make_memcpy(l_exp, elem_exp, meta_memsz(elem_meta), &exp->pos),
+                        &exp->pos));
+                else
                     bb_add_stmt(trans->bb, stmt_new_assign(l_exp, elem_exp, &exp->pos));
-                }
             }
 
             offset += meta_memsz(elem_meta);
