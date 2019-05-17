@@ -19,6 +19,7 @@ import (
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
@@ -182,6 +183,7 @@ type IChainHandler interface {
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
+	getEnterpriseConf(key string) (*types.EnterpriseConfig, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
@@ -521,6 +523,11 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 	return name.GetNameInfo(stateDB, qname)
 }
 
+func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
+	stateDB := cs.sdb.GetStateDB()
+	return enterprise.GetConf(stateDB, key)
+}
+
 type ChainManager struct {
 	*SubComponent
 	IChainHandler //to use chain APIs
@@ -791,12 +798,19 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Owner: owner,
 			Err:   err,
 		})
+	case *message.GetEnterpriseConf:
+		conf, err := cw.getEnterpriseConf(msg.Key)
+		context.Respond(&message.GetEnterpriseConfRsp{
+			Conf: conf,
+			Err:  err,
+		})
 	case *message.ListEvents:
 		events, err := cw.listEvents(msg.Filter)
 		context.Respond(&message.ListEventsRsp{
 			Events: events,
 			Err:    err,
 		})
+
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)

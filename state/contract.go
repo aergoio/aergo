@@ -47,6 +47,11 @@ func (states *StateDB) GetNameAccountState() (*ContractState, error) {
 	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 }
 
+// GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
+func (states *StateDB) GetEnterpriseAccountState() (*ContractState, error) {
+	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+}
+
 type ContractState struct {
 	*types.State
 	account types.AccountID

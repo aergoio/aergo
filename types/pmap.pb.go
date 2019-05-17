@@ -3,11 +3,9 @@
 
 package types
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -37,7 +35,6 @@ func (*MapQuery) ProtoMessage()    {}
 func (*MapQuery) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c373235fa8835f5c, []int{0}
 }
-
 func (m *MapQuery) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapQuery.Unmarshal(m, b)
 }
@@ -99,7 +96,6 @@ func (*MapResponse) ProtoMessage()    {}
 func (*MapResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c373235fa8835f5c, []int{1}
 }
-
 func (m *MapResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapResponse.Unmarshal(m, b)
 }

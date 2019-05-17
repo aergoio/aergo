@@ -153,6 +153,15 @@ type GetNameInfoRsp struct {
 	Err   error
 }
 
+type GetEnterpriseConf struct {
+	Key string
+}
+
+type GetEnterpriseConfRsp struct {
+	Conf *types.EnterpriseConfig
+	Err  error
+}
+
 type GetAnchors struct {
 	Seq uint64
 }

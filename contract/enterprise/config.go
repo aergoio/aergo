@@ -4,11 +4,29 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/state"
+	"github.com/aergoio/aergo/types"
 )
 
 type Conf struct {
 	On     bool
 	Values []string
+}
+
+// AccountStateReader is an interface for getting a enterprise account state.
+type AccountStateReader interface {
+	GetEnterpriseAccountState() (*state.ContractState, error)
+}
+
+func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) {
+	scs, err := r.GetEnterpriseAccountState()
+	if err != nil {
+		return nil, err
+	}
+	conf, err := getConf(scs, []byte(key))
+	if err != nil {
+		return nil, err
+	}
+	return &types.EnterpriseConfig{Key: key, Values: conf.Values, On: conf.On}, nil
 }
 
 func enableConf(scs *state.ContractState, key []byte, value bool) error {

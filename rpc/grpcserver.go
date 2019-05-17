@@ -1072,3 +1072,16 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(peer.ID(member.PeerID))}}
 	return reply, nil
 }
+
+func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetEnterpriseConf{Key: in.Key}, defaultActorTimeout, "rpc.(*AergoRPCService).GetEnterpiseConfig").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetEnterpriseConfRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return rsp.Conf, nil
+}
