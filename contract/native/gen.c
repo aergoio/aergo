@@ -18,7 +18,7 @@ gen_init(gen_t *gen, flag_t flag)
 }
 
 void
-gen(ir_t *ir, flag_t flag, char *infile)
+gen(ir_t *ir, flag_t flag)
 {
     int i;
     gen_t gen;

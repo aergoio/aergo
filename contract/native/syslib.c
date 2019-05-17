@@ -46,7 +46,7 @@ sys_fn_t sys_fntab_[FN_MAX] = {
 void
 syslib_load(ast_t *ast)
 {
-    flag_t flag = { FLAG_NONE, 0, 0 };
+    flag_t flag = { FLAG_NONE, NULL, 0, 0 };
     iobuf_t src;
 
     iobuf_init(&src, "system_library");

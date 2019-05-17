@@ -27,6 +27,6 @@ typedef struct gen_s {
     RelooperRef relooper;
 } gen_t;
 
-void gen(ir_t *ir, flag_t flag, char *path);
+void gen(ir_t *ir, flag_t flag);
 
 #endif /* ! _GEN_H */

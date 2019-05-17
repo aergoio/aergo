@@ -60,7 +60,8 @@ var (
 
 				err := C.int(0)
 				for _, arg := range args {
-					err |= C.compile(C.CString(arg), flags)
+                    flags.path = C.CString(arg);
+					err |= C.compile(flags)
 				}
 				if err != 0 {
 					os.Exit(1)

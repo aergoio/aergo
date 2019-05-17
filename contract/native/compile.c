@@ -18,15 +18,15 @@
 #include "compile.h"
 
 int
-compile(char *path, flag_t flag)
+compile(flag_t flag)
 {
     iobuf_t src;
     ast_t *ast = ast_new();
     ir_t *ir = ir_new();
 
-    ASSERT(path != NULL);
+    ASSERT(flag.path != NULL);
 
-    iobuf_init(&src, path);
+    iobuf_init(&src, flag.path);
     iobuf_load(&src);
 
     prep(&src, flag, ast);
@@ -35,7 +35,7 @@ compile(char *path, flag_t flag)
     check(ast, flag);
     trans(ast, flag, ir);
 
-    gen(ir, flag, path);
+    gen(ir, flag);
 
     if (has_error()) {
         error_print();

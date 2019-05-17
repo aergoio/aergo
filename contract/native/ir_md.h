@@ -26,6 +26,12 @@ typedef struct ir_abi_s ir_abi_t;
 typedef struct ir_fn_s ir_fn_t;
 #endif /* ! _IR_FN_T */
 
+typedef struct ir_di_s {
+    BinaryenExpressionRef instr;
+    int line;
+    int col;
+} ir_di_t;
+
 struct ir_md_s {
     char *name;
 
@@ -33,11 +39,17 @@ struct ir_md_s {
     vector_t fns;
 
     ir_sgmt_t sgmt;
+
+    /* debug information */
+    int fno;
+    vector_t *dis;
 };
 
 ir_md_t *md_new(char *name);
 
 void md_add_abi(ir_md_t *md, ir_abi_t *abi);
 void md_add_fn(ir_md_t *md, ir_fn_t *fn);
+
+void md_add_di(ir_md_t *md, BinaryenExpressionRef instr, src_pos_t *pos);
 
 #endif /* no _IR_MD_H */

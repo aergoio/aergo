@@ -253,8 +253,9 @@ id_trans_contract(trans_t *trans, ast_id_t *id)
         return;
     }
 
-    trans->id = id;
     trans->md = md_new(id->name);
+
+    trans->id = id;
     trans->blk = blk;
 
     /* "blk->stmts" is no longer used. */

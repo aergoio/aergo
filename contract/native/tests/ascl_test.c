@@ -59,6 +59,7 @@ env_init(env_t *env)
 {
     memset(env, 0x00, sizeof(env_t));
 
+    env->flag.val = FLAG_DEBUG;
     env->flag.stack_size = UINT16_MAX + 1;
 
     stack_init(&env->exp);
@@ -190,6 +191,7 @@ run_test(env_t *env, char *path)
     ir_t *ir = ir_new();
 
     env->cur_exec_cnt++;
+    env->flag.path = path;
 
     if (env->print_title) {
         printf("  + %-67s ", env->title);
@@ -205,7 +207,7 @@ run_test(env_t *env, char *path)
     check(ast, env->flag);
     trans(ast, env->flag, ir);
 
-    gen(ir, env->flag, path);
+    gen(ir, env->flag);
 
     if (!has_error() && env->module[0] != '\0') {
         char wasm[PATH_MAX_LEN + 6];
@@ -381,6 +383,7 @@ get_opt(env_t *env, int argc, char **argv)
             flag_set(env->flag, FLAG_DUMP_WAT);
         }
         else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--optimize") == 0) {
+            flag_unset(env->flag, FLAG_DEBUG);
             env->flag.opt_lvl = 2;
         }
         else {
