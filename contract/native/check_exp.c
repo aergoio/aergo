@@ -607,7 +607,7 @@ exp_check_access(check_t *check, ast_exp_t *exp)
 
     fld_exp = exp->u_acc.fld_exp;
 
-    if (is_array_meta(qual_meta)) {
+    if (is_array_meta(qual_meta) || is_map_meta(qual_meta)) {
         if (!is_id_exp(fld_exp) || strcmp(fld_exp->u_id.name, "size") != 0)
             RETURN(ERROR_INACCESSIBLE_TYPE, &qual_exp->pos, meta_to_str(qual_meta));
 

@@ -118,11 +118,9 @@ exp_trans_array(trans_t *trans, ast_exp_t *exp)
             exp->u_call.kind = FN_CHAR_GET;
         }
 
-        exp->u_call.qname = NULL;
         exp->u_call.id_exp = NULL;
         exp->u_call.arg_exps = arg_exps;
-
-        exp_trans(trans, exp);
+        exp->u_call.qname = NULL;
     }
 }
 
@@ -217,6 +215,32 @@ exp_trans_access(trans_t *trans, ast_exp_t *exp)
 
     if (is_fn_id(fld_id)) {
         ASSERT1(is_reg_exp(qual_exp), qual_exp->kind);
+        return;
+    }
+
+    if (is_map_meta(&qual_exp->meta)) {
+        meta_t *qual_meta = &qual_exp->meta;
+        ast_exp_t *fld_exp = exp->u_acc.fld_exp;
+
+        ASSERT1(is_id_exp(fld_exp), fld_exp->kind);
+        ASSERT(strcmp(fld_exp->u_id.name, "size") == 0);
+
+        exp->kind = EXP_CALL;
+
+        if (is_int64_meta(qual_meta->elems[0]) && is_int64_meta(qual_meta->elems[1]))
+            exp->u_call.kind = FN_MAP_SIZE_I64_I64;
+        else if (is_int64_meta(qual_meta->elems[0]))
+            exp->u_call.kind = FN_MAP_SIZE_I64_I32;
+        else if (is_int64_meta(qual_meta->elems[1]))
+            exp->u_call.kind = FN_MAP_SIZE_I32_I64;
+        else
+            exp->u_call.kind = FN_MAP_SIZE_I32_I32;
+
+        exp->u_call.id_exp = NULL;
+        exp->u_call.arg_exps = vector_new();
+        exp->u_call.qname = NULL;
+
+        exp_add(exp->u_call.arg_exps, qual_exp);
         return;
     }
 

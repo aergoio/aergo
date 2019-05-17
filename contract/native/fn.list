@@ -58,3 +58,7 @@ fn_def(FN_MAP_PUT_I32_I32, "__map_put_i32_i32", 3, { TYPE_INT32, TYPE_INT32, TYP
 fn_def(FN_MAP_PUT_I32_I64, "__map_put_i32_i64", 3, { TYPE_INT32, TYPE_INT32, TYPE_INT64 }, TYPE_VOID)
 fn_def(FN_MAP_PUT_I64_I32, "__map_put_i64_i32", 3, { TYPE_INT32, TYPE_INT64, TYPE_INT32 }, TYPE_VOID)
 fn_def(FN_MAP_PUT_I64_I64, "__map_put_i64_i64", 3, { TYPE_INT32, TYPE_INT64, TYPE_INT64 }, TYPE_VOID)
+fn_def(FN_MAP_SIZE_I32_I32, "__map_size_i32_i32", 1, { TYPE_INT32 }, TYPE_INT32)
+fn_def(FN_MAP_SIZE_I32_I64, "__map_size_i32_i64", 1, { TYPE_INT32 }, TYPE_INT32)
+fn_def(FN_MAP_SIZE_I64_I32, "__map_size_i64_i32", 1, { TYPE_INT32 }, TYPE_INT32)
+fn_def(FN_MAP_SIZE_I64_I64, "__map_size_i64_i64", 1, { TYPE_INT32 }, TYPE_INT32)
