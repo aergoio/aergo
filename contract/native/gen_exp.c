@@ -71,9 +71,15 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
 
     address = exp_gen(gen, id_exp, NULL);
 
-    if (is_fixed_meta(&id_exp->meta) && is_lit_exp(idx_exp)) {
+    if (is_fixed_meta(&id_exp->meta)) {
         /* The total size of the subdimensions is required. */
-        offset = meta_align(meta) + val_i64(&idx_exp->u_lit.val) * meta_memsz(meta);
+        if (is_lit_exp(idx_exp))
+            offset = meta_align(meta) + val_i64(&idx_exp->u_lit.val) * meta_memsz(meta);
+        else
+            address = BinaryenBinary(gen->module, BinaryenAddInt32(), address,
+                BinaryenBinary(gen->module, BinaryenAddInt32(), i32_gen(gen, meta_align(meta)),
+                    BinaryenBinary(gen->module, BinaryenMulInt32(), exp_gen(gen, idx_exp, NULL),
+                                   i32_gen(gen, meta_memsz(meta)))));
     }
     else {
         fn_kind_t kind = FN_ARR_GET_I32;
@@ -83,7 +89,7 @@ exp_gen_array(gen_t *gen, ast_exp_t *exp, BinaryenExpressionRef value)
             kind = FN_ARR_GET_I64;
 
         address = syslib_call(gen, kind, 4, address, i32_gen(gen, meta->arr_dim),
-                             exp_gen(gen, idx_exp, NULL), i32_gen(gen, meta_typsz(elem_meta)));
+                              exp_gen(gen, idx_exp, NULL), i32_gen(gen, meta_typsz(elem_meta)));
     }
 
     ASSERT2(offset % meta_align(meta) == 0, offset, meta_align(meta));
