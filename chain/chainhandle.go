@@ -308,9 +308,9 @@ func (cp *chainProcessor) notifyBlockByOther(block *types.Block) {
 
 func checkDebugSleep(isBP bool) {
 	if isBP {
-		_ = TestDebugger.Check(DEBUG_CHAIN_BP_SLEEP, 0)
+		_ = TestDebugger.Check(DEBUG_CHAIN_BP_SLEEP, 0, nil)
 	} else {
-		_ = TestDebugger.Check(DEBUG_CHAIN_OTHER_SLEEP, 0)
+		_ = TestDebugger.Check(DEBUG_CHAIN_OTHER_SLEEP, 0, nil)
 	}
 }
 

@@ -72,11 +72,11 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	RaftSkipEmptyBlock = raftConfig.SkipEmpty
-
-	if bf.bpc.getEffectiveMembers().len() == 0 {
+	if bf.bpc.getMembers().len() == 0 {
 		logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
 	}
+
+	RaftSkipEmptyBlock = raftConfig.SkipEmpty
 
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
 
@@ -161,9 +161,12 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 }
 
 func (cl *Cluster) SetThisNodeID() error {
+	cl.Lock()
+	defer cl.Unlock()
+
 	var member *consensus.Member
 
-	if member = cl.getEffectiveMembers().getMemberByName(cl.NodeName()); member == nil {
+	if member = cl.getMembers().getMemberByName(cl.NodeName()); member == nil {
 		return ErrNotIncludedRaftMember
 	}
 

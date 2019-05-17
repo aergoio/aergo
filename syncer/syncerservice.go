@@ -387,7 +387,7 @@ func (syncer *Syncer) handleGetHashByNoRsp(msg *message.GetHashByNoRsp) {
 func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	logger.Debug().Msg("syncer received finder result message")
 
-	if err := chain.TestDebugger.Check(chain.DEBUG_SYNCER_CRASH, 0); err != nil {
+	if err := chain.TestDebugger.Check(chain.DEBUG_SYNCER_CRASH, 0, nil); err != nil {
 		return err
 	}
 

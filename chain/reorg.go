@@ -120,7 +120,7 @@ func newReorganizer(cs *ChainService, topBlock *types.Block, marker *ReorgMarker
 		reorg.executeBlockFn = cs.executeBlock
 	}
 
-	TestDebugger.Check(DEBUG_CHAIN_RANDOM_STOP, 0)
+	TestDebugger.Check(DEBUG_CHAIN_RANDOM_STOP, 0, nil)
 
 	return reorg, nil
 }
@@ -225,7 +225,7 @@ func (reorg *reorganizer) newMarker() {
 func (reorg *reorganizer) swapChain() error {
 	logger.Info().Msg("swap chain to new branch")
 
-	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 1); err != nil {
+	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 1, nil); err != nil {
 		return err
 	}
 
@@ -233,7 +233,7 @@ func (reorg *reorganizer) swapChain() error {
 		return err
 	}
 
-	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 2); err != nil {
+	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 2, nil); err != nil {
 		return err
 	}
 
@@ -249,7 +249,7 @@ func (reorg *reorganizer) swapChain() error {
 		return err
 	}
 
-	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 3); err != nil {
+	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 3, nil); err != nil {
 		return err
 	}
 

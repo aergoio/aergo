@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
@@ -277,7 +278,7 @@ func (rs *raftServer) startRaft() {
 	case RaftServerStateRestart:
 		logger.Info().Msg("raft restart from wal")
 
-		rs.cluster.configMembers.reset()
+		rs.cluster.ResetMembers()
 
 		snapshot, err := rs.loadSnapshot()
 		if err != nil {
@@ -380,7 +381,7 @@ func (rs *raftServer) startTransport() {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
 	}
 
-	for _, member := range rs.cluster.getEffectiveMembers().MapByID {
+	for _, member := range rs.cluster.getMembers().MapByID {
 		if rs.cluster.NodeID() != member.ID {
 			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})
 		}
@@ -842,6 +843,12 @@ func (rs *raftServer) triggerSnapshot() {
 
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")
 	rs.setSnapshotIndex(newSnapshotIndex)
+
+	chain.TestDebugger.Check(chain.DEBUG_RAFT_SNAP_FREQ, 0,
+		func(freq int) error {
+			rs.snapFrequency = uint64(freq)
+			return nil
+		})
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
@@ -1145,7 +1152,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
 		cl, err = GetClusterInfo(rs.ComponentHub)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
-				logger.Debug().Int("try", i).Msg("failed try to get cluster. and sleep")
+				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
 				time.Sleep(time.Second * 10)
 			} else {
 				logger.Warn().Err(err).Int("try", i).Msg("failed try to get cluster")

@@ -22,10 +22,11 @@ const (
 	DEBUG_CHAIN_BP_SLEEP
 	DEBUG_CHAIN_OTHER_SLEEP
 	DEBUG_SYNCER_CRASH
+	DEBUG_RAFT_SNAP_FREQ // change snap frequency after first snapshot
 )
 
 const (
-	DEBUG_CHAIN_STOP_INF = DEBUG_SYNCER_CRASH
+	DEBUG_CHAIN_STOP_INF = DEBUG_RAFT_SNAP_FREQ
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 	EnvNameChainBPSleep    = "DEBUG_CHAIN_BP_SLEEP"    // bp node sleeps before connecting block for each block (ms). used
 	EnvNameChainOtherSleep = "DEBUG_CHAIN_OTHER_SLEEP" // non bp node sleeps before connecting block for each block (ms).
 	EnvNameSyncCrash       = "DEBUG_SYNCER_CRASH"      // case 1
+	EnvNameRaftSnapFreq    = "DEBUG_RAFT_SNAP_FREQ"    // case 1
 )
 
 var stopConds = [...]string{
@@ -42,7 +44,10 @@ var stopConds = [...]string{
 	EnvNameChainBPSleep,
 	EnvNameChainOtherSleep,
 	EnvNameSyncCrash,
+	EnvNameRaftSnapFreq,
 }
+
+type DebugHandler func(value int) error
 
 func (c StopCond) String() string { return stopConds[c] }
 
@@ -80,6 +85,7 @@ func newDebugger() *Debugger {
 	checkEnv(DEBUG_CHAIN_BP_SLEEP)
 	checkEnv(DEBUG_CHAIN_OTHER_SLEEP)
 	checkEnv(DEBUG_SYNCER_CRASH)
+	checkEnv(DEBUG_RAFT_SNAP_FREQ)
 
 	return dbg
 }
@@ -121,7 +127,7 @@ func (debug *Debugger) clear() {
 	debug.isEnv = make(map[StopCond]bool)
 }
 
-func (debug *Debugger) Check(cond StopCond, value int) error {
+func (debug *Debugger) Check(cond StopCond, value int, handler DebugHandler) error {
 	if debug == nil {
 		return nil
 	}
@@ -130,6 +136,8 @@ func (debug *Debugger) Check(cond StopCond, value int) error {
 	defer debug.Unlock()
 
 	if setVal, ok := debug.condMap[cond]; ok {
+		logger.Debug().Str("cond", stopConds[cond]).Int("val", setVal).Msg("check debug condition")
+
 		switch cond {
 		case DEBUG_CHAIN_STOP:
 			if setVal == value {
@@ -151,6 +159,8 @@ func (debug *Debugger) Check(cond StopCond, value int) error {
 			if setVal == value {
 				return handleSyncerCrash(setVal, cond)
 			}
+		case DEBUG_RAFT_SNAP_FREQ:
+			handler(setVal)
 		}
 	}
 
