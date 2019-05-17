@@ -5,7 +5,6 @@
 
 #include "common.h"
 
-#include "ir_md.h"
 #include "gen_stmt.h"
 #include "gen_exp.h"
 #include "gen_util.h"
@@ -19,13 +18,7 @@ bb_gen(gen_t *gen, ir_bb_t *bb)
     BinaryenExpressionRef block;
 
     vector_foreach(&bb->stmts, i) {
-        ast_stmt_t *stmt = vector_get_stmt(&bb->stmts, i);
-        BinaryenExpressionRef instr = stmt_gen(gen, stmt);
-
-        bb_add_instr(bb, instr);
-
-        if (is_flag_on(gen->flag, FLAG_DEBUG))
-            md_add_di(gen->md, instr, &stmt->pos);
+        bb_add_instr(bb, stmt_gen(gen, vector_get_stmt(&bb->stmts, i)));
     }
 
     block = BinaryenBlock(gen->module, NULL, (BinaryenExpressionRef *)array_items(&bb->instrs),

@@ -71,13 +71,6 @@ md_gen(gen_t *gen, ir_md_t *md)
     gen->module = BinaryenModuleCreate();
     gen->md = md;
 
-    if (is_flag_on(gen->flag, FLAG_DEBUG)) {
-        char *ptr = strrchr(gen->flag.path, PATH_DELIM);
-
-        md->fno = BinaryenModuleAddDebugInfoFileName(gen->module, ptr ? ptr + 1 : gen->flag.path);
-        md->dis = vector_new();
-    }
-
     /* env_gen() is executed after fn_gen() because abi can be added in the process of generating
      * a function and the usage of data segment can also be changed. */
 

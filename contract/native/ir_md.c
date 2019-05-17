@@ -21,8 +21,6 @@ md_new(char *name)
 
     sgmt_init(&md->sgmt);
 
-    md->fno = -1;
-
     return md;
 }
 
@@ -49,18 +47,6 @@ void
 md_add_fn(ir_md_t *md, ir_fn_t *fn)
 {
     vector_add_last(&md->fns, fn);
-}
-
-void
-md_add_di(ir_md_t *md, BinaryenExpressionRef instr, src_pos_t *pos)
-{
-    ir_di_t *di = xmalloc(sizeof(ir_di_t));
-
-    di->instr = instr;
-    di->line = pos->first_line;
-    di->col = pos->first_col;
-
-    vector_add_last(md->dis, di);
 }
 
 /* end of ir_md.c */
