@@ -26,7 +26,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var TimeoutError =  errors.New("timeout")
+var TimeoutError = errors.New("timeout")
 var CancelError = errors.New("canceled")
 
 type requestInfo struct {
@@ -254,8 +254,7 @@ func (p *remotePeerImpl) runRead() {
 	}
 }
 
-func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
-	var err error
+func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
