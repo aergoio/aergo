@@ -45,7 +45,6 @@ env_gen(gen_t *gen, ir_md_t *md)
     BinaryenAddGlobal(gen->module, "__STACK_MAX", BinaryenTypeInt32(), 0,
                       i32_gen(gen, gen->flag.stack_size));
 
-    BinaryenAddGlobalExport(gen->module, "__STACK_TOP", "__STACK_TOP");
     BinaryenAddGlobalExport(gen->module, "__STACK_MAX", "__STACK_MAX");
 
     syslib_gen(gen, FN_ALLOCA);

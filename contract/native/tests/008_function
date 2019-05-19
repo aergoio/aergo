@@ -386,7 +386,17 @@ contract test {
         pragma assert((int16)abs32((int32)0) == 0);
         pragma assert(abs32(-1) == 1);
         pragma assert(abs64(-2) == 2);
-        pragma assert(abs128(-3) == 3);
+        pragma assert(abs256(-3) == 3);
+
+        pragma assert(pow32(10, 4) == 10000);
+        pragma assert(pow64(2, 3) == 8);
+        pragma assert(pow256(2, 32) == 4294967296);
+
+        /*
+        pragma assert(sign32(-1) == -1);
+        pragma assert(sign64(0) == 0);
+        */
+        pragma assert(sign256(1) == 1);
 
         pragma assert(lower("LOWER") == "lower");
         pragma assert(upper("upper") == "UPPER");

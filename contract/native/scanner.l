@@ -251,6 +251,7 @@ id                          {L}({L}|{D})*
 "~"                         yy_return('~');
 
 "account"                   yy_return(K_ACCOUNT);
+"as"                        yy_return(K_AS);
 "assert"                    yy_return(K_ASSERT);
 "bool"                      yy_return(K_BOOL);
 "break"                     yy_return(K_BREAK);

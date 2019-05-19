@@ -76,6 +76,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 /* keyword */
 %token  K_ACCOUNT       "account"
         K_ALTER         "alter"
+        K_AS            "as"
         K_ASSERT        "assert"
         K_BOOL          "bool"
         K_BREAK         "break"
@@ -197,6 +198,7 @@ static void yyerror(YYLTYPE *yylloc, parse_t *parse, void *scanner,
 %type <blk>     blk_decl
 %type <blk>     interface_body
 %type <blk>     library_body
+%type <id>      lib_func
 %type <stmt>    statement
 %type <stmt>    empty_stmt
 %type <stmt>    exp_stmt
@@ -746,41 +748,34 @@ library:
 ;
 
 library_body:
-    udf_spec ':' L_STR ';'
+    lib_func
     {
         $$ = blk_new_library(&@$);
 
-        $1->mod = MOD_PUBLIC;
-        $1->u_fn.alias = $3;
-
         vector_add_last(&$$->ids, $1);
+   }
+|   library_body lib_func
+    {
+        $$ = $1;
+
+        vector_add_last(&$$->ids, $2);
     }
+;
+
+lib_func:
+    udf_spec K_AS identifier ';'
+    {
+        $$ = $1;
+
+        $$->mod = MOD_PUBLIC;
+        $$->u_fn.alias = $3;
+   }
 |   udf_spec block
     {
-        $$ = blk_new_library(&@$);
-
-        $1->mod = MOD_PUBLIC;
-        $1->u_fn.blk = $2;
-
-        vector_add_last(&$$->ids, $1);
-    }
-|   library_body udf_spec ':' L_STR ';'
-    {
         $$ = $1;
 
-        $2->mod = MOD_PUBLIC;
-        $2->u_fn.alias = $4;
-
-        vector_add_last(&$$->ids, $2);
-    }
-|   library_body udf_spec block
-    {
-        $$ = $1;
-
-        $2->mod = MOD_PUBLIC;
-        $2->u_fn.blk = $3;
-
-        vector_add_last(&$$->ids, $2);
+        $$->mod = MOD_PUBLIC;
+        $$->u_fn.blk = $2;
     }
 ;
 

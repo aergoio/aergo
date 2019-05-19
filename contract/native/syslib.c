@@ -17,22 +17,10 @@
 #include "syslib.h"
 
 char *lib_src =
-"library system {\n"
-"    func abs32(int32 v) int32 : \"__abs32\";\n"
-"    func abs64(int64 v) int64 : \"__abs64\";\n"
-"    func abs128(int256 v) int256 : \"__mpz_abs\";\n"
-
-"    func pow32(int32 x, int32 y) int32 : \"__pow32\";\n"
-"    func pow64(int64 x, int32 y) int64 : \"__pow64\";\n"
-"    func pow128(int256 x, int32 y) int256 : \"__mpz_pow\";\n"
-
-"    func sign32(int32 v) int8 : \"__sign32\";\n"
-"    func sign64(int64 v) int8 : \"__sign64\";\n"
-"    func sign128(int256 v) int8 : \"__mpz_sign\";\n"
-
-"    func lower(string v) string : \"__lower\";\n"
-"    func upper(string v) string : \"__upper\";\n"
-"}";
+#undef sc_def
+#define sc_def(src)     #src
+#include "syslib.sc"
+;
 
 sys_fn_t sys_fntab_[FN_MAX] = {
     { "__udf", NULL, 0, { TYPE_NONE }, TYPE_NONE },
