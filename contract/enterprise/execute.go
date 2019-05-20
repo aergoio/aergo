@@ -27,8 +27,7 @@ func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
 		}
 	case SetConf:
 		key := []byte(context.Args[0])
-		err := setConf(scs, key, &Conf{
-			On:     false,
+		err := setConfValues(scs, key, &Conf{
 			Values: context.Args[1:],
 		})
 		if err != nil {

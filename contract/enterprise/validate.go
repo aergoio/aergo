@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -43,10 +44,16 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if len(ci.Args) <= 1 { //args[0] : key, args[1:] : values
 			return nil, fmt.Errorf("invalid arguments in payload for setConf: %s", ci.Args)
 		}
+		if ci.Args[0] == "admin" {
+			return nil, fmt.Errorf("not allowed key : %s", ci.Args[0])
+		}
 		for _, v := range ci.Args {
 			arg, ok := v.(string)
 			if !ok {
 				return nil, fmt.Errorf("not string in payload for setConf : %s", ci.Args)
+			}
+			if strings.Contains(arg, "\\") {
+				return nil, fmt.Errorf("not allowed charactor in %s", arg)
 			}
 			context.Args = append(context.Args, arg)
 		}
@@ -60,6 +67,9 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		arg0, ok := ci.Args[0].(string)
 		if !ok {
 			return nil, fmt.Errorf("not string in payload for enableConf : %s", ci.Args)
+		}
+		if ci.Args[0] == "admin" {
+			return nil, fmt.Errorf("not allowed key : %s", ci.Args[0])
 		}
 		context.Args = append(context.Args, arg0)
 		_, ok = ci.Args[1].(bool)

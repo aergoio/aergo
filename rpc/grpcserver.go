@@ -1079,7 +1079,7 @@ func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.E
 	if err != nil {
 		return nil, err
 	}
-	rsp, ok := result.(message.GetEnterpriseConfRsp)
+	rsp, ok := result.(*message.GetEnterpriseConfRsp)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}

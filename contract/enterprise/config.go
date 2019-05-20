@@ -7,6 +7,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+var confPrefix = []byte("conf\\")
+
 type Conf struct {
 	On     bool
 	Values []string
@@ -26,7 +28,12 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &types.EnterpriseConfig{Key: key, Values: conf.Values, On: conf.On}, nil
+	ret := &types.EnterpriseConfig{Key: key}
+	if conf != nil {
+		ret.On = conf.On
+		ret.Values = conf.Values
+	}
+	return ret, nil
 }
 
 func enableConf(scs *state.ContractState, key []byte, value bool) error {
@@ -34,20 +41,38 @@ func enableConf(scs *state.ContractState, key []byte, value bool) error {
 	if err != nil {
 		return err
 	}
-	conf.On = value
+	if conf != nil {
+		conf.On = value
+	} else {
+		conf = &Conf{On: value}
+	}
+
 	return setConf(scs, key, conf)
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
-	data, err := scs.GetData(key)
+	data, err := scs.GetData(append(confPrefix, key...))
 	if err != nil || data == nil {
 		return nil, err
 	}
 	return deserializeConf(data), err
 }
 
+func setConfValues(scs *state.ContractState, key []byte, in *Conf) error {
+	conf, err := getConf(scs, key)
+	if err != nil {
+		return err
+	}
+	if conf != nil {
+		conf.Values = in.Values
+	} else {
+		conf = &Conf{Values: in.Values}
+	}
+	return setConf(scs, key, conf)
+}
+
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(key, serializeConf(conf))
+	return scs.SetData(append(confPrefix, key...), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {

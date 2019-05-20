@@ -397,6 +397,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetVote,
 		*message.GetStaking,
 		*message.GetNameInfo,
+		*message.GetEnterpriseConf,
 		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
@@ -525,7 +526,10 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	stateDB := cs.sdb.GetStateDB()
-	return enterprise.GetConf(stateDB, key)
+	if key != "admin" {
+		return enterprise.GetConf(stateDB, key)
+	}
+	return enterprise.GetAdmin(stateDB)
 }
 
 type ChainManager struct {
