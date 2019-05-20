@@ -921,7 +921,7 @@ func (cs *ChainService) resolveOrphan(block *types.Block) (*types.Block, error) 
 		return nil, nil
 	}
 
-	orphanBlock := orphan.block
+	orphanBlock := orphan.Block
 
 	if (block.GetHeader().GetBlockNo() + 1) != orphanBlock.GetHeader().GetBlockNo() {
 		return nil, fmt.Errorf("invalid orphan block no (p=%d, c=%d)", block.GetHeader().GetBlockNo(),
@@ -932,7 +932,9 @@ func (cs *ChainService) resolveOrphan(block *types.Block) (*types.Block, error) 
 		Str("orphan", orphanBlock.ID()).
 		Msg("connect orphan")
 
-	cs.op.removeOrphan(orphanID)
+	if err := cs.op.removeOrphan(orphanID); err != nil {
+		return nil, err
+	}
 
 	return orphanBlock, nil
 }

@@ -214,7 +214,7 @@ type ChainService struct {
 func NewChainService(cfg *cfg.Config) *ChainService {
 	cs := &ChainService{
 		cfg:  cfg,
-		op:   NewOrphanPool(),
+		op:   NewOrphanPool(DfltOrphanPoolSize),
 		stat: newStats(),
 	}
 

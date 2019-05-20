@@ -23,11 +23,15 @@ var (
 	ErrNotExistBlock = errors.New("not exist block of the hash")
 )
 
-func NewStubBlockChain() *StubBlockChain {
+func NewStubBlockChain(size int) *StubBlockChain {
+	if size < 10000 {
+		size = 10000
+	}
+
 	tchain := &StubBlockChain{Best: -1}
 
-	tchain.Hashes = make([][]byte, 10240)
-	tchain.Blocks = make([]*types.Block, 10240)
+	tchain.Hashes = make([][]byte, size+1)
+	tchain.Blocks = make([]*types.Block, size+1)
 
 	return tchain
 }
@@ -203,7 +207,7 @@ func (tchain *StubBlockChain) Rollback(ancestor *types.BlockInfo) {
 }
 
 func InitStubBlockChain(prefixChain []*types.Block, genCount int) *StubBlockChain {
-	newChain := NewStubBlockChain()
+	newChain := NewStubBlockChain(genCount + len(prefixChain) + 1)
 
 	//load initial Blocks
 	for _, block := range prefixChain {

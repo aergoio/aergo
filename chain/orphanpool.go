@@ -6,29 +6,45 @@
 package chain
 
 import (
+	"errors"
 	"sync"
-	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
+	"github.com/hashicorp/golang-lru/simplelru"
+)
+
+var (
+	DfltOrphanPoolSize = 100
+
+	ErrRemoveOldestOrphan = errors.New("failed to remove oldest orphan block")
+	ErrNotExistOrphanLRU  = errors.New("given orphan doesn't exist in lru")
 )
 
 type OrphanBlock struct {
-	block      *types.Block
-	expiretime time.Time
+	*types.Block
 }
 
 type OrphanPool struct {
 	sync.RWMutex
-	cache  map[types.BlockID]*OrphanBlock
+	cache map[types.BlockID]*OrphanBlock
+	lru   *simplelru.LRU
+
 	maxCnt int
 	curCnt int
 }
 
-func NewOrphanPool() *OrphanPool {
+func NewOrphanPool(size int) *OrphanPool {
+	lru, err := simplelru.NewLRU(DfltOrphanPoolSize, nil)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to init lru")
+		return nil
+	}
+
 	return &OrphanPool{
 		cache:  map[types.BlockID]*OrphanBlock{},
-		maxCnt: 1000,
+		lru:    lru,
+		maxCnt: size,
 		curCnt: 0,
 	}
 }
@@ -41,19 +57,22 @@ func (op *OrphanPool) addOrphan(block *types.Block) error {
 	cachedblock, exists := op.cache[id]
 	if exists {
 		logger.Debug().Str("hash", block.ID()).
-			Str("cached", cachedblock.block.ID()).Msg("already exist")
+			Str("cached", cachedblock.ID()).Msg("already exist")
 		return nil
 	}
 
-	if op.maxCnt == op.curCnt {
+	if op.isFull() {
 		logger.Debug().Msg("orphan block pool is full")
 		// replace one
-		op.removeOldest()
+		if err := op.removeOldest(); err != nil {
+			return err
+		}
 	}
-	op.cache[id] = &OrphanBlock{
-		block:      block,
-		expiretime: time.Now().Add(time.Hour),
-	}
+
+	orpEntry := &OrphanBlock{Block: block}
+
+	op.cache[id] = orpEntry
+	op.lru.Add(id, orpEntry)
 	op.curCnt++
 
 	return nil
@@ -69,40 +88,49 @@ func (op *OrphanPool) getRoot(block *types.Block) types.BlockID {
 			break
 		}
 		orphanRoot = prevID
-		prevID = types.ToBlockID(orphan.block.Header.PrevBlockHash)
+		prevID = types.ToBlockID(orphan.Header.PrevBlockHash)
 	}
 
 	return orphanRoot
 }
 
+func (op *OrphanPool) isFull() bool {
+	return op.maxCnt == op.curCnt
+}
+
 // remove oldest block, but also remove expired
-func (op *OrphanPool) removeOldest() {
-	// remove all expired
-	var oldest *OrphanBlock
-	for key, orphan := range op.cache {
-		if time.Now().After(orphan.expiretime) {
-			logger.Debug().Str("hash", key.String()).Msg("orphan block removed(expired)")
-			op.removeOrphan(key)
-		}
+func (op *OrphanPool) removeOldest() error {
+	var (
+		id types.BlockID
+	)
 
-		// choose at least one victim
-		if oldest == nil || orphan.expiretime.Before(oldest.expiretime) {
-			oldest = orphan
-		}
+	if !op.isFull() {
+		return nil
 	}
 
-	// remove oldest one
-	if op.curCnt == op.maxCnt {
-		id := types.ToBlockID(oldest.block.Header.PrevBlockHash)
-		logger.Debug().Str("hash", id.String()).Msg("orphan block removed(oldest)")
-		op.removeOrphan(id)
+	key, _, ok := op.lru.GetOldest()
+	if !ok {
+		return ErrRemoveOldestOrphan
 	}
+
+	id = key.(types.BlockID)
+	if err := op.removeOrphan(id); err != nil {
+		return err
+	}
+
+	logger.Debug().Str("hash", id.String()).Msg("orphan block removed(oldest)")
+
+	return nil
 }
 
 // remove one single element by id (must succeed)
-func (op *OrphanPool) removeOrphan(id types.BlockID) {
-	delete(op.cache, id)
+func (op *OrphanPool) removeOrphan(id types.BlockID) error {
 	op.curCnt--
+	delete(op.cache, id)
+	if exist := op.lru.Remove(id); !exist {
+		return ErrNotExistOrphanLRU
+	}
+	return nil
 }
 
 func (op *OrphanPool) getOrphan(hash []byte) *types.Block {
@@ -112,6 +140,6 @@ func (op *OrphanPool) getOrphan(hash []byte) *types.Block {
 	if !exists {
 		return nil
 	} else {
-		return orphan.block
+		return orphan.Block
 	}
 }

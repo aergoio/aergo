@@ -78,7 +78,6 @@ func makeBlockChain() *ChainService {
 	return cs
 }
 
-// Test add block to height 0 chain
 func testAddBlock(t *testing.T, best int) (*ChainService, *StubBlockChain) {
 	cs := makeBlockChain()
 
@@ -105,6 +104,22 @@ func testAddBlock(t *testing.T, best int) (*ChainService, *StubBlockChain) {
 		noblk, err = cs.getBlockByNo(uint64(i))
 		assert.NoError(t, err)
 		assert.Equal(t, blk.BlockHash(), noblk.BlockHash())
+	}
+
+	return cs, stubChain
+}
+
+// Test add block to height 0 chain
+func testAddBlockNoTest(best int) (*ChainService, *StubBlockChain) {
+	cs := makeBlockChain()
+
+	genesisBlk, _ := cs.getBlockByNo(0)
+
+	stubChain := InitStubBlockChain([]*types.Block{genesisBlk}, best)
+
+	for i := 1; i <= best; i++ {
+		newBlock := stubChain.GetBlockByNo(uint64(i))
+		_ = cs.addBlock(newBlock, nil, testPeer)
 	}
 
 	return cs, stubChain
