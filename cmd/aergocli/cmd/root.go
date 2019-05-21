@@ -6,7 +6,10 @@
 package cmd
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const aergosystem = "aergo.system"
@@ -28,9 +32,14 @@ var (
 	host    string
 	port    int32
 
-	privKey string
-	pw      string
-	dataDir string
+	crtFile    string
+	svrcrtFile string
+	svrName    string
+	keyFile    string
+	certPeer   string
+	privKey    string
+	pw         string
+	dataDir    string
 
 	from   string
 	to     string
@@ -65,6 +74,10 @@ func init() {
 	rootCmd.SetOutput(os.Stdout)
 	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo cli home path")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is cliconfig.toml)")
+	rootCmd.PersistentFlags().StringVar(&crtFile, "tlscert", "", "client certification file for TLS ")
+	rootCmd.PersistentFlags().StringVar(&svrcrtFile, "tlsservercert", "", "aergosvr certification file for TLS ")
+	rootCmd.PersistentFlags().StringVar(&svrName, "tlsservername", "", "aergosvr name for TLS ")
+	rootCmd.PersistentFlags().StringVar(&keyFile, "tlskey", "", "client key file for TLS ")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")
 }
@@ -98,9 +111,30 @@ func connectAergo(cmd *cobra.Command, args []string) {
 	if test {
 		return
 	}
-
 	serverAddr := GetServerAddress()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	var opts []grpc.DialOption
+	if crtFile != "" || keyFile != "" {
+		certificate, err := tls.LoadX509KeyPair(crtFile, keyFile)
+		if err != nil {
+			log.Fatal("wrong tls setting : ", err)
+		}
+		certPool := x509.NewCertPool()
+		ca, err := ioutil.ReadFile(svrcrtFile)
+		if err != nil {
+			log.Fatal("could not read server certification file : ", err)
+		}
+		if ok := certPool.AppendCertsFromPEM(ca); !ok {
+			log.Fatal("failed to append server certification to CA certs")
+		}
+		creds := credentials.NewTLS(&tls.Config{
+			ServerName:   svrName,
+			Certificates: []tls.Certificate{certificate},
+			RootCAs:      certPool,
+		})
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
 	var ok bool
 	client, ok = util.GetClient(serverAddr, opts).(*util.ConnClient)
 	if !ok {
