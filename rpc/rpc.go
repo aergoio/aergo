@@ -225,14 +225,18 @@ func (ns *RPC) serve() {
 	tcpm := cmux.New(l)
 
 	//grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-	grpcL := tcpm.Match(cmux.HTTP2(), cmux.TLS())
-	httpL := tcpm.Match(cmux.HTTP1Fast())
+	matchers := []cmux.Matcher{cmux.HTTP2()}
+	if ns.conf.RPC.NSEnableTLS {
+		matchers = append(matchers, cmux.TLS())
+	} else {
+		//http1 only work without TLS
+		httpL := tcpm.Match(cmux.HTTP1Fast())
+		go ns.serveHTTP(httpL, ns.httpServer)
+	}
+	grpcL := tcpm.Match(matchers...)
+	go ns.serveGRPC(grpcL, ns.grpcServer)
 
 	ns.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
-
-	// Server both servers
-	go ns.serveGRPC(grpcL, ns.grpcServer)
-	go ns.serveHTTP(httpL, ns.httpServer)
 
 	// Serve TCP multiplexer
 	if err := tcpm.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {
