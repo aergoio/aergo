@@ -26,14 +26,17 @@ import (
 )
 
 const (
-	slotQueueMax = 100
+	slotQueueMax          = 100
+	DefaultCommitQueueLen = 10
 )
 
 var (
-	logger             *log.Logger
-	httpLogger         *log.Logger
+	logger     *log.Logger
+	httpLogger *log.Logger
+
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
+	MaxCommitQueueLen  = DefaultCommitQueueLen
 )
 
 var (
@@ -144,7 +147,7 @@ type Proposed struct {
 
 type RaftOperator struct {
 	confChangeC chan *types.MembershipChange
-	commitC     chan *types.Block
+	commitC     chan *commitEntry
 
 	rs *raftServer
 
@@ -153,7 +156,7 @@ type RaftOperator struct {
 
 func newRaftOperator(rs *raftServer) *RaftOperator {
 	confChangeC := make(chan *types.MembershipChange, 1)
-	commitC := make(chan *types.Block)
+	commitC := make(chan *commitEntry, MaxCommitQueueLen)
 
 	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
 }
@@ -305,7 +308,7 @@ func (bf *BlockFactory) Start() {
 					return
 				}
 			}
-		case block, ok := <-bf.commitC():
+		case cEntry, ok := <-bf.commitC():
 			logger.Debug().Msg("received block from raft")
 
 			if !ok {
@@ -313,16 +316,18 @@ func (bf *BlockFactory) Start() {
 				return
 			}
 
-			if block == nil {
+			if cEntry.block == nil {
 				bf.reset()
 				continue
 			}
 
 			// add block that has produced by remote BP
-			if err := bf.connect(block); err != nil {
+			if err := bf.connect(cEntry.block); err != nil {
 				logger.Error().Err(err).Msg("failed to connect block")
 				return
 			}
+
+			bf.raftServer.updateBlockProgress(cEntry)
 		case <-bf.quit:
 			return
 		}
@@ -368,7 +373,7 @@ func (bf *BlockFactory) build(prevBlock *types.Block) error {
 	return nil
 }
 
-func (bf *BlockFactory) commitC() chan *types.Block {
+func (bf *BlockFactory) commitC() chan *commitEntry {
 	return bf.raftOp.commitC
 }
 
