@@ -28,5 +28,5 @@ int lua_isbignumber(lua_State *L, int i);
 char *lua_get_bignum_str(lua_State *L, int idx);
 long int lua_get_bignum_si(lua_State *L, int idx);
 int lua_bignum_is_zero(lua_State *L, int idx);
-
+const char *init_bignum();
 #endif /*_LGMP_H_*/
