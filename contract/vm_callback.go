@@ -208,25 +208,33 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 			return -1, r
 		}
 	}
-	if stateSet.lastRecoveryEntry != nil {
-		err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
-		if err != nil {
-			C.luaL_setsyserror(L)
-			return -1, C.CString("[System.LuaCallContract] database error: " + err.Error())
-		}
+	seq, err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
+	if err != nil {
+		C.luaL_setsyserror(L)
+		return -1, C.CString("[System.LuaCallContract] database error: " + err.Error())
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 		callState.curState.SqlRecoveryPoint, amountBig)
-
+	defer func() {
+		stateSet.curContract = prevContractInfo
+	}()
 	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
 	defer setInstCount(L, ce.L)
 
 	ret := ce.call(L)
 	if ce.err != nil {
-		stateSet.curContract = prevContractInfo
+		err := clearRecovery(L, stateSet, seq, true)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaCallContract] recovery err: " + err.Error())
+		}
 		return -1, C.CString("[Contract.LuaCallContract] call err: " + ce.err.Error())
 	}
-	stateSet.curContract = prevContractInfo
+	if seq == 1 {
+		err := clearRecovery(L, stateSet, seq, false)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaCallContract] recovery err: " + err.Error())
+		}
+	}
 	return ret, nil
 }
 
@@ -277,13 +285,10 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] newExecutor error: " + ce.err.Error())
 	}
 
-	if stateSet.lastRecoveryEntry != nil {
-		callState := stateSet.curContract.callState
-		err = setRecoveryPoint(aid, stateSet, nil, callState, zeroBig, false)
-		if err != nil {
-			C.luaL_setsyserror(L)
-			return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
-		}
+	seq, err := setRecoveryPoint(aid, stateSet, nil, stateSet.curContract.callState, zeroBig, false)
+	if err != nil {
+		C.luaL_setsyserror(L)
+		return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
 	}
 
 	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
@@ -291,7 +296,17 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	ret := ce.call(L)
 	if ce.err != nil {
+		err := clearRecovery(L, stateSet, seq, true)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
+		}
 		return -1, C.CString("[Contract.LuaDelegateCallContract] call error: " + ce.err.Error())
+	}
+	if seq == 1 {
+		err := clearRecovery(L, stateSet, seq, false)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
+		}
 	}
 	return ret, nil
 }
@@ -360,26 +375,34 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 				return r
 			}
 		}
-		if stateSet.lastRecoveryEntry != nil {
-			err = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
-			if err != nil {
-				C.luaL_setsyserror(L)
-				return C.CString("[System.LuaSendAmount] database error: " + err.Error())
-			}
+		seq, err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
+		if err != nil {
+			C.luaL_setsyserror(L)
+			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
 		prevContractInfo := stateSet.curContract
 		stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 			callState.curState.SqlRecoveryPoint, amountBig)
-
+		defer func() {
+			stateSet.curContract = prevContractInfo
+		}()
 		ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
 		defer setInstCount(L, ce.L)
 
 		ce.call(L)
 		if ce.err != nil {
-			stateSet.curContract = prevContractInfo
+			err := clearRecovery(L, stateSet, seq, true)
+			if err != nil {
+				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
+			}
 			return C.CString("[Contract.LuaSendAmount] call err: " + ce.err.Error())
 		}
-		stateSet.curContract = prevContractInfo
+		if seq == 1 {
+			err := clearRecovery(L, stateSet, seq, false)
+			if err != nil {
+				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
+			}
+		}
 		return nil
 	}
 	if amountBig.Cmp(zeroBig) == 0 {
@@ -390,7 +413,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		return r
 	}
 	if stateSet.lastRecoveryEntry != nil {
-		_ = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, true)
+		_, _ = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, true)
 	}
 	return nil
 }
@@ -418,7 +441,7 @@ func LuaPrint(L *LState, service *C.int, args *C.char) {
 }
 
 func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *types.State,
-	callState *CallState, amount *big.Int, isSend bool) error {
+	callState *CallState, amount *big.Int, isSend bool) (int, error) {
 	var seq int
 	prev := stateSet.lastRecoveryEntry
 	if prev != nil {
@@ -439,7 +462,7 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 	}
 	stateSet.lastRecoveryEntry = recoveryEntry
 	if isSend {
-		return nil
+		return seq, nil
 	}
 	recoveryEntry.stateRevision = callState.ctrState.Snapshot()
 	tx := callState.tx
@@ -447,11 +470,11 @@ func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *type
 		saveName := fmt.Sprintf("%s_%p", aid.String(), &recoveryEntry)
 		err := tx.SubSavepoint(saveName)
 		if err != nil {
-			return err
+			return seq, err
 		}
 		recoveryEntry.sqlSaveName = &saveName
 	}
-	return nil
+	return seq, nil
 }
 
 //export LuaSetRecoveryPoint
@@ -464,27 +487,22 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) (C.int, *C.char) {
 		return 0, nil
 	}
 	curContract := stateSet.curContract
-	err := setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
+	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
 		curContract.callState, zeroBig, false)
 	if err != nil {
 		C.luaL_setsyserror(L)
 		return -1, C.CString("[Contract.pcall] database error: " + err.Error())
 	}
-	return C.int(stateSet.lastRecoveryEntry.seq), nil
+	return C.int(seq), nil
 }
 
-//export LuaClearRecovery
-func LuaClearRecovery(L *LState, service *C.int, start int, error bool) *C.char {
-	stateSet := curStateSet[*service]
-	if stateSet == nil {
-		return C.CString("[Contract.pcall] contract state not found")
-	}
+func clearRecovery(L *LState, stateSet *StateSet, start int, error bool) error {
 	item := stateSet.lastRecoveryEntry
 	for {
 		if error {
 			if item.recovery() != nil {
 				C.luaL_setsyserror(L)
-				return C.CString("[Contract.pcall] database error")
+				return errors.New("database error")
 			}
 		}
 		if item.seq == start {
@@ -495,9 +513,22 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) *C.char 
 		}
 		item = item.prev
 		if item == nil {
-			return C.CString("[Contract.pcall] internal error")
+			return errors.New("internal error")
 		}
 	}
+}
+
+//export LuaClearRecovery
+func LuaClearRecovery(L *LState, service *C.int, start int, error bool) *C.char {
+	stateSet := curStateSet[*service]
+	if stateSet == nil {
+		return C.CString("[Contract.pcall] contract state not found")
+	}
+	err := clearRecovery(L, stateSet, start, error)
+	if err != nil {
+		return C.CString(err.Error())
+	}
+	return nil
 }
 
 //export LuaGetBalance
@@ -868,15 +899,16 @@ func LuaDeployContract(
 		}
 	}
 
-	if stateSet.lastRecoveryEntry != nil {
-		err = setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, false)
-		if err != nil {
-			C.luaL_setsyserror(L)
-			return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
-		}
+	seq, err := setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, false)
+	if err != nil {
+		C.luaL_setsyserror(L)
+		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, newContract.ID(),
 		callState.curState.SqlRecoveryPoint, amountBig)
+	defer func() {
+		stateSet.curContract = prevContractInfo
+	}()
 
 	err = contractState.SetCode(code)
 	if err != nil {
@@ -911,11 +943,19 @@ func LuaDeployContract(
 
 		ret += ce.call(L)
 		if ce.err != nil {
-			stateSet.curContract = prevContractInfo
+			err := clearRecovery(L, stateSet, seq, true)
+			if err != nil {
+				return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
+			}
 			return -1, C.CString("[Contract.LuaDeployContract] call err:" + ce.err.Error())
 		}
 	}
-	stateSet.curContract = prevContractInfo
+	if seq == 1 {
+		err := clearRecovery(L, stateSet, seq, false)
+		if err != nil {
+			return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
+		}
+	}
 	return ret, addr
 }
 
@@ -1030,25 +1070,33 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
 	}
-	if stateSet.lastRecoveryEntry != nil {
-		err = setRecoveryPoint(aid, stateSet, senderState, scsState, zeroBig, false)
-		if err != nil {
-			C.luaL_setsyserror(L)
-			return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
-		}
+	seq, err := setRecoveryPoint(aid, stateSet, senderState, scsState, zeroBig, false)
+	if err != nil {
+		C.luaL_setsyserror(L)
+		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
 	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, stateSet.blockHeight)
 	if err != nil {
+		rErr := clearRecovery(L, stateSet, seq, true)
+		if rErr != nil {
+			return C.CString("[Contract.LuaGovernance] recovery error: " + rErr.Error())
+		}
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
+	}
+	if seq == 1 {
+		err := clearRecovery(L, stateSet, seq, false)
+		if err != nil {
+			return C.CString("[Contract.LuaGovernance] recovery error: " + err.Error())
+		}
 	}
 	stateSet.eventCount += int32(len(evs))
 	stateSet.events = append(stateSet.events, evs...)
 
 	if stateSet.lastRecoveryEntry != nil {
 		if gType == 'S' {
-			_ = setRecoveryPoint(aid, stateSet, senderState, scsState, amountBig, true)
+			_, _ = setRecoveryPoint(aid, stateSet, senderState, scsState, amountBig, true)
 		} else if gType == 'U' {
-			_ = setRecoveryPoint(aid, stateSet, scsState.curState, stateSet.curContract.callState, amountBig, true)
+			_, _ = setRecoveryPoint(aid, stateSet, scsState.curState, stateSet.curContract.callState, amountBig, true)
 		}
 	}
 	return nil
