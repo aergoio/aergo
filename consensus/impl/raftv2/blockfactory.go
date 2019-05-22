@@ -222,11 +222,18 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	}
 
 	if b, _ := bf.GetBestBlock(); b != nil {
-		//TODO is it ok if last job was failed?
 		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
 			logger.Debug().Uint64("bestno", b.BlockNo()).Msg("previous block not connected. skip to generate block")
 			return
 		}
+
+		// If requested block remains in commit channel, block factory must wait until all requests are completed.
+		// otherwise block of same height will be created and a fork will occur.
+		if !bf.raftServer.commitProgress.IsReadyToPropose() {
+			logger.Debug().Uint64("bestno", b.BlockNo()).Msg("pending request block not connected. skip to generate block")
+			return
+		}
+
 		bf.prevBlock = b
 		jq <- b
 	}
@@ -327,7 +334,7 @@ func (bf *BlockFactory) Start() {
 				return
 			}
 
-			bf.raftServer.updateBlockProgress(cEntry)
+			bf.raftServer.commitProgress.UpdateConnect(cEntry)
 		case <-bf.quit:
 			return
 		}

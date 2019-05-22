@@ -134,7 +134,65 @@ type commitEntry struct {
 }
 
 type CommitProgress struct {
-	commitEntry
+	sync.Mutex
+
+	connect commitEntry // last connected entry to chain
+	request commitEntry // last requested entry to commitC
+}
+
+func (cp *CommitProgress) UpdateConnect(ce *commitEntry) {
+	logger.Debug().Uint64("term", ce.term).Uint64("index", ce.index).Uint64("no", ce.block.BlockNo()).Str("hash", ce.block.ID()).Msg("set progress of last connected block")
+
+	cp.Lock()
+	defer cp.Unlock()
+
+	cp.connect = *ce
+}
+
+func (cp *CommitProgress) UpdateRequest(ce *commitEntry) {
+	logger.Debug().Uint64("term", ce.term).Uint64("index", ce.index).Uint64("no", ce.block.BlockNo()).Str("hash", ce.block.ID()).Msg("set progress of last request block")
+
+	cp.Lock()
+	defer cp.Unlock()
+
+	cp.request = *ce
+}
+
+func (cp *CommitProgress) GetConnect() *commitEntry {
+	cp.Lock()
+	defer cp.Unlock()
+
+	return &cp.connect
+}
+
+func (cp *CommitProgress) GetRequest() *commitEntry {
+	cp.Lock()
+	defer cp.Unlock()
+
+	return &cp.request
+}
+
+func (cp *CommitProgress) IsReadyToPropose() bool {
+	cp.Lock()
+	defer cp.Unlock()
+
+	if cp.request.block == nil {
+		return true
+	}
+
+	var connNo, reqNo uint64
+	reqNo = cp.request.block.BlockNo()
+	if cp.connect.block != nil {
+		connNo = cp.connect.block.BlockNo()
+	}
+
+	if reqNo <= connNo {
+		return true
+	}
+
+	logger.Debug().Uint64("requested", reqNo).Uint64("connected", connNo).Msg("remain pending request to conenct")
+
+	return false
 }
 
 func RecoverExit() {
@@ -504,7 +562,7 @@ func (rs *raftServer) serveChannels() {
 
 			// store raft entries to walDB, then publish over commit channel
 		case rd := <-rs.node.Ready():
-			if len(rd.Entries) > 0 || len(rd.CommittedEntries) > 0 || !raftlib.IsEmptyHardState(rd.HardState) {
+			if len(rd.Entries) > 0 || len(rd.CommittedEntries) > 0 || !raftlib.IsEmptyHardState(rd.HardState) || rd.SoftState != nil {
 				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("hardstate", rd.HardState.String()).Msg("ready to process")
 			}
 
@@ -691,15 +749,6 @@ func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 	return snapshot, nil
 }
 
-func (rs *raftServer) updateBlockProgress(ce *commitEntry) {
-	rs.Lock()
-	defer rs.Unlock()
-
-	logger.Debug().Uint64("term", ce.term).Uint64("index", ce.index).Uint64("no", ce.block.BlockNo()).Str("hash", ce.block.ID()).Msg("set progress of last block")
-
-	rs.commitProgress.commitEntry = *ce
-}
-
 // replayWAL replays WAL entries into the raft instance.
 func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 	logger.Info().Msg("replaying WAL")
@@ -761,8 +810,8 @@ func (rs *raftServer) createSnapshot() ([]byte, error) {
 // triggerSnapshot create snapshot and make compaction for raft log storage
 // raft can not wait until last applied entry commits. so snapshot must create from current best block
 func (rs *raftServer) triggerSnapshot() {
-	newSnapshotIndex := rs.commitProgress.index
-	snapBlock := rs.commitProgress.block
+	ce := rs.commitProgress.GetConnect()
+	newSnapshotIndex, snapBlock := ce.index, ce.block
 
 	if newSnapshotIndex == 0 || rs.confState == nil {
 		return
@@ -818,6 +867,26 @@ func (rs *raftServer) triggerSnapshot() {
 }
 
 func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
+	updateProgress := func() error {
+		var snapdata = &consensus.SnapshotData{}
+
+		err := snapdata.Decode(snapshotToSave.Data)
+		if err != nil {
+			logger.Error().Msg("failed to unmarshal snapshot data to progress")
+			return err
+		}
+
+		block, err := rs.walDB.GetBlockByNo(snapdata.Chain.No)
+		if err != nil {
+			logger.Fatal().Msg("failed to get synchronized block")
+			return err
+		}
+
+		rs.commitProgress.UpdateConnect(&commitEntry{block: block, index: snapshotToSave.Metadata.Index, term: snapshotToSave.Metadata.Term})
+
+		return nil
+	}
+
 	if raftlib.IsEmptySnap(snapshotToSave) {
 		return ErrEmptySnapshot
 	}
@@ -840,7 +909,7 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 
 	rs.recoverTransport()
 
-	return nil
+	return updateProgress()
 }
 
 func (rs *raftServer) recoverTransport() {
@@ -974,6 +1043,8 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 // publishEntries writes committed log entries to commit channel and returns
 // whether all entries could be published.
 func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
+	var lastBlockEnt *raftpb.Entry
+
 	for i := range ents {
 		logger.Info().Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Str("type", ents[i].Type.String()).Int("datalen", len(ents[i].Data)).Msg("publish entry")
 
@@ -987,10 +1058,10 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 					continue
 				}
 
-			}
-
-			if block != nil {
-				logger.Info().Str("hash", block.ID()).Uint64("no", block.BlockNo()).Msg("commit normal block entry")
+				if block != nil {
+					logger.Info().Str("hash", block.ID()).Uint64("no", block.BlockNo()).Msg("commit normal block entry")
+					rs.commitProgress.UpdateRequest(&commitEntry{block: block, index: ents[i].Index, term: ents[i].Term})
+				}
 			}
 
 			select {
@@ -1007,21 +1078,9 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 
 		// after commit, update appliedIndex
 		rs.setAppliedIndex(ents[i].Index)
+	}
 
-		/* XXX no need commitC <- nil
-		// special nil commit to signal replay has finished
-		if ents[i].Index == rs.lastIndex {
-			if !rs.startSync {
-				logger.Debug().Uint64("idx", rs.lastIndex).Msg("published all entries of WAL")
-
-				select {
-				case rs.commitC <- nil:
-					rs.startSync = true
-				case <-rs.stopc:
-					return false
-				}
-			}
-		}*/
+	if lastBlockEnt != nil {
 	}
 	return true
 }
@@ -1083,6 +1142,8 @@ func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 		rs.leaderStatus.leaderChanged++
 
 		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(softState.Lead)).Msg("leader changed")
+	} else {
+		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(softState.Lead)).Msg("soft state leader unchanged")
 	}
 }
 
