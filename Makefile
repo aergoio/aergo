@@ -17,7 +17,7 @@ ifeq ($(OS),Windows_NT)
 endif
 
 BUILD_RULES := \
-	vendor deps \
+	deps \
 	aergocli aergosvr aergoluac polaris colaris brick \
 	libtool libtool-clean \
 	libluajit liblmdb libgmp \

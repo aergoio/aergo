@@ -5,7 +5,7 @@ os:
   - osx
 
 go:
-  - 1.10.x
+  - 1.12.x
 
 before_install:
   - go get -t github.com/Masterminds/glide
