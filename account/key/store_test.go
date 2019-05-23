@@ -3,6 +3,7 @@ package key
 import (
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -126,4 +127,27 @@ func TestSign(t *testing.T) {
 			t.Errorf("could not sign : %s", err.Error())
 		}
 	}
+}
+
+func TestConcurrentUnlockAndLock(t *testing.T) {
+	initTest()
+	defer deinitTest()
+
+	pass := "password"
+	addr, err := ks.CreateKey(pass)
+	if err != nil {
+		t.Errorf("could not create key : %s", err.Error())
+	}
+
+	const testSize = 50
+	var wg sync.WaitGroup
+	for i := 0; i < testSize; i++ {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, id int) {
+			defer wg.Done()
+			ks.Unlock(addr, pass)
+			ks.Lock(addr, pass)
+		}(&wg, i)
+	}
+	wg.Wait()
 }
