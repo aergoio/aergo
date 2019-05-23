@@ -57,6 +57,7 @@ var (
 	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
 	ErrInvalidMember       = errors.New("member of conf change is invalid")
 	ErrCCAlreadyAdded      = errors.New("member has already added")
+	ErrCCAlreadyRemoved    = errors.New("member has already removed")
 	ErrCCNoMemberToRemove  = errors.New("there is no member to remove")
 	ErrEmptySnapshot       = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
@@ -273,6 +274,7 @@ func newRaftServer(hub *component.ComponentHub,
 }
 
 func (rs *raftServer) SetID(id uint64) {
+	logger.Info().Str("id", MemberIDToString(id)).Msg("set my raft id")
 	rs.id = id
 }
 

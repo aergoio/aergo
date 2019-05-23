@@ -95,18 +95,20 @@ type ChainWAL interface {
 }
 
 type SnapshotData struct {
-	Chain   ChainSnapshot `json:"chain"`
-	Members []*Member     `json:"members"`
+	Chain          ChainSnapshot `json:"chain"`
+	Members        []*Member     `json:"members"`
+	RemovedMembers []*Member
 }
 
-func NewSnapshotData(members []*Member, block *types.Block) *SnapshotData {
+func NewSnapshotData(members []*Member, rmMembers []*Member, block *types.Block) *SnapshotData {
 	if block == nil {
 		return nil
 	}
 
 	return &SnapshotData{
-		Chain:   *NewChainSnapshot(block),
-		Members: members,
+		Chain:          *NewChainSnapshot(block),
+		Members:        members,
+		RemovedMembers: rmMembers,
 	}
 }
 
@@ -144,12 +146,22 @@ func (snapd *SnapshotData) Equal(t *SnapshotData) bool {
 func (snapd *SnapshotData) ToString() string {
 	var buf string
 
-	buf += fmt.Sprintf("chain:%s. members:[", snapd.Chain.ToString())
+	buf += fmt.Sprintf("chain:%s, ", snapd.Chain.ToString())
 
-	for i, m := range snapd.Members {
-		buf += fmt.Sprintf("#%d{%s}", i, m.ToString())
+	printMembers := func(mbrs []*Member, name string) {
+		if len(mbrs) > 0 {
+			buf += fmt.Sprintf("%s[", name)
+
+			for i, m := range mbrs {
+				buf += fmt.Sprintf("#%d{%s}", i, m.ToString())
+			}
+
+			buf += fmt.Sprintf("]")
+		}
 	}
-	buf += fmt.Sprintf("]")
+
+	printMembers(snapd.Members, "members")
+	printMembers(snapd.RemovedMembers, "removed members")
 
 	return buf
 }

@@ -40,6 +40,7 @@ var (
 const (
 	MembersNameInit    = "init"
 	MembersNameApplied = "applied"
+	MembersNameRemoved = "removed"
 )
 
 type RaftInfo struct {
@@ -80,6 +81,10 @@ type Cluster struct {
 	appliedMembers *Members // using for 1. verifying runtime confchange.
 	// 			 2. creating snapshot
 	//           3. recover from snapshot
+
+	// raft http reject message from removed member
+	// TODO for p2p
+	removedMembers *Members
 
 	changeSeq   uint64
 	confChangeC chan *consensus.ConfChangePropose
@@ -151,6 +156,7 @@ func NewCluster(chainID []byte, bf *BlockFactory, raftName string, chainTimestam
 		identity:           consensus.RaftIdentity{Name: raftName},
 		members:            newMembers(MembersNameInit),
 		appliedMembers:     newMembers(MembersNameApplied),
+		removedMembers:     newMembers(MembersNameRemoved),
 		confChangeC:        make(chan *consensus.ConfChangePropose),
 	}
 	if bf != nil {
@@ -228,6 +234,10 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
 		cl.addMember(mbr, true)
 	}
 
+	for _, mbr := range snapdata.RemovedMembers {
+		cl.RemovedMembers().add(mbr)
+	}
+
 	logger.Info().Str("info", cl.toStringWithLock()).Msg("cluster recovered")
 
 	return nil
@@ -239,6 +249,8 @@ func (cl *Cluster) ResetMembers() {
 
 	cl.members = newMembers(MembersNameInit)
 	cl.appliedMembers = newMembers(MembersNameApplied)
+	cl.removedMembers = newMembers(MembersNameRemoved)
+
 	cl.Size = 0
 }
 
@@ -266,6 +278,10 @@ func (cl *Cluster) Members() *Members {
 
 func (cl *Cluster) AppliedMembers() *Members {
 	return cl.appliedMembers
+}
+
+func (cl *Cluster) RemovedMembers() *Members {
+	return cl.removedMembers
 }
 
 func (cl *Cluster) Quorum() uint32 {
@@ -332,6 +348,8 @@ func (cl *Cluster) isValidMember(member *consensus.Member) error {
 }
 
 func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
+	logger.Info().Str("member", member.ToString()).Msg("member add")
+
 	cl.Lock()
 	defer cl.Unlock()
 
@@ -353,12 +371,15 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 }
 
 func (cl *Cluster) removeMember(member *consensus.Member) error {
+	logger.Info().Str("member", member.ToString()).Msg("member remove")
+
 	cl.Lock()
 	defer cl.Unlock()
 
 	cl.AppliedMembers().remove(member)
-
 	cl.members.remove(member)
+	cl.removedMembers.add(member)
+
 	cl.Size--
 
 	return nil
@@ -418,12 +439,10 @@ func (cl *Cluster) getMemberAttrs() []*types.MemberAttr {
 
 // IsIDRemoved return true if given raft id is not exist in cluster
 func (cl *Cluster) IsIDRemoved(id uint64) bool {
-	return !cl.Members().isExist(id)
+	return cl.RemovedMembers().isExist(id)
 }
 
 func (mbrs *Members) add(member *consensus.Member) {
-	logger.Debug().Str("member", MemberIDToString(member.ID)).Msg("added raft member")
-
 	mbrs.MapByID[member.ID] = member
 	mbrs.MapByName[member.Name] = member
 	mbrs.Index[member.GetPeerID()] = member.ID
@@ -431,8 +450,6 @@ func (mbrs *Members) add(member *consensus.Member) {
 }
 
 func (mbrs *Members) remove(member *consensus.Member) {
-	logger.Debug().Str("member", MemberIDToString(member.ID)).Msg("removed raft member")
-
 	delete(mbrs.MapByID, member.ID)
 	delete(mbrs.MapByName, member.Name)
 	delete(mbrs.Index, member.GetPeerID())
@@ -827,6 +844,13 @@ func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *conse
 
 	appliedMembers := cl.AppliedMembers()
 
+	if member.ID == consensus.InvalidMemberID {
+		return consensus.ErrInvalidMemberID
+	}
+	if cl.RemovedMembers().isExist(member.ID) {
+		return ErrCCAlreadyRemoved
+	}
+
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
 		if !member.IsValid() {
@@ -844,9 +868,6 @@ func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *conse
 
 	case raftpb.ConfChangeRemoveNode:
 		var m *consensus.Member
-		if member.ID == consensus.InvalidMemberID {
-			return consensus.ErrInvalidMemberID
-		}
 
 		if m = appliedMembers.getMember(member.ID); m == nil {
 			return ErrCCNoMemberToRemove

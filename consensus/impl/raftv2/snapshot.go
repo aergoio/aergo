@@ -96,8 +96,9 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 	}
 
 	members := cluster.AppliedMembers().ToArray()
+	removedMembers := cluster.RemovedMembers().ToArray()
 
-	snap := consensus.NewSnapshotData(members, snapBlock)
+	snap := consensus.NewSnapshotData(members, removedMembers, snapBlock)
 	if snap == nil {
 		panic("new snap failed")
 	}
