@@ -87,12 +87,15 @@ func (chainsnap *ChainSnapshotter) createSnapshot(prevProgress BlockProgress, co
 func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBlock *types.Block, confstate *raftpb.ConfState) (*consensus.SnapshotData, error) {
 	logger.Info().Str("hash", snapBlock.ID()).Uint64("no", snapBlock.BlockNo()).Msg("create new snapshot data of block")
 
+	cluster.Lock()
+	defer cluster.Unlock()
+
 	if !cluster.isMatch(confstate) {
-		logger.Error().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
+		logger.Fatal().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
 		return nil, ErrClusterMismatchConfState
 	}
 
-	members := cluster.getMembers().ToArray()
+	members := cluster.AppliedMembers().ToArray()
 
 	snap := consensus.NewSnapshotData(members, snapBlock)
 	if snap == nil {
@@ -167,7 +170,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 					return "", err
 				}
 			} else {
-				peerID, err = chainsnap.cluster.getMembers().getMemberPeerAddress(leader)
+				peerID, err = chainsnap.cluster.Members().getMemberPeerAddress(leader)
 				if err != nil {
 					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err

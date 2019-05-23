@@ -212,9 +212,11 @@ func DecodeChainSnapshot(data []byte) (*ChainSnapshot, error) {
 func ConfStateToString(conf *raftpb.ConfState) string {
 	var buf string
 
-	buf = fmt.Sprintf("node")
-	for _, node := range conf.Nodes {
-		buf = buf + fmt.Sprintf("[%x]", node)
+	if len(conf.Nodes) > 0 {
+		buf = fmt.Sprintf("node")
+		for _, node := range conf.Nodes {
+			buf = buf + fmt.Sprintf("[%x]", node)
+		}
 	}
 
 	if len(conf.Learners) > 0 {
@@ -238,17 +240,12 @@ func SnapToString(snap *raftpb.Snapshot, snapd *SnapshotData) string {
 }
 
 type Member struct {
-	/*
-		ID     MemberID `json:"id"`
-		Name   string   `json:"name"`
-		Url    string   `json:"url"`
-		PeerID peer.ID  `json:"peerid"`*/
 	types.MemberAttr
 }
 
 func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int64) *Member {
 	//check unique
-	m := &Member{types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
+	m := &Member{MemberAttr: types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
 
 	//make ID
 	m.CalculateMemberID(chainID, when)

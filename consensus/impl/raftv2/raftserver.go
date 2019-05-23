@@ -440,7 +440,7 @@ func (rs *raftServer) startTransport() {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
 	}
 
-	for _, member := range rs.cluster.getMembers().MapByID {
+	for _, member := range rs.cluster.Members().MapByID {
 		if rs.cluster.NodeID() != member.ID {
 			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})
 		}
@@ -808,12 +808,22 @@ func (rs *raftServer) createSnapshot() ([]byte, error) {
 }*/
 
 // triggerSnapshot create snapshot and make compaction for raft log storage
-// raft can not wait until last applied entry commits. so snapshot must create from current best block
+// raft can not wait until last applied entry commits. so snapshot must create from current best block.
+//
+// @ MatchBlockAndCluster
+// 	snapshot use current state of cluster and confstate. but last applied block may not be commited yet.
+// 	so raft use last commited block. because of this, some conf change log can cause error on node that received snapshot
 func (rs *raftServer) triggerSnapshot() {
 	ce := rs.commitProgress.GetConnect()
 	newSnapshotIndex, snapBlock := ce.index, ce.block
 
 	if newSnapshotIndex == 0 || rs.confState == nil {
+		return
+	}
+
+	if len(rs.confState.Nodes) == 0 {
+		// TODO Fatal -> Error after test
+		logger.Fatal().Msg("confstate node is empty for snapshot")
 		return
 	}
 
@@ -916,7 +926,7 @@ func (rs *raftServer) recoverTransport() {
 	logger.Info().Msg("remove all peers")
 	rs.transport.RemoveAllPeers()
 
-	for _, m := range rs.cluster.members.MapByID {
+	for _, m := range rs.cluster.AppliedMembers().MapByID {
 		if m.ID == rs.cluster.NodeID() {
 			continue
 		}
@@ -1001,8 +1011,6 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
 		// reset pending conf change
 		cc.NodeID = raftlib.None
-		rs.node.ApplyConfChange(*cc)
-
 		return true
 	}
 
@@ -1012,7 +1020,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
-		if err := rs.cluster.addMember(member, false); err != nil {
+		if err := rs.cluster.addMember(member, true); err != nil {
 			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
 		}
 
