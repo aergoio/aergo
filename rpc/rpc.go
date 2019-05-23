@@ -6,7 +6,10 @@
 package rpc
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
@@ -14,13 +17,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
@@ -29,6 +31,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // RPC is actor for providing rpc service
@@ -58,6 +61,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	}
 
 	tracer := opentracing.GlobalTracer()
+
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
 	}
@@ -65,6 +69,31 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	if cfg.RPC.NetServiceTrace {
 		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
 		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
+	}
+
+	if cfg.RPC.NSEnableTLS {
+		certificate, err := tls.LoadX509KeyPair(cfg.RPC.NSCert, cfg.RPC.NSKey)
+		if err != nil {
+			logger.Error().Err(err).Msg("could not load server key pair")
+		}
+		certPool := x509.NewCertPool()
+		ca, err := ioutil.ReadFile(cfg.RPC.NSCert)
+		if err != nil {
+			logger.Error().Err(err).Msg("could not read server cert")
+		}
+		if ok := certPool.AppendCertsFromPEM(ca); !ok {
+			logger.Error().Bool("AppendCertsFromPEM", ok).Msg("failed to append server cert")
+			err = fmt.Errorf("failed to append server cert")
+		}
+		if err == nil {
+			creds := credentials.NewTLS(&tls.Config{
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				Certificates: []tls.Certificate{certificate},
+				ClientCAs:    certPool,
+			})
+			opts = append(opts, grpc.Creds(creds))
+			logger.Info().Str("cert", cfg.RPC.NSCert).Str("key", cfg.RPC.NSKey).Msg("grpc with TLS")
+		}
 	}
 
 	grpcServer := grpc.NewServer(opts...)
@@ -194,18 +223,20 @@ func (ns *RPC) serve() {
 
 	// Setup TCP multiplexer
 	tcpm := cmux.New(l)
-	grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-	httpL := tcpm.Match(cmux.HTTP1Fast())
+
+	//grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+	matchers := []cmux.Matcher{cmux.HTTP2()}
+	if ns.conf.RPC.NSEnableTLS {
+		matchers = append(matchers, cmux.TLS())
+	} else {
+		//http1 only work without TLS
+		httpL := tcpm.Match(cmux.HTTP1Fast())
+		go ns.serveHTTP(httpL, ns.httpServer)
+	}
+	grpcL := tcpm.Match(matchers...)
+	go ns.serveGRPC(grpcL, ns.grpcServer)
 
 	ns.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
-
-	if ns.conf.RPC.NSEnableTLS {
-		ns.Warn().Msg("TLS is enabled in configuration, but currently not supported")
-	}
-
-	// Server both servers
-	go ns.serveGRPC(grpcL, ns.grpcServer)
-	go ns.serveHTTP(httpL, ns.httpServer)
 
 	// Serve TCP multiplexer
 	if err := tcpm.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {
