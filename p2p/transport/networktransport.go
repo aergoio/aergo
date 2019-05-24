@@ -117,6 +117,7 @@ func (sl *networkTransport) initSelfMeta(peerID peer.ID, noExpose bool) {
 	sl.selfMeta.Port = uint32(protocolPort)
 	sl.selfMeta.ID = peerID
 	sl.selfMeta.Hidden = noExpose
+	sl.selfMeta.Version = p2pkey.NodeVersion()
 
 	// bind address and port will be overriden if configuration is specified
 	sl.bindAddress = ipAddress
