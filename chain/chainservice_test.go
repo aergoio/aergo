@@ -288,7 +288,7 @@ func TestReorgCrashRecoverBeforeReorgMarker(t *testing.T) {
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
 	TestDebugger = newDebugger()
-	TestDebugger.set(DEBUG_CHAIN_STOP, 1, false)
+	TestDebugger.Set(DEBUG_CHAIN_STOP, 1, false)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})
@@ -328,7 +328,7 @@ func testReorgCrashRecoverCond(t *testing.T, cond StopCond, value int) {
 	assert.Equal(t, orgBestBlock.GetHeader().BlockNo+1, sideBestBlock.GetHeader().BlockNo)
 
 	TestDebugger = newDebugger()
-	TestDebugger.set(cond, value, false)
+	TestDebugger.Set(cond, value, false)
 
 	err = cs.addBlock(sideBestBlock, nil, testPeer)
 	assert.Error(t, &ErrReorg{})

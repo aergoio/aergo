@@ -76,7 +76,7 @@ func newDebugger() *Debugger {
 			}
 			logger.Debug().Int("value", val).Msgf("env variable[%s] is set", envName)
 
-			dbg.set(condName, val, true)
+			dbg.Set(condName, val, true)
 		}
 	}
 
@@ -90,7 +90,7 @@ func newDebugger() *Debugger {
 	return dbg
 }
 
-func (debug *Debugger) set(cond StopCond, value int, env bool) {
+func (debug *Debugger) Set(cond StopCond, value int, env bool) {
 	if debug == nil {
 		return
 	}
@@ -104,7 +104,7 @@ func (debug *Debugger) set(cond StopCond, value int, env bool) {
 	debug.isEnv[cond] = env
 }
 
-func (debug *Debugger) unset(cond StopCond) {
+func (debug *Debugger) Unset(cond StopCond) {
 	if debug == nil {
 		return
 	}
@@ -112,6 +112,7 @@ func (debug *Debugger) unset(cond StopCond) {
 	debug.Lock()
 	defer debug.Unlock()
 
+	logger.Debug().Str("cond", cond.String()).Msg("deubugger condition is unset")
 	delete(debug.condMap, cond)
 }
 
