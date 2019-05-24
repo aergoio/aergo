@@ -14,6 +14,15 @@ type Conf struct {
 	Values []string
 }
 
+func (c *Conf) RemoveValue(r string) {
+	for i, v := range c.Values {
+		if v == r {
+			c.Values = append(c.Values[:i], c.Values[i+1:]...)
+			break
+		}
+	}
+}
+
 // AccountStateReader is an interface for getting a enterprise account state.
 type AccountStateReader interface {
 	GetEnterpriseAccountState() (*state.ContractState, error)

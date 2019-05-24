@@ -12,8 +12,12 @@ import (
 )
 
 const SetConf = "setConf"
-const SetAdmin = "setAdmin"
+const AppendConf = "appendConf"
+const RemoveConf = "removeConf"
+const AppendAdmin = "appendAdmin"
+const RemoveAdmin = "removeAdmin"
 const EnableConf = "enableConf"
+const DisableConf = "disableConf"
 
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
@@ -25,22 +29,33 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 	}
 	context := &EnterpriseContext{Call: &ci}
 	switch ci.Name {
-	case SetAdmin:
+	case AppendAdmin, RemoveAdmin:
 		if len(ci.Args) != 1 { //args[0] : key, args[1:] : values
 			return nil, fmt.Errorf("invalid arguments in payload for SetAdmin: %s", ci.Args)
 		}
+
 		arg := ci.Args[0].(string)
+		context.Args = append(context.Args, arg)
+
 		address := types.ToAddress(arg)
-		if address == nil {
+		if len(address) == 0 {
 			return nil, fmt.Errorf("invalid arguments[0]: %s", ci.Args[0])
 		}
-		if err := checkAdmin(scs, sender.ID()); err != nil &&
+
+		admins, err := checkAdmin(scs, sender.ID())
+		if err != nil &&
 			err != ErrTxEnterpriseAdminIsNotSet {
 			return nil, err
 		}
 
-		context.Admin = address
-	case SetConf:
+		context.Admins = admins
+		if ci.Name == AppendAdmin && context.IsAdminExist(address) {
+			return nil, fmt.Errorf("already exist admin: %s", ci.Args[0])
+		} else if ci.Name == RemoveAdmin && !context.IsAdminExist(address) {
+			return nil, fmt.Errorf("admins is not exist : %s", ci.Args[0])
+		}
+
+	case SetConf, AppendConf, RemoveConf:
 		if len(ci.Args) <= 1 { //args[0] : key, args[1:] : values
 			return nil, fmt.Errorf("invalid arguments in payload for setConf: %s", ci.Args)
 		}
@@ -57,9 +72,11 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			}
 			context.Args = append(context.Args, arg)
 		}
-		if err := checkAdmin(scs, sender.ID()); err != nil {
+		admins, err := checkAdmin(scs, sender.ID())
+		if err != nil {
 			return nil, err
 		}
+		context.Admins = admins
 	case EnableConf:
 		if len(ci.Args) != 2 { //args[0] : key, args[1] : true/false
 			return nil, fmt.Errorf("invalid arguments in payload for enableConf: %s", ci.Args)
@@ -76,25 +93,27 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if !ok {
 			return nil, fmt.Errorf("not bool in payload for enableConf : %s", ci.Args)
 		}
-		if err := checkAdmin(scs, sender.ID()); err != nil {
+		admins, err := checkAdmin(scs, sender.ID())
+		if err != nil {
 			return nil, err
 		}
+		context.Admins = admins
 	default:
 		return nil, fmt.Errorf("unsupported call %s", ci.Name)
 	}
 	return context, nil
 }
 
-func checkAdmin(scs *state.ContractState, address []byte) error {
-	admin, err := getAdmin(scs)
+func checkAdmin(scs *state.ContractState, address []byte) ([][]byte, error) {
+	admins, err := getAdmins(scs)
 	if err != nil {
-		return fmt.Errorf("could not get admin in enterprise contract")
+		return nil, fmt.Errorf("could not get admin in enterprise contract")
 	}
-	if admin == nil {
-		return ErrTxEnterpriseAdminIsNotSet
+	if admins == nil {
+		return nil, ErrTxEnterpriseAdminIsNotSet
 	}
-	if !bytes.Equal(admin, address) {
-		return fmt.Errorf("admin address not matched")
+	if i := bytes.Index(bytes.Join(admins, []byte("")), address); i == -1 && i%types.AddressLength != 0 {
+		return nil, fmt.Errorf("admin address not matched")
 	}
-	return nil
+	return admins, nil
 }
