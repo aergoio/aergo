@@ -72,13 +72,13 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	if bf.bpc.getMembers().len() == 0 {
+	if bf.bpc.Members().len() == 0 {
 		logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
 	}
 
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
 
-	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
+	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", consensus.BlockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
 }
@@ -152,7 +152,10 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 
 		m := consensus.NewMember(raftBP.Name, trimUrl, peerID, cl.chainID, cl.chainTimestamp)
 
-		if err := cl.addMember(m, true); err != nil {
+		if err := cl.isValidMember(m); err != nil {
+			return err
+		}
+		if err := cl.addMember(m, false); err != nil {
 			return err
 		}
 	}
@@ -166,7 +169,7 @@ func (cl *Cluster) SetThisNodeID() error {
 
 	var member *consensus.Member
 
-	if member = cl.getMembers().getMemberByName(cl.NodeName()); member == nil {
+	if member = cl.Members().getMemberByName(cl.NodeName()); member == nil {
 		return ErrNotIncludedRaftMember
 	}
 

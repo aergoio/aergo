@@ -95,18 +95,20 @@ type ChainWAL interface {
 }
 
 type SnapshotData struct {
-	Chain   ChainSnapshot `json:"chain"`
-	Members []*Member     `json:"members"`
+	Chain          ChainSnapshot `json:"chain"`
+	Members        []*Member     `json:"members"`
+	RemovedMembers []*Member
 }
 
-func NewSnapshotData(members []*Member, block *types.Block) *SnapshotData {
+func NewSnapshotData(members []*Member, rmMembers []*Member, block *types.Block) *SnapshotData {
 	if block == nil {
 		return nil
 	}
 
 	return &SnapshotData{
-		Chain:   *NewChainSnapshot(block),
-		Members: members,
+		Chain:          *NewChainSnapshot(block),
+		Members:        members,
+		RemovedMembers: rmMembers,
 	}
 }
 
@@ -144,12 +146,22 @@ func (snapd *SnapshotData) Equal(t *SnapshotData) bool {
 func (snapd *SnapshotData) ToString() string {
 	var buf string
 
-	buf += fmt.Sprintf("chain:%s. members:[", snapd.Chain.ToString())
+	buf += fmt.Sprintf("chain:%s, ", snapd.Chain.ToString())
 
-	for i, m := range snapd.Members {
-		buf += fmt.Sprintf("#%d{%s}", i, m.ToString())
+	printMembers := func(mbrs []*Member, name string) {
+		if len(mbrs) > 0 {
+			buf += fmt.Sprintf("%s[", name)
+
+			for i, m := range mbrs {
+				buf += fmt.Sprintf("#%d{%s}", i, m.ToString())
+			}
+
+			buf += fmt.Sprintf("]")
+		}
 	}
-	buf += fmt.Sprintf("]")
+
+	printMembers(snapd.Members, "members")
+	printMembers(snapd.RemovedMembers, "removed members")
 
 	return buf
 }
@@ -212,9 +224,11 @@ func DecodeChainSnapshot(data []byte) (*ChainSnapshot, error) {
 func ConfStateToString(conf *raftpb.ConfState) string {
 	var buf string
 
-	buf = fmt.Sprintf("node")
-	for _, node := range conf.Nodes {
-		buf = buf + fmt.Sprintf("[%x]", node)
+	if len(conf.Nodes) > 0 {
+		buf = fmt.Sprintf("node")
+		for _, node := range conf.Nodes {
+			buf = buf + fmt.Sprintf("[%x]", node)
+		}
 	}
 
 	if len(conf.Learners) > 0 {
@@ -238,17 +252,12 @@ func SnapToString(snap *raftpb.Snapshot, snapd *SnapshotData) string {
 }
 
 type Member struct {
-	/*
-		ID     MemberID `json:"id"`
-		Name   string   `json:"name"`
-		Url    string   `json:"url"`
-		PeerID peer.ID  `json:"peerid"`*/
 	types.MemberAttr
 }
 
 func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int64) *Member {
 	//check unique
-	m := &Member{types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
+	m := &Member{MemberAttr: types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
 
 	//make ID
 	m.CalculateMemberID(chainID, when)
