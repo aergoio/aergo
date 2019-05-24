@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -54,7 +55,7 @@ func TestCreateKeyLongPass(t *testing.T) {
 	}
 }
 
-func TestExportKey(t *testing.T) {
+func TestExportImportKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	const testSize = 10
@@ -74,6 +75,9 @@ func TestExportKey(t *testing.T) {
 		if len(exported) != 48 {
 			t.Errorf("invalid exported address : length = %d", len(exported))
 		}
+		imported, err := ks.ImportKey(exported, pass, pass)
+		assert.NoError(t, err, "import")
+		assert.Equal(t, imported, addr, "import result")
 	}
 }
 
