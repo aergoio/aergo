@@ -78,7 +78,7 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
 
-	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", bf.blockInterval.Seconds()).Msg(bf.bpc.toString())
+	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", consensus.BlockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
 }
