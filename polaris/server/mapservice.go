@@ -8,6 +8,7 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/v030"
 	"math"
 	"sync"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
@@ -123,7 +123,7 @@ func (pms *PeerMapService) onConnect(s inet.Stream) {
 	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
 	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
 
 	// receive input
@@ -309,7 +309,7 @@ func (pms *PeerMapService) onPing(s inet.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pms.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
 
 	req, err := rw.ReadMsg()

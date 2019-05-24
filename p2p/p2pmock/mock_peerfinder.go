@@ -192,3 +192,13 @@ func (m *MockWaitingPeerManager) OnInboundConn(s go_libp2p_net.Stream) {
 func (mr *MockWaitingPeerManagerMockRecorder) OnInboundConn(s interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnInboundConn", reflect.TypeOf((*MockWaitingPeerManager)(nil).OnInboundConn), s)
 }
+
+// OnInboundConnLegacy mocks base method
+func (m *MockWaitingPeerManager) OnInboundConnLegacy(s go_libp2p_net.Stream) {
+	m.ctrl.Call(m, "OnInboundConnLegacy", s)
+}
+
+// OnInboundConnLegacy indicates an expected call of OnInboundConnLegacy
+func (mr *MockWaitingPeerManagerMockRecorder) OnInboundConnLegacy(s interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnInboundConnLegacy", reflect.TypeOf((*MockWaitingPeerManager)(nil).OnInboundConnLegacy), s)
+}

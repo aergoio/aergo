@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -28,10 +27,6 @@ var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c065
 var dummyBlockHeight uint64 = 100215
 var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
-var (
-	myChainID, theirChainID       *types.ChainID
-	myChainBytes, theirChainBytes []byte
-)
 var samplePeerID peer.ID
 var sampleMeta p2pcommon.PeerMeta
 var sampleErr error
@@ -40,14 +35,6 @@ var logger *log.Logger
 
 func init() {
 	logger = log.NewLogger("test")
-	myChainID = types.NewChainID()
-	myChainID.Magic = "itSmain1"
-	myChainBytes, _ = myChainID.Bytes()
-
-	theirChainID = types.NewChainID()
-	theirChainID.Read(myChainBytes)
-	theirChainID.Magic = "itsdiff2"
-	theirChainBytes, _ = theirChainID.Bytes()
 	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
 	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
@@ -63,7 +50,6 @@ const (
 )
 
 var sampleMsgID p2pcommon.MsgID
-var sampleHeader p2pcommon.Message
 var sampleKey1Priv crypto.PrivKey
 var sampleKey1Pub crypto.PubKey
 var sampleKey1ID peer.ID
@@ -98,7 +84,6 @@ func init() {
 	sampleKey2ID, _ = peer.IDFromPublicKey(sampleKey2Pub)
 
 	sampleMsgID = p2pcommon.NewMsgID()
-	sampleHeader = &V030Message{id: sampleMsgID}
 
 	dummyPeerID = sampleKey1ID
 	dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")

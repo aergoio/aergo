@@ -8,12 +8,12 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
@@ -75,7 +75,7 @@ func (hc *peerState) check(wg *sync.WaitGroup, timeout time.Duration) {
 func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 	hc.Logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(hc.meta.ID)).Msg("staring up healthcheck")
 	hc.lCheckTime = time.Now()
-	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, common.PolarisPingSub, PolarisPingTTL)
+	s, err := hc.nt.GetOrCreateStreamWithTTL(hc.meta, PolarisPingTTL, common.PolarisPingSub)
 	if err != nil {
 		hc.contFail++
 		hc.Logger.Debug().Err(err).Msg("Healthcheck failed to get network stream")
@@ -84,7 +84,7 @@ func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 	}
 	defer s.Close()
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	pc := &pingChecker{peerState: hc, rw: rw}
 	pingResp, err := p2putil.InvokeWithTimer(pc, time.NewTimer(timeout))
 	if pingResp.(*types.Ping) == nil {

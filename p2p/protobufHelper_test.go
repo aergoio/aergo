@@ -25,7 +25,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 	defer ctrl.Finish()
 
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &v030MOFactory{}
+	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -69,7 +69,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &v030MOFactory{}
+	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -110,7 +110,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &v030MOFactory{}
+	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -172,7 +172,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &v030MOFactory{}
+	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name         string
@@ -247,7 +247,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &v030MOFactory{}
+	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -310,7 +310,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &v030MOFactory{}
+	factory := &baseMOFactory{}
 
 	sampleHashes := make([][]byte, 10)
 	for i := 0; i < 10; i++ {

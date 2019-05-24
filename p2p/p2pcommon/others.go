@@ -1,6 +1,7 @@
 package p2pcommon
 
 import (
+	"io"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -18,7 +19,7 @@ type PeerAccessor interface {
 	GetPeer(ID peer.ID) (RemotePeer, bool)
 }
 
-// MsgOrder is abstraction information about the message that will be sent to peer.
+// MsgOrder is abstraction of information about the message that will be sent to peer.
 // Some type of msgOrder, such as notice mo, should thread-safe and re-entrant
 type MsgOrder interface {
 	GetMsgID() MsgID
@@ -115,9 +116,16 @@ type NetworkTransport interface {
 	// AddStreamHandler wrapper function which call host.SetStreamHandler after transport is initialized, this method is for preventing nil error.
 	AddStreamHandler(pid protocol.ID, handler inet.StreamHandler)
 
-	GetOrCreateStream(meta PeerMeta, protocolID protocol.ID) (inet.Stream, error)
-	GetOrCreateStreamWithTTL(meta PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error)
+	GetOrCreateStream(meta PeerMeta, protocolIDs ...protocol.ID) (inet.Stream, error)
+	GetOrCreateStreamWithTTL(meta PeerMeta, ttl time.Duration, protocolIDs ...protocol.ID) (inet.Stream, error)
 
 	FindPeer(peerID peer.ID) bool
 	ClosePeerConnection(peerID peer.ID) bool
+}
+
+// FlushableWriter is writer which have Flush method, such as bufio.Writer
+type FlushableWriter interface {
+	io.Writer
+	// Flush writes any buffered data to the underlying io.Writer.
+	Flush() error
 }

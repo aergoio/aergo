@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/funkygao/golib/rand"
 	"testing"
 	"time"
@@ -122,7 +123,7 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 			br := NewBlockHashesReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := &V030Message{subProtocol: subproto.GetHashesRequest, id: sampleMsgID}
+			msg := p2pcommon.NewSimpleMsgVal(subproto.GetHashesRequest, sampleMsgID)
 			for i, hashes := range test.hashInput {
 				if test.hashInterval > 0 {
 					time.Sleep(test.hashInterval)

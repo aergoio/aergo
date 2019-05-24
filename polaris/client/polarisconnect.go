@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
 	"sync"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
@@ -154,7 +154,7 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 }
 
 func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, bestHash []byte, bestHeight uint64) ([]*types.PeerAddress, error) {
-	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, common.PolarisMapSub, common.PolarisConnectionTTL)
+	s, err := pcs.nt.GetOrCreateStreamWithTTL(mapServerMeta, common.PolarisConnectionTTL, common.PolarisMapSub)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Sending map query")
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 
 	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
@@ -220,7 +220,7 @@ func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
 
 	req, err := rw.ReadMsg()

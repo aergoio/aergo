@@ -154,7 +154,7 @@ func (sl *networkTransport) AddStreamHandler(pid protocol.ID, handler inet.Strea
 
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
-func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error) {
+func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, ttl time.Duration, protocolIDs ...protocol.ID) (inet.Stream, error) {
 	var peerAddr, err = p2putil.PeerMetaToMultiAddr(meta)
 	if err != nil {
 		sl.logger.Warn().Err(err).Str("addr", meta.IPAddress).Msg("invalid NPAddPeer address")
@@ -163,16 +163,16 @@ func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, pr
 	var peerID = meta.ID
 	sl.Peerstore().AddAddr(peerID, peerAddr, ttl)
 	ctx := context.Background()
-	s, err := sl.NewStream(ctx, meta.ID, protocolID)
+	s, err := sl.NewStream(ctx, meta.ID, protocolIDs...)
 	if err != nil {
-		sl.logger.Info().Err(err).Str("addr", meta.IPAddress).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Str(p2putil.LogProtoID, string(protocolID)).Msg("Error while get stream")
+		sl.logger.Info().Err(err).Str("addr", meta.IPAddress).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Str("p2p_proto", p2putil.ProtocolIDsToString(protocolIDs)).Msg("Error while get stream")
 		return nil, err
 	}
 	return s, nil
 }
 
-func (sl *networkTransport) GetOrCreateStream(meta p2pcommon.PeerMeta, protocolID protocol.ID) (inet.Stream, error) {
-	return sl.GetOrCreateStreamWithTTL(meta, protocolID, getTTL(meta))
+func (sl *networkTransport) GetOrCreateStream(meta p2pcommon.PeerMeta, protocolIDs ...protocol.ID) (inet.Stream, error) {
+	return sl.GetOrCreateStreamWithTTL(meta, getTTL(meta), protocolIDs...)
 }
 
 func (sl *networkTransport) FindPeer(peerID peer.ID) bool {
