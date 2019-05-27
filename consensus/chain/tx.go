@@ -124,7 +124,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	if logger.IsDebugEnabled() {
 		defer func() {
-			logger.Debug().
+			logger.Info().
 				Int("candidates", nCand).
 				Int("collected", nCollected).
 				Msg("transactions collected")
