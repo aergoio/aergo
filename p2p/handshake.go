@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-peer"
 )
 
+// InboundHSHandler handshake handler for legacy version
 type InboundHSHandler struct {
 	*LegacyWireHandshaker
 }
@@ -29,6 +30,7 @@ func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) 
 	return ih.handshakeInboundPeer(ctx, r, w)
 }
 
+// OutboundHSHandler handshake handler for legacy version
 type OutboundHSHandler struct {
 	*LegacyWireHandshaker
 }

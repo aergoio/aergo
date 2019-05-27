@@ -12,15 +12,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/aergoio/aergo/p2p/p2pmock"
-
-	"github.com/aergoio/aergo/types"
 )
 
 //const testDuration = time.Second >> 1
@@ -394,9 +392,9 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	}
 	// GetReceiver should not return nil and consumeRequest must be thread-safe
 	tests := []struct {
-		name      string
-		toAdd     []p2pcommon.MsgID
-		inID      p2pcommon.MsgID
+		name  string
+		toAdd []p2pcommon.MsgID
+		inID  p2pcommon.MsgID
 
 		receiverReturn bool
 	}{
@@ -529,5 +527,32 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			//mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)
 			//assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
 		})
+	}
+}
+
+func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	msg := p2pmock.NewMockMessage(ctrl)
+	msg.EXPECT().Subprotocol().Return(subproto.PingRequest).MaxTimes(1)
+	msg.EXPECT().ID().Return(p2pcommon.NewMsgID()).AnyTimes()
+	msg.EXPECT().Payload().DoAndReturn(func() []byte {
+		panic("for test")
+		return nil
+	})
+	mockHandler := p2pmock.NewMockMessageHandler(ctrl)
+	mockHandler.EXPECT().PreHandle().AnyTimes()
+
+	p := &remotePeerImpl{
+		logger: logger,
+		handlers:make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
+	}
+	p.handlers[subproto.PingRequest] = mockHandler
+
+	if err := p.handleMsg(msg); err == nil {
+		t.Errorf("remotePeerImpl.handleMsg() no error, err by panic")
+	} else {
+		t.Logf("expected error %v", err)
 	}
 }
