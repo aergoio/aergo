@@ -450,7 +450,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 		}
 	}
 
-	logger.Debug().Uint64("no", block.BlockNo()).
+	logger.Info().Uint64("no", block.BlockNo()).
 		Str("hash", block.ID()).
 		Str("prev", block.PrevID()).
 		Bool("proposed", blockState != nil).
