@@ -3,12 +3,12 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
+//go:generate mockgen -source=message.go  -package=p2pmock -destination=../p2pmock/mock_message.go
 package p2pcommon
 
 import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 // Message is unit structure transferred from a peer to another peer.
@@ -57,7 +57,7 @@ type MsgSigner interface {
 	// signMsg calulate signature and fill related fields in msg(peerid, pubkey, signature or etc)
 	SignMsg(msg *types.P2PMessage) error
 	// verifyMsg check signature is valid
-	VerifyMsg(msg *types.P2PMessage, senderID peer.ID) error
+	VerifyMsg(msg *types.P2PMessage, senderID types.PeerID) error
 }
 
 // ResponseReceiver is handler function for the corresponding response message.

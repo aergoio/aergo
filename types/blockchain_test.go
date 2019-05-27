@@ -1,16 +1,16 @@
 package types
 
 import (
-	fmt "fmt"
-	math "math"
+	"fmt"
+	"math"
 	"math/big"
 	"testing"
 	"time"
 
-	proto "github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/minio/sha256-simd"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 

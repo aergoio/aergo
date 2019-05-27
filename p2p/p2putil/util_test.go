@@ -7,6 +7,7 @@ package p2putil
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -17,7 +18,6 @@ import (
 	"github.com/gofrs/uuid"
 	lru "github.com/hashicorp/golang-lru"
 	addrutil "github.com/libp2p/go-addr-util"
-	peer "github.com/libp2p/go-libp2p-peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mnet "github.com/multiformats/go-multiaddr-net"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +66,7 @@ func TestAddrUtil(t *testing.T) {
 /*
 func Test_debugLogReceiveMsg(t *testing.T) {
 	logger := log.NewLogger("test.p2p")
-	peerID, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+	peerID, _ := types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	peer := &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: peerID}, name: ShortForm(peerID) + "@1"}
 	msgID := uuid.Must(uuid.NewV4()).String()
 	dummyArray := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
@@ -205,25 +205,25 @@ func TestSyncMap(t *testing.T) {
 	}(&target))
 }
 
-var dummyPeerID peer.ID
-var dummyPeerID2 peer.ID
+var dummyPeerID types.PeerID
+var dummyPeerID2 types.PeerID
 
 func init() {
-	dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+	dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	dummyPeerID2, _ = types.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
 }
 
 func TestComparePeerID(t *testing.T) {
 	samplePeerID := dummyPeerID
 	samplePeerID2 := dummyPeerID2
-	shorterPeerID := peer.ID(string(([]byte(samplePeerID))[:len(string(samplePeerID))-1]))
+	shorterPeerID := types.PeerID(string(([]byte(samplePeerID))[:len(string(samplePeerID))-1]))
 	fmt.Println("Sample1", []byte(string(samplePeerID)))
 	fmt.Println("Sample2", []byte(string(samplePeerID2)))
 	fmt.Println("Shorter", []byte(string(shorterPeerID)))
 	tests := []struct {
 		name string
-		p1   peer.ID
-		p2   peer.ID
+		p1   types.PeerID
+		p2   types.PeerID
 		want int
 	}{
 		{"TP1", samplePeerID, samplePeerID2, 1},

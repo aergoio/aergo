@@ -5,10 +5,10 @@
 package p2pmock
 
 import (
-	types "github.com/aergoio/aergo/types"
-	gomock "github.com/golang/mock/gomock"
-	go_libp2p_peer "github.com/libp2p/go-libp2p-peer"
-	reflect "reflect"
+	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core"
+	"reflect"
 )
 
 // MockMsgSigner is a mock of MsgSigner interface
@@ -49,7 +49,7 @@ func (mr *MockMsgSignerMockRecorder) SignMsg(arg0 interface{}) *gomock.Call {
 }
 
 // VerifyMsg mocks base method
-func (m *MockMsgSigner) VerifyMsg(arg0 *types.P2PMessage, arg1 go_libp2p_peer.ID) error {
+func (m *MockMsgSigner) VerifyMsg(arg0 *types.P2PMessage, arg1 core.PeerID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifyMsg", arg0, arg1)
 	ret0, _ := ret[0].(error)

@@ -7,8 +7,8 @@ package p2pcommon
 
 import (
 	"errors"
-	net "github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/network"
 	"time"
 )
 
@@ -28,7 +28,7 @@ var (
 )
 
 type PeerEventListener interface {
-	OnPeerConnect(pid peer.ID)
+	OnPeerConnect(pid types.PeerID)
 	OnPeerDisconnect(peer RemotePeer)
 }
 
@@ -54,9 +54,9 @@ type WaitingPeerManager interface {
 
 	CheckAndConnect()
 
-	OnInboundConn(s net.Stream)
+	OnInboundConn(s network.Stream)
 
-	OnInboundConnLegacy(s net.Stream)
+	OnInboundConnLegacy(s network.Stream)
 }
 
 type WaitingPeer struct {

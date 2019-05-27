@@ -7,21 +7,20 @@ package server
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/libp2p/go-libp2p-core/network"
 	"reflect"
 	"sync"
 	"testing"
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	net "github.com/libp2p/go-libp2p-net"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +45,7 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 
 	type fields struct {
 		BaseComponent *component.BaseComponent
-		peerRegistry  map[peer.ID]p2pcommon.PeerMeta
+		peerRegistry  map[types.PeerID]p2pcommon.PeerMeta
 	}
 	tests := []struct {
 		name   string
@@ -139,11 +138,11 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	if err != nil {
 		t.Error("mainnet var is not set properly", common.ONEMainNet)
 	}
-	dummyPeerID2, err := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	dummyPeerID2, err := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
 	goodPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID2, IPAddress: "211.34.56.78", Port: 7845}
 	good := goodPeerMeta.ToPeerAddress()
-	badPeerMeta := p2pcommon.PeerMeta{ID: peer.ID("bad"), IPAddress: "211.34.56.78", Port: 7845}
+	badPeerMeta := p2pcommon.PeerMeta{ID: types.PeerID("bad"), IPAddress: "211.34.56.78", Port: 7845}
 	bad := badPeerMeta.ToPeerAddress()
 	type args struct {
 		status *types.Status
@@ -204,7 +203,7 @@ func init() {
 	metas = make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
 		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		peerid, _ := peer.IDFromPublicKey(pub)
+		peerid, _ := types.IDFromPublicKey(pub)
 		metas[i] = p2pcommon.PeerMeta{ID: peerid}
 	}
 }
@@ -309,7 +308,7 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 		listen        bool
 		nt            p2pcommon.NetworkTransport
 		mutex         *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
+		peerRegistry  map[types.PeerID]*peerState
 	}
 	type args struct {
 		reqContainer p2pcommon.Message
@@ -373,7 +372,7 @@ func TestPeerMapService_BeforeStart(t *testing.T) {
 		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
+		peerRegistry  map[types.PeerID]*peerState
 	}
 	tests := []struct {
 		name   string
@@ -408,7 +407,7 @@ func TestPeerMapService_AfterStart(t *testing.T) {
 		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
+		peerRegistry  map[types.PeerID]*peerState
 	}
 	tests := []struct {
 		name   string
@@ -443,10 +442,10 @@ func TestPeerMapService_onConnect(t *testing.T) {
 		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
+		peerRegistry  map[types.PeerID]*peerState
 	}
 	type args struct {
-		s net.Stream
+		s network.Stream
 	}
 	tests := []struct {
 		name   string
@@ -482,11 +481,11 @@ func TestPeerMapService_retrieveList(t *testing.T) {
 		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
+		peerRegistry  map[types.PeerID]*peerState
 	}
 	type args struct {
 		maxPeers int
-		exclude  peer.ID
+		exclude  types.PeerID
 	}
 	tests := []struct {
 		name   string
@@ -554,7 +553,7 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 		nt            p2pcommon.NetworkTransport
 		hc            HealthCheckManager
 		rwmutex       *sync.RWMutex
-		peerRegistry  map[peer.ID]*peerState
+		peerRegistry  map[types.PeerID]*peerState
 	}
 	tests := []struct {
 		name   string

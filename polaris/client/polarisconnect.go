@@ -12,6 +12,7 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
+	"github.com/libp2p/go-libp2p-core/network"
 	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -22,7 +23,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-net"
 )
 
 // PeerMapService is
@@ -216,7 +216,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 	return data, queryResp, nil
 }
 
-func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
+func (pcs *PolarisConnectSvc) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 

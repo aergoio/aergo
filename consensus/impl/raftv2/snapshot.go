@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/libp2p/go-libp2p-peer"
 	"io"
 	"sync"
 	"time"
@@ -144,7 +143,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	return nil
 }
 
-func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
+func (chainsnap *ChainSnapshotter) checkPeerLive(peerID types.PeerID) bool {
 	if chainsnap.pa == nil {
 		logger.Fatal().Msg("peer accessor of chain snapshotter is not set")
 	}
@@ -157,8 +156,8 @@ func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
 func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) error {
 
 	var leader uint64
-	getSyncLeader := func() (peer.ID, error) {
-		var peerID peer.ID
+	getSyncLeader := func() (types.PeerID, error) {
+		var peerID types.PeerID
 		var err error
 
 		for {

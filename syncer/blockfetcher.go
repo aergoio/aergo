@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 type BlockFetcher struct {
@@ -60,7 +59,7 @@ type BlockFetcherStat struct {
 
 type SyncPeer struct {
 	No      int
-	ID      peer.ID
+	ID      types.PeerID
 	FailCnt int
 	IsErr   bool
 }
@@ -252,7 +251,7 @@ func (bf *BlockFetcher) init() error {
 		for _, peerElem := range msg.Peers {
 			state := peerElem.State
 			if state.Get() == types.RUNNING {
-				bf.peers.addNew(peer.ID(peerElem.Addr.PeerID))
+				bf.peers.addNew(types.PeerID(peerElem.Addr.PeerID))
 			}
 		}
 
@@ -631,7 +630,7 @@ func (ps *PeerSet) isAllBad() bool {
 	return false
 }
 
-func (ps *PeerSet) addNew(peerID peer.ID) {
+func (ps *PeerSet) addNew(peerID types.PeerID) {
 	peerno := ps.total
 	ps.pushFree(&SyncPeer{No: peerno, ID: peerID})
 	ps.total++
@@ -725,7 +724,7 @@ func (task *FetchTask) isTimeOut(now time.Time, timeout time.Duration) bool {
 	return false
 }
 
-func (task *FetchTask) isMatched(peerID peer.ID, blocks []*types.Block, count int) bool {
+func (task *FetchTask) isMatched(peerID types.PeerID, blocks []*types.Block, count int) bool {
 	startHash, endHash := blocks[0].GetHash(), blocks[len(blocks)-1].GetHash()
 
 	if task.count != count ||
@@ -745,7 +744,7 @@ func (task *FetchTask) isMatched(peerID peer.ID, blocks []*types.Block, count in
 	return true
 }
 
-func (task *FetchTask) isPeerMatched(peerID peer.ID) bool {
+func (task *FetchTask) isPeerMatched(peerID types.PeerID) bool {
 	if task.syncPeer.ID == peerID {
 		return true
 	}

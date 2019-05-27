@@ -7,7 +7,7 @@ package metric
 
 import (
 	"bytes"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -33,7 +33,7 @@ func TestMetricsManager_Stop(t *testing.T) {
 }
 
 func TestMetricsManager_Remove(t *testing.T) {
-	pid, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	pid, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
 	tests := []struct {
 		name string

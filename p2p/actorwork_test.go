@@ -8,7 +8,6 @@ package p2p
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"testing"
 	"time"
 
@@ -27,7 +26,7 @@ func TestP2P_GetAddresses(t *testing.T) {
 	dummyPeerMeta := p2pcommon.PeerMeta{ID:dummyPeerID, IPAddress:"127.0.0.1", Port:7846}
 
 	type args struct {
-		peerID peer.ID
+		peerID types.PeerID
 		size   uint32
 	}
 	tests := []struct {

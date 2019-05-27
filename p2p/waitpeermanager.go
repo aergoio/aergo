@@ -14,8 +14,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	net "github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/network"
 	"sort"
 	"time"
 )
@@ -23,10 +22,10 @@ import (
 func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger,workingJobs:make(map[peer.ID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger,workingJobs:make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager:basePeerManager{pm: pm, logger: logger, workingJobs:make(map[peer.ID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager:basePeerManager{pm: pm, logger: logger, workingJobs:make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -37,12 +36,12 @@ type basePeerManager struct {
 	pm          *peerManager
 
 	logger      *log.Logger
-	workingJobs map[peer.ID]ConnWork
+	workingJobs map[types.PeerID]ConnWork
 
 }
 
 
-func (dpm *basePeerManager) OnInboundConn(s net.Stream) {
+func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	version := p2pcommon.P2PVersion031
 
 	peerID := s.Conn().RemotePeer()
@@ -70,7 +69,7 @@ func (dpm *basePeerManager) OnInboundConn(s net.Stream) {
 	}
 }
 
-func (dpm *basePeerManager) OnInboundConnLegacy(s net.Stream) {
+func (dpm *basePeerManager) OnInboundConnLegacy(s network.Stream) {
 	version := p2pcommon.P2PVersion030
 	peerID := s.Conn().RemotePeer()
 	tempMeta := p2pcommon.PeerMeta{ID: peerID}
@@ -180,7 +179,7 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 	}
 }
 
-func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVersion, net.Stream, error) {
+func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVersion, network.Stream, error) {
 	// try connect peer with possible versions
 	s, err := dpm.pm.nt.GetOrCreateStream(meta, p2pcommon.P2PSubAddr, p2pcommon.LegacyP2PSubAddr)
 	if err != nil {
@@ -198,7 +197,7 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVer
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer. stream s will be owned to remotePeer if succeed to add perr.
-func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s net.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
+func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	var peerID = meta.ID
 	rd := metric.NewReader(s)
 	wt := metric.NewWriter(s)
@@ -274,7 +273,7 @@ type staticWPManager struct {
 }
 
 
-func (spm *staticWPManager) OnPeerConnect(pid peer.ID) {
+func (spm *staticWPManager) OnPeerConnect(pid types.PeerID) {
 	delete(spm.pm.waitingPeers, pid)
 }
 
@@ -299,7 +298,7 @@ type dynamicWPManager struct {
 	maxPeers    int
 }
 
-func (dpm *dynamicWPManager) OnPeerConnect(pid peer.ID) {
+func (dpm *dynamicWPManager) OnPeerConnect(pid types.PeerID) {
 	// remove peer from wait pool
 	delete(dpm.pm.waitingPeers, pid)
 }
@@ -369,7 +368,7 @@ func (a byNextTrial) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byNextTrial) Less(i, j int) bool { return a[i].NextTrial.Before(a[j].NextTrial) }
 
 type ConnWork struct {
-	PeerID    peer.ID
+	PeerID    types.PeerID
 	Meta      p2pcommon.PeerMeta
 	StartTime time.Time
 }

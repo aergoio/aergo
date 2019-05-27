@@ -15,7 +15,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -24,7 +23,7 @@ const (
 )
 
 // GetAddresses send getAddress request to other peer
-func (p2ps *P2P) GetAddresses(peerID peer.ID, size uint32) bool {
+func (p2ps *P2P) GetAddresses(peerID types.PeerID, size uint32) bool {
 	remotePeer, ok := p2ps.pm.GetPeer(peerID)
 	if !ok {
 		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Message addressRequest to Unknown peer, check if a bug")
@@ -56,7 +55,7 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 }
 
 // GetBlocks send request message to peer and
-func (p2ps *P2P) GetBlocks(peerID peer.ID, blockHashes []message.BlockHash) bool {
+func (p2ps *P2P) GetBlocks(peerID types.PeerID, blockHashes []message.BlockHash) bool {
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
 		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, string(subproto.GetBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
@@ -163,7 +162,7 @@ func (p2ps *P2P) NotifyBlockProduced(newBlock message.NotifyNewBlock) bool {
 }
 
 // GetTXs send request message to peer and
-func (p2ps *P2P) GetTXs(peerID peer.ID, txHashes []message.TXHash) bool {
+func (p2ps *P2P) GetTXs(peerID types.PeerID, txHashes []message.TXHash) bool {
 	remotePeer, ok := p2ps.pm.GetPeer(peerID)
 	if !ok {
 		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Invalid peer. check for bug")

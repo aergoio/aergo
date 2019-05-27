@@ -35,7 +35,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	dummyP2PServ := new(p2pmock.MockPeerManager)
 	mockMF := new(p2pmock.MockMoFactory)
 	dummyRW := new(p2pmock.MockMsgReadWriter)
-	target := newRemotePeer(p2pcommon.PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
+	target := newRemotePeer(p2pcommon.PeerMeta{ID: types.PeerID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
 
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}

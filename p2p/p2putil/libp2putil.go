@@ -9,9 +9,9 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
 	"net"
@@ -66,7 +66,7 @@ func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
 		return meta, fmt.Errorf("invalid Peer port %s", peerPortString)
 	}
 	peerIDString := splitted[6]
-	peerID, err := peer.IDB58Decode(peerIDString)
+	peerID, err := types.IDB58Decode(peerIDString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
 	}
@@ -188,14 +188,14 @@ func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string)
 	if err != nil {
 		return err
 	}
-	pid, _ := peer.IDFromPublicKey(pub)
-	idBytes := []byte(peer.IDB58Encode(pid))
+	pid, _ := types.IDFromPublicKey(pub)
+	idBytes := []byte(types.IDB58Encode(pid))
 	idf.Write(idBytes)
 	idf.Sync()
 	return nil
 }
 
-func ProtocolIDsToString(sli []protocol.ID) string {
+func ProtocolIDsToString(sli []core.ProtocolID) string {
 	sb := bytes.NewBuffer(nil)
 	sb.WriteByte('[')
 	if len(sli) > 0 {

@@ -15,7 +15,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 
@@ -38,11 +37,11 @@ var (
 
 // initSvc select Polarises to connect, or disable polaris
 func TestPolarisConnectSvc_initSvc(t *testing.T) {
-	polarisIDMain, _ := peer.IDB58Decode("16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa")
-	polarisIDTest, _ := peer.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
-	dummyPeerID2, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	polarisIDMain, _ := types.IDB58Decode("16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa")
+	polarisIDTest, _ := types.IDB58Decode("16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF")
+	dummyPeerID2, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	polar2 := "/ip4/172.21.1.2/tcp/8915/p2p/16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm"
-	dummyPeerID3, _ := peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+	dummyPeerID3, _ := types.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
 	polar3 := "/ip4/172.22.2.3/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"
 
 	customChainID := types.ChainID{Magic: "unittest.blocko.io"}
@@ -57,19 +56,19 @@ func TestPolarisConnectSvc_initSvc(t *testing.T) {
 		args args
 
 		wantCnt int
-		peerIDs []peer.ID
+		peerIDs []types.PeerID
 	}{
 		//
-		{"TAergoNoPolaris", args{false, nil, &common.ONEMainNet}, 0, []peer.ID{}},
-		{"TAergoMainDefault", args{true, nil, &common.ONEMainNet}, 1, []peer.ID{polarisIDMain}},
-		{"TAergoMainPlusCfg", args{true, []string{polar2, polar3}, &common.ONEMainNet}, 3, []peer.ID{polarisIDMain, dummyPeerID2, dummyPeerID3}},
-		{"TAergoTestDefault", args{true, nil, &common.ONETestNet}, 1, []peer.ID{polarisIDTest}},
-		{"TAergoTestPlusCfg", args{true, []string{polar2, polar3}, &common.ONETestNet}, 3, []peer.ID{polarisIDTest, dummyPeerID2, dummyPeerID3}},
-		{"TCustom", args{true, nil, &customChainID}, 0, []peer.ID{}},
-		{"TCustomPlusCfg", args{true, []string{polar2, polar3}, &customChainID}, 2, []peer.ID{dummyPeerID2, dummyPeerID3}},
-		{"TWrongPolarisAddr", args{true, []string{"/ip4/256.256.1.1/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []peer.ID{}},
-		{"TWrongPolarisAddr2", args{true, []string{"/egwgew5/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []peer.ID{}},
-		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []peer.ID{}},
+		{"TAergoNoPolaris", args{false, nil, &common.ONEMainNet}, 0, []types.PeerID{}},
+		{"TAergoMainDefault", args{true, nil, &common.ONEMainNet}, 1, []types.PeerID{polarisIDMain}},
+		{"TAergoMainPlusCfg", args{true, []string{polar2, polar3}, &common.ONEMainNet}, 3, []types.PeerID{polarisIDMain, dummyPeerID2, dummyPeerID3}},
+		{"TAergoTestDefault", args{true, nil, &common.ONETestNet}, 1, []types.PeerID{polarisIDTest}},
+		{"TAergoTestPlusCfg", args{true, []string{polar2, polar3}, &common.ONETestNet}, 3, []types.PeerID{polarisIDTest, dummyPeerID2, dummyPeerID3}},
+		{"TCustom", args{true, nil, &customChainID}, 0, []types.PeerID{}},
+		{"TCustomPlusCfg", args{true, []string{polar2, polar3}, &customChainID}, 2, []types.PeerID{dummyPeerID2, dummyPeerID3}},
+		{"TWrongPolarisAddr", args{true, []string{"/ip4/256.256.1.1/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []types.PeerID{}},
+		{"TWrongPolarisAddr2", args{true, []string{"/egwgew5/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []types.PeerID{}},
+		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []types.PeerID{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

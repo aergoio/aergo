@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,10 +20,10 @@ type MetricsManager interface {
 	Start()
 	Stop()
 
-	Add(pid peer.ID, reader *MetricReader, writer *MetricWriter) *PeerMetric
-	Remove(pid peer.ID) *PeerMetric
+	Add(pid types.PeerID, reader *MetricReader, writer *MetricWriter) *PeerMetric
+	Remove(pid types.PeerID) *PeerMetric
 
-	Metric(pid peer.ID) (*PeerMetric, bool)
+	Metric(pid types.PeerID) (*PeerMetric, bool)
 	Metrics() []*PeerMetric
 
 	Summary() map[string]interface{}
@@ -34,7 +34,7 @@ type metricsManager struct {
 	logger *log.Logger
 	startTime time.Time
 
-	metricsMap map[peer.ID]*PeerMetric
+	metricsMap map[types.PeerID]*PeerMetric
 
 	interval int
 	ticker *time.Ticker
@@ -45,7 +45,7 @@ type metricsManager struct {
 }
 
 func NewMetricManager(interval int) *metricsManager {
-	mm := &metricsManager{logger:log.NewLogger("p2p"), metricsMap:make(map[peer.ID]*PeerMetric), interval:interval, startTime:time.Now()}
+	mm := &metricsManager{logger:log.NewLogger("p2p"), metricsMap:make(map[types.PeerID]*PeerMetric), interval:interval, startTime:time.Now()}
 
 	return mm
 }
@@ -71,7 +71,7 @@ func (mm *metricsManager) Stop() {
 	mm.ticker.Stop()
 }
 
-func (mm *metricsManager) Add(pid peer.ID, reader *MetricReader, writer *MetricWriter) *PeerMetric {
+func (mm *metricsManager) Add(pid types.PeerID, reader *MetricReader, writer *MetricWriter) *PeerMetric {
 	mm.mutex.Lock()
 	defer  mm.mutex.Unlock()
 	if _, found := mm.metricsMap[pid] ; found {
@@ -86,7 +86,7 @@ func (mm *metricsManager) Add(pid peer.ID, reader *MetricReader, writer *MetricW
 	return peerMetric
 }
 
-func (mm *metricsManager) Remove(pid peer.ID) *PeerMetric {
+func (mm *metricsManager) Remove(pid types.PeerID) *PeerMetric {
 	mm.mutex.Lock()
 	defer  mm.mutex.Unlock()
 	if metric, found := mm.metricsMap[pid] ; !found {
@@ -101,7 +101,7 @@ func (mm *metricsManager) Remove(pid peer.ID) *PeerMetric {
 }
 
 
-func (mm *metricsManager) Metric(pid peer.ID) (*PeerMetric, bool) {
+func (mm *metricsManager) Metric(pid types.PeerID) (*PeerMetric, bool) {
 	mm.mutex.RLock()
 	defer  mm.mutex.RUnlock()
 

@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/types"
-	peer2 "github.com/libp2p/go-libp2p-peer"
 	"io"
 )
 
@@ -39,7 +38,7 @@ func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVers
 	return p2pcommon.P2PVersionUnknown
 }
 
-func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID peer2.ID, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
+func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion031:
 		// TODO:

@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/libp2p/go-libp2p-peer"
 	"net"
 	"net/url"
 )
@@ -255,7 +254,7 @@ type Member struct {
 	types.MemberAttr
 }
 
-func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int64) *Member {
+func NewMember(name string, url string, peerID types.PeerID, chainID []byte, when int64) *Member {
 	//check unique
 	m := &Member{MemberAttr: types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
 
@@ -305,8 +304,8 @@ func (m *Member) IsValid() bool {
 	return true
 }
 
-func (m *Member) GetPeerID() peer.ID {
-	return peer.ID(m.PeerID)
+func (m *Member) GetPeerID() types.PeerID {
+	return types.PeerID(m.PeerID)
 }
 
 func (m *Member) Equal(other *Member) bool {
@@ -318,7 +317,7 @@ func (m *Member) Equal(other *Member) bool {
 }
 
 func (m *Member) ToString() string {
-	return fmt.Sprintf("{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(peer.ID(m.PeerID)))
+	return fmt.Sprintf("{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(types.PeerID(m.PeerID)))
 }
 
 func (m *Member) HasDuplicatedAttr(x *Member) bool {

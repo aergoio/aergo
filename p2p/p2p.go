@@ -25,7 +25,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // P2P is actor component for p2p
@@ -222,7 +221,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := p2ps.pm.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
-		rPeerID := peer.ID(rPeerAddr.PeerID)
+		rPeerID := types.PeerID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}
@@ -311,7 +310,7 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 
 }
 
-func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid peer.ID) p2pcommon.HSHandler {
+func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	if p2pVersion == p2pcommon.P2PVersion030 {
 		handshakeHandler := newHandshaker(p2ps.pm, p2ps, p2ps.Logger, p2ps.chainID, pid)
 		if outbound {

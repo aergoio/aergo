@@ -2,14 +2,13 @@
  * @file
  * @copyright defined in aergo/LICENSE.txt
  */
-
+//go:generate mockgen -source=handshake.go  -package=p2pmock -destination=../p2pmock/mock_handshake.go
 package p2pcommon
 
 import (
 	"context"
 	"encoding/binary"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 	"io"
 	"time"
 )
@@ -17,7 +16,7 @@ import (
 
 // HSHandlerFactory is creator of HSHandler
 type HSHandlerFactory interface {
-	CreateHSHandler(p2pVersion P2PVersion, outbound bool, pid peer.ID) HSHandler
+	CreateHSHandler(p2pVersion P2PVersion, outbound bool, pid types.PeerID) HSHandler
 }
 
 // HSHandler handles whole process of connect, handshake, create of remote Peerseer
@@ -28,7 +27,7 @@ type HSHandler interface {
 
 type VersionedManager interface {
 	FindBestP2PVersion(versions []P2PVersion) P2PVersion
-	GetVersionedHandshaker(version P2PVersion, peerID peer.ID, r io.Reader, w io.Writer) (VersionedHandshaker, error)
+	GetVersionedHandshaker(version P2PVersion, peerID types.PeerID, r io.Reader, w io.Writer) (VersionedHandshaker, error)
 
 	InjectHandlers(version P2PVersion, peer RemotePeer)
 }

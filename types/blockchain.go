@@ -19,8 +19,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/minio/sha256-simd"
 )
 
@@ -133,7 +132,7 @@ type ChainAccessor interface {
 type SyncContext struct {
 	Seq uint64
 
-	PeerID peer.ID
+	PeerID PeerID
 
 	BestNo   BlockNo
 	TargetNo BlockNo //sync target blockno
@@ -147,7 +146,7 @@ type SyncContext struct {
 	NotifyC chan error
 }
 
-func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64, notifyC chan error) *SyncContext {
+func NewSyncCtx(seq uint64, peerID PeerID, targetNo uint64, bestNo uint64, notifyC chan error) *SyncContext {
 	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0, NotifyC: notifyC}
 }
 
@@ -407,14 +406,14 @@ func (block *Block) VerifySign() (valid bool, err error) {
 }
 
 // BPID returns its Block Producer's ID from block.
-func (block *Block) BPID() (id peer.ID, err error) {
+func (block *Block) BPID() (id PeerID, err error) {
 	var pubKey crypto.PubKey
 	if pubKey, err = crypto.UnmarshalPublicKey(block.Header.PubKey); err != nil {
-		return peer.ID(""), err
+		return PeerID(""), err
 	}
 
-	if id, err = peer.IDFromPublicKey(pubKey); err != nil {
-		return peer.ID(""), err
+	if id, err = IDFromPublicKey(pubKey); err != nil {
+		return PeerID(""), err
 	}
 
 	return
