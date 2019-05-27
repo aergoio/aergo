@@ -22,7 +22,6 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -382,7 +381,7 @@ func (cp *chainProcessor) reorganize() error {
 	return nil
 }
 
-func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) (err error, cache bool) {
+func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) (err error, cache bool) {
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,
@@ -464,7 +463,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	return nil, true
 }
 
-func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error {
+func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error {
 	hashID := types.ToHashID(newBlock.BlockHash())
 
 	if cs.errBlocks.Contains(hashID) {
@@ -946,7 +945,7 @@ func (cs *ChainService) isOrphan(block *types.Block) bool {
 	return err != nil
 }
 
-func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block, peerID peer.ID) error {
+func (cs *ChainService) handleOrphan(block *types.Block, bestBlock *types.Block, peerID types.PeerID) error {
 	err := cs.addOrphan(block)
 	if err != nil {
 		logger.Error().Err(err).Str("hash", block.ID()).Msg("add orphan block failed")

@@ -6,6 +6,7 @@
 package p2putil
 
 import (
+	"github.com/aergoio/aergo/types"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,8 +14,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 )
@@ -62,7 +61,7 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 	type fields struct {
 		IPAddress string
 		Port      uint32
-		ID        peer.ID
+		ID        types.PeerID
 	}
 	tests := []struct {
 		name         string

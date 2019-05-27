@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
-	peer2 "github.com/libp2p/go-libp2p-peer"
 )
 
 func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
@@ -59,7 +58,7 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 	}
 	type args struct {
 		version p2pcommon.P2PVersion
-		peerID  peer2.ID
+		peerID  types.PeerID
 		r       io.Reader
 	}
 	tests := []struct {

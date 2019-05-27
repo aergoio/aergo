@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/types"
 	"github.com/funkygao/golib/rand"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -159,9 +159,9 @@ func TestLogB58EncMarshaler_MarshalZerologArray(t *testing.T) {
 	}
 }
 
-func psudoGenID() peer.ID {
+func psudoGenID() types.PeerID {
 	priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	id, _ := peer.IDFromPrivateKey(priv)
+	id, _ := types.IDFromPrivateKey(priv)
 	return id
 }
 

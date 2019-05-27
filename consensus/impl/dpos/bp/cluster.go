@@ -20,7 +20,6 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -62,14 +61,14 @@ type Cluster struct {
 	sync.RWMutex
 	size   uint16
 	member map[Index]*blockProducer
-	index  map[peer.ID]Index
+	index  map[types.PeerID]Index
 
 	cdb consensus.ChainDB
 }
 
 // blockProducer represents one member in the block producer cluster.
 type blockProducer struct {
-	id peer.ID
+	id types.PeerID
 }
 
 // NewCluster returns a new bp.Cluster.
@@ -83,7 +82,7 @@ func NewCluster(cdb consensus.ChainDB) (*Cluster, error) {
 	return c, nil
 }
 
-func newBlockProducer(id peer.ID) *blockProducer {
+func newBlockProducer(id types.PeerID) *blockProducer {
 	return &blockProducer{id: id}
 }
 
@@ -160,10 +159,10 @@ func (c *Cluster) Update(ids []string) error {
 	defer c.Unlock()
 
 	bpMember := make(map[Index]*blockProducer)
-	bpIndex := make(map[peer.ID]Index)
+	bpIndex := make(map[types.PeerID]Index)
 
 	for i, id := range ids {
-		bpID, err := peer.IDB58Decode(id)
+		bpID, err := types.IDB58Decode(id)
 		if err != nil {
 			return fmt.Errorf("invalid node ID[%d]: %s", i, err.Error())
 		}
@@ -219,18 +218,18 @@ func (idx Index) IsNil() bool {
 }
 
 // BpIndex2ID returns the ID correspinding to idx.
-func (c *Cluster) BpIndex2ID(bpIdx Index) (peer.ID, bool) {
+func (c *Cluster) BpIndex2ID(bpIdx Index) (types.PeerID, bool) {
 	c.Lock()
 	defer c.Unlock()
 
 	if bp, exist := c.member[bpIdx]; exist {
 		return bp.id, exist
 	}
-	return peer.ID(""), false
+	return types.PeerID(""), false
 }
 
 // BpID2Index returns the index corresponding to id.
-func (c *Cluster) BpID2Index(id peer.ID) Index {
+func (c *Cluster) BpID2Index(id types.PeerID) Index {
 	c.Lock()
 	defer c.Unlock()
 	idx, exist := c.index[id]
@@ -242,7 +241,7 @@ func (c *Cluster) BpID2Index(id peer.ID) Index {
 }
 
 // Has reports whether c includes id or not
-func (c *Cluster) Has(id peer.ID) bool {
+func (c *Cluster) Has(id types.PeerID) bool {
 	c.Lock()
 	defer c.Unlock()
 	_, exist := c.index[id]

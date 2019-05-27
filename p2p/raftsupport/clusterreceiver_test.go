@@ -17,7 +17,6 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 func TestStartGet(t *testing.T) {
@@ -47,7 +46,7 @@ func TestStartGet(t *testing.T) {
 			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, tt.args.peerCnt)
 			for i := 0; i < tt.args.peerCnt; i++ {
-				dummyPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 				peers = append(peers, createDummyPeer(ctrl, dummyPeerID, types.RUNNING))
 			}
 			replyChan := make(chan *message.GetClusterRsp)
@@ -78,7 +77,7 @@ func TestStartGet(t *testing.T) {
 	}
 }
 
-func createDummyPeer(ctrl *gomock.Controller, pid peer.ID, state types.PeerState) *p2pmock.MockRemotePeer {
+func createDummyPeer(ctrl *gomock.Controller, pid types.PeerID, state types.PeerState) *p2pmock.MockRemotePeer {
 	mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 	mockPeer.EXPECT().State().Return(state).AnyTimes()
 	mockPeer.EXPECT().ID().Return(pid).AnyTimes()
@@ -125,7 +124,7 @@ func TestClusterInfoReceiver_trySendNextPeer(t *testing.T) {
 			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, len(tt.args.stats))
 			for _, run := range tt.args.stats {
-				dummyPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 				stat := types.RUNNING
 				if run == 0 {
 					stat = types.STOPPING
@@ -185,7 +184,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 
 			seq := int32(0)
 			for i:=0; i<5; i++ {
-				dummyPeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 				stat := types.RUNNING
 				mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 				mockPeer.EXPECT().State().Return(stat).AnyTimes()

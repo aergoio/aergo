@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -18,7 +17,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +41,7 @@ func FailTestGetPeers(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		for i := 0; i < iterSize; i++ {
-			peerID := peer.ID(strconv.Itoa(i))
+			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
 			target.remotePeers[peerID] = newRemotePeer(peerMeta, 0, target, mockActorServ, logger, nil, nil, nil, nil)
 			if i == (iterSize >> 2) {
@@ -85,7 +84,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	wgAll.Add(1)
 	go func() {
 		for i := 0; i < iterSize; i++ {
-			peerID := peer.ID(strconv.Itoa(i))
+			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
 			target.insertPeer(peerID, newRemotePeer(peerMeta, 0, target, mockActorServ, logger, nil, nil, nil, nil))
 			if i == (iterSize >> 2) {
@@ -117,7 +116,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	samplePeers := make([]*remotePeerImpl, peersLen)
 	for i := 0; i < peersLen; i++ {
 		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPrivateKey(pkey)
+		pid, _ := types.IDFromPrivateKey(pkey)
 		samplePeers[i] = &remotePeerImpl{meta: p2pcommon.PeerMeta{ID: pid, Hidden: i < hiddenCnt}, lastStatus: &types.LastBlockStatus{}}
 	}
 
@@ -137,7 +136,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			pm := &peerManager{
-				remotePeers: make(map[peer.ID]p2pcommon.RemotePeer),
+				remotePeers: make(map[types.PeerID]p2pcommon.RemotePeer),
 				mutex:         &sync.Mutex{},
 			}
 			for _, peer := range samplePeers {
@@ -202,14 +201,14 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	logger := log.NewLogger("p2p.test")
 	type desc struct {
-		pid      peer.ID
+		pid      types.PeerID
 		outbound bool
 		hsTime   time.Duration
 	}
 	ds := make([]desc, 10)
 	for i := 0; i < 10; i++ {
 		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPrivateKey(pkey)
+		pid, _ := types.IDFromPrivateKey(pkey)
 		ds[i] = desc{hsTime: time.Millisecond * 10, outbound: true, pid: pid}
 	}
 	tests := []struct {
@@ -233,8 +232,8 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 			pm := &peerManager{
 				peerFinder:   mockPeerFinder,
 				wpManager:    mockWPManager,
-				remotePeers:  make(map[peer.ID]p2pcommon.RemotePeer, 10),
-				waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, 10),
+				remotePeers:  make(map[types.PeerID]p2pcommon.RemotePeer, 10),
+				waitingPeers: make(map[types.PeerID]*p2pcommon.WaitingPeer, 10),
 				conf:         dummyCfg,
 				nt:           mockNT,
 

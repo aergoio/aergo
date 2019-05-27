@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"

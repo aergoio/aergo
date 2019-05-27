@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -25,7 +24,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	bigHash := make([]byte, 2*1024*1024)
 	//validSmallBlockRsp := &message.GetBlockRsp{Block:&types.Block{Hash:make([]byte,40)},Err:nil}
@@ -85,7 +84,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test.subproto")
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	var sampleBlksB58 = []string{
 		"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",

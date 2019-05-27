@@ -1,12 +1,12 @@
 package p2putil
 
 import (
+	"github.com/aergoio/aergo/types"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +30,7 @@ func TestPeerMeta_String(t *testing.T) {
 			m := p2pcommon.PeerMeta{
 				IPAddress:  tt.fields.ip,
 				Port:       tt.fields.port,
-				ID:         peer.ID(tt.fields.id),
+				ID:         types.PeerID(tt.fields.id),
 				Designated: false,
 				Outbound:   false,
 			}

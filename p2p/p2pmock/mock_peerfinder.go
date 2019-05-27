@@ -5,11 +5,11 @@
 package p2pmock
 
 import (
-	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
-	gomock "github.com/golang/mock/gomock"
-	go_libp2p_net "github.com/libp2p/go-libp2p-net"
-	go_libp2p_peer "github.com/libp2p/go-libp2p-peer"
-	reflect "reflect"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/network"
+	"reflect"
 )
 
 // MockPeerEventListener is a mock of PeerEventListener interface
@@ -36,7 +36,7 @@ func (m *MockPeerEventListener) EXPECT() *MockPeerEventListenerMockRecorder {
 }
 
 // OnPeerConnect mocks base method
-func (m *MockPeerEventListener) OnPeerConnect(pid go_libp2p_peer.ID) {
+func (m *MockPeerEventListener) OnPeerConnect(pid core.PeerID) {
 	m.ctrl.Call(m, "OnPeerConnect", pid)
 }
 
@@ -79,7 +79,7 @@ func (m *MockPeerFinder) EXPECT() *MockPeerFinderMockRecorder {
 }
 
 // OnPeerConnect mocks base method
-func (m *MockPeerFinder) OnPeerConnect(pid go_libp2p_peer.ID) {
+func (m *MockPeerFinder) OnPeerConnect(pid core.PeerID) {
 	m.ctrl.Call(m, "OnPeerConnect", pid)
 }
 
@@ -132,7 +132,7 @@ func (m *MockWaitingPeerManager) EXPECT() *MockWaitingPeerManagerMockRecorder {
 }
 
 // OnPeerConnect mocks base method
-func (m *MockWaitingPeerManager) OnPeerConnect(pid go_libp2p_peer.ID) {
+func (m *MockWaitingPeerManager) OnPeerConnect(pid core.PeerID) {
 	m.ctrl.Call(m, "OnPeerConnect", pid)
 }
 
@@ -184,7 +184,7 @@ func (mr *MockWaitingPeerManagerMockRecorder) CheckAndConnect() *gomock.Call {
 }
 
 // OnInboundConn mocks base method
-func (m *MockWaitingPeerManager) OnInboundConn(s go_libp2p_net.Stream) {
+func (m *MockWaitingPeerManager) OnInboundConn(s network.Stream) {
 	m.ctrl.Call(m, "OnInboundConn", s)
 }
 
@@ -194,7 +194,7 @@ func (mr *MockWaitingPeerManagerMockRecorder) OnInboundConn(s interface{}) *gomo
 }
 
 // OnInboundConnLegacy mocks base method
-func (m *MockWaitingPeerManager) OnInboundConnLegacy(s go_libp2p_net.Stream) {
+func (m *MockWaitingPeerManager) OnInboundConnLegacy(s network.Stream) {
 	m.ctrl.Call(m, "OnInboundConnLegacy", s)
 }
 

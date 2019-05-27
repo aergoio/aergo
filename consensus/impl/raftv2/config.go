@@ -3,6 +3,7 @@ package raftv2
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"net/url"
 	"os"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -145,7 +145,7 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 			return err
 		}
 
-		peerID, err := peer.IDB58Decode(raftBP.P2pID)
+		peerID, err := types.IDB58Decode(raftBP.P2pID)
 		if err != nil {
 			return fmt.Errorf("invalid raft peerID %s", raftBP.P2pID)
 		}

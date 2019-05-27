@@ -7,7 +7,7 @@ package p2pcommon
 
 import (
 	"fmt"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	core "github.com/libp2p/go-libp2p-core"
 	"time"
 )
 
@@ -44,8 +44,8 @@ const (
 
 // context of multiaddr, as higher type of p2p message
 const (
-	LegacyP2PSubAddr protocol.ID = "/aergop2p/0.3"
-	P2PSubAddr       protocol.ID = "/aergop2p"
+	LegacyP2PSubAddr core.ProtocolID = "/aergop2p/0.3"
+	P2PSubAddr       core.ProtocolID = "/aergop2p"
 )
 
 // constatns for hanshake. for cacluating byte offset of wire handshake

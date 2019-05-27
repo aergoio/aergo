@@ -15,7 +15,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"io"
 	"time"
 )
@@ -30,7 +29,7 @@ type baseWireHandshaker struct {
 	actor  p2pcommon.ActorService
 	verM   p2pcommon.VersionedManager
 	logger *log.Logger
-	peerID peer.ID
+	peerID types.PeerID
 	// check if is it adhoc
 	localChainID *types.ChainID
 
@@ -41,7 +40,7 @@ type InboundWireHandshaker struct {
 	baseWireHandshaker
 }
 
-func NewInbountHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID peer.ID) p2pcommon.HSHandler {
+func NewInbountHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) p2pcommon.HSHandler {
 	return &InboundWireHandshaker{baseWireHandshaker{pm: pm, actor: actor, verM:verManager, logger: log, localChainID: chainID, peerID: peerID}}
 }
 
@@ -100,7 +99,7 @@ type OutboundWireHandshaker struct {
 	baseWireHandshaker
 }
 
-func NewOutbountHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID peer.ID) p2pcommon.HSHandler {
+func NewOutbountHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) p2pcommon.HSHandler {
 	return &OutboundWireHandshaker{baseWireHandshaker{pm: pm, actor: actor, verM:verManager, logger: log, localChainID: chainID, peerID: peerID}}
 }
 

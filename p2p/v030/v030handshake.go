@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // V030Handshaker exchange status data over protocol version .0.3.0
@@ -26,7 +25,7 @@ type V030Handshaker struct {
 	pm        p2pcommon.PeerManager
 	actorServ p2pcommon.ActorService
 	logger    *log.Logger
-	peerID    peer.ID
+	peerID    types.PeerID
 	chainID   *types.ChainID
 
 	rd    *bufio.Reader
@@ -40,7 +39,7 @@ func (h *V030Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 	return h.msgRW
 }
 
-func NewV030StateHS(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID peer.ID, rd io.Reader, wr io.Writer) *V030Handshaker {
+func NewV030StateHS(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID, rd io.Reader, wr io.Writer) *V030Handshaker {
 	h := &V030Handshaker{pm: pm, actorServ: actorServ, logger: log, chainID: chainID, peerID: peerID, rd: bufio.NewReader(rd), wr: bufio.NewWriter(wr)}
 	h.msgRW = NewV030ReadWriter(h.rd, h.wr)
 	return h
@@ -195,7 +194,7 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	return remotePeerStatus, nil
 }
 
-func (h *V030Handshaker) handleGoAway(peerID peer.ID, data p2pcommon.Message) (*types.Status, error) {
+func (h *V030Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
 	if err := p2putil.UnmarshalMessageBody(data.Payload(), goAway); err != nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")

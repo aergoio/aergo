@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"reflect"
 	"testing"
 
@@ -27,7 +26,7 @@ import (
 var (
 	myChainID, theirChainID       *types.ChainID
 	myChainBytes, theirChainBytes []byte
-	samplePeerID, _                      = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	samplePeerID, _                      = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	dummyBlockHash, _                    = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	dummyBlockHeight              uint64 = 100215
 )

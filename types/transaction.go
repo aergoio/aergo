@@ -9,7 +9,6 @@ import (
 
 	"github.com/aergoio/aergo/fee"
 	"github.com/gogo/protobuf/proto"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
 )
 
@@ -155,7 +154,7 @@ func ValidateSystemTx(tx *TxBody) error {
 			if err != nil {
 				return ErrTxInvalidPayload
 			}
-			_, err = peer.IDFromBytes(candidate)
+			_, err = IDFromBytes(candidate)
 			if err != nil {
 				return ErrTxInvalidPayload
 			}

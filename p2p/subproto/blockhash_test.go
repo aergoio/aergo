@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 	"testing"
 
@@ -28,7 +27,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	var sampleMsgID = p2pcommon.NewMsgID()
 
 	var sampleBlksB58 = []string{
@@ -137,7 +136,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	var sampleMsgID = p2pcommon.NewMsgID()
 
 	var sampleBlksB58 = []string{

@@ -3,16 +3,16 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
+//go:generate mockgen -source=remotepeer.go  -package=p2pmock -destination=../p2pmock/mock_remotepeer.go
 package p2pcommon
 
 import (
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 	"time"
 )
 
 type RemotePeer interface {
-	ID() peer.ID
+	ID() types.PeerID
 	Meta() PeerMeta
 	ManageNumber() uint32
 	Name() string

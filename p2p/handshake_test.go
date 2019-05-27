@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,7 +31,7 @@ const (
 
 var (
 	// sampleID matches the key defined in test config file
-	sampleID peer.ID
+	sampleID types.PeerID
 )
 
 func init() {

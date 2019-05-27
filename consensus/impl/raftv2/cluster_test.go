@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 var (
 	testMbrs   []*consensus.Member
-	testPeerID peer.ID
+	testPeerID types.PeerID
 	testEncID  string
 
 	testSnapData *consensus.SnapshotData
@@ -19,7 +18,7 @@ var (
 
 func init() {
 	testEncID = "16Uiu2HAkxVB65cmCWceTu4HsHnz8WkUKknZXwr7PYdg2vy1fjDcU"
-	testPeerID, _ = peer.IDB58Decode(testEncID)
+	testPeerID, _ = types.IDB58Decode(testEncID)
 
 	testMbrs = []*consensus.Member{
 		{types.MemberAttr{
@@ -58,7 +57,7 @@ func TestMemberJson(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, err)
-	//t.Logf("peer=%s", peer.IDB58Encode(newMbr.GetPeerID()))
+	//t.Logf("peer=%s", types.IDB58Encode(newMbr.GetPeerID()))
 
 	assert.True(t, mbr.Equal(&newMbr))
 }

@@ -19,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 // frequently used constants for indicating p2p log category
@@ -157,7 +156,7 @@ func DebugLogReceiveResponseMsg(logger *log.Logger, protocol p2pcommon.SubProtoc
 }
 
 // ComparePeerID do byte-wise compare of two peerIDs,
-func ComparePeerID(pid1, pid2 peer.ID) int {
+func ComparePeerID(pid1, pid2 types.PeerID) int {
 	p1 := []byte(string(pid1))
 	p2 := []byte(string(pid2))
 	l1 := len(p1)

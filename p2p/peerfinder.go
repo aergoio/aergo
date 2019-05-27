@@ -10,7 +10,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func NewPeerFinder(logger *log.Logger, pm *peerManager, actorService p2pcommon.A
 		pf = &staticPeerFinder{pm:pm, logger:logger}
 	} else {
 		dp := &dynamicPeerFinder{logger: logger, pm: pm, actorService: actorService, maxCap: maxCap, usePolaris:usePolaris}
-		dp.qStats = make(map[peer.ID]*queryStat)
+		dp.qStats = make(map[types.PeerID]*queryStat)
 		pf = dp
 	}
 	return pf
@@ -44,7 +44,7 @@ var _ p2pcommon.PeerFinder = (*staticPeerFinder)(nil)
 func (dp *staticPeerFinder) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 }
 
-func (dp *staticPeerFinder) OnPeerConnect(pid peer.ID) {
+func (dp *staticPeerFinder) OnPeerConnect(pid types.PeerID) {
 }
 
 func (dp *staticPeerFinder) CheckAndFill() {
@@ -61,7 +61,7 @@ type dynamicPeerFinder struct {
 	usePolaris   bool
 
 	// qStats are logs of query. all connected peers must exist queryStat.
-	qStats map[peer.ID]*queryStat
+	qStats map[types.PeerID]*queryStat
 	maxCap int
 
 	polarisTurn time.Time
@@ -74,7 +74,7 @@ func (dp *dynamicPeerFinder) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	delete(dp.qStats, peer.ID())
 }
 
-func (dp *dynamicPeerFinder) OnPeerConnect(pid peer.ID) {
+func (dp *dynamicPeerFinder) OnPeerConnect(pid types.PeerID) {
 	dp.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("check and remove peerid in pool")
 	if stat := dp.qStats[pid]; stat == nil {
 		// first query will be sent quickly
@@ -112,7 +112,7 @@ func (dp *dynamicPeerFinder) CheckAndFill() {
 }
 
 type queryStat struct {
-	pid       peer.ID
+	pid       types.PeerID
 	lastCheck time.Time
 	nextTurn  time.Time
 }

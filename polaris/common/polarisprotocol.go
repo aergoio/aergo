@@ -7,7 +7,7 @@ package common
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/libp2p/go-libp2p-protocol"
+	core "github.com/libp2p/go-libp2p-core"
 	"time"
 )
 
@@ -20,8 +20,8 @@ const (
 
 // subprotocol for polaris
 const (
-	PolarisMapSub  protocol.ID = "/polaris/0.1"
-	PolarisPingSub protocol.ID = "/ping/0.1"
+	PolarisMapSub  core.ProtocolID = "/polaris/0.1"
+	PolarisPingSub core.ProtocolID = "/ping/0.1"
 )
 const (
 	MapQuery p2pcommon.SubProtocol = 0x0100 + iota

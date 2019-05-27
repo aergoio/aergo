@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 // InboundHSHandler handshake handler for legacy version
@@ -47,7 +46,7 @@ type LegacyWireHandshaker struct {
 	pm        p2pcommon.PeerManager
 	actorServ p2pcommon.ActorService
 	logger    *log.Logger
-	peerID    peer.ID
+	peerID    types.PeerID
 	// check if is it adhoc
 	localChainID *types.ChainID
 
@@ -60,7 +59,7 @@ type hsResult struct {
 	err       error
 }
 
-func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID peer.ID) *LegacyWireHandshaker {
+func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) *LegacyWireHandshaker {
 	return &LegacyWireHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: chainID, peerID: peerID}
 }
 

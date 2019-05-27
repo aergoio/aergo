@@ -6,13 +6,13 @@
 package metric
 
 import (
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
 	"sync/atomic"
 	"time"
 )
 
 type PeerMetric struct {
-	PeerID peer.ID
+	PeerID types.PeerID
 
 	Since    time.Time
 	totalIn  int64

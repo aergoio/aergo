@@ -17,7 +17,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -97,7 +96,7 @@ type Members struct {
 	MapByID   map[uint64]*consensus.Member // restore from DB or snapshot
 	MapByName map[string]*consensus.Member
 
-	Index map[peer.ID]uint64 // peer ID to raft ID mapping
+	Index map[types.PeerID]uint64 // peer ID to raft ID mapping
 
 	BPUrls []string //for raft server TODO remove
 }
@@ -107,7 +106,7 @@ func newMembers(name string) *Members {
 		name:      name,
 		MapByID:   make(map[uint64]*consensus.Member),
 		MapByName: make(map[string]*consensus.Member),
-		Index:     make(map[peer.ID]uint64),
+		Index:     make(map[types.PeerID]uint64),
 		BPUrls:    make([]string, 0),
 	}
 }
@@ -312,7 +311,7 @@ func (cl *Cluster) getStartPeers() ([]raftlib.Peer, error) {
 }
 
 // getAnyPeerAddressToSync returns peer address that has block of no for sync
-func (cl *Cluster) getAnyPeerAddressToSync() (peer.ID, error) {
+func (cl *Cluster) getAnyPeerAddressToSync() (types.PeerID, error) {
 	cl.Lock()
 	defer cl.Unlock()
 
@@ -477,7 +476,7 @@ func (mbrs *Members) getMember(id uint64) *consensus.Member {
 	return member
 }
 
-func (mbrs *Members) getMemberPeerAddress(id uint64) (peer.ID, error) {
+func (mbrs *Members) getMemberPeerAddress(id uint64) (types.PeerID, error) {
 	member := mbrs.getMember(id)
 	if member == nil {
 		return "", ErrNotExistRaftMember
@@ -507,7 +506,7 @@ func MaxUint64(x, y uint64) uint64 {
 /*
 // hasSynced get result of GetPeers request from P2P service and check if chain of this node is synchronized with majority of members
 func (cc *Cluster) hasSynced() (bool, error) {
-	var peers map[peer.ID]*message.PeerInfo
+	var peers map[types.PeerID]*message.PeerInfo
 	var err error
 	var peerBestNo uint64 = 0
 
@@ -516,8 +515,8 @@ func (cc *Cluster) hasSynced() (bool, error) {
 	}
 
 	// request GetPeers to p2p
-	getBPPeers := func() (map[peer.ID]*message.PeerInfo, error) {
-		peers := make(map[peer.ID]*message.PeerInfo)
+	getBPPeers := func() (map[types.PeerID]*message.PeerInfo, error) {
+		peers := make(map[types.PeerID]*message.PeerInfo)
 
 		result, err := cc.RequestFuture(message.P2PSvc, &message.GetPeers{}, time.Second, "raft cluster sync test").Result()
 		if err != nil {
@@ -527,7 +526,7 @@ func (cc *Cluster) hasSynced() (bool, error) {
 		msg := result.(*message.GetPeersRsp)
 
 		for _, peerElem := range msg.Peers {
-			peerID := peer.ID(peerElem.Addr.PeerID)
+			peerID := types.PeerID(peerElem.Addr.PeerID)
 			state := peerElem.State
 
 			if peerElem.Self {
@@ -681,7 +680,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 }
 
 func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.Member, error) {
-	peerID, err := peer.IDB58Decode(string(req.Attr.PeerID))
+	peerID, err := types.IDB58Decode(string(req.Attr.PeerID))
 	if err != nil {
 		return nil, err
 	}
@@ -693,7 +692,7 @@ func (cl *Cluster) NewMemberFromRemoveReq(req *types.MembershipChange) (*consens
 		return nil, consensus.ErrInvalidMemberID
 	}
 
-	member := consensus.NewMember("", "", peer.ID(""), cl.chainID, 0)
+	member := consensus.NewMember("", "", types.PeerID(""), cl.chainID, 0)
 	member.SetMemberID(req.Attr.ID)
 
 	return member, nil
