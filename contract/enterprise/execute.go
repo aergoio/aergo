@@ -13,12 +13,24 @@ type EnterpriseContext struct {
 	Call   *types.CallInfo
 	Args   []string
 	Admins [][]byte
+	Old    *Conf
 }
 
 func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
 	for _, a := range e.Admins {
 		if bytes.Equal(a, addr) {
 			return true
+		}
+	}
+	return false
+}
+
+func (e *EnterpriseContext) IsOldConfValue(addr string) bool {
+	if e.Old != nil {
+		for _, v := range e.Old.Values {
+			if v == addr {
+				return true
+			}
 		}
 	}
 	return false
@@ -69,6 +81,9 @@ func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
 		conf, err := getConf(scs, key)
 		if err != nil {
 			return nil, err
+		}
+		if conf == nil {
+			conf = &Conf{On: false}
 		}
 		conf.Values = append(conf.Values, appendValues...)
 		err = setConf(scs, key, conf)

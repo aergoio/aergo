@@ -1,6 +1,8 @@
 package enterprise
 
 import (
+	"encoding/pem"
+	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
@@ -47,6 +49,26 @@ func TestBasicFailEnterprise(t *testing.T) {
 	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLqZFnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
 	assert.Error(t, err, "set same admin permission")
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["admin", "AmLqZFnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
+	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.Error(t, err, "not allowed key")
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["abc", "AmLqZ\FnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
+	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.Error(t, err, "not allowed char")
+
+	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", "16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9"]}`)
+	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.Error(t, err, "duplicate arguments")
+
+	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9"]}`)
+	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.NoError(t, err, "set conf")
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n"]}`)
+	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.NoError(t, err, "duplicated set conf")
 }
 
 func TestBasicEnterprise(t *testing.T) {
@@ -95,6 +117,17 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.NoError(t, err, "enable conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, true, conf.On, "conf on")
+	cert := strings.Replace(testCert, "\n", "\\n", -1)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcwhitelist","` + cert + `"]}`)
+	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.NoError(t, err, "add conf")
+
+	conf, err = getConf(scs, []byte("rpcwhitelist"))
+	assert.Equal(t, false, conf.On, "conf on")
+	assert.Equal(t, 1, len(conf.Values), "conf values length")
+	assert.Equal(t, testCert, conf.Values[0], "conf value 0")
+	block, _ := pem.Decode([]byte(conf.Values[0]))
+	assert.NotNil(t, block, "parse value 0")
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",false]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
