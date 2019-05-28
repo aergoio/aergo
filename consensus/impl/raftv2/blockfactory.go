@@ -357,6 +357,7 @@ func (bf *BlockFactory) worker() {
 					return
 				}
 
+				bf.reset()
 				logger.Error().Err(err).Msg("failed to produce block")
 			}
 
