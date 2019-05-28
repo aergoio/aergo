@@ -123,7 +123,7 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
 	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) (*BlockFactory, error) {
 
-	Init(consensus.BlockInterval)
+	Init(cfg.Consensus.Raft.BPIntervalMs)
 
 	bf := &BlockFactory{
 		ComponentHub:     hub,
@@ -157,10 +157,18 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	return bf, nil
 }
 
-func Init(blockInterval time.Duration) {
-	logger.Debug().Int64("timeout(ms)", BlockTimeout.Nanoseconds()/int64(time.Millisecond)).Msg("set block timeout")
+func Init(cfgBlockIntervalMs int64) {
+	var interval time.Duration
 
-	BlockTimeout = blockInterval
+	if cfgBlockIntervalMs != 0 {
+		interval = time.Millisecond * time.Duration(cfgBlockIntervalMs)
+	} else {
+		interval = consensus.BlockInterval
+	}
+
+	BlockTimeout = interval
+
+	logger.Debug().Int64("timeout(ms)", BlockTimeout.Nanoseconds()/int64(time.Millisecond)).Msg("set block timeout")
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
@@ -184,7 +192,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (bf *BlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(consensus.BlockInterval)
+	return time.NewTicker(BlockTimeout)
 }
 
 // QueueJob send a block triggering information to jq.
