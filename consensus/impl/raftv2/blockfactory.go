@@ -405,6 +405,9 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 
 	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
+		//need reset previous work
+		bf.reset()
+
 		return nil
 	} else if err != nil {
 		logger.Info().Err(err).Msg("failed to generate block")
@@ -440,7 +443,7 @@ func (bf *BlockFactory) reset() {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
 
-	logger.Debug().Str("prev proposed", bf.raftOp.toString()).Msg("commit nil data, so reset block factory")
+	logger.Debug().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
 
 	bf.prevBlock = nil
 }
