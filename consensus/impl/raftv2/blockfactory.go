@@ -73,7 +73,7 @@ type Work struct {
 }
 
 func (work *Work) GetTimeout() time.Duration {
-	return BlockTimeout
+	return consensus.BlockInterval
 }
 
 func (work *Work) ToString() string {
