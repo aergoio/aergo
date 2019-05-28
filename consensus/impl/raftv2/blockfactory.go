@@ -358,7 +358,6 @@ func (bf *BlockFactory) worker() {
 				}
 
 				bf.reset()
-				logger.Error().Err(err).Msg("failed to produce block")
 			}
 
 		case cEntry, ok := <-bf.commitC():
@@ -406,9 +405,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
-		bf.reset()
-
-		return nil
+		return chain.ErrBlockEmpty
 	} else if err != nil {
 		logger.Info().Err(err).Msg("failed to generate block")
 		return err
@@ -416,7 +413,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 
 	if err = block.Sign(bf.privKey); err != nil {
 		logger.Error().Err(err).Msg("failed to sign in block")
-		return nil
+		return err
 	}
 
 	logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
@@ -427,7 +424,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 
 	if !bf.raftServer.IsLeader() {
 		logger.Info().Msg("dropped produced block because this bp became no longer leader")
-		return nil
+		return ErrNotRaftLeader
 	}
 
 	bf.raftOp.propose(block, blockState)
