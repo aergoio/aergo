@@ -97,7 +97,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if !ok {
 			return nil, fmt.Errorf("not string in payload for enableConf : %s", ci.Args)
 		}
-		if ci.Args[0] == "admin" {
+		if strings.ToLower(arg0) == "admin" {
 			return nil, fmt.Errorf("not allowed key : %s", ci.Args[0])
 		}
 		context.Args = append(context.Args, arg0)
@@ -132,7 +132,7 @@ func checkAdmin(scs *state.ContractState, address []byte) ([][]byte, error) {
 }
 
 func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
-	if ci.Args[0] == "admin" {
+	if strings.ToUpper(ci.Args[0].(string)) == adminsKey {
 		return fmt.Errorf("not allowed key : %s", ci.Args[0])
 	}
 

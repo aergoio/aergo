@@ -70,7 +70,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
 		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
 	}
-
+	chainAccessor.GetEnterpriseConfig("allowedClient")
 	if cfg.RPC.NSEnableTLS {
 		certificate, err := tls.LoadX509KeyPair(cfg.RPC.NSCert, cfg.RPC.NSKey)
 		if err != nil {

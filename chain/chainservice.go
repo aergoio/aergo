@@ -29,8 +29,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/hashicorp/golang-lru"
-	"github.com/libp2p/go-libp2p-peer"
+	lru "github.com/hashicorp/golang-lru"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -311,6 +311,10 @@ func (cs *ChainService) GetConsensusInfo() string {
 
 func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
+}
+
+func (cs *ChainService) GetEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
+	return cs.getEnterpriseConf(key)
 }
 
 // SetChainConsensus sets cs.cc to cc.

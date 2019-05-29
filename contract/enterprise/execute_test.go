@@ -50,7 +50,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
 	assert.Error(t, err, "set same admin permission")
 
-	tx.Payload = []byte(`{"name":"appendConf", "args":["admin", "AmLqZFnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["admins", "AmLqZFnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
 	assert.Error(t, err, "not allowed key")
 
@@ -97,7 +97,7 @@ func TestBasicEnterprise(t *testing.T) {
 	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9"]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
 	assert.NoError(t, err, "set conf")
-	conf, err := getConf(scs, []byte("p2pwhite"))
+	conf, err := getConf(scs, []byte("P2PWhite")) //key is ignore case
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 3, len(conf.Values), "conf values length")
 	assert.Equal(t, "16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", conf.Values[0], "conf value 0")

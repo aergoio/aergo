@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -76,7 +77,7 @@ func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
 			return nil, err
 		}
 	case AppendConf:
-		key := []byte(context.Args[0])
+		key := []byte(strings.ToUpper(context.Args[0]))
 		appendValues := context.Args[1:]
 		conf, err := getConf(scs, key)
 		if err != nil {
