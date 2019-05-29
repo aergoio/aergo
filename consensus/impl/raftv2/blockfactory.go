@@ -123,8 +123,6 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
 	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) (*BlockFactory, error) {
 
-	Init(cfg.Consensus.Raft.BPIntervalMs)
-
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainWAL:         cdb,
@@ -139,6 +137,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	}
 
 	if cfg.Consensus.EnableBp {
+		Init(cfg.Consensus.Raft.BPIntervalMs)
+
 		if err := bf.newRaftServer(cfg); err != nil {
 			logger.Error().Err(err).Msg("failed to init raft server")
 			return bf, err
