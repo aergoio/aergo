@@ -39,7 +39,8 @@ var (
 	RaftSkipEmptyBlock = false
 	MaxCommitQueueLen  = DefaultCommitQueueLen
 
-	BlockTimeout time.Duration
+	BlockIntervalMs time.Duration
+	BlockTimeoutMs  time.Duration
 )
 
 var (
@@ -73,7 +74,7 @@ type Work struct {
 }
 
 func (work *Work) GetTimeout() time.Duration {
-	return consensus.BlockInterval
+	return BlockTimeoutMs
 }
 
 func (work *Work) ToString() string {
@@ -137,7 +138,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	}
 
 	if cfg.Consensus.EnableBp {
-		Init(cfg.Consensus.Raft.BPIntervalMs)
+		Init(cfg.Consensus.Raft)
 
 		if err := bf.newRaftServer(cfg); err != nil {
 			logger.Error().Err(err).Msg("failed to init raft server")
@@ -157,18 +158,21 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	return bf, nil
 }
 
-func Init(cfgBlockIntervalMs int64) {
-	var interval time.Duration
-
-	if cfgBlockIntervalMs != 0 {
-		interval = time.Millisecond * time.Duration(cfgBlockIntervalMs)
+func Init(raftCfg *config.RaftConfig) {
+	if raftCfg.BPIntervalMs != 0 {
+		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BPIntervalMs)
 	} else {
-		interval = consensus.BlockInterval
+		BlockIntervalMs = consensus.BlockInterval
 	}
 
-	BlockTimeout = interval
+	if raftCfg.BPTimeoutMs != 0 {
+		BlockTimeoutMs = time.Millisecond * time.Duration(raftCfg.BPTimeoutMs)
+	} else {
+		BlockTimeoutMs = BlockIntervalMs
+	}
 
-	logger.Debug().Int64("timeout(ms)", BlockTimeout.Nanoseconds()/int64(time.Millisecond)).Msg("set block timeout")
+	logger.Debug().Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).
+		Int64("timeout(ms)", BlockTimeoutMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block interval")
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
@@ -192,7 +196,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (bf *BlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(BlockTimeout)
+	return time.NewTicker(BlockIntervalMs)
 }
 
 // QueueJob send a block triggering information to jq.
