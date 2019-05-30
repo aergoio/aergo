@@ -171,7 +171,7 @@ func Init(raftCfg *config.RaftConfig) {
 		BlockTimeoutMs = BlockIntervalMs
 	}
 
-	logger.Debug().Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).
+	logger.Info().Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).
 		Int64("timeout(ms)", BlockTimeoutMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block interval")
 }
 
@@ -444,7 +444,7 @@ func (bf *BlockFactory) reset() {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
 
-	logger.Debug().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
+	logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
 
 	bf.prevBlock = nil
 }
