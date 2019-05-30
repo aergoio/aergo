@@ -85,11 +85,12 @@ type raftServer struct {
 	commitC     chan *commitEntry                   // entries committed to log (k,v)
 	errorC      chan error                          // errors from raft session
 
-	id          uint64 // client ID for raft session
-	listenUrl   string
-	join        bool // node is joining an existing cluster
-	getSnapshot func() ([]byte, error)
-	lastIndex   uint64 // index of log at start
+	id              uint64 // client ID for raft session
+	listenUrl       string
+	join            bool // node is joining an existing cluster
+	joinUsingBackup bool // use backup chaindb datafiles to join a existing cluster
+	getSnapshot     func() ([]byte, error)
+	lastIndex       uint64 // index of log at start
 
 	snapshotIndex uint64
 	appliedIndex  uint64
@@ -226,7 +227,7 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftServer(hub *component.ComponentHub,
 	cluster *Cluster,
-	listenUrl string, join bool,
+	listenUrl string, join bool, useBackup bool,
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
@@ -238,20 +239,21 @@ func newRaftServer(hub *component.ComponentHub,
 	errorC := make(chan error, 1)
 
 	rs := &raftServer{
-		ComponentHub:  hub,
-		RWMutex:       sync.RWMutex{},
-		cluster:       cluster,
-		walDB:         NewWalDB(chainWal),
-		confChangeC:   confChangeC,
-		commitC:       commitC,
-		errorC:        errorC,
-		listenUrl:     listenUrl,
-		join:          join,
-		getSnapshot:   getSnapshot,
-		snapFrequency: ConfSnapFrequency,
-		stopc:         make(chan struct{}),
-		httpstopc:     make(chan struct{}),
-		httpdonec:     make(chan struct{}),
+		ComponentHub:    hub,
+		RWMutex:         sync.RWMutex{},
+		cluster:         cluster,
+		walDB:           NewWalDB(chainWal),
+		confChangeC:     confChangeC,
+		commitC:         commitC,
+		errorC:          errorC,
+		listenUrl:       listenUrl,
+		join:            join,
+		joinUsingBackup: useBackup,
+		getSnapshot:     getSnapshot,
+		snapFrequency:   ConfSnapFrequency,
+		stopc:           make(chan struct{}),
+		httpstopc:       make(chan struct{}),
+		httpdonec:       make(chan struct{}),
 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
@@ -319,9 +321,9 @@ func (rs *raftServer) startRaft() {
 	var node raftlib.Node
 
 	getState := func() RaftServerState {
-		hasWal, err := rs.walDB.HasWal()
+		hasWal, err := rs.walDB.HasWal(rs.cluster.identity)
 		if err != nil {
-			logger.Fatal().Msg("failed to check if wal has initializeded")
+			logger.Info().Msg("wal database of raft is missing or not valid")
 		}
 
 		switch {
@@ -379,17 +381,26 @@ func (rs *raftServer) startRaft() {
 		}
 
 		rs.SetID(rs.cluster.NodeID())
-		if err := rs.SaveIdentity(); err != nil {
-			logger.Fatal().Err(err).Msg("fafiled to save identity")
+
+		if rs.joinUsingBackup {
+			rs.walDB.ResetWAL()
+
+			// TODO set hardstate from remote
+			// 		raft.restartNode
+
+		} else {
+			if err := rs.SaveIdentity(); err != nil {
+				logger.Fatal().Err(err).Msg("fafiled to save identity")
+			}
+
+			rs.raftStorage = raftlib.NewMemoryStorage()
+
+			// reset my raft nodeID from existing cluster
+			c := makeConfig(rs.id, rs.raftStorage)
+
+			logger.Info().Msg("raft node start")
+			node = raftlib.StartNode(c, nil)
 		}
-
-		rs.raftStorage = raftlib.NewMemoryStorage()
-
-		// reset my raft nodeID from existing cluster
-		c := makeConfig(rs.id, rs.raftStorage)
-
-		logger.Info().Msg("raft node start")
-		node = raftlib.StartNode(c, nil)
 	case RaftServerStateNewCluster:
 		logger.Info().Msg("raft start at first time and makes new cluster")
 

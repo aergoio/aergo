@@ -34,6 +34,7 @@ var (
 	ErrorLoadBestBlock     = errors.New("failed to load latest block from DB")
 	ErrCantDropGenesis     = errors.New("can't drop genesis block")
 	ErrTooBigResetHeight   = errors.New("reset height is too big")
+	ErrWalNoHardState      = errors.New("not exist hard state")
 	ErrInvalidHardState    = errors.New("invalid hard state")
 	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
 

@@ -18,17 +18,44 @@ var (
 	ErrDecodeRaftIdentity = errors.New("failed decoding of raft identity")
 )
 
-// implement ChainWAL interface
-func (cdb *ChainDB) IsWALInited() bool {
-	if idx, err := cdb.GetRaftEntryLastIdx(); idx > 0 && err != nil {
-		return true
-	}
-	return false
-}
+func (cdb *ChainDB) ResetWAL() {
+	logger.Info().Msg("reset given datafiles to use in joined node")
 
-func (cdb *ChainDB) ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error) {
-	//TODO
-	return raftpb.HardState{}, nil, nil
+	removeAllRaftEntries := func(lastIdx uint64) {
+		bulk := cdb.store.NewBulk()
+		defer bulk.DiscardLast()
+
+		for i := lastIdx; i >= 0; i-- {
+			bulk.Delete(getRaftEntryKey(i))
+		}
+
+		bulk.Delete(raftEntryLastIdxKey)
+
+		bulk.Flush()
+
+		logger.Debug().Msg("reset raft entries from datafiles")
+	}
+
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	dbTx.Delete(raftIdentityKey)
+	// remove hardstate
+
+	dbTx.Delete(raftStateKey)
+
+	// remove snapshot
+	dbTx.Delete(raftSnapKey)
+
+	logger.Debug().Msg("reset identify, hardstate, snapshot from datafiles")
+
+	dbTx.Commit()
+
+	// remove raft entries
+	if last, err := cdb.GetRaftEntryLastIdx(); err == nil {
+		// remove 1 ~ last raft entry
+		removeAllRaftEntries(last)
+	}
 }
 
 func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
@@ -52,6 +79,10 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 
 func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 	data := cdb.store.Get(raftStateKey)
+
+	if len(data) == 0 {
+		return nil, ErrWalNoHardState
+	}
 
 	state := &raftpb.HardState{}
 	if err := proto.Unmarshal(data, state); err != nil {
@@ -155,9 +186,34 @@ func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 	return types.BlockNoFromBytes(lastBytes), nil
 }
 
-func (cdb *ChainDB) HasWal() (bool, error) {
-	last, err := cdb.GetRaftEntryLastIdx()
-	if err != nil {
+var (
+	ErrWalNotEqualIdentity = errors.New("identity of wal is not equal")
+)
+
+// HasWal checks chaindb has valid status of Raft WAL.
+// 1. compare identity with config
+// 2. check if hardstate exists
+// 3. check if last raft entiry index exists
+func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
+	var (
+		id   *consensus.RaftIdentity
+		last uint64
+		err  error
+	)
+
+	if id, err = cdb.GetIdentity(); err != nil {
+		return false, err
+	}
+
+	if id.Name != identity.Name {
+		return false, ErrWalNotEqualIdentity
+	}
+
+	if _, err = cdb.GetHardState(); err != nil {
+		return false, err
+	}
+
+	if last, err = cdb.GetRaftEntryLastIdx(); err != nil {
 		return false, err
 	}
 

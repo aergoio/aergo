@@ -78,12 +78,11 @@ func (rid *RaftIdentity) ToString() string {
 type ChainWAL interface {
 	ChainDB
 
-	IsWALInited() bool
+	ResetWAL()
 	GetBlock(blockHash []byte) (*types.Block, error)
-	ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error)
 	WriteRaftEntry([]*WalEntry, []*types.Block) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
-	HasWal() (bool, error)
+	HasWal(identity RaftIdentity) (bool, error)
 	GetRaftEntryLastIdx() (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
