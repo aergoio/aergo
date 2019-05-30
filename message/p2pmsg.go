@@ -184,11 +184,13 @@ type GetSelf struct {
 }
 
 type GetCluster struct {
-	ReplyC chan *GetClusterRsp
+	BestBlockHash BlockHash
+	ReplyC        chan *GetClusterRsp
 }
 
 type GetClusterRsp struct {
-	ChainID BlockHash
-	Members []*types.MemberAttr
-	Err     error
+	ChainID       BlockHash
+	Members       []*types.MemberAttr
+	Err           error
+	HardStateInfo *types.HardStateInfo
 }

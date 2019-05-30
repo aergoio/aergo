@@ -41,11 +41,12 @@ var (
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 
-	raftIdentityKey     = []byte("r_identity")
-	raftStateKey        = []byte("r_state")
-	raftSnapKey         = []byte("r_snap")
-	raftEntryLastIdxKey = []byte("r_last")
-	raftEntryPrefix     = []byte("r_entry.")
+	raftIdentityKey       = []byte("r_identity")
+	raftStateKey          = []byte("r_state")
+	raftSnapKey           = []byte("r_snap")
+	raftEntryLastIdxKey   = []byte("r_last")
+	raftEntryPrefix       = []byte("r_entry.")
+	raftEntryInvertPrefix = []byte("r_inv.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).

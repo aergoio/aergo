@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -16,10 +17,38 @@ var (
 	ErrNoWalEntry         = errors.New("no entry")
 	ErrEncodeRaftIdentity = errors.New("failed encoding of raft identity")
 	ErrDecodeRaftIdentity = errors.New("failed decoding of raft identity")
+	ErrNoWalEntryForBlock = errors.New("no raft entry for block")
+	ErrNilHardState       = errors.New("hardstateinfo must not be nil")
 )
 
-func (cdb *ChainDB) ResetWAL() {
-	logger.Info().Msg("reset given datafiles to use in joined node")
+func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
+	if hardStateInfo == nil {
+		return ErrNilHardState
+	}
+
+	logger.Info().Str("hardstate", hardStateInfo.ToString()).Msg("reset wal with given hardstate")
+
+	cdb.clearWAL()
+
+	if err := cdb.WriteHardState(&raftpb.HardState{Term: hardStateInfo.Term, Commit: hardStateInfo.Commit}); err != nil {
+		return err
+	}
+
+	// write initial values
+	// last entry index = commit
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	cdb.writeRaftEntryLastIndex(dbTx, hardStateInfo.Commit)
+
+	dbTx.Commit()
+
+	return nil
+}
+
+// ClearWal() removes all data used by raft
+func (cdb *ChainDB) clearWAL() {
+	logger.Info().Msg("clear all data used by raft")
 
 	removeAllRaftEntries := func(lastIdx uint64) {
 		bulk := cdb.store.NewBulk()
@@ -104,6 +133,13 @@ func getRaftEntryKey(idx uint64) []byte {
 	return key.Bytes()
 }
 
+func getRaftEntryInvertKey(blockHash []byte) []byte {
+	var key bytes.Buffer
+	key.Write(raftEntryInvertPrefix)
+	key.Write(blockHash)
+	return key.Bytes()
+}
+
 func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block) error {
 	var data []byte
 	var err error
@@ -143,16 +179,25 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		lastIdx = entry.Index
 		dbTx.Set(getRaftEntryKey(entry.Index), data)
+
+		// invert key to search raft entry corresponding to block hash
+		if entry.Type == consensus.EntryBlock {
+			dbTx.Set(getRaftEntryInvertKey(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
+		}
 	}
 
 	// set lastindex
-	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
-
-	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
+	cdb.writeRaftEntryLastIndex(dbTx, lastIdx)
 
 	dbTx.Commit()
 
 	return nil
+}
+
+func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64) {
+	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
+
+	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
@@ -175,6 +220,34 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	}
 
 	return &entry, nil
+}
+
+func (cdb *ChainDB) GetRaftEntryIndexOfBlock(hash []byte) (uint64, error) {
+	data := cdb.store.Get(getRaftEntryInvertKey(hash))
+	if len(data) == 0 {
+		return 0, ErrNoWalEntryForBlock
+	}
+
+	idx := types.BytesToUint64(data)
+	if idx == 0 {
+		return 0, ErrNoWalEntryForBlock
+	}
+
+	return idx, nil
+}
+
+func (cdb *ChainDB) GetRaftEntryOfBlock(hash []byte) (*consensus.WalEntry, error) {
+	// check block is in main chain
+	if _, err := cdb.GetBlock(hash); err != nil {
+		return nil, ErrNotExistBlock
+	}
+
+	idx, err := cdb.GetRaftEntryIndexOfBlock(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return cdb.GetRaftEntry(idx)
 }
 
 func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
@@ -201,7 +274,7 @@ func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
 		err  error
 	)
 
-	if id, err = cdb.GetIdentity(); err != nil {
+	if id, err = cdb.GetIdentity(); err != nil || id == nil {
 		return false, err
 	}
 
@@ -323,8 +396,8 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 
 	var val bytes.Buffer
 
-	gob := gob.NewEncoder(&val)
-	if err := gob.Encode(identity); err != nil {
+	enc := gob.NewEncoder(&val)
+	if err := enc.Encode(identity); err != nil {
 		return ErrEncodeRaftIdentity
 	}
 

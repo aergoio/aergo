@@ -25,7 +25,6 @@ var (
 	ErrClusterHasNoMember   = errors.New("cluster has no member")
 	ErrNotExistRaftMember   = errors.New("not exist member of raft cluster")
 	ErrNoEnableSyncPeer     = errors.New("no peer to sync chain")
-	ErrNotExistMembers      = errors.New("not exist members of cluster")
 	ErrMemberAlreadyApplied = errors.New("member is already added")
 
 	ErrInvalidMembershipReqType = errors.New("invalid type of membership change request")
@@ -230,7 +229,9 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
 
 	// members restore
 	for _, mbr := range snapdata.Members {
-		cl.addMember(mbr, true)
+		if err := cl.addMember(mbr, true); err != nil {
+			return err
+		}
 	}
 
 	for _, mbr := range snapdata.RemovedMembers {
@@ -419,11 +420,15 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	return true
 }
 
-func (cl *Cluster) getMemberAttrs() []*types.MemberAttr {
+func (cl *Cluster) getMemberAttrs() ([]*types.MemberAttr, error) {
 	cl.Lock()
 	defer cl.Unlock()
 
 	attrs := make([]*types.MemberAttr, cl.members.len())
+
+	if cl.members.len() == 0 {
+		return nil, ErrClusterHasNoMember
+	}
 
 	var i = 0
 	for _, mbr := range cl.members.MapByID {
@@ -433,7 +438,7 @@ func (cl *Cluster) getMemberAttrs() []*types.MemberAttr {
 		i++
 	}
 
-	return attrs
+	return attrs, nil
 }
 
 // IsIDRemoved return true if given raft id is not exist in cluster

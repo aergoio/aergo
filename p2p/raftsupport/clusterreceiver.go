@@ -6,6 +6,7 @@
 package raftsupport
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"sync"
 	"time"
@@ -69,7 +70,7 @@ func (br *ClusterInfoReceiver) trySendNextPeer() bool {
 		peer := br.peers[br.offset]
 		if peer.State() == types.RUNNING {
 			br.offset++
-			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetClusterRequest, &types.GetClusterInfoRequest{})
+			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetClusterRequest, &types.GetClusterInfoRequest{BestBlockHash: br.req.BestBlockHash})
 			peer.SendMessage(mo)
 			br.sents[mo.GetMsgID()] = peer
 			return true
@@ -130,8 +131,13 @@ func (br *ClusterInfoReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 	}
 
 	// return the result
+	var err error
 	br.finishReceiver()
-	result := &message.GetClusterRsp{ChainID: body.GetChainID(), Members: body.GetMbrAttrs(), Err: nil}
+	if len(body.Error) != 0 {
+		err = fmt.Errorf("get cluster info error: %s", body.Error)
+	}
+	result := &message.GetClusterRsp{ChainID: body.GetChainID(), Members: body.GetMbrAttrs(),
+		Err: err, HardStateInfo: body.HardStateInfo}
 	br.req.ReplyC <- result
 	close(br.req.ReplyC)
 	return

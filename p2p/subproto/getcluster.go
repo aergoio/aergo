@@ -51,19 +51,13 @@ func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcom
 	data := msgBody.(*types.GetClusterInfoRequest)
 	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, data.String())
 
-	resp := &types.GetClusterInfoResponse{}
+	var resp *types.GetClusterInfoResponse
 
 	// GetClusterInfo from consensus
 	if ph.consAcc == nil {
-		resp.Error = ErrConsensusAccessorNotReady.Error()
+		resp = &types.GetClusterInfoResponse{Error: ErrConsensusAccessorNotReady.Error()}
 	} else {
-		mbrs, chainID, err := ph.consAcc.ClusterInfo()
-		if err != nil {
-			resp.Error = err.Error()
-		} else {
-			resp.MbrAttrs = mbrs
-			resp.ChainID = chainID
-		}
+		resp = ph.consAcc.ClusterInfo(data.BestBlockHash)
 	}
 
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetClusterResponse, resp))

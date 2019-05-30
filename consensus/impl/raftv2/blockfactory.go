@@ -570,8 +570,40 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	return member, nil
 }
 
-func (bf *BlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
-	return bf.bpc.getMemberAttrs(), bf.bpc.chainID, nil
+// getHardStateOfBlock returns (term/commit) corresponding to best block hash.
+// To get hardstateinfo, it needs to search all raft indexes.
+func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardStateInfo, error) {
+	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
+	if err != nil {
+		logger.Error().Err(err).Msg("can't find raft entry for request hash")
+		return nil, err
+	}
+
+	logger.Debug().Uint64("term", entry.Term).Uint64("comit", entry.Index).Msg("get hardstate of block")
+
+	return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+}
+
+// ClusterInfo returns members of cluster and hardstate info corresponding to best block hash
+func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
+	var (
+		hardStateInfo *types.HardStateInfo
+		mbrAttrs      []*types.MemberAttr
+		err           error
+		errStr        string
+	)
+
+	if bestBlockHash != nil {
+		if hardStateInfo, err = bf.getHardStateOfBlock(bestBlockHash); err != nil {
+			errStr = err.Error()
+		}
+	}
+
+	if mbrAttrs, err = bf.bpc.getMemberAttrs(); err != nil {
+		errStr = err.Error()
+	}
+
+	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, Error: errStr, MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
 }
 
 func (bf *BlockFactory) checkBpTimeout() error {
