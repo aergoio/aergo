@@ -39,7 +39,8 @@ var (
 	RaftSkipEmptyBlock = false
 	MaxCommitQueueLen  = DefaultCommitQueueLen
 
-	BlockTimeout time.Duration
+	BlockIntervalMs time.Duration
+	BlockTimeoutMs  time.Duration
 )
 
 var (
@@ -73,7 +74,7 @@ type Work struct {
 }
 
 func (work *Work) GetTimeout() time.Duration {
-	return BlockTimeout
+	return BlockTimeoutMs
 }
 
 func (work *Work) ToString() string {
@@ -123,8 +124,6 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL,
 	sdb *state.ChainStateDB, pa p2pcommon.PeerAccessor) (*BlockFactory, error) {
 
-	Init(consensus.BlockInterval)
-
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainWAL:         cdb,
@@ -139,6 +138,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	}
 
 	if cfg.Consensus.EnableBp {
+		Init(cfg.Consensus.Raft)
+
 		if err := bf.newRaftServer(cfg); err != nil {
 			logger.Error().Err(err).Msg("failed to init raft server")
 			return bf, err
@@ -157,10 +158,21 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	return bf, nil
 }
 
-func Init(blockInterval time.Duration) {
-	logger.Debug().Int64("timeout(ms)", BlockTimeout.Nanoseconds()/int64(time.Millisecond)).Msg("set block timeout")
+func Init(raftCfg *config.RaftConfig) {
+	if raftCfg.BPIntervalMs != 0 {
+		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BPIntervalMs)
+	} else {
+		BlockIntervalMs = consensus.BlockInterval
+	}
 
-	BlockTimeout = blockInterval
+	if raftCfg.BPTimeoutMs != 0 {
+		BlockTimeoutMs = time.Millisecond * time.Duration(raftCfg.BPTimeoutMs)
+	} else {
+		BlockTimeoutMs = BlockIntervalMs
+	}
+
+	logger.Info().Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).
+		Int64("timeout(ms)", BlockTimeoutMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block interval")
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
@@ -184,7 +196,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (bf *BlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(consensus.BlockInterval)
+	return time.NewTicker(BlockIntervalMs)
 }
 
 // QueueJob send a block triggering information to jq.
@@ -349,7 +361,7 @@ func (bf *BlockFactory) worker() {
 					return
 				}
 
-				logger.Error().Err(err).Msg("failed to produce block")
+				bf.reset()
 			}
 
 		case cEntry, ok := <-bf.commitC():
@@ -396,7 +408,8 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 
 	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
-		return nil
+		//need reset previous work
+		return chain.ErrBlockEmpty
 	} else if err != nil {
 		logger.Info().Err(err).Msg("failed to generate block")
 		return err
@@ -404,7 +417,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 
 	if err = block.Sign(bf.privKey); err != nil {
 		logger.Error().Err(err).Msg("failed to sign in block")
-		return nil
+		return err
 	}
 
 	logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
@@ -415,7 +428,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 
 	if !bf.raftServer.IsLeader() {
 		logger.Info().Msg("dropped produced block because this bp became no longer leader")
-		return nil
+		return ErrNotRaftLeader
 	}
 
 	bf.raftOp.propose(block, blockState)
@@ -431,7 +444,7 @@ func (bf *BlockFactory) reset() {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
 
-	logger.Debug().Str("prev proposed", bf.raftOp.toString()).Msg("commit nil data, so reset block factory")
+	logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
 
 	bf.prevBlock = nil
 }
@@ -450,7 +463,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 		}
 	}
 
-	logger.Debug().Uint64("no", block.BlockNo()).
+	logger.Info().Uint64("no", block.BlockNo()).
 		Str("hash", block.ID()).
 		Str("prev", block.PrevID()).
 		Bool("proposed", blockState != nil).

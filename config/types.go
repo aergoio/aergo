@@ -113,6 +113,8 @@ type RaftConfig struct {
 	KeyFile       string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
 	CertFile      string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
 	Tick          uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
+	BPIntervalMs  int64          `mapstructure:"bpintervalms" description:"block interval for raft (millisec)"`
+	BPTimeoutMs   int64          `mapstructure:"bptimeoutms" description:"block timeout for raft (millisec)"`
 	NewCluster    bool           `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
 	SnapFrequency uint64         `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
 }

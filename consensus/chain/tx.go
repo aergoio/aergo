@@ -122,14 +122,13 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	}
 	txRes := make([]types.Transaction, 0, nCand)
 
-	if logger.IsDebugEnabled() {
-		defer func() {
-			logger.Debug().
+	defer func() {
+			logger.Info().
 				Int("candidates", nCand).
 				Int("collected", nCollected).
 				Msg("transactions collected")
-		}()
-	}
+	}()
+
 
 	op := NewCompTxOp(txOp)
 
