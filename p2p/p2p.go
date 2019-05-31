@@ -314,9 +314,9 @@ func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool,
 	if p2pVersion == p2pcommon.P2PVersion030 {
 		handshakeHandler := newHandshaker(p2ps.pm, p2ps, p2ps.Logger, p2ps.chainID, pid)
 		if outbound {
-			return &OutboundHSHandler{LegacyWireHandshaker: handshakeHandler}
+			return &LegacyOutboundHSHandler{LegacyWireHandshaker: handshakeHandler}
 		} else {
-			return &InboundHSHandler{LegacyWireHandshaker: handshakeHandler}
+			return &LegacyInboundHSHandler{LegacyWireHandshaker: handshakeHandler}
 		}
 	} else {
 		if outbound {

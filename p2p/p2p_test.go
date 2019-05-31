@@ -35,8 +35,8 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 	}{
 		{"TNewIn", args{p2pcommon.P2PVersion031, false}, reflect.TypeOf(&InboundWireHandshaker{})},
 		{"TNewOut", args{p2pcommon.P2PVersion031, true}, reflect.TypeOf(&OutboundWireHandshaker{})},
-		{"TLegacyIn", args{p2pcommon.P2PVersion030, false}, reflect.TypeOf(&InboundHSHandler{})},
-		{"TLegacyOut", args{p2pcommon.P2PVersion030, true}, reflect.TypeOf(&OutboundHSHandler{})},
+		{"TLegacyIn", args{p2pcommon.P2PVersion030, false}, reflect.TypeOf(&LegacyInboundHSHandler{})},
+		{"TLegacyOut", args{p2pcommon.P2PVersion030, true}, reflect.TypeOf(&LegacyOutboundHSHandler{})},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {

@@ -13,7 +13,6 @@ const (
 	UnknownVersion = ""
 )
 // PeerMeta contains non changeable information of peer node during connected state
-// TODO: PeerMeta is almost same as PeerAddress, so TODO to unify them.
 type PeerMeta struct {
 	ID types.PeerID
 	// IPAddress is human readable form of ip address such as "192.168.0.1" or "2001:0db8:0a0b:12f0:33:1"

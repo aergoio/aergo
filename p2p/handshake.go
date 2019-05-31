@@ -18,23 +18,23 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-// InboundHSHandler handshake handler for legacy version
-type InboundHSHandler struct {
+// LegacyInboundHSHandler handshake handler for legacy version
+type LegacyInboundHSHandler struct {
 	*LegacyWireHandshaker
 }
 
-func (ih *InboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (ih *LegacyInboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ttl)
 	defer cancel()
 	return ih.handshakeInboundPeer(ctx, r, w)
 }
 
-// OutboundHSHandler handshake handler for legacy version
-type OutboundHSHandler struct {
+// LegacyOutboundHSHandler handshake handler for legacy version
+type LegacyOutboundHSHandler struct {
 	*LegacyWireHandshaker
 }
 
-func (oh *OutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (oh *LegacyOutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ttl)
 	defer cancel()
 	return oh.handshakeOutboundPeer(ctx, r, w)
@@ -51,12 +51,6 @@ type LegacyWireHandshaker struct {
 	localChainID *types.ChainID
 
 	remoteStatus *types.Status
-}
-
-type hsResult struct {
-	rw        p2pcommon.MsgReadWriter
-	statusMsg *types.Status
-	err       error
 }
 
 func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) *LegacyWireHandshaker {

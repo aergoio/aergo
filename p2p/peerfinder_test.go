@@ -56,6 +56,7 @@ func createDummyPM() *peerManager {
 
 func TestNewPeerFinder(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
 		useDiscover bool
@@ -85,6 +86,7 @@ func TestNewPeerFinder(t *testing.T) {
 
 func Test_dynamicPeerFinder_OnPeerDisconnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
 		preConnected []types.PeerID
@@ -124,6 +126,7 @@ func Test_dynamicPeerFinder_OnPeerDisconnect(t *testing.T) {
 
 func Test_dynamicPeerFinder_OnPeerConnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
 		preConnected []types.PeerID

@@ -32,7 +32,8 @@ type VersionedManager interface {
 	InjectHandlers(version P2PVersion, peer RemotePeer)
 }
 
-// VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version
+// VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version.
+// It is used inside HSHandler
 type VersionedHandshaker interface {
 	DoForOutbound(ctx context.Context) (*types.Status, error)
 	DoForInbound(ctx context.Context) (*types.Status, error)

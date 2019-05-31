@@ -29,6 +29,7 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	//t.SkipNow()
 
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	//mockActorServ := new(p2pmock.MockActorService)
 	mockActorServ := p2pmock.NewMockActorService(ctrl)

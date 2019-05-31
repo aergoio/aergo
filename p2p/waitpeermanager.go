@@ -19,6 +19,14 @@ import (
 	"time"
 )
 
+type handshakeResult struct {
+	s network.Stream
+	msgRW p2pcommon.MsgReadWriter
+
+	meta p2pcommon.PeerMeta
+	status *types.Status
+}
+
 func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
@@ -216,20 +224,8 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 		dpm.sendGoAway(msgRW, "Inconsistent peerID")
 		return meta, false
 	}
-	// override options by configurations of nodd
-	_, receivedMeta.Designated = dpm.pm.designatedPeers[peerID]
-	// hidden is set by either remote peer's asking or local node's config
-	if _, exist := dpm.pm.hiddenPeerSet[peerID]; exist {
-		receivedMeta.Hidden = true
-	}
 
-	newPeer := newRemotePeer(receivedMeta, dpm.pm.GetNextManageNum(), dpm.pm, dpm.pm.actorService, dpm.logger, dpm.pm.mf, dpm.pm.signer, s, msgRW)
-	newPeer.UpdateBlkCache(remoteStatus.GetBestBlockHash(), remoteStatus.GetBestHeight())
-
-	// insert Handlers
-	dpm.pm.handlerFactory.InsertHandlers(newPeer)
-
-	dpm.pm.peerHandshaked <- newPeer
+	dpm.pm.peerHandshaked <- handshakeResult{meta: receivedMeta, status:remoteStatus, msgRW:msgRW, s:s}
 	return receivedMeta, true
 }
 
