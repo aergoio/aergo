@@ -232,6 +232,6 @@ func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus
 	return nil, consensus.ErrNotSupportedMethod
 }
 
-func (s *SimpleBlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
-	return nil, nil, consensus.ErrNotSupportedMethod
+func (s *SimpleBlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
+	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
 }

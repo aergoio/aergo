@@ -53,7 +53,6 @@ var (
 )
 
 var (
-	ErrNoSnapshot          = errors.New("no snapshot")
 	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
 	ErrInvalidMember       = errors.New("member of conf change is invalid")
 	ErrCCAlreadyAdded      = errors.New("member has already added")
@@ -85,11 +84,12 @@ type raftServer struct {
 	commitC     chan *commitEntry                   // entries committed to log (k,v)
 	errorC      chan error                          // errors from raft session
 
-	id          uint64 // client ID for raft session
-	listenUrl   string
-	join        bool // node is joining an existing cluster
-	getSnapshot func() ([]byte, error)
-	lastIndex   uint64 // index of log at start
+	id              uint64 // client ID for raft session
+	listenUrl       string
+	join            bool // node is joining an existing cluster
+	joinUsingBackup bool // use backup chaindb datafiles to join a existing cluster
+	getSnapshot     func() ([]byte, error)
+	lastIndex       uint64 // index of log at start
 
 	snapshotIndex uint64
 	appliedIndex  uint64
@@ -226,7 +226,7 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftServer(hub *component.ComponentHub,
 	cluster *Cluster,
-	listenUrl string, join bool,
+	listenUrl string, join bool, useBackup bool,
 	certFile string, keyFile string,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
@@ -238,20 +238,21 @@ func newRaftServer(hub *component.ComponentHub,
 	errorC := make(chan error, 1)
 
 	rs := &raftServer{
-		ComponentHub:  hub,
-		RWMutex:       sync.RWMutex{},
-		cluster:       cluster,
-		walDB:         NewWalDB(chainWal),
-		confChangeC:   confChangeC,
-		commitC:       commitC,
-		errorC:        errorC,
-		listenUrl:     listenUrl,
-		join:          join,
-		getSnapshot:   getSnapshot,
-		snapFrequency: ConfSnapFrequency,
-		stopc:         make(chan struct{}),
-		httpstopc:     make(chan struct{}),
-		httpdonec:     make(chan struct{}),
+		ComponentHub:    hub,
+		RWMutex:         sync.RWMutex{},
+		cluster:         cluster,
+		walDB:           NewWalDB(chainWal),
+		confChangeC:     confChangeC,
+		commitC:         commitC,
+		errorC:          errorC,
+		listenUrl:       listenUrl,
+		join:            join,
+		joinUsingBackup: useBackup,
+		getSnapshot:     getSnapshot,
+		snapFrequency:   ConfSnapFrequency,
+		stopc:           make(chan struct{}),
+		httpstopc:       make(chan struct{}),
+		httpdonec:       make(chan struct{}),
 
 		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
@@ -319,9 +320,9 @@ func (rs *raftServer) startRaft() {
 	var node raftlib.Node
 
 	getState := func() RaftServerState {
-		hasWal, err := rs.walDB.HasWal()
+		hasWal, err := rs.walDB.HasWal(rs.cluster.identity)
 		if err != nil {
-			logger.Fatal().Msg("failed to check if wal has initializeded")
+			logger.Info().Msg("wal database of raft is missing or not valid")
 		}
 
 		switch {
@@ -341,34 +342,13 @@ func (rs *raftServer) startRaft() {
 
 		rs.cluster.ResetMembers()
 
-		snapshot, err := rs.loadSnapshot()
-		if err != nil {
-			logger.Fatal().Err(err).Msg("failed to read snapshot")
-		}
+		node = rs.restartNode()
 
-		if err := rs.replayWAL(snapshot); err != nil {
-			logger.Fatal().Err(err).Msg("replay wal failed for raft")
-		}
-
-		// cluster identity is recoverd from wal
-		rs.SetID(rs.cluster.NodeID())
-
-		// members of cluster will be loaded from snapshot or wal
-		if snapshot != nil {
-			if err := rs.cluster.Recover(snapshot); err != nil {
-				logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
-			}
-		}
-
-		c := makeConfig(rs.id, rs.raftStorage)
-
-		logger.Info().Msg("raft node restart")
-		node = raftlib.RestartNode(c)
 	case RaftServerStateJoinCluster:
-		logger.Info().Msg("raft start at first time and join existing cluster")
+		logger.Info().Msg("raft start and join existing cluster")
 
-		// get cluster info from existing cluster member
-		existCluster, err := rs.GetExistingCluster()
+		// get cluster info from existing cluster member and hardstate of bestblock
+		existCluster, hardstateinfo, err := rs.GetExistingCluster()
 		if err != nil {
 			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
 		}
@@ -378,42 +358,30 @@ func (rs *raftServer) startRaft() {
 			logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
 		}
 
-		rs.SetID(rs.cluster.NodeID())
-		if err := rs.SaveIdentity(); err != nil {
-			logger.Fatal().Err(err).Msg("fafiled to save identity")
+		if rs.joinUsingBackup {
+			logger.Info().Msg("raft use given backup as wal")
+
+			if err := rs.walDB.ResetWAL(hardstateinfo); err != nil {
+				logger.Fatal().Err(err).Msg("reset wal failed for raft")
+			}
+
+			node = rs.restartNode()
+
+			logger.Info().Msg("raft restarted from backup")
+		} else {
+			node = rs.startNode(nil)
 		}
-
-		rs.raftStorage = raftlib.NewMemoryStorage()
-
-		// reset my raft nodeID from existing cluster
-		c := makeConfig(rs.id, rs.raftStorage)
-
-		logger.Info().Msg("raft node start")
-		node = raftlib.StartNode(c, nil)
 	case RaftServerStateNewCluster:
-		logger.Info().Msg("raft start at first time and makes new cluster")
+		logger.Info().Msg("raft start and make new cluster")
 
 		var startPeers []raftlib.Peer
-
-		if err := rs.cluster.SetThisNodeID(); err != nil {
-			logger.Fatal().Err(err).Msg("failed to set id of this node")
-		}
-		rs.SetID(rs.cluster.NodeID())
-		if err := rs.SaveIdentity(); err != nil {
-			logger.Fatal().Err(err).Msg("fafiled to save identity")
-		}
 
 		startPeers, err := rs.makeStartPeers()
 		if err != nil {
 			logger.Fatal().Err(err).Msg("failed to make raft peer list")
 		}
 
-		rs.raftStorage = raftlib.NewMemoryStorage()
-
-		c := makeConfig(rs.id, rs.raftStorage)
-
-		logger.Info().Msg("raft node start")
-		node = raftlib.StartNode(c, startPeers)
+		node = rs.startNode(startPeers)
 	}
 
 	// need locking for sync with consensusAccessor
@@ -423,6 +391,52 @@ func (rs *raftServer) startRaft() {
 
 	go rs.serveRaft()
 	go rs.serveChannels()
+}
+
+func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
+	if err := rs.cluster.SetThisNodeID(); err != nil {
+		logger.Fatal().Err(err).Msg("failed to set id of this node")
+	}
+
+	rs.SetID(rs.cluster.NodeID())
+	if err := rs.SaveIdentity(); err != nil {
+		logger.Fatal().Err(err).Msg("fafiled to save identity")
+	}
+
+	rs.raftStorage = raftlib.NewMemoryStorage()
+
+	c := makeConfig(rs.id, rs.raftStorage)
+
+	logger.Info().Msg("raft node start")
+
+	return raftlib.StartNode(c, startPeers)
+}
+
+func (rs *raftServer) restartNode() raftlib.Node {
+	snapshot, err := rs.loadSnapshot()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to read snapshot")
+	}
+
+	if err := rs.replayWAL(snapshot); err != nil {
+		logger.Fatal().Err(err).Msg("replay wal failed for raft")
+	}
+
+	// cluster identity is recoverd from wal
+	rs.SetID(rs.cluster.NodeID())
+
+	// members of cluster will be loaded from snapshot or wal
+	if snapshot != nil {
+		if err := rs.cluster.Recover(snapshot); err != nil {
+			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
+		}
+	}
+
+	c := makeConfig(rs.id, rs.raftStorage)
+
+	logger.Info().Msg("raft node restart")
+
+	return raftlib.RestartNode(c)
 }
 
 func (rs *raftServer) startTransport() {
@@ -871,7 +885,7 @@ func (rs *raftServer) triggerSnapshot() {
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")
 	rs.setSnapshotIndex(newSnapshotIndex)
 
-	chain.TestDebugger.Check(chain.DEBUG_RAFT_SNAP_FREQ, 0,
+	_ = chain.TestDebugger.Check(chain.DEBUG_RAFT_SNAP_FREQ, 0,
 		func(freq int) error {
 			rs.snapFrequency = uint64(freq)
 			return nil
@@ -1176,13 +1190,14 @@ func (rs *raftServer) Status() raftlib.Status {
 
 // GetExistingCluster returns information of existing cluster.
 // It request member info to all of peers.
-func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
+func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, error) {
 	var (
-		cl  *Cluster
-		err error
+		cl        *Cluster
+		hardstate *types.HardStateInfo
+		err       error
 	)
 	for i := 1; i <= MaxTryGetCluster; i++ {
-		cl, err = GetClusterInfo(rs.ComponentHub)
+		cl, hardstate, err = GetClusterInfo(rs.ComponentHub)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
 				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
@@ -1193,10 +1208,10 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, error) {
 			continue
 		}
 
-		return cl, nil
+		return cl, hardstate, nil
 	}
 
-	return nil, ErrGetClusterFail
+	return nil, nil, ErrGetClusterFail
 }
 
 func marshalEntryData(block *types.Block) ([]byte, error) {
