@@ -326,16 +326,11 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 		}
 	}
 
-	// override options by configurations of nodd
-	_, receivedMeta.Designated = pm.designatedPeers[peerID]
-	// hidden is set by either remote peer's asking or local node's config
-	if _, exist := pm.hiddenPeerSet[peerID]; exist {
-		receivedMeta.Hidden = true
-	}
-
+	receivedMeta, role := pm.UpdatePeerAttributes(receivedMeta, peerID)
+	// TODO consider extract peer creation by separate module
 	newPeer := newRemotePeer(receivedMeta, pm.GetNextManageNum(), pm, pm.actorService, pm.logger, pm.mf, pm.signer, hsresult.s, hsresult.msgRW)
 	newPeer.UpdateBlkCache(hsresult.status.GetBestBlockHash(), hsresult.status.GetBestHeight())
-
+	newPeer.role = role
 	// insert Handlers
 	pm.handlerFactory.InsertHandlers(newPeer)
 
@@ -345,6 +340,19 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
 
 	return newPeer
+}
+
+func (pm *peerManager) UpdatePeerAttributes(meta p2pcommon.PeerMeta, peerID types.PeerID) (p2pcommon.PeerMeta, p2pcommon.PeerRole) {
+	// override options by configurations of nodd
+	_, meta.Designated = pm.designatedPeers[peerID]
+	// hidden is set by either remote peer's asking or local node's config
+	if _, exist := pm.hiddenPeerSet[peerID]; exist {
+		meta.Hidden = true
+	}
+	// TODO check and set peer type
+	role := p2pcommon.DPOSProducer
+
+	return meta, role
 }
 
 func (pm *peerManager) GetNextManageNum() uint32 {

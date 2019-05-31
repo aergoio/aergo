@@ -45,4 +45,5 @@ const (
 	GetClusterResponse
 )
 
-//go:generate stringer -type=SubProtocol
+// stringer is not works when the package of type definition and const is differ.
+// go:generate stringer -type=SubProtocol ../p2pcommon

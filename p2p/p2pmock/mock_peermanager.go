@@ -9,7 +9,6 @@ import (
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
-	go_libp2p_core "github.com/libp2p/go-libp2p-core"
 	reflect "reflect"
 )
 
@@ -79,10 +78,10 @@ func (mr *MockPeerManagerMockRecorder) SelfMeta() *gomock.Call {
 }
 
 // SelfNodeID mocks base method
-func (m *MockPeerManager) SelfNodeID() go_libp2p_core.PeerID {
+func (m *MockPeerManager) SelfNodeID() types.PeerID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SelfNodeID")
-	ret0, _ := ret[0].(go_libp2p_core.PeerID)
+	ret0, _ := ret[0].(types.PeerID)
 	return ret0
 }
 
@@ -129,7 +128,7 @@ func (mr *MockPeerManagerMockRecorder) NotifyPeerAddressReceived(arg0 interface{
 }
 
 // GetPeer mocks base method
-func (m *MockPeerManager) GetPeer(ID go_libp2p_core.PeerID) (p2pcommon.RemotePeer, bool) {
+func (m *MockPeerManager) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPeer", ID)
 	ret0, _ := ret[0].(p2pcommon.RemotePeer)

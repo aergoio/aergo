@@ -11,12 +11,17 @@ import (
 	"time"
 )
 
+type PeerFactory interface {
+	CreateRemotePeer(meta PeerMeta, seq uint32, role PeerRole) RemotePeer
+}
+
 type RemotePeer interface {
 	ID() types.PeerID
 	Meta() PeerMeta
 	ManageNumber() uint32
 	Name() string
 	Version() string
+	Role() PeerRole
 
 	AddMessageHandler(subProtocol SubProtocol, handler MessageHandler)
 

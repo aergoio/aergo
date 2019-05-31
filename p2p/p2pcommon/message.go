@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-//go:generate mockgen -source=message.go  -package=p2pmock -destination=../p2pmock/mock_message.go
+//go:generate mockgen -source=message.go -package=p2pmock -destination=../p2pmock/mock_message.go
 package p2pcommon
 
 import (

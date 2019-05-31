@@ -43,6 +43,7 @@ type remotePeerImpl struct {
 	meta      p2pcommon.PeerMeta
 	name      string
 	state     types.PeerState
+	role      p2pcommon.PeerRole
 	actorServ p2pcommon.ActorService
 	pm        p2pcommon.PeerManager
 	mf        p2pcommon.MoFactory
@@ -136,6 +137,10 @@ func (p *remotePeerImpl) Name() string {
 
 func (p *remotePeerImpl) Version() string {
 	return p.meta.Version
+}
+
+func (p *remotePeerImpl) Role() p2pcommon.PeerRole {
+	return p.role
 }
 
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {

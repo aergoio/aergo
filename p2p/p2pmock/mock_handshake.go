@@ -9,7 +9,6 @@ import (
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
-	go_libp2p_core "github.com/libp2p/go-libp2p-core"
 	io "io"
 	reflect "reflect"
 	time "time"
@@ -39,7 +38,7 @@ func (m *MockHSHandlerFactory) EXPECT() *MockHSHandlerFactoryMockRecorder {
 }
 
 // CreateHSHandler mocks base method
-func (m *MockHSHandlerFactory) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid go_libp2p_core.PeerID) p2pcommon.HSHandler {
+func (m *MockHSHandlerFactory) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateHSHandler", p2pVersion, outbound, pid)
 	ret0, _ := ret[0].(p2pcommon.HSHandler)
@@ -129,7 +128,7 @@ func (mr *MockVersionedManagerMockRecorder) FindBestP2PVersion(versions interfac
 }
 
 // GetVersionedHandshaker mocks base method
-func (m *MockVersionedManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID go_libp2p_core.PeerID, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
+func (m *MockVersionedManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionedHandshaker", version, peerID, r, w)
 	ret0, _ := ret[0].(p2pcommon.VersionedHandshaker)
