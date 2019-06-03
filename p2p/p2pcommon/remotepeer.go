@@ -8,11 +8,12 @@ package p2pcommon
 
 import (
 	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/network"
 	"time"
 )
 
 type PeerFactory interface {
-	CreateRemotePeer(meta PeerMeta, seq uint32, role PeerRole) RemotePeer
+	CreateRemotePeer(meta PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw MsgReadWriter) RemotePeer
 }
 
 type RemotePeer interface {

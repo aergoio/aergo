@@ -8,6 +8,7 @@ import (
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
+	network "github.com/libp2p/go-libp2p-core/network"
 	reflect "reflect"
 	time "time"
 )
@@ -36,17 +37,17 @@ func (m *MockPeerFactory) EXPECT() *MockPeerFactoryMockRecorder {
 }
 
 // CreateRemotePeer mocks base method
-func (m *MockPeerFactory) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, role p2pcommon.PeerRole) p2pcommon.RemotePeer {
+func (m *MockPeerFactory) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateRemotePeer", meta, seq, role)
+	ret := m.ctrl.Call(m, "CreateRemotePeer", meta, seq, status, stream, rw)
 	ret0, _ := ret[0].(p2pcommon.RemotePeer)
 	return ret0
 }
 
 // CreateRemotePeer indicates an expected call of CreateRemotePeer
-func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(meta, seq, role interface{}) *gomock.Call {
+func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(meta, seq, status, stream, rw interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), meta, seq, role)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), meta, seq, status, stream, rw)
 }
 
 // MockRemotePeer is a mock of RemotePeer interface

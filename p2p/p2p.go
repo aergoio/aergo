@@ -9,6 +9,8 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
+	"github.com/libp2p/go-libp2p-core/network"
+	"strings"
 	"sync"
 	"time"
 
@@ -139,7 +141,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 
 	//reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
 	// connect managers each other
@@ -325,4 +327,26 @@ func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool,
 			return NewInbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
 		}
 	}
+}
+
+
+func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, stream, rw)
+	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
+
+	// TODO tune to set prefer role
+	newPeer.role = p2pcommon.DPOSWatcher
+	prettyID := meta.ID.Pretty()
+	bps := p2ps.consacc.ConsensusInfo().Bps
+	for _, bp := range bps {
+		if strings.Contains(bp, prettyID) {
+			newPeer.role = p2pcommon.DPOSProducer
+			break
+		}
+	}
+
+	// insert Handlers
+	p2ps.InsertHandlers(newPeer)
+
+	return newPeer
 }

@@ -24,3 +24,5 @@ const (
 	RaftFollower
 	RaftWatcher
 )
+
+//go:generate stringer -type=PeerRole
