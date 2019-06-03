@@ -44,8 +44,9 @@ type RPCConfig struct {
 	NetServiceTrace bool   `mapstructure:"netservicetrace" description:"Trace RPC service"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
-	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
+	NSCert      string `mapstructure:"nscert" description:"Server Certificate file for RPC or REST API"`
 	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
+	NSCACert    string `mapstructure:"nscacert" description:"CA Certificate file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
@@ -165,6 +166,7 @@ netservicetrace = {{.RPC.NetServiceTrace}}
 nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
+nscacert = "{{.RPC.NSCACert}}"
 nsallowcors = {{.RPC.NSAllowCORS}}
 
 [p2p]
