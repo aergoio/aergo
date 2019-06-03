@@ -77,9 +77,9 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 			logger.Error().Err(err).Msg("could not load server key pair")
 		}
 		certPool := x509.NewCertPool()
-		ca, err := ioutil.ReadFile(cfg.RPC.NSCert)
+		ca, err := ioutil.ReadFile(cfg.RPC.NSCACert)
 		if err != nil {
-			logger.Error().Err(err).Msg("could not read server cert")
+			logger.Error().Err(err).Msg("could not read CA cert")
 		}
 		if ok := certPool.AppendCertsFromPEM(ca); !ok {
 			logger.Error().Bool("AppendCertsFromPEM", ok).Msg("failed to append server cert")
