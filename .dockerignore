@@ -1,0 +1,26 @@
+# build result
+/bin
+/build
+debug
+debug.test
+Gopkg.lock
+*.o
+*.a
+libtool/bin
+libtool/include
+libtool/lib
+libtool/share
+libtool/src/luajit/src/*.[ao]
+libtool/src/lmdb/libraries/liblmdb/*.[ao]
+
+# vim swp file
+*.swp
+*.tmp
+
+# IDE specific
+*.vscode
+*.idea
+*.iml
+
+# developer workspace specific
+/conf
