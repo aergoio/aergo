@@ -6,4 +6,5 @@ RUN cd aergo && make polaris colaris
 FROM alpine:3.9
 RUN apk add libgcc
 COPY --from=builder go/aergo/bin/?olaris /usr/local/bin/
+WORKDIR /tools/
 CMD ["polaris"]
