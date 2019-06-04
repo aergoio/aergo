@@ -1,10 +1,14 @@
+#!/usr/bin/env bash
+
 # This script can be used to build the Docker images manually (outside of CI)
+
 set -e
 
 GIT_TAG=$1
 MAIN_TAG=$2
 SECOND_TAG=$3
 THIRD_TAG=$4
+
 if [[ -z "$MAIN_TAG" || -z "$GIT_TAG" ]]
 then
     echo "Usage:"
@@ -30,21 +34,31 @@ fi
 echo "Building Docker images for ${tags[*]} using git tag $GIT_TAG"
 sleep 1
 
+BUILDER_TAG="aergo/builder"
+echo "Building ${BUILDER_TAG}"
+
+docker build --no-cache --build-arg GIT_TAG=$GIT_TAG --file Dockerfile.builder -t ${BUILDER_TAG} .
+docker create --name extract ${BUILDER_TAG}
+docker cp extract:/go/aergo/bin/ .
+docker cp extract:/go/aergo/cmd/brick/arglog.toml bin/brick-arglog.toml
+docker cp extract:/go/aergo/libtool/lib/ .
+docker rm -f extract
+
 declare -a names=("node" "tools" "polaris")
 for name in "${names[@]}"
 do
-
     tagsExpanded=()
     for tag in "${tags[@]}"; do
         tagsExpanded+=("-t aergo/$name:$tag")
     done
     echo "[aergo/$name:${tags[*]}]"
-    DOCKERFILE="../Dockerfile.$name"
-    [[ $name == "node" ]] && DOCKERFILE="../Dockerfile"
-    echo docker build -q --build-arg GIT_TAG=$GIT_TAG ${tagsExpanded[@]} ../ --file $DOCKERFILE
-    imageid=`docker build -q --build-arg GIT_TAG=$GIT_TAG ${tagsExpanded[@]} ../ --file $DOCKERFILE`
+    DOCKERFILE="Dockerfile.$name"
+    echo docker build -q ${tagsExpanded[@]} --file $DOCKERFILE .
+    imageid=`docker build -q ${tagsExpanded[@]} --file $DOCKERFILE .`
     docker images --format "Done: \t{{.Repository}}:{{.Tag}} \t{{.ID}} ({{.Size}})" | grep "${imageid:7:12}"
 done
+
+rm -rf bin lib
 
 echo -e "\nREPOSITORY          TAG                 IMAGE ID            CREATED             SIZE"
 for name in "${names[@]}"
