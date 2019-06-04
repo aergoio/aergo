@@ -1,0 +1,15 @@
+{
+  "chain_id": {
+    "magic": "everjs",
+    "public": false,
+    "mainnet": false,
+    "coinbasefee": "1",
+    "consensus": "raft"
+  },
+  "timestamp": 1545195494000000000,
+  "balance": {
+    "_genesis_wallet_": "500000000000000000000000000"
+  },
+  "bps": [
+  ]
+}
