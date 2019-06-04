@@ -514,10 +514,13 @@ function infiniteLoop()
 	end
 	return t
 end
+function infiniteCall()
+	infiniteCall()
+end
 function catch()
 	return pcall(infiniteLoop)
 end
-abi.register(infiniteLoop, catch)`
+abi.register(infiniteLoop, infiniteCall, catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -557,6 +560,23 @@ abi.register(infiniteLoop, catch)`
 	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteCall"}`,
+		),
+	)
+	errMsg = "stack overflow"
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
+		t.Error(err)
+	}
+
 }
 
 func TestUpdateSize(t *testing.T) {
@@ -1935,6 +1955,26 @@ func TestArray(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	overflow := `
+	state.var{
+		counts = state.array(1000000000000)
+	}
+
+	function get()
+		return "hello"
+	end
+	
+	abi.register(get)
+	`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "overflow", 0, overflow),
+	)
+	errMsg := "integer expected, got number"
+	if err == nil {
+		t.Errorf("expected: '%s', but got: nil", errMsg)
+	} else if !strings.Contains(err.Error(), errMsg) {
+		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
+	}
 }
 
 func TestPcall(t *testing.T) {
@@ -2396,7 +2436,7 @@ func TestMapKey(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
-		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("number expected, got string)"),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("(number expected, got string)"),
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
 	)
 	if err != nil {
@@ -2417,7 +2457,7 @@ func TestMapKey(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "a", 0,
 			`{"Name":"setCount", "Args":[true, 40]}`,
-		).Fail(`bad argument #2 to '__newindex' (number expected, got boolean)`),
+		).Fail(`invalid key type: 'boolean', state.map: 'counts'`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -2802,9 +2842,9 @@ abi.payable(save)
 		NewLuaTxDef("ktlee", "payable", 1, src),
 	)
 	if err == nil {
-		t.Error("expected: " + errVmConstructorIsNotPayable.Error())
+		t.Error("expected: 'constructor' is not payable")
 	} else {
-		if !strings.Contains(err.Error(), errVmConstructorIsNotPayable.Error()) {
+		if !strings.Contains(err.Error(), "'constructor' is not payable") {
 			t.Error(err)
 		}
 	}
@@ -3780,7 +3820,7 @@ func TestContractSend(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: attempt to call global 'default' (a nil value)`),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: not found function: default`),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3791,6 +3831,7 @@ func TestContractSend(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee")))),
 	)
@@ -4006,7 +4047,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail(
-			"cannot use 'table' as a key",
+			"cannot use 'userdata' as a key",
 		),
 	)
 	if err != nil {
@@ -4022,7 +4063,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail(
-			"cannot use 'table' as a key",
+			"cannot use 'userdata' as a key",
 		),
 	)
 	if err != nil {
@@ -4038,7 +4079,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "invalidkey", 0, `{"Name":"key_nil"}`).Fail(
-			"bad argument #2 to '__newindex' (number or string expected)",
+			"invalid key type: 'nil', state.map: 'h'",
 		),
 	)
 	if err != nil {
@@ -4345,4 +4386,79 @@ abi.payable(pcall1, default, constructor)
 	}
 }
 
+func TestSnapshot(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	state.var{
+		counts = state.map(),
+		data = state.value(),
+		array = state.array(10)
+	}
+
+	function inc()
+		a = system.getItem("key1")
+		if (a == nil) then
+			system.setItem("key1", 1)
+			return
+		end
+		system.setItem("key1", a + 1)
+		counts["key1"] = a + 1
+		data:set(a+1)
+		array[1] = a + 1
+	end
+	function query(a)
+			return system.getItem("key1", a), state.getsnap(counts, "key1", a), state.getsnap(data,a), state.getsnap(array, 1, a)
+	end
+	function query2()
+			return state.getsnap(array, 1)
+	end
+	abi.register(inc, query, query2)
+	abi.payable(inc)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "snap", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "snap", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query"}`, "", "[3,3,3,3]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query", "Args":[2]}`, "", "[1,{},{},{}]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query", "Args":[3]}`, "", "[2,2,2,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("snap", `{"Name":"query2", "Args":[]}`,
+		"invalid argument at getsnap, need (state.array, index, blockheight)", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
 // end of test-cases

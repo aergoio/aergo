@@ -42,6 +42,11 @@ func (states *StateDB) GetSystemAccountState() (*ContractState, error) {
 	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
 }
 
+// GetNameAccountState returns the ContractState of the AERGO name account.
+func (states *StateDB) GetNameAccountState() (*ContractState, error) {
+	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+}
+
 type ContractState struct {
 	*types.State
 	account types.AccountID
@@ -88,6 +93,11 @@ func (st *ContractState) GetCode() ([]byte, error) {
 		return nil, err
 	}
 	return st.code, nil
+}
+
+// HasKey returns existence of the key
+func (st *ContractState) HasKey(key []byte) bool {
+	return st.storage.has(types.GetHashID(key), true)
 }
 
 // SetData store key and value pair to the storage.

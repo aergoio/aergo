@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"reflect"
 	"runtime"
+	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -27,8 +28,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	lru "github.com/hashicorp/golang-lru"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/hashicorp/golang-lru"
+	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -37,6 +38,10 @@ var (
 	dfltErrBlocks = 128
 
 	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
+	ErrRecoNoBestStateRoot   = errors.New("state root of best block is not exist")
+	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
+
+	TestDebugger *Debugger
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -176,7 +181,7 @@ type IChainHandler interface {
 	getAccountVote(id []string, addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
-	getNameInfo(name string) (*types.NameInfo, error)
+	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
@@ -198,14 +203,22 @@ type ChainService struct {
 
 	chainWorker  *ChainWorker
 	chainManager *ChainManager
+
+	stat stats
+
+	recovered  atomic.Value
+	debuggable bool
 }
 
 // NewChainService creates an instance of ChainService.
 func NewChainService(cfg *cfg.Config) *ChainService {
 	cs := &ChainService{
-		cfg: cfg,
-		op:  NewOrphanPool(),
+		cfg:  cfg,
+		op:   NewOrphanPool(DfltOrphanPoolSize),
+		stat: newStats(),
 	}
+
+	cs.setRecovered(false)
 
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
@@ -259,7 +272,14 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.StartLStateFactory()
 
+	// init Debugger
+	cs.initDebugger()
+
 	return cs
+}
+
+func (cs *ChainService) initDebugger() {
+	TestDebugger = newDebugger()
 }
 
 // SDB returns cs.sdb.
@@ -272,6 +292,11 @@ func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
 }
 
+// CDB returns cs.sdb as a consensus.ChainDbReader.
+func (cs *ChainService) WalDB() consensus.ChainWAL {
+	return cs.cdb
+}
+
 // GetConsensusInfo returns consensus-related information, which is different
 // from consensus to consensus.
 func (cs *ChainService) GetConsensusInfo() string {
@@ -280,6 +305,10 @@ func (cs *ChainService) GetConsensusInfo() string {
 	}
 
 	return cs.Info()
+}
+
+func (cs *ChainService) GetChainStats() string {
+	return cs.stat.JSON()
 }
 
 // SetChainConsensus sets cs.cc to cc.
@@ -309,6 +338,10 @@ func (cs *ChainService) BeforeStop() {
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
+	if !cs.NeedNotify() {
+		return
+	}
+
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
 			Produced: isByBP,
@@ -317,8 +350,30 @@ func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
 		})
 }
 
+func (cs *ChainService) setRecovered(val bool) {
+	cs.recovered.Store(val)
+	return
+}
+
+func (cs *ChainService) isRecovered() bool {
+	var val bool
+	aopv := cs.recovered.Load()
+	if aopv != nil {
+		val = aopv.(bool)
+	} else {
+		panic("ChainService: recovered is nil")
+	}
+	return val
+}
+
 // Receive actor message
 func (cs *ChainService) Receive(context actor.Context) {
+	if !cs.isRecovered() {
+		err := cs.Recover()
+		if err != nil {
+			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
+		}
+	}
 
 	switch msg := context.Message().(type) {
 	case *message.AddBlock,
@@ -452,16 +507,18 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 	return staking, nil
 }
 
-func (cs *ChainService) getNameInfo(qname string) (*types.NameInfo, error) {
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
-	if err != nil {
-		return nil, err
+func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types.NameInfo, error) {
+	var stateDB *state.StateDB
+	if blockNo != 0 {
+		block, err := cs.cdb.GetBlockByNo(blockNo)
+		if err != nil {
+			return nil, err
+		}
+		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
+	} else {
+		stateDB = cs.sdb.GetStateDB()
 	}
-	owner := name.GetOwner(scs, []byte(qname))
-	if owner == nil {
-		return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: nil}, types.ErrNameNotFound
-	}
-	return &types.NameInfo{Name: &types.Name{Name: string(qname)}, Owner: owner, Destination: name.GetAddress(scs, []byte(qname))}, err
+	return name.GetNameInfo(stateDB, qname)
 }
 
 type ChainManager struct {
@@ -496,6 +553,8 @@ func newChainWorker(cs *ChainService, cntWorker int, core *Core) *ChainWorker {
 }
 
 func (cm *ChainManager) Receive(context actor.Context) {
+	defer RecoverExit()
+
 	switch msg := context.Message().(type) {
 
 	case *message.AddBlock:
@@ -535,7 +594,6 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	case *message.GetAncestor:
 		hashes := msg.Hashes
 		ancestor, err := cm.findAncestor(hashes)
-
 		context.Respond(message.GetAncestorRsp{
 			Ancestor: ancestor,
 			Err:      err,
@@ -668,7 +726,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
 			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
-			ret, err := contract.Query(address, bs, ctrState, msg.Queryinfo)
+			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
@@ -728,7 +786,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetNameInfo:
-		owner, err := cw.getNameInfo(msg.Name)
+		owner, err := cw.getNameInfo(msg.Name, msg.BlockNo)
 		context.Respond(&message.GetNameInfoRsp{
 			Owner: owner,
 			Err:   err,

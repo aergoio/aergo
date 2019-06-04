@@ -108,8 +108,7 @@ MVP based, Forward compatibility, Iteration
 
 ### Prerequisites
 
-* Go1.10 or higher - https://golang.org/dl
-* Glide - https://github.com/Masterminds/glide
+* Go1.11.4+ - https://golang.org/dl
 * Proto Buffers - https://github.com/google/protobuf
 * CMake 3.0.0 or higher - https://cmake.org
 

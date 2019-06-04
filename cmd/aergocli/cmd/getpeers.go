@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"strings"
 	"sort"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -28,11 +28,12 @@ var showself bool
 var sortFlag string
 
 const (
-	sortAddr = "addr"
-	sortID = "id"
-	sortHeight = "height"
+	sortAddr    = "addr"
+	sortID      = "id"
+	sortHeight  = "height"
 	sortDefault = "no"
 )
+
 func init() {
 	rootCmd.AddCommand(getpeersCmd)
 	getpeersCmd.Flags().BoolVar(&nohidden, "nohidden", false, "exclude hidden peers")
@@ -67,7 +68,7 @@ func GetSorter(cmd *cobra.Command, flag string) peerSorter {
 	case sortDefault:
 		return noSorter{}
 	default:
-		cmd.Println("Invalid sort type",flag)
+		cmd.Println("Invalid sort type", flag)
 		os.Exit(1)
 		return noSorter{}
 	}
@@ -76,20 +77,27 @@ func GetSorter(cmd *cobra.Command, flag string) peerSorter {
 type peerSorter interface {
 	Sort([]*types.Peer)
 }
-type addrSorter struct {}
-func (addrSorter)Sort(peerArr []*types.Peer) {
+type addrSorter struct{}
+
+func (addrSorter) Sort(peerArr []*types.Peer) {
 	sort.Sort(byAddr(peerArr))
 }
+
 type idSorter struct{}
-func (idSorter)Sort(peerArr []*types.Peer) {
+
+func (idSorter) Sort(peerArr []*types.Peer) {
 	sort.Sort(byID(peerArr))
 }
+
 type heightSorter struct{}
-func (heightSorter)Sort(peerArr []*types.Peer) {
+
+func (heightSorter) Sort(peerArr []*types.Peer) {
 	sort.Sort(byHeight(peerArr))
 }
+
 type noSorter struct{}
-func (noSorter)Sort(peerArr []*types.Peer) {
+
+func (noSorter) Sort(peerArr []*types.Peer) {
 	// Do nothing. no sort
 }
 

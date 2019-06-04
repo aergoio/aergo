@@ -30,7 +30,7 @@ func TestBlockFetcher_simple(t *testing.T) {
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
 
 	//set ctx manually because finder will be skipped
-	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best))
+	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best), nil)
 	ancestor := remoteChain.Blocks[0]
 	ctx.SetAncestor(ancestor)
 

@@ -1,16 +1,13 @@
 package util
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
 	"strconv"
 	"time"
 
 	"github.com/aergoio/aergo/types"
-	"github.com/anaskhan96/base58check"
 	"github.com/mr-tron/base58/base58"
 )
 
@@ -84,6 +81,7 @@ type InOutPeer struct {
 	State     string
 	Hidden    bool
 	Self      bool
+	Version   string
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -254,6 +252,11 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 	out.State = types.PeerState(p.State).String()
 	out.Hidden = p.Hidden
 	out.Self = p.Selfpeer
+	if p.Version != "" {
+		out.Version = p.Version
+	} else {
+		out.Version = "(old)"
+	}
 	return out
 }
 
@@ -264,11 +267,18 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 	}
 	out.Hash = base58.Encode(in.BestBlockHash)
 	out.Height = in.BestHeight
-	if len(in.ConsensusInfo) > 0 {
-		ci := json.RawMessage(in.ConsensusInfo)
-		out.ConsensusInfo = &ci
-	}
+
 	out.ChainIdHash = base58.Encode(in.BestChainIdHash)
+
+	toJRM := func(s string) *json.RawMessage {
+		if len(s) > 0 {
+			m := json.RawMessage(s)
+			return &m
+		}
+		return nil
+	}
+	out.ConsensusInfo = toJRM(in.ConsensusInfo)
+
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""
@@ -302,28 +312,4 @@ func toString(out interface{}) string {
 		return ""
 	}
 	return string(jsonout)
-}
-
-const CodeVersion = 0xC0
-
-func EncodeCode(code []byte) string {
-	encoded, _ := base58check.Encode(fmt.Sprintf("%x", CodeVersion), hex.EncodeToString(code))
-	return encoded
-}
-
-func DecodeCode(encodedCode string) ([]byte, error) {
-	decodedString, err := base58check.Decode(encodedCode)
-	if err != nil {
-		return nil, err
-	}
-	decodedBytes, err := hex.DecodeString(decodedString)
-	if err != nil {
-		return nil, err
-	}
-	version := decodedBytes[0]
-	if version != CodeVersion {
-		return nil, errors.New("Invalid code version")
-	}
-	decoded := decodedBytes[1:]
-	return decoded, nil
 }

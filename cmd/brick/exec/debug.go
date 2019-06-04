@@ -15,8 +15,17 @@ func init() {
 	registerExec(&delb{})
 	registerExec(&listb{})
 	registerExec(&resetb{})
+	registerExec(&setw{})
+	registerExec(&delw{})
+	registerExec(&listw{})
+	registerExec(&resetw{})
 }
 
+// =====================================
+//             Breakpoint
+// =====================================
+
+// =========== setb ==============
 type setb struct{}
 
 func (c *setb) Command() string {
@@ -191,7 +200,177 @@ func (c *resetb) Run(args string) (string, error) {
 	return "reset breakpoints", nil
 }
 
-// =========== interfaces ==============
+// =====================================
+//             Watchpoint
+// =====================================
+
+// =========== setw ==============
+type setw struct{}
+
+func (c *setw) Command() string {
+	return "setw"
+}
+
+func (c *setw) Syntax() string {
+	return fmt.Sprintf("%s", "<watch_expr>")
+}
+
+func (c *setw) Usage() string {
+	return "setw `<watch_expr>`"
+}
+
+func (c *setw) Describe() string {
+	return "set watchpoint"
+}
+
+func (c *setw) Validate(args string) error {
+
+	_, err := c.parse(args)
+
+	return err
+}
+
+func (c *setw) parse(args string) (string, error) {
+	splitArgs := context.SplitSpaceAndAccent(args, false)
+	if len(splitArgs) < 1 {
+		return "", fmt.Errorf("need an arguments. usage: %s", c.Usage())
+	}
+
+	return splitArgs[0].Text, nil
+}
+
+func (c *setw) Run(args string) (string, error) {
+	watch_expr, _ := c.parse(args)
+
+	err := contract.SetWatchPoint(watch_expr)
+	if err != nil {
+		return "", err
+	}
+
+	return "set watchpoint: " + watch_expr, nil
+}
+
+// =========== delw ==============
+
+type delw struct{}
+
+func (c *delw) Command() string {
+	return "delw"
+}
+
+func (c *delw) Syntax() string {
+	return fmt.Sprintf("%s", "<index>")
+}
+
+func (c *delw) Usage() string {
+	return "delw <index>"
+}
+
+func (c *delw) Describe() string {
+	return "delete watchpoint"
+}
+
+func (c *delw) Validate(args string) error {
+
+	_, err := c.parse(args)
+
+	return err
+}
+
+func (c *delw) parse(args string) (uint64, error) {
+	splitArgs := context.SplitSpaceAndAccent(args, false)
+	if len(splitArgs) < 1 {
+		return 0, fmt.Errorf("need an arguments. usage: %s", c.Usage())
+	}
+
+	idx, err := strconv.ParseUint(splitArgs[0].Text, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("fail to parse number %s: %s", splitArgs[0].Text, err.Error())
+	}
+
+	return idx, nil
+}
+
+func (c *delw) Run(args string) (string, error) {
+	idx, _ := c.parse(args)
+
+	err := contract.DelWatchPoint(idx)
+	if err != nil {
+		return "", err
+	}
+
+	return "del watchpoint: " + fmt.Sprintf("%d", idx), nil
+}
+
+// =========== listw ==============
+
+type listw struct{}
+
+func (c *listw) Command() string {
+	return "listw"
+}
+
+func (c *listw) Syntax() string {
+	return ""
+}
+
+func (c *listw) Usage() string {
+	return "listw"
+}
+
+func (c *listw) Describe() string {
+	return "list all watchpoints"
+}
+
+func (c *listw) Validate(args string) error {
+	return nil
+}
+
+func (c *listw) Run(args string) (string, error) {
+	watchpoints := contract.ListWatchPoints()
+	i := 0
+	for e := watchpoints.Front(); e != nil; e = e.Next() {
+		i++
+		fmt.Printf("%d: %s\n", i, e.Value)
+	}
+
+	return "list watchpoints", nil
+}
+
+// =========== resetb ==============
+
+type resetw struct{}
+
+func (c *resetw) Command() string {
+	return "resetw"
+}
+
+func (c *resetw) Syntax() string {
+	return ""
+}
+
+func (c *resetw) Usage() string {
+	return "resetw"
+}
+
+func (c *resetw) Describe() string {
+	return "reset all watchpoints"
+}
+
+func (c *resetw) Validate(args string) error {
+	return nil
+}
+
+func (c *resetw) Run(args string) (string, error) {
+	contract.ResetWatchPoints()
+
+	return "reset watchpoints", nil
+}
+
+// =====================================
+//             interfaces
+// =====================================
+
 func resetContractInfoInterface() {
 	contract.ResetContractInfo()
 }

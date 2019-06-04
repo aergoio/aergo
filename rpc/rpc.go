@@ -7,14 +7,15 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"net"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
@@ -132,11 +133,7 @@ func (ns *RPC) Receive(context actor.Context) {
 	case *types.Block:
 		server := ns.actualServer
 		server.BroadcastToListBlockStream(msg)
-		meta := &types.BlockMetadata{
-			Hash:    msg.BlockHash(),
-			Header:  msg.GetHeader(),
-			Txcount: int32(len(msg.GetBody().GetTxs())),
-		}
+		meta := msg.GetMetadata()
 		server.BroadcastToListBlockMetadataStream(meta)
 	case []*types.Event:
 		server := ns.actualServer
@@ -218,14 +215,14 @@ func (ns *RPC) serve() {
 	return
 }
 
-func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo{
+func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo {
 	// 3 items are needed
 	statusInfo := make(map[string]string)
 	rsp, err := ns.CallRequestDefaultTimeout(message.P2PSvc, &message.GetSelf{})
 	statusInfo["version"] = ns.version
 	if err != nil {
 		ns.Logger.Error().Err(err).Msg("p2p actor error")
-		statusInfo["id"] = p2p.NodeSID()
+		statusInfo["id"] = p2pkey.NodeSID()
 	} else {
 		meta := rsp.(p2pcommon.PeerMeta)
 		statusInfo["id"] = meta.ID.Pretty()
@@ -233,9 +230,9 @@ func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo{
 		statusInfo["port"] = strconv.Itoa(int(meta.Port))
 	}
 	configInfo := make(map[string]*types.ConfigItem)
-	types.AddCategory(configInfo, "base").AddBool("personal",ns.conf.BaseConfig.Personal)
-	types.AddCategory(configInfo, "account").AddInt("unlocktimeout",int(ns.conf.Account.UnlockTimeout))
-	return &types.ServerInfo{Status: statusInfo, Config:configInfo}
+	types.AddCategory(configInfo, "base").AddBool("personal", ns.conf.BaseConfig.Personal)
+	types.AddCategory(configInfo, "account").AddInt("unlocktimeout", int(ns.conf.Account.UnlockTimeout))
+	return &types.ServerInfo{Status: statusInfo, Config: configInfo}
 }
 
 const defaultTTL = time.Second * 4

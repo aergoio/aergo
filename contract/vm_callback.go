@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/common"
 	"index/suffixarray"
 	"math/big"
 	"regexp"
@@ -73,11 +74,52 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) *C.char {
 }
 
 //export LuaGetDB
-func LuaGetDB(L *LState, service *C.int, key *C.char) (*C.char, *C.char) {
+func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *C.char) {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		return nil, C.CString("[System.LuaGetDB] contract state not found")
 	}
+	if blkno != nil {
+		bigNo, _ := new(big.Int).SetString(strings.TrimSpace(C.GoString(blkno)), 10)
+		if bigNo == nil || bigNo.Sign() < 0 {
+			return nil, C.CString("[System.LuaGetDB] invalid blockheight value :"+C.GoString(blkno))
+		}
+		blkNo := bigNo.Uint64()
+
+		chainBlockHeight := stateSet.blockHeight
+		if chainBlockHeight == 0 {
+			bestBlock, err := stateSet.cdb.GetBestBlock()
+			if err != nil {
+				return nil, C.CString("[System.LuaGetDB] get best block error")
+			}
+			chainBlockHeight = bestBlock.GetHeader().GetBlockNo()
+		}
+		if blkNo < chainBlockHeight {
+			blk, err := stateSet.cdb.GetBlockByNo(blkNo)
+			if err != nil {
+				return nil, C.CString(err.Error())
+			}
+			accountId := types.ToAccountID(stateSet.curContract.contractId)
+			contractProof, err := stateSet.bs.GetAccountAndProof(accountId[:], blk.GetHeader().GetBlocksRootHash(), false)
+			if err != nil {
+				return nil, C.CString("[System.LuaGetDB] failed to get snapshot state for account")
+			} else if contractProof.Inclusion {
+				trieKey := common.Hasher([]byte(C.GoString(key)))
+				varProof, err := stateSet.bs.GetVarAndProof(trieKey, contractProof.GetState().GetStorageRoot(), false)
+				if err != nil {
+					return nil, C.CString("[System.LuaGetDB] failed to get snapshot state variable in contract")
+				}
+				if varProof.Inclusion {
+					if len(varProof.GetValue()) == 0 {
+						return nil, nil
+					}
+					return C.CString(string(varProof.GetValue())), nil
+				}
+			}
+			return nil, nil
+		}
+	}
+
 	data, err := stateSet.curContract.callState.ctrState.GetData([]byte(C.GoString(key)))
 	if err != nil {
 		return nil, C.CString(err.Error())
@@ -192,7 +234,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
-	ce := newExecutor(callee, cid, stateSet, &ci, amountBig, false)
+	ce := newExecutor(callee, cid, stateSet, &ci, amountBig, false, callState.ctrState)
 	defer ce.close()
 
 	if ce.err != nil {
@@ -278,7 +320,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
-	ce := newExecutor(contract, cid, stateSet, &ci, zeroBig, false)
+	ce := newExecutor(contract, cid, stateSet, &ci, zeroBig, false, contractState)
 	defer ce.close()
 
 	if ce.err != nil {
@@ -364,7 +406,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
-		ce := newExecutor(code, cid, stateSet, &ci, amountBig, false)
+		ce := newExecutor(code, cid, stateSet, &ci, amountBig, false, callState.ctrState)
 		defer ce.close()
 		if ce.err != nil {
 			return C.CString("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
@@ -919,7 +961,7 @@ func LuaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
-	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true)
+	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true, contractState)
 	if ce != nil {
 		defer ce.close()
 		if ce.err != nil {

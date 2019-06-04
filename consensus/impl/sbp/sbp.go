@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
@@ -31,10 +30,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -154,7 +153,7 @@ func (s *SimpleBlockFactory) Update(block *types.Block) {
 }
 
 // Save has nothging to do.
-func (s *SimpleBlockFactory) Save(tx db.Transaction) error {
+func (s *SimpleBlockFactory) Save(tx consensus.TxWriter) error {
 	return nil
 }
 
@@ -184,7 +183,7 @@ func (s *SimpleBlockFactory) Start() {
 
 				txOp := chain.NewCompTxOp(
 					s.txOp,
-					newTxExec(prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
+					newTxExec(s.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
 				)
 
 				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
@@ -198,7 +197,7 @@ func (s *SimpleBlockFactory) Start() {
 					Str("TrieRoot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 					Err(err).Msg("block produced")
 
-				chain.ConnectBlock(s, block, blockState)
+				chain.ConnectBlock(s, block, blockState, time.Second)
 			}
 		case <-s.quit:
 			return
@@ -219,4 +218,20 @@ func (s *SimpleBlockFactory) Info() string {
 
 func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
 	return &types.ConsensusInfo{Type: GetName()}
+}
+
+func (s *SimpleBlockFactory) NeedNotify() bool {
+	return true
+}
+
+func (s *SimpleBlockFactory) HasWAL() bool {
+	return false
+}
+
+func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (s *SimpleBlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
+	return nil, nil, consensus.ErrNotSupportedMethod
 }

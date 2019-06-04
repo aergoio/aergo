@@ -63,7 +63,7 @@ func (mr *MockMoFactoryMockRecorder) NewMsgBlkBroadcastOrder(arg0 interface{}) *
 }
 
 // NewMsgBlockRequestOrder mocks base method
-func (m *MockMoFactory) NewMsgBlockRequestOrder(arg0 p2pcommon.ResponseReceiver, arg1 p2pcommon.SubProtocol, arg2 p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (m *MockMoFactory) NewMsgBlockRequestOrder(arg0 p2pcommon.ResponseReceiver, arg1 p2pcommon.SubProtocol, arg2 p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewMsgBlockRequestOrder", arg0, arg1, arg2)
 	ret0, _ := ret[0].(p2pcommon.MsgOrder)
@@ -77,7 +77,7 @@ func (mr *MockMoFactoryMockRecorder) NewMsgBlockRequestOrder(arg0, arg1, arg2 in
 }
 
 // NewMsgRequestOrder mocks base method
-func (m *MockMoFactory) NewMsgRequestOrder(arg0 bool, arg1 p2pcommon.SubProtocol, arg2 p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (m *MockMoFactory) NewMsgRequestOrder(arg0 bool, arg1 p2pcommon.SubProtocol, arg2 p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewMsgRequestOrder", arg0, arg1, arg2)
 	ret0, _ := ret[0].(p2pcommon.MsgOrder)
@@ -91,7 +91,7 @@ func (mr *MockMoFactoryMockRecorder) NewMsgRequestOrder(arg0, arg1, arg2 interfa
 }
 
 // NewMsgResponseOrder mocks base method
-func (m *MockMoFactory) NewMsgResponseOrder(arg0 p2pcommon.MsgID, arg1 p2pcommon.SubProtocol, arg2 p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (m *MockMoFactory) NewMsgResponseOrder(arg0 p2pcommon.MsgID, arg1 p2pcommon.SubProtocol, arg2 p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewMsgResponseOrder", arg0, arg1, arg2)
 	ret0, _ := ret[0].(p2pcommon.MsgOrder)

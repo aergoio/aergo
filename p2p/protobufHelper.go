@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -105,11 +105,34 @@ func (pr *pbResponseOrder) SendTo(pi p2pcommon.RemotePeer) error {
 type pbBlkNoticeOrder struct {
 	pbMessageOrder
 	blkHash []byte
+	blkNo   uint64
 }
 
 func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p := pi.(*remotePeerImpl)
 	var blkhash = types.ToBlockID(pr.blkHash)
+	passedTime := time.Now().Sub(p.lastBlkNoticeTime)
+	skipNotice := false
+	if p.LastStatus().BlockNumber >= pr.blkNo {
+		heightDiff := p.LastStatus().BlockNumber - pr.blkNo
+		switch {
+		case heightDiff >= GapToSkipAll:
+			skipNotice = true
+		case heightDiff >= GapToSkipHourly:
+			skipNotice = p.skipCnt < GapToSkipHourly
+		default:
+			skipNotice = p.skipCnt < GapToSkip5Min
+		}
+	}
+	if skipNotice || passedTime < MinNewBlkNotiInterval {
+		p.skipCnt++
+		if p.skipCnt&0x03ff == 0 {
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Int32("skip_cnt", p.skipCnt).Msg("Skipped NewBlockNotice ")
+
+		}
+		return nil
+	}
+
 	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
 		// the remote peer already know this block hash. skip it
 		// too many not-insteresting log,
@@ -122,6 +145,11 @@ func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
 		return err
 	}
+	p.lastBlkNoticeTime = time.Now()
+	if p.skipCnt > 100 {
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Int32("skip_cnt", p.skipCnt).Msg("Send NewBlockNotice after long skip")
+	}
+	p.skipCnt = 0
 	return nil
 }
 

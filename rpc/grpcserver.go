@@ -21,6 +21,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -28,6 +29,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/libp2p/go-libp2p-peer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -37,7 +39,8 @@ var (
 )
 
 var (
-	ErrUninitAccessor = errors.New("accessor is not initilized")
+	ErrUninitAccessor        = errors.New("accessor is not initilized")
+	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 type EventStream struct {
@@ -172,11 +175,7 @@ func (rpc *AergoRPCService) ListBlockMetadata(ctx context.Context, in *types.Lis
 	}
 	var metas []*types.BlockMetadata
 	for _, block := range blocks {
-		metas = append(metas, &types.BlockMetadata{
-			Hash:    block.BlockHash(),
-			Header:  block.GetHeader(),
-			Txcount: int32(len(block.GetBody().GetTxs())),
-		})
+		metas = append(metas, block.GetMetadata())
 	}
 	return &types.BlockMetadataList{Blocks: metas}, nil
 }
@@ -294,7 +293,7 @@ func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.Block
 	rpc.blockMetadataStreamLock.RUnlock()
 }
 
-// real-time streaming most recent block header
+// ListBlockStream starts a stream of new blocks
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
 	streamId := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockStreamLock.Lock()
@@ -314,20 +313,21 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 	}
 }
 
+// ListBlockMetadataStream starts a stream of new blocks' metadata
 func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream types.AergoRPCService_ListBlockMetadataStreamServer) error {
-	streamId := atomic.AddUint32(&rpc.streamID, 1)
+	streamID := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockMetadataStreamLock.Lock()
-	rpc.blockMetadataStream[streamId] = stream
+	rpc.blockMetadataStream[streamID] = stream
 	rpc.blockMetadataStreamLock.Unlock()
-	logger.Info().Uint32("id", streamId).Msg("block meta stream added")
+	logger.Info().Uint32("id", streamID).Msg("block meta stream added")
 
 	for {
 		select {
 		case <-stream.Context().Done():
 			rpc.blockMetadataStreamLock.Lock()
-			delete(rpc.blockMetadataStream, streamId)
+			delete(rpc.blockMetadataStream, streamID)
 			rpc.blockMetadataStreamLock.Unlock()
-			logger.Info().Uint32("id", streamId).Msg("block meta stream deleted")
+			logger.Info().Uint32("id", streamID).Msg("block meta stream deleted")
 			return nil
 		}
 	}
@@ -396,12 +396,7 @@ func (rpc *AergoRPCService) GetBlockMetadata(ctx context.Context, in *types.Sing
 	if err != nil {
 		return nil, err
 	}
-
-	meta := &types.BlockMetadata{
-		Hash:    block.BlockHash(),
-		Header:  block.GetHeader(),
-		Txcount: int32(len(block.GetBody().GetTxs())),
-	}
+	meta := block.GetMetadata()
 	return meta, nil
 }
 
@@ -807,7 +802,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -889,7 +884,7 @@ func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.AccountAdd
 
 func (rpc *AergoRPCService) GetNameInfo(ctx context.Context, in *types.Name) (*types.NameInfo, error) {
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetNameInfo{Name: in.Name}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
+		&message.GetNameInfo{Name: in.Name, BlockNo: in.BlockNo}, defaultActorTimeout, "rpc.(*AergoRPCService).GetName").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -1040,12 +1035,40 @@ func (rpc *AergoRPCService) GetServerInfo(ctx context.Context, in *types.KeyPara
 	return rsp, nil
 }
 
-
-// Blockchain handle rpc request blockchain. It has no additional input parameter
+// GetConsensusInfo handle rpc request blockchain. It has no additional input parameter
 func (rpc *AergoRPCService) GetConsensusInfo(ctx context.Context, in *types.Empty) (*types.ConsensusInfo, error) {
 	if rpc.consensusAccessor == nil {
 		return nil, ErrUninitAccessor
 	}
 
 	return rpc.consensusAccessor.ConsensusInfo(), nil
+}
+
+// ChainStat handles rpc request chainstat.
+func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*types.ChainStats, error) {
+	ca := rpc.actorHelper.GetChainAccessor()
+	if ca == nil {
+		return nil, ErrUninitAccessor
+	}
+	return &types.ChainStats{Report: ca.GetChainStats()}, nil
+}
+
+func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.MembershipChange) (*types.MembershipChangeReply, error) {
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
+		if genesisInfo.ID.Consensus != raftv2.GetName() {
+			return nil, ErrNotSupportedConsensus
+		}
+	}
+
+	member, err := rpc.consensusAccessor.ConfChange(in)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(peer.ID(member.PeerID))}}
+	return reply, nil
 }

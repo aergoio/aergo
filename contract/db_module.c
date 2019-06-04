@@ -474,29 +474,28 @@ static int db_prepare(lua_State *L)
 
 int lua_db_release_resource(lua_State *L)
 {
-    if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY, 0) != NULL) {
-        luaL_error(L, "cannot find the environment of the db module");
-    }
-    /* T */
-    lua_pushnil(L); /* T nil(key) */
-    while (lua_next(L, -2)) {
-        if (lua_islightuserdata(L, -1))
-            db_rs_close(L, (db_rs_t *)lua_topointer(L, -1), 0);
+    lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY);
+    if (lua_istable(L, -1)) {
+        /* T */
+        lua_pushnil(L); /* T nil(key) */
+        while (lua_next(L, -2)) {
+            if (lua_islightuserdata(L, -1))
+                db_rs_close(L, (db_rs_t *)lua_topointer(L, -1), 0);
+            lua_pop(L, 1);
+        }
         lua_pop(L, 1);
     }
-    lua_pop(L, 1);
-
-    if (luaL_findtable(L, LUA_REGISTRYINDEX, RESOURCE_PSTMT_KEY, 0) != NULL) {
-        luaL_error(L, "cannot find the environment of the db module");
-    }
-    /* T */
-    lua_pushnil(L); /* T nil(key) */
-    while (lua_next(L, -2)) {
-        if (lua_islightuserdata(L, -1))
-            db_pstmt_close(L, (db_pstmt_t *)lua_topointer(L, -1), 0);
+    lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_PSTMT_KEY);
+    if (lua_istable(L, -1)) {
+        /* T */
+        lua_pushnil(L); /* T nil(key) */
+        while (lua_next(L, -2)) {
+            if (lua_islightuserdata(L, -1))
+                db_pstmt_close(L, (db_pstmt_t *)lua_topointer(L, -1), 0);
+            lua_pop(L, 1);
+        }
         lua_pop(L, 1);
     }
-    lua_pop(L, 1);
     return 0;
 }
 

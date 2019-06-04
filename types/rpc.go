@@ -8,7 +8,7 @@ package types
 import "strconv"
 
 func AddCategory(confs map[string]*ConfigItem, category string) *ConfigItem {
-	cat  := &ConfigItem{Props:make(map[string]string)}
+	cat := &ConfigItem{Props: make(map[string]string)}
 	confs[category] = cat
 	return cat
 }
@@ -24,7 +24,7 @@ func (ci *ConfigItem) AddBool(key string, value bool) *ConfigItem {
 }
 
 func (ci *ConfigItem) AddFloat(key string, value float64) *ConfigItem {
-	ci.Add(key, strconv.FormatFloat(value,'g', -1,64))
+	ci.Add(key, strconv.FormatFloat(value, 'g', -1, 64))
 	return ci
 }
 

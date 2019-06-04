@@ -7,12 +7,6 @@ package p2p
 
 import "time"
 
-// constants for inter-communication of aergosvr
-const (
-	// other actor
-	DefaultActorMsgTTL = time.Second * 4
-)
-
 // constants for peer communicating
 const (
 	// peer handshake will be failed when taken more than defaultHandshakeTTL
@@ -24,10 +18,6 @@ const (
 	// writeMsgBufferSize is queue size of message to a peer. connection will be closed when queue is exceeded.
 	writeMsgBufferSize = 40
 
-	// time to determine which the remote designated peer is not working.
-	DesignatedNodeTTL = time.Minute * 60
-	// time to determine which the remote peer is not working.
-	DefaultNodeTTL = time.Minute * 10
 )
 
 // constants for legacy sync algorithm. DEPRECATED newer sync loging in syncer package is used now.
@@ -39,7 +29,7 @@ const (
 
 // constants for node discovery
 const (
-	DiscoveryQueryInterval = time.Minute * 5
+	DiscoveryQueryInterval = time.Minute * 1
 
 	MaxAddrListSizePolaris = 200
 	MaxAddrListSizePeer    = 50
@@ -64,10 +54,14 @@ const (
 	cachePlaceHolder = true
 )
 
-// constants about private key
+// constants for block notice tuning
 const (
-	DefaultPkKeyPrefix = "aergo-peer"
-	DefaultPkKeyExt    = ".key"
-	DefaultPubKeyExt   = ".pub"
-	DefaultPeerIDExt   = ".id"
+	GapToSkipAll    = 86400
+	GapToSkipHourly = 3600
+	GapToSkip5Min   = 300
+
+	HourlyInterval        = time.Hour
+	TenMiniteInterval     = time.Minute * 10
+	MinNewBlkNotiInterval = time.Second >> 2
 )
+

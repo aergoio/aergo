@@ -127,6 +127,7 @@ type ChainAccessor interface {
 	GetBlock(blockHash []byte) (*Block, error)
 	// GetHashByNo returns hash of block. It return nil and error if not found block of that number or there is a problem in db store
 	GetHashByNo(blockNo BlockNo) ([]byte, error)
+	GetChainStats() string
 }
 
 type SyncContext struct {
@@ -142,10 +143,12 @@ type SyncContext struct {
 	TotalCnt   uint64
 	RemainCnt  uint64
 	LastAnchor BlockNo
+
+	NotifyC chan error
 }
 
-func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64) *SyncContext {
-	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0}
+func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64, notifyC chan error) *SyncContext {
+	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0, NotifyC: notifyC}
 }
 
 func (ctx *SyncContext) SetAncestor(ancestor *Block) {
@@ -463,6 +466,16 @@ func (block *Block) setPubKey(pubKey crypto.PubKey) error {
 
 func (block *Block) SetBlocksRootHash(blockRootHash []byte) {
 	block.GetHeader().BlocksRootHash = blockRootHash
+}
+
+// GetMetadata generates Metadata object for block
+func (block *Block) GetMetadata() *BlockMetadata {
+	return &BlockMetadata{
+		Hash:    block.BlockHash(),
+		Header:  block.GetHeader(),
+		Txcount: int32(len(block.GetBody().GetTxs())),
+		Size:    int64(proto.Size(block)),
+	}
 }
 
 // CalculateTxsRootHash generates merkle tree of transactions and returns root hash.

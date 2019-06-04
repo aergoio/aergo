@@ -18,7 +18,10 @@ var (
 	rootCmd *cobra.Command
 	abiFile string
 	payload bool
+	version bool
 )
+
+var githash = "No git hash provided"
 
 func init() {
 	rootCmd = &cobra.Command{
@@ -27,6 +30,11 @@ func init() {
 		Long:  "Compile a lua contract. This command makes a bytecode file and a ABI file or prints a payload data.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
+
+			if version {
+				cmd.Printf("Aergoluac %s\n", githash)
+				return nil
+			}
 			if payload {
 				if len(args) == 0 {
 					err = util.DumpFromStdin()
@@ -47,6 +55,7 @@ func init() {
 	}
 	rootCmd.PersistentFlags().StringVarP(&abiFile, "abi", "a", "", "abi filename")
 	rootCmd.PersistentFlags().BoolVar(&payload, "payload", false, "print the compilation result consisting of bytecode and abi")
+	rootCmd.PersistentFlags().BoolVar(&version, "version", false, "print the version number of aergoluac")
 }
 
 func main() {

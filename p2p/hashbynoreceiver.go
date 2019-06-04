@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
@@ -45,7 +44,7 @@ func (br *BlockHashByNoReceiver) StartGet() {
 }
 
 // ReceiveResp must be called just in read go routine
-func (br *BlockHashByNoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody proto.Message) (ret bool) {
+func (br *BlockHashByNoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) (ret bool) {
 	ret = true
 	// timeout
 	if br.finished || br.timeout.Before(time.Now()) {

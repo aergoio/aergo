@@ -5,9 +5,9 @@
 
 package p2pcommon
 
-// MsgReader read stream and return message object
+// MsgReader read byte stream, parse stream with respect to protocol version and return message object used in p2p module
 type MsgReader interface {
-	// ReadMsg return types.MsgHeader as header, proto.Message as data
+	// ReadMsg return types.MsgHeader as header, MessageBody as data
 	// The header and/or data can be nil if error is not nil
 	ReadMsg() (Message, error)
 }

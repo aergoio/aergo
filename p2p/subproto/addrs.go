@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 
 	peer "github.com/libp2p/go-libp2p-peer"
 )
@@ -33,11 +32,11 @@ func NewAddressesReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer,
 	return ph
 }
 
-func (ph *addressesRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *addressesRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.AddressesRequest{})
 }
 
-func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
@@ -98,11 +97,11 @@ func NewAddressesRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer
 	return ph
 }
 
-func (ph *addressesResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (ph *addressesResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.AddressesResponse{})
 }
 
-func (ph *addressesResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (ph *addressesResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
 	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, len(data.GetPeers()))

@@ -9,8 +9,8 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -42,11 +42,11 @@ func NewTxReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger
 	return th
 }
 
-func (th *txRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (th *txRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetTransactionsRequest{})
 }
 
-func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 
 	remotePeer := th.peer
 	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
@@ -123,7 +123,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message)
 		status = types.ResultStatus_NOT_FOUND
 	}
 	th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-		Str(p2putil.LogOrgReqID, msg.ID().String()).Str(p2putil.LogRespStatus,status.String()).Msg("Sending last part response")
+		Str(p2putil.LogOrgReqID, msg.ID().String()).Str(p2putil.LogRespStatus, status.String()).Msg("Sending last part response")
 	// generate response message
 
 	resp := &types.GetTransactionsResponse{
@@ -139,11 +139,11 @@ func NewTxRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logge
 	return th
 }
 
-func (th *txResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (th *txResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetTransactionsResponse{})
 }
 
-func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetTransactionsResponse)
 	p2putil.DebugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
@@ -164,11 +164,11 @@ func NewNewTxNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, 
 	return th
 }
 
-func (th *newTxNoticeHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (th *newTxNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.NewTransactionsNotice{})
 }
 
-func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := th.peer
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log

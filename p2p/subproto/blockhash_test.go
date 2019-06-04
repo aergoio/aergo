@@ -268,15 +268,15 @@ type testDoubleHashesRespFactory struct {
 	lastStatus types.ResultStatus
 }
 
-func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 
-func (f *testDoubleHashesRespFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (f *testDoubleHashesRespFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 
-func (f *testDoubleHashesRespFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (f *testDoubleHashesRespFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	f.lastResp = message.(*types.GetHashesResponse)
 	f.lastStatus = f.lastResp.Status
 	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
@@ -297,7 +297,7 @@ func (f *testDoubleHashesRespFactory) NewMsgBPBroadcastOrder(noticeMsg *types.Bl
 
 // testDoubleMOFactory keep last created message and last result status of response message
 type testDoubleMOFactory struct {
-	lastResp   p2pcommon.PbMessage
+	lastResp   p2pcommon.MessageBody
 	lastStatus types.ResultStatus
 }
 
@@ -313,15 +313,15 @@ func (f *testDoubleMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProdu
 	panic("implement me")
 }
 
-func (f *testDoubleMOFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (f *testDoubleMOFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 
-func (f *testDoubleMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (f *testDoubleMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 
-func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.PbMessage) p2pcommon.MsgOrder {
+func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	f.lastResp = message
 	f.lastStatus = f.lastResp.(types.ResponseMessage).GetStatus()
 	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}

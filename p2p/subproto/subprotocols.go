@@ -39,4 +39,10 @@ const (
 	BlockProducedNotice p2pcommon.SubProtocol = 0x030 + iota
 )
 
+const (
+	_ p2pcommon.SubProtocol = 0x3100 + iota
+	GetClusterRequest
+	GetClusterResponse
+)
+
 //go:generate stringer -type=SubProtocol

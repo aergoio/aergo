@@ -11,7 +11,7 @@ static const char *contract_str = "contract";
 static const char *call_str = "call";
 static const char *delegatecall_str = "delegatecall";
 static const char *deploy_str = "deploy";
-static const char *amount_str = "amount";
+static const char *amount_str = "amount_value";
 static const char *fee_str = "fee";
 
 static void set_call_obj(lua_State *L, const char* obj_name)
@@ -434,6 +434,7 @@ static int moduleVote(lua_State *L) {
 
 static const luaL_Reg call_methods[] = {
 	{"value", call_value},
+	{"amount", call_value},
 	{"gas", call_gas},
 	{NULL, NULL}
 };
@@ -455,6 +456,7 @@ static const luaL_Reg delegate_call_meta[] = {
 
 static const luaL_Reg deploy_call_methods[] = {
 	{"value", deploy_value},
+	{"amount", deploy_value},
 	{NULL, NULL}
 };
 
@@ -477,14 +479,14 @@ static const luaL_Reg contract_lib[] = {
 int luaopen_contract(lua_State *L)
 {
 	luaL_register(L, contract_str, contract_lib);
-	lua_createtable(L, 0, 2);
+	lua_createtable(L, 0, 3);
 	luaL_register(L, NULL, call_methods);
 	lua_createtable(L, 0, 1);
 	luaL_register(L, NULL, call_meta);
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, call_str);
 
-	lua_createtable(L, 0, 2);
+	lua_createtable(L, 0, 1);
 	luaL_register(L, NULL, delegate_call_methods);
 	lua_createtable(L, 0, 1);
 	luaL_register(L, NULL, delegate_call_meta);

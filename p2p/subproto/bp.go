@@ -10,10 +10,9 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 type blockProducedNoticeHandler struct {
@@ -28,11 +27,11 @@ func NewBlockProducedNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.Remo
 	return bh
 }
 
-func (bh *blockProducedNoticeHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *blockProducedNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.BlockProducedNotice{})
 }
 
-func (bh *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.BlockProducedNotice)
 	if data.Block == nil || len(data.Block.Hash) == 0 {

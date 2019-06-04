@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
+	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -32,10 +33,10 @@ func init() {
 	}
 
 	deployCmd := &cobra.Command{
-		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
-		Short:                 "Deploy a compiled contract to the server",
-		Args:                  cobra.MinimumNArgs(1),
-		Run:                   runDeployCmd,
+		Use:   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
+		Short: "Deploy a compiled contract to the server",
+		Args:  cobra.MinimumNArgs(1),
+		Run:   runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
@@ -95,7 +96,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	var payload []byte
 	if len(data) == 0 {
 		if len(args) < 3 {
-			fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile> [args]")
+			_, _ = fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile> [args]")
 			os.Exit(1)
 		}
 		var code []byte
@@ -136,7 +137,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			}
 			argLen = len(args[1])
 		}
-		code, err := util.DecodeCode(data)
+		code, err := luacEncoding.DecodeCode(data)
 		payload = make([]byte, 4+len(code)+argLen)
 		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+4))
 		codeLen := copy(payload[4:], code)
@@ -145,13 +146,13 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		}
 
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			_, _ = fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
 		}
 	}
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
-		fmt.Fprint(os.Stderr, "failed to parse --amount flags")
+		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
 	tx := &types.Tx{
@@ -219,7 +220,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
-		fmt.Fprint(os.Stderr, "failed to parse --amount flags")
+		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
 	txType := types.TxType_NORMAL
@@ -241,7 +242,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if chainIdHash != "" {
 		rawCidHash, err := base58.Decode(chainIdHash)
 		if err != nil {
-			fmt.Fprint(os.Stderr, "failed to parse --chainidhash flags\n")
+			_, _ = fmt.Fprint(os.Stderr, "failed to parse --chainidhash flags\n")
 			os.Exit(1)
 		}
 		tx.Body.ChainIdHash = rawCidHash

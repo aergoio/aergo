@@ -5,7 +5,10 @@
 
 package p2putil
 
-import "github.com/golang/protobuf/proto"
+import (
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/golang/protobuf/proto"
+)
 
 func CalculateFieldDescSize(varSize int) int {
 	switch {
@@ -26,14 +29,14 @@ func CalculateFieldDescSize(varSize int) int {
 	}
 }
 
-func MarshalMessage(message proto.Message) ([]byte, error) {
+func MarshalMessageBody(message p2pcommon.MessageBody) ([]byte, error) {
 	return proto.Marshal(message)
 }
 
-func UnmarshalMessage(data []byte, msgData proto.Message) error {
+func UnmarshalMessageBody(data []byte, msgData p2pcommon.MessageBody) error {
 	return proto.Unmarshal(data, msgData)
 }
 
-func UnmarshalAndReturn(data []byte, msgData proto.Message) (proto.Message, error) {
+func UnmarshalAndReturn(data []byte, msgData p2pcommon.MessageBody) (p2pcommon.MessageBody, error) {
 	return msgData, proto.Unmarshal(data, msgData)
 }

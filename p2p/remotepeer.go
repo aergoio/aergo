@@ -7,6 +7,8 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 
 	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/golang/protobuf/proto"
 	net "github.com/libp2p/go-libp2p-net"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -25,23 +26,13 @@ import (
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var TimeoutError error
-
-func init() {
-	TimeoutError = fmt.Errorf("timeout")
-}
+var TimeoutError =  errors.New("timeout")
+var CancelError = errors.New("canceled")
 
 type requestInfo struct {
 	cTime    time.Time
 	reqMO    p2pcommon.MsgOrder
 	receiver p2pcommon.ResponseReceiver
-}
-
-// ResponseReceiver returns true when receiver handled it, or false if this receiver is not the expected handler.
-// NOTE: the return value is temporal works for old implementation and will be remove later.
-
-func dummyResponseReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
-	return false
 }
 
 // remotePeerImpl represent remote peer to which is connected
@@ -72,10 +63,12 @@ type remotePeerImpl struct {
 	handlers map[p2pcommon.SubProtocol]p2pcommon.MessageHandler
 
 	// TODO make automatic disconnect if remote peer cause too many wrong message
-
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
-	lastNotice   *types.LastBlockStatus
+	lastStatus   *types.LastBlockStatus
+	// lastBlkNoticeTime is time that local peer sent NewBlockNotice to this remote peer
+	lastBlkNoticeTime time.Time
+	skipCnt           int32
 
 	txQueueLock         *sync.Mutex
 	txNoticeQueue       *p2putil.PressableQueue
@@ -96,7 +89,7 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
-		lastNotice: &types.LastBlockStatus{},
+		lastStatus: &types.LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
 
@@ -142,6 +135,14 @@ func (p *remotePeerImpl) Name() string {
 	return p.name
 }
 
+func (p *remotePeerImpl) Version() string {
+	return p.meta.Version
+}
+
+func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
+	p.handlers[subProtocol] = handler
+}
+
 func (p *remotePeerImpl) MF() p2pcommon.MoFactory {
 	return p.mf
 }
@@ -151,8 +152,8 @@ func (p *remotePeerImpl) State() types.PeerState {
 	return p.state.Get()
 }
 
-func (p *remotePeerImpl) LastNotice() *types.LastBlockStatus {
-	return p.lastNotice
+func (p *remotePeerImpl) LastStatus() *types.LastBlockStatus {
+	return p.lastStatus
 }
 
 // runPeer should be called by go routine
@@ -195,7 +196,7 @@ func (p *remotePeerImpl) runWrite() {
 	cleanupTicker := time.NewTicker(cleanRequestInterval)
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Panic().Str(p2putil.LogPeerName, p.Name()).Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
+			p.logger.Panic().Str("callstack", string(debug.Stack())).Str(p2putil.LogPeerName, p.Name()).Str("recover", fmt.Sprint(r)).Msg("There were panic in runWrite ")
 		}
 	}()
 
@@ -258,7 +259,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {
-			p.logger.Error().Interface("panic", r).Msg("There were panic in handler.")
+			p.logger.Error().Str(p2putil.LogProtoID, subProto.String()).Str("callstack", string(debug.Stack())).Interface("panic", r).Msg("There were panic in handler.")
 			err = fmt.Errorf("internal error")
 		}
 	}()
@@ -362,12 +363,12 @@ func (p *remotePeerImpl) ConsumeRequest(originalID p2pcommon.MsgID) {
 }
 
 // requestIDNotFoundReceiver is to handle response msg which the original message is not identified
-func (p *remotePeerImpl) requestIDNotFoundReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
+func (p *remotePeerImpl) requestIDNotFoundReceiver(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 	return true
 }
 
 // passThroughReceiver is bypass message to legacy handler.
-func (p *remotePeerImpl) passThroughReceiver(msg p2pcommon.Message, msgBody proto.Message) bool {
+func (p *remotePeerImpl) passThroughReceiver(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 	return false
 }
 
@@ -494,7 +495,7 @@ func (p *remotePeerImpl) UpdateTxCache(hashes []types.TxID) []types.TxID {
 }
 
 func (p *remotePeerImpl) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
-	p.lastNotice = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
+	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

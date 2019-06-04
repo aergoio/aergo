@@ -36,7 +36,7 @@ func NewBlockReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, log
 	return bh
 }
 
-func (bh *blockRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *blockRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetBlockRequest{})
 }
 
@@ -44,7 +44,7 @@ const (
 	EmptyGetBlockResponseSize = 12 // roughly estimated maximum size if element is full
 )
 
-func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
 	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, len(data.Hashes))
@@ -130,11 +130,11 @@ func NewBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, lo
 	return bh
 }
 
-func (bh *blockResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *blockResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetBlockResponse{})
 }
 
-func (bh *blockResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *blockResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
 	if bh.logger.IsDebugEnabled() {

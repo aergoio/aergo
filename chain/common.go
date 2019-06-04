@@ -26,6 +26,8 @@ var (
 	maxBlockSize     uint32
 	pubNet           bool
 	consensusName    string
+
+	Genesis *types.Genesis
 )
 
 var (
@@ -79,6 +81,8 @@ func initChainParams(genesis *types.Genesis) {
 		types.MaxAER = genesis.TotalBalance()
 		logger.Info().Str("TotalBalance", types.MaxAER.String()).Msg("set total from genesis")
 	}
+
+	Genesis = genesis
 }
 
 // MaxBlockBodySize returns the max block body size.

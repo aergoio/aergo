@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -128,11 +127,11 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 		// 1. not exist receiver and consumed message
 		//{"Tnothing",nil, true},
 		// 2. exist receiver and consume successfully
-		{"TexistAndConsume", func(msg p2pcommon.Message, body proto.Message) bool {
+		{"TexistAndConsume", func(msg p2pcommon.Message, body p2pcommon.MessageBody) bool {
 			return true
 		}, 0, 0},
 		// 2. exist receiver but not consumed
-		{"TExistWrong", func (msg p2pcommon.Message, msgBody proto.Message) bool {
+		{"TExistWrong", func (msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 			return false
 		}, 1, 1},
 		// TODO: test cases

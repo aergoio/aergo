@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdint.h>
 #include "vm.h"
 #include "util.h"
 #include "_cgo_export.h"
@@ -73,15 +74,28 @@ int getItemWithPrefix(lua_State *L)
 	char *dbKey;
 	int *service = (int *)getLuaExecContext(L);
 	char *jsonValue;
+	char *blkno = NULL;
 	struct LuaGetDB_return ret;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 	luaL_checkstring(L, 1);
-	luaL_checkstring(L, 2);
+	if(lua_gettop(L) == 2) {
+	    luaL_checkstring(L, 2);
+	}
+	else if (lua_gettop(L) == 3) {
+	    if (!lua_isnil(L, 2)) {
+	        int type = lua_type(L,2);
+	        if (type != LUA_TNUMBER && type != LUA_TSTRING)
+	            luaL_error(L, "snap height permitted number or string type");
+	        blkno = (char *)lua_tostring(L, 2);
+	    }
+	    luaL_checkstring(L, 3);
+	}
 	dbKey = getDbKey(L);
-	ret = LuaGetDB(L, service, dbKey);
+
+	ret = LuaGetDB(L, service, dbKey, blkno);
 	if (ret.r1 != NULL) {
         strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
@@ -101,6 +115,10 @@ int getItem(lua_State *L)
 {
 	luaL_checkstring(L, 1);
 	lua_pushstring(L, STATE_DB_KEY_PREFIX);
+	if (lua_gettop(L) == 3) {
+	    if (!lua_isnil(L, 2))
+	        luaL_checknumber(L, 2);
+	}
 	return getItemWithPrefix(L);
 }
 
@@ -189,7 +207,7 @@ static int getCreator(lua_State *L)
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	ret = LuaGetDB(L, service, "Creator");
+	ret = LuaGetDB(L, service, "Creator", 0);
 	if (ret.r1 != NULL) {
 	    strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);

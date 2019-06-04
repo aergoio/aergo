@@ -56,5 +56,11 @@ func execCurrentPeers(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s", err.Error())
 		return
 	}
+	// TODO decorate other props also;e.g. uint64 timestamp to human readable time format!
+	for _, p := range msg.Peers {
+		if p.Verion == "" {
+			p.Verion = "(old)"
+		}
+	}
 	cmd.Println(util.JSON(msg))
 }

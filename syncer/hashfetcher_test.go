@@ -30,7 +30,7 @@ func TestHashFetcher_normal(t *testing.T) {
 	testCfg.debugContext.targetNo = targetNo
 
 	//set ctx because finder is skipped
-	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best))
+	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best), nil)
 	ancestorInfo := remoteChain.GetBlockInfo(0)
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)
@@ -68,7 +68,7 @@ func TestHashFetcher_quit(t *testing.T) {
 	testCfg.debugContext.BfWaitTime = time.Second * 1000
 
 	//set ctx because finder is skipped
-	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best))
+	ctx := types.NewSyncCtx(1, "peer-0", targetNo, uint64(localChain.Best), nil)
 	ancestorInfo := remoteChain.GetBlockInfo(0)
 
 	syncer := NewTestSyncer(t, localChain, remoteChain, peers, &testCfg)

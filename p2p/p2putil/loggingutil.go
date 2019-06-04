@@ -13,7 +13,7 @@ import (
 )
 
 type LogStringersMarshaler struct {
-	arr []fmt.Stringer
+	arr   []fmt.Stringer
 	limit int
 }
 
@@ -21,11 +21,10 @@ func NewLogStringersMarshaler(arr []fmt.Stringer, limit int) *LogStringersMarsha
 	return &LogStringersMarshaler{arr: arr, limit: limit}
 }
 
-
 func (m *LogStringersMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
-		for i:=0;i<m.limit-1; i++ {
+		for i := 0; i < m.limit-1; i++ {
 			a.Str(m.arr[i].String())
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
@@ -48,12 +47,12 @@ func NewLogPeerMetasMarshaler(metas []p2pcommon.PeerMeta, limit int) *LogPeerMet
 func (m *LogPeerMetasMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.metas)
 	if size > m.limit {
-		for i:=0;i<m.limit-1; i++ {
+		for i := 0; i < m.limit-1; i++ {
 			a.Str(ShortMetaForm(m.metas[i]))
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
 	} else {
-		for _,meta := range m.metas {
+		for _, meta := range m.metas {
 			a.Str(ShortMetaForm(meta))
 		}
 	}
@@ -72,7 +71,7 @@ func NewLogB58EncMarshaler(arr [][]byte, limit int) *LogB58EncMarshaler {
 func (m *LogB58EncMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
-		for i:=0;i<m.limit-1; i++ {
+		for i := 0; i < m.limit-1; i++ {
 			a.Str(enc.ToString(m.arr[i]))
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))

@@ -132,3 +132,20 @@ func TestBufferRollback(t *testing.T) {
 	assert.Equal(t, []byte{5}, stb.get(k1).Value())
 	t.Logf("k0: %v, k1: %v", stb.get(k0).Value(), stb.get(k1).Value())
 }
+
+func TestBufferHasKey(t *testing.T) {
+	stb := newStateBuffer()
+	assert.False(t, stb.has(k0))
+
+	stb.put(newValueEntry(k0, []byte{1}))
+	assert.True(t, stb.has(k0)) // buffer has key
+
+	stb.put(newValueEntryDelete(k0))
+	assert.True(t, stb.has(k0)) // buffer has key for ValueEntryDelete
+
+	stb.put(newValueEntry(k0, []byte{2}))
+	assert.True(t, stb.has(k0)) // buffer has key
+
+	stb.reset()
+	assert.False(t, stb.has(k0)) // buffer doesn't have key
+}

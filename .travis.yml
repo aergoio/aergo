@@ -5,12 +5,10 @@ os:
   - osx
 
 go:
-  - 1.10.x
+  - 1.12.x
 
 before_install:
-  - go get -t github.com/Masterminds/glide
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then go get -t github.com/codeclimate/test-reporter; fi
-  - cmake .
 
 install:
   - make all polaris colaris

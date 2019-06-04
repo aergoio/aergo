@@ -11,10 +11,9 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 type getHashRequestHandler struct {
@@ -32,11 +31,11 @@ func NewGetHashesReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer,
 	return bh
 }
 
-func (bh *getHashRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *getHashRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetHashesRequest{})
 }
 
-func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesRequest)
 	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
@@ -124,11 +123,11 @@ func NewGetHashesRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer
 	return bh
 }
 
-func (bh *getHashResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *getHashResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetHashesResponse{})
 }
 
-func (bh *getHashResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *getHashResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesResponse)
 	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("blk_cnt=%d,hasNext=%t", len(data.Hashes), data.HasNext))
@@ -152,11 +151,11 @@ func NewGetHashByNoReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePee
 	return bh
 }
 
-func (bh *getHashByNoRequestHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *getHashByNoRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetHashByNo{})
 }
 
-func (bh *getHashByNoRequestHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *getHashByNoRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashByNo)
 	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
@@ -186,11 +185,11 @@ func NewGetHashByNoRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePe
 	return bh
 }
 
-func (bh *getHashByNoResponseHandler) ParsePayload(rawbytes []byte) (proto.Message, error) {
+func (bh *getHashByNoResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetHashByNoResponse{})
 }
 
-func (bh *getHashByNoResponseHandler) Handle(msg p2pcommon.Message, msgBody proto.Message) {
+func (bh *getHashByNoResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetHashByNoResponse)
 	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("%s=%s", p2putil.LogBlkHash, enc.ToString(data.BlockHash)))
 
