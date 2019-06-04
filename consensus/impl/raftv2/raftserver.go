@@ -100,8 +100,7 @@ type raftServer struct {
 	//wal         *wal.WAL
 	walDB *WalDB
 
-	snapshotter      *ChainSnapshotter
-	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
+	snapshotter *ChainSnapshotter
 
 	snapFrequency uint64
 	transport     *rafthttp.Transport
@@ -254,7 +253,6 @@ func newRaftServer(hub *component.ComponentHub,
 		httpstopc:       make(chan struct{}),
 		httpdonec:       make(chan struct{}),
 
-		snapshotterReady: make(chan *snap.Snapshotter, 1),
 		// rest of structure populated after WAL replay
 
 		certFile: certFile,
@@ -272,11 +270,6 @@ func newRaftServer(hub *component.ComponentHub,
 	rs.snapshotter = newChainSnapshotter(nil, rs.ComponentHub, rs.cluster, rs.walDB, func() uint64 { return rs.GetLeader() })
 
 	return rs
-}
-
-func (rs *raftServer) SetID(id uint64) {
-	logger.Info().Str("id", MemberIDToString(id)).Msg("set my raft id")
-	rs.id = id
 }
 
 func (rs *raftServer) SetPeerAccessor(pa p2pcommon.PeerAccessor) {
@@ -393,19 +386,25 @@ func (rs *raftServer) startRaft() {
 	go rs.serveChannels()
 }
 
+func (rs *raftServer) ID() uint64 {
+	if rs.cluster.NodeID() == 0 {
+		logger.Fatal().Msg("raft NodeID is not set")
+	}
+	return rs.cluster.NodeID()
+}
+
 func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	if err := rs.cluster.SetThisNodeID(); err != nil {
 		logger.Fatal().Err(err).Msg("failed to set id of this node")
 	}
 
-	rs.SetID(rs.cluster.NodeID())
 	if err := rs.SaveIdentity(); err != nil {
 		logger.Fatal().Err(err).Msg("fafiled to save identity")
 	}
 
 	rs.raftStorage = raftlib.NewMemoryStorage()
 
-	c := makeConfig(rs.id, rs.raftStorage)
+	c := makeConfig(rs.ID(), rs.raftStorage)
 
 	logger.Info().Msg("raft node start")
 
@@ -422,9 +421,6 @@ func (rs *raftServer) restartNode() raftlib.Node {
 		logger.Fatal().Err(err).Msg("replay wal failed for raft")
 	}
 
-	// cluster identity is recoverd from wal
-	rs.SetID(rs.cluster.NodeID())
-
 	// members of cluster will be loaded from snapshot or wal
 	if snapshot != nil {
 		if err := rs.cluster.Recover(snapshot); err != nil {
@@ -432,7 +428,7 @@ func (rs *raftServer) restartNode() raftlib.Node {
 		}
 	}
 
-	c := makeConfig(rs.id, rs.raftStorage)
+	c := makeConfig(rs.ID(), rs.raftStorage)
 
 	logger.Info().Msg("raft node restart")
 
@@ -441,11 +437,11 @@ func (rs *raftServer) restartNode() raftlib.Node {
 
 func (rs *raftServer) startTransport() {
 	rs.transport = &rafthttp.Transport{
-		ID:          etcdtypes.ID(rs.id),
+		ID:          etcdtypes.ID(rs.ID()),
 		ClusterID:   0x1000,
 		Raft:        rs,
 		ServerStats: stats.NewServerStats("", ""),
-		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(uint64(rs.id), 10)),
+		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.ID(), 10)),
 		Snapshotter: rs.snapshotter,
 		ErrorC:      rs.errorC,
 	}
@@ -1040,7 +1036,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
 		}
 
-		if len(cc.Context) > 0 && rs.id != cc.NodeID {
+		if len(cc.Context) > 0 && rs.ID() != cc.NodeID {
 			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
 		} else {
 			logger.Debug().Msg("skip add peer myself for addnode ")
@@ -1050,7 +1046,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 			logger.Fatal().Str("member", member.ToString()).Msg("failed to add member to cluster")
 		}
 
-		if cc.NodeID == uint64(rs.id) {
+		if cc.NodeID == rs.ID() {
 			logger.Info().Msg("I've been removed from the cluster! Shutting down.")
 			return false
 		}
@@ -1165,9 +1161,9 @@ func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 
 		rs.leaderStatus.leaderChanged++
 
-		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(softState.Lead)).Msg("leader changed")
+		logger.Info().Str("ID", MemberIDToString(rs.ID())).Str("leader", MemberIDToString(softState.Lead)).Msg("leader changed")
 	} else {
-		logger.Info().Str("ID", MemberIDToString(rs.id)).Str("leader", MemberIDToString(softState.Lead)).Msg("soft state leader unchanged")
+		logger.Info().Str("ID", MemberIDToString(rs.ID())).Str("leader", MemberIDToString(softState.Lead)).Msg("soft state leader unchanged")
 	}
 }
 
@@ -1176,7 +1172,7 @@ func (rs *raftServer) GetLeader() uint64 {
 }
 
 func (rs *raftServer) IsLeader() bool {
-	return rs.id != consensus.InvalidMemberID && rs.id == rs.GetLeader()
+	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.GetLeader()
 }
 
 func (rs *raftServer) Status() raftlib.Status {
