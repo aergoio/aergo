@@ -8,6 +8,8 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/v030"
+	"github.com/libp2p/go-libp2p-core/network"
 	"math"
 	"sync"
 	"time"
@@ -16,7 +18,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
@@ -24,8 +25,6 @@ import (
 	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
-	inet "github.com/libp2p/go-libp2p-net"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // internal
@@ -49,7 +48,7 @@ var (
 type mapService interface {
 	getPeerCheckers() []peerChecker
 	registerPeer(receivedMeta p2pcommon.PeerMeta) error
-	unregisterPeer(peerID peer.ID)
+	unregisterPeer(peerID types.PeerID)
 }
 
 type peerChecker interface {
@@ -70,13 +69,13 @@ type PeerMapService struct {
 	hc  HealthCheckManager
 
 	rwmutex      *sync.RWMutex
-	peerRegistry map[peer.ID]*peerState
+	peerRegistry map[types.PeerID]*peerState
 }
 
 func NewPolarisService(cfg *config.Config, ntc p2pcommon.NTContainer) *PeerMapService {
 	pms := &PeerMapService{
 		rwmutex:      &sync.RWMutex{},
-		peerRegistry: make(map[peer.ID]*peerState),
+		peerRegistry: make(map[types.PeerID]*peerState),
 		allowPrivate: cfg.Polaris.AllowPrivate,
 	}
 
@@ -117,13 +116,13 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 	//return &dummy
 }
 
-func (pms *PeerMapService) onConnect(s inet.Stream) {
+func (pms *PeerMapService) onConnect(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
 	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
 	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
 
 	// receive input
@@ -222,7 +221,7 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 	return resp, nil
 }
 
-func (pms *PeerMapService) retrieveList(maxPeers int, exclude peer.ID) []*types.PeerAddress {
+func (pms *PeerMapService) retrieveList(maxPeers int, exclude types.PeerID) []*types.PeerAddress {
 	list := make([]*types.PeerAddress, 0, maxPeers)
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
@@ -259,7 +258,7 @@ func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta) error {
 	return nil
 }
 
-func (pms *PeerMapService) unregisterPeer(peerID peer.ID) {
+func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
 	pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
@@ -305,11 +304,11 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 	}
 }
 
-func (pms *PeerMapService) onPing(s inet.Stream) {
+func (pms *PeerMapService) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pms.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
-	rw := p2p.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
 	defer s.Close()
 
 	req, err := rw.ReadMsg()

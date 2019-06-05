@@ -18,7 +18,7 @@ import (
 	"github.com/aergoio/aergo/types"
 
 	cfg "github.com/aergoio/aergo/config"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 )
 
 const (
@@ -46,19 +46,19 @@ type peerManager struct {
 	peerFinder p2pcommon.PeerFinder
 	wpManager  p2pcommon.WaitingPeerManager
 	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
-	hiddenPeerSet map[peer.ID]bool
+	hiddenPeerSet map[types.PeerID]bool
 
 	mutex        *sync.Mutex
 	manageNumber uint32
-	remotePeers  map[peer.ID]p2pcommon.RemotePeer
-	waitingPeers map[peer.ID]*p2pcommon.WaitingPeer
+	remotePeers  map[types.PeerID]p2pcommon.RemotePeer
+	waitingPeers map[types.PeerID]*p2pcommon.WaitingPeer
 
 	conf *cfg.P2PConfig
 	// peerCache is copy-on-write style
 	peerCache []p2pcommon.RemotePeer
 
 	getPeerChannel    chan getPeerChan
-	peerHandshaked    chan p2pcommon.RemotePeer
+	peerHandshaked    chan handshakeResult
 	removePeerChannel chan p2pcommon.RemotePeer
 	fillPoolChannel   chan []p2pcommon.PeerMeta
 	inboundConnChan   chan inboundConnEvent
@@ -69,14 +69,14 @@ type peerManager struct {
 	eventListeners []PeerEventListener
 
 	//
-	designatedPeers map[peer.ID]p2pcommon.PeerMeta
+	designatedPeers map[types.PeerID]p2pcommon.PeerMeta
 
 	logger *log.Logger
 }
 
 // getPeerChan is struct to get peer for concurrent use
 type getPeerChan struct {
-	id  peer.ID
+	id  types.PeerID
 	ret chan p2pcommon.RemotePeer
 }
 
@@ -85,10 +85,10 @@ var _ p2pcommon.PeerManager = (*peerManager)(nil)
 // PeerEventListener listen peer manage event
 type PeerEventListener interface {
 	// OnAddPeer is called just after the peer is added.
-	OnAddPeer(peerID peer.ID)
+	OnAddPeer(peerID types.PeerID)
 
 	// OnRemovePeer is called just before the peer is removed
-	OnRemovePeer(peerID peer.ID)
+	OnRemovePeer(peerID types.PeerID)
 }
 
 // NewPeerManager creates a peer manager object.
@@ -109,17 +109,17 @@ func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon
 		skipHandshakeSync: skipHandshakeSync,
 
 		status:          initial,
-		designatedPeers: make(map[peer.ID]p2pcommon.PeerMeta, len(cfg.P2P.NPAddPeers)),
-		hiddenPeerSet:   make(map[peer.ID]bool, len(cfg.P2P.NPHiddenPeers)),
+		designatedPeers: make(map[types.PeerID]p2pcommon.PeerMeta, len(cfg.P2P.NPAddPeers)),
+		hiddenPeerSet:   make(map[types.PeerID]bool, len(cfg.P2P.NPHiddenPeers)),
 
-		remotePeers: make(map[peer.ID]p2pcommon.RemotePeer, p2pConf.NPMaxPeers),
+		remotePeers: make(map[types.PeerID]p2pcommon.RemotePeer, p2pConf.NPMaxPeers),
 
-		waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, p2pConf.NPPeerPool),
+		waitingPeers: make(map[types.PeerID]*p2pcommon.WaitingPeer, p2pConf.NPPeerPool),
 
 		peerCache: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		getPeerChannel:    make(chan getPeerChan),
-		peerHandshaked:    make(chan p2pcommon.RemotePeer),
+		peerHandshaked:    make(chan handshakeResult),
 		removePeerChannel: make(chan p2pcommon.RemotePeer),
 		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 		inboundConnChan:   make(chan inboundConnEvent),
@@ -137,7 +137,7 @@ func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon
 func (pm *peerManager) SelfMeta() p2pcommon.PeerMeta {
 	return pm.nt.SelfMeta()
 }
-func (pm *peerManager) SelfNodeID() peer.ID {
+func (pm *peerManager) SelfNodeID() types.PeerID {
 	return p2pkey.NodeID()
 }
 
@@ -146,7 +146,7 @@ func (pm *peerManager) init() {
 	pm.initDesignatedPeerList()
 	// init hidden peers
 	for _, pidStr := range pm.conf.NPHiddenPeers {
-		pid, err := peer.IDB58Decode(pidStr)
+		pid, err := types.IDB58Decode(pidStr)
 		if err != nil {
 			panic("Invalid pid in NPHiddenPeers : " + pidStr + " err " + err.Error())
 		}
@@ -161,7 +161,6 @@ func (pm *peerManager) init() {
 			pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 		}
 	}
-
 }
 
 func (pm *peerManager) Start() error {
@@ -198,8 +197,10 @@ func (pm *peerManager) initDesignatedPeerList() {
 }
 
 func (pm *peerManager) runManagePeers() {
-	pm.logger.Info().Str("version", string(p2pcommon.AergoP2PSub)).Msg("Starting p2p listening")
-	pm.nt.AddStreamHandler(p2pcommon.AergoP2PSub, pm.wpManager.OnInboundConn)
+
+	pm.logger.Info().Str("p2p_proto", p2putil.ProtocolIDsToString([]protocol.ID{p2pcommon.P2PSubAddr, p2pcommon.LegacyP2PSubAddr})).Msg("Starting p2p listening")
+	pm.nt.AddStreamHandler(p2pcommon.LegacyP2PSubAddr, pm.wpManager.OnInboundConnLegacy)
+	pm.nt.AddStreamHandler(p2pcommon.P2PSubAddr, pm.wpManager.OnInboundConn)
 
 	if !atomic.CompareAndSwapInt32(&pm.status, initial, running) {
 		panic("wrong internal status")
@@ -219,12 +220,18 @@ MANLOOP:
 			} else {
 				req.ret <- nil
 			}
-		case peer := <-pm.peerHandshaked:
-			if pm.tryRegister(peer) {
+		case hsreslt := <-pm.peerHandshaked:
+			if peer := pm.tryRegister(hsreslt); peer != nil {
 				pm.peerFinder.OnPeerConnect(peer.ID())
 				pm.wpManager.OnPeerConnect(peer.ID())
 
 				pm.checkSync(peer)
+
+				// query other peers
+				if !finderTimer.Stop() {
+					<-finderTimer.C
+				}
+				finderTimer.Reset(instantStart)
 			}
 		case peer := <-pm.removePeerChannel:
 			if pm.removePeer(peer) {
@@ -270,7 +277,7 @@ MANLOOP:
 		}
 	}
 	// guarrenty no new peer connection will be made
-	pm.nt.RemoveStreamHandler(p2pcommon.AergoP2PSub)
+	pm.nt.RemoveStreamHandler(p2pcommon.LegacyP2PSubAddr)
 	pm.logger.Info().Msg("Finishing peerManager")
 
 	go func() {
@@ -302,16 +309,16 @@ CLEANUPLOOP:
 }
 
 // tryRegister register peer to peer manager, if peer with same peer
-func (pm *peerManager) tryRegister(peer p2pcommon.RemotePeer) bool {
-	peerID := peer.ID()
-	receivedMeta := peer.Meta()
+func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePeer {
+	receivedMeta := hsresult.meta
+	peerID := receivedMeta.ID
 	preExistPeer, ok := pm.remotePeers[peerID]
 	if ok {
 		pm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Peer add collision. Outbound connection of higher hash will survive.")
 		iAmLowerOrEqual := p2putil.ComparePeerID(pm.SelfNodeID(), receivedMeta.ID) <= 0
 		if iAmLowerOrEqual == receivedMeta.Outbound {
 			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", receivedMeta.Outbound).Msg("Close connection and keep earlier handshake connection.")
-			return false
+			return nil
 		} else {
 			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", receivedMeta.Outbound).Msg("Keep connection and close earlier handshake connection.")
 			// stopping lower valued connection
@@ -319,14 +326,25 @@ func (pm *peerManager) tryRegister(peer p2pcommon.RemotePeer) bool {
 		}
 	}
 
-	go peer.RunPeer()
-	// FIXME type casting is worse
-	pm.insertPeer(peerID, peer)
-	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, peer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
+	// override options by configurations of nodd
+	_, receivedMeta.Designated = pm.designatedPeers[peerID]
+	// hidden is set by either remote peer's asking or local node's config
+	if _, exist := pm.hiddenPeerSet[peerID]; exist {
+		receivedMeta.Hidden = true
+	}
 
-	// TODO add triggering sync.
+	newPeer := newRemotePeer(receivedMeta, pm.GetNextManageNum(), pm, pm.actorService, pm.logger, pm.mf, pm.signer, hsresult.s, hsresult.msgRW)
+	newPeer.UpdateBlkCache(hsresult.status.GetBestBlockHash(), hsresult.status.GetBestHeight())
 
-	return true
+	// insert Handlers
+	pm.handlerFactory.InsertHandlers(newPeer)
+
+	go newPeer.RunPeer()
+
+	pm.insertPeer(peerID, newPeer)
+	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
+
+	return newPeer
 }
 
 func (pm *peerManager) GetNextManageNum() uint32 {
@@ -371,7 +389,7 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	return true
 }
 
-func (pm *peerManager) GetPeer(ID peer.ID) (p2pcommon.RemotePeer, bool) {
+func (pm *peerManager) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
 
 	gc := getPeerChan{id: ID, ret: make(chan p2pcommon.RemotePeer)}
 	// vs code's lint does not allow direct return of map operation
@@ -427,13 +445,13 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) insertPeer(ID peer.ID, peer p2pcommon.RemotePeer) {
+func (pm *peerManager) insertPeer(ID types.PeerID, peer p2pcommon.RemotePeer) {
 	pm.remotePeers[ID] = peer
 	pm.updatePeerCache()
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) deletePeer(ID peer.ID) {
+func (pm *peerManager) deletePeer(ID types.PeerID) {
 	pm.mm.Remove(ID)
 	delete(pm.remotePeers, ID)
 	pm.updatePeerCache()

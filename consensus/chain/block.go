@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-peer"
 	"time"
 
 	"github.com/aergoio/aergo/chain"
@@ -110,7 +109,7 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 	return nil
 }
 
-func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID peer.ID) error {
+func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID types.PeerID) error {
 	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Uint64("no", targetNo).
 		Str("hash", enc.ToString(targetHash)).Msg("request to sync for consensus")
 

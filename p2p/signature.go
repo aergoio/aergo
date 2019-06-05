@@ -7,16 +7,14 @@ package p2p
 
 import (
 	"fmt"
-
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 type defaultMsgSigner struct {
-	selfPeerID peer.ID
+	selfPeerID types.PeerID
 	privateKey crypto.PrivKey
 	pubKey     crypto.PubKey
 
@@ -24,7 +22,7 @@ type defaultMsgSigner struct {
 	pubKeyBytes []byte
 }
 
-func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID peer.ID) p2pcommon.MsgSigner {
+func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID types.PeerID) p2pcommon.MsgSigner {
 	pidBytes := []byte(peerID)
 	pubKeyBytes, _ := pubKey.Bytes()
 	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
@@ -69,7 +67,7 @@ func (pm *defaultMsgSigner) signBytes(data []byte) ([]byte, error) {
 	return res, err
 }
 
-func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
+func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID types.PeerID) error {
 	// check signature
 	pubKey, err := crypto.UnmarshalPublicKey(msg.Header.NodePubKey)
 	if err != nil {
@@ -88,14 +86,14 @@ func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID peer.ID) e
 	return verifyBytes(data, signature, pubKey)
 }
 
-func checkPidWithPubkey(peerID peer.ID, pubKey crypto.PubKey) error {
-	// extract node peer.ID from the provided public key
-	idFromKey, err := peer.IDFromPublicKey(pubKey)
+func checkPidWithPubkey(peerID types.PeerID, pubKey crypto.PubKey) error {
+	// extract node peerID from the provided public key
+	idFromKey, err := types.IDFromPublicKey(pubKey)
 	if err != nil {
 		return err
 	}
 
-	// verify that message author node peer.ID matches the provided node public key
+	// verify that message author node PeerID matches the provided node public key
 	if idFromKey != peerID {
 		return fmt.Errorf("PeerID mismatch")
 	}
@@ -127,7 +125,7 @@ func (d *dummySigner) SignMsg(msg *types.P2PMessage) error {
 	return nil
 }
 
-func (d *dummySigner) VerifyMsg(msg *types.P2PMessage, senderID peer.ID) error {
+func (d *dummySigner) VerifyMsg(msg *types.P2PMessage, senderID types.PeerID) error {
 	return nil
 }
 

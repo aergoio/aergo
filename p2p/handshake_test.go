@@ -7,12 +7,10 @@ package p2p
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"reflect"
 	"strings"
 	"testing"
@@ -33,7 +31,7 @@ const (
 
 var (
 	// sampleID matches the key defined in test config file
-	sampleID peer.ID
+	sampleID types.PeerID
 )
 
 func init() {
@@ -44,6 +42,8 @@ func init() {
 }
 
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
+	var myChainID = &types.ChainID{Magic:"itSmain1"}
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -84,11 +84,11 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 			_, got, err := h.handshakeOutboundPeer(ctx, mockReader, mockWriter)
 			//_, got, err := h.handshakeOutboundPeerTimeout(mockReader, mockWriter, time.Millisecond*50)
 			if !strings.Contains(err.Error(),"context deadline exceeded") {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
+				t.Errorf("LegacyWireHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
+				t.Errorf("LegacyWireHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -104,12 +104,12 @@ func TestPeerHandshaker_Select(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		hsheader HSHeader
+		hsheader p2pcommon.HSHeader
 		wantErr  bool
 	}{
-		{"TVer030", HSHeader{p2pcommon.MAGICMain, p2pcommon.P2PVersion030}, false},
-		{"Tver020", HSHeader{p2pcommon.MAGICMain, 0x00000200}, true},
-		{"TInavlid", HSHeader{p2pcommon.MAGICMain, 0x000001}, true},
+		{"TVer030", p2pcommon.HSHeader{p2pcommon.MAGICMain, p2pcommon.P2PVersion030}, false},
+		{"Tver020", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x00000200}, true},
+		{"TInavlid", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x000001}, true},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -119,36 +119,12 @@ func TestPeerHandshaker_Select(t *testing.T) {
 
 			h := newHandshaker(mockPM, mockActor, logger, nil, samplePeerID)
 
-			actual, err := h.selectProtocolVersion(test.hsheader, bufio.NewReader(mockReader),
+			actual, err := h.selectProtocolVersion(test.hsheader.Version, bufio.NewReader(mockReader),
 				bufio.NewWriter(mockWriter))
 			assert.Equal(t, test.wantErr, err != nil)
 			if !test.wantErr {
 				assert.NotNil(t, actual)
 			}
-		})
-	}
-}
-
-func TestHSHeader_Marshal(t *testing.T) {
-	tests := []struct {
-		name            string
-		input           []byte
-		expectedNewwork uint32
-		expectedVersion uint32
-	}{
-		{"TMain030", []byte{0x047, 0x041, 0x68, 0x41, 0, 0, 3, 0}, p2pcommon.MAGICMain, p2pcommon.P2PVersion030},
-		{"TMain020", []byte{0x02e, 0x041, 0x54, 0x29, 0, 1, 3, 5}, p2pcommon.MAGICTest, 0x010305},
-		// TODO: test cases
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			hs := HSHeader{}
-			hs.Unmarshal(test.input)
-			assert.Equal(t, test.expectedNewwork, hs.Magic)
-			assert.Equal(t, test.expectedVersion, hs.Version)
-
-			actualBytes := hs.Marshal()
-			assert.True(t, bytes.Equal(test.input, actualBytes))
 		})
 	}
 }

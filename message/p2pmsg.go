@@ -8,7 +8,6 @@ package message
 import (
 	"fmt"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 	"time"
 )
 
@@ -28,13 +27,13 @@ var (
 // PingMsg send types.Ping to each peer.
 // The actor returns true if sending is successful.
 type PingMsg struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 }
 
 // GetAddressesMsg send types.AddressesRequest to dest peer. the dest peer will send types.AddressesResponse.
 // The actor returns true if sending is successful.
 type GetAddressesMsg struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Size   uint32
 	Offset uint32
 }
@@ -59,7 +58,7 @@ type NotifyNewTransactions struct {
 // GetTransactions send types.GetTransactionsRequest to dest peer. The receiving peer will send types.GetTransactionsResponse
 // The actor returns true if sending is successful.
 type GetTransactions struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Hashes []TXHash
 }
 
@@ -72,7 +71,7 @@ type TransactionsResponse struct {
 // GetBlockHeaders send type.GetBlockRequest to dest peer
 // The actor returns true if sending is successful.
 type GetBlockHeaders struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	// Hash is the first block to get. Height will be used when Hash mi empty
 	Hash    BlockHash
 	Height  uint64
@@ -91,7 +90,7 @@ type BlockHeadersResponse struct {
 // GetBlockInfos send types.GetBlockRequest to dest peer.
 // The actor returns true if sending is successful.
 type GetBlockInfos struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Hashes []BlockHash
 }
 
@@ -104,13 +103,13 @@ type GetBlockChunks struct {
 // BlockInfosResponse is data from other peer, as a response of types.GetBlockRequest
 // p2p module will send this to chainservice actor.
 type BlockInfosResponse struct {
-	FromWhom peer.ID
+	FromWhom types.PeerID
 	Blocks   []*types.Block
 }
 
 type GetBlockChunksRsp struct {
 	Seq    uint64
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Blocks []*types.Block
 	Err    error
 }
@@ -144,7 +143,7 @@ type GetMetrics struct {
 // GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
 type GetSyncAncestor struct {
 	Seq    uint64
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Hashes [][]byte
 }
 
@@ -156,7 +155,7 @@ type GetSyncAncestorRsp struct {
 
 type GetHashes struct {
 	Seq      uint64
-	ToWhom   peer.ID
+	ToWhom   types.PeerID
 	PrevInfo *types.BlockInfo
 	Count    uint64
 }
@@ -171,7 +170,7 @@ type GetHashesRsp struct {
 
 type GetHashByNo struct {
 	Seq     uint64
-	ToWhom  peer.ID
+	ToWhom  types.PeerID
 	BlockNo types.BlockNo
 }
 

@@ -30,7 +30,6 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	lru "github.com/hashicorp/golang-lru"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -184,7 +183,7 @@ type IChainHandler interface {
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
 	getEnterpriseConf(key string) (*types.EnterpriseConfig, error)
-	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
+	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
 	setSync(val bool)

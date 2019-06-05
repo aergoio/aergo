@@ -9,12 +9,10 @@ import (
 	"net"
 	"strconv"
 	"time"
-
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 type PeerBlockInfo interface {
-	ID() peer.ID
+	ID() PeerID
 	State() PeerState
 	LastStatus() *LastBlockStatus
 }
@@ -38,7 +36,7 @@ func AddressesToStringMap(addrs []*PeerAddress) []map[string]string {
 		vMap := make(map[string]string)
 		vMap["address"] = net.IP(addr.Address).String()
 		vMap["port"] = strconv.Itoa(int(addr.Port))
-		vMap["peerId"] = peer.ID(addr.PeerID).Pretty()
+		vMap["peerId"] = PeerID(addr.PeerID).Pretty()
 		arr[i] = vMap
 	}
 	return arr

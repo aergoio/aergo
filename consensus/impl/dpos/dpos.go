@@ -19,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -163,7 +162,7 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 	return dpos.quit
 }
 
-func (dpos *DPoS) bpid() peer.ID {
+func (dpos *DPoS) bpid() types.PeerID {
 	return p2pkey.NodeID()
 }
 

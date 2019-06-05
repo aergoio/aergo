@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
 	"runtime/debug"
 	"sync"
@@ -16,17 +17,15 @@ import (
 	"github.com/aergoio/aergo/p2p/subproto"
 
 	"github.com/aergoio/aergo/p2p/metric"
-	net "github.com/libp2p/go-libp2p-net"
 
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
-var TimeoutError =  errors.New("timeout")
+var TimeoutError = errors.New("timeout")
 var CancelError = errors.New("canceled")
 
 type requestInfo struct {
@@ -74,14 +73,14 @@ type remotePeerImpl struct {
 	txNoticeQueue       *p2putil.PressableQueue
 	maxTxNoticeHashSize int
 
-	s  net.Stream
+	s  network.Stream
 	rw p2pcommon.MsgReadWriter
 }
 
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, s net.Stream, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, s network.Stream, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
 		meta: meta, manageNum: manageNum, pm: pm,
 		name:      fmt.Sprintf("%s#%d", p2putil.ShortForm(meta.ID), manageNum),
@@ -119,7 +118,7 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 }
 
 // ID return id of peer, same as peer.meta.ID
-func (p *remotePeerImpl) ID() peer.ID {
+func (p *remotePeerImpl) ID() types.PeerID {
 	return p.meta.ID
 }
 
@@ -254,8 +253,7 @@ func (p *remotePeerImpl) runRead() {
 	}
 }
 
-func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) error {
-	var err error
+func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
 	subProto := msg.Subprotocol()
 	defer func() {
 		if r := recover(); r != nil {

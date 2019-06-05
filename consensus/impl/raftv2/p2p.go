@@ -26,8 +26,10 @@ func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
 	hs.Tell(message.P2PSvc, &message.GetCluster{ReplyC: replyC})
 
 	var (
-		rsp *message.GetClusterRsp
-		ok  bool
+		rsp   *message.GetClusterRsp
+		ok    bool
+		err   error
+		newCl *Cluster
 	)
 
 	select {
@@ -48,7 +50,9 @@ func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
 		return nil, ErrGetClusterTimeout
 	}
 
-	newCl := NewClusterFromMemberAttrs(rsp.ChainID, rsp.Members)
+	if newCl, err = NewClusterFromMemberAttrs(rsp.ChainID, rsp.Members); err != nil {
+		return nil, err
+	}
 
 	//logger.Debug().Str("info", newCl.toString()).Msg("get remote cluster info")
 	return newCl, nil

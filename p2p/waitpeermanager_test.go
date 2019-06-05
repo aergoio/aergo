@@ -9,14 +9,12 @@ import (
 	"errors"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -25,6 +23,7 @@ const (
 
 func Test_staticWPManager_OnDiscoveredPeers(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
 		metas []p2pcommon.PeerMeta
@@ -55,9 +54,10 @@ func Test_staticWPManager_OnDiscoveredPeers(t *testing.T) {
 
 func Test_dynamicWPManager_OnDiscoveredPeers(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
-		preConnected []peer.ID
+		preConnected []types.PeerID
 		metas        []p2pcommon.PeerMeta
 	}
 	tests := []struct {
@@ -133,86 +133,40 @@ func Test_setNextTrial(t *testing.T) {
 
 func Test_basePeerManager_tryAddPeer(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	// id0 is in both desginated peer and hidden peer
-	desigIDs := make([]peer.ID,3)
-	desigPeers := make(map[peer.ID]p2pcommon.PeerMeta,3)
-
-	hiddenIDs := make([]peer.ID,3)
-	hiddenPeers := make(map[peer.ID]bool)
-
-	for i:=0;i<3;i++ {
-		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPrivateKey(pkey)
-		desigIDs[i] = pid
-		desigPeers[pid] = p2pcommon.PeerMeta{ID:pid}
-	}
-	hiddenIDs[0] =desigIDs[0]
-	hiddenPeers[desigIDs[0]] = true
-
-	for i:=1;i<3;i++ {
-		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPrivateKey(pkey)
-		hiddenIDs[i] = pid
-		hiddenPeers[pid] = true
-	}
-
-
-	// tests for add peer.
+	// tests for add peer
 	type args struct {
 		outbound bool
 		meta     p2pcommon.PeerMeta
 	}
 
 	tests := []struct {
-		name   string
-		args   args
+		name string
+		args args
 
 		hsRet *types.Status
 		hsErr error
 
 		wantDesign bool
 		wantHidden bool
-		wantID   peer.ID
+		wantID     types.PeerID
 		wantSucc   bool
 	}{
 		// add inbound peer
-		{"TIn", args{false, p2pcommon.PeerMeta{ID:dummyPeerID}},
+		{"TIn", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
 			dummyStatus(dummyPeerID, false), nil, false, false, dummyPeerID, true},
-		// add inbound designated peer
-		{"TInDesignated", args{false, p2pcommon.PeerMeta{ID:desigIDs[1]}},
-			dummyStatus(desigIDs[1], false), nil,true, false, desigIDs[1], true},
-		// add inbound hidden peer
-		{"TInHidden", args{false, p2pcommon.PeerMeta{ID:dummyPeerID}},
-			dummyStatus(dummyPeerID, true), nil,false, true, dummyPeerID, true},
-		// add inbound peer (hidden in node config)
-		{"TInHiddenInConf", args{false, p2pcommon.PeerMeta{ID:hiddenIDs[1]}},
-			dummyStatus(hiddenIDs[1], false), nil,false, true, hiddenIDs[1], true},
-		{"TInH&D", args{false, p2pcommon.PeerMeta{ID:hiddenIDs[0], Hidden:true}},
-			dummyStatus(hiddenIDs[0], true), nil,true, true, hiddenIDs[0], true},
 
 		// add outbound peer
-		{"TOut", args{true, p2pcommon.PeerMeta{ID:dummyPeerID}},
+		{"TOut", args{true, p2pcommon.PeerMeta{ID: dummyPeerID}},
 			dummyStatus(dummyPeerID, false), nil, false, false, dummyPeerID, true},
-		// add outbound designated peer
-		{"TOutDesignated", args{true, p2pcommon.PeerMeta{ID:desigIDs[1]}},
-			dummyStatus(desigIDs[1], false), nil,true, false, desigIDs[1], true},
-		// add outbound hidden peer
-		{"TOutHidden", args{true, p2pcommon.PeerMeta{ID:dummyPeerID}},
-			dummyStatus(dummyPeerID, true), nil,false, true, dummyPeerID, true},
-		// add outbound peer (hidden in node config)
-		{"TOutHiddenInConf", args{true, p2pcommon.PeerMeta{ID:hiddenIDs[1]}},
-			dummyStatus(hiddenIDs[1], false), nil,false, true, hiddenIDs[1], true},
-		{"TOutH&D", args{true, p2pcommon.PeerMeta{ID:hiddenIDs[0], Hidden:true}},
-			dummyStatus(hiddenIDs[0], true), nil,true, true, hiddenIDs[0], true},
 
 		// failed to handshake
-		{"TErrHandshake", args{false, p2pcommon.PeerMeta{ID:dummyPeerID}},
+		{"TErrHandshake", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
 			nil, errors.New("handshake err"), false, false, dummyPeerID, false},
 		// invalid status information
-		{"TErrDiffPeerID", args{false, p2pcommon.PeerMeta{ID:dummyPeerID}},
+		{"TErrDiffPeerID", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
 			dummyStatus(dummyPeerID2, false), nil, false, false, dummyPeerID, false},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -220,8 +174,8 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockHSFactory := p2pmock.NewMockHSHandlerFactory(ctrl)
 			mockHSHandler := p2pmock.NewMockHSHandler(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
-			mockHSFactory.EXPECT().CreateHSHandler(tt.args.outbound, gomock.Any(), gomock.Any(), gomock.Any(), tt.args.meta.ID).Return(mockHSHandler)
-			mockHSHandler.EXPECT().Handle(gomock.Any(),gomock.Any(),gomock.Any()).Return(mockRW, tt.hsRet,tt.hsErr)
+			//mockHSFactory.EXPECT().CreateHSHandler(gomock.Any(), tt.args.outbound, tt.args.meta.ID).Return(mockHSHandler)
+			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
 			mockHandlerFactory := p2pmock.NewMockHandlerFactory(ctrl)
 			mockHandlerFactory.EXPECT().InsertHandlers(gomock.AssignableToTypeOf(&remotePeerImpl{})).MaxTimes(1)
 
@@ -231,18 +185,16 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				mf: mockMF,
-				hsFactory: mockHSFactory,
-				designatedPeers: desigPeers,
-				hiddenPeerSet: hiddenPeers,
-				handlerFactory:mockHandlerFactory,
-				peerHandshaked: make(chan p2pcommon.RemotePeer, 10),
+				mf:              mockMF,
+				hsFactory:       mockHSFactory,
+				handlerFactory:  mockHandlerFactory,
+				peerHandshaked:  make(chan handshakeResult, 10),
 			}
 			dpm := &basePeerManager{
-				pm:          pm,
-				logger:      logger,
+				pm:     pm,
+				logger: logger,
 			}
-			got, got1 := dpm.tryAddPeer(tt.args.outbound, tt.args.meta, mockStream)
+			got, got1 := dpm.tryAddPeer(tt.args.outbound, tt.args.meta, mockStream, mockHSHandler)
 			if got1 != tt.wantSucc {
 				t.Errorf("basePeerManager.tryAddPeer() got1 = %v, want %v", got1, tt.wantSucc)
 			}
@@ -265,6 +217,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 	}
 }
 
-func dummyStatus(id peer.ID, noexpose bool) *types.Status {
-	return &types.Status{Sender:&types.PeerAddress{PeerID:[]byte(id)},NoExpose:noexpose}
+func dummyStatus(id types.PeerID, noexpose bool) *types.Status {
+	return &types.Status{Sender: &types.PeerAddress{PeerID: []byte(id)}, NoExpose: noexpose}
 }

@@ -34,12 +34,19 @@ func (ks *Store) SaveAddress(addr Address) error {
 	if len(addr) != types.AddressLength {
 		return errors.New("invalid address length")
 	}
+
+	ks.RWMutex.Lock()
+	defer ks.RWMutex.Unlock()
+
 	addrs := append(ks.storage.Get(addresses), addr...)
 	ks.storage.Set(addresses, addrs)
 	return nil
 }
 
 func (ks *Store) GetAddresses() ([]Address, error) {
+	ks.RWMutex.RLock()
+	defer ks.RWMutex.RUnlock()
+
 	b := ks.storage.Get(addresses)
 	var ret []Address
 	for i := 0; i < len(b); i += types.AddressLength {

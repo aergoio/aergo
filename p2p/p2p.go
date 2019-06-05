@@ -25,7 +25,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // P2P is actor component for p2p
@@ -36,6 +35,7 @@ type P2P struct {
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
 	pm      p2pcommon.PeerManager
+	vm 		p2pcommon.VersionedManager
 	sm      p2pcommon.SyncManager
 	mm      metric.MetricsManager
 	mf      p2pcommon.MoFactory
@@ -134,12 +134,14 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
-	mf := &v030MOFactory{}
+	// TODO: it should be refactored to support multi version
+	mf := &baseMOFactory{}
+
 	//reconMan := newReconnectManager(p2ps.Logger)
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, signer, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-
+	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
 	// connect managers each other
 	//reconMan.pm = peerMan
 
@@ -148,6 +150,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.nt = netTransport
 	p2ps.mf = mf
 	p2ps.pm = peerMan
+	p2ps.vm = versionMan
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
@@ -218,7 +221,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 	selfPeerID := p2ps.pm.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
-		rPeerID := peer.ID(rPeerAddr.PeerID)
+		rPeerID := types.PeerID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}
@@ -307,11 +310,19 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 
 }
 
-func (p2ps *P2P) CreateHSHandler(outbound bool, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, pid peer.ID) p2pcommon.HSHandler {
-	handshakeHandler := newHandshaker(pm, actor, log, p2ps.chainID, pid)
-	if outbound {
-		return &OutboundHSHandler{PeerHandshaker: handshakeHandler}
+func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+	if p2pVersion == p2pcommon.P2PVersion030 {
+		handshakeHandler := newHandshaker(p2ps.pm, p2ps, p2ps.Logger, p2ps.chainID, pid)
+		if outbound {
+			return &LegacyOutboundHSHandler{LegacyWireHandshaker: handshakeHandler}
+		} else {
+			return &LegacyInboundHSHandler{LegacyWireHandshaker: handshakeHandler}
+		}
 	} else {
-		return &InboundHSHandler{PeerHandshaker: handshakeHandler}
+		if outbound {
+			return NewOutbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+		} else {
+			return NewInbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+		}
 	}
 }

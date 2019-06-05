@@ -7,25 +7,33 @@ package p2p
 
 import (
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
-	net "github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/network"
 	"sort"
 	"time"
 )
 
+type handshakeResult struct {
+	s network.Stream
+	msgRW p2pcommon.MsgReadWriter
+
+	meta p2pcommon.PeerMeta
+	status *types.Status
+}
+
 func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger,workingJobs:make(map[peer.ID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger,workingJobs:make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager:basePeerManager{pm: pm, logger: logger, workingJobs:make(map[peer.ID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager:basePeerManager{pm: pm, logger: logger, workingJobs:make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -34,27 +42,59 @@ func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2p
 
 type basePeerManager struct {
 	pm          *peerManager
+
 	logger      *log.Logger
-	workingJobs map[peer.ID]ConnWork
+	workingJobs map[types.PeerID]ConnWork
+
 }
 
 
-func (dpm *basePeerManager) OnInboundConn(s net.Stream) {
+func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
+	version := p2pcommon.P2PVersion031
+
 	peerID := s.Conn().RemotePeer()
 	tempMeta := p2pcommon.PeerMeta{ID: peerID}
 	addr := s.Conn().RemoteMultiaddr()
 
 	dpm.logger.Debug().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
-	query := inboundConnEvent{meta: tempMeta, p2pVer: p2pcommon.P2PVersion030, foundC: make(chan bool)}
+	query := inboundConnEvent{meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
 		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("same peer as inbound peer already exists.")
-		// TODO send already exist message
 		s.Close()
+		return
 	}
 
+	h := dpm.pm.hsFactory.CreateHSHandler(version, false, peerID)
 	// check if remote peer is connected (already handshaked)
-	completeMeta, added := dpm.tryAddPeer(false, tempMeta, s)
+	completeMeta, added := dpm.tryAddPeer(false, tempMeta, s, h)
+	if !added {
+		s.Close()
+	} else {
+		if tempMeta.IPAddress != completeMeta.IPAddress {
+			dpm.logger.Debug().Str("after", completeMeta.IPAddress).Msg("Update IP address of inbound remote peer")
+		}
+	}
+}
+
+func (dpm *basePeerManager) OnInboundConnLegacy(s network.Stream) {
+	version := p2pcommon.P2PVersion030
+	peerID := s.Conn().RemotePeer()
+	tempMeta := p2pcommon.PeerMeta{ID: peerID}
+	addr := s.Conn().RemoteMultiaddr()
+
+	dpm.logger.Debug().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new legacy inbound peer arrived")
+	query := inboundConnEvent{meta: tempMeta, p2pVer: version, foundC: make(chan bool)}
+	dpm.pm.inboundConnChan <- query
+	if exist := <-query.foundC; exist {
+		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("same peer as inbound peer already exists.")
+		s.Close()
+		return
+	}
+
+	h := dpm.pm.hsFactory.CreateHSHandler(version, false, peerID)
+	// check if remote peer is connected (already handshaked)
+	completeMeta, added := dpm.tryAddPeer(false, tempMeta, s, h)
 	if !added {
 		s.Close()
 	} else {
@@ -92,6 +132,8 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 			if _, exist := dpm.workingJobs[wp.Meta.ID]; exist {
 				continue
 			}
+			dpm.logger.Info().Int("trial", wp.TrialCnt).Str(p2putil.LogPeerID, p2putil.ShortForm(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
+
 			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID:wp.Meta.ID, StartTime:time.Now()}
 			go dpm.runTryOutboundConnect(wp)
 			added++
@@ -101,6 +143,8 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 	}
 }
 
+// getRemainingSpaces check and return the number that can do connection work.
+// the number depends on the number of current works and the number of waiting peers
 func (dpm *basePeerManager) getRemainingSpaces() int {
 	// simpler version. just check total count
 	// has space to add more connection
@@ -121,16 +165,17 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 		dpm.pm.workDoneChannel <- workResult
 	}()
 
+
 	meta := wp.Meta
-	s, err := dpm.pm.nt.GetOrCreateStream(meta, p2pcommon.AergoP2PSub)
+	p2pversion, s, err := dpm.getStream(meta)
 	if err != nil {
 		dpm.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to get stream.")
 		workResult.Result = err
 		return
 	}
-
+	h := dpm.pm.hsFactory.CreateHSHandler(p2pversion, true, meta.ID)
 	// handshake
-	completeMeta, added := dpm.tryAddPeer(true, meta, s)
+	completeMeta, added := dpm.tryAddPeer(true, meta, s, h)
 	if !added {
 		s.Close()
 		workResult.Result = errors.New("handshake failed")
@@ -142,18 +187,33 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 	}
 }
 
+func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVersion, network.Stream, error) {
+	// try connect peer with possible versions
+	s, err := dpm.pm.nt.GetOrCreateStream(meta, p2pcommon.P2PSubAddr, p2pcommon.LegacyP2PSubAddr)
+	if err != nil {
+		return p2pcommon.P2PVersionUnknown, nil, err
+	}
+	switch s.Protocol() {
+	case p2pcommon.P2PSubAddr:
+		return p2pcommon.P2PVersion031, s, nil
+	case p2pcommon.LegacyP2PSubAddr:
+		return p2pcommon.P2PVersion030, s, err
+	default:
+		return p2pcommon.P2PVersionUnknown, nil, fmt.Errorf("unknown p2p wire protocol %v",s.Protocol())
+	}
+}
+
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer. stream s will be owned to remotePeer if succeed to add perr.
-func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s net.Stream) (p2pcommon.PeerMeta, bool) {
+func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	var peerID = meta.ID
 	rd := metric.NewReader(s)
 	wt := metric.NewWriter(s)
-	h := dpm.pm.hsFactory.CreateHSHandler(outbound, dpm.pm, dpm.pm.actorService, dpm.logger, peerID)
-	rw, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
+	msgRW, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
 	if err != nil {
-		dpm.logger.Debug().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
-		if rw != nil {
-			dpm.sendGoAway(rw, err.Error())
+		dpm.logger.Debug().Err(err).Bool("outbound",outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
+		if msgRW != nil {
+			dpm.sendGoAway(msgRW, err.Error())
 		}
 		return meta, false
 	}
@@ -161,23 +221,11 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	receivedMeta := p2pcommon.NewMetaFromStatus(remoteStatus, outbound)
 	if receivedMeta.ID != peerID {
 		dpm.logger.Debug().Str("received_peer_id", receivedMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Inconsistent peerID")
-		dpm.sendGoAway(rw, "Inconsistent peerID")
+		dpm.sendGoAway(msgRW, "Inconsistent peerID")
 		return meta, false
 	}
-	// override options by configurations of nodd
-	_, receivedMeta.Designated = dpm.pm.designatedPeers[peerID]
-	// hidden is set by either remote peer's asking or local node's config
-	if _, exist := dpm.pm.hiddenPeerSet[peerID]; exist {
-		receivedMeta.Hidden = true
-	}
 
-	newPeer := newRemotePeer(receivedMeta, dpm.pm.GetNextManageNum(), dpm.pm, dpm.pm.actorService, dpm.logger, dpm.pm.mf, dpm.pm.signer, s, rw)
-	newPeer.UpdateBlkCache(remoteStatus.GetBestBlockHash(), remoteStatus.GetBestHeight())
-
-	// insert Handlers
-	dpm.pm.handlerFactory.InsertHandlers(newPeer)
-
-	dpm.pm.peerHandshaked <- newPeer
+	dpm.pm.peerHandshaked <- handshakeResult{meta: receivedMeta, status:remoteStatus, msgRW:msgRW, s:s}
 	return receivedMeta, true
 }
 
@@ -199,7 +247,7 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 	} else {
 		// leave waitingpeer if needed to reconnect
 		if  !setNextTrial(wp) {
-			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Time("next_time",wp.NextTrial).Msg("Failed Connection will restart.")
+			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Time("next_time",wp.NextTrial).Msg("Failed Connection will be retried")
 			delete(dpm.pm.waitingPeers,meta.ID)
 		}
 	}
@@ -221,7 +269,7 @@ type staticWPManager struct {
 }
 
 
-func (spm *staticWPManager) OnPeerConnect(pid peer.ID) {
+func (spm *staticWPManager) OnPeerConnect(pid types.PeerID) {
 	delete(spm.pm.waitingPeers, pid)
 }
 
@@ -246,7 +294,7 @@ type dynamicWPManager struct {
 	maxPeers    int
 }
 
-func (dpm *dynamicWPManager) OnPeerConnect(pid peer.ID) {
+func (dpm *dynamicWPManager) OnPeerConnect(pid types.PeerID) {
 	// remove peer from wait pool
 	delete(dpm.pm.waitingPeers, pid)
 }
@@ -305,7 +353,7 @@ func (dpm *dynamicWPManager) getRemainingSpaces() int {
 
 type inboundConnEvent struct {
 	meta   p2pcommon.PeerMeta
-	p2pVer uint32
+	p2pVer p2pcommon.P2PVersion
 	foundC chan bool
 }
 
@@ -316,7 +364,7 @@ func (a byNextTrial) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byNextTrial) Less(i, j int) bool { return a[i].NextTrial.Before(a[j].NextTrial) }
 
 type ConnWork struct {
-	PeerID    peer.ID
+	PeerID    types.PeerID
 	Meta      p2pcommon.PeerMeta
 	StartTime time.Time
 }

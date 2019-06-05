@@ -2,8 +2,7 @@ package types
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-peer"
-)
+	)
 
 func (mc *MembershipChange) ToString() string {
 	var buf string
@@ -17,6 +16,6 @@ func (mc *MembershipChange) ToString() string {
 func (mattr *MemberAttr) ToString() string {
 	var buf string
 
-	buf = fmt.Sprintf("{ name=%s, url=%s, peerid=%s, id=%x }", mattr.Name, mattr.Url, peer.ID(mattr.PeerID).Pretty(), mattr.ID)
+	buf = fmt.Sprintf("{ name=%s, url=%s, peerid=%s, id=%x }", mattr.Name, mattr.Url, PeerID(mattr.PeerID).Pretty(), mattr.ID)
 	return buf
 }

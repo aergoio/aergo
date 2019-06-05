@@ -3,9 +3,11 @@ package key
 import (
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -53,7 +55,7 @@ func TestCreateKeyLongPass(t *testing.T) {
 	}
 }
 
-func TestExportKey(t *testing.T) {
+func TestExportImportKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	const testSize = 10
@@ -73,6 +75,9 @@ func TestExportKey(t *testing.T) {
 		if len(exported) != 48 {
 			t.Errorf("invalid exported address : length = %d", len(exported))
 		}
+		imported, err := ks.ImportKey(exported, pass, pass)
+		assert.NoError(t, err, "import")
+		assert.Equal(t, imported, addr, "import result")
 	}
 }
 
@@ -126,4 +131,27 @@ func TestSign(t *testing.T) {
 			t.Errorf("could not sign : %s", err.Error())
 		}
 	}
+}
+
+func TestConcurrentUnlockAndLock(t *testing.T) {
+	initTest()
+	defer deinitTest()
+
+	pass := "password"
+	addr, err := ks.CreateKey(pass)
+	if err != nil {
+		t.Errorf("could not create key : %s", err.Error())
+	}
+
+	const testSize = 50
+	var wg sync.WaitGroup
+	for i := 0; i < testSize; i++ {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, id int) {
+			defer wg.Done()
+			ks.Unlock(addr, pass)
+			ks.Lock(addr, pass)
+		}(&wg, i)
+	}
+	wg.Wait()
 }

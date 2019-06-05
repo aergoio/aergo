@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"errors"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -23,9 +24,11 @@ type keyPair struct {
 
 // Store stucture of keystore
 type Store struct {
-	timeout  time.Duration
-	unlocked map[string]*keyPair
-	storage  db.DB
+	sync.RWMutex
+	timeout      time.Duration
+	unlocked     map[string]*keyPair
+	unlockedLock *sync.Mutex
+	storage      db.DB
 }
 
 // NewStore make new instance of keystore
@@ -33,9 +36,10 @@ func NewStore(storePath string, unlockTimeout uint) *Store {
 	const dbName = "account"
 	dbPath := path.Join(storePath, dbName)
 	return &Store{
-		timeout:  time.Duration(unlockTimeout) * time.Second,
-		unlocked: map[string]*keyPair{},
-		storage:  db.NewDB(db.LevelImpl, dbPath),
+		timeout:      time.Duration(unlockTimeout) * time.Second,
+		unlocked:     map[string]*keyPair{},
+		unlockedLock: &sync.Mutex{},
+		storage:      db.NewDB(db.LevelImpl, dbPath),
 	}
 }
 func (ks *Store) CloseStore() {
@@ -103,6 +107,10 @@ func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 	}
 	pk, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
 	addrKey := types.EncodeAddress(addr)
+
+	ks.unlockedLock.Lock()
+	defer ks.unlockedLock.Unlock()
+
 	unlockedKeyPair, exist := ks.unlocked[addrKey]
 
 	if ks.timeout == 0 {
@@ -130,6 +138,10 @@ func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 		return nil, err
 	}
 	b58addr := types.EncodeAddress(addr)
+
+	ks.unlockedLock.Lock()
+	defer ks.unlockedLock.Unlock()
+
 	if _, exist := ks.unlocked[b58addr]; exist {
 		ks.unlocked[b58addr] = nil
 		delete(ks.unlocked, b58addr)

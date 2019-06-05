@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/libp2p/go-libp2p-peer"
 	"io"
 	"sync"
 	"time"
@@ -87,14 +86,18 @@ func (chainsnap *ChainSnapshotter) createSnapshot(prevProgress BlockProgress, co
 func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBlock *types.Block, confstate *raftpb.ConfState) (*consensus.SnapshotData, error) {
 	logger.Info().Str("hash", snapBlock.ID()).Uint64("no", snapBlock.BlockNo()).Msg("create new snapshot data of block")
 
+	cluster.Lock()
+	defer cluster.Unlock()
+
 	if !cluster.isMatch(confstate) {
-		logger.Error().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
+		logger.Fatal().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
 		return nil, ErrClusterMismatchConfState
 	}
 
-	members := cluster.getMembers().ToArray()
+	members := cluster.AppliedMembers().ToArray()
+	removedMembers := cluster.RemovedMembers().ToArray()
 
-	snap := consensus.NewSnapshotData(members, snapBlock)
+	snap := consensus.NewSnapshotData(members, removedMembers, snapBlock)
 	if snap == nil {
 		panic("new snap failed")
 	}
@@ -140,7 +143,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	return nil
 }
 
-func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
+func (chainsnap *ChainSnapshotter) checkPeerLive(peerID types.PeerID) bool {
 	if chainsnap.pa == nil {
 		logger.Fatal().Msg("peer accessor of chain snapshotter is not set")
 	}
@@ -153,8 +156,8 @@ func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
 func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) error {
 
 	var leader uint64
-	getSyncLeader := func() (peer.ID, error) {
-		var peerID peer.ID
+	getSyncLeader := func() (types.PeerID, error) {
+		var peerID types.PeerID
 		var err error
 
 		for {
@@ -167,7 +170,7 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 					return "", err
 				}
 			} else {
-				peerID, err = chainsnap.cluster.getMembers().getMemberPeerAddress(leader)
+				peerID, err = chainsnap.cluster.Members().getMemberPeerAddress(leader)
 				if err != nil {
 					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err

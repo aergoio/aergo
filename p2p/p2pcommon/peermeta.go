@@ -7,16 +7,14 @@ package p2pcommon
 
 import (
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
 	UnknownVersion = ""
 )
 // PeerMeta contains non changeable information of peer node during connected state
-// TODO: PeerMeta is almost same as PeerAddress, so TODO to unify them.
 type PeerMeta struct {
-	ID peer.ID
+	ID types.PeerID
 	// IPAddress is human readable form of ip address such as "192.168.0.1" or "2001:0db8:0a0b:12f0:33:1"
 	IPAddress  string
 	Port       uint32
@@ -47,7 +45,7 @@ func NewMetaFromStatus(status *types.Status, outbound bool) PeerMeta {
 // FromPeerAddress convert PeerAddress to PeerMeta
 func FromPeerAddress(addr *types.PeerAddress) PeerMeta {
 	meta := PeerMeta{IPAddress: addr.Address,
-		Port: addr.Port, ID: peer.ID(addr.PeerID)}
+		Port: addr.Port, ID: types.PeerID(addr.PeerID)}
 	return meta
 }
 

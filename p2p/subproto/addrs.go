@@ -10,8 +10,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type addressesRequestHandler struct {
@@ -76,7 +74,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 	selfPeerID := ph.pm.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
-		rPeerID := peer.ID(rPeerAddr.PeerID)
+		rPeerID := types.PeerID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}

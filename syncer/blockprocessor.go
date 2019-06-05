@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 type BlockProcessor struct {
@@ -30,7 +29,7 @@ type BlockProcessor struct {
 }
 
 type ConnectTask struct {
-	FromPeer peer.ID
+	FromPeer types.PeerID
 	Blocks   []*types.Block
 	firstNo  types.BlockNo
 	cur      int

@@ -5,8 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -115,18 +114,18 @@ func buildVoteBPPayloadEx(count int, err int) []byte {
 	var ci CallInfo
 	ci.Name = VoteBP
 	_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	peerid, _ := peer.IDFromPublicKey(pub)
+	peerid, _ := IDFromPublicKey(pub)
 	for i := 0; i < count; i++ {
 		if err == TestDuplicatePeerID {
-			ci.Args = append(ci.Args, peer.IDB58Encode(peerid))
+			ci.Args = append(ci.Args, IDB58Encode(peerid))
 		} else if err == TestInvalidString {
 			ci.Args = append(ci.Args, (i + 1))
 		} else if err == TestInvalidPeerID {
 			ci.Args = append(ci.Args, string(i+1))
 		} else {
 			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-			peerid, _ := peer.IDFromPublicKey(pub)
-			ci.Args = append(ci.Args, peer.IDB58Encode(peerid))
+			peerid, _ := IDFromPublicKey(pub)
+			ci.Args = append(ci.Args, IDB58Encode(peerid))
 		}
 	}
 	payload, _ := json.Marshal(ci)

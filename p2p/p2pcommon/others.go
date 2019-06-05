@@ -1,24 +1,20 @@
 package p2pcommon
 
 import (
+	"io"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	host "github.com/libp2p/go-libp2p-host"
-	inet "github.com/libp2p/go-libp2p-net"
-	peer "github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
 )
 
 // PeerAccessor is an interface for a another actor module to get info of peers
 type PeerAccessor interface {
 	GetPeerBlockInfos() []types.PeerBlockInfo
-	GetPeer(ID peer.ID) (RemotePeer, bool)
+	GetPeer(ID types.PeerID) (RemotePeer, bool)
 }
 
-// MsgOrder is abstraction information about the message that will be sent to peer.
+// MsgOrder is abstraction of information about the message that will be sent to peer.
 // Some type of msgOrder, such as notice mo, should thread-safe and re-entrant
 type MsgOrder interface {
 	GetMsgID() MsgID
@@ -41,28 +37,6 @@ type MoFactory interface {
 	NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) MsgOrder
 }
 
-// PeerManager is internal service that provide peer management
-type PeerManager interface {
-	Start() error
-	Stop() error
-
-	//NetworkTransport
-	SelfMeta() PeerMeta
-	SelfNodeID() peer.ID
-
-	AddNewPeer(peer PeerMeta)
-	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call RemovePeer to peermanager
-	RemovePeer(peer RemotePeer)
-
-	NotifyPeerAddressReceived([]PeerMeta)
-
-	// GetPeer return registered(handshaked) remote peer object
-	GetPeer(ID peer.ID) (RemotePeer, bool)
-	GetPeers() []RemotePeer
-	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
-
-	GetPeerBlockInfos() []types.PeerBlockInfo
-}
 type SyncManager interface {
 	// handle notice from bp
 	HandleBlockProducedNotice(peer RemotePeer, block *types.Block)
@@ -93,31 +67,12 @@ type ActorService interface {
 	GetChainAccessor() types.ChainAccessor
 }
 
-// NTContainer can provide NetworkTransport interface.
-type NTContainer interface {
-	GetNetworkTransport() NetworkTransport
+// will be changed later
+//type PeerID = PeerID
 
-	// ChainID return id of current chain.
-	ChainID() *types.ChainID
-}
-
-// NetworkTransport do manager network connection
-// TODO need refactoring. it has other role, pk management of self peer
-type NetworkTransport interface {
-	host.Host
-	Start() error
-	Stop() error
-
-	SelfMeta() PeerMeta
-
-	GetAddressesOfPeer(peerID peer.ID) []string
-
-	// AddStreamHandler wrapper function which call host.SetStreamHandler after transport is initialized, this method is for preventing nil error.
-	AddStreamHandler(pid protocol.ID, handler inet.StreamHandler)
-
-	GetOrCreateStream(meta PeerMeta, protocolID protocol.ID) (inet.Stream, error)
-	GetOrCreateStreamWithTTL(meta PeerMeta, protocolID protocol.ID, ttl time.Duration) (inet.Stream, error)
-
-	FindPeer(peerID peer.ID) bool
-	ClosePeerConnection(peerID peer.ID) bool
+// FlushableWriter is writer which have Flush method, such as bufio.Writer
+type FlushableWriter interface {
+	io.Writer
+	// Flush writes any buffered data to the underlying io.Writer.
+	Flush() error
 }

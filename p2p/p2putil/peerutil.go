@@ -7,17 +7,16 @@ package p2putil
 
 import (
 	"fmt"
-
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
 )
 
 var (
 	UseFullID bool
 )
 
-// ShortForm returns shorthanded peer.ID.
-func ShortForm(pid peer.ID) string {
+// ShortForm returns shorthanded types.PeerID.
+func ShortForm(pid types.PeerID) string {
 	pretty := pid.Pretty()
 	if UseFullID {
 		return pretty

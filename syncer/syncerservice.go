@@ -388,6 +388,7 @@ func (syncer *Syncer) handleFinderResult(msg *message.FinderResult) error {
 	logger.Debug().Msg("syncer received finder result message")
 
 	if err := chain.TestDebugger.Check(chain.DEBUG_SYNCER_CRASH, 0, nil); err != nil {
+		chain.TestDebugger.Unset(chain.DEBUG_SYNCER_CRASH)
 		return err
 	}
 

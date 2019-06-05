@@ -29,7 +29,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/libp2p/go-libp2p-peer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -1069,7 +1068,7 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 		return nil, err
 	}
 
-	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(peer.ID(member.PeerID))}}
+	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(types.PeerID(member.PeerID))}}
 	return reply, nil
 }
 

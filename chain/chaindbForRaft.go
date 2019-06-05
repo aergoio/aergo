@@ -78,8 +78,24 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 	var err error
 	var lastIdx uint64
 
+	// truncate conflicting entry
+	last, err := cdb.GetRaftEntryLastIdx()
+	if err != nil {
+		return err
+	}
+
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
+
+	if ents[0].Index <= last {
+		logger.Debug().Uint64("from", ents[0].Index).Uint64("to", last).Msg("truncate conflicting index")
+
+		for i := ents[0].Index; i <= last; i++ {
+			// delete ents[0].Index ~ lastIndex of wal
+			dbTx.Delete(getRaftEntryKey(i))
+		}
+	}
+
 	for i, entry := range ents {
 		logger.Debug().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Msg("add raft log entry")
 

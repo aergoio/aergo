@@ -44,8 +44,9 @@ type RPCConfig struct {
 	NetServiceTrace bool   `mapstructure:"netservicetrace" description:"Trace RPC service"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
-	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
+	NSCert      string `mapstructure:"nscert" description:"Server Certificate file for RPC or REST API"`
 	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
+	NSCACert    string `mapstructure:"nscacert" description:"CA Certificate file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
@@ -113,6 +114,8 @@ type RaftConfig struct {
 	KeyFile       string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
 	CertFile      string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
 	Tick          uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
+	BPIntervalMs  int64          `mapstructure:"bpintervalms" description:"block interval for raft (millisec)"`
+	BPTimeoutMs   int64          `mapstructure:"bptimeoutms" description:"block timeout for raft (millisec)"`
 	NewCluster    bool           `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
 	SnapFrequency uint64         `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
 }
@@ -163,6 +166,7 @@ netservicetrace = {{.RPC.NetServiceTrace}}
 nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
+nscacert = "{{.RPC.NSCACert}}"
 nsallowcors = {{.RPC.NSAllowCORS}}
 
 [p2p]

@@ -7,8 +7,8 @@ package p2pcommon
 
 import (
 	"errors"
-	net "github.com/libp2p/go-libp2p-net"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/network"
 	"time"
 )
 
@@ -28,7 +28,7 @@ var (
 )
 
 type PeerEventListener interface {
-	OnPeerConnect(pid peer.ID)
+	OnPeerConnect(pid types.PeerID)
 	OnPeerDisconnect(peer RemotePeer)
 }
 
@@ -43,7 +43,7 @@ type PeerFinder interface {
 	CheckAndFill()
 }
 
-// WaitingPeerManager manage wait peer pool.
+// WaitingPeerManager manage waiting peer pool and role to connect and handshaking of remote peer.
 type WaitingPeerManager interface {
 	PeerEventListener
 	// OnDiscoveredPeers is called when response of discover query came from polaris or other peer.
@@ -54,7 +54,9 @@ type WaitingPeerManager interface {
 
 	CheckAndConnect()
 
-	OnInboundConn(s net.Stream)
+	OnInboundConn(s network.Stream)
+
+	OnInboundConnLegacy(s network.Stream)
 }
 
 type WaitingPeer struct {
@@ -74,5 +76,4 @@ type ConnWorkResult struct {
 
 	P2PVer uint32
 	Result error
-	Peer   RemotePeer
 }

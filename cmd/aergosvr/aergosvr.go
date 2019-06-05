@@ -12,7 +12,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
@@ -186,13 +185,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 		consensus.Start(consensusSvc)
 	}
 
-	common.HandleKillSig(func() {
+	var interrupt = common.HandleKillSig(func() {
 		consensus.Stop(consensusSvc)
 		compMng.Stop()
 	}, svrlog)
 
-	// wait... TODO need to break out when system finished.
-	for {
-		time.Sleep(time.Minute)
-	}
+	// Wait main routine to stop
+	<-interrupt.C
 }

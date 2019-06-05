@@ -12,15 +12,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/aergoio/aergo/p2p/p2pmock"
-
-	"github.com/aergoio/aergo/types"
 )
 
 //const testDuration = time.Second >> 1
@@ -31,13 +29,14 @@ func TestAergoPeer_RunPeer(t *testing.T) {
 	//t.SkipNow()
 
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	//mockActorServ := new(p2pmock.MockActorService)
 	mockActorServ := p2pmock.NewMockActorService(ctrl)
 	dummyP2PServ := new(p2pmock.MockPeerManager)
 	mockMF := new(p2pmock.MockMoFactory)
 	dummyRW := new(p2pmock.MockMsgReadWriter)
-	target := newRemotePeer(p2pcommon.PeerMeta{ID: peer.ID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
+	target := newRemotePeer(p2pcommon.PeerMeta{ID: types.PeerID("ddddd")}, 0, dummyP2PServ, mockActorServ, logger, mockMF, nil, nil, dummyRW)
 
 	target.pingDuration = time.Second * 10
 	dummyBestBlock := types.Block{Hash: []byte("testHash"), Header: &types.BlockHeader{BlockNo: 1234}}
@@ -120,9 +119,9 @@ func TestRemotePeer_pruneRequests(t *testing.T) {
 		p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, nil, nil, mockStream, nil)
 		t.Run(tt.name, func(t *testing.T) {
 			mid1, mid2, midn := p2pcommon.NewMsgID(), p2pcommon.NewMsgID(), p2pcommon.NewMsgID()
-			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid1}}, nil}}
-			p.requests[mid2] = &requestInfo{cTime: time.Now().Add(time.Minute * -60).Add(time.Second * -1), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: mid2}}, nil}}
-			p.requests[midn] = &requestInfo{cTime: time.Now().Add(time.Minute * -59), reqMO: &pbRequestOrder{pbMessageOrder{message: &V030Message{id: midn}}, nil}}
+			p.requests[mid1] = &requestInfo{cTime: time.Now().Add(time.Minute * -61), reqMO: &pbRequestOrder{pbMessageOrder{message: &MessageValue{id: mid1}}, nil}}
+			p.requests[mid2] = &requestInfo{cTime: time.Now().Add(time.Minute * -60).Add(time.Second * -1), reqMO: &pbRequestOrder{pbMessageOrder{message: &MessageValue{id: mid2}}, nil}}
+			p.requests[midn] = &requestInfo{cTime: time.Now().Add(time.Minute * -59), reqMO: &pbRequestOrder{pbMessageOrder{message: &MessageValue{id: midn}}, nil}}
 			p.pruneRequests()
 
 			assert.Equal(t, 1, len(p.requests))
@@ -394,9 +393,9 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	}
 	// GetReceiver should not return nil and consumeRequest must be thread-safe
 	tests := []struct {
-		name      string
-		toAdd     []p2pcommon.MsgID
-		inID      p2pcommon.MsgID
+		name  string
+		toAdd []p2pcommon.MsgID
+		inID  p2pcommon.MsgID
 
 		receiverReturn bool
 	}{
@@ -421,7 +420,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
-			dummyMsg := &V030Message{id: p2pcommon.NewMsgID(), originalID: test.inID}
+			dummyMsg := p2pcommon.NewSimpleRespMsgVal(subproto.AddressesResponse, p2pcommon.NewMsgID(), test.inID)
 			assert.Equal(t, test.receiverReturn, actual(dummyMsg, nil))
 
 			// after consuming request, GetReceiver always return requestIDNotFoundReceiver, which always return true
@@ -529,5 +528,32 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			//mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)
 			//assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
 		})
+	}
+}
+
+func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	msg := p2pmock.NewMockMessage(ctrl)
+	msg.EXPECT().Subprotocol().Return(subproto.PingRequest).MaxTimes(1)
+	msg.EXPECT().ID().Return(p2pcommon.NewMsgID()).AnyTimes()
+	msg.EXPECT().Payload().DoAndReturn(func() []byte {
+		panic("for test")
+		return nil
+	})
+	mockHandler := p2pmock.NewMockMessageHandler(ctrl)
+	mockHandler.EXPECT().PreHandle().AnyTimes()
+
+	p := &remotePeerImpl{
+		logger: logger,
+		handlers:make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
+	}
+	p.handlers[subproto.PingRequest] = mockHandler
+
+	if err := p.handleMsg(msg); err == nil {
+		t.Errorf("remotePeerImpl.handleMsg() no error, err by panic")
+	} else {
+		t.Logf("expected error %v", err)
 	}
 }
