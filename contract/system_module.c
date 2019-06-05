@@ -24,11 +24,16 @@ static int systemPrint(lua_State *L)
 	return 0;
 }
 
-static char *getDbKey(lua_State *L)
+static char *getDbKey(lua_State *L, int *len)
 {
+    size_t size;
+    char *key;
+
 	lua_pushvalue(L, 1);    /* prefix key */
 	lua_concat(L, 2);       /* dbKey(prefix..key) */
-	return (char *)lua_tostring(L, -1);
+	key = (char *)lua_tolstring(L, -1, &size);
+	*len = size;
+	return key;
 }
 
 int setItemWithPrefix(lua_State *L)
@@ -37,6 +42,7 @@ int setItemWithPrefix(lua_State *L)
 	char *jsonValue;
 	int *service = (int *)getLuaExecContext(L);
 	char *errStr;
+	int keylen;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -45,13 +51,14 @@ int setItemWithPrefix(lua_State *L)
 	luaL_checkstring(L, 1);
 	luaL_checkany(L, 2);
 	luaL_checkstring(L, 3);
-	dbKey = getDbKey(L);
+	dbKey = getDbKey(L, &keylen);
+
 	jsonValue = lua_util_get_json (L, 2, false);
 	if (jsonValue == NULL) {
 		luaL_throwerror(L);
 	}
 
-	if ((errStr = LuaSetDB(L, service, dbKey, jsonValue)) != NULL) {
+	if ((errStr = LuaSetDB(L, service, dbKey, keylen, jsonValue)) != NULL) {
 		free(jsonValue);
 		strPushAndRelease(L, errStr);
 		luaL_throwerror(L);
@@ -76,6 +83,7 @@ int getItemWithPrefix(lua_State *L)
 	char *jsonValue;
 	char *blkno = NULL;
 	struct LuaGetDB_return ret;
+	int keylen;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
@@ -93,9 +101,9 @@ int getItemWithPrefix(lua_State *L)
 	    }
 	    luaL_checkstring(L, 3);
 	}
-	dbKey = getDbKey(L);
+	dbKey = getDbKey(L, &keylen);
 
-	ret = LuaGetDB(L, service, dbKey, blkno);
+	ret = LuaGetDB(L, service, dbKey, keylen, blkno);
 	if (ret.r1 != NULL) {
         strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
@@ -128,14 +136,15 @@ int delItemWithPrefix(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	char *jsonValue;
 	char *ret;
+	int keylen;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 	luaL_checkstring(L, 1);
 	luaL_checkstring(L, 2);
-	dbKey = getDbKey(L);
-	ret = LuaDelDB(L, service, dbKey);
+	dbKey = getDbKey(L, &keylen);
+	ret = LuaDelDB(L, service, dbKey, keylen);
 	if (ret != NULL) {
 	    strPushAndRelease(L, ret);
 		luaL_throwerror(L);
@@ -203,11 +212,12 @@ static int getCreator(lua_State *L)
 {
 	int *service = (int *)getLuaExecContext(L);
 	struct LuaGetDB_return ret;
+	int keylen = 7;
 
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
-	ret = LuaGetDB(L, service, "Creator", 0);
+	ret = LuaGetDB(L, service, "Creator", keylen, 0);
 	if (ret.r1 != NULL) {
 	    strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
