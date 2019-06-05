@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/subproto"
 	"reflect"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -72,7 +72,7 @@ func TestP2P_InsertHandlers(t *testing.T) {
 	defer ctrl.Finish()
 
 	tests := []struct {
-		name   string
+		name string
 	}{
 		{"T1"},
 	}
@@ -90,4 +90,72 @@ func TestP2P_InsertHandlers(t *testing.T) {
 			p2ps.InsertHandlers(mockPeer)
 		})
 	}
+}
+
+func TestRaftRoleManager_updateBP(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	p1,p2,p3 := dummyPeerID, dummyPeerID2, dummyPeerID3
+
+
+	tests := []struct {
+		name   string
+		preset []types.PeerID
+		args   message.RaftClusterEvent
+
+		wantCnt int
+		wantExist []types.PeerID
+		wantNot []types.PeerID
+	}{
+		{"TAdd",nil, (&EB{}).A(p1,p2).C() ,2, []types.PeerID{p1,p2},nil },
+		{"TRm",[]types.PeerID{p1,p2,p3}, (&EB{}).R(p3,p2).C() ,1, []types.PeerID{p1},[]types.PeerID{p2,p3} },
+		{"TOverrap",[]types.PeerID{p3}, (&EB{}).A(p1,p2).R(p3,p2).C() ,2, []types.PeerID{p1,p2},[]types.PeerID{p3} },
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			presetIDs := make(map[types.PeerID]bool)
+			for _,id := range tt.preset {
+				presetIDs[id] = true
+			}
+			p2ps := &RaftRoleManager{
+				raftBP: presetIDs,
+			}
+			p2ps.UpdateBP(tt.args.BPAdded, tt.args.BPRemoved)
+
+			if len(p2ps.raftBP) != tt.wantCnt {
+				t.Errorf("P2P.UpdateBP() len = %v, want %v", len(p2ps.raftBP), tt.wantCnt)
+			}
+			for _,id := range tt.wantExist {
+				if _, found := p2ps.raftBP[id]; !found {
+					t.Errorf("P2P.UpdateBP() not exist %v, want exist ", id)
+				} else {
+					if p2ps.GetRole(id) != p2pcommon.RaftLeader {
+						t.Errorf("P2P.GetRole(%v) false, want true", id)
+					}
+				}
+			}
+			for _,id := range tt.wantNot {
+				if _, found := p2ps.raftBP[id]; found {
+					t.Errorf("P2P.UpdateBP() exist %v, want not ", id)
+				}
+			}
+		})
+	}
+}
+
+type EB struct {
+	a, r []types.PeerID
+}
+
+func (e *EB) A(ids ...types.PeerID) *EB {
+	e.a = append(e.a, ids... )
+	return e
+}
+func (e *EB) R(ids ...types.PeerID) *EB {
+	e.r = append(e.r, ids... )
+	return e
+}
+func (e *EB) C() message.RaftClusterEvent {
+	return message.RaftClusterEvent{BPAdded:e.a, BPRemoved:e.r}
 }

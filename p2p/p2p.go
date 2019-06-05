@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
 	"github.com/libp2p/go-libp2p-core/network"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,13 +36,14 @@ type P2P struct {
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
 	pm      p2pcommon.PeerManager
-	vm 		p2pcommon.VersionedManager
+	vm      p2pcommon.VersionedManager
 	sm      p2pcommon.SyncManager
 	mm      metric.MetricsManager
 	mf      p2pcommon.MoFactory
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
 	consacc consensus.ConsensusAccessor
+	prm     p2pcommon.PeerRoleManager
 
 	mutex sync.Mutex
 }
@@ -144,6 +144,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
+
 	// connect managers each other
 	//reconMan.pm = peerMan
 
@@ -156,6 +157,11 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
+	if useRaft {
+		p2ps.prm = &RaftRoleManager{p2ps: p2ps, raftBP: make(map[types.PeerID]bool)}
+	} else {
+		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
+	}
 	p2ps.mutex.Unlock()
 }
 
@@ -215,6 +221,9 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		peers := p2ps.pm.GetPeers()
 		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
 		clusterReceiver.StartGet()
+	case *message.RaftClusterEvent:
+		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
+		p2ps.Logger.Debug().Int("added", len(msg.BPAdded)).Int("removed", len(msg.BPRemoved)).Msg("bp changed")
 	}
 }
 
@@ -329,24 +338,15 @@ func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool,
 	}
 }
 
-
 func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, stream, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
 
 	// TODO tune to set prefer role
-	newPeer.role = p2pcommon.DPOSWatcher
-	prettyID := meta.ID.Pretty()
-	bps := p2ps.consacc.ConsensusInfo().Bps
-	for _, bp := range bps {
-		if strings.Contains(bp, prettyID) {
-			newPeer.role = p2pcommon.DPOSProducer
-			break
-		}
-	}
-
+	newPeer.role = p2ps.prm.GetRole(meta.ID)
 	// insert Handlers
 	p2ps.InsertHandlers(newPeer)
 
 	return newPeer
 }
+

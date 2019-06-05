@@ -5,24 +5,16 @@
 
 package p2pcommon
 
-// PeerRole indicate tye characteristics of peer.
-type PeerRole int32
+type PeerAttribute struct {
+	Chain ChainType
+	RaftRole PeerRole
+	Producer bool
+}
 
-// types for dpos chain
+type ChainType uint8
 const (
-	_ PeerRole = iota
-	DPOSProducer
-	_
-	_
-	DPOSWatcher
+	DPOS ChainType = iota
+	RAFT
 )
 
-const (
-	_ PeerRole = iota
-	RaftLeader
-	_
-	RaftFollower
-	RaftWatcher
-)
-
-//go:generate stringer -type=PeerRole
+//go:generate stringer -type=ChainType

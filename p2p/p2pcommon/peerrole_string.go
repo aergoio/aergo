@@ -4,32 +4,22 @@ package p2pcommon
 
 import "strconv"
 
-func _() {
-	// An "invalid array index" compiler error signifies that the constant values have changed.
-	// Re-run the stringer command to generate them again.
-	var x [1]struct{}
-	_ = x[DPOSProducer-1]
-	_ = x[DPOSWatcher-4]
-	_ = x[RaftLeader-1]
-	_ = x[RaftFollower-3]
-	_ = x[RaftWatcher-4]
-}
-
 const (
-	_PeerRole_name_0 = "DPOSProducer"
-	_PeerRole_name_1 = "RaftFollowerDPOSWatcher"
+	_PeerRole_name_0 = "UnknownRoleBlockProducerWatcher"
+	_PeerRole_name_1 = "RaftLeaderRaftFollowerRaftWatcher"
 )
 
 var (
-	_PeerRole_index_1 = [...]uint8{0, 12, 23}
+	_PeerRole_index_0 = [...]uint8{0, 11, 24, 31}
+	_PeerRole_index_1 = [...]uint8{0, 10, 22, 33}
 )
 
 func (i PeerRole) String() string {
 	switch {
-	case i == 1:
-		return _PeerRole_name_0
-	case 3 <= i && i <= 4:
-		i -= 3
+	case 0 <= i && i <= 2:
+		return _PeerRole_name_0[_PeerRole_index_0[i]:_PeerRole_index_0[i+1]]
+	case 4 <= i && i <= 6:
+		i -= 4
 		return _PeerRole_name_1[_PeerRole_index_1[i]:_PeerRole_index_1[i+1]]
 	default:
 		return "PeerRole(" + strconv.FormatInt(int64(i), 10) + ")"
