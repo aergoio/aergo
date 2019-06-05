@@ -536,10 +536,11 @@ type blockExecutor struct {
 	validatePost     ValidatePostFn
 	coinbaseAcccount []byte
 	commitOnly       bool
+	verifyOnly       bool
 	validateSignWait ValidateSignWaitFn
 }
 
-func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block) (*blockExecutor, error) {
+func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block, verifyOnly bool) (*blockExecutor, error) {
 	var exec TxExecFn
 	var validateSignWait ValidateSignWaitFn
 
@@ -578,6 +579,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
 		commitOnly:       commitOnly,
+		verifyOnly:       verifyOnly,
 		validateSignWait: validateSignWait,
 	}, nil
 }
@@ -648,8 +650,10 @@ func (e *blockExecutor) execute() error {
 
 	// TODO: sync status of bstate and cdb what to do if cdb.commit fails after
 
-	if err := e.commit(); err != nil {
-		return err
+	if !e.verifyOnly {
+		if err := e.commit(); err != nil {
+			return err
+		}
 	}
 
 	logger.Debug().Msg("block executor finished")
@@ -689,7 +693,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	}
 
 	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
-	ex, err := newBlockExecutor(cs, bstate, block)
+	ex, err := newBlockExecutor(cs, bstate, block, false)
 	if err != nil {
 		return err
 	}
@@ -708,6 +712,37 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	cs.Update(block)
 
 	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end to execute")
+
+	return nil
+}
+
+// verifyBlock execute block and verify state root but doesn't save data to database.
+// ChainVerifier use this function.
+func (cs *ChainService) verifyBlock(block *types.Block) error {
+	var (
+		err error
+		ex  *blockExecutor
+	)
+
+	// Caution: block must belong to the main chain.
+	logger.Debug().Str("hash", block.ID()).Uint64("no", block.GetHeader().BlockNo).Msg("start to verify")
+
+	ex, err = newBlockExecutor(cs, nil, block, true)
+	if err != nil {
+		return err
+	}
+
+	// contract & state DB update is done during execution.
+	if err = ex.execute(); err != nil {
+		return err
+	}
+
+	// set root of sdb to block root hash
+	if err = cs.sdb.SetRoot(block.GetHeader().GetBlocksRootHash()); err != nil {
+		return fmt.Errorf("failed to set root of sdb(no=%d,hash=%v)", block.BlockNo(), block.ID())
+	}
+
+	logger.Debug().Uint64("no", block.GetHeader().BlockNo).Msg("end verify")
 
 	return nil
 }
@@ -1000,7 +1035,7 @@ func (cs *ChainService) findAncestor(Hashes [][]byte) (*types.BlockInfo, error) 
 	return &types.BlockInfo{Hash: mainblock.BlockHash(), No: mainblock.GetHeader().GetBlockNo()}, nil
 }
 
-func (cs *ChainService) setSync(isSync bool) {
+func (cs *ChainService) setSkipMempool(isSync bool) {
 	//don't use mempool if sync is in progress
 	cs.validator.signVerifier.SetSkipMempool(isSync)
 }
