@@ -8,7 +8,7 @@ package mempool
 import (
 	"bufio"
 	"bytes"
-	"encoding/csv"
+	"encoding/binary"
 	"io"
 	"math/big"
 	"os"
@@ -624,12 +624,21 @@ func (mp *MemPool) notifyNewTx(tx types.Transaction) {
 	})
 }
 
+func (mp *MemPool) isRunning() bool {
+	if atomic.LoadInt32(&mp.status) != running {
+		mp.Info().Msg("skip to dump txs because mempool is not running yet")
+		return false
+	}
+	return true
+}
+
 func (mp *MemPool) loadTxs() {
 	time.Sleep(time.Second) // FIXME
 	if !atomic.CompareAndSwapInt32(&mp.status, initial, loading) {
 		return
 	}
 	defer atomic.StoreInt32(&mp.status, running)
+
 	file, err := os.Open(mp.dumpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -639,29 +648,38 @@ func (mp *MemPool) loadTxs() {
 	}
 
 	defer file.Close() // nolint: errcheck
-	reader := csv.NewReader(bufio.NewReader(file))
+
+	reader := bufio.NewReader(file)
 
 	var count int
+
 	for {
 		buf := types.Tx{}
-		rc, err := reader.Read()
+		byteInt := make([]byte, 4)
+		_, err := io.ReadFull(reader, byteInt)
 		if err != nil {
 			if err != io.EOF {
 				mp.Error().Err(err).Msg("err on read file during loading")
 			}
 			break
 		}
-		count++
-		dataBuf, err := enc.ToBytes(rc[0])
+
+		reclen := binary.LittleEndian.Uint32(byteInt)
+		buffer := make([]byte, int(reclen))
+		_, err = io.ReadFull(reader, buffer)
 		if err != nil {
-			mp.Error().Err(err).Msg("err on decoding tx during loading")
-			continue
+			if err != io.EOF {
+				mp.Error().Err(err).Msg("err on read file during loading")
+			}
+			break
 		}
-		err = proto.Unmarshal(dataBuf, &buf)
+
+		err = proto.Unmarshal(buffer, &buf)
 		if err != nil {
 			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
 			continue
 		}
+		count++
 		mp.put(types.NewTransaction(&buf)) // nolint: errcheck
 	}
 
@@ -672,22 +690,11 @@ func (mp *MemPool) loadTxs() {
 		Msg("loading mempool done")
 }
 
-func (mp *MemPool) isRunning() bool {
-	if atomic.LoadInt32(&mp.status) != running {
-		mp.Info().Msg("skip to dump txs because mempool is not running yet")
-		return false
-	}
-	return true
-}
 func (mp *MemPool) dumpTxsToFile() {
-
 	if !mp.isRunning() {
 		return
 	}
-	if len, _ := mp.Size(); len == 0 {
-		os.Remove(mp.dumpPath) // nolint: errcheck
-		return
-	}
+	mp.Info().Msg("start mempool dump")
 
 	file, err := os.Create(mp.dumpPath)
 	if err != nil {
@@ -696,27 +703,54 @@ func (mp *MemPool) dumpTxsToFile() {
 	}
 	defer file.Close() // nolint: errcheck
 
-	writer := csv.NewWriter(bufio.NewWriter(file))
+	writer := bufio.NewWriter(file)
 	defer writer.Flush() //nolint: errcheck
-
 	mp.Lock()
 	defer mp.Unlock()
+
+	var ag [2]time.Duration
 	count := 0
+
+Dump:
 	for _, list := range mp.pool {
 		for _, v := range list.GetAll() {
+
+			var total_data []byte
+			start := time.Now()
 			data, err := proto.Marshal(v.GetTx())
 			if err != nil {
+				mp.Error().Err(err).Msg("Marshal failed")
 				continue
 			}
 
-			strData := enc.ToString(data)
-			err = writer.Write([]string{strData})
-			if err != nil {
-				mp.Error().Err(err).Msg("writing encoded tx fail")
-				break
+			byteInt := make([]byte, 4)
+			binary.LittleEndian.PutUint32(byteInt, uint32(len(data)))
+			total_data = append(total_data, byteInt...)
+			total_data = append(total_data, data...)
+
+			ag[0] += time.Since(start)
+			start = time.Now()
+
+			length := len(total_data)
+			for {
+				size, err := writer.Write(total_data)
+				if err != nil {
+					mp.Error().Err(err).Msg("writing encoded tx fail")
+					break Dump
+				}
+				if length != size {
+					total_data = total_data[size:]
+					length -= size
+				} else {
+					break
+				}
 			}
 			count++
+			ag[1] += time.Since(start)
 		}
 	}
-	mp.Info().Int("count", count).Str("path", mp.dumpPath).Msg("dump txs")
+
+	mp.Info().Int("count", count).Str("path", mp.dumpPath).Str("marshal", ag[0].String()).
+		Str("write", ag[1].String()).Msg("dump txs")
+
 }

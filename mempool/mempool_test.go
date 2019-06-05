@@ -500,7 +500,7 @@ func TestDumpAndLoad(t *testing.T) {
 	}
 
 	pool.dumpTxsToFile()
-	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(pool.dumpPath); err != nil && !os.IsNotExist(err) {
 		t.Errorf("err should be NotExist ,but %s", err.Error())
 	}
 
@@ -508,7 +508,7 @@ func TestDumpAndLoad(t *testing.T) {
 		t.Errorf("pool status should be initial, but %d", pool.status)
 	}
 	pool.dumpTxsToFile()
-	if _, err := os.Stat(pool.dumpPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(pool.dumpPath); err != nil && !os.IsNotExist(err) {
 		t.Errorf("err should be NotExist ,but %s", err.Error())
 	}
 
@@ -554,7 +554,7 @@ func TestDumpAndLoad(t *testing.T) {
 	os.Remove(pool.dumpPath) // nolint: errcheck
 }
 
-func TestEvitOnProfit(t *testing.T) {
+func TestEvictOnProfit(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 
