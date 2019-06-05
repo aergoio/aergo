@@ -109,7 +109,8 @@ func (cv *ChainVerifier) VerifyChain() error {
 		}
 
 		if err := cv.verifyBlock(block); err != nil {
-			logger.Error().Err(err).Str("block", block.ID()).Msg("failed to verify block")
+			logger.Error().Err(err).Uint64("no", block.BlockNo()).Str("block", block.ID()).Msg("failed to verify block")
+			return err
 		}
 	}
 }
