@@ -62,6 +62,9 @@ type AergoRPCService struct {
 
 	eventStreamLock sync.RWMutex
 	eventStream     map[*EventStream]*EventStream
+
+	clientAuthLock sync.RWMutex
+	clientAuth     map[string]Authentication
 }
 
 // FIXME remove redundant constants

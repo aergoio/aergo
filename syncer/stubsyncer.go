@@ -2,18 +2,18 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )

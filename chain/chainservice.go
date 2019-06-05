@@ -312,7 +312,7 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
-func (cs *ChainService) GetEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
+func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
 	return cs.getEnterpriseConf(key)
 }
 

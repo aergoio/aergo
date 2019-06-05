@@ -47,6 +47,7 @@ type RPC struct {
 
 	ca      types.ChainAccessor
 	version string
+	entConf *types.EnterpriseConfig
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
@@ -70,7 +71,18 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
 		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
 	}
-	chainAccessor.GetEnterpriseConfig("allowedClient")
+
+	var entConf *types.EnterpriseConfig
+	genesis := chainAccessor.GetGenesisInfo()
+	if !genesis.ID.PublicNet {
+		conf, err := chainAccessor.GetEnterpriseConfig("allowedClient")
+		if err != nil {
+			logger.Error().Err(err).Msg("could not get allowed client information")
+		} else {
+			entConf = conf
+		}
+	}
+
 	if cfg.RPC.NSEnableTLS {
 		certificate, err := tls.LoadX509KeyPair(cfg.RPC.NSCert, cfg.RPC.NSKey)
 		if err != nil {
@@ -140,7 +152,11 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 		version:       version,
 	}
 	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
+
 	actualServer.actorHelper = rpcsvc
+	if entConf.GetOn() {
+		actualServer.setClientAuth(parseConf(entConf))
+	}
 
 	rpcsvc.httpServer = &http.Server{
 		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),

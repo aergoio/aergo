@@ -76,7 +76,7 @@ func TestBasicEnterprise(t *testing.T) {
 	defer deinitTest()
 	tx := &types.TxBody{}
 	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
-	_, err := ExecuteEnterpriseTx(scs, tx, sender)
+	event, err := ExecuteEnterpriseTx(scs, tx, sender)
 	assert.NoError(t, err, "add admin")
 	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
@@ -113,21 +113,27 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.Equal(t, "16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B", conf.Values[3], "conf value 3")
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",true]}`)
-	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	event, err = ExecuteEnterpriseTx(scs, tx, sender)
+	t.Log(event)
 	assert.NoError(t, err, "enable conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, true, conf.On, "conf on")
 	cert := strings.Replace(testCert, "\n", "\\n", -1)
-	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcwhitelist","` + cert + `"]}`)
-	_, err = ExecuteEnterpriseTx(scs, tx, sender)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcclient","` + cert + `:RWCS"]}`)
+	event, err = ExecuteEnterpriseTx(scs, tx, sender)
 	assert.NoError(t, err, "add conf")
-
-	conf, err = getConf(scs, []byte("rpcwhitelist"))
+	conf, err = getConf(scs, []byte("rpcclient"))
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 1, len(conf.Values), "conf values length")
-	assert.Equal(t, testCert, conf.Values[0], "conf value 0")
-	block, _ := pem.Decode([]byte(conf.Values[0]))
+	assert.Equal(t, testCert, strings.Split(conf.Values[0],":")[0], "conf value 0")
+
+	block, _ := pem.Decode([]byte(strings.Split(conf.Values[0],":")[0]))
+
 	assert.NotNil(t, block, "parse value 0")
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcclient","` + cert + `:RWCS"]}`)
+	event, err = ExecuteEnterpriseTx(scs, tx, sender)
+	assert.NoError(t, err, "add conf")
+	//t.Log(event)
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",false]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)

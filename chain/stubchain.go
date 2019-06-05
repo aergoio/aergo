@@ -126,6 +126,10 @@ func (tchain *StubBlockChain) GetChainStats() string {
 	return ""
 }
 
+func (tchain *StubBlockChain) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
+	return nil, nil
+}
+
 func (tchain *StubBlockChain) GetBestBlock() (*types.Block, error) {
 	return tchain.BestBlock, nil
 }
