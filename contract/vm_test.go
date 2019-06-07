@@ -3454,13 +3454,6 @@ func TestReturnUData(t *testing.T) {
 	}
 }
 
-func checkRandomFloatValue(v string) error {
-	n, _ := strconv.ParseFloat(v, 64)
-	if n < 0.0 || n >= 1.0 {
-		return errors.New("out of range")
-	}
-	return nil
-}
 func checkRandomIntValue(v string, min, max int) error {
 	n, _ := strconv.Atoi(v)
 	if n < min || n > max {
@@ -3551,7 +3544,7 @@ func TestBigTable(t *testing.T) {
 		t.Errorf("failed to create test database: %v", err)
 	}
 
-	big := `
+	bigSrc := `
 function constructor()
     db.exec("create table if not exists table1 (cid integer PRIMARY KEY, rgtime datetime)")
     db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
@@ -3569,7 +3562,7 @@ abi.register(inserts)
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "big", 0, big),
+		NewLuaTxDef("ktlee", "big", 0, bigSrc),
 	)
 	if err != nil {
 		t.Error(err)
@@ -4461,4 +4454,80 @@ func TestSnapshot(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUtf(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+
+	function string.tohex(str)
+    return (str:gsub('.', function (c)
+        return string.format('%02X', string.byte(c))
+    end))
+	end
+
+
+	function query()
+		assert (utf8.char(256) == json.decode('"\\u0100"'), "test1")
+		a = utf8.char(256,128)
+		b = utf8.char(256,10000,45)
+		assert(string.len(a) == 4 and utf8.len(a) == 2, "test2")
+
+		for p,c in utf8.codes(a) do
+			if p == 1 then
+				assert(c == 256, "test11")
+			else
+				assert(c == 128, "test12")
+			end
+		end
+		assert(utf8.offset(b,1)==1, "test3")
+		assert(utf8.offset(b,2)==3, "test4")
+		assert(utf8.offset(b,3)==6, "test5")
+
+		assert(utf8.codepoint(b,1)==256, "test6")
+
+		k1, k2, k3 = utf8.codepoint(b,1,3)
+		assert(k1 == 256 and k2 == 10000 and k3 == nil, "test7" .. k1 .. k2)
+		
+		k1, k2, k3 = utf8.codepoint(b,1,6)
+		assert(k1 == 256 and k2 == 10000 and k3 == 45, "test7" .. k1 .. k2 .. k3)
+	end
+
+	function query2()
+		a = bignum.number(1000000000000)
+		b = bignum.number(0)
+		return (bignum.tobyte(a)):tohex(), (bignum.tobyte(b)):tohex()
+	end
+
+	function query3()
+		a = bignum.number(-1)
+		return (bignum.tobyte(a)):tohex()
+	end
+	abi.register(query, query2, query3)
+	`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "utf", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("utf", `{"Name":"query"}`, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("utf", `{"Name":"query2"}`, "", `["000000000000000000000000000000000000000000000000000000E8D4A51000","0000000000000000000000000000000000000000000000000000000000000000"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("utf", `{"Name":"query3"}`, "bignum not allowed negative value", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
