@@ -89,31 +89,6 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 			logger.Error().Err(err).Msg("could not load server key pair")
 		}
 		certPool := x509.NewCertPool()
-		ca, err := ioutil.ReadFile(cfg.RPC.NSCert)
-		if err != nil {
-			logger.Error().Err(err).Msg("could not read server cert")
-		}
-		if ok := certPool.AppendCertsFromPEM(ca); !ok {
-			logger.Error().Bool("AppendCertsFromPEM", ok).Msg("failed to append server cert")
-			err = fmt.Errorf("failed to append server cert")
-		}
-		if err == nil {
-			creds := credentials.NewTLS(&tls.Config{
-				ClientAuth:   tls.RequireAndVerifyClientCert,
-				Certificates: []tls.Certificate{certificate},
-				ClientCAs:    certPool,
-			})
-			opts = append(opts, grpc.Creds(creds))
-			logger.Info().Str("cert", cfg.RPC.NSCert).Str("key", cfg.RPC.NSKey).Msg("grpc with TLS")
-		}
-	}
-
-	if cfg.RPC.NSEnableTLS {
-		certificate, err := tls.LoadX509KeyPair(cfg.RPC.NSCert, cfg.RPC.NSKey)
-		if err != nil {
-			logger.Error().Err(err).Msg("could not load server key pair")
-		}
-		certPool := x509.NewCertPool()
 		ca, err := ioutil.ReadFile(cfg.RPC.NSCACert)
 		if err != nil {
 			logger.Error().Err(err).Msg("could not read CA cert")

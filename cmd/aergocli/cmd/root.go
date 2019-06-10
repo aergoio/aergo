@@ -32,14 +32,14 @@ var (
 	host    string
 	port    int32
 
-	crtFile    string
-	svrcrtFile string
-	svrName    string
-	keyFile    string
-	certPeer   string
-	privKey    string
-	pw         string
-	dataDir    string
+	crtFile   string
+	cacrtFile string
+	svrName   string
+	keyFile   string
+	certPeer  string
+	privKey   string
+	pw        string
+	dataDir   string
 
 	from   string
 	to     string
@@ -74,9 +74,9 @@ func init() {
 	rootCmd.SetOutput(os.Stdout)
 	rootCmd.PersistentFlags().StringVar(&home, "home", "", "aergo cli home path")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is cliconfig.toml)")
-	rootCmd.PersistentFlags().StringVar(&crtFile, "tlscert", "", "client certification file for TLS ")
-	rootCmd.PersistentFlags().StringVar(&svrcrtFile, "tlsservercert", "", "aergosvr certification file for TLS ")
 	rootCmd.PersistentFlags().StringVar(&svrName, "tlsservername", "", "aergosvr name for TLS ")
+	rootCmd.PersistentFlags().StringVar(&cacrtFile, "tlscacert", "", "aergosvr CA certification file for TLS ")
+	rootCmd.PersistentFlags().StringVar(&crtFile, "tlscert", "", "client certification file for TLS ")
 	rootCmd.PersistentFlags().StringVar(&keyFile, "tlskey", "", "client key file for TLS ")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")
@@ -86,6 +86,11 @@ func initConfig() {
 	cliCtx := NewCliContext(home, cfgFile)
 	cliCtx.Vc.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	cliCtx.Vc.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
+	cliCtx.Vc.BindPFlag("tls.servername", rootCmd.PersistentFlags().Lookup("tlsservername"))
+	cliCtx.Vc.BindPFlag("tls.cacert", rootCmd.PersistentFlags().Lookup("tlscacert"))
+	cliCtx.Vc.BindPFlag("tls.clientcert", rootCmd.PersistentFlags().Lookup("tlscert"))
+	cliCtx.Vc.BindPFlag("tls.clientkey", rootCmd.PersistentFlags().Lookup("tlskey"))
+
 	cliCtx.BindPFlags(rootCmd.PersistentFlags())
 
 	rootConfig = cliCtx.GetDefaultConfig().(CliConfig)
@@ -113,13 +118,13 @@ func connectAergo(cmd *cobra.Command, args []string) {
 	}
 	serverAddr := GetServerAddress()
 	var opts []grpc.DialOption
-	if crtFile != "" || keyFile != "" {
-		certificate, err := tls.LoadX509KeyPair(crtFile, keyFile)
+	if rootConfig.TLS.ClientCert != "" || rootConfig.TLS.ClientKey != "" {
+		certificate, err := tls.LoadX509KeyPair(rootConfig.TLS.ClientCert, rootConfig.TLS.ClientKey)
 		if err != nil {
 			log.Fatal("wrong tls setting : ", err)
 		}
 		certPool := x509.NewCertPool()
-		ca, err := ioutil.ReadFile(svrcrtFile)
+		ca, err := ioutil.ReadFile(rootConfig.TLS.CACert)
 		if err != nil {
 			log.Fatal("could not read server certification file : ", err)
 		}
@@ -127,7 +132,7 @@ func connectAergo(cmd *cobra.Command, args []string) {
 			log.Fatal("failed to append server certification to CA certs")
 		}
 		creds := credentials.NewTLS(&tls.Config{
-			ServerName:   svrName,
+			ServerName:   rootConfig.TLS.ServerName,
 			Certificates: []tls.Certificate{certificate},
 			RootCAs:      certPool,
 		})

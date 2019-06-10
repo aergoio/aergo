@@ -186,8 +186,9 @@ type IChainHandler interface {
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
-	setSync(val bool)
+	setSkipMempool(val bool)
 	listEvents(filter *types.FilterInfo) ([]*types.Event, error)
+	verifyBlock(block *types.Block) error
 }
 
 // ChainService manage connectivity of blocks
@@ -202,8 +203,9 @@ type ChainService struct {
 
 	validator *BlockValidator
 
-	chainWorker  *ChainWorker
-	chainManager *ChainManager
+	chainWorker   *ChainWorker
+	chainManager  *ChainManager
+	chainVerifier *ChainVerifier
 
 	stat stats
 
@@ -240,6 +242,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
+	if cs.cfg.Blockchain.VerifyOnly {
+		if cs.cfg.Consensus.EnableBp {
+			logger.Fatal().Err(err).Msg("can't be enableBp at verifyOnly mode")
+		}
+		cs.chainVerifier = newChainVerifier(cs, cs.Core)
+	}
 
 	cs.errBlocks, err = lru.New(dfltErrBlocks)
 	if err != nil {
@@ -328,8 +336,12 @@ func (cs *ChainService) BeforeStart() {
 
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
-	cs.chainManager.Start()
-	cs.chainWorker.Start()
+	if !cs.cfg.Blockchain.VerifyOnly {
+		cs.chainManager.Start()
+		cs.chainWorker.Start()
+	} else {
+		cs.chainVerifier.Start()
+	}
 }
 
 // BeforeStop close chain database and stop BlockValidator
@@ -434,6 +446,10 @@ func (cs *ChainService) Receive(context actor.Context) {
 }
 
 func (cs *ChainService) Statistics() *map[string]interface{} {
+	if cs.chainVerifier != nil {
+		return cs.chainVerifier.Statistics()
+	}
+
 	return &map[string]interface{}{
 		"orphan": cs.op.curCnt,
 	}
@@ -548,8 +564,9 @@ type ChainWorker struct {
 }
 
 var (
-	chainManagerName = "Chain Manager"
-	chainWorkerName  = "Chain Worker"
+	chainManagerName  = "Chain Manager"
+	chainWorkerName   = "Chain Worker"
+	chainVerifierName = "Chain Verifier"
 )
 
 func newChainManager(cs *ChainService, core *Core) *ChainManager {

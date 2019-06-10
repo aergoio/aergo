@@ -8,10 +8,47 @@ import (
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
-	go_libp2p_core "github.com/libp2p/go-libp2p-core"
+	network "github.com/libp2p/go-libp2p-core/network"
 	reflect "reflect"
 	time "time"
 )
+
+// MockPeerFactory is a mock of PeerFactory interface
+type MockPeerFactory struct {
+	ctrl     *gomock.Controller
+	recorder *MockPeerFactoryMockRecorder
+}
+
+// MockPeerFactoryMockRecorder is the mock recorder for MockPeerFactory
+type MockPeerFactoryMockRecorder struct {
+	mock *MockPeerFactory
+}
+
+// NewMockPeerFactory creates a new mock instance
+func NewMockPeerFactory(ctrl *gomock.Controller) *MockPeerFactory {
+	mock := &MockPeerFactory{ctrl: ctrl}
+	mock.recorder = &MockPeerFactoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockPeerFactory) EXPECT() *MockPeerFactoryMockRecorder {
+	return m.recorder
+}
+
+// CreateRemotePeer mocks base method
+func (m *MockPeerFactory) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateRemotePeer", meta, seq, status, stream, rw)
+	ret0, _ := ret[0].(p2pcommon.RemotePeer)
+	return ret0
+}
+
+// CreateRemotePeer indicates an expected call of CreateRemotePeer
+func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(meta, seq, status, stream, rw interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), meta, seq, status, stream, rw)
+}
 
 // MockRemotePeer is a mock of RemotePeer interface
 type MockRemotePeer struct {
@@ -37,10 +74,10 @@ func (m *MockRemotePeer) EXPECT() *MockRemotePeerMockRecorder {
 }
 
 // ID mocks base method
-func (m *MockRemotePeer) ID() go_libp2p_core.PeerID {
+func (m *MockRemotePeer) ID() types.PeerID {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ID")
-	ret0, _ := ret[0].(go_libp2p_core.PeerID)
+	ret0, _ := ret[0].(types.PeerID)
 	return ret0
 }
 
@@ -104,6 +141,20 @@ func (m *MockRemotePeer) Version() string {
 func (mr *MockRemotePeerMockRecorder) Version() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockRemotePeer)(nil).Version))
+}
+
+// Role mocks base method
+func (m *MockRemotePeer) Role() p2pcommon.PeerRole {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Role")
+	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	return ret0
+}
+
+// Role indicates an expected call of Role
+func (mr *MockRemotePeerMockRecorder) Role() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Role", reflect.TypeOf((*MockRemotePeer)(nil).Role))
 }
 
 // AddMessageHandler mocks base method

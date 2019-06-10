@@ -38,7 +38,7 @@ type peerManager struct {
 	hsFactory      p2pcommon.HSHandlerFactory
 	handlerFactory p2pcommon.HandlerFactory
 	actorService   p2pcommon.ActorService
-	signer         p2pcommon.MsgSigner
+	peerFactory    p2pcommon.PeerFactory
 	mf             p2pcommon.MoFactory
 	mm             metric.MetricsManager
 	skipHandshakeSync bool
@@ -92,7 +92,7 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, signer p2pcommon.MsgSigner, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
@@ -101,7 +101,7 @@ func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon
 		hsFactory:      hsFactory,
 		actorService:   iServ,
 		conf:           p2pConf,
-		signer:         signer,
+		peerFactory:    pf,
 		mf:             mf,
 		mm:             mm,
 		logger:         logger,
@@ -310,41 +310,42 @@ CLEANUPLOOP:
 
 // tryRegister register peer to peer manager, if peer with same peer
 func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePeer {
-	receivedMeta := hsresult.meta
-	peerID := receivedMeta.ID
+	meta := hsresult.meta
+	peerID := meta.ID
 	preExistPeer, ok := pm.remotePeers[peerID]
 	if ok {
 		pm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Peer add collision. Outbound connection of higher hash will survive.")
-		iAmLowerOrEqual := p2putil.ComparePeerID(pm.SelfNodeID(), receivedMeta.ID) <= 0
-		if iAmLowerOrEqual == receivedMeta.Outbound {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", receivedMeta.Outbound).Msg("Close connection and keep earlier handshake connection.")
+		iAmLowerOrEqual := p2putil.ComparePeerID(pm.SelfNodeID(), meta.ID) <= 0
+		if iAmLowerOrEqual == meta.Outbound {
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Close connection and keep earlier handshake connection.")
 			return nil
 		} else {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", receivedMeta.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Keep connection and close earlier handshake connection.")
 			// stopping lower valued connection
 			preExistPeer.Stop()
 		}
 	}
 
-	// override options by configurations of nodd
-	_, receivedMeta.Designated = pm.designatedPeers[peerID]
-	// hidden is set by either remote peer's asking or local node's config
-	if _, exist := pm.hiddenPeerSet[peerID]; exist {
-		receivedMeta.Hidden = true
-	}
-
-	newPeer := newRemotePeer(receivedMeta, pm.GetNextManageNum(), pm, pm.actorService, pm.logger, pm.mf, pm.signer, hsresult.s, hsresult.msgRW)
-	newPeer.UpdateBlkCache(hsresult.status.GetBestBlockHash(), hsresult.status.GetBestHeight())
-
-	// insert Handlers
-	pm.handlerFactory.InsertHandlers(newPeer)
+	meta = pm.UpdatePeerAttributes(meta, peerID)
+	newPeer := pm.peerFactory.CreateRemotePeer(meta, pm.GetNextManageNum(), hsresult.status, hsresult.s, hsresult.msgRW)
 
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Bool("outbound", receivedMeta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(receivedMeta.IPAddress).String()+":"+strconv.Itoa(int(receivedMeta.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("role",newPeer.Role().String()).Bool("outbound", meta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("peer is added to peerService")
 
 	return newPeer
+}
+
+func (pm *peerManager) UpdatePeerAttributes(meta p2pcommon.PeerMeta, peerID types.PeerID) (p2pcommon.PeerMeta) {
+	// override options by configurations of nodd
+	_, meta.Designated = pm.designatedPeers[peerID]
+	// hidden is set by either remote peer's asking or local node's config
+	if _, exist := pm.hiddenPeerSet[peerID]; exist {
+		meta.Hidden = true
+	}
+
+	return meta
 }
 
 func (pm *peerManager) GetNextManageNum() uint32 {

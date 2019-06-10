@@ -178,16 +178,25 @@ func (bi *BlockInfo) Equal(target *BlockInfo) bool {
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 
+func Uint64ToBytes(num uint64) []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, num)
+	return buf
+}
+
+func BytesToUint64(data []byte) uint64 {
+	buf := binary.LittleEndian.Uint64(data)
+	return buf
+}
+
 // BlockNoToBytes represents to serialize block no to bytes
 func BlockNoToBytes(bn BlockNo) []byte {
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, bn)
-	return buf
+	return Uint64ToBytes(bn)
 }
 
 // BlockNoFromBytes represents to deserialize bytes to block no
 func BlockNoFromBytes(raw []byte) BlockNo {
-	buf := binary.LittleEndian.Uint64(raw)
+	buf := BytesToUint64(raw)
 	return BlockNo(buf)
 }
 
