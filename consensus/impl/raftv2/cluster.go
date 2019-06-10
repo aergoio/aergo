@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/message"
 	"sort"
 	"strconv"
 	"sync"
@@ -358,9 +360,17 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 			return ErrMemberAlreadyApplied
 		}
 		cl.AppliedMembers().add(member)
+
+		// notify to p2p TODO temporary code
+		peerID, err := types.IDFromBytes(member.PeerID)
+		if err != nil {
+			panic("invalid member peerid "+enc.ToString(member.PeerID))
+		}
+		cl.Tell(message.P2PSvc, &message.RaftClusterEvent{BPAdded:[]types.PeerID{peerID}})
 	}
 
 	if cl.members.isExist(member.ID) {
+		logger.Debug().Str("member", member.ToString()).Msg("member already exists")
 		return nil
 	}
 
@@ -381,6 +391,12 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	cl.removedMembers.add(member)
 
 	cl.Size--
+	// notify to p2p TODO temporary code
+	peerID, err := types.IDFromBytes(member.PeerID)
+	if err != nil {
+		panic("invalid member peerid "+enc.ToString(member.PeerID))
+	}
+	cl.Tell(message.P2PSvc, &message.RaftClusterEvent{BPRemoved:[]types.PeerID{peerID}})
 
 	return nil
 }

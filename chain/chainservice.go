@@ -349,10 +349,6 @@ func (cs *ChainService) BeforeStop() {
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
-	if !cs.NeedNotify() {
-		return
-	}
-
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
 			Produced: isByBP,
