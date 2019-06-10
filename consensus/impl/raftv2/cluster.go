@@ -359,18 +359,19 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 		if cl.AppliedMembers().isExist(member.ID) {
 			return ErrMemberAlreadyApplied
 		}
+		logger.Debug().Str("member", member.ToString()).Msg("add to applied members")
 		cl.AppliedMembers().add(member)
 
 		// notify to p2p TODO temporary code
 		peerID, err := types.IDFromBytes(member.PeerID)
 		if err != nil {
-			panic("invalid member peerid "+enc.ToString(member.PeerID))
+			panic("invalid member peerid " + enc.ToString(member.PeerID))
 		}
-		cl.Tell(message.P2PSvc, &message.RaftClusterEvent{BPAdded:[]types.PeerID{peerID}})
+		cl.Tell(message.P2PSvc, &message.RaftClusterEvent{BPAdded: []types.PeerID{peerID}})
 	}
 
 	if cl.members.isExist(member.ID) {
-		logger.Debug().Str("member", member.ToString()).Msg("member already exists")
+		logger.Debug().Str("member", member.ToString()).Msg("omit adding to init members")
 		return nil
 	}
 
@@ -394,9 +395,9 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	// notify to p2p TODO temporary code
 	peerID, err := types.IDFromBytes(member.PeerID)
 	if err != nil {
-		panic("invalid member peerid "+enc.ToString(member.PeerID))
+		panic("invalid member peerid " + enc.ToString(member.PeerID))
 	}
-	cl.Tell(message.P2PSvc, &message.RaftClusterEvent{BPRemoved:[]types.PeerID{peerID}})
+	cl.Tell(message.P2PSvc, &message.RaftClusterEvent{BPRemoved: []types.PeerID{peerID}})
 
 	return nil
 }
@@ -602,7 +603,7 @@ func (cl *Cluster) toStringWithLock() string {
 
 	buf = fmt.Sprintf("total=%d, NodeName=%s, RaftID=%x, ", cl.Size, cl.NodeName(), cl.NodeID())
 	buf += "members: " + cl.members.toString()
-	buf += ", appliedMembers: " + cl.members.toString()
+	buf += ", appliedMembers: " + cl.appliedMembers.toString()
 
 	return buf
 }
