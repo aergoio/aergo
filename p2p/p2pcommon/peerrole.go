@@ -26,3 +26,7 @@ type PeerRoleManager interface {
 	NotifyNewBlockMsg(mo MsgOrder, peers []RemotePeer) (skipped, sent int)
 }
 
+type AttrModifier struct {
+	ID   types.PeerID
+	Role PeerRole
+}

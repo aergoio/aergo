@@ -115,6 +115,18 @@ func (mr *MockPeerManagerMockRecorder) RemovePeer(peer interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovePeer", reflect.TypeOf((*MockPeerManager)(nil).RemovePeer), peer)
 }
 
+// UpdatePeerRole mocks base method
+func (m *MockPeerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UpdatePeerRole", changes)
+}
+
+// UpdatePeerRole indicates an expected call of UpdatePeerRole
+func (mr *MockPeerManagerMockRecorder) UpdatePeerRole(changes interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePeerRole", reflect.TypeOf((*MockPeerManager)(nil).UpdatePeerRole), changes)
+}
+
 // NotifyPeerAddressReceived mocks base method
 func (m *MockPeerManager) NotifyPeerAddressReceived(arg0 []p2pcommon.PeerMeta) {
 	m.ctrl.T.Helper()

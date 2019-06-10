@@ -158,7 +158,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
 	if useRaft {
-		p2ps.prm = &RaftRoleManager{p2ps: p2ps, raftBP: make(map[types.PeerID]bool)}
+		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger:p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
 	} else {
 		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
 	}
@@ -222,8 +222,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
 		clusterReceiver.StartGet()
 	case *message.RaftClusterEvent:
-		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
 		p2ps.Logger.Debug().Int("added", len(msg.BPAdded)).Int("removed", len(msg.BPRemoved)).Msg("bp changed")
+		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
 	}
 }
 

@@ -23,6 +23,7 @@ type PeerManager interface {
 	AddNewPeer(peer PeerMeta)
 	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call RemovePeer to peermanager
 	RemovePeer(peer RemotePeer)
+	UpdatePeerRole(changes []AttrModifier)
 
 	NotifyPeerAddressReceived([]PeerMeta)
 
