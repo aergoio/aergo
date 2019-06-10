@@ -68,7 +68,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 
 	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n"]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)
-	assert.NoError(t, err, "duplicated set conf")
+	assert.Error(t, err, "duplicated set conf")
 }
 
 func TestBasicEnterprise(t *testing.T) {
@@ -114,26 +114,27 @@ func TestBasicEnterprise(t *testing.T) {
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",true]}`)
 	event, err = ExecuteEnterpriseTx(scs, tx, sender)
-	t.Log(event)
+	//t.Log(event)
 	assert.NoError(t, err, "enable conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, true, conf.On, "conf on")
-	cert := strings.Replace(testCert, "\n", "\\n", -1)
-	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcclient","` + cert + `:RWCS"]}`)
+
+	block, _ := pem.Decode([]byte(testCert))
+	assert.NotNil(t, block, "parse value 0")
+	cert := types.EncodeB64(block.Bytes)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert  + `:RWCS"]}`)
 	event, err = ExecuteEnterpriseTx(scs, tx, sender)
 	assert.NoError(t, err, "add conf")
-	conf, err = getConf(scs, []byte("rpcclient"))
+	conf, err = getConf(scs, []byte("rpcpermissions"))
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 1, len(conf.Values), "conf values length")
-	assert.Equal(t, testCert, strings.Split(conf.Values[0],":")[0], "conf value 0")
+	assert.Equal(t, cert, strings.Split(conf.Values[0],":")[0], "conf value 0")
+	assert.Equal(t, "RWCS", strings.Split(conf.Values[0],":")[1], "conf value 1")
 
-	block, _ := pem.Decode([]byte(strings.Split(conf.Values[0],":")[0]))
-
-	assert.NotNil(t, block, "parse value 0")
-	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcclient","` + cert + `:RWCS"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + strings.Split(conf.Values[0],":")[0] + `:RWCS"]}`)
 	event, err = ExecuteEnterpriseTx(scs, tx, sender)
-	assert.NoError(t, err, "add conf")
-	//t.Log(event)
+	assert.Error(t, err, "dup add conf")
+	t.Log(event)
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",false]}`)
 	_, err = ExecuteEnterpriseTx(scs, tx, sender)

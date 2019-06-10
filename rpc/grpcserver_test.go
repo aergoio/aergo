@@ -8,12 +8,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/aergoio/aergo/message/messagemock"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/golang/mock/gomock"
 	"math/big"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo/message/messagemock"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/golang/mock/gomock"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
@@ -97,7 +98,7 @@ func TestAergoRPCService_GetTX(t *testing.T) {
 		want    *types.Tx
 		wantErr bool
 	}{
-		{name:"T00", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
+		{name: "T00", args: args{ctx: mockCtx, in: &types.SingleBytes{Value: append(dummyTxHash, 'b', 'd')}}, fields: fields{hubStub, mockActorHelper, mockMsgHelper},
 			want: &types.Tx{Hash: dummyTxHash, Body: &dummyTxBody}, wantErr: false},
 		// TODO: Add test cases.
 	}

@@ -6,7 +6,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/pem"
 	"strings"
 
 	"github.com/aergoio/aergo/types"
@@ -26,14 +25,39 @@ const (
 	ControlNode     Authentication = 8
 )
 
-func (rpc *AergoRPCService) setClientAuth(m map[string]Authentication) {
+func (rpc *AergoRPCService) setClientAuth(conf *types.EnterpriseConfig) {
 	rpc.clientAuthLock.Lock()
 	defer rpc.clientAuthLock.Unlock()
 
-	rpc.clientAuth = m
+	rpc.clientAuth, rpc.clientAuthOn = parseConf(conf)
+}
+
+func (rpc *AergoRPCService) setClientAuthOn(v bool) {
+	rpc.clientAuthLock.Lock()
+	defer rpc.clientAuthLock.Unlock()
+
+	logger.Info().Bool("value", v).Msg("rpc permission check")
+	rpc.clientAuthOn = v
+}
+
+func (rpc *AergoRPCService) setClientAuthMap(v []string) {
+	rpc.clientAuthLock.Lock()
+
+	for _, perm := range v {
+		key, value := parseValue(perm)
+		rpc.clientAuth[key] = value
+	}
+	rpc.clientAuthLock.Unlock()
 }
 
 func (rpc *AergoRPCService) checkAuth(ctx context.Context, auth Authentication) error {
+	rpc.clientAuthLock.RLock()
+	defer rpc.clientAuthLock.RUnlock()
+
+	if !rpc.clientAuthOn || len(rpc.clientAuth) == 0 {
+		return nil
+	}
+
 	p, ok := peer.FromContext(ctx)
 	if !ok {
 		return status.Error(codes.Unauthenticated, "no peer found")
@@ -48,11 +72,9 @@ func (rpc *AergoRPCService) checkAuth(ctx context.Context, auth Authentication) 
 		return status.Error(codes.Unauthenticated, "could not verify peer certificate")
 	}
 
-	rpc.clientAuthLock.RLock()
-	defer rpc.clientAuthLock.RUnlock()
-
 	for _, id := range tlsAuth.State.PeerCertificates {
-		if (rpc.clientAuth[string(id.Raw)] & auth) != 0 {
+		key := types.EncodeB64(id.Raw)
+		if (rpc.clientAuth[key] & auth) != 0 {
 			return nil
 		}
 	}
@@ -60,37 +82,36 @@ func (rpc *AergoRPCService) checkAuth(ctx context.Context, auth Authentication) 
 	return status.Error(codes.Unauthenticated, "permission forbidden")
 }
 
-func parseConf(conf *types.EnterpriseConfig) map[string]Authentication {
-	ret := map[string]Authentication{}
-	if !conf.GetOn() {
-		return nil
+func parseValue(perm string) (string, int) {
+	v := strings.Split(perm, ":")
+	if len(v) != 2 {
+		logger.Warn().Str("value", perm).Msg("invalid rpc client config")
+		return "", 0
 	}
-	for _, c := range conf.GetValues() {
-		v := strings.Split(c, ":")
-		if len(v) != 2 {
-			logger.Warn().Str("value", c).Msg("invalid rpc client config")
-			continue
-		}
 
-		permission := 0
-		if strings.Contains(v[1], "R") {
-			permission |= ReadBlockChain
-		}
-		if strings.Contains(v[1], "W") {
-			permission |= WriteBlockChain
-		}
-		if strings.Contains(v[1], "C") {
-			permission |= ControlNode
-		}
-		if strings.Contains(v[1], "S") {
-			permission |= ShowNode
-		}
-		block, err := pem.Decode([]byte(v[0]))
-		if err != nil {
-			logger.Warn().Str("value", c).Msg("invalid pem format in rpc client config")
-			continue
-		}
-		ret[string(block.Bytes)] = permission
+	permission := 0
+	if strings.Contains(v[1], "R") {
+		permission |= ReadBlockChain
 	}
-	return ret
+	if strings.Contains(v[1], "W") {
+		permission |= WriteBlockChain
+	}
+	if strings.Contains(v[1], "C") {
+		permission |= ControlNode
+	}
+	if strings.Contains(v[1], "S") {
+		permission |= ShowNode
+	}
+	return v[0], permission
+}
+
+func parseConf(conf *types.EnterpriseConfig) (map[string]Authentication, bool) {
+	ret := map[string]Authentication{}
+
+	for _, perm := range conf.GetValues() {
+		key, value := parseValue(perm)
+		ret[key] = value
+	}
+
+	return ret, conf.GetOn()
 }

@@ -320,6 +320,7 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
+//GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
 func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
 	return cs.getEnterpriseConf(key)
 }

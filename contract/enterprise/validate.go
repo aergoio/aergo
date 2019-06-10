@@ -81,12 +81,12 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
+		context.Old = old
 		if ci.Name == AppendConf && context.IsOldConfValue(context.Args[1]) {
 			return nil, fmt.Errorf("already included config value : %v", context.Args)
 		} else if ci.Name == RemoveConf && !context.IsOldConfValue(context.Args[1]) {
 			return nil, fmt.Errorf("value not exist : %v", context.Args)
 		}
-		context.Old = old
 		context.Admins = admins
 
 	case EnableConf:

@@ -6,8 +6,10 @@
 package rpc
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -75,7 +77,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	var entConf *types.EnterpriseConfig
 	genesis := chainAccessor.GetGenesisInfo()
 	if !genesis.ID.PublicNet {
-		conf, err := chainAccessor.GetEnterpriseConfig("allowedClient")
+		conf, err := chainAccessor.GetEnterpriseConfig("rpcpermissions")
 		if err != nil {
 			logger.Error().Err(err).Msg("could not get allowed client information")
 		} else {
@@ -129,9 +131,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
 
 	actualServer.actorHelper = rpcsvc
-	if entConf.GetOn() {
-		actualServer.setClientAuth(parseConf(entConf))
-	}
+	actualServer.setClientAuth(entConf)
 
 	rpcsvc.httpServer = &http.Server{
 		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),
@@ -182,6 +182,29 @@ func (ns *RPC) Receive(context actor.Context) {
 		server.BroadcastToListBlockMetadataStream(meta)
 	case []*types.Event:
 		server := ns.actualServer
+		for _, e := range msg {
+			if bytes.Equal(e.GetContractAddress(), []byte(types.AergoEnterprise)) {
+				eventName := strings.Split(e.GetEventName(), " ")
+				if strings.ToUpper(eventName[1]) == "RPCPERMISSIONS" {
+					switch eventName[0] {
+					case "Enable":
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						server.setClientAuthOn(value)
+					case "Set":
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						server.setClientAuthMap(values)
+					default:
+						logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
+					}
+				}
+			}
+		}
 		server.BroadcastToEventStream(msg)
 	case *message.GetServerInfo:
 		context.Respond(ns.CollectServerInfo(msg.Categories))

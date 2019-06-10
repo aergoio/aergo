@@ -26,10 +26,10 @@ func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
 	return false
 }
 
-func (e *EnterpriseContext) IsOldConfValue(addr string) bool {
+func (e *EnterpriseContext) IsOldConfValue(value string) bool {
 	if e.Old != nil {
 		for _, v := range e.Old.Values {
-			if v == addr {
+			if v == value {
 				return true
 			}
 		}
