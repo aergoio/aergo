@@ -127,16 +127,9 @@ func (p2ps *P2P) NotifyNewBlock(newBlock message.NotifyNewBlock) bool {
 		BlockNo:   newBlock.BlockNo}
 	msg := p2ps.mf.NewMsgBlkBroadcastOrder(req)
 
-	skipped, sent := 0, 0
-	// create message data
-	for _, neighbor := range p2ps.pm.GetPeers() {
-		if neighbor != nil && neighbor.State() == types.RUNNING {
-			sent++
-			neighbor.SendMessage(msg)
-		} else {
-			skipped++
-		}
-	}
+	// sending new block notice (relay inv message is not need to every nodes)
+	skipped, sent := p2ps.prm.NotifyNewBlockMsg(msg, p2ps.pm.GetPeers())
+
 	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Msg("Notifying new block")
 	return true
 }
@@ -147,17 +140,17 @@ func (p2ps *P2P) NotifyBlockProduced(newBlock message.NotifyNewBlock) bool {
 	req := &types.BlockProducedNotice{ProducerID: nil, BlockNo: newBlock.BlockNo, Block: newBlock.Block}
 	msg := p2ps.mf.NewMsgBPBroadcastOrder(req)
 
-	skipped, sent := 0, 0
+	skipped, sent := p2ps.prm.NotifyNewBlockMsg(msg, p2ps.pm.GetPeers())
 	// TODO filter to only contain bp and trusted node.
-	for _, neighbor := range p2ps.pm.GetPeers() {
-		if neighbor != nil && neighbor.State() == types.RUNNING {
-			sent++
-			neighbor.SendMessage(msg)
-		} else {
-			skipped++
-		}
-	}
-	p2ps.Debug().Int("sent_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Uint64("block_no", req.BlockNo).Msg("Notifying block produced")
+	//for _, neighbor := range p2ps.pm.GetPeers() {
+	//	if neighbor != nil && neighbor.State() == types.RUNNING {
+	//		sent++
+	//		neighbor.SendMessage(msg)
+	//	} else {
+	//		skipped++
+	//	}
+	//}
+	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("hash", enc.ToString(newBlock.Block.BlockHash())).Uint64("block_no", req.BlockNo).Msg("Notifying block produced")
 	return true
 }
 

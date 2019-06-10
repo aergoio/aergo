@@ -23,6 +23,7 @@ type RemotePeer interface {
 	Name() string
 	Version() string
 	Role() PeerRole
+	ChangeRole(role PeerRole)
 
 	AddMessageHandler(subProtocol SubProtocol, handler MessageHandler)
 

@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/subproto"
 	"reflect"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -72,7 +72,7 @@ func TestP2P_InsertHandlers(t *testing.T) {
 	defer ctrl.Finish()
 
 	tests := []struct {
-		name   string
+		name string
 	}{
 		{"T1"},
 	}

@@ -157,6 +157,18 @@ func (mr *MockRemotePeerMockRecorder) Role() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Role", reflect.TypeOf((*MockRemotePeer)(nil).Role))
 }
 
+// ChangeRole mocks base method
+func (m *MockRemotePeer) ChangeRole(role p2pcommon.PeerRole) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ChangeRole", role)
+}
+
+// ChangeRole indicates an expected call of ChangeRole
+func (mr *MockRemotePeerMockRecorder) ChangeRole(role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChangeRole", reflect.TypeOf((*MockRemotePeer)(nil).ChangeRole), role)
+}
+
 // AddMessageHandler mocks base method
 func (m *MockRemotePeer) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
 	m.ctrl.T.Helper()

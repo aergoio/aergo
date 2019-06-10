@@ -142,6 +142,10 @@ func (p *remotePeerImpl) Version() string {
 func (p *remotePeerImpl) Role() p2pcommon.PeerRole {
 	return p.role
 }
+func (p *remotePeerImpl) ChangeRole(role p2pcommon.PeerRole) {
+	p.role = role
+}
+
 
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
 	p.handlers[subProtocol] = handler

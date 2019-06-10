@@ -23,6 +23,7 @@ var (
 
 // ICompSyncRequester is the interface that wraps the RequestFuture method.
 type ICompSyncRequester interface {
+	Tell(targetName string, message interface{})
 	RequestFuture(targetName string, message interface{}, timeout time.Duration, tip string) *actor.Future
 }
 

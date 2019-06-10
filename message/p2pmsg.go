@@ -194,3 +194,8 @@ type GetClusterRsp struct {
 	Err           error
 	HardStateInfo *types.HardStateInfo
 }
+
+type RaftClusterEvent struct {
+	BPAdded []types.PeerID
+	BPRemoved []types.PeerID
+}
