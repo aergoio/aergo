@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
 	"github.com/libp2p/go-libp2p-core/network"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,6 +32,10 @@ import (
 // P2P is actor component for p2p
 type P2P struct {
 	*component.BaseComponent
+
+	// TODO Which class has role to manager self PeerRole? P2P, PeerManager, or other?
+	selfRole p2pcommon.PeerRole
+	useRaft bool
 
 	// caching data from genesis block
 	chainID *types.ChainID
@@ -67,6 +72,7 @@ func (p2ps *P2P) BeforeStart() {}
 func (p2ps *P2P) AfterStart() {
 	p2ps.mutex.Lock()
 
+	p2ps.setSelfRole()
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.mutex.Unlock()
@@ -77,6 +83,32 @@ func (p2ps *P2P) AfterStart() {
 	p2ps.mm.Start()
 }
 
+func (p2ps *P2P) setSelfRole() {
+	selfPID := p2ps.pm.SelfNodeID()
+	// set role of self peer
+	ccinfo := p2ps.consacc.ConsensusInfo()
+	if ccinfo.Type == "raft" {
+		// it's raft chain
+		p2ps.selfRole = p2pcommon.RaftWatcher
+		bps := ccinfo.GetBps()
+		for _, bp := range bps {
+			if strings.Contains(bp, selfPID.Pretty() ) {
+				p2ps.selfRole = p2pcommon.RaftFollower
+				break
+			}
+		}
+	} else {
+		p2ps.selfRole = p2pcommon.Watcher
+		bps := ccinfo.GetBps()
+		for _, bp := range bps {
+			if strings.Contains(bp, selfPID.Pretty() ) {
+				p2ps.selfRole = p2pcommon.BlockProducer
+				break
+			}
+		}
+	}
+	p2ps.Logger.Debug().Str("role", p2ps.selfRole.String()).Msg("set role of self")
+}
 // BeforeStop is called before actor hub stops. it finishes underlying peer manager
 func (p2ps *P2P) BeforeStop() {
 	p2ps.Logger.Debug().Msg("stopping p2p actor.")
@@ -132,6 +164,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.chainID = chainID
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
+	p2ps.useRaft = useRaft
 
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
@@ -139,14 +172,17 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	// TODO: it should be refactored to support multi version
 	mf := &baseMOFactory{}
 
-	//reconMan := newReconnectManager(p2ps.Logger)
+	if useRaft {
+		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger:p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
+	} else {
+		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
+	}
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
 
 	// connect managers each other
-	//reconMan.pm = peerMan
 
 	p2ps.mutex.Lock()
 	p2ps.signer = signer
@@ -157,11 +193,6 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
-	if useRaft {
-		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger:p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
-	} else {
-		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
-	}
 	p2ps.mutex.Unlock()
 }
 
@@ -299,7 +330,6 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(subproto.GetBlocksResponse, subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	peer.AddMessageHandler(subproto.GetBlockHeadersRequest, subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(subproto.GetBlockHeadersResponse, subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	peer.AddMessageHandler(subproto.GetAncestorRequest, subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(subproto.GetAncestorResponse, subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(subproto.GetHashesRequest, subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps))
@@ -312,8 +342,14 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(subproto.GetTXsResponse, subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(subproto.NewTxNotice, subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 
-	// BP protocol handlers
-	peer.AddMessageHandler(subproto.BlockProducedNotice, subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	// block notice handlers
+	if p2ps.selfRole == p2pcommon.RaftLeader || p2ps.selfRole == p2pcommon.RaftFollower {
+		peer.AddMessageHandler(subproto.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+		peer.AddMessageHandler(subproto.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	} else {
+		peer.AddMessageHandler(subproto.BlockProducedNotice, subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+		peer.AddMessageHandler(subproto.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	}
 
 	// Raft support
 	peer.AddMessageHandler(subproto.GetClusterRequest, subproto.NewGetClusterReqHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))

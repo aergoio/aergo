@@ -32,7 +32,7 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.RaftLeader})
+		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.RaftFollower})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
 	}
 	rm.p2ps.pm.UpdatePeerRole(changes)
@@ -43,7 +43,7 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
 	defer rm.raftMutex.Unlock()
 	if _, found := rm.raftBP[pid]; found {
 		// TODO check if leader or follower
-		return p2pcommon.RaftLeader
+		return p2pcommon.RaftFollower
 	} else {
 		return p2pcommon.RaftWatcher
 	}
@@ -68,16 +68,14 @@ type DefaultRoleManager struct {
 }
 
 func (rm *DefaultRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
+	changes := make([]p2pcommon.AttrModifier,0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
-		if peer, found := rm.p2ps.pm.GetPeer(pid); found {
-			peer.ChangeRole(p2pcommon.Watcher)
-		}
+		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.Watcher})
 	}
 	for _, pid := range toAdd {
-		if peer, found := rm.p2ps.pm.GetPeer(pid); found {
-			peer.ChangeRole(p2pcommon.BlockProducer)
-		}
+		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.BlockProducer})
 	}
+	rm.p2ps.pm.UpdatePeerRole(changes)
 }
 
 func (rm *DefaultRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
