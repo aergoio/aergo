@@ -224,7 +224,7 @@ func resolveFunction(contractState *state.ContractState, name string, constructo
 	if constructor {
 		return nil, nil
 	}
-	if defaultFunc != nil {
+	if len(name) == 0 && defaultFunc != nil {
 		return defaultFunc, nil
 	}
 	return nil, errors.New("not found function: " + name)

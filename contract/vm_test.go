@@ -2903,6 +2903,10 @@ abi.register(default)
 	if err != nil {
 		t.Error(err)
 	}
+	err = bc.Query("default", `{"Name":"a"}`, "not found function: a", "")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestBignum(t *testing.T) {
