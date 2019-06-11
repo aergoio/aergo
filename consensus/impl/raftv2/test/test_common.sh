@@ -39,7 +39,8 @@ function getHeight() {
 
     local serverport=$(($port + 1000))
 
-	echo "port=$1, serverport=$serverport"
+	#echo "port=$1, serverport=$serverport"
+	echo "port=$1"
 
     existProcess $serverport
     if [ "$?" = "0" ]; then
@@ -83,8 +84,7 @@ function getHash() {
 function getleader() {
 	local curleader=""
 	for i in 10001 10002 10003 10004 10005 ; do
-		curleader=$(aergocli -p $i blockchain | jq .ConsensusInfo.Status.Leader)
-		curleader=${curleader//\"/}
+		getLeaderOf $i curleader
 		if [[ "$curleader" == aergo* ]]; then
 			break
 		fi
@@ -100,6 +100,45 @@ function getleader() {
 	echo "leader=$curleader"
 
 	eval "$1=$curleader"
+}
+
+
+function getLeaderOf() {
+	local _leader_=""
+	if [ $# -ne 2 ]; then
+		echo "usage: getLeaderOf rpcport retvalue"
+		exit
+	fi
+
+	local myport=$1
+
+	_leader_=$(aergocli -p $myport blockchain | jq .ConsensusInfo.Status.Leader)
+	_leader_=${_leader_//\"/}
+
+	echo "curleader=$_leader_"
+
+	if [[ "$_leader_" == aergo* ]]; then
+		eval "$2=$_leader_"
+	fi
+}
+
+function HasLeader() {
+	if [ $# -ne 2 ]; then
+		echo "usage: HasLeader rpcport retvalue"
+		exit
+	fi
+
+	local myport=$1
+	local myRet
+	getLeaderOf $myport myRet
+
+	if [[ "$myRet" == aergo* ]]; then
+		echo "leader exist in $myport"
+		eval "$2=1"
+	else
+		echo "leader not exist in $myport"
+		eval "$2=0"
+	fi
 }
 
 function getRaftID() {

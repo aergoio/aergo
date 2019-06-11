@@ -50,7 +50,7 @@ func GetClusterInfo(hs *component.ComponentHub) (*Cluster, *types.HardStateInfo,
 		return nil, nil, ErrGetClusterTimeout
 	}
 
-	if newCl, err = NewClusterFromMemberAttrs(rsp.ChainID, rsp.Members); err != nil {
+	if newCl, err = NewClusterFromMemberAttrs(rsp.ClusterID, rsp.ChainID, rsp.Members); err != nil {
 		return nil, nil, err
 	}
 

@@ -590,20 +590,23 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 		hardStateInfo *types.HardStateInfo
 		mbrAttrs      []*types.MemberAttr
 		err           error
-		errStr        string
 	)
+
+	if bf.bpc.ClusterID() == InvalidClusterID {
+		return &types.GetClusterInfoResponse{Error: ErrClusterNotReady.Error()}
+	}
 
 	if bestBlockHash != nil {
 		if hardStateInfo, err = bf.getHardStateOfBlock(bestBlockHash); err != nil {
-			errStr = err.Error()
+			return &types.GetClusterInfoResponse{Error: err.Error()}
 		}
 	}
 
 	if mbrAttrs, err = bf.bpc.getMemberAttrs(); err != nil {
-		errStr = err.Error()
+		return &types.GetClusterInfoResponse{Error: err.Error()}
 	}
 
-	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, Error: errStr, MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
+	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
 }
 
 func (bf *BlockFactory) checkBpTimeout() error {

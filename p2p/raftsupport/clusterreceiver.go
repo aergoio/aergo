@@ -136,7 +136,7 @@ func (br *ClusterInfoReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 	if len(body.Error) != 0 {
 		err = fmt.Errorf("get cluster info error: %s", body.Error)
 	}
-	result := &message.GetClusterRsp{ChainID: body.GetChainID(), Members: body.GetMbrAttrs(),
+	result := &message.GetClusterRsp{ClusterID: body.GetClusterID(), ChainID: body.GetChainID(), Members: body.GetMbrAttrs(),
 		Err: err, HardStateInfo: body.HardStateInfo}
 	br.req.ReplyC <- result
 	close(br.req.ReplyC)
