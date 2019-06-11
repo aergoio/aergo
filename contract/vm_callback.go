@@ -8,6 +8,11 @@ package contract
 #include <string.h>
 #include "vm.h"
 #include "lgmp.h"
+
+struct proof {
+	void *data;
+	size_t len;
+};
 */
 import "C"
 import (
@@ -781,6 +786,27 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 		return C.int(1), nil
 	}
 	return C.int(0), nil
+}
+
+//export LuaCryptoVerifyProof
+func LuaCryptoVerifyProof(
+	key unsafe.Pointer, keyLen C.int,
+	value unsafe.Pointer, valueLen C.int,
+	proof unsafe.Pointer, nProof C.int,
+	) C.int {
+
+	k := C.GoBytes(key, keyLen)
+	v := C.GoBytes(value, valueLen)
+	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
+	bProof := make([][]byte, int(nProof))
+	for i, p := range cProof {
+		bProof[i] = C.GoBytes(p.data, C.int(p.len))
+	}
+
+	if verifyEthStorageProof(k, v, bProof) {
+		return C.int(1)
+	}
+	return C.int(0)
 }
 
 func transformAmount(amountStr string) (*big.Int, error) {

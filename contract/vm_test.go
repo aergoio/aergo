@@ -4530,4 +4530,41 @@ func TestUtf(t *testing.T) {
 	}
 }
 
+func TestLuaCryptoVerifyProof(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	function hextobytes(str)
+		return (str:gsub('..', function (cc)
+			return string.char(tonumber(cc, 16))
+		end))
+	end
+
+	function verifyProof(data)
+		local k = "a6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
+		local v = "2710"
+		local p0 = "f871a0379a71a6fb36a75e085aff02beec9f5934b9648d24e2901da307492219608b3780a006a684f73e33f5c18739fd1339977f6fe328eb5cbe64239244b0cec88744355180808080a023866491ea0336f72e659c2a7daf61285de093b04fa353c48069a807c2ba845f808080808080808080"
+		local p1 = "e5a03eb5be412f275a18f6e4d622aee4ff40b21467c926224771b782d4c095d1444b83822710"
+		local b = crypto.verifyProof(hextobytes(k), hextobytes(v), hextobytes(p0), hextobytes(p1))
+		return b
+	end
+
+	abi.register(verifyProof)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "eth", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("eth", `{"Name":"verifyProof"}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

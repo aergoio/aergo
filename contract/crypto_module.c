@@ -42,9 +42,34 @@ static int crypto_ecverify(lua_State *L)
 	return 1;
 }
 
+static int crypto_verifyProof(lua_State *L)
+{
+    int argc = lua_gettop(L);
+    char *k, *v;
+    struct proof *proof;
+    size_t kLen, vLen, nProof;
+    int i, b;
+    if (argc < 3) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+    nProof = argc - 2;
+    k = (char *)lua_tolstring(L, 1, &kLen);
+    v = (char *)lua_tolstring(L, 2, &vLen);
+    proof = (struct proof *)malloc(sizeof(struct proof) * nProof);
+    for (i = 3; i <= argc; ++i) {
+        proof[i-3].data = (char *)lua_tolstring(L, i, &proof[i-3].len);
+    }
+    b = LuaCryptoVerifyProof(k, kLen, v, vLen, proof, nProof);
+    free(proof);
+    lua_pushboolean(L, b);
+    return 1;
+}
+
 static const luaL_Reg crypto_lib[] = {
 	{"sha256", crypto_sha256},
 	{"ecverify", crypto_ecverify},
+	{"verifyProof", crypto_verifyProof},
 	{NULL, NULL}
 };
 
