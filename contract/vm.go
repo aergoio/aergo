@@ -757,7 +757,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if err != nil {
 		return "", nil, stateSet.usedFee(), err
 	}
-	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(stateSet.curContract.sender)))
 	if err != nil {
 		return "", nil, stateSet.usedFee(), err
 	}

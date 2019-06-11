@@ -2,6 +2,8 @@ package contract
 
 import "C"
 import (
+	"bytes"
+	"fmt"
 	"math/big"
 	"strconv"
 
@@ -66,7 +68,7 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	if !receiver.IsCreate() && len(receiver.State().CodeHash) == 0 {
+	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
 		return
 	}
 
@@ -74,9 +76,14 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 	if err != nil {
 		return
 	}
+	if receiver.IsRedeploy() {
+		if err = checkRedeploy(sender, receiver, contractState); err != nil {
+			return
+		}
+	}
 
 	var ex *Executor
-	if !receiver.IsCreate() && preLoadInfos[preLoadService].requestedTx == tx {
+	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
 			preload := <-replyCh
@@ -101,7 +108,7 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 
-		if receiver.IsCreate() {
+		if receiver.IsDeploy() {
 			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
 			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
@@ -182,4 +189,20 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 	h.Write([]byte(strconv.FormatUint(nonce, 10)))
 	recipientHash := h.Sum(nil)                   // byte array with length 32
 	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
+}
+
+func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
+		receiverAddr := types.EncodeAddress(receiver.ID())
+		logger.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
+		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
+	}
+	creator, err := contractState.GetData(creatorMetaKey)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(creator, []byte(types.EncodeAddress(sender.ID()))) {
+		return newVmError(types.ErrCreatorNotMatch)
+	}
+	return nil
 }

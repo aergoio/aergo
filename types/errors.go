@@ -68,4 +68,7 @@ var (
 
 	//ErrTooSmallAmount
 	ErrExceedAmount = errors.New("request amount exceeds")
+
+	ErrCreatorNotMatch = errors.New("creator not matched")
+
 )

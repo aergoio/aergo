@@ -105,6 +105,14 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 	}
 
 	switch tx.GetBody().Type {
+	case TxType_REDEPLOY:
+		if isPublic {
+			return ErrTxInvalidType
+		}
+		if tx.GetBody().GetRecipient() == nil {
+			return ErrTxInvalidRecipient
+		}
+		fallthrough
 	case TxType_NORMAL:
 		if tx.GetBody().GetRecipient() == nil && len(tx.GetBody().GetPayload()) == 0 {
 			//contract deploy
@@ -261,7 +269,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 	amount := tx.GetBody().GetAmountBigInt()
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
-	case TxType_NORMAL:
+	case TxType_NORMAL, TxType_REDEPLOY:
 		spending := new(big.Int).Add(amount, tx.GetMaxFee())
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
