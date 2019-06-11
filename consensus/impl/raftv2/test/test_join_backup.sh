@@ -17,7 +17,7 @@ for i in  11004 11005 11006 11007; do
 	rm -rf ./data/$i ./BP$i.toml
 done
 
-TEST_SKIP_GENESIS=1 make_node.sh
+make_node.sh
 
 sleep 2
 
@@ -58,6 +58,14 @@ function backupJoin() {
 backupJoin 3 4
 backupJoin 3 5
 
+echo "=========== rm member5 =========="
+rm_member.sh aergo5
+rm BP11005*
+
+echo "=========== rm member4 =========="
+rm_member.sh aergo4
+rm BP11004*
+
 echo ""
-echo "========= check if reorg occured ======="
+echo "========= check if reorg occured ========"
 checkReorg

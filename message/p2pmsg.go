@@ -189,6 +189,7 @@ type GetCluster struct {
 }
 
 type GetClusterRsp struct {
+	ClusterID     uint64
 	ChainID       BlockHash
 	Members       []*types.MemberAttr
 	Err           error
@@ -196,6 +197,6 @@ type GetClusterRsp struct {
 }
 
 type RaftClusterEvent struct {
-	BPAdded []types.PeerID
+	BPAdded   []types.PeerID
 	BPRemoved []types.PeerID
 }

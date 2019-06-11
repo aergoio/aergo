@@ -11,8 +11,9 @@ rmnode=$1
 
 
 # get leader
-leader=
-getleader leader
+myleader=
+getleader myleader
+echo "myleader=$myleader"
 
 getLeaderPort curLeaderPort
 
@@ -22,7 +23,7 @@ getRaftID $curLeaderPort $rmnode raftID
 
 # get leader port
 
-echo "leader=$leader, port=$curLeaderPort, raftId=$raftID"
+echo "leader=$myleader, port=$curLeaderPort, raftId=$raftID"
 
 echo "aergocli -p $curLeaderPort cluster remove --nodeid $raftID"
 

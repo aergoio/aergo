@@ -64,8 +64,9 @@ func (we *WalEntry) ToString() string {
 }
 
 type RaftIdentity struct {
-	ID   uint64
-	Name string
+	ClusterID uint64
+	ID        uint64
+	Name      string
 }
 
 func (rid *RaftIdentity) ToString() string {

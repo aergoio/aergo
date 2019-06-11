@@ -27,4 +27,7 @@ test_slow_leader.sh
 test_syncer_crash.sh 0
 test_syncer_crash.sh 1
 test_member.sh
+test_join_backup.sh
+test_invalid_member_init.sh
+test_invalid_member_add.sh
 popd
