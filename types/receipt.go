@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	successStatus = 0
-	createdStatus = 1
-	errorStatus   = 2
+	successStatus = iota
+	createdStatus
+	errorStatus
+	recreatedStatus
 )
 
 func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt {
@@ -42,6 +43,8 @@ func (r *Receipt) marshalBody(b *bytes.Buffer, isMerkle bool) error {
 		status = createdStatus
 	case "ERROR":
 		status = errorStatus
+	case "RECREATED":
+		status = recreatedStatus
 	default:
 		return errors.New("unsupported status in receipt")
 	}
@@ -99,6 +102,8 @@ func (r *Receipt) unmarshalBody(data []byte) ([]byte, uint32) {
 		r.Status = "CREATED"
 	case errorStatus:
 		r.Status = "ERROR"
+	case recreatedStatus:
+		r.Status = "RECREATED"
 	}
 	pos := uint32(34)
 	l := binary.LittleEndian.Uint32(data[pos:])

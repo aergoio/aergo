@@ -37,12 +37,17 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-var mulAergo, mulGaer, zeroBig *big.Int
+var (
+	mulAergo, mulGaer, zeroBig *big.Int
+	creatorMetaKey             = []byte("Creator")
+)
 
-const maxEventCnt = 50
-const maxEventNameSize = 64
-const maxEventArgSize = 4096
-const luaCallCountDeduc = 1000
+const (
+	maxEventCnt       = 50
+	maxEventNameSize  = 64
+	maxEventArgSize   = 4096
+	luaCallCountDeduc = 1000
+)
 
 func init() {
 	mulAergo, _ = new(big.Int).SetString("1000000000000000000", 10)
@@ -87,7 +92,7 @@ func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *
 	if blkno != nil {
 		bigNo, _ := new(big.Int).SetString(strings.TrimSpace(C.GoString(blkno)), 10)
 		if bigNo == nil || bigNo.Sign() < 0 {
-			return nil, C.CString("[System.LuaGetDB] invalid blockheight value :"+C.GoString(blkno))
+			return nil, C.CString("[System.LuaGetDB] invalid blockheight value :" + C.GoString(blkno))
 		}
 		blkNo := bigNo.Uint64()
 
@@ -793,7 +798,7 @@ func LuaCryptoVerifyProof(
 	key unsafe.Pointer, keyLen C.int,
 	value unsafe.Pointer, valueLen C.int,
 	proof unsafe.Pointer, nProof C.int,
-	) C.int {
+) C.int {
 
 	k := C.GoBytes(key, keyLen)
 	v := C.GoBytes(value, valueLen)
@@ -982,7 +987,7 @@ func LuaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
