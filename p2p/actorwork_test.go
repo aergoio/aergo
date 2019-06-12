@@ -158,10 +158,11 @@ func TestP2P_SendRaftMessage(t *testing.T) {
 		args   args
 
 		wantErr bool
+		wantReport bool
 	}{
-		{"TSucc", args{samplePeerID, raftpb.Message{Type:raftpb.MsgVote}}, false },
-		{"TNoPeer", args{dummyPeerID, raftpb.Message{Type:raftpb.MsgVote}}, true },
-		{"TWrongBody", args{samplePeerID, types.Status{}}, true },
+		{"TSucc", args{samplePeerID, raftpb.Message{Type:raftpb.MsgVote}}, false, false },
+		{"TNoPeer", args{dummyPeerID, raftpb.Message{Type:raftpb.MsgVote}}, true, true},
+		{"TWrongBody", args{samplePeerID, types.Status{}}, true, false},
 		//{"TNilBody", args{samplePeerID, &types.Status{}}, true },
 
 	}
@@ -177,12 +178,18 @@ func TestP2P_SendRaftMessage(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
+			mockConsAcc := p2pmock.NewMockConsensusAccessor(ctrl)
+			mockRaftAcc := p2pmock.NewMockAergoRaftAccessor(ctrl)
+			if tt.wantReport {
+				mockConsAcc.EXPECT().RaftAccessor().Return(mockRaftAcc)
+				mockRaftAcc.EXPECT().ReportUnreachable(tt.args.pid)
+			}
+
 			mockMF.EXPECT().NewRaftMsgOrder(raftpb.MsgVote,gomock.Any() ).Return(dummyMo).MaxTimes(1)
 			mockPM.EXPECT().GetPeer(gomock.Eq(samplePeerID)).Return(mockPeer, true).MaxTimes(1)
 			mockPM.EXPECT().GetPeer(gomock.Not(samplePeerID)).Return(nil, false).MaxTimes(1)
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(sentCnt)
-			mockCtx.EXPECT().Respond(gomock.Any()).Times(1)
-			ps := &P2P{pm:mockPM, mf:mockMF}
+			ps := &P2P{pm:mockPM, mf:mockMF, consacc:mockConsAcc}
 			ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, ps, log.NewLogger("p2p"))
 
 			ps.SendRaftMessage(mockCtx, &message.SendRaft{ToWhom:tt.args.pid, Body:tt.args.body})

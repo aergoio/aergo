@@ -6,6 +6,7 @@
 package subproto
 
 import (
+	"context"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -44,7 +45,10 @@ func (ph *raftWrapperHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 		DebugLogRaftWrapMsg(ph.logger, remotePeer, msg.ID(), data)
 	}
 
-	// TODO toss data to raft module
+	// toss data to raft module
+	if err := ph.consAcc.RaftAccessor().Process(context.TODO(), remotePeer.ID(), *data); err != nil {
+		ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Err(err).Msg("error while processing raft message ")
+	}
 }
 
 func (ph *raftWrapperHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
@@ -692,7 +693,7 @@ func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
 	var tmpSnapMsg *snap.Message
 
 	snapMsgs := make([]*snap.Message, 0)
-
+	aergoMsgs := make([]message.SendRaft, 0)
 	// reset MsgSnap to send snap.Message
 	for i, msg := range msgs {
 		if msg.Type == raftpb.MsgSnap {
@@ -703,6 +704,13 @@ func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
 			snapMsgs = append(snapMsgs, tmpSnapMsg)
 
 			msgs[i].To = 0
+		} else if rs.isWrapperble(msg.Type) {
+			if member := rs.cluster.Members().getMember(msg.To); member != nil {
+				pid := member.GetPeerID()
+				aergoMsgs = append(aergoMsgs, message.SendRaft{pid, msg})
+				msgs[i].To = 0
+			}
+
 		}
 	}
 
@@ -712,7 +720,26 @@ func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
 		rs.transport.SendSnapshot(*tmpSnapMsg)
 	}
 
+	for _, aergoMsg := range aergoMsgs {
+		rs.cluster.Tell(message.P2PSvc, &aergoMsg)
+	}
+
 	return nil
+}
+
+type WrapperMsg struct {
+	peerID types.PeerID
+	raftMsg *raftpb.Message
+}
+func (rs *raftServer) isWrapperble(t raftpb.MessageType) bool {
+	switch t {
+	case raftpb.MsgSnap :
+		return false
+	case raftpb.MsgUnreachable, raftpb.MsgHeartbeat, raftpb.MsgHeartbeatResp:
+		fallthrough
+	default:
+		return true
+	}
 }
 
 func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error) {
@@ -1434,4 +1461,32 @@ func unmarshalEntryData(data []byte) (*types.Block, error) {
 	}
 
 	return block, nil
+}
+
+type raftHttpWrapper struct {
+	bf *BlockFactory
+	raftServer *raftServer
+}
+
+func (rhw *raftHttpWrapper) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	return rhw.raftServer.Process(ctx, m)
+}
+
+func (rhw *raftHttpWrapper) IsIDRemoved(peerID types.PeerID) bool {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID) ; member != nil {
+		return rhw.raftServer.IsIDRemoved(member.ID)
+	}
+	return true
+}
+
+func (rhw *raftHttpWrapper) ReportUnreachable(peerID types.PeerID) {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID) ; member != nil {
+		rhw.raftServer.ReportUnreachable(member.ID)
+	}
+}
+
+func (rhw *raftHttpWrapper) ReportSnapshot(peerID types.PeerID, status raftlib.SnapshotStatus) {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID) ; member != nil {
+		rhw.raftServer.ReportSnapshot(member.ID, status)
+	}
 }

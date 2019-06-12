@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"net"
 	"net/url"
@@ -20,7 +21,7 @@ type EntryType int8
 
 const (
 	EntryBlock EntryType = iota
-	EntryEmpty           // it is generated when node becomes leader
+	EntryEmpty  // it is generated when node becomes leader
 	EntryConfChange
 	InvalidMemberID = 0
 )
@@ -385,3 +386,23 @@ func ParseToUrl(urlstr string) (*url.URL, error) {
 
 	return urlObj, nil
 }
+
+// DummyRaftAccessor returns error if process request comes, or silently ignore raft message.
+type DummyRaftAccessor struct {
+}
+
+var IllegalArgumentError = errors.New("illegal argument")
+func (DummyRaftAccessor) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	return IllegalArgumentError
+}
+
+func (DummyRaftAccessor) IsIDRemoved(peerID types.PeerID) bool {
+	return false
+}
+
+func (DummyRaftAccessor) ReportUnreachable(peerID types.PeerID) {
+}
+
+func (DummyRaftAccessor) ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus) {
+}
+

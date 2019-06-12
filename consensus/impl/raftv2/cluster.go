@@ -568,6 +568,10 @@ func (mbrs *Members) getMember(id uint64) *consensus.Member {
 	return member
 }
 
+func (mbrs *Members) getMemberByPeerID(pid types.PeerID) *consensus.Member {
+	return mbrs.getMember(mbrs.Index[pid])
+}
+
 func (mbrs *Members) getMemberPeerAddress(id uint64) (types.PeerID, error) {
 	member := mbrs.getMember(id)
 	if member == nil {

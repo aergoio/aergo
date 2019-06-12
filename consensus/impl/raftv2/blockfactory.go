@@ -94,6 +94,7 @@ type BlockFactory struct {
 	consensus.ChainWAL
 
 	bpc *Cluster
+	rhw consensus.AergoRaftAccessor
 
 	workerQueue chan *Work
 	jobQueue    chan interface{}
@@ -151,6 +152,9 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		}
 
 		bf.raftServer.SetPeerAccessor(pa)
+		bf.rhw = &raftHttpWrapper{raftServer:bf.raftServer}
+	} else {
+		bf.rhw = &consensus.DummyRaftAccessor{}
 	}
 
 	bf.txOp = chain.NewCompTxOp(
@@ -601,6 +605,10 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	}
 
 	return member, nil
+}
+
+func (bf *BlockFactory) RaftAccessor() consensus.AergoRaftAccessor {
+	return bf.rhw
 }
 
 func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
