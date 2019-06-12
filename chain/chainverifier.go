@@ -3,6 +3,7 @@ package chain
 import (
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"reflect"
@@ -38,7 +39,7 @@ func (cv *ChainVerifier) Receive(context actor.Context) {
 	defer RecoverExit()
 
 	switch msg := context.Message().(type) {
-	case *actor.Started:
+	case *message.VerifyStart:
 		logger.Info().Msg("verify chain started")
 
 		if err := cv.VerifyChain(); err != nil {
@@ -46,7 +47,7 @@ func (cv *ChainVerifier) Receive(context actor.Context) {
 			cv.err = err
 		}
 
-		logger.Info().Msg("verify chain succeed")
+		logger.Info().Msg("verify chain finished")
 
 	case *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:

@@ -184,3 +184,6 @@ type ListEventsRsp struct {
 	Events []*types.Event
 	Err    error
 }
+
+type VerifyStart struct {
+}

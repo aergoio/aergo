@@ -16,7 +16,7 @@ if [ "$TEST_SKIP_GENESIS" = "1" ];then
 	exit 0
 fi
 
-cd $TEST_RAFT_INSTANCE
+pushd $TEST_RAFT_INSTANCE
 
 clean.sh
 rm init_*.log
@@ -38,3 +38,4 @@ for file in BP*.toml; do
     init_genesis.sh $bpname 
 done
 
+popd

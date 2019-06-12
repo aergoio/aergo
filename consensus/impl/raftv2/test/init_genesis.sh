@@ -29,6 +29,7 @@ if [ ! -e genesis -o ! -e genesis.json ]; then
 
 	sed  -e "s/_genesis_wallet_/${wallet}/g" _genesis.json > genesis.json
 else
+	echo "use prev genesis file"
 	wallet=$(cat ./genesis_wallet.txt)
     wif=$(cat ./wif.txt)
 fi
@@ -55,7 +56,7 @@ if [ "${BP_NAME}" != "tmpl" -a "${BP_NAME}" != "arglog" ]; then
 	echo "init genesis block "
 	echo "aergosvr init --genesis ./genesis.json --home ${PWD} --config ./$file"
 	aergosvr init --genesis ./genesis.json --home ${PWD} --config ./$file
-	
+
 	echo "import wallet ${wallet} to ${N_NAME} from local"
 	echo "aergocli account import --if ${wif} --password 1234 --path ${DATADIR}"
 	aergocli account import --if ${wif} --password 1234 --path ${DATADIR} 
