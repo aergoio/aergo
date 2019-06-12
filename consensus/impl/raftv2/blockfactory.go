@@ -356,12 +356,23 @@ func (bf *BlockFactory) worker() {
 	for {
 		select {
 		case work := <-bf.workerQueue:
-			if err := bf.generateBlock(work.Block); err != nil {
+			var (
+				block      *types.Block
+				blockState *state.BlockState
+				err        error
+			)
+
+			if block, blockState, err = bf.generateBlock(work.Block); err != nil {
 				if err == chain.ErrQuit {
 					logger.Info().Msg("quit worker of block factory")
 					return
 				}
 
+				bf.reset()
+			}
+
+			if err = bf.raftOp.propose(block, blockState); err != nil {
+				logger.Error().Err(err).Msg("failed to propose block")
 				bf.reset()
 			}
 
@@ -373,6 +384,9 @@ func (bf *BlockFactory) worker() {
 				return
 			}
 
+			// RaftEmptyBlockLog: When the leader changes, the new raft leader creates an empty data log with a new term and index.
+			// When block factory receives empty block log, the blockfactory that is running as the leader should reset the proposal in progress.
+			// This proposal may have been dropped on the raft.
 			if cEntry.block == nil {
 				bf.reset()
 				continue
@@ -391,7 +405,9 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
+func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *state.BlockState, error) {
+	var err error
+
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
 			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
@@ -410,15 +426,15 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
-		return chain.ErrBlockEmpty
+		return nil, nil, chain.ErrBlockEmpty
 	} else if err != nil {
 		logger.Info().Err(err).Msg("failed to generate block")
-		return err
+		return nil, nil, err
 	}
 
 	if err = block.Sign(bf.privKey); err != nil {
 		logger.Error().Err(err).Msg("failed to sign in block")
-		return err
+		return nil, nil, err
 	}
 
 	logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
@@ -427,14 +443,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (err error) {
 		Str("hash", block.ID()).
 		Msg("block produced")
 
-	if !bf.raftServer.IsLeader() {
-		logger.Info().Msg("dropped produced block because this bp became no longer leader")
-		return ErrNotRaftLeader
-	}
-
-	bf.raftOp.propose(block, blockState)
-
-	return nil
+	return block, blockState, nil
 }
 
 func (bf *BlockFactory) commitC() chan *commitEntry {
@@ -473,7 +482,7 @@ func (bf *BlockFactory) connect(block *types.Block) error {
 	// if bestblock is changed, connecting block failed. new block is generated in next tick
 	// On a slow server, chain service takes too long to add block in blockchain. In this case, raft server waits to send new block to commit channel.
 	if err := chain.ConnectBlock(bf, block, blockState, time.Second*300); err != nil {
-		logger.Error().Msg(err.Error())
+		logger.Fatal().Msg(err.Error())
 		return err
 	}
 
@@ -641,15 +650,21 @@ func newRaftOperator(rs *raftServer) *RaftOperator {
 	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
 }
 
-func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) {
+func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) error {
+	if !rop.rs.IsLeader() {
+		logger.Info().Msg("dropped produced block because this bp became no longer leader")
+		return ErrNotRaftLeader
+	}
+
 	rop.proposed = &Proposed{block: block, blockState: blockState}
 
 	if err := rop.rs.Propose(block); err != nil {
-		logger.Error().Err(err).Msg("propose error to raft")
-		return
+		return err
 	}
 
 	logger.Info().Msg("block proposed by blockfactory")
+
+	return nil
 }
 
 func (rop *RaftOperator) resetPropose() {

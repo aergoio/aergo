@@ -1025,6 +1025,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 	var member *consensus.Member
 	var err error
 
+	// ConfChanges may be applied more than once. This is because cluster information is more up-to-date than block information when a snapshot is received.
 	if cc, member, err = rs.ValidateConfChangeEntry(ent); err != nil {
 		logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
 		// reset pending conf change
