@@ -682,12 +682,12 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	var contractCode []byte
 
 	if bs != nil {
-		contractCode = bs.CodeMap[contractAid]
+		contractCode = bs.CodeMap.Get(contractAid)
 	}
 	if contractCode == nil {
 		contractCode = getContract(contractState, nil)
 		if contractCode != nil && bs != nil {
-			bs.CodeMap[contractAid] = contractCode
+			bs.CodeMap.Add(contractAid, contractCode)
 		}
 	}
 

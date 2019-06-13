@@ -81,6 +81,7 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 		if err = checkRedeploy(sender, receiver, contractState); err != nil {
 			return
 		}
+		bs.CodeMap.Remove(receiver.AccountID())
 	}
 
 	var ex *Executor
@@ -162,9 +163,6 @@ func preLoadWorker() {
 
 		if reqInfo.current.GetBody().Type == types.TxType_REDEPLOY {
 			currentTxBody := reqInfo.current.GetBody()
-			if bs != nil {
-				delete(bs.CodeMap, types.ToAccountID(currentTxBody.Recipient))
-			}
 			if bytes.Equal(recipient, currentTxBody.Recipient) {
 				replyCh <- &loadedReply{tx, nil, nil}
 				continue
