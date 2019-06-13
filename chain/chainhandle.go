@@ -614,7 +614,7 @@ func (e *blockExecutor) execute() error {
 		for i, tx := range e.txs {
 			if i != nCand-1 {
 				preLoadTx = e.txs[i+1]
-				contract.PreLoadRequest(e.BlockState, preLoadTx, contract.ChainService)
+				contract.PreLoadRequest(e.BlockState, preLoadTx, tx, contract.ChainService)
 			}
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
