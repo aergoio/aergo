@@ -127,6 +127,7 @@ type ChainAccessor interface {
 	// GetHashByNo returns hash of block. It return nil and error if not found block of that number or there is a problem in db store
 	GetHashByNo(blockNo BlockNo) ([]byte, error)
 	GetChainStats() string
+	GetEnterpriseConfig(key string) (*EnterpriseConfig, error)
 }
 
 type SyncContext struct {

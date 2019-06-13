@@ -19,6 +19,7 @@ import (
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
@@ -28,7 +29,7 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -181,6 +182,7 @@ type IChainHandler interface {
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
+	getEnterpriseConf(key string) (*types.EnterpriseConfig, error)
 	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
@@ -318,6 +320,11 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
+//GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
+func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
+	return cs.getEnterpriseConf(key)
+}
+
 // SetChainConsensus sets cs.cc to cc.
 func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 	cs.ChainConsensus = cc
@@ -406,6 +413,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetVote,
 		*message.GetStaking,
 		*message.GetNameInfo,
+		*message.GetEnterpriseConf,
 		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
@@ -536,6 +544,14 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 	return name.GetNameInfo(stateDB, qname)
 }
 
+func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
+	stateDB := cs.sdb.GetStateDB()
+	if key != "admin" {
+		return enterprise.GetConf(stateDB, key)
+	}
+	return enterprise.GetAdmin(stateDB)
+}
+
 type ChainManager struct {
 	*SubComponent
 	IChainHandler //to use chain APIs
@@ -622,7 +638,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 }
 
 func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, error) {
-	if len(account) <= types.NameLength {
+	if len(account) == types.NameLength {
 		scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
@@ -807,12 +823,19 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Owner: owner,
 			Err:   err,
 		})
+	case *message.GetEnterpriseConf:
+		conf, err := cw.getEnterpriseConf(msg.Key)
+		context.Respond(&message.GetEnterpriseConfRsp{
+			Conf: conf,
+			Err:  err,
+		})
 	case *message.ListEvents:
 		events, err := cw.listEvents(msg.Filter)
 		context.Respond(&message.ListEventsRsp{
 			Events: events,
 			Err:    err,
 		})
+
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)

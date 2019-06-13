@@ -6,9 +6,9 @@
 package chain
 
 import (
-	"errors"
 	"math/big"
 
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
@@ -23,9 +23,6 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 	}
 
 	governance := string(txBody.Recipient)
-	if governance != types.AergoSystem && governance != types.AergoName {
-		return nil, errors.New("receive unknown recipient")
-	}
 
 	scs, err := bs.StateDB.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
@@ -37,6 +34,8 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 		events, err = system.ExecuteSystemTx(scs, txBody, sender, receiver, blockNo)
 	case types.AergoName:
 		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
+	case types.AergoEnterprise:
+		events, err = enterprise.ExecuteEnterpriseTx(scs, txBody, sender)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient

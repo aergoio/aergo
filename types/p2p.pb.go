@@ -3,11 +3,9 @@
 
 package types
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -149,7 +147,6 @@ func (*MsgHeader) ProtoMessage()    {}
 func (*MsgHeader) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{0}
 }
-
 func (m *MsgHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MsgHeader.Unmarshal(m, b)
 }
@@ -246,7 +243,6 @@ func (*P2PMessage) ProtoMessage()    {}
 func (*P2PMessage) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{1}
 }
-
 func (m *P2PMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_P2PMessage.Unmarshal(m, b)
 }
@@ -294,7 +290,6 @@ func (*Ping) ProtoMessage()    {}
 func (*Ping) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{2}
 }
-
 func (m *Ping) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Ping.Unmarshal(m, b)
 }
@@ -342,7 +337,6 @@ func (*Pong) ProtoMessage()    {}
 func (*Pong) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{3}
 }
-
 func (m *Pong) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Pong.Unmarshal(m, b)
 }
@@ -396,7 +390,6 @@ func (*Status) ProtoMessage()    {}
 func (*Status) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{4}
 }
-
 func (m *Status) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Status.Unmarshal(m, b)
 }
@@ -471,7 +464,6 @@ func (*GoAwayNotice) ProtoMessage()    {}
 func (*GoAwayNotice) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{5}
 }
-
 func (m *GoAwayNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GoAwayNotice.Unmarshal(m, b)
 }
@@ -511,7 +503,6 @@ func (*AddressesRequest) ProtoMessage()    {}
 func (*AddressesRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{6}
 }
-
 func (m *AddressesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddressesRequest.Unmarshal(m, b)
 }
@@ -558,7 +549,6 @@ func (*AddressesResponse) ProtoMessage()    {}
 func (*AddressesResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{7}
 }
-
 func (m *AddressesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddressesResponse.Unmarshal(m, b)
 }
@@ -608,7 +598,6 @@ func (*NewBlockNotice) ProtoMessage()    {}
 func (*NewBlockNotice) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{8}
 }
-
 func (m *NewBlockNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewBlockNotice.Unmarshal(m, b)
 }
@@ -658,7 +647,6 @@ func (*BlockProducedNotice) ProtoMessage()    {}
 func (*BlockProducedNotice) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{9}
 }
-
 func (m *BlockProducedNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockProducedNotice.Unmarshal(m, b)
 }
@@ -719,7 +707,6 @@ func (*GetBlockHeadersRequest) ProtoMessage()    {}
 func (*GetBlockHeadersRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{10}
 }
-
 func (m *GetBlockHeadersRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockHeadersRequest.Unmarshal(m, b)
 }
@@ -790,7 +777,6 @@ func (*GetBlockHeadersResponse) ProtoMessage()    {}
 func (*GetBlockHeadersResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{11}
 }
-
 func (m *GetBlockHeadersResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockHeadersResponse.Unmarshal(m, b)
 }
@@ -851,7 +837,6 @@ func (*GetBlockRequest) ProtoMessage()    {}
 func (*GetBlockRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{12}
 }
-
 func (m *GetBlockRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockRequest.Unmarshal(m, b)
 }
@@ -893,7 +878,6 @@ func (*GetBlockResponse) ProtoMessage()    {}
 func (*GetBlockResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{13}
 }
-
 func (m *GetBlockResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockResponse.Unmarshal(m, b)
 }
@@ -946,7 +930,6 @@ func (*NewTransactionsNotice) ProtoMessage()    {}
 func (*NewTransactionsNotice) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{14}
 }
-
 func (m *NewTransactionsNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewTransactionsNotice.Unmarshal(m, b)
 }
@@ -985,7 +968,6 @@ func (*GetTransactionsRequest) ProtoMessage()    {}
 func (*GetTransactionsRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{15}
 }
-
 func (m *GetTransactionsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTransactionsRequest.Unmarshal(m, b)
 }
@@ -1027,7 +1009,6 @@ func (*GetTransactionsResponse) ProtoMessage()    {}
 func (*GetTransactionsResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{16}
 }
-
 func (m *GetTransactionsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTransactionsResponse.Unmarshal(m, b)
 }
@@ -1091,7 +1072,6 @@ func (*GetMissingRequest) ProtoMessage()    {}
 func (*GetMissingRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{17}
 }
-
 func (m *GetMissingRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMissingRequest.Unmarshal(m, b)
 }
@@ -1138,7 +1118,6 @@ func (*GetAncestorRequest) ProtoMessage()    {}
 func (*GetAncestorRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{18}
 }
-
 func (m *GetAncestorRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAncestorRequest.Unmarshal(m, b)
 }
@@ -1179,7 +1158,6 @@ func (*GetAncestorResponse) ProtoMessage()    {}
 func (*GetAncestorResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{19}
 }
-
 func (m *GetAncestorResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAncestorResponse.Unmarshal(m, b)
 }
@@ -1232,7 +1210,6 @@ func (*GetHashByNo) ProtoMessage()    {}
 func (*GetHashByNo) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{20}
 }
-
 func (m *GetHashByNo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashByNo.Unmarshal(m, b)
 }
@@ -1272,7 +1249,6 @@ func (*GetHashByNoResponse) ProtoMessage()    {}
 func (*GetHashByNoResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{21}
 }
-
 func (m *GetHashByNoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashByNoResponse.Unmarshal(m, b)
 }
@@ -1324,7 +1300,6 @@ func (*GetHashesRequest) ProtoMessage()    {}
 func (*GetHashesRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{22}
 }
-
 func (m *GetHashesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashesRequest.Unmarshal(m, b)
 }
@@ -1380,7 +1355,6 @@ func (*GetHashesResponse) ProtoMessage()    {}
 func (*GetHashesResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e7fdddb109e6467a, []int{23}
 }
-
 func (m *GetHashesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashesResponse.Unmarshal(m, b)
 }
@@ -1421,7 +1395,6 @@ func (m *GetHashesResponse) GetHasNext() bool {
 }
 
 func init() {
-	proto.RegisterEnum("types.ResultStatus", ResultStatus_name, ResultStatus_value)
 	proto.RegisterType((*MsgHeader)(nil), "types.MsgHeader")
 	proto.RegisterType((*P2PMessage)(nil), "types.P2PMessage")
 	proto.RegisterType((*Ping)(nil), "types.Ping")
@@ -1446,6 +1419,7 @@ func init() {
 	proto.RegisterType((*GetHashByNoResponse)(nil), "types.GetHashByNoResponse")
 	proto.RegisterType((*GetHashesRequest)(nil), "types.GetHashesRequest")
 	proto.RegisterType((*GetHashesResponse)(nil), "types.GetHashesResponse")
+	proto.RegisterEnum("types.ResultStatus", ResultStatus_name, ResultStatus_value)
 }
 
 func init() { proto.RegisterFile("p2p.proto", fileDescriptor_e7fdddb109e6467a) }

@@ -1,7 +1,6 @@
 package name
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strings"
@@ -72,8 +71,7 @@ func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) 
 //Resolve is resolve name for chain
 func Resolve(bs *state.BlockState, name []byte) []byte {
 	if len(name) == types.AddressLength ||
-		bytes.Equal(name, []byte(types.AergoSystem)) ||
-		bytes.Equal(name, []byte(types.AergoName)) {
+		strings.Contains(string(name), ".") {
 		return name
 	}
 	scs, err := openContract(bs)
@@ -98,8 +96,7 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 //GetAddress is resolve name for mempool
 func GetAddress(scs *state.ContractState, name []byte) []byte {
 	if len(name) == types.AddressLength ||
-		bytes.Equal(name, []byte(types.AergoSystem)) ||
-		bytes.Equal(name, []byte(types.AergoName)) {
+		strings.Contains(string(name), ".") {
 		return name
 	}
 	return getAddress(scs, name)

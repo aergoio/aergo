@@ -22,6 +22,7 @@ import (
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/chain"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
@@ -65,6 +66,7 @@ type MemPool struct {
 	status      int32
 	coinbasefee *big.Int
 	chainIdHash []byte
+	isPublic    bool
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -346,6 +348,12 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+			cid := types.NewChainID()
+			if err := cid.Read(block.GetHeader().GetChainID()); err != nil {
+				mp.Error().Err(err).Msg("failed to read chain ID")
+			} else {
+				mp.isPublic = cid.PublicNet
+			}
 			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
@@ -432,7 +440,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 // signiture verification
 func (mp *MemPool) verifyTx(tx types.Transaction) error {
-	err := tx.Validate(mp.chainIdHash)
+	err := tx.Validate(mp.chainIdHash, mp.isPublic)
 	if err != nil {
 		return err
 	}
@@ -533,7 +541,20 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
 				return err
 			}
+		case types.AergoEnterprise:
+			enterprisecs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
+			if err != nil {
+				return err
+			}
+			sender, err := mp.stateDB.GetAccountStateV(account)
+			if err != nil {
+				return err
+			}
+			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs); err != nil {
+				return err
+			}
 		}
+
 	}
 	return err
 }

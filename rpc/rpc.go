@@ -6,8 +6,10 @@
 package rpc
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -47,6 +49,7 @@ type RPC struct {
 
 	ca      types.ChainAccessor
 	version string
+	entConf *types.EnterpriseConfig
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
@@ -69,6 +72,17 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	if cfg.RPC.NetServiceTrace {
 		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
 		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
+	}
+
+	var entConf *types.EnterpriseConfig
+	genesis := chainAccessor.GetGenesisInfo()
+	if !genesis.ID.PublicNet {
+		conf, err := chainAccessor.GetEnterpriseConfig("rpcpermissions")
+		if err != nil {
+			logger.Error().Err(err).Msg("could not get allowed client information")
+		} else {
+			entConf = conf
+		}
 	}
 
 	if cfg.RPC.NSEnableTLS {
@@ -115,7 +129,9 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 		version:       version,
 	}
 	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
+
 	actualServer.actorHelper = rpcsvc
+	actualServer.setClientAuth(entConf)
 
 	rpcsvc.httpServer = &http.Server{
 		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),
@@ -166,6 +182,29 @@ func (ns *RPC) Receive(context actor.Context) {
 		server.BroadcastToListBlockMetadataStream(meta)
 	case []*types.Event:
 		server := ns.actualServer
+		for _, e := range msg {
+			if bytes.Equal(e.GetContractAddress(), []byte(types.AergoEnterprise)) {
+				eventName := strings.Split(e.GetEventName(), " ")
+				if strings.ToUpper(eventName[1]) == "RPCPERMISSIONS" {
+					switch eventName[0] {
+					case "Enable":
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						server.setClientAuthOn(value)
+					case "Set":
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						server.setClientAuthMap(values)
+					default:
+						logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
+					}
+				}
+			}
+		}
 		server.BroadcastToEventStream(msg)
 	case *message.GetServerInfo:
 		context.Respond(ns.CollectServerInfo(msg.Categories))
