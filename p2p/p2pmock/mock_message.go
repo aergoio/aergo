@@ -237,6 +237,18 @@ func (m *MockMessageHandler) EXPECT() *MockMessageHandlerMockRecorder {
 	return m.recorder
 }
 
+// AddAdvice mocks base method
+func (m *MockMessageHandler) AddAdvice(advice p2pcommon.HandlerAdvice) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddAdvice", advice)
+}
+
+// AddAdvice indicates an expected call of AddAdvice
+func (mr *MockMessageHandlerMockRecorder) AddAdvice(advice interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAdvice", reflect.TypeOf((*MockMessageHandler)(nil).AddAdvice), advice)
+}
+
 // ParsePayload mocks base method
 func (m *MockMessageHandler) ParsePayload(arg0 []byte) (p2pcommon.MessageBody, error) {
 	m.ctrl.T.Helper()
@@ -300,6 +312,53 @@ func (m *MockMessageHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommon
 func (mr *MockMessageHandlerMockRecorder) PostHandle(msg, msgBody interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostHandle", reflect.TypeOf((*MockMessageHandler)(nil).PostHandle), msg, msgBody)
+}
+
+// MockHandlerAdvice is a mock of HandlerAdvice interface
+type MockHandlerAdvice struct {
+	ctrl     *gomock.Controller
+	recorder *MockHandlerAdviceMockRecorder
+}
+
+// MockHandlerAdviceMockRecorder is the mock recorder for MockHandlerAdvice
+type MockHandlerAdviceMockRecorder struct {
+	mock *MockHandlerAdvice
+}
+
+// NewMockHandlerAdvice creates a new mock instance
+func NewMockHandlerAdvice(ctrl *gomock.Controller) *MockHandlerAdvice {
+	mock := &MockHandlerAdvice{ctrl: ctrl}
+	mock.recorder = &MockHandlerAdviceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockHandlerAdvice) EXPECT() *MockHandlerAdviceMockRecorder {
+	return m.recorder
+}
+
+// PreHandle mocks base method
+func (m *MockHandlerAdvice) PreHandle() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "PreHandle")
+}
+
+// PreHandle indicates an expected call of PreHandle
+func (mr *MockHandlerAdviceMockRecorder) PreHandle() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PreHandle", reflect.TypeOf((*MockHandlerAdvice)(nil).PreHandle))
+}
+
+// PostHandle mocks base method
+func (m *MockHandlerAdvice) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "PostHandle", msg, msgBody)
+}
+
+// PostHandle indicates an expected call of PostHandle
+func (mr *MockHandlerAdviceMockRecorder) PostHandle(msg, msgBody interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostHandle", reflect.TypeOf((*MockHandlerAdvice)(nil).PostHandle), msg, msgBody)
 }
 
 // MockMsgSigner is a mock of MsgSigner interface

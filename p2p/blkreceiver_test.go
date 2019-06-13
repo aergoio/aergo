@@ -102,7 +102,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 		{"TTooManyBlks", inputHashes[:4], time.Minute*4,0,[][]*types.Block{inputBlocks[:1],inputBlocks[1:3],inputBlocks[3:]},1,1, true},
 		{"TTooManyBlksMiddle", inputHashes[:2], time.Minute,0,[][]*types.Block{inputBlocks[:1],inputBlocks[1:3],inputBlocks[3:]},0,1, true},
 		// Fail4 response sent after timeout
-		{"TTimeout", inputHashes, time.Millisecond * 10, time.Millisecond * 20, [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1, 0, false},
+		{"TTimeout", inputHashes, time.Millisecond * 200, time.Millisecond * 400, [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1, 0, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

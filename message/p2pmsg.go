@@ -200,3 +200,9 @@ type RaftClusterEvent struct {
 	BPAdded   []types.PeerID
 	BPRemoved []types.PeerID
 }
+
+// ChangeDesignatedPeers will trigger connect or disconnect peers
+type ChangeDesignatedPeers struct {
+	Add []types.PeerAddress
+	Remove []types.PeerID
+}

@@ -44,9 +44,15 @@ type HandlerFactory interface {
 
 // MessageHandler handle incoming message
 type MessageHandler interface {
+	AddAdvice(advice HandlerAdvice)
 	ParsePayload([]byte) (MessageBody, error)
 	CheckAuth(msg Message, msgBody MessageBody) error
 	Handle(msg Message, msgBody MessageBody)
+	PreHandle()
+	PostHandle(msg Message, msgBody MessageBody)
+}
+
+type HandlerAdvice interface {
 	PreHandle()
 	PostHandle(msg Message, msgBody MessageBody)
 }
@@ -63,4 +69,3 @@ type MsgSigner interface {
 // ResponseReceiver is handler function for the corresponding response message.
 // It returns true when receiver handled it, or false if this receiver is not the expected handler.
 type ResponseReceiver func(Message, MessageBody) bool
-
