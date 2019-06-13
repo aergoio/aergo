@@ -22,7 +22,8 @@ type loadedReply struct {
 type preLoadReq struct {
 	preLoadService int
 	bs             *state.BlockState
-	tx             *types.Tx
+	next           *types.Tx
+	current        *types.Tx
 }
 
 type preLoadInfo struct {
@@ -132,8 +133,8 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 	return rv, events, usedFee, nil
 }
 
-func PreLoadRequest(bs *state.BlockState, tx *types.Tx, preLoadService int) {
-	loadReqCh <- &preLoadReq{preLoadService, bs, tx}
+func PreLoadRequest(bs *state.BlockState, next, current *types.Tx, preLoadService int) {
+	loadReqCh <- &preLoadReq{preLoadService, bs, next, current}
 }
 
 func preLoadWorker() {
@@ -151,12 +152,23 @@ func preLoadWorker() {
 		}
 
 		bs := reqInfo.bs
-		tx := reqInfo.tx
+		tx := reqInfo.next
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
 		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 {
 			continue
+		}
+
+		if reqInfo.current.GetBody().Type == types.TxType_REDEPLOY {
+			currentTxBody := reqInfo.current.GetBody()
+			if bs != nil {
+				delete(bs.CodeMap, types.ToAccountID(currentTxBody.Recipient))
+			}
+			if bytes.Equal(recipient, currentTxBody.Recipient) {
+				replyCh <- &loadedReply{tx, nil, nil}
+				continue
+			}
 		}
 
 		receiver, err := bs.GetAccountStateV(recipient)
