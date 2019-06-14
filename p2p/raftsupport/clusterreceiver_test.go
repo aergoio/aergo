@@ -32,7 +32,7 @@ func TestStartGet(t *testing.T) {
 		args args
 
 		wantSentCnt int  // count of sent to remote peers
-		wantTimeout bool // whether reciever returns result or not (=timeout)
+		wantTimeout bool // whether receiver returns result or not (=timeout)
 		wantErrResp bool // result with error or not
 	}{
 		{"TTimeout", args{peerCnt: 1}, 1, true, false},
@@ -161,7 +161,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 		args args
 
 		wantSentCnt int  // count of sent to remote peers
-		wantTimeout bool // whether reciever returns result or not (=timeout)
+		wantTimeout bool // whether receiver returns result or not (=timeout)
 		wantErrResp bool // result with error or not
 	}{
 		{"TAllRet", args{[]int{1, 1, 1, 1, 1}}, 1, false,false},
@@ -201,7 +201,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 					if callSeq < int32(len(tt.args.stats)) {
 						err := ""
 						if tt.args.stats[callSeq] == 0 {
-							err = "getcluster fail"
+							err = "getCluster failed"
 						}
 						body := &types.GetClusterInfoResponse{ChainID:sampleChainID, MbrAttrs:members, Error:err}
 						atomic.AddInt32(&seq, 1)
@@ -212,7 +212,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 				}).MaxTimes(1)
 				peers = append(peers, mockPeer)
 			}
-			// forcely inject peers
+			// force inject peers
 			target.peers = peers
 
 			target.StartGet()

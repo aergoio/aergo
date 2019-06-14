@@ -34,7 +34,7 @@ func Test_InvokeWithTimerSimple(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			m := &samplConstCaller{iteration: test.iteration}
+			m := &sampleConstCaller{iteration: test.iteration}
 			actual, err := InvokeWithTimer(m, time.NewTimer(test.ttl))
 			assert.Equal(t, test.expectErr, err != nil)
 			if !test.expectErr {
@@ -44,12 +44,12 @@ func Test_InvokeWithTimerSimple(t *testing.T) {
 	}
 }
 
-type samplConstCaller struct {
+type sampleConstCaller struct {
 	iteration int
 	cancel    int32
 }
 
-func (c *samplConstCaller) DoCall(done chan<- interface{}) {
+func (c *sampleConstCaller) DoCall(done chan<- interface{}) {
 	i := 0
 	for ; i < c.iteration; i++ {
 		fmt.Printf("%d th iteration \n", i)
@@ -62,7 +62,7 @@ func (c *samplConstCaller) DoCall(done chan<- interface{}) {
 	done <- i
 }
 
-func (c *samplConstCaller) Cancel() {
+func (c *sampleConstCaller) Cancel() {
 	atomic.StoreInt32(&c.cancel, 1)
 }
 

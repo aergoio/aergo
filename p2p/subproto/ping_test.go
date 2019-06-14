@@ -32,9 +32,9 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	//mockP2PS.EXPECT().LookupPeer(, samplePeerID).Return(nil, false)
 
 	type fields struct {
-		actorServ p2pcommon.ActorService
-		ps        p2pcommon.PeerManager
-		logger    *log.Logger
+		actor  p2pcommon.ActorService
+		ps     p2pcommon.PeerManager
+		logger *log.Logger
 	}
 	type args struct {
 		s network.Stream
@@ -48,9 +48,9 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 		{
 			"normal",
 			&fields{
-				actorServ: p2pmock.NewMockActorService(ctrl),
-				logger:    log.NewLogger("test.p2p"),
-				ps:        mockP2PS,
+				actor:  p2pmock.NewMockActorService(ctrl),
+				logger: log.NewLogger("test.p2p"),
+				ps:     mockP2PS,
 			},
 			args{s: mockIStream},
 			func() {

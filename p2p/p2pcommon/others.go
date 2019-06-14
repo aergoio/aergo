@@ -29,7 +29,7 @@ type MsgOrder interface {
 }
 
 type MoFactory interface {
-	NewMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message MessageBody) MsgOrder
+	NewMsgRequestOrder(expectResponse bool, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) MsgOrder
@@ -59,7 +59,7 @@ type ActorService interface {
 	// CallRequestDefaultTimeout is CallRequest with default timeout
 	CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error)
 
-	// FutureRequest send actor reqeust and get the Future object to get the state and return value of message
+	// FutureRequest send actor request and get the Future object to get the state and return value of message
 	FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future
 	// FutureRequestDefaultTimeout is FutureRequest with default timeout
 	FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future

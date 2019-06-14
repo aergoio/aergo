@@ -28,12 +28,12 @@ func FailTestGetPeers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockActorServ := p2pmock.NewMockActorService(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActorServ.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).
+	mockActor.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	mockMF := p2pmock.NewMockMoFactory(ctrl)
-	target := NewPeerManager(nil, nil, mockActorServ,
+	target := NewPeerManager(nil, nil, mockActor,
 		cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config),
 		nil, nil, nil,
 		log.NewLogger("test.p2p"), mockMF, false).(*peerManager)
@@ -46,7 +46,7 @@ func FailTestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
-			target.remotePeers[peerID] = newRemotePeer(peerMeta, 0, target, mockActorServ, logger, nil, nil, nil, nil)
+			target.remotePeers[peerID] = newRemotePeer(peerMeta, 0, target, mockActor, logger, nil, nil, nil, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
 			}
@@ -127,7 +127,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 		name string
 
 		hidden   bool
-		showself bool
+		showSelf bool
 
 		wantCnt int
 	}{
@@ -175,7 +175,7 @@ func TestPeerManager_init(t *testing.T) {
 		{"TWrongAddr", &cfg.P2PConfig{NetProtocolAddr: "24558.30.0.0", NetProtocolPort: 7846}, localIP.String(), 7846, localIP.String(), 7846, true},
 		// bind all address
 		{"TBindAll", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindAddr: "0.0.0.0"}, localIP.String(), 7846, "0.0.0.0", 7846, false},
-		// bind differnt address
+		// bind different address
 		{"TBindDifferAddr", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindAddr: "172.21.1.2"}, localIP.String(), 7846, "172.21.1.2", 7846, false},
 		// bind different port
 		{"TDifferPort", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindPort: 12345}, localIP.String(), 7846, localIP.String(), 12345, false},
@@ -425,7 +425,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	// id0 is in both desginated peer and hidden peer
+	// id0 is in both designated peer and hidden peer
 	desigIDs := make([]types.PeerID, 3)
 	desigPeers := make(map[types.PeerID]p2pcommon.PeerMeta, 3)
 
@@ -510,7 +510,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			}).Return(mockPeer)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
 			mockPeer.EXPECT().Role().Return(p2pcommon.BlockProducer).AnyTimes()
-			mockPeer.EXPECT().Name().Return("tesetPeer").AnyTimes()
+			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 
 			// in cases of handshake error
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
@@ -554,8 +554,8 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 	selfID := p2pkey.NodeID()
 	inboundWillLive := p2putil.ComparePeerID(selfID, dummyPeerID) <= 0
 	type args struct {
-		outound bool
-		status  *types.Status
+		outbound bool
+		status   *types.Status
 	}
 	tests := []struct {
 		name string
@@ -579,12 +579,12 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 				return nil, errors.New("close")
 			}).AnyTimes()
 
-			in := handshakeResult{meta: p2pcommon.NewMetaFromStatus(tt.args.status, tt.args.outound), status: tt.args.status, msgRW: mockRW, s: mockStream}
+			in := handshakeResult{meta: p2pcommon.NewMetaFromStatus(tt.args.status, tt.args.outbound), status: tt.args.status, msgRW: mockRW, s: mockStream}
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
 			mockPeer.EXPECT().Role().Return(p2pcommon.BlockProducer).AnyTimes()
-			mockPeer.EXPECT().Name().Return("tesetPeer").AnyTimes()
+			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			if tt.wantSucc {
 				mockPeer.EXPECT().Stop().MaxTimes(1)
 				mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.PeerMeta{}), gomock.Any(), in.status, mockStream, mockRW).Return(mockPeer)

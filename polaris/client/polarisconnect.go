@@ -94,12 +94,12 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		}
 
 		if len(pcs.mapServers) == 0 {
-			pcs.Logger.Warn().Msg("using polais is enabled but no active polaris server found. node discovery by polaris is disabled")
+			pcs.Logger.Warn().Msg("using Polaris is enabled but no active polaris server found. node discovery by polaris will not works well")
 		} else {
-			pcs.Logger.Info().Array("polarises", p2putil.NewLogPeerMetasMarshaler(pcs.mapServers, 10)).Msg("using polaris")
+			pcs.Logger.Info().Array("polarises", p2putil.NewLogPeerMetasMarshaller(pcs.mapServers, 10)).Msg("using Polaris")
 		}
 	} else {
-		pcs.Logger.Info().Msg("node discovery by polaris is disabled configuration.")
+		pcs.Logger.Info().Msg("node discovery by Polaris is disabled by configuration.")
 	}
 }
 

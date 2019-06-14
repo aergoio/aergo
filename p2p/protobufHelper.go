@@ -20,7 +20,7 @@ import (
 const ClientVersion = "0.2.0"
 
 type pbMessageOrder struct {
-	// reqID means that this message is response of the request of ID. Set empty if the messge is request.
+	// reqID means that this message is response of the request of ID. Set empty if the message is request.
 	request    bool
 	needSign   bool
 	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.
@@ -110,7 +110,7 @@ type pbBlkNoticeOrder struct {
 
 func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p := pi.(*remotePeerImpl)
-	var blkhash = types.ToBlockID(pr.blkHash)
+	var blkHash = types.ToBlockID(pr.blkHash)
 	passedTime := time.Now().Sub(p.lastBlkNoticeTime)
 	skipNotice := false
 	if p.LastStatus().BlockNumber >= pr.blkNo {
@@ -124,7 +124,7 @@ func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 			skipNotice = p.skipCnt < GapToSkip5Min
 		}
 	}
-	if skipNotice || passedTime < MinNewBlkNotiInterval {
+	if skipNotice || passedTime < MinNewBlkNoticeInterval {
 		p.skipCnt++
 		if p.skipCnt&0x03ff == 0 {
 			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Int32("skip_cnt", p.skipCnt).Msg("Skipped NewBlockNotice ")
@@ -133,9 +133,8 @@ func (pr *pbBlkNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 		return nil
 	}
 
-	if ok, _ := p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder); ok {
-		// the remote peer already know this block hash. skip it
-		// too many not-insteresting log,
+	if ok, _ := p.blkHashCache.ContainsOrAdd(blkHash, cachePlaceHolder); ok {
+		// the remote peer already know this block hash. skip too many not-interesting log,
 		// p.logger.Debug().Str(LogPeerName,p.Name()).Str(LogProtoID, pr.GetProtocolID().String()).
 		// 	Str(LogMsgID, pr.GetMsgID()).Msg("Cancel sending blk notice. peer knows this block")
 		return nil
@@ -160,8 +159,8 @@ type pbBpNoticeOrder struct {
 
 func (pr *pbBpNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p := pi.(*remotePeerImpl)
-	var blkhash = types.ToBlockID(pr.block.Hash)
-	p.blkHashCache.ContainsOrAdd(blkhash, cachePlaceHolder)
+	var blkHash = types.ToBlockID(pr.block.Hash)
+	p.blkHashCache.ContainsOrAdd(blkHash, cachePlaceHolder)
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
 		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")

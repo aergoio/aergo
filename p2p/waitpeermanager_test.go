@@ -35,8 +35,8 @@ func Test_staticWPManager_OnDiscoveredPeers(t *testing.T) {
 	}{
 		{"TSingleDesign", args{desigPeers[:1]}, 0},
 		{"TAllDesign", args{desigPeers}, 0},
-		{"TNewID", args{unknowPeers}, 0},
-		{"TMixedIDs", args{append(unknowPeers[:5], desigPeers[:5]...)}, 0},
+		{"TNewID", args{unknownPeers}, 0},
+		{"TMixedIDs", args{append(unknownPeers[:5], desigPeers[:5]...)}, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,7 +67,7 @@ func Test_dynamicWPManager_OnDiscoveredPeers(t *testing.T) {
 	}{
 		{"TAllNew", args{nil, desigPeers[:1]}, 1},
 		{"TAllExist", args{desigIDs, desigPeers[:5]}, 0},
-		{"TMixedIDs", args{desigIDs, append(unknowPeers[:5], desigPeers[:5]...)}, 5},
+		{"TMixedIDs", args{desigIDs, append(unknownPeers[:5], desigPeers[:5]...)}, 5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -115,7 +115,7 @@ func Test_setNextTrial(t *testing.T) {
 				now := time.Now()
 				lastResult = setNextTrial(tt.args.wp)
 				gotDuration := tt.args.wp.NextTrial.Sub(now)
-				// nextTrial time will be increated exponetially and clipped when trial count is bigger than internal count
+				// nextTrial time will be increased exponentially and clipped when trial count is bigger than internal count
 				// the clipped
 				if lastResult &&
 					(gotDuration < prevDuration && gotDuration < OneDay) {

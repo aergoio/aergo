@@ -19,7 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
-// this file collect sample global constants used in unit test. I'm tired of creating less meaningfule variables in each tests.
+// this file collect sample global constants used in unit test. I'm tired of creating less meaningful variables in each tests.
 
 var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 var dummyBlockHeight uint64 = 100215

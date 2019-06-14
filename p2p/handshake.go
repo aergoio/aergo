@@ -43,18 +43,18 @@ func (oh *LegacyOutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Dur
 // LegacyWireHandshaker works to handshake to just connected peer, it detect chain networks
 // and protocol versions, and then select InnerHandshaker for that protocol version.
 type LegacyWireHandshaker struct {
-	pm        p2pcommon.PeerManager
-	actorServ p2pcommon.ActorService
-	logger    *log.Logger
-	peerID    types.PeerID
-	// check if is it adhoc
+	pm     p2pcommon.PeerManager
+	actor  p2pcommon.ActorService
+	logger *log.Logger
+	peerID types.PeerID
+	// check if is it ad-hoc
 	localChainID *types.ChainID
 
 	remoteStatus *types.Status
 }
 
 func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) *LegacyWireHandshaker {
-	return &LegacyWireHandshaker{pm: pm, actorServ: actor, logger: log, localChainID: chainID, peerID: peerID}
+	return &LegacyWireHandshaker{pm: pm, actor: actor, logger: log, localChainID: chainID, peerID: peerID}
 }
 
 func (h *LegacyWireHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
@@ -132,7 +132,7 @@ func (h *LegacyWireHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int,
 func (h *LegacyWireHandshaker) selectProtocolVersion(version p2pcommon.P2PVersion, r *bufio.Reader, w *bufio.Writer) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion030:
-		v030hs := v030.NewV030StateHS(h.pm, h.actorServ, h.logger, h.localChainID, h.peerID, r, w)
+		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, r, w)
 		return v030hs, nil
 	default:
 		return nil, fmt.Errorf("not supported version")

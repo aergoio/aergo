@@ -19,7 +19,7 @@ type defaultVersionManager struct {
 	actor  p2pcommon.ActorService
 	logger *log.Logger
 
-	// check if is it adhoc
+	// check if is it ad hoc
 	localChainID *types.ChainID
 }
 
@@ -28,9 +28,9 @@ func newDefaultVersionManager(pm p2pcommon.PeerManager, actor p2pcommon.ActorSer
 }
 
 func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {
-	for _, suppored := range CurrentSupported {
+	for _, supported := range CurrentSupported {
 		for _, reqVer := range versions {
-			if suppored == reqVer {
+			if supported == reqVer {
 				return reqVer
 			}
 		}

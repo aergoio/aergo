@@ -204,7 +204,7 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVer
 }
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
-// remote peer. stream s will be owned to remotePeer if succeed to add perr.
+// remote peer. stream s will be owned to remotePeer if succeed to add peer.
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	var peerID = meta.ID
 	rd := metric.NewReader(s)
@@ -278,7 +278,7 @@ func (spm *staticWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := spm.pm.designatedPeers[peer.ID()]; ok {
 		spm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectColltime)}
+		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectCoolTime)}
 	}
 }
 
@@ -305,7 +305,7 @@ func (dpm *dynamicWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := dpm.pm.designatedPeers[peer.ID()]; ok {
 		dpm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectColltime)}
+		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectCoolTime)}
 		//dpm.pm.addAwait(peer.Meta())
 	}
 }

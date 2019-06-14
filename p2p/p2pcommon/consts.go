@@ -25,7 +25,7 @@ const (
 	MaxBlockResponseCount       = 2000
 )
 
-// P2PVersion is verion of p2p wire protocol. This version affects p2p handshake, data format transferred, etc
+// P2PVersion is version of p2p wire protocol. This version affects p2p handshake, data format transferred, etc
 type P2PVersion uint32
 
 func (v P2PVersion) Uint32() uint32 {
@@ -39,7 +39,7 @@ func (v P2PVersion) String() string {
 const (
 	P2PVersionUnknown P2PVersion = 0x00000000
 	P2PVersion030     P2PVersion = 0x00000300
-	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multiversion
+	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
 )
 
 // context of multiaddr, as higher type of p2p message
@@ -48,7 +48,7 @@ const (
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
 )
 
-// constatns for hanshake. for cacluating byte offset of wire handshake
+// constants for handshake. for calculating byte offset of wire handshake
 const (
 	V030HSHeaderLength = 8
 	HSMagicLength      = 4

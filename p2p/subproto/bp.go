@@ -46,7 +46,7 @@ func (bh *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pc
 	// lru cache can accept hashable key
 	block := data.Block
 	if _, err := types.ParseToBlockID(data.GetBlock().GetHash()); err != nil {
-		// TODO add penelty score
+		// TODO add penalty score
 		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.GetBlock().GetHash())).Msg("malformed blockHash")
 		return
 	}

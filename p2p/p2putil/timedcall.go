@@ -14,7 +14,7 @@ import (
 type Callable interface {
 	// DoCall run function. it should put result anything if call is over. It also stop  function if Cancel was called as soon as possible
 	DoCall(done chan<- interface{})
-	// Cancel should return instanly
+	// Cancel should return instantly
 	Cancel()
 }
 

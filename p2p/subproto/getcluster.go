@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrConsensusAccessorNotReady = errors.New("consensus acessor is not ready")
+	ErrConsensusAccessorNotReady = errors.New("consensus accessor is not ready")
 )
 
 type getClusterRequestHandler struct {

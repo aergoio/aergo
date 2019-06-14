@@ -122,7 +122,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 		// when failed in send
 		{"TWriteFail", fmt.Errorf("writeFail"), false, true},
 		{"TExist", nil, true, false},
-		// no write occured.
+		// no write happen.
 		{"TExistWriteFail", fmt.Errorf("writeFail"), true, false},
 	}
 	for _, tt := range tests {
@@ -180,7 +180,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 		tryCnt       int
 		sendInterval time.Duration
 		wantSentLow  int   // inclusive
-		wantSentHigh int  // exclusiv
+		wantSentHigh int  // exclusive
 		//wantMinSkip int
 	}{
 		// send all if remote peer is low

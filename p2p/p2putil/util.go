@@ -66,16 +66,16 @@ func extractTXsFromRequest(rawResponse interface{}, err error) ([]*types.Tx, err
 	if err != nil {
 		return nil, err
 	}
-	var rsponse *message.MemPoolGetRsp
+	var response *message.MemPoolGetRsp
 	switch v := rawResponse.(type) {
 	case *message.MemPoolGetRsp:
-		rsponse = v
+		response = v
 	case message.MemPoolGetRsp:
-		rsponse = &v
+		response = &v
 	default:
 		panic("unexpected data type " + reflect.TypeOf(rawResponse).Name() + "is passed. check if there is a bug. ")
 	}
-	return extractTXs(rsponse)
+	return extractTXs(response)
 }
 
 func extractTXs(from *message.MemPoolGetRsp) ([]*types.Tx, error) {

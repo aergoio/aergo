@@ -76,7 +76,7 @@ func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID types.Peer
 	signature := msg.Header.Sign
 	checkOrigin := false
 	if checkOrigin {
-		// TODO it can be needed, and if that modify code to get peerid from caller and enable this code
+		// TODO it can be needed, and if that modify code to get peer id from caller and enable this code
 		if err := checkPidWithPubkey(senderID, pubKey); err != nil {
 			return err
 		}

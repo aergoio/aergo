@@ -39,7 +39,7 @@ func init() {
 
 // IGetSingleIPAddress find and get ip address of given address string. It return first ip if DNS or /etc/hosts has multiple IPs
 func GetSingleIPAddress(addrStr string) (net.IP, error) {
-	switch CheckAdddressType(addrStr) {
+	switch CheckAddressType(addrStr) {
 	case AddressTypeFQDN:
 		ips, err := ResolveHostDomain(addrStr)
 		if err != nil {
@@ -49,7 +49,7 @@ func GetSingleIPAddress(addrStr string) (net.IP, error) {
 	case AddressTypeIP:
 		return net.ParseIP(addrStr), nil
 	default:
-		return nil, InvalidAddresss
+		return nil, InvalidAddress
 	}
 }
 
@@ -74,10 +74,10 @@ const (
 var (
 	DNPattern = regexp.MustCompile(DN)
 
-	InvalidAddresss = fmt.Errorf("invalid address")
+	InvalidAddress = fmt.Errorf("invalid address")
 )
 
-func CheckAdddressType(urlStr string) AddressType {
+func CheckAddressType(urlStr string) AddressType {
 	if ip := net.ParseIP(urlStr); ip != nil {
 		return AddressTypeIP
 	} else if DNPattern.MatchString(urlStr) {
@@ -87,21 +87,21 @@ func CheckAdddressType(urlStr string) AddressType {
 	}
 }
 
-func CheckAdddress(urlStr string) (string, error) {
+func CheckAddress(urlStr string) (string, error) {
 	if ip := net.ParseIP(urlStr); ip != nil {
 		return urlStr, nil
 	} else if DNPattern.MatchString(urlStr) {
 		return urlStr, nil
 	} else {
-		return "", InvalidAddresss
+		return "", InvalidAddress
 	}
 }
 
 func IsExternalAddr(addrStr string) bool {
-	switch CheckAdddressType(addrStr) {
+	switch CheckAddressType(addrStr) {
 	case AddressTypeIP:
-		parced := net.ParseIP(addrStr)
-		return !isPrivateIP(parced)
+		parsed := net.ParseIP(addrStr)
+		return !isPrivateIP(parsed)
 	case AddressTypeFQDN:
 		return true
 	default:

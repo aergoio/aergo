@@ -17,10 +17,9 @@ const (
 	txNoticeInterval = time.Second * 1
 	// writeMsgBufferSize is queue size of message to a peer. connection will be closed when queue is exceeded.
 	writeMsgBufferSize = 40
-
 )
 
-// constants for legacy sync algorithm. DEPRECATED newer sync loging in syncer package is used now.
+// constants for legacy sync algorithm. DEPRECATED newer sync logging in syncer package is used now.
 const (
 	SyncWorkTTL        = time.Second * 30
 	AddBlockCheckpoint = 100
@@ -60,8 +59,7 @@ const (
 	GapToSkipHourly = 3600
 	GapToSkip5Min   = 300
 
-	HourlyInterval        = time.Hour
-	TenMiniteInterval     = time.Minute * 10
-	MinNewBlkNotiInterval = time.Second >> 2
+	HourlyInterval          = time.Hour
+	TenMinutesInterval      = time.Minute * 10
+	MinNewBlkNoticeInterval = time.Second >> 2
 )
-

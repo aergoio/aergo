@@ -168,7 +168,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 				mockVH.EXPECT().GetMsgRW().Return(nil).MaxTimes(1)
 			}
 
-			h := NewInbountHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*InboundWireHandshaker)
+			h := NewInboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*InboundWireHandshaker)
 			got, got1, err := h.handleInboundPeer(mockCtx, dummyReader, dummyWriter)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InboundWireHandshaker.handleInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -206,7 +206,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 		remoteBestVer p2pcommon.P2PVersion
 		ctxCancel     int    // 0 is not , 1 is during write, 2 is during read
 		vhErr         bool   // version handshaker failed
-		receingBuf    []byte // received resp
+		receivingBuf  []byte // received resp
 
 		wantErr bool
 	}{
@@ -238,7 +238,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 
 			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
 			wbuf := bytes.NewBuffer(nil)
-			dummyReader := bufio.NewReader(bytes.NewBuffer(tt.receingBuf))
+			dummyReader := bufio.NewReader(bytes.NewBuffer(tt.receivingBuf))
 			dummyWriter := bufio.NewWriter(wbuf)
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
@@ -251,13 +251,13 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 				mockVH.EXPECT().GetMsgRW().Return(nil).MaxTimes(1)
 			}
 
-			h := NewOutbountHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
+			h := NewOutboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
 			got, got1, err := h.handleOutboundPeer(mockCtx, dummyReader, dummyWriter)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !bytes.Equal(wbuf.Bytes(), outBytes) {
-				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() send resp %v, want %v", wbuf.Bytes(), tt.receingBuf)
+				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() send resp %v, want %v", wbuf.Bytes(), tt.receivingBuf)
 			}
 			if !tt.wantErr {
 				if got == nil {

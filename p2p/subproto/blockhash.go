@@ -81,7 +81,7 @@ func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 		cursorNo--
 	}
 	// check again if data is changed during fetch
-	// check if reorg (or such like it) occured and mainchain is changed during
+	// check if reorg (or such like it) occurred and mainchain is changed during
 	endHash, err := chainAccessor.GetHashByNo(endNumber)
 	if err != nil || !bytes.Equal(endHash, hashes[fetchSize-1]) {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INTERNAL}

@@ -13,7 +13,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-// raftBPNoticeDiscardHandler silently discard blk notice. It is for raft block producer, since raft BP receieve notice from raft HTTPS
+// raftBPNoticeDiscardHandler silently discard blk notice. It is for raft block producer, since raft BP receive notice from raft HTTPS
 type raftBPNoticeDiscardHandler struct {
 	BaseMsgHandler
 }
@@ -41,7 +41,7 @@ func (bh *raftBPNoticeDiscardHandler) Handle(msg p2pcommon.Message, msgBody p2pc
 	remotePeer.UpdateLastNotice(data.GetBlock().GetHash(), data.BlockNo)
 }
 
-// raftBPNoticeDiscardHandler silently discard blk notice. It is for raft block producer, since raft BP receieve notice from raft HTTPS
+// raftBPNoticeDiscardHandler silently discard blk notice. It is for raft block producer, since raft BP receive notice from raft HTTPS
 type raftNewBlkNoticeDiscardHandler struct {
 	BaseMsgHandler
 }
@@ -63,7 +63,7 @@ func (bh *raftNewBlkNoticeDiscardHandler) Handle(msg p2pcommon.Message, msgBody 
 	data := msgBody.(*types.NewBlockNotice)
 
 	if _, err := types.ParseToBlockID(data.BlockHash); err != nil {
-		// TODO Add penelty score and break
+		// TODO Add penalty score and break
 		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
 		return
 	}

@@ -31,7 +31,7 @@ func (p2ps *P2P) GetAddresses(peerID types.PeerID, size uint32) bool {
 		return false
 	}
 	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
-	// create message data
+	// createPolaris message data
 	req := &types.AddressesRequest{Sender: &senderAddr, MaxSize: 50}
 	remotePeer.SendMessage(p2ps.mf.NewMsgRequestOrder(true, subproto.AddressesRequest, req))
 	return true
@@ -203,7 +203,7 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 	return true
 }
 
-// Syncer.finder request remote peer to find ancestor
+// GetSyncAncestor request remote peer to find ancestor
 func (p2ps *P2P) GetSyncAncestor(context actor.Context, msg *message.GetSyncAncestor) {
 	peerID := msg.ToWhom
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)

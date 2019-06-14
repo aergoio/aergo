@@ -21,7 +21,7 @@ type PeerManager interface {
 	SelfNodeID() types.PeerID
 
 	AddNewPeer(peer PeerMeta)
-	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call RemovePeer to peermanager
+	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call PeerManager.RemovePeer
 	RemovePeer(peer RemotePeer)
 	UpdatePeerRole(changes []AttrModifier)
 

@@ -87,15 +87,15 @@ func (mf *baseMOFactory) newHandshakeMessage(protocolID p2pcommon.SubProtocol, m
 	return nil
 }
 
-// newPbMsgOrder is base form of making sendrequest struct
+// newPbMsgOrder is base form of making sendRequest struct
 func (mf *baseMOFactory)newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, messageBody p2pcommon.MessageBody) bool {
 	id :=p2pcommon.MsgID(msgID)
-	originalid := p2pcommon.MsgID(orgID)
+	originalID := p2pcommon.MsgID(orgID)
 	bytes, err := p2putil.MarshalMessageBody(messageBody)
 	if err != nil {
 		return false
 	}
-	msg := p2pcommon.NewMessageValue(protocolID, id, originalid, time.Now().UnixNano(), bytes)
+	msg := p2pcommon.NewMessageValue(protocolID, id, originalID, time.Now().UnixNano(), bytes)
 	mo.protocolID = protocolID
 	mo.needSign = true
 	mo.message = msg

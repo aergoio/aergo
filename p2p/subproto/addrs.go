@@ -78,7 +78,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)

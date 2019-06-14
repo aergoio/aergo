@@ -37,7 +37,7 @@ func init() {
 
 // TODO split this test into two... one is to attempt make connection and the other is test peermanager if same peerid is given
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
-func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
+func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 	var sampleBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	var sampleBlockHeight uint64 = 100215
 
@@ -214,7 +214,7 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 
 			addr := sl.bindAddress
 			port := sl.bindPort
-			// init result must always bind balid address
+			// init result must always bind valid address
 			if tt.wantAddress == nil {
 				if addr.IsLoopback() || addr.IsUnspecified() {
 					t.Errorf("initServiceBindAddress() addr = %v, want valid addr", addr)

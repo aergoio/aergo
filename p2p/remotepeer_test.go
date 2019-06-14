@@ -265,7 +265,7 @@ func TestRemotePeer_handleMsg(t *testing.T) {
 }
 
 func TestRemotePeer_sendTxNotices(t *testing.T) {
-	t.Skip("meanningless after 20181030 refactoring")
+	t.Skip("meaningless after 20181030 refactoring")
 	sampleSize := DefaultPeerTxQueueSize << 1
 	sampleHashes := make([]types.TxID, sampleSize)
 	maxTxHashSize := 100
@@ -330,12 +330,12 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(p2pmock.MockActorService)
+			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 
-			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil, nil)
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
@@ -361,12 +361,12 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(p2pmock.MockActorService)
+			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 
-			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil, nil)
 			for _, hash := range test.inCache {
 				target.txHashCache.Add(hash, true)
 			}
@@ -381,7 +381,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	idSize := 10
 	idList := make([]p2pcommon.MsgID, idSize)
 	recvList := make(map[p2pcommon.MsgID]p2pcommon.ResponseReceiver)
-	// first 5 have receiever, but latters don't
+	// first 5 have receiver, but lattes don't
 	for i := 0; i < idSize; i++ {
 		idList[i] = p2pcommon.NewMsgID()
 		if i < 5 {
@@ -410,11 +410,11 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockActorServ := new(p2pmock.MockActorService)
+			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, mockMF, mockSigner, nil, nil)
+			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil, nil)
 			for _, add := range test.toAdd {
 				p.requests[add] = &requestInfo{receiver: recvList[add]}
 			}
@@ -499,7 +499,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 
 		// error while signing
 		// error while get stream
-		// TODO this case is evaled in pbMsgOrder tests
+		// TODO this case is evaluated in pbMsgOrder tests
 		// {"TFSend1", args{needResponse: true, sendErr: sampleErr}, wants{1, 0}},
 	}
 	for _, tt := range tests {
@@ -522,7 +522,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 
 			p.writeToPeer(mockMO)
 
-			// FIXME wait in more relaiable way
+			// FIXME wait in more reliable way
 			time.Sleep(50 * time.Millisecond)
 			p.closeWrite <- struct{}{}
 			//mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)

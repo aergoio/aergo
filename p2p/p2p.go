@@ -268,7 +268,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
@@ -311,7 +311,7 @@ func (p2ps *P2P) CallRequestDefaultTimeout(actor string, msg interface{}) (inter
 	return future.Result()
 }
 
-// GetChainAccessor implment interface method of ActorService
+// GetChainAccessor implement interface method of ActorService
 func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
 	return p2ps.ca
 }
@@ -368,9 +368,9 @@ func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool,
 		}
 	} else {
 		if outbound {
-			return NewOutbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+			return NewOutboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
 		} else {
-			return NewInbountHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+			return NewInboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
 		}
 	}
 }

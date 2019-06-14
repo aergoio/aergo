@@ -35,7 +35,7 @@ func TestLogStringersMarshaler_MarshalZerologArray(t *testing.T) {
 
 		wantSize int
 	}{
-		{"Tempty", fields{nil, 10}, 0},
+		{"TEmpty", fields{nil, 10}, 0},
 		{"TOne", fields{sampleArr[:1], 10}, 1},
 		{"TMid", fields{sampleArr[1:6], 10}, 5},
 		{"TMax", fields{sampleArr[:10], 10}, 10},
@@ -49,7 +49,7 @@ func TestLogStringersMarshaler_MarshalZerologArray(t *testing.T) {
 			buf2 := bytes.NewBuffer(nil)
 			log2 := log.NewLogger("test.p2p").Output(buf2)
 
-			m := NewLogStringersMarshaler(tt.fields.arr, tt.fields.limit)
+			m := NewLogStringersMarshaller(tt.fields.arr, tt.fields.limit)
 			a := zerolog.Arr()
 			m.MarshalZerologArray(a)
 			log1.Info().Array("t", m).Msg("Print ")
@@ -68,7 +68,7 @@ func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 	sampleArr := make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
 		meta := p2pcommon.PeerMeta{}
-		meta.ID = psudoGenID()
+		meta.ID = pseudoGenID()
 		meta.IPAddress = fmt.Sprintf("192.168.0.%d", i)
 		meta.Port = uint32(i * 1000)
 		meta.Hidden = i%2 == 0
@@ -85,7 +85,7 @@ func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 
 		wantSize int
 	}{
-		{"Tempty", fields{nil, 10}, 0},
+		{"TEmpty", fields{nil, 10}, 0},
 		{"TOne", fields{sampleArr[:1], 10}, 1},
 		{"TMid", fields{sampleArr[1:6], 10}, 5},
 		{"TMax", fields{sampleArr[:10], 10}, 10},
@@ -99,7 +99,7 @@ func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 			buf2 := bytes.NewBuffer(nil)
 			log2 := log.NewLogger("test.p2p").Output(buf2)
 
-			m := NewLogPeerMetasMarshaler(tt.fields.arr, tt.fields.limit)
+			m := NewLogPeerMetasMarshaller(tt.fields.arr, tt.fields.limit)
 			a := zerolog.Arr()
 			m.MarshalZerologArray(a)
 			log1.Info().Array("t", m).Msg("Print ")
@@ -130,7 +130,7 @@ func TestLogB58EncMarshaler_MarshalZerologArray(t *testing.T) {
 
 		wantSize int
 	}{
-		{"Tempty", fields{nil, 10}, 0},
+		{"TEmpty", fields{nil, 10}, 0},
 		{"TOne", fields{sampleArr[:1], 10}, 1},
 		{"TMid", fields{sampleArr[1:6], 10}, 5},
 		{"TMax", fields{sampleArr[:10], 10}, 10},
@@ -144,7 +144,7 @@ func TestLogB58EncMarshaler_MarshalZerologArray(t *testing.T) {
 			buf2 := bytes.NewBuffer(nil)
 			log2 := log.NewLogger("test.p2p").Output(buf2)
 
-			m := NewLogB58EncMarshaler(tt.fields.arr, tt.fields.limit)
+			m := NewLogB58EncMarshaller(tt.fields.arr, tt.fields.limit)
 			a := zerolog.Arr()
 			m.MarshalZerologArray(a)
 			log1.Info().Array("t", m).Msg("Print ")
@@ -159,7 +159,7 @@ func TestLogB58EncMarshaler_MarshalZerologArray(t *testing.T) {
 	}
 }
 
-func psudoGenID() types.PeerID {
+func pseudoGenID() types.PeerID {
 	priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	id, _ := types.IDFromPrivateKey(priv)
 	return id

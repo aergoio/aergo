@@ -14,7 +14,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-// BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
+// BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requests blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired.
 type BlockHashByNoReceiver struct {
 	syncerSeq uint64

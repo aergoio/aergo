@@ -66,7 +66,7 @@ func (br *BlockHashesReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcom
 }
 
 func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
-	// consuming request id when timeoutm, no more resp expected (i.e. hasNext == false ) or malformed body.
+	// consuming request id when timeout, no more resp expected (i.e. hasNext == false ) or malformed body.
 	// timeout
 	if br.timeout.Before(time.Now()) {
 		// silently ignore already status job
@@ -106,7 +106,7 @@ func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2
 }
 
 // cancelReceiving is cancel wait for receiving and send syncer the failure result.
-// not all part of response is received, it wait remaining (and useless) response. It is assumed cancelings are not frequently occur
+// not all part of response is received, it wait remaining (and useless) response. It is assumed canceling is not frequently occur
 func (br *BlockHashesReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
 	br.actor.TellRequest(message.SyncerSvc,
@@ -133,7 +133,7 @@ func (br *BlockHashesReceiver) cancelReceiving(err error, hasNext bool) {
 	}
 }
 
-// finishReceiver is to cancel works, assuming cancelings are not frequently occur
+// finishReceiver is to cancel works, assuming cancellations are not frequently occur
 func (br *BlockHashesReceiver) finishReceiver() {
 	br.status = receiverStatusFinished
 	br.peer.ConsumeRequest(br.requestID)

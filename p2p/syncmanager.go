@@ -38,11 +38,11 @@ func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logg
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
-		panic("Failed to create peermanager " + err.Error())
+		panic("Failed to create PeerManager " + err.Error())
 	}
 	sm.txCache, err = lru.New(DefaultGlobalTxCacheSize)
 	if err != nil {
-		panic("Failed to create peermanager " + err.Error())
+		panic("Failed to create PeerManager " + err.Error())
 	}
 
 	return sm
@@ -58,7 +58,7 @@ func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, bloc
 	hash := types.MustParseBlockID(block.GetHash())
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
-		sm.logger.Warn().Str(p2putil.LogBlkHash, hash.String()).Str(p2putil.LogPeerName, peer.Name()).Msg("Duplacated blockProduced notice")
+		sm.logger.Warn().Str(p2putil.LogBlkHash, hash.String()).Str(p2putil.LogPeerName, peer.Name()).Msg("Duplicated blockProduced notice")
 		return
 	}
 	// check if block size is over the limit
@@ -83,7 +83,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *typ
 	// TODO check if evicted return value is needed.
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
-		// Kickout duplicated notice log.
+		// Kick out duplicated notice log.
 		// if sm.logger.IsDebugEnabled() {
 		// 	sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlkHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
 		// }
@@ -107,7 +107,7 @@ func (sm *syncManager) HandleGetBlockResponse(peer p2pcommon.RemotePeer, msg p2p
 	peerID := peer.ID()
 
 	// The response should have only one block here, since this peer had requested only one block.
-	// getblockresponse with bulky blocks is only called in newsyncer since aergosvr 0.9.9 , which is handled by other receiver and not come to this code.
+	// getBlockResponse with bulky blocks is only called in newsyncer since aergosvr 0.9.9 , which is handled by other receiver and not come to this code.
 	// if bulky hashes on this condition block, it is probably sync timeout or bug.
 	if len(blocks) != 1 {
 		return

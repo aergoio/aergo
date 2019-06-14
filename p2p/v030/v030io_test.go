@@ -180,7 +180,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	smallPData := &types.NewTransactionsNotice{}
 	payload, _ := proto.Marshal(smallPData)
 	smallMsg := p2pcommon.NewMessageValue(subproto.NewTxNotice, sampleID,  p2pcommon.EmptyID, timestamp,payload)
-	smallBytes := getMashaledV030(smallMsg, 100)
+	smallBytes := getMarshaledV030(smallMsg, 100)
 
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
 	for i := 0; i < 10000; i++ {
@@ -189,7 +189,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
 	payload, _ = proto.Marshal(bigPData)
 	bigMsg := p2pcommon.NewMessageValue(subproto.NewTxNotice, sampleID,  p2pcommon.EmptyID, timestamp,payload)
-	bigBytes := getMashaledV030(bigMsg, 100)
+	bigBytes := getMarshaledV030(bigMsg, 100)
 
 	fmt.Printf("small : %d , big : %d \n", len(smallBytes), len(bigBytes))
 
@@ -224,7 +224,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 	}
 }
 
-func getMashaledV030(m *p2pcommon.MessageValue, repeat int) []byte {
+func getMarshaledV030(m *p2pcommon.MessageValue, repeat int) []byte {
 	unitbuf := &bytes.Buffer{}
 	writer := NewV030Writer(bufio.NewWriter(unitbuf))
 	writer.WriteMsg(m)

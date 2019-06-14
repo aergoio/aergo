@@ -1,6 +1,6 @@
 Examples to generate mock class
 
-1. with reflection (and no flag is allowd) : It can generate mock of outside of current source tree, but has drawback that cannot set output package. it must be followed by manual editing or other way to correct the package of generated mock class
+1. with reflection (and no flag is allowed) : It can generate mock of outside of current source tree, but has drawback that cannot set output package. it must be followed by manual editing or other way to correct the package of generated mock class
 mockgen github.com/aergoio/aergo/p2p/p2pcommon HSHandlerFactory  > p2p/p2pmock/mock_hsfactory.go
 
 1-1. correct package using GNU sed

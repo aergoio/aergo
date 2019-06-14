@@ -17,7 +17,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-// BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
+// BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requests blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired, since
 // syncer actor already dropped wait before.
 type BlocksChunkReceiver struct {
@@ -86,7 +86,7 @@ func (br *BlocksChunkReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcom
 }
 
 func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
-	// consuming request id when timeoutm, no more resp expected (i.e. hasNext == false ) or malformed body.
+	// consuming request id when timeout, no more resp expected (i.e. hasNext == false ) or malformed body.
 	// timeout
 	if br.timeout.Before(time.Now()) {
 		// silently ignore already status job
@@ -139,7 +139,7 @@ func (br *BlocksChunkReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2
 }
 
 // cancelReceiving is cancel wait for receiving and send syncer the failure result.
-// not all part of response is received, it wait remaining (and useless) response. It is assumed cancelings are not frequently occur
+// not all part of response is received, it wait remaining (and useless) response. It is assumed cancelling is not frequently occur
 func (br *BlocksChunkReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
 	br.actor.TellRequest(message.SyncerSvc,
@@ -166,7 +166,7 @@ func (br *BlocksChunkReceiver) cancelReceiving(err error, hasNext bool) {
 	}
 }
 
-// finishReceiver is to cancel works, assuming cancelings are not frequently occur
+// finishReceiver is to cancel works, assuming cancellations are not frequently occur
 func (br *BlocksChunkReceiver) finishReceiver() {
 	br.status = receiverStatusFinished
 	br.peer.ConsumeRequest(br.requestID)

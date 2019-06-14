@@ -117,7 +117,7 @@ func (sl *networkTransport) initSelfMeta(peerID types.PeerID, noExpose bool) {
 	sl.selfMeta.Hidden = noExpose
 	sl.selfMeta.Version = p2pkey.NodeVersion()
 
-	// bind address and port will be overriden if configuration is specified
+	// bind address and port will be overridden if configuration is specified
 	sl.bindAddress = ipAddress
 	sl.bindPort = sl.selfMeta.Port
 }
@@ -208,7 +208,7 @@ func (sl *networkTransport) startListener() {
 	listens := make([]ma.Multiaddr, 0, 2)
 	listen, err := p2putil.ToMultiAddr(sl.bindAddress, sl.bindPort)
 	if err != nil {
-		panic("Can't estabilish listening address: " + err.Error())
+		panic("Can't establish listening address: " + err.Error())
 	}
 	listens = append(listens, listen)
 
