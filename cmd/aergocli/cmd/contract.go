@@ -329,16 +329,16 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 			return
 		}
 	}
-	storageKey := bytes.NewBufferString("_sv_")
-	storageKey.WriteString(args[1])
+	storageKeyPlain := bytes.NewBufferString("_sv_")
+	storageKeyPlain.WriteString(args[1])
 	if len(args) > 2 {
-		storageKey.WriteString("-")
-		storageKey.WriteString(args[2])
+		storageKeyPlain.WriteString("-")
+		storageKeyPlain.WriteString(args[2])
 	}
-	trieKey := common.Hasher([]byte(storageKey.Bytes()))
+	storageKey := common.Hasher([]byte(storageKeyPlain.Bytes()))
 	stateQuery := &types.StateQuery{
 		ContractAddress: contract,
-		StorageKeys:     [][]byte{trieKey},
+		StorageKeys:     [][]byte{storageKey},
 		Root:            root,
 		Compressed:      compressed,
 	}
