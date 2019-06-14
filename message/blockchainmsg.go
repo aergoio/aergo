@@ -96,7 +96,7 @@ type GetQueryRsp struct {
 }
 type GetStateQuery struct {
 	ContractAddress []byte
-	StorageKeys     []string
+	StorageKeys     [][]byte
 	Root            []byte
 	Compressed      bool
 }
