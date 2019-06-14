@@ -23,7 +23,6 @@ import (
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -781,8 +780,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
 			for _, storageKey := range msg.StorageKeys {
-				trieKey := common.Hasher([]byte(storageKey))
-				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(trieKey, contractTrieRoot, msg.Compressed)
+				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(storageKey, contractTrieRoot, msg.Compressed)
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {

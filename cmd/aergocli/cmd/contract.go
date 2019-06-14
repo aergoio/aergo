@@ -13,6 +13,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
@@ -33,10 +34,10 @@ func init() {
 	}
 
 	deployCmd := &cobra.Command{
-		Use:   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
-		Short: "Deploy a compiled contract to the server",
-		Args:  cobra.MinimumNArgs(1),
-		Run:   runDeployCmd,
+		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
+		Short:                 "Deploy a compiled contract to the server",
+		Args:                  cobra.MinimumNArgs(1),
+		Run:                   runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
@@ -334,9 +335,10 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 		storageKey.WriteString("-")
 		storageKey.WriteString(args[2])
 	}
+	trieKey := common.Hasher([]byte(storageKey.Bytes()))
 	stateQuery := &types.StateQuery{
 		ContractAddress: contract,
-		StorageKeys:     []string{storageKey.String()},
+		StorageKeys:     [][]byte{trieKey},
 		Root:            root,
 		Compressed:      compressed,
 	}

@@ -39,13 +39,13 @@ func (x MembershipChangeType) String() string {
 	return proto.EnumName(MembershipChangeType_name, int32(x))
 }
 func (MembershipChangeType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{0}
+	return fileDescriptor_raft_3623b658a658ac91, []int{0}
 }
 
 type MemberAttr struct {
-	ID                   uint64   `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Url                  string   `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	ID                   uint64   `protobuf:"varint,1,opt,name=ID" json:"ID,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	Url                  string   `protobuf:"bytes,3,opt,name=url" json:"url,omitempty"`
 	PeerID               []byte   `protobuf:"bytes,4,opt,name=peerID,proto3" json:"peerID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -56,7 +56,7 @@ func (m *MemberAttr) Reset()         { *m = MemberAttr{} }
 func (m *MemberAttr) String() string { return proto.CompactTextString(m) }
 func (*MemberAttr) ProtoMessage()    {}
 func (*MemberAttr) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{0}
+	return fileDescriptor_raft_3623b658a658ac91, []int{0}
 }
 func (m *MemberAttr) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MemberAttr.Unmarshal(m, b)
@@ -105,8 +105,8 @@ func (m *MemberAttr) GetPeerID() []byte {
 }
 
 type MembershipChange struct {
-	Type                 MembershipChangeType `protobuf:"varint,1,opt,name=type,proto3,enum=types.MembershipChangeType" json:"type,omitempty"`
-	Attr                 *MemberAttr          `protobuf:"bytes,2,opt,name=attr,proto3" json:"attr,omitempty"`
+	Type                 MembershipChangeType `protobuf:"varint,1,opt,name=type,enum=types.MembershipChangeType" json:"type,omitempty"`
+	Attr                 *MemberAttr          `protobuf:"bytes,2,opt,name=attr" json:"attr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`
 	XXX_sizecache        int32                `json:"-"`
@@ -116,7 +116,7 @@ func (m *MembershipChange) Reset()         { *m = MembershipChange{} }
 func (m *MembershipChange) String() string { return proto.CompactTextString(m) }
 func (*MembershipChange) ProtoMessage()    {}
 func (*MembershipChange) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{1}
+	return fileDescriptor_raft_3623b658a658ac91, []int{1}
 }
 func (m *MembershipChange) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MembershipChange.Unmarshal(m, b)
@@ -151,7 +151,7 @@ func (m *MembershipChange) GetAttr() *MemberAttr {
 }
 
 type MembershipChangeReply struct {
-	Attr                 *MemberAttr `protobuf:"bytes,1,opt,name=attr,proto3" json:"attr,omitempty"`
+	Attr                 *MemberAttr `protobuf:"bytes,1,opt,name=attr" json:"attr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -161,7 +161,7 @@ func (m *MembershipChangeReply) Reset()         { *m = MembershipChangeReply{} }
 func (m *MembershipChangeReply) String() string { return proto.CompactTextString(m) }
 func (*MembershipChangeReply) ProtoMessage()    {}
 func (*MembershipChangeReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{2}
+	return fileDescriptor_raft_3623b658a658ac91, []int{2}
 }
 func (m *MembershipChangeReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MembershipChangeReply.Unmarshal(m, b)
@@ -189,8 +189,8 @@ func (m *MembershipChangeReply) GetAttr() *MemberAttr {
 }
 
 type HardStateInfo struct {
-	Term                 uint64   `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
-	Commit               uint64   `protobuf:"varint,2,opt,name=commit,proto3" json:"commit,omitempty"`
+	Term                 uint64   `protobuf:"varint,1,opt,name=term" json:"term,omitempty"`
+	Commit               uint64   `protobuf:"varint,2,opt,name=commit" json:"commit,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -200,7 +200,7 @@ func (m *HardStateInfo) Reset()         { *m = HardStateInfo{} }
 func (m *HardStateInfo) String() string { return proto.CompactTextString(m) }
 func (*HardStateInfo) ProtoMessage()    {}
 func (*HardStateInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{3}
+	return fileDescriptor_raft_3623b658a658ac91, []int{3}
 }
 func (m *HardStateInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HardStateInfo.Unmarshal(m, b)
@@ -247,7 +247,7 @@ func (m *GetClusterInfoRequest) Reset()         { *m = GetClusterInfoRequest{} }
 func (m *GetClusterInfoRequest) String() string { return proto.CompactTextString(m) }
 func (*GetClusterInfoRequest) ProtoMessage()    {}
 func (*GetClusterInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{4}
+	return fileDescriptor_raft_3623b658a658ac91, []int{4}
 }
 func (m *GetClusterInfoRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetClusterInfoRequest.Unmarshal(m, b)
@@ -276,10 +276,10 @@ func (m *GetClusterInfoRequest) GetBestBlockHash() []byte {
 
 type GetClusterInfoResponse struct {
 	ChainID              []byte         `protobuf:"bytes,1,opt,name=chainID,proto3" json:"chainID,omitempty"`
-	ClusterID            uint64         `protobuf:"varint,2,opt,name=clusterID,proto3" json:"clusterID,omitempty"`
-	Error                string         `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	MbrAttrs             []*MemberAttr  `protobuf:"bytes,4,rep,name=mbrAttrs,proto3" json:"mbrAttrs,omitempty"`
-	HardStateInfo        *HardStateInfo `protobuf:"bytes,5,opt,name=hardStateInfo,proto3" json:"hardStateInfo,omitempty"`
+	ClusterID            uint64         `protobuf:"varint,2,opt,name=clusterID" json:"clusterID,omitempty"`
+	Error                string         `protobuf:"bytes,3,opt,name=error" json:"error,omitempty"`
+	MbrAttrs             []*MemberAttr  `protobuf:"bytes,4,rep,name=mbrAttrs" json:"mbrAttrs,omitempty"`
+	HardStateInfo        *HardStateInfo `protobuf:"bytes,5,opt,name=hardStateInfo" json:"hardStateInfo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -289,7 +289,7 @@ func (m *GetClusterInfoResponse) Reset()         { *m = GetClusterInfoResponse{}
 func (m *GetClusterInfoResponse) String() string { return proto.CompactTextString(m) }
 func (*GetClusterInfoResponse) ProtoMessage()    {}
 func (*GetClusterInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_f2d3f4c16774f7d3, []int{5}
+	return fileDescriptor_raft_3623b658a658ac91, []int{5}
 }
 func (m *GetClusterInfoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetClusterInfoResponse.Unmarshal(m, b)
@@ -354,9 +354,9 @@ func init() {
 	proto.RegisterEnum("types.MembershipChangeType", MembershipChangeType_name, MembershipChangeType_value)
 }
 
-func init() { proto.RegisterFile("raft.proto", fileDescriptor_raft_f2d3f4c16774f7d3) }
+func init() { proto.RegisterFile("raft.proto", fileDescriptor_raft_3623b658a658ac91) }
 
-var fileDescriptor_raft_f2d3f4c16774f7d3 = []byte{
+var fileDescriptor_raft_3623b658a658ac91 = []byte{
 	// 420 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0x51, 0x8b, 0xd3, 0x40,
 	0x10, 0x36, 0x6d, 0x7a, 0xda, 0xb1, 0x2d, 0xbd, 0xa1, 0x77, 0x04, 0x15, 0x09, 0x41, 0xa1, 0x08,
