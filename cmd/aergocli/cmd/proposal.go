@@ -53,7 +53,7 @@ func init() {
 
 func execProposalShow(cmd *cobra.Command, args []string) {
 	msg, err := client.GetVotes(context.Background(), &types.VoteParams{
-		Id:    string(types.GenProposalKey(proposalId)),
+		Id:    proposalId,
 		Count: uint32(number),
 	})
 	if err != nil {
@@ -97,10 +97,8 @@ func execProposal(cmd *cobra.Command, args []string) {
 	var ci types.CallInfo
 	ci.Name = types.CreateProposal
 	ci.Args = append(ci.Args, arg.Id,
-		strconv.FormatUint(arg.Blockfrom, 10),
-		strconv.FormatUint(arg.Blockto, 10),
-		strconv.FormatUint(uint64(arg.Maxvote), 10),
-		arg.Description, arg.Candidates)
+		strconv.FormatUint(uint64(arg.MultipleChoice), 10),
+		arg.Description)
 	payload, err := json.Marshal(ci)
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())

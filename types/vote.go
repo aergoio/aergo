@@ -2,7 +2,6 @@ package types
 
 import (
 	"math/big"
-	"strings"
 )
 
 const (
@@ -16,8 +15,6 @@ const MaxCandidates = 30
 const CreateProposal = "v1createProposal"
 const VoteProposal = "v1voteProposal"
 const VoteBP = "v1voteBP"
-
-const proposalPrefixKey = "proposal"
 
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {
@@ -38,14 +35,3 @@ func (v *Vote) GetAmountBigInt() *big.Int {
 	return new(big.Int).SetBytes(v.Amount)
 }
 
-func (a *Proposal) GetKey() []byte {
-	return []byte(proposalPrefixKey + "\\" + strings.ToUpper(a.Id))
-}
-
-func GenProposalKey(id string) []byte {
-	return []byte(proposalPrefixKey + "\\" + strings.ToUpper(id))
-}
-
-func ProposalIDfromKey(key []byte) string {
-	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
-}

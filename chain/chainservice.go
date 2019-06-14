@@ -412,6 +412,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetVote,
 		*message.GetStaking,
 		*message.GetNameInfo,
+		*message.GetEnterpriseConf,
 		*message.GetParams,
 		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())

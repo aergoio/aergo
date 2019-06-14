@@ -125,11 +125,11 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
-		proposal, err := getProposal(scs, types.ProposalIDfromKey(key))
+		proposal, err := getProposal(scs, ProposalIDfromKey(key))
 		if err != nil {
 			return err
 		}
-		if proposal != nil && proposal.GetBlockto() < context.BlockNo {
+		if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockNo {
 			continue
 		}
 		voteResult, err := loadVoteResult(scs, key)
@@ -210,6 +210,9 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	if err != nil {
 		return nil, err
 	}
+	if !bytes.Equal(id, defaultVoteKey) {
+		id = GenProposalKey(string(id))
+	}
 	return getVoteResult(scs, id, n)
 }
 
@@ -230,7 +233,7 @@ func getLastBpCount() int {
 }
 
 func GetBpCount(ar AccountStateReader) int {
-	result, err := GetVoteResultEx(ar, types.GenProposalKey("BPCOUNT"), 1)
+	result, err := GetVoteResultEx(ar, GenProposalKey("BPCOUNT"), 1)
 	if err != nil {
 		panic("could not get vote result for min staking")
 	}

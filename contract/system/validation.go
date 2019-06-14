@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"reflect"
 	"sort"
 	"strconv"
 
@@ -57,59 +56,30 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		if proposal != nil {
-			return nil, fmt.Errorf("already created proposal id: %s", proposal.GetId())
+			return nil, fmt.Errorf("already created proposal id: %s", proposal.ID)
 		}
-		if len(ci.Args) != 6 {
-			return nil, fmt.Errorf("the request should be have 7 arguments")
+		if len(ci.Args) != 3 {
+			return nil, fmt.Errorf("the request should be have 3 arguments: %d", len(ci.Args))
 		}
-		start, ok := ci.Args[1].(string)
-		if !ok {
-			return nil, fmt.Errorf("could not parse the start block number %v", ci.Args[2])
-		}
-		blockfrom, err := strconv.ParseUint(start, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		end, ok := ci.Args[2].(string)
-		if !ok {
-			return nil, fmt.Errorf("could not parse the start block number %v", ci.Args[3])
-		}
-		blockto, err := strconv.ParseUint(end, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		max := ci.Args[3].(string)
+		max, ok := ci.Args[1].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not parse the max")
 		}
-		maxVote, err := strconv.ParseUint(max, 10, 32)
+		multipleChoice, err := strconv.ParseUint(max, 10, 32)
 		if err != nil {
 			return nil, err
 		}
-		desc, ok := ci.Args[4].(string)
+		desc, ok := ci.Args[2].(string)
 		if !ok {
 			return nil, fmt.Errorf("could not parse the desc")
 		}
-		candis, ok := ci.Args[5].([]interface{})
-		if !ok {
-			return nil, fmt.Errorf("could not parse the candidates %v %v", ci.Args[6], reflect.TypeOf(ci.Args[6]))
-		}
-		var candidates []string
-		for _, candi := range candis {
-			c, ok := candi.(string)
-			if !ok {
-				return nil, fmt.Errorf("could not parse the candidates")
-			}
-			candidates = append(candidates, c)
-		}
 		context.Staked = staked
-		context.Proposal = &types.Proposal{
-			Id:          id,
-			Blockfrom:   blockfrom,
-			Blockto:     blockto,
-			Maxvote:     uint32(maxVote),
-			Description: desc,
-			Candidates:  candidates,
+		context.Proposal = &Proposal{
+			ID:             id,
+			Blockfrom:      0,
+			Blockto:        0,
+			MultipleChoice: uint32(multipleChoice),
+			Description:    desc,
 		}
 	case types.VoteProposal:
 		id, err := parseIDForProposal(&ci)
@@ -130,23 +100,23 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, fmt.Errorf("the voting was already done at %d", proposal.Blockto)
 		}
 		candis := ci.Args[1:]
-		if int64(len(candis)) > int64(proposal.Maxvote) {
-			return nil, fmt.Errorf("too many candidates arguments (max : %d)", proposal.Maxvote)
+		if int64(len(candis)) > int64(proposal.MultipleChoice) {
+			return nil, fmt.Errorf("too many candidates arguments (max : %d)", proposal.MultipleChoice)
 		}
 		sort.Slice(proposal.Candidates, func(i, j int) bool {
 			return proposal.Candidates[i] <= proposal.Candidates[j]
 		})
-		if len(proposal.GetCandidates()) != 0 {
+		if len(proposal.Candidates) != 0 {
 			for _, c := range candis {
 				candidate, ok := c.(string)
 				if !ok {
 					return nil, fmt.Errorf("include invalid candidate")
 				}
-				i := sort.SearchStrings(proposal.GetCandidates(), candidate)
+				i := sort.SearchStrings(proposal.Candidates, candidate)
 				if i < len(proposal.Candidates) && proposal.Candidates[i] == candidate {
 					//fmt.Printf("Found %s at index %d in %v.\n", x, i, a)
 				} else {
-					return nil, fmt.Errorf("candidate should be in %v", proposal.GetCandidates())
+					return nil, fmt.Errorf("candidate should be in %v", proposal.Candidates)
 				}
 			}
 		}

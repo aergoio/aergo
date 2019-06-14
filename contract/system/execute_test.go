@@ -512,7 +512,7 @@ func TestProposalExecute(t *testing.T) {
 			Recipient: []byte(types.AergoSystem),
 			Amount:    types.ProposalPrice.Bytes(),
 			Type:      types.TxType_GOVERNANCE,
-			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "1","100000","2","this vote is for the number of bp",["13","23","27"]]}`),
+			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "2","this vote is for the number of bp"]}`),
 		},
 	}
 	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
@@ -521,10 +521,10 @@ func TestProposalExecute(t *testing.T) {
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
 	assert.Equal(t, events[0].EventName, types.CreateProposal[2:], "check event")
 	t.Log(events[0].GetJsonArgs())
-	assert.Equal(t, events[0].GetJsonArgs(), "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"Proposal\":{\"id\":\"numbp\",\"description\":\"this vote is for the number of bp\",\"blockfrom\":1,\"blockto\":100000,\"maxvote\":2,\"candidates\":[\"13\",\"23\",\"27\"]}}", "check event")
+	assert.Equal(t,"{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"Proposal\":{\"ID\":\"numbp\",\"Description\":\"this vote is for the number of bp\",\"Blockfrom\":0,\"Blockto\":0,\"MultipleChoice\":2,\"Candidates\":null}}", events[0].GetJsonArgs(), "check event")
 	proposal, err := getProposal(scs, "numbp")
 	assert.NoError(t, err, "failed in creating proposal")
-	assert.Equal(t, "numbp", proposal.GetId(), "check registed name")
+	assert.Equal(t, "numbp", proposal.ID, "check registed name")
 
 	blockNo++
 
@@ -551,7 +551,7 @@ func TestProposalExecute(t *testing.T) {
 	assert.Equal(t, "[\"13\"]", string(v.Candidate), "check vote candidates")
 	assert.Equal(t, balance1, new(big.Int).SetBytes(v.Amount), "check vote amount")
 
-	voteResult, err := getVoteResult(scs, types.GenProposalKey("numbp"), 1)
+	voteResult, err := getVoteResult(scs, GenProposalKey("numbp"), 1)
 	assert.NoError(t, err, "get vote result")
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
 
@@ -568,7 +568,7 @@ func TestProposalExecute(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, new(big.Int).Sub(balance3, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, types.GenProposalKey("numbp"), 1)
+	voteResult, err = getVoteResult(scs, GenProposalKey("numbp"), 1)
 	assert.NoError(t, err, "get vote result")
 	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
 	assert.Equal(t, 1, len(voteResult.Votes), "check result length")
@@ -591,7 +591,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 			Account:   sender.ID(),
 			Recipient: []byte(types.AergoSystem),
 			Amount:    types.ProposalPrice.Bytes(),
-			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "1","10","2","this vote is for the number of bp",["13","23","17"]]}`),
+			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "2","this vote is for the number of bp"]}`),
 		},
 	}
 	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
@@ -613,7 +613,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	assert.NoError(t, err, "failed in creating proposal")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-
+/*
 	invalidaVersionTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -658,6 +658,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	tooLateTx := tooEarlyTx
 	_, err = ExecuteSystemTx(scs, tooLateTx.GetBody(), sender, receiver, blockNo)
 	assert.Error(t, err, "the voting was already done at 10")
+*/
 }
 
 func TestProposalExecuteFail2(t *testing.T) {
@@ -690,7 +691,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 			Account:   sender.ID(),
 			Recipient: []byte(types.AergoSystem),
 			Amount:    types.ProposalPrice.Bytes(),
-			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "1","10","2","this vote is for the number of bp",[]]}`),
+			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "2","this vote is for the number of bp"]}`),
 		},
 	}
 	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
@@ -698,39 +699,9 @@ func TestProposalExecuteFail2(t *testing.T) {
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
 
-	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["numBP", "11","13","2","desc",[]]}`)
+	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["numBP", "2","desc"]}`)
 	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
 	assert.Error(t, err, "duplicated proposal")
-
-	invalidaVersionTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "non","13"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, invalidaVersionTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "the proposal is not created (numbp, non)")
-
-	tooEarlyTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, tooEarlyTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "the voting begins at 1")
-	blockNo += 10
-	tooManyCandiTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13","23","17"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, tooManyCandiTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "too many candidates arguments (max : 2)")
 
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
@@ -741,13 +712,9 @@ func TestProposalExecuteFail2(t *testing.T) {
 	}
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "valid")
-	internalVoteResult, err := loadVoteResult(scs, types.GenProposalKey("numbp"))
+	internalVoteResult, err := loadVoteResult(scs, GenProposalKey("numbp"))
 	assert.Equal(t, balance1, internalVoteResult.GetTotal(), "check result total")
 
-	blockNo += VotingDelay
-	tooLateTx := tooEarlyTx
-	_, err = ExecuteSystemTx(scs, tooLateTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "the voting was already done at 10")
 }
 
 func TestProposalExecute2(t *testing.T) {
@@ -791,7 +758,7 @@ func TestProposalExecute2(t *testing.T) {
 			Recipient: []byte(types.AergoSystem),
 			Amount:    types.ProposalPrice.Bytes(),
 			Type:      types.TxType_GOVERNANCE,
-			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "1","100000","2","this vote is for the number of bp",["13","23","27"]]}`),
+			Payload:   []byte(`{"Name":"v1createProposal", "Args":["numbp", "2","this vote is for the number of bp"]}`),
 			//Payload: []byte(`{"Name":"v1createProposal", "Args": [{"name": "numbp", "description": "so much desciption in here. this vote is for the number of bp", "version": "1", "blockfrom": 1, "blockto": 10, "maxvote": 2, "candidates": [ "13", "12", "27" ]}]`),
 		},
 	}
@@ -804,7 +771,7 @@ func TestProposalExecute2(t *testing.T) {
 	}
 
 	tx.Body.Account = sender2.ID()
-	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["numbp2", "2","20","1","this vote is for the number of bp",["13","23","17","97"]]}`)
+	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["numbp2", "2","this vote is for the number of bp"]}`)
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "failed in creating proposal")
 
@@ -834,7 +801,7 @@ func TestProposalExecute2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 
 	balance4 := new(big.Int).Mul(balance1, big.NewInt(4))
-	voteResult, err := getVoteResult(scs, types.GenProposalKey("numbp"), 3)
+	voteResult, err := getVoteResult(scs, GenProposalKey("numbp"), 3)
 	assert.NoError(t, err, "get vote result")
 	assert.Equal(t, new(big.Int).Mul(balance3, big.NewInt(2)), new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
 	assert.Equal(t, "13", string(voteResult.Votes[0].Candidate), "1st place")
@@ -856,9 +823,9 @@ func TestProposalExecute2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, types.GenProposalKey("numbp"), 3)
+	voteResult, err = getVoteResult(scs, GenProposalKey("numbp"), 3)
 	assert.NoError(t, err, "get vote result")
-	internalVoteResult, err := loadVoteResult(scs, types.GenProposalKey("numbp"))
+	internalVoteResult, err := loadVoteResult(scs, GenProposalKey("numbp"))
 	assert.Equal(t, balance5, internalVoteResult.GetTotal(), "check result total")
 
 	assert.Equal(t, balance5, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
@@ -868,20 +835,22 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "check result amount")
 	assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
 
-	blockNo += StakingDelay
-	//voting result was freeze
-	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
-	assert.NoError(t, err, "could not execute system tx")
-	assert.Equal(t, new(big.Int).Sub(balance3, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
+	/*
+		blockNo += StakingDelay
+		//voting result was freeze
+		_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
+		assert.NoError(t, err, "could not execute system tx")
+		assert.Equal(t, new(big.Int).Sub(balance3, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, types.GenProposalKey("numbp"), 3)
-	assert.NoError(t, err, "get vote result")
-	internalVoteResult, err = loadVoteResult(scs, types.GenProposalKey("numbp"))
-	assert.Equal(t, balance5, internalVoteResult.GetTotal(), "check result total")
-	assert.Equal(t, balance5, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
-	assert.Equal(t, "13", string(voteResult.Votes[0].Candidate), "1st place")
-	assert.Equal(t, balance3, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "check result amount")
-	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
-	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "check result amount")
-	assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
+		voteResult, err = getVoteResult(scs, GenProposalKey("numbp"), 3)
+		assert.NoError(t, err, "get vote result")
+		internalVoteResult, err = loadVoteResult(scs, GenProposalKey("numbp"))
+		assert.Equal(t, balance5, internalVoteResult.GetTotal(), "check result total")
+		assert.Equal(t, balance5, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
+		assert.Equal(t, "13", string(voteResult.Votes[0].Candidate), "1st place")
+		assert.Equal(t, balance3, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "check result amount")
+		assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
+		assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "check result amount")
+		assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
+	*/
 }

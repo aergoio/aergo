@@ -22,7 +22,7 @@ type SystemContext struct {
 	Args     []string
 	Staked   *types.Staking
 	Vote     *types.Vote
-	Proposal *types.Proposal
+	Proposal *Proposal
 	Sender   *state.V
 	Receiver *state.V
 }
@@ -95,7 +95,7 @@ func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, erro
 	var results []*types.VoteInfo
 	votes = append(votes, []byte(defaultVoteKey))
 	for _, key := range votes {
-		id := types.ProposalIDfromKey(key)
+		id := ProposalIDfromKey(key)
 		result := &types.VoteInfo{Id: id}
 		v, err := getVote(scs, key, address)
 		if err != nil {

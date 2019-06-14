@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -12,6 +13,29 @@ import (
 var proposalListKey = []byte("proposallist")
 
 type whereToVotes = [][]byte
+
+const proposalPrefixKey = "proposal" //aergo proposal format
+
+type Proposal struct {
+	ID             string
+	Description    string
+	Blockfrom      uint64
+	Blockto        uint64
+	MultipleChoice uint32
+	Candidates     []string
+}
+
+func (a *Proposal) GetKey() []byte {
+	return []byte(proposalPrefixKey + "\\" + strings.ToUpper(a.ID))
+}
+
+func GenProposalKey(id string) []byte {
+	return []byte(proposalPrefixKey + "\\" + strings.ToUpper(id))
+}
+
+func ProposalIDfromKey(key []byte) string {
+	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
+}
 
 func createProposal(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
 	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
@@ -37,8 +61,8 @@ func createProposal(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 }
 
 //getProposal find proposal using id
-func getProposal(scs *state.ContractState, id string) (*types.Proposal, error) {
-	dataKey := types.GenProposalKey(id)
+func getProposal(scs *state.ContractState, id string) (*Proposal, error) {
+	dataKey := GenProposalKey(id)
 	data, err := scs.GetData([]byte(dataKey))
 	if err != nil {
 		return nil, fmt.Errorf("could not get proposal from contract state DB : %s", id)
@@ -46,11 +70,11 @@ func getProposal(scs *state.ContractState, id string) (*types.Proposal, error) {
 	return deserializeProposal(data), nil
 }
 
-func setProposal(scs *state.ContractState, proposal *types.Proposal) error {
+func setProposal(scs *state.ContractState, proposal *Proposal) error {
 	return scs.SetData(proposal.GetKey(), serializeProposal(proposal))
 }
 
-func serializeProposal(proposal *types.Proposal) []byte {
+func serializeProposal(proposal *Proposal) []byte {
 	data, err := json.Marshal(proposal)
 	if err != nil {
 		panic("could not marshal proposal")
@@ -58,8 +82,8 @@ func serializeProposal(proposal *types.Proposal) []byte {
 	return data
 }
 
-func deserializeProposal(data []byte) *types.Proposal {
-	var proposal types.Proposal
+func deserializeProposal(data []byte) *Proposal {
+	var proposal Proposal
 	if err := json.Unmarshal(data, &proposal); err != nil {
 		return nil
 	}
@@ -81,7 +105,7 @@ func _getProposalHistory(scs *state.ContractState, key []byte) whereToVotes {
 	return deserializeProposalHistory(data)
 }
 
-func addProposalHistory(scs *state.ContractState, address []byte, proposal *types.Proposal) error {
+func addProposalHistory(scs *state.ContractState, address []byte, proposal *Proposal) error {
 	key := append(proposalListKey, address...)
 	proposalHistory := _getProposalHistory(scs, key)
 	proposalHistory = append(proposalHistory, proposal.GetKey())
@@ -101,14 +125,14 @@ func addProposalHistory(scs *state.ContractState, address []byte, proposal *type
 }
 
 func deserializeProposalHistory(data []byte) whereToVotes {
-	return bytes.Split(data, []byte("/"))
+	return bytes.Split(data, []byte("`"))
 }
 
 func serializeProposalHistory(wtv whereToVotes) []byte {
 	var data []byte
 	for i, w := range wtv {
 		if i != 0 {
-			data = append(data, '/')
+			data = append(data, '`')
 		}
 		data = append(data, w...)
 	}
