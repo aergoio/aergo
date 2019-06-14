@@ -367,6 +367,7 @@ func (cl *Cluster) isValidMember(member *consensus.Member) error {
 	// check if peerID of this node is valid
 	// check if peerID of this node is valid
 	if cl.NodeName() == member.Name && member.GetPeerID() != p2pkey.NodeID() {
+		logger.Error().Str("config", member.GetPeerID().String()).Str("p2pnodeid", p2pkey.NodeID().String()).Msg("peerID value is not matched with P2P")
 		return ErrInvalidRaftPeerID
 	}
 
