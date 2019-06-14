@@ -614,7 +614,7 @@ func (e *blockExecutor) execute() error {
 		for i, tx := range e.txs {
 			if i != nCand-1 {
 				preLoadTx = e.txs[i+1]
-				contract.PreLoadRequest(e.BlockState, preLoadTx, contract.ChainService)
+				contract.PreLoadRequest(e.BlockState, preLoadTx, tx, contract.ChainService)
 			}
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
@@ -854,10 +854,13 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 
 	recipient := name.Resolve(bs, txBody.Recipient)
 	var receiver *state.V
-	var status string
+	status := "SUCCESS"
 	if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
-		status = "SUCCESS"
+		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
+			status = "RECREATED"
+			receiver.SetRedeploy()
+		}
 	} else {
 		receiver, err = bs.CreateAccountStateV(contract.CreateContractID(txBody.Account, txBody.Nonce))
 		status = "CREATED"
@@ -870,7 +873,7 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 	var rv string
 	var events []*types.Event
 	switch txBody.Type {
-	case types.TxType_NORMAL:
+	case types.TxType_NORMAL, types.TxType_REDEPLOY:
 		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:

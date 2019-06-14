@@ -20,11 +20,12 @@ import (
 )
 
 var (
-	client *util.ConnClient
-	data   string
-	nonce  uint64
-	toJson bool
-	gover  bool
+	client     *util.ConnClient
+	data       string
+	nonce      uint64
+	toJson     bool
+	gover      bool
+	contractID string
 )
 
 func init() {
@@ -42,6 +43,7 @@ func init() {
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
+	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "re-redeploy the contract")
 
 	callCmd := &cobra.Command{
 		Use:   "call [flags] sender contract funcname '[argument...]'",
@@ -156,12 +158,23 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
+	txType := types.TxType_NORMAL
+	var recipient []byte
+	if len(contractID) > 0 {
+		txType = types.TxType_REDEPLOY
+		recipient, err = types.DecodeAddress(contractID)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Nonce:   state.GetNonce() + 1,
-			Account: creator,
-			Payload: payload,
-			Amount:  amountBigInt.Bytes(),
+			Nonce:     state.GetNonce() + 1,
+			Account:   creator,
+			Payload:   payload,
+			Amount:    amountBigInt.Bytes(),
+			Type:      txType,
+			Recipient: recipient,
 		},
 	}
 

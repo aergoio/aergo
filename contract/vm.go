@@ -682,12 +682,12 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	var contractCode []byte
 
 	if bs != nil {
-		contractCode = bs.CodeMap[contractAid]
+		contractCode = bs.CodeMap.Get(contractAid)
 	}
 	if contractCode == nil {
 		contractCode = getContract(contractState, nil)
 		if contractCode != nil && bs != nil {
-			bs.CodeMap[contractAid] = contractCode
+			bs.CodeMap.Add(contractAid, contractCode)
 		}
 	}
 
@@ -757,7 +757,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if err != nil {
 		return "", nil, stateSet.usedFee(), err
 	}
-	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(stateSet.curContract.sender)))
 	if err != nil {
 		return "", nil, stateSet.usedFee(), err
 	}
