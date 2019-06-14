@@ -98,6 +98,8 @@ var ConsensusName = []string{"dpos", "raft", "sbp"}
 
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
+	ChainConsensusCluster
+
 	GetType() ConsensusType
 	IsTransactionValid(tx *types.Tx) bool
 	VerifyTimestamp(block *types.Block) bool
@@ -109,6 +111,10 @@ type ChainConsensus interface {
 	NeedNotify() bool
 	HasWAL() bool // if consensus has WAL, block has already written in db
 	Info() string
+}
+
+type ChainConsensusCluster interface {
+	RequestConfChange(req *types.MembershipChange) error
 }
 
 type TxWriter interface {

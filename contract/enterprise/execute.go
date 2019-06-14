@@ -3,18 +3,25 @@ package enterprise
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/consensus"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
+var (
+	ErrNotSupportedMethod = errors.New("Not supported Enterprise Tx")
+)
+
 type EnterpriseContext struct {
-	Call   *types.CallInfo
-	Args   []string
-	Admins [][]byte
-	Old    *Conf
+	Call    *types.CallInfo
+	Args    []string
+	ArgsAny []interface{}
+	Admins  [][]byte
+	Old     *Conf
 }
 
 func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
@@ -37,7 +44,7 @@ func (e *EnterpriseContext) IsOldConfValue(value string) bool {
 	return false
 }
 
-func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
+func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
 	sender *state.V) ([]*types.Event, error) {
 	context, err := ValidateEnterpriseTx(txBody, sender, scs)
 	if err != nil {
@@ -128,6 +135,19 @@ func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		})
+	case ChangeCluster:
+		if ccc == nil {
+			return nil, ErrNotSupportedMethod
+		}
+
+		ccReq, ok := context.ArgsAny[0].(*types.MembershipChange)
+		if !ok {
+			return nil, fmt.Errorf("invalid cluster change argument")
+		}
+		fmt.Printf("cluster change request: %s", ccReq.ToString())
+		if err := ccc.RequestConfChange(ccReq); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported call in enterprise contract")
 	}

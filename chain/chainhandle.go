@@ -557,7 +557,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
 
-		exec = NewTxExecutor(cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService, block.GetHeader().ChainID)
+		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService, block.GetHeader().ChainID)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -585,7 +585,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int, chainID []byte) TxExecFn {
+func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int, chainID []byte) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -593,7 +593,7 @@ func NewTxExecutor(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, 
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
+		err := executeTx(ccc, cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(snapshot); err2 != nil {
@@ -821,7 +821,7 @@ func adjustRv(ret string) string {
 	return ret
 }
 
-func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainIDHash []byte) error {
+func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainIDHash []byte) error {
 
 	txBody := tx.GetBody()
 
@@ -878,7 +878,7 @@ func executeTx(cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transa
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		events, err = executeGovernanceTx(bs, txBody, sender, receiver, blockNo)
+		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

@@ -58,6 +58,9 @@ func (stubC *StubConsensus) NeedNotify() bool {
 func (stubC *StubConsensus) HasWAL() bool {
 	return false
 }
+func (stubC *StubConsensus) RequestConfChange(req *types.MembershipChange) error {
+	return consensus.ErrNotSupportedMethod
+}
 
 func makeBlockChain() *ChainService {
 	serverCtx := config.NewServerContext("", "")

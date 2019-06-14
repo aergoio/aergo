@@ -33,7 +33,7 @@ type txExec struct {
 func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -230,6 +230,10 @@ func (s *SimpleBlockFactory) HasWAL() bool {
 
 func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
 	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (s *SimpleBlockFactory) RequestConfChange(req *types.MembershipChange) error {
+	return consensus.ErrNotSupportedMethod
 }
 
 func (s *SimpleBlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {

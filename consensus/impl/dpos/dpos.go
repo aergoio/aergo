@@ -329,6 +329,10 @@ func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, er
 	return nil, consensus.ErrNotSupportedMethod
 }
 
+func (dpos *DPoS) RequestConfChange(req *types.MembershipChange) error {
+	return consensus.ErrNotSupportedMethod
+}
+
 func (dpos *DPoS) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
 	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
 }
