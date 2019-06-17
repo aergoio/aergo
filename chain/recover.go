@@ -32,7 +32,7 @@ func RecoverExit() {
 func (cs *ChainService) Recover() error {
 	defer RecoverExit()
 
-	cs.setRecovered(true)
+	logger.Debug().Msg("recover start")
 
 	// check if reorg marker exists
 	marker, err := cs.cdb.getReorgMarker()
@@ -82,7 +82,7 @@ func (cs *ChainService) recoverNormal() error {
 		return err
 	}
 
-	logger.Info().Msg("check for crash recovery")
+	logger.Info().Msg("start normal recovery")
 
 	stateDB := cs.sdb.GetStateDB()
 	if !stateDB.HasMarker(best.GetHeader().GetBlocksRootHash()) {
@@ -92,6 +92,8 @@ func (cs *ChainService) recoverNormal() error {
 	if !bytes.Equal(cs.sdb.GetStateDB().GetRoot(), best.GetHeader().GetBlocksRootHash()) {
 		return ErrRecoInvalidSdbRoot
 	}
+
+	logger.Info().Msg("recover normal end")
 
 	return nil
 }
@@ -111,7 +113,7 @@ func (cs *ChainService) recoverReorg(marker *ReorgMarker) error {
 		return err
 	}
 
-	logger.Info().Msg("recovery end")
+	logger.Info().Msg("recover reorg end")
 	return nil
 }
 

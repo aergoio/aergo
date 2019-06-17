@@ -387,9 +387,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
 		}
 
-		if cs.cfg.Blockchain.VerifyOnly {
-			cs.chainVerifier.Request(&message.VerifyStart{}, context.Sender())
-		}
+		cs.setRecovered(true)
 	}
 
 	switch msg := context.Message().(type) {

@@ -7,10 +7,12 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"reflect"
+	"time"
 )
 
 type ChainVerifier struct {
 	*SubComponent
+	cs            *ChainService
 	IChainHandler //to use chain APIs
 	*Core
 	reader *BlockReader
@@ -18,7 +20,7 @@ type ChainVerifier struct {
 }
 
 func newChainVerifier(cs *ChainService, core *Core) *ChainVerifier {
-	chainVerifier := &ChainVerifier{IChainHandler: cs, Core: core}
+	chainVerifier := &ChainVerifier{IChainHandler: cs, Core: core, cs: cs}
 	chainVerifier.SubComponent = NewSubComponent(chainVerifier, cs.BaseComponent, chainVerifierName, 1)
 
 	var (
@@ -40,7 +42,14 @@ func (cv *ChainVerifier) Receive(context actor.Context) {
 
 	switch msg := context.Message().(type) {
 	case *message.VerifyStart:
-		logger.Info().Msg("verify chain started")
+
+	case *actor.Started:
+		logger.Info().Msg("verify chain service start")
+
+		for !cv.cs.isRecovered() {
+			logger.Debug().Msg("recovery of chain doesn't finished")
+			time.Sleep(time.Second * 5)
+		}
 
 		if err := cv.VerifyChain(); err != nil {
 			logger.Error().Err(err).Msg("failed to verify chain")
@@ -92,6 +101,8 @@ func (cv *ChainVerifier) VerifyChain() error {
 		err   error
 		block *types.Block
 	)
+
+	logger.Info().Msg("start verifychan")
 
 	// get genesis block
 	if block, err = cv.reader.getNext(); err != nil || block == nil {
