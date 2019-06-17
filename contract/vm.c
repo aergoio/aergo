@@ -167,13 +167,15 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 	return NULL;
 }
 
-const char *vm_get_json_ret(lua_State *L, int nresult)
+const char *vm_get_json_ret(lua_State *L, int nresult, int* err)
 {
 	int top = lua_gettop(L);
 	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, true);
 
-	if (json_ret == NULL)
+	if (json_ret == NULL) {
+	    *err = 1;
 		return lua_tostring(L, -1);
+    }
 
 	lua_pushstring(L, json_ret);
 	free(json_ret);
