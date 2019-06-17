@@ -1480,12 +1480,11 @@ abi.register(r)`
 		NewLuaTxDef("ktlee", "r", 0, definition),
 		tx,
 	)
-	if err != nil {
+	if err == nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `nested table error` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	if err.Error() != `nested table error` {
+		t.Errorf("contract Call ret error :%s", err.Error())
 	}
 }
 
@@ -2901,6 +2900,10 @@ abi.register(default)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "default", 1, "").Fail(`'default' is not payable`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("default", `{"Name":"a"}`, "not found function: a", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4461,4 +4464,48 @@ func TestSnapshot(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestByteKey(t *testing.T) {
+	bk := `
+state.var {
+    c = state.map(),
+}
+
+function constructor()
+    c[fromhex('00')] = "kk"
+    c[fromhex('61')] = "kk"
+    system.setItem(fromhex('00'), "kk")
+end
+
+function fromhex(str)
+    return (str:gsub('..', function (cc)
+        return string.char(tonumber(cc, 16))
+    end))
+end
+function get()
+	return c[fromhex('00')], system.getItem(fromhex('00')), system.getItem(fromhex('0000'))
+end
+function getcre()
+	return system.getCreator()
+end
+abi.register(get, getcre)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000),
+		NewLuaTxDef("ktlee", "bk", 0, bk),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bk", `{"Name":"get"}`, "", `["kk","kk"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bk", `{"Name":"getcre"}`, "", `"Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
