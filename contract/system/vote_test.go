@@ -134,17 +134,17 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildStakingPayload(true)
 
-	context, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, 0)
+	context, err := newSystemContext(tx.Body.Account, tx.Body, sender, receiver, scs, 0)
 	assert.NoError(t, err, "staking validation")
-	_, err = staking(tx.Body, sender, receiver, scs, 0, context)
+	_, err = staking(context)
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	context, err = newSystemContext(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
-	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, context)
+	_, err = voting(context)
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
@@ -157,9 +157,9 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
+	context, err = newSystemContext(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
-	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, context)
+	_, err = unstaking(context)
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, defaultVoteKey, 23)

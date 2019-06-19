@@ -37,10 +37,15 @@ func ProposalIDfromKey(key []byte) string {
 	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
 }
 
-func createProposal(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	proposal := context.Proposal
-	amount := txBody.GetAmountBigInt()
+func createProposal(context *SystemContext) (*types.Event, error) {
+	var (
+		scs      = context.scs
+		proposal = context.Proposal
+		sender   = context.Sender
+		receiver = context.Receiver
+		amount   = context.amount
+	)
+
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 	if err := setProposal(scs, proposal); err != nil {
@@ -55,7 +60,7 @@ func createProposal(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 		EventIdx:        0,
 		EventName:       context.Call.Name[2:],
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(txBody.Account) +
+			types.EncodeAddress(sender.ID()) +
 			`", "Proposal":` + string(log) + `}`,
 	}, nil
 }

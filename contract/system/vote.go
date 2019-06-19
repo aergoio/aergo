@@ -8,14 +8,12 @@ package system
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"math/big"
 	"strconv"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/mr-tron/base58"
 )
 
 var lastBpCount int
@@ -31,50 +29,26 @@ const VotingDelay = 60 * 60 * 24 //block interval
 
 var defaultVoteKey = []byte(types.VoteBP)[2:]
 
-func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	var issue []byte
-	var args []byte
-	var err error
-	if context.Proposal != nil {
-		issue = context.Proposal.GetKey()
-		args, err = json.Marshal(context.Call.Args[1:]) //[0] is name
-		if err != nil {
-			return nil, err
-		}
-		if err := addProposalHistory(scs, sender.ID(), context.Proposal); err != nil {
-			return nil, err
-		}
-	} else {
-		// XXX Only BP election case?
-		issue = []byte(context.Call.Name)[2:]
-		args, err = json.Marshal(context.Call.Args)
-		if err != nil {
-			return nil, err
-		}
-	}
+func voting(context *SystemContext) (*types.Event, error) {
+	var (
+		sender = context.Sender
+		scs    = context.scs
+
+		err error
+	)
+
 	// The variable args is a JSON bytes. It is used as vote.candidate for the
 	// proposal based voting, while just as an event output for BP election.
 	staked := context.Staked
-	//update block number
-	staked.When = blockNo
+	// Update block number
+	staked.When = context.BlockNo
 
 	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeVote
 	}
-	vote := &types.Vote{Amount: staked.GetAmount()}
-	var candidates []byte
-	// Set vote.candidate.
-	if bytes.Equal(issue, defaultVoteKey) {
-		// XXX Why string comparison is used here, while context.Proposal is
-		// checked above?
-		for _, v := range context.Call.Args {
-			candidate, _ := base58.Decode(v.(string))
-			candidates = append(candidates, candidate...)
-		}
-		vote.Candidate = candidates
-	} else {
-		vote.Candidate = args
+	vote := &types.Vote{
+		Candidate: context.candidate,
+		Amount:    staked.GetAmount(),
 	}
 
 	err = setStaking(scs, sender.ID(), staked)
@@ -82,7 +56,7 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		return nil, err
 	}
 
-	voteResult, err := loadVoteResult(scs, issue)
+	voteResult, err := loadVoteResult(scs, context.issue)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +67,7 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		return nil, err
 	}
 
-	err = setVote(scs, issue, sender.ID(), vote)
+	err = setVote(scs, context.issue, sender.ID(), vote)
 	if err != nil {
 		return nil, err
 	}
@@ -106,22 +80,26 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 	if err != nil {
 		return nil, err
 	}
+
 	return &types.Event{
-		ContractAddress: receiver.ID(),
+		ContractAddress: context.Receiver.ID(),
 		EventIdx:        0,
 		EventName:       context.Call.Name[2:],
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(txBody.Account) +
-			`", "vote":` + string(args) + `}`,
+			types.EncodeAddress(sender.ID()) +
+			`", "vote":` + string(context.args) + `}`,
 	}, nil
 }
 
-func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
-	context *SystemContext) error {
-	account := context.Sender.ID()
-	staked := context.Staked
-	stakedAmount := new(big.Int).SetBytes(staked.Amount)
-	allVotes := getProposalHistory(scs, account)
+func refreshAllVote(context *SystemContext) error {
+	var (
+		scs          = context.scs
+		account      = context.Sender.ID()
+		staked       = context.Staked
+		stakedAmount = new(big.Int).SetBytes(staked.Amount)
+		allVotes     = getProposalHistory(scs, account)
+	)
+
 	allVotes = append(allVotes, []byte(types.VoteBP[2:]))
 	for _, key := range allVotes {
 		oldvote, err := getVote(scs, key, account)

@@ -27,8 +27,8 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 	sender.AddBalance(minplusmin)
 
-	ci, err := ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, 0)
-	_, err = staking(tx.Body, sender, receiver, scs, 0, ci)
+	ci, err := newSystemContext(sender.ID(), tx.GetBody(), sender, receiver, scs, 0)
+	_, err = staking(ci)
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
 	saved, err := getStaking(scs, tx.Body.Account)
@@ -40,9 +40,9 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	ci, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, StakingDelay-1)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 
-	ci, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, StakingDelay)
+	ci, err = newSystemContext(sender.ID(), tx.GetBody(), sender, receiver, scs, StakingDelay)
 	assert.NoError(t, err, "should be success")
-	_, err = unstaking(tx.Body, sender, receiver, scs, StakingDelay, ci)
+	_, err = unstaking(ci)
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
 	saved, err = getStaking(scs, tx.Body.Account)
@@ -65,8 +65,8 @@ func TestStaking1Unstaking2(t *testing.T) {
 	}
 	sender.AddBalance(types.MaxAER)
 
-	ci, err := ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, 0)
-	_, err = staking(tx.Body, sender, receiver, scs, 0, ci)
+	ci, err := newSystemContext(sender.ID(), tx.GetBody(), sender, receiver, scs, 0)
+	_, err = staking(ci)
 	assert.Equal(t, err, nil, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be 'MaxAER - StakingMin' after staking")

@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
@@ -26,17 +25,18 @@ func InitGovernance(consensus string) {
 	consensusType = consensus
 }
 
-func staking(txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	if consensusType != "dpos" {
-		return nil, fmt.Errorf("unsupported staking for the consensus: %s", consensusType)
-	}
+func staking(context *SystemContext) (*types.Event, error) {
+	var (
+		scs       = context.scs
+		staked    = context.Staked
+		curAmount = staked.GetAmountBigInt()
+		amount    = context.amount
+		sender    = context.Sender
+		receiver  = context.Receiver
+	)
 
-	staked := context.Staked
-	beforeStaked := staked.GetAmountBigInt()
-	amount := txBody.GetAmountBigInt()
-	staked.Amount = new(big.Int).Add(beforeStaked, amount).Bytes()
-	staked.When = blockNo
+	staked.Amount = new(big.Int).Add(curAmount, amount).Bytes()
+	staked.When = context.BlockNo
 	if err := setStaking(scs, sender.ID(), staked); err != nil {
 		return nil, err
 	}
@@ -51,44 +51,41 @@ func staking(txBody *types.TxBody, sender, receiver *state.V,
 		EventName:       "stake",
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
+			`", "amount":"` + amount.String() + `"}`,
 	}, nil
 }
 
-func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	staked := context.Staked
-	amount := txBody.GetAmountBigInt()
-	var backToBalance *big.Int
-	if staked.GetAmountBigInt().Cmp(amount) < 0 {
-		amount = new(big.Int).SetUint64(0)
-		backToBalance = staked.GetAmountBigInt()
-	} else {
-		amount = new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-		backToBalance = txBody.GetAmountBigInt()
-	}
-	staked.Amount = amount.Bytes()
+func unstaking(context *SystemContext) (*types.Event, error) {
+	var (
+		scs               = context.scs
+		staked            = context.Staked
+		sender            = context.Sender
+		receiver          = context.Receiver
+		balanceAdjustment = context.amountToUnstake
+	)
+
+	staked.Amount = new(big.Int).Sub(staked.GetAmountBigInt(), balanceAdjustment).Bytes()
 	//blockNo will be updated in voting
-	staked.When = blockNo
+	staked.When = context.BlockNo
 
 	if err := setStaking(scs, sender.ID(), staked); err != nil {
 		return nil, err
 	}
-	if err := refreshAllVote(txBody, scs, context); err != nil {
+	if err := refreshAllVote(context); err != nil {
 		return nil, err
 	}
-	if err := subTotal(scs, backToBalance); err != nil {
+	if err := subTotal(scs, balanceAdjustment); err != nil {
 		return nil, err
 	}
-	sender.AddBalance(backToBalance)
-	receiver.SubBalance(backToBalance)
+	sender.AddBalance(balanceAdjustment)
+	receiver.SubBalance(balanceAdjustment)
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "unstake",
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
+			`", "amount":"` + context.amountToUnstake.String() + `"}`,
 	}, nil
 }
 
