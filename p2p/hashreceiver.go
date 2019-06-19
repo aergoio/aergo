@@ -10,7 +10,6 @@ import (
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -42,7 +41,7 @@ func NewBlockHashesReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemoteP
 func (br *BlockHashesReceiver) StartGet() {
 	// create message data
 	req := &types.GetHashesRequest{PrevHash: br.prevBlock.Hash, PrevNumber: br.prevBlock.No, Size: uint64(br.count)}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetHashesRequest, req)
+	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetHashesRequest, req)
 	br.peer.SendMessage(mo)
 	br.requestID = mo.GetMsgID()
 }

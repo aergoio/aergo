@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -140,7 +139,7 @@ func createDummyMo(ctrl *gomock.Controller) *p2pmock.MockMsgOrder {
 	dummyMo = p2pmock.NewMockMsgOrder(ctrl)
 	dummyMo.EXPECT().IsNeedSign().Return(true).AnyTimes()
 	dummyMo.EXPECT().IsRequest().Return(true).AnyTimes()
-	dummyMo.EXPECT().GetProtocolID().Return(subproto.NewTxNotice).AnyTimes()
+	dummyMo.EXPECT().GetProtocolID().Return(p2pcommon.NewTxNotice).AnyTimes()
 	dummyMo.EXPECT().GetMsgID().Return(p2pcommon.NewMsgID()).AnyTimes()
 	return dummyMo
 }

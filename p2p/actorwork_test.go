@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"testing"
@@ -53,7 +52,7 @@ func TestP2P_GetAddresses(t *testing.T) {
 			p2pmock.NewMockRemotePeer(ctrl)
 			mockPM.EXPECT().GetPeer(dummyPeerID).Return(mockPeer, tt.hasPeer).Times(1)
 			mockPM.EXPECT().SelfMeta().Return(dummyPeerMeta).Times(tt.wantSend).MaxTimes(tt.wantSend)
-			mockMF.EXPECT().NewMsgRequestOrder(true, subproto.AddressesRequest, gomock.AssignableToTypeOf(&types.AddressesRequest{})).Times(tt.wantSend)
+			mockMF.EXPECT().NewMsgRequestOrder(true, p2pcommon.AddressesRequest, gomock.AssignableToTypeOf(&types.AddressesRequest{})).Times(tt.wantSend)
 			p2ps := &P2P{
 				pm:mockPM, mf:mockMF,
 			}
@@ -93,7 +92,7 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 	mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 
 	dummyMo = createDummyMo(ctrl)
-	mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), subproto.GetBlocksRequest, gomock.Any()).
+	mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), p2pcommon.GetBlocksRequest, gomock.Any()).
 		Return(dummyMo).Times(1)
 
 	ps = &P2P{}
@@ -137,7 +136,7 @@ func TestP2P_GetBlockHashByNo(t *testing.T) {
 	mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 
 	dummyMo = createDummyMo(ctrl)
-	mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), subproto.GetHashByNoRequest, gomock.Any()).
+	mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), p2pcommon.GetHashByNoRequest, gomock.Any()).
 		Return(dummyMo).Times(1)
 
 	ps = &P2P{}

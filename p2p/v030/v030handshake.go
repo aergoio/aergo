@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -59,7 +58,7 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 		return nil, err
 	}
 
-	container := createMessage(subproto.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
+	container := createMessage(p2pcommon.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
 	if container == nil {
 		// h.logger.Warn().Str(LogPeerID, ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to craete container message")
@@ -87,8 +86,8 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 		// go on
 	}
 
-	if data.Subprotocol() != subproto.StatusRequest {
-		if data.Subprotocol() == subproto.GoAway {
+	if data.Subprotocol() != p2pcommon.StatusRequest {
+		if data.Subprotocol() == p2pcommon.GoAway {
 			return h.handleGoAway(peerID, data)
 		} else {
 			return nil, fmt.Errorf("unexpected message type")
@@ -140,11 +139,11 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 		// go on
 	}
 
-	if data.Subprotocol() != subproto.StatusRequest {
-		if data.Subprotocol() == subproto.GoAway {
+	if data.Subprotocol() != p2pcommon.StatusRequest {
+		if data.Subprotocol() == p2pcommon.GoAway {
 			return h.handleGoAway(peerID, data)
 		} else {
-			h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("expected", subproto.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+			h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("expected", p2pcommon.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
 			return nil, fmt.Errorf("unexpected message type")
 		}
 	}
@@ -176,7 +175,7 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		return nil, err
 	}
-	container :=  createMessage(subproto.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
+	container :=  createMessage(p2pcommon.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
 	if container == nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to create p2p message")

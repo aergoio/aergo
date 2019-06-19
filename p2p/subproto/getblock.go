@@ -31,7 +31,7 @@ var _ p2pcommon.MessageHandler = (*blockResponseHandler)(nil)
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func NewBlockReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *blockRequestHandler {
-	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 
 	return bh
 }
@@ -90,7 +90,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 				//HasNext:msgSentCount<MaxResponseSplitCount, // always have nextItem ( see foundBlock) but msg count limit will affect
 			}
 			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending partial getBlock response")
-			err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
+			err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, p2pcommon.GetBlocksResponse, resp), defaultMsgTimeout)
 			if err != nil {
 				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending failed")
 				return
@@ -117,7 +117,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 
 	// ???: have to check arguments
 	bh.logger.Debug().Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending last part of getBlock response")
-	err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
+	err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, p2pcommon.GetBlocksResponse, resp), defaultMsgTimeout)
 	if err != nil {
 		bh.logger.Info().Int(p2putil.LogBlkCount, len(data.Hashes)).Err(err).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending failed")
 		return
@@ -126,7 +126,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 
 // newBlockRespHandler creates handler for GetBlockResponse
 func NewBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlocksResponse, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 

@@ -13,7 +13,6 @@ import (
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -128,7 +127,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			br := NewBlockReceiver(mockActor, mockPeer, seqNo, test.input, time.Minute<<2)
 			br.StartGet()
 
-			msg := p2pcommon.NewSimpleMsgVal(subproto.GetBlocksResponse, sampleMsgID)
+			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetBlocksResponse, sampleMsgID)
 			for i, blks := range test.blkInput {
 				body := &types.GetBlockResponse{Blocks: blks, HasNext: i < len(test.blkInput)-1}
 				br.ReceiveResp(msg, body)
@@ -204,7 +203,7 @@ func TestBlocksChunkReceiver_ReceiveRespTimeout(t *testing.T) {
 			br := NewBlockReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := p2pcommon.NewSimpleMsgVal(subproto.GetBlocksResponse, sampleMsgID)
+			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetBlocksResponse, sampleMsgID)
 			for i, blks := range test.blkInput {
 				time.Sleep(test.blkInterval)
 

@@ -26,7 +26,7 @@ var _ p2pcommon.MessageHandler = (*raftWrapperHandler)(nil)
 // NewGetClusterReqHandler creates handler for PingRequest
 func NewRaftWrapperHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, consAcc consensus.ConsensusAccessor) *raftWrapperHandler {
 	ph := &raftWrapperHandler{
-		BaseMsgHandler: BaseMsgHandler{protocol: RaftWrapperMessage, pm: pm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.RaftWrapperMessage, pm: pm, peer: peer, actor: actor, logger: logger},
 		consAcc:        consAcc,
 	}
 	return ph

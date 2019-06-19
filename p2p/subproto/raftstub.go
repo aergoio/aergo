@@ -22,7 +22,7 @@ var _ p2pcommon.MessageHandler = (*raftBPNoticeDiscardHandler)(nil)
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func NewBPNoticeDiscardHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) p2pcommon.MessageHandler {
-	bh := &raftBPNoticeDiscardHandler{BaseMsgHandler: BaseMsgHandler{protocol: BlockProducedNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	bh := &raftBPNoticeDiscardHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.BlockProducedNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -50,7 +50,7 @@ var _ p2pcommon.MessageHandler = (*raftNewBlkNoticeDiscardHandler)(nil)
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func NewBlkNoticeDiscardHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) p2pcommon.MessageHandler {
-	bh := &raftNewBlkNoticeDiscardHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	bh := &raftNewBlkNoticeDiscardHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.NewBlockNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 

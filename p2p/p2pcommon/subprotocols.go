@@ -3,13 +3,11 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package subproto
-
-import "github.com/aergoio/aergo/p2p/p2pcommon"
+package p2pcommon
 
 // NOTE: change const of protocols_test.go
 const (
-	_ p2pcommon.SubProtocol = 0x00 + iota
+	_ SubProtocol = 0x00 + iota
 	StatusRequest
 	PingRequest
 	PingResponse
@@ -18,7 +16,7 @@ const (
 	AddressesResponse
 )
 const (
-	GetBlocksRequest p2pcommon.SubProtocol = 0x010 + iota
+	GetBlocksRequest SubProtocol = 0x010 + iota
 	GetBlocksResponse
 	GetBlockHeadersRequest
 	GetBlockHeadersResponse
@@ -33,7 +31,7 @@ const (
 	GetHashByNoResponse
 )
 const (
-	GetTXsRequest p2pcommon.SubProtocol = 0x020 + iota
+	GetTXsRequest SubProtocol = 0x020 + iota
 	GetTXsResponse
 	NewTxNotice
 )
@@ -41,15 +39,14 @@ const (
 // subprotocols for block producers and their own trusted nodes
 const (
 	// BlockProducedNotice from block producer to trusted nodes and other bp nodes
-	BlockProducedNotice p2pcommon.SubProtocol = 0x030 + iota
+	BlockProducedNotice SubProtocol = 0x030 + iota
 )
 
 const (
-	_ p2pcommon.SubProtocol = 0x3100 + iota
+	_ SubProtocol = 0x3100 + iota
 	GetClusterRequest
 	GetClusterResponse
 	RaftWrapperMessage  //
 )
 
-// stringer is not works when the package of type definition and const is differ.
-// go:generate stringer -type=SubProtocol
+//go:generate stringer -type=SubProtocol

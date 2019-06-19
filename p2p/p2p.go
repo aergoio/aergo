@@ -322,42 +322,42 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 	logger := p2ps.Logger
 
 	// PingHandlers
-	peer.AddMessageHandler(subproto.PingRequest, subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.PingResponse, subproto.NewPingRespHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GoAway, subproto.NewGoAwayHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.AddressesRequest, subproto.NewAddressesReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.AddressesResponse, subproto.NewAddressesRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.PingRequest, subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.PingResponse, subproto.NewPingRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GoAway, subproto.NewGoAwayHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.AddressesRequest, subproto.NewAddressesReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.AddressesResponse, subproto.NewAddressesRespHandler(p2ps.pm, peer, logger, p2ps))
 
 	// BlockHandlers
-	peer.AddMessageHandler(subproto.GetBlocksRequest, subproto.NewBlockReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetBlocksResponse, subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
-	peer.AddMessageHandler(subproto.GetBlockHeadersRequest, subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetBlockHeadersResponse, subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetAncestorRequest, subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetAncestorResponse, subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetHashesRequest, subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetHashesResponse, subproto.NewGetHashesRespHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetHashByNoRequest, subproto.NewGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.GetHashByNoResponse, subproto.NewGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetBlocksRequest, subproto.NewBlockReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetBlocksResponse, subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	peer.AddMessageHandler(p2pcommon.GetBlockHeadersRequest, subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetBlockHeadersResponse, subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetAncestorRequest, subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetAncestorResponse, subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetHashesRequest, subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetHashesResponse, subproto.NewGetHashesRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetHashByNoRequest, subproto.NewGetHashByNoReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetHashByNoResponse, subproto.NewGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps))
 
 	// TxHandlers
-	peer.AddMessageHandler(subproto.GetTXsRequest, subproto.WithTimeLog(subproto.NewTxReqHandler(p2ps.pm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
-	peer.AddMessageHandler(subproto.GetTXsResponse, subproto.WithTimeLog(subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
-	peer.AddMessageHandler(subproto.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
+	peer.AddMessageHandler(p2pcommon.GetTXsRequest, subproto.WithTimeLog(subproto.NewTxReqHandler(p2ps.pm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
+	peer.AddMessageHandler(p2pcommon.GetTXsResponse, subproto.WithTimeLog(subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
+	peer.AddMessageHandler(p2pcommon.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 
 	// block notice handlers
 	if p2ps.selfRole == p2pcommon.RaftLeader || p2ps.selfRole == p2pcommon.RaftFollower {
-		peer.AddMessageHandler(subproto.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
-		peer.AddMessageHandler(subproto.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {
-		peer.AddMessageHandler(subproto.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel ))
-		peer.AddMessageHandler(subproto.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel ))
+		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	}
 
 	// Raft support
-	peer.AddMessageHandler(subproto.GetClusterRequest, subproto.NewGetClusterReqHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
-	peer.AddMessageHandler(subproto.GetClusterResponse, subproto.NewGetClusterRespHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(subproto.RaftWrapperMessage, subproto.NewRaftWrapperHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
+	peer.AddMessageHandler(p2pcommon.GetClusterRequest, subproto.NewGetClusterReqHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
+	peer.AddMessageHandler(p2pcommon.GetClusterResponse, subproto.NewGetClusterRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.RaftWrapperMessage, subproto.NewRaftWrapperHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
 
 }
 

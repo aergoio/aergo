@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"testing"
 	"time"
 
@@ -113,7 +112,7 @@ func TestBlockHashByNoReceiver_ReceiveResp(t *testing.T) {
 			br := NewBlockHashByNoReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := p2pcommon.NewSimpleMsgVal(subproto.GetHashByNoResponse, sampleMsgID)
+			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetHashByNoResponse, sampleMsgID)
 			body := &types.GetHashByNoResponse{BlockHash: test.blkRsp, Status: test.rspStatus}
 			if test.blkInterval > 0 {
 				time.Sleep(test.blkInterval)

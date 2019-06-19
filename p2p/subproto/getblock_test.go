@@ -70,7 +70,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			}).MinTimes(1)
 
 			h := NewBlockReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &testMessage{subProtocol: GetBlocksRequest,id: p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{subProtocol: p2pcommon.GetBlocksRequest,id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
 			h.Handle(dummyMsg, msgBody)
 
@@ -146,7 +146,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 			mockSM.EXPECT().HandleGetBlockResponse(mockPeer, gomock.Any(), gomock.AssignableToTypeOf(&types.GetBlockResponse{})).Times(test.wantCallSM)
 
 			mockPeer.EXPECT().GetReceiver(gomock.AssignableToTypeOf(p2pcommon.MsgID{})).Return(test.receiver)
-			msg := &testMessage{subProtocol: GetBlocksResponse, id: p2pcommon.NewMsgID()}
+			msg := &testMessage{subProtocol: p2pcommon.GetBlocksResponse, id: p2pcommon.NewMsgID()}
 			body := &types.GetBlockResponse{Blocks: make([]*types.Block, 2)}
 			h := NewBlockRespHandler(mockPM, mockPeer, logger, mockActor, mockSM)
 			h.Handle(msg, body)

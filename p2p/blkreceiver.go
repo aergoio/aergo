@@ -13,7 +13,6 @@ import (
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -57,7 +56,7 @@ func (br *BlocksChunkReceiver) StartGet() {
 	}
 	// create message data
 	req := &types.GetBlockRequest{Hashes: hashes}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetBlocksRequest, req)
+	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetBlocksRequest, req)
 	br.peer.SendMessage(mo)
 	br.requestID = mo.GetMsgID()
 }

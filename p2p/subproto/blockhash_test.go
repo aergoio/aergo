@@ -116,7 +116,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 
 			msg := p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
-			msg.EXPECT().Subprotocol().Return(GetHashesRequest).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(p2pcommon.GetHashesRequest).AnyTimes()
 			body := &types.GetHashesRequest{PrevNumber: test.inNum, PrevHash: test.inHash, Size: test.inSize}
 
 			h := NewGetHashesReqHandler(mockPM, mockPeer, logger, mockActor)
@@ -191,7 +191,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 
 			msg :=  p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
-			msg.EXPECT().Subprotocol().Return(GetHashByNoRequest).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(p2pcommon.GetHashByNoRequest).AnyTimes()
 			body := &types.GetHashByNo{BlockNo: test.inNum}
 
 			h := NewGetHashByNoReqHandler(mockPM, mockPeer, logger, mockActor)

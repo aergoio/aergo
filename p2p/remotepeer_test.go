@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
@@ -420,7 +419,7 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
-			dummyMsg := p2pcommon.NewSimpleRespMsgVal(subproto.AddressesResponse, p2pcommon.NewMsgID(), test.inID)
+			dummyMsg := p2pcommon.NewSimpleRespMsgVal(p2pcommon.AddressesResponse, p2pcommon.NewMsgID(), test.inID)
 			assert.Equal(t, test.receiverReturn, actual(dummyMsg, nil))
 
 			// after consuming request, GetReceiver always return requestIDNotFoundReceiver, which always return true
@@ -512,7 +511,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			mockStream.EXPECT().Close().Return(nil).AnyTimes()
 			mockMO.EXPECT().IsNeedSign().Return(true).AnyTimes()
 			mockMO.EXPECT().SendTo(gomock.Any()).Return(tt.args.sendErr)
-			mockMO.EXPECT().GetProtocolID().Return(subproto.PingRequest).AnyTimes()
+			mockMO.EXPECT().GetProtocolID().Return(p2pcommon.PingRequest).AnyTimes()
 			mockMO.EXPECT().GetMsgID().Return(sampleMsgID).AnyTimes()
 
 			p := newRemotePeer(sampleMeta, 0, mockPeerManager, nil, logger, nil, nil, mockStream, dummyRW)
@@ -536,7 +535,7 @@ func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
 	defer ctrl.Finish()
 
 	msg := p2pmock.NewMockMessage(ctrl)
-	msg.EXPECT().Subprotocol().Return(subproto.PingRequest).MaxTimes(1)
+	msg.EXPECT().Subprotocol().Return(p2pcommon.PingRequest).MaxTimes(1)
 	msg.EXPECT().ID().Return(p2pcommon.NewMsgID()).AnyTimes()
 	msg.EXPECT().Payload().DoAndReturn(func() []byte {
 		panic("for test")
@@ -549,7 +548,7 @@ func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
 		logger: logger,
 		handlers:make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
 	}
-	p.handlers[subproto.PingRequest] = mockHandler
+	p.handlers[p2pcommon.PingRequest] = mockHandler
 
 	if err := p.handleMsg(msg); err == nil {
 		t.Errorf("remotePeerImpl.handleMsg() no error, err by panic")

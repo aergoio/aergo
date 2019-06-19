@@ -13,7 +13,6 @@ import (
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/golang/mock/gomock"
 
 	"github.com/aergoio/aergo/types"
@@ -45,7 +44,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
-			pr := factory.NewMsgRequestOrder(true, subproto.PingRequest, &types.Ping{})
+			pr := factory.NewMsgRequestOrder(true, p2pcommon.PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
 
@@ -89,7 +88,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
-			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), subproto.PingResponse, &types.Pong{})
+			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), p2pcommon.PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
 			peer.requests[msgID] = &requestInfo{reqMO: &pbRequestOrder{}}

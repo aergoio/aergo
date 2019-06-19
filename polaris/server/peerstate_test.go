@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -40,17 +39,17 @@ func Test_pingChecker_DoCall(t *testing.T) {
 		wantErr bool
 	}{
 		// 1. msg writer succeeded send and succeeded read
-		{"Tsucc", args{writeRet: nil, readRet2: nil, respSub: subproto.PingResponse}, false},
+		{"Tsucc", args{writeRet: nil, readRet2: nil, respSub: p2pcommon.PingResponse}, false},
 		// 2. failed to write
-		{"TFailWrite", args{writeRet: NetError, readRet2: nil, respSub: subproto.PingResponse}, true},
+		{"TFailWrite", args{writeRet: NetError, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 3. failed to read
-		{"TFailRead", args{writeRet: nil, readRet2: NetError, respSub: subproto.PingResponse}, true},
+		{"TFailRead", args{writeRet: nil, readRet2: NetError, respSub: p2pcommon.PingResponse}, true},
 		// 4. read but not ping response
-		{"TWrongResp", args{writeRet: nil, readRet2: nil, respSub: subproto.AddressesResponse}, true},
+		{"TWrongResp", args{writeRet: nil, readRet2: nil, respSub: p2pcommon.AddressesResponse}, true},
 		// 5. cancel signal  while writing
-		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: subproto.PingResponse}, true},
+		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 6. cancel signal while reading
-		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: subproto.PingResponse}, true},
+		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 
 		// verification . check return value, (or err
 		// TODO: Add test cases.
@@ -113,17 +112,17 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 		wantErr bool
 	}{
 		// 1. msg writer succeeded send and succeeded read
-		{"Tsucc", args{writeRet: nil, readRet2: nil, respSub: subproto.PingResponse}, false},
+		{"Tsucc", args{writeRet: nil, readRet2: nil, respSub: p2pcommon.PingResponse}, false},
 		// 2. failed to write
-		{"TFailWrite", args{writeRet: NetError, readRet2: nil, respSub: subproto.PingResponse}, true},
+		{"TFailWrite", args{writeRet: NetError, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 3. failed to read
-		{"TFailRead", args{writeRet: nil, readRet2: NetError, respSub: subproto.PingResponse}, true},
+		{"TFailRead", args{writeRet: nil, readRet2: NetError, respSub: p2pcommon.PingResponse}, true},
 		// 4. read but not ping response
-		{"TWrongPayload", args{writeRet: nil, readRet2: nil, respSub: subproto.StatusRequest}, true},
+		{"TWrongPayload", args{writeRet: nil, readRet2: nil, respSub: p2pcommon.StatusRequest}, true},
 		// 5. cancel signal  while writing
-		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: subproto.PingResponse}, true},
+		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 6. cancel signal while reading
-		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: subproto.PingResponse}, true},
+		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 
 		// verification . check return value, (or err
 		// TODO: Add test cases.

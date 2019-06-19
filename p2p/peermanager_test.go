@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
 	"strconv"
@@ -514,7 +513,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 
 			// in cases of handshake error
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
-			mockMF.EXPECT().NewMsgRequestOrder(false, subproto.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
+			mockMF.EXPECT().NewMsgRequestOrder(false, p2pcommon.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
@@ -592,7 +591,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 
 			// in cases of handshake error
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
-			mockMF.EXPECT().NewMsgRequestOrder(false, subproto.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
+			mockMF.EXPECT().NewMsgRequestOrder(false, p2pcommon.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{

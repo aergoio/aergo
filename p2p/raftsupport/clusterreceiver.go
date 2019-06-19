@@ -13,7 +13,6 @@ import (
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -70,7 +69,7 @@ func (br *ClusterInfoReceiver) trySendNextPeer() bool {
 		peer := br.peers[br.offset]
 		if peer.State() == types.RUNNING {
 			br.offset++
-			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetClusterRequest, &types.GetClusterInfoRequest{BestBlockHash: br.req.BestBlockHash})
+			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetClusterRequest, &types.GetClusterInfoRequest{BestBlockHash: br.req.BestBlockHash})
 			peer.SendMessage(mo)
 			br.sents[mo.GetMsgID()] = peer
 			return true

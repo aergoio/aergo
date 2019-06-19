@@ -8,7 +8,6 @@ package p2p
 import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"time"
 )
@@ -35,7 +34,7 @@ func NewAncestorReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer
 func (br *AncestorReceiver) StartGet() {
 	// create message data
 	req := &types.GetAncestorRequest{Hashes: br.hashes}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetAncestorRequest, req)
+	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetAncestorRequest, req)
 	br.requestID = mo.GetMsgID()
 	br.peer.SendMessage(mo)
 }

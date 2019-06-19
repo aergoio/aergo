@@ -31,7 +31,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 	var sampleMsgID = p2pcommon.NewMsgID()
 	var sampleHeader = p2pmock.NewMockMessage(ctrl)
 	sampleHeader.EXPECT().ID().Return(sampleMsgID).AnyTimes()
-	sampleHeader.EXPECT().Subprotocol().Return(GetTXsResponse).AnyTimes()
+	sampleHeader.EXPECT().Subprotocol().Return(p2pcommon.GetTXsResponse).AnyTimes()
 
 	var sampleTxsB58 = []string{
 		"4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45",
@@ -55,7 +55,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.subproto")
 	//dummyMeta := p2pcommon.PeerMeta{ID: dummyPeerID, IPAddress: "192.168.1.2", Port: 4321}
 	mockMo := p2pmock.NewMockMsgOrder(ctrl)
-	mockMo.EXPECT().GetProtocolID().Return(GetTXsResponse).AnyTimes()
+	mockMo.EXPECT().GetProtocolID().Return(p2pcommon.GetTXsResponse).AnyTimes()
 	mockMo.EXPECT().GetMsgID().Return(sampleMsgID).AnyTimes()
 	//mockSigner := p2pmock.NewmockMsgSigner(ctrl)
 	//mockSigner.EXPECT().signMsg",gomock.Any()).Return(nil)
@@ -72,7 +72,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			actor.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.AssignableToTypeOf(&message.MemPoolExistEx{})).Return(&message.MemPoolExistExRsp{Txs: dummyTxs}, nil).Times(1)
 			msgHelper.EXPECT().ExtractTxsFromResponseAndError(gomock.AssignableToTypeOf(&message.MemPoolExistExRsp{}), nil).Return(dummyTxs, nil).Times(1)
 			hashes := sampleTxs[:1]
-			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
+			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, p2pcommon.GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
 				resp := message.(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, 1, len(resp.Hashes))
@@ -91,7 +91,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			actor.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.AssignableToTypeOf(&message.MemPoolExistEx{})).Return(&message.MemPoolExistExRsp{Txs: dummyTxs}, nil).Times(1)
 			msgHelper.EXPECT().ExtractTxsFromResponseAndError(gomock.AssignableToTypeOf(&message.MemPoolExistExRsp{}), nil).Return(dummyTxs, nil).Times(1)
 			hashes := sampleTxs
-			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
+			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, p2pcommon.GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
 				resp := message.(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, len(sampleTxs), len(resp.Hashes))
@@ -111,7 +111,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			}
 			actor.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.AssignableToTypeOf(&message.MemPoolExistEx{})).Return(&message.MemPoolExistExRsp{Txs: dummyTxs}, nil).Times(1)
 			msgHelper.EXPECT().ExtractTxsFromResponseAndError(gomock.AssignableToTypeOf(&message.MemPoolExistExRsp{}), nil).Return(dummyTxs, nil).Times(1)
-			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
+			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, p2pcommon.GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
 				resp := message.(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_OK, resp.Status)
 				assert.Equal(tt, len(dummyTxs), len(resp.Hashes))
@@ -132,7 +132,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			//}), nil).Return(dummyTx, nil)
 			msgHelper.EXPECT().ExtractTxsFromResponseAndError(&MempoolRspTxCountMatcher{0}, nil).Return(nil, nil).Times(1)
 			hashes := sampleTxs
-			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
+			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, p2pcommon.GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
 				resp := message.(*types.GetTransactionsResponse)
 				assert.Equal(tt, types.ResultStatus_NOT_FOUND, resp.Status)
 				assert.Equal(tt, 0, len(resp.Hashes))
@@ -147,7 +147,7 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			//msgHelper.EXPECT().ExtractTxsFromResponseAndError", nil, gomock.AssignableToTypeOf("error")).Return(nil, fmt.Errorf("error"))
 			msgHelper.EXPECT().ExtractTxsFromResponseAndError(nil, &WantErrMatcher{true}).Return(nil, fmt.Errorf("error")).Times(0)
 			hashes := sampleTxs
-			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
+			mockMF.EXPECT().NewMsgResponseOrder(sampleMsgID, p2pcommon.GetTXsResponse, gomock.AssignableToTypeOf(&types.GetTransactionsResponse{})).Do(func(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) {
 				resp := message.(*types.GetTransactionsResponse)
 				// TODO check if the changed behavior is fair or not.
 				assert.Equal(tt, types.ResultStatus_NOT_FOUND, resp.Status)
@@ -228,7 +228,7 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			mockActor.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.AssignableToTypeOf(&message.MemPoolExistEx{})).Return(validBigMempoolRsp, nil)
 
 			h := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &testMessage{subProtocol: GetTXsRequest, id:p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{subProtocol: p2pcommon.GetTXsRequest, id:p2pcommon.NewMsgID()}
 			msgBody := &types.GetTransactionsRequest{Hashes: make([][]byte, test.hashCnt)}
 			h.Handle(dummyMsg, msgBody)
 

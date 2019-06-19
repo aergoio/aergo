@@ -13,10 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
-
 	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 
 	lru "github.com/hashicorp/golang-lru"
 
@@ -447,13 +445,13 @@ func (p *remotePeerImpl) sendPing() {
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 	}
 
-	p.SendMessage(p.mf.NewMsgRequestOrder(true, subproto.PingRequest, pingMsg))
+	p.SendMessage(p.mf.NewMsgRequestOrder(true, p2pcommon.PingRequest, pingMsg))
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
 func (p *remotePeerImpl) goAwayMsg(msg string) {
 	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("msg", msg).Msg("Peer is closing")
-	p.SendAndWaitMessage(p.mf.NewMsgRequestOrder(false, subproto.GoAway, &types.GoAwayNotice{Message: msg}), time.Second)
+	p.SendAndWaitMessage(p.mf.NewMsgRequestOrder(false, p2pcommon.GoAway, &types.GoAwayNotice{Message: msg}), time.Second)
 	p.Stop()
 }
 

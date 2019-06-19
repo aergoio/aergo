@@ -81,7 +81,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 			mockPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{ID:"16..aadecf@1"}).AnyTimes()
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 			dummyMo := &testMo{}
-			mockMF.EXPECT().NewMsgResponseOrder(gomock.Any(), AddressesResponse, &addrRespSizeMatcher{tt.wantSize}).Return(dummyMo)
+			mockMF.EXPECT().NewMsgResponseOrder(gomock.Any(), p2pcommon.AddressesResponse, &addrRespSizeMatcher{tt.wantSize}).Return(dummyMo)
 
 			ph := NewAddressesReqHandler(mockPM, mockPeer, logger, mockActor)
 			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID()}

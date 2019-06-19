@@ -48,7 +48,7 @@ var _ p2pcommon.MessageHandler = (*getAncestorResponseHandler)(nil)
 
 // newListBlockHeadersReqHandler creates handler for GetBlockHeadersRequest
 func NewListBlockHeadersReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *listBlockHeadersRequestHandler {
-	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -102,7 +102,7 @@ func (bh *listBlockHeadersRequestHandler) Handle(msg p2pcommon.Message, msgBody 
 		Hashes: hashes, Headers: headers,
 		Status: types.ResultStatus_OK,
 	}
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetBlockHeadersResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetBlockHeadersResponse, resp))
 }
 
 func getBlockHeader(blk *types.Block) *types.BlockHeader {
@@ -111,7 +111,7 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 
 // newListBlockRespHandler creates handler for GetBlockHeadersResponse
 func NewListBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *listBlockHeadersResponseHandler {
-	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlockHeadersResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlockHeadersResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -132,7 +132,7 @@ func (bh *listBlockHeadersResponseHandler) Handle(msg p2pcommon.Message, msgBody
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func NewNewBlockNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) *newBlockNoticeHandler {
-	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewBlockNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	bh := &newBlockNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.NewBlockNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -172,7 +172,7 @@ func min(a, b uint32) uint32 {
 
 // newGetAncestorReqHandler creates handler for GetAncestorRequest
 func NewGetAncestorReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getAncestorRequestHandler {
-	bh := &getAncestorRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetAncestorRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getAncestorRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetAncestorRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -215,12 +215,12 @@ func (bh *getAncestorRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pco
 	}
 
 	bh.logger.Debug().Uint64("ancestorno", ancestor.No).Str("ancestorhash", enc.ToString(ancestor.Hash)).Msg("Sending get ancestor response")
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetAncestorResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetAncestorResponse, resp))
 }
 
 // newBlockRespHandler creates handler for GetAncestorResponse
 func NewGetAncestorRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getAncestorResponseHandler {
-	bh := &getAncestorResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetAncestorResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getAncestorResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetAncestorResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 

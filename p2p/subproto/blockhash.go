@@ -26,7 +26,7 @@ type getHashResponseHandler struct {
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func NewGetHashesReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getHashRequestHandler {
-	bh := &getHashRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetHashesRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getHashRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetHashesRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 
 	return bh
 }
@@ -44,7 +44,7 @@ func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	// check if requested too many hashes
 	if data.Size > p2pcommon.MaxBlockResponseCount {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INVALID_ARGUMENT}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 		return
 	}
 	// check if remote peer has valid chain,
@@ -52,20 +52,20 @@ func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	prevHash, err := chainAccessor.GetHashByNo(data.PrevNumber)
 	if err != nil || !bytes.Equal(prevHash, data.PrevHash) {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INVALID_ARGUMENT}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 		return
 	}
 	// decide total fetched size
 	bestBlock, err := bh.actor.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INTERNAL}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 		return
 	}
 	startNumber, endNumber, fetchSize := determineFetchSize(data.PrevNumber, bestBlock.Header.BlockNo, int(data.Size))
 	if fetchSize <= 0 {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INTERNAL}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 		return
 	}
 	hashes := make([][]byte, fetchSize)
@@ -74,7 +74,7 @@ func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 		hash, err := bh.actor.GetChainAccessor().GetHashByNo(cursorNo)
 		if err != nil {
 			resp := &types.GetHashesResponse{Status: types.ResultStatus_INTERNAL}
-			remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+			remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 			return
 		}
 		hashes[i] = hash
@@ -85,13 +85,13 @@ func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	endHash, err := chainAccessor.GetHashByNo(endNumber)
 	if err != nil || !bytes.Equal(endHash, hashes[fetchSize-1]) {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INTERNAL}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 		return
 	}
 	startBlock, err := chainAccessor.GetBlock(hashes[0])
 	if err != nil || !bytes.Equal(startBlock.Header.PrevBlockHash, prevHash) || startBlock.Header.BlockNo != startNumber {
 		resp := &types.GetHashesResponse{Status: types.ResultStatus_INTERNAL}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 		return
 	}
 
@@ -101,7 +101,7 @@ func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 		Status:  types.ResultStatus_OK,
 		HasNext: false,
 	}
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashesResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashesResponse, resp))
 }
 
 func determineFetchSize(prevNum, currentLast types.BlockNo, maxSize int) (types.BlockNo, types.BlockNo, int) {
@@ -118,7 +118,7 @@ func determineFetchSize(prevNum, currentLast types.BlockNo, maxSize int) (types.
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func NewGetHashesRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getHashResponseHandler {
-	bh := &getHashResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetHashesResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getHashResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetHashesResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 
 	return bh
 }
@@ -146,7 +146,7 @@ type getHashByNoResponseHandler struct {
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func NewGetHashByNoReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getHashByNoRequestHandler {
-	bh := &getHashByNoRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetHashByNoRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getHashByNoRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetHashByNoRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 
 	return bh
 }
@@ -166,7 +166,7 @@ func (bh *getHashByNoRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pco
 	targetHash, err := chainAccessor.GetHashByNo(data.BlockNo)
 	if err != nil {
 		resp := &types.GetHashByNoResponse{Status: types.ResultStatus_NOT_FOUND}
-		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashByNoResponse, resp))
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashByNoResponse, resp))
 		return
 	}
 
@@ -175,12 +175,12 @@ func (bh *getHashByNoRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pco
 		Status:    types.ResultStatus_OK,
 		BlockHash: targetHash,
 	}
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetHashByNoResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetHashByNoResponse, resp))
 }
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func NewGetHashByNoRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getHashByNoResponseHandler {
-	bh := &getHashByNoResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetHashByNoResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getHashByNoResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetHashByNoResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 
 	return bh
 }

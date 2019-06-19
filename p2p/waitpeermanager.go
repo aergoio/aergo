@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-core/network"
 	"sort"
@@ -257,7 +256,7 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 func (dpm *basePeerManager) sendGoAway(rw p2pcommon.MsgReadWriter, msg string) {
 	goMsg := &types.GoAwayNotice{Message: msg}
 	// TODO code smell. non safe casting. too many member depth
-	mo := dpm.pm.mf.NewMsgRequestOrder(false, subproto.GoAway, goMsg).(*pbRequestOrder)
+	mo := dpm.pm.mf.NewMsgRequestOrder(false, p2pcommon.GoAway, goMsg).(*pbRequestOrder)
 	container := mo.message
 
 	rw.WriteMsg(container)

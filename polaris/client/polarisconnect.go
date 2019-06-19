@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -239,7 +238,7 @@ func (pcs *PolarisConnectSvc) onPing(s network.Stream) {
 		return
 	}
 	msgID := p2pcommon.NewMsgID()
-	respMsg := common.NewPolarisRespMessage(msgID, req.ID(), subproto.PingResponse, bytes)
+	respMsg := common.NewPolarisRespMessage(msgID, req.ID(), p2pcommon.PingResponse, bytes)
 	err = rw.WriteMsg(respMsg)
 	if err != nil {
 		return

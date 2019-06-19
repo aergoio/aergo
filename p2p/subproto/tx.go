@@ -37,7 +37,7 @@ var _ p2pcommon.MessageHandler = (*newTxNoticeHandler)(nil)
 // newTxReqHandler creates handler for GetTransactionsRequest
 func NewTxReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txRequestHandler {
 	th := &txRequestHandler{
-		BaseMsgHandler{protocol: GetTXsRequest, pm: pm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, peer: peer, actor: actor, logger: logger},
 		message.GetHelper()}
 	return th
 }
@@ -110,7 +110,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 				Str(p2putil.LogOrgReqID, msg.ID().String()).Msg("Sending partial response")
 
 			remotePeer.SendMessage(remotePeer.MF().
-				NewMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
+				NewMsgResponseOrder(msg.ID(), p2pcommon.GetTXsResponse, resp))
 			hashes, txInfos, payloadSize = nil, nil, EmptyGetBlockResponseSize
 		}
 
@@ -130,12 +130,12 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 		Status: status,
 		Hashes: hashes,
 		Txs:    txInfos, HasNext: false}
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetTXsResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetTXsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func NewTxRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 
@@ -160,7 +160,7 @@ func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mes
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
 func NewNewTxNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) *newTxNoticeHandler {
-	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: NewTxNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	th := &newTxNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.NewTxNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 

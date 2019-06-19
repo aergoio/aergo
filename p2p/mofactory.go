@@ -8,7 +8,6 @@ package p2p
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"time"
 
@@ -52,7 +51,7 @@ func (mf *baseMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p
 func (mf *baseMOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) p2pcommon.MsgOrder {
 	rmo := &pbBlkNoticeOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.NewBlockNotice, noticeMsg) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.NewBlockNotice, noticeMsg) {
 		rmo.blkHash = noticeMsg.BlockHash
 		rmo.blkNo = noticeMsg.BlockNo
 		return rmo
@@ -63,7 +62,7 @@ func (mf *baseMOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice
 func (mf *baseMOFactory) NewMsgTxBroadcastOrder(message *types.NewTransactionsNotice) p2pcommon.MsgOrder {
 	rmo := &pbTxNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, subproto.NewTxNotice, message) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, p2pcommon.NewTxNotice, message) {
 		rmo.txHashes = message.TxHashes
 		return rmo
 	}
@@ -73,7 +72,7 @@ func (mf *baseMOFactory) NewMsgTxBroadcastOrder(message *types.NewTransactionsNo
 func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) p2pcommon.MsgOrder {
 	rmo := &pbBpNoticeOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.BlockProducedNotice, noticeMsg) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.BlockProducedNotice, noticeMsg) {
 		rmo.block = noticeMsg.Block
 		return rmo
 	}
@@ -83,7 +82,7 @@ func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNo
 func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
 	rmo := &pbRaftMsgOrder{msg:raftMsg}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.RaftWrapperMessage, raftMsg) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.RaftWrapperMessage, raftMsg) {
 		switch msgType {
 		case raftpb.MsgHeartbeat, raftpb.MsgHeartbeatResp:
 			rmo.trace = false

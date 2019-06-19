@@ -16,7 +16,6 @@ import (
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -101,7 +100,7 @@ func (hc *peerState) sendPing(wt p2pcommon.MsgWriter) (p2pcommon.MsgID, error) {
 	// find my best block
 	ping := &types.Ping{}
 	msgID := p2pcommon.NewMsgID()
-	pingMsg, err := createV030Message(msgID, EmptyMsgID, subproto.PingRequest, ping)
+	pingMsg, err := createV030Message(msgID, EmptyMsgID, p2pcommon.PingRequest, ping)
 	if err != nil {
 		hc.Logger.Warn().Err(err).Msg("failed to create ping message")
 		return EmptyMsgID, err
@@ -123,7 +122,7 @@ func (hc *peerState) receivePingResp(reqID p2pcommon.MsgID, rd p2pcommon.MsgRead
 	if err != nil {
 		return nil, nil, err
 	}
-	if resp.Subprotocol() != subproto.PingResponse || reqID != resp.OriginalID() {
+	if resp.Subprotocol() != p2pcommon.PingResponse || reqID != resp.OriginalID() {
 		return nil, nil, fmt.Errorf("Not expected response %s : req_id=%s", resp.Subprotocol().String(), resp.OriginalID().String())
 	}
 	pingResp := &types.Ping{}
