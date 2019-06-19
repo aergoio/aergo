@@ -33,11 +33,11 @@ var defaultVoteKey = []byte(types.VoteBP)[2:]
 
 func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
 	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	var key []byte
+	var issue []byte
 	var args []byte
 	var err error
 	if context.Proposal != nil {
-		key = context.Proposal.GetKey()
+		issue = context.Proposal.GetKey()
 		args, err = json.Marshal(context.Call.Args[1:]) //[0] is name
 		if err != nil {
 			return nil, err
@@ -46,37 +46,28 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 			return nil, err
 		}
 	} else {
-		key = []byte(context.Call.Name)[2:]
+		// XXX Only BP election case?
+		issue = []byte(context.Call.Name)[2:]
 		args, err = json.Marshal(context.Call.Args)
 		if err != nil {
 			return nil, err
 		}
 	}
-	oldvote := context.Vote
+	// The variable args is a JSON bytes. It is used as vote.candidate for the
+	// proposal based voting, while just as an event output for BP election.
 	staked := context.Staked
 	//update block number
 	staked.When = blockNo
-	err = setStaking(scs, sender.ID(), staked)
-	if err != nil {
-		return nil, err
-	}
-
-	voteResult, err := loadVoteResult(scs, key)
-	if err != nil {
-		return nil, err
-	}
-
-	err = voteResult.SubVote(oldvote)
-	if err != nil {
-		return nil, err
-	}
 
 	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeVote
 	}
 	vote := &types.Vote{Amount: staked.GetAmount()}
 	var candidates []byte
-	if bytes.Equal(key, defaultVoteKey) {
+	// Set vote.candidate.
+	if bytes.Equal(issue, defaultVoteKey) {
+		// XXX Why string comparison is used here, while context.Proposal is
+		// checked above?
 		for _, v := range context.Call.Args {
 			candidate, _ := base58.Decode(v.(string))
 			candidates = append(candidates, candidate...)
@@ -86,7 +77,23 @@ func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.Contract
 		vote.Candidate = args
 	}
 
-	err = setVote(scs, key, sender.ID(), vote)
+	err = setStaking(scs, sender.ID(), staked)
+	if err != nil {
+		return nil, err
+	}
+
+	voteResult, err := loadVoteResult(scs, issue)
+	if err != nil {
+		return nil, err
+	}
+
+	// Deal with the old vote.
+	err = voteResult.SubVote(context.Vote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = setVote(scs, issue, sender.ID(), vote)
 	if err != nil {
 		return nil, err
 	}
