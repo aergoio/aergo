@@ -258,6 +258,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.RaftClusterEvent:
 		p2ps.Logger.Debug().Int("added", len(msg.BPAdded)).Int("removed", len(msg.BPRemoved)).Msg("bp changed")
 		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
+	case message.GetRaftTransport:
+		context.Respond(raftsupport.NewAergoRaftTransport(p2ps.Logger, p2ps.nt, p2ps.pm, p2ps.mf, p2ps.consacc, msg.Cluster))
 	}
 }
 

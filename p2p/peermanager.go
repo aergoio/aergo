@@ -65,7 +65,7 @@ type peerManager struct {
 	taskChannel       chan pmTask
 	finishChannel     chan struct{}
 
-	eventListeners []PeerEventListener
+	eventListeners []p2pcommon.PeerEventListener
 
 	//
 	designatedPeers map[types.PeerID]p2pcommon.PeerMeta
@@ -81,14 +81,6 @@ type getPeerChan struct {
 
 var _ p2pcommon.PeerManager = (*peerManager)(nil)
 
-// PeerEventListener listen peer manage event
-type PeerEventListener interface {
-	// OnAddPeer is called just after the peer is added.
-	OnAddPeer(peerID types.PeerID)
-
-	// OnRemovePeer is called just before the peer is removed
-	OnRemovePeer(peerID types.PeerID)
-}
 
 // NewPeerManager creates a peer manager object.
 func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
@@ -122,7 +114,7 @@ func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorS
 		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 		inboundConnChan:   make(chan inboundConnEvent),
 		workDoneChannel:   make(chan p2pcommon.ConnWorkResult),
-		eventListeners:    make([]PeerEventListener, 0, 4),
+		eventListeners:    make([]p2pcommon.PeerEventListener, 0, 4),
 		taskChannel:       make(chan pmTask, 4),
 		finishChannel:     make(chan struct{}),
 	}
@@ -160,6 +152,12 @@ func (pm *peerManager) init() {
 			pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 		}
 	}
+}
+
+func (pm *peerManager) AddPeerEventListener(l p2pcommon.PeerEventListener) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	pm.eventListeners = append(pm.eventListeners, l)
 }
 
 func (pm *peerManager) Start() error {
@@ -279,6 +277,8 @@ MANLOOP:
 	}
 	// guaranty no new peer connection will be made
 	pm.nt.RemoveStreamHandler(p2pcommon.LegacyP2PSubAddr)
+	pm.nt.RemoveStreamHandler(p2pcommon.P2PSubAddr)
+
 	pm.logger.Info().Msg("Finishing peerManager")
 
 	go func() {
@@ -334,6 +334,12 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 
 	pm.insertPeer(peerID, newPeer)
 	pm.logger.Info().Str("role", newPeer.Role().String()).Bool("outbound", meta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("peer is added to peerService")
+
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	for _, listener := range pm.eventListeners {
+		listener.OnPeerConnect(peerID)
+	}
 
 	return newPeer
 }
@@ -396,8 +402,11 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	}
 	pm.deletePeer(peer)
 	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
+
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
 	for _, listener := range pm.eventListeners {
-		listener.OnRemovePeer(peerID)
+		listener.OnPeerDisconnect(peer)
 	}
 
 	return true

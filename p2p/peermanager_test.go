@@ -241,7 +241,7 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 				inboundConnChan:   make(chan inboundConnEvent),
 				workDoneChannel:   make(chan p2pcommon.ConnWorkResult),
-				eventListeners:    make([]PeerEventListener, 0, 4),
+				eventListeners:    make([]p2pcommon.PeerEventListener, 0, 4),
 				finishChannel:     make(chan struct{}),
 
 				logger: logger,

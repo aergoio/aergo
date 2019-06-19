@@ -11,12 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/etcd/raft"
-	"github.com/aergoio/etcd/raft/raftpb"
+	"io"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // DefaultBlockIntervalSec  is the default block generation interval in seconds.
@@ -96,6 +97,11 @@ type AergoRaftAccessor interface {
 	IsIDRemoved(peerID types.PeerID) bool
 	ReportUnreachable(peerID types.PeerID)
 	ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus)
+
+	SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error)
+
+	GetMemberByID(id uint64) *Member
+	GetMemberByPeerID(peerID types.PeerID) *Member
 }
 
 type ConsensusType int

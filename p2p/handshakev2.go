@@ -59,17 +59,17 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rwc io.Re
 		// go on
 	}
 	if err != nil {
-		return h.writeErrAndReturn(err, p2pcommon.ErrWrongHSReq, rwc)
+		return h.writeErrAndReturn(err, p2pcommon.HSCodeWrongHSReq, rwc)
 	}
 	// check magic
 	if hsReq.Magic != p2pcommon.MAGICMain {
-		return h.writeErrAndReturn(fmt.Errorf("wrong magic %v",hsReq.Magic), p2pcommon.ErrWrongHSReq, rwc)
+		return h.writeErrAndReturn(fmt.Errorf("wrong magic %v",hsReq.Magic), p2pcommon.HSCodeWrongHSReq, rwc)
 	}
 
 	// continue to handshake with VersionedHandshaker
 	bestVer := h.verM.FindBestP2PVersion(hsReq.Versions)
 	if bestVer == p2pcommon.P2PVersionUnknown {
-		return h.writeErrAndReturn(fmt.Errorf("no matchied p2p version for %v", hsReq.Versions), p2pcommon.ErrNoMatchedVersion,rwc)
+		return h.writeErrAndReturn(fmt.Errorf("no matchied p2p version for %v", hsReq.Versions), p2pcommon.HSCodeNoMatchedVersion,rwc)
 	} else {
 		h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("version",bestVer.String()).Msg("Responding best p2p version")
 		resp := p2pcommon.HSHeadResp{hsReq.Magic, bestVer.Uint32()}

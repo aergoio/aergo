@@ -60,16 +60,17 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		logger.Error().Err(err).
 			Str("key", raftConfig.KeyFile).
 			Str("cert", raftConfig.CertFile).
+			Bool("useTLS", useTls).
 			Msg("failed to validate tls config for raft")
 		return err
 	}
 
-	if raftConfig.ListenUrl != "" {
-		if err := isValidURL(raftConfig.ListenUrl, useTls); err != nil {
-			logger.Error().Err(err).Msg("failed to validate listen url for raft")
-			return err
-		}
-	}
+	//if raftConfig.ListenUrl != "" {
+	//	if err := isValidURL(raftConfig.ListenUrl, useTls); err != nil {
+	//		logger.Error().Err(err).Msg("failed to validate listen url for raft")
+	//		return err
+	//	}
+	//}
 
 	if raftConfig.NewCluster {
 		var mbrAttrs []*types.MemberAttr

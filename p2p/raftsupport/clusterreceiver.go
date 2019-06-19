@@ -17,8 +17,8 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-// ClusterInfoReceiver is send p2p getClusterInfo to connected peers and receive p2p responses one of peers return successful response
-// The first version will be simplified version. it send and receive one by one.
+// ClusterInfoReceiver is send p2p getClusterInfo to connected peers and Receive p2p responses one of peers return successful response
+// The first version will be simplified version. it send and Receive one by one.
 type ClusterInfoReceiver struct {
 	mf p2pcommon.MoFactory
 

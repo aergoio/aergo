@@ -35,6 +35,18 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 	return m.recorder
 }
 
+// AddPeerEventListener mocks base method
+func (m *MockPeerManager) AddPeerEventListener(l p2pcommon.PeerEventListener) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddPeerEventListener", l)
+}
+
+// AddPeerEventListener indicates an expected call of AddPeerEventListener
+func (mr *MockPeerManagerMockRecorder) AddPeerEventListener(l interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPeerEventListener", reflect.TypeOf((*MockPeerManager)(nil).AddPeerEventListener), l)
+}
+
 // Start mocks base method
 func (m *MockPeerManager) Start() error {
 	m.ctrl.T.Helper()
@@ -92,15 +104,15 @@ func (mr *MockPeerManagerMockRecorder) SelfNodeID() *gomock.Call {
 }
 
 // AddNewPeer mocks base method
-func (m *MockPeerManager) AddNewPeer(peer p2pcommon.PeerMeta) {
+func (m *MockPeerManager) AddNewPeer(meta p2pcommon.PeerMeta) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddNewPeer", peer)
+	m.ctrl.Call(m, "AddNewPeer", meta)
 }
 
 // AddNewPeer indicates an expected call of AddNewPeer
-func (mr *MockPeerManagerMockRecorder) AddNewPeer(peer interface{}) *gomock.Call {
+func (mr *MockPeerManagerMockRecorder) AddNewPeer(meta interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddNewPeer", reflect.TypeOf((*MockPeerManager)(nil).AddNewPeer), peer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddNewPeer", reflect.TypeOf((*MockPeerManager)(nil).AddNewPeer), meta)
 }
 
 // RemovePeer mocks base method

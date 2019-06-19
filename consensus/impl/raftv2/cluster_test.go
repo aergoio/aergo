@@ -38,19 +38,19 @@ func init() {
 		{types.MemberAttr{
 			ID:      1,
 			Name:    "testm1",
-			Address: "http://127.0.0.1:13001",
+			Address: "aergop2p://127.0.0.1:13001",
 			PeerID:  []byte(testPeerID),
 		}},
 		{types.MemberAttr{
 			ID:      2,
 			Name:    "testm2",
-			Address: "http://127.0.0.1:13002",
+			Address: "aergop2p://127.0.0.1:13002",
 			PeerID:  []byte(testPeerID),
 		}},
 		{types.MemberAttr{
 			ID:      3,
 			Name:    "testm3",
-			Address: "http://127.0.0.1:13003",
+			Address: "aergop2p://127.0.0.1:13003",
 			PeerID:  []byte(testPeerID),
 		}},
 	}
@@ -106,16 +106,16 @@ func TestClusterConfChange(t *testing.T) {
 		Name: "testraft",
 		/*
 			BPs: []config.RaftBPConfig{
-				{"test1", "http://127.0.0.1:10001", testPeerIDs[0]},
-				{"test2", "http://127.0.0.1:10002", testPeerIDs[1]},
-				{"test3", "http://127.0.0.1:10003", testPeerIDs[2]},
+				{"test1", "aergop2p://127.0.0.1:10001", testPeerIDs[0]},
+				{"test2", "aergop2p://127.0.0.1:10002", testPeerIDs[1]},
+				{"test3", "aergop2p://127.0.0.1:10003", testPeerIDs[2]},
 			},*/
 	}
 
 	mbrs := []*types.MemberAttr{
-		{ID: 0, Name: "test1", Address: "http://127.0.0.1:10001", PeerID: []byte(testPeerIDs[0])},
-		{ID: 1, Name: "test2", Address: "http://127.0.0.1:10002", PeerID: []byte(testPeerIDs[1])},
-		{ID: 2, Name: "test3", Address: "http://127.0.0.1:10003", PeerID: []byte(testPeerIDs[2])},
+		{ID: 0, Name: "test1", Address: "aergop2p://127.0.0.1:10001", PeerID: []byte(testPeerIDs[0])},
+		{ID: 1, Name: "test2", Address: "aergop2p://127.0.0.1:10002", PeerID: []byte(testPeerIDs[1])},
+		{ID: 2, Name: "test3", Address: "aergop2p://127.0.0.1:10003", PeerID: []byte(testPeerIDs[2])},
 	}
 
 	cl := NewCluster([]byte("test"), nil, "testraft", 0, nil)
@@ -132,7 +132,7 @@ func TestClusterConfChange(t *testing.T) {
 	// normal case
 	req := &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{ID: 3, Name: "test4", Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{ID: 3, Name: "test4", Address: "aergop2p://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.NoError(t, err)
@@ -149,21 +149,21 @@ func TestClusterConfChange(t *testing.T) {
 	// failed case
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{Address: "aergop2p://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "no name")
 
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{Name: "test4", Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[0])},
+		Attr: &types.MemberAttr{Name: "test4", Address: "aergop2p://127.0.0.1:10004", PeerID: []byte(testPeerIDs[0])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "duplicate peerid")
 
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_REMOVE_MEMBER,
-		Attr: &types.MemberAttr{Name: "test4", Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{Name: "test4", Address: "aergop2p://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "no id to remove")

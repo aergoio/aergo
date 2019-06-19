@@ -197,6 +197,10 @@ type GetClusterRsp struct {
 	HardStateInfo *types.HardStateInfo
 }
 
+type GetRaftTransport struct {
+	Cluster interface{}
+}
+
 type RaftClusterEvent struct {
 	BPAdded   []types.PeerID
 	BPRemoved []types.PeerID

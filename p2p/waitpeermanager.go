@@ -296,6 +296,14 @@ func (dpm *dynamicWPManager) OnDiscoveredPeers(metas []p2pcommon.PeerMeta) int {
 			// skip already waiting peer
 			continue
 		}
+		// add peer to designated peer
+		if meta.Designated {
+			if _, exist := dpm.pm.designatedPeers[meta.ID]; !exist {
+				dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Msg("designated peer is added")
+				dpm.pm.designatedPeers[meta.ID] = meta
+			}
+		}
+
 		// TODO check blacklist later.
 		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 		addedWP++

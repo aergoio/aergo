@@ -12,6 +12,7 @@ import (
 	raftpb "github.com/aergoio/etcd/raft/raftpb"
 	gomock "github.com/golang/mock/gomock"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	io "io"
 	reflect "reflect"
 )
 
@@ -40,6 +41,7 @@ func (m *MockConsensusAccessor) EXPECT() *MockConsensusAccessorMockRecorder {
 
 // ClusterInfo mocks base method
 func (m *MockConsensusAccessor) ClusterInfo(arg0 []byte) *types.GetClusterInfoResponse {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ClusterInfo", arg0)
 	ret0, _ := ret[0].(*types.GetClusterInfoResponse)
 	return ret0
@@ -47,11 +49,13 @@ func (m *MockConsensusAccessor) ClusterInfo(arg0 []byte) *types.GetClusterInfoRe
 
 // ClusterInfo indicates an expected call of ClusterInfo
 func (mr *MockConsensusAccessorMockRecorder) ClusterInfo(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterInfo", reflect.TypeOf((*MockConsensusAccessor)(nil).ClusterInfo), arg0)
 }
 
 // ConfChange mocks base method
 func (m *MockConsensusAccessor) ConfChange(arg0 *types.MembershipChange) (*consensus.Member, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConfChange", arg0)
 	ret0, _ := ret[0].(*consensus.Member)
 	ret1, _ := ret[1].(error)
@@ -60,11 +64,13 @@ func (m *MockConsensusAccessor) ConfChange(arg0 *types.MembershipChange) (*conse
 
 // ConfChange indicates an expected call of ConfChange
 func (mr *MockConsensusAccessorMockRecorder) ConfChange(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfChange", reflect.TypeOf((*MockConsensusAccessor)(nil).ConfChange), arg0)
 }
 
 // ConfChangeInfo mocks base method
 func (m *MockConsensusAccessor) ConfChangeInfo(arg0 uint64) (*types.ConfChangeProgress, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConfChangeInfo", arg0)
 	ret0, _ := ret[0].(*types.ConfChangeProgress)
 	ret1, _ := ret[1].(error)
@@ -73,11 +79,13 @@ func (m *MockConsensusAccessor) ConfChangeInfo(arg0 uint64) (*types.ConfChangePr
 
 // ConfChangeInfo indicates an expected call of ConfChangeInfo
 func (mr *MockConsensusAccessorMockRecorder) ConfChangeInfo(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfChangeInfo", reflect.TypeOf((*MockConsensusAccessor)(nil).ConfChangeInfo), arg0)
 }
 
 // ConsensusInfo mocks base method
 func (m *MockConsensusAccessor) ConsensusInfo() *types.ConsensusInfo {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConsensusInfo")
 	ret0, _ := ret[0].(*types.ConsensusInfo)
 	return ret0
@@ -85,6 +93,7 @@ func (m *MockConsensusAccessor) ConsensusInfo() *types.ConsensusInfo {
 
 // ConsensusInfo indicates an expected call of ConsensusInfo
 func (mr *MockConsensusAccessorMockRecorder) ConsensusInfo() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsensusInfo", reflect.TypeOf((*MockConsensusAccessor)(nil).ConsensusInfo))
 }
 
@@ -123,6 +132,34 @@ func NewMockAergoRaftAccessor(ctrl *gomock.Controller) *MockAergoRaftAccessor {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockAergoRaftAccessor) EXPECT() *MockAergoRaftAccessorMockRecorder {
 	return m.recorder
+}
+
+// GetMemberByID mocks base method
+func (m *MockAergoRaftAccessor) GetMemberByID(arg0 uint64) *consensus.Member {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMemberByID", arg0)
+	ret0, _ := ret[0].(*consensus.Member)
+	return ret0
+}
+
+// GetMemberByID indicates an expected call of GetMemberByID
+func (mr *MockAergoRaftAccessorMockRecorder) GetMemberByID(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMemberByID", reflect.TypeOf((*MockAergoRaftAccessor)(nil).GetMemberByID), arg0)
+}
+
+// GetMemberByPeerID mocks base method
+func (m *MockAergoRaftAccessor) GetMemberByPeerID(arg0 peer.ID) *consensus.Member {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMemberByPeerID", arg0)
+	ret0, _ := ret[0].(*consensus.Member)
+	return ret0
+}
+
+// GetMemberByPeerID indicates an expected call of GetMemberByPeerID
+func (mr *MockAergoRaftAccessorMockRecorder) GetMemberByPeerID(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMemberByPeerID", reflect.TypeOf((*MockAergoRaftAccessor)(nil).GetMemberByPeerID), arg0)
 }
 
 // IsIDRemoved mocks base method
@@ -175,4 +212,19 @@ func (m *MockAergoRaftAccessor) ReportUnreachable(arg0 peer.ID) {
 func (mr *MockAergoRaftAccessorMockRecorder) ReportUnreachable(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportUnreachable", reflect.TypeOf((*MockAergoRaftAccessor)(nil).ReportUnreachable), arg0)
+}
+
+// SaveFromRemote mocks base method
+func (m *MockAergoRaftAccessor) SaveFromRemote(arg0 io.Reader, arg1 uint64, arg2 raftpb.Message) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveFromRemote", arg0, arg1, arg2)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SaveFromRemote indicates an expected call of SaveFromRemote
+func (mr *MockAergoRaftAccessorMockRecorder) SaveFromRemote(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFromRemote", reflect.TypeOf((*MockAergoRaftAccessor)(nil).SaveFromRemote), arg0, arg1, arg2)
 }

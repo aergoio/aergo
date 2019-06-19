@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"io"
 	"net"
 	"net/url"
 )
@@ -376,7 +377,7 @@ func ParseToUrl(urlstr string) (*url.URL, error) {
 		return nil, err
 	}
 
-	if urlObj.Scheme != "http" && urlObj.Scheme != "https" {
+	if urlObj.Scheme != "aergop2p" {
 		return nil, ErrURLInvalidScheme
 	}
 
@@ -406,3 +407,15 @@ func (DummyRaftAccessor) ReportUnreachable(peerID types.PeerID) {
 func (DummyRaftAccessor) ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus) {
 }
 
+
+func (DummyRaftAccessor) GetMemberByID(id uint64) *Member {
+	return nil
+}
+
+func (DummyRaftAccessor) GetMemberByPeerID(peerID types.PeerID) *Member {
+	return nil
+}
+
+func (DummyRaftAccessor) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+	return 0, nil
+}
