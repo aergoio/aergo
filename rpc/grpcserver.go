@@ -176,6 +176,12 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 		chainInfo.Stakingminimum = minStaking.Bytes()
 	}
 
+	if total, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingTotal); total != nil {
+		chainInfo.Totalstaking = total.Bytes()
+	} else {
+		return nil, err
+	}
+
 	return chainInfo, nil
 }
 

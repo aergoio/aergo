@@ -324,6 +324,10 @@ func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig
 	return cs.getEnterpriseConf(key)
 }
 
+func (cs *ChainService) GetSystemValue(key types.SystemValue) (*big.Int, error) {
+	return cs.getSystemValue(key)
+}
+
 // SetChainConsensus sets cs.cc to cc.
 func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 	cs.ChainConsensus = cc
@@ -547,6 +551,15 @@ func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, 
 		return enterprise.GetConf(stateDB, key)
 	}
 	return enterprise.GetAdmin(stateDB)
+}
+
+func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
+	stateDB := cs.sdb.GetStateDB()
+	switch key {
+	case types.StakingTotal:
+		return system.GetStakingTotal(stateDB)
+	}
+	return nil, fmt.Errorf("unsupported system value : %s", key)
 }
 
 type ChainManager struct {

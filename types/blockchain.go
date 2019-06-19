@@ -117,6 +117,17 @@ func getLastIndexOfBH() (lastIndex int) {
 	return i
 }
 
+type SystemValue int
+
+const (
+	StakingTotal SystemValue = 0 + iota
+	StakingMin
+)
+
+func (s SystemValue) String() string {
+	return [...]string{"StakingTotal", "StakingMin"}[s]
+}
+
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetGenesisInfo() *Genesis
@@ -127,6 +138,7 @@ type ChainAccessor interface {
 	// GetHashByNo returns hash of block. It return nil and error if not found block of that number or there is a problem in db store
 	GetHashByNo(blockNo BlockNo) ([]byte, error)
 	GetChainStats() string
+	GetSystemValue(key SystemValue) (*big.Int, error)
 	GetEnterpriseConfig(key string) (*EnterpriseConfig, error)
 }
 

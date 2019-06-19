@@ -3,6 +3,7 @@ package chain
 import (
 	"bytes"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/aergoio/aergo/message"
@@ -124,6 +125,10 @@ func (tchain *StubBlockChain) GetConsensusInfo() string {
 
 func (tchain *StubBlockChain) GetChainStats() string {
 	return ""
+}
+
+func (tchain *StubBlockChain) GetSystemValue(key types.SystemValue) (*big.Int, error) {
+	return nil, nil
 }
 
 func (tchain *StubBlockChain) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
