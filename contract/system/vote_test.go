@@ -134,32 +134,32 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildStakingPayload(true)
 
-	context, err := newSystemContext(tx.Body.Account, tx.Body, sender, receiver, scs, 0)
+	stake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, 0)
 	assert.NoError(t, err, "staking validation")
-	_, err = staking(context)
+	_, err = stake.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	context, err = newSystemContext(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay)
+	voting, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
-	_, err = voting(context)
+	_, err = voting.run()
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
-	assert.Equal(t, context.Call.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
+	assert.Equal(t, voting.arg(0), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	context, err = newSystemContext(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay+StakingDelay)
+	unstake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
-	_, err = unstaking(context)
+	_, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, defaultVoteKey, 23)

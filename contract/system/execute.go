@@ -30,8 +30,13 @@ type SystemContext struct {
 	txBody *types.TxBody
 }
 
+func (ctx *SystemContext) arg(i int) interface{} {
+	return ctx.Call.Args[i]
+}
+
 type sysCmd interface {
 	run() (*types.Event, error)
+	arg(i int) interface{}
 }
 
 type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
@@ -44,7 +49,7 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 		types.VoteProposal:   newVoteCmd,
 		types.Stake:          newStakeCmd,
 		types.Unstake:        newUnstakeCmd,
-		types.CreateProposal: nil,
+		types.CreateProposal: newProposalCmd,
 	}
 
 	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
@@ -85,10 +90,7 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 		return nil, err
 	}
 
-	var events []*types.Event
-	events = append(events, event)
-
-	return events, nil
+	return []*types.Event{event}, nil
 }
 
 func GetNamePrice(scs *state.ContractState) *big.Int {
