@@ -2,7 +2,7 @@
 # usage: clean [all]
 if [ $# -gt 1 ]; then
 	echo "usage: clean [all]"
-	exit
+	exit 100
 fi
 
 function rmall() {

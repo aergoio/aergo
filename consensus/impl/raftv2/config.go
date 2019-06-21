@@ -3,6 +3,7 @@ package raftv2
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"net/url"
 	"os"
@@ -50,7 +51,7 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, chain.Genesis.Timestamp)
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, chain.Genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
 
 	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).

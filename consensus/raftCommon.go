@@ -32,10 +32,12 @@ var (
 		2: "EntryConfChange",
 	}
 
-	ErrURLInvalidScheme = errors.New("url has invalid scheme")
-	ErrURLInvalidPort   = errors.New("url must have host:port style")
-	ErrInvalidMemberID  = errors.New("member id of conf change doesn't match")
-	ErrEmptySnapData    = errors.New("failed to decode snapshot data. encoded data is empty")
+	ErrURLInvalidScheme       = errors.New("url has invalid scheme")
+	ErrURLInvalidPort         = errors.New("url must have host:port style")
+	ErrInvalidMemberID        = errors.New("member id of conf change doesn't match")
+	ErrEmptySnapData          = errors.New("failed to decode snapshot data. encoded data is empty")
+	ErrInvalidMemberAttr      = errors.New("invalid member attribute")
+	ErrorMembershipChangeSkip = errors.New("node is not raft leader, so skip membership change request")
 )
 
 type WalEntry struct {

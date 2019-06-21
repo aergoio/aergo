@@ -19,6 +19,7 @@ for i in  11004 11005 11006 11007; do
 done
 
 make_node.sh
+RUN_TEST_SCRIPT set_system_admin.sh
 
 echo ""
 echo "========= add aergo4 ========="

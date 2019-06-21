@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"github.com/aergoio/aergo/consensus"
 	"math/big"
 
 	"github.com/aergoio/aergo/contract/enterprise"
@@ -15,7 +16,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
+func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) ([]*types.Event, error) {
 
 	if len(txBody.Payload) <= 0 {
@@ -35,7 +36,7 @@ func executeGovernanceTx(bs *state.BlockState, txBody *types.TxBody, sender, rec
 	case types.AergoName:
 		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	case types.AergoEnterprise:
-		events, err = enterprise.ExecuteEnterpriseTx(scs, txBody, sender)
+		events, err = enterprise.ExecuteEnterpriseTx(ccc, scs, txBody, sender)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient

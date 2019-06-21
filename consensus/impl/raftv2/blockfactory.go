@@ -57,10 +57,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(ccc, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -369,6 +369,7 @@ func (bf *BlockFactory) worker() {
 				}
 
 				bf.reset()
+				continue
 			}
 
 			if err = bf.raftOp.propose(block, blockState); err != nil {
@@ -420,7 +421,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 
 	txOp := chain.NewCompTxOp(
 		bf.txOp,
-		newTxExec(bf.ChainWAL, bestBlock.GetHeader().GetBlockNo()+1, ts, bestBlock.GetHash(), bestBlock.GetHeader().GetChainID()),
+		newTxExec(bf, bf.ChainWAL, bestBlock.GetHeader().GetBlockNo()+1, ts, bestBlock.GetHash(), bestBlock.GetHeader().GetChainID()),
 	)
 
 	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
@@ -437,7 +438,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 		return nil, nil, err
 	}
 
-	logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
+	logger.Info().Str("blockProducer", bf.ID).Str("raftID", EtcdIDToString(bf.bpc.NodeID())).
 		Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.GetHeader().GetBlockNo()).
 		Str("hash", block.ID()).
@@ -572,11 +573,30 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 
 	var member *consensus.Member
 	var err error
-	if member, err = bf.bpc.ChangeMembership(req); err != nil {
+	if member, err = bf.bpc.ChangeMembership(req, false); err != nil {
 		return nil, ErrorMembershipChange{err}
 	}
 
 	return member, nil
+}
+
+func (bf *BlockFactory) RequestConfChange(req *types.MembershipChange) error {
+	if bf.bpc == nil {
+		return ErrorMembershipChange{ErrClusterNotReady}
+	}
+
+	if !bf.raftServer.IsLeader() {
+		logger.Info().Msg("skiped membership change request")
+		return consensus.ErrorMembershipChangeSkip
+	}
+
+	var err error
+	if _, err = bf.bpc.ChangeMembership(req, true); err != nil {
+		logger.Error().Err(err).Str("attr", req.ToString()).Msg("failed to change membership")
+		return ErrorMembershipChange{err}
+	}
+
+	return nil
 }
 
 // getHardStateOfBlock returns (term/commit) corresponding to best block hash.

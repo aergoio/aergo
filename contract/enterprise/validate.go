@@ -18,8 +18,11 @@ const AppendAdmin = "appendAdmin"
 const RemoveAdmin = "removeAdmin"
 const EnableConf = "enableConf"
 const DisableConf = "disableConf"
+const ChangeCluster = "changeCluster"
 
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
+
+type ccArgument map[string]interface{}
 
 func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 	scs *state.ContractState) (*EnterpriseContext, error) {
@@ -111,6 +114,19 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		}
 		context.Admins = admins
 
+	case ChangeCluster:
+		cc, err := validateChangeCluster(ci)
+		if err != nil {
+			return nil, err
+		}
+
+		context.ArgsAny = append(context.ArgsAny, cc)
+
+		admins, err := checkAdmin(scs, sender.ID())
+		if err != nil {
+			return nil, err
+		}
+		context.Admins = admins
 	default:
 		return nil, fmt.Errorf("unsupported call %s", ci.Name)
 	}

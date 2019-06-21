@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "================= raft invalid member test ===================="
+echo "================= raft invalid member add test ===================="
 
 BP_NAME=""
 
@@ -9,31 +9,31 @@ BP_NAME=""
 #./inittest.sh
 source test_common.sh
 
-rm BP11004* BP11005*
-
-echo "kill_svr & clean 11004~11007"
+echo "kill_svr"
 kill_svr.sh
-for i in  11004 11005 11006 11007; do
-	rm -rf ./data/$i
-	rm -rf ./BP$i.toml
-done
+rm -rf $TEST_RAFT_INSTANCE_DATA
+rm $TEST_RAFT_INSTANCE/BP*
 
 echo ""
-echo "========= add invalid config member aergo4 ========="
-make_node.sh
-sleep 3
-
+echo "========= join invalid config member aergo4 ========="
 pushd $TEST_RAFT_INSTANCE/config
 do_sed.sh BP11004.toml 13002 13009 =
 popd
 
+TEST_SKIP_GENESIS=0 make_node.sh 
+RUN_TEST_SCRIPT set_system_admin.sh
+
 add_member.sh aergo4
+if [ $? -ne 0 ];then
+	echo "Adding of invalid config member must succeed"
+	exit 100
+fi
 
 sleep 20
 existProcess 10004
 if [ "$?" = "1" ]; then
 	echo "error! process must be killed."
-	exit
+	exit 100
 fi
 
 pushd $TEST_RAFT_INSTANCE/config

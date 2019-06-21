@@ -2,7 +2,7 @@
 
 if [ "$#" != "4" ];then
 	echo "Usage: $0 filepattern input_pat output_pat separator"
-	exit
+	exit 100
 fi
 
 rm -rf *.sedtmp

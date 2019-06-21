@@ -421,7 +421,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 		return nil, ErrDecodeRaftIdentity
 	}
 
-	logger.Info().Uint64("id", id.ID).Str("name", id.Name).Msg("save raft identity")
+	logger.Info().Uint64("id", id.ID).Str("name", id.Name).Msg("get raft identity")
 
 	return &id, nil
 }

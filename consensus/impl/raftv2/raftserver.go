@@ -60,6 +60,7 @@ var (
 	ErrCCNoMemberToRemove  = errors.New("there is no member to remove")
 	ErrEmptySnapshot       = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
+	ErrProposeNilBlock     = errors.New("proposed block is nil")
 )
 
 const (
@@ -190,7 +191,7 @@ func (cp *CommitProgress) IsReadyToPropose() bool {
 		return true
 	}
 
-	logger.Debug().Uint64("requested", reqNo).Uint64("connected", connNo).Msg("remain pending request to conenct")
+	logger.Debug().Uint64("requested", reqNo).Uint64("connected", connNo).Msg("remain pending request to connect")
 
 	return false
 }
@@ -516,6 +517,11 @@ func (rs *raftServer) writeError(err error) {
 
 // TODO timeout handling with context
 func (rs *raftServer) Propose(block *types.Block) error {
+	if block == nil {
+		return ErrProposeNilBlock
+	}
+	logger.Debug().Msg("propose block")
+
 	if data, err := marshalEntryData(block); err == nil {
 		// blocks until accepted by raft state machine
 		if err := rs.node.Propose(context.TODO(), data); err != nil {
@@ -581,7 +587,7 @@ func (rs *raftServer) serveChannels() {
 			// store raft entries to walDB, then publish over commit channel
 		case rd := <-rs.node.Ready():
 			if len(rd.Entries) > 0 || len(rd.CommittedEntries) > 0 || !raftlib.IsEmptyHardState(rd.HardState) || rd.SoftState != nil {
-				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("hardstate", rd.HardState.String()).Msg("ready to process")
+				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("hardstate", types.RaftHardStateToString(rd.HardState)).Msg("ready to process")
 			}
 
 			if rs.IsLeader() {
