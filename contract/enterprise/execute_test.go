@@ -155,15 +155,15 @@ func TestBasicEnterprise(t *testing.T) {
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, false, conf.On, "conf on")
 
-	tx.Payload = []byte(`{"name":"changeCluster", "args":["add", "{ \"name\": \"aergonew\", \"url\": \"http:\/\/127.0.0.1:13000\", \"peerID\":\"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B\" }"]}`)
+	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "url": "http://127.0.0.1:13000", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
 	assert.NoError(t, err)
 
-	tx.Payload = []byte(`{"name":"changeCluster", "args":["remove", "{ \"id\": 1234 }"]}`)
+	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "remove", "id": "1234"}]}`)
 	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
 	assert.NoError(t, err)
 
-	tx.Payload = []byte(`{"name":"changeCluster", "args":["nocmd", "{ \"name\": \"aergonew\", \"url\": \"http:\/\/127.0.0.1:13000\", \"peerID\":\"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B\" }"]}`)
+	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "nocmd", "name": "aergonew", "url": "http://127.0.0.1:13000", "peerID":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
 	assert.Error(t, err)
 }

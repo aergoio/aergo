@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 )
 
 var (
+	entLogger *log.Logger
+
 	ErrNotSupportedMethod = errors.New("Not supported Enterprise Tx")
 )
 
@@ -22,6 +25,10 @@ type EnterpriseContext struct {
 	ArgsAny []interface{}
 	Admins  [][]byte
 	Old     *Conf
+}
+
+func init() {
+	entLogger = log.NewLogger("enterprise")
 }
 
 func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
@@ -139,15 +146,29 @@ func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.Contrac
 		if ccc == nil {
 			return nil, ErrNotSupportedMethod
 		}
-
 		ccReq, ok := context.ArgsAny[0].(*types.MembershipChange)
 		if !ok {
-			return nil, fmt.Errorf("invalid cluster change argument")
+			return nil, fmt.Errorf("invalid argument of cluster change request")
 		}
-		fmt.Printf("cluster change request: %s", ccReq.ToString())
-		if err := ccc.RequestConfChange(ccReq); err != nil {
+		//entLogger.Info().Str("req", ccReq.ToString()).Msg("Enterprise tx: cluster change request")
+
+		if err := ccc.RequestConfChange(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
 			return nil, err
 		}
+
+		jsonArgs, err := json.Marshal(context.Call.Args[0])
+		if err != nil {
+			return nil, err
+		}
+
+		entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
+		/*
+			events = append(events, &types.Event{
+				ContractAddress: txBody.Recipient,
+				EventName:       "ChangeCluster ",
+				EventIdx:        0,
+				JsonArgs:        string(jsonArgs),
+			})*/
 	default:
 		return nil, fmt.Errorf("unsupported call in enterprise contract")
 	}

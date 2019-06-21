@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
@@ -48,7 +47,7 @@ const (
 
 type RaftInfo struct {
 	Leader string
-	Total  string
+	Total  uint32
 	Name   string
 	RaftId string
 	Status *json.RawMessage
@@ -699,7 +698,7 @@ func (cl *Cluster) getRaftInfo(withStatus bool) *RaftInfo {
 		leaderName = "id=" + EtcdIDToString(leader)
 	}
 
-	rinfo := &RaftInfo{Leader: leaderName, Total: strconv.FormatUint(uint64(cl.Size), 10), Name: cl.NodeName(), RaftId: EtcdIDToString(cl.NodeID())}
+	rinfo := &RaftInfo{Leader: leaderName, Total: cl.Size, Name: cl.NodeName(), RaftId: EtcdIDToString(cl.NodeID())}
 
 	if withStatus && cl.rs != nil {
 		b, err := cl.rs.Status().MarshalJSON()

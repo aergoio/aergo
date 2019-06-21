@@ -22,6 +22,8 @@ const ChangeCluster = "changeCluster"
 
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
+type ccArgument map[string]interface{}
+
 func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 	scs *state.ContractState) (*EnterpriseContext, error) {
 	var ci types.CallInfo
@@ -111,32 +113,14 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Admins = admins
+
 	case ChangeCluster:
-		var (
-			arg0, arg1 string
-			ok         bool
-			changeReq  *types.MembershipChange
-			err        error
-		)
-
-		if len(ci.Args) != 2 { //args[0] : key, args[1] : true/false
-			return nil, fmt.Errorf("invalid arguments in payload for ChangeCluster: %s", ci.Args)
-		}
-		arg0, ok = ci.Args[0].(string)
-		if !ok {
-			return nil, fmt.Errorf("not string in command for ChangeCluster : %v", ci.Args[0])
+		cc, err := validateChangeCluster(ci)
+		if err != nil {
+			return nil, err
 		}
 
-		arg1, ok = ci.Args[1].(string)
-		if !ok {
-			return nil, fmt.Errorf("not string in member meta for ChangeCluster : %v", ci.Args[1])
-		}
-
-		if changeReq, err = parseChangeCluster(arg0, arg1); err != nil {
-			return nil, fmt.Errorf("failed to parse ChangeCluster : %v", ci.Args)
-		}
-
-		context.ArgsAny = append(context.ArgsAny, changeReq)
+		context.ArgsAny = append(context.ArgsAny, cc)
 
 		admins, err := checkAdmin(scs, sender.ID())
 		if err != nil {
@@ -147,42 +131,6 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		return nil, fmt.Errorf("unsupported call %s", ci.Name)
 	}
 	return context, nil
-}
-
-func parseChangeCluster(cmdStr string, meta string) (*types.MembershipChange, error) {
-	const (
-		CmdMembershipAdd    = "add"
-		CmdMembershipRemove = "remove"
-	)
-
-	cmdStr = strings.ToLower(cmdStr)
-	var cmd types.MembershipChangeType
-
-	switch cmdStr {
-	case CmdMembershipAdd:
-		cmd = types.MembershipChangeType_ADD_MEMBER
-	case CmdMembershipRemove:
-		cmd = types.MembershipChangeType_REMOVE_MEMBER
-	default:
-		return nil, fmt.Errorf("not allowed command : %s", cmdStr)
-	}
-
-	var attr = types.JsonMemberAttr{}
-
-	if err := json.Unmarshal([]byte(meta), &attr); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal meta of ChangeCluster : %s, %v", meta, err)
-	}
-
-	switch cmd {
-	case types.MembershipChangeType_ADD_MEMBER:
-		attr.ID = 0
-	case types.MembershipChangeType_REMOVE_MEMBER:
-		if attr.ID == 0 {
-			return nil, fmt.Errorf("id must exist to remove member from cluster: %s", meta)
-		}
-	}
-
-	return &types.MembershipChange{Type: cmd, Attr: attr.ToMemberAttr()}, nil
 }
 
 func checkAdmin(scs *state.ContractState, address []byte) ([][]byte, error) {

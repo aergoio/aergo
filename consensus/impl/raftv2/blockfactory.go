@@ -369,6 +369,7 @@ func (bf *BlockFactory) worker() {
 				}
 
 				bf.reset()
+				continue
 			}
 
 			if err = bf.raftOp.propose(block, blockState); err != nil {
@@ -437,7 +438,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 		return nil, nil, err
 	}
 
-	logger.Info().Str("blockProducer", bf.ID).Str("raftID", block.ID()).
+	logger.Info().Str("blockProducer", bf.ID).Str("raftID", EtcdIDToString(bf.bpc.NodeID())).
 		Str("sroot", enc.ToString(block.GetHeader().GetBlocksRootHash())).
 		Uint64("no", block.GetHeader().GetBlockNo()).
 		Str("hash", block.ID()).
@@ -585,7 +586,8 @@ func (bf *BlockFactory) RequestConfChange(req *types.MembershipChange) error {
 	}
 
 	if !bf.raftServer.IsLeader() {
-		return ErrorMembershipChange{ErrNotRaftLeader}
+		logger.Info().Msg("skiped membership change request")
+		return consensus.ErrorMembershipChangeSkip
 	}
 
 	var err error
