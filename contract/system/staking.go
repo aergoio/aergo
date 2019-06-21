@@ -25,6 +25,46 @@ func InitGovernance(consensus string) {
 	consensusType = consensus
 }
 
+type stakeCmd struct {
+	*SystemContext
+	amount *big.Int
+}
+
+func newStakeCmd(ctx *SystemContext) (sysCmd, error) {
+	return &stakeCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}, nil
+}
+
+func (c *stakeCmd) run() (*types.Event, error) {
+	var (
+		scs       = c.scs
+		staked    = c.Staked
+		curAmount = staked.GetAmountBigInt()
+		amount    = c.amount
+		sender    = c.Sender
+		receiver  = c.Receiver
+	)
+
+	staked.Amount = new(big.Int).Add(curAmount, amount).Bytes()
+	staked.When = c.BlockNo
+	if err := setStaking(scs, sender.ID(), staked); err != nil {
+		return nil, err
+	}
+	if err := addTotal(scs, amount); err != nil {
+		return nil, err
+	}
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
+	return &types.Event{
+		ContractAddress: receiver.ID(),
+		EventIdx:        0,
+		EventName:       "stake",
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(sender.ID()) +
+			`", "amount":"` + amount.String() + `"}`,
+	}, nil
+}
+
+/*
 func staking(context *SystemContext) (*types.Event, error) {
 	var (
 		scs       = context.scs
@@ -54,7 +94,61 @@ func staking(context *SystemContext) (*types.Event, error) {
 			`", "amount":"` + amount.String() + `"}`,
 	}, nil
 }
+*/
 
+type unstakeCmd struct {
+	*SystemContext
+	amountToUnstake *big.Int
+}
+
+func newUnstakeCmd(ctx *SystemContext) (sysCmd, error) {
+	amount := ctx.txBody.GetAmountBigInt()
+	staked := ctx.Staked.GetAmountBigInt()
+	if staked.Cmp(amount) < 0 {
+		amount.Set(staked)
+	}
+
+	return &unstakeCmd{
+		SystemContext:   ctx,
+		amountToUnstake: amount,
+	}, nil
+}
+
+func (c *unstakeCmd) run() (*types.Event, error) {
+	var (
+		scs               = c.scs
+		staked            = c.Staked
+		sender            = c.Sender
+		receiver          = c.Receiver
+		balanceAdjustment = c.amountToUnstake
+	)
+
+	staked.Amount = new(big.Int).Sub(staked.GetAmountBigInt(), balanceAdjustment).Bytes()
+	//blockNo will be updated in voting
+	staked.When = c.BlockNo
+
+	if err := setStaking(scs, sender.ID(), staked); err != nil {
+		return nil, err
+	}
+	if err := refreshAllVote(c.SystemContext); err != nil {
+		return nil, err
+	}
+	if err := subTotal(scs, balanceAdjustment); err != nil {
+		return nil, err
+	}
+	sender.AddBalance(balanceAdjustment)
+	receiver.SubBalance(balanceAdjustment)
+	return &types.Event{
+		ContractAddress: receiver.ID(),
+		EventIdx:        0,
+		EventName:       "unstake",
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(sender.ID()) +
+			`", "amount":"` + c.amountToUnstake.String() + `"}`,
+	}, nil
+}
+
+/*
 func unstaking(context *SystemContext) (*types.Event, error) {
 	var (
 		scs               = context.scs
@@ -88,6 +182,7 @@ func unstaking(context *SystemContext) (*types.Event, error) {
 			`", "amount":"` + context.amountToUnstake.String() + `"}`,
 	}, nil
 }
+*/
 
 func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
 	key := append(stakingKey, who...)

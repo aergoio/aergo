@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
@@ -37,6 +38,45 @@ func ProposalIDfromKey(key []byte) string {
 	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
 }
 
+type proposalCmd struct {
+	*SystemContext
+	amount *big.Int
+}
+
+func newProposalCmd(ctx *SystemContext) (sysCmd, error) {
+	return &proposalCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}, nil
+}
+
+func (c *proposalCmd) run() (*types.Event, error) {
+	var (
+		scs      = c.scs
+		proposal = c.Proposal
+		sender   = c.Sender
+		receiver = c.Receiver
+		amount   = c.amount
+	)
+
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
+	if err := setProposal(scs, proposal); err != nil {
+		return nil, err
+	}
+	log, err := json.Marshal(proposal)
+	if err != nil {
+		return nil, err
+	}
+	return &types.Event{
+		ContractAddress: receiver.ID(),
+		EventIdx:        0,
+		EventName:       c.Call.Name[2:],
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(sender.ID()) +
+			`", "Proposal":` + string(log) + `}`,
+	}, nil
+
+}
+
+/*
 func createProposal(context *SystemContext) (*types.Event, error) {
 	var (
 		scs      = context.scs
@@ -64,6 +104,7 @@ func createProposal(context *SystemContext) (*types.Event, error) {
 			`", "Proposal":` + string(log) + `}`,
 	}, nil
 }
+*/
 
 //getProposal find proposal using id
 func getProposal(scs *state.ContractState, id string) (*Proposal, error) {

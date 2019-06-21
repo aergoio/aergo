@@ -26,18 +26,39 @@ type SystemContext struct {
 	Sender   *state.V
 	Receiver *state.V
 
-	scs *state.ContractState
+	scs    *state.ContractState
+	txBody *types.TxBody
+}
 
-	// voting
-	issue     []byte
-	args      []byte
-	candidate []byte
+type sysCmd interface {
+	run() (*types.Event, error)
+}
 
-	// staking & proposal
-	amount *big.Int
+type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
 
-	// unstaking
-	amountToUnstake *big.Int
+func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockNo uint64) (sysCmd, error) {
+
+	cmds := map[string]sysCmdCtor{
+		types.VoteBP:         newVoteCmd,
+		types.VoteProposal:   newVoteCmd,
+		types.Stake:          newStakeCmd,
+		types.Unstake:        newUnstakeCmd,
+		types.CreateProposal: nil,
+	}
+
+	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
+	if err != nil {
+		return nil, err
+	}
+	context.Receiver = receiver
+
+	ctor, exist := cmds[context.Call.Name]
+	if !exist {
+		return nil, types.ErrTxInvalidPayload
+	}
+
+	return ctor(context)
 }
 
 func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
@@ -48,76 +69,25 @@ func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *st
 	}
 	context.Receiver = receiver
 
-	switch context.Call.Name {
-	case types.VoteBP,
-		types.VoteProposal:
-		if context.Proposal != nil {
-			context.issue = context.Proposal.GetKey()
-			context.args, err = json.Marshal(context.Call.Args[1:]) //[0] is name
-			if err != nil {
-				return nil, err
-			}
-			if err := addProposalHistory(scs, sender.ID(), context.Proposal); err != nil {
-				return nil, err
-			}
-			context.candidate = context.args
-		} else {
-			// XXX Only BP election case?
-			context.issue = []byte(context.Call.Name)[2:]
-			context.args, err = json.Marshal(context.Call.Args)
-			if err != nil {
-				return nil, err
-			}
-			for _, v := range context.Call.Args {
-				candidate, _ := base58.Decode(v.(string))
-				context.candidate = append(context.candidate, candidate...)
-			}
-		}
-	case types.Stake:
-		context.amount = txBody.GetAmountBigInt()
-
-	case types.Unstake:
-		context.amountToUnstake = txBody.GetAmountBigInt()
-		staked := context.Staked.GetAmountBigInt()
-		if staked.Cmp(context.amountToUnstake) < 0 {
-			context.amountToUnstake.Set(staked)
-		}
-	case types.CreateProposal:
-		context.amount = txBody.GetAmountBigInt()
-	default:
-		return nil, types.ErrTxInvalidPayload
-	}
-
 	return context, err
 }
 
 func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
 
-	context, err := newSystemContext(sender.ID(), txBody, sender, receiver, scs, blockNo)
+	cmd, err := newSysCmd(sender.ID(), txBody, sender, receiver, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
 
-	var event *types.Event
-	switch context.Call.Name {
-	case types.Stake:
-		event, err = staking(context)
-	case types.VoteBP,
-		types.VoteProposal:
-		event, err = voting(context)
-	case types.Unstake:
-		event, err = unstaking(context)
-	case types.CreateProposal:
-		event, err = createProposal(context)
-	default:
-		err = types.ErrTxInvalidPayload
-	}
+	event, err := cmd.run()
 	if err != nil {
 		return nil, err
 	}
+
 	var events []*types.Event
 	events = append(events, event)
+
 	return events, nil
 }
 

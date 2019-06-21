@@ -8,12 +8,14 @@ package system
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"math/big"
 	"strconv"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58"
 )
 
 var lastBpCount int
@@ -29,6 +31,112 @@ const VotingDelay = 60 * 60 * 24 //block interval
 
 var defaultVoteKey = []byte(types.VoteBP)[2:]
 
+type voteCmd struct {
+	*SystemContext
+
+	issue     []byte
+	args      []byte
+	candidate []byte
+}
+
+func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
+	var (
+		sender = ctx.Sender
+		scs    = ctx.scs
+
+		err error
+	)
+
+	cmd := &voteCmd{SystemContext: ctx}
+	if cmd.Proposal != nil {
+		cmd.issue = cmd.Proposal.GetKey()
+		cmd.args, err = json.Marshal(cmd.Call.Args[1:]) //[0] is name
+		if err != nil {
+			return nil, err
+		}
+		if err := addProposalHistory(scs, sender.ID(), cmd.Proposal); err != nil {
+			return nil, err
+		}
+		cmd.candidate = cmd.args
+	} else {
+		// XXX Only BP election case?
+		cmd.issue = []byte(cmd.Call.Name)[2:]
+		cmd.args, err = json.Marshal(cmd.Call.Args)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range cmd.Call.Args {
+			candidate, _ := base58.Decode(v.(string))
+			cmd.candidate = append(cmd.candidate, candidate...)
+		}
+	}
+
+	return cmd, err
+}
+
+func (c *voteCmd) run() (*types.Event, error) {
+	var (
+		sender = c.Sender
+		scs    = c.scs
+
+		err error
+	)
+
+	// The variable args is a JSON bytes. It is used as vote.candidate for the
+	// proposal based voting, while just as an event output for BP election.
+	staked := c.Staked
+	// Update block number
+	staked.When = c.BlockNo
+
+	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
+		return nil, types.ErrMustStakeBeforeVote
+	}
+	vote := &types.Vote{
+		Candidate: c.candidate,
+		Amount:    staked.GetAmount(),
+	}
+
+	err = setStaking(scs, sender.ID(), staked)
+	if err != nil {
+		return nil, err
+	}
+
+	voteResult, err := loadVoteResult(scs, c.issue)
+	if err != nil {
+		return nil, err
+	}
+
+	// Deal with the old vote.
+	err = voteResult.SubVote(c.Vote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = setVote(scs, c.issue, sender.ID(), vote)
+	if err != nil {
+		return nil, err
+	}
+	err = voteResult.AddVote(vote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = voteResult.Sync(scs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Event{
+		ContractAddress: c.Receiver.ID(),
+		EventIdx:        0,
+		EventName:       c.Call.Name[2:],
+		JsonArgs: `{"who":"` +
+			types.EncodeAddress(sender.ID()) +
+			`", "vote":` + string(c.args) + `}`,
+	}, nil
+}
+
+/*
 func voting(context *SystemContext) (*types.Event, error) {
 	var (
 		sender = context.Sender
@@ -90,6 +198,7 @@ func voting(context *SystemContext) (*types.Event, error) {
 			`", "vote":` + string(context.args) + `}`,
 	}, nil
 }
+*/
 
 func refreshAllVote(context *SystemContext) error {
 	var (

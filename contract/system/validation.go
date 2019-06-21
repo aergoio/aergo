@@ -14,7 +14,7 @@ import (
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
 	var ci types.CallInfo
-	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo, scs: scs}
+	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo, scs: scs, txBody: txBody}
 
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
 		return nil, types.ErrTxInvalidPayload
