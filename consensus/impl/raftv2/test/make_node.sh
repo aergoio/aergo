@@ -12,6 +12,7 @@ fi
 if [ "$TEST_SKIP_GENESIS" = "1" ];then
 	echo "================ skip init genesis node and reboot aergosvr ===========+++=="
 	run_svr.sh
+
 	sleep 3
 	exit 0
 fi
@@ -24,7 +25,7 @@ rm init_*.log
 
 if [ $# != 0 ]; then
     echo "Usage: $0"
-    exit
+    exit 100
 fi
 
 

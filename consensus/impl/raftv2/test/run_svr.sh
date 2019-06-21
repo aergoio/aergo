@@ -1,4 +1,7 @@
 #!/bin/bash
+source set_test_env.sh
+
+pushd $TEST_RAFT_INSTANCE
 
 BP_NAME=""
 
@@ -19,3 +22,5 @@ for file in $(ls BP* | grep $pattern); do
 	nohup aergosvr --config ./$file >> server_${BP_NAME}.log 2>&1 &
 	fi
 done
+
+popd

@@ -2,7 +2,7 @@
 
 if [ $# != 2 ];then
 	echo "Usage: $0 port txPerAcc"
-	exit
+	exit 100
 fi
 
 port=$1
@@ -28,7 +28,7 @@ genesis_wallet=$(cat $server_dir/genesis_wallet.txt)
 echo "my genesis wallet=$genesis_wallet"
 if [ "$genesis_wallet" = "" ]; then
 	echo "genesis_wallet is empty"
-	exit
+	exit 100
 fi
 
 

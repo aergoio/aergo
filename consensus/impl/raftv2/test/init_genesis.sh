@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 if [ $# != 1 ]; then
     echo "Usage: $0 <bpname>"
-    exit
+    exit 100
 fi
 
 bpname=$1
@@ -10,7 +10,7 @@ newpassword="1234"
 
 if [[ $bpname =~ "BP*" ]]; then
 	echo "Err: bpname($bpname) must have BP*"
-	exit
+	exit 100
 fi
 
 if [ ! -e genesis -o ! -e genesis.json ]; then 

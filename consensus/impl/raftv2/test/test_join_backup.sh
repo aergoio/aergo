@@ -13,8 +13,8 @@ echo "clean all prev servers"
 echo "kill_svr & clean 11004~11007"
 kill_svr.sh
 for i in  11004 11005 11006 11007; do
-	echo "rm -rf ./data/$i ./BP$i.toml"
-	rm -rf ./data/$i ./BP$i.toml
+	echo "rm -rf $TEST_RAFT_INSTANCE/data/$i $TEST_RAFT_INSTANCE/BP$i.toml"
+	rm -rf $TEST_RAFT_INSTANCE/data/$i $TEST_RAFT_INSTANCE/BP$i.toml
 done
 
 make_node.sh
@@ -25,7 +25,7 @@ function backupJoin() {
 	if ! [ $1 -lt 6 ] || ! [ $2 -lt 6 ]; then
 		echo "Usage: $0 srcnodeNo(1<=no<=5) addnodeNo"
 		echo "exam) $0 3 4"
-		exit 1
+		exit 100
 	fi
 
 	srcnodename=${nodenames[$1]}
