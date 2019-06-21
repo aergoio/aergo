@@ -18,6 +18,7 @@ for i in  11004 11005 11006 11007; do
 done
 
 make_node.sh
+RUN_TEST_SCRIPT set_system_admin.sh
 
 sleep 2
 
@@ -52,7 +53,7 @@ function backupJoin() {
 	echo ""
 	echo "========= add $addnodename ========="
 	add_member.sh $addnodename usebackup
-	checkSync 10001 $addrpcport 60
+	checkSyncWithLeader $addrpcport 60
 }
 
 backupJoin 3 4

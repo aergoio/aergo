@@ -25,6 +25,8 @@ done
 
 function RUN_TEST_SCRIPT() {
 	shell="/usr/bin/env bash"
+	echo "run scripts> $*"
+
 	$shell -c "$*"
 	if [ $? != 0 ]; then
 		echo "Test Failed"
@@ -57,7 +59,7 @@ function getHeight() {
     existProcess $serverport
     if [ "$?" = "0" ]; then
 		echo "no process $serverport"
-		exit 100
+		return 0
     fi
 
     local height=$(aergocli -p $port blockchain | jq .Height)
@@ -127,8 +129,6 @@ function getLeaderOf() {
 	_leader_=$(aergocli -p $myport blockchain | jq .ConsensusInfo.Status.Leader)
 	_leader_=${_leader_//\"/}
 
-	echo "curleader=$_leader_"
-
 	if [[ "$_leader_" == aergo* ]]; then
 		eval "$2=$_leader_"
 	fi
@@ -186,6 +186,10 @@ function getRaftState() {
 
 	local leaderPort=
 	getLeaderPort leaderPort
+	if [ $? -ne 0 ];then
+		echo "failed to get leader port"
+		exit 100
+	fi
 
 	# getRaftID
 	getRaftID $leaderPort $name raftID
@@ -214,9 +218,10 @@ function getLeaderPort() {
 
 	if [ "$_leaderport" == "" ];then
 		echo "failed to get leader port"
-		return 0
 		exit 100
 	fi
+
+	echo "leader port=$_leaderport"
 
 	eval "$1=$_leaderport"
 }
@@ -352,6 +357,8 @@ function checkSync() {
 	echo "src=$srcPort, curPort=$curPort, time=$timeout"
 
 	for ((i = 1; i<= $3; i++)); do
+		sleep 1
+
 		srcHeight=""
 		curHeight=""
 		getHeight $srcPort 
@@ -362,7 +369,7 @@ function checkSync() {
 
 		echo "srcno=$srcHeight, curno=$curHeight"
 
-		if [ "$srcHeight" = "-1" ] || [ "$curHeight" = "-1" ]; then
+		if [ "$srcHeight" = "0" ] || [ "$curHeight" = "0" ] || [ "$srcHeight" = "255" ] || [ "$curHeight" = "255" ]; then
 			continue
 		fi
 
@@ -379,14 +386,31 @@ function checkSync() {
 			fi
 			return
 		fi
-
-		sleep 1
 	done
 
 	echo "========= sync failed ============"
 	exit 100
 }
 
+function checkSyncWithLeader() {
+	local _curPort=$1
+	local _timeout=$2
+
+	echo "============ checkSync with Leader $_curPort . timeout=$2sec ==========="
+
+	local leaderport=
+	getLeaderPort leaderport
+	if [ $? -ne 0 -o "$leaderport" = "" ];then
+		echo "failed to get leader port"
+		exit 100
+	fi
+
+	checkSync $leaderport $_curPort $_timeout
+	if [ $? -ne 0 ];then
+		echo "failed to sync with leader $leaderport"
+		exit 100
+	fi
+}
 
 # 현재 sync가 정상적으로 진행중인지 검사
 # 현재 best가 remote 에 connect되어 있는 지 확인
@@ -548,3 +572,30 @@ function waitClusterTotal() {
 	return 0
 }
 
+function WaitPeerConnect() {
+	if [ $# -ne 2 ]; then
+		echo "Usage:$0 expectPeerCount Timeout(sec)"
+	fi 
+
+	_reqcnt=$1
+	_timeout=$2
+	local _res
+
+	for ((i = 1; i<= $_timeout; i++)); do
+		_res=$(aergocli -p 10001 getpeers | jq ".|length")
+
+		if [[ "$_res" == fail* ]]; then
+			continue
+		fi
+
+		if [ "$_res" != "" -a $_res -gt 0 -a $_res -ge $_reqcnt ];then
+			echo "peer[$_res] connected"
+			return 1
+		fi
+
+		sleep 1
+	done
+
+	echo "failed peer connection: peer req=$_reqcnt, res=$_res connected."
+	return 0
+}

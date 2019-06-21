@@ -9,13 +9,21 @@ if [ ! -e genesis -o ! -e genesis.json -o -e wif.tx ]; then
 	exit 100
 fi
 
+_leaderport_=
+getLeaderPort _leaderport_
+if [ $? -ne 0 -o "$_leaderport_" = "" ];then
+	echo "failed to get leader port"
+	exit 100
+fi
+
 # set admin
-CLI="aergocli -p 10001"
+CLI="aergocli -p $_leaderport_"
 ADMIN=
-getAdminUnlocked 10001 ./genesis_wallet.txt ADMIN
+getAdminUnlocked $_leaderport_ ./genesis_wallet.txt ADMIN
 
 echo `$CLI account unlock --address $ADMIN --password 1234`
 $CLI account unlock --address $ADMIN --password 1234
+echo "$CLI contract call --governance $ADMIN aergo.enterprise appendAdmin '[\"$ADMIN\"]'"
 $CLI contract call --governance $ADMIN aergo.enterprise appendAdmin '["'$ADMIN'"]'
 
 popd
