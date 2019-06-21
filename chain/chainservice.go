@@ -283,7 +283,18 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	// init Debugger
 	cs.initDebugger()
 
+	cs.startChilds()
+
 	return cs
+}
+
+func (cs *ChainService) startChilds() {
+	if !cs.cfg.Blockchain.VerifyOnly {
+		cs.chainManager.Start()
+		cs.chainWorker.Start()
+	} else {
+		cs.chainVerifier.Start()
+	}
 }
 
 func (cs *ChainService) initDebugger() {
@@ -340,12 +351,6 @@ func (cs *ChainService) BeforeStart() {
 
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
-	if !cs.cfg.Blockchain.VerifyOnly {
-		cs.chainManager.Start()
-		cs.chainWorker.Start()
-	} else {
-		cs.chainVerifier.Start()
-	}
 }
 
 // BeforeStop close chain database and stop BlockValidator
