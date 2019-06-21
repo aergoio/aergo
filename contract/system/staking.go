@@ -64,38 +64,6 @@ func (c *stakeCmd) run() (*types.Event, error) {
 	}, nil
 }
 
-/*
-func staking(context *SystemContext) (*types.Event, error) {
-	var (
-		scs       = context.scs
-		staked    = context.Staked
-		curAmount = staked.GetAmountBigInt()
-		amount    = context.amount
-		sender    = context.Sender
-		receiver  = context.Receiver
-	)
-
-	staked.Amount = new(big.Int).Add(curAmount, amount).Bytes()
-	staked.When = context.BlockNo
-	if err := setStaking(scs, sender.ID(), staked); err != nil {
-		return nil, err
-	}
-	if err := addTotal(scs, amount); err != nil {
-		return nil, err
-	}
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-	return &types.Event{
-		ContractAddress: receiver.ID(),
-		EventIdx:        0,
-		EventName:       "stake",
-		JsonArgs: `{"who":"` +
-			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + amount.String() + `"}`,
-	}, nil
-}
-*/
-
 type unstakeCmd struct {
 	*SystemContext
 	amountToUnstake *big.Int
@@ -147,42 +115,6 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 			`", "amount":"` + c.amountToUnstake.String() + `"}`,
 	}, nil
 }
-
-/*
-func unstaking(context *SystemContext) (*types.Event, error) {
-	var (
-		scs               = context.scs
-		staked            = context.Staked
-		sender            = context.Sender
-		receiver          = context.Receiver
-		balanceAdjustment = context.amountToUnstake
-	)
-
-	staked.Amount = new(big.Int).Sub(staked.GetAmountBigInt(), balanceAdjustment).Bytes()
-	//blockNo will be updated in voting
-	staked.When = context.BlockNo
-
-	if err := setStaking(scs, sender.ID(), staked); err != nil {
-		return nil, err
-	}
-	if err := refreshAllVote(context); err != nil {
-		return nil, err
-	}
-	if err := subTotal(scs, balanceAdjustment); err != nil {
-		return nil, err
-	}
-	sender.AddBalance(balanceAdjustment)
-	receiver.SubBalance(balanceAdjustment)
-	return &types.Event{
-		ContractAddress: receiver.ID(),
-		EventIdx:        0,
-		EventName:       "unstake",
-		JsonArgs: `{"who":"` +
-			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + context.amountToUnstake.String() + `"}`,
-	}, nil
-}
-*/
 
 func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
 	key := append(stakingKey, who...)

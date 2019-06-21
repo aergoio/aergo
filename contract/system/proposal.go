@@ -76,36 +76,6 @@ func (c *proposalCmd) run() (*types.Event, error) {
 
 }
 
-/*
-func createProposal(context *SystemContext) (*types.Event, error) {
-	var (
-		scs      = context.scs
-		proposal = context.Proposal
-		sender   = context.Sender
-		receiver = context.Receiver
-		amount   = context.amount
-	)
-
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-	if err := setProposal(scs, proposal); err != nil {
-		return nil, err
-	}
-	log, err := json.Marshal(proposal)
-	if err != nil {
-		return nil, err
-	}
-	return &types.Event{
-		ContractAddress: receiver.ID(),
-		EventIdx:        0,
-		EventName:       context.Call.Name[2:],
-		JsonArgs: `{"who":"` +
-			types.EncodeAddress(sender.ID()) +
-			`", "Proposal":` + string(log) + `}`,
-	}, nil
-}
-*/
-
 //getProposal find proposal using id
 func getProposal(scs *state.ContractState, id string) (*Proposal, error) {
 	dataKey := GenProposalKey(id)
