@@ -1193,6 +1193,11 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 }
 
 func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
+	genensis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
+	if genensis.PublicNet() {
+		return nil, status.Error(codes.Unavailable, "not supported in public")
+	}
+
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}

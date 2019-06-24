@@ -129,7 +129,7 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 			return validateNameTx(tx.GetBody())
 		case AergoEnterprise:
 			if isPublic {
-				return ErrTxInvalidRecipient
+				return ErrTxOnlySupportedInPriv
 			}
 		default:
 			return ErrTxInvalidRecipient
