@@ -232,8 +232,8 @@ func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus
 	return nil, consensus.ErrNotSupportedMethod
 }
 
-func (s *SimpleBlockFactory) RequestConfChange(req *types.MembershipChange) error {
-	return consensus.ErrNotSupportedMethod
+func (s *SimpleBlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	return nil, consensus.ErrNotSupportedMethod
 }
 
 func (s *SimpleBlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {

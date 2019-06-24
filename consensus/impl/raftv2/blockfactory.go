@@ -180,7 +180,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 		return err
 	}
 
-	bf.raftOp = newRaftOperator(bf.raftServer)
+	bf.raftOp = newRaftOperator(bf.raftServer, bf.bpc)
 
 	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
@@ -498,7 +498,7 @@ func (bf *BlockFactory) waitSyncWithMajority() error {
 	for {
 		select {
 		case <-ticker.C:
-			if synced, err := bf.bpc.hasSynced(); err != nil {
+			if synced, err := bf.cl.hasSynced(); err != nil {
 				logger.Error().Err(err).Msg("failed to check sync with a majority of peers")
 				return err
 			} else if synced {
@@ -580,23 +580,34 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	return member, nil
 }
 
-func (bf *BlockFactory) RequestConfChange(req *types.MembershipChange) error {
+func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	var (
+		proposal *consensus.ConfChangePropose
+		err      error
+	)
+
 	if bf.bpc == nil {
-		return ErrorMembershipChange{ErrClusterNotReady}
+		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
+
+	cl := bf.bpc
+
+	cl.Lock()
+	defer cl.Unlock()
 
 	if !bf.raftServer.IsLeader() {
-		logger.Info().Msg("skiped membership change request")
-		return consensus.ErrorMembershipChangeSkip
+		logger.Info().Msg("skipped conf change request since node is not leader")
+		return nil, consensus.ErrorMembershipChangeSkip
 	}
 
-	var err error
-	if _, err = bf.bpc.ChangeMembership(req, true); err != nil {
-		logger.Error().Err(err).Str("attr", req.ToString()).Msg("failed to change membership")
-		return ErrorMembershipChange{err}
+	logger.Info().Str("request", req.ToString()).Msg("make proposal of cluster conf change")
+
+	if proposal, err = cl.makeProposal(req, true); err != nil {
+		logger.Error().Msg("failed to make proposal for conf change")
+		return nil, err
 	}
 
-	return nil
+	return proposal, nil
 }
 
 // getHardStateOfBlock returns (term/commit) corresponding to best block hash.
@@ -655,19 +666,18 @@ type Proposed struct {
 }
 
 type RaftOperator struct {
-	confChangeC chan *types.MembershipChange
-	commitC     chan *commitEntry
+	commitC chan *commitEntry
 
+	cl *Cluster
 	rs *raftServer
 
 	proposed *Proposed
 }
 
-func newRaftOperator(rs *raftServer) *RaftOperator {
-	confChangeC := make(chan *types.MembershipChange, 1)
+func newRaftOperator(rs *raftServer, cl *Cluster) *RaftOperator {
 	commitC := make(chan *commitEntry, MaxCommitQueueLen)
 
-	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
+	return &RaftOperator{commitC: commitC, rs: rs, cl: cl}
 }
 
 func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) error {
@@ -683,6 +693,27 @@ func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockStat
 	}
 
 	logger.Info().Msg("block proposed by blockfactory")
+
+	if blockState.CCProposal != nil {
+		if err := rop.ProposeConfChange(blockState.CCProposal); err != nil {
+			logger.Error().Err(err).Msg("failed to change membership")
+			return ErrorMembershipChange{err}
+		}
+	}
+
+	return nil
+}
+
+func (rop *RaftOperator) ProposeConfChange(proposal *consensus.ConfChangePropose) error {
+	var err error
+
+	if rop.cl == nil {
+		return ErrClusterNotReady
+	}
+
+	if err = rop.cl.submitProposal(proposal, true); err != nil {
+		return err
+	}
 
 	return nil
 }
