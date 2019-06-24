@@ -136,7 +136,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	for i, tx := range txIn {
 		if i != nCand-1 {
 			preLoadTx = txIn[i+1].GetTx()
-			contract.PreLoadRequest(bState, preLoadTx, contract.BlockFactory)
+			contract.PreLoadRequest(bState, preLoadTx, tx.GetTx(), contract.BlockFactory)
 		}
 
 		err := op.Apply(bState, tx)

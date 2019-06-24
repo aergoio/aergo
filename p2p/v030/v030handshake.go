@@ -16,17 +16,16 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
 // V030Handshaker exchange status data over protocol version .0.3.0
 type V030Handshaker struct {
-	pm        p2pcommon.PeerManager
-	actorServ p2pcommon.ActorService
-	logger    *log.Logger
-	peerID    types.PeerID
-	chainID   *types.ChainID
+	pm      p2pcommon.PeerManager
+	actor   p2pcommon.ActorService
+	logger  *log.Logger
+	peerID  types.PeerID
+	chainID *types.ChainID
 
 	rd    *bufio.Reader
 	wr    *bufio.Writer
@@ -39,8 +38,8 @@ func (h *V030Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 	return h.msgRW
 }
 
-func NewV030StateHS(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID, rd io.Reader, wr io.Writer) *V030Handshaker {
-	h := &V030Handshaker{pm: pm, actorServ: actorServ, logger: log, chainID: chainID, peerID: peerID, rd: bufio.NewReader(rd), wr: bufio.NewWriter(wr)}
+func NewV030StateHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID, rd io.Reader, wr io.Writer) *V030Handshaker {
+	h := &V030Handshaker{pm: pm, actor: actor, logger: log, chainID: chainID, peerID: peerID, rd: bufio.NewReader(rd), wr: bufio.NewWriter(wr)}
 	h.msgRW = NewV030ReadWriter(h.rd, h.wr)
 	return h
 }
@@ -54,12 +53,12 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Starting Handshake for outbound peer connection")
 	// send status
-	hostStatus, err := createStatus(h.pm, h.actorServ, h.chainID)
+	hostStatus, err := createStatus(h.pm, h.actor, h.chainID)
 	if err != nil {
 		return nil, err
 	}
 
-	container := createMessage(subproto.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
+	container := createMessage(p2pcommon.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
 	if container == nil {
 		// h.logger.Warn().Str(LogPeerID, ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to craete container message")
@@ -87,8 +86,8 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 		// go on
 	}
 
-	if data.Subprotocol() != subproto.StatusRequest {
-		if data.Subprotocol() == subproto.GoAway {
+	if data.Subprotocol() != p2pcommon.StatusRequest {
+		if data.Subprotocol() == p2pcommon.GoAway {
 			return h.handleGoAway(peerID, data)
 		} else {
 			return nil, fmt.Errorf("unexpected message type")
@@ -111,7 +110,7 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 	}
 
 	peerAddress := remotePeerStatus.Sender
-	if peerAddress == nil || p2putil.CheckAdddressType(peerAddress.Address) == p2putil.AddressTypeError {
+	if peerAddress == nil || p2putil.CheckAddressType(peerAddress.Address) == p2putil.AddressTypeError {
 		return nil, fmt.Errorf("invalid peer address : %s", peerAddress)
 	}
 
@@ -140,11 +139,11 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 		// go on
 	}
 
-	if data.Subprotocol() != subproto.StatusRequest {
-		if data.Subprotocol() == subproto.GoAway {
+	if data.Subprotocol() != p2pcommon.StatusRequest {
+		if data.Subprotocol() == p2pcommon.GoAway {
 			return h.handleGoAway(peerID, data)
 		} else {
-			h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("expected", subproto.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+			h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("expected", p2pcommon.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
 			return nil, fmt.Errorf("unexpected message type")
 		}
 	}
@@ -166,17 +165,17 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	}
 
 	peerAddress := remotePeerStatus.Sender
-	if peerAddress == nil || p2putil.CheckAdddressType(peerAddress.Address) == p2putil.AddressTypeError {
+	if peerAddress == nil || p2putil.CheckAddressType(peerAddress.Address) == p2putil.AddressTypeError {
 		return nil, fmt.Errorf("invalid peer address : %s", peerAddress)
 	}
 
 	// send my status message as response
-	hostStatus, err := createStatus(h.pm, h.actorServ, h.chainID)
+	hostStatus, err := createStatus(h.pm, h.actor, h.chainID)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		return nil, err
 	}
-	container :=  createMessage(subproto.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
+	container :=  createMessage(p2pcommon.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
 	if container == nil {
 		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to create p2p message")
 		return nil, fmt.Errorf("failed to create p2p message")
@@ -197,15 +196,15 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 func (h *V030Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
 	if err := p2putil.UnmarshalMessageBody(data.Payload(), goAway); err != nil {
-		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remore peer sent goAway but failed to decode internal message")
+		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remote peer sent goAway but failed to decode internal message")
 		return nil, err
 	}
 	return nil, fmt.Errorf("remote peer refuse handshake: %s", goAway.GetMessage())
 }
 
-func createStatus(pm p2pcommon.PeerManager, actorServ p2pcommon.ActorService, chainID *types.ChainID) (*types.Status, error) {
+func createStatus(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, chainID *types.ChainID) (*types.Status, error) {
 	// find my best block
-	bestBlock, err := actorServ.GetChainAccessor().GetBestBlock()
+	bestBlock, err := actor.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}

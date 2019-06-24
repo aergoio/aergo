@@ -37,12 +37,17 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-var mulAergo, mulGaer, zeroBig *big.Int
+var (
+	mulAergo, mulGaer, zeroBig *big.Int
+	creatorMetaKey             = []byte("Creator")
+)
 
-const maxEventCnt = 50
-const maxEventNameSize = 64
-const maxEventArgSize = 4096
-const luaCallCountDeduc = 1000
+const (
+	maxEventCnt       = 50
+	maxEventNameSize  = 64
+	maxEventArgSize   = 4096
+	luaCallCountDeduc = 1000
+)
 
 func init() {
 	mulAergo, _ = new(big.Int).SetString("1000000000000000000", 10)
@@ -59,7 +64,7 @@ func addUpdateSize(s *StateSet, updateSize int64) error {
 }
 
 //export LuaSetDB
-func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) *C.char {
+func LuaSetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		return C.CString("[System.LuaSetDB] contract state not found")
@@ -68,7 +73,7 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) *C.char {
 		return C.CString("[System.LuaSetDB] set not permitted in query")
 	}
 	val := []byte(C.GoString(value))
-	if err := stateSet.curContract.callState.ctrState.SetData([]byte(C.GoString(key)), val); err != nil {
+	if err := stateSet.curContract.callState.ctrState.SetData(C.GoBytes(key, keyLen), val); err != nil {
 		return C.CString(err.Error())
 	}
 	if err := addUpdateSize(stateSet, int64(types.HashIDLength+len(val))); err != nil {
@@ -79,7 +84,7 @@ func LuaSetDB(L *LState, service *C.int, key *C.char, value *C.char) *C.char {
 }
 
 //export LuaGetDB
-func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *C.char) {
+func LuaGetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		return nil, C.CString("[System.LuaGetDB] contract state not found")
@@ -87,7 +92,7 @@ func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *
 	if blkno != nil {
 		bigNo, _ := new(big.Int).SetString(strings.TrimSpace(C.GoString(blkno)), 10)
 		if bigNo == nil || bigNo.Sign() < 0 {
-			return nil, C.CString("[System.LuaGetDB] invalid blockheight value :"+C.GoString(blkno))
+			return nil, C.CString("[System.LuaGetDB] invalid blockheight value :" + C.GoString(blkno))
 		}
 		blkNo := bigNo.Uint64()
 
@@ -109,7 +114,7 @@ func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *
 			if err != nil {
 				return nil, C.CString("[System.LuaGetDB] failed to get snapshot state for account")
 			} else if contractProof.Inclusion {
-				trieKey := common.Hasher([]byte(C.GoString(key)))
+				trieKey := common.Hasher(C.GoBytes(key, keyLen))
 				varProof, err := stateSet.bs.GetVarAndProof(trieKey, contractProof.GetState().GetStorageRoot(), false)
 				if err != nil {
 					return nil, C.CString("[System.LuaGetDB] failed to get snapshot state variable in contract")
@@ -125,7 +130,7 @@ func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *
 		}
 	}
 
-	data, err := stateSet.curContract.callState.ctrState.GetData([]byte(C.GoString(key)))
+	data, err := stateSet.curContract.callState.ctrState.GetData(C.GoBytes(key, keyLen))
 	if err != nil {
 		return nil, C.CString(err.Error())
 	}
@@ -136,7 +141,7 @@ func LuaGetDB(L *LState, service *C.int, key *C.char, blkno *C.char) (*C.char, *
 }
 
 //export LuaDelDB
-func LuaDelDB(L *LState, service *C.int, key *C.char) *C.char {
+func LuaDelDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int) *C.char {
 	stateSet := curStateSet[*service]
 	if stateSet == nil {
 		return C.CString("[System.LuaDelDB] contract state not found")
@@ -144,7 +149,7 @@ func LuaDelDB(L *LState, service *C.int, key *C.char) *C.char {
 	if stateSet.isQuery {
 		return C.CString("[System.LuaDelDB] delete not permitted in query")
 	}
-	if err := stateSet.curContract.callState.ctrState.DeleteData([]byte(C.GoString(key))); err != nil {
+	if err := stateSet.curContract.callState.ctrState.DeleteData(C.GoBytes(key, keyLen)); err != nil {
 		return C.CString(err.Error())
 	}
 	if err := addUpdateSize(stateSet, int64(32)); err != nil {
@@ -793,7 +798,7 @@ func LuaCryptoVerifyProof(
 	key unsafe.Pointer, keyLen C.int,
 	value unsafe.Pointer, valueLen C.int,
 	proof unsafe.Pointer, nProof C.int,
-	) C.int {
+) C.int {
 
 	k := C.GoBytes(key, keyLen)
 	v := C.GoBytes(value, valueLen)
@@ -982,7 +987,7 @@ func LuaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}

@@ -12,16 +12,16 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type LogStringersMarshaler struct {
+type LogStringersMarshaller struct {
 	arr   []fmt.Stringer
 	limit int
 }
 
-func NewLogStringersMarshaler(arr []fmt.Stringer, limit int) *LogStringersMarshaler {
-	return &LogStringersMarshaler{arr: arr, limit: limit}
+func NewLogStringersMarshaller(arr []fmt.Stringer, limit int) *LogStringersMarshaller {
+	return &LogStringersMarshaller{arr: arr, limit: limit}
 }
 
-func (m *LogStringersMarshaler) MarshalZerologArray(a *zerolog.Array) {
+func (m *LogStringersMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
@@ -35,16 +35,16 @@ func (m *LogStringersMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
-type LogPeerMetasMarshaler struct {
+type LogPeerMetasMarshaller struct {
 	metas []p2pcommon.PeerMeta
 	limit int
 }
 
-func NewLogPeerMetasMarshaler(metas []p2pcommon.PeerMeta, limit int) *LogPeerMetasMarshaler {
-	return &LogPeerMetasMarshaler{metas: metas, limit: limit}
+func NewLogPeerMetasMarshaller(metas []p2pcommon.PeerMeta, limit int) *LogPeerMetasMarshaller {
+	return &LogPeerMetasMarshaller{metas: metas, limit: limit}
 }
 
-func (m *LogPeerMetasMarshaler) MarshalZerologArray(a *zerolog.Array) {
+func (m *LogPeerMetasMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.metas)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
@@ -58,17 +58,17 @@ func (m *LogPeerMetasMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
-// LogB58EncMarshaler is zerolog array marshaler which print bytes array to baase58 encoded string.
-type LogB58EncMarshaler struct {
+// LogB58EncMarshaller is zerolog array marshaller which print bytes array to base58 encoded string.
+type LogB58EncMarshaller struct {
 	arr   [][]byte
 	limit int
 }
 
-func NewLogB58EncMarshaler(arr [][]byte, limit int) *LogB58EncMarshaler {
-	return &LogB58EncMarshaler{arr: arr, limit: limit}
+func NewLogB58EncMarshaller(arr [][]byte, limit int) *LogB58EncMarshaller {
+	return &LogB58EncMarshaller{arr: arr, limit: limit}
 }
 
-func (m *LogB58EncMarshaler) MarshalZerologArray(a *zerolog.Array) {
+func (m *LogB58EncMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {

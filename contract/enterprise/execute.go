@@ -3,18 +3,32 @@ package enterprise
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/consensus"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
+var (
+	entLogger *log.Logger
+
+	ErrNotSupportedMethod = errors.New("Not supported Enterprise Tx")
+)
+
 type EnterpriseContext struct {
-	Call   *types.CallInfo
-	Args   []string
-	Admins [][]byte
-	Old    *Conf
+	Call    *types.CallInfo
+	Args    []string
+	ArgsAny []interface{}
+	Admins  [][]byte
+	Old     *Conf
+}
+
+func init() {
+	entLogger = log.NewLogger("enterprise")
 }
 
 func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
@@ -37,7 +51,7 @@ func (e *EnterpriseContext) IsOldConfValue(value string) bool {
 	return false
 }
 
-func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
+func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
 	sender *state.V) ([]*types.Event, error) {
 	context, err := ValidateEnterpriseTx(txBody, sender, scs)
 	if err != nil {
@@ -128,6 +142,33 @@ func ExecuteEnterpriseTx(scs *state.ContractState, txBody *types.TxBody,
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		})
+	case ChangeCluster:
+		if ccc == nil {
+			return nil, ErrNotSupportedMethod
+		}
+		ccReq, ok := context.ArgsAny[0].(*types.MembershipChange)
+		if !ok {
+			return nil, fmt.Errorf("invalid argument of cluster change request")
+		}
+		//entLogger.Info().Str("req", ccReq.ToString()).Msg("Enterprise tx: cluster change request")
+
+		if err := ccc.RequestConfChange(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
+			return nil, err
+		}
+
+		jsonArgs, err := json.Marshal(context.Call.Args[0])
+		if err != nil {
+			return nil, err
+		}
+
+		entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
+		/*
+			events = append(events, &types.Event{
+				ContractAddress: txBody.Recipient,
+				EventName:       "ChangeCluster ",
+				EventIdx:        0,
+				JsonArgs:        string(jsonArgs),
+			})*/
 	default:
 		return nil, fmt.Errorf("unsupported call in enterprise contract")
 	}

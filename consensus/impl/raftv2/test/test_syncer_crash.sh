@@ -51,7 +51,7 @@ echo "state of aergo3 = $raftState"
 
 if [ "$raftState" = "ProgressStateSnapshot" ]; then
 	echo "=========== fail : state must not be snapshot =========="
-	exit
+	exit 100
 fi
 
 echo "============== success to catch crash of aergo3 =========="

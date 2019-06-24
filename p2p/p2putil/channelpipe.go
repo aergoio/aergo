@@ -5,7 +5,7 @@ package p2putil
 // Tt must be called Open before using it, and Close for dispose resource.
 type ChannelPipe interface {
 	// Put item to pipe. it should be used after Open() method is called.
-	// It always returns true and gurranty that item is queued.
+	// It always returns true and guaranty that item is queued.
 	Put(item interface{}) bool
 	Out() <-chan interface{}
 	// Done should be called after get item from out channel
@@ -37,12 +37,12 @@ type PipeEventListener interface {
 }
 
 // NewDefaultChannelPipe create pipe to output channel out
-func NewDefaultChannelPipe(bufsize int, listener PipeEventListener) ChannelPipe {
-	return newDefaultChannelPipe(bufsize, listener)
+func NewDefaultChannelPipe(bufSize int, listener PipeEventListener) ChannelPipe {
+	return newDefaultChannelPipe(bufSize, listener)
 }
 
 // newDefaultChannelPipe create pipe to output channel out
-func newDefaultChannelPipe(bufsize int, listener PipeEventListener) *channelPipe {
+func newDefaultChannelPipe(bufSize int, listener PipeEventListener) *channelPipe {
 	if listener == nil {
 		listener = &StatListener{}
 	}
@@ -51,7 +51,7 @@ func newDefaultChannelPipe(bufsize int, listener PipeEventListener) *channelPipe
 		out:  make(chan interface{}, 1),
 		done: make(chan interface{}),
 
-		queue: NewPressableQueue(bufsize),
+		queue: NewPressableQueue(bufSize),
 		stop:  make(chan interface{}),
 
 		listener: listener,

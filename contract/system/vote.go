@@ -244,7 +244,7 @@ func GetBpCount(ar AccountStateReader) int {
 	if power.Cmp(big.NewInt(0)) == 0 {
 		return getLastBpCount()
 	}
-	total, err := getTotal(ar)
+	total, err := GetStakingTotal(ar)
 	if err != nil {
 		panic("failed to get staking total when calculate bp count")
 	}

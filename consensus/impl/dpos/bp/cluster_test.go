@@ -35,7 +35,7 @@ func TestNewCluster(t *testing.T) {
 	genID := func() string {
 		_, pubKey, err := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		assert.Nil(t, err)
-		b, err := peer.IDFromPublicKey(pubKey)
+		b, err := types.IDFromPublicKey(pubKey)
 		assert.Nil(t, err)
 		return b.Pretty()
 	}

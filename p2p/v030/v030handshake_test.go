@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 )
@@ -103,11 +102,11 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 
 			var containerMsg *p2pcommon.MessageValue
 			if tt.readReturn != nil {
-				containerMsg = p2pcommon.NewSimpleMsgVal(subproto.StatusRequest, p2pcommon.NewMsgID())
+				containerMsg = p2pcommon.NewSimpleMsgVal(p2pcommon.StatusRequest, p2pcommon.NewMsgID())
 				statusBytes, _ := p2putil.MarshalMessageBody(tt.readReturn)
 				containerMsg.SetPayload(statusBytes)
 			} else {
-				containerMsg = p2pcommon.NewSimpleMsgVal(subproto.AddressesRequest, p2pcommon.NewMsgID())
+				containerMsg = p2pcommon.NewSimpleMsgVal(p2pcommon.AddressesRequest, p2pcommon.NewMsgID())
 			}
 			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
@@ -176,11 +175,11 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 
 			containerMsg := &p2pcommon.MessageValue{}
 			if tt.readReturn != nil {
-				containerMsg = p2pcommon.NewSimpleMsgVal(subproto.StatusRequest, p2pcommon.NewMsgID())
+				containerMsg = p2pcommon.NewSimpleMsgVal(p2pcommon.StatusRequest, p2pcommon.NewMsgID())
 				statusBytes, _ := p2putil.MarshalMessageBody(tt.readReturn)
 				containerMsg.SetPayload(statusBytes)
 			} else {
-				containerMsg = p2pcommon.NewSimpleMsgVal(subproto.AddressesRequest, p2pcommon.NewMsgID())
+				containerMsg = p2pcommon.NewSimpleMsgVal(p2pcommon.AddressesRequest, p2pcommon.NewMsgID())
 			}
 
 			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()

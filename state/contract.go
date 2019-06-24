@@ -81,6 +81,7 @@ func (st *ContractState) SetCode(code []byte) error {
 		return err
 	}
 	st.State.CodeHash = codeHash[:]
+	st.code = code
 	return nil
 }
 func (st *ContractState) GetCode() ([]byte, error) {

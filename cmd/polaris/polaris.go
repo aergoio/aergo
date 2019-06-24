@@ -91,13 +91,13 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	lntc := server.NewNTContainer(cfg)
-	pmapSvc := server.NewPolarisService(cfg, lntc)
+	lNTC := server.NewNTContainer(cfg)
+	polarisSvc := server.NewPolarisService(cfg, lNTC)
 	rpcSvc := server.NewPolarisRPC(cfg)
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(lntc, pmapSvc, rpcSvc)
+	compMng.Register(lNTC, polarisSvc, rpcSvc)
 
 	//consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
 	//if err != nil {

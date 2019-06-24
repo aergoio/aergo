@@ -25,7 +25,7 @@ func Test_MarshalTxResp(t *testing.T) {
 	emptyMarshaled, _ := proto.Marshal(&types.GetTransactionsResponse{})
 	emptySize := len(emptyMarshaled)
 	//fmt.Println("EMPTY: ",hex.EncodeToString(emptyMarshaled))
-	//fmt.Printf("Size of All nil: %d , txsize: %d ",emptySize, txSize)
+	//fmt.Printf("Size of All nil: %d , tx size: %d ",emptySize, txSize)
 	tests := []struct {
 		name         string
 		itemSize     int
@@ -60,7 +60,7 @@ func Test_MarshalTxResp(t *testing.T) {
 			if actualSize < cut {
 				cut = actualSize
 			}
-			//fmt.Println("ACTUA: ",hex.EncodeToString(actual[:cut]))
+			//fmt.Println("ACTUAL: ",hex.EncodeToString(actual[:cut]))
 
 			assert.Equal(t, test.expectedSize, actualSize)
 
@@ -69,7 +69,7 @@ func Test_MarshalTxResp(t *testing.T) {
 }
 
 func Test_calculateFieldDesc(t *testing.T) {
-	sampleSlize := make([]byte, 2<<25)
+	sampleSize := make([]byte, 2<<25)
 	tests := []struct {
 		name      string
 		valueSize int
@@ -86,8 +86,8 @@ func Test_calculateFieldDesc(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expected, CalculateFieldDescSize(test.valueSize))
-			if test.valueSize <= len(sampleSlize) {
-				inputBytes := sampleSlize[:test.valueSize]
+			if test.valueSize <= len(sampleSize) {
+				inputBytes := sampleSize[:test.valueSize]
 				dummy := &types.GetBlockHeadersRequest{Hash: inputBytes}
 				realSize := proto.Size(dummy)
 				assert.Equal(t, realSize, CalculateFieldDescSize(test.valueSize)+len(inputBytes))

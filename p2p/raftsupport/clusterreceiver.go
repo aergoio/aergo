@@ -13,7 +13,6 @@ import (
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
@@ -70,7 +69,7 @@ func (br *ClusterInfoReceiver) trySendNextPeer() bool {
 		peer := br.peers[br.offset]
 		if peer.State() == types.RUNNING {
 			br.offset++
-			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetClusterRequest, &types.GetClusterInfoRequest{BestBlockHash: br.req.BestBlockHash})
+			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetClusterRequest, &types.GetClusterInfoRequest{BestBlockHash: br.req.BestBlockHash})
 			peer.SendMessage(mo)
 			br.sents[mo.GetMsgID()] = peer
 			return true
@@ -144,7 +143,7 @@ func (br *ClusterInfoReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 }
 
 // cancelReceiving is cancel wait for receiving and return the failure result.
-// it wait remaining (and useless) response. It is assumed cancelings are not frequently occur
+// it wait remaining (and useless) response. It is assumed cancellations are not frequently occur
 func (br *ClusterInfoReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
 	result := &message.GetClusterRsp{Err: err}
@@ -153,7 +152,7 @@ func (br *ClusterInfoReceiver) cancelReceiving(err error, hasNext bool) {
 	br.finishReceiver()
 }
 
-// finishReceiver is to cancel works, assuming cancelings are not frequently occur
+// finishReceiver is to cancel works, assuming cancellations are not frequently occur
 func (br *ClusterInfoReceiver) finishReceiver() {
 	br.status = receiverStatusFinished
 }

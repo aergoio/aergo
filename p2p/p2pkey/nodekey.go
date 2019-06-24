@@ -31,7 +31,7 @@ type nodeInfo struct {
 
 var ni *nodeInfo
 
-// InitNodeInfo initializes node-specific informations like node id.
+// InitNodeInfo initializes node-specific information like node id.
 // Caution: this must be called before all the goroutines are started.
 func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version string, logger *log.Logger) {
 	// check Key and address

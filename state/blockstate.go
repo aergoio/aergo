@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/aergoio/aergo/types"
 	"github.com/willf/bloom"
+	"sync"
 )
 
 // BlockInfo contains BlockHash and StateRoot
@@ -16,7 +17,12 @@ type BlockState struct {
 	StateDB
 	BpReward []byte //final bp reward, increment when tx executes
 	receipts types.Receipts
-	CodeMap  map[types.AccountID][]byte
+	CodeMap  codeCache
+}
+
+type codeCache struct {
+	Lock sync.Mutex
+	codes map[types.AccountID][]byte
 }
 
 // NewBlockInfo create new blockInfo contains blockNo, blockHash and blockHash of previous block
@@ -39,7 +45,9 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 func NewBlockState(states *StateDB) *BlockState {
 	return &BlockState{
 		StateDB: *states,
-		CodeMap: make(map[types.AccountID][]byte),
+		CodeMap: codeCache {
+			codes: make(map[types.AccountID][]byte),
+		},
 	}
 }
 
@@ -66,4 +74,22 @@ func (bs *BlockState) Receipts() *types.Receipts {
 		return nil
 	}
 	return &bs.receipts
+}
+
+func (c *codeCache) Add(key types.AccountID, code []byte) {
+	c.Lock.Lock()
+	c.codes[key] = code
+	c.Lock.Unlock()
+}
+
+func (c *codeCache) Get(key types.AccountID) []byte {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
+	return c.codes[key]
+}
+
+func (c *codeCache) Remove(key types.AccountID) {
+	c.Lock.Lock()
+	delete(c.codes, key)
+	c.Lock.Unlock()
 }

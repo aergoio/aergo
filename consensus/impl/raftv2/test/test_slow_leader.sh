@@ -19,6 +19,6 @@ isStableLeader 20
 ret=$?
 if [ "$ret" == "0" ];then
 	echo "=========== failed =========================="
-	exit
+	exit 100
 fi
 echo "=========== succeed =========================="

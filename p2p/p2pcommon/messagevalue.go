@@ -10,7 +10,7 @@ import "time"
 // MessageValue is basic implementation of Message. It is used since p2p v0.3
 type MessageValue struct {
 	subProtocol SubProtocol
-	// Length is lenght of payload
+	// Length is length of payload
 	length uint32
 	// timestamp is unix time (precision of second)
 	timestamp int64

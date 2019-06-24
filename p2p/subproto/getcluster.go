@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrConsensusAccessorNotReady = errors.New("consensus acessor is not ready")
+	ErrConsensusAccessorNotReady = errors.New("consensus accessor is not ready")
 )
 
 type getClusterRequestHandler struct {
@@ -35,7 +35,7 @@ var _ p2pcommon.MessageHandler = (*getClusterResponseHandler)(nil)
 // NewGetClusterReqHandler creates handler for PingRequest
 func NewGetClusterReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, consAcc consensus.ConsensusAccessor) *getClusterRequestHandler {
 	ph := &getClusterRequestHandler{
-		BaseMsgHandler: BaseMsgHandler{protocol: GetClusterRequest, pm: pm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetClusterRequest, pm: pm, peer: peer, actor: actor, logger: logger},
 		consAcc:        consAcc,
 	}
 	return ph
@@ -60,12 +60,12 @@ func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcom
 		resp = ph.consAcc.ClusterInfo(data.BestBlockHash)
 	}
 
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetClusterResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetClusterResponse, resp))
 }
 
 // NewGetClusterRespHandler creates handler for PingRequest
 func NewGetClusterRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getClusterResponseHandler {
-	ph := &getClusterResponseHandler{BaseMsgHandler{protocol: GetClusterResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &getClusterResponseHandler{BaseMsgHandler{protocol: p2pcommon.GetClusterResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 

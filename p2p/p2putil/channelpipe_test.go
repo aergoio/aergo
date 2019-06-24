@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestChannelpipe(t *testing.T) {
+func TestChannelPipe(t *testing.T) {
 	const arrSize = 30
 	var mos [arrSize]TestItem
 	for i := 0; i < arrSize; i++ {
@@ -186,17 +186,17 @@ func (l *orderCheckListener) OnIn(element interface{}) {
 
 func (l *orderCheckListener) OnDrop(element interface{}) {
 	id := element.(TestItem).ID()
-	assert.Truef(l.t, id > l.dropId, "dropId expected higer thant %d, but %d", l.dropId, id)
+	assert.Truef(l.t, id > l.dropId, "dropId expected higher thant %d, but %d", l.dropId, id)
 	l.dropId = id
 }
 
 func (l *orderCheckListener) OnOut(element interface{}) {
 	id := element.(TestItem).ID()
-	assert.Truef(l.t, id > l.outId, "outId expected higer thant %d, but %d", l.outId, id)
+	assert.Truef(l.t, id > l.outId, "outId expected higher thant %d, but %d", l.outId, id)
 	l.outId = id
 }
 
-func TestLongterm(t *testing.T) {
+func TestLongTerm(t *testing.T) {
 	// skip unit test in normal time..
 	t.SkipNow()
 	const arrSize = 30
@@ -232,7 +232,7 @@ func TestLongterm(t *testing.T) {
 			c := newDefaultChannelPipe(tt.cap, listener)
 			c.Open()
 
-			go consumeForLongterm(c, tt.testTime+time.Minute, doneC, finish)
+			go consumeForLongTerm(c, tt.testTime+time.Minute, doneC, finish)
 			expire := time.Now().Add(tt.testTime)
 
 			i := 0
@@ -265,10 +265,10 @@ func TestLongterm(t *testing.T) {
 func TestMultiLoads(t *testing.T) {
 	// skip unit test in normal time..
 	// t.SkipNow()
-	const threadsize = 100
+	const threadSize = 100
 	const arrSize = 30
-	var mos [threadsize][arrSize]TestItem
-	for j := 0; j < threadsize; j++ {
+	var mos [threadSize][arrSize]TestItem
+	for j := 0; j < threadSize; j++ {
 		for i := 0; i < arrSize; i++ {
 			mos[j][i] = &testItem2{testItem{i}, j}
 		}
@@ -292,11 +292,11 @@ func TestMultiLoads(t *testing.T) {
 			c := newDefaultChannelPipe(tt.cap, listener)
 			c.Open()
 
-			go consumeForLongterm(c, tt.testTime+time.Minute, doneC, finish)
+			go consumeForLongTerm(c, tt.testTime+time.Minute, doneC, finish)
 			wg := sync.WaitGroup{}
 			expire := time.Now().Add(tt.testTime)
-			wg.Add(threadsize)
-			for j := 0; j < threadsize; j++ {
+			wg.Add(threadSize)
+			for j := 0; j < threadSize; j++ {
 				go func(tid int) {
 					i := 0
 					for time.Now().Before(expire) {
@@ -331,7 +331,7 @@ type testItem2 struct {
 	routineId int
 }
 
-func consumeForLongterm(wc ChannelPipe, ttl time.Duration, doneChannel chan<- int, finishChannel <-chan interface{}) {
+func consumeForLongTerm(wc ChannelPipe, ttl time.Duration, doneChannel chan<- int, finishChannel <-chan interface{}) {
 	finishTime := time.NewTimer(ttl)
 	cnt := 0
 LOOP:

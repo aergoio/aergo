@@ -32,9 +32,9 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	//mockP2PS.EXPECT().LookupPeer(, samplePeerID).Return(nil, false)
 
 	type fields struct {
-		actorServ p2pcommon.ActorService
-		ps        p2pcommon.PeerManager
-		logger    *log.Logger
+		actor  p2pcommon.ActorService
+		ps     p2pcommon.PeerManager
+		logger *log.Logger
 	}
 	type args struct {
 		s network.Stream
@@ -48,9 +48,9 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 		{
 			"normal",
 			&fields{
-				actorServ: p2pmock.NewMockActorService(ctrl),
-				logger:    log.NewLogger("test.p2p"),
-				ps:        mockP2PS,
+				actor:  p2pmock.NewMockActorService(ctrl),
+				logger: log.NewLogger("test.p2p"),
+				ps:     mockP2PS,
 			},
 			args{s: mockIStream},
 			func() {
@@ -108,11 +108,11 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 			mockActor.EXPECT().GetChainAccessor().Return(mockCA).MaxTimes(1)
 
 			reqID := p2pcommon.NewMsgID()
-			dummyMF.EXPECT().NewMsgResponseOrder(reqID, PingResponse, gomock.AssignableToTypeOf(&types.Pong{})).Return(nil).Times(tt.sendRespCnt)
+			dummyMF.EXPECT().NewMsgResponseOrder(reqID, p2pcommon.PingResponse, gomock.AssignableToTypeOf(&types.Pong{})).Return(nil).Times(tt.sendRespCnt)
 
 			msg := p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(reqID).AnyTimes()
-			msg.EXPECT().Subprotocol().Return(PingRequest).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(p2pcommon.PingRequest).AnyTimes()
 			body := &types.Ping{BestBlockHash: tt.args.hash, BestHeight: tt.args.height}
 
 			ph := NewPingReqHandler(mockPM, mockPeer, logger, mockActor)

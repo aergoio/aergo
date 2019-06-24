@@ -39,6 +39,7 @@ type printChainInfo struct {
 	MaxBlockSize   uint64
 	MaxTokens      string
 	StakingMinimum string
+	StakingTotal   string
 }
 
 func convChainInfoMsg(msg *types.ChainInfo) string {
@@ -51,6 +52,7 @@ func convChainInfoMsg(msg *types.ChainInfo) string {
 	out.MaxBlockSize = msg.Maxblocksize
 	out.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
 	out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
+	out.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
 	jsonout, err := json.MarshalIndent(out, "", " ")
 	if err != nil {
 		return ""

@@ -51,21 +51,21 @@ func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
 
 func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
 	meta := p2pcommon.PeerMeta{}
-	splitted := strings.Split(targetAddr.String(), "/")
-	if len(splitted) != 7 {
+	split := strings.Split(targetAddr.String(), "/")
+	if len(split) != 7 {
 		return meta, fmt.Errorf("invalid NPAddPeer addr format %s", targetAddr.String())
 	}
-	addrType := splitted[1]
+	addrType := split[1]
 	if addrType != "ip4" && addrType != "ip6" {
 		return meta, fmt.Errorf("invalid NPAddPeer addr type %s", addrType)
 	}
-	peerAddrString := splitted[2]
-	peerPortString := splitted[4]
+	peerAddrString := split[2]
+	peerPortString := split[4]
 	peerPort, err := strconv.Atoi(peerPortString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid Peer port %s", peerPortString)
 	}
-	peerIDString := splitted[6]
+	peerIDString := split[6]
 	peerID, err := types.IDB58Decode(peerIDString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
@@ -87,16 +87,16 @@ func ParseMultiAddrString(str string) (p2pcommon.PeerMeta, error) {
 }
 
 // ParseMultiaddrWithResolve parse string to multiaddr, additionally accept domain name with protocol /dns
-// NOTE: this function is temporarilly use until go-multiaddr start to support dns.
+// NOTE: this function is temporarily use until go-multiaddr start to support dns.
 func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 	ma, err := multiaddr.NewMultiaddr(str)
 	if err != nil {
 		// multiaddr is not support domain name yet. change domain name to ip address manually
-		splitted := strings.Split(str, "/")
-		if len(splitted) < 3 || !strings.HasPrefix(splitted[1], "dns") {
+		split := strings.Split(str, "/")
+		if len(split) < 3 || !strings.HasPrefix(split[1], "dns") {
 			return nil, err
 		}
-		domainName := splitted[2]
+		domainName := split[2]
 		ips, err := ResolveHostDomain(domainName)
 		if err != nil {
 			return nil, fmt.Errorf("Could not get IPs: %v\n", err)
@@ -105,8 +105,8 @@ func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 		ipSelected := false
 		for _, ip := range ips {
 			if ip.To4() != nil {
-				splitted[1] = "ip4"
-				splitted[2] = ip.To4().String()
+				split[1] = "ip4"
+				split[2] = ip.To4().String()
 				ipSelected = true
 				break
 			}
@@ -114,8 +114,8 @@ func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 		if !ipSelected {
 			for _, ip := range ips {
 				if ip.To16() != nil {
-					splitted[1] = "ip6"
-					splitted[2] = ip.To16().String()
+					split[1] = "ip6"
+					split[2] = ip.To16().String()
 					ipSelected = true
 					break
 				}
@@ -124,7 +124,7 @@ func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
 		if !ipSelected {
 			return nil, err
 		}
-		rejoin := strings.Join(splitted, "/")
+		rejoin := strings.Join(split, "/")
 		return multiaddr.NewMultiaddr(rejoin)
 	}
 	return ma, nil
@@ -144,11 +144,11 @@ func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
 }
 
 func GenerateKeyFile(dir, prefix string) (crypto.PrivKey, crypto.PubKey, error) {
-	// invariant: keyfile must not exists.
+	// invariant: key file must not exists.
 	if _, err2 := os.Stat(dir); os.IsNotExist(err2) {
-		mkdirerr := os.MkdirAll(dir, os.ModePerm)
-		if mkdirerr != nil {
-			return nil, nil, mkdirerr
+		mkdirErr := os.MkdirAll(dir, os.ModePerm)
+		if mkdirErr != nil {
+			return nil, nil, mkdirErr
 		}
 	}
 	// file not exist and create new file

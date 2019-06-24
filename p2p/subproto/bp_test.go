@@ -60,7 +60,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 			mockSM := p2pmock.NewMockSyncManager(ctrl)
 			mockSM.EXPECT().HandleBlockProducedNotice(gomock.Any(), gomock.AssignableToTypeOf(&types.Block{})).Times(tt.syncmanagerCallCnt)
 
-			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID(), subProtocol:BlockProducedNotice}
+			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID(), subProtocol: p2pcommon.BlockProducedNotice}
 			body := &types.BlockProducedNotice{Block: tt.payloadBlk}
 			h := NewBlockProducedNoticeHandler(mockPM, mockPeer, logger, mockActor, mockSM)
 			h.Handle(dummyMsg, body)

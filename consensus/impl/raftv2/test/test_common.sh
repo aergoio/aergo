@@ -17,10 +17,24 @@ for i in {1..7} ; do
 
 	httpports[$nodename]=$((13000 + $i))
 
-	if [ -e "$svrport.id" ]; then 
-		peerids[$nodename]=`cat $svrport.id`
+	if [ -e "$TEST_RAFT_INSTANCE/$svrport.id" ]; then 
+		peerids[$nodename]=`cat $TEST_RAFT_INSTANCE/$svrport.id`
+		echo "peerids="${peerids[$nodename]}
 	fi
 done
+
+function RUN_TEST_SCRIPT() {
+	shell="/usr/bin/env bash"
+	echo "run scripts> $*"
+
+	$shell -c "$*"
+	if [ $? != 0 ]; then
+		echo "Test Failed"
+		exit 1000
+	fi
+
+	echo "Test Succeeded"
+}
 
 
 function existProcess() {
@@ -45,7 +59,7 @@ function getHeight() {
     existProcess $serverport
     if [ "$?" = "0" ]; then
 		echo "no process $serverport"
-		exit 100
+		return 0
     fi
 
     local height=$(aergocli -p $port blockchain | jq .Height)
@@ -63,7 +77,7 @@ function getHash() {
 
 	if [ $# != 3 ];then
 		echo "usage: getHash port height retHash"
-		exit
+		exit 100
 	fi
 
     local serverport=$(($port + 1000))
@@ -94,7 +108,7 @@ function getleader() {
 
 	if [[ "$curleader" != aergo* ]]; then
 		echo "<get leader failed>"
-		exit
+		exit 100
 	fi
 
 	echo "leader=$curleader"
@@ -107,15 +121,13 @@ function getLeaderOf() {
 	local _leader_=""
 	if [ $# -ne 2 ]; then
 		echo "usage: getLeaderOf rpcport retvalue"
-		exit
+		exit 100
 	fi
 
 	local myport=$1
 
 	_leader_=$(aergocli -p $myport blockchain | jq .ConsensusInfo.Status.Leader)
 	_leader_=${_leader_//\"/}
-
-	echo "curleader=$_leader_"
 
 	if [[ "$_leader_" == aergo* ]]; then
 		eval "$2=$_leader_"
@@ -125,7 +137,7 @@ function getLeaderOf() {
 function HasLeader() {
 	if [ $# -ne 2 ]; then
 		echo "usage: HasLeader rpcport retvalue"
-		exit
+		exit 100
 	fi
 
 	local myport=$1
@@ -144,7 +156,7 @@ function HasLeader() {
 function getRaftID() {
 	if [ $# != 3 ]; then
 		echo "getRafTID leaderport name outRaftID"
-		exit 1
+		exit 100
 	fi
 
 	local _leaderport=$1
@@ -157,7 +169,7 @@ function getRaftID() {
 	ret=$?
 	if [ "$_raftID" == "" ]; then
 		echo "failed to get raftID for $name"
-		exit 2
+		exit 200
 		eval $3=""
 	fi
 
@@ -174,6 +186,10 @@ function getRaftState() {
 
 	local leaderPort=
 	getLeaderPort leaderPort
+	if [ $? -ne 0 ];then
+		echo "failed to get leader port"
+		exit 100
+	fi
 
 	# getRaftID
 	getRaftID $leaderPort $name raftID
@@ -192,7 +208,7 @@ function getRaftState() {
 function getLeaderPort() {
 	if [ $# != 1 ]; then
 		echo "Usage: getLeaderPort leaderport"
-		exit
+		exit 100
 	fi
 
 	local _leader=""
@@ -202,9 +218,10 @@ function getLeaderPort() {
 
 	if [ "$_leaderport" == "" ];then
 		echo "failed to get leader port"
-		return 0
-		exit
+		exit 100
 	fi
+
+	echo "leader port=$_leaderport"
 
 	eval "$1=$_leaderport"
 }
@@ -220,7 +237,7 @@ function testxxx() {
 function isStableLeader() {
 	if [ $# -ne 1 ]; then
 		echo 'Usage: isStableLeader timeout. return value=$?'
-		exit
+		exit 100
 	fi
 
 	timeout=$1
@@ -246,7 +263,7 @@ function isStableLeader() {
 function changeLeader() {
 	if [ "$#" != 0 ];then
 		echo "Usage: changeLeader"
-		exit
+		exit 100
 	fi
 
 	local leaderName
@@ -340,6 +357,8 @@ function checkSync() {
 	echo "src=$srcPort, curPort=$curPort, time=$timeout"
 
 	for ((i = 1; i<= $3; i++)); do
+		sleep 1
+
 		srcHeight=""
 		curHeight=""
 		getHeight $srcPort 
@@ -350,7 +369,7 @@ function checkSync() {
 
 		echo "srcno=$srcHeight, curno=$curHeight"
 
-		if [ "$srcHeight" = "-1" ] || [ "$curHeight" = "-1" ]; then
+		if [ "$srcHeight" = "0" ] || [ "$curHeight" = "0" ] || [ "$srcHeight" = "255" ] || [ "$curHeight" = "255" ]; then
 			continue
 		fi
 
@@ -363,18 +382,35 @@ function checkSync() {
 			hang=$?
 			if [ $hang = 1 ];then
 				echo "========= hang after sync ============"
-				exit 1
+				exit 100
 			fi
 			return
 		fi
-
-		sleep 1
 	done
 
 	echo "========= sync failed ============"
-	exit 
+	exit 100
 }
 
+function checkSyncWithLeader() {
+	local _curPort=$1
+	local _timeout=$2
+
+	echo "============ checkSync with Leader $_curPort . timeout=$2sec ==========="
+
+	local leaderport=
+	getLeaderPort leaderport
+	if [ $? -ne 0 -o "$leaderport" = "" ];then
+		echo "failed to get leader port"
+		exit 100
+	fi
+
+	checkSync $leaderport $_curPort $_timeout
+	if [ $? -ne 0 ];then
+		echo "failed to sync with leader $leaderport"
+		exit 100
+	fi
+}
 
 # 현재 sync가 정상적으로 진행중인지 검사
 # 현재 best가 remote 에 connect되어 있는 지 확인
@@ -410,12 +446,12 @@ function checkSyncRunning() {
 
         if [ "$curHeight" = "-1" ] || [ "$curHash" = "-1" ] || [ "$srcHash" = "-1" ]; then
 			echo "========= sync failed ============"
-			exit 
+			exit 100 
         fi
 
         if [ "$curHash" != "$srcHash"  ]; then
 			echo "========= sync failed ============"
-			exit 
+			exit 100
         fi
 
         sleep 1
@@ -430,12 +466,12 @@ function checkSyncRunning() {
 function prepareConfig() {
 	if [ $# != "1" ];then
 		echo "Usage: $0 configMax"
-		exit
+		exit 100
 	fi
 
 	if [ "$TEST_RAFT_INSTANCE" = "" ];then
 		echo "TEST_RAFT_INSTANCE is not set"
-		exit
+		exit 100
 	fi
 
 
@@ -448,4 +484,118 @@ function prepareConfig() {
 	done
 	echo "cp  $TEST_RAFT_INSTANCE_CONF/_genesis.* $TEST_RAFT_INSTANCE"
 	cp  $TEST_RAFT_INSTANCE_CONF/_genesis.* $TEST_RAFT_INSTANCE
+}
+
+function getAdminUnlocked() {
+	if [ $# -ne 3 ]; then
+		echo "Usage: $0 rpcport genesis.json retAddress"
+		exit 100
+	fi
+
+	rpcport=$1
+	_genesis="$2"
+
+	if [ ! -e  "$_genesis" ];then
+		echo "not exit genesis_wallet.txt ($_genesis)"
+		exit 100
+	fi
+
+	_admin=`cat $_genesis`
+
+	echo "aergocli -p $rpcport account unlock --address $_admin --password 1234"
+	_ret=`aergocli -p $rpcport account unlock --address $_admin --password 1234`
+
+	if [ "$_admin" != "$_ret" ];then
+		echo "failed to unlock $_admin"
+	fi
+
+    eval "$3=$_admin"
+}
+
+function makeAddMemberJson() {
+	# return valude is printed by echo
+	if [ $# -ne 1 ]; then
+		#echo "Usage: $0 nodename"
+		exit 100
+	fi
+
+	_nodename=$1
+	if [[ "$_nodename " != aergo* ]]; then
+		#echo "Usage: $0 nodename"
+		exit 100
+	fi
+
+	memberJson='[ { "command": "add", "name": "'$_nodename'", "url": "http://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
+
+	echo $memberJson
+}
+
+function makeRemoveMemberJson() {
+	# return valude is printed by echo
+	if [ $# -ne 1 ]; then
+		#echo "Usage: $0 raftID"
+		exit 100
+	fi
+
+	_raftID=$1
+	_memberJson='[ { "command": "remove", "id":"'$_raftID'" } ]'
+
+	echo $_memberJson
+}
+
+function getClusterTotal() {
+	_chkPort=$1
+	_total=`aergocli -p $_chkPort blockchain | jq .ConsensusInfo.Status.Total`
+	echo $(printf %d $_total)
+}
+
+function waitClusterTotal() {
+	if [ $# -ne 3 -o ! $1 -ge 0 ];then
+		echo "Usage: $0 totalcount rpcport timewait"
+		exit 100
+	fi
+
+	reqCount=$1
+	chkPort=$2
+	tryCnt=$3
+
+	i=0
+	while [ $i -lt $tryCnt ]; do
+		total=`aergocli -p $chkPort blockchain | jq .ConsensusInfo.Status.Total`
+		if [ "$total" = "$reqCount" ];then
+			return 1	
+		fi
+		i=$((i + 1))
+		sleep 3
+	done
+
+	return 0
+}
+
+function WaitPeerConnect() {
+	if [ $# -ne 2 ]; then
+		echo "Usage:$0 expectPeerCount Timeout(sec)"
+	fi 
+
+	_reqcnt=$1
+	_timeout=$2
+	local _res
+
+	for ((i = 1; i<= $_timeout; i++)); do
+		_res=$(aergocli -p 10001 getpeers | jq ".|length")
+
+		if [[ "$_res" == fail* ]]; then
+			continue
+		fi
+
+		if [ "$_res" != "" -a $_res -gt 0 -a $_res -ge $_reqcnt ];then
+			echo "peer[$_res] connected"
+			return 1
+		fi
+
+		sleep 1
+	done
+
+	echo "failed peer connection: peer req=$_reqcnt, res=$_res connected."
+	return 0
 }

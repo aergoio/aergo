@@ -22,7 +22,6 @@ import (
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
@@ -283,7 +282,18 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	// init Debugger
 	cs.initDebugger()
 
+	cs.startChilds()
+
 	return cs
+}
+
+func (cs *ChainService) startChilds() {
+	if !cs.cfg.Blockchain.VerifyOnly {
+		cs.chainManager.Start()
+		cs.chainWorker.Start()
+	} else {
+		cs.chainVerifier.Start()
+	}
 }
 
 func (cs *ChainService) initDebugger() {
@@ -324,6 +334,10 @@ func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig
 	return cs.getEnterpriseConf(key)
 }
 
+func (cs *ChainService) GetSystemValue(key types.SystemValue) (*big.Int, error) {
+	return cs.getSystemValue(key)
+}
+
 // SetChainConsensus sets cs.cc to cc.
 func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 	cs.ChainConsensus = cc
@@ -336,12 +350,6 @@ func (cs *ChainService) BeforeStart() {
 
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
-	if !cs.cfg.Blockchain.VerifyOnly {
-		cs.chainManager.Start()
-		cs.chainWorker.Start()
-	} else {
-		cs.chainVerifier.Start()
-	}
 }
 
 // BeforeStop close chain database and stop BlockValidator
@@ -387,9 +395,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
 		}
 
-		if cs.cfg.Blockchain.VerifyOnly {
-			cs.chainVerifier.Request(&message.VerifyStart{}, context.Sender())
-		}
+		cs.setRecovered(true)
 	}
 
 	switch msg := context.Message().(type) {
@@ -536,6 +542,15 @@ func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, 
 		return enterprise.GetConf(stateDB, key)
 	}
 	return enterprise.GetAdmin(stateDB)
+}
+
+func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
+	stateDB := cs.sdb.GetStateDB()
+	switch key {
+	case types.StakingTotal:
+		return system.GetStakingTotal(stateDB)
+	}
+	return nil, fmt.Errorf("unsupported system value : %s", key)
 }
 
 type ChainManager struct {
@@ -767,8 +782,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
 			for _, storageKey := range msg.StorageKeys {
-				trieKey := common.Hasher([]byte(storageKey))
-				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(trieKey, contractTrieRoot, msg.Compressed)
+				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(storageKey, contractTrieRoot, msg.Compressed)
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {

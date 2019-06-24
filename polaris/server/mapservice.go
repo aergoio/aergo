@@ -20,7 +20,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
@@ -323,7 +322,7 @@ func (pms *PeerMapService) onPing(s network.Stream) {
 	// TODO: check if sender is known polaris or peer and it not, ban or write to blacklist .
 	pingResp := &types.Ping{}
 	msgID := p2pcommon.NewMsgID()
-	respMsg, err := createV030Message(msgID, req.ID(), subproto.PingResponse, pingResp)
+	respMsg, err := createV030Message(msgID, req.ID(), p2pcommon.PingResponse, pingResp)
 	if err != nil {
 		return
 	}
@@ -389,7 +388,7 @@ func (pms *PeerMapService) getPeerCheckers() []peerChecker {
 func makeGoAwayMsg(message string) (p2pcommon.Message, error) {
 	awayMsg := &types.GoAwayNotice{Message: message}
 	msgID := p2pcommon.NewMsgID()
-	return createV030Message(msgID, EmptyMsgID, subproto.GoAway, awayMsg)
+	return createV030Message(msgID, EmptyMsgID, p2pcommon.GoAway, awayMsg)
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine

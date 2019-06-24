@@ -23,8 +23,8 @@ var (
 	desigPeers   []p2pcommon.PeerMeta
 	desigPeerMap = make(map[types.PeerID]p2pcommon.PeerMeta)
 
-	unknowIDs   []types.PeerID
-	unknowPeers []p2pcommon.PeerMeta
+	unknownIDs   []types.PeerID
+	unknownPeers []p2pcommon.PeerMeta
 )
 
 func init() {
@@ -37,13 +37,13 @@ func init() {
 		desigPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: true}
 		desigPeerMap[desigIDs[i]] = desigPeers[i]
 	}
-	unknowIDs = make([]types.PeerID, desigCnt)
-	unknowPeers = make([]p2pcommon.PeerMeta, desigCnt)
+	unknownIDs = make([]types.PeerID, desigCnt)
+	unknownPeers = make([]p2pcommon.PeerMeta, desigCnt)
 	for i := 0; i < desigCnt; i++ {
 		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		pid, _ := types.IDFromPrivateKey(priv)
-		unknowIDs[i] = pid
-		unknowPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: false}
+		unknownIDs[i] = pid
+		unknownPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: false}
 	}
 }
 func createDummyPM() *peerManager {
@@ -97,8 +97,8 @@ func Test_dynamicPeerFinder_OnPeerDisconnect(t *testing.T) {
 		args      args
 		wantCount int
 	}{
-		{"TDesgintedPeer", args{desigIDs, desigPeers[0]}, 1},
-		{"TNonPeer", args{unknowIDs, unknowPeers[0]}, 0},
+		{"TDesignatedPeer", args{desigIDs, desigPeers[0]}, 1},
+		{"TNonPeer", args{unknownIDs, unknownPeers[0]}, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,7 +138,7 @@ func Test_dynamicPeerFinder_OnPeerConnect(t *testing.T) {
 		wantStatCount int
 	}{
 		{"TDesigPeer", args{desigIDs, desigPeers[0]}, 1},
-		{"TNonPeer", args{unknowIDs, unknowPeers[0]}, 1},
+		{"TNonPeer", args{unknownIDs, unknownPeers[0]}, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -32,10 +32,12 @@ var (
 		2: "EntryConfChange",
 	}
 
-	ErrURLInvalidScheme = errors.New("url has invalid scheme")
-	ErrURLInvalidPort   = errors.New("url must have host:port style")
-	ErrInvalidMemberID  = errors.New("member id of conf change doesn't match")
-	ErrEmptySnapData    = errors.New("failed to decode snapshot data. encoded data is empty")
+	ErrURLInvalidScheme       = errors.New("url has invalid scheme")
+	ErrURLInvalidPort         = errors.New("url must have host:port style")
+	ErrInvalidMemberID        = errors.New("member id of conf change doesn't match")
+	ErrEmptySnapData          = errors.New("failed to decode snapshot data. encoded data is empty")
+	ErrInvalidMemberAttr      = errors.New("invalid member attribute")
+	ErrorMembershipChangeSkip = errors.New("node is not raft leader, so skip membership change request")
 )
 
 type WalEntry struct {
@@ -358,11 +360,11 @@ type JsonMember struct {
 }
 
 func NewJsonMember(m *Member) JsonMember {
-	return JsonMember{ID: m.ID, Name: m.Name, Url: m.Url, PeerID: peer.IDB58Encode(m.PeerID)}
+	return JsonMember{ID: m.ID, Name: m.Name, Url: m.Url, PeerID: types.IDB58Encode(m.PeerID)}
 }
 
 func (jm *JsonMember) Member() (Member, error) {
-	peerID, err := peer.IDB58Decode(jm.PeerID)
+	peerID, err := types.IDB58Decode(jm.PeerID)
 	if err != nil {
 		return Member{}, err
 	}

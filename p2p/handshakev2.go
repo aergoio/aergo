@@ -30,7 +30,7 @@ type baseWireHandshaker struct {
 	verM   p2pcommon.VersionedManager
 	logger *log.Logger
 	peerID types.PeerID
-	// check if is it adhoc
+	// check if is it ad hoc
 	localChainID *types.ChainID
 
 	remoteStatus *types.Status
@@ -40,7 +40,7 @@ type InboundWireHandshaker struct {
 	baseWireHandshaker
 }
 
-func NewInbountHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) p2pcommon.HSHandler {
+func NewInboundHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) p2pcommon.HSHandler {
 	return &InboundWireHandshaker{baseWireHandshaker{pm: pm, actor: actor, verM:verManager, logger: log, localChainID: chainID, peerID: peerID}}
 }
 
@@ -52,7 +52,7 @@ func (h *InboundWireHandshaker) Handle(r io.Reader, w io.Writer, ttl time.Durati
 }
 
 func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rd io.Reader, wr p2pcommon.FlushableWriter) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	// wait initial hsmessage
+	// wait initial hs message
 	hsReq, err := h.readWireHSRequest(rd)
 	select {
 	case <-ctx.Done():
@@ -90,7 +90,7 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rd io.Rea
 		return nil, nil, err
 	}
 	status, err := innerHS.DoForInbound(ctx)
-	// send hsresponse
+	// send hs response
 	h.remoteStatus = status
 	return innerHS.GetMsgRW(), status, err
 }
@@ -99,7 +99,7 @@ type OutboundWireHandshaker struct {
 	baseWireHandshaker
 }
 
-func NewOutbountHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) p2pcommon.HSHandler {
+func NewOutboundHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, verManager p2pcommon.VersionedManager, log *log.Logger, chainID *types.ChainID, peerID types.PeerID) p2pcommon.HSHandler {
 	return &OutboundWireHandshaker{baseWireHandshaker{pm: pm, actor: actor, verM:verManager, logger: log, localChainID: chainID, peerID: peerID}}
 }
 
@@ -111,7 +111,7 @@ func (h *OutboundWireHandshaker) Handle(r io.Reader, w io.Writer, ttl time.Durat
 }
 
 func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, bufReader io.Reader, bufWriter p2pcommon.FlushableWriter) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	// send initial hsmessage
+	// send initial hs message
 	versions := []p2pcommon.P2PVersion{
 		p2pcommon.P2PVersion031,
 		p2pcommon.P2PVersion030,
@@ -270,9 +270,9 @@ func (h *baseWireHandshaker) selectVersionedHandshaker(version p2pcommon.P2PVers
 }
 
 func (h *baseWireHandshaker) findBestProtocolVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {
-	for _, suppored := range CurrentSupported {
+	for _, supported := range CurrentSupported {
 		for _, reqVer := range versions {
-			if suppored == reqVer {
+			if supported == reqVer {
 				return reqVer
 			}
 		}

@@ -11,7 +11,7 @@ pkgen="aergocli keygen"
 
 if [ $# != 3 ]; then
     echo "Usage: $0 <starting port:10001~> <template> <max>"
-    exit
+    exit 100
 fi
 
 

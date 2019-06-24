@@ -1480,12 +1480,11 @@ abi.register(r)`
 		NewLuaTxDef("ktlee", "r", 0, definition),
 		tx,
 	)
-	if err != nil {
+	if err == nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
-	if receipt.GetRet() != `nested table error` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	if err.Error() != `nested table error` {
+		t.Errorf("contract Call ret error :%s", err.Error())
 	}
 }
 
@@ -2901,6 +2900,10 @@ abi.register(default)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "default", 1, "").Fail(`'default' is not payable`),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("default", `{"Name":"a"}`, "not found function: a", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4455,6 +4458,50 @@ func TestSnapshot(t *testing.T) {
 	}
 }
 
+func TestByteKey(t *testing.T) {
+	bk := `
+state.var {
+    c = state.map(),
+}
+
+function constructor()
+    c[fromhex('00')] = "kk"
+    c[fromhex('61')] = "kk"
+    system.setItem(fromhex('00'), "kk")
+end
+
+function fromhex(str)
+    return (str:gsub('..', function (cc)
+        return string.char(tonumber(cc, 16))
+    end))
+end
+function get()
+	return c[fromhex('00')], system.getItem(fromhex('00')), system.getItem(fromhex('0000'))
+end
+function getcre()
+	return system.getCreator()
+end
+abi.register(get, getcre)
+`
+	bc, _ := LoadDummyChain()
+	err := bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000),
+		NewLuaTxDef("ktlee", "bk", 0, bk),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bk", `{"Name":"get"}`, "", `["kk","kk"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bk", `{"Name":"getcre"}`, "", `"Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+
 func TestUtf(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -4562,6 +4609,184 @@ func TestLuaCryptoVerifyProof(t *testing.T) {
 	}
 
 	err = bc.Query("eth", `{"Name":"verifyProof"}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+
+func TestMultiArray(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+	state.var{
+		mcounts = state.map(2),
+		array = state.array(10, 11),
+		tcounts = state.map(3)
+	}
+
+	function inc()
+		a = system.getItem("key1")
+		if (a == nil) then
+			system.setItem("key1", 1)
+			return
+		end
+		system.setItem("key1", a + 1)
+		mcounts[system.getSender()]["key1"] = a + 1
+		array[1][10] = "k"
+		array[10][5] = "l"
+		tcounts[0][0][0] = 2
+	end
+	function query(a)
+		return system.getItem("key1"), mcounts[a]["key1"], tcounts[0][0][0], tcounts[1][2][3], array:length(), array[1]:length()
+	end
+	function del()
+		tcounts[0][0]:delete(0)
+		tcounts[1][2]:delete(3)
+	end
+	function iter(a)
+		local rv = {}
+		for i, x in array:ipairs() do 
+			for j, y in x:ipairs() do 
+				if y ~= nil then
+					rv[i..","..j] =  y
+				end
+			end
+		end
+		return rv
+	end
+
+	function seterror()
+		rv, err = pcall(function () mcounts[1]["k2y1"] = 4 end)
+		assert(rv == false and string.find(err, "string expected, got number"))
+		rv, err = pcall(function () mcounts["middle"] = 4 end)
+		assert(rv == false and string.find(err, "not permitted to set intermediate dimension of map"))
+		rv, err = pcall(function () array[1] = 4 end)
+		assert(rv == false and string.find(err, "not permitted to set intermediate dimension of array"))
+		rv, err = pcall(function () tcounts[0]:delete(0) end)
+		assert(rv == false and string.find(err, "not permitted to set intermediate dimension of map"))
+		rv, err = pcall(function () tcounts[0][1]:delete() end)
+		assert(rv == false and string.find(err, "invalid key type: 'no value', state.map: 'tcounts'"))
+		rv, err = pcall(function () array[0]:append(2) end)
+		assert(rv == false and string.find(err, "the fixed array cannot use 'append' method"))
+		rv, err = pcall(function () state.var {k = state.map(6)} end)
+		assert(rv == false and string.find(err, "dimension over max limit"), err)
+		rv, err = pcall(function () state.var {k = state.array(1,2,3,4,5,6)} end)
+		assert(rv == false and string.find(err, "dimension over max limit"), err)
+	end
+
+	abi.register(inc, query, iter, seterror, del)
+	abi.payable(inc)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "ma", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
+		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,2,{},10,11]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "del", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
+		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,{},{},10,11]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", `{"Name":"iter"}`, "", `{"1,10":"k","10,5":"l"}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", `{"Name":"seterror"}`, "", ``)
+	if err != nil {
+		t.Error(err)
+	}
+	definition2 := `
+state.var {
+  -- global map
+  alpha = state.map(2),
+  beta = state.map(2),
+}
+
+function constructor()
+
+  local d = alpha["dict"]
+  d["a"] = "A"
+  alpha["dict"]["b"] = "B"
+
+  assert(alpha["dict"]["a"]=="A" and alpha["dict"]["b"]=="B")
+
+  -- with local variable
+  local d2 = beta["dict"]
+  d2["a"] = "A"
+  d2["value"] = "v0"
+  beta["dict"]["b"] = "B"
+  beta["dict"]["value"] = "v1"
+  assert(beta["dict"]["a"]=="A" and beta["dict"]["b"]=="B" and beta["dict"]["value"]=="v1")
+end
+
+function abc()
+  local d = alpha["dict"]
+  d["c"] = "C"
+  alpha["dict"]["d"] = "D"
+
+  local d = beta["dict"]
+  d["a"] = "A"
+  d["value"] = "v2"
+  beta["dict"]["b"] = "B"
+  beta["dict"]["value"] = "v3"
+  return alpha["dict"]["c"], alpha["dict"]["d"], beta["dict"]["a"], beta["dict"]["b"], beta["dict"]["value"]
+end
+
+function query()
+  return alpha["dict"]["a"], alpha["dict"]["b"], alpha["dict"]["c"], alpha["dict"]["d"], 
+beta["dict"]["a"], beta["dict"]["b"], beta["dict"]["value"] 
+end
+
+abi.register(abc, query)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "ma", 0, definition2),
+	)
+	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
+		"", `["A","B",{},{},"A","B","v1"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "ma", 0, `{"Name": "abc", "Args":[]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `["C","D","A","B","v3"]` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
+		"", `["A","B","C","D","A","B","v3"]`)
 	if err != nil {
 		t.Error(err)
 	}

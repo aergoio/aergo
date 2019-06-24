@@ -501,6 +501,14 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	//this will be refactored soon
 
 	switch tx.GetBody().GetType() {
+	case types.TxType_REDEPLOY:
+		if chain.IsPublic() {
+			return types.ErrTxInvalidType
+		}
+		if tx.GetBody().GetRecipient() == nil {
+			return types.ErrTxInvalidRecipient
+		}
+		fallthrough
 	case types.TxType_NORMAL:
 		if tx.GetTx().HasNameRecipient() {
 			recipient := tx.GetBody().GetRecipient()

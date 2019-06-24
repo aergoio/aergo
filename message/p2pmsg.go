@@ -200,3 +200,18 @@ type RaftClusterEvent struct {
 	BPAdded   []types.PeerID
 	BPRemoved []types.PeerID
 }
+
+// ChangeDesignatedPeers will trigger connect or disconnect peers
+type ChangeDesignatedPeers struct {
+	Add    []types.PeerAddress
+	Remove []types.PeerID
+}
+
+type SendRaft struct {
+	ToWhom  types.PeerID
+	Body    interface{} // for avoiding dependency cycle, though it must be raftpb.Message.
+}
+
+type SendRaftRsp struct {
+	Err error
+}

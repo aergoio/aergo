@@ -224,7 +224,7 @@ func resolveFunction(contractState *state.ContractState, name string, constructo
 	if constructor {
 		return nil, nil
 	}
-	if defaultFunc != nil {
+	if len(name) == 0 && defaultFunc != nil {
 		return defaultFunc, nil
 	}
 	return nil, errors.New("not found function: " + name)
@@ -478,7 +478,13 @@ func (ce *Executor) call(target *LState) C.int {
 		return 0
 	}
 	if target == nil {
-		ce.jsonRet = C.GoString(C.vm_get_json_ret(ce.L, nret))
+		var errRet C.int
+		retMsg := C.GoString(C.vm_get_json_ret(ce.L, nret, &errRet))
+		if errRet == 1 {
+			ce.err = errors.New(retMsg)
+		} else {
+			ce.jsonRet = retMsg
+		}
 	} else {
 		C.luaL_disablemaxmem(target)
 		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
@@ -682,12 +688,12 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	var contractCode []byte
 
 	if bs != nil {
-		contractCode = bs.CodeMap[contractAid]
+		contractCode = bs.CodeMap.Get(contractAid)
 	}
 	if contractCode == nil {
 		contractCode = getContract(contractState, nil)
 		if contractCode != nil && bs != nil {
-			bs.CodeMap[contractAid] = contractCode
+			bs.CodeMap.Add(contractAid, contractCode)
 		}
 	}
 
@@ -757,7 +763,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	if err != nil {
 		return "", nil, stateSet.usedFee(), err
 	}
-	err = contractState.SetData([]byte("Creator"), []byte(types.EncodeAddress(stateSet.curContract.sender)))
+	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(stateSet.curContract.sender)))
 	if err != nil {
 		return "", nil, stateSet.usedFee(), err
 	}

@@ -16,8 +16,8 @@ import (
 
 const (
 	macConcurrentQueryCount = 4
-	// TODO manage cooltime and reconnect interval together in same file.
-	firstReconnectColltime = time.Minute
+	// TODO manage coolTime and reconnect interval together in same file.
+	firstReconnectCoolTime = time.Minute
 )
 
 func NewPeerFinder(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.PeerFinder {
@@ -75,7 +75,7 @@ func (dp *dynamicPeerFinder) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 }
 
 func (dp *dynamicPeerFinder) OnPeerConnect(pid types.PeerID) {
-	dp.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("check and remove peerid in pool")
+	dp.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("check and remove peerID in pool")
 	if stat := dp.qStats[pid]; stat == nil {
 		// first query will be sent quickly
 		dp.qStats[pid] = &queryStat{pid: pid, nextTurn: time.Now().Add(p2pcommon.PeerFirstInterval)}
@@ -92,7 +92,7 @@ func (dp *dynamicPeerFinder) CheckAndFill() {
 	// query to polaris
 	if dp.usePolaris && now.After(dp.polarisTurn) {
 		dp.polarisTurn = now.Add(p2pcommon.PolarisQueryInterval)
-		dp.logger.Debug().Time("next_turn", dp.polarisTurn).Msg("quering to polaris")
+		dp.logger.Debug().Time("next_turn", dp.polarisTurn).Msg("querying to polaris")
 		dp.actorService.SendRequest(message.P2PSvc, &message.MapQueryMsg{Count: MaxAddrListSizePolaris})
 	}
 	// query to peers

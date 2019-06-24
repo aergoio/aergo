@@ -34,7 +34,7 @@ func TestRaftRoleManager_updateBP(t *testing.T) {
 	}{
 		{"TAdd", nil, (&EB{}).A(p1, p2).C(), 2, []types.PeerID{p1, p2}, nil},
 		{"TRm", []types.PeerID{p1, p2, p3}, (&EB{}).R(p3, p2).C(), 1, []types.PeerID{p1}, []types.PeerID{p2, p3}},
-		{"TOverrap", []types.PeerID{p3}, (&EB{}).A(p1, p2).R(p3, p2).C(), 2, []types.PeerID{p1, p2}, []types.PeerID{p3}},
+		{"TOverlap", []types.PeerID{p3}, (&EB{}).A(p1, p2).R(p3, p2).C(), 2, []types.PeerID{p1, p2}, []types.PeerID{p3}},
 		{"TEmpty", nil, (&EB{}).C(), 0, []types.PeerID{}, nil},
 	}
 	for _, tt := range tests {
@@ -160,7 +160,7 @@ func TestDefaultRoleManager_updateBP(t *testing.T) {
 	}{
 		{"TAdd", (&EB{}).A(p1, p2).C(), 2, []types.PeerID{p1, p2}},
 		{"TRemove", (&EB{}).R(p3, p2).C(), 2, []types.PeerID{p3, p2}},
-		{"TOverrap", (&EB{}).A(p1, p2).R(p3, p2).C(), 3, []types.PeerID{p1, p2, p3}},
+		{"TOverlap", (&EB{}).A(p1, p2).R(p3, p2).C(), 3, []types.PeerID{p1, p2, p3}},
 		{"TEmpty", (&EB{}).C(), 0, []types.PeerID{}},
 	}
 	for _, tt := range tests {
@@ -212,8 +212,8 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 	}{
 		{"TAllBP", []rs{rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.BlockProducer, types.RUNNING}}, 0, 3},
 		{"TAllWat", []rs{rs{p2pcommon.Watcher, types.RUNNING}, rs{p2pcommon.Watcher, types.RUNNING}, rs{p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMIX", []rs{rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMIXStop", []rs{rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.Watcher, types.STOPPING}}, 1, 2},
+		{"TMix", []rs{rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.Watcher, types.RUNNING}}, 0, 3},
+		{"TMixStop", []rs{rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.Watcher, types.STOPPING}}, 1, 2},
 		{"TMixStop2", []rs{rs{p2pcommon.BlockProducer, types.STOPPING}, rs{p2pcommon.BlockProducer, types.RUNNING}, rs{p2pcommon.Watcher, types.RUNNING}}, 1, 2},
 	}
 	for _, tt := range tests {
@@ -229,13 +229,13 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			}
 			mockPeers := make([]p2pcommon.RemotePeer, 0, len(tt.argPeer))
 			for i, ap := range tt.argPeer {
-				mpeer := p2pmock.NewMockRemotePeer(ctrl)
-				mpeer.EXPECT().ID().Return(pids[i]).AnyTimes()
-				mpeer.EXPECT().Role().Return(ap.r).AnyTimes()
-				mpeer.EXPECT().State().Return(ap.s).AnyTimes()
-				mpeer.EXPECT().SendMessage(gomock.Any()).MaxTimes(1)
+				mPeer := p2pmock.NewMockRemotePeer(ctrl)
+				mPeer.EXPECT().ID().Return(pids[i]).AnyTimes()
+				mPeer.EXPECT().Role().Return(ap.r).AnyTimes()
+				mPeer.EXPECT().State().Return(ap.s).AnyTimes()
+				mPeer.EXPECT().SendMessage(gomock.Any()).MaxTimes(1)
 
-				mockPeers = append(mockPeers, mpeer)
+				mockPeers = append(mockPeers, mPeer)
 			}
 			gotSkipped, gotSent := rm.NotifyNewBlockMsg(mockMO, mockPeers)
 			if gotSkipped != tt.wantSkipped {

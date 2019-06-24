@@ -104,13 +104,12 @@ func TestPeerHandshaker_Select(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		hsheader p2pcommon.HSHeader
+		hsHeader p2pcommon.HSHeader
 		wantErr  bool
 	}{
 		{"TVer030", p2pcommon.HSHeader{p2pcommon.MAGICMain, p2pcommon.P2PVersion030}, false},
 		{"Tver020", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x00000200}, true},
-		{"TInavlid", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x000001}, true},
-		// TODO: test cases
+		{"TInvalid", p2pcommon.HSHeader{p2pcommon.MAGICMain, 0x000001}, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -119,7 +118,7 @@ func TestPeerHandshaker_Select(t *testing.T) {
 
 			h := newHandshaker(mockPM, mockActor, logger, nil, samplePeerID)
 
-			actual, err := h.selectProtocolVersion(test.hsheader.Version, bufio.NewReader(mockReader),
+			actual, err := h.selectProtocolVersion(test.hsHeader.Version, bufio.NewReader(mockReader),
 				bufio.NewWriter(mockWriter))
 			assert.Equal(t, test.wantErr, err != nil)
 			if !test.wantErr {

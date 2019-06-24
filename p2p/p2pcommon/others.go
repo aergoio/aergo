@@ -14,29 +14,6 @@ type PeerAccessor interface {
 	GetPeer(ID types.PeerID) (RemotePeer, bool)
 }
 
-// MsgOrder is abstraction of information about the message that will be sent to peer.
-// Some type of msgOrder, such as notice mo, should thread-safe and re-entrant
-type MsgOrder interface {
-	GetMsgID() MsgID
-	// Timestamp is unit time value
-	Timestamp() int64
-	IsRequest() bool
-	IsNeedSign() bool
-	GetProtocolID() SubProtocol
-
-	// SendTo send message to remote peer. it return err if write fails, or nil if write is successful or ignored.
-	SendTo(p RemotePeer) error
-}
-
-type MoFactory interface {
-	NewMsgRequestOrder(expecteResponse bool, protocolID SubProtocol, message MessageBody) MsgOrder
-	NewMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message MessageBody) MsgOrder
-	NewMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message MessageBody) MsgOrder
-	NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) MsgOrder
-	NewMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) MsgOrder
-	NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) MsgOrder
-}
-
 type SyncManager interface {
 	// handle notice from bp
 	HandleBlockProducedNotice(peer RemotePeer, block *types.Block)
@@ -59,7 +36,7 @@ type ActorService interface {
 	// CallRequestDefaultTimeout is CallRequest with default timeout
 	CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error)
 
-	// FutureRequest send actor reqeust and get the Future object to get the state and return value of message
+	// FutureRequest send actor request and get the Future object to get the state and return value of message
 	FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future
 	// FutureRequestDefaultTimeout is FutureRequest with default timeout
 	FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future

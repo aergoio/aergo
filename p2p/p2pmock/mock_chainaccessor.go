@@ -7,6 +7,7 @@ package p2pmock
 import (
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
+	big "math/big"
 	reflect "reflect"
 )
 
@@ -106,6 +107,19 @@ func (m *MockChainAccessor) GetChainStats() string {
 // GetChainStats indicates an expected call of GetChainStats
 func (mr *MockChainAccessorMockRecorder) GetChainStats() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainStats", reflect.TypeOf((*MockChainAccessor)(nil).GetChainStats))
+}
+
+// GetSystemValue mocks base method
+func (m *MockChainAccessor) GetSystemValue(key types.SystemValue) (*big.Int, error) {
+	ret := m.ctrl.Call(m, "GetSystemValue", key)
+	ret0, _ := ret[0].(*big.Int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSystemValue indicates an expected call of GetSystemValue
+func (mr *MockChainAccessorMockRecorder) GetSystemValue(key interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSystemValue", reflect.TypeOf((*MockChainAccessor)(nil).GetSystemValue), key)
 }
 
 // GetEnterpriseConfig mocks base method

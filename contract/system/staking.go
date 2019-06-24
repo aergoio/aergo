@@ -106,7 +106,7 @@ func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error
 	return nil, errors.New("invalid argument: address should not be nil")
 }
 
-func getTotal(ar AccountStateReader) (*big.Int, error) {
+func GetStakingTotal(ar AccountStateReader) (*big.Int, error) {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		return nil, err

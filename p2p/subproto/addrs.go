@@ -26,7 +26,7 @@ var _ p2pcommon.MessageHandler = (*addressesResponseHandler)(nil)
 
 // newAddressesReqHandler creates handler for PingRequest
 func NewAddressesReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *addressesRequestHandler {
-	ph := &addressesRequestHandler{BaseMsgHandler{protocol: AddressesRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &addressesRequestHandler{BaseMsgHandler{protocol: p2pcommon.AddressesRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -66,7 +66,7 @@ func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 	}
 	resp.Peers = addrList
 	// send response
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), AddressesResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.AddressesResponse, resp))
 }
 
 // TODO need refactoring. This code is not bounded to a specific peer but rather whole peer pool, and cause code duplication in p2p.go
@@ -78,7 +78,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
@@ -91,7 +91,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 
 // newAddressesRespHandler creates handler for PingRequest
 func NewAddressesRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *addressesResponseHandler {
-	ph := &addressesResponseHandler{BaseMsgHandler{protocol: AddressesResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &addressesResponseHandler{BaseMsgHandler{protocol: p2pcommon.AddressesResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 

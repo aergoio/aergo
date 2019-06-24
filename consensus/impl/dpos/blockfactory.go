@@ -35,7 +35,7 @@ type txExec struct {
 func newTxExec(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 

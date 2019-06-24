@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+source set_test_env.sh
+source test_common.sh
+
+pushd $TEST_RAFT_INSTANCE
 
 BP_NAME=""
 
@@ -15,7 +19,12 @@ for file in $(ls BP* | grep $pattern); do
 	echo $file
 	BP_NAME=$(echo $file | cut -f 1 -d'.')
 	if [ "${BP_NAME}" != "tmpl" -a "${BP_NAME}" != "arglog" ]; then
-	echo "${BP_NAME}"
-	nohup aergosvr --config ./$file >> server_${BP_NAME}.log 2>&1 &
+		echo "${BP_NAME}: aergosvr --config $file >> server_${BP_NAME}.log 2>&1"
+		aergosvr --config $file >> server_${BP_NAME}.log 2>&1 &
 	fi
 done
+
+sleep 3
+
+
+popd

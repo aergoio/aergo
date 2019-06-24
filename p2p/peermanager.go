@@ -92,14 +92,14 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, iServ p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		nt:                nt,
 		handlerFactory:    handlerFactory,
 		hsFactory:         hsFactory,
-		actorService:      iServ,
+		actorService:      actor,
 		conf:              p2pConf,
 		peerFactory:       pf,
 		mf:                mf,
@@ -279,7 +279,7 @@ MANLOOP:
 			break MANLOOP
 		}
 	}
-	// guarrenty no new peer connection will be made
+	// guaranty no new peer connection will be made
 	pm.nt.RemoveStreamHandler(p2pcommon.LegacyP2PSubAddr)
 	pm.logger.Info().Msg("Finishing peerManager")
 
@@ -341,7 +341,7 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 }
 
 func (pm *peerManager) changePeerAttributes(meta p2pcommon.PeerMeta, peerID types.PeerID) (p2pcommon.PeerMeta) {
-	// override options by configurations of nodd
+	// override options by configurations of node
 	_, meta.Designated = pm.designatedPeers[peerID]
 	// hidden is set by either remote peer's asking or local node's config
 	if _, exist := pm.hiddenPeerSet[peerID]; exist {
@@ -452,9 +452,9 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 			continue
 		}
 		addr := meta.ToPeerAddress()
-		lastNoti := aPeer.LastStatus()
+		lastStatus := aPeer.LastStatus()
 		pi := &message.PeerInfo{
-			&addr, meta.Version, meta.Hidden, lastNoti.CheckTime, lastNoti.BlockHash, lastNoti.BlockNumber, aPeer.State(), false}
+			&addr, meta.Version, meta.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers

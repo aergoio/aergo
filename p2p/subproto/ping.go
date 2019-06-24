@@ -35,7 +35,7 @@ var _ p2pcommon.MessageHandler = (*goAwayHandler)(nil)
 
 // newPingReqHandler creates handler for PingRequest
 func NewPingReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *pingRequestHandler {
-	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: PingRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &pingRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.PingRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -56,12 +56,12 @@ func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	// generate response message
 	ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("Sending ping response")
 	resp := &types.Pong{}
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), PingResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.PingResponse, resp))
 }
 
 // newPingRespHandler creates handler for PingResponse
 func NewPingRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *pingResponseHandler {
-	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: PingResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &pingResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.PingResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -78,7 +78,7 @@ func (ph *pingResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 
 // newGoAwayHandler creates handler for PingResponse
 func NewGoAwayHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *goAwayHandler {
-	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: GoAway, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &goAwayHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GoAway, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 

@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 )
@@ -32,7 +31,7 @@ func TestStartGet(t *testing.T) {
 		args args
 
 		wantSentCnt int  // count of sent to remote peers
-		wantTimeout bool // whether reciever returns result or not (=timeout)
+		wantTimeout bool // whether receiver returns result or not (=timeout)
 		wantErrResp bool // result with error or not
 	}{
 		{"TTimeout", args{peerCnt: 1}, 1, true, false},
@@ -90,7 +89,7 @@ func createDummyMo(ctrl *gomock.Controller) *p2pmock.MockMsgOrder {
 	dummyMo := p2pmock.NewMockMsgOrder(ctrl)
 	dummyMo.EXPECT().IsNeedSign().Return(true).AnyTimes()
 	dummyMo.EXPECT().IsRequest().Return(true).AnyTimes()
-	dummyMo.EXPECT().GetProtocolID().Return(subproto.NewTxNotice).AnyTimes()
+	dummyMo.EXPECT().GetProtocolID().Return(p2pcommon.NewTxNotice).AnyTimes()
 	dummyMo.EXPECT().GetMsgID().Return(p2pcommon.NewMsgID()).AnyTimes()
 	return dummyMo
 }
@@ -161,7 +160,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 		args args
 
 		wantSentCnt int  // count of sent to remote peers
-		wantTimeout bool // whether reciever returns result or not (=timeout)
+		wantTimeout bool // whether receiver returns result or not (=timeout)
 		wantErrResp bool // result with error or not
 	}{
 		{"TAllRet", args{[]int{1, 1, 1, 1, 1}}, 1, false,false},
@@ -197,11 +196,11 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 					msg.EXPECT().ID().Return(p2pcommon.NewMsgID()).AnyTimes()
 					msg.EXPECT().OriginalID().Return(p2pcommon.NewMsgID()).AnyTimes()
 					msg.EXPECT().Timestamp().Return(time.Now().UnixNano()).AnyTimes()
-					msg.EXPECT().Subprotocol().Return(subproto.GetClusterResponse).AnyTimes()
+					msg.EXPECT().Subprotocol().Return(p2pcommon.GetClusterResponse).AnyTimes()
 					if callSeq < int32(len(tt.args.stats)) {
 						err := ""
 						if tt.args.stats[callSeq] == 0 {
-							err = "getcluster fail"
+							err = "getCluster failed"
 						}
 						body := &types.GetClusterInfoResponse{ChainID:sampleChainID, MbrAttrs:members, Error:err}
 						atomic.AddInt32(&seq, 1)
@@ -212,7 +211,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 				}).MaxTimes(1)
 				peers = append(peers, mockPeer)
 			}
-			// forcely inject peers
+			// force inject peers
 			target.peers = peers
 
 			target.StartGet()

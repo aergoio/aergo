@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -80,7 +79,7 @@ func TestP2P_InsertHandlers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
-			mockPeer.EXPECT().AddMessageHandler(gomock.AssignableToTypeOf(subproto.PingResponse), gomock.Any()).MinTimes(1)
+			mockPeer.EXPECT().AddMessageHandler(gomock.AssignableToTypeOf(p2pcommon.PingResponse), gomock.Any()).MinTimes(1)
 
 			p2ps := &P2P{
 				pm: mockPM,

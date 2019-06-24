@@ -14,7 +14,6 @@ import (
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +122,7 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 			br := NewBlockHashesReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := p2pcommon.NewSimpleMsgVal(subproto.GetHashesRequest, sampleMsgID)
+			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetHashesRequest, sampleMsgID)
 			for i, hashes := range test.hashInput {
 				if test.hashInterval > 0 {
 					time.Sleep(test.hashInterval)

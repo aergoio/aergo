@@ -19,7 +19,7 @@ type HSHandlerFactory interface {
 	CreateHSHandler(p2pVersion P2PVersion, outbound bool, pid types.PeerID) HSHandler
 }
 
-// HSHandler handles whole process of connect, handshake, create of remote Peerseer
+// HSHandler handles whole process of connect, handshake, create of remote Peer
 type HSHandler interface {
 	// Handle peer handshake till ttl, and return msgrw for this connection, and status of remote peer.
 	Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error)
@@ -84,7 +84,7 @@ func (h HSHeadReq) Marshal() []byte {
 type HSHeadResp struct {
 	// Magic will be same as the magic in HSHeadReq if wire handshake is successful, or 0 if not.
 	Magic    uint32
-	// RespCode is different meaning by value of Magic. It is p2p version which listening peer will use, if wire handshake is succesful, or errCode otherwise.
+	// RespCode is different meaning by value of Magic. It is p2p version which listening peer will use, if wire handshake is successful, or errCode otherwise.
 	RespCode uint32
 }
 

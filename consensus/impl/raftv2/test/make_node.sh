@@ -10,9 +10,14 @@ if [ ! -e $TEST_RAFT_INSTANCE/BP11001.toml ];then
 fi
 
 if [ "$TEST_SKIP_GENESIS" = "1" ];then
-	echo "================ skip init genesis node and reboot aergosvr ===========+++=="
+	echo "================ skip init genesis node and reboot aergosvr ============="
 	run_svr.sh
-	sleep 3
+
+	WaitPeerConnect 2 60
+	if [ $? -ne 1 ];then
+		echo "failed to connect peer of $file for 60 sec. "
+		exit 100
+	fi
 	exit 0
 fi
 
@@ -24,7 +29,7 @@ rm init_*.log
 
 if [ $# != 0 ]; then
     echo "Usage: $0"
-    exit
+    exit 100
 fi
 
 
@@ -37,5 +42,11 @@ for file in BP*.toml; do
 #init_genesis.sh $bpname > /dev/null 2>&1
     init_genesis.sh $bpname 
 done
+
+WaitPeerConnect 2 60
+if [ $? -ne 1 ];then
+	echo "failed to connect peer of $file for 60 sec. "
+	exit 100
+fi
 
 popd
