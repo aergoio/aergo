@@ -540,7 +540,7 @@ func (rs *raftServer) serveConfChange() {
 	handleConfChange := func(propose *consensus.ConfChangePropose) {
 		if err := rs.node.ProposeConfChange(context.TODO(), *propose.Cc); err != nil {
 			logger.Error().Err(err).Msg("failed to propose configure change")
-			rs.cluster.sendConfChangeReply(propose.Cc, nil, err)
+			rs.cluster.AfterConfChange(propose.Cc, nil, err)
 			return
 		}
 	}
@@ -1041,7 +1041,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 
 	rs.confState = rs.node.ApplyConfChange(*cc)
 
-	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confChange entry")
+	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish conf change entry")
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
@@ -1068,7 +1068,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 
 	logger.Debug().Str("cluster", rs.cluster.toString()).Msg("after conf changed")
 
-	rs.cluster.sendConfChangeReply(cc, member, nil)
+	rs.cluster.AfterConfChange(cc, member, nil)
 
 	return true
 }

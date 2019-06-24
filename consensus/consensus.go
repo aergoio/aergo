@@ -114,7 +114,7 @@ type ChainConsensus interface {
 }
 
 type ChainConsensusCluster interface {
-	RequestConfChange(req *types.MembershipChange) error
+	MakeConfChangeProposal(req *types.MembershipChange) (*ConfChangePropose, error)
 }
 
 type TxWriter interface {
