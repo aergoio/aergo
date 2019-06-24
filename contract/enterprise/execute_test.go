@@ -2,9 +2,10 @@ package enterprise
 
 import (
 	"encoding/pem"
-	"github.com/aergoio/aergo/consensus"
 	"strings"
 	"testing"
+
+	"github.com/aergoio/aergo/consensus"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -82,6 +83,26 @@ func TestBasicFailEnterprise(t *testing.T) {
 	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n"]}`)
 	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
 	assert.Error(t, err, "duplicated set conf")
+
+	tx.Payload = []byte(`{"name":"setConf", "args":["rpcpermissions","abc:R", "bcd:S", "cde:C"]}`)
+	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
+	assert.NoError(t, err, "set conf")
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["rpcpermissions",true]}`)
+	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
+	assert.Error(t, err, "enable conf")
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","abc:WR"]}`)
+	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
+	assert.NoError(t, err, "append conf")
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["rpcpermissions",true]}`)
+	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
+	assert.NoError(t, err, "enable conf")
+
+	tx.Payload = []byte(`{"name":"removeConf", "args":["rpcpermissions","abc:WR"]}`)
+	_, err = ExecuteEnterpriseTx(ccc, scs, tx, sender)
+	assert.Error(t, err, "remove conf")
 }
 
 func TestBasicEnterprise(t *testing.T) {

@@ -148,7 +148,7 @@ func checkAdmin(scs *state.ContractState, address []byte) ([][]byte, error) {
 }
 
 func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
-	if strings.ToUpper(ci.Args[0].(string)) == adminsKey {
+	if _, ok := enterpriseKeyDict[strings.ToUpper(ci.Args[0].(string))]; !ok {
 		return fmt.Errorf("not allowed key : %s", ci.Args[0])
 	}
 

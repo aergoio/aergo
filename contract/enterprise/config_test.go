@@ -44,21 +44,21 @@ func deinitTest() {
 func TestSetGetConf(t *testing.T) {
 	scs, _, _ := initTest(t)
 	defer deinitTest()
-	testConf := &Conf{On: true, Values: []string{"abc", "def", "ghi"}}
-	retConf, err := getConf(scs, []byte("test"))
+	testConf := &Conf{On: true, Values: []string{"abc:w", "def:r", "ghi:s"}}
+	retConf, err := getConf(scs, []byte(RPCPermissions))
 	assert.NoError(t, err, "could not get test conf")
 	assert.Nil(t, retConf, "not set yet")
-	err = setConf(scs, []byte("test"), testConf)
+	err = setConf(scs, []byte(RPCPermissions), testConf)
 	assert.NoError(t, err, "could not set test conf")
-	retConf, err = getConf(scs, []byte("test"))
+	retConf, err = getConf(scs, []byte(RPCPermissions))
 	assert.NoError(t, err, "could not get test conf")
 	assert.Equal(t, testConf.Values, retConf.Values, "check values")
 	assert.Equal(t, testConf.On, retConf.On, "check on")
 
 	testConf2 := &Conf{On: false, Values: []string{"1", "22", "333"}}
-	err = setConf(scs, []byte("test"), testConf2)
+	err = setConf(scs, []byte("p2pwhite"), testConf2)
 	assert.NoError(t, err, "could not set test conf")
-	retConf2, err := getConf(scs, []byte("test"))
+	retConf2, err := getConf(scs, []byte("p2pwhite"))
 	assert.NoError(t, err, "could not get test conf")
 	assert.Equal(t, testConf2.Values, retConf2.Values, "check values")
 	assert.Equal(t, testConf2.On, retConf2.On, "check on")

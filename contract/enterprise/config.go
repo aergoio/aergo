@@ -1,6 +1,7 @@
 package enterprise
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
@@ -8,6 +9,17 @@ import (
 )
 
 var confPrefix = []byte("conf\\")
+
+const (
+	RPCPermissions = "RPCPERMISSIONS"
+	P2PWhite       = "P2PWHITE"
+)
+
+//enterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
+var enterpriseKeyDict = map[string]int{
+	RPCPermissions: 1,
+	P2PWhite:       2,
+}
 
 type Conf struct {
 	On     bool
@@ -21,6 +33,26 @@ func (c *Conf) RemoveValue(r string) {
 			break
 		}
 	}
+}
+
+func (c *Conf) Validate(key []byte) error {
+	if !c.On {
+		return nil
+	}
+	strKey := string(key)
+	switch strKey {
+	case RPCPermissions:
+		for _, v := range c.Values {
+			if strings.Contains(strings.ToUpper(strings.Split(v, ":")[1]), "W") {
+				return nil
+			}
+		}
+		return fmt.Errorf("the values of %s should have at least one write permission", strKey)
+	case P2PWhite:
+	default:
+		return fmt.Errorf("could not validate key(%s)", strKey)
+	}
+	return nil
 }
 
 // AccountStateReader is an interface for getting a enterprise account state.
@@ -81,7 +113,11 @@ func setConfValues(scs *state.ContractState, key []byte, in *Conf) error {
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(append(confPrefix, genKey(key)...), serializeConf(conf))
+	setKey := genKey(key)
+	if err := conf.Validate(setKey); err != nil {
+		return err
+	}
+	return scs.SetData(append(confPrefix, setKey...), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {
