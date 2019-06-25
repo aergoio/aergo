@@ -37,6 +37,9 @@ type voteCmd struct {
 	issue     []byte
 	args      []byte
 	candidate []byte
+
+	newVote    *types.Vote
+	voteResult *VoteResult
 }
 
 func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
@@ -59,7 +62,6 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		}
 		cmd.candidate = cmd.args
 	} else {
-		// XXX Only BP election case?
 		cmd.issue = []byte(cmd.Call.Name)[2:]
 		cmd.args, err = json.Marshal(cmd.Call.Args)
 		if err != nil {
@@ -71,58 +73,39 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		}
 	}
 
-	return cmd, err
-}
-
-func (c *voteCmd) run() (*types.Event, error) {
-	var (
-		sender = c.Sender
-		scs    = c.scs
-
-		err error
-	)
-
 	// The variable args is a JSON bytes. It is used as vote.candidate for the
 	// proposal based voting, while just as an event output for BP election.
-	staked := c.Staked
+	staked := cmd.Staked
 	// Update block number
-	staked.When = c.BlockNo
+	staked.When = cmd.BlockNo
 
 	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeVote
 	}
-	vote := &types.Vote{
-		Candidate: c.candidate,
+
+	cmd.newVote = &types.Vote{
+		Candidate: cmd.candidate,
 		Amount:    staked.GetAmount(),
 	}
 
-	err = setStaking(scs, sender.ID(), staked)
+	cmd.voteResult, err = loadVoteResult(scs, cmd.issue)
 	if err != nil {
 		return nil, err
 	}
 
-	voteResult, err := loadVoteResult(scs, c.issue)
-	if err != nil {
+	return cmd, err
+}
+
+func (c *voteCmd) run() (*types.Event, error) {
+	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
 
-	// Deal with the old vote.
-	err = voteResult.SubVote(c.Vote)
-	if err != nil {
+	if err := c.updateVote(); err != nil {
 		return nil, err
 	}
 
-	err = setVote(scs, c.issue, sender.ID(), vote)
-	if err != nil {
-		return nil, err
-	}
-	err = voteResult.AddVote(vote)
-	if err != nil {
-		return nil, err
-	}
-
-	err = voteResult.Sync(scs)
-	if err != nil {
+	if err := c.updateVoteResult(); err != nil {
 		return nil, err
 	}
 
@@ -131,9 +114,41 @@ func (c *voteCmd) run() (*types.Event, error) {
 		EventIdx:        0,
 		EventName:       c.Call.Name[2:],
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(sender.ID()) +
+			types.EncodeAddress(c.Sender.ID()) +
 			`", "vote":` + string(c.args) + `}`,
 	}, nil
+}
+
+// Update the sender's staking.
+func (c *voteCmd) updateStaking() error {
+	return setStaking(c.scs, c.Sender.ID(), c.Staked)
+}
+
+// Update the sender's voting record.
+func (c *voteCmd) updateVote() error {
+	return setVote(c.scs, c.issue, c.Sender.ID(), c.newVote)
+}
+
+// Apply the new voting to the voting statistics on the (system) contract
+// storage.
+func (c *voteCmd) updateVoteResult() error {
+	if err := c.subVote(c.Vote); err != nil {
+		return err
+	}
+
+	if err := c.addVote(c.newVote); err != nil {
+		return err
+	}
+
+	return c.voteResult.Sync(c.scs)
+}
+
+func (c *voteCmd) subVote(v *types.Vote) error {
+	return c.voteResult.SubVote(v)
+}
+
+func (c *voteCmd) addVote(v *types.Vote) error {
+	return c.voteResult.AddVote(v)
 }
 
 func refreshAllVote(context *SystemContext) error {

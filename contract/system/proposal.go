@@ -122,7 +122,14 @@ func _getProposalHistory(scs *state.ContractState, key []byte) whereToVotes {
 }
 
 func addProposalHistory(scs *state.ContractState, address []byte, proposal *Proposal) error {
+
+	// address: sender's address
 	key := append(proposalListKey, address...)
+
+	// scs corresponds to aergo.system or aergo.name. proposalHistory includes
+	// ` delimited proposal keys, which are the prefixed IDs of the
+	// proposals. Its purpose is to memorize which kind of voting has been
+	// cast.
 	proposalHistory := _getProposalHistory(scs, key)
 	proposalHistory = append(proposalHistory, proposal.GetKey())
 
@@ -131,7 +138,7 @@ func addProposalHistory(scs *state.ContractState, address []byte, proposal *Prop
 	var result whereToVotes
 	for _, entryBytes := range proposalHistory {
 		entry := string(entryBytes)
-		if _, value := filter[entry]; !value {
+		if _, exist := filter[entry]; !exist {
 			filter[entry] = true
 			result = append(result, entryBytes)
 		}

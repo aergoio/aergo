@@ -30,6 +30,17 @@ type SystemContext struct {
 	txBody *types.TxBody
 }
 
+func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
+	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
+	if err != nil {
+		return nil, err
+	}
+	context.Receiver = receiver
+
+	return context, err
+}
+
 func (ctx *SystemContext) arg(i int) interface{} {
 	return ctx.Call.Args[i]
 }
@@ -52,11 +63,10 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 		types.CreateProposal: newProposalCmd,
 	}
 
-	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
+	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
-	context.Receiver = receiver
 
 	ctor, exist := cmds[context.Call.Name]
 	if !exist {
@@ -64,17 +74,6 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	}
 
 	return ctor(context)
-}
-
-func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
-	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
-	if err != nil {
-		return nil, err
-	}
-	context.Receiver = receiver
-
-	return context, err
 }
 
 func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
