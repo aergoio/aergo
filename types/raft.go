@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"hash/fnv"
 )
 
 func (mc *MembershipChange) ToString() string {
@@ -20,13 +21,13 @@ func (mattr *MemberAttr) ToString() string {
 	buf = fmt.Sprintf("{")
 
 	if len(mattr.Name) > 0 {
-		buf = buf + fmt.Sprintf("name=%s", mattr.Name)
+		buf = buf + fmt.Sprintf("name=%s, ", mattr.Name)
 	}
 	if len(mattr.Url) > 0 {
-		buf = buf + fmt.Sprintf("url=%s", mattr.Url)
+		buf = buf + fmt.Sprintf("url=%s, ", mattr.Url)
 	}
 	if len(mattr.PeerID) > 0 {
-		buf = buf + fmt.Sprintf("peerID=%s", PeerID(mattr.PeerID).Pretty())
+		buf = buf + fmt.Sprintf("peerID=%s, ", PeerID(mattr.PeerID).Pretty())
 	}
 	if mattr.ID > 0 {
 		buf = buf + fmt.Sprintf("memberID=%d", mattr.ID)
@@ -56,4 +57,15 @@ func (mc *JsonMemberAttr) ToMemberAttr() *MemberAttr {
 
 func RaftHardStateToString(hardstate raftpb.HardState) string {
 	return fmt.Sprintf("term=%d, vote=%x, commit=%d", hardstate.Term, hardstate.Vote, hardstate.Commit)
+}
+
+func RaftEntryToString(entry *raftpb.Entry) string {
+	return fmt.Sprintf("term=%d, index=%d, type=%s", entry.Term, entry.Index, raftpb.EntryType_name[int32(entry.Type)])
+}
+
+func GenerateConfChangeIDFromTxID(txHash []byte) uint64 {
+	hash := fnv.New64a()
+	hash.Write(txHash)
+
+	return hash.Sum64()
 }

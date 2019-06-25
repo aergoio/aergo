@@ -6,7 +6,6 @@
 package consensus
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
-	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // DefaultBlockIntervalSec  is the default block generation interval in seconds.
@@ -119,18 +117,6 @@ type ChainConsensusCluster interface {
 
 type TxWriter interface {
 	Set(key, value []byte)
-}
-
-type ConfChangePropose struct {
-	Ctx context.Context
-	Cc  *raftpb.ConfChange
-
-	ReplyC chan *ConfChangeReply
-}
-
-type ConfChangeReply struct {
-	Member *Member
-	Err    error
 }
 
 // Info represents an information for a consensus implementation.
