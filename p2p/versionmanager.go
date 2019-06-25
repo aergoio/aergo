@@ -38,14 +38,14 @@ func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVers
 	return p2pcommon.P2PVersionUnknown
 }
 
-func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
+func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion031:
 		// TODO:
-		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, peerID, r, w)
+		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc)
 		return v030hs, nil
 	case p2pcommon.P2PVersion030:
-		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, peerID, r, w)
+		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc)
 		return v030hs, nil
 	default:
 		return nil, fmt.Errorf("not supported version")

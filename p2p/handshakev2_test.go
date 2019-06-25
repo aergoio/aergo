@@ -6,9 +6,9 @@
 package p2p
 
 import (
-	"bufio"
 	"bytes"
 	"context"
+	"io"
 	"reflect"
 	"sync/atomic"
 	"testing"
@@ -38,8 +38,8 @@ func Test_baseWireHandshaker_writeWireHSRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &baseWireHandshaker{}
 			buffer := bytes.NewBuffer(nil)
-			wr := bufio.NewWriter(buffer)
-			err := h.writeWireHSRequest(tt.args, wr)
+			//wr := bufio.NewWriter(buffer)
+			err := h.writeWireHSRequest(tt.args, buffer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("baseWireHandshaker.writeWireHSRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -76,8 +76,7 @@ func Test_baseWireHandshaker_writeWireHSResponse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &baseWireHandshaker{}
 			buffer := bytes.NewBuffer(nil)
-			wr := bufio.NewWriter(buffer)
-			err := h.writeWireHSResponse(tt.args, wr)
+			err := h.writeWireHSResponse(tt.args, buffer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("baseWireHandshaker.writeWireHSRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -154,12 +153,11 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 
 			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
 			wbuf := bytes.NewBuffer(nil)
-			dummyReader := bufio.NewReader(bytes.NewBuffer(tt.in))
-			dummyWriter := bufio.NewWriter(wbuf)
+			dummyReader := &RWCWrapper{bytes.NewBuffer(tt.in), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			mockVM.EXPECT().FindBestP2PVersion(gomock.Any()).Return(tt.bestVer).MaxTimes(1)
-			mockVM.EXPECT().GetVersionedHandshaker(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
+			mockVM.EXPECT().GetVersionedHandshaker(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
 			if !tt.vhErr {
 				mockVH.EXPECT().DoForInbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
@@ -169,7 +167,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 			}
 
 			h := NewInboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*InboundWireHandshaker)
-			got, got1, err := h.handleInboundPeer(mockCtx, dummyReader, dummyWriter)
+			got, got1, err := h.handleInboundPeer(mockCtx, dummyReader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InboundWireHandshaker.handleInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -197,9 +195,6 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	logger := log.NewLogger("p2p.test")
 	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}}.Marshal()
 
-	type args struct {
-		r []byte
-	}
 	tests := []struct {
 		name string
 
@@ -238,11 +233,10 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 
 			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
 			wbuf := bytes.NewBuffer(nil)
-			dummyReader := bufio.NewReader(bytes.NewBuffer(tt.receivingBuf))
-			dummyWriter := bufio.NewWriter(wbuf)
+			dummyRWC := &RWCWrapper{bytes.NewBuffer(tt.receivingBuf), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
-			mockVM.EXPECT().GetVersionedHandshaker(tt.remoteBestVer, gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
+			mockVM.EXPECT().GetVersionedHandshaker(tt.remoteBestVer, gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
 			if !tt.vhErr {
 				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
@@ -252,7 +246,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 			}
 
 			h := NewOutboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
-			got, got1, err := h.handleOutboundPeer(mockCtx, dummyReader, dummyWriter)
+			got, got1, err := h.handleOutboundPeer(mockCtx, dummyRWC)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -269,6 +263,24 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 			}
 		})
 	}
+}
+
+type RWCWrapper struct {
+	r io.Reader
+	w io.Writer
+	c io.Closer
+}
+
+func (rwc RWCWrapper) Read(p []byte) (n int, err error) {
+	return rwc.r.Read(p)
+}
+
+func (rwc RWCWrapper) Write(p []byte) (n int, err error) {
+	return rwc.w.Write(p)
+}
+
+func (rwc RWCWrapper) Close() error {
+	return rwc.c.Close()
 }
 
 type ContextTestDouble struct {

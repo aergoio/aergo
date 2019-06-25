@@ -104,7 +104,7 @@ func TestPeerMapService_readRequest(t *testing.T) {
 			pms.AfterStart()
 
 			msgStub := &p2pcommon.MessageValue{}
-			mockRd := p2pmock.NewMockMsgReader(ctrl)
+			mockRd := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			mockRd.EXPECT().ReadMsg().Times(1).Return(msgStub, tt.args.readErr)
 
@@ -314,7 +314,7 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 		reqContainer p2pcommon.Message
 		meta         p2pcommon.PeerMeta
 		resp         *types.MapResponse
-		wt           p2pcommon.MsgWriter
+		wt           p2pcommon.MsgReadWriter
 	}
 	tests := []struct {
 		name    string

@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
 	"runtime/debug"
 	"sync"
@@ -72,18 +71,17 @@ type remotePeerImpl struct {
 	txNoticeQueue       *p2putil.PressableQueue
 	maxTxNoticeHashSize int
 
-	s  network.Stream
 	rw p2pcommon.MsgReadWriter
 }
 
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, s network.Stream, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
 		meta: meta, manageNum: manageNum, pm: pm,
 		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(meta.ID), manageNum),
-		actor: actor, logger: log, mf: mf, signer: signer, s: s, rw: rw,
+		actor: actor, logger: log, mf: mf, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
 
@@ -219,7 +217,7 @@ WRITELOOP:
 	}
 	cleanupTicker.Stop()
 	p.cleanupWrite()
-	p.s.Close()
+	p.rw.Close()
 
 	// closing channel is up to golang runtime
 	// close(p.write)
