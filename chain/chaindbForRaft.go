@@ -13,12 +13,14 @@ import (
 )
 
 var (
-	ErrMismatchedEntry    = errors.New("mismatched entry")
-	ErrNoWalEntry         = errors.New("no entry")
-	ErrEncodeRaftIdentity = errors.New("failed encoding of raft identity")
-	ErrDecodeRaftIdentity = errors.New("failed decoding of raft identity")
-	ErrNoWalEntryForBlock = errors.New("no raft entry for block")
-	ErrNilHardState       = errors.New("hardstateinfo must not be nil")
+	ErrMismatchedEntry        = errors.New("mismatched entry")
+	ErrNoWalEntry             = errors.New("no entry")
+	ErrEncodeRaftIdentity     = errors.New("failed encoding of raft identity")
+	ErrDecodeRaftIdentity     = errors.New("failed decoding of raft identity")
+	ErrNoWalEntryForBlock     = errors.New("no raft entry for block")
+	ErrNilHardState           = errors.New("hardstateinfo must not be nil")
+	ErrEncodeConfChangeStatus = errors.New("failed encoding of raft conf change status")
+	ErrDecodeConfChangeStatus = errors.New("failed decoding of raft conf change status")
 )
 
 func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
@@ -140,7 +142,7 @@ func getRaftEntryInvertKey(blockHash []byte) []byte {
 	return key.Bytes()
 }
 
-func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block) error {
+func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block, ccProposes []*raftpb.ConfChange) error {
 	var data []byte
 	var err error
 	var lastIdx uint64
@@ -183,6 +185,13 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 		// invert key to search raft entry corresponding to block hash
 		if entry.Type == consensus.EntryBlock {
 			dbTx.Set(getRaftEntryInvertKey(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
+		}
+
+		if entry.Type == consensus.EntryConfChange {
+			if ccProposes[i] == nil {
+				logger.Fatal().Str("entry", entry.ToString()).Msg("confChangePropose must not be nil")
+			}
+			cdb.writeConfChangeStatus(dbTx, ccProposes[i].ID, &consensus.ConfChangeProgress{State: consensus.ConfChangeStateSaved, Err: ""})
 		}
 	}
 
@@ -424,4 +433,68 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 	logger.Info().Uint64("id", id.ID).Str("name", id.Name).Msg("get raft identity")
 
 	return &id, nil
+}
+
+func (cdb *ChainDB) WriteConfChangeStatus(id uint64, progress *consensus.ConfChangeProgress) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	if err := cdb.writeConfChangeStatus(dbTx, id, progress); err != nil {
+		return err
+	}
+
+	dbTx.Commit()
+
+	return nil
+}
+
+func getConfChangeStatusKey(idx uint64) []byte {
+	var key bytes.Buffer
+	key.Write(raftConfChangeStatusPrefix)
+	l := make([]byte, 8)
+	binary.LittleEndian.PutUint64(l[:], idx)
+	key.Write(l)
+	return key.Bytes()
+}
+
+func (cdb *ChainDB) writeConfChangeStatus(dbTx db.Transaction, id uint64, progress *consensus.ConfChangeProgress) error {
+	if id == 0 {
+		// it's for intial member's for startup
+		return nil
+	}
+
+	ccKey := getConfChangeStatusKey(id)
+
+	// Make CC Data
+	var val bytes.Buffer
+
+	enc := gob.NewEncoder(&val)
+	if err := enc.Encode(progress); err != nil {
+		return ErrEncodeConfChangeStatus
+	}
+
+	dbTx.Set(ccKey, val.Bytes())
+
+	return nil
+}
+
+func (cdb *ChainDB) GetConfChangeStatus(id uint64) (*consensus.ConfChangeProgress, error) {
+	ccKey := getConfChangeStatusKey(id)
+
+	data := cdb.store.Get(ccKey)
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var progress consensus.ConfChangeProgress
+	var b bytes.Buffer
+	b.Write(data)
+	decoder := gob.NewDecoder(&b)
+	if err := decoder.Decode(&progress); err != nil {
+		return nil, ErrDecodeConfChangeStatus
+	}
+
+	logger.Info().Uint64("id", id).Str("status", progress.ToString()).Msg("get conf change status")
+
+	return &progress, nil
 }

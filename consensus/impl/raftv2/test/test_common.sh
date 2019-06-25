@@ -296,27 +296,35 @@ function isChainHang() {
 	local srcPort=$1
 	local timeout=$2
 	local heightStart=""
+	local heightEnd=""
+
+	local tryHangAgain=10
 
 	echo "isChainHang($timeout) from $srcPort"
-	getHeight $srcPort
-	heightStart=$?
 
-	sleep $timeout
+	for ((i=1;i<=$tryHangAgain;i++))
+	do 
+		getHeight $srcPort
+		heightStart=""
+		heightStart=$?
 
-	local heightEnd=""
-	getHeight $srcPort
-	heightEnd=$?
+		sleep $timeout
 
-	echo "start:$heightStart ~ end:$heightEnd"
+		heightEnd=""
+		getHeight $srcPort
+		heightEnd=$?
 
-	if [ "$heightEnd" = "$heightStart" ];then
-		echo "chain is hanged"
-		exit 100
-	fi
+		echo "start:$heightStart ~ end:$heightEnd"
+		if [ "$heightEnd" != "$heightStart" ];then
+			echo "check succed"
+			return 0
+		fi
 
-	echo "check succed"
+		echo "chain is hanged. and retry[$i]"
+		sleep 1
+	done
 
-	return 0
+	return 1
 }
 
 function checkReorg() {
