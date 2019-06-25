@@ -44,8 +44,7 @@ type voteCmd struct {
 
 func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 	var (
-		sender = ctx.Sender
-		scs    = ctx.scs
+		scs = ctx.scs
 
 		err error
 	)
@@ -57,7 +56,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := addProposalHistory(scs, sender.ID(), cmd.Proposal); err != nil {
+		if err := addProposalHistory(scs, ctx.Sender.ID(), cmd.Proposal); err != nil {
 			return nil, err
 		}
 		cmd.candidate = cmd.args

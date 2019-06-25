@@ -15,6 +15,18 @@ import (
 	"github.com/mr-tron/base58"
 )
 
+//go:generate stringer -type=cmd
+type opSysTx int
+
+const (
+	VoteBP opSysTx = iota
+	VoteProposal
+	Stake
+	Unstake
+	CreateProposal
+	CmdMax
+)
+
 //SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
 	BlockNo  uint64
