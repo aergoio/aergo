@@ -2,6 +2,7 @@ package raftv2
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -573,6 +574,15 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 
 	var member *consensus.Member
 	var err error
+
+	// set reqID by blockHash
+	var best *types.Block
+	if best, err = bf.GetBestBlock(); err != nil {
+		return nil, err
+	}
+
+	req.RequestID = binary.LittleEndian.Uint64(best.GetHash()[0:8])
+
 	if member, err = bf.bpc.ChangeMembership(req, false); err != nil {
 		return nil, ErrorMembershipChange{err}
 	}
@@ -603,7 +613,7 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	logger.Info().Str("request", req.ToString()).Msg("make proposal of cluster conf change")
 
 	if proposal, err = cl.makeProposal(req, true); err != nil {
-		logger.Error().Msg("failed to make proposal for conf change")
+		logger.Error().Uint64("requestID", req.GetRequestID()).Msg("failed to make proposal for conf change")
 		return nil, err
 	}
 

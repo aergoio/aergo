@@ -1,6 +1,7 @@
 package enterprise
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/aergoio/aergo/types"
 	"reflect"
@@ -18,7 +19,7 @@ const (
 	MemberAttrID     = "id"
 )
 
-func validateChangeCluster(ci types.CallInfo) (interface{}, error) {
+func validateChangeCluster(ci types.CallInfo, txHash []byte) (interface{}, error) {
 	var (
 		ccArg     ccArgument
 		ok        bool
@@ -39,7 +40,13 @@ func validateChangeCluster(ci types.CallInfo) (interface{}, error) {
 		return nil, err
 	}
 
+	changeReq.RequestID = generateCCIDFromTxID(txHash)
+
 	return changeReq, nil
+}
+
+func generateCCIDFromTxID(txHash []byte) uint64 {
+	return binary.LittleEndian.Uint64(txHash[:8])
 }
 
 func (cc ccArgument) get(key string) (string, error) {
