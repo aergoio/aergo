@@ -878,7 +878,7 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, blockNo)
+		events, err = executeGovernanceTx(ccc, bs, tx, sender, receiver, blockNo)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

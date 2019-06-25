@@ -24,10 +24,11 @@ var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
 type ccArgument map[string]interface{}
 
-func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
+func ValidateEnterpriseTx(tx types.Transaction, sender *state.V,
 	scs *state.ContractState) (*EnterpriseContext, error) {
 	var ci types.CallInfo
-	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
+
+	if err := json.Unmarshal(tx.GetBody().Payload, &ci); err != nil {
 		return nil, err
 	}
 	context := &EnterpriseContext{Call: &ci}
@@ -142,7 +143,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		context.Admins = admins
 
 	case ChangeCluster:
-		cc, err := validateChangeCluster(ci)
+		cc, err := validateChangeCluster(ci, tx.GetHash())
 		if err != nil {
 			return nil, err
 		}

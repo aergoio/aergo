@@ -8,7 +8,7 @@ import (
 func (mc *MembershipChange) ToString() string {
 	var buf string
 
-	buf = fmt.Sprintf("type:%s,", MembershipChangeType_name[int32(mc.Type)])
+	buf = fmt.Sprintf("requestID:%d, type:%s,", mc.GetRequestID(), MembershipChangeType_name[int32(mc.Type)])
 
 	buf = buf + mc.Attr.ToString()
 	return buf
@@ -23,13 +23,13 @@ func (mattr *MemberAttr) ToString() string {
 		buf = buf + fmt.Sprintf("name=%s", mattr.Name)
 	}
 	if len(mattr.Url) > 0 {
-		buf = buf + fmt.Sprintf("name=%s", mattr.Url)
+		buf = buf + fmt.Sprintf("url=%s", mattr.Url)
 	}
 	if len(mattr.PeerID) > 0 {
-		buf = buf + fmt.Sprintf("name=%s", PeerID(mattr.PeerID).Pretty())
+		buf = buf + fmt.Sprintf("peerID=%s", PeerID(mattr.PeerID).Pretty())
 	}
 	if mattr.ID > 0 {
-		buf = buf + fmt.Sprintf("name=%d", mattr.ID)
+		buf = buf + fmt.Sprintf("memberID=%d", mattr.ID)
 	}
 
 	return buf
