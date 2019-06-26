@@ -166,16 +166,19 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 	}
 
 	for i, entry := range ents {
-		logger.Debug().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Msg("add raft log entry")
+		var targetNo uint64
 
 		if entry.Type == consensus.EntryBlock {
 			if err := cdb.addBlock(&dbTx, blocks[i]); err != nil {
 				panic("add block entry")
 				return err
 			}
+
+			targetNo = blocks[i].BlockNo()
 		}
 
 		if data, err = entry.ToBytes(); err != nil {
+			panic("failed to convert entry to bytes")
 			return err
 		}
 
@@ -192,7 +195,11 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 				logger.Fatal().Str("entry", entry.ToString()).Msg("confChangePropose must not be nil")
 			}
 			cdb.writeConfChangeStatus(dbTx, ccProposes[i].ID, &consensus.ConfChangeProgress{State: consensus.ConfChangeStateSaved, Err: ""})
+
+			targetNo = ccProposes[i].ID
 		}
+
+		logger.Info().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Uint64("blockNo/requestID", targetNo).Msg("add raft log entry")
 	}
 
 	// set lastindex

@@ -51,11 +51,10 @@ func (e *EnterpriseContext) HasConfValue(value string) bool {
 	return false
 }
 
-func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *state.ContractState, tx types.Transaction,
-	sender *state.V) ([]*types.Event, error) {
-	txBody := tx.GetBody()
+func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
+	sender *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
 
-	context, err := ValidateEnterpriseTx(tx, sender, scs)
+	context, err := ValidateEnterpriseTx(txBody, sender, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
