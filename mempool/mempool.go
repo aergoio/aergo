@@ -558,7 +558,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if err != nil {
 				return err
 			}
-			if _, err := enterprise.ValidateEnterpriseTx(tx, sender, enterprisecs); err != nil {
+			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockNo+1); err != nil {
 				return err
 			}
 		}

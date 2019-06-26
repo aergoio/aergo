@@ -18,7 +18,7 @@ const (
 	MemberAttrID     = "id"
 )
 
-func validateChangeCluster(ci types.CallInfo, txHash []byte) (interface{}, error) {
+func validateChangeCluster(ci types.CallInfo, blockNo types.BlockNo) (interface{}, error) {
 	var (
 		ccArg     ccArgument
 		ok        bool
@@ -39,9 +39,7 @@ func validateChangeCluster(ci types.CallInfo, txHash []byte) (interface{}, error
 		return nil, err
 	}
 
-	changeReq.RequestID = types.GenerateConfChangeIDFromTxID(txHash)
-
-	entLogger.Debug().Str("hash", types.EncodeB58(txHash)).Uint64("id", changeReq.RequestID).Msg("generate conf change id")
+	changeReq.RequestID = blockNo
 
 	return changeReq, nil
 }

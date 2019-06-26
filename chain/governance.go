@@ -16,9 +16,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, tx types.Transaction, sender, receiver *state.V,
+func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
 	blockNo types.BlockNo) ([]*types.Event, error) {
-	txBody := tx.GetBody()
 
 	if len(txBody.Payload) <= 0 {
 		return nil, types.ErrTxFormatInvalid
@@ -37,7 +36,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	case types.AergoName:
 		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	case types.AergoEnterprise:
-		events, err = enterprise.ExecuteEnterpriseTx(bs, ccc, scs, tx, sender)
+		events, err = enterprise.ExecuteEnterpriseTx(bs, ccc, scs, txBody, sender, blockNo)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient
