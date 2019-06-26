@@ -42,7 +42,7 @@ func init() {
 }
 
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
-	var myChainID = &types.ChainID{Magic:"itSmain1"}
+	var myChainID = &types.ChainID{Magic: "itSmain1"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -56,7 +56,7 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 		wantErr bool
 	}{
 		// {"TNormal", time.Millisecond, dummyStatusMsg, false},
-		{"TTimeout", time.Millisecond * 200, nil, true},
+		{"TWriteTimeout", time.Millisecond * 200, nil, true},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -71,19 +71,19 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 			h := newHandshaker(mockPM, mockActor, logger, myChainID, samplePeerID)
 			mockReader := p2pmock.NewMockReader(ctrl)
 			mockWriter := p2pmock.NewMockWriter(ctrl)
-			mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(p interface{}) (int, error) {
+			mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(p []byte) (int, error) {
 				time.Sleep(tt.delay)
 				return 0, fmt.Errorf("must not reach")
 			}).AnyTimes()
-			mockWriter.EXPECT().Write(gomock.Any()).DoAndReturn(func(p interface{}) (int, error) {
+			mockWriter.EXPECT().Write(gomock.Any()).DoAndReturn(func(p []byte) (int, error) {
 				time.Sleep(tt.delay)
-				return -1, fmt.Errorf("must not reach")
+				return len(p), nil
 			})
-			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 			defer cancel()
 			_, got, err := h.handshakeOutboundPeer(ctx, mockReader, mockWriter)
 			//_, got, err := h.handshakeOutboundPeerTimeout(mockReader, mockWriter, time.Millisecond*50)
-			if !strings.Contains(err.Error(),"context deadline exceeded") {
+			if !strings.Contains(err.Error(), "context deadline exceeded") {
 				t.Errorf("LegacyWireHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
 				return
 			}

@@ -119,8 +119,7 @@ func (w *V030Writer) WriteMsg(msg p2pcommon.Message) error {
 	if written != int(msg.Length()) {
 		return fmt.Errorf("wrong write")
 	}
-	w.wr.Flush()
-	return nil
+	return w.wr.Flush()
 }
 
 func parseHeader(buf [msgHeaderLength]byte) (*p2pcommon.MessageValue, uint32) {
