@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
-	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -24,7 +24,7 @@ type EnterpriseContext struct {
 	Args    []string
 	ArgsAny []interface{}
 	Admins  [][]byte
-	Old     *Conf
+	Conf    *Conf
 }
 
 func init() {
@@ -40,9 +40,9 @@ func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
 	return false
 }
 
-func (e *EnterpriseContext) IsOldConfValue(value string) bool {
-	if e.Old != nil {
-		for _, v := range e.Old.Values {
+func (e *EnterpriseContext) HasConfValue(value string) bool {
+	if e.Conf != nil {
+		for _, v := range e.Conf.Values {
 			if v == value {
 				return true
 			}
@@ -77,59 +77,20 @@ func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.Contrac
 		if err != nil {
 			return nil, err
 		}
-	case SetConf:
-		key := []byte(context.Args[0])
-		confValues := context.Args[1:]
-		err := setConfValues(scs, key, &Conf{
-			Values: confValues,
-		})
+	case SetConf, AppendConf, RemoveConf:
+		key := context.Args[0]
+		err = setConf(scs, []byte(key), context.Conf)
 		if err != nil {
 			return nil, err
 		}
-		events, err = createSetEvent(txBody.Recipient, string(key), confValues)
-		if err != nil {
-			return nil, err
-		}
-	case AppendConf:
-		key := []byte(strings.ToUpper(context.Args[0]))
-		appendValues := context.Args[1:]
-		conf, err := getConf(scs, key)
-		if err != nil {
-			return nil, err
-		}
-		if conf == nil {
-			conf = &Conf{On: false}
-		}
-		conf.Values = append(conf.Values, appendValues...)
-		err = setConf(scs, key, conf)
-		if err != nil {
-			return nil, err
-		}
-		events, err = createSetEvent(txBody.Recipient, string(key), conf.Values)
-		if err != nil {
-			return nil, err
-		}
-	case RemoveConf:
-		key := []byte(context.Args[0])
-		removeValues := context.Args[1:]
-		conf, err := getConf(scs, key)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range removeValues {
-			conf.RemoveValue(v)
-		}
-		err = setConf(scs, key, conf)
-		if err != nil {
-			return nil, err
-		}
-		events, err = createSetEvent(txBody.Recipient, string(key), conf.Values)
+		events, err = createSetEvent(txBody.Recipient, key, context.Conf.Values)
 		if err != nil {
 			return nil, err
 		}
 	case EnableConf:
-		key := []byte(context.Args[0])
-		if err := enableConf(scs, key, context.Call.Args[1].(bool)); err != nil {
+		key := context.Args[0]
+		err = setConf(scs, []byte(key), context.Conf)
+		if err != nil {
 			return nil, err
 		}
 		jsonArgs, err := json.Marshal(context.Call.Args[1])

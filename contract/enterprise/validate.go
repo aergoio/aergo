@@ -62,12 +62,15 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if err := checkArgs(context, &ci); err != nil {
 			return nil, err
 		}
-
+		key := genKey([]byte(context.Args[0]))
 		admins, err := checkAdmin(scs, sender.ID())
 		if err != nil {
 			return nil, err
 		}
 		context.Admins = admins
+		if context.Conf, err = setConfValues(scs, key, context.Args[1:]); err != nil {
+			return nil, err
+		}
 
 	case AppendConf, RemoveConf:
 		if len(ci.Args) != 2 { //args[0] : key, args[1] : a value
@@ -80,17 +83,32 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
-		old, err := getConf(scs, []byte(context.Args[0]))
+		conf, err := getConf(scs, []byte(context.Args[0]))
 		if err != nil {
 			return nil, err
 		}
-		context.Old = old
-		if ci.Name == AppendConf && context.IsOldConfValue(context.Args[1]) {
-			return nil, fmt.Errorf("already included config value : %v", context.Args)
-		} else if ci.Name == RemoveConf && !context.IsOldConfValue(context.Args[1]) {
-			return nil, fmt.Errorf("value not exist : %v", context.Args)
+		if conf == nil {
+			conf = &Conf{On: false}
 		}
+		context.Conf = conf
 		context.Admins = admins
+
+		key := genKey([]byte(context.Args[0]))
+		if ci.Name == AppendConf {
+			if context.HasConfValue(context.Args[1]) {
+				return nil, fmt.Errorf("already included config value : %v", context.Args)
+			}
+			conf.AppendValue(context.Args[1])
+		} else if ci.Name == RemoveConf {
+			if !context.HasConfValue(context.Args[1]) {
+				return nil, fmt.Errorf("value not exist : %v", context.Args)
+			}
+			conf.RemoveValue(context.Args[1])
+		}
+
+		if err := conf.Validate(key); err != nil {
+			return nil, err
+		}
 
 	case EnableConf:
 		if len(ci.Args) != 2 { //args[0] : key, args[1] : true/false
@@ -100,11 +118,12 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if !ok {
 			return nil, fmt.Errorf("not string in payload for enableConf : %s", ci.Args)
 		}
-		if strings.ToLower(arg0) == "admin" {
+		if _, ok := enterpriseKeyDict[strings.ToUpper(ci.Args[0].(string))]; !ok {
 			return nil, fmt.Errorf("not allowed key : %s", ci.Args[0])
 		}
 		context.Args = append(context.Args, arg0)
-		_, ok = ci.Args[1].(bool)
+		key := genKey([]byte(arg0))
+		value, ok := ci.Args[1].(bool)
 		if !ok {
 			return nil, fmt.Errorf("not bool in payload for enableConf : %s", ci.Args)
 		}
@@ -112,6 +131,14 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
+		conf, err := enableConf(scs, key, value)
+		if err != nil {
+			return nil, err
+		}
+		if err := conf.Validate(key); err != nil {
+			return nil, err
+		}
+		context.Conf = conf
 		context.Admins = admins
 
 	case ChangeCluster:

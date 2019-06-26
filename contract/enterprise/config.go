@@ -26,6 +26,12 @@ type Conf struct {
 	Values []string
 }
 
+func (c *Conf) AppendValue(r string) {
+	if c.Values == nil {
+		c.Values = []string{}
+	}
+	c.Values = append(c.Values, r)
+}
 func (c *Conf) RemoveValue(r string) {
 	for i, v := range c.Values {
 		if v == r {
@@ -77,18 +83,17 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	return ret, nil
 }
 
-func enableConf(scs *state.ContractState, key []byte, value bool) error {
+func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error) {
 	conf, err := getConf(scs, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if conf != nil {
 		conf.On = value
 	} else {
 		conf = &Conf{On: value}
 	}
-
-	return setConf(scs, key, conf)
+	return conf, nil
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
@@ -99,25 +104,21 @@ func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
 	return deserializeConf(data), err
 }
 
-func setConfValues(scs *state.ContractState, key []byte, in *Conf) error {
+func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf, error) {
 	conf, err := getConf(scs, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if conf != nil {
-		conf.Values = in.Values
+		conf.Values = values
 	} else {
-		conf = &Conf{Values: in.Values}
+		conf = &Conf{Values: values}
 	}
-	return setConf(scs, key, conf)
+	return conf, nil
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	setKey := genKey(key)
-	if err := conf.Validate(setKey); err != nil {
-		return err
-	}
-	return scs.SetData(append(confPrefix, setKey...), serializeConf(conf))
+	return scs.SetData(append(confPrefix, genKey(key)...), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {

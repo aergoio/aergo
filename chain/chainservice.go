@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"strings"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -552,7 +553,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	stateDB := cs.sdb.GetStateDB()
-	if key != "admin" {
+	if strings.ToUpper(key) != enterprise.AdminsKey {
 		return enterprise.GetConf(stateDB, key)
 	}
 	return enterprise.GetAdmin(stateDB)
