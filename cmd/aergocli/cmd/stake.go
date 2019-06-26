@@ -42,9 +42,9 @@ func sendStake(cmd *cobra.Command, s bool) error {
 	}
 	var ci types.CallInfo
 	if s {
-		ci.Name = types.Stake
+		ci.Name = types.Opstake.Cmd()
 	} else {
-		ci.Name = types.Unstake
+		ci.Name = types.Opunstake.Cmd()
 	}
 	amountBigInt, err := util.ParseUnit(amount)
 	if err != nil {

@@ -29,7 +29,7 @@ const PeerIDLength = 39
 const VotingDelay = 60 * 60 * 24 //block interval
 //const VotingDelay = 5
 
-var defaultVoteKey = []byte(types.VoteBP)[2:]
+var defaultVoteKey = []byte(types.OpvoteBP.Name())
 
 type voteCmd struct {
 	*SystemContext
@@ -159,7 +159,7 @@ func refreshAllVote(context *SystemContext) error {
 		allVotes     = getProposalHistory(scs, account)
 	)
 
-	allVotes = append(allVotes, []byte(types.VoteBP[2:]))
+	allVotes = append(allVotes, []byte(types.OpvoteBP.Name()))
 	for _, key := range allVotes {
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {

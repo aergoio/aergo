@@ -15,18 +15,6 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-//go:generate stringer -type=cmd
-type opSysTx int
-
-const (
-	VoteBP opSysTx = iota
-	VoteProposal
-	Stake
-	Unstake
-	CreateProposal
-	CmdMax
-)
-
 //SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
 	BlockNo  uint64
@@ -67,12 +55,12 @@ type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
 func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockNo uint64) (sysCmd, error) {
 
-	cmds := map[string]sysCmdCtor{
-		types.VoteBP:         newVoteCmd,
-		types.VoteProposal:   newVoteCmd,
-		types.Stake:          newStakeCmd,
-		types.Unstake:        newUnstakeCmd,
-		types.CreateProposal: newProposalCmd,
+	cmds := map[types.OpSysTx]sysCmdCtor{
+		types.OpvoteBP:         newVoteCmd,
+		types.OpvoteProposal:   newVoteCmd,
+		types.Opstake:          newStakeCmd,
+		types.Opunstake:        newUnstakeCmd,
+		types.OpcreateProposal: newProposalCmd,
 	}
 
 	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockNo)
@@ -80,7 +68,7 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 		return nil, err
 	}
 
-	ctor, exist := cmds[context.Call.Name]
+	ctor, exist := cmds[types.GetOpSysTx(context.Call.Name)]
 	if !exist {
 		return nil, types.ErrTxInvalidPayload
 	}

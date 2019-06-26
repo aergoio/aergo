@@ -19,8 +19,8 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
 		return nil, types.ErrTxInvalidPayload
 	}
-	switch ci.Name {
-	case types.Stake:
+	switch types.GetOpSysTx(ci.Name) {
+	case types.Opstake:
 		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
@@ -29,20 +29,20 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Staked = staked
-	case types.VoteBP:
+	case types.OpvoteBP:
 		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(ci.Name[2:]))
 		if err != nil {
 			return nil, err
 		}
 		context.Staked = staked
 		context.Vote = oldvote
-	case types.Unstake:
+	case types.Opunstake:
 		staked, err := validateForUnstaking(account, txBody, scs, blockNo)
 		if err != nil {
 			return nil, err
 		}
 		context.Staked = staked
-	case types.CreateProposal:
+	case types.OpcreateProposal:
 		staked, err := checkStakingBefore(account, scs)
 		if err != nil {
 			return nil, err
@@ -81,7 +81,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			MultipleChoice: uint32(multipleChoice),
 			Description:    desc,
 		}
-	case types.VoteProposal:
+	case types.OpvoteProposal:
 		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err

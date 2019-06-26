@@ -20,12 +20,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/common"
 	"index/suffixarray"
 	"math/big"
 	"regexp"
 	"strings"
 	"unsafe"
+
+	"github.com/aergoio/aergo/internal/common"
 
 	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/contract/name"
@@ -1207,13 +1208,13 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 			return C.CString("[Contract.LuaGovernance] governance not permitted in query")
 		}
 		if gType == 'S' {
-			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Stake))
+			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opstake.Cmd()))
 		} else {
-			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Unstake))
+			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opunstake.Cmd()))
 		}
 	} else {
 		amountBig = zeroBig
-		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.VoteBP, C.GoString(arg)))
+		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteBP.Cmd(), C.GoString(arg)))
 	}
 	aid := types.ToAccountID([]byte(types.AergoSystem))
 	scsState, err := getCtrState(stateSet, aid)

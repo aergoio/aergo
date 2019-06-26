@@ -14,8 +14,10 @@ import (
 
 //governance type transaction which has aergo.system in recipient
 
+/*
 const Stake = "v1stake"
 const Unstake = "v1unstake"
+*/
 const SetContractOwner = "v1setOwner"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
@@ -170,10 +172,11 @@ func ValidateSystemTx(tx *TxBody) error {
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return ErrTxInvalidPayload
 	}
-	switch ci.Name {
-	case Stake,
-		Unstake:
-	case VoteBP:
+	op := GetOpSysTx(ci.Name)
+	switch op {
+	case Opstake,
+		Opunstake:
+	case OpvoteBP:
 		unique := map[string]int{}
 		for i, v := range ci.Args {
 			if i >= MaxCandidates {
@@ -196,7 +199,7 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case CreateProposal:
+	case OpcreateProposal:
 		if len(ci.Args) != 3 {
 			return fmt.Errorf("invalid the number of arguments %d", len(ci.Args))
 		}
@@ -216,7 +219,7 @@ func ValidateSystemTx(tx *TxBody) error {
 				return fmt.Errorf("'\\' letter not allowed in creating argenda Args[%d]", i)
 			}
 		}
-	case VoteProposal:
+	case OpvoteProposal:
 		if len(ci.Args) < 1 {
 			return fmt.Errorf("the number of args less then 2")
 		}
@@ -312,7 +315,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 			if err := json.Unmarshal(tx.GetBody().GetPayload(), &ci); err != nil {
 				return ErrTxInvalidPayload
 			}
-			if ci.Name == Stake &&
+			if ci.Name == Opstake.Cmd() &&
 				amount.Cmp(balance) > 0 {
 				return ErrInsufficientBalance
 			}

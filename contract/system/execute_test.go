@@ -35,7 +35,7 @@ func TestBasicExecute(t *testing.T) {
 	assert.NoError(t, err, "Execute system tx failed in staking")
 	assert.Equal(t, sender.Balance().Uint64(), uint64(0), "sender.Balance() should be 0 after staking")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	assert.Equal(t, events[0].EventName, types.Stake[2:], "check event")
+	assert.Equal(t, events[0].EventName, types.Opstake.Name(), "check event")
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
@@ -44,7 +44,7 @@ func TestBasicExecute(t *testing.T) {
 	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	assert.Equal(t, events[0].EventName, types.VoteBP[2:], "check event")
+	assert.Equal(t, events[0].EventName, types.OpvoteBP.Name(), "check event")
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
 	tx.Body.Amount = types.StakingMinimum.Bytes()
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay+StakingDelay)
@@ -78,7 +78,7 @@ func TestBalanceExecute(t *testing.T) {
 	assert.NoError(t, err, "Execute system tx failed in staking")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 0 after staking")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	assert.Equal(t, events[0].EventName, types.Stake[2:], "check event")
+	assert.Equal(t, events[0].EventName, types.Opstake.Name(), "check event")
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 	assert.Equal(t, types.StakingMinimum, receiver.Balance(), "check amount of staking")
@@ -91,7 +91,7 @@ func TestBalanceExecute(t *testing.T) {
 	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "Execute system tx failed in voting")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	assert.Equal(t, events[0].EventName, types.VoteBP[2:], "check event")
+	assert.Equal(t, events[0].EventName, types.OpvoteBP.Name(), "check event")
 
 	voteResult, err := getVoteResult(scs, defaultVoteKey, 1)
 	assert.NoError(t, err, "get vote result")
@@ -519,9 +519,9 @@ func TestProposalExecute(t *testing.T) {
 	assert.NoError(t, err, "failed in creating proposal")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	assert.Equal(t, events[0].EventName, types.CreateProposal[2:], "check event")
+	assert.Equal(t, events[0].EventName, types.OpcreateProposal.Name(), "check event")
 	t.Log(events[0].GetJsonArgs())
-	assert.Equal(t,"{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"Proposal\":{\"ID\":\"numbp\",\"Description\":\"this vote is for the number of bp\",\"Blockfrom\":0,\"Blockto\":0,\"MultipleChoice\":2,\"Candidates\":null}}", events[0].GetJsonArgs(), "check event")
+	assert.Equal(t, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"Proposal\":{\"ID\":\"numbp\",\"Description\":\"this vote is for the number of bp\",\"Blockfrom\":0,\"Blockto\":0,\"MultipleChoice\":2,\"Candidates\":null}}", events[0].GetJsonArgs(), "check event")
 	proposal, err := getProposal(scs, "numbp")
 	assert.NoError(t, err, "failed in creating proposal")
 	assert.Equal(t, "numbp", proposal.ID, "check registed name")
@@ -613,52 +613,52 @@ func TestProposalExecuteFail1(t *testing.T) {
 	assert.NoError(t, err, "failed in creating proposal")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-/*
-	invalidaVersionTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "non","13"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, invalidaVersionTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "the proposal is not created (numbp, non)")
+	/*
+		invalidaVersionTx := &types.Tx{
+			Body: &types.TxBody{
+				Account: sender.ID(),
+				Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "non","13"]}`),
+				Type:    types.TxType_GOVERNANCE,
+			},
+		}
+		_, err = ExecuteSystemTx(scs, invalidaVersionTx.GetBody(), sender, receiver, blockNo)
+		assert.Error(t, err, "the proposal is not created (numbp, non)")
 
-	tooEarlyTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, tooEarlyTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "the voting begins at 1")
-	blockNo += 10
-	tooManyCandiTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13","23","17"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, tooManyCandiTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "too many candidates arguments (max : 2)")
+		tooEarlyTx := &types.Tx{
+			Body: &types.TxBody{
+				Account: sender.ID(),
+				Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13"]}`),
+				Type:    types.TxType_GOVERNANCE,
+			},
+		}
+		_, err = ExecuteSystemTx(scs, tooEarlyTx.GetBody(), sender, receiver, blockNo)
+		assert.Error(t, err, "the voting begins at 1")
+		blockNo += 10
+		tooManyCandiTx := &types.Tx{
+			Body: &types.TxBody{
+				Account: sender.ID(),
+				Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13","23","17"]}`),
+				Type:    types.TxType_GOVERNANCE,
+			},
+		}
+		_, err = ExecuteSystemTx(scs, tooManyCandiTx.GetBody(), sender, receiver, blockNo)
+		assert.Error(t, err, "too many candidates arguments (max : 2)")
 
-	invalidCandiTx := &types.Tx{
-		Body: &types.TxBody{
-			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "ab"]}`),
-			Type:    types.TxType_GOVERNANCE,
-		},
-	}
-	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "candidate should be in [13 23 17]")
+		invalidCandiTx := &types.Tx{
+			Body: &types.TxBody{
+				Account: sender.ID(),
+				Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "ab"]}`),
+				Type:    types.TxType_GOVERNANCE,
+			},
+		}
+		_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockNo)
+		assert.Error(t, err, "candidate should be in [13 23 17]")
 
-	blockNo += VotingDelay
-	tooLateTx := tooEarlyTx
-	_, err = ExecuteSystemTx(scs, tooLateTx.GetBody(), sender, receiver, blockNo)
-	assert.Error(t, err, "the voting was already done at 10")
-*/
+		blockNo += VotingDelay
+		tooLateTx := tooEarlyTx
+		_, err = ExecuteSystemTx(scs, tooLateTx.GetBody(), sender, receiver, blockNo)
+		assert.Error(t, err, "the voting was already done at 10")
+	*/
 }
 
 func TestProposalExecuteFail2(t *testing.T) {

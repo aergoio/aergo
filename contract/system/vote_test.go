@@ -171,7 +171,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 func buildVotingPayload(count int) []byte {
 	var ci types.CallInfo
-	ci.Name = types.VoteBP
+	ci.Name = types.OpvoteBP.Cmd()
 	for i := 0; i < count; i++ {
 		peerID := make([]byte, PeerIDLength)
 		peerID[0] = byte(i)
@@ -184,8 +184,8 @@ func buildVotingPayload(count int) []byte {
 func buildVotingPayloadEx(count int, name string) []byte {
 	var ci types.CallInfo
 	ci.Name = name
-	switch name {
-	case types.VoteBP:
+	switch types.GetOpSysTx(name) {
+	case types.OpvoteBP:
 		for i := 0; i < count; i++ {
 			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 			pid, _ := types.IDFromPublicKey(pub)
