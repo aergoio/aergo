@@ -16,7 +16,8 @@ import (
 var (
 	entLogger *log.Logger
 
-	ErrNotSupportedMethod = errors.New("Not supported Enterprise Tx")
+	ErrNotSupportedMethod                      = errors.New("Not supported Enterprise Tx")
+	ErrTxEnterpriseAlreadyIncludeChangeCluster = errors.New("Enterprise Tx of Change cluster type already included in the block")
 )
 
 type EnterpriseContext struct {
@@ -108,6 +109,11 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 		if ccc == nil {
 			return nil, ErrNotSupportedMethod
 		}
+
+		if bs.CCProposal != nil {
+			return nil, ErrTxEnterpriseAlreadyIncludeChangeCluster
+		}
+
 		ccReq, ok := context.ArgsAny[0].(*types.MembershipChange)
 		if !ok {
 			return nil, fmt.Errorf("invalid argument of cluster change request")
