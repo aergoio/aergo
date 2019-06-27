@@ -1182,9 +1182,7 @@ func (rs *raftServer) ReportUnreachable(id uint64) {
 }
 
 func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {
-	if status == raftlib.SnapshotFinish {
-		logger.Debug().Str("toID", EtcdIDToString(id)).Bool("isSucceed", status == raftlib.SnapshotFinish).Msg("report snapshot result")
-	}
+	logger.Info().Str("toID", EtcdIDToString(id)).Bool("isSucceed", status == raftlib.SnapshotFinish).Msg("finished to send snapshot")
 
 	rs.node.ReportSnapshot(id, status)
 }

@@ -459,6 +459,7 @@ func (bf *BlockFactory) reset() {
 	logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
 
 	bf.prevBlock = nil
+	bf.bpc.resetSavedConfChangePropose()
 }
 
 // save block/block state to connect after commit
