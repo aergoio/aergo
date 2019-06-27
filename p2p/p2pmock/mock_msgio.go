@@ -75,3 +75,62 @@ func (mr *MockMsgReadWriterMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockMsgReadWriter)(nil).Close))
 }
+
+// AddIOListener mocks base method
+func (m *MockMsgReadWriter) AddIOListener(l p2pcommon.MsgIOListener) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddIOListener", l)
+}
+
+// AddIOListener indicates an expected call of AddIOListener
+func (mr *MockMsgReadWriterMockRecorder) AddIOListener(l interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddIOListener", reflect.TypeOf((*MockMsgReadWriter)(nil).AddIOListener), l)
+}
+
+// MockMsgIOListener is a mock of MsgIOListener interface
+type MockMsgIOListener struct {
+	ctrl     *gomock.Controller
+	recorder *MockMsgIOListenerMockRecorder
+}
+
+// MockMsgIOListenerMockRecorder is the mock recorder for MockMsgIOListener
+type MockMsgIOListenerMockRecorder struct {
+	mock *MockMsgIOListener
+}
+
+// NewMockMsgIOListener creates a new mock instance
+func NewMockMsgIOListener(ctrl *gomock.Controller) *MockMsgIOListener {
+	mock := &MockMsgIOListener{ctrl: ctrl}
+	mock.recorder = &MockMsgIOListenerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockMsgIOListener) EXPECT() *MockMsgIOListenerMockRecorder {
+	return m.recorder
+}
+
+// OnRead mocks base method
+func (m *MockMsgIOListener) OnRead(protocol p2pcommon.SubProtocol, read int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "OnRead", protocol, read)
+}
+
+// OnRead indicates an expected call of OnRead
+func (mr *MockMsgIOListenerMockRecorder) OnRead(protocol, read interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnRead", reflect.TypeOf((*MockMsgIOListener)(nil).OnRead), protocol, read)
+}
+
+// OnWrite mocks base method
+func (m *MockMsgIOListener) OnWrite(protocol p2pcommon.SubProtocol, write int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "OnWrite", protocol, write)
+}
+
+// OnWrite indicates an expected call of OnWrite
+func (mr *MockMsgIOListenerMockRecorder) OnWrite(protocol, write interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnWrite", reflect.TypeOf((*MockMsgIOListener)(nil).OnWrite), protocol, write)
+}

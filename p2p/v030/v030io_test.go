@@ -84,23 +84,31 @@ func Test_ReadWrite(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			sizeChecker, sizeChecker2 := ioSum{}, ioSum{}
 			samplePData := &types.NewTransactionsNotice{TxHashes: test.ids}
 			payload, _ := proto.Marshal(samplePData)
 			sample := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, time.Now().UnixNano(), payload)
 
 			buf := bytes.NewBuffer(nil)
 			target := NewV030ReadWriter(nil, buf, nil)
+			target.AddIOListener(&sizeChecker)
+
 			target.WriteMsg(sample)
 
 			actual := buf.Bytes()
 			assert.Equal(t, len(payload)+msgHeaderLength, len(actual))
+			assert.Equal(t, len(actual), sizeChecker.writeN)
 
 			rd := NewV030ReadWriter(bufio.NewReader(buf), ioutil.Discard, nil)
+			rd.AddIOListener(&sizeChecker2)
+
 			readMsg, err := rd.ReadMsg()
+
 			assert.Nil(t, err)
 			assert.NotNil(t, readMsg)
 			assert.Equal(t, sample, readMsg)
 			assert.True(t, bytes.Equal(sample.Payload(), readMsg.Payload()))
+			assert.Equal(t, sizeChecker.writeN, sizeChecker2.readN)
 
 			// read error test
 			buf2 := bytes.NewBuffer(actual)
@@ -110,6 +118,19 @@ func Test_ReadWrite(t *testing.T) {
 			assert.NotNil(t, err)
 		})
 	}
+}
+
+type ioSum struct {
+	readN int
+	writeN int
+}
+
+func (s *ioSum) OnRead(protocol p2pcommon.SubProtocol, read int) {
+	s.readN += read
+}
+
+func (s *ioSum) OnWrite(protocol p2pcommon.SubProtocol, write int) {
+	s.writeN += write
 }
 
 func TestV030Writer_WriteError(t *testing.T) {

@@ -381,6 +381,7 @@ func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool,
 func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
+	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
 	// TODO tune to set prefer role
 	newPeer.role = p2ps.prm.GetRole(meta.ID)
