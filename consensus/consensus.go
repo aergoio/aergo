@@ -6,7 +6,6 @@
 package consensus
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
-	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // DefaultBlockIntervalSec  is the default block generation interval in seconds.
@@ -73,8 +71,9 @@ type Consensus interface {
 
 type ConsensusAccessor interface {
 	ConsensusInfo() *types.ConsensusInfo
-	ConfChange(req *types.MembershipChange) (*Member, error)
 	ClusterInfo([]byte) *types.GetClusterInfoResponse
+	ConfChange(req *types.MembershipChange) (*Member, error)
+	ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error)
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -114,23 +113,11 @@ type ChainConsensus interface {
 }
 
 type ChainConsensusCluster interface {
-	RequestConfChange(req *types.MembershipChange) error
+	MakeConfChangeProposal(req *types.MembershipChange) (*ConfChangePropose, error)
 }
 
 type TxWriter interface {
 	Set(key, value []byte)
-}
-
-type ConfChangePropose struct {
-	Ctx context.Context
-	Cc  *raftpb.ConfChange
-
-	ReplyC chan *ConfChangeReply
-}
-
-type ConfChangeReply struct {
-	Member *Member
-	Err    error
 }
 
 // Info represents an information for a consensus implementation.

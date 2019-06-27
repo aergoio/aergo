@@ -16,7 +16,8 @@ import (
 var (
 	entLogger *log.Logger
 
-	ErrNotSupportedMethod = errors.New("Not supported Enterprise Tx")
+	ErrNotSupportedMethod                      = errors.New("Not supported Enterprise Tx")
+	ErrTxEnterpriseAlreadyIncludeChangeCluster = errors.New("Enterprise Tx of Change cluster type already included in the block")
 )
 
 type EnterpriseContext struct {
@@ -51,9 +52,10 @@ func (e *EnterpriseContext) HasConfValue(value string) bool {
 	return false
 }
 
-func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
-	sender *state.V) ([]*types.Event, error) {
-	context, err := ValidateEnterpriseTx(txBody, sender, scs)
+func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
+	sender *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+
+	context, err := ValidateEnterpriseTx(txBody, sender, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
@@ -107,29 +109,44 @@ func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.Contrac
 		if ccc == nil {
 			return nil, ErrNotSupportedMethod
 		}
+
+		if bs.CCProposal != nil {
+			return nil, ErrTxEnterpriseAlreadyIncludeChangeCluster
+		}
+
 		ccReq, ok := context.ArgsAny[0].(*types.MembershipChange)
 		if !ok {
 			return nil, fmt.Errorf("invalid argument of cluster change request")
 		}
-		//entLogger.Info().Str("req", ccReq.ToString()).Msg("Enterprise tx: cluster change request")
 
-		if err := ccc.RequestConfChange(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
+		var (
+			ccChange *consensus.ConfChangePropose
+			err      error
+		)
+
+		if ccChange, err = ccc.MakeConfChangeProposal(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
+			entLogger.Error().Err(err).Msg("Enterprise tx: failed to make cluster change proposal")
 			return nil, err
 		}
 
-		jsonArgs, err := json.Marshal(context.Call.Args[0])
-		if err != nil {
-			return nil, err
+		if err != consensus.ErrorMembershipChangeSkip {
+			bs.CCProposal = ccChange
 		}
-
-		entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
 		/*
+			jsonArgs, err := json.Marshal(context.Call.Args[0])
+			if err != nil {
+				return nil, err
+			}
+
+			entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
+
 			events = append(events, &types.Event{
-				ContractAddress: txBody.Recipient,
-				EventName:       "ChangeCluster ",
-				EventIdx:        0,
-				JsonArgs:        string(jsonArgs),
-			})*/
+					ContractAddress: txBody.Recipient,
+					EventName:       "ChangeCluster ",
+					EventIdx:        0,
+					JsonArgs:        string(jsonArgs),
+			})
+		*/
 	default:
 		return nil, fmt.Errorf("unsupported call in enterprise contract")
 	}

@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/gob"
@@ -24,6 +25,18 @@ const (
 	EntryConfChange
 	InvalidMemberID = 0
 )
+
+type ConfChangePropose struct {
+	Ctx context.Context
+	Cc  *raftpb.ConfChange
+
+	ReplyC chan *ConfChangeReply
+}
+
+type ConfChangeReply struct {
+	Member *Member
+	Err    error
+}
 
 var (
 	WalEntryType_name = map[EntryType]string{
@@ -83,7 +96,7 @@ type ChainWAL interface {
 
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
 	GetBlock(blockHash []byte) (*types.Block, error)
-	WriteRaftEntry([]*WalEntry, []*types.Block) error
+	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
 	HasWal(identity RaftIdentity) (bool, error)
 	GetRaftEntryOfBlock(hash []byte) (*WalEntry, error)
@@ -94,6 +107,8 @@ type ChainWAL interface {
 	GetSnapshot() (*raftpb.Snapshot, error)
 	WriteIdentity(id *RaftIdentity) error
 	GetIdentity() (*RaftIdentity, error)
+	WriteConfChangeProgress(id uint64, progress *types.ConfChangeProgress) error
+	GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error)
 }
 
 type SnapshotData struct {

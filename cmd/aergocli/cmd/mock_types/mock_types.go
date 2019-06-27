@@ -287,6 +287,24 @@ func (mr *MockAergoRPCServiceClientMockRecorder) GetChainInfo(arg0, arg1 interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainInfo", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetChainInfo), varargs...)
 }
 
+// GetConfChangeProgress mocks base method
+func (m *MockAergoRPCServiceClient) GetConfChangeProgress(arg0 context.Context, arg1 *types.SingleBytes, arg2 ...grpc.CallOption) (*types.ConfChangeProgress, error) {
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetConfChangeProgress", varargs...)
+	ret0, _ := ret[0].(*types.ConfChangeProgress)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConfChangeProgress indicates an expected call of GetConfChangeProgress
+func (mr *MockAergoRPCServiceClientMockRecorder) GetConfChangeProgress(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfChangeProgress", reflect.TypeOf((*MockAergoRPCServiceClient)(nil).GetConfChangeProgress), varargs...)
+}
+
 // GetConsensusInfo mocks base method
 func (m *MockAergoRPCServiceClient) GetConsensusInfo(arg0 context.Context, arg1 *types.Empty, arg2 ...grpc.CallOption) (*types.ConsensusInfo, error) {
 	varargs := []interface{}{arg0, arg1}

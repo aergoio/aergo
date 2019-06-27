@@ -58,8 +58,9 @@ func (stubC *StubConsensus) NeedNotify() bool {
 func (stubC *StubConsensus) HasWAL() bool {
 	return false
 }
-func (stubC *StubConsensus) RequestConfChange(req *types.MembershipChange) error {
-	return consensus.ErrNotSupportedMethod
+
+func (stubC *StubConsensus) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	return nil, consensus.ErrNotSupportedMethod
 }
 
 func makeBlockChain() *ChainService {

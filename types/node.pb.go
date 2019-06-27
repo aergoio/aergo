@@ -20,8 +20,8 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type PeerAddress struct {
 	// address is string representation of ip address or domain name.
-	Address              string   `protobuf:"bytes,1,opt,name=address" json:"address,omitempty"`
-	Port                 uint32   `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
+	Address              string   `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Port                 uint32   `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
 	PeerID               []byte   `protobuf:"bytes,3,opt,name=peerID,proto3" json:"peerID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -32,7 +32,7 @@ func (m *PeerAddress) Reset()         { *m = PeerAddress{} }
 func (m *PeerAddress) String() string { return proto.CompactTextString(m) }
 func (*PeerAddress) ProtoMessage()    {}
 func (*PeerAddress) Descriptor() ([]byte, []int) {
-	return fileDescriptor_node_8e9c8d3902796194, []int{0}
+	return fileDescriptor_node_8abca6e41f19b114, []int{0}
 }
 func (m *PeerAddress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerAddress.Unmarshal(m, b)
@@ -77,9 +77,9 @@ func init() {
 	proto.RegisterType((*PeerAddress)(nil), "types.PeerAddress")
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor_node_8e9c8d3902796194) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor_node_8abca6e41f19b114) }
 
-var fileDescriptor_node_8e9c8d3902796194 = []byte{
+var fileDescriptor_node_8abca6e41f19b114 = []byte{
 	// 141 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xca, 0xcb, 0x4f, 0x49,
 	0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x2d, 0xa9, 0x2c, 0x48, 0x2d, 0x56, 0x0a, 0xe6,

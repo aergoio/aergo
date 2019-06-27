@@ -7,13 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
@@ -782,11 +782,19 @@ func (cl *Cluster) NewMemberFromRemoveReq(req *types.MembershipChange) (*consens
 
 func (cl *Cluster) ChangeMembership(req *types.MembershipChange, nowait bool) (*consensus.Member, error) {
 	var (
-		propose *consensus.ConfChangePropose
-		err     error
+		proposal *consensus.ConfChangePropose
+		err      error
 	)
 
-	if propose, err = cl.requestConfChange(req, nowait); err != nil {
+	cl.Lock()
+	defer cl.Unlock()
+
+	if proposal, err = cl.makeProposal(req, nowait); err != nil {
+		logger.Error().Uint64("requestID", req.GetRequestID()).Msg("failed to make proposal for membership change")
+		return nil, err
+	}
+
+	if err = cl.submitProposal(proposal, nowait); err != nil {
 		return nil, err
 	}
 
@@ -794,7 +802,7 @@ func (cl *Cluster) ChangeMembership(req *types.MembershipChange, nowait bool) (*
 		return nil, nil
 	}
 
-	return cl.recvConfChangeReply(propose.ReplyC)
+	return cl.recvConfChangeReply(proposal.ReplyC)
 }
 
 func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*consensus.ConfChangePropose, error) {
@@ -820,20 +828,20 @@ func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*cons
 	}
 
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to make new member")
+		logger.Error().Err(err).Uint64("requestID", req.GetRequestID()).Msg("failed to make new member")
 		return nil, err
 	}
 
 	// make raft confChange
-	cc, err := cl.makeConfChange(req.Type, member)
+	cc, err := cl.makeConfChange(req.GetRequestID(), req.Type, member)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to make confChange of raft")
+		logger.Error().Err(err).Uint64("requestID", req.GetRequestID()).Msg("failed to make conf change of raft")
 		return nil, err
 	}
 
 	// validate member change
 	if err = cl.validateChangeMembership(cc, member, false); err != nil {
-		logger.Error().Err(err).Msg("failed to validate request of membership change")
+		logger.Error().Err(err).Uint64("requestID", req.GetRequestID()).Msg("failed to validate request of membership change")
 		return nil, err
 	}
 
@@ -851,35 +859,23 @@ func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*cons
 	return &proposal, nil
 }
 
-func (cl *Cluster) requestConfChange(req *types.MembershipChange, nowait bool) (*consensus.ConfChangePropose, error) {
-	var (
-		proposal *consensus.ConfChangePropose
-		err      error
-	)
-	logger.Info().Str("request", req.ToString()).Msg("start to change membership of cluster")
-
-	cl.Lock()
-	defer cl.Unlock()
-
-	if proposal, err = cl.makeProposal(req, nowait); err != nil {
-		logger.Error().Msg("failed to make proposal for membership change")
-		return nil, err
-	}
-
+func (cl *Cluster) submitProposal(proposal *consensus.ConfChangePropose, nowait bool) error {
 	cl.saveConfChangePropose(proposal)
 
 	select {
 	case cl.confChangeC <- proposal:
-		logger.Info().Msg("proposal of confChange is sent to raft")
+		logger.Info().Uint64("requestID", proposal.Cc.ID).Msg("proposal of conf change is sent to raft")
 	default:
-		logger.Error().Msg("proposal of confChange is dropped. confChange channel is busy")
+		logger.Error().Uint64("requestID", proposal.Cc.ID).Msg("proposal of conf change is dropped. confChange channel is busy")
 
-		close(proposal.ReplyC)
+		if !nowait {
+			close(proposal.ReplyC)
+		}
 		cl.resetSavedConfChangePropose()
-		return nil, ErrConfChangeChannelBusy
+		return ErrConfChangeChannelBusy
 	}
 
-	return cl.savedChange, nil
+	return nil
 }
 
 func (cl *Cluster) recvConfChangeReply(replyC chan *consensus.ConfChangeReply) (*consensus.Member, error) {
@@ -890,7 +886,7 @@ func (cl *Cluster) recvConfChangeReply(replyC chan *consensus.ConfChangeReply) (
 		}
 
 		if reply.Err != nil {
-			logger.Error().Err(reply.Err).Msg("failed confChange")
+			logger.Error().Err(reply.Err).Msg("failed conf change")
 			return nil, reply.Err
 		}
 
@@ -899,24 +895,26 @@ func (cl *Cluster) recvConfChangeReply(replyC chan *consensus.ConfChangeReply) (
 		return reply.Member, nil
 	case <-time.After(MaxConfChangeTimeOut):
 		// saved conf change must be reset in raft server after request completes
-		logger.Warn().Msg("proposal of confChange is time-out")
+		logger.Warn().Msg("proposal of conf change is time-out")
 
 		return nil, ErrConChangeTimeOut
 	}
 }
 
-func (cl *Cluster) sendConfChangeReply(cc *raftpb.ConfChange, member *consensus.Member, err error) {
+func (cl *Cluster) AfterConfChange(cc *raftpb.ConfChange, member *consensus.Member, err error) {
 	cl.Lock()
 	defer cl.Unlock()
 
+	// TODO XXX if leader is rebooted, savedChange will be nil, so need to handle this situation
 	if cl.savedChange == nil || cl.savedChange.Cc.ID != cc.ID {
 		return
 	}
 
 	propose := cl.savedChange
-	cl.resetSavedConfChangePropose()
 
-	logger.Debug().Str("req", util.JSON(propose.Cc)).Msg("send reply of conf change")
+	logger.Info().Str("req", util.JSON(propose.Cc)).Msg("conf change succeed")
+
+	cl.resetSavedConfChangePropose()
 
 	if propose.ReplyC != nil {
 		propose.ReplyC <- &consensus.ConfChangeReply{Member: member, Err: err}
@@ -925,12 +923,17 @@ func (cl *Cluster) sendConfChangeReply(cc *raftpb.ConfChange, member *consensus.
 }
 
 func (cl *Cluster) saveConfChangePropose(ccPropose *consensus.ConfChangePropose) {
-	logger.Debug().Uint64("ccid", ccPropose.Cc.ID).Msg("this confChange propose is saved in cluster")
+	logger.Debug().Uint64("ccid", ccPropose.Cc.ID).Msg("this conf change propose is saved in cluster")
 	cl.savedChange = ccPropose
 }
 
 func (cl *Cluster) resetSavedConfChangePropose() {
-	logger.Debug().Msg("reset saved confChange propose")
+	var ccid uint64
+	if cl.savedChange != nil {
+		ccid = cl.savedChange.Cc.ID
+	}
+
+	logger.Debug().Uint64("requestID", ccid).Msg("reset saved conf change propose")
 
 	cl.savedChange = nil
 }
@@ -985,7 +988,7 @@ func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *conse
 	return nil
 }
 
-func (cl *Cluster) makeConfChange(reqType types.MembershipChangeType, member *consensus.Member) (*raftpb.ConfChange, error) {
+func (cl *Cluster) makeConfChange(reqID uint64, reqType types.MembershipChangeType, member *consensus.Member) (*raftpb.ConfChange, error) {
 	var changeType raftpb.ConfChangeType
 	switch reqType {
 	case types.MembershipChangeType_ADD_MEMBER:
@@ -996,7 +999,7 @@ func (cl *Cluster) makeConfChange(reqType types.MembershipChangeType, member *co
 		return nil, ErrInvalidMembershipReqType
 	}
 
-	logger.Debug().Str("member", member.ToString()).Msg("target member")
+	logger.Debug().Uint64("requestID", reqID).Str("member", member.ToString()).Msg("conf change target member")
 
 	cl.changeSeq++
 
@@ -1005,7 +1008,8 @@ func (cl *Cluster) makeConfChange(reqType types.MembershipChangeType, member *co
 		return nil, err
 	}
 
-	cc := &raftpb.ConfChange{ID: cl.changeSeq, Type: changeType, NodeID: uint64(member.ID), Context: data}
+	// generateConfChangeID
+	cc := &raftpb.ConfChange{ID: reqID, Type: changeType, NodeID: uint64(member.ID), Context: data}
 
 	return cc, nil
 }

@@ -36,7 +36,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	case types.AergoName:
 		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	case types.AergoEnterprise:
-		events, err = enterprise.ExecuteEnterpriseTx(ccc, scs, txBody, sender)
+		events, err = enterprise.ExecuteEnterpriseTx(bs, ccc, scs, txBody, sender, blockNo)
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient

@@ -536,12 +536,31 @@ func (rs *raftServer) Propose(block *types.Block) error {
 	return nil
 }
 
+func (rs *raftServer) saveConfChangeState(id uint64, state types.ConfChangeState, errCC error) error {
+	var errStr string
+
+	if errCC != nil {
+		errStr = errCC.Error()
+	}
+
+	pr := types.ConfChangeProgress{State: state, Err: errStr}
+
+	return rs.walDB.WriteConfChangeProgress(id, &pr)
+}
+
 func (rs *raftServer) serveConfChange() {
 	handleConfChange := func(propose *consensus.ConfChangePropose) {
-		if err := rs.node.ProposeConfChange(context.TODO(), *propose.Cc); err != nil {
+		var err error
+
+		err = rs.node.ProposeConfChange(context.TODO(), *propose.Cc)
+		if err != nil {
 			logger.Error().Err(err).Msg("failed to propose configure change")
-			rs.cluster.sendConfChangeReply(propose.Cc, nil, err)
-			return
+			rs.cluster.AfterConfChange(propose.Cc, nil, err)
+		}
+
+		err = rs.saveConfChangeState(propose.Cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_PROPOSED, err)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to save progress of configure change")
 		}
 	}
 
@@ -978,6 +997,28 @@ var (
 	ErrInvCCType = errors.New("change type of ")
 )
 
+func unmarshalConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consensus.Member, error) {
+	var cc raftpb.ConfChange
+
+	if err := cc.Unmarshal(entry.Data); err != nil {
+		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of conf change entry")
+		return nil, nil, err
+	}
+
+	// skip confChange of empty context
+	if len(cc.Context) == 0 {
+		return nil, nil, nil
+	}
+
+	var member = consensus.Member{}
+	if err := json.Unmarshal(cc.Context, &member); err != nil {
+		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
+		return nil, nil, err
+	}
+
+	return &cc, &member, nil
+}
+
 func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consensus.Member, error) {
 	// TODO XXX validate from current cluster configure
 	var cc *raftpb.ConfChange
@@ -988,33 +1029,14 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 		return rs.cluster.appliedTerm >= entry.Term || rs.cluster.appliedIndex >= entry.Index
 	}
 
+	cc, member, err = unmarshalConfChangeEntry(entry)
+	if err != nil {
+		logger.Fatal().Err(err).Str("entry", entry.String()).Uint64("requestID", cc.ID).Msg("failed to unmarshal conf change")
+	}
+
 	if alreadyApplied(entry) {
-		return nil, nil, ErrCCAlreadyApplied
+		return cc, member, ErrCCAlreadyApplied
 	}
-
-	unmarshalConfChangeEntry := func() (*raftpb.ConfChange, *consensus.Member, error) {
-		var cc raftpb.ConfChange
-
-		if err := cc.Unmarshal(entry.Data); err != nil {
-			logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of conf change entry")
-			return nil, nil, err
-		}
-
-		// skip confChange of empty context
-		if len(cc.Context) == 0 {
-			return nil, nil, nil
-		}
-
-		var member = consensus.Member{}
-		if err := json.Unmarshal(cc.Context, &member); err != nil {
-			logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
-			return nil, nil, err
-		}
-
-		return &cc, &member, nil
-	}
-
-	cc, member, err = unmarshalConfChangeEntry()
 
 	if err = rs.cluster.validateChangeMembership(cc, member, true); err != nil {
 		return cc, member, err
@@ -1031,17 +1053,28 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 	var member *consensus.Member
 	var err error
 
+	postWork := func(err error) bool {
+		if err != nil {
+			cc.NodeID = raftlib.None
+			rs.node.ApplyConfChange(*cc)
+		}
+
+		if cc.ID != 0 {
+			rs.saveConfChangeState(cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_APPLIED, err)
+			rs.cluster.AfterConfChange(cc, member, err)
+		}
+		return true
+	}
+
 	// ConfChanges may be applied more than once. This is because cluster information is more up-to-date than block information when a snapshot is received.
 	if cc, member, err = rs.ValidateConfChangeEntry(ent); err != nil {
-		logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
-		// reset pending conf change
-		cc.NodeID = raftlib.None
-		return true
+		logger.Warn().Err(err).Str("entry", types.RaftEntryToString(ent)).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
+		return postWork(err)
 	}
 
 	rs.confState = rs.node.ApplyConfChange(*cc)
 
-	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confChange entry")
+	logger.Info().Uint64("requestID", cc.ID).Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish conf change entry")
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
@@ -1066,11 +1099,9 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		rs.transport.RemovePeer(etcdtypes.ID(cc.NodeID))
 	}
 
-	logger.Debug().Str("cluster", rs.cluster.toString()).Msg("after conf changed")
+	logger.Debug().Uint64("requestID", cc.ID).Str("cluster", rs.cluster.toString()).Msg("after conf changed")
 
-	rs.cluster.sendConfChangeReply(cc, member, nil)
-
-	return true
+	return postWork(nil)
 }
 
 // publishEntries writes committed log entries to commit channel and returns

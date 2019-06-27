@@ -25,7 +25,7 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type Paginations struct {
 	Ref                  []byte   `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	Size                 uint32   `protobuf:"varint,3,opt,name=size" json:"size,omitempty"`
+	Size                 uint32   `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -35,7 +35,7 @@ func (m *Paginations) Reset()         { *m = Paginations{} }
 func (m *Paginations) String() string { return proto.CompactTextString(m) }
 func (*Paginations) ProtoMessage()    {}
 func (*Paginations) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_2b3b2813fa132042, []int{0}
+	return fileDescriptor_polarrpc_391626a3f37c108a, []int{0}
 }
 func (m *Paginations) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Paginations.Unmarshal(m, b)
@@ -70,9 +70,9 @@ func (m *Paginations) GetSize() uint32 {
 }
 
 type PolarisPeerList struct {
-	Total                uint32         `protobuf:"varint,1,opt,name=total" json:"total,omitempty"`
-	HasNext              bool           `protobuf:"varint,2,opt,name=hasNext" json:"hasNext,omitempty"`
-	Peers                []*PolarisPeer `protobuf:"bytes,3,rep,name=peers" json:"peers,omitempty"`
+	Total                uint32         `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	HasNext              bool           `protobuf:"varint,2,opt,name=hasNext,proto3" json:"hasNext,omitempty"`
+	Peers                []*PolarisPeer `protobuf:"bytes,3,rep,name=peers,proto3" json:"peers,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -82,7 +82,7 @@ func (m *PolarisPeerList) Reset()         { *m = PolarisPeerList{} }
 func (m *PolarisPeerList) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeerList) ProtoMessage()    {}
 func (*PolarisPeerList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_2b3b2813fa132042, []int{1}
+	return fileDescriptor_polarrpc_391626a3f37c108a, []int{1}
 }
 func (m *PolarisPeerList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeerList.Unmarshal(m, b)
@@ -124,11 +124,11 @@ func (m *PolarisPeerList) GetPeers() []*PolarisPeer {
 }
 
 type PolarisPeer struct {
-	Address   *PeerAddress `protobuf:"bytes,1,opt,name=address" json:"address,omitempty"`
-	Connected int64        `protobuf:"varint,2,opt,name=connected" json:"connected,omitempty"`
+	Address   *PeerAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Connected int64        `protobuf:"varint,2,opt,name=connected,proto3" json:"connected,omitempty"`
 	// lastCheck contains unixtimestamp with nanoseconds precision
-	LastCheck            int64    `protobuf:"varint,3,opt,name=lastCheck" json:"lastCheck,omitempty"`
-	Verion               string   `protobuf:"bytes,4,opt,name=verion" json:"verion,omitempty"`
+	LastCheck            int64    `protobuf:"varint,3,opt,name=lastCheck,proto3" json:"lastCheck,omitempty"`
+	Verion               string   `protobuf:"bytes,4,opt,name=verion,proto3" json:"verion,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -138,7 +138,7 @@ func (m *PolarisPeer) Reset()         { *m = PolarisPeer{} }
 func (m *PolarisPeer) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeer) ProtoMessage()    {}
 func (*PolarisPeer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_2b3b2813fa132042, []int{2}
+	return fileDescriptor_polarrpc_391626a3f37c108a, []int{2}
 }
 func (m *PolarisPeer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeer.Unmarshal(m, b)
@@ -200,8 +200,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for PolarisRPCService service
-
+// PolarisRPCServiceClient is the client API for PolarisRPCService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type PolarisRPCServiceClient interface {
 	// Returns the current state of this node
 	NodeState(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*SingleBytes, error)
@@ -222,7 +223,7 @@ func NewPolarisRPCServiceClient(cc *grpc.ClientConn) PolarisRPCServiceClient {
 
 func (c *polarisRPCServiceClient) NodeState(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*SingleBytes, error) {
 	out := new(SingleBytes)
-	err := grpc.Invoke(ctx, "/types.PolarisRPCService/NodeState", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/NodeState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +232,7 @@ func (c *polarisRPCServiceClient) NodeState(ctx context.Context, in *NodeReq, op
 
 func (c *polarisRPCServiceClient) Metric(ctx context.Context, in *MetricsRequest, opts ...grpc.CallOption) (*Metrics, error) {
 	out := new(Metrics)
-	err := grpc.Invoke(ctx, "/types.PolarisRPCService/Metric", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/Metric", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +241,7 @@ func (c *polarisRPCServiceClient) Metric(ctx context.Context, in *MetricsRequest
 
 func (c *polarisRPCServiceClient) CurrentList(ctx context.Context, in *Paginations, opts ...grpc.CallOption) (*PolarisPeerList, error) {
 	out := new(PolarisPeerList)
-	err := grpc.Invoke(ctx, "/types.PolarisRPCService/CurrentList", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/CurrentList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +250,7 @@ func (c *polarisRPCServiceClient) CurrentList(ctx context.Context, in *Paginatio
 
 func (c *polarisRPCServiceClient) WhiteList(ctx context.Context, in *Paginations, opts ...grpc.CallOption) (*PolarisPeerList, error) {
 	out := new(PolarisPeerList)
-	err := grpc.Invoke(ctx, "/types.PolarisRPCService/WhiteList", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/WhiteList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -258,15 +259,14 @@ func (c *polarisRPCServiceClient) WhiteList(ctx context.Context, in *Paginations
 
 func (c *polarisRPCServiceClient) BlackList(ctx context.Context, in *Paginations, opts ...grpc.CallOption) (*PolarisPeerList, error) {
 	out := new(PolarisPeerList)
-	err := grpc.Invoke(ctx, "/types.PolarisRPCService/BlackList", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/BlackList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for PolarisRPCService service
-
+// PolarisRPCServiceServer is the server API for PolarisRPCService service.
 type PolarisRPCServiceServer interface {
 	// Returns the current state of this node
 	NodeState(context.Context, *NodeReq) (*SingleBytes, error)
@@ -400,9 +400,9 @@ var _PolarisRPCService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "polarrpc.proto",
 }
 
-func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_polarrpc_2b3b2813fa132042) }
+func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_polarrpc_391626a3f37c108a) }
 
-var fileDescriptor_polarrpc_2b3b2813fa132042 = []byte{
+var fileDescriptor_polarrpc_391626a3f37c108a = []byte{
 	// 401 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x52, 0xc1, 0x6e, 0xd3, 0x40,
 	0x10, 0x8d, 0xeb, 0x26, 0xc5, 0x93, 0x36, 0xc0, 0x08, 0x2a, 0xcb, 0x42, 0xc8, 0xf2, 0xc9, 0x07,
