@@ -68,7 +68,7 @@ func getRequestID(blockHash []byte) (aergorpc.BlockNo, error) {
 
 type OutConfChange struct {
 	Payload string
-	Status  string
+	Status  *aergorpc.ConfChangeProgressPrintable
 }
 
 func (occ *OutConfChange) ToString() string {
@@ -137,7 +137,7 @@ var clusterCmd = &cobra.Command{
 				cmd.Printf("Failed to get progress: reqid=%d, %s", requestID, err.Error())
 			}
 			//cmd.Printf(msgConfChangeProg.ToJsonString())
-			output.Status = msgConfChangeProg.ToJsonString()
+			output.Status = msgConfChangeProg.ToPrintable()
 		}
 
 		cmd.Printf(output.ToString())

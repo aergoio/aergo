@@ -5,12 +5,17 @@ import (
 	"github.com/aergoio/etcd/raft/raftpb"
 )
 
+type ConfChangeProgressPrintable struct {
+	State string
+	Error string
+}
+
 func (ccProgress *ConfChangeProgress) ToString() string {
 	return fmt.Sprintf("State=%s, Error=%s", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err)
 }
 
-func (ccProgress *ConfChangeProgress) ToJsonString() string {
-	return fmt.Sprintf("{ State=\"%s\", Error=\"%s\" }", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err)
+func (ccProgress *ConfChangeProgress) ToPrintable() *ConfChangeProgressPrintable {
+	return &ConfChangeProgressPrintable{State: ConfChangeState_name[int32(ccProgress.State)], Error: ccProgress.Err}
 }
 
 func (mc *MembershipChange) ToString() string {
