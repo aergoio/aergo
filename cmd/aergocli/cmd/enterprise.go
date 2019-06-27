@@ -17,14 +17,20 @@ var enterpriseKey string
 
 func init() {
 	rootCmd.AddCommand(enterpriseCmd)
-	enterpriseCmd.Flags().StringVar(&enterpriseKey, "key", "all", "query the state of enterprise config by key")
+	enterpriseCmd.AddCommand(enterpriseKeyCmd)
 }
 
 var enterpriseCmd = &cobra.Command{
-	Use:   "enterprise",
-	Short: "Print current enterprise status",
+	Use:   "enterprise subcommand",
+	Short: "Enterprise command",
+}
+
+var enterpriseKeyCmd = &cobra.Command{
+	Use:   "key <config key>",
+	Short: "Print config values of enterprise",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		msg, err := client.GetEnterpriseConfig(context.Background(), &aergorpc.EnterpriseConfigKey{Key: enterpriseKey})
+		msg, err := client.GetEnterpriseConfig(context.Background(), &aergorpc.EnterpriseConfigKey{Key: args[0]})
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return

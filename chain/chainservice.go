@@ -6,13 +6,13 @@
 package chain
 
 import (
-	"strings"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"

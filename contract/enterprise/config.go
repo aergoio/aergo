@@ -13,12 +13,16 @@ var confPrefix = []byte("conf\\")
 const (
 	RPCPermissions = "RPCPERMISSIONS"
 	P2PWhite       = "P2PWHITE"
+	P2PBlack       = "P2PBLACK"
+	RaftWhite      = "RAFTWHITE"
 )
 
-//enterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
+//EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
 var enterpriseKeyDict = map[string]int{
 	RPCPermissions: 1,
 	P2PWhite:       2,
+	P2PBlack:       3,
+	RaftWhite:      4,
 }
 
 type Conf struct {
@@ -71,14 +75,20 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	if err != nil {
 		return nil, err
 	}
-	conf, err := getConf(scs, []byte(key))
-	if err != nil {
-		return nil, err
-	}
 	ret := &types.EnterpriseConfig{Key: key}
-	if conf != nil {
-		ret.On = conf.On
-		ret.Values = conf.Values
+	if strings.ToUpper(key) == "ALL" {
+		for k, _ := range enterpriseKeyDict {
+			ret.Values = append(ret.Values, k)
+		}
+	} else {
+		conf, err := getConf(scs, []byte(key))
+		if err != nil {
+			return nil, err
+		}
+		if conf != nil {
+			ret.On = conf.On
+			ret.Values = conf.Values
+		}
 	}
 	return ret, nil
 }
