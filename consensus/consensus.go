@@ -71,8 +71,9 @@ type Consensus interface {
 
 type ConsensusAccessor interface {
 	ConsensusInfo() *types.ConsensusInfo
-	ConfChange(req *types.MembershipChange) (*Member, error)
 	ClusterInfo([]byte) *types.GetClusterInfoResponse
+	ConfChange(req *types.MembershipChange) (*Member, error)
+	ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error)
 }
 
 // ChainDB is a reader interface for the ChainDB.

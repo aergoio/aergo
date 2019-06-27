@@ -38,34 +38,11 @@ type ConfChangeReply struct {
 	Err    error
 }
 
-type ConfChangeProgress struct {
-	State ConfChangeState
-	Err   string
-}
-
-func (ccProgress *ConfChangeProgress) ToString() string {
-	return fmt.Sprintf("State=%s, Error=%s", ConfChangeState_name[ccProgress.State], ccProgress.Err)
-}
-
-type ConfChangeState int
-
-const (
-	ConfChangeStateProposed ConfChangeState = iota
-	ConfChangeStateSaved
-	ConfChangeStateApplied
-)
-
 var (
 	WalEntryType_name = map[EntryType]string{
 		0: "EntryBlock",
 		1: "EntryEmpty",
 		2: "EntryConfChange",
-	}
-
-	ConfChangeState_name = map[ConfChangeState]string{
-		0: "Proposed",
-		1: "Saved",
-		2: "Applied",
 	}
 
 	ErrURLInvalidScheme       = errors.New("url has invalid scheme")
@@ -130,8 +107,8 @@ type ChainWAL interface {
 	GetSnapshot() (*raftpb.Snapshot, error)
 	WriteIdentity(id *RaftIdentity) error
 	GetIdentity() (*RaftIdentity, error)
-	WriteConfChangeStatus(id uint64, progress *ConfChangeProgress) error
-	GetConfChangeStatus(id uint64) (*ConfChangeProgress, error)
+	WriteConfChangeProgress(id uint64, progress *types.ConfChangeProgress) error
+	GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error)
 }
 
 type SnapshotData struct {

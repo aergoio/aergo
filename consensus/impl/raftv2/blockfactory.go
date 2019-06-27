@@ -659,6 +659,11 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
 }
 
+// ConfChangeInfo returns ConfChangeProgress queries by request ID of ConfChange
+func (bf *BlockFactory) ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error) {
+	return bf.GetConfChangeProgress(requestID)
+}
+
 func (bf *BlockFactory) checkBpTimeout() error {
 	select {
 	case <-bf.bpTimeoutC:

@@ -13,14 +13,14 @@ import (
 )
 
 var (
-	ErrMismatchedEntry        = errors.New("mismatched entry")
-	ErrNoWalEntry             = errors.New("no entry")
-	ErrEncodeRaftIdentity     = errors.New("failed encoding of raft identity")
-	ErrDecodeRaftIdentity     = errors.New("failed decoding of raft identity")
-	ErrNoWalEntryForBlock     = errors.New("no raft entry for block")
-	ErrNilHardState           = errors.New("hardstateinfo must not be nil")
-	ErrEncodeConfChangeStatus = errors.New("failed encoding of raft conf change status")
-	ErrDecodeConfChangeStatus = errors.New("failed decoding of raft conf change status")
+	ErrMismatchedEntry          = errors.New("mismatched entry")
+	ErrNoWalEntry               = errors.New("no entry")
+	ErrEncodeRaftIdentity       = errors.New("failed encoding of raft identity")
+	ErrDecodeRaftIdentity       = errors.New("failed decoding of raft identity")
+	ErrNoWalEntryForBlock       = errors.New("no raft entry for block")
+	ErrNilHardState             = errors.New("hardstateinfo must not be nil")
+	ErrEncodeConfChangeProgress = errors.New("failed encoding of raft conf change status")
+	ErrDecodeConfChangeProgress = errors.New("failed decoding of raft conf change status")
 )
 
 func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
@@ -194,7 +194,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 			if ccProposes[i] == nil {
 				logger.Fatal().Str("entry", entry.ToString()).Msg("confChangePropose must not be nil")
 			}
-			cdb.writeConfChangeStatus(dbTx, ccProposes[i].ID, &consensus.ConfChangeProgress{State: consensus.ConfChangeStateSaved, Err: ""})
+			cdb.writeConfChangeProgress(dbTx, ccProposes[i].ID, &types.ConfChangeProgress{State: types.ConfChangeState_CONF_CHANGE_STATE_SAVED, Err: ""})
 
 			targetNo = ccProposes[i].ID
 		}
@@ -442,11 +442,11 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 	return &id, nil
 }
 
-func (cdb *ChainDB) WriteConfChangeStatus(id uint64, progress *consensus.ConfChangeProgress) error {
+func (cdb *ChainDB) WriteConfChangeProgress(id uint64, progress *types.ConfChangeProgress) error {
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	if err := cdb.writeConfChangeStatus(dbTx, id, progress); err != nil {
+	if err := cdb.writeConfChangeProgress(dbTx, id, progress); err != nil {
 		return err
 	}
 
@@ -455,50 +455,50 @@ func (cdb *ChainDB) WriteConfChangeStatus(id uint64, progress *consensus.ConfCha
 	return nil
 }
 
-func getConfChangeStatusKey(idx uint64) []byte {
+func getConfChangeProgressKey(idx uint64) []byte {
 	var key bytes.Buffer
-	key.Write(raftConfChangeStatusPrefix)
+	key.Write(raftConfChangeProgressPrefix)
 	l := make([]byte, 8)
 	binary.LittleEndian.PutUint64(l[:], idx)
 	key.Write(l)
 	return key.Bytes()
 }
 
-func (cdb *ChainDB) writeConfChangeStatus(dbTx db.Transaction, id uint64, progress *consensus.ConfChangeProgress) error {
+func (cdb *ChainDB) writeConfChangeProgress(dbTx db.Transaction, id uint64, progress *types.ConfChangeProgress) error {
 	if id == 0 {
 		// it's for intial member's for startup
 		return nil
 	}
 
-	ccKey := getConfChangeStatusKey(id)
+	ccKey := getConfChangeProgressKey(id)
 
 	// Make CC Data
-	var val bytes.Buffer
+	var data []byte
+	var err error
 
-	enc := gob.NewEncoder(&val)
-	if err := enc.Encode(progress); err != nil {
-		return ErrEncodeConfChangeStatus
+	if data, err = proto.Marshal(progress); err != nil {
+		logger.Error().Msg("failed to marshal confChangeProgress")
+		return err
 	}
 
-	dbTx.Set(ccKey, val.Bytes())
+	dbTx.Set(ccKey, data)
 
 	return nil
 }
 
-func (cdb *ChainDB) GetConfChangeStatus(id uint64) (*consensus.ConfChangeProgress, error) {
-	ccKey := getConfChangeStatusKey(id)
+func (cdb *ChainDB) GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error) {
+	ccKey := getConfChangeProgressKey(id)
 
 	data := cdb.store.Get(ccKey)
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	var progress consensus.ConfChangeProgress
-	var b bytes.Buffer
-	b.Write(data)
-	decoder := gob.NewDecoder(&b)
-	if err := decoder.Decode(&progress); err != nil {
-		return nil, ErrDecodeConfChangeStatus
+	var progress types.ConfChangeProgress
+
+	if err := proto.Unmarshal(data, &progress); err != nil {
+		logger.Error().Msg("failed to unmarshal raft state")
+		return nil, ErrInvalidCCProgress
 	}
 
 	logger.Info().Uint64("id", id).Str("status", progress.ToString()).Msg("get conf change status")
