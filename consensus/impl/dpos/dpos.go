@@ -329,6 +329,10 @@ func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, er
 	return nil, consensus.ErrNotSupportedMethod
 }
 
+func (dpos *DPoS) ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
 func (dpos *DPoS) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
 	return nil, consensus.ErrNotSupportedMethod
 }

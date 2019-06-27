@@ -36,7 +36,6 @@ func (m *MockConsensusAccessor) EXPECT() *MockConsensusAccessorMockRecorder {
 
 // ClusterInfo mocks base method
 func (m *MockConsensusAccessor) ClusterInfo(arg0 []byte) *types.GetClusterInfoResponse {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ClusterInfo", arg0)
 	ret0, _ := ret[0].(*types.GetClusterInfoResponse)
 	return ret0
@@ -44,13 +43,11 @@ func (m *MockConsensusAccessor) ClusterInfo(arg0 []byte) *types.GetClusterInfoRe
 
 // ClusterInfo indicates an expected call of ClusterInfo
 func (mr *MockConsensusAccessorMockRecorder) ClusterInfo(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterInfo", reflect.TypeOf((*MockConsensusAccessor)(nil).ClusterInfo), arg0)
 }
 
 // ConfChange mocks base method
 func (m *MockConsensusAccessor) ConfChange(arg0 *types.MembershipChange) (*consensus.Member, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConfChange", arg0)
 	ret0, _ := ret[0].(*consensus.Member)
 	ret1, _ := ret[1].(error)
@@ -59,13 +56,24 @@ func (m *MockConsensusAccessor) ConfChange(arg0 *types.MembershipChange) (*conse
 
 // ConfChange indicates an expected call of ConfChange
 func (mr *MockConsensusAccessorMockRecorder) ConfChange(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfChange", reflect.TypeOf((*MockConsensusAccessor)(nil).ConfChange), arg0)
+}
+
+// ConfChangeInfo mocks base method
+func (m *MockConsensusAccessor) ConfChangeInfo(arg0 uint64) (*types.ConfChangeProgress, error) {
+	ret := m.ctrl.Call(m, "ConfChangeInfo", arg0)
+	ret0, _ := ret[0].(*types.ConfChangeProgress)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ConfChangeInfo indicates an expected call of ConfChangeInfo
+func (mr *MockConsensusAccessorMockRecorder) ConfChangeInfo(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfChangeInfo", reflect.TypeOf((*MockConsensusAccessor)(nil).ConfChangeInfo), arg0)
 }
 
 // ConsensusInfo mocks base method
 func (m *MockConsensusAccessor) ConsensusInfo() *types.ConsensusInfo {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConsensusInfo")
 	ret0, _ := ret[0].(*types.ConsensusInfo)
 	return ret0
@@ -73,6 +81,5 @@ func (m *MockConsensusAccessor) ConsensusInfo() *types.ConsensusInfo {
 
 // ConsensusInfo indicates an expected call of ConsensusInfo
 func (mr *MockConsensusAccessorMockRecorder) ConsensusInfo() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsensusInfo", reflect.TypeOf((*MockConsensusAccessor)(nil).ConsensusInfo))
 }

@@ -536,16 +536,16 @@ func (rs *raftServer) Propose(block *types.Block) error {
 	return nil
 }
 
-func (rs *raftServer) saveConfChangeState(id uint64, state consensus.ConfChangeState, errCC error) error {
+func (rs *raftServer) saveConfChangeState(id uint64, state types.ConfChangeState, errCC error) error {
 	var errStr string
 
 	if errCC != nil {
 		errStr = errCC.Error()
 	}
 
-	pr := consensus.ConfChangeProgress{State: state, Err: errStr}
+	pr := types.ConfChangeProgress{State: state, Err: errStr}
 
-	return rs.walDB.WriteConfChangeStatus(id, &pr)
+	return rs.walDB.WriteConfChangeProgress(id, &pr)
 }
 
 func (rs *raftServer) serveConfChange() {
@@ -558,7 +558,7 @@ func (rs *raftServer) serveConfChange() {
 			rs.cluster.AfterConfChange(propose.Cc, nil, err)
 		}
 
-		err = rs.saveConfChangeState(propose.Cc.ID, consensus.ConfChangeStateProposed, err)
+		err = rs.saveConfChangeState(propose.Cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_PROPOSED, err)
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to save progress of configure change")
 		}
@@ -1060,7 +1060,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 
 		if cc.ID != 0 {
-			rs.saveConfChangeState(cc.ID, consensus.ConfChangeStateApplied, err)
+			rs.saveConfChangeState(cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_APPLIED, err)
 			rs.cluster.AfterConfChange(cc, member, err)
 		}
 		return true

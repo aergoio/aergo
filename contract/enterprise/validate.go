@@ -22,8 +22,6 @@ const ChangeCluster = "changeCluster"
 
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
-type ccArgument map[string]interface{}
-
 func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo types.BlockNo) (*EnterpriseContext, error) {
 	var ci types.CallInfo
@@ -142,7 +140,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		context.Admins = admins
 
 	case ChangeCluster:
-		cc, err := validateChangeCluster(ci, blockNo)
+		cc, err := ValidateChangeCluster(ci, blockNo)
 		if err != nil {
 			return nil, err
 		}

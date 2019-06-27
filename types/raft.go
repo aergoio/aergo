@@ -3,8 +3,15 @@ package types
 import (
 	"fmt"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"hash/fnv"
 )
+
+func (ccProgress *ConfChangeProgress) ToString() string {
+	return fmt.Sprintf("State=%s, Error=%s", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err)
+}
+
+func (ccProgress *ConfChangeProgress) ToJsonString() string {
+	return fmt.Sprintf("{ State=\"%s\", Error=\"%s\" }", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err)
+}
 
 func (mc *MembershipChange) ToString() string {
 	var buf string
@@ -61,11 +68,4 @@ func RaftHardStateToString(hardstate raftpb.HardState) string {
 
 func RaftEntryToString(entry *raftpb.Entry) string {
 	return fmt.Sprintf("term=%d, index=%d, type=%s", entry.Term, entry.Index, raftpb.EntryType_name[int32(entry.Type)])
-}
-
-func GenerateConfChangeIDFromTxID(txHash []byte) uint64 {
-	hash := fnv.New64a()
-	hash.Write(txHash)
-
-	return hash.Sum64()
 }

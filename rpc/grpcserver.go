@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1212,4 +1213,44 @@ func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.E
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Conf, nil
+}
+
+func (rpc *AergoRPCService) GetConfChangeProgress(ctx context.Context, in *types.SingleBytes) (*types.ConfChangeProgress, error) {
+	var (
+		progress *types.ConfChangeProgress
+		err      error
+	)
+
+	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
+	if genesis.PublicNet() {
+		return nil, status.Error(codes.Unavailable, "not supported in public")
+	}
+
+	if strings.ToLower(genesis.ConsensusType()) != consensus.ConsensusName[consensus.ConsensusRAFT] {
+		return nil, status.Error(codes.Unavailable, "not supported if not raft consensus")
+	}
+
+	if err = rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	if len(in.Value) != 8 {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid input. Request ID should be a 8 byte number.")
+	}
+
+	reqID := uint64(binary.LittleEndian.Uint64(in.Value))
+
+	if progress, err = rpc.consensusAccessor.ConfChangeInfo(reqID); err != nil {
+		return nil, err
+	}
+
+	if progress == nil {
+		return nil, status.Errorf(codes.NotFound, "not found")
+	}
+
+	return progress, nil
 }

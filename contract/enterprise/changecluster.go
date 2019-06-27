@@ -7,6 +7,8 @@ import (
 	"strconv"
 )
 
+type CcArgument map[string]interface{}
+
 const (
 	CmdMembershipAdd    = "add"
 	CmdMembershipRemove = "remove"
@@ -18,9 +20,18 @@ const (
 	MemberAttrID     = "id"
 )
 
-func validateChangeCluster(ci types.CallInfo, blockNo types.BlockNo) (interface{}, error) {
+/*
+var (
+	ConfChangeState_name = map[ConfChangeState]string{
+		0: "Proposed",
+		1: "Saved",
+		2: "Applied",
+	}
+)*/
+
+func ValidateChangeCluster(ci types.CallInfo, blockNo types.BlockNo) (interface{}, error) {
 	var (
-		ccArg     ccArgument
+		ccArg     CcArgument
 		ok        bool
 		err       error
 		changeReq *types.MembershipChange
@@ -44,7 +55,7 @@ func validateChangeCluster(ci types.CallInfo, blockNo types.BlockNo) (interface{
 	return changeReq, nil
 }
 
-func (cc ccArgument) get(key string) (string, error) {
+func (cc CcArgument) get(key string) (string, error) {
 	var (
 		val    interface{}
 		valStr string
@@ -62,7 +73,7 @@ func (cc ccArgument) get(key string) (string, error) {
 	return valStr, nil
 }
 
-func (cc ccArgument) getUint64(key string) (uint64, error) {
+func (cc CcArgument) getUint64(key string) (uint64, error) {
 	var (
 		val     interface{}
 		valUint float64
@@ -80,7 +91,7 @@ func (cc ccArgument) getUint64(key string) (uint64, error) {
 	return uint64(valUint), nil
 }
 
-func (cc ccArgument) parse() (*types.MembershipChange, error) {
+func (cc CcArgument) parse() (*types.MembershipChange, error) {
 	var (
 		cmd, name, url, peerid, idStr string
 		id                            uint64

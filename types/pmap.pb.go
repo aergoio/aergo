@@ -20,9 +20,9 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 // query to polaris
 type MapQuery struct {
-	Status               *Status  `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
-	AddMe                bool     `protobuf:"varint,2,opt,name=addMe" json:"addMe,omitempty"`
-	Size                 int32    `protobuf:"varint,3,opt,name=size" json:"size,omitempty"`
+	Status               *Status  `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	AddMe                bool     `protobuf:"varint,2,opt,name=addMe,proto3" json:"addMe,omitempty"`
+	Size                 int32    `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
 	Excludes             [][]byte `protobuf:"bytes,4,rep,name=excludes,proto3" json:"excludes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -33,7 +33,7 @@ func (m *MapQuery) Reset()         { *m = MapQuery{} }
 func (m *MapQuery) String() string { return proto.CompactTextString(m) }
 func (*MapQuery) ProtoMessage()    {}
 func (*MapQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pmap_0a38776fb17418f4, []int{0}
+	return fileDescriptor_pmap_3f715151e6395d97, []int{0}
 }
 func (m *MapQuery) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapQuery.Unmarshal(m, b)
@@ -82,9 +82,9 @@ func (m *MapQuery) GetExcludes() [][]byte {
 }
 
 type MapResponse struct {
-	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
-	Addresses            []*PeerAddress `protobuf:"bytes,2,rep,name=addresses" json:"addresses,omitempty"`
-	Message              string         `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
+	Addresses            []*PeerAddress `protobuf:"bytes,2,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	Message              string         `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -94,7 +94,7 @@ func (m *MapResponse) Reset()         { *m = MapResponse{} }
 func (m *MapResponse) String() string { return proto.CompactTextString(m) }
 func (*MapResponse) ProtoMessage()    {}
 func (*MapResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pmap_0a38776fb17418f4, []int{1}
+	return fileDescriptor_pmap_3f715151e6395d97, []int{1}
 }
 func (m *MapResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapResponse.Unmarshal(m, b)
@@ -140,9 +140,9 @@ func init() {
 	proto.RegisterType((*MapResponse)(nil), "types.MapResponse")
 }
 
-func init() { proto.RegisterFile("pmap.proto", fileDescriptor_pmap_0a38776fb17418f4) }
+func init() { proto.RegisterFile("pmap.proto", fileDescriptor_pmap_3f715151e6395d97) }
 
-var fileDescriptor_pmap_0a38776fb17418f4 = []byte{
+var fileDescriptor_pmap_3f715151e6395d97 = []byte{
 	// 251 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x50, 0xcd, 0x4a, 0xc4, 0x30,
 	0x10, 0xa6, 0xdb, 0xed, 0xda, 0x4e, 0xd5, 0x43, 0xf4, 0x10, 0x7a, 0x90, 0xb0, 0x20, 0x14, 0x84,
