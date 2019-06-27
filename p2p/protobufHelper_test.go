@@ -43,7 +43,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			pr := factory.NewMsgRequestOrder(true, p2pcommon.PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
@@ -87,7 +87,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), p2pcommon.PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
@@ -135,7 +135,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			} else {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
 			}
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{}
 
 			target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash, BlockNo:1})
@@ -204,7 +204,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 
 			notiNo := uint64(99999)
 			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
 
 			skipMax := int32(0)
@@ -277,7 +277,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 
 			notiNo := uint64(99999)
 			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
 
 			skipMax := int32(0)
@@ -336,7 +336,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
 			}
 
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, nil, mockRW)
+			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 
 			pr := factory.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()

@@ -174,7 +174,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockHSHandler := p2pmock.NewMockHSHandler(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 			//mockHSFactory.EXPECT().CreateHSHandler(gomock.Any(), tt.args.outbound, tt.args.meta.ID).Return(mockHSHandler)
-			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
+			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
 			mockHandlerFactory := p2pmock.NewMockHandlerFactory(ctrl)
 			mockHandlerFactory.EXPECT().InsertHandlers(gomock.AssignableToTypeOf(&remotePeerImpl{})).MaxTimes(1)
 

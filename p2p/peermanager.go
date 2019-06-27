@@ -396,7 +396,7 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	if target.State() == types.RUNNING {
 		pm.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but peer is still running")
 	}
-	pm.deletePeer(peerID)
+	pm.deletePeer(peer)
 	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
 	for _, listener := range pm.eventListeners {
 		listener.OnRemovePeer(peerID)
@@ -467,9 +467,9 @@ func (pm *peerManager) insertPeer(ID types.PeerID, peer p2pcommon.RemotePeer) {
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) deletePeer(ID types.PeerID) {
-	pm.mm.Remove(ID)
-	delete(pm.remotePeers, ID)
+func (pm *peerManager) deletePeer(peer p2pcommon.RemotePeer) {
+	pm.mm.Remove(peer.ID(), peer.ManageNumber())
+	delete(pm.remotePeers, peer.ID())
 	pm.updatePeerCache()
 }
 

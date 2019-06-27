@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -206,9 +205,7 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVer
 // remote peer. stream s will be owned to remotePeer if succeed to add peer.
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	var peerID = meta.ID
-	rd := metric.NewReader(s)
-	wt := metric.NewWriter(s)
-	msgRW, remoteStatus, err := h.Handle(rd, wt, defaultHandshakeTTL)
+	msgRW, remoteStatus, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
 		dpm.logger.Debug().Err(err).Bool("outbound",outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
 		if msgRW != nil {

@@ -59,7 +59,7 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 	type args struct {
 		version p2pcommon.P2PVersion
 		peerID  types.PeerID
-		r       io.Reader
+		r       io.ReadWriteCloser
 	}
 	tests := []struct {
 		name    string
@@ -80,7 +80,7 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 				localChainID: tt.fields.localChainID,
 			}
 			w := &bytes.Buffer{}
-			got, err := h.GetVersionedHandshaker(tt.args.version, tt.args.peerID, tt.args.r, w)
+			got, err := h.GetVersionedHandshaker(tt.args.version, tt.args.peerID, tt.args.r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("defaultVersionManager.GetVersionedHandshaker() error = %v, wantErr %v", err, tt.wantErr)
 				return

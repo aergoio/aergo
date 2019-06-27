@@ -12,3 +12,6 @@ mockgen -source=p2p/p2pcommon/pool.go -package=p2pmock -destination=p2p/p2pmock/
 3. with flags others : can select the classes (exclude a class) in single file, setting class mapping is too tedious
 mockgen -source=p2p/p2pcommon/pool.go -mock_names=WaitingPeerManager=MockWaitingPeerManager  -package=p2pmock -destination=p2p/p2pmock/mock_peerfinder.go
 
+
+
+mockgen io Reader,Writer,ReadWriteCloser > p2p/p2pmock/mock_io.go | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g'  > p2p/p2pmock/mock_io.go

@@ -121,7 +121,7 @@ func (pms *PeerMapService) onConnect(s network.Stream) {
 	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
 	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	defer s.Close()
 
 	// receive input
@@ -152,7 +152,7 @@ func (pms *PeerMapService) onConnect(s network.Stream) {
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (pms *PeerMapService) readRequest(meta p2pcommon.PeerMeta, rd p2pcommon.MsgReader) (p2pcommon.Message, *types.MapQuery, error) {
+func (pms *PeerMapService) readRequest(meta p2pcommon.PeerMeta, rd p2pcommon.MsgReadWriter) (p2pcommon.Message, *types.MapQuery, error) {
 	data, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
@@ -265,7 +265,7 @@ func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 
 }
 
-func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2pcommon.MsgWriter) error {
+func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2pcommon.MsgReadWriter) error {
 	msgID := p2pcommon.NewMsgID()
 	respMsg, err := createV030Message(msgID, reqContainer.ID(), common.MapResponse, resp)
 	if err != nil {
@@ -307,7 +307,7 @@ func (pms *PeerMapService) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pms.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	defer s.Close()
 
 	req, err := rw.ReadMsg()
@@ -392,7 +392,7 @@ func makeGoAwayMsg(message string) (p2pcommon.Message, error) {
 }
 
 // send notice message and then disconnect. this routine should only run in RunPeer go routine
-func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2pcommon.MsgWriter) error {
+func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2pcommon.MsgReadWriter) error {
 	msg, err := makeGoAwayMsg(message)
 	if err != nil {
 		return err

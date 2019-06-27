@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/v030"
@@ -23,10 +22,10 @@ type LegacyInboundHSHandler struct {
 	*LegacyWireHandshaker
 }
 
-func (ih *LegacyInboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (ih *LegacyInboundHSHandler) Handle(s io.ReadWriteCloser, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ttl)
 	defer cancel()
-	return ih.handshakeInboundPeer(ctx, r, w)
+	return ih.handshakeInboundPeer(ctx, s)
 }
 
 // LegacyOutboundHSHandler handshake handler for legacy version
@@ -34,10 +33,10 @@ type LegacyOutboundHSHandler struct {
 	*LegacyWireHandshaker
 }
 
-func (oh *LegacyOutboundHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (oh *LegacyOutboundHSHandler) Handle(s io.ReadWriteCloser, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ttl)
 	defer cancel()
-	return oh.handshakeOutboundPeer(ctx, r, w)
+	return oh.handshakeOutboundPeer(ctx, s)
 }
 
 // LegacyWireHandshaker works to handshake to just connected peer, it detect chain networks
@@ -57,11 +56,10 @@ func newHandshaker(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *
 	return &LegacyWireHandshaker{pm: pm, actor: actor, logger: log, localChainID: chainID, peerID: peerID}
 }
 
-func (h *LegacyWireHandshaker) handshakeOutboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
-	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
+func (h *LegacyWireHandshaker) handshakeOutboundPeer(ctx context.Context, rwc io.ReadWriteCloser) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	// send initial hsmessage
 	hsHeader := p2pcommon.HSHeader{Magic: p2pcommon.MAGICTest, Version: p2pcommon.P2PVersion030}
-	sent, err := bufWriter.Write(hsHeader.Marshal())
+	sent, err := rwc.Write(hsHeader.Marshal())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +73,7 @@ func (h *LegacyWireHandshaker) handshakeOutboundPeer(ctx context.Context, r io.R
 		return nil, nil, fmt.Errorf("transport error")
 	}
 	// continue to handshake with VersionedHandshaker
-	innerHS, err := h.selectProtocolVersion(hsHeader.Version, bufReader, bufWriter)
+	innerHS, err := h.selectProtocolVersion(hsHeader.Version, rwc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,12 +82,11 @@ func (h *LegacyWireHandshaker) handshakeOutboundPeer(ctx context.Context, r io.R
 	return innerHS.GetMsgRW(), status, err
 }
 
-func (h *LegacyWireHandshaker) handshakeInboundPeer(ctx context.Context, r io.Reader, w io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *LegacyWireHandshaker) handshakeInboundPeer(ctx context.Context, rwc io.ReadWriteCloser) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	var hsHeader p2pcommon.HSHeader
-	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
 	// wait initial hsmessage
 	headBuf := make([]byte, p2pcommon.V030HSHeaderLength)
-	read, err := h.readToLen(bufReader, headBuf, 8)
+	read, err := h.readToLen(rwc, headBuf, 8)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,7 +102,7 @@ func (h *LegacyWireHandshaker) handshakeInboundPeer(ctx context.Context, r io.Re
 	hsHeader.Unmarshal(headBuf)
 
 	// continue to handshake with VersionedHandshaker
-	innerHS, err := h.selectProtocolVersion(hsHeader.Version, bufReader, bufWriter)
+	innerHS, err := h.selectProtocolVersion(hsHeader.Version, rwc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -129,10 +126,10 @@ func (h *LegacyWireHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int,
 	return offset, nil
 }
 
-func (h *LegacyWireHandshaker) selectProtocolVersion(version p2pcommon.P2PVersion, r *bufio.Reader, w *bufio.Writer) (p2pcommon.VersionedHandshaker, error) {
+func (h *LegacyWireHandshaker) selectProtocolVersion(version p2pcommon.P2PVersion, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion030:
-		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, r, w)
+		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, rwc)
 		return v030hs, nil
 	default:
 		return nil, fmt.Errorf("not supported version")

@@ -6,14 +6,12 @@
 package p2p
 
 import (
-	"bufio"
 	"context"
 	"encoding/binary"
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/types"
 	"io"
 	"time"
@@ -44,16 +42,15 @@ func NewInboundHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService,
 	return &InboundWireHandshaker{baseWireHandshaker{pm: pm, actor: actor, verM:verManager, logger: log, localChainID: chainID, peerID: peerID}}
 }
 
-func (h *InboundWireHandshaker) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *InboundWireHandshaker) Handle(s io.ReadWriteCloser, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ttl)
 	defer cancel()
-	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
-	return h.handleInboundPeer(ctx, bufReader, bufWriter)
+	return h.handleInboundPeer(ctx, s)
 }
 
-func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rd io.Reader, wr p2pcommon.FlushableWriter) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rwc io.ReadWriteCloser) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	// wait initial hs message
-	hsReq, err := h.readWireHSRequest(rd)
+	hsReq, err := h.readWireHSRequest(rwc)
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
@@ -61,20 +58,20 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rd io.Rea
 		// go on
 	}
 	if err != nil {
-		return h.writeErrAndReturn(err, p2pcommon.ErrWrongHSReq, wr)
+		return h.writeErrAndReturn(err, p2pcommon.ErrWrongHSReq, rwc)
 	}
 	// check magic
 	if hsReq.Magic != p2pcommon.MAGICMain {
-		return h.writeErrAndReturn(fmt.Errorf("wrong magic %v",hsReq.Magic), p2pcommon.ErrWrongHSReq, wr)
+		return h.writeErrAndReturn(fmt.Errorf("wrong magic %v",hsReq.Magic), p2pcommon.ErrWrongHSReq, rwc)
 	}
 
 	// continue to handshake with VersionedHandshaker
 	bestVer := h.verM.FindBestP2PVersion(hsReq.Versions)
 	if bestVer == p2pcommon.P2PVersionUnknown {
-		return h.writeErrAndReturn(fmt.Errorf("no matchied p2p version for %v", hsReq.Versions), p2pcommon.ErrNoMatchedVersion,wr)
+		return h.writeErrAndReturn(fmt.Errorf("no matchied p2p version for %v", hsReq.Versions), p2pcommon.ErrNoMatchedVersion,rwc)
 	} else {
 		resp := p2pcommon.HSHeadResp{hsReq.Magic, bestVer.Uint32()}
-		err = h.writeWireHSResponse(resp, wr)
+		err = h.writeWireHSResponse(resp, rwc)
 		select {
 		case <-ctx.Done():
 			return nil, nil, ctx.Err()
@@ -85,7 +82,7 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rd io.Rea
 			return nil, nil, err
 		}
 	}
-	innerHS, err := h.verM.GetVersionedHandshaker(bestVer, h.peerID, rd, wr)
+	innerHS, err := h.verM.GetVersionedHandshaker(bestVer, h.peerID, rwc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,21 +100,20 @@ func NewOutboundHSHandler(pm p2pcommon.PeerManager, actor p2pcommon.ActorService
 	return &OutboundWireHandshaker{baseWireHandshaker{pm: pm, actor: actor, verM:verManager, logger: log, localChainID: chainID, peerID: peerID}}
 }
 
-func (h *OutboundWireHandshaker) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *OutboundWireHandshaker) Handle(s io.ReadWriteCloser, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), ttl)
 	defer cancel()
-	bufReader, bufWriter := bufio.NewReader(r), bufio.NewWriter(w)
-	return h.handleOutboundPeer(ctx, bufReader, bufWriter)
+	return h.handleOutboundPeer(ctx, s)
 }
 
-func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, bufReader io.Reader, bufWriter p2pcommon.FlushableWriter) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, rwc io.ReadWriteCloser) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	// send initial hs message
 	versions := []p2pcommon.P2PVersion{
 		p2pcommon.P2PVersion031,
 		p2pcommon.P2PVersion030,
 	}
 	hsHeader := p2pcommon.HSHeadReq{Magic: p2pcommon.MAGICMain, Versions: versions}
-	err := h.writeWireHSRequest(hsHeader, bufWriter)
+	err := h.writeWireHSRequest(hsHeader, rwc)
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
@@ -129,7 +125,7 @@ func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, bufRead
 	}
 
 	// read response
-	respHeader, err := h.readWireHSResp(bufReader)
+	respHeader, err := h.readWireHSResp(rwc)
 	select {
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
@@ -145,7 +141,7 @@ func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, bufRead
 	}
 	bestVersion := p2pcommon.P2PVersion(respHeader.RespCode)
 	// continue to handshake with VersionedHandshaker
-	innerHS, err := h.verM.GetVersionedHandshaker(bestVersion, h.peerID, bufReader, bufWriter)
+	innerHS, err := h.verM.GetVersionedHandshaker(bestVersion, h.peerID, rwc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -154,13 +150,9 @@ func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, bufRead
 	return innerHS.GetMsgRW(), status, err
 }
 
-func (h *baseWireHandshaker) writeWireHSRequest(hsHeader p2pcommon.HSHeadReq, wr p2pcommon.FlushableWriter) (err error) {
+func (h *baseWireHandshaker) writeWireHSRequest(hsHeader p2pcommon.HSHeadReq, wr io.Writer) (err error) {
 	bytes := hsHeader.Marshal()
 	sent, err := wr.Write(bytes)
-	if err != nil {
-		return
-	}
-	err = wr.Flush()
 	if err != nil {
 		return
 	}
@@ -210,13 +202,9 @@ func (h *baseWireHandshaker) readWireHSRequest(rd io.Reader) (header p2pcommon.H
 	return
 }
 
-func (h *baseWireHandshaker) writeWireHSResponse(hsHeader p2pcommon.HSHeadResp, wr p2pcommon.FlushableWriter) (err error) {
+func (h *baseWireHandshaker) writeWireHSResponse(hsHeader p2pcommon.HSHeadResp, wr io.Writer) (err error) {
 	bytes := hsHeader.Marshal()
 	sent, err := wr.Write(bytes)
-	if err != nil {
-		return
-	}
-	err = wr.Flush()
 	if err != nil {
 		return
 	}
@@ -226,7 +214,7 @@ func (h *baseWireHandshaker) writeWireHSResponse(hsHeader p2pcommon.HSHeadResp, 
 	return
 }
 
-func (h *baseWireHandshaker) writeErrAndReturn(err error, errCode uint32, wr p2pcommon.FlushableWriter) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (h *baseWireHandshaker) writeErrAndReturn(err error, errCode uint32, wr io.Writer) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	errResp := p2pcommon.HSHeadResp{p2pcommon.HSError, errCode}
 	_ = h.writeWireHSResponse(errResp, wr)
 	return nil, nil, err
@@ -252,30 +240,4 @@ func (h *baseWireHandshaker) readWireHSResp(rd io.Reader) (header p2pcommon.HSHe
 	}
 	header.RespCode = binary.BigEndian.Uint32(bytebuf)
 	return
-}
-
-func (h *baseWireHandshaker) selectVersionedHandshaker(version p2pcommon.P2PVersion, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
-	switch version {
-	// p2p version 0.3.1 is just changed in initial connecting and version verification. chain verification is same as 0.3.0
-	case p2pcommon.P2PVersion031:
-		// TODO:
-		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, r, w)
-		return v030hs, nil
-	case p2pcommon.P2PVersion030:
-		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, r, w)
-		return v030hs, nil
-	default:
-		return nil, fmt.Errorf("not supported version")
-	}
-}
-
-func (h *baseWireHandshaker) findBestProtocolVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {
-	for _, supported := range CurrentSupported {
-		for _, reqVer := range versions {
-			if supported == reqVer {
-				return reqVer
-			}
-		}
-	}
-	return p2pcommon.P2PVersionUnknown
 }

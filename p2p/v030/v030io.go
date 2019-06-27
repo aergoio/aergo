@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 )
@@ -16,71 +17,81 @@ import (
 const msgHeaderLength int = 48
 
 type V030ReadWriter struct {
-	r *V030Reader
-	w *V030Writer
+	r        *bufio.Reader
+	readBuf  [msgHeaderLength]byte
+	w        *bufio.Writer
+	writeBuf [msgHeaderLength]byte
+	c        io.Closer
+
+	ls []p2pcommon.MsgIOListener
 }
 
-func NewV030ReadWriter(r *bufio.Reader, w *bufio.Writer) *V030ReadWriter {
+func NewV030MsgPipe(s io.ReadWriteCloser) *V030ReadWriter {
+	return NewV030ReadWriter(s, s, s)
+}
+func NewV030ReadWriter(r io.Reader, w io.Writer, c io.Closer) *V030ReadWriter {
+	br, ok := r.(*bufio.Reader)
+	if !ok {
+		br = bufio.NewReader(r)
+	}
+	bw, ok := w.(*bufio.Writer)
+	if !ok {
+		bw = bufio.NewWriter(w)
+	}
 	return &V030ReadWriter{
-		r: &V030Reader{rd: r},
-		w: &V030Writer{wr: w},
+		r: br,
+		w: bw,
+		c: c,
 	}
 }
 
-func (rw *V030ReadWriter) ReadMsg() (p2pcommon.Message, error) {
-	return rw.r.ReadMsg()
+func (rw *V030ReadWriter) Close() error {
+	return rw.c.Close()
 }
 
-func (rw *V030ReadWriter) WriteMsg(msg p2pcommon.Message) error {
-	return rw.w.WriteMsg(msg)
-}
-
-func NewV030Reader(rd *bufio.Reader) *V030Reader {
-	return &V030Reader{rd: rd}
-}
-
-func NewV030Writer(wr *bufio.Writer) *V030Writer {
-	return &V030Writer{wr: wr}
-}
-
-type V030Reader struct {
-	rd      *bufio.Reader
-	headBuf [msgHeaderLength]byte
+func (rw *V030ReadWriter) AddIOListener(l p2pcommon.MsgIOListener) {
+	rw.ls = append(rw.ls, l)
 }
 
 // ReadMsg() must be used in single thread
-func (r *V030Reader) ReadMsg() (p2pcommon.Message, error) {
+func (rw *V030ReadWriter) ReadMsg() (p2pcommon.Message, error) {
+	readN := 0
 	// fill data
-	read, err := r.readToLen(r.headBuf[:], msgHeaderLength)
+	read, err := rw.readToLen(rw.readBuf[:], msgHeaderLength)
 	if err != nil {
 		return nil, err
 	}
+	readN += read
 	if read != msgHeaderLength {
 		return nil, fmt.Errorf("invalid msgHeader")
 	}
 
-	msg, bodyLen := parseHeader(r.headBuf)
+	msg, bodyLen := parseHeader(rw.readBuf)
 	if bodyLen > p2pcommon.MaxPayloadLength {
 		return nil, fmt.Errorf("too big payload")
 	}
 	payload := make([]byte, bodyLen)
-	read, err = r.readToLen(payload, int(bodyLen))
+	read, err = rw.readToLen(payload, int(bodyLen))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read paylod of msg %s %s : %s", msg.Subprotocol().String(), msg.ID(), err.Error())
 	}
+	readN += read
 	if read != int(bodyLen) {
 		return nil, fmt.Errorf("failed to read paylod of msg %s %s : payload length mismatch", msg.Subprotocol().String(), msg.ID())
 	}
 
 	msg.SetPayload(payload)
+	for _, l := range rw.ls {
+		l.OnRead(msg.Subprotocol(), readN)
+	}
 	return msg, nil
 }
 
-func (r *V030Reader) readToLen(bf []byte, max int) (int, error) {
+func (rw *V030ReadWriter) readToLen(bf []byte, max int) (int, error) {
 	remain := max
 	offset := 0
 	for remain > 0 {
-		read, err := r.rd.Read(bf[offset:])
+		read, err := rw.r.Read(bf[offset:])
 		if err != nil {
 			return offset, err
 		}
@@ -90,13 +101,9 @@ func (r *V030Reader) readToLen(bf []byte, max int) (int, error) {
 	return offset, nil
 }
 
-type V030Writer struct {
-	wr      *bufio.Writer
-	headBuf [msgHeaderLength]byte
-}
-
 // WriteMsg() must be used in single thread
-func (w *V030Writer) WriteMsg(msg p2pcommon.Message) error {
+func (rw *V030ReadWriter) WriteMsg(msg p2pcommon.Message) error {
+	writeN := 0
 	if msg.Length() != uint32(len(msg.Payload())) {
 		return fmt.Errorf("Invalid payload size")
 	}
@@ -104,22 +111,27 @@ func (w *V030Writer) WriteMsg(msg p2pcommon.Message) error {
 		return fmt.Errorf("too big payload")
 	}
 
-	w.marshalHeader(msg)
-	written, err := w.wr.Write(w.headBuf[:])
+	rw.marshalHeader(msg)
+	written, err := rw.w.Write(rw.writeBuf[:])
 	if err != nil {
 		return err
 	}
+	writeN += written
 	if written != msgHeaderLength {
 		return fmt.Errorf("header is not written")
 	}
-	written, err = w.wr.Write(msg.Payload())
+	written, err = rw.w.Write(msg.Payload())
 	if err != nil {
 		return err
 	}
+	writeN += written
 	if written != int(msg.Length()) {
 		return fmt.Errorf("wrong write")
 	}
-	return w.wr.Flush()
+	for _, l := range rw.ls {
+		l.OnWrite(msg.Subprotocol(), writeN)
+	}
+	return rw.w.Flush()
 }
 
 func parseHeader(buf [msgHeaderLength]byte) (*p2pcommon.MessageValue, uint32) {
@@ -131,13 +143,13 @@ func parseHeader(buf [msgHeaderLength]byte) (*p2pcommon.MessageValue, uint32) {
 	return p2pcommon.NewLiteMessageValue(subProtocol, msgID, orgID, timestamp), length
 }
 
-func (w *V030Writer) marshalHeader(m p2pcommon.Message) {
-	binary.BigEndian.PutUint32(w.headBuf[0:4], m.Subprotocol().Uint32())
-	binary.BigEndian.PutUint32(w.headBuf[4:8], m.Length())
-	binary.BigEndian.PutUint64(w.headBuf[8:16], uint64(m.Timestamp()))
+func (rw *V030ReadWriter) marshalHeader(m p2pcommon.Message) {
+	binary.BigEndian.PutUint32(rw.writeBuf[0:4], m.Subprotocol().Uint32())
+	binary.BigEndian.PutUint32(rw.writeBuf[4:8], m.Length())
+	binary.BigEndian.PutUint64(rw.writeBuf[8:16], uint64(m.Timestamp()))
 
 	msgID := m.ID()
-	copy(w.headBuf[16:32], msgID[:])
+	copy(rw.writeBuf[16:32], msgID[:])
 	msgID = m.OriginalID()
-	copy(w.headBuf[32:48], msgID[:])
+	copy(rw.writeBuf[32:48], msgID[:])
 }

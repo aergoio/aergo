@@ -6,7 +6,6 @@
 package v030
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
@@ -27,8 +26,6 @@ type V030Handshaker struct {
 	peerID  types.PeerID
 	chainID *types.ChainID
 
-	rd    *bufio.Reader
-	wr    *bufio.Writer
 	msgRW p2pcommon.MsgReadWriter
 }
 
@@ -38,9 +35,9 @@ func (h *V030Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 	return h.msgRW
 }
 
-func NewV030StateHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID, rd io.Reader, wr io.Writer) *V030Handshaker {
-	h := &V030Handshaker{pm: pm, actor: actor, logger: log, chainID: chainID, peerID: peerID, rd: bufio.NewReader(rd), wr: bufio.NewWriter(wr)}
-	h.msgRW = NewV030ReadWriter(h.rd, h.wr)
+func NewV030StateHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, chainID *types.ChainID, peerID types.PeerID, rwc io.ReadWriteCloser) *V030Handshaker {
+	h := &V030Handshaker{pm: pm, actor: actor, logger: log, chainID: chainID, peerID: peerID}
+	h.msgRW = NewV030MsgPipe(rwc)
 	return h
 }
 

@@ -96,8 +96,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := p2pmock.NewMockReader(ctrl)
-			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			dummyReader := p2pmock.NewMockReadWriteCloser(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			var containerMsg *p2pcommon.MessageValue
@@ -111,7 +110,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
 
-			h := NewV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
+			h := NewV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader)
 			h.msgRW = mockRW
 			got, err := h.DoForOutbound(context.Background())
 			if (err != nil) != tt.wantErr {
@@ -169,8 +168,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := p2pmock.NewMockReader(ctrl)
-			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			dummyReader := p2pmock.NewMockReadWriteCloser(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			containerMsg := &p2pcommon.MessageValue{}
@@ -185,7 +183,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
 
-			h := NewV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
+			h := NewV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader)
 			h.msgRW = mockRW
 			got, err := h.DoForInbound(context.Background())
 			if (err != nil) != tt.wantErr {
