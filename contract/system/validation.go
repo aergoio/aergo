@@ -14,12 +14,12 @@ import (
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
 	var ci types.CallInfo
-	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo, scs: scs, txBody: txBody}
-
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
 		return nil, types.ErrTxInvalidPayload
 	}
-	switch types.GetOpSysTx(ci.Name) {
+	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo, op: types.GetOpSysTx(ci.Name), scs: scs, txBody: txBody}
+
+	switch context.op {
 	case types.Opstake:
 		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return nil, types.ErrInsufficientBalance
@@ -30,7 +30,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 		context.Staked = staked
 	case types.OpvoteBP:
-		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(ci.Name[2:]))
+		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(context.op.Name()))
 		if err != nil {
 			return nil, err
 		}

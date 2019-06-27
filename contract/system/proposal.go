@@ -68,7 +68,7 @@ func (c *proposalCmd) run() (*types.Event, error) {
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
-		EventName:       c.Call.Name[2:],
+		EventName:       c.op.Name(),
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
 			`", "Proposal":` + string(log) + `}`,

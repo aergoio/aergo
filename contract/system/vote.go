@@ -61,7 +61,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		}
 		cmd.candidate = cmd.args
 	} else {
-		cmd.issue = []byte(cmd.Call.Name)[2:]
+		cmd.issue = []byte(ctx.op.Name())
 		cmd.args, err = json.Marshal(cmd.Call.Args)
 		if err != nil {
 			return nil, err
@@ -111,7 +111,7 @@ func (c *voteCmd) run() (*types.Event, error) {
 	return &types.Event{
 		ContractAddress: c.Receiver.ID(),
 		EventIdx:        0,
-		EventName:       c.Call.Name[2:],
+		EventName:       c.op.Name(),
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(c.Sender.ID()) +
 			`", "vote":` + string(c.args) + `}`,

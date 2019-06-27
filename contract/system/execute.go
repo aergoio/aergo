@@ -26,6 +26,7 @@ type SystemContext struct {
 	Sender   *state.V
 	Receiver *state.V
 
+	op     types.OpSysTx
 	scs    *state.ContractState
 	txBody *types.TxBody
 }
