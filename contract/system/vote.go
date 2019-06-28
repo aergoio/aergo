@@ -113,7 +113,7 @@ func (c *voteCmd) run() (*types.Event, error) {
 		EventIdx:        0,
 		EventName:       c.op.Name(),
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(c.Sender.ID()) +
+			types.EncodeAddress(c.txBody.Account) +
 			`", "vote":` + string(c.args) + `}`,
 	}, nil
 }
