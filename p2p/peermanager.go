@@ -36,7 +36,6 @@ type peerManager struct {
 	status            int32
 	nt                p2pcommon.NetworkTransport
 	hsFactory         p2pcommon.HSHandlerFactory
-	handlerFactory    p2pcommon.HandlerFactory
 	actorService      p2pcommon.ActorService
 	peerFactory       p2pcommon.PeerFactory
 	mf                p2pcommon.MoFactory
@@ -92,12 +91,11 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		nt:                nt,
-		handlerFactory:    handlerFactory,
 		hsFactory:         hsFactory,
 		actorService:      actor,
 		conf:              p2pConf,

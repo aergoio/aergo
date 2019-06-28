@@ -15,6 +15,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 
 	"github.com/aergoio/aergo/chain"
@@ -303,6 +304,7 @@ func (f *testDoubleHashesRespFactory) NewRaftMsgOrder(msgType raftpb.MessageType
 
 // testDoubleMOFactory keep last created message and last result status of response message
 type testDoubleMOFactory struct {
+	mutex sync.Mutex
 	lastResp   p2pcommon.MessageBody
 	lastStatus types.ResultStatus
 }
@@ -328,6 +330,9 @@ func (f *testDoubleMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.Res
 }
 
 func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
 	f.lastResp = message
 	f.lastStatus = f.lastResp.(types.ResponseMessage).GetStatus()
 	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}

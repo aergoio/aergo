@@ -177,6 +177,8 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			target.msgHelper = mockMsgHelper
 
 			target.Handle(header, body)
+			// wait for handle finished
+			<- target.w
 
 			test.verify(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
 		})
@@ -231,6 +233,8 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			dummyMsg := &testMessage{subProtocol: p2pcommon.GetTXsRequest, id:p2pcommon.NewMsgID()}
 			msgBody := &types.GetTransactionsRequest{Hashes: make([][]byte, test.hashCnt)}
 			h.Handle(dummyMsg, msgBody)
+			// wait for handle finished
+			<- h.w
 
 		})
 	}

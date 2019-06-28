@@ -186,7 +186,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			pm := &peerManager{
 				mf:              mockMF,
 				hsFactory:       mockHSFactory,
-				handlerFactory:  mockHandlerFactory,
 				peerHandshaked:  make(chan handshakeResult, 10),
 			}
 			dpm := &basePeerManager{

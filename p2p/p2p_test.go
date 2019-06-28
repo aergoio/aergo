@@ -86,7 +86,7 @@ func TestP2P_InsertHandlers(t *testing.T) {
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
 
-			p2ps.InsertHandlers(mockPeer)
+			p2ps.insertHandlers(mockPeer)
 		})
 	}
 }

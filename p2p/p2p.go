@@ -179,7 +179,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainsvc *chain.ChainService) {
 		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
 	}
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
 
@@ -318,7 +318,7 @@ func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
 	return p2ps.ca
 }
 
-func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
+func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	logger := p2ps.Logger
 
 	// PingHandlers
@@ -331,8 +331,8 @@ func (p2ps *P2P) InsertHandlers(peer p2pcommon.RemotePeer) {
 	// BlockHandlers
 	peer.AddMessageHandler(p2pcommon.GetBlocksRequest, subproto.NewBlockReqHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.GetBlocksResponse, subproto.NewBlockRespHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
-	peer.AddMessageHandler(p2pcommon.GetBlockHeadersRequest, subproto.NewListBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps))
-	peer.AddMessageHandler(p2pcommon.GetBlockHeadersResponse, subproto.NewListBlockRespHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetBlockHeadersRequest, subproto.NewGetBlockHeadersReqHandler(p2ps.pm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.GetBlockHeadersResponse, subproto.NewGetBlockHeaderRespHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.GetAncestorRequest, subproto.NewGetAncestorReqHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.GetAncestorResponse, subproto.NewGetAncestorRespHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.GetHashesRequest, subproto.NewGetHashesReqHandler(p2ps.pm, peer, logger, p2ps))
@@ -386,7 +386,7 @@ func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *t
 	// TODO tune to set prefer role
 	newPeer.role = p2ps.prm.GetRole(meta.ID)
 	// insert Handlers
-	p2ps.InsertHandlers(newPeer)
+	p2ps.insertHandlers(newPeer)
 
 	return newPeer
 }

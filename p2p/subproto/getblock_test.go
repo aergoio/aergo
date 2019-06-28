@@ -74,7 +74,14 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
 			h.Handle(dummyMsg, msgBody)
 
-			assert.Equal(t, test.succResult, mockMF.lastStatus == types.ResultStatus_OK)
+			// wait to work finished
+			<-h.w
+
+			mockMF.mutex.Lock()
+			lastStatus := mockMF.lastStatus
+			mockMF.mutex.Unlock()
+
+			assert.Equal(t, test.succResult, lastStatus== types.ResultStatus_OK)
 		})
 	}
 }

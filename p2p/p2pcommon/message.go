@@ -9,6 +9,7 @@ package p2pcommon
 import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"time"
 )
 
 // Message is unit structure transferred from a peer to another peer.
@@ -38,11 +39,9 @@ type MessageBody interface {
 	proto.Message
 }
 
-type HandlerFactory interface {
-	InsertHandlers(peer RemotePeer)
-}
-
-// MessageHandler handle incoming message
+// MessageHandler handle incoming message.
+// The Handler belongs to RemotePeer, i.e. every connected remote peer has its own handlers. Each handler handles messages
+// assigned to it sequentially, but multiple handlers can handle their own messages concurrently.
 type MessageHandler interface {
 	AddAdvice(advice HandlerAdvice)
 	ParsePayload([]byte) (MessageBody, error)
@@ -57,6 +56,10 @@ type HandlerAdvice interface {
 	PostHandle(msg Message, msgBody MessageBody)
 }
 
+type AsyncHandler interface {
+	HandleOrNot(msg Message, msgBody MessageBody) bool
+	Handle(msg Message, msgBody MessageBody, ttl time.Duration)
+}
 // MsgSigner sign or verify p2p message
 // this is not used since v0.3, but interface is not removed for future version.
 type MsgSigner interface {

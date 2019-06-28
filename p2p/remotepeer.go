@@ -31,6 +31,12 @@ type requestInfo struct {
 	receiver p2pcommon.ResponseReceiver
 }
 
+type queryMsg struct {
+	handler p2pcommon.MessageHandler
+	msg  p2pcommon.Message
+	msgBody p2pcommon.MessageBody
+}
+
 // remotePeerImpl represent remote peer to which is connected
 type remotePeerImpl struct {
 	logger       *log.Logger
@@ -188,7 +194,7 @@ READNOPLOOP:
 	txNoticeTicker.Stop()
 	pingTicker.Stop()
 	// finish goroutine write. read goroutine will be closed automatically when disconnect
-	p.closeWrite <- struct{}{}
+	close(p.closeWrite)
 	close(p.stopChan)
 	p.state.SetAndGet(types.STOPPED)
 

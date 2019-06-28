@@ -524,7 +524,7 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 
 			// FIXME wait in more reliable way
 			time.Sleep(50 * time.Millisecond)
-			p.closeWrite <- struct{}{}
+			close(p.closeWrite)
 			//mockOrder.AssertNumberOfCalls(t, "SendTo", tt.wants.sendCnt)
 			//assert.Equal(t, tt.wants.expReqCnt, len(p.requests))
 		})
