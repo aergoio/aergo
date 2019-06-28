@@ -149,7 +149,7 @@ static int sort_key_compare (const void *first, const void*second)
         int comp_len = (key1->key_len > key2->key_len ? key2->key_len : key1->key_len);
         int ret = strncmp (key1->elem, key2->elem, comp_len);
         if (ret == 0)
-            return (key1->key_len > key2->key_len ? 1 : 0);
+            return (key1->key_len > key2->key_len ? 1 : -1);
         return ret;
     }
 }
