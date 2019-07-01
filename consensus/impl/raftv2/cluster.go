@@ -36,6 +36,9 @@ var (
 	ErrConfChangeChannelBusy    = errors.New("channel of conf change propose is busy")
 	ErrCCMemberIsNil            = errors.New("memeber is nil")
 	ErrNotMatchedRaftName       = errors.New("mismatched name of raft identity")
+	ErrNotExitRaftProgress      = errors.New("progress of this node doesn't exist")
+	ErrUnhealtyNodeExist        = errors.New("can't add some node if unhealthy nodes exist")
+	ErrRemoveHealthyNode        = errors.New("remove of a healthy node may cause the cluster to hang")
 )
 
 const (
@@ -794,6 +797,11 @@ func (cl *Cluster) ChangeMembership(req *types.MembershipChange, nowait bool) (*
 		return nil, err
 	}
 
+	if err = cl.isEnableChangeMembership(proposal.Cc); err != nil {
+		logger.Error().Err(err).Msg("failed cluster availability check to change membership")
+		return nil, err
+	}
+
 	if err = cl.submitProposal(proposal, nowait); err != nil {
 		return nil, err
 	}
@@ -807,6 +815,7 @@ func (cl *Cluster) ChangeMembership(req *types.MembershipChange, nowait bool) (*
 
 func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*consensus.ConfChangePropose, error) {
 	if cl.savedChange != nil {
+		logger.Error().Str("cc", types.RaftConfChangeToString(cl.savedChange.Cc)).Msg("already exist pending conf change")
 		return nil, ErrPendingConfChange
 	}
 
@@ -860,6 +869,10 @@ func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*cons
 }
 
 func (cl *Cluster) submitProposal(proposal *consensus.ConfChangePropose, nowait bool) error {
+	if cl.savedChange != nil {
+		return ErrPendingConfChange
+	}
+
 	cl.saveConfChangePropose(proposal)
 
 	select {
@@ -936,6 +949,97 @@ func (cl *Cluster) resetSavedConfChangePropose() {
 	logger.Debug().Uint64("requestID", ccid).Msg("reset saved conf change propose")
 
 	cl.savedChange = nil
+}
+
+var (
+	ErrRaftStatusEmpty = errors.New("raft status is empty")
+)
+
+// isEnableChangeMembership check if membership change request can stop cluster.
+// case add : current avaliable node < (n + 1)/ 2 + 1
+// case remove : avaliable node except node to remove < (n - 1) / 2 - 1
+//
+// Default :
+// - Add : 1 node라도 장애 node or slow node가 존재하면 add는 불가
+//         slow node기준 - block 높이가 100이상 차이 나는 경우
+// - Remove :
+//         현재 cluster가 available 해야함
+//		   node를 뺄때는 (정상node - 1) >= (n - 1) / 2 + 1 이어야함
+//         slow node는 항상 뺄수 있다. slow node를 뺌으로써 cluster를 정상으로 만들기 위함
+// - force 모드: 무조건 실행 한다.
+func (cl *Cluster) isEnableChangeMembership(cc *raftpb.ConfChange) error {
+	status := cl.rs.Status()
+	if status.ID == 0 {
+		logger.Debug().Msg("raft node is not initialized")
+		return ErrRaftStatusEmpty
+	}
+
+	cp, err := cl.rs.GetClusterProgress()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to get cluster progress")
+		return err
+	}
+
+	logger.Info().Str("info", cp.ToString()).Msg("cluster progress")
+
+	getHealthyMembers := func(cp *ClusterProgress) int {
+		var healthy int
+
+		for _, mp := range cp.MemberProgresses {
+			if mp.Status == MemberProgressStateHealthy {
+				healthy++
+			}
+		}
+
+		return healthy
+	}
+
+	isClusterAvilable := func(total int, healthy int) bool {
+		quorum := total/2 + 1
+
+		logger.Info().Int("quorum", quorum).Int("healthy", healthy).Msg("cluster quorum")
+
+		return healthy >= quorum
+	}
+
+	healthy := getHealthyMembers(cp)
+
+	if !isClusterAvilable(cp.N, healthy) {
+		logger.Warn().Msg("curretn cluster status doesn't satisfy quorum")
+	}
+
+	switch {
+	case cc.Type == raftpb.ConfChangeAddNode:
+		for _, mp := range cp.MemberProgresses {
+			if mp.Status != MemberProgressStateHealthy {
+				logger.Error().Str("unhealthy member", mp.ToString()).Msg("exist unhealthy member in cluster. If you want add some node, fix the unhealthy node and try again")
+				return ErrUnhealtyNodeExist
+			}
+		}
+
+		return nil
+	case cc.Type == raftpb.ConfChangeRemoveNode:
+		mp, ok := cp.MemberProgresses[cc.NodeID]
+		if !ok {
+			logger.Error().Uint64("id", cc.NodeID).Msg("not exist progress of member")
+			return ErrNotExitRaftProgress
+		}
+
+		if mp.Status != MemberProgressStateHealthy {
+			logger.Warn().Uint64("memberid", mp.MemberID).Msg("try to remove slow node")
+			return nil
+		}
+
+		if !isClusterAvilable(cp.N-1, healthy-1) {
+			logger.Error().Msg("can't remove healthy node. If you remove this node, cluster can be stop.")
+			return ErrRemoveHealthyNode
+		}
+
+		return nil
+	default:
+		logger.Error().Msg("type of conf change is invalid")
+		return ErrInvalidMembershipReqType
+	}
 }
 
 func (cl *Cluster) validateChangeMembership(cc *raftpb.ConfChange, member *consensus.Member, needlock bool) error {

@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
@@ -50,6 +51,8 @@ var (
 	raftLogger                  raftlib.Logger
 	ConfSnapFrequency           uint64 = 10
 	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
+
+	MaxProgressDiff uint64 = 100
 )
 
 var (
@@ -1224,6 +1227,123 @@ func (rs *raftServer) Status() raftlib.Status {
 	}
 
 	return node.Status()
+}
+
+type MemberProgressState int32
+
+const (
+	MemberProgressStateHealthy MemberProgressState = iota
+	MemberProgressStateSlow
+	MemberProgressStateSyncing
+	MemberProgressStateUnknown
+)
+
+var (
+	MemberProgressStateNames = map[MemberProgressState]string{
+		MemberProgressStateHealthy: "MemberProgressStateHealthy",
+		MemberProgressStateSlow:    "MemberProgressStateSlow",
+		MemberProgressStateSyncing: "MemberProgressStateSyncing",
+		MemberProgressStateUnknown: "MemberProgressStateUnknown",
+	}
+)
+
+type MemberProgress struct {
+	MemberID      uint64
+	Status        MemberProgressState
+	LogDifference uint64
+
+	progress raftlib.Progress
+}
+
+type ClusterProgress struct {
+	N int
+
+	MemberProgresses map[uint64]*MemberProgress
+}
+
+func (cp *ClusterProgress) ToString() string {
+	buf := fmt.Sprintf("{ Total: %d, Members[", cp.N)
+
+	for _, mp := range cp.MemberProgresses {
+		buf = buf + mp.ToString()
+	}
+
+	buf = buf + fmt.Sprintf("] }")
+
+	return buf
+}
+
+func (cp *MemberProgress) ToString() string {
+	return fmt.Sprintf("{ id: %x, Staus: \"%s\", LogDifference: %d }", cp.MemberID, MemberProgressStateNames[cp.Status], cp.LogDifference)
+}
+
+func (rs *raftServer) GetLastIndex() (uint64, error) {
+	return rs.raftStorage.LastIndex()
+}
+
+func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
+	getProgressState := func(raftProgress *raftlib.Progress, lastLeaderIndex uint64, nodeID uint64, leadID uint64) MemberProgressState {
+		isLeader := nodeID == leadID
+
+		if !isLeader {
+			// syncing
+			if raftProgress.State == raftlib.ProgressStateSnapshot {
+				return MemberProgressStateSyncing
+			}
+
+			// slow
+			// - Even if node state is ProgressStateReplicate, if matchNo of the node is too lower than last index of leader, it is considered a slow state.
+			var isSlowFollower bool
+			if lastLeaderIndex > raftProgress.Match && (lastLeaderIndex-raftProgress.Match) > MaxProgressDiff {
+				isSlowFollower = true
+			}
+
+			if raftProgress.State == raftlib.ProgressStateProbe || isSlowFollower {
+				return MemberProgressStateSlow
+			}
+		}
+		// normal
+		return MemberProgressStateHealthy
+	}
+
+	var (
+		lastIdx uint64
+		err     error
+	)
+
+	prog := ClusterProgress{}
+
+	node := rs.getNodeSync()
+	if node == nil || !rs.IsLeader() {
+		return &prog, nil
+	}
+
+	status := node.Status()
+
+	n := len(status.Progress)
+	if n == 0 {
+		return &prog, nil
+	}
+
+	statusBytes, err := status.MarshalJSON()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to marshalEntryData raft status")
+	} else {
+		logger.Debug().Str("status", string(statusBytes)).Msg("raft status")
+	}
+
+	if lastIdx, err = rs.GetLastIndex(); err != nil {
+		logger.Error().Err(err).Msg("Get last raft index on leader")
+		return &prog, err
+	}
+
+	prog.MemberProgresses = make(map[uint64]*MemberProgress)
+	prog.N = n
+	for id, nodeProgress := range status.Progress {
+		prog.MemberProgresses[id] = &MemberProgress{MemberID: id, Status: getProgressState(&nodeProgress, lastIdx, rs.cluster.NodeID(), id), LogDifference: lastIdx - nodeProgress.Match, progress: nodeProgress}
+	}
+
+	return &prog, nil
 }
 
 // GetExistingCluster returns information of existing cluster.

@@ -618,6 +618,12 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 		return nil, err
 	}
 
+	// To make cluster_test easier, this check called not in makeProposal() but here
+	if err = cl.isEnableChangeMembership(proposal.Cc); err != nil {
+		logger.Error().Err(err).Msg("failed cluster availability check to change membership")
+		return nil, err
+	}
+
 	return proposal, nil
 }
 

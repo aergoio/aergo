@@ -18,6 +18,10 @@ func (ccProgress *ConfChangeProgress) ToPrintable() *ConfChangeProgressPrintable
 	return &ConfChangeProgressPrintable{State: ConfChangeState_name[int32(ccProgress.State)], Error: ccProgress.Err}
 }
 
+func RaftConfChangeToString(cc *raftpb.ConfChange) string {
+	return fmt.Sprintf("request id=%d, type=%s, nodeid=%d", cc.ID, raftpb.ConfChangeType_name[int32(cc.Type)], cc.NodeID)
+}
+
 func (mc *MembershipChange) ToString() string {
 	var buf string
 
