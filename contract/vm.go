@@ -43,11 +43,12 @@ import (
 )
 
 const (
-	maxStateSet       = 20
-	callMaxInstLimit  = C.int(5000000)
-	queryMaxInstLimit = callMaxInstLimit * C.int(10)
-	dbUpdateMaxLimit  = fee.StateDbMaxUpdateSize
-	maxCallDepth      = 5
+	maxStateSet          = 20
+	callMaxInstLimit     = C.int(5000000)
+	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
+	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
+	maxCallDepth         = 5
+	checkFeeDelegationFn = "check_fee_delegation"
 )
 
 var (
@@ -1012,6 +1013,74 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 
 	curStateSet[stateSet.service] = nil
 	return []byte(ce.jsonRet), ce.err
+}
+
+func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor,
+	contractState *state.ContractState, payload, txHash, sender, amount []byte) (err error) {
+	var ci types.CallInfo
+
+	err = getCallInfo(&ci, payload, contractAddress)
+	if err != nil {
+		return
+	}
+	abi, err := GetABI(contractState)
+	if err != nil {
+		return err
+	}
+	var found *types.Function
+	for _, f := range abi.Functions {
+		if f.Name == ci.Name {
+			found = f
+			break
+		}
+	}
+	if found == nil {
+		return fmt.Errorf("not found function %s", ci.Name)
+	}
+	if found.FeeDelegation == false {
+		return fmt.Errorf("%s function is not declared of fee delegation", ci.Name)
+	}
+
+	contract := getContract(contractState, nil)
+	if contract == nil {
+		addr := types.EncodeAddress(contractAddress)
+		ctrLog.Warn().Str("error", "not found contract").Str("contract", addr).Msg("checkFeeDelegation")
+		err = fmt.Errorf("not found contract %s", addr)
+	}
+	if err != nil {
+		return
+	}
+	stateSet := NewContextQuery(bs, cdb, contractAddress, contractState, "", true,
+		contractState.SqlRecoveryPoint)
+	stateSet.origin = sender
+	stateSet.txHash = txHash
+	stateSet.curContract.amount = new(big.Int).SetBytes(amount)
+	stateSet.curContract.sender = sender
+
+	setQueryContext(stateSet)
+	if ctrLog.IsDebugEnabled() {
+		ctrLog.Debug().Str("abi", string(checkFeeDelegationFn)).Str("contract", types.EncodeAddress(contractAddress)).Msg("checkFeeDelegation")
+	}
+
+	ci.Name = checkFeeDelegationFn
+	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, contractState)
+	defer ce.close()
+	defer func() {
+		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
+			err = dbErr
+		}
+	}()
+	ce.setCountHook(queryMaxInstLimit)
+	ce.call(nil)
+
+	curStateSet[stateSet.service] = nil
+	if ce.err != nil {
+		return ce.err
+	}
+	if ce.jsonRet != "true" {
+		return types.ErrNotAllowedFeeDelegation
+	}
+	return nil
 }
 
 func getContract(contractState *state.ContractState, code []byte) []byte {

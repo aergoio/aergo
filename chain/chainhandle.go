@@ -11,8 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
@@ -21,6 +19,7 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"math/big"
 )
 
 var (
@@ -854,6 +853,17 @@ func adjustRv(ret string) string {
 	return ret
 }
 
+func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
+	account.Reset()
+	if fee != nil {
+		account.SubBalance(fee)
+	}
+	if nonce != nil {
+		account.SetNonce(*nonce)
+	}
+	return account.PutState()
+}
+
 func executeTx(
 	ccc consensus.ChainConsensusCluster,
 	cdb contract.ChainAccessor,
@@ -922,18 +932,46 @@ func executeTx(
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}
+	case types.TxType_FEEDELEGATION:
+		balance := receiver.Balance()
+		if tx.GetMaxFee().Cmp(balance) > 0 {
+			return types.ErrInsufficientBalance
+		}
+		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+		if err != nil {
+			return err
+		}
+		err = contract.CheckFeeDelegation(recipient, bs, cdb, contractState, txBody.GetPayload(),
+			tx.GetHash(), txBody.GetAccount(), txBody.GetAmount())
+		if err != nil {
+			if err != types.ErrNotAllowedFeeDelegation {
+				logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("checkFeeDelegation Error")
+				return err
+			}
+			return types.ErrNotAllowedFeeDelegation
+		}
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		receiver.SubBalance(txFee)
 	}
 
 	if err != nil {
 		if !contract.IsRuntimeError(err) {
 			return err
 		}
-		sender.Reset()
-		sender.SubBalance(txFee)
-		sender.SetNonce(txBody.Nonce)
-		sErr := sender.PutState()
-		if sErr != nil {
-			return sErr
+		if txBody.Type != types.TxType_FEEDELEGATION || sender.AccountID() == receiver.AccountID() {
+			sErr := resetAccount(sender, txFee, &txBody.Nonce)
+			if sErr != nil {
+				return sErr
+			}
+		} else {
+			sErr := resetAccount(sender, nil, &txBody.Nonce)
+			if sErr != nil {
+				return sErr
+			}
+			sErr = resetAccount(receiver, txFee, nil)
+			if sErr != nil {
+				return sErr
+			}
 		}
 		status = "ERROR"
 		rv = err.Error()
@@ -957,6 +995,7 @@ func executeTx(
 	receipt.FeeUsed = txFee.Bytes()
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
+	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
 
 	return bs.AddReceipt(receipt)
 }

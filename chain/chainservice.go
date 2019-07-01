@@ -433,7 +433,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetNameInfo,
 		*message.GetEnterpriseConf,
 		*message.GetParams,
-		*message.ListEvents:
+		*message.ListEvents,
+		*message.CheckFeeDelegation:
 		cs.chainWorker.Request(msg, context.Sender())
 
 		//handle directly
@@ -857,6 +858,20 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			MinStaking:   system.GetMinimumStaking(cw.sdb),
 			MaxBlockSize: uint64(MaxBlockSize()),
 		})
+	case *message.CheckFeeDelegation:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.CheckFeeDelegationRsp{Err: err})
+		} else {
+			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			err := contract.CheckFeeDelegation(msg.Contract, bs, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
+			context.Respond(message.CheckFeeDelegationRsp{Err: err})
+		}
+
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)

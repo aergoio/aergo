@@ -182,7 +182,7 @@ func preLoadWorker() {
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
-		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 {
+		if (txBody.Type != types.TxType_NORMAL && txBody.Type != types.TxType_FEEDELEGATION) || len(recipient) == 0 {
 			continue
 		}
 

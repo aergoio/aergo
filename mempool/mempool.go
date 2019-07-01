@@ -595,7 +595,38 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		}
+	case types.TxType_FEEDELEGATION:
+		var recipient []byte
 
+		recipient = tx.GetBody().GetRecipient()
+		if tx.GetTx().HasNameRecipient() {
+			recipient = mp.getAddress(recipient)
+			if recipient == nil {
+				return types.ErrTxInvalidRecipient
+			}
+		}
+		aergoState, err := mp.getAccountState(recipient)
+		if err != nil {
+			return err
+		}
+		balance := aergoState.GetBalanceBigInt()
+		if tx.GetMaxFee().Cmp(balance) > 0 {
+			return types.ErrInsufficientBalance
+		}
+		txBody := tx.GetBody()
+		rsp, err := mp.RequestToFuture(message.ChainSvc,
+			&message.CheckFeeDelegation{txBody.GetPayload(), recipient,
+				txBody.GetAccount(), tx.GetHash(), txBody.GetAmount()},
+			time.Second).Result()
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
+			return err
+		}
+		err = rsp.(message.CheckFeeDelegationRsp).Err
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
+			return err
+		}
 	}
 	return err
 }

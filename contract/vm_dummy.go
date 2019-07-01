@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/fee"
+	"github.com/aergoio/aergo/internal/enc"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -228,11 +230,19 @@ func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 }
 
 type luaTxCommon struct {
-	sender   []byte
-	contract []byte
-	amount   *big.Int
-	code     []byte
-	id       uint64
+	sender      []byte
+	contract    []byte
+	amount      *big.Int
+	code        []byte
+	id          uint64
+	feeDelegate bool
+}
+
+func (l *luaTxCommon) hash() []byte {
+	h := sha256.New()
+	h.Write([]byte(strconv.FormatUint(l.id, 10)))
+	b := h.Sum(nil)
+	return b
 }
 
 type luaTxDef struct {
@@ -355,7 +365,7 @@ func (l *luaTxDef) Constructor(args string) *luaTxDef {
 }
 
 func contractFrame(l *luaTxCommon, bs *state.BlockState,
-	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) error) error {
+	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) (*big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender)
 	creatorState, err := bs.GetAccountStateV(l.sender)
@@ -374,13 +384,42 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 		return err
 	}
 
+	if l.feeDelegate {
+		balance := contractState.Balance()
+
+		if fee.MaxPayloadTxFee(len(l.code)).Cmp(balance) > 0 {
+			fmt.Println(fee.MaxPayloadTxFee(len(l.code)).String(), balance.String())
+			return types.ErrInsufficientBalance
+		}
+		err = CheckFeeDelegation(l.contract, bs, nil, eContractState, l.code,
+			l.hash(), l.sender, l.amount.Bytes())
+		if err != nil {
+			if err != types.ErrNotAllowedFeeDelegation {
+				logger.Warn().Err(err).Str("txhash", enc.ToString(l.hash())).Msg("checkFeeDelegation Error")
+				return err
+			}
+			return types.ErrNotAllowedFeeDelegation
+		}
+	}
 	creatorState.SubBalance(l.amount)
 	contractState.AddBalance(l.amount)
-	err = run(creatorState, contractState, contractId, eContractState)
+	usedFee, err := run(creatorState, contractState, contractId, eContractState)
 	if err != nil {
 		return err
 	}
-
+	if usedFee != nil {
+		if l.feeDelegate {
+			if contractState.Balance().Cmp(usedFee) < 0 {
+				return types.ErrInsufficientBalance
+			}
+			contractState.SubBalance(usedFee)
+		} else {
+			if creatorState.Balance().Cmp(usedFee) < 0 {
+				return types.ErrInsufficientBalance
+			}
+			creatorState.SubBalance(usedFee)
+		}
+	}
 	bs.PutState(creatorId, creatorState.State())
 	bs.PutState(contractId, contractState.State())
 	return nil
@@ -394,7 +433,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 	}
 
 	return contractFrame(&l.luaTxCommon, bs,
-		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
+		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			contract.State().SqlRecoveryPoint = 1
 
 			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
@@ -408,13 +447,13 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 
 			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			err = bs.StageContractState(eContractState)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			return nil
+			return nil, nil
 		},
 	)
 }
@@ -450,6 +489,19 @@ func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *lua
 	}
 }
 
+func NewLuaTxCallFeeDelegate(sender, contract string, amount uint64, code string) *luaTxCall {
+	return &luaTxCall{
+		luaTxCommon: luaTxCommon{
+			sender:      strHash(sender),
+			contract:    strHash(contract),
+			amount:      new(big.Int).SetUint64(amount),
+			code:        []byte(code),
+			id:          newTxId(),
+			feeDelegate: true,
+		},
+	}
+}
+
 func (l *luaTxCall) hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
@@ -464,7 +516,7 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 
 func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error {
 	err := contractFrame(&l.luaTxCommon, bs,
-		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
+		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout)
 			if traceState {
@@ -472,13 +524,16 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 				defer stateSet.traceFile.Close()
 			}
-			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
+			rv, evs, usedfee, err := Call(eContractState, l.code, l.contract, stateSet)
+			if usedfee != nil {
+				usedfee.Add(usedfee, fee.PayloadTxFee(len(l.code)))
+			}
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				r.TxHash = l.hash()
 				b, _ := r.MarshalBinary()
 				receiptTx.Set(l.hash(), b)
-				return err
+				return usedfee, err
 			}
 			_ = bs.StageContractState(eContractState)
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
@@ -491,7 +546,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			}
 			b, _ := r.MarshalBinary()
 			receiptTx.Set(l.hash(), b)
-			return nil
+			return usedfee, nil
 		},
 	)
 	if l.expectedErr != "" {

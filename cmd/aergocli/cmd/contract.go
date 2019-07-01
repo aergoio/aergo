@@ -20,12 +20,13 @@ import (
 )
 
 var (
-	client     *util.ConnClient
-	data       string
-	nonce      uint64
-	toJson     bool
-	gover      bool
-	contractID string
+	client        *util.ConnClient
+	data          string
+	nonce         uint64
+	toJson        bool
+	gover         bool
+	feeDelegation bool
+	contractID    string
 )
 
 func init() {
@@ -56,6 +57,7 @@ func init() {
 	callCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
+	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "fee dellegation")
 
 	stateQueryCmd := &cobra.Command{
 		Use:   "statequery [flags] contract varname varindex",
@@ -240,6 +242,8 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	txType := types.TxType_NORMAL
 	if gover {
 		txType = types.TxType_GOVERNANCE
+	} else if feeDelegation {
+		txType = types.TxType_FEEDELEGATION
 	}
 
 	tx := &types.Tx{

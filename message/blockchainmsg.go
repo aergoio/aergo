@@ -204,3 +204,15 @@ type GetParamsRsp struct {
 	MinStaking   *big.Int
 	MaxBlockSize uint64
 }
+
+type CheckFeeDelegation struct {
+	Payload  []byte
+	Contract []byte
+	Sender   []byte
+	TxHash   []byte
+	Amount   []byte
+}
+
+type CheckFeeDelegationRsp struct {
+	Err error
+}

@@ -46,7 +46,7 @@ func TestReturn(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "return_num", 0, "function return_num() return 10 end abi.register(return_num)"),
 		NewLuaTxCall("ktlee", "return_num", 0, `{"Name":"return_num", "Args":[]}`),
 	)
@@ -92,7 +92,7 @@ func TestContractHello(t *testing.T) {
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 	)
 	_ = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "hello", 0, helloCode),
@@ -113,7 +113,7 @@ func TestContractSystem(t *testing.T) {
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 	)
 	_ = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "system", 0, systemCode),
@@ -135,7 +135,7 @@ func TestGetABI(t *testing.T) {
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "hello", 0,
 			`state.var {
 	Say = state.value()
@@ -168,7 +168,7 @@ func TestContractQuery(t *testing.T) {
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 	)
 	_ = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "query", 0, queryCode),
@@ -179,8 +179,8 @@ func TestContractQuery(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if ktlee.GetBalanceBigInt().Uint64() != uint64(98) {
-		t.Error(ktlee.Balance)
+	if ktlee.GetBalanceBigInt().Uint64() != uint64(97999999999999998) {
+		t.Error(ktlee.GetBalanceBigInt().Uint64())
 	}
 	query, err := bc.GetAccountState("query")
 	if err != nil {
@@ -209,7 +209,7 @@ func TestRollback(t *testing.T) {
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 	)
 	_ = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "query", 0, queryCode),
@@ -356,9 +356,11 @@ end
 abi.register(addCandidate, getCandidates, registerVoter, vote)`
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("owner", 100),
+		NewLuaTxAccount("owner", 100000000000000000),
 		NewLuaTxDef("owner", "vote", 0, definition),
-		NewLuaTxAccount("user1", 100),
+		NewLuaTxAccount("user1", 100000000000000000),
+		NewLuaTxAccount("user10", 100000000000000000),
+		NewLuaTxAccount("user11", 100000000000000000),
 	)
 
 	err = bc.ConnectBlock(
@@ -539,7 +541,7 @@ end
 abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "loop", 0, definition),
 	)
 	if err != nil {
@@ -626,7 +628,7 @@ end
 abi.register(infiniteLoop)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "loop", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
@@ -700,7 +702,7 @@ end
 abi.register(createAndInsert, insertRollbackData, query, count, all)`
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "simple-query", 0, definition),
 	)
 	_ = bc.ConnectBlock(
@@ -803,7 +805,7 @@ end
 abi.register(init, add, addFail, get)`
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "fail", 0, definition),
 		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"init"}`),
 	)
@@ -873,7 +875,7 @@ end
 abi.register(init, nowNull, localtimeNull, get)`
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "datetime", 0, definition),
 		NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"init"}`),
 	)
@@ -941,7 +943,7 @@ abi.register(init, pkFail, checkFail, fkFail, notNullFail, uniqueFail)`
 	err = bc.ConnectBlock(
 		NewLuaTxAccount(
 			"ktlee",
-			100,
+			100000000000000000,
 		),
 		NewLuaTxDef(
 			"ktlee",
@@ -1054,7 +1056,7 @@ end
 abi.register(createTable, query, insert, update, delete, count)`
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "customer", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
@@ -1190,7 +1192,7 @@ end
 abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryOrderByDesc, queryGroupByBlockheight1)`
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "datatype", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
@@ -1305,7 +1307,7 @@ end
 abi.register(sql_func, abs_func, typeof_func)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("name", 100),
+		NewLuaTxAccount("name", 100000000000000000),
 		NewLuaTxDef("ktlee", "fns", 0, definition),
 	)
 	if err != nil {
@@ -1395,7 +1397,7 @@ end
 abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "book", 0, definition),
 		NewLuaTxCall(
 			"ktlee",
@@ -1477,7 +1479,7 @@ end
 abi.register(init, get)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef(
 			"ktlee",
 			"data_format",
@@ -1519,7 +1521,7 @@ abi.register(r)`
 
 	tx := NewLuaTxCall("ktlee", "r", 0, `{"Name":"r"}`)
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "r", 0, definition),
 		tx,
 	)
@@ -1559,7 +1561,7 @@ func TestContractCall(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "counter", 0, definition1).Constructor("[1]"),
 		NewLuaTxCall("ktlee", "counter", 0, `{"Name":"inc", "Args":[]}`),
 	)
@@ -1677,7 +1679,7 @@ abi.register(r)`
 
 	tx := NewLuaTxCall("ktlee", "r", 0, `{"Name":"r"}`)
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "r", 0, definition),
 		tx,
 	)
@@ -1729,7 +1731,7 @@ func TestKvstore(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "map", 0, definition),
 	)
 	if err != nil {
@@ -1820,7 +1822,7 @@ func TestJson(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "json", 0, definition),
 	)
 	if err != nil {
@@ -1960,7 +1962,7 @@ func TestArray(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "array", 0, definition),
 	)
 	if err != nil {
@@ -2088,7 +2090,7 @@ func TestPcall(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "counter", 10, definition1).Constructor("[0]"),
 		NewLuaTxCall("ktlee", "counter", 15, `{"Name":"inc", "Args":[]}`),
 	)
@@ -2212,7 +2214,7 @@ func TestPcall(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxAccount("bong", 0),
 		NewLuaTxDef("ktlee", "counter", 0, definition3),
 	)
@@ -2281,7 +2283,7 @@ func TestPingpongCall(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "a", 0, definition1),
 	)
 
@@ -2360,7 +2362,7 @@ func TestArrayArg(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "a", 0, definition1),
 	)
 	if err != nil {
@@ -2424,7 +2426,7 @@ func TestAbi(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "a", 0, noAbi),
 	)
 	if err == nil {
@@ -2490,7 +2492,7 @@ func TestMapKey(t *testing.T) {
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "a", 0, definition),
 	)
 
@@ -2596,7 +2598,7 @@ abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "c", 0, src),
 	)
 	if err != nil {
@@ -2666,7 +2668,7 @@ abi.register(CreateDate, Extract, Difftime)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "datetime", 0, src),
 	)
 	if err != nil {
@@ -2717,7 +2719,7 @@ abi.register(Length)
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 	)
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "zeroLen", 0, zeroLen),
@@ -2821,7 +2823,7 @@ abi.register(GetVar1)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "dupVar", 0, dupVar),
 	)
 	if err == nil {
@@ -2891,7 +2893,7 @@ abi.register(get, checkEther, checkAergo, keccak256)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "crypto", 0, src),
 	)
 	err = bc.Query("crypto", `{"Name": "get", "Args" : ["ab\u0000\u442a"]}`, "", `"0xc58f6dca13e4bba90a326d8605042862fe87c63a64a9dd0e95608a2ee68dc6f0"`)
@@ -2953,7 +2955,7 @@ abi.payable(save)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 	)
 
 	err = bc.ConnectBlock(
@@ -3009,7 +3011,7 @@ abi.register(default)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "default", 0, src),
 	)
 	if err != nil {
@@ -3117,7 +3119,6 @@ abi.payable(constructor)
 	end
 	abi.register(add)
 	`
-
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -3125,7 +3126,7 @@ abi.payable(constructor)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "bigNum", 50000000000, bigNum),
 		NewLuaTxDef("ktlee", "add", 0, callee),
 	)
@@ -3479,7 +3480,7 @@ abi.payable(constructor)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
 	)
 	if err != nil {
@@ -3559,7 +3560,7 @@ end
 abi.register(createAndInsert)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "simple-query", 0, definition),
 	)
 	if err != nil {
@@ -3591,7 +3592,7 @@ func TestReturnUData(t *testing.T) {
 	abi.register(test_die, return_object)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "rs-return", 0, definition),
 	)
 	if err != nil {
@@ -3628,7 +3629,7 @@ end
 abi.register(random)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "random", 0, random),
 	)
 	if err != nil {
@@ -3714,7 +3715,7 @@ abi.register(inserts)
 `
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "big", 0, bigSrc),
 	)
 	if err != nil {
@@ -3744,7 +3745,7 @@ func TestEvent(t *testing.T) {
     abi.register(test_ev)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "event", 0, definition),
 	)
 	if err != nil {
@@ -3803,7 +3804,7 @@ func TestView(t *testing.T) {
 `
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "view", 0, definition),
 	)
 	if err != nil {
@@ -3865,7 +3866,7 @@ func TestNsec(t *testing.T) {
 	abi.register(test_nsec)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "nsec", 0, definition),
 	)
 	err = bc.ConnectBlock(
@@ -3903,7 +3904,7 @@ func TestGovernance(t *testing.T) {
 `
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "gov", 0, definition),
 	)
 	if err != nil {
@@ -3993,7 +3994,7 @@ func TestContractSend(t *testing.T) {
     abi.register(default)
 `
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "test1", 50, definition),
 		NewLuaTxDef("ktlee", "test2", 0, definition2),
 		NewLuaTxDef("ktlee", "test3", 0, definition3),
@@ -4055,7 +4056,7 @@ end
 abi.register(oom, p, cp)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "oom", 0, definition),
 	)
 	err = bc.ConnectBlock(
@@ -4228,7 +4229,7 @@ abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, 
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "invalidkey", 0, src),
 	)
 	if err != nil {
@@ -4357,7 +4358,7 @@ func TestPcallRollback(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "counter", 10, definition1).Constructor("[0]"),
 		NewLuaTxCall("ktlee", "counter", 15, `{"Name":"inc", "Args":[]}`),
 	)
@@ -4488,7 +4489,7 @@ func TestPcallRollback(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxAccount("bong", 0),
 		NewLuaTxDef("ktlee", "counter", 0, definition3),
 	)
@@ -4569,7 +4570,7 @@ abi.payable(pcall1, default, constructor)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxAccount("bong", 0),
 		NewLuaTxDef("ktlee", "pcall", 10000000000000000000, definition1),
 	)
@@ -4630,7 +4631,7 @@ func TestSnapshot(t *testing.T) {
 	abi.payable(inc)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "snap", 0, definition),
 	)
 	if err != nil {
@@ -4705,7 +4706,7 @@ abi.register(get, getcre)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "bk", 0, bk),
 	)
 	if err != nil {
@@ -4775,7 +4776,7 @@ func TestUtf(t *testing.T) {
 	`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "utf", 0, definition),
 	)
 	if err != nil {
@@ -4831,7 +4832,7 @@ func TestLuaCryptoVerifyProof(t *testing.T) {
 	abi.register(verifyProofRaw, verifyProofHex)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "eth", 0, definition),
 	)
 	if err != nil {
@@ -4917,7 +4918,7 @@ func TestMultiArray(t *testing.T) {
 	abi.payable(inc)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "ma", 0, definition),
 	)
 	if err != nil {
@@ -5004,7 +5005,7 @@ end
 abi.register(abc, query)
 `
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "ma", 0, definition2),
 	)
 	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
@@ -5110,9 +5111,8 @@ end
 abi.payable(constructor, default)
 abi.register(testall)
 `
-
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "n-deploy", 0, definition),
 	)
 	if err != nil {
@@ -5149,13 +5149,12 @@ abi.register(ecverify)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "timeout-cnt", 0, src),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`),
 	)
@@ -5164,4 +5163,108 @@ abi.register(ecverify)
 	}
 }
 
+func TestFeeDelegation(t *testing.T) {
+	definition := `
+	state.var{
+        whitelist = state.map(),
+    }
+
+    function reg(k)
+		if (k == nil) then
+        	whitelist[system.getSender()] = true
+		else
+        	whitelist[k] = true
+		end
+    end
+
+    function query()
+        whitelist[system.getSender()] = false
+        return 1,2,3,4,5
+    end
+    function check_fee_delegation()
+        return whitelist[system.getSender()]
+    end
+	function default()
+	end
+    abi.register(reg, query)
+    abi.register_view(check_fee_delegation)
+    abi.payable(default)
+    abi.fee_delegation(query)
+`
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	balance, _ := new(big.Int).SetString("1000000000000000000000", 10)
+	send, _ := new(big.Int).SetString("500000000000000000000", 10)
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccountBig("ktlee", balance),
+		NewLuaTxAccount("user1", 0),
+		NewLuaTxDef("ktlee", "fd", 0, definition),
+		NewLuaTxSendBig("ktlee", "fd", send),
+	)
+	err = bc.ConnectBlock(
+		NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "check_fee_delegation", "Args":[]}`).
+			Fail("check_fee_delegation function is not declared of fee delegation"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("user1", "fd", 0, `{"Name": "query", "Args":[]}`).
+			Fail("not enough balance"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":[]}`).
+			Fail("fee delegation is not allowed"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":[]}`)
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fd", 0, fmt.Sprintf(`{"Name":"reg", "Args":["%s"]}`,
+			types.EncodeAddress(strHash("user1")))),
+		tx,
+	)
+	err = bc.ConnectBlock(
+		tx.Fail("fee delegation is not allowed"),
+	)
+
+	definition2 := `
+	state.var{
+        whitelist = state.map(),
+    }
+
+    function reg(k)
+		if (k == nil) then
+        	whitelist[system.getSender()] = true
+		else
+        	whitelist[k] = true
+		end
+    end
+
+    function query()
+        whitelist[system.getSender()] = false
+        return 1,2,3,4,5
+    end
+	function default()
+	end
+    abi.register(reg, query)
+    abi.payable(default)
+    abi.fee_delegation(query)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "fd2", 0, definition2),
+	)
+	if strings.Contains(err.Error(), "no 'check_fee_delegation' function") == false {
+		t.Error(err)
+	}
+}
 // end of test-cases
