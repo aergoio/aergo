@@ -17,7 +17,7 @@ import (
 
 //SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
-	BlockNo  uint64
+	BlockNo  types.BlockNo
 	Call     *types.CallInfo
 	Args     []string
 	Staked   *types.Staking
@@ -44,6 +44,11 @@ func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *st
 
 func (ctx *SystemContext) arg(i int) interface{} {
 	return ctx.Call.Args[i]
+}
+
+// Update the sender's staking.
+func (c *SystemContext) updateStaking() error {
+	return setStaking(c.scs, c.Sender.ID(), c.Staked)
 }
 
 type sysCmd interface {

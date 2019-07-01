@@ -14,10 +14,6 @@ import (
 
 //governance type transaction which has aergo.system in recipient
 
-/*
-const Stake = "v1stake"
-const Unstake = "v1unstake"
-*/
 const SetContractOwner = "v1setOwner"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"

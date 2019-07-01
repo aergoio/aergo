@@ -75,8 +75,12 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 	// The variable args is a JSON bytes. It is used as vote.candidate for the
 	// proposal based voting, while just as an event output for BP election.
 	staked := cmd.Staked
-	// Update block number
-	staked.When = cmd.BlockNo
+	// Update the block number when the last action is conducted (voting,
+	// staking etc). Two consecutive votings must be seperated by the time
+	// corresponding to VotingDeley (currently 24h). This time limit is check
+	// against this block number (Staking.When). Due to this, the Staking value
+	// on the state DB must be updated even for voting.
+	staked.SetWhen(cmd.BlockNo)
 
 	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeVote
@@ -96,6 +100,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 }
 
 func (c *voteCmd) run() (*types.Event, error) {
+	// To update Staking.When field (not Staking.Amount).
 	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
@@ -116,11 +121,6 @@ func (c *voteCmd) run() (*types.Event, error) {
 			types.EncodeAddress(c.txBody.Account) +
 			`", "vote":` + string(c.args) + `}`,
 	}, nil
-}
-
-// Update the sender's staking.
-func (c *voteCmd) updateStaking() error {
-	return setStaking(c.scs, c.Sender.ID(), c.Staked)
 }
 
 // Update the sender's voting record.

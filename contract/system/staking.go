@@ -31,25 +31,28 @@ type stakeCmd struct {
 }
 
 func newStakeCmd(ctx *SystemContext) (sysCmd, error) {
-	return &stakeCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}, nil
+	var (
+		cmd    = &stakeCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}
+		staked = cmd.Staked
+	)
+
+	staked.Add(cmd.amount)
+	staked.SetWhen(cmd.BlockNo)
+
+	return cmd, nil
 }
 
 func (c *stakeCmd) run() (*types.Event, error) {
 	var (
-		scs       = c.scs
-		staked    = c.Staked
-		curAmount = staked.GetAmountBigInt()
-		amount    = c.amount
-		sender    = c.Sender
-		receiver  = c.Receiver
+		amount   = c.amount
+		sender   = c.Sender
+		receiver = c.Receiver
 	)
 
-	staked.Amount = new(big.Int).Add(curAmount, amount).Bytes()
-	staked.When = c.BlockNo
-	if err := setStaking(scs, sender.ID(), staked); err != nil {
+	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
-	if err := addTotal(scs, amount); err != nil {
+	if err := addTotal(c.scs, amount); err != nil {
 		return nil, err
 	}
 	sender.SubBalance(amount)
@@ -66,19 +69,11 @@ func (c *stakeCmd) run() (*types.Event, error) {
 
 type unstakeCmd struct {
 	*SystemContext
-	amountToUnstake *big.Int
 }
 
 func newUnstakeCmd(ctx *SystemContext) (sysCmd, error) {
-	amount := ctx.txBody.GetAmountBigInt()
-	staked := ctx.Staked.GetAmountBigInt()
-	if staked.Cmp(amount) < 0 {
-		amount.Set(staked)
-	}
-
 	return &unstakeCmd{
-		SystemContext:   ctx,
-		amountToUnstake: amount,
+		SystemContext: ctx,
 	}, nil
 }
 
@@ -88,14 +83,13 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 		staked            = c.Staked
 		sender            = c.Sender
 		receiver          = c.Receiver
-		balanceAdjustment = c.amountToUnstake
+		balanceAdjustment = staked.Sub(c.txBody.GetAmountBigInt())
 	)
 
-	staked.Amount = new(big.Int).Sub(staked.GetAmountBigInt(), balanceAdjustment).Bytes()
 	//blockNo will be updated in voting
-	staked.When = c.BlockNo
+	staked.SetWhen(c.BlockNo)
 
-	if err := setStaking(scs, sender.ID(), staked); err != nil {
+	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
 	if err := refreshAllVote(c.SystemContext); err != nil {
@@ -112,7 +106,7 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 		EventName:       "unstake",
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + c.amountToUnstake.String() + `"}`,
+			`", "amount":"` + balanceAdjustment.String() + `"}`,
 	}, nil
 }
 
