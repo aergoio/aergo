@@ -773,7 +773,7 @@ func TestProposalExecute2(t *testing.T) {
 	tx.Body.Account = sender2.ID()
 	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["numbp2", "2","this vote is for the number of bp"]}`)
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender2, receiver, blockNo)
-	assert.NoError(t, err, "failed in creating proposal")
+	assert.Error(t, err, "numbp2 not allowed for IDq")
 
 	stakingTx.Body.Account = sender3.ID()
 	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender3, receiver, blockNo)

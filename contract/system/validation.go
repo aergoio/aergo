@@ -196,7 +196,7 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 func parseIDForProposal(ci *types.CallInfo) (string, error) {
 	//length should be checked before this function
 	id, ok := ci.Args[0].(string)
-	if !ok || len(id) < 1 {
+	if !ok || len(id) < 1 || !isValidID(id) {
 		return "", fmt.Errorf("args[%d] invalid id", 0)
 	}
 	return id, nil

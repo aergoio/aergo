@@ -11,6 +11,19 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+//go:generate stringer -type=sysParamIndex
+type sysParamIndex int
+
+const (
+	bpCount sysParamIndex = iota // BP count
+	numBP                        // BP count
+	sysParamMax
+)
+
+func (i sysParamIndex) name() string {
+	return strings.ToUpper(i.String())
+}
+
 var proposalListKey = []byte("proposallist")
 
 type whereToVotes = [][]byte
@@ -160,4 +173,13 @@ func serializeProposalHistory(wtv whereToVotes) []byte {
 		data = append(data, w...)
 	}
 	return data
+}
+
+func isValidID(id string) bool {
+	for i := sysParamIndex(0); i < sysParamMax; i++ {
+		if strings.ToUpper(id) == i.name() {
+			return true
+		}
+	}
+	return false
 }
