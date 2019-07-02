@@ -30,7 +30,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 		context.Staked = staked
 	case types.OpvoteBP:
-		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(context.op.Name()))
+		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(context.op.ID()))
 		if err != nil {
 			return nil, err
 		}

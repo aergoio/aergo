@@ -140,7 +140,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 func execBP(cmd *cobra.Command, args []string) {
 	msg, err := client.GetVotes(context.Background(), &types.VoteParams{
 		Count: uint32(number),
-		Id:    types.OpvoteBP.Name(),
+		Id:    types.OpvoteBP.ID(),
 	})
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())

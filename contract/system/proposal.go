@@ -11,24 +11,32 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-//go:generate stringer -type=sysParamIndex
-type sysParamIndex int
-
 const (
 	bpCount sysParamIndex = iota // BP count
 	numBP                        // BP count
 	sysParamMax
 )
 
-func (i sysParamIndex) name() string {
-	return strings.ToUpper(i.String())
-}
+const proposalPrefixKey = "proposal" //aergo proposal format
 
 var proposalListKey = []byte("proposallist")
 
-type whereToVotes = [][]byte
+//go:generate stringer -type=sysParamIndex
+type sysParamIndex int
 
-const proposalPrefixKey = "proposal" //aergo proposal format
+func (i sysParamIndex) ID() string {
+	return strings.ToUpper(i.String())
+}
+
+func GetVotingIssues() []types.VotingIssue {
+	vi := make([]types.VotingIssue, sysParamMax)
+	for i := bpCount; i < sysParamMax; i++ {
+		vi[int(i)] = i
+	}
+	return vi
+}
+
+type whereToVotes = [][]byte
 
 type Proposal struct {
 	ID             string
@@ -81,7 +89,7 @@ func (c *proposalCmd) run() (*types.Event, error) {
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
-		EventName:       c.op.Name(),
+		EventName:       c.op.ID(),
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
 			`", "Proposal":` + string(log) + `}`,
@@ -177,7 +185,7 @@ func serializeProposalHistory(wtv whereToVotes) []byte {
 
 func isValidID(id string) bool {
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
-		if strings.ToUpper(id) == i.name() {
+		if strings.ToUpper(id) == i.ID() {
 			return true
 		}
 	}

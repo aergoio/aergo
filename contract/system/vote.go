@@ -18,18 +18,40 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-var lastBpCount int
+const (
+	PeerIDLength = 39
+	VotingDelay  = 60 * 60 * 24 //block interval
+)
 
-var voteKey = []byte("vote")
-var totalKey = []byte("total")
-var sortKey = []byte("sort")
+var (
+	votingCatalog []types.VotingIssue
 
-const PeerIDLength = 39
+	lastBpCount int
 
-const VotingDelay = 60 * 60 * 24 //block interval
-//const VotingDelay = 5
+	voteKey        = []byte("vote")
+	totalKey       = []byte("total")
+	sortKey        = []byte("sort")
+	defaultVoteKey = []byte(types.OpvoteBP.ID())
+)
 
-var defaultVoteKey = []byte(types.OpvoteBP.Name())
+func init() {
+	initVotingCatalog()
+}
+
+func initVotingCatalog() {
+	votingCatalog = make([]types.VotingIssue, 0)
+
+	fuse := func(issues []types.VotingIssue) {
+		votingCatalog = append(votingCatalog, issues...)
+	}
+
+	fuse(types.GetVotingIssues())
+	fuse(GetVotingIssues())
+}
+
+func GetVotingCatalog() []types.VotingIssue {
+	return votingCatalog
+}
 
 type voteCmd struct {
 	*SystemContext
@@ -61,7 +83,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		}
 		cmd.candidate = cmd.args
 	} else {
-		cmd.issue = []byte(ctx.op.Name())
+		cmd.issue = []byte(ctx.op.ID())
 		cmd.args, err = json.Marshal(cmd.Call.Args)
 		if err != nil {
 			return nil, err
@@ -116,7 +138,7 @@ func (c *voteCmd) run() (*types.Event, error) {
 	return &types.Event{
 		ContractAddress: c.Receiver.ID(),
 		EventIdx:        0,
-		EventName:       c.op.Name(),
+		EventName:       c.op.ID(),
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(c.txBody.Account) +
 			`", "vote":` + string(c.args) + `}`,
@@ -159,7 +181,7 @@ func refreshAllVote(context *SystemContext) error {
 		allVotes     = getProposalHistory(scs, account)
 	)
 
-	allVotes = append(allVotes, []byte(types.OpvoteBP.Name()))
+	allVotes = append(allVotes, []byte(types.OpvoteBP.ID()))
 	for _, key := range allVotes {
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {

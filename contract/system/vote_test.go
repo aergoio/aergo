@@ -202,3 +202,9 @@ func buildStakingPayload(isStaking bool) []byte {
 	}
 	return []byte(`{"Name":"v1unstake"}`)
 }
+
+func TestVotingCatalog(t *testing.T) {
+	for _, issue := range GetVotingCatalog() {
+		fmt.Println(issue.ID())
+	}
+}

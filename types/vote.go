@@ -13,6 +13,10 @@ const (
 	MaxCandidates = 30
 )
 
+type VotingIssue interface {
+	ID() string
+}
+
 //go:generate stringer -type=OpSysTx
 // OpSysTx represents a kind of a system transaction.
 type OpSysTx int
@@ -38,12 +42,22 @@ const (
 	version = 1
 )
 
-var cmdToOp = make(map[string]OpSysTx, OpSysTxMax)
+var cmdToOp map[string]OpSysTx
 
-func init() {
+func initSysCmd() {
+	cmdToOp = make(map[string]OpSysTx, OpSysTxMax)
 	for i := OpvoteBP; i < OpSysTxMax; i++ {
 		cmdToOp[i.Cmd()] = i
 	}
+}
+
+func init() {
+	initSysCmd()
+}
+
+// GetVotingIssues returns all the VotingIssues in this package.
+func GetVotingIssues() []VotingIssue {
+	return []VotingIssue{OpvoteBP}
 }
 
 // GetOpSysTx returns a OpSysTx value corresponding to vName.
@@ -52,7 +66,7 @@ func GetOpSysTx(vName string) OpSysTx {
 }
 
 // Name returns a unprefixed name corresponding to op.
-func (op OpSysTx) Name() string {
+func (op OpSysTx) ID() string {
 	const prefixLen = 2 // prefix = "Op"
 
 	if op < OpSysTxMax && op >= 0 {
@@ -63,7 +77,7 @@ func (op OpSysTx) Name() string {
 
 // Cmd returns a string representation for op.
 func (op OpSysTx) Cmd() string {
-	name := op.Name()
+	name := op.ID()
 	if len(name) == 0 {
 		return name
 	}

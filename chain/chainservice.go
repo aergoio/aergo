@@ -261,7 +261,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	if ConsensusName() == consensus.ConsensusName[consensus.ConsensusDPOS] {
-		top, err := cs.getVotes(types.OpvoteBP.Name(), 1)
+		top, err := cs.getVotes(types.OpvoteBP.ID(), 1)
 		if err != nil {
 			logger.Debug().Err(err).Msg("failed to get elected BPs")
 		} else {
