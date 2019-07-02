@@ -17,6 +17,8 @@
 #define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
 #define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
 
+extern const int *getLuaExecContext(lua_State *L);
+
 static int append_resource(lua_State *L, const char *key, void *data)
 {
     int refno;
@@ -311,6 +313,9 @@ static int db_pstmt_exec(lua_State *L)
     int rc, n;
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
+    /*check for exec in function */
+	getLuaExecContext(L);
+
     rc = bind(L, pstmt->db, pstmt->s);
     if (rc == -1) {
         sqlite3_reset(pstmt->s);
@@ -334,6 +339,10 @@ static int db_pstmt_query(lua_State *L)
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
     db_rs_t *rs;
 
+	getLuaExecContext(L);
+    if (!sqlite3_stmt_readonly(pstmt->s)) {
+        luaL_error(L, "invalid sql command(permitted readonly)");
+    }
     rc = bind(L, pstmt->db, pstmt->s);
     if (rc != 0) {
         sqlite3_reset(pstmt->s);
@@ -383,6 +392,8 @@ static int db_exec(lua_State *L)
     sqlite3_stmt *s;
     int rc;
 
+    /*check for exec in function */
+	getLuaExecContext(L);
     cmd = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(cmd)) {
         luaL_error(L, "invalid sql command");
@@ -416,9 +427,10 @@ static int db_query(lua_State *L)
     sqlite3_stmt *s;
     db_rs_t *rs;
 
+	getLuaExecContext(L);
     query = luaL_checkstring(L, 1);
-    if (!sqlcheck_is_permitted_sql(query)) {
-        luaL_error(L, "invalid sql command");
+    if (!sqlcheck_is_readonly_sql(query)) {
+        luaL_error(L, "invalid sql command(permitted readonly)");
     }
     db = vm_get_db(L);
     rc = sqlite3_prepare_v2(db, query, -1, &s, NULL);
