@@ -204,7 +204,9 @@ func buildStakingPayload(isStaking bool) []byte {
 }
 
 func TestVotingCatalog(t *testing.T) {
-	for _, issue := range GetVotingCatalog() {
+	cat := GetVotingCatalog()
+	assert.Equal(t, 2, len(cat))
+	for _, issue := range cat {
 		fmt.Println(issue.ID())
 	}
 }

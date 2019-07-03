@@ -13,7 +13,6 @@ import (
 
 const (
 	bpCount sysParamIndex = iota // BP count
-	numBP                        // BP count
 	sysParamMax
 )
 
