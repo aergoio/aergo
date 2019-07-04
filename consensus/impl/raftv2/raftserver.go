@@ -46,10 +46,15 @@ import (
 	"github.com/aergoio/etcd/snap"
 )
 
+const (
+	HasNoLeader       uint64 = 0
+	DfltSnapFrequency        = 30
+)
+
 //noinspection ALL
 var (
 	raftLogger                  raftlib.Logger
-	ConfSnapFrequency           uint64 = 10
+	ConfSnapFrequency           uint64 = DfltSnapFrequency
 	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
 
 	MaxProgressDiff uint64 = 100
@@ -64,10 +69,6 @@ var (
 	ErrEmptySnapshot       = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
 	ErrProposeNilBlock     = errors.New("proposed block is nil")
-)
-
-const (
-	HasNoLeader uint64 = 0
 )
 
 func init() {

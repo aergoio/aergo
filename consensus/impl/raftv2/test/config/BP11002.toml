@@ -37,10 +37,11 @@ usefastsyncer= true
 showmetrics = true
 [consensus]
 enablebp = true
-blockinterval = 1
+#blockinterval = 1
 
 [consensus.raft]
 newcluster=true
+blockintervalms = 1000
 name="aergo2"
 listenurl="http://0.0.0.0:13002"
 snapfrequency=10

@@ -41,6 +41,7 @@ blockinterval = 1
 
 [consensus.raft]
 newcluster=true
+blockintervalms = 1000
 name="aergo3"
 listenurl="http://0.0.0.0:13003"
 snapfrequency=10

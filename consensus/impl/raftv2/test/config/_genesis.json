@@ -3,7 +3,7 @@
     "magic": "everjs",
     "public": false,
     "mainnet": false,
-    "coinbasefee": "1",
+    "coinbasefee": "0",
     "consensus": "raft"
   },
   "timestamp": 1545195494000000000,
