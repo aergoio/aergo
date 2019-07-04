@@ -149,31 +149,6 @@ func (sm *syncManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, hashes []typ
 	sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 }
 
-func blockHashArrToString(bbarray []message.BlockHash) string {
-	return blockHashArrToStringWithLimit(bbarray, 10)
-}
-
-func blockHashArrToStringWithLimit(bbarray []message.BlockHash, limit int) string {
-	var buf bytes.Buffer
-	buf.WriteByte('[')
-	var arrSize = len(bbarray)
-	if limit > arrSize {
-		limit = arrSize
-	}
-	for i := 0; i < limit; i++ {
-		hash := bbarray[i]
-		buf.WriteByte('"')
-		buf.WriteString(enc.ToString([]byte(hash)))
-		buf.WriteByte('"')
-		buf.WriteByte(',')
-	}
-	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
-
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func txHashArrToString(bbarray []message.TXHash) string {
 	return txHashArrToStringWithLimit(bbarray, 10)
@@ -190,31 +165,6 @@ func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int) string {
 		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString([]byte(hash)))
-		buf.WriteByte('"')
-		buf.WriteByte(',')
-	}
-	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
-
-// bytesArrToString converts array of byte array to json array of b58 encoded string.
-func P2PTxHashArrToString(bbarray []types.TxID) string {
-	return P2PTxHashArrToStringWithLimit(bbarray, 10)
-}
-func P2PTxHashArrToStringWithLimit(bbarray []types.TxID, limit int) string {
-	var buf bytes.Buffer
-	buf.WriteByte('[')
-	var arrSize = len(bbarray)
-	if limit > arrSize {
-		limit = arrSize
-	}
-	for i := 0; i < limit; i++ {
-		hash := bbarray[i]
-		buf.WriteByte('"')
-		buf.WriteString(enc.ToString(hash[:]))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
 	}

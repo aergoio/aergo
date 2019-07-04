@@ -49,12 +49,14 @@ func (th *txRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody
 
 func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := th.peer
-	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
-	p2putil.DebugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(reqHashes))
+	body := msgBody.(*types.GetTransactionsRequest)
+	reqHashes := body.Hashes
+	p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, body)
 
 	if th.issue() {
 		go th.handleTxReq(msg, reqHashes, 1)
 	} else {
+		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("return err for concurrent get tx request")
 		resp := &types.GetTransactionsResponse{
 			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
 			Hashes: nil,
@@ -190,7 +192,7 @@ func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
 	if th.logger.IsDebugEnabled() {
-		p2putil.DebugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(data.TxHashes))
+		p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, data)
 	}
 
 	if len(data.TxHashes) == 0 {

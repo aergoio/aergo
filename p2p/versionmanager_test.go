@@ -6,42 +6,42 @@
 package p2p
 
 import (
-	"bytes"
-	"io"
+	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/golang/mock/gomock"
 	"reflect"
 	"testing"
 
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 )
 
 func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
-	type fields struct {
-		pm           p2pcommon.PeerManager
-		actor        p2pcommon.ActorService
-		logger       *log.Logger
-		localChainID *types.ChainID
-	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	dummyChainID := &types.ChainID{}
+
+
 	type args struct {
 		versions []p2pcommon.P2PVersion
 	}
 	tests := []struct {
 		name   string
-		fields fields
 		args   args
+
 		want   p2pcommon.P2PVersion
 	}{
-		// TODO: Add test cases.
+		{"TSingle", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion030}}, p2pcommon.P2PVersion030},
+		{"TMulti", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}}, p2pcommon.P2PVersion031},
+		{"TUnknown", args{[]p2pcommon.P2PVersion{9999999, 9999998}}, p2pcommon.P2PVersionUnknown},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vm := &defaultVersionManager{
-				pm:           tt.fields.pm,
-				actor:        tt.fields.actor,
-				logger:       tt.fields.logger,
-				localChainID: tt.fields.localChainID,
-			}
+			pm := p2pmock.NewMockPeerManager(ctrl)
+			actor := p2pmock.NewMockActorService(ctrl)
+
+			vm := newDefaultVersionManager(pm, actor, logger, dummyChainID)
+
 			if got := vm.FindBestP2PVersion(tt.args.versions); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("defaultVersionManager.FindBestP2PVersion() = %v, want %v", got, tt.want)
 			}
@@ -50,46 +50,42 @@ func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 }
 
 func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
-	type fields struct {
-		pm           p2pcommon.PeerManager
-		actor        p2pcommon.ActorService
-		logger       *log.Logger
-		localChainID *types.ChainID
-	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	dummyChainID := &types.ChainID{}
+
+
 	type args struct {
 		version p2pcommon.P2PVersion
-		peerID  types.PeerID
-		r       io.ReadWriteCloser
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    p2pcommon.VersionedHandshaker
-		wantW   string
+		name   string
+		args   args
+
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		//
+		{"TRecent", args{p2pcommon.P2PVersion031}, false},
+		{"TLegacy", args{p2pcommon.P2PVersion030}, false},
+		{"TUnknown", args{9999999}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &defaultVersionManager{
-				pm:           tt.fields.pm,
-				actor:        tt.fields.actor,
-				logger:       tt.fields.logger,
-				localChainID: tt.fields.localChainID,
-			}
-			w := &bytes.Buffer{}
-			got, err := h.GetVersionedHandshaker(tt.args.version, tt.args.peerID, tt.args.r)
+			pm := p2pmock.NewMockPeerManager(ctrl)
+			actor := p2pmock.NewMockActorService(ctrl)
+			r := p2pmock.NewMockReadWriteCloser(ctrl)
+
+			h := newDefaultVersionManager(pm, actor, logger, dummyChainID)
+
+			got, err := h.GetVersionedHandshaker(tt.args.version, sampleID, r)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("defaultVersionManager.GetVersionedHandshaker() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("defaultVersionManager.GetVersionedHandshaker() = %v, want %v", got, tt.want)
-			}
-			if gotW := w.String(); gotW != tt.wantW {
-				t.Errorf("defaultVersionManager.GetVersionedHandshaker() = %v, want %v", gotW, tt.wantW)
+			if (got != nil) == tt.wantErr {
+				t.Errorf("defaultVersionManager.GetVersionedHandshaker() returns nil == %v , want %v", (got != nil), tt.wantErr )
+				return
 			}
 		})
 	}

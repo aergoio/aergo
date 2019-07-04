@@ -214,7 +214,7 @@ func (bh *getAncestorRequestHandler) handleGetAncestorReq(msg p2pcommon.Message,
 	remotePeer := bh.peer
 	status := types.ResultStatus_OK
 	if bh.logger.IsDebugEnabled() {
-		p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(data.Hashes))
+		p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, types.NewLogB58EncMarshaller(data.Hashes,10))
 	}
 
 	// send to ChainSvc

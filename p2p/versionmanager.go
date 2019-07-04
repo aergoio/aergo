@@ -51,8 +51,3 @@ func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVers
 		return nil, fmt.Errorf("not supported version")
 	}
 }
-
-func (vm *defaultVersionManager) InjectHandlers(version p2pcommon.P2PVersion, peer p2pcommon.RemotePeer) {
-	panic("implement me")
-}
-

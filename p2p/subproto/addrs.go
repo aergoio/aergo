@@ -38,7 +38,7 @@ func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
 
 	// check sender
 	maxPeers := data.MaxSize

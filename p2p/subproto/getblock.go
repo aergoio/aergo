@@ -153,7 +153,7 @@ func (bh *blockResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
 	if bh.logger.IsDebugEnabled() {
-		p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, p2putil.LogGetBlockRespMashaler{data})
+		p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 	}
 
 	// locate request data and remove it if found

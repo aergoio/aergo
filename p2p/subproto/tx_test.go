@@ -362,27 +362,6 @@ func BenchmarkArrayKey(b *testing.B) {
 
 }
 
-func Test_bytesArrToString(t *testing.T) {
-	t.SkipNow()
-	type args struct {
-		bbarray [][]byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{name: "TSucc-01", args: args{[][]byte{[]byte("abcde"), []byte("12345")}}, want: "[\"YWJjZGU=\",\"MTIzNDU=\",]"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := p2putil.BytesArrToString(tt.args.bbarray); got != tt.want {
-				t.Errorf("BytesArrToString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 type MempoolRspTxCountMatcher struct {
 	matchCnt int
 }
