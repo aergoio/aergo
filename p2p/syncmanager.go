@@ -8,8 +8,6 @@ package p2p
 import (
 	"bytes"
 	"fmt"
-	"sync"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
@@ -28,13 +26,21 @@ type syncManager struct {
 	blkCache *lru.Cache
 	txCache  *lru.Cache
 
-	syncLock *sync.Mutex
-	syncing  bool
+	hc     chan syncTask
+	finish chan int
+}
+
+type syncTask struct {
+	peer   p2pcommon.RemotePeer
+	hashes []types.TxID
+	data   *types.NewTransactionsNotice
 }
 
 func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logger *log.Logger) p2pcommon.SyncManager {
 	var err error
-	sm := &syncManager{actor: actor, pm: pm, logger: logger, syncLock: &sync.Mutex{}}
+	sm := &syncManager{actor: actor, pm: pm, logger: logger}
+	sm.hc = make(chan syncTask, syncManagerChanSize)
+	sm.finish = make(chan int)
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
@@ -48,15 +54,9 @@ func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logg
 	return sm
 }
 
-func (sm *syncManager) checkWorkToken() bool {
-	sm.syncLock.Lock()
-	defer sm.syncLock.Unlock()
-	return !sm.syncing
-}
-
 func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, block *types.Block) {
 	hash := types.MustParseBlockID(block.GetHash())
-	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
+	ok, _ := sm.blkCache.ContainsOrAdd(hash, syncManagerChanSize)
 	if ok {
 		sm.logger.Warn().Str(p2putil.LogBlkHash, hash.String()).Str(p2putil.LogPeerName, peer.Name()).Msg("Duplicated blockProduced notice")
 		return
@@ -68,7 +68,24 @@ func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, bloc
 	}
 
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil})
+}
 
+func (sm *syncManager) Run() {
+	sm.logger.Info().Msg("starting p2p syncmanager")
+SyncLoop:
+	for {
+		select {
+		case t := <-sm.hc:
+			sm.HandleNewTxNotice(t.peer, t.hashes, t.data)
+		case <-sm.finish:
+			break SyncLoop
+		}
+	}
+	sm.logger.Info().Msg("syncmanager is finished")
+}
+
+func (sm *syncManager) Stop() {
+	close(sm.finish)
 }
 
 func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *types.NewBlockNotice) {

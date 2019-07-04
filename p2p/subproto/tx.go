@@ -54,7 +54,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 	p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, body)
 
 	if th.issue() {
-		go th.handleTxReq(msg, reqHashes, 1)
+		go th.handleTxReq(msg, reqHashes)
 	} else {
 		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("return err for concurrent get tx request")
 		resp := &types.GetTransactionsResponse{
@@ -66,7 +66,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 }
 
 // this function must called only if ticket can be retrieved.
-func (th *txRequestHandler) handleTxReq(msg p2pcommon.Message, reqHashes [][]byte, tick int) {
+func (th *txRequestHandler) handleTxReq(msg p2pcommon.Message, reqHashes [][]byte) {
 	defer th.release()
 	remotePeer := th.peer
 	// TODO consider to make async if deadlock with remote peer can occurs

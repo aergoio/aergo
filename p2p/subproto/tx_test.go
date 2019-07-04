@@ -173,12 +173,13 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			mockPeer.EXPECT().SendMessage(mockMo)
 
 			header, body := test.setup(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
-			target := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
-			target.msgHelper = mockMsgHelper
+			h := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
+			h.msgHelper = mockMsgHelper
 
-			target.Handle(header, body)
+			//h.Handle(header, body)
+			h.handleTxReq(header, body.Hashes)
 			// wait for handle finished
-			<- target.w
+			<- h.w
 
 			test.verify(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
 		})
@@ -232,7 +233,8 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			h := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
 			dummyMsg := &testMessage{subProtocol: p2pcommon.GetTXsRequest, id:p2pcommon.NewMsgID()}
 			msgBody := &types.GetTransactionsRequest{Hashes: make([][]byte, test.hashCnt)}
-			h.Handle(dummyMsg, msgBody)
+			//h.Handle(dummyMsg, msgBody)
+			h.handleTxReq(dummyMsg, msgBody.Hashes)
 			// wait for handle finished
 			<- h.w
 

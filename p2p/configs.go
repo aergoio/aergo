@@ -37,6 +37,8 @@ const (
 // constants for peer internal operations
 const (
 	cleanRequestInterval = time.Hour
+
+	syncManagerChanSize = 500
 )
 
 // constants for caching

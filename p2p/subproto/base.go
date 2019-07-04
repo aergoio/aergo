@@ -58,14 +58,16 @@ func newAsyncHelper() asyncHelper {
 }
 
 func (th *asyncHelper) issue() bool {
-	select {
-	case <-th.w:
-		return true
-	default:
-		return false
-	}
+	// temporarily disable exclusive locking
+	return true
+	//select {
+	//case <-th.w:
+	//	return true
+	//default:
+	//	return false
+	//}
 }
 func (th *asyncHelper) release() {
-	th.w <- 1
+	// temporarily disable exclusive locking
+	//th.w <- 1
 }
-
