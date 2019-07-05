@@ -27,6 +27,10 @@ func (i sysParamIndex) ID() string {
 	return strings.ToUpper(i.String())
 }
 
+func (i sysParamIndex) ToKey() []byte {
+	return GenProposalKey(i.String())
+}
+
 func GetVotingIssues() []types.VotingIssue {
 	vi := make([]types.VotingIssue, sysParamMax)
 	for i := bpCount; i < sysParamMax; i++ {

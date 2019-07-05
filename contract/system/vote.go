@@ -178,11 +178,11 @@ func refreshAllVote(context *SystemContext) error {
 		account      = context.Sender.ID()
 		staked       = context.Staked
 		stakedAmount = new(big.Int).SetBytes(staked.Amount)
-		allVotes     = getProposalHistory(scs, account)
 	)
 
-	allVotes = append(allVotes, []byte(types.OpvoteBP.ID()))
-	for _, key := range allVotes {
+	for _, i := range GetVotingCatalog() {
+		key := i.ToKey()
+
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {
 			return err
@@ -191,7 +191,7 @@ func refreshAllVote(context *SystemContext) error {
 			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
-		proposal, err := getProposal(scs, ProposalIDfromKey(key))
+		proposal, err := getProposal(scs, i.ID())
 		if err != nil {
 			return err
 		}
