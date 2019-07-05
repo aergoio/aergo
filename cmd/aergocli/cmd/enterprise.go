@@ -9,10 +9,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/contract/enterprise"
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
@@ -27,11 +30,12 @@ var (
 func init() {
 	rootCmd.AddCommand(enterpriseCmd)
 
-	clusterCmd.Flags().StringVarP(&txHash, "tx", "t", "", "hash of changeCluster enterprise transaction")
 	clusterCmd.Flags().Uint64VarP(&requestID, "reqid", "r", 0, "requestID of changeCluster enterprise transaction")
+	clusterCmd.MarkFlagRequired("reqid")
 
 	enterpriseCmd.AddCommand(clusterCmd)
 	enterpriseCmd.AddCommand(enterpriseKeyCmd)
+	enterpriseCmd.AddCommand(enterpriseTxCmd)
 }
 
 var enterpriseCmd = &cobra.Command{
@@ -91,41 +95,8 @@ var clusterCmd = &cobra.Command{
 		}
 
 		var (
-			tx       *aergorpc.Tx
-			msgblock *aergorpc.TxInBlock
-			output   OutConfChange
+			output OutConfChange
 		)
-
-		// txHash -> getTx -> get BlockNo of tx -> reqid = blockNo
-		if len(txHash) != 0 {
-			txHashDecode, err := base58.Decode(txHash)
-			if err != nil {
-				cmd.Printf("Failed: invalid tx hash")
-				return
-			}
-			tx, err = client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
-			if err == nil {
-				cmd.Println("Failed: Tx doesn't executed yet")
-				return
-			} else {
-				msgblock, err = client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
-				if err != nil {
-					cmd.Printf("Failed: to get block including tx %s", err.Error())
-					return
-				}
-
-				tx = msgblock.Tx
-
-				// get requestID
-				if requestID, err = getRequestID(msgblock.TxIdx.BlockHash); err != nil {
-					cmd.Printf("Failed to get request ID: %s", err.Error())
-				}
-			}
-
-			// print payload
-			//cmd.Printf(string(tx.GetBody().Payload))
-			output.Payload = string(tx.GetBody().Payload)
-		}
 
 		// get conf chagne status with reqid
 		if requestID != 0 {
@@ -141,6 +112,70 @@ var clusterCmd = &cobra.Command{
 		}
 
 		cmd.Printf(output.ToString())
+		return
+	},
+}
+
+var enterpriseTxCmd = &cobra.Command{
+	Use:   "tx <tx hash>",
+	Short: "Print transaction for enterprise",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		txHashDecode, err := base58.Decode(args[0])
+		if err != nil {
+			cmd.Printf("Failed: invalid tx hash")
+			return
+		}
+		var (
+			tx       *aergorpc.Tx
+			msgblock *aergorpc.TxInBlock
+			output   OutConfChange
+		)
+		tx, err = client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+		if err != nil {
+			msgblock, err = client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+			if err != nil {
+				cmd.Printf("Failed: %s\n", err.Error())
+				return
+			}
+			tx = msgblock.Tx
+		}
+		output.Payload = string(tx.GetBody().Payload)
+		var ci types.CallInfo
+		if err := json.Unmarshal(tx.GetBody().Payload, &ci); err != nil {
+			cmd.Printf("Failed: tx payload is not json %s\n", err.Error())
+			return
+		}
+		switch ci.Name {
+		case enterprise.ChangeCluster:
+			// get requestID
+			if requestID, err = getRequestID(msgblock.TxIdx.BlockHash); err != nil {
+				cmd.Printf("Failed to get request ID: %s\n", err.Error())
+				return
+			}
+			// get conf chagne status with reqid
+			b := make([]byte, 8)
+			binary.LittleEndian.PutUint64(b, requestID)
+
+			msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
+			if err != nil {
+				cmd.Printf("Failed to get progress: reqid=%d, %s\n", requestID, err.Error())
+				return
+			}
+			//cmd.Printf(msgConfChangeProg.ToJsonString())
+			output.Status = msgConfChangeProg.ToPrintable()
+		default:
+			receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+			if err != nil {
+				cmd.Printf("Failed to get receipt: tx=%s, %s\n", args[0], err.Error())
+				return
+			}
+			output.Status = &aergorpc.ConfChangeProgressPrintable{
+				State: receipt.GetStatus(),
+				Error: receipt.GetRet(),
+			}
+		}
+		cmd.Println(output.ToString())
 		return
 	},
 }

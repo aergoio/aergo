@@ -3,8 +3,9 @@ package cmd
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/mr-tron/base58/base58"
 	"testing"
+
+	"github.com/mr-tron/base58/base58"
 
 	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -35,7 +36,16 @@ func TestGetConfChangeWithMock(t *testing.T) {
 		tx,
 		nil,
 	).MaxTimes(1)
-	output, err := executeCommand(rootCmd, "enterprise", "cluster", "--tx", testTxHashString)
+
+	mock.EXPECT().GetReceipt(
+		gomock.Any(), // expect any value for first parameter
+		gomock.Any(), // expect any value for second parameter
+	).Return(
+		&aergorpc.Receipt{},
+		nil,
+	).MaxTimes(2)
+
+	output, err := executeCommand(rootCmd, "enterprise", "tx", testTxHashString)
 	assert.NoError(t, err, "should be success")
 	t.Log(output)
 
@@ -77,7 +87,7 @@ func TestGetConfChangeWithMock(t *testing.T) {
 	).MaxTimes(2)
 
 	// case: GetConfChangeProgress from tx hash
-	output, err = executeCommand(rootCmd, "enterprise", "cluster", "--tx", testTxHashString)
+	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString)
 	assert.NoError(t, err, "should be success")
 	t.Log(output)
 

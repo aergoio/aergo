@@ -53,7 +53,7 @@ func (e *EnterpriseContext) HasConfValue(value string) bool {
 }
 
 func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
-	sender *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
 
 	context, err := ValidateEnterpriseTx(txBody, sender, scs, blockNo)
 	if err != nil {
@@ -85,7 +85,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 		if err != nil {
 			return nil, err
 		}
-		events, err = createSetEvent(txBody.Recipient, key, context.Conf.Values)
+		events, err = createSetEvent(receiver.ID(), key, context.Conf.Values)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			return nil, err
 		}
 		events = append(events, &types.Event{
-			ContractAddress: txBody.Recipient,
+			ContractAddress: receiver.ID(),
 			EventName:       "Enable " + string(key),
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
@@ -141,7 +141,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
 
 			events = append(events, &types.Event{
-					ContractAddress: txBody.Recipient,
+					ContractAddress: []byte(types.AergoEnterprise),
 					EventName:       "ChangeCluster ",
 					EventIdx:        0,
 					JsonArgs:        string(jsonArgs),
