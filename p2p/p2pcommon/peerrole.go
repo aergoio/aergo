@@ -14,9 +14,8 @@ const (
 	BlockProducer
 	Watcher
 	_
-	RaftLeader
-	RaftFollower
-	RaftWatcher
+	RaftProducer  // node that is ready to produce a block (can be a leader or follower)
+	RaftWatcher   // node that is not produce block.
 )
 //go:generate stringer -type=PeerRole
 
