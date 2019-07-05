@@ -30,7 +30,7 @@ RUN_TEST_SCRIPT test_slow_leader.sh
 RUN_TEST_SCRIPT test_syncer_crash.sh 0
 RUN_TEST_SCRIPT test_syncer_crash.sh 1
 RUN_TEST_SCRIPT test_member.sh
-RUN_TEST_SCRIPT test_join_backup.sh
-RUN_TEST_SCRIPT test_invalid_member_init.sh
-RUN_TEST_SCRIPT test_invalid_member_add.sh
+#RUN_TEST_SCRIPT test_join_backup.sh
+#RUN_TEST_SCRIPT test_invalid_member_init.sh
+#RUN_TEST_SCRIPT test_invalid_member_add.sh
 popd

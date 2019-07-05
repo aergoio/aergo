@@ -70,7 +70,7 @@ if [ "$usebackup" == "0" ]; then
 	init_genesis.sh $mySvrName > /dev/null 2>&1
 else 
 	echo "join using backup: $mySvrName"
-	do_sed.sh $myConfig "joinusingbackup=false" "joinusingbackup=true" "/"
+	do_sed.sh $myConfig "joinclusterusingbackup=false" "joinclusterusingbackup=true" "/"
 	run_svr.sh $mySvrName
 fi
 popd

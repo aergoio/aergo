@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	fmt "fmt"
+	"fmt"
 	"math"
 	"math/big"
 	"strings"
@@ -182,12 +182,19 @@ func (cid ChainID) ToJSON() string {
 	return ""
 }
 
+type EnterpriseBP struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	PeerID  string `json:"peerid"`
+}
+
 // Genesis represents genesis block
 type Genesis struct {
-	ID        ChainID           `json:"chain_id,omitempty"`
-	Timestamp int64             `json:"timestamp,omitempty"`
-	Balance   map[string]string `json:"balance"`
-	BPs       []string          `json:"bps"`
+	ID            ChainID           `json:"chain_id,omitempty"`
+	Timestamp     int64             `json:"timestamp,omitempty"`
+	Balance       map[string]string `json:"balance"`
+	BPs           []string          `json:"bps"`
+	EnterpriseBPs []EnterpriseBP    `json:"enterprise_bps,omitempty"`
 
 	// followings are for internal use only
 	totalBalance *big.Int

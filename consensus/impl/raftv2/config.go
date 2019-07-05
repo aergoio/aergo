@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	ErrEmptyBPs              = errors.New("BP list is empty")
 	ErrNotIncludedRaftMember = errors.New("this node isn't included in initial raft members")
 	ErrRaftEmptyTLSFile      = errors.New("cert or key file name is empty")
 	ErrNotHttpsURL           = errors.New("url scheme is not https")
@@ -30,6 +31,8 @@ const (
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	useTls := true
 	var err error
+
+	genesis := chain.Genesis
 
 	raftConfig := cfg.Consensus.Raft
 	if raftConfig == nil {
@@ -46,12 +49,12 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		ConfSnapshotCatchUpEntriesN = raftConfig.SnapFrequency
 	}
 
-	chainID, err := chain.Genesis.ID.Bytes()
+	chainID, err := genesis.ID.Bytes()
 	if err != nil {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, chain.Genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
 
 	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).
@@ -68,13 +71,21 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		}
 	}
 
-	if err = bf.bpc.AddInitialMembers(raftConfig, useTls); err != nil {
-		logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
-		return err
-	}
+	if raftConfig.NewCluster {
+		var mbrAttrs []*types.MemberAttr
+		if mbrAttrs, err = parseBpsToMembers(chain.Genesis.EnterpriseBPs); err != nil {
+			logger.Error().Err(err).Msg("failed to parse bp list of Genesis block")
+			return err
+		}
 
-	if bf.bpc.Members().len() == 0 {
-		logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
+		if err = bf.bpc.AddInitialMembers(mbrAttrs); err != nil {
+			logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
+			return err
+		}
+
+		if bf.bpc.Members().len() == 0 {
+			logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
+		}
 	}
 
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
@@ -82,6 +93,30 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", consensus.BlockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
+}
+
+func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
+	bpLen := len(bps)
+	if bpLen == 0 {
+		return nil, ErrEmptyBPs
+	}
+
+	mbrs := make([]*types.MemberAttr, bpLen)
+	for i, bp := range bps {
+		trimUrl := strings.TrimSpace(bp.Address)
+		if err := isValidURL(trimUrl, false); err != nil {
+			return nil, err
+		}
+
+		peerID, err := types.IDB58Decode(bp.PeerID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid raft peerID BP[%d]:%s", i, bp.PeerID)
+		}
+
+		mbrs[i] = &types.MemberAttr{Name: bp.Name, Url: trimUrl, PeerID: []byte(peerID)}
+	}
+
+	return mbrs, nil
 }
 
 func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
@@ -131,27 +166,10 @@ func isValidURL(urlstr string, useTls bool) error {
 	return nil
 }
 
-func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) error {
+func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
 	logger.Debug().Msg("add cluster members from config file")
-	lenBPs := len(raftCfg.BPs)
-	if lenBPs == 0 {
-		return fmt.Errorf("config of raft bp is empty")
-	}
-
-	// validate each bp
-	for _, raftBP := range raftCfg.BPs {
-		trimUrl := strings.TrimSpace(raftBP.Url)
-
-		if err := isValidURL(trimUrl, useTls); err != nil {
-			return err
-		}
-
-		peerID, err := types.IDB58Decode(raftBP.P2pID)
-		if err != nil {
-			return fmt.Errorf("invalid raft peerID %s", raftBP.P2pID)
-		}
-
-		m := consensus.NewMember(raftBP.Name, trimUrl, peerID, cl.chainID, cl.chainTimestamp)
+	for _, mbrAttr := range mbrs {
+		m := consensus.NewMember(mbrAttr.Name, mbrAttr.Url, types.PeerID(mbrAttr.PeerID), cl.chainID, cl.chainTimestamp)
 
 		if err := cl.isValidMember(m); err != nil {
 			return err

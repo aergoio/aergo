@@ -193,8 +193,22 @@ func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (id *consensus.RaftIdentity
 
 	logger.Info().Uint64("snapidx", snapIdx).Uint64("snapterm", snapTerm).Uint64("commit", commitIdx).Uint64("last", lastIdx).Msg("read all entries of wal")
 
-	for i := snapIdx + 1; i <= lastIdx; i++ {
+	start := snapIdx + 1
+	if start == uint64(1) {
+		for i := start; i <= lastIdx; i++ {
+			if _, err := wal.GetRaftEntry(i); err != nil {
+				// if snapshot is nil, initial confchange entry isn't saved to db
+				start = i + 1
+				continue
+			}
+			break
+		}
+		logger.Debug().Uint64("startIdx", start).Msg("skip not exist raft entry")
+	}
+
+	for i := start; i <= lastIdx; i++ {
 		walEntry, err := wal.GetRaftEntry(i)
+		// if snapshot is nil, initial confchange entry isn't saved to db
 		if err != nil {
 			logger.Error().Err(err).Uint64("idx", i).Msg("failed to get raft entry")
 			return id, state, nil, err

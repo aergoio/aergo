@@ -1,6 +1,7 @@
 package raftv2
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
@@ -446,26 +447,18 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	cl.Lock()
 	defer cl.Unlock()
 
-	myMembers := cl.Members().ToArray()
-	exMembers := existingCl.Members().ToArray()
-
-	if len(myMembers) != len(exMembers) {
+	if !bytes.Equal(existingCl.chainID, cl.chainID) {
+		logger.Error().Msg("My chainID is different from the existing cluster")
 		return false
 	}
 
-	// sort by name
-	sort.Sort(consensus.MembersByName(myMembers))
-	sort.Sort(consensus.MembersByName(exMembers))
-
-	for i, myMember := range myMembers {
-		exMember := exMembers[i]
-		if !myMember.IsCompatible(exMember) {
-			logger.Error().Str("mymember", myMember.ToString()).Str("existmember", exMember.ToString()).Msg("not compatible with existing member configuration")
-			return false
-		}
-
-		myMember.SetMemberID(exMember.GetID())
+	// check if this node is already added in existing cluster
+	if existingCl.Members().getMemberByName(cl.NodeName()) == nil {
+		logger.Error().Msg("This node doesn't exist in the existing cluster")
+		return false
 	}
+
+	cl.members = existingCl.Members()
 
 	myNodeID := existingCl.getNodeID(cl.NodeName())
 
@@ -765,11 +758,7 @@ func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.
 		return nil, consensus.ErrInvalidMemberAttr
 	}
 
-	peerID, err := types.IDB58Decode(string(req.Attr.PeerID))
-	if err != nil {
-		return nil, err
-	}
-	return consensus.NewMember(req.Attr.Name, req.Attr.Url, peerID, cl.chainID, time.Now().UnixNano()), nil
+	return consensus.NewMember(req.Attr.Name, req.Attr.Url, types.PeerID(req.Attr.PeerID), cl.chainID, time.Now().UnixNano()), nil
 }
 
 func (cl *Cluster) NewMemberFromRemoveReq(req *types.MembershipChange) (*consensus.Member, error) {

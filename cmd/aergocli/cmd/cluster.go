@@ -43,9 +43,15 @@ var addCmd = &cobra.Command{
 			return
 		}
 
+		peerIDBytes, err := aergorpc.IDB58Decode(peerid)
+		if err != nil {
+			cmd.Printf("FAiled to add member: invalid raft peerid(%s)", peerid)
+			return
+		}
+
 		var changeReq = &aergorpc.MembershipChange{
 			Type: aergorpc.MembershipChangeType_ADD_MEMBER,
-			Attr: &aergorpc.MemberAttr{Name: nodename, Url: url, PeerID: []byte(peerid)},
+			Attr: &aergorpc.MemberAttr{Name: nodename, Url: url, PeerID: []byte(peerIDBytes)},
 		}
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {

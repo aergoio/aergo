@@ -400,6 +400,21 @@ func (rs *raftServer) ID() uint64 {
 }
 
 func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
+	var (
+		blk *types.Block
+		err error
+	)
+	validateEmpty := func() {
+		if blk, err = rs.walDB.GetBestBlock(); err != nil {
+			logger.Fatal().Err(err).Msg("failed to get best block, so failed to start raft server")
+		}
+		if blk.BlockNo() > 0 {
+			logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
+		}
+	}
+
+	validateEmpty()
+
 	if err := rs.cluster.SetThisNodeID(); err != nil {
 		logger.Fatal().Err(err).Msg("failed to set id of this node")
 	}
@@ -1354,9 +1369,28 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 		cl        *Cluster
 		hardstate *types.HardStateInfo
 		err       error
+		bestHash  []byte
+		bestBlk   *types.Block
 	)
+
+	getBestHash := func() []byte {
+		if bestBlk, err = rs.walDB.GetBestBlock(); err != nil {
+			logger.Fatal().Msg("failed to get best block of my chain to get existing cluster info")
+		}
+
+		logger.Info().Str("hash", bestBlk.ID()).Uint64("no", bestBlk.BlockNo()).Msg("best block of backup")
+
+		if bestBlk.BlockNo() == 0 {
+			return nil
+		}
+
+		return bestBlk.BlockHash()
+	}
+
+	bestHash = getBestHash()
+
 	for i := 1; i <= MaxTryGetCluster; i++ {
-		cl, hardstate, err = GetClusterInfo(rs.ComponentHub)
+		cl, hardstate, err = GetClusterInfo(rs.ComponentHub, bestHash)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
 				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")

@@ -759,3 +759,8 @@ func (rop *RaftOperator) toString() string {
 func shutdownMsg(m string) {
 	logger.Info().Msgf("shutdown initiated. stop the %s", m)
 }
+
+func ValidateGenesis(genesis *types.Genesis) error {
+	// TODO, XXX
+	return nil
+}

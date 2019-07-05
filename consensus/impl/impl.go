@@ -16,6 +16,8 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/rpc"
+	"github.com/aergoio/aergo/types"
+	"strings"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.
@@ -57,4 +59,18 @@ func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 	}
 
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()
+}
+
+type GenesisValidator func(genesis *types.Genesis) error
+
+func ValidateGenesis(genesis *types.Genesis) error {
+	name := strings.ToLower(genesis.ConsensusType())
+
+	validators := map[string]GenesisValidator{
+		dpos.GetName():   nil,                    // DPoS
+		sbp.GetName():    nil,                    // Simple BP
+		raftv2.GetName(): raftv2.ValidateGenesis, // Raft BP
+	}
+
+	return validators[name](genesis)
 }

@@ -45,9 +45,4 @@ blockintervalms = 1000
 name="aergo3"
 listenurl="http://0.0.0.0:13003"
 snapfrequency=10
-bps = [
-{name="aergo1",url="http://127.0.0.1:13001",p2pid="16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn"},
-{name="aergo2",url="http://127.0.0.1:13002",p2pid="16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6"},
-{name="aergo3",url="http://127.0.0.1:13003",p2pid="16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"},
-]
 #

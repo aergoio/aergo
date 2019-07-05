@@ -14,8 +14,9 @@ var (
 	testPeerID types.PeerID
 	testEncID  string
 
-	testSnapData *consensus.SnapshotData
-	testPeerIDs  = []string{
+	testSnapData   *consensus.SnapshotData
+	testPeerIDs    []types.PeerID
+	testPeerIDStrs = []string{
 		"16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn",
 		"16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6",
 		"16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ",
@@ -25,7 +26,13 @@ var (
 
 func init() {
 	testEncID = "16Uiu2HAkxVB65cmCWceTu4HsHnz8WkUKknZXwr7PYdg2vy1fjDcU"
+	testPeerIDs = make([]types.PeerID, len(testPeerIDStrs))
 	testPeerID, _ = types.IDB58Decode(testEncID)
+
+	for i, peerStr := range testPeerIDStrs {
+		peerID, _ := types.IDB58Decode(peerStr)
+		testPeerIDs[i] = peerID
+	}
 
 	testMbrs = []*consensus.Member{
 		{types.MemberAttr{
@@ -89,16 +96,23 @@ func TestClusterConfChange(t *testing.T) {
 	testCfg := serverCtx.GetDefaultConfig().(*config.Config)
 	testCfg.Consensus.Raft = &config.RaftConfig{
 		Name: "testraft",
-		BPs: []config.RaftBPConfig{
-			{"test1", "http://127.0.0.1:10001", testPeerIDs[0]},
-			{"test2", "http://127.0.0.1:10002", testPeerIDs[1]},
-			{"test3", "http://127.0.0.1:10003", testPeerIDs[2]},
-		},
+		/*
+			BPs: []config.RaftBPConfig{
+				{"test1", "http://127.0.0.1:10001", testPeerIDs[0]},
+				{"test2", "http://127.0.0.1:10002", testPeerIDs[1]},
+				{"test3", "http://127.0.0.1:10003", testPeerIDs[2]},
+			},*/
+	}
+
+	mbrs := []*types.MemberAttr{
+		{ID: 0, Name: "test1", Url: "http://127.0.0.1:10001", PeerID: []byte(testPeerIDs[0])},
+		{ID: 1, Name: "test2", Url: "http://127.0.0.1:10002", PeerID: []byte(testPeerIDs[1])},
+		{ID: 2, Name: "test3", Url: "http://127.0.0.1:10003", PeerID: []byte(testPeerIDs[2])},
 	}
 
 	cl := NewCluster([]byte("test"), nil, "testraft", 0, nil)
 
-	err := cl.AddInitialMembers(testCfg.Consensus.Raft, false)
+	err := cl.AddInitialMembers(mbrs)
 	assert.NoError(t, err)
 
 	// add applied members
@@ -110,7 +124,7 @@ func TestClusterConfChange(t *testing.T) {
 	// normal case
 	req := &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{Name: "test4", Url: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{ID: 3, Name: "test4", Url: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.NoError(t, err)

@@ -53,18 +53,18 @@ func (cdb *ChainDB) clearWAL() {
 	logger.Info().Msg("clear all data used by raft")
 
 	removeAllRaftEntries := func(lastIdx uint64) {
+		logger.Debug().Uint64("last", lastIdx).Msg("reset raft entries from datafiles")
+
 		bulk := cdb.store.NewBulk()
 		defer bulk.DiscardLast()
 
-		for i := lastIdx; i >= 0; i-- {
+		for i := lastIdx; i >= 1; i-- {
 			bulk.Delete(getRaftEntryKey(i))
 		}
 
 		bulk.Delete(raftEntryLastIdxKey)
 
 		bulk.Flush()
-
-		logger.Debug().Msg("reset raft entries from datafiles")
 	}
 
 	dbTx := cdb.store.NewTx()
@@ -87,6 +87,8 @@ func (cdb *ChainDB) clearWAL() {
 		// remove 1 ~ last raft entry
 		removeAllRaftEntries(last)
 	}
+
+	logger.Debug().Msg("clear WAL done")
 }
 
 func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
