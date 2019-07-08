@@ -538,20 +538,17 @@ func TestProposalExecute(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "failed in voting proposal")
 
-	whereToVote := getProposalHistory(scs, sender.ID())
-	assert.Equal(t, "proposal\\BPCOUNT", string(whereToVote[0]), "check vote history")
-
 	vinfo, err := GetVotes(scs, sender.ID())
 	assert.NoError(t, err, "failed in get vote")
 	t.Log(vinfo)
 	assert.Equal(t, "13", string(vinfo[0].Candidates[0]), "check vote")
 
-	v, err := getVote(scs, whereToVote[0], sender.ID())
+	v, err := getVote(scs, bpCount.Key(), sender.ID())
 	assert.NoError(t, err, "failed in get vote")
 	assert.Equal(t, "[\"13\"]", string(v.Candidate), "check vote candidates")
 	assert.Equal(t, balance1, new(big.Int).SetBytes(v.Amount), "check vote amount")
 
-	voteResult, err := getVoteResult(scs, GenProposalKey("BPCOUNT"), 1)
+	voteResult, err := getVoteResult(scs, bpCount.Key(), 1)
 	assert.NoError(t, err, "get vote result")
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
 

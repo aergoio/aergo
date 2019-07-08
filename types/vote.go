@@ -15,7 +15,7 @@ const (
 
 type VotingIssue interface {
 	ID() string
-	ToKey() []byte
+	Key() []byte
 }
 
 //go:generate stringer -type=OpSysTx
@@ -85,7 +85,7 @@ func (op OpSysTx) Cmd() string {
 	return fmt.Sprintf("v%d%s", version, name)
 }
 
-func (op OpSysTx) ToKey() []byte {
+func (op OpSysTx) Key() []byte {
 	return []byte(op.ID())
 }
 

@@ -135,7 +135,7 @@ func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, erro
 
 	for _, i := range GetVotingCatalog() {
 		id := i.ID()
-		key := i.ToKey()
+		key := i.Key()
 
 		result := &types.VoteInfo{Id: id}
 		v, err := getVote(scs, key, address)

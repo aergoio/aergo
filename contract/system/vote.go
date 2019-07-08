@@ -78,9 +78,6 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := addProposalHistory(scs, ctx.Sender.ID(), cmd.Proposal); err != nil {
-			return nil, err
-		}
 		cmd.candidate = cmd.args
 	} else {
 		cmd.issue = []byte(ctx.op.ID())
@@ -181,7 +178,7 @@ func refreshAllVote(context *SystemContext) error {
 	)
 
 	for _, i := range GetVotingCatalog() {
-		key := i.ToKey()
+		key := i.Key()
 
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {
