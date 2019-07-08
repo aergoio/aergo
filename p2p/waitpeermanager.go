@@ -204,22 +204,13 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVer
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer. stream s will be owned to remotePeer if succeed to add peer.
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
-	var peerID = meta.ID
 	msgRW, remoteStatus, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
 		dpm.logger.Debug().Err(err).Bool("outbound",outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
-		if msgRW != nil {
-			dpm.sendGoAway(msgRW, err.Error())
-		}
 		return meta, false
 	}
 	// update peer meta info using sent information from remote peer
 	receivedMeta := p2pcommon.NewMetaFromStatus(remoteStatus, outbound)
-	if receivedMeta.ID != peerID {
-		dpm.logger.Debug().Str("received_peer_id", receivedMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Inconsistent peerID")
-		dpm.sendGoAway(msgRW, "Inconsistent peerID")
-		return meta, false
-	}
 
 	dpm.pm.peerHandshaked <- handshakeResult{meta: receivedMeta, status:remoteStatus, msgRW:msgRW, s:s}
 	return receivedMeta, true
@@ -249,16 +240,6 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 	}
 
 }
-
-func (dpm *basePeerManager) sendGoAway(rw p2pcommon.MsgReadWriter, msg string) {
-	goMsg := &types.GoAwayNotice{Message: msg}
-	// TODO code smell. non safe casting. too many member depth
-	mo := dpm.pm.mf.NewMsgRequestOrder(false, p2pcommon.GoAway, goMsg).(*pbRequestOrder)
-	container := mo.message
-
-	rw.WriteMsg(container)
-}
-
 
 type staticWPManager struct {
 	basePeerManager

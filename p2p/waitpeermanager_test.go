@@ -163,9 +163,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 		// failed to handshake
 		{"TErrHandshake", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
 			nil, errors.New("handshake err"), false, false, dummyPeerID, false},
-		// invalid status information
-		{"TErrDiffPeerID", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
-			dummyStatus(dummyPeerID2, false), nil, false, false, dummyPeerID, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
