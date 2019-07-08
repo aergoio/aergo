@@ -131,16 +131,21 @@ func getMinimumStaking(scs *state.ContractState) *big.Int {
 }
 
 func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
-	votes := getProposalHistory(scs, address)
 	var results []*types.VoteInfo
-	votes = append(votes, []byte(defaultVoteKey))
-	for _, key := range votes {
-		id := ProposalIDfromKey(key)
+
+	for _, i := range GetVotingCatalog() {
+		id := i.ID()
+		key := i.ToKey()
+
 		result := &types.VoteInfo{Id: id}
 		v, err := getVote(scs, key, address)
 		if err != nil {
 			return nil, err
 		}
+		if v.Amount == nil {
+			continue
+		}
+
 		if bytes.Equal(key, defaultVoteKey) {
 			for offset := 0; offset < len(v.Candidate); offset += PeerIDLength {
 				candi := base58.Encode(v.Candidate[offset : offset+PeerIDLength])

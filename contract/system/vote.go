@@ -219,7 +219,7 @@ func refreshAllVote(context *SystemContext) error {
 	return nil
 }
 
-//GetVote return amount, to, err
+// GetVote return amount, to, err.
 func GetVote(scs *state.ContractState, voter []byte, title []byte) (*types.Vote, error) {
 	return getVote(scs, title, voter)
 }
@@ -230,7 +230,7 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 	if err != nil {
 		return nil, err
 	}
-	var vote types.Vote
+
 	if len(data) != 0 {
 		if bytes.Equal(key, defaultVoteKey) {
 			return deserializeVote(data), nil
@@ -239,7 +239,7 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 		}
 	}
 
-	return &vote, nil
+	return &types.Vote{}, nil
 }
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
