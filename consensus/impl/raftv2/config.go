@@ -104,6 +104,7 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 	mbrs := make([]*types.MemberAttr, bpLen)
 	for i, bp := range bps {
 		trimUrl := strings.TrimSpace(bp.Address)
+		// TODO when p2p is applied, have to validate peer address
 		if err := isValidURL(trimUrl, false); err != nil {
 			return nil, err
 		}

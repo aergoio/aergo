@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,8 +48,9 @@ var (
 )
 
 var (
-	ErrClusterNotReady = errors.New("cluster is not ready")
-	ErrNotRaftLeader   = errors.New("this node is not leader")
+	ErrClusterNotReady      = errors.New("cluster is not ready")
+	ErrNotRaftLeader        = errors.New("this node is not leader")
+	ErrInvalidConsensusName = errors.New("invalid consensus name")
 )
 
 func init() {
@@ -770,6 +772,15 @@ func shutdownMsg(m string) {
 }
 
 func ValidateGenesis(genesis *types.Genesis) error {
-	// TODO, XXX
+	if strings.ToLower(genesis.ID.Consensus) != consensus.ConsensusName[consensus.ConsensusRAFT] {
+		return ErrInvalidConsensusName
+	}
+
+	// validate BPS
+	if _, err := parseBpsToMembers(genesis.EnterpriseBPs); err != nil {
+		logger.Error().Err(err).Msg("failed to parse bp list of Genesis block")
+		return err
+	}
+
 	return nil
 }
