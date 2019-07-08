@@ -243,3 +243,7 @@ func (s *SimpleBlockFactory) MakeConfChangeProposal(req *types.MembershipChange)
 func (s *SimpleBlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
 	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
 }
+
+func ValidateGenesis(genesis *types.Genesis) error {
+	return nil
+}

@@ -67,8 +67,8 @@ func ValidateGenesis(genesis *types.Genesis) error {
 	name := strings.ToLower(genesis.ConsensusType())
 
 	validators := map[string]GenesisValidator{
-		dpos.GetName():   nil,                    // DPoS
-		sbp.GetName():    nil,                    // Simple BP
+		dpos.GetName():   dpos.ValidateGenesis,   // DPoS
+		sbp.GetName():    sbp.ValidateGenesis,    // Simple BP
 		raftv2.GetName(): raftv2.ValidateGenesis, // Raft BP
 	}
 
