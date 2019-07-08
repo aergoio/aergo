@@ -340,7 +340,7 @@ func (rs *raftServer) startRaft() {
 
 		rs.cluster.ResetMembers()
 
-		node = rs.restartNode()
+		node = rs.restartNode(false)
 
 	case RaftServerStateJoinCluster:
 		logger.Info().Msg("raft start and join existing cluster")
@@ -367,7 +367,7 @@ func (rs *raftServer) startRaft() {
 				logger.Fatal().Err(err).Msg("fafiled to save identity")
 			}
 
-			node = rs.restartNode()
+			node = rs.restartNode(true)
 
 			logger.Info().Msg("raft restarted from backup")
 		} else {
@@ -437,7 +437,7 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	return raftlib.StartNode(c, startPeers)
 }
 
-func (rs *raftServer) restartNode() raftlib.Node {
+func (rs *raftServer) restartNode(join bool) raftlib.Node {
 	snapshot, err := rs.loadSnapshot()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to read snapshot")
@@ -448,7 +448,9 @@ func (rs *raftServer) restartNode() raftlib.Node {
 	}
 
 	// members of cluster will be loaded from snapshot or wal
-	if snapshot != nil {
+	// When restart from join, cluster must not recover from temporary snapshot since members are empty.
+	// Instead, node must use a cluster info received from remote server
+	if join == false && snapshot != nil {
 		if err := rs.cluster.Recover(snapshot); err != nil {
 			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
 		}
@@ -518,6 +520,8 @@ func (rs *raftServer) getNodeSync() raftlib.Node {
 
 // stop closes http, closes all channels, and stops raft.
 func (rs *raftServer) stop() {
+	logger.Info().Msg("stop raft server")
+
 	rs.stopHTTP()
 	close(rs.commitC)
 	close(rs.errorC)
@@ -1079,7 +1083,9 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 
 		if cc.ID != 0 {
-			rs.saveConfChangeState(cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_APPLIED, err)
+			if err = rs.saveConfChangeState(cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_APPLIED, err); err != nil {
+				logger.Error().Err(err).Msg("failed to save conf change status")
+			}
 			rs.cluster.AfterConfChange(cc, member, err)
 		}
 		return true
