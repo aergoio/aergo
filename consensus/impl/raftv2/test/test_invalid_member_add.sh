@@ -17,7 +17,7 @@ rm $TEST_RAFT_INSTANCE/BP*
 echo ""
 echo "========= join invalid config member aergo4 ========="
 pushd $TEST_RAFT_INSTANCE/config
-do_sed.sh BP11004.toml 127 137 =
+do_sed.sh BP11004.toml aergo4 aergoxxx =
 popd
 
 TEST_SKIP_GENESIS=0 make_node.sh 
@@ -37,7 +37,7 @@ if [ "$?" = "1" ]; then
 fi
 
 pushd $TEST_RAFT_INSTANCE/config
-do_sed.sh BP11004.toml 13009 13002 =
+do_sed.sh BP11004.toml aergoxxx aergo4 =
 popd
 
 echo ""

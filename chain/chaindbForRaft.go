@@ -13,14 +13,12 @@ import (
 )
 
 var (
-	ErrMismatchedEntry          = errors.New("mismatched entry")
-	ErrNoWalEntry               = errors.New("no entry")
-	ErrEncodeRaftIdentity       = errors.New("failed encoding of raft identity")
-	ErrDecodeRaftIdentity       = errors.New("failed decoding of raft identity")
-	ErrNoWalEntryForBlock       = errors.New("no raft entry for block")
-	ErrNilHardState             = errors.New("hardstateinfo must not be nil")
-	ErrEncodeConfChangeProgress = errors.New("failed encoding of raft conf change status")
-	ErrDecodeConfChangeProgress = errors.New("failed decoding of raft conf change status")
+	ErrMismatchedEntry    = errors.New("mismatched entry")
+	ErrNoWalEntry         = errors.New("no entry")
+	ErrEncodeRaftIdentity = errors.New("failed encoding of raft identity")
+	ErrDecodeRaftIdentity = errors.New("failed decoding of raft identity")
+	ErrNoWalEntryForBlock = errors.New("no raft entry for block")
+	ErrNilHardState       = errors.New("hardstateinfo must not be nil")
 )
 
 func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
@@ -34,6 +32,34 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 
 	if err := cdb.WriteHardState(&raftpb.HardState{Term: hardStateInfo.Term, Commit: hardStateInfo.Commit}); err != nil {
 		return err
+	}
+
+	// build snapshot
+	var (
+		snapBlock *types.Block
+		err       error
+	)
+	if snapBlock, err = cdb.GetBestBlock(); err != nil {
+		return err
+	}
+
+	snapData := consensus.NewSnapshotData(nil, nil, snapBlock)
+	if snapData == nil {
+		panic("new snap failed")
+	}
+
+	data, err := snapData.Encode()
+	if err != nil {
+		return err
+	}
+
+	tmpSnapshot := raftpb.Snapshot{
+		Metadata: raftpb.SnapshotMetadata{Index: hardStateInfo.Commit, Term: hardStateInfo.Term},
+		Data:     data,
+	}
+
+	if err := cdb.WriteSnapshot(&tmpSnapshot); err != nil {
+		logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
 	}
 
 	// write initial values
@@ -196,7 +222,10 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 			if ccProposes[i] == nil {
 				logger.Fatal().Str("entry", entry.ToString()).Msg("confChangePropose must not be nil")
 			}
-			cdb.writeConfChangeProgress(dbTx, ccProposes[i].ID, &types.ConfChangeProgress{State: types.ConfChangeState_CONF_CHANGE_STATE_SAVED, Err: ""})
+			if err := cdb.writeConfChangeProgress(dbTx, ccProposes[i].ID,
+				&types.ConfChangeProgress{State: types.ConfChangeState_CONF_CHANGE_STATE_SAVED, Err: ""}); err != nil {
+				return err
+			}
 
 			targetNo = ccProposes[i].ID
 		}
@@ -439,7 +468,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 		return nil, ErrDecodeRaftIdentity
 	}
 
-	logger.Info().Uint64("id", id.ID).Str("name", id.Name).Msg("get raft identity")
+	logger.Info().Str("id", types.Uint64ToHexaString(id.ID)).Str("name", id.Name).Msg("get raft identity")
 
 	return &id, nil
 }

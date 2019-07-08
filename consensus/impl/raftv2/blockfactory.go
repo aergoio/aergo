@@ -30,6 +30,7 @@ const (
 	slotQueueMax              = 100
 	DefaultCommitQueueLen     = 10
 	DefaultBlockFactoryTickMs = 100
+	MinBlockFactoryTickMs     = 10
 )
 
 var (
@@ -161,11 +162,19 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 }
 
 func Init(raftCfg *config.RaftConfig) {
+	var tickMs time.Duration
+
 	if raftCfg.BlockFactoryTickMs != 0 {
-		BlockFactoryTickMs = time.Millisecond * time.Duration(raftCfg.BlockFactoryTickMs)
+		if raftCfg.BlockFactoryTickMs < MinBlockFactoryTickMs {
+			tickMs = MinBlockFactoryTickMs
+		} else {
+			tickMs = time.Duration(raftCfg.BlockFactoryTickMs)
+		}
 	} else {
-		BlockFactoryTickMs = DefaultBlockFactoryTickMs
+		tickMs = DefaultBlockFactoryTickMs
 	}
+
+	BlockFactoryTickMs = time.Millisecond * tickMs
 
 	if raftCfg.BlockIntervalMs != 0 {
 		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BlockIntervalMs)
@@ -173,8 +182,8 @@ func Init(raftCfg *config.RaftConfig) {
 		BlockIntervalMs = consensus.BlockInterval
 	}
 
-	logger.Info().Int64("interval(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
-		Int64("timeout(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block interval")
+	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
+		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {

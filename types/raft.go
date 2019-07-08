@@ -78,3 +78,7 @@ func RaftHardStateToString(hardstate raftpb.HardState) string {
 func RaftEntryToString(entry *raftpb.Entry) string {
 	return fmt.Sprintf("term=%d, index=%d, type=%s", entry.Term, entry.Index, raftpb.EntryType_name[int32(entry.Type)])
 }
+
+func Uint64ToHexaString(id uint64) string {
+	return fmt.Sprintf("%x", id)
+}
