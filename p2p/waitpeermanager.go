@@ -48,13 +48,11 @@ type basePeerManager struct {
 
 
 func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
-	version := p2pcommon.P2PVersion031
-
 	peerID := s.Conn().RemotePeer()
 	tempMeta := p2pcommon.PeerMeta{ID: peerID}
 	addr := s.Conn().RemoteMultiaddr()
 
-	dpm.logger.Debug().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
+	dpm.logger.Info().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
 	query := inboundConnEvent{meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
@@ -63,7 +61,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 		return
 	}
 
-	h := dpm.pm.hsFactory.CreateHSHandler(version, false, peerID)
+	h := dpm.pm.hsFactory.CreateHSHandler(false, false, peerID)
 	// check if remote peer is connected (already handshaked)
 	completeMeta, added := dpm.tryAddPeer(false, tempMeta, s, h)
 	if !added {
@@ -81,7 +79,7 @@ func (dpm *basePeerManager) OnInboundConnLegacy(s network.Stream) {
 	tempMeta := p2pcommon.PeerMeta{ID: peerID}
 	addr := s.Conn().RemoteMultiaddr()
 
-	dpm.logger.Debug().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new legacy inbound peer arrived")
+	dpm.logger.Info().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new legacy inbound peer arrived")
 	query := inboundConnEvent{meta: tempMeta, p2pVer: version, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
@@ -90,7 +88,7 @@ func (dpm *basePeerManager) OnInboundConnLegacy(s network.Stream) {
 		return
 	}
 
-	h := dpm.pm.hsFactory.CreateHSHandler(version, false, peerID)
+	h := dpm.pm.hsFactory.CreateHSHandler(true, false, peerID)
 	// check if remote peer is connected (already handshaked)
 	completeMeta, added := dpm.tryAddPeer(false, tempMeta, s, h)
 	if !added {
@@ -165,13 +163,13 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 
 
 	meta := wp.Meta
-	p2pversion, s, err := dpm.getStream(meta)
+	legacy, s, err := dpm.getStream(meta)
 	if err != nil {
 		dpm.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to get stream.")
 		workResult.Result = err
 		return
 	}
-	h := dpm.pm.hsFactory.CreateHSHandler(p2pversion, true, meta.ID)
+	h := dpm.pm.hsFactory.CreateHSHandler(legacy, true, meta.ID)
 	// handshake
 	completeMeta, added := dpm.tryAddPeer(true, meta, s, h)
 	if !added {
@@ -185,19 +183,20 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 	}
 }
 
-func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (p2pcommon.P2PVersion, network.Stream, error) {
+// getStream returns is wire handshake is legacy or newer
+func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (bool, network.Stream, error) {
 	// try connect peer with possible versions
 	s, err := dpm.pm.nt.GetOrCreateStream(meta, p2pcommon.P2PSubAddr, p2pcommon.LegacyP2PSubAddr)
 	if err != nil {
-		return p2pcommon.P2PVersionUnknown, nil, err
+		return false, nil, err
 	}
 	switch s.Protocol() {
 	case p2pcommon.P2PSubAddr:
-		return p2pcommon.P2PVersion031, s, nil
+		return false, s, nil
 	case p2pcommon.LegacyP2PSubAddr:
-		return p2pcommon.P2PVersion030, s, err
+		return true, s, nil
 	default:
-		return p2pcommon.P2PVersionUnknown, nil, fmt.Errorf("unknown p2p wire protocol %v",s.Protocol())
+		return false, nil, fmt.Errorf("unknown p2p wire protocol %v", s.Protocol())
 	}
 }
 

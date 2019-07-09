@@ -193,36 +193,38 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	sampleChainID := &types.ChainID{}
 	sampleStatus := &types.Status{}
 	logger := log.NewLogger("p2p.test")
-	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}}.Marshal()
+	// This bytes is actually hard-coded in source handshake_v2.go.
+	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
 
 	tests := []struct {
 		name string
 
-		remoteBestVer p2pcommon.P2PVersion
-		ctxCancel     int    // 0 is not , 1 is during write, 2 is during read
-		vhErr         bool   // version handshaker failed
-		receivingBuf  []byte // received resp
+		remoteRespVer  p2pcommon.P2PVersion
+		ctxCancel      int    // 0 is not , 1 is during write, 2 is during read
+		versionHSerror bool   // whether version handshaker return failed or not
+		remoteResponse []byte // emulate response from remote peer
 
 		wantErr bool
 	}{
 		// remote listening peer accept my best p2p version
-		{"TCurrentVersion", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), false},
+		{"TCurrentVersion", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), false},
 		// remote listening peer can connect, but old p2p version
-		{"TOldVersion", p2pcommon.P2PVersion030, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion030.Uint32()}.Marshal(), false},
+		{"TOldVersion", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), false},
+		{"TOlderVersion", p2pcommon.P2PVersion030, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion030.Uint32()}.Marshal(), false},
 		// wrong io read
-		{"TWrongResp", p2pcommon.P2PVersion031, 0, false, outBytes[:6], true},
+		{"TWrongResp", p2pcommon.P2PVersion032, 0, false, outBytes[:6], true},
 		// {"TWrongWrite", sampleEmptyHSReq.Marshal()[:7], sampleEmptyHSResp.Marshal(), true },
 		// wrong magic
-		{"TWrongMagic", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrWrongHSReq}.Marshal(), true},
+		{"TWrongMagic", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrWrongHSReq}.Marshal(), true},
 		// not supported version (or wrong version)
 		{"TNoVersion", p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrNoMatchedVersion}.Marshal(), true},
 		// protocol handshake failed
-		{"TVersionHSFailed", p2pcommon.P2PVersion031, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), true},
+		{"TVersionHSFailed", p2pcommon.P2PVersion032, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), true},
 
 		// timeout while read, no reply to remote
 		{"TTimeoutRead", p2pcommon.P2PVersion031, 1, false, []byte{}, true},
 		// timeout while writing, sent but remote not receiving fast
-		{"TTimeoutWrite", p2pcommon.P2PVersion031, 2, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), true},
+		{"TTimeoutWrite", p2pcommon.P2PVersion032, 2, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -233,16 +235,16 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 
 			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
 			wbuf := bytes.NewBuffer(nil)
-			dummyRWC := &RWCWrapper{bytes.NewBuffer(tt.receivingBuf), wbuf, nil}
+			dummyRWC := &RWCWrapper{bytes.NewBuffer(tt.remoteResponse), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
-			mockVM.EXPECT().GetVersionedHandshaker(tt.remoteBestVer, gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
-			if !tt.vhErr {
-				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
-				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
-			} else {
+			mockVM.EXPECT().GetVersionedHandshaker(tt.remoteRespVer, gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
+			if tt.versionHSerror {
 				mockVH.EXPECT().DoForOutbound(mockCtx).Return(nil, errors.New("version hs failed")).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(nil).MaxTimes(1)
+			} else {
+				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
+				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
 			}
 
 			h := NewOutboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
@@ -251,7 +253,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !bytes.Equal(wbuf.Bytes(), outBytes) {
-				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() send resp %v, want %v", wbuf.Bytes(), tt.receivingBuf)
+				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() send resp %v, want %v", wbuf.Bytes(), outBytes)
 			}
 			if !tt.wantErr {
 				if got == nil {

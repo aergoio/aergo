@@ -23,7 +23,7 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 	defer ctrl.Finish()
 
 	type args struct {
-		p2pVersion p2pcommon.P2PVersion
+		legacy bool
 		outbound   bool
 	}
 	tests := []struct {
@@ -32,10 +32,10 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 		args     args
 		wantType reflect.Type
 	}{
-		{"TNewIn", args{p2pcommon.P2PVersion031, false}, reflect.TypeOf(&InboundWireHandshaker{})},
-		{"TNewOut", args{p2pcommon.P2PVersion031, true}, reflect.TypeOf(&OutboundWireHandshaker{})},
-		{"TLegacyIn", args{p2pcommon.P2PVersion030, false}, reflect.TypeOf(&LegacyInboundHSHandler{})},
-		{"TLegacyOut", args{p2pcommon.P2PVersion030, true}, reflect.TypeOf(&LegacyOutboundHSHandler{})},
+		{"TNewIn", args{false, false}, reflect.TypeOf(&InboundWireHandshaker{})},
+		{"TNewOut", args{false, true}, reflect.TypeOf(&OutboundWireHandshaker{})},
+		{"TLegacyIn", args{true, false}, reflect.TypeOf(&LegacyInboundHSHandler{})},
+		{"TLegacyOut", args{true, true}, reflect.TypeOf(&LegacyOutboundHSHandler{})},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -58,7 +58,7 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
 
-			got := p2ps.CreateHSHandler(tt.args.p2pVersion, tt.args.outbound, dummyPeerID)
+			got := p2ps.CreateHSHandler(tt.args.legacy, tt.args.outbound, dummyPeerID)
 			if !reflect.TypeOf(got).AssignableTo(tt.wantType) {
 				t.Errorf("P2P.CreateHSHandler() type = %v, want %v", reflect.TypeOf(got), tt.wantType)
 			}

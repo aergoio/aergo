@@ -39,8 +39,8 @@ func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pm := p2pmock.NewMockPeerManager(ctrl)
 			actor := p2pmock.NewMockActorService(ctrl)
-
-			vm := newDefaultVersionManager(pm, actor, logger, dummyChainID)
+			ca := p2pmock.NewMockChainAccessor(ctrl)
+			vm := newDefaultVersionManager(pm, actor, ca, logger, dummyChainID)
 
 			if got := vm.FindBestP2PVersion(tt.args.versions); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("defaultVersionManager.FindBestP2PVersion() = %v, want %v", got, tt.want)
@@ -74,9 +74,11 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			pm := p2pmock.NewMockPeerManager(ctrl)
 			actor := p2pmock.NewMockActorService(ctrl)
+			ca := p2pmock.NewMockChainAccessor(ctrl)
+
 			r := p2pmock.NewMockReadWriteCloser(ctrl)
 
-			h := newDefaultVersionManager(pm, actor, logger, dummyChainID)
+			h := newDefaultVersionManager(pm, actor, ca, logger, dummyChainID)
 
 			got, err := h.GetVersionedHandshaker(tt.args.version, sampleID, r)
 			if (err != nil) != tt.wantErr {

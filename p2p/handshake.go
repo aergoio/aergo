@@ -129,7 +129,7 @@ func (h *LegacyWireHandshaker) readToLen(rd io.Reader, bf []byte, max int) (int,
 func (h *LegacyWireHandshaker) selectProtocolVersion(version p2pcommon.P2PVersion, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion030:
-		v030hs := v030.NewV030StateHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, rwc)
+		v030hs := v030.NewV030VersionedHS(h.pm, h.actor, h.logger, h.localChainID, h.peerID, rwc)
 		return v030hs, nil
 	default:
 		return nil, fmt.Errorf("not supported version")

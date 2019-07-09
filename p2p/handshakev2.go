@@ -17,8 +17,9 @@ import (
 	"time"
 )
 
-// CurrentSupported is list of versions this aergosvr supports. The first is the best recommended version.
-var CurrentSupported = []p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}
+// AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
+var AcceptedInboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion032, p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}
+var AttemptingOutboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}
 
 // baseWireHandshaker works to handshake to just connected peer, it detect chain networks
 // and protocol versions, and then select InnerHandshaker for that protocol version.
@@ -70,6 +71,7 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rwc io.Re
 	if bestVer == p2pcommon.P2PVersionUnknown {
 		return h.writeErrAndReturn(fmt.Errorf("no matchied p2p version for %v", hsReq.Versions), p2pcommon.ErrNoMatchedVersion,rwc)
 	} else {
+		h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("version",bestVer.String()).Msg("Responding best p2p version")
 		resp := p2pcommon.HSHeadResp{hsReq.Magic, bestVer.Uint32()}
 		err = h.writeWireHSResponse(resp, rwc)
 		select {
@@ -108,10 +110,8 @@ func (h *OutboundWireHandshaker) Handle(s io.ReadWriteCloser, ttl time.Duration)
 
 func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, rwc io.ReadWriteCloser) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	// send initial hs message
-	versions := []p2pcommon.P2PVersion{
-		p2pcommon.P2PVersion031,
-		p2pcommon.P2PVersion030,
-	}
+	versions := AttemptingOutboundVersions
+
 	hsHeader := p2pcommon.HSHeadReq{Magic: p2pcommon.MAGICMain, Versions: versions}
 	err := h.writeWireHSRequest(hsHeader, rwc)
 	select {
@@ -140,6 +140,7 @@ func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, rwc io.
 		return nil, nil, fmt.Errorf("remote peer failed: %v", respHeader.RespCode)
 	}
 	bestVersion := p2pcommon.P2PVersion(respHeader.RespCode)
+	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("version",bestVersion.String()).Msg("Responded best p2p version")
 	// continue to handshake with VersionedHandshaker
 	innerHS, err := h.verM.GetVersionedHandshaker(bestVersion, h.peerID, rwc)
 	if err != nil {

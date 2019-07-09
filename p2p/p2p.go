@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
@@ -71,9 +72,13 @@ func NewP2P(cfg *config.Config, chainSvc *chain.ChainService) *P2P {
 func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
+	versions := make([]fmt.Stringer, len(AcceptedInboundVersions))
+	for i, ver := range AcceptedInboundVersions {
+		versions[i] = ver
+	}
 	p2ps.mutex.Lock()
-
 	p2ps.setSelfRole()
+	p2ps.Logger.Info().Array("supportedVersions",p2putil.NewLogStringersMarshaller(versions,10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.mutex.Unlock()
@@ -103,7 +108,6 @@ func (p2ps *P2P) setSelfRole() {
 			p2ps.selfRole = p2pcommon.Watcher
 		}
 	}
-	p2ps.Logger.Debug().Str("role", p2ps.selfRole.String()).Msg("set role of self")
 }
 
 // BeforeStop is called before actor hub stops. it finishes underlying peer manager
@@ -177,7 +181,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.Logger, p2ps.chainID)
+	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
 
 	// connect managers each other
 
@@ -357,8 +361,8 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 
 }
 
-func (p2ps *P2P) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
-	if p2pVersion == p2pcommon.P2PVersion030 {
+func (p2ps *P2P) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+	if legacy {
 		handshakeHandler := newHandshaker(p2ps.pm, p2ps, p2ps.Logger, p2ps.chainID, pid)
 		if outbound {
 			return &LegacyOutboundHSHandler{LegacyWireHandshaker: handshakeHandler}

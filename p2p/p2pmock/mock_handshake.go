@@ -38,9 +38,9 @@ func (m *MockHSHandlerFactory) EXPECT() *MockHSHandlerFactoryMockRecorder {
 }
 
 // CreateHSHandler mocks base method
-func (m *MockHSHandlerFactory) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+func (m *MockHSHandlerFactory) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateHSHandler", p2pVersion, outbound, pid)
+	ret := m.ctrl.Call(m, "CreateHSHandler", legacy, outbound, pid)
 	ret0, _ := ret[0].(p2pcommon.HSHandler)
 	return ret0
 }
