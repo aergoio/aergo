@@ -22,6 +22,30 @@ const NameUpdate = "v1updateName"
 
 const TxMaxSize = 200 * 1024
 
+type validator func(tx *TxBody) error
+
+var govValidators map[string]validator
+
+func InitGovernance(consensus string, isPublic bool) {
+	sysValidator := ValidateSystemTx
+	if consensus != "dpos" {
+		sysValidator = func(tx *TxBody) error {
+			return ErrTxInvalidType
+		}
+	}
+
+	govValidators = map[string]validator{
+		AergoSystem: sysValidator,
+		AergoName:   validateNameTx,
+		AergoEnterprise: func(tx *TxBody) error {
+			if isPublic {
+				return ErrTxOnlySupportedInPriv
+			}
+			return nil
+		},
+	}
+}
+
 type Transaction interface {
 	GetTx() *Tx
 	GetBody() *TxBody
@@ -122,22 +146,23 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 		if len(tx.GetBody().GetPayload()) <= 0 {
 			return ErrTxFormatInvalid
 		}
-		switch string(tx.GetBody().GetRecipient()) {
-		case AergoSystem:
-			return ValidateSystemTx(tx.GetBody())
-		case AergoName:
-			return validateNameTx(tx.GetBody())
-		case AergoEnterprise:
-			if isPublic {
-				return ErrTxOnlySupportedInPriv
-			}
-		default:
-			return ErrTxInvalidRecipient
+
+		if err := validate(tx.GetBody()); err != nil {
+			return err
 		}
+
 	default:
 		return ErrTxInvalidType
 	}
 	return nil
+}
+
+func validate(tx *TxBody) error {
+	if val, exist := govValidators[string(tx.GetRecipient())]; exist {
+		return val(tx)
+	}
+
+	return ErrTxInvalidRecipient
 }
 
 func ValidateSystemTx(tx *TxBody) error {

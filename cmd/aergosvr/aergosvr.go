@@ -6,12 +6,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"

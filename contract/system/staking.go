@@ -7,11 +7,14 @@ package system
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
+
+var consensusType string
 
 var stakingKey = []byte("staking")
 var stakingTotalKey = []byte("stakingtotal")
@@ -19,8 +22,16 @@ var stakingTotalKey = []byte("stakingtotal")
 const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
 
+func InitGovernance(consensus string) {
+	consensusType = consensus
+}
+
 func staking(txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	if consensusType != "dpos" {
+		return nil, fmt.Errorf("unsupported staking for the consensus: %s", consensusType)
+	}
+
 	staked := context.Staked
 	beforeStaked := staked.GetAmountBigInt()
 	amount := txBody.GetAmountBigInt()
