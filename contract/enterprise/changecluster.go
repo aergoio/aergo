@@ -13,11 +13,11 @@ const (
 	CmdMembershipAdd    = "add"
 	CmdMembershipRemove = "remove"
 
-	CCCommand        = "command"
-	MemberAttrName   = "name"
-	MemberAttrUrl    = "url"
-	MemberAttrPeerID = "peerid"
-	MemberAttrID     = "id"
+	CCCommand         = "command"
+	MemberAttrName    = "name"
+	MemberAttrAddress = "address"
+	MemberAttrPeerID  = "peerid"
+	MemberAttrID      = "id"
 )
 
 /*
@@ -37,7 +37,7 @@ func ValidateChangeCluster(ci types.CallInfo, blockNo types.BlockNo) (interface{
 		changeReq *types.MembershipChange
 	)
 
-	if len(ci.Args) != 1 { //args[0] : map{ "command": "add", "name:", "url:", "peerid:", "id:"}
+	if len(ci.Args) != 1 { //args[0] : map{ "command": "add", "name:", "address:", "peerid:", "id:"}
 		return nil, fmt.Errorf("invalid arguments in payload for ChangeCluster: %s", ci.Args)
 	}
 
@@ -93,11 +93,11 @@ func (cc CcArgument) getUint64(key string) (uint64, error) {
 
 func (cc CcArgument) parse() (*types.MembershipChange, error) {
 	var (
-		cmd, name, url, peeridStr, idStr string
-		id                               uint64
-		err                              error
-		mChange                          types.MembershipChange
-		peerID                           types.PeerID
+		cmd, name, address, peeridStr, idStr string
+		id                                   uint64
+		err                                  error
+		mChange                              types.MembershipChange
+		peerID                               types.PeerID
 	)
 
 	if cmd, err = cc.get(CCCommand); err != nil {
@@ -112,7 +112,7 @@ func (cc CcArgument) parse() (*types.MembershipChange, error) {
 			return nil, err
 		}
 
-		if url, err = cc.get(MemberAttrUrl); err != nil {
+		if address, err = cc.get(MemberAttrAddress); err != nil {
 			return nil, err
 		}
 
@@ -140,7 +140,7 @@ func (cc CcArgument) parse() (*types.MembershipChange, error) {
 		return nil, fmt.Errorf("invalid ChangeCluster argument: invalid command %s", cmd)
 	}
 
-	mChange.Attr = &types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID), ID: id}
+	mChange.Attr = &types.MemberAttr{Name: name, Address: address, PeerID: []byte(peerID), ID: id}
 
 	return &mChange, nil
 }

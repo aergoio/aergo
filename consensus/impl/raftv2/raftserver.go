@@ -482,7 +482,7 @@ func (rs *raftServer) startTransport() {
 
 	for _, member := range rs.cluster.Members().MapByID {
 		if rs.cluster.NodeID() != member.ID {
-			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})
+			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Address})
 		}
 	}
 }
@@ -998,7 +998,7 @@ func (rs *raftServer) recoverTransport() {
 		}
 
 		logger.Info().Str("member", m.ToString()).Msg("add raft peer")
-		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Url})
+		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Address})
 	}
 }
 
@@ -1108,7 +1108,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 
 		if len(cc.Context) > 0 && rs.ID() != cc.NodeID {
-			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
+			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Address})
 		} else {
 			logger.Debug().Msg("skip add peer myself for addnode ")
 		}

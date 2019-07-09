@@ -1189,7 +1189,7 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 		return nil, err
 	}
 
-	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(types.PeerID(member.PeerID))}}
+	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Address: member.Address, PeerID: []byte(types.PeerID(member.PeerID))}}
 	return reply, nil
 }
 

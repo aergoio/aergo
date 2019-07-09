@@ -183,7 +183,7 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.Equal(t, false, conf.On, "conf on")
 
 	bs := state.NewBlockState(&state.StateDB{})
-	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "url": "http://127.0.0.1:13000", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
+	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "address": "http://127.0.0.1:13000", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err)
 	assert.NotNil(t, bs.CCProposal)
@@ -195,7 +195,7 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.NotNil(t, bs.CCProposal)
 
 	bs = state.NewBlockState(&state.StateDB{})
-	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "nocmd", "name": "aergonew", "url": "http://127.0.0.1:13000", "peerID":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
+	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "nocmd", "name": "aergonew", "address": "http://127.0.0.1:13000", "peerID":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err)
 	assert.Nil(t, bs.CCProposal)

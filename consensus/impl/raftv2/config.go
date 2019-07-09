@@ -114,7 +114,7 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 			return nil, fmt.Errorf("invalid raft peerID BP[%d]:%s", i, bp.PeerID)
 		}
 
-		mbrs[i] = &types.MemberAttr{Name: bp.Name, Url: trimUrl, PeerID: []byte(peerID)}
+		mbrs[i] = &types.MemberAttr{Name: bp.Name, Address: trimUrl, PeerID: []byte(peerID)}
 	}
 
 	return mbrs, nil
@@ -170,7 +170,7 @@ func isValidURL(urlstr string, useTls bool) error {
 func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
 	logger.Debug().Msg("add cluster members from config file")
 	for _, mbrAttr := range mbrs {
-		m := consensus.NewMember(mbrAttr.Name, mbrAttr.Url, types.PeerID(mbrAttr.PeerID), cl.chainID, cl.chainTimestamp)
+		m := consensus.NewMember(mbrAttr.Name, mbrAttr.Address, types.PeerID(mbrAttr.PeerID), cl.chainID, cl.chainTimestamp)
 
 		if err := cl.isValidMember(m); err != nil {
 			return err

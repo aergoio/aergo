@@ -109,7 +109,7 @@ type Members struct {
 
 	Index map[types.PeerID]uint64 // peer ID to raft ID mapping
 
-	BPUrls []string //for raft server TODO remove
+	Addresses []string //for raft server TODO remove
 }
 
 func newMembers(name string) *Members {
@@ -118,7 +118,7 @@ func newMembers(name string) *Members {
 		MapByID:   make(map[uint64]*consensus.Member),
 		MapByName: make(map[string]*consensus.Member),
 		Index:     make(map[types.PeerID]uint64),
-		BPUrls:    make([]string, 0),
+		Addresses: make([]string, 0),
 	}
 }
 
@@ -519,7 +519,7 @@ func (mbrs *Members) add(member *consensus.Member) {
 	mbrs.MapByID[member.ID] = member
 	mbrs.MapByName[member.Name] = member
 	mbrs.Index[member.GetPeerID()] = member.ID
-	mbrs.BPUrls = append(mbrs.BPUrls, member.Url)
+	mbrs.Addresses = append(mbrs.Addresses, member.Address)
 }
 
 func (mbrs *Members) remove(member *consensus.Member) {
@@ -737,7 +737,7 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 		bps := make([]string, cl.Size)
 
 		for id, m := range cl.Members().MapByID {
-			bp := &PeerInfo{Name: m.Name, RaftID: EtcdIDToString(m.ID), PeerID: m.GetPeerID().Pretty(), Addr: m.Url}
+			bp := &PeerInfo{Name: m.Name, RaftID: EtcdIDToString(m.ID), PeerID: m.GetPeerID().Pretty(), Addr: m.Address}
 			b, err = json.Marshal(bp)
 			if err != nil {
 				logger.Error().Err(err).Str("raftid", EtcdIDToString(id)).Msg("failed to marshalEntryData raft consensus bp")
@@ -754,11 +754,11 @@ func (cl *Cluster) toConsensusInfo() *types.ConsensusInfo {
 }
 
 func (cl *Cluster) NewMemberFromAddReq(req *types.MembershipChange) (*consensus.Member, error) {
-	if len(req.Attr.Name) == 0 || len(req.Attr.Url) == 0 || len(req.Attr.PeerID) == 0 {
+	if len(req.Attr.Name) == 0 || len(req.Attr.Address) == 0 || len(req.Attr.PeerID) == 0 {
 		return nil, consensus.ErrInvalidMemberAttr
 	}
 
-	return consensus.NewMember(req.Attr.Name, req.Attr.Url, types.PeerID(req.Attr.PeerID), cl.chainID, time.Now().UnixNano()), nil
+	return consensus.NewMember(req.Attr.Name, req.Attr.Address, types.PeerID(req.Attr.PeerID), cl.chainID, time.Now().UnixNano()), nil
 }
 
 func (cl *Cluster) NewMemberFromRemoveReq(req *types.MembershipChange) (*consensus.Member, error) {

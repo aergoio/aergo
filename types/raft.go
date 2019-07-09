@@ -39,8 +39,8 @@ func (mattr *MemberAttr) ToString() string {
 	if len(mattr.Name) > 0 {
 		buf = buf + fmt.Sprintf("name=%s, ", mattr.Name)
 	}
-	if len(mattr.Url) > 0 {
-		buf = buf + fmt.Sprintf("url=%s, ", mattr.Url)
+	if len(mattr.Address) > 0 {
+		buf = buf + fmt.Sprintf("address=%s, ", mattr.Address)
 	}
 	if len(mattr.PeerID) > 0 {
 		buf = buf + fmt.Sprintf("peerID=%s, ", PeerID(mattr.PeerID).Pretty())
@@ -57,10 +57,10 @@ func (hs *HardStateInfo) ToString() string {
 }
 
 type JsonMemberAttr struct {
-	ID     uint64 `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	Name   string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Url    string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
-	PeerID string `protobuf:"bytes,4,opt,name=peerID,proto3" json:"peerID,omitempty"`
+	ID      uint64 `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Name    string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Address string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	PeerID  string `protobuf:"bytes,4,opt,name=peerID,proto3" json:"peerID,omitempty"`
 }
 
 func (mc *JsonMemberAttr) ToMemberAttr() *MemberAttr {
@@ -68,7 +68,7 @@ func (mc *JsonMemberAttr) ToMemberAttr() *MemberAttr {
 	if err != nil {
 		return nil
 	}
-	return &MemberAttr{ID: mc.ID, Name: mc.Name, Url: mc.Url, PeerID: []byte(decodedPeerID)}
+	return &MemberAttr{ID: mc.ID, Name: mc.Name, Address: mc.Address, PeerID: []byte(decodedPeerID)}
 }
 
 func RaftHardStateToString(hardstate raftpb.HardState) string {

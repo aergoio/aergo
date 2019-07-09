@@ -87,8 +87,6 @@ do
 	#echo "peer[ $i ]= ${peer[i]}"
 
 	raftname[i]="aergo$(($i + 1))"
-	raftbp[i]="{name=\"${raftname[i]}\",url=\"http://127.0.0.1:$httpport\",p2pid=\"${tmpid}\"}"
-	echo "raftbp[$i]=${raftbp[i]}"
 done
 
 #ids=$(gen_ids ${id[*]})
