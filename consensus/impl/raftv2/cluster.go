@@ -778,20 +778,28 @@ func (cl *Cluster) ChangeMembership(req *types.MembershipChange, nowait bool) (*
 		err      error
 	)
 
-	cl.Lock()
-	defer cl.Unlock()
+	submit := func() error {
+		cl.Lock()
+		defer cl.Unlock()
 
-	if proposal, err = cl.makeProposal(req, nowait); err != nil {
-		logger.Error().Uint64("requestID", req.GetRequestID()).Msg("failed to make proposal for membership change")
-		return nil, err
+		if proposal, err = cl.makeProposal(req, nowait); err != nil {
+			logger.Error().Uint64("requestID", req.GetRequestID()).Msg("failed to make proposal for membership change")
+			return err
+		}
+
+		if err = cl.isEnableChangeMembership(proposal.Cc); err != nil {
+			logger.Error().Err(err).Msg("failed cluster availability check to change membership")
+			return err
+		}
+
+		if err = cl.submitProposal(proposal, nowait); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	if err = cl.isEnableChangeMembership(proposal.Cc); err != nil {
-		logger.Error().Err(err).Msg("failed cluster availability check to change membership")
-		return nil, err
-	}
-
-	if err = cl.submitProposal(proposal, nowait); err != nil {
+	if err = submit(); err != nil {
 		return nil, err
 	}
 
@@ -844,7 +852,7 @@ func (cl *Cluster) makeProposal(req *types.MembershipChange, nowait bool) (*cons
 	}
 
 	if !nowait {
-		replyC = make(chan *consensus.ConfChangeReply)
+		replyC = make(chan *consensus.ConfChangeReply, 1)
 	}
 
 	// TODO check cancel
