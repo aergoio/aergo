@@ -127,9 +127,10 @@ var enterpriseTxCmd = &cobra.Command{
 			return
 		}
 		var (
-			tx       *aergorpc.Tx
-			msgblock *aergorpc.TxInBlock
-			output   OutConfChange
+			tx        *aergorpc.Tx
+			msgblock  *aergorpc.TxInBlock
+			output    OutConfChange
+			txInBlock bool
 		)
 		tx, err = client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
 		if err != nil {
@@ -139,6 +140,9 @@ var enterpriseTxCmd = &cobra.Command{
 				return
 			}
 			tx = msgblock.Tx
+			txInBlock = true
+		} else {
+			txInBlock = false
 		}
 		output.Payload = string(tx.GetBody().Payload)
 		var ci types.CallInfo
@@ -146,33 +150,35 @@ var enterpriseTxCmd = &cobra.Command{
 			cmd.Printf("Failed: tx payload is not json %s\n", err.Error())
 			return
 		}
-		switch ci.Name {
-		case enterprise.ChangeCluster:
-			// get requestID
-			if requestID, err = getRequestID(msgblock.TxIdx.BlockHash); err != nil {
-				cmd.Printf("Failed to get request ID: %s\n", err.Error())
-				return
-			}
-			// get conf chagne status with reqid
-			b := make([]byte, 8)
-			binary.LittleEndian.PutUint64(b, requestID)
+		if txInBlock {
+			switch ci.Name {
+			case enterprise.ChangeCluster:
+				// get requestID
+				if requestID, err = getRequestID(msgblock.TxIdx.BlockHash); err != nil {
+					cmd.Printf("Failed to get request ID: %s\n", err.Error())
+					return
+				}
+				// get conf chagne status with reqid
+				b := make([]byte, 8)
+				binary.LittleEndian.PutUint64(b, requestID)
 
-			msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
-			if err != nil {
-				cmd.Printf("Failed to get progress: reqid=%d, %s\n", requestID, err.Error())
-				return
-			}
-			//cmd.Printf(msgConfChangeProg.ToJsonString())
-			output.Status = msgConfChangeProg.ToPrintable()
-		default:
-			receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
-			if err != nil {
-				cmd.Printf("Failed to get receipt: tx=%s, %s\n", args[0], err.Error())
-				return
-			}
-			output.Status = &aergorpc.ConfChangeProgressPrintable{
-				State: receipt.GetStatus(),
-				Error: receipt.GetRet(),
+				msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
+				if err != nil {
+					cmd.Printf("Failed to get progress: reqid=%d, %s\n", requestID, err.Error())
+					return
+				}
+				//cmd.Printf(msgConfChangeProg.ToJsonString())
+				output.Status = msgConfChangeProg.ToPrintable()
+			default:
+				receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+				if err != nil {
+					cmd.Printf("Failed to get receipt: tx=%s, %s\n", args[0], err.Error())
+					return
+				}
+				output.Status = &aergorpc.ConfChangeProgressPrintable{
+					State: receipt.GetStatus(),
+					Error: receipt.GetRet(),
+				}
 			}
 		}
 		cmd.Println(output.ToString())
