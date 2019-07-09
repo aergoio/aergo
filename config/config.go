@@ -104,6 +104,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		VerifierCount:    types.DefaultVerifierCnt,
 		ForceResetHeight: 0,
 		ZeroFee:          true,
+		StateTrace:       0,
 	}
 }
 

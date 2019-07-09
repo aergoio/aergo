@@ -89,6 +89,7 @@ type BlockchainConfig struct {
 	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
 	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(works only on private network)"`
 	VerifyOnly       bool   `mapstructure:"verifyonly" description:"In verify only mode, server verifies block chain of disk. server never modifies block chain'"`
+	StateTrace       uint64 `mapstructure:"statetrace" description:"dump trace of setting state"`
 }
 
 // MempoolConfig defines configurations for mempool service

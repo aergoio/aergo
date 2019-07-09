@@ -80,6 +80,13 @@ func LuaSetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, value
 		C.luaL_setuncatchablerror(L)
 		return C.CString(err.Error())
 	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString("[Set]\n")
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("Key=%s Len=%v byte=%v\n",
+			string(C.GoBytes(key, keyLen)), keyLen, C.GoBytes(key, keyLen)))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("Data=%s Len=%d byte=%v\n",
+			string(val), len(val), val))
+	}
 	return nil
 }
 
@@ -155,6 +162,11 @@ func LuaDelDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int) *C.ch
 	if err := addUpdateSize(stateSet, int64(32)); err != nil {
 		C.luaL_setuncatchablerror(L)
 		return C.CString(err.Error())
+	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString("[Del]\n")
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("Key=%s Len=%v byte=%v\n",
+			string(C.GoBytes(key, keyLen)), keyLen, C.GoBytes(key, keyLen)))
 	}
 	return nil
 }
@@ -261,6 +273,14 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		}
 	}
 	seq, err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[CALL Contract %v(%v) %v]\n",
+			contractAddress, aid.String(), fnameStr))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("SendBalance: %s\n", amountBig.String()))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+			senderState.GetBalanceBigInt().String(), callState.curState.GetBalanceBigInt().String()))
+	}
 	if err != nil {
 		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaCallContract] database error: " + err.Error())
@@ -278,6 +298,9 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		err := clearRecovery(L, stateSet, seq, true)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaCallContract] recovery err: " + err.Error())
+		}
+		if stateSet.traceFile != nil {
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
 		return -1, C.CString("[Contract.LuaCallContract] call err: " + ce.err.Error())
 	}
@@ -342,7 +365,10 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
 	}
-
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[DELEGATECALL Contract %v %v]\n", contractIdStr, fnameStr))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
+	}
 	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
 	defer setInstCount(L, ce.L)
 
@@ -351,6 +377,9 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		err := clearRecovery(L, stateSet, seq, true)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
+		}
+		if stateSet.traceFile != nil {
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
 		return -1, C.CString("[Contract.LuaDelegateCallContract] call error: " + ce.err.Error())
 	}
@@ -432,6 +461,13 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			C.luaL_setsyserror(L)
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
+		if stateSet.traceFile != nil {
+			_, _ = stateSet.traceFile.WriteString(
+				fmt.Sprintf("[Send Call default] %s(%s) : %s\n", types.EncodeAddress(cid), aid.String(), amountBig.String()))
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+				senderState.GetBalanceBigInt().String(), callState.curState.GetBalanceBigInt().String()))
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
+		}
 		prevContractInfo := stateSet.curContract
 		stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
 			callState.curState.SqlRecoveryPoint, amountBig)
@@ -446,6 +482,9 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			err := clearRecovery(L, stateSet, seq, true)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
+			}
+			if stateSet.traceFile != nil {
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 			}
 			return C.CString("[Contract.LuaSendAmount] call err: " + ce.err.Error())
 		}
@@ -466,6 +505,12 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 	}
 	if stateSet.lastRecoveryEntry != nil {
 		_, _ = setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, true)
+	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[Send] %s(%s) : %s\n",
+			types.EncodeAddress(cid), aid.String(), amountBig.String()))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+			senderState.GetBalanceBigInt().String(), callState.curState.GetBalanceBigInt().String()))
 	}
 	return nil
 }
@@ -545,6 +590,9 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) (C.int, *C.char) {
 		C.luaL_setsyserror(L)
 		return -1, C.CString("[Contract.pcall] database error: " + err.Error())
 	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[Pcall] snapshot set %d\n", seq))
+	}
 	return C.int(seq), nil
 }
 
@@ -579,6 +627,9 @@ func LuaClearRecovery(L *LState, service *C.int, start int, error bool) *C.char 
 	err := clearRecovery(L, stateSet, start, error)
 	if err != nil {
 		return C.CString(err.Error())
+	}
+	if stateSet.traceFile != nil && error == true {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("pcall recovery snapshot : %d\n", start))
 	}
 	return nil
 }
@@ -977,6 +1028,14 @@ func LuaDeployContract(
 		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[DEPLOY] %s(%s)\n",
+			types.EncodeAddress(newContract.ID()), newContract.AccountID().String()))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("deploy snapshot set %d\n", seq))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("SendBalance : %s\n", amountBig.String()))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+			senderState.GetBalanceBigInt().String(), callState.curState.GetBalanceBigInt().String()))
+	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, newContract.ID(),
 		callState.curState.SqlRecoveryPoint, amountBig)
 	defer func() {
@@ -1019,6 +1078,9 @@ func LuaDeployContract(
 			err := clearRecovery(L, stateSet, seq, true)
 			if err != nil {
 				return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
+			}
+			if stateSet.traceFile != nil {
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 			}
 			return -1, C.CString("[Contract.LuaDeployContract] call err:" + ce.err.Error())
 		}
@@ -1167,9 +1229,23 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 
 	if stateSet.lastRecoveryEntry != nil {
 		if gType == 'S' {
-			_, _ = setRecoveryPoint(aid, stateSet, senderState, scsState, amountBig, true)
+			seq, _ = setRecoveryPoint(aid, stateSet, senderState, scsState, amountBig, true)
+			if stateSet.traceFile != nil {
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("staking : %s\n", amountBig.String()))
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+					senderState.GetBalanceBigInt().String(), scsState.curState.GetBalanceBigInt().String()))
+			}
 		} else if gType == 'U' {
-			_, _ = setRecoveryPoint(aid, stateSet, scsState.curState, stateSet.curContract.callState, amountBig, true)
+			seq, _ = setRecoveryPoint(aid, stateSet, scsState.curState, stateSet.curContract.callState, amountBig, true)
+			if stateSet.traceFile != nil {
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("unstaking : %s\n", amountBig.String()))
+				_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+					senderState.GetBalanceBigInt().String(), scsState.curState.GetBalanceBigInt().String()))
+			}
 		}
 	}
 	return nil

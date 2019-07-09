@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -33,9 +34,11 @@ type DummyChain struct {
 }
 
 var addressRegexp *regexp.Regexp
+var traceState bool
 
 func init() {
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
+	//	traceState = true
 }
 
 func LoadDummyChain() (*DummyChain, error) {
@@ -377,6 +380,12 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts 
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
+			if traceState {
+				stateSet.traceFile, _ =
+					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				defer stateSet.traceFile.Close()
+			}
+
 			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
@@ -438,6 +447,11 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts
 			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
+			if traceState {
+				stateSet.traceFile, _ =
+					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				defer stateSet.traceFile.Close()
+			}
 			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")

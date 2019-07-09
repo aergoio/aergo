@@ -35,6 +35,7 @@ var (
 	loadReqCh    chan *preLoadReq
 	preLoadInfos [2]preLoadInfo
 	PubNet       bool
+	TraceBlockNo uint64
 )
 
 const BlockFactory = 0
@@ -109,7 +110,9 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
-
+		if stateSet.traceFile != nil {
+			defer stateSet.traceFile.Close()
+		}
 		if receiver.IsDeploy() {
 			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {

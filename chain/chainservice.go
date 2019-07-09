@@ -279,6 +279,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
+	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.StartLStateFactory()
 
 	// For a strict governance transaction validation.
