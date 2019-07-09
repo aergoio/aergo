@@ -281,6 +281,10 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.StartLStateFactory()
 
+	// For a strict governance transaction validation.
+	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
+	system.InitGovernance(cs.ConsensusType())
+
 	// init Debugger
 	cs.initDebugger()
 
@@ -856,4 +860,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
 	}
+}
+
+func (cs *ChainService) ConsensusType() string {
+	return cs.GetGenesisInfo().ConsensusType()
+}
+
+func (cs *ChainService) IsPublic() bool {
+	return cs.GetGenesisInfo().PublicNet()
 }

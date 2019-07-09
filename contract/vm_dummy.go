@@ -59,6 +59,10 @@ func LoadDummyChain() (*DummyChain, error) {
 	LoadDatabase(dataPath) // sql database
 	StartLStateFactory()
 
+	// To pass the governance tests.
+	types.InitGovernance("dpos", true)
+	system.InitGovernance("dpos")
+
 	return bc, nil
 }
 

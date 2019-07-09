@@ -34,6 +34,9 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
+	// Need to pass the
+	InitGovernance("dpos")
+
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))

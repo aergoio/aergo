@@ -330,7 +330,18 @@ func GetTestNetGenesis() *Genesis {
 
 // GetTestGenesis returns Gensis object for a unit test.
 func GetTestGenesis() *Genesis {
-	genesis := GetDefaultGenesis()
+	genesis := &Genesis{
+		ID: ChainID{
+			Version:   0,
+			Magic:     devChainMagic,
+			PublicNet: true,
+			MainNet:   false,
+			Consensus: "sbp",
+		},
+		Timestamp: time.Now().UnixNano(),
+		block:     nil,
+	} //TODO embed MAINNET genesis block
+
 	genesis.Block()
 
 	return genesis
