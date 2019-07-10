@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 var sampleTxsB58 = []string{
 	"4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45",
 	"6xfk39kuyDST7NwCu8tx3wqwFZ5dwKPDjxUS14tU7NZb8",
@@ -85,31 +84,53 @@ func Test_ReadWrite(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			sizeChecker, sizeChecker2 := ioSum{}, ioSum{}
 			samplePData := &types.NewTransactionsNotice{TxHashes: test.ids}
 			payload, _ := proto.Marshal(samplePData)
-			sample := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID,  p2pcommon.EmptyID, time.Now().UnixNano(),payload)
+			sample := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, time.Now().UnixNano(), payload)
 
 			buf := bytes.NewBuffer(nil)
-			target := NewV030Writer(bufio.NewWriter(buf))
+			target := NewV030ReadWriter(nil, buf, nil)
+			target.AddIOListener(&sizeChecker)
+
 			target.WriteMsg(sample)
 
 			actual := buf.Bytes()
 			assert.Equal(t, len(payload)+msgHeaderLength, len(actual))
+			assert.Equal(t, len(actual), sizeChecker.writeN)
 
-			rd := NewV030Reader(bufio.NewReader(buf))
+			rd := NewV030ReadWriter(bufio.NewReader(buf), ioutil.Discard, nil)
+			rd.AddIOListener(&sizeChecker2)
+
 			readMsg, err := rd.ReadMsg()
+
 			assert.Nil(t, err)
+			assert.NotNil(t, readMsg)
 			assert.Equal(t, sample, readMsg)
 			assert.True(t, bytes.Equal(sample.Payload(), readMsg.Payload()))
+			assert.Equal(t, sizeChecker.writeN, sizeChecker2.readN)
 
 			// read error test
 			buf2 := bytes.NewBuffer(actual)
 			buf2.Truncate(buf2.Len() - 1)
-			rd2 := NewV030Reader(bufio.NewReader(buf))
+			rd2 := NewV030ReadWriter(bufio.NewReader(buf), ioutil.Discard, nil)
 			readMsg, err = rd2.ReadMsg()
 			assert.NotNil(t, err)
 		})
 	}
+}
+
+type ioSum struct {
+	readN int
+	writeN int
+}
+
+func (s *ioSum) OnRead(protocol p2pcommon.SubProtocol, read int) {
+	s.readN += read
+}
+
+func (s *ioSum) OnWrite(protocol p2pcommon.SubProtocol, write int) {
+	s.writeN += write
 }
 
 func TestV030Writer_WriteError(t *testing.T) {
@@ -134,34 +155,34 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 
 	smallPData := &types.NewTransactionsNotice{}
 	payload, _ := proto.Marshal(smallPData)
-	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID,  p2pcommon.EmptyID, timestamp,payload)
+	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
 	for i := 0; i < 10000; i++ {
 		bigHashes = append(bigHashes, sampleTxs...)
 	}
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
 	payload, _ = proto.Marshal(bigPData)
-	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID,  p2pcommon.EmptyID, timestamp,payload)
+	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
 
 	benchmarks := []struct {
 		name        string
+		rw          p2pcommon.MsgReadWriter
 		input       *p2pcommon.MessageValue
 		repeatCount int
 	}{
 		// write small
-		{"BWSmall", smallMsg, 100},
+		{"BWSmall", NewV030ReadWriter(nil,ioutil.Discard, nil), smallMsg, 100},
 		// write big
-		{"BWBig", bigMsg, 100},
-		////write small sign
-		//{"BWSmallSign", smallMsg, 100, },
-		////write big sign
-		//{"BWBigSign", bigMsg, 100, },
+		{"BWBig", NewV030ReadWriter(nil, ioutil.Discard,nil), bigMsg, 100},
+		////write small with rw
+		//{"BWSmallRW", NewV030ReadWriter(nil, ioutil.Discard, nil), smallMsg, 100},
+		//// write big with rw
+		//{"BWBigRW", NewV030ReadWriter(nil, ioutil.Discard, nil), bigMsg, 100},
 	}
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				w := ioutil.Discard
-				target := NewV030Writer(bufio.NewWriter(w))
+				target := bm.rw
 				for j := 0; j < bm.repeatCount; j++ {
 					target.WriteMsg(bm.input)
 				}
@@ -178,44 +199,43 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 
 	smallPData := &types.NewTransactionsNotice{}
 	payload, _ := proto.Marshal(smallPData)
-	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID,  p2pcommon.EmptyID, timestamp,payload)
-	smallBytes := getMarshaledV030(smallMsg, 100)
-
+	smallMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
+	smallBytes := getMarshaledV030(smallMsg, 1)
 	bigHashes := make([][]byte, 0, len(sampleTxs)*10000)
 	for i := 0; i < 10000; i++ {
 		bigHashes = append(bigHashes, sampleTxs...)
 	}
 	bigPData := &types.NewTransactionsNotice{TxHashes: bigHashes}
 	payload, _ = proto.Marshal(bigPData)
-	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID,  p2pcommon.EmptyID, timestamp,payload)
-	bigBytes := getMarshaledV030(bigMsg, 100)
+	bigMsg := p2pcommon.NewMessageValue(p2pcommon.NewTxNotice, sampleID, p2pcommon.EmptyID, timestamp, payload)
+	bigBytes := getMarshaledV030(bigMsg, 1)
 
 	fmt.Printf("small : %d , big : %d \n", len(smallBytes), len(bigBytes))
 
 	benchmarks := []struct {
 		name        string
-		input       []byte
+		rd          p2pcommon.MsgReadWriter
 		repeatCount int
 	}{
-		// read small
-		{"BRSmall", smallBytes, 100},
-		// read big
-		{"BRBig", bigBytes, 100},
-		//// read small sign verify
-		//{"BRSmallSign", smallBytes, 100, },
-		//// read big sign verify
-		//{"BRBigSign", bigBytes, 100, },
-
+		// read big with rw
+		{"BRBigRW", NewV030ReadWriter(NewRepeatedBuffer(bigBytes), nil, nil), 100},
+		// read small with rw
+		{"BRSmallRW", NewV030ReadWriter(NewRepeatedBuffer(smallBytes), nil, nil), 100},
+		//// read small
+		//{"BRSmall", NewV030Reader(NewRepeatedBuffer(smallBytes)), 100},
+		//// read big
+		//{"BRBig", NewV030Reader(NewRepeatedBuffer(bigBytes)), 100},
 	}
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				r := bytes.NewBuffer(bm.input)
-				target := NewV030Reader(bufio.NewReader(r))
+				target := bm.rd
 				for j := 0; j < bm.repeatCount; j++ {
-					actual, _ := target.ReadMsg()
-					if actual.ID() != sampleID {
-						b.Error()
+					actual, err := target.ReadMsg()
+					if err != nil {
+						b.Fatal("err while reading on lap",j, err.Error())
+					} else if actual.ID() != sampleID {
+						b.Fatal()
 					}
 				}
 			}
@@ -225,7 +245,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 
 func getMarshaledV030(m *p2pcommon.MessageValue, repeat int) []byte {
 	unitbuf := &bytes.Buffer{}
-	writer := NewV030Writer(bufio.NewWriter(unitbuf))
+	writer := NewV030ReadWriter(nil, bufio.NewWriter(unitbuf), nil)
 	writer.WriteMsg(m)
 	unitbytes := unitbuf.Bytes()
 	buf := make([]byte, 0, len(unitbytes)*repeat)
@@ -233,4 +253,22 @@ func getMarshaledV030(m *p2pcommon.MessageValue, repeat int) []byte {
 		buf = append(buf, unitbytes...)
 	}
 	return buf
+}
+
+type RepeatedBuffer struct {
+	offset, size int
+	buf []byte
+}
+
+func (r *RepeatedBuffer) Read(p []byte) (n int, err error) {
+	copied := copy(p, r.buf[r.offset:])
+	r.offset+=copied
+	if r.offset >= r.size {
+		r.offset = 0
+	}
+	return copied, nil
+}
+
+func NewRepeatedBuffer(buf []byte) *RepeatedBuffer {
+	return &RepeatedBuffer{buf: buf, size:len(buf)}
 }

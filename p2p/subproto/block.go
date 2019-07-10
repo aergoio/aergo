@@ -16,17 +16,18 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-type listBlockHeadersRequestHandler struct {
+type getBlockHeadersRequestHandler struct {
+	BaseMsgHandler
+	asyncHelper
+}
+
+var _ p2pcommon.MessageHandler = (*getBlockHeadersRequestHandler)(nil)
+
+type getBlockHeadersResponseHandler struct {
 	BaseMsgHandler
 }
 
-var _ p2pcommon.MessageHandler = (*listBlockHeadersRequestHandler)(nil)
-
-type listBlockHeadersResponseHandler struct {
-	BaseMsgHandler
-}
-
-var _ p2pcommon.MessageHandler = (*listBlockHeadersResponseHandler)(nil)
+var _ p2pcommon.MessageHandler = (*getBlockHeadersResponseHandler)(nil)
 
 type newBlockNoticeHandler struct {
 	BaseMsgHandler
@@ -36,6 +37,7 @@ var _ p2pcommon.MessageHandler = (*newBlockNoticeHandler)(nil)
 
 type getAncestorRequestHandler struct {
 	BaseMsgHandler
+	asyncHelper
 }
 
 var _ p2pcommon.MessageHandler = (*getAncestorRequestHandler)(nil)
@@ -47,19 +49,33 @@ type getAncestorResponseHandler struct {
 var _ p2pcommon.MessageHandler = (*getAncestorResponseHandler)(nil)
 
 // newListBlockHeadersReqHandler creates handler for GetBlockHeadersRequest
-func NewListBlockHeadersReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *listBlockHeadersRequestHandler {
-	bh := &listBlockHeadersRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+func NewGetBlockHeadersReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getBlockHeadersRequestHandler {
+	bh := &getBlockHeadersRequestHandler{BaseMsgHandler{protocol: p2pcommon.GetBlockHeadersRequest, pm: pm, peer: peer, actor: actor, logger: logger}, newAsyncHelper()}
 	return bh
 }
 
-func (bh *listBlockHeadersRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
+func (bh *getBlockHeadersRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetBlockHeadersRequest{})
 }
 
-func (bh *listBlockHeadersRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+func (bh *getBlockHeadersRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
 	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
+	if bh.issue() {
+		go bh.handleGetBlockHeaders(msg, data)
+	} else {
+		resp := &types.GetBlockHeadersResponse{
+			Hashes: nil, Headers: nil,
+			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
+		}
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetBlockHeadersResponse, resp))
+	}
+}
+
+func (bh *getBlockHeadersRequestHandler) handleGetBlockHeaders(msg p2pcommon.Message, data *types.GetBlockHeadersRequest) {
+	defer bh.release()
+	remotePeer := bh.peer
 
 	// find block info from chainservice
 	maxFetchSize := min(p2pcommon.MaxBlockHeaderResponseCount, data.Size)
@@ -110,16 +126,16 @@ func getBlockHeader(blk *types.Block) *types.BlockHeader {
 }
 
 // newListBlockRespHandler creates handler for GetBlockHeadersResponse
-func NewListBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *listBlockHeadersResponseHandler {
-	bh := &listBlockHeadersResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlockHeadersResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+func NewGetBlockHeaderRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getBlockHeadersResponseHandler {
+	bh := &getBlockHeadersResponseHandler{BaseMsgHandler{protocol: p2pcommon.GetBlockHeadersResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
-func (bh *listBlockHeadersResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
+func (bh *getBlockHeadersResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
 	return p2putil.UnmarshalAndReturn(rawbytes, &types.GetBlockHeadersResponse{})
 }
 
-func (bh *listBlockHeadersResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+func (bh *getBlockHeadersResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
 	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, len(data.Hashes))
@@ -172,7 +188,7 @@ func min(a, b uint32) uint32 {
 
 // newGetAncestorReqHandler creates handler for GetAncestorRequest
 func NewGetAncestorReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getAncestorRequestHandler {
-	bh := &getAncestorRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetAncestorRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &getAncestorRequestHandler{BaseMsgHandler{protocol: p2pcommon.GetAncestorRequest, pm: pm, peer: peer, actor: actor, logger: logger}, newAsyncHelper()}
 	return bh
 }
 
@@ -181,11 +197,24 @@ func (bh *getAncestorRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.Me
 }
 
 func (bh *getAncestorRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
-	remotePeer := bh.peer
 	data := msgBody.(*types.GetAncestorRequest)
+
+	if bh.issue() {
+		go bh.handleGetAncestorReq(msg, data)
+	} else {
+		resp := &types.GetAncestorResponse{
+			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
+		}
+		bh.peer.SendMessage(bh.peer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetAncestorResponse, resp))
+	}
+}
+
+func (bh *getAncestorRequestHandler) handleGetAncestorReq(msg p2pcommon.Message, data *types.GetAncestorRequest) {
+	defer bh.release()
+	remotePeer := bh.peer
 	status := types.ResultStatus_OK
 	if bh.logger.IsDebugEnabled() {
-		p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(data.Hashes))
+		p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, types.NewLogB58EncMarshaller(data.Hashes,10))
 	}
 
 	// send to ChainSvc

@@ -2,12 +2,14 @@ package raftv2
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,8 +28,10 @@ import (
 )
 
 const (
-	slotQueueMax          = 100
-	DefaultCommitQueueLen = 10
+	slotQueueMax              = 100
+	DefaultCommitQueueLen     = 10
+	DefaultBlockFactoryTickMs = 100
+	MinBlockFactoryTickMs     = 10
 )
 
 var (
@@ -39,13 +43,14 @@ var (
 	RaftSkipEmptyBlock = false
 	MaxCommitQueueLen  = DefaultCommitQueueLen
 
-	BlockIntervalMs time.Duration
-	BlockTimeoutMs  time.Duration
+	BlockFactoryTickMs time.Duration
+	BlockIntervalMs    time.Duration
 )
 
 var (
-	ErrClusterNotReady = errors.New("cluster is not ready")
-	ErrNotRaftLeader   = errors.New("this node is not leader")
+	ErrClusterNotReady      = errors.New("cluster is not ready")
+	ErrNotRaftLeader        = errors.New("this node is not leader")
+	ErrInvalidConsensusName = errors.New("invalid consensus name")
 )
 
 func init() {
@@ -74,14 +79,14 @@ type Work struct {
 }
 
 func (work *Work) GetTimeout() time.Duration {
-	return BlockTimeoutMs
+	return BlockIntervalMs
 }
 
 func (work *Work) ToString() string {
 	return fmt.Sprintf("bestblock=%s", work.BlockID())
 }
 
-// BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockInterval if this node is leader of raft
+// BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
 //
 // This can be used for testing purpose.
 type BlockFactory struct {
@@ -159,20 +164,28 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 }
 
 func Init(raftCfg *config.RaftConfig) {
-	if raftCfg.BPIntervalMs != 0 {
-		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BPIntervalMs)
+	var tickMs time.Duration
+
+	if raftCfg.BlockFactoryTickMs != 0 {
+		if raftCfg.BlockFactoryTickMs < MinBlockFactoryTickMs {
+			tickMs = MinBlockFactoryTickMs
+		} else {
+			tickMs = time.Duration(raftCfg.BlockFactoryTickMs)
+		}
+	} else {
+		tickMs = DefaultBlockFactoryTickMs
+	}
+
+	BlockFactoryTickMs = time.Millisecond * tickMs
+
+	if raftCfg.BlockIntervalMs != 0 {
+		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BlockIntervalMs)
 	} else {
 		BlockIntervalMs = consensus.BlockInterval
 	}
 
-	if raftCfg.BPTimeoutMs != 0 {
-		BlockTimeoutMs = time.Millisecond * time.Duration(raftCfg.BPTimeoutMs)
-	} else {
-		BlockTimeoutMs = BlockIntervalMs
-	}
-
-	logger.Info().Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).
-		Int64("timeout(ms)", BlockTimeoutMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block interval")
+	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
+		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
@@ -180,12 +193,12 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 		return err
 	}
 
-	bf.raftOp = newRaftOperator(bf.raftServer)
+	bf.raftOp = newRaftOperator(bf.raftServer, bf.bpc)
 
 	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
 	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl,
-		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.JoinUsingBackup,
+		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.JoinClusterUsingBackup,
 		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
 		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
@@ -197,7 +210,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 // Ticker returns a time.Ticker for the main consensus loop.
 func (bf *BlockFactory) Ticker() *time.Ticker {
-	return time.NewTicker(BlockIntervalMs)
+	return time.NewTicker(BlockFactoryTickMs)
 }
 
 // QueueJob send a block triggering information to jq.
@@ -206,13 +219,13 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	defer bf.jobLock.Unlock()
 
 	if !bf.raftServer.IsLeader() {
-		logger.Debug().Msg("skip producing block because this bp is not leader")
+		//logger.Debug().Msg("skip producing block because this bp is not leader")
 		return
 	}
 
 	if b, _ := bf.GetBestBlock(); b != nil {
 		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
-			logger.Debug().Uint64("bestno", b.BlockNo()).Msg("previous block not connected. skip to generate block")
+			//logger.Debug().Uint64("bestno", b.BlockNo()).Msg("previous block not connected. skip to generate block")
 			return
 		}
 
@@ -458,6 +471,7 @@ func (bf *BlockFactory) reset() {
 	logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
 
 	bf.prevBlock = nil
+	bf.bpc.resetSavedConfChangePropose()
 }
 
 // save block/block state to connect after commit
@@ -498,7 +512,7 @@ func (bf *BlockFactory) waitSyncWithMajority() error {
 	for {
 		select {
 		case <-ticker.C:
-			if synced, err := bf.bpc.hasSynced(); err != nil {
+			if synced, err := bf.cl.hasSynced(); err != nil {
 				logger.Error().Err(err).Msg("failed to check sync with a majority of peers")
 				return err
 			} else if synced {
@@ -573,6 +587,15 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 
 	var member *consensus.Member
 	var err error
+
+	// set reqID by blockHash
+	var best *types.Block
+	if best, err = bf.GetBestBlock(); err != nil {
+		return nil, err
+	}
+
+	req.RequestID = binary.LittleEndian.Uint64(best.GetHash()[0:8])
+
 	if member, err = bf.bpc.ChangeMembership(req, false); err != nil {
 		return nil, ErrorMembershipChange{err}
 	}
@@ -580,23 +603,40 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	return member, nil
 }
 
-func (bf *BlockFactory) RequestConfChange(req *types.MembershipChange) error {
+func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	var (
+		proposal *consensus.ConfChangePropose
+		err      error
+	)
+
 	if bf.bpc == nil {
-		return ErrorMembershipChange{ErrClusterNotReady}
+		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
+
+	cl := bf.bpc
+
+	cl.Lock()
+	defer cl.Unlock()
 
 	if !bf.raftServer.IsLeader() {
-		logger.Info().Msg("skiped membership change request")
-		return consensus.ErrorMembershipChangeSkip
+		logger.Info().Msg("skipped conf change request since node is not leader")
+		return nil, consensus.ErrorMembershipChangeSkip
 	}
 
-	var err error
-	if _, err = bf.bpc.ChangeMembership(req, true); err != nil {
-		logger.Error().Err(err).Str("attr", req.ToString()).Msg("failed to change membership")
-		return ErrorMembershipChange{err}
+	logger.Info().Str("request", req.ToString()).Msg("make proposal of cluster conf change")
+
+	if proposal, err = cl.makeProposal(req, true); err != nil {
+		logger.Error().Uint64("requestID", req.GetRequestID()).Msg("failed to make proposal for conf change")
+		return nil, err
 	}
 
-	return nil
+	// To make cluster_test easier, this check called not in makeProposal() but here
+	if err = cl.isEnableChangeMembership(proposal.Cc); err != nil {
+		logger.Error().Err(err).Msg("failed cluster availability check to change membership")
+		return nil, err
+	}
+
+	return proposal, nil
 }
 
 // getHardStateOfBlock returns (term/commit) corresponding to best block hash.
@@ -638,6 +678,11 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
 }
 
+// ConfChangeInfo returns ConfChangeProgress queries by request ID of ConfChange
+func (bf *BlockFactory) ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error) {
+	return bf.GetConfChangeProgress(requestID)
+}
+
 func (bf *BlockFactory) checkBpTimeout() error {
 	select {
 	case <-bf.bpTimeoutC:
@@ -655,19 +700,18 @@ type Proposed struct {
 }
 
 type RaftOperator struct {
-	confChangeC chan *types.MembershipChange
-	commitC     chan *commitEntry
+	commitC chan *commitEntry
 
+	cl *Cluster
 	rs *raftServer
 
 	proposed *Proposed
 }
 
-func newRaftOperator(rs *raftServer) *RaftOperator {
-	confChangeC := make(chan *types.MembershipChange, 1)
+func newRaftOperator(rs *raftServer, cl *Cluster) *RaftOperator {
 	commitC := make(chan *commitEntry, MaxCommitQueueLen)
 
-	return &RaftOperator{confChangeC: confChangeC, commitC: commitC, rs: rs}
+	return &RaftOperator{commitC: commitC, rs: rs, cl: cl}
 }
 
 func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) error {
@@ -683,6 +727,27 @@ func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockStat
 	}
 
 	logger.Info().Msg("block proposed by blockfactory")
+
+	if blockState.CCProposal != nil {
+		if err := rop.ProposeConfChange(blockState.CCProposal); err != nil {
+			logger.Error().Err(err).Msg("failed to change membership")
+			return ErrorMembershipChange{err}
+		}
+	}
+
+	return nil
+}
+
+func (rop *RaftOperator) ProposeConfChange(proposal *consensus.ConfChangePropose) error {
+	var err error
+
+	if rop.cl == nil {
+		return ErrClusterNotReady
+	}
+
+	if err = rop.cl.submitProposal(proposal, true); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -704,4 +769,18 @@ func (rop *RaftOperator) toString() string {
 
 func shutdownMsg(m string) {
 	logger.Info().Msgf("shutdown initiated. stop the %s", m)
+}
+
+func ValidateGenesis(genesis *types.Genesis) error {
+	if strings.ToLower(genesis.ID.Consensus) != consensus.ConsensusName[consensus.ConsensusRAFT] {
+		return ErrInvalidConsensusName
+	}
+
+	// validate BPS
+	if _, err := parseBpsToMembers(genesis.EnterpriseBPs); err != nil {
+		logger.Error().Err(err).Msg("failed to parse bp list of Genesis block")
+		return err
+	}
+
+	return nil
 }

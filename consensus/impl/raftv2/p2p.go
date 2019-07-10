@@ -19,11 +19,11 @@ var (
 )
 
 // GetBestBlock returns the current best block from chainservice
-func GetClusterInfo(hs *component.ComponentHub) (*Cluster, *types.HardStateInfo, error) {
+func GetClusterInfo(hs *component.ComponentHub, bestHash []byte) (*Cluster, *types.HardStateInfo, error) {
 	logger.Info().Msg("try getclusterinfo to p2p")
 
 	replyC := make(chan *message.GetClusterRsp)
-	hs.Tell(message.P2PSvc, &message.GetCluster{ReplyC: replyC})
+	hs.Tell(message.P2PSvc, &message.GetCluster{BestBlockHash: bestHash, ReplyC: replyC})
 
 	var (
 		rsp   *message.GetClusterRsp

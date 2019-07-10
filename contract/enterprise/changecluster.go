@@ -7,26 +7,37 @@ import (
 	"strconv"
 )
 
+type CcArgument map[string]interface{}
+
 const (
 	CmdMembershipAdd    = "add"
 	CmdMembershipRemove = "remove"
 
-	CCCommand        = "command"
-	MemberAttrName   = "name"
-	MemberAttrUrl    = "url"
-	MemberAttrPeerID = "peerid"
-	MemberAttrID     = "id"
+	CCCommand         = "command"
+	MemberAttrName    = "name"
+	MemberAttrAddress = "address"
+	MemberAttrPeerID  = "peerid"
+	MemberAttrID      = "id"
 )
 
-func validateChangeCluster(ci types.CallInfo) (interface{}, error) {
+/*
+var (
+	ConfChangeState_name = map[ConfChangeState]string{
+		0: "Proposed",
+		1: "Saved",
+		2: "Applied",
+	}
+)*/
+
+func ValidateChangeCluster(ci types.CallInfo, blockNo types.BlockNo) (interface{}, error) {
 	var (
-		ccArg     ccArgument
+		ccArg     CcArgument
 		ok        bool
 		err       error
 		changeReq *types.MembershipChange
 	)
 
-	if len(ci.Args) != 1 { //args[0] : map{ "command": "add", "name:", "url:", "peerid:", "id:"}
+	if len(ci.Args) != 1 { //args[0] : map{ "command": "add", "name:", "address:", "peerid:", "id:"}
 		return nil, fmt.Errorf("invalid arguments in payload for ChangeCluster: %s", ci.Args)
 	}
 
@@ -39,10 +50,12 @@ func validateChangeCluster(ci types.CallInfo) (interface{}, error) {
 		return nil, err
 	}
 
+	changeReq.RequestID = blockNo
+
 	return changeReq, nil
 }
 
-func (cc ccArgument) get(key string) (string, error) {
+func (cc CcArgument) get(key string) (string, error) {
 	var (
 		val    interface{}
 		valStr string
@@ -60,7 +73,7 @@ func (cc ccArgument) get(key string) (string, error) {
 	return valStr, nil
 }
 
-func (cc ccArgument) getUint64(key string) (uint64, error) {
+func (cc CcArgument) getUint64(key string) (uint64, error) {
 	var (
 		val     interface{}
 		valUint float64
@@ -78,12 +91,13 @@ func (cc ccArgument) getUint64(key string) (uint64, error) {
 	return uint64(valUint), nil
 }
 
-func (cc ccArgument) parse() (*types.MembershipChange, error) {
+func (cc CcArgument) parse() (*types.MembershipChange, error) {
 	var (
-		cmd, name, url, peerid, idStr string
-		id                            uint64
-		err                           error
-		mChange                       types.MembershipChange
+		cmd, name, address, peeridStr, idStr string
+		id                                   uint64
+		err                                  error
+		mChange                              types.MembershipChange
+		peerID                               types.PeerID
 	)
 
 	if cmd, err = cc.get(CCCommand); err != nil {
@@ -98,17 +112,17 @@ func (cc ccArgument) parse() (*types.MembershipChange, error) {
 			return nil, err
 		}
 
-		if url, err = cc.get(MemberAttrUrl); err != nil {
+		if address, err = cc.get(MemberAttrAddress); err != nil {
 			return nil, err
 		}
 
-		if peerid, err = cc.get(MemberAttrPeerID); err != nil {
+		if peeridStr, err = cc.get(MemberAttrPeerID); err != nil {
 			return nil, err
 		}
 
-		_, err = types.IDB58Decode(peerid)
+		peerID, err = types.IDB58Decode(peeridStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ChangeCluster argument: invalid peerid %s", peerid)
+			return nil, fmt.Errorf("invalid ChangeCluster argument: can't decode peerid string(%s)", peeridStr)
 		}
 
 	case CmdMembershipRemove:
@@ -126,7 +140,7 @@ func (cc ccArgument) parse() (*types.MembershipChange, error) {
 		return nil, fmt.Errorf("invalid ChangeCluster argument: invalid command %s", cmd)
 	}
 
-	mChange.Attr = &types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerid), ID: id}
+	mChange.Attr = &types.MemberAttr{Name: name, Address: address, PeerID: []byte(peerID), ID: id}
 
 	return &mChange, nil
 }

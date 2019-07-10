@@ -1,7 +1,6 @@
 package p2pcommon
 
 import (
-	"io"
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -42,14 +41,4 @@ type ActorService interface {
 	FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future
 
 	GetChainAccessor() types.ChainAccessor
-}
-
-// will be changed later
-//type PeerID = PeerID
-
-// FlushableWriter is writer which have Flush method, such as bufio.Writer
-type FlushableWriter interface {
-	io.Writer
-	// Flush writes any buffered data to the underlying io.Writer.
-	Flush() error
 }

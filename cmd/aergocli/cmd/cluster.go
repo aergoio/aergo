@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	nodename  string
-	nodeidStr string
-	url       string
-	peerid    string
+	nodename    string
+	nodeidStr   string
+	peerAddress string
+	peerid      string
 )
 
 func init() {
@@ -22,8 +22,8 @@ func init() {
 
 	addCmd.Flags().StringVar(&nodename, "name", "", "node name to add to the cluster")
 	addCmd.MarkFlagRequired("name")
-	addCmd.Flags().StringVar(&url, "url", "", "node url to add to the cluster")
-	addCmd.MarkFlagRequired("url")
+	addCmd.Flags().StringVar(&peerAddress, "address", "", "node address to add to the cluster")
+	addCmd.MarkFlagRequired("address")
 	addCmd.Flags().StringVar(&peerid, "peerid", "", "peer id of node to add to the cluster")
 	addCmd.MarkFlagRequired("peerid")
 
@@ -38,14 +38,20 @@ var addCmd = &cobra.Command{
 	Use:   "add [flags]",
 	Short: "Add new member node to cluster. This command can only be used for raft consensus.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(nodename) == 0 || len(url) == 0 || len(peerid) == 0 {
+		if len(nodename) == 0 || len(peerAddress) == 0 || len(peerid) == 0 {
 			cmd.Printf("Failed: name, len, peerid flag must have value\n")
+			return
+		}
+
+		peerIDBytes, err := aergorpc.IDB58Decode(peerid)
+		if err != nil {
+			cmd.Printf("FAiled to add member: invalid raft peerid(%s)", peerid)
 			return
 		}
 
 		var changeReq = &aergorpc.MembershipChange{
 			Type: aergorpc.MembershipChangeType_ADD_MEMBER,
-			Attr: &aergorpc.MemberAttr{Name: nodename, Url: url, PeerID: []byte(peerid)},
+			Attr: &aergorpc.MemberAttr{Name: nodename, Address: peerAddress, PeerID: []byte(peerIDBytes)},
 		}
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {

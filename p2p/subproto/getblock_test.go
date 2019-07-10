@@ -72,9 +72,17 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			h := NewBlockReqHandler(mockPM, mockPeer, logger, mockActor)
 			dummyMsg := &testMessage{subProtocol: p2pcommon.GetBlocksRequest,id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
-			h.Handle(dummyMsg, msgBody)
+			//h.Handle(dummyMsg, msgBody)
+			h.handleBlkReq(dummyMsg, msgBody)
 
-			assert.Equal(t, test.succResult, mockMF.lastStatus == types.ResultStatus_OK)
+			// wait to work finished
+			<-h.w
+
+			mockMF.mutex.Lock()
+			lastStatus := mockMF.lastStatus
+			mockMF.mutex.Unlock()
+
+			assert.Equal(t, test.succResult, lastStatus== types.ResultStatus_OK)
 		})
 	}
 }

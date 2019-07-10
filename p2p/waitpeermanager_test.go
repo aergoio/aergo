@@ -163,9 +163,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 		// failed to handshake
 		{"TErrHandshake", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
 			nil, errors.New("handshake err"), false, false, dummyPeerID, false},
-		// invalid status information
-		{"TErrDiffPeerID", args{false, p2pcommon.PeerMeta{ID: dummyPeerID}},
-			dummyStatus(dummyPeerID2, false), nil, false, false, dummyPeerID, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -174,7 +171,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockHSHandler := p2pmock.NewMockHSHandler(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 			//mockHSFactory.EXPECT().CreateHSHandler(gomock.Any(), tt.args.outbound, tt.args.meta.ID).Return(mockHSHandler)
-			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
+			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
 			mockHandlerFactory := p2pmock.NewMockHandlerFactory(ctrl)
 			mockHandlerFactory.EXPECT().InsertHandlers(gomock.AssignableToTypeOf(&remotePeerImpl{})).MaxTimes(1)
 
@@ -186,7 +183,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			pm := &peerManager{
 				mf:              mockMF,
 				hsFactory:       mockHSFactory,
-				handlerFactory:  mockHandlerFactory,
 				peerHandshaked:  make(chan handshakeResult, 10),
 			}
 			dpm := &basePeerManager{

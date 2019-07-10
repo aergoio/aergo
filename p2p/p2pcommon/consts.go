@@ -33,13 +33,14 @@ func (v P2PVersion) Uint32() uint32 {
 }
 
 func (v P2PVersion) String() string {
-	return fmt.Sprintf("%d.%d.%d", v&0x7fff0000, v&0x0000ff00, v&0x000000ff)
+	return fmt.Sprintf("%d.%d.%d", (v&0x7fff0000)>>16, (v&0x0000ff00)>>8, v&0x000000ff)
 }
 
 const (
 	P2PVersionUnknown P2PVersion = 0x00000000
 	P2PVersion030     P2PVersion = 0x00000300
 	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
+	P2PVersion032     P2PVersion = 0x00000302 // pseudo version for supporting multi version
 )
 
 // context of multiaddr, as higher type of p2p message

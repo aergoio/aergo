@@ -136,7 +136,6 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 
 			_, data := test.setup(t, mockActor, mockCA, mockPeer)
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
-			target.syncing = test.syncing
 			if test.put != nil {
 				target.blkCache.Add(*test.put, true)
 			}

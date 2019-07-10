@@ -9,13 +9,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"reflect"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -86,18 +86,18 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 		writeError error
 		want       *types.Status
 		wantErr    bool
+		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
-		{"TUnexpMsg", nil, nil, nil, nil, true},
-		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
-		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true},
-		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
-		{"TDiffChain", diffStatusMsg, nil, nil, nil, true},
+		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TUnexpMsg", nil, nil, nil, nil, true, true},
+		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
+		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
+		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true, false},
+		{"TDiffChain", diffStatusMsg, nil, nil, nil, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := p2pmock.NewMockReader(ctrl)
-			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			dummyReader := p2pmock.NewMockReadWriteCloser(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			var containerMsg *p2pcommon.MessageValue
@@ -109,9 +109,12 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 				containerMsg = p2pcommon.NewSimpleMsgVal(p2pcommon.AddressesRequest, p2pcommon.NewMsgID())
 			}
 			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
-			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
+			if tt.wantGoAway {
+				mockRW.EXPECT().WriteMsg(&MsgMatcher{p2pcommon.GoAway}).Return(tt.writeError)
+			}
+			mockRW.EXPECT().WriteMsg(&MsgMatcher{p2pcommon.StatusRequest}).Return(tt.writeError).MaxTimes(1)
 
-			h := NewV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
+			h := NewV030VersionedHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader)
 			h.msgRW = mockRW
 			got, err := h.DoForOutbound(context.Background())
 			if (err != nil) != tt.wantErr {
@@ -159,18 +162,18 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 		writeError error
 		want       *types.Status
 		wantErr    bool
+		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false},
-		{"TUnexpMsg", nil, nil, nil, nil, true},
-		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true},
-		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true},
-		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true},
-		{"TDiffChain", diffStatusMsg, nil, nil, nil, true},
+		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TUnexpMsg", nil, nil, nil, nil, true, true},
+		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
+		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
+		{"TWFail", dummyStatusMsg, nil, fmt.Errorf("failed"), nil, true, false},
+		{"TDiffChain", diffStatusMsg, nil, nil, nil, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dummyReader := p2pmock.NewMockReader(ctrl)
-			dummyWriter := p2pmock.NewMockWriter(ctrl)
+			dummyReader := p2pmock.NewMockReadWriteCloser(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			containerMsg := &p2pcommon.MessageValue{}
@@ -183,9 +186,12 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 			}
 
 			mockRW.EXPECT().ReadMsg().Return(containerMsg, tt.readError).AnyTimes()
-			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeError).AnyTimes()
+			if tt.wantGoAway {
+				mockRW.EXPECT().WriteMsg(&MsgMatcher{p2pcommon.GoAway}).Return(tt.writeError)
+			}
+			mockRW.EXPECT().WriteMsg(&MsgMatcher{p2pcommon.StatusRequest}).Return(tt.writeError).MaxTimes(1)
 
-			h := NewV030StateHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader, dummyWriter)
+			h := NewV030VersionedHS(mockPM, mockActor, logger, myChainID, samplePeerID, dummyReader)
 			h.msgRW = mockRW
 			got, err := h.DoForInbound(context.Background())
 			if (err != nil) != tt.wantErr {
@@ -200,6 +206,46 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.handshakeInboundPeer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type MsgMatcher struct {
+	sub p2pcommon.SubProtocol
+}
+
+func (m MsgMatcher) Matches(x interface{}) bool {
+	return x.(p2pcommon.Message).Subprotocol() == m.sub
+}
+
+func (m MsgMatcher) String() string {
+	return "matcher "+m.sub.String()
+}
+
+func Test_createMessage(t *testing.T) {
+	type args struct {
+		protocolID p2pcommon.SubProtocol
+		msgBody    p2pcommon.MessageBody
+	}
+	tests := []struct {
+		name string
+		args args
+		wantNil bool
+	}{
+		{"TStatus", args{protocolID:p2pcommon.StatusRequest,msgBody:&types.Status{Version:"11"}}, false},
+		{"TGOAway", args{protocolID:p2pcommon.GoAway,msgBody:&types.GoAwayNotice{Message:"test"}}, false},
+		{"TNil", args{protocolID:p2pcommon.StatusRequest,msgBody:nil}, true},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := createMessage(tt.args.protocolID, p2pcommon.NewMsgID(), tt.args.msgBody)
+			if (got == nil) != tt.wantNil {
+				t.Errorf("createMessage() = %v, want nil %v", got, tt.wantNil)
+			}
+			if got != nil &&  got.Subprotocol() != tt.args.protocolID {
+				t.Errorf("status.ProtocolID = %v, want %v", got.Subprotocol() , tt.args.protocolID)
 			}
 		})
 	}

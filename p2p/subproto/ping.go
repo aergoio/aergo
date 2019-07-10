@@ -6,10 +6,7 @@
 package subproto
 
 import (
-	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -46,7 +43,7 @@ func (ph *pingRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBo
 func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	pingData := msgBody.(*types.Ping)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, fmt.Sprintf("blockHash=%s blockNo=%d", enc.ToString(pingData.BestBlockHash), pingData.BestHeight))
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, pingData)
 	if _, err := types.ParseToBlockID(pingData.GetBestBlockHash()); err != nil {
 		ph.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Msg("ping is old format or wrong")
 		return

@@ -6,7 +6,6 @@
 package p2p
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/config"
@@ -42,7 +41,7 @@ func init() {
 }
 
 func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
-	var myChainID = &types.ChainID{Magic:"itSmain1"}
+	var myChainID = &types.ChainID{Magic: "itSmain1"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -56,7 +55,7 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 		wantErr bool
 	}{
 		// {"TNormal", time.Millisecond, dummyStatusMsg, false},
-		{"TTimeout", time.Millisecond * 200, nil, true},
+		{"TWriteTimeout", time.Millisecond * 100, nil, true},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -64,26 +63,28 @@ func TestPeerHandshaker_handshakeOutboundPeerTimeout(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
-			mockPM.EXPECT().SelfMeta().Return(dummyMeta).Times(2)
-			mockActor.EXPECT().GetChainAccessor().Return(mockCA)
-			mockCA.EXPECT().GetBestBlock().Return(dummyBestBlock, nil)
+			if !tt.wantErr {
+				// these will be called if timeout is not happen, so version handshake is called.
+				mockPM.EXPECT().SelfMeta().Return(dummyMeta).Times(2)
+				mockActor.EXPECT().GetChainAccessor().Return(mockCA)
+				mockCA.EXPECT().GetBestBlock().Return(dummyBestBlock, nil)
+			}
 
 			h := newHandshaker(mockPM, mockActor, logger, myChainID, samplePeerID)
-			mockReader := p2pmock.NewMockReader(ctrl)
-			mockWriter := p2pmock.NewMockWriter(ctrl)
-			mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(p interface{}) (int, error) {
+			mockReader := p2pmock.NewMockReadWriteCloser(ctrl)
+			mockReader.EXPECT().Read(gomock.Any()).DoAndReturn(func(p []byte) (int, error) {
 				time.Sleep(tt.delay)
 				return 0, fmt.Errorf("must not reach")
 			}).AnyTimes()
-			mockWriter.EXPECT().Write(gomock.Any()).DoAndReturn(func(p interface{}) (int, error) {
+			mockReader.EXPECT().Write(gomock.Any()).DoAndReturn(func(p []byte) (int, error) {
 				time.Sleep(tt.delay)
-				return -1, fmt.Errorf("must not reach")
+				return len(p), nil
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
 			defer cancel()
-			_, got, err := h.handshakeOutboundPeer(ctx, mockReader, mockWriter)
+			_, got, err := h.handshakeOutboundPeer(ctx, mockReader)
 			//_, got, err := h.handshakeOutboundPeerTimeout(mockReader, mockWriter, time.Millisecond*50)
-			if !strings.Contains(err.Error(),"context deadline exceeded") {
+			if !strings.Contains(err.Error(), "context deadline exceeded") {
 				t.Errorf("LegacyWireHandshaker.handshakeOutboundPeer() error = %v, wantErr %v", err, "context deadline exceeded")
 				return
 			}
@@ -113,13 +114,11 @@ func TestPeerHandshaker_Select(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mockReader := p2pmock.NewMockReader(ctrl)
-			mockWriter := p2pmock.NewMockWriter(ctrl)
+			mockReader := p2pmock.NewMockReadWriteCloser(ctrl)
 
 			h := newHandshaker(mockPM, mockActor, logger, nil, samplePeerID)
 
-			actual, err := h.selectProtocolVersion(test.hsHeader.Version, bufio.NewReader(mockReader),
-				bufio.NewWriter(mockWriter))
+			actual, err := h.selectProtocolVersion(test.hsHeader.Version, mockReader)
 			assert.Equal(t, test.wantErr, err != nil)
 			if !test.wantErr {
 				assert.NotNil(t, actual)

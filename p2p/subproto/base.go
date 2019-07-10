@@ -46,3 +46,28 @@ func (bh *BaseMsgHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	}
 }
 
+// asyncHelper is
+type asyncHelper struct {
+	w chan int
+}
+
+func newAsyncHelper() asyncHelper {
+	h := asyncHelper{w: make(chan int,1)}
+	h.w <- 1
+	return h
+}
+
+func (th *asyncHelper) issue() bool {
+	// temporarily disable exclusive locking
+	return true
+	//select {
+	//case <-th.w:
+	//	return true
+	//default:
+	//	return false
+	//}
+}
+func (th *asyncHelper) release() {
+	// temporarily disable exclusive locking
+	//th.w <- 1
+}

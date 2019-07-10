@@ -186,7 +186,7 @@ func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	}
 	if p.logger.IsDebugEnabled() && pr.trace {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
-			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Str("hashes", p2putil.BytesArrToString(pr.txHashes)).Msg("Sent tx notice")
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogB58EncMarshaller(pr.txHashes,10)).Msg("Sent tx notice")
 	}
 	return nil
 }

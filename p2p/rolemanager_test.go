@@ -62,7 +62,7 @@ func TestRaftRoleManager_updateBP(t *testing.T) {
 				if _, found := rm.raftBP[id]; !found {
 					t.Errorf("P2P.UpdateBP() not exist %v, want exist ", id)
 				} else {
-					if rm.GetRole(id) != p2pcommon.RaftFollower {
+					if rm.GetRole(id) != p2pcommon.RaftProducer {
 						t.Errorf("P2P.GetRole(%v) false, want true", id)
 					}
 				}
@@ -106,11 +106,11 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		wantSkipped int
 		wantSent    int
 	}{
-		{"TAllBP", []rs{rs{p2pcommon.RaftLeader, types.RUNNING}, rs{p2pcommon.RaftFollower, types.RUNNING}, rs{p2pcommon.RaftFollower, types.RUNNING}}, 3, 0},
+		{"TAllBP", []rs{rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftProducer, types.RUNNING}}, 3, 0},
 		{"TAllWat", []rs{rs{p2pcommon.RaftWatcher, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.RUNNING}}, 0, 3},
-		{"TMIX", []rs{rs{p2pcommon.RaftLeader, types.RUNNING}, rs{p2pcommon.RaftFollower, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.RUNNING}}, 2, 1},
-		{"TMIXStop", []rs{rs{p2pcommon.RaftLeader, types.RUNNING}, rs{p2pcommon.RaftFollower, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.STOPPING}}, 3, 0},
-		{"TMixStop2", []rs{rs{p2pcommon.RaftLeader, types.STOPPING}, rs{p2pcommon.RaftFollower, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.RUNNING}}, 2, 1},
+		{"TMIX", []rs{rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.RUNNING}}, 2, 1},
+		{"TMIXStop", []rs{rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.STOPPING}}, 3, 0},
+		{"TMixStop2", []rs{rs{p2pcommon.RaftProducer, types.STOPPING}, rs{p2pcommon.RaftProducer, types.RUNNING}, rs{p2pcommon.RaftWatcher, types.RUNNING}}, 2, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

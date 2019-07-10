@@ -44,6 +44,8 @@ var (
 
 	ErrTxInvalidSize = errors.New("size of tx exceeds max length")
 
+	ErrTxOnlySupportedInPriv = errors.New("tx only supported in private")
+
 	ErrSignNotMatch = errors.New("signature not matched")
 
 	ErrCouldNotRecoverPubKey = errors.New("could not recover pubkey from sign")
@@ -70,5 +72,4 @@ var (
 	ErrExceedAmount = errors.New("request amount exceeds")
 
 	ErrCreatorNotMatch = errors.New("creator not matched")
-
 )

@@ -1,6 +1,7 @@
 package enterprise
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
@@ -9,11 +10,32 @@ import (
 
 var confPrefix = []byte("conf\\")
 
+const (
+	RPCPermissions = "RPCPERMISSIONS"
+	P2PWhite       = "P2PWHITE"
+	P2PBlack       = "P2PBLACK"
+	RaftWhite      = "RAFTWHITE"
+)
+
+//EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
+var enterpriseKeyDict = map[string]int{
+	RPCPermissions: 1,
+	P2PWhite:       2,
+	P2PBlack:       3,
+	RaftWhite:      4,
+}
+
 type Conf struct {
 	On     bool
 	Values []string
 }
 
+func (c *Conf) AppendValue(r string) {
+	if c.Values == nil {
+		c.Values = []string{}
+	}
+	c.Values = append(c.Values, r)
+}
 func (c *Conf) RemoveValue(r string) {
 	for i, v := range c.Values {
 		if v == r {
@@ -21,6 +43,26 @@ func (c *Conf) RemoveValue(r string) {
 			break
 		}
 	}
+}
+
+func (c *Conf) Validate(key []byte) error {
+	if !c.On {
+		return nil
+	}
+	strKey := string(key)
+	switch strKey {
+	case RPCPermissions:
+		for _, v := range c.Values {
+			if strings.Contains(strings.ToUpper(strings.Split(v, ":")[1]), "W") {
+				return nil
+			}
+		}
+		return fmt.Errorf("the values of %s should have at least one write permission", strKey)
+	case P2PWhite:
+	default:
+		return fmt.Errorf("could not validate key(%s)", strKey)
+	}
+	return nil
 }
 
 // AccountStateReader is an interface for getting a enterprise account state.
@@ -33,30 +75,35 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	if err != nil {
 		return nil, err
 	}
-	conf, err := getConf(scs, []byte(key))
-	if err != nil {
-		return nil, err
-	}
 	ret := &types.EnterpriseConfig{Key: key}
-	if conf != nil {
-		ret.On = conf.On
-		ret.Values = conf.Values
+	if strings.ToUpper(key) == "ALL" {
+		for k, _ := range enterpriseKeyDict {
+			ret.Values = append(ret.Values, k)
+		}
+	} else {
+		conf, err := getConf(scs, []byte(key))
+		if err != nil {
+			return nil, err
+		}
+		if conf != nil {
+			ret.On = conf.On
+			ret.Values = conf.Values
+		}
 	}
 	return ret, nil
 }
 
-func enableConf(scs *state.ContractState, key []byte, value bool) error {
+func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error) {
 	conf, err := getConf(scs, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if conf != nil {
 		conf.On = value
 	} else {
 		conf = &Conf{On: value}
 	}
-
-	return setConf(scs, key, conf)
+	return conf, nil
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
@@ -67,17 +114,17 @@ func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
 	return deserializeConf(data), err
 }
 
-func setConfValues(scs *state.ContractState, key []byte, in *Conf) error {
+func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf, error) {
 	conf, err := getConf(scs, key)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if conf != nil {
-		conf.Values = in.Values
+		conf.Values = values
 	} else {
-		conf = &Conf{Values: in.Values}
+		conf = &Conf{Values: values}
 	}
-	return setConf(scs, key, conf)
+	return conf, nil
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {

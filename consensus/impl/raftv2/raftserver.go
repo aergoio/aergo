@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
@@ -45,11 +46,18 @@ import (
 	"github.com/aergoio/etcd/snap"
 )
 
+const (
+	HasNoLeader       uint64 = 0
+	DfltSnapFrequency        = 30
+)
+
 //noinspection ALL
 var (
 	raftLogger                  raftlib.Logger
-	ConfSnapFrequency           uint64 = 10
+	ConfSnapFrequency           uint64 = DfltSnapFrequency
 	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
+
+	MaxProgressDiff uint64 = 100
 )
 
 var (
@@ -61,10 +69,6 @@ var (
 	ErrEmptySnapshot       = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
 	ErrProposeNilBlock     = errors.New("proposed block is nil")
-)
-
-const (
-	HasNoLeader uint64 = 0
 )
 
 func init() {
@@ -336,7 +340,7 @@ func (rs *raftServer) startRaft() {
 
 		rs.cluster.ResetMembers()
 
-		node = rs.restartNode()
+		node = rs.restartNode(false)
 
 	case RaftServerStateJoinCluster:
 		logger.Info().Msg("raft start and join existing cluster")
@@ -363,7 +367,7 @@ func (rs *raftServer) startRaft() {
 				logger.Fatal().Err(err).Msg("fafiled to save identity")
 			}
 
-			node = rs.restartNode()
+			node = rs.restartNode(true)
 
 			logger.Info().Msg("raft restarted from backup")
 		} else {
@@ -396,6 +400,21 @@ func (rs *raftServer) ID() uint64 {
 }
 
 func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
+	var (
+		blk *types.Block
+		err error
+	)
+	validateEmpty := func() {
+		if blk, err = rs.walDB.GetBestBlock(); err != nil {
+			logger.Fatal().Err(err).Msg("failed to get best block, so failed to start raft server")
+		}
+		if blk.BlockNo() > 0 {
+			logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
+		}
+	}
+
+	validateEmpty()
+
 	if err := rs.cluster.SetThisNodeID(); err != nil {
 		logger.Fatal().Err(err).Msg("failed to set id of this node")
 	}
@@ -418,7 +437,7 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	return raftlib.StartNode(c, startPeers)
 }
 
-func (rs *raftServer) restartNode() raftlib.Node {
+func (rs *raftServer) restartNode(join bool) raftlib.Node {
 	snapshot, err := rs.loadSnapshot()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to read snapshot")
@@ -429,7 +448,9 @@ func (rs *raftServer) restartNode() raftlib.Node {
 	}
 
 	// members of cluster will be loaded from snapshot or wal
-	if snapshot != nil {
+	// When restart from join, cluster must not recover from temporary snapshot since members are empty.
+	// Instead, node must use a cluster info received from remote server
+	if join == false && snapshot != nil {
 		if err := rs.cluster.Recover(snapshot); err != nil {
 			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
 		}
@@ -461,7 +482,7 @@ func (rs *raftServer) startTransport() {
 
 	for _, member := range rs.cluster.Members().MapByID {
 		if rs.cluster.NodeID() != member.ID {
-			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Url})
+			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Address})
 		}
 	}
 }
@@ -499,6 +520,8 @@ func (rs *raftServer) getNodeSync() raftlib.Node {
 
 // stop closes http, closes all channels, and stops raft.
 func (rs *raftServer) stop() {
+	logger.Info().Msg("stop raft server")
+
 	rs.stopHTTP()
 	close(rs.commitC)
 	close(rs.errorC)
@@ -536,12 +559,31 @@ func (rs *raftServer) Propose(block *types.Block) error {
 	return nil
 }
 
+func (rs *raftServer) saveConfChangeState(id uint64, state types.ConfChangeState, errCC error) error {
+	var errStr string
+
+	if errCC != nil {
+		errStr = errCC.Error()
+	}
+
+	pr := types.ConfChangeProgress{State: state, Err: errStr}
+
+	return rs.walDB.WriteConfChangeProgress(id, &pr)
+}
+
 func (rs *raftServer) serveConfChange() {
 	handleConfChange := func(propose *consensus.ConfChangePropose) {
-		if err := rs.node.ProposeConfChange(context.TODO(), *propose.Cc); err != nil {
+		var err error
+
+		err = rs.node.ProposeConfChange(context.TODO(), *propose.Cc)
+		if err != nil {
 			logger.Error().Err(err).Msg("failed to propose configure change")
-			rs.cluster.sendConfChangeReply(propose.Cc, nil, err)
-			return
+			rs.cluster.AfterConfChange(propose.Cc, nil, err)
+		}
+
+		err = rs.saveConfChangeState(propose.Cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_PROPOSED, err)
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to save progress of configure change")
 		}
 	}
 
@@ -956,7 +998,7 @@ func (rs *raftServer) recoverTransport() {
 		}
 
 		logger.Info().Str("member", m.ToString()).Msg("add raft peer")
-		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Url})
+		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Address})
 	}
 }
 
@@ -978,6 +1020,28 @@ var (
 	ErrInvCCType = errors.New("change type of ")
 )
 
+func unmarshalConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consensus.Member, error) {
+	var cc raftpb.ConfChange
+
+	if err := cc.Unmarshal(entry.Data); err != nil {
+		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of conf change entry")
+		return nil, nil, err
+	}
+
+	// skip confChange of empty context
+	if len(cc.Context) == 0 {
+		return nil, nil, nil
+	}
+
+	var member = consensus.Member{}
+	if err := json.Unmarshal(cc.Context, &member); err != nil {
+		logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
+		return nil, nil, err
+	}
+
+	return &cc, &member, nil
+}
+
 func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.ConfChange, *consensus.Member, error) {
 	// TODO XXX validate from current cluster configure
 	var cc *raftpb.ConfChange
@@ -988,33 +1052,14 @@ func (rs *raftServer) ValidateConfChangeEntry(entry *raftpb.Entry) (*raftpb.Conf
 		return rs.cluster.appliedTerm >= entry.Term || rs.cluster.appliedIndex >= entry.Index
 	}
 
+	cc, member, err = unmarshalConfChangeEntry(entry)
+	if err != nil {
+		logger.Fatal().Err(err).Str("entry", entry.String()).Uint64("requestID", cc.ID).Msg("failed to unmarshal conf change")
+	}
+
 	if alreadyApplied(entry) {
-		return nil, nil, ErrCCAlreadyApplied
+		return cc, member, ErrCCAlreadyApplied
 	}
-
-	unmarshalConfChangeEntry := func() (*raftpb.ConfChange, *consensus.Member, error) {
-		var cc raftpb.ConfChange
-
-		if err := cc.Unmarshal(entry.Data); err != nil {
-			logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of conf change entry")
-			return nil, nil, err
-		}
-
-		// skip confChange of empty context
-		if len(cc.Context) == 0 {
-			return nil, nil, nil
-		}
-
-		var member = consensus.Member{}
-		if err := json.Unmarshal(cc.Context, &member); err != nil {
-			logger.Fatal().Err(err).Uint64("idx", entry.Index).Uint64("term", entry.Term).Msg("failed to unmarshal of context of cc entry")
-			return nil, nil, err
-		}
-
-		return &cc, &member, nil
-	}
-
-	cc, member, err = unmarshalConfChangeEntry()
 
 	if err = rs.cluster.validateChangeMembership(cc, member, true); err != nil {
 		return cc, member, err
@@ -1031,17 +1076,30 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 	var member *consensus.Member
 	var err error
 
+	postWork := func(err error) bool {
+		if err != nil {
+			cc.NodeID = raftlib.None
+			rs.node.ApplyConfChange(*cc)
+		}
+
+		if cc.ID != 0 {
+			if err = rs.saveConfChangeState(cc.ID, types.ConfChangeState_CONF_CHANGE_STATE_APPLIED, err); err != nil {
+				logger.Error().Err(err).Msg("failed to save conf change status")
+			}
+			rs.cluster.AfterConfChange(cc, member, err)
+		}
+		return true
+	}
+
 	// ConfChanges may be applied more than once. This is because cluster information is more up-to-date than block information when a snapshot is received.
 	if cc, member, err = rs.ValidateConfChangeEntry(ent); err != nil {
-		logger.Warn().Err(err).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
-		// reset pending conf change
-		cc.NodeID = raftlib.None
-		return true
+		logger.Warn().Err(err).Str("entry", types.RaftEntryToString(ent)).Str("cluster", rs.cluster.toString()).Msg("failed to validate conf change")
+		return postWork(err)
 	}
 
 	rs.confState = rs.node.ApplyConfChange(*cc)
 
-	logger.Info().Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish confChange entry")
+	logger.Info().Uint64("requestID", cc.ID).Str("type", cc.Type.String()).Str("member", member.ToString()).Msg("publish conf change entry")
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
@@ -1050,7 +1108,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 
 		if len(cc.Context) > 0 && rs.ID() != cc.NodeID {
-			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Url})
+			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Address})
 		} else {
 			logger.Debug().Msg("skip add peer myself for addnode ")
 		}
@@ -1066,11 +1124,9 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		rs.transport.RemovePeer(etcdtypes.ID(cc.NodeID))
 	}
 
-	logger.Debug().Str("cluster", rs.cluster.toString()).Msg("after conf changed")
+	logger.Debug().Uint64("requestID", cc.ID).Str("cluster", rs.cluster.toString()).Msg("after conf changed")
 
-	rs.cluster.sendConfChangeReply(cc, member, nil)
-
-	return true
+	return postWork(nil)
 }
 
 // publishEntries writes committed log entries to commit channel and returns
@@ -1151,9 +1207,7 @@ func (rs *raftServer) ReportUnreachable(id uint64) {
 }
 
 func (rs *raftServer) ReportSnapshot(id uint64, status raftlib.SnapshotStatus) {
-	if status == raftlib.SnapshotFinish {
-		logger.Debug().Str("toID", EtcdIDToString(id)).Bool("isSucceed", status == raftlib.SnapshotFinish).Msg("report snapshot result")
-	}
+	logger.Info().Str("toID", EtcdIDToString(id)).Bool("isSucceed", status == raftlib.SnapshotFinish).Msg("finished to send snapshot")
 
 	rs.node.ReportSnapshot(id, status)
 }
@@ -1197,6 +1251,123 @@ func (rs *raftServer) Status() raftlib.Status {
 	return node.Status()
 }
 
+type MemberProgressState int32
+
+const (
+	MemberProgressStateHealthy MemberProgressState = iota
+	MemberProgressStateSlow
+	MemberProgressStateSyncing
+	MemberProgressStateUnknown
+)
+
+var (
+	MemberProgressStateNames = map[MemberProgressState]string{
+		MemberProgressStateHealthy: "MemberProgressStateHealthy",
+		MemberProgressStateSlow:    "MemberProgressStateSlow",
+		MemberProgressStateSyncing: "MemberProgressStateSyncing",
+		MemberProgressStateUnknown: "MemberProgressStateUnknown",
+	}
+)
+
+type MemberProgress struct {
+	MemberID      uint64
+	Status        MemberProgressState
+	LogDifference uint64
+
+	progress raftlib.Progress
+}
+
+type ClusterProgress struct {
+	N int
+
+	MemberProgresses map[uint64]*MemberProgress
+}
+
+func (cp *ClusterProgress) ToString() string {
+	buf := fmt.Sprintf("{ Total: %d, Members[", cp.N)
+
+	for _, mp := range cp.MemberProgresses {
+		buf = buf + mp.ToString()
+	}
+
+	buf = buf + fmt.Sprintf("] }")
+
+	return buf
+}
+
+func (cp *MemberProgress) ToString() string {
+	return fmt.Sprintf("{ id: %x, Staus: \"%s\", LogDifference: %d }", cp.MemberID, MemberProgressStateNames[cp.Status], cp.LogDifference)
+}
+
+func (rs *raftServer) GetLastIndex() (uint64, error) {
+	return rs.raftStorage.LastIndex()
+}
+
+func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
+	getProgressState := func(raftProgress *raftlib.Progress, lastLeaderIndex uint64, nodeID uint64, leadID uint64) MemberProgressState {
+		isLeader := nodeID == leadID
+
+		if !isLeader {
+			// syncing
+			if raftProgress.State == raftlib.ProgressStateSnapshot {
+				return MemberProgressStateSyncing
+			}
+
+			// slow
+			// - Even if node state is ProgressStateReplicate, if matchNo of the node is too lower than last index of leader, it is considered a slow state.
+			var isSlowFollower bool
+			if lastLeaderIndex > raftProgress.Match && (lastLeaderIndex-raftProgress.Match) > MaxProgressDiff {
+				isSlowFollower = true
+			}
+
+			if raftProgress.State == raftlib.ProgressStateProbe || isSlowFollower {
+				return MemberProgressStateSlow
+			}
+		}
+		// normal
+		return MemberProgressStateHealthy
+	}
+
+	var (
+		lastIdx uint64
+		err     error
+	)
+
+	prog := ClusterProgress{}
+
+	node := rs.getNodeSync()
+	if node == nil || !rs.IsLeader() {
+		return &prog, nil
+	}
+
+	status := node.Status()
+
+	n := len(status.Progress)
+	if n == 0 {
+		return &prog, nil
+	}
+
+	statusBytes, err := status.MarshalJSON()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to marshalEntryData raft status")
+	} else {
+		logger.Debug().Str("status", string(statusBytes)).Msg("raft status")
+	}
+
+	if lastIdx, err = rs.GetLastIndex(); err != nil {
+		logger.Error().Err(err).Msg("Get last raft index on leader")
+		return &prog, err
+	}
+
+	prog.MemberProgresses = make(map[uint64]*MemberProgress)
+	prog.N = n
+	for id, nodeProgress := range status.Progress {
+		prog.MemberProgresses[id] = &MemberProgress{MemberID: id, Status: getProgressState(&nodeProgress, lastIdx, rs.cluster.NodeID(), id), LogDifference: lastIdx - nodeProgress.Match, progress: nodeProgress}
+	}
+
+	return &prog, nil
+}
+
 // GetExistingCluster returns information of existing cluster.
 // It request member info to all of peers.
 func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, error) {
@@ -1204,9 +1375,28 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 		cl        *Cluster
 		hardstate *types.HardStateInfo
 		err       error
+		bestHash  []byte
+		bestBlk   *types.Block
 	)
+
+	getBestHash := func() []byte {
+		if bestBlk, err = rs.walDB.GetBestBlock(); err != nil {
+			logger.Fatal().Msg("failed to get best block of my chain to get existing cluster info")
+		}
+
+		logger.Info().Str("hash", bestBlk.ID()).Uint64("no", bestBlk.BlockNo()).Msg("best block of backup")
+
+		if bestBlk.BlockNo() == 0 {
+			return nil
+		}
+
+		return bestBlk.BlockHash()
+	}
+
+	bestHash = getBestHash()
+
 	for i := 1; i <= MaxTryGetCluster; i++ {
-		cl, hardstate, err = GetClusterInfo(rs.ComponentHub)
+		cl, hardstate, err = GetClusterInfo(rs.ComponentHub, bestHash)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
 				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")

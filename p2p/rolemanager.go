@@ -32,7 +32,7 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.RaftFollower})
+		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.RaftProducer})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
 	}
 	rm.p2ps.pm.UpdatePeerRole(changes)
@@ -43,7 +43,7 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
 	defer rm.raftMutex.Unlock()
 	if _, found := rm.raftBP[pid]; found {
 		// TODO check if leader or follower
-		return p2pcommon.RaftFollower
+		return p2pcommon.RaftProducer
 	} else {
 		return p2pcommon.RaftWatcher
 	}

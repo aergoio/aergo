@@ -240,6 +240,8 @@ function isStableLeader() {
 		exit 100
 	fi
 
+	mydate=$(date)
+	echo "$mydate> check if leader is stable"
 	timeout=$1
 
 	local _prevleader=""
@@ -251,6 +253,7 @@ function isStableLeader() {
 	for ((i=1;i<=$timeout;i++))
 	do 
 		if [ "$_prevleader" != "$_tmpLeader" ]; then
+			echo "Fail: leader changed prev=$_prevleader, cur=$_tmpLeader" 
 			return 0
 		fi
 
@@ -296,27 +299,35 @@ function isChainHang() {
 	local srcPort=$1
 	local timeout=$2
 	local heightStart=""
+	local heightEnd=""
+
+	local tryHangAgain=10
 
 	echo "isChainHang($timeout) from $srcPort"
-	getHeight $srcPort
-	heightStart=$?
 
-	sleep $timeout
+	for ((i=1;i<=$tryHangAgain;i++))
+	do 
+		getHeight $srcPort
+		heightStart=""
+		heightStart=$?
 
-	local heightEnd=""
-	getHeight $srcPort
-	heightEnd=$?
+		sleep $timeout
 
-	echo "start:$heightStart ~ end:$heightEnd"
+		heightEnd=""
+		getHeight $srcPort
+		heightEnd=$?
 
-	if [ "$heightEnd" = "$heightStart" ];then
-		echo "chain is hanged"
-		exit 100
-	fi
+		echo "start:$heightStart ~ end:$heightEnd"
+		if [ "$heightEnd" != "$heightStart" ];then
+			echo "check succed"
+			return 0
+		fi
 
-	echo "check succed"
+		echo "chain is hanged. and retry[$i]"
+		sleep 1
+	done
 
-	return 0
+	return 1
 }
 
 function checkReorg() {
@@ -431,18 +442,14 @@ function checkSyncRunning() {
         getHeight $curPort
         curHeight=$?
 
-        echo "curHeight=$curHeight"
-
         curHash=""
         getHash $curPort $curHeight curHash
-        echo "curHash=$curHash"
 
         srcHash=""
         getHash $srcPort $curHeight srcHash
-        echo "srcHash=$srcHash"
 
-
-        echo "curHeight=$curHeight, srchash=$srcHash, curhash=$curHash"
+		mydate=$(date)
+        echo "$mydate> curHeight=$curHeight, srchash=$srcHash, curhash=$curHash"
 
         if [ "$curHeight" = "-1" ] || [ "$curHash" = "-1" ] || [ "$srcHash" = "-1" ]; then
 			echo "========= sync failed ============"
@@ -457,7 +464,8 @@ function checkSyncRunning() {
         sleep 1
 	done
 
-	echo "=========== sync is running well =========="
+	mydate=$(date)
+	echo "$mydate =========== sync is running well =========="
 	return 0
 }
 
@@ -525,7 +533,7 @@ function makeAddMemberJson() {
 		exit 100
 	fi
 
-	memberJson='[ { "command": "add", "name": "'$_nodename'", "url": "http://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
+	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "http://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
 
 	echo $memberJson
 }

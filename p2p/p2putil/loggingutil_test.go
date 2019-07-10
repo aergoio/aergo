@@ -144,7 +144,7 @@ func TestLogB58EncMarshaler_MarshalZerologArray(t *testing.T) {
 			buf2 := bytes.NewBuffer(nil)
 			log2 := log.NewLogger("test.p2p").Output(buf2)
 
-			m := NewLogB58EncMarshaller(tt.fields.arr, tt.fields.limit)
+			m := types.NewLogB58EncMarshaller(tt.fields.arr, tt.fields.limit)
 			a := zerolog.Arr()
 			m.MarshalZerologArray(a)
 			log1.Info().Array("t", m).Msg("Print ")

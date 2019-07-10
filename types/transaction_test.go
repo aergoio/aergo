@@ -16,6 +16,8 @@ var (
 )
 
 func TestGovernanceTypeTransaction(t *testing.T) {
+	InitGovernance("dpos", false)
+
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 	const testReceiver = "AmNhXiU3s2BN26v5B5hT2bbEjvSjqyrBY7DGnD9UqVcwkTrDYyJN"
 	account, err := DecodeAddress(testSender)

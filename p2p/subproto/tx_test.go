@@ -173,10 +173,13 @@ func TestTxRequestHandler_handle(t *testing.T) {
 			mockPeer.EXPECT().SendMessage(mockMo)
 
 			header, body := test.setup(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
-			target := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
-			target.msgHelper = mockMsgHelper
+			h := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
+			h.msgHelper = mockMsgHelper
 
-			target.Handle(header, body)
+			//h.Handle(header, body)
+			h.handleTxReq(header, body.Hashes)
+			// wait for handle finished
+			<- h.w
 
 			test.verify(t, mockPM, mockActor, mockMsgHelper, mockMF, mockRW)
 		})
@@ -230,7 +233,10 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			h := NewTxReqHandler(mockPM, mockPeer, logger, mockActor)
 			dummyMsg := &testMessage{subProtocol: p2pcommon.GetTXsRequest, id:p2pcommon.NewMsgID()}
 			msgBody := &types.GetTransactionsRequest{Hashes: make([][]byte, test.hashCnt)}
-			h.Handle(dummyMsg, msgBody)
+			//h.Handle(dummyMsg, msgBody)
+			h.handleTxReq(dummyMsg, msgBody.Hashes)
+			// wait for handle finished
+			<- h.w
 
 		})
 	}
@@ -356,27 +362,6 @@ func BenchmarkArrayKey(b *testing.B) {
 
 	})
 
-}
-
-func Test_bytesArrToString(t *testing.T) {
-	t.SkipNow()
-	type args struct {
-		bbarray [][]byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{name: "TSucc-01", args: args{[][]byte{[]byte("abcde"), []byte("12345")}}, want: "[\"YWJjZGU=\",\"MTIzNDU=\",]"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := p2putil.BytesArrToString(tt.args.bbarray); got != tt.want {
-				t.Errorf("BytesArrToString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 type MempoolRspTxCountMatcher struct {

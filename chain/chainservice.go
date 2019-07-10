@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -277,7 +278,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
+	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.StartLStateFactory()
+
+	// For a strict governance transaction validation.
+	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
+	system.InitGovernance(cs.ConsensusType())
 
 	// init Debugger
 	cs.initDebugger()
@@ -538,7 +544,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	stateDB := cs.sdb.GetStateDB()
-	if key != "admin" {
+	if strings.ToUpper(key) != enterprise.AdminsKey {
 		return enterprise.GetConf(stateDB, key)
 	}
 	return enterprise.GetAdmin(stateDB)
@@ -847,4 +853,12 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
 	}
+}
+
+func (cs *ChainService) ConsensusType() string {
+	return cs.GetGenesisInfo().ConsensusType()
+}
+
+func (cs *ChainService) IsPublic() bool {
+	return cs.GetGenesisInfo().PublicNet()
 }

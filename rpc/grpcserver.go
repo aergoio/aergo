@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1189,11 +1190,17 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 		return nil, err
 	}
 
-	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Url: member.Url, PeerID: []byte(types.PeerID(member.PeerID))}}
+	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Address: member.Address, PeerID: []byte(types.PeerID(member.PeerID))}}
 	return reply, nil
 }
 
+//GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
 func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
+	genensis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
+	if genensis.PublicNet() {
+		return nil, status.Error(codes.Unavailable, "not supported in public")
+	}
+
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
@@ -1207,4 +1214,44 @@ func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.E
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Conf, nil
+}
+
+func (rpc *AergoRPCService) GetConfChangeProgress(ctx context.Context, in *types.SingleBytes) (*types.ConfChangeProgress, error) {
+	var (
+		progress *types.ConfChangeProgress
+		err      error
+	)
+
+	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
+	if genesis.PublicNet() {
+		return nil, status.Error(codes.Unavailable, "not supported in public")
+	}
+
+	if strings.ToLower(genesis.ConsensusType()) != consensus.ConsensusName[consensus.ConsensusRAFT] {
+		return nil, status.Error(codes.Unavailable, "not supported if not raft consensus")
+	}
+
+	if err = rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+
+	if rpc.consensusAccessor == nil {
+		return nil, ErrUninitAccessor
+	}
+
+	if len(in.Value) != 8 {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid input. Request ID should be a 8 byte number.")
+	}
+
+	reqID := uint64(binary.LittleEndian.Uint64(in.Value))
+
+	if progress, err = rpc.consensusAccessor.ConfChangeInfo(reqID); err != nil {
+		return nil, err
+	}
+
+	if progress == nil {
+		return nil, status.Errorf(codes.NotFound, "not found")
+	}
+
+	return progress, nil
 }

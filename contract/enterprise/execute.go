@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
-	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -16,7 +16,8 @@ import (
 var (
 	entLogger *log.Logger
 
-	ErrNotSupportedMethod = errors.New("Not supported Enterprise Tx")
+	ErrNotSupportedMethod                      = errors.New("Not supported Enterprise Tx")
+	ErrTxEnterpriseAlreadyIncludeChangeCluster = errors.New("Enterprise Tx of Change cluster type already included in the block")
 )
 
 type EnterpriseContext struct {
@@ -24,7 +25,7 @@ type EnterpriseContext struct {
 	Args    []string
 	ArgsAny []interface{}
 	Admins  [][]byte
-	Old     *Conf
+	Conf    *Conf
 }
 
 func init() {
@@ -40,9 +41,9 @@ func (e *EnterpriseContext) IsAdminExist(addr []byte) bool {
 	return false
 }
 
-func (e *EnterpriseContext) IsOldConfValue(value string) bool {
-	if e.Old != nil {
-		for _, v := range e.Old.Values {
+func (e *EnterpriseContext) HasConfValue(value string) bool {
+	if e.Conf != nil {
+		for _, v := range e.Conf.Values {
 			if v == value {
 				return true
 			}
@@ -51,9 +52,10 @@ func (e *EnterpriseContext) IsOldConfValue(value string) bool {
 	return false
 }
 
-func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
-	sender *state.V) ([]*types.Event, error) {
-	context, err := ValidateEnterpriseTx(txBody, sender, scs)
+func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusCluster, scs *state.ContractState, txBody *types.TxBody,
+	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+
+	context, err := ValidateEnterpriseTx(txBody, sender, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
@@ -77,59 +79,20 @@ func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.Contrac
 		if err != nil {
 			return nil, err
 		}
-	case SetConf:
-		key := []byte(context.Args[0])
-		confValues := context.Args[1:]
-		err := setConfValues(scs, key, &Conf{
-			Values: confValues,
-		})
+	case SetConf, AppendConf, RemoveConf:
+		key := context.Args[0]
+		err = setConf(scs, []byte(key), context.Conf)
 		if err != nil {
 			return nil, err
 		}
-		events, err = createSetEvent(txBody.Recipient, string(key), confValues)
-		if err != nil {
-			return nil, err
-		}
-	case AppendConf:
-		key := []byte(strings.ToUpper(context.Args[0]))
-		appendValues := context.Args[1:]
-		conf, err := getConf(scs, key)
-		if err != nil {
-			return nil, err
-		}
-		if conf == nil {
-			conf = &Conf{On: false}
-		}
-		conf.Values = append(conf.Values, appendValues...)
-		err = setConf(scs, key, conf)
-		if err != nil {
-			return nil, err
-		}
-		events, err = createSetEvent(txBody.Recipient, string(key), conf.Values)
-		if err != nil {
-			return nil, err
-		}
-	case RemoveConf:
-		key := []byte(context.Args[0])
-		removeValues := context.Args[1:]
-		conf, err := getConf(scs, key)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range removeValues {
-			conf.RemoveValue(v)
-		}
-		err = setConf(scs, key, conf)
-		if err != nil {
-			return nil, err
-		}
-		events, err = createSetEvent(txBody.Recipient, string(key), conf.Values)
+		events, err = createSetEvent(receiver.ID(), key, context.Conf.Values)
 		if err != nil {
 			return nil, err
 		}
 	case EnableConf:
-		key := []byte(context.Args[0])
-		if err := enableConf(scs, key, context.Call.Args[1].(bool)); err != nil {
+		key := context.Args[0]
+		err = setConf(scs, []byte(key), context.Conf)
+		if err != nil {
 			return nil, err
 		}
 		jsonArgs, err := json.Marshal(context.Call.Args[1])
@@ -137,7 +100,7 @@ func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.Contrac
 			return nil, err
 		}
 		events = append(events, &types.Event{
-			ContractAddress: txBody.Recipient,
+			ContractAddress: receiver.ID(),
 			EventName:       "Enable " + string(key),
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
@@ -146,29 +109,44 @@ func ExecuteEnterpriseTx(ccc consensus.ChainConsensusCluster, scs *state.Contrac
 		if ccc == nil {
 			return nil, ErrNotSupportedMethod
 		}
+
+		if bs.CCProposal != nil {
+			return nil, ErrTxEnterpriseAlreadyIncludeChangeCluster
+		}
+
 		ccReq, ok := context.ArgsAny[0].(*types.MembershipChange)
 		if !ok {
 			return nil, fmt.Errorf("invalid argument of cluster change request")
 		}
-		//entLogger.Info().Str("req", ccReq.ToString()).Msg("Enterprise tx: cluster change request")
 
-		if err := ccc.RequestConfChange(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
+		var (
+			ccChange *consensus.ConfChangePropose
+			err      error
+		)
+
+		if ccChange, err = ccc.MakeConfChangeProposal(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
+			entLogger.Error().Err(err).Msg("Enterprise tx: failed to make cluster change proposal")
 			return nil, err
 		}
 
-		jsonArgs, err := json.Marshal(context.Call.Args[0])
-		if err != nil {
-			return nil, err
+		if err != consensus.ErrorMembershipChangeSkip {
+			bs.CCProposal = ccChange
 		}
-
-		entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
 		/*
+			jsonArgs, err := json.Marshal(context.Call.Args[0])
+			if err != nil {
+				return nil, err
+			}
+
+			entLogger.Debug().Str("jsonarg", string(jsonArgs)).Msg("make event")
+
 			events = append(events, &types.Event{
-				ContractAddress: txBody.Recipient,
-				EventName:       "ChangeCluster ",
-				EventIdx:        0,
-				JsonArgs:        string(jsonArgs),
-			})*/
+					ContractAddress: []byte(types.AergoEnterprise),
+					EventName:       "ChangeCluster ",
+					EventIdx:        0,
+					JsonArgs:        string(jsonArgs),
+			})
+		*/
 	default:
 		return nil, fmt.Errorf("unsupported call in enterprise contract")
 	}

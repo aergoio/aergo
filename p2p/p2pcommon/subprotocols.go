@@ -20,8 +20,8 @@ const (
 	GetBlocksResponse
 	GetBlockHeadersRequest
 	GetBlockHeadersResponse
-	GetMissingRequest  // Deprecated
-	GetMissingResponse // Deprecated
+	_ // placeholder for deprecated GetMissingRequest
+	_ // placeholder for deprecated GetMissingResponse
 	NewBlockNotice
 	GetAncestorRequest
 	GetAncestorResponse

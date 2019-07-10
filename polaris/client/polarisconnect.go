@@ -165,7 +165,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Sending map query")
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
 	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
@@ -186,7 +186,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	return nil, fmt.Errorf("remote error %s", resp.Status.String())
 }
 
-func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgWriter) error {
+func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgReadWriter) error {
 	msgID := p2pcommon.NewMsgID()
 	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
 	bytes, err := p2putil.MarshalMessageBody(queryReq)
@@ -200,7 +200,7 @@ func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd p2pcommon.MsgReader) (p2pcommon.Message, *types.MapResponse, error) {
+func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd p2pcommon.MsgReadWriter) (p2pcommon.Message, *types.MapResponse, error) {
 	data, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
@@ -219,7 +219,7 @@ func (pcs *PolarisConnectSvc) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	defer s.Close()
 
 	req, err := rw.ReadMsg()

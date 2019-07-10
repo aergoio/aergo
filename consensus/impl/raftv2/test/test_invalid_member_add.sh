@@ -17,7 +17,7 @@ rm $TEST_RAFT_INSTANCE/BP*
 echo ""
 echo "========= join invalid config member aergo4 ========="
 pushd $TEST_RAFT_INSTANCE/config
-do_sed.sh BP11004.toml 13002 13009 =
+do_sed.sh BP11004.toml aergo4 aergoxxx =
 popd
 
 TEST_SKIP_GENESIS=0 make_node.sh 
@@ -29,7 +29,7 @@ if [ $? -ne 0 ];then
 	exit 100
 fi
 
-sleep 20
+sleep 40
 existProcess 10004
 if [ "$?" = "1" ]; then
 	echo "error! process must be killed."
@@ -37,7 +37,7 @@ if [ "$?" = "1" ]; then
 fi
 
 pushd $TEST_RAFT_INSTANCE/config
-do_sed.sh BP11004.toml 13009 13002 =
+do_sed.sh BP11004.toml aergoxxx aergo4 =
 popd
 
 echo ""

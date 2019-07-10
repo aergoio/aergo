@@ -16,20 +16,18 @@ import (
 
 // HSHandlerFactory is creator of HSHandler
 type HSHandlerFactory interface {
-	CreateHSHandler(p2pVersion P2PVersion, outbound bool, pid types.PeerID) HSHandler
+	CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) HSHandler
 }
 
 // HSHandler handles whole process of connect, handshake, create of remote Peer
 type HSHandler interface {
 	// Handle peer handshake till ttl, and return msgrw for this connection, and status of remote peer.
-	Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error)
+	Handle(s io.ReadWriteCloser, ttl time.Duration) (MsgReadWriter, *types.Status, error)
 }
 
 type VersionedManager interface {
 	FindBestP2PVersion(versions []P2PVersion) P2PVersion
-	GetVersionedHandshaker(version P2PVersion, peerID types.PeerID, r io.Reader, w io.Writer) (VersionedHandshaker, error)
-
-	InjectHandlers(version P2PVersion, peer RemotePeer)
+	GetVersionedHandshaker(version P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (VersionedHandshaker, error)
 }
 
 // VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version.

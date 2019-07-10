@@ -235,7 +235,7 @@ func (m *MockMoFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raf
 }
 
 // NewRaftMsgOrder indicates an expected call of NewRaftMsgOrder
-func (mr *MockMoFactoryMockRecorder) NewRaftMsgOrder(msgType, message interface{}) *gomock.Call {
+func (mr *MockMoFactoryMockRecorder) NewRaftMsgOrder(msgType, raftMsg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewRaftMsgOrder", reflect.TypeOf((*MockMoFactory)(nil).NewRaftMsgOrder), msgType, message)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewRaftMsgOrder", reflect.TypeOf((*MockMoFactory)(nil).NewRaftMsgOrder), msgType, raftMsg)
 }

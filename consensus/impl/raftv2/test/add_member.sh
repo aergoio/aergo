@@ -15,8 +15,6 @@ if [ "$2" == "usebackup" ]; then
 	echo "try to join $addnode with backup"
 fi
 
-declare -A ports svrports svrname httpports peerids
-
 leader=$(aergocli -p 10001 blockchain | jq .ConsensusInfo.Status.Leader)
 leader=${leader//\"/}
 if [[ $leader != aergo* ]]; then
@@ -29,9 +27,11 @@ prevCnt=$(getClusterTotal 10001)
 
 echo "leader=$leader, port=$leaderport, prevTotal=$prevCnt"
 
-#echo "aergocli -p $leaderport cluster add --name \"$addnode\" --url \"http://127.0.0.1:${httpports[$addnode]}\" --peerid \"${peerids[$addnode]}\""
-#aergocli -p $leaderport cluster add --name "$addnode" --url "http://127.0.0.1:${httpports[$addnode]}" --peerid "${peerids[$addnode]}"
+# By RPC
+#echo "aergocli -p $leaderport cluster add --name \"$addnode\" --address \"http://127.0.0.1:${httpports[$addnode]}\" --peerid \"${peerids[$addnode]}\""
+#aergocli -p $leaderport cluster add --name "$addnode" --address "http://127.0.0.1:${httpports[$addnode]}" --peerid "${peerids[$addnode]}"
 
+# By Enterprise Tx
 walletFile="$TEST_RAFT_INSTANCE/genesis_wallet.txt"
 ADMIN=
 getAdminUnlocked $leaderport $walletFile ADMIN
@@ -70,7 +70,7 @@ if [ "$usebackup" == "0" ]; then
 	init_genesis.sh $mySvrName > /dev/null 2>&1
 else 
 	echo "join using backup: $mySvrName"
-	do_sed.sh $myConfig "joinusingbackup=false" "joinusingbackup=true" "/"
+	do_sed.sh $myConfig "joinclusterusingbackup=false" "joinclusterusingbackup=true" "/"
 	run_svr.sh $mySvrName
 fi
 popd

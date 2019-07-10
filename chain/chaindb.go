@@ -37,16 +37,18 @@ var (
 	ErrWalNoHardState      = errors.New("not exist hard state")
 	ErrInvalidHardState    = errors.New("invalid hard state")
 	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
+	ErrInvalidCCProgress   = errors.New("invalid conf change progress")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 
-	raftIdentityKey       = []byte("r_identity")
-	raftStateKey          = []byte("r_state")
-	raftSnapKey           = []byte("r_snap")
-	raftEntryLastIdxKey   = []byte("r_last")
-	raftEntryPrefix       = []byte("r_entry.")
-	raftEntryInvertPrefix = []byte("r_inv.")
+	raftIdentityKey              = []byte("r_identity")
+	raftStateKey                 = []byte("r_state")
+	raftSnapKey                  = []byte("r_snap")
+	raftEntryLastIdxKey          = []byte("r_last")
+	raftEntryPrefix              = []byte("r_entry.")
+	raftEntryInvertPrefix        = []byte("r_inv.")
+	raftConfChangeProgressPrefix = []byte("r_ccstatus.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).

@@ -30,3 +30,6 @@ func IDFromPublicKey(pubKey crypto.PubKey) (PeerID,error) {
 func IDFromPrivateKey(sk crypto.PrivKey) (PeerID, error) {
 	return peer.IDFromPrivateKey(sk)
 }
+
+// Stream is alias of libp2p.Stream
+type Stream = core.Stream

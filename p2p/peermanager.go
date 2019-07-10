@@ -36,7 +36,6 @@ type peerManager struct {
 	status            int32
 	nt                p2pcommon.NetworkTransport
 	hsFactory         p2pcommon.HSHandlerFactory
-	handlerFactory    p2pcommon.HandlerFactory
 	actorService      p2pcommon.ActorService
 	peerFactory       p2pcommon.PeerFactory
 	mf                p2pcommon.MoFactory
@@ -92,12 +91,11 @@ type PeerEventListener interface {
 }
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(handlerFactory p2pcommon.HandlerFactory, hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
 		nt:                nt,
-		handlerFactory:    handlerFactory,
 		hsFactory:         hsFactory,
 		actorService:      actor,
 		conf:              p2pConf,
@@ -396,7 +394,7 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	if target.State() == types.RUNNING {
 		pm.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but peer is still running")
 	}
-	pm.deletePeer(peerID)
+	pm.deletePeer(peer)
 	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
 	for _, listener := range pm.eventListeners {
 		listener.OnRemovePeer(peerID)
@@ -467,9 +465,9 @@ func (pm *peerManager) insertPeer(ID types.PeerID, peer p2pcommon.RemotePeer) {
 }
 
 // this method should be called inside pm.mutex
-func (pm *peerManager) deletePeer(ID types.PeerID) {
-	pm.mm.Remove(ID)
-	delete(pm.remotePeers, ID)
+func (pm *peerManager) deletePeer(peer p2pcommon.RemotePeer) {
+	pm.mm.Remove(peer.ID(), peer.ManageNumber())
+	delete(pm.remotePeers, peer.ID())
 	pm.updatePeerCache()
 }
 

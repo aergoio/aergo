@@ -17,6 +17,7 @@ import (
 
 type txRequestHandler struct {
 	BaseMsgHandler
+	asyncHelper
 	msgHelper message.Helper
 }
 
@@ -38,7 +39,7 @@ var _ p2pcommon.MessageHandler = (*newTxNoticeHandler)(nil)
 func NewTxReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txRequestHandler {
 	th := &txRequestHandler{
 		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, peer: peer, actor: actor, logger: logger},
-		message.GetHelper()}
+		newAsyncHelper(), message.GetHelper()}
 	return th
 }
 
@@ -47,11 +48,27 @@ func (th *txRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody
 }
 
 func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
-
 	remotePeer := th.peer
-	reqHashes := msgBody.(*types.GetTransactionsRequest).Hashes
-	p2putil.DebugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(reqHashes))
+	body := msgBody.(*types.GetTransactionsRequest)
+	reqHashes := body.Hashes
+	p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, body)
 
+	if th.issue() {
+		go th.handleTxReq(msg, reqHashes)
+	} else {
+		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("return err for concurrent get tx request")
+		resp := &types.GetTransactionsResponse{
+			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
+			Hashes: nil,
+			Txs:    nil, HasNext: false}
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetTXsResponse, resp))
+	}
+}
+
+// this function must called only if ticket can be retrieved.
+func (th *txRequestHandler) handleTxReq(msg p2pcommon.Message, reqHashes [][]byte) {
+	defer th.release()
+	remotePeer := th.peer
 	// TODO consider to make async if deadlock with remote peer can occurs
 	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
 	// find transactions from chainservice
@@ -135,7 +152,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 
 // newTxRespHandler creates handler for GetTransactionsResponse
 func NewTxRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txResponseHandler {
-	th := &txResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	th := &txResponseHandler{BaseMsgHandler{protocol: p2pcommon.GetTXsResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return th
 }
 
@@ -148,14 +165,16 @@ func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mes
 	p2putil.DebugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
 
 	th.peer.ConsumeRequest(msg.OriginalID())
-	// TODO: Is there any better solution than passing everything to mempool service?
-	if len(data.Txs) > 0 {
-		th.logger.Debug().Int(p2putil.LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
-		//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
-		for _, tx := range data.Txs {
-			th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})
+	go func() {
+		// TODO: Is there any better solution than passing everything to mempool service?
+		if len(data.Txs) > 0 {
+			th.logger.Debug().Int(p2putil.LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
+			//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
+			for _, tx := range data.Txs {
+				th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})
+			}
 		}
-	}
+	}()
 }
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse
@@ -173,7 +192,7 @@ func (th *newTxNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	data := msgBody.(*types.NewTransactionsNotice)
 	// remove to verbose log
 	if th.logger.IsDebugEnabled() {
-		p2putil.DebugLogReceiveMsg(th.logger, th.protocol, msg.ID().String(), remotePeer, p2putil.BytesArrToString(data.TxHashes))
+		p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, data)
 	}
 
 	if len(data.TxHashes) == 0 {

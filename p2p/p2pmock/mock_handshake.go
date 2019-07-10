@@ -38,9 +38,9 @@ func (m *MockHSHandlerFactory) EXPECT() *MockHSHandlerFactoryMockRecorder {
 }
 
 // CreateHSHandler mocks base method
-func (m *MockHSHandlerFactory) CreateHSHandler(p2pVersion p2pcommon.P2PVersion, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+func (m *MockHSHandlerFactory) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateHSHandler", p2pVersion, outbound, pid)
+	ret := m.ctrl.Call(m, "CreateHSHandler", legacy, outbound, pid)
 	ret0, _ := ret[0].(p2pcommon.HSHandler)
 	return ret0
 }
@@ -75,9 +75,9 @@ func (m *MockHSHandler) EXPECT() *MockHSHandlerMockRecorder {
 }
 
 // Handle mocks base method
-func (m *MockHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (m *MockHSHandler) Handle(s io.ReadWriteCloser, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Handle", r, w, ttl)
+	ret := m.ctrl.Call(m, "Handle", s, ttl)
 	ret0, _ := ret[0].(p2pcommon.MsgReadWriter)
 	ret1, _ := ret[1].(*types.Status)
 	ret2, _ := ret[2].(error)
@@ -85,9 +85,9 @@ func (m *MockHSHandler) Handle(r io.Reader, w io.Writer, ttl time.Duration) (p2p
 }
 
 // Handle indicates an expected call of Handle
-func (mr *MockHSHandlerMockRecorder) Handle(r, w, ttl interface{}) *gomock.Call {
+func (mr *MockHSHandlerMockRecorder) Handle(s, ttl interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockHSHandler)(nil).Handle), r, w, ttl)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockHSHandler)(nil).Handle), s, ttl)
 }
 
 // MockVersionedManager is a mock of VersionedManager interface
@@ -128,18 +128,18 @@ func (mr *MockVersionedManagerMockRecorder) FindBestP2PVersion(versions interfac
 }
 
 // GetVersionedHandshaker mocks base method
-func (m *MockVersionedManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, r io.Reader, w io.Writer) (p2pcommon.VersionedHandshaker, error) {
+func (m *MockVersionedManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetVersionedHandshaker", version, peerID, r, w)
+	ret := m.ctrl.Call(m, "GetVersionedHandshaker", version, peerID, rwc)
 	ret0, _ := ret[0].(p2pcommon.VersionedHandshaker)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetVersionedHandshaker indicates an expected call of GetVersionedHandshaker
-func (mr *MockVersionedManagerMockRecorder) GetVersionedHandshaker(version, peerID, r, w interface{}) *gomock.Call {
+func (mr *MockVersionedManagerMockRecorder) GetVersionedHandshaker(version, peerID, rwc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionedHandshaker", reflect.TypeOf((*MockVersionedManager)(nil).GetVersionedHandshaker), version, peerID, r, w)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionedHandshaker", reflect.TypeOf((*MockVersionedManager)(nil).GetVersionedHandshaker), version, peerID, rwc)
 }
 
 // InjectHandlers mocks base method

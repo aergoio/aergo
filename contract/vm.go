@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -96,6 +97,7 @@ type StateSet struct {
 	events            []*types.Event
 	eventCount        int32
 	callDepth         int32
+	traceFile         *os.File
 }
 
 type recoveryEntry struct {
@@ -138,6 +140,14 @@ func newContractInfo(callState *CallState, sender, contractId []byte, rp uint64,
 	}
 }
 
+func getTraceFile(blkno uint64, tx []byte) *os.File {
+	f, _ := os.OpenFile(fmt.Sprintf("%s%s%d.trace", os.TempDir(), string(os.PathSeparator), blkno), os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if f != nil {
+		_, _ = f.WriteString(fmt.Sprintf("[START TX]: %s\n", enc.ToString(tx)))
+	}
+	return f
+}
+
 func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, blockHeight uint64,
 	timestamp int64, prevBlockHash []byte, node string, confirmed bool,
@@ -163,6 +173,9 @@ func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, recieve
 	stateSet.callState[reciever.AccountID()] = callState
 	if sender != nil {
 		stateSet.callState[sender.AccountID()] = &CallState{curState: sender.State()}
+	}
+	if TraceBlockNo != 0 && TraceBlockNo == blockHeight {
+		stateSet.traceFile = getTraceFile(blockHeight, txHash)
 	}
 
 	return stateSet
@@ -497,6 +510,10 @@ func (ce *Executor) call(target *LState) C.int {
 		}
 		C.luaL_enablemaxmem(target)
 	}
+	if ce.stateSet.traceFile != nil {
+		_, _ = ce.stateSet.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
+			types.EncodeAddress(ce.stateSet.curContract.contractId), ce.stateSet.usedFee().String()))
+	}
 	return nret
 }
 
@@ -536,6 +553,15 @@ func (ce *Executor) commitCalledContract() error {
 			return newDbSystemError(err)
 		}
 	}
+
+	if stateSet.traceFile != nil {
+		_, _ = ce.stateSet.traceFile.WriteString("[Put State Balance]\n")
+		for k, v := range stateSet.callState {
+			_, _ = ce.stateSet.traceFile.WriteString(fmt.Sprintf("%s : nonce=%d ammount=%s\n",
+				k.String(), v.curState.GetNonce(), v.curState.GetBalanceBigInt().String()))
+		}
+	}
+
 	return nil
 }
 
@@ -623,6 +649,21 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 		logger.Error().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("commit state")
 		return "", ce.getEvents(), stateSet.usedFee(), err
 	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", stateSet.usedFee().String()))
+		evs := ce.getEvents()
+		if evs != nil {
+			_, _ = stateSet.traceFile.WriteString("[Event]\n")
+			for _, ev := range evs {
+				eb, _ := ev.MarshalJSON()
+				_, _ = stateSet.traceFile.Write(eb)
+				_, _ = stateSet.traceFile.WriteString("\n")
+			}
+		}
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[CALL END] : %s(%s)\n",
+			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
+	}
 	return ce.jsonRet, ce.getEvents(), stateSet.usedFee(), nil
 }
 
@@ -657,6 +698,12 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	stateSet.curContract.rp = rp
 	stateSet.prevBlockHash = prevBlockHash
 
+	if TraceBlockNo != 0 && TraceBlockNo == blockNo {
+		stateSet.traceFile = getTraceFile(blockNo, stateSet.txHash)
+		if stateSet.traceFile != nil {
+			defer stateSet.traceFile.Close()
+		}
+	}
 	curStateSet[stateSet.service] = stateSet
 	ce.call(nil)
 	err = ce.err
@@ -676,6 +723,22 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 			).Msg("pre-call")
 			err = dbErr
 		}
+	}
+	if stateSet.traceFile != nil {
+		contractId := stateSet.curContract.contractId
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", stateSet.usedFee().String()))
+		evs := ce.getEvents()
+		if evs != nil {
+			_, _ = stateSet.traceFile.WriteString("[Event]\n")
+			for _, ev := range evs {
+				eb, _ := ev.MarshalJSON()
+				_, _ = stateSet.traceFile.Write(eb)
+				_, _ = stateSet.traceFile.WriteString("\n")
+			}
+		}
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[PRECALL END] : %s(%s)\n",
+			types.EncodeAddress(contractId), types.ToAccountID(contractId)))
 	}
 	return ce.jsonRet, ce.getEvents(), stateSet.usedFee(), err
 }
@@ -807,6 +870,21 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		logger.Warn().Msg("constructor is failed")
 		logger.Error().Err(err).Msg("commit state")
 		return "", ce.getEvents(), stateSet.usedFee(), err
+	}
+	if stateSet.traceFile != nil {
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", stateSet.usedFee().String()))
+		evs := ce.getEvents()
+		if evs != nil {
+			_, _ = stateSet.traceFile.WriteString("[Event]\n")
+			for _, ev := range evs {
+				eb, _ := ev.MarshalJSON()
+				_, _ = stateSet.traceFile.Write(eb)
+				_, _ = stateSet.traceFile.WriteString("\n")
+			}
+		}
+		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[CREATE END] : %s(%s)\n",
+			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 	}
 	return ce.jsonRet, ce.getEvents(), stateSet.usedFee(), nil
 }

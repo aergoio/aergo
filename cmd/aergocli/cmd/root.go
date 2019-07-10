@@ -117,7 +117,9 @@ func connectAergo(cmd *cobra.Command, args []string) {
 		return
 	}
 	serverAddr := GetServerAddress()
-	var opts []grpc.DialOption
+	opts := []grpc.DialOption{
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024 * 1024 * 256)),
+	}
 	if rootConfig.TLS.ClientCert != "" || rootConfig.TLS.ClientKey != "" {
 		certificate, err := tls.LoadX509KeyPair(rootConfig.TLS.ClientCert, rootConfig.TLS.ClientKey)
 		if err != nil {
