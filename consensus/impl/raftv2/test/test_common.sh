@@ -240,6 +240,8 @@ function isStableLeader() {
 		exit 100
 	fi
 
+	mydate=$(date)
+	echo "$mydate> check if leader is stable"
 	timeout=$1
 
 	local _prevleader=""
@@ -251,6 +253,7 @@ function isStableLeader() {
 	for ((i=1;i<=$timeout;i++))
 	do 
 		if [ "$_prevleader" != "$_tmpLeader" ]; then
+			echo "Fail: leader changed prev=$_prevleader, cur=$_tmpLeader" 
 			return 0
 		fi
 
@@ -439,18 +442,14 @@ function checkSyncRunning() {
         getHeight $curPort
         curHeight=$?
 
-        echo "curHeight=$curHeight"
-
         curHash=""
         getHash $curPort $curHeight curHash
-        echo "curHash=$curHash"
 
         srcHash=""
         getHash $srcPort $curHeight srcHash
-        echo "srcHash=$srcHash"
 
-
-        echo "curHeight=$curHeight, srchash=$srcHash, curhash=$curHash"
+		mydate=$(date)
+        echo "$mydate> curHeight=$curHeight, srchash=$srcHash, curhash=$curHash"
 
         if [ "$curHeight" = "-1" ] || [ "$curHash" = "-1" ] || [ "$srcHash" = "-1" ]; then
 			echo "========= sync failed ============"
@@ -465,7 +464,8 @@ function checkSyncRunning() {
         sleep 1
 	done
 
-	echo "=========== sync is running well =========="
+	mydate=$(date)
+	echo "$mydate =========== sync is running well =========="
 	return 0
 }
 
