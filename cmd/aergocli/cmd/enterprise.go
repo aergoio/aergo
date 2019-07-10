@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"strings"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/types"
@@ -43,17 +44,31 @@ var enterpriseCmd = &cobra.Command{
 	Short: "Enterprise command",
 }
 
+type outConf struct {
+	Key    string
+	On     *bool
+	Values []string
+}
+
 var enterpriseKeyCmd = &cobra.Command{
-	Use:   "key <config key>",
+	Use:   "query <config key>",
 	Short: "Print config values of enterprise",
+	Long:  "'permissions' show everything you can set as special key",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+
 		msg, err := client.GetEnterpriseConfig(context.Background(), &aergorpc.EnterpriseConfigKey{Key: args[0]})
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(util.JSON(msg))
+		var out outConf
+		out.Key = msg.Key
+		out.Values = msg.Values
+		if strings.ToUpper(args[0]) != "PERMISSIONS" {
+			out.On = &msg.On //it's for print false
+		}
+		cmd.Println(util.B58JSON(out))
 	},
 }
 
@@ -88,16 +103,9 @@ var clusterCmd = &cobra.Command{
 	Use:   "cluster [flags]",
 	Short: "Print status of change cluster transaction. This command can only be used for raft consensus.",
 	Run: func(cmd *cobra.Command, args []string) {
-		fflags := cmd.Flags()
-		if fflags.Changed("tx") == false && fflags.Changed("reqid") == false {
-			cmd.Println("no cluster --tx or --reqid specified")
-			return
-		}
-
 		var (
 			output OutConfChange
 		)
-
 		// get conf chagne status with reqid
 		if requestID != 0 {
 			b := make([]byte, 8)

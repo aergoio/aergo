@@ -76,7 +76,7 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 		return nil, err
 	}
 	ret := &types.EnterpriseConfig{Key: key}
-	if strings.ToUpper(key) == "ALL" {
+	if strings.ToUpper(key) == "PERMISSIONS" {
 		for k, _ := range enterpriseKeyDict {
 			ret.Values = append(ret.Values, k)
 		}
