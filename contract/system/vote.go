@@ -158,7 +158,7 @@ func (c *voteCmd) updateVoteResult() error {
 		return err
 	}
 
-	return c.voteResult.Sync(c.scs)
+	return c.voteResult.Sync()
 }
 
 func (c *voteCmd) subVote(v *types.Vote) error {
@@ -209,7 +209,7 @@ func refreshAllVote(context *SystemContext) error {
 		if err = voteResult.AddVote(oldvote); err != nil {
 			return err
 		}
-		if err = voteResult.Sync(scs); err != nil {
+		if err = voteResult.Sync(); err != nil {
 			return err
 		}
 	}
