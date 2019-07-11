@@ -5181,13 +5181,12 @@ func TestFeeDelegation(t *testing.T) {
         whitelist[system.getSender()] = false
         return 1,2,3,4,5
     end
-    function check_fee_delegation()
+    function check_delegation(fname)
         return whitelist[system.getSender()]
     end
 	function default()
 	end
     abi.register(reg, query)
-    abi.register_view(check_fee_delegation)
     abi.payable(default)
     abi.fee_delegation(query)
 `
@@ -5207,8 +5206,8 @@ func TestFeeDelegation(t *testing.T) {
 		NewLuaTxSendBig("ktlee", "fd", send),
 	)
 	err = bc.ConnectBlock(
-		NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "check_fee_delegation", "Args":[]}`).
-			Fail("check_fee_delegation function is not declared of fee delegation"),
+		NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "check_delegation", "Args":[]}`).
+			Fail("check_delegation function is not declared of fee delegation"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -5263,7 +5262,7 @@ func TestFeeDelegation(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "fd2", 0, definition2),
 	)
-	if strings.Contains(err.Error(), "no 'check_fee_delegation' function") == false {
+	if strings.Contains(err.Error(), "no 'check_delegation' function") == false {
 		t.Error(err)
 	}
 }

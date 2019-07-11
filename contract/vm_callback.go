@@ -265,7 +265,7 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
-	ce := newExecutor(callee, cid, stateSet, &ci, amountBig, false, callState.ctrState)
+	ce := newExecutor(callee, cid, stateSet, &ci, amountBig, false, false, callState.ctrState)
 	defer ce.close()
 
 	if ce.err != nil {
@@ -362,7 +362,7 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
-	ce := newExecutor(contract, cid, stateSet, &ci, zeroBig, false, contractState)
+	ce := newExecutor(contract, cid, stateSet, &ci, zeroBig, false, false, contractState)
 	defer ce.close()
 
 	if ce.err != nil {
@@ -454,7 +454,7 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
-		ce := newExecutor(code, cid, stateSet, &ci, amountBig, false, callState.ctrState)
+		ce := newExecutor(code, cid, stateSet, &ci, amountBig, false, false, callState.ctrState)
 		defer ce.close()
 		if ce.err != nil {
 			return C.CString("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
@@ -1093,7 +1093,7 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
-	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true, contractState)
+	ce := newExecutor(runCode, newContract.ID(), stateSet, &ci, amountBig, true, false, contractState)
 	if ce != nil {
 		defer ce.close()
 		if ce.err != nil {
@@ -1325,4 +1325,16 @@ func luaCheckTimeout(service C.int) C.int {
 	default:
 		return 0
 	}
+}
+
+//export luaIsFeeDelegation
+func luaIsFeeDelegation(L *LState, service *C.int) (C.int, *C.char) {
+	stateSet := curStateSet[*service]
+	if stateSet == nil {
+		return -1, C.CString("[Contract.LuaIsContract] contract state not found")
+	}
+	if stateSet.isFeeDelegation {
+		return 1, nil
+	}
+	return 0, nil
 }

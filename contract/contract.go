@@ -64,8 +64,8 @@ func Execute(
 	bi *types.BlockHeaderInfo,
 	preLoadService int,
 	timeout <-chan struct{},
+	isFeeDelegation bool,
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
-
 	txBody := tx.GetBody()
 
 	usedFee = fee.PayloadTxFee(len(txBody.GetPayload()))
@@ -131,7 +131,7 @@ func Execute(
 	} else {
 		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), timeout)
+			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), timeout, isFeeDelegation)
 		if stateSet.traceFile != nil {
 			defer stateSet.traceFile.Close()
 		}
@@ -210,8 +210,8 @@ func preLoadWorker() {
 			continue
 		}
 		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), reqInfo.bi, "", false,
-			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt(), nil)
+			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
+			reqInfo.preLoadService, txBody.GetAmountBigInt(), nil, txBody.Type == types.TxType_FEEDELEGATION)
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
 		replyCh <- &loadedReply{tx, ex, err}

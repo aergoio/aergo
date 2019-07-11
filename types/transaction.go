@@ -148,7 +148,13 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 		if err := validate(tx.GetBody()); err != nil {
 			return err
 		}
-
+	case TxType_FEEDELEGATION:
+		if tx.GetBody().GetRecipient() == nil {
+			return ErrTxInvalidRecipient
+		}
+		if len(tx.GetBody().GetPayload()) <= 0 {
+			return ErrTxFormatInvalid
+		}
 	default:
 		return ErrTxInvalidType
 	}
@@ -324,6 +330,10 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 		case AergoEnterprise:
 		default:
 			return ErrTxInvalidRecipient
+		}
+	case TxType_FEEDELEGATION:
+		if amount.Cmp(balance) > 0 {
+			return ErrInsufficientBalance
 		}
 	}
 	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {

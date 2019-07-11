@@ -924,7 +924,8 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, timeout)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi,
+			preLoadService, timeout, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -950,7 +951,8 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi,
+			preLoadService, timeout, true)
 		receiver.SubBalance(txFee)
 	}
 

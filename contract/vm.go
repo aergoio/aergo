@@ -48,7 +48,7 @@ const (
 	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
 	maxCallDepth         = 5
-	checkFeeDelegationFn = "check_fee_delegation"
+	checkFeeDelegationFn = "check_delegation"
 )
 
 var (
@@ -90,6 +90,7 @@ type StateSet struct {
 	confirmed         bool
 	isQuery           bool
 	nestedView        int32
+	isFeeDelegation   bool
 	service           C.int
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
@@ -152,7 +153,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 
 func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
-	query bool, rp uint64, service int, amount *big.Int, timeout <-chan struct{}) *StateSet {
+	query bool, rp uint64, service int, amount *big.Int, timeout <-chan struct{}, feeDelegation bool) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
@@ -168,6 +169,7 @@ func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, recieve
 		blockInfo:   bi,
 		service:     C.int(service),
 		timeout:     timeout,
+		isFeeDelegation: feeDelegation,
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
@@ -250,6 +252,7 @@ func newExecutor(
 	ci *types.CallInfo,
 	amount *big.Int,
 	isCreate bool,
+	isDelegation bool,
 	ctrState *state.ContractState,
 ) *Executor {
 
@@ -317,10 +320,29 @@ func newExecutor(
 			return ce
 		}
 		ce.isView = f.View
-		C.vm_get_constructor(ce.L)
+		fName := C.CString("constructor")
+		C.vm_get_autoload(ce.L, fName)
+		C.free(unsafe.Pointer(fName))
 		if C.vm_isnil(ce.L, C.int(-1)) == 1 {
 			ce.close()
 			return nil
+		}
+		ce.numArgs = C.int(len(ci.Args))
+	} else if isDelegation {
+		_, err := resolveFunction(ctrState, checkFeeDelegationFn, false)
+		if err != nil {
+			ce.err = err
+			ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
+			return ce
+		}
+		ce.isView = true
+		fName := C.CString(checkFeeDelegationFn)
+		C.vm_get_autoload(ce.L, fName)
+		C.free(unsafe.Pointer(fName))
+		if C.vm_isnil(ce.L, C.int(-1)) == 1 {
+			ce.err = errors.New("not found check_delegation function")
+			ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
+			return ce
 		}
 		ce.numArgs = C.int(len(ci.Args))
 	} else {
@@ -658,7 +680,7 @@ func Call(
 	}
 
 	curStateSet[stateSet.service] = stateSet
-	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, contractState)
+	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, false, contractState)
 	defer ce.close()
 	ce.setCountHook(callMaxInstLimit)
 
@@ -823,7 +845,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(code)).Str("contract", types.EncodeAddress(contractAddress)).Msg("preload")
 	}
-	ce := newExecutor(contractCode, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, contractState)
+	ce := newExecutor(contractCode, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, false, contractState)
 	ce.setCountHook(callMaxInstLimit)
 
 	return ce, nil
@@ -900,7 +922,7 @@ func Create(
 		}
 	}
 
-	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, true, contractState)
+	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, true, false, contractState)
 	if ce == nil {
 		return "", nil, stateSet.usedFee(), nil
 	}
@@ -1001,7 +1023,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(queryInfo)).Str("contract", types.EncodeAddress(contractAddress)).Msg("query")
 	}
-	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, contractState)
+	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, false, contractState)
 	defer ce.close()
 	defer func() {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
@@ -1050,8 +1072,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	if err != nil {
 		return
 	}
-	stateSet := NewContextQuery(bs, cdb, contractAddress, contractState, "", true,
-		contractState.SqlRecoveryPoint)
+	stateSet := NewContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
 	stateSet.origin = sender
 	stateSet.txHash = txHash
 	stateSet.curContract.amount = new(big.Int).SetBytes(amount)
@@ -1061,9 +1082,9 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	if ctrLog.IsDebugEnabled() {
 		ctrLog.Debug().Str("abi", string(checkFeeDelegationFn)).Str("contract", types.EncodeAddress(contractAddress)).Msg("checkFeeDelegation")
 	}
-
+	ci.Args = append([]interface{}{ci.Name}, ci.Args...)
 	ci.Name = checkFeeDelegationFn
-	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, contractState)
+	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, false, true, contractState)
 	defer ce.close()
 	defer func() {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {

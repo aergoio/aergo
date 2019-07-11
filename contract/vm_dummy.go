@@ -388,7 +388,6 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 		balance := contractState.Balance()
 
 		if fee.MaxPayloadTxFee(len(l.code)).Cmp(balance) > 0 {
-			fmt.Println(fee.MaxPayloadTxFee(len(l.code)).String(), balance.String())
 			return types.ErrInsufficientBalance
 		}
 		err = CheckFeeDelegation(l.contract, bs, nil, eContractState, l.code,
@@ -437,7 +436,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 			contract.State().SqlRecoveryPoint = 1
 
 			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout)
+				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout, false)
 
 			if traceState {
 				stateSet.traceFile, _ =
@@ -518,7 +517,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout)
+				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, timeout, l.feeDelegate)
 			if traceState {
 				stateSet.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)

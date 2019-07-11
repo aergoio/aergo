@@ -62,6 +62,13 @@ func (r *Receipt) marshalBody(b *bytes.Buffer, isMerkle bool) error {
 	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.CumulativeFeeUsed)))
 	b.Write(l[:4])
 	b.Write(r.CumulativeFeeUsed)
+
+	/* need hard fork */
+	if r.FeeDelegation {
+		b.WriteByte(1)
+	} else {
+		b.WriteByte(0)
+	}
 	if len(r.Bloom) == 0 {
 		b.WriteByte(0)
 	} else {
@@ -120,6 +127,10 @@ func (r *Receipt) unmarshalBody(data []byte) ([]byte, uint32) {
 	pos += 4
 	r.CumulativeFeeUsed = data[pos : pos+l]
 	pos += l
+	if data[pos] == 1 {
+		r.FeeDelegation = true
+	}
+	pos += 1
 	bloomCheck := data[pos]
 	pos += 1
 	if bloomCheck == 1 {
@@ -240,6 +251,12 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(EncodeAddress(r.To))
 	b.WriteString(`","usedFee":`)
 	b.WriteString(new(big.Int).SetBytes(r.FeeUsed).String())
+	b.WriteString(`,"feeDelegation":`)
+	if r.FeeDelegation {
+		b.WriteString("true")
+	} else {
+		b.WriteString("false")
+	}
 	b.WriteString(`,"events":[`)
 	for i, ev := range r.Events {
 		if i != 0 {

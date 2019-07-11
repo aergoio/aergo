@@ -183,9 +183,9 @@ int vm_isnil(lua_State *L, int idx)
 	return lua_isnil(L, idx);
 }
 
-void vm_get_constructor(lua_State *L)
+void vm_get_autoload(lua_State *L, char *fname)
 {
-    lua_getfield(L, LUA_GLOBALSINDEX, construct_name);
+    lua_getfield(L, LUA_GLOBALSINDEX, fname);
 }
 
 void vm_remove_constructor(lua_State *L)

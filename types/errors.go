@@ -74,4 +74,6 @@ var (
 	ErrExceedAmount = errors.New("request amount exceeds")
 
 	ErrCreatorNotMatch = errors.New("creator not matched")
+
+	ErrNotAllowedFeeDelegation = errors.New("fee delegation is not allowed")
 )

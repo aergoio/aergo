@@ -464,6 +464,30 @@ static int is_contract(lua_State *L)
     return 1;
 }
 
+static int is_fee_delegation(lua_State *L)
+{
+    char *contract;
+	int *service = (int *)getLuaExecContext(L);
+	struct luaIsFeeDelegation_return ret;
+
+	if (service == NULL) {
+		luaL_error(L, "cannot find execution context");
+    }
+
+	contract = (char *)luaL_checkstring(L, 1);
+    ret = luaIsFeeDelegation(L, service);
+	if (ret.r1 != NULL) {
+	    strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	if (ret.r0 == 0)
+	    lua_pushboolean(L, false);
+	else
+	    lua_pushboolean(L, true);
+
+    return 1;
+}
+
 static const luaL_Reg sys_lib[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
@@ -482,6 +506,7 @@ static const luaL_Reg sys_lib[] = {
 	{"difftime", os_difftime},
 	{"random", lua_random},
 	{"isContract", is_contract},
+	{"isFeeDelegation", is_fee_delegation},
 	{NULL, NULL}
 };
 
