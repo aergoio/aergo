@@ -71,7 +71,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "not allowed key")
 
-	tx.Payload = []byte(`{"name":"appendConf", "args":["abc", "AmLqZ\FnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions", "AmLqZ\FnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "not allowed char")
 
@@ -87,7 +87,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "duplicated set conf")
 
-	tx.Payload = []byte(`{"name":"setConf", "args":["rpcpermissions","abc:R", "bcd:S", "cde:C"]}`)
+	tx.Payload = []byte(`{"name":"setConf", "args":["rpcpermissions","dGVzdAo=:R", "dGVzdDIK:S", "dGVzdDMK:C"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
 
@@ -95,7 +95,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "enable conf")
 
-	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","abc:WR"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","dGVzdAo=:WR"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "append conf")
 
@@ -103,7 +103,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "enable conf")
 
-	tx.Payload = []byte(`{"name":"removeConf", "args":["rpcpermissions","abc:WR"]}`)
+	tx.Payload = []byte(`{"name":"removeConf", "args":["rpcpermissions","dGVzdAo=:WR"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "remove conf")
 }
@@ -199,4 +199,42 @@ func TestBasicEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err)
 	assert.Nil(t, bs.CCProposal)
+}
+
+func TestCheckArgs(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.TxBody{}
+	testBlockNo := types.BlockNo(1)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+
+	block, _ := pem.Decode([]byte(testCert))
+	assert.NotNil(t, block, "parse value 0")
+	cert := types.EncodeB64(block.Bytes)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert + `:RWCS"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, RPCPermissions)
+
+	//missing permission string
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert + `"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.Error(t, err, RPCPermissions)
+
+	//invalid rpc cert
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","-+TEST+-:RWCS"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.Error(t, err, RPCPermissions)
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	//invalid account address
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","BmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.Error(t, err, AccountWhite)
 }

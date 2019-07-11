@@ -2,6 +2,7 @@ package enterprise
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -172,16 +173,31 @@ func checkAdmin(scs *state.ContractState, address []byte) ([][]byte, error) {
 	return admins, nil
 }
 
+type checkArgsFunc func(string) error
+
 func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
-	if _, ok := enterpriseKeyDict[strings.ToUpper(ci.Args[0].(string))]; !ok {
+	key := strings.ToUpper(ci.Args[0].(string))
+	if _, ok := enterpriseKeyDict[key]; !ok {
 		return fmt.Errorf("not allowed key : %s", ci.Args[0])
 	}
 
 	unique := map[string]int{}
-	for _, v := range ci.Args {
+	var op checkArgsFunc
+	switch key {
+	case P2PWhite, P2PBlack:
+		op = checkP2PBlackWhite
+	case AccountWhite:
+		op = checkAccountWhite
+	case RPCPermissions:
+		op = checkRPCPermissions
+	default:
+		op = checkNone
+	}
+
+	for i, v := range ci.Args {
 		arg, ok := v.(string)
 		if !ok {
-			return fmt.Errorf("not string in payload for setConf : %s", ci.Args)
+			return fmt.Errorf("not string in payload for setting conf : %s", ci.Args)
 		}
 		if strings.Contains(arg, "\\") {
 			return fmt.Errorf("not allowed charactor in %s", arg)
@@ -191,6 +207,44 @@ func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
 		}
 		unique[arg]++
 		context.Args = append(context.Args, arg)
+		if i == 0 { //it's key
+			continue
+		}
+		if err := op(arg); err != nil {
+			return err
+		}
 	}
+
+	return nil
+}
+
+func checkP2PBlackWhite(v string) error {
+	if _, err := types.IDB58Decode(v); err != nil {
+		return fmt.Errorf("invalid peer id %s", v)
+	}
+	return nil
+}
+
+func checkAccountWhite(v string) error {
+	if _, err := types.DecodeAddress(v); err != nil {
+		return fmt.Errorf("invalid account %s", v)
+	}
+	return nil
+}
+
+func checkRPCPermissions(v string) error {
+	values := strings.Split(v, ":")
+	if len(values) != 2 {
+		return fmt.Errorf("invalid RPC permission %s", v)
+	}
+
+	if _, err := base64.StdEncoding.DecodeString(values[0]); err != nil {
+		return fmt.Errorf("invalid RPC cert %s", v)
+	}
+
+	return nil
+}
+
+func checkNone(v string) error {
 	return nil
 }

@@ -15,6 +15,7 @@ const (
 	P2PWhite       = "P2PWHITE"
 	P2PBlack       = "P2PBLACK"
 	RaftWhite      = "RAFTWHITE"
+	AccountWhite   = "ACCOUNTWHITE"
 )
 
 //EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
@@ -23,6 +24,7 @@ var enterpriseKeyDict = map[string]int{
 	P2PWhite:       2,
 	P2PBlack:       3,
 	RaftWhite:      4,
+	AccountWhite:   5,
 }
 
 type Conf struct {
