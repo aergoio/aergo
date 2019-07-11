@@ -2791,7 +2791,12 @@ function checkAergo()
 "304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
 "AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
 end
-abi.register(get, checkEther, checkAergo)
+
+function keccak256(s)
+	return crypto.keccak256(s)
+end
+
+abi.register(get, checkEther, checkAergo, keccak256)
 `
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
@@ -2812,6 +2817,24 @@ abi.register(get, checkEther, checkAergo)
 	}
 
 	err = bc.Query("crypto", `{"Name": "checkAergo", "Args" : []}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query(
+		"crypto",
+		`{"Name": "keccak256", "Args" : ["0x616263"]}`,
+		"",
+		`"0x4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query(
+		"crypto",
+		`{"Name": "keccak256", "Args" : ["0x616572676F"]}`,
+		"",
+		`"0xe98bb03ab37161f8bbfe131f711dcccf3002a9cd9ec31bbd52edf181f7ab09a0"`)
 	if err != nil {
 		t.Error(err)
 	}

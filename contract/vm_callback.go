@@ -865,6 +865,30 @@ func LuaCryptoVerifyProof(
 	return C.int(0)
 }
 
+//export LuaCryptoKeccak256
+func LuaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int) {
+	var d []byte
+	b := C.GoBytes(data, dataLen)
+	isHex := checkHexString(string(b))
+	if isHex {
+		var err error
+		d, err = hex.DecodeString(string(b[2:]))
+		if err != nil {
+			isHex = false
+		}
+	}
+	if !isHex {
+		d = b
+	}
+	h := keccak256(d)
+	if isHex {
+		hex := []byte("0x" + hex.EncodeToString(h))
+		return C.CBytes(hex), len(hex)
+	} else {
+		return C.CBytes(h), len(h)
+	}
+}
+
 func transformAmount(amountStr string) (*big.Int, error) {
 	var ret *big.Int
 	var prev int

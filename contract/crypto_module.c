@@ -66,10 +66,26 @@ static int crypto_verifyProof(lua_State *L)
     return 1;
 }
 
+static int crypto_keccak256(lua_State *L)
+{
+    size_t len;
+    char *arg;
+    struct LuaCryptoKeccak256_return ret;
+
+    luaL_checktype(L, 1, LUA_TSTRING);
+    arg = (char *)lua_tolstring(L, 1, &len);
+
+    ret = LuaCryptoKeccak256(arg, len);
+    lua_pushlstring(L, ret.r0, ret.r1);
+    free(ret.r0);
+	return 1;
+}
+
 static const luaL_Reg crypto_lib[] = {
 	{"sha256", crypto_sha256},
 	{"ecverify", crypto_ecverify},
 	{"verifyProof", crypto_verifyProof},
+	{"keccak256", crypto_keccak256},
 	{NULL, NULL}
 };
 
