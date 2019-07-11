@@ -35,7 +35,7 @@ func TestGetConfChangeWithMock(t *testing.T) {
 	).Return(
 		tx,
 		nil,
-	).MaxTimes(1)
+	).AnyTimes()
 
 	mock.EXPECT().GetReceipt(
 		gomock.Any(), // expect any value for first parameter
@@ -45,10 +45,11 @@ func TestGetConfChangeWithMock(t *testing.T) {
 		nil,
 	).MaxTimes(2)
 
-	output, err := executeCommand(rootCmd, "enterprise", "tx", testTxHashString)
+	output, err := executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout", "0")
 	assert.NoError(t, err, "should be success")
 	t.Log(output)
 
+	// tx is executed
 	blockNoBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(blockNoBytes, expBlockNo)
 
@@ -87,14 +88,12 @@ func TestGetConfChangeWithMock(t *testing.T) {
 	).MaxTimes(2)
 
 	// case: GetConfChangeProgress from tx hash
-	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString)
+	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout",  "0")
 	assert.NoError(t, err, "should be success")
 	t.Log(output)
 
-	txHash = ""
 	// case: GetConfChangeProgress from reqid
-	_, err = executeCommand(rootCmd, "enterprise", "cluster", "--reqid", "100")
+	_, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout", "0")
 	assert.NoError(t, err, "should be success")
-
 	t.Log(output)
 }

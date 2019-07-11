@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/types"
@@ -22,19 +23,15 @@ import (
 )
 
 var (
-	enterpriseKey string
-
-	txHash    string
-	requestID uint64
+	ccBlockNo uint64
+	timeout   uint64
 )
 
 func init() {
 	rootCmd.AddCommand(enterpriseCmd)
 
-	clusterCmd.Flags().Uint64VarP(&requestID, "reqid", "r", 0, "requestID of changeCluster enterprise transaction")
-	clusterCmd.MarkFlagRequired("reqid")
+	enterpriseTxCmd.Flags().Uint64VarP(&timeout, "timeout", "t", 3600, "timeout(second) of geting status of enterprise transaction")
 
-	enterpriseCmd.AddCommand(clusterCmd)
 	enterpriseCmd.AddCommand(enterpriseKeyCmd)
 	enterpriseCmd.AddCommand(enterpriseTxCmd)
 }
@@ -72,7 +69,7 @@ var enterpriseKeyCmd = &cobra.Command{
 	},
 }
 
-func getRequestID(blockHash []byte) (aergorpc.BlockNo, error) {
+func getConfChangeBlockNo(blockHash []byte) (aergorpc.BlockNo, error) {
 	if len(blockHash) == 0 {
 		return 0, fmt.Errorf("failed to get block since blockhash is empty")
 	}
@@ -99,29 +96,53 @@ func (occ *OutConfChange) ToString() string {
 	return ret
 }
 
-var clusterCmd = &cobra.Command{
-	Use:   "cluster [flags]",
-	Short: "Print status of change cluster transaction. This command can only be used for raft consensus.",
-	Run: func(cmd *cobra.Command, args []string) {
-		var (
-			output OutConfChange
-		)
-		// get conf chagne status with reqid
-		if requestID != 0 {
-			b := make([]byte, 8)
-			binary.LittleEndian.PutUint64(b, requestID)
+func isTimeouted(timer *time.Timer) bool {
+	if timer == nil {
+		return true
+	}
 
-			msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
-			if err != nil {
-				cmd.Printf("Failed to get progress: reqid=%d, %s", requestID, err.Error())
-			}
-			//cmd.Printf(msgConfChangeProg.ToJsonString())
-			output.Status = msgConfChangeProg.ToPrintable()
+	select {
+	case <-timer.C:
+		return true
+	default:
+		return false
+	}
+}
+
+func getChangeClusterStatus(blockHash []byte, timer *time.Timer) (*aergorpc.ConfChangeProgress, error) {
+	var (
+		err               error
+		cycle             = time.Duration(3) * time.Second
+		msgConfChangeProg *aergorpc.ConfChangeProgress
+	)
+
+	// get ccBlockNo
+	if ccBlockNo, err = getConfChangeBlockNo(blockHash); err != nil {
+		return nil, err
+	}
+	// get conf chagne status with reqid
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, ccBlockNo)
+
+	for {
+		msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
+		if err != nil {
+			continue
 		}
 
-		cmd.Printf(output.ToString())
-		return
-	},
+		if msgConfChangeProg.State == aergorpc.ConfChangeState_CONF_CHANGE_STATE_APPLIED {
+			return msgConfChangeProg, nil
+		}
+
+		if isTimeouted(timer) {
+			break
+		}
+
+		time.Sleep(cycle)
+	}
+
+	//cmd.Printf(msgConfChangeProg.ToJsonString())
+	return msgConfChangeProg, nil
 }
 
 var enterpriseTxCmd = &cobra.Command{
@@ -131,52 +152,84 @@ var enterpriseTxCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		txHashDecode, err := base58.Decode(args[0])
 		if err != nil {
-			cmd.Printf("Failed: invalid tx hash")
+			cmd.Println("Failed: invalid tx hash")
 			return
 		}
+
 		var (
-			tx        *aergorpc.Tx
-			msgblock  *aergorpc.TxInBlock
-			output    OutConfChange
-			txInBlock bool
+			tx         *aergorpc.Tx
+			msgblock   *aergorpc.TxInBlock
+			output     OutConfChange
+			cycle      = time.Duration(3) * time.Second
+			ci         types.CallInfo
+			confChange *aergorpc.ConfChangeProgress
+			timer	   *time.Timer
 		)
-		tx, err = client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
-		if err != nil {
-			msgblock, err = client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
-			if err != nil {
-				cmd.Printf("Failed: %s\n", err.Error())
+
+		if timeout > 0 {
+			timer = time.NewTimer(time.Duration(timeout) * time.Second)
+		}
+
+		getTxTimeout := func() (*aergorpc.Tx, *aergorpc.TxInBlock, error) {
+			for {
+				tx, err = client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+				if err == nil {
+					// tx is not excuted yet
+					if isTimeouted(timer) {
+						return tx, nil, nil
+					}
+					time.Sleep(cycle)
+					continue
+				}
+
+				if err != nil {
+					msgblock, err = client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to get tx from block (err=%s)", err.Error())
+
+					}
+					tx = msgblock.Tx
+
+					return tx, msgblock, nil
+				}
+
+			}
+		}
+
+		if tx, msgblock, err = getTxTimeout(); err != nil {
+			cmd.Printf("Failed: %s", err.Error())
+			return
+		}
+
+		if tx != nil {
+			output.Payload = string(tx.GetBody().Payload)
+
+			if err := json.Unmarshal(tx.GetBody().Payload, &ci); err != nil {
+				cmd.Printf("tx payload is not json: %s", err.Error())
 				return
 			}
-			tx = msgblock.Tx
-			txInBlock = true
-		} else {
-			txInBlock = false
 		}
-		output.Payload = string(tx.GetBody().Payload)
-		var ci types.CallInfo
-		if err := json.Unmarshal(tx.GetBody().Payload, &ci); err != nil {
-			cmd.Printf("Failed: tx payload is not json %s\n", err.Error())
-			return
-		}
-		if txInBlock {
+
+		if msgblock != nil {
 			switch ci.Name {
 			case enterprise.ChangeCluster:
-				// get requestID
-				if requestID, err = getRequestID(msgblock.TxIdx.BlockHash); err != nil {
-					cmd.Printf("Failed to get request ID: %s\n", err.Error())
+				if confChange, err = getChangeClusterStatus(msgblock.TxIdx.BlockHash, timer); err != nil {
+					cmd.Printf("Failed to get status of change cluster: %s\n", err.Error())
 					return
 				}
-				// get conf chagne status with reqid
-				b := make([]byte, 8)
-				binary.LittleEndian.PutUint64(b, requestID)
 
-				msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
+				output.Status = confChange.ToPrintable()
+
+				// get cluster status (use get consensus info)
+				jsonout, err := getConsensusInfo()
 				if err != nil {
-					cmd.Printf("Failed to get progress: reqid=%d, %s\n", requestID, err.Error())
-					return
+					cmd.Printf("Failed: %s", err.Error())
 				}
-				//cmd.Printf(msgConfChangeProg.ToJsonString())
-				output.Status = msgConfChangeProg.ToPrintable()
+
+				cmd.Println(output.ToString())
+
+				cmd.Println(string(jsonout))
+
 			default:
 				receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
 				if err != nil {
@@ -187,9 +240,11 @@ var enterpriseTxCmd = &cobra.Command{
 					State: receipt.GetStatus(),
 					Error: receipt.GetRet(),
 				}
+
+				cmd.Println(output.ToString())
 			}
 		}
-		cmd.Println(output.ToString())
+
 		return
 	},
 }
