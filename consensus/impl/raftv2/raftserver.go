@@ -731,7 +731,7 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 	*/
 	// TODO add cluster info to snapshot.data
 
-	logger.Debug().Uint64("term", msg.Term).Uint64("index", msg.Index).Msg("send merged snapshot message")
+	logger.Debug().Uint64("term", msg.Snapshot.Metadata.Term).Uint64("index", msg.Snapshot.Metadata.Index).Msg("send merged snapshot message")
 
 	// not using pipe to send snapshot
 	pr, pw := io.Pipe()

@@ -95,6 +95,7 @@ func (cdb *ChainDB) NewTx() db.Transaction {
 
 func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
+		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, chainDBName)
 		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
