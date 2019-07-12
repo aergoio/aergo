@@ -137,6 +137,24 @@ func (mbrs *Members) ToArray() []*consensus.Member {
 		i++
 	}
 
+	sort.Sort(consensus.MembersByName(arrs))
+
+	return arrs
+}
+
+func (mbrs *Members) ToMemberAttrArray() []*types.MemberAttr {
+	count := len(mbrs.MapByID)
+
+	var arrs = make([]*types.MemberAttr, count)
+
+	mbrArray := mbrs.ToArray()
+
+	i := 0
+	for _, m := range mbrArray {
+		arrs[i] = &m.MemberAttr
+		i++
+	}
+
 	return arrs
 }
 
@@ -994,7 +1012,7 @@ func (cl *Cluster) isEnableChangeMembership(cc *raftpb.ConfChange) error {
 	isClusterAvilable := func(total int, healthy int) bool {
 		quorum := total/2 + 1
 
-		logger.Info().Int("quorum", quorum).Int("healthy", healthy).Msg("cluster quorum")
+		logger.Info().Int("quorum", quorum).Int("total", total).Int("healthy", healthy).Msg("cluster quorum")
 
 		return healthy >= quorum
 	}

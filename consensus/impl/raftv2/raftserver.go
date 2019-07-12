@@ -566,7 +566,7 @@ func (rs *raftServer) saveConfChangeState(id uint64, state types.ConfChangeState
 		errStr = errCC.Error()
 	}
 
-	pr := types.ConfChangeProgress{State: state, Err: errStr}
+	pr := types.ConfChangeProgress{State: state, Err: errStr, Members: rs.cluster.appliedMembers.ToMemberAttrArray()}
 
 	return rs.walDB.WriteConfChangeProgress(id, &pr)
 }

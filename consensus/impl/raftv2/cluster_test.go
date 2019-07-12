@@ -74,6 +74,14 @@ func TestMemberJson(t *testing.T) {
 	//t.Logf("peer=%s", types.IDB58Encode(newMbr.GetPeerID()))
 
 	assert.True(t, mbr.Equal(&newMbr))
+
+	mbrRemove := &consensus.Member{types.MemberAttr{ID: 1}}
+	data, err = json.Marshal(mbrRemove)
+	assert.NoError(t, err)
+
+	newMbr = consensus.Member{}
+	err = json.Unmarshal(data, &newMbr)
+	assert.NoError(t, err)
 }
 
 func TestSnapDataJson(t *testing.T) {

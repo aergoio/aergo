@@ -4,16 +4,14 @@
 source set_test_env.sh
 source test_common.sh
 
-rm -rf $TEST_RAFT_INSTANCE
-
+echo "kill_svr & clean"
+clean_test.sh
 init_test.sh 
 
 # raft server boot & down test
 echo "pushd $TEST_RAFT_INSTANCE"
 pushd $TEST_RAFT_INSTANCE
 
-echo "kill_svr & clean"
-kill_svr.sh
 clean.sh all #remove log
 rm BP*
 

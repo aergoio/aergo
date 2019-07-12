@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"net"
@@ -335,7 +334,12 @@ func (m *Member) Equal(other *Member) bool {
 }
 
 func (m *Member) ToString() string {
-	return fmt.Sprintf("{Name:%s, ID:%x, Address:%s, PeerID:%s}", m.Name, m.ID, m.Address, p2putil.ShortForm(types.PeerID(m.PeerID)))
+	data, err := json.Marshal(&m.MemberAttr)
+	if err != nil {
+		logger.Error().Err(err).Str("name", m.Name).Msg("can't unmarshal member")
+		return ""
+	}
+	return string(data)
 }
 
 func (m *Member) HasDuplicatedAttr(x *Member) bool {
@@ -345,53 +349,6 @@ func (m *Member) HasDuplicatedAttr(x *Member) bool {
 
 	return false
 }
-
-/*
-func (m *Member) MarshalJSON() ([]byte, error) {
-	nj := NewJsonMember(m)
-	return json.Marshal(nj)
-}
-
-func (m *Member) UnmarshalJSON(data []byte) error {
-	var err error
-	jm := JsonMember{}
-
-	if err := json.Unmarshal(data, &jm); err != nil {
-		return err
-	}
-
-	*m, err = jm.Member()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-type JsonMember struct {
-	ID     MemberID `json:"id"`
-	Name   string   `json:"name"`
-	Address    string   `json:"url"`
-	PeerID string   `json:"peerid"`
-}
-
-func NewJsonMember(m *Member) JsonMember {
-	return JsonMember{ID: m.ID, Name: m.Name, Address: m.Address, PeerID: types.IDB58Encode(m.PeerID)}
-}
-
-func (jm *JsonMember) Member() (Member, error) {
-	peerID, err := types.IDB58Decode(jm.PeerID)
-	if err != nil {
-		return Member{}, err
-	}
-
-	return Member{
-		ID:     jm.ID,
-		Name:   jm.Name,
-		Address:    jm.Address,
-		PeerID: peerID,
-	}, nil
-}
-*/
 
 // IsCompatible checks if name, url and peerid of this member are the same with other member
 func (m *Member) IsCompatible(other *Member) bool {

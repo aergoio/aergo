@@ -84,7 +84,7 @@ func getConfChangeBlockNo(blockHash []byte) (aergorpc.BlockNo, error) {
 
 type OutConfChange struct {
 	Payload string
-	Status  *aergorpc.ConfChangeProgressPrintable
+	Status  *aergorpc.EnterpriseTxStatus
 }
 
 func (occ *OutConfChange) ToString() string {
@@ -163,7 +163,7 @@ var enterpriseTxCmd = &cobra.Command{
 			cycle      = time.Duration(3) * time.Second
 			ci         types.CallInfo
 			confChange *aergorpc.ConfChangeProgress
-			timer	   *time.Timer
+			timer      *time.Timer
 		)
 
 		if timeout > 0 {
@@ -219,30 +219,20 @@ var enterpriseTxCmd = &cobra.Command{
 				}
 
 				output.Status = confChange.ToPrintable()
-
-				// get cluster status (use get consensus info)
-				jsonout, err := getConsensusInfo()
-				if err != nil {
-					cmd.Printf("Failed: %s", err.Error())
-				}
-
-				cmd.Println(output.ToString())
-
-				cmd.Println(string(jsonout))
-
 			default:
 				receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
 				if err != nil {
 					cmd.Printf("Failed to get receipt: tx=%s, %s\n", args[0], err.Error())
 					return
 				}
-				output.Status = &aergorpc.ConfChangeProgressPrintable{
-					State: receipt.GetStatus(),
-					Error: receipt.GetRet(),
+				output.Status = &aergorpc.EnterpriseTxStatus{
+					Status: receipt.GetStatus(),
+					Error:  receipt.GetRet(),
 				}
 
-				cmd.Println(output.ToString())
 			}
+
+			cmd.Println(output.ToString())
 		}
 
 		return

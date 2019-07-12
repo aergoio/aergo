@@ -1,21 +1,29 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"strconv"
 )
 
-type ConfChangeProgressPrintable struct {
-	State string
-	Error string
+type EnterpriseTxStatus struct {
+	Status  string        `json:"state"`
+	Error   string        `json:"error"`
+	Members []*MemberAttr `json:"members,omitempty"`
 }
 
 func (ccProgress *ConfChangeProgress) ToString() string {
-	return fmt.Sprintf("State=%s, Error=%s", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err)
+	mbrsJson, err := json.Marshal(ccProgress.GetMembers())
+	if err != nil {
+		mbrsJson = []byte("")
+	}
+
+	return fmt.Sprintf("State=%s, Error=%s, cluster=%s", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err, string(mbrsJson))
 }
 
-func (ccProgress *ConfChangeProgress) ToPrintable() *ConfChangeProgressPrintable {
-	return &ConfChangeProgressPrintable{State: ConfChangeState_name[int32(ccProgress.State)], Error: ccProgress.Err}
+func (ccProgress *ConfChangeProgress) ToPrintable() *EnterpriseTxStatus {
+	return &EnterpriseTxStatus{Status: ConfChangeState_name[int32(ccProgress.State)], Error: ccProgress.Err, Members: ccProgress.Members}
 }
 
 func RaftConfChangeToString(cc *raftpb.ConfChange) string {
@@ -31,44 +39,69 @@ func (mc *MembershipChange) ToString() string {
 	return buf
 }
 
+func (mattr *MemberAttr) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		ID      string `json:"id,omitempty"`
+		Name    string `json:"name,omitempty"`
+		Address string `json:"address,omitempty"`
+		PeerID  string `json:"peerid,omitempty"`
+	}{
+		ID:      Uint64ToHexaString(mattr.ID),
+		Name:    mattr.Name,
+		Address: mattr.Address,
+		PeerID:  IDB58Encode(PeerID(mattr.PeerID)),
+	})
+}
+
+func (mattr *MemberAttr) UnmarshalJSON(data []byte) error {
+	var (
+		err    error
+		peerID PeerID
+	)
+
+	aux := &struct {
+		ID      string `json:"id,omitempty"`
+		Name    string `json:"name,omitempty"`
+		Address string `json:"address,omitempty"`
+		PeerID  string `json:"peerid,omitempty"`
+	}{}
+
+	if err = json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	if len(aux.ID) > 0 {
+		mattr.ID, err = strconv.ParseUint(aux.ID, 16, 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(aux.PeerID) > 0 {
+		peerID, err = IDB58Decode(aux.PeerID)
+		if err != nil {
+			return err
+		}
+
+		mattr.PeerID = []byte(peerID)
+	}
+	mattr.Name = aux.Name
+	mattr.Address = aux.Address
+
+	return nil
+}
+
 func (mattr *MemberAttr) ToString() string {
-	var buf string
-
-	buf = fmt.Sprintf("{")
-
-	if len(mattr.Name) > 0 {
-		buf = buf + fmt.Sprintf("name=%s, ", mattr.Name)
-	}
-	if len(mattr.Address) > 0 {
-		buf = buf + fmt.Sprintf("address=%s, ", mattr.Address)
-	}
-	if len(mattr.PeerID) > 0 {
-		buf = buf + fmt.Sprintf("peerID=%s, ", PeerID(mattr.PeerID).Pretty())
-	}
-	if mattr.ID > 0 {
-		buf = buf + fmt.Sprintf("memberID=%d", mattr.ID)
+	data, err := json.Marshal(mattr)
+	if err != nil {
+		return "{ \"name\": \"error to json\" }"
 	}
 
-	return buf
+	return string(data)
 }
 
 func (hs *HardStateInfo) ToString() string {
 	return fmt.Sprintf("{ term=%d, commit=%d }", hs.Term, hs.Commit)
-}
-
-type JsonMemberAttr struct {
-	ID      uint64 `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	Name    string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Address string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
-	PeerID  string `protobuf:"bytes,4,opt,name=peerID,proto3" json:"peerID,omitempty"`
-}
-
-func (mc *JsonMemberAttr) ToMemberAttr() *MemberAttr {
-	decodedPeerID, err := IDB58Decode(mc.PeerID)
-	if err != nil {
-		return nil
-	}
-	return &MemberAttr{ID: mc.ID, Name: mc.Name, Address: mc.Address, PeerID: []byte(decodedPeerID)}
 }
 
 func RaftHardStateToString(hardstate raftpb.HardState) string {
