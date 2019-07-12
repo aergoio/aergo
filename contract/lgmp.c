@@ -217,6 +217,21 @@ static int Btobyte(lua_State *L)
 	return 1;
 }
 
+static int Bfrombyte(lua_State *L)
+{
+    const char *bn;
+    size_t size;
+	mp_num x;
+	x = bn_alloc(BN_Integer);
+
+    bn = luaL_checklstring(L, 1, &size);
+
+    mpz_import(MPZ(x), size, 1, 1, 1, 0, bn);
+
+	Bnew(L, x);
+	return 1;
+}
+
 static int Biszero(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
@@ -478,6 +493,7 @@ static const luaL_Reg R[] =
 	{ "tostring",	Btostring},
 	{ "isbignum",	Bis },
 	{ "tobyte", Btobyte },
+	{ "frombyte", Bfrombyte },
 	{ NULL,		NULL	}
 };
 

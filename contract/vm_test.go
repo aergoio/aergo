@@ -2996,10 +2996,18 @@ function negativeBignum()
 	bg2 = bignum.sqrt(bg1)
 end
 
+function byteBignum()
+	 state.var {
+        value = state.value()
+    }
+	value = bignum.tobyte(bignum.number("177"))
+	return bignum.frombyte(value)
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum, byteBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -3061,6 +3069,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", `{"Name":"negativeBignum"}`, "bignum not allowed negative value", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"byteBignum"}`, "", `{"_bignum":"177"}`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -4524,7 +4536,6 @@ abi.register(get, getcre)
 	}
 }
 
-
 func TestUtf(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -4636,7 +4647,6 @@ func TestLuaCryptoVerifyProof(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 
 func TestMultiArray(t *testing.T) {
 	bc, err := LoadDummyChain()
