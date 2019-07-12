@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Deprecated
 func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer p2pcommon.RemotePeer, additional interface{}) {
 	if additional != nil {
 		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
@@ -22,6 +23,7 @@ func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgI
 	}
 }
 
+// Deprecated
 func DebugLogReceiveResponseMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, reqID string, peer p2pcommon.RemotePeer, additional interface{}) {
 	if additional != nil {
 		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).

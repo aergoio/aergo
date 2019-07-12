@@ -102,7 +102,7 @@ func (ph *addressesResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.Mes
 func (ph *addressesResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
-	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, len(data.GetPeers()))
+	p2putil.DebugLogReceiveResponse(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 
 	remotePeer.ConsumeRequest(msg.OriginalID())
 	if len(data.GetPeers()) > 0 {

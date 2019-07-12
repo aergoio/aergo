@@ -49,7 +49,7 @@ func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcom
 	//peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.GetClusterInfoRequest)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, data.String())
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, data)
 
 	var resp *types.GetClusterInfoResponse
 
@@ -76,7 +76,7 @@ func (ph *getClusterResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.Me
 func (ph *getClusterResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.GetClusterInfoResponse)
-	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data.String())
+	p2putil.DebugLogReceiveResponse(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
 		// ignore dangling response

@@ -6,8 +6,6 @@
 package subproto
 
 import (
-	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -61,7 +59,7 @@ func (bh *getBlockHeadersRequestHandler) ParsePayload(rawbytes []byte) (p2pcommo
 func (bh *getBlockHeadersRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersRequest)
-	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	if bh.issue() {
 		go bh.handleGetBlockHeaders(msg, data)
 	} else {
@@ -138,7 +136,7 @@ func (bh *getBlockHeadersResponseHandler) ParsePayload(rawbytes []byte) (p2pcomm
 func (bh *getBlockHeadersResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockHeadersResponse)
-	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, len(data.Hashes))
+	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, data)
 
 	// send block headers to blockchain service
 	remotePeer.ConsumeRequest(msg.OriginalID())
@@ -214,7 +212,7 @@ func (bh *getAncestorRequestHandler) handleGetAncestorReq(msg p2pcommon.Message,
 	remotePeer := bh.peer
 	status := types.ResultStatus_OK
 	if bh.logger.IsDebugEnabled() {
-		p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, types.NewLogB58EncMarshaller(data.Hashes,10))
+		p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	}
 
 	// send to ChainSvc
@@ -259,7 +257,7 @@ func (bh *getAncestorResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.M
 
 func (bh *getAncestorResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetAncestorResponse)
-	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("status=%d, ancestor hash=%s,no=%d", data.Status, enc.ToString(data.AncestorHash), data.AncestorNo))
+	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer,data)
 
 	// locate request data and remove it if found
 	bh.peer.GetReceiver(msg.OriginalID())(msg, data)

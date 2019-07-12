@@ -7,10 +7,7 @@ package subproto
 
 import (
 	"bytes"
-	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -38,7 +35,7 @@ func (bh *getHashRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.Messag
 func (bh *getHashRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesRequest)
-	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	chainAccessor := bh.actor.GetChainAccessor()
 
 	// check if requested too many hashes
@@ -130,7 +127,7 @@ func (bh *getHashResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.Messa
 func (bh *getHashResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashesResponse)
-	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("blk_cnt=%d,hasNext=%t", len(data.Hashes), data.HasNext))
+	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, data)
 
 	// locate request data and remove it if found
 	remotePeer.GetReceiver(msg.OriginalID())(msg, data)
@@ -158,7 +155,7 @@ func (bh *getHashByNoRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.Me
 func (bh *getHashByNoRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetHashByNo)
-	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	chainAccessor := bh.actor.GetChainAccessor()
 
 	// check if remote peer has valid chain,
@@ -191,7 +188,7 @@ func (bh *getHashByNoResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.M
 
 func (bh *getHashByNoResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetHashByNoResponse)
-	p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, fmt.Sprintf("%s=%s", p2putil.LogBlkHash, enc.ToString(data.BlockHash)))
+	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, data)
 
 	// locate request data and remove it if found
 	bh.peer.GetReceiver(msg.OriginalID())(msg, data)
