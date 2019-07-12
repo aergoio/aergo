@@ -61,17 +61,17 @@ type StateDB struct {
 	buffer   *stateBuffer
 	cache    *storageCache
 	trie     *trie.Trie
-	store    *db.DB
+	store    db.DB
 	batchtx  db.Transaction
 	testmode bool
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore *db.DB, root []byte, test bool) *StateDB {
+func NewStateDB(dbstore db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
 		buffer:   newStateBuffer(),
 		cache:    newStorageCache(),
-		trie:     trie.NewTrie(root, common.Hasher, *dbstore),
+		trie:     trie.NewTrie(root, common.Hasher, dbstore),
 		store:    dbstore,
 		testmode: test,
 	}
@@ -497,7 +497,7 @@ func (states *StateDB) Commit() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 
-	bulk := (*states.store).NewBulk()
+	bulk := states.store.NewBulk()
 	for _, storage := range states.cache.storages {
 		// stage changes
 		if err := storage.stage(bulk); err != nil {
@@ -542,7 +542,7 @@ func (states *StateDB) HasMarker(root []byte) bool {
 	if root == nil {
 		return false
 	}
-	marker := (*states.store).Get(common.Hasher(root))
+	marker := states.store.Get(common.Hasher(root))
 	if marker != nil && bytes.Equal(marker, stateMarker) {
 		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.EncodeToString(marker)).Msg("IsMarked")
 		return true

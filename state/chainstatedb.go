@@ -55,7 +55,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 			sroot = bestBlock.GetHeader().GetBlocksRootHash()
 		}
 
-		sdb.states = NewStateDB(&sdb.store, sroot, sdb.testmode)
+		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode)
 	}
 	return nil
 }
@@ -84,7 +84,7 @@ func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
 
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(&sdb.store, root, sdb.testmode)
+	return NewStateDB(sdb.store, root, sdb.testmode)
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {

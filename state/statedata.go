@@ -9,14 +9,14 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func saveData(store *db.DB, key []byte, data interface{}) error {
+func saveData(store db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errSaveData
 	}
 	var err error
 	var raw []byte
 	switch data.(type) {
-	case (*[]byte):
+	case *[]byte:
 		raw = *(data.(*[]byte))
 	case proto.Message:
 		raw, err = proto.Marshal(data.(proto.Message))
@@ -35,22 +35,22 @@ func saveData(store *db.DB, key []byte, data interface{}) error {
 			return err
 		}
 	}
-	(*store).Set(key, raw)
+	store.Set(key, raw)
 	return nil
 }
 
-func loadData(store *db.DB, key []byte, data interface{}) error {
+func loadData(store db.DB, key []byte, data interface{}) error {
 	if key == nil {
 		return errLoadData
 	}
-	raw := (*store).Get(key)
+	raw := store.Get(key)
 
 	if len(raw) == 0 {
 		return nil
 	}
 	var err error
 	switch data.(type) {
-	case (*[]byte):
+	case *[]byte:
 		*(data).(*[]byte) = raw
 	case proto.Message:
 		err = proto.Unmarshal(raw, data.(proto.Message))

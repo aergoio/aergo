@@ -197,7 +197,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 		var targetNo uint64
 
 		if entry.Type == consensus.EntryBlock {
-			if err := cdb.addBlock(&dbTx, blocks[i]); err != nil {
+			if err := cdb.addBlock(dbTx, blocks[i]); err != nil {
 				panic("add block entry")
 				return err
 			}
