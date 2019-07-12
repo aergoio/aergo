@@ -10,25 +10,93 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestVprtAddSub(t *testing.T) {
-	for i := int32(0); i < vprMax; i++ {
-		rank.Set(genAddr(i), new(big.Int).SetUint64(10000))
-		rank.Apply(nil)
-	}
+var initializedVprtTest bool
+
+func TestVprtOp(t *testing.T) {
+	initVprtTest()
 
 	var (
 		hundred = new(big.Int).SetUint64(100)
 		ten     = new(big.Int).SetUint64(10)
 	)
 
-	addr1 := genAddr(10)
-	rank.Add(addr1, hundred)
-	rank.Sub(addr1, ten)
-	rank.Apply(nil)
+	const (
+		opAdd = iota
+		opSub
+	)
 
-	assert.True(t,
-		rank.vp[addr1].Cmp(new(big.Int).SetUint64(10090)) == 0,
-		"incorrect result: %s", rank.vp[addr1].String())
+	op := []func(types.AccountID, *big.Int){
+		opAdd: func(addr types.AccountID, opr *big.Int) {
+			rank.Add(addr, opr)
+		},
+		opSub: func(addr types.AccountID, opr *big.Int) {
+			rank.Sub(addr, opr)
+		},
+	}
+
+	type opt struct {
+		op  int
+		arg *big.Int
+	}
+
+	testCases := []struct {
+		addr types.AccountID
+		ops  []opt
+		want *big.Int
+	}{
+		{
+			addr: genAddr(10),
+			ops:  []opt{{opAdd, hundred}, {opSub, ten}},
+			want: new(big.Int).SetUint64(10090),
+		},
+		{
+			addr: genAddr(11),
+			ops:  []opt{{opSub, ten}, {opAdd, hundred}},
+			want: new(big.Int).SetUint64(10090),
+		},
+		{
+			addr: genAddr(12),
+			ops:  []opt{{opAdd, hundred}, {opAdd, hundred}},
+			want: new(big.Int).SetUint64(10200),
+		},
+		{
+			addr: genAddr(13),
+			ops:  []opt{{opAdd, ten}, {opAdd, ten}},
+			want: new(big.Int).SetUint64(10020),
+		},
+		{
+			addr: genAddr(14),
+			ops:  []opt{{opSub, ten}, {opSub, ten}},
+			want: new(big.Int).SetUint64(9980),
+		},
+	}
+
+	for _, tc := range testCases {
+		for _, o := range tc.ops {
+			op[o.op](tc.addr, o.arg)
+		}
+		rank.Apply(nil)
+		assert.True(t,
+			rank.vp[tc.addr].Cmp(tc.want) == 0,
+			"incorrect result: %s (must be %s)", rank.vp[tc.addr].String(), tc.want)
+	}
+}
+
+func initVprtTest() {
+	if isInitialized() {
+		return
+	}
+
+	for i := int32(0); i < vprMax; i++ {
+		rank.Set(genAddr(i), new(big.Int).SetUint64(10000))
+		rank.Apply(nil)
+	}
+
+	initializedVprtTest = true
+}
+
+func isInitialized() bool {
+	return initializedVprtTest
 }
 
 func genAddr(i int32) types.AccountID {
