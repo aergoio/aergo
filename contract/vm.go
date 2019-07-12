@@ -868,12 +868,6 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 
 	curStateSet[stateSet.service] = stateSet
 
-	// create a sql database for the contract
-	db := LuaGetDbHandle(&stateSet.service)
-	if db == nil {
-		return "", nil, stateSet.usedFee(), newDbSystemError(errors.New("can't open a database connection"))
-	}
-
 	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, true, contractState)
 	if ce == nil {
 		return "", nil, stateSet.usedFee(), nil
