@@ -10,7 +10,10 @@ import (
 
 const vprMax = 50000
 
-var rank = newVpr()
+var (
+	vprKeyPrefix = []byte("VotingPowerOf")
+	rank         = newVpr()
+)
 
 // Voters Power Ranking (VPRT)
 type vpr struct {
@@ -69,6 +72,14 @@ func (v *vpr) Apply(s *state.ContractState) {
 		if curPow := v.vp[key]; curPow.Cmp(pow) != 0 {
 			v.vp[key] = pow
 			delete(v.ch, key)
+			if s != nil {
+				s.SetRawKV(vprKey(key[:]), pow.Bytes())
+			}
 		}
 	}
+}
+
+func vprKey(key []byte) []byte {
+	var vk []byte = vprKeyPrefix
+	return append(vk, key...)
 }
