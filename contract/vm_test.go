@@ -5030,7 +5030,9 @@ abi.register(abc, query)
 }
 
 func TestNDeploy(t *testing.T) {
+
 	bc, err := LoadDummyChain()
+
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -5164,6 +5166,18 @@ abi.register(ecverify)
 }
 
 func TestFeeDelegation(t *testing.T) {
+	flushLState := func() {
+		for i := 0; i <= MAX_LSTATE_SIZE; i++ {
+			s := GetLState()
+			FreeLState(s)
+		}
+	}
+
+	PubNet = true
+	defer func() {
+		PubNet = false
+		flushLState()
+	}()
 	definition := `
 	state.var{
         whitelist = state.map(),
@@ -5177,12 +5191,17 @@ func TestFeeDelegation(t *testing.T) {
 		end
     end
 
-    function query()
-        whitelist[system.getSender()] = false
+    function query(a)
+		if (system.isFeeDelegation() == true) then
+        	whitelist[system.getSender()] = false
+		end
         return 1,2,3,4,5
     end
-    function check_delegation(fname)
-        return whitelist[system.getSender()]
+    function check_delegation(fname,k)
+		if (fname == "query") then
+        	return whitelist[system.getSender()]
+		end
+		return false
     end
 	function default()
 	end
@@ -5226,12 +5245,28 @@ func TestFeeDelegation(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":[]}`)
+	contract1, err := bc.GetAccountState("fd")
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx := NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":["arg"]}`)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "fd", 0, fmt.Sprintf(`{"Name":"reg", "Args":["%s"]}`,
 			types.EncodeAddress(strHash("user1")))),
 		tx,
 	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	contract2, err := bc.GetAccountState("fd")
+	if err != nil {
+		t.Error(err)
+	}
+	if contract1.GetBalanceBigInt().Uint64() == contract2.GetBalanceBigInt().Uint64() {
+		t.Error("feedelegation error")
+	}
 	err = bc.ConnectBlock(
 		tx.Fail("fee delegation is not allowed"),
 	)

@@ -466,7 +466,6 @@ static int is_contract(lua_State *L)
 
 static int is_fee_delegation(lua_State *L)
 {
-    char *contract;
 	int *service = (int *)getLuaExecContext(L);
 	struct luaIsFeeDelegation_return ret;
 
@@ -474,7 +473,6 @@ static int is_fee_delegation(lua_State *L)
 		luaL_error(L, "cannot find execution context");
     }
 
-	contract = (char *)luaL_checkstring(L, 1);
     ret = luaIsFeeDelegation(L, service);
 	if (ret.r1 != NULL) {
 	    strPushAndRelease(L, ret.r1);
