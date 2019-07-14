@@ -22,6 +22,7 @@ type PeerManager interface {
 	SelfMeta() PeerMeta
 	SelfNodeID() types.PeerID
 
+	// AddNewPeer connect to peer. It will reset reconnect schedule and try to connect immediately if this peer is in reconnect cooltime.
 	AddNewPeer(meta PeerMeta)
 	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call PeerManager.RemovePeer
 	RemovePeer(peer RemotePeer)
@@ -36,4 +37,8 @@ type PeerManager interface {
 	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
 
 	GetPeerBlockInfos() []types.PeerBlockInfo
+
+	AddDesignatedPeer(meta PeerMeta)
+	RemoveDesignatedPeer(peerID types.PeerID)
+	ListDesignatedPeers() []PeerMeta
 }

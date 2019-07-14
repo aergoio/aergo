@@ -207,3 +207,41 @@ func (mr *MockPeerManagerMockRecorder) GetPeerBlockInfos() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeerBlockInfos", reflect.TypeOf((*MockPeerManager)(nil).GetPeerBlockInfos))
 }
+
+// AddDesignatedPeer mocks base method
+func (m *MockPeerManager) AddDesignatedPeer(meta p2pcommon.PeerMeta) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddDesignatedPeer", meta)
+}
+
+// AddDesignatedPeer indicates an expected call of AddDesignatedPeer
+func (mr *MockPeerManagerMockRecorder) AddDesignatedPeer(meta interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDesignatedPeer", reflect.TypeOf((*MockPeerManager)(nil).AddDesignatedPeer), meta)
+}
+
+// RemoveDesignatedPeer mocks base method
+func (m *MockPeerManager) RemoveDesignatedPeer(peerID types.PeerID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RemoveDesignatedPeer", peerID)
+}
+
+// RemoveDesignatedPeer indicates an expected call of RemoveDesignatedPeer
+func (mr *MockPeerManagerMockRecorder) RemoveDesignatedPeer(peerID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveDesignatedPeer", reflect.TypeOf((*MockPeerManager)(nil).RemoveDesignatedPeer), peerID)
+}
+
+// ListDesignatedPeers mocks base method
+func (m *MockPeerManager) ListDesignatedPeers() []p2pcommon.PeerMeta {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListDesignatedPeers")
+	ret0, _ := ret[0].([]p2pcommon.PeerMeta)
+	return ret0
+}
+
+// ListDesignatedPeers indicates an expected call of ListDesignatedPeers
+func (mr *MockPeerManagerMockRecorder) ListDesignatedPeers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDesignatedPeers", reflect.TypeOf((*MockPeerManager)(nil).ListDesignatedPeers))
+}

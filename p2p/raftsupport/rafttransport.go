@@ -163,6 +163,7 @@ func (t *AergoRaftTransport) connectToPeer(member *consensus.Member) {
 	}
 	// member should be add to designated peer
 	meta := p2pcommon.PeerMeta{ID: member.GetPeerID(), Designated: true, IPAddress: nodeUrl.Hostname(), Port: uint32(port), Outbound: true}
+	t.pm.AddDesignatedPeer(meta)
 	t.pm.AddNewPeer(meta)
 }
 
@@ -174,6 +175,7 @@ func (t *AergoRaftTransport) RemovePeer(id rtypes.ID) {
 	if st == nil {
 		return
 	}
+	t.pm.RemoveDesignatedPeer(st.pid)
 	delete(t.statuses, id)
 	delete(t.stByPID, st.pid)
 	if peer, exist := t.pm.GetPeer(st.pid); exist {

@@ -15,7 +15,7 @@ for i in {1..7} ; do
 	svrports[$nodename]=$svrport
 	svrname[$nodename]="BP$svrport"
 
-	httpports[$nodename]=$((13000 + $i))
+	httpports[$nodename]=$((11000 + $i))
 
 	if [ -e "$TEST_RAFT_INSTANCE/$svrport.id" ]; then 
 		peerids[$nodename]=`cat $TEST_RAFT_INSTANCE/$svrport.id`
@@ -533,7 +533,7 @@ function makeAddMemberJson() {
 		exit 100
 	fi
 
-	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "http://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
+	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "aergop2p://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
 
 	echo $memberJson
 }

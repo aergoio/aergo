@@ -28,8 +28,8 @@ prevCnt=$(getClusterTotal 10001)
 echo "leader=$leader, port=$leaderport, prevTotal=$prevCnt"
 
 # By RPC
-#echo "aergocli -p $leaderport cluster add --name \"$addnode\" --address \"http://127.0.0.1:${httpports[$addnode]}\" --peerid \"${peerids[$addnode]}\""
-#aergocli -p $leaderport cluster add --name "$addnode" --address "http://127.0.0.1:${httpports[$addnode]}" --peerid "${peerids[$addnode]}"
+#echo "aergocli -p $leaderport cluster add --name \"$addnode\" --address \"aergop2p://127.0.0.1:${httpports[$addnode]}\" --peerid \"${peerids[$addnode]}\""
+#aergocli -p $leaderport cluster add --name "$addnode" --address "aergop2p://127.0.0.1:${httpports[$addnode]}" --peerid "${peerids[$addnode]}"
 
 # By Enterprise Tx
 walletFile="$TEST_RAFT_INSTANCE/genesis_wallet.txt"
