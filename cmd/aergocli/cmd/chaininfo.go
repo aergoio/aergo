@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"math/big"
+
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -22,40 +22,6 @@ var chaininfoCmd = &cobra.Command{
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(convChainInfoMsg(msg))
+		cmd.Println(util.ConvChainInfoMsg(msg))
 	},
-}
-
-type printChainId struct {
-	Magic     string
-	Public    bool
-	Mainnet   bool
-	Consensus string
-}
-
-type printChainInfo struct {
-	Chainid        printChainId
-	BpNumber       uint32
-	MaxBlockSize   uint64
-	MaxTokens      string
-	StakingMinimum string
-	StakingTotal   string
-}
-
-func convChainInfoMsg(msg *types.ChainInfo) string {
-	out := &printChainInfo{}
-	out.Chainid.Magic = msg.Id.Magic
-	out.Chainid.Public = msg.Id.Public
-	out.Chainid.Mainnet = msg.Id.Mainnet
-	out.Chainid.Consensus = msg.Id.Consensus
-	out.BpNumber = msg.BpNumber
-	out.MaxBlockSize = msg.Maxblocksize
-	out.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
-	out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
-	out.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
-	jsonout, err := json.MarshalIndent(out, "", " ")
-	if err != nil {
-		return ""
-	}
-	return string(jsonout)
 }

@@ -137,13 +137,19 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 
 	digest := sha256.New()
 	digest.Write(last.GetHeader().GetChainID())
-	bestChainIdHash := digest.Sum(nil)
+	bestChainIDHash := digest.Sum(nil)
 
+	chainInfo, err := rpc.getChainInfo()
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to get chain info in blockchain")
+		chainInfo = nil
+	}
 	return &types.BlockchainStatus{
 		BestBlockHash:   last.BlockHash(),
 		BestHeight:      last.GetHeader().GetBlockNo(),
 		ConsensusInfo:   ca.GetConsensusInfo(),
-		BestChainIdHash: bestChainIdHash,
+		BestChainIdHash: bestChainIDHash,
+		ChainInfo:       chainInfo,
 	}, nil
 }
 
@@ -152,6 +158,10 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
+	return rpc.getChainInfo()
+}
+
+func (rpc *AergoRPCService) getChainInfo() (*types.ChainInfo, error) {
 	chainInfo := &types.ChainInfo{}
 
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
