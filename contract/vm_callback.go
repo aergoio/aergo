@@ -844,29 +844,7 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 	return C.int(0), nil
 }
 
-//export LuaCryptoVerifyProof
-func LuaCryptoVerifyProof(
-	key unsafe.Pointer, keyLen C.int,
-	value unsafe.Pointer, valueLen C.int,
-	proof unsafe.Pointer, nProof C.int,
-) C.int {
-
-	k := C.GoBytes(key, keyLen)
-	v := C.GoBytes(value, valueLen)
-	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
-	bProof := make([][]byte, int(nProof))
-	for i, p := range cProof {
-		bProof[i] = C.GoBytes(p.data, C.int(p.len))
-	}
-
-	if verifyEthStorageProof(k, v, bProof) {
-		return C.int(1)
-	}
-	return C.int(0)
-}
-
-//export LuaCryptoKeccak256
-func LuaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int) {
+func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 	var d []byte
 	b := C.GoBytes(data, dataLen)
 	isHex := checkHexString(string(b))
@@ -880,6 +858,31 @@ func LuaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	if !isHex {
 		d = b
 	}
+	return d, isHex
+}
+
+//export LuaCryptoVerifyProof
+func LuaCryptoVerifyProof(
+	key unsafe.Pointer, keyLen C.int,
+	value unsafe.Pointer, valueLen C.int,
+	proof unsafe.Pointer, nProof C.int,
+) C.int {
+	k, _ := luaCryptoToBytes(key, keyLen)
+	v, _ := luaCryptoToBytes(value, valueLen)
+	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
+	bProof := make([][]byte, int(nProof))
+	for i, p := range cProof {
+		bProof[i], _ = luaCryptoToBytes(p.data, C.int(p.len))
+	}
+	if verifyEthStorageProof(k, v, bProof) {
+		return C.int(1)
+	}
+	return C.int(0)
+}
+
+//export LuaCryptoKeccak256
+func LuaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int) {
+	d, isHex := luaCryptoToBytes(data, dataLen)
 	h := keccak256(d)
 	if isHex {
 		hex := []byte("0x" + hex.EncodeToString(h))
