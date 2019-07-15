@@ -511,8 +511,17 @@ func (ce *Executor) call(target *LState) C.int {
 		C.luaL_enablemaxmem(target)
 	}
 	if ce.stateSet.traceFile != nil {
+		address := types.EncodeAddress(ce.stateSet.curContract.contractId)
+		codeFile := fmt.Sprintf("%s%s%s.code", os.TempDir(), string(os.PathSeparator), address)
+		if _, err := os.Stat(codeFile); os.IsNotExist(err) {
+			f, err := os.OpenFile(codeFile, os.O_WRONLY|os.O_CREATE, 0644)
+			if err == nil {
+				_, _ = f.Write(ce.code)
+				_ = f.Close()
+			}
+		}
 		_, _ = ce.stateSet.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
-			types.EncodeAddress(ce.stateSet.curContract.contractId), ce.stateSet.usedFee().String()))
+			address, ce.stateSet.usedFee().String()))
 	}
 	return nret
 }
@@ -642,6 +651,21 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 			logger.Error().Err(dbErr).Str("contract", types.EncodeAddress(contractAddress)).Msg("rollback state")
 			err = dbErr
 		}
+		if stateSet.traceFile != nil {
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", stateSet.usedFee().String()))
+			evs := ce.getEvents()
+			if evs != nil {
+				_, _ = stateSet.traceFile.WriteString("[Event]\n")
+				for _, ev := range evs {
+					eb, _ := ev.MarshalJSON()
+					_, _ = stateSet.traceFile.Write(eb)
+					_, _ = stateSet.traceFile.WriteString("\n")
+				}
+			}
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[CALL END] : %s(%s)\n",
+				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
+		}
 		return "", ce.getEvents(), stateSet.usedFee(), err
 	}
 	err = ce.commitCalledContract()
@@ -701,7 +725,9 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	if TraceBlockNo != 0 && TraceBlockNo == blockNo {
 		stateSet.traceFile = getTraceFile(blockNo, stateSet.txHash)
 		if stateSet.traceFile != nil {
-			defer stateSet.traceFile.Close()
+			defer func() {
+				_ = stateSet.traceFile.Close()
+			}()
 		}
 	}
 	curStateSet[stateSet.service] = stateSet
@@ -862,6 +888,22 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			logger.Error().Err(dbErr).Msg("rollback state")
 			err = dbErr
+		}
+
+		if stateSet.traceFile != nil {
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", stateSet.usedFee().String()))
+			evs := ce.getEvents()
+			if evs != nil {
+				_, _ = stateSet.traceFile.WriteString("[Event]\n")
+				for _, ev := range evs {
+					eb, _ := ev.MarshalJSON()
+					_, _ = stateSet.traceFile.Write(eb)
+					_, _ = stateSet.traceFile.WriteString("\n")
+				}
+			}
+			_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("[CREATE END] : %s(%s)\n",
+				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 		}
 		return "", ce.getEvents(), stateSet.usedFee(), err
 	}
