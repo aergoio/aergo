@@ -4601,7 +4601,7 @@ func TestUtf(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("utf", `{"Name":"query2"}`, "", `["000000000000000000000000000000000000000000000000000000E8D4A51000","0000000000000000000000000000000000000000000000000000000000000000"]`)
+	err = bc.Query("utf", `{"Name":"query2"}`, "", `["E8D4A51000","00"]`)
 	if err != nil {
 		t.Error(err)
 	}

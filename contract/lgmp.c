@@ -206,13 +206,13 @@ static int Btobyte(lua_State *L)
 	if (mpz_sgn(MPZ(a)) < 0)
 		luaL_error(L, mp_num_is_negative);
 
-	bn = mpz_export(NULL, &size, 1, 32, 1, 0, a->mpptr);
+	bn = mpz_export(NULL, &size, 1, 1, 1, 0, a->mpptr);
 	if (bn == NULL) {
-	    bn = calloc(sizeof(char),32);
+	    bn = calloc(sizeof(char),1);
 	    size = 1;
 	}
 
-	lua_pushlstring(L, bn, size * 32);
+	lua_pushlstring(L, bn, size);
 	free (bn);
 	return 1;
 }
