@@ -60,9 +60,8 @@ func (c *Conf) Validate(key []byte) error {
 			}
 		}
 		return fmt.Errorf("the values of %s should have at least one write permission", strKey)
-	case P2PWhite:
 	default:
-		return fmt.Errorf("could not validate key(%s)", strKey)
+		return nil
 	}
 	return nil
 }

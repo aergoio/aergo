@@ -53,6 +53,14 @@ type MemPoolExistExRsp struct {
 	Txs []*types.Tx
 }
 
+type MemPoolSetWhitelist struct {
+	Accounts []string
+}
+
+type MemPoolEnableWhitelist struct {
+	On bool
+}
+
 // MemPoolDel is interface of MemPool service for deleting transactions
 // including given transactions
 type MemPoolDel struct {

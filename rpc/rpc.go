@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aergoio/aergo/contract/enterprise"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
@@ -183,25 +185,44 @@ func (ns *RPC) Receive(context actor.Context) {
 	case []*types.Event:
 		server := ns.actualServer
 		for _, e := range msg {
-			if bytes.Equal(e.GetContractAddress(), []byte(types.AergoEnterprise)) {
+			if bytes.Equal(e.GetContractAddress(), types.AddressPadding([]byte(types.AergoEnterprise))) {
 				eventName := strings.Split(e.GetEventName(), " ")
-				if strings.ToUpper(eventName[1]) == "RPCPERMISSIONS" {
-					switch eventName[0] {
-					case "Enable":
+				conf := strings.ToUpper(eventName[1])
+				switch eventName[0] {
+				case "Enable":
+					if conf == enterprise.RPCPermissions {
 						value := false
 						if e.JsonArgs == "true" {
 							value = true
 						}
 						server.setClientAuthOn(value)
-					case "Set":
+					} else if conf == enterprise.AccountWhite {
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						msg := &message.MemPoolEnableWhitelist{On: value}
+						ns.TellTo(message.MemPoolSvc, msg)
+					}
+				case "Set":
+					if conf == enterprise.RPCPermissions {
 						values := make([]string, 1024)
 						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
 							return
 						}
 						server.setClientAuthMap(values)
-					default:
-						logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
+					} else if conf == enterprise.AccountWhite {
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						msg := &message.MemPoolSetWhitelist{
+							Accounts: values,
+						}
+						ns.TellTo(message.MemPoolSvc, msg)
 					}
+				default:
+					logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
 				}
 			}
 		}

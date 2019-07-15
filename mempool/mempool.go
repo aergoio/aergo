@@ -69,6 +69,7 @@ type MemPool struct {
 	coinbasefee *big.Int
 	chainIdHash []byte
 	isPublic    bool
+	whitelist   *whitelistConf
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -241,6 +242,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 		txs := mp.existEx(bucketHash)
 		context.Respond(&message.MemPoolExistExRsp{Txs: txs})
+
+	case *message.MemPoolSetWhitelist:
+		mp.whitelist.SetWhitelist(msg.Accounts)
+	case *message.MemPoolEnableWhitelist:
+		mp.whitelist.Enable(msg.On)
+
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 
@@ -251,9 +258,11 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 func (mp *MemPool) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
-		"total":  mp.length,
-		"orphan": mp.orphan,
-		"dead":   mp.deadtx,
+		"total":        mp.length,
+		"orphan":       mp.orphan,
+		"dead":         mp.deadtx,
+		"whitelist":    mp.whitelist.GetWhitelist(),
+		"whitelist_on": mp.whitelist.GetOn(),
 	}
 }
 
@@ -357,6 +366,13 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 				mp.Error().Err(err).Msg("failed to read chain ID")
 			} else {
 				mp.isPublic = cid.PublicNet
+				if !mp.isPublic {
+					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					if err != nil {
+						mp.Warn().Err(err).Msg("failed to init whitelist")
+					}
+					mp.whitelist = newWhitelistConf(mp, conf.GetValues(), conf.GetOn())
+				}
 			}
 			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
@@ -481,7 +497,9 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 // check if recipient is valid name
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error {
-
+	if !mp.whitelist.Check(types.EncodeAddress(account)) {
+		return types.ErrTxNotAllowedAccount
+	}
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
