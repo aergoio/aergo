@@ -56,16 +56,17 @@ type peerManager struct {
 	// peerCache is copy-on-write style
 	peerCache []p2pcommon.RemotePeer
 
-	getPeerChannel    chan getPeerChan
+	getPeerChannel    chan getPeerTask
 	peerHandshaked    chan handshakeResult
 	removePeerChannel chan p2pcommon.RemotePeer
 	fillPoolChannel   chan []p2pcommon.PeerMeta
+	addPeerChannel    chan p2pcommon.PeerMeta
 	inboundConnChan   chan inboundConnEvent
 	workDoneChannel   chan p2pcommon.ConnWorkResult
 	taskChannel       chan pmTask
 	finishChannel     chan struct{}
 
-	eventListeners []PeerEventListener
+	eventListeners []p2pcommon.PeerEventListener
 
 	//
 	designatedPeers map[types.PeerID]p2pcommon.PeerMeta
@@ -73,22 +74,13 @@ type peerManager struct {
 	logger *log.Logger
 }
 
-// getPeerChan is struct to get peer for concurrent use
-type getPeerChan struct {
+// getPeerTask is struct to get peer for concurrent use
+type getPeerTask struct {
 	id  types.PeerID
 	ret chan p2pcommon.RemotePeer
 }
 
 var _ p2pcommon.PeerManager = (*peerManager)(nil)
-
-// PeerEventListener listen peer manage event
-type PeerEventListener interface {
-	// OnAddPeer is called just after the peer is added.
-	OnAddPeer(peerID types.PeerID)
-
-	// OnRemovePeer is called just before the peer is removed
-	OnRemovePeer(peerID types.PeerID)
-}
 
 // NewPeerManager creates a peer manager object.
 func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
@@ -116,13 +108,14 @@ func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorS
 
 		peerCache: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
 
-		getPeerChannel:    make(chan getPeerChan),
+		getPeerChannel:    make(chan getPeerTask),
 		peerHandshaked:    make(chan handshakeResult),
 		removePeerChannel: make(chan p2pcommon.RemotePeer),
 		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
+		addPeerChannel:    make(chan p2pcommon.PeerMeta),
 		inboundConnChan:   make(chan inboundConnEvent),
 		workDoneChannel:   make(chan p2pcommon.ConnWorkResult),
-		eventListeners:    make([]PeerEventListener, 0, 4),
+		eventListeners:    make([]p2pcommon.PeerEventListener, 0, 4),
 		taskChannel:       make(chan pmTask, 4),
 		finishChannel:     make(chan struct{}),
 	}
@@ -160,6 +153,12 @@ func (pm *peerManager) init() {
 			pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 		}
 	}
+}
+
+func (pm *peerManager) AddPeerEventListener(l p2pcommon.PeerEventListener) {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	pm.eventListeners = append(pm.eventListeners, l)
 }
 
 func (pm *peerManager) Start() error {
@@ -262,6 +261,9 @@ MANLOOP:
 			pm.wpManager.CheckAndConnect()
 			// fire at next interval
 			connManTimer.Reset(p2pcommon.WaitingPeerManagerInterval)
+			//connManTimer.Reset(time.Second*5)
+		case peerMeta := <-pm.addPeerChannel:
+			pm.wpManager.InstantConnect(peerMeta)
 		case peerMetas := <-pm.fillPoolChannel:
 			if pm.wpManager.OnDiscoveredPeers(peerMetas) > 0 {
 				if !connManTimer.Stop() {
@@ -270,7 +272,7 @@ MANLOOP:
 				connManTimer.Reset(instantStart)
 			}
 		case task := <-pm.taskChannel:
-			task.task()
+			task()
 		case <-pm.finishChannel:
 			finderTimer.Stop()
 			connManTimer.Stop()
@@ -279,6 +281,8 @@ MANLOOP:
 	}
 	// guaranty no new peer connection will be made
 	pm.nt.RemoveStreamHandler(p2pcommon.LegacyP2PSubAddr)
+	pm.nt.RemoveStreamHandler(p2pcommon.P2PSubAddr)
+
 	pm.logger.Info().Msg("Finishing peerManager")
 
 	go func() {
@@ -335,6 +339,12 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 	pm.insertPeer(peerID, newPeer)
 	pm.logger.Info().Str("role", newPeer.Role().String()).Bool("outbound", meta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("peer is added to peerService")
 
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
+	for _, listener := range pm.eventListeners {
+		listener.OnPeerConnect(peerID)
+	}
+
 	return newPeer
 }
 
@@ -354,8 +364,7 @@ func (pm *peerManager) GetNextManageNum() uint32 {
 }
 
 func (pm *peerManager) AddNewPeer(meta p2pcommon.PeerMeta) {
-	sli := []p2pcommon.PeerMeta{meta}
-	pm.fillPoolChannel <- sli
+	pm.addPeerChannel <- meta
 }
 
 func (pm *peerManager) RemovePeer(peer p2pcommon.RemotePeer) {
@@ -367,7 +376,7 @@ func (pm *peerManager) NotifyPeerAddressReceived(metas []p2pcommon.PeerMeta) {
 }
 
 func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
-	pm.taskChannel <- pmTask{pm: pm, task: func() {
+	pm.taskChannel <- func() {
 		pm.logger.Debug().Int("size", len(changes)).Msg("changing roles of peers")
 		for _, ch := range changes {
 			if peer, found := pm.remotePeers[ch.ID]; found {
@@ -375,7 +384,7 @@ func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
 				peer.ChangeRole(ch.Role)
 			}
 		}
-	}}
+	}
 }
 
 // removePeer unregister managed remote peer connection
@@ -396,8 +405,11 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 	}
 	pm.deletePeer(peer)
 	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
+
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
 	for _, listener := range pm.eventListeners {
-		listener.OnRemovePeer(peerID)
+		listener.OnPeerDisconnect(peer)
 	}
 
 	return true
@@ -405,7 +417,7 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 
 func (pm *peerManager) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
 
-	gc := getPeerChan{id: ID, ret: make(chan p2pcommon.RemotePeer)}
+	gc := getPeerTask{id: ID, ret: make(chan p2pcommon.RemotePeer)}
 	// vs code's lint does not allow direct return of map operation
 	pm.getPeerChannel <- gc
 	ptr := <-gc.ret
@@ -490,7 +502,35 @@ func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
 	pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
 }
 
-type pmTask struct {
-	pm   *peerManager
-	task func()
+func (pm *peerManager) AddDesignatedPeer(meta p2pcommon.PeerMeta) {
+	finished := make(chan interface{})
+	pm.taskChannel <- func() {
+		pm.designatedPeers[meta.ID] = meta
+		finished <- struct{}{}
+	}
+	<-finished
 }
+
+func (pm *peerManager) RemoveDesignatedPeer(peerID types.PeerID) {
+	finished := make(chan interface{})
+	pm.taskChannel <- func() {
+		delete(pm.designatedPeers, peerID)
+		finished <- struct{}{}
+	}
+	<-finished
+}
+
+func (pm *peerManager) ListDesignatedPeers() []p2pcommon.PeerMeta {
+	retChan := make(chan []p2pcommon.PeerMeta)
+	pm.taskChannel <- func() {
+		arr := make([]p2pcommon.PeerMeta, 0, len(pm.designatedPeers))
+		for _, m := range pm.designatedPeers {
+			arr = append(arr, m)
+		}
+		retChan <- arr
+	}
+	return <-retChan
+}
+
+// pmTask should not consume lots of time to process.
+type pmTask func()

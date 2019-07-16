@@ -25,7 +25,7 @@ nptls = false
 npcert = ""
 npkey = "11001.key"
 npaddpeers = [
-"/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11003/p2p/16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"
+#"/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11003/p2p/16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"
 ]
 
 [blockchain]

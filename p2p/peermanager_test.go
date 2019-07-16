@@ -235,13 +235,13 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 				conf:         dummyCfg,
 				nt:           mockNT,
 
-				getPeerChannel:    make(chan getPeerChan),
+				getPeerChannel:    make(chan getPeerTask),
 				peerHandshaked:    make(chan handshakeResult),
 				removePeerChannel: make(chan p2pcommon.RemotePeer),
 				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 				inboundConnChan:   make(chan inboundConnEvent),
 				workDoneChannel:   make(chan p2pcommon.ConnWorkResult),
-				eventListeners:    make([]PeerEventListener, 0, 4),
+				eventListeners:    make([]p2pcommon.PeerEventListener, 0, 4),
 				finishChannel:     make(chan struct{}),
 
 				logger: logger,

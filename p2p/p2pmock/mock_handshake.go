@@ -38,7 +38,7 @@ func (m *MockHSHandlerFactory) EXPECT() *MockHSHandlerFactoryMockRecorder {
 }
 
 // CreateHSHandler mocks base method
-func (m *MockHSHandlerFactory) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+func (m *MockHSHandlerFactory) CreateHSHandler(legacy, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateHSHandler", legacy, outbound, pid)
 	ret0, _ := ret[0].(p2pcommon.HSHandler)
@@ -46,9 +46,9 @@ func (m *MockHSHandlerFactory) CreateHSHandler(legacy bool, outbound bool, pid t
 }
 
 // CreateHSHandler indicates an expected call of CreateHSHandler
-func (mr *MockHSHandlerFactoryMockRecorder) CreateHSHandler(p2pVersion, outbound, pid interface{}) *gomock.Call {
+func (mr *MockHSHandlerFactoryMockRecorder) CreateHSHandler(legacy, outbound, pid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateHSHandler", reflect.TypeOf((*MockHSHandlerFactory)(nil).CreateHSHandler), p2pVersion, outbound, pid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateHSHandler", reflect.TypeOf((*MockHSHandlerFactory)(nil).CreateHSHandler), legacy, outbound, pid)
 }
 
 // MockHSHandler is a mock of HSHandler interface
@@ -140,18 +140,6 @@ func (m *MockVersionedManager) GetVersionedHandshaker(version p2pcommon.P2PVersi
 func (mr *MockVersionedManagerMockRecorder) GetVersionedHandshaker(version, peerID, rwc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionedHandshaker", reflect.TypeOf((*MockVersionedManager)(nil).GetVersionedHandshaker), version, peerID, rwc)
-}
-
-// InjectHandlers mocks base method
-func (m *MockVersionedManager) InjectHandlers(version p2pcommon.P2PVersion, peer p2pcommon.RemotePeer) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "InjectHandlers", version, peer)
-}
-
-// InjectHandlers indicates an expected call of InjectHandlers
-func (mr *MockVersionedManagerMockRecorder) InjectHandlers(version, peer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InjectHandlers", reflect.TypeOf((*MockVersionedManager)(nil).InjectHandlers), version, peer)
 }
 
 // MockVersionedHandshaker is a mock of VersionedHandshaker interface

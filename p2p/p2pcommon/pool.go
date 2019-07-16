@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	WaitingPeerManagerInterval = time.Minute
+	WaitingPeerManagerInterval = time.Minute >> 2
 
 	PolarisQueryInterval   = time.Minute * 10
 	PeerQueryInterval      = time.Hour
@@ -54,10 +54,13 @@ type WaitingPeerManager interface {
 
 	CheckAndConnect()
 
+	InstantConnect(meta PeerMeta)
+
 	OnInboundConn(s network.Stream)
 
 	OnInboundConnLegacy(s network.Stream)
 }
+//go:generate mockgen -source=pool.go -package=p2pmock -destination=../p2pmock/mock_peerfinder.go
 
 type WaitingPeer struct {
 	Meta      PeerMeta

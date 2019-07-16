@@ -9,6 +9,7 @@ import (
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
+	time "time"
 )
 
 // MockMessage is a mock of Message interface
@@ -179,41 +180,6 @@ func (mr *MockMessageBodyMockRecorder) ProtoMessage() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProtoMessage", reflect.TypeOf((*MockMessageBody)(nil).ProtoMessage))
 }
 
-// MockHandlerFactory is a mock of HandlerFactory interface
-type MockHandlerFactory struct {
-	ctrl     *gomock.Controller
-	recorder *MockHandlerFactoryMockRecorder
-}
-
-// MockHandlerFactoryMockRecorder is the mock recorder for MockHandlerFactory
-type MockHandlerFactoryMockRecorder struct {
-	mock *MockHandlerFactory
-}
-
-// NewMockHandlerFactory creates a new mock instance
-func NewMockHandlerFactory(ctrl *gomock.Controller) *MockHandlerFactory {
-	mock := &MockHandlerFactory{ctrl: ctrl}
-	mock.recorder = &MockHandlerFactoryMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockHandlerFactory) EXPECT() *MockHandlerFactoryMockRecorder {
-	return m.recorder
-}
-
-// InsertHandlers mocks base method
-func (m *MockHandlerFactory) InsertHandlers(peer p2pcommon.RemotePeer) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "InsertHandlers", peer)
-}
-
-// InsertHandlers indicates an expected call of InsertHandlers
-func (mr *MockHandlerFactoryMockRecorder) InsertHandlers(peer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertHandlers", reflect.TypeOf((*MockHandlerFactory)(nil).InsertHandlers), peer)
-}
-
 // MockMessageHandler is a mock of MessageHandler interface
 type MockMessageHandler struct {
 	ctrl     *gomock.Controller
@@ -359,6 +325,55 @@ func (m *MockHandlerAdvice) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.
 func (mr *MockHandlerAdviceMockRecorder) PostHandle(msg, msgBody interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostHandle", reflect.TypeOf((*MockHandlerAdvice)(nil).PostHandle), msg, msgBody)
+}
+
+// MockAsyncHandler is a mock of AsyncHandler interface
+type MockAsyncHandler struct {
+	ctrl     *gomock.Controller
+	recorder *MockAsyncHandlerMockRecorder
+}
+
+// MockAsyncHandlerMockRecorder is the mock recorder for MockAsyncHandler
+type MockAsyncHandlerMockRecorder struct {
+	mock *MockAsyncHandler
+}
+
+// NewMockAsyncHandler creates a new mock instance
+func NewMockAsyncHandler(ctrl *gomock.Controller) *MockAsyncHandler {
+	mock := &MockAsyncHandler{ctrl: ctrl}
+	mock.recorder = &MockAsyncHandlerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockAsyncHandler) EXPECT() *MockAsyncHandlerMockRecorder {
+	return m.recorder
+}
+
+// HandleOrNot mocks base method
+func (m *MockAsyncHandler) HandleOrNot(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleOrNot", msg, msgBody)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// HandleOrNot indicates an expected call of HandleOrNot
+func (mr *MockAsyncHandlerMockRecorder) HandleOrNot(msg, msgBody interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleOrNot", reflect.TypeOf((*MockAsyncHandler)(nil).HandleOrNot), msg, msgBody)
+}
+
+// Handle mocks base method
+func (m *MockAsyncHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody, ttl time.Duration) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Handle", msg, msgBody, ttl)
+}
+
+// Handle indicates an expected call of Handle
+func (mr *MockAsyncHandlerMockRecorder) Handle(msg, msgBody, ttl interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockAsyncHandler)(nil).Handle), msg, msgBody, ttl)
 }
 
 // MockMsgSigner is a mock of MsgSigner interface

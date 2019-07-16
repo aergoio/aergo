@@ -21,28 +21,33 @@ done
 make_node.sh
 RUN_TEST_SCRIPT set_system_admin.sh
 
+date
 echo ""
 echo "========= add aergo4 ========="
 add_member.sh aergo4
 checkSync 10001 10004 120 result
 
+date
 echo ""
 echo "========= add aergo5 ========="
 add_member.sh aergo5
 checkSync 10001 10005 120 
 
 
+date
 echo ""
 echo "========= add aergo6 ========="
 add_member.sh aergo6
 checkSync 10001 10006 120 result
 
 
+date
 echo ""
 echo "========= add aergo7 ========="
 add_member.sh aergo7
 checkSync 10001 10007 120 
 
+date
 echo ""
 echo "========= rm aergo7 ========="
 rm_member.sh aergo7

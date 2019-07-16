@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
@@ -61,6 +62,7 @@ var (
 )
 
 var (
+	ErrRaftNotReady        = errors.New("raft library is not initialized")
 	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
 	ErrInvalidMember       = errors.New("member of conf change is invalid")
 	ErrCCAlreadyAdded      = errors.New("member has already added")
@@ -69,6 +71,11 @@ var (
 	ErrEmptySnapshot       = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
 	ErrProposeNilBlock     = errors.New("proposed block is nil")
+)
+
+const (
+	BackendP2P  = "aergop2p"
+	BackendHTTP = "http"
 )
 
 func init() {
@@ -108,10 +115,10 @@ type raftServer struct {
 	snapshotter *ChainSnapshotter
 
 	snapFrequency uint64
-	transport     *rafthttp.Transport
-	stopc         chan struct{} // signals proposal channel closed
-	httpstopc     chan struct{} // signals http server to shutdown
-	httpdonec     chan struct{} // signals http server shutdown complete
+	transport     Transporter
+	stopc         chan struct{}        // signals proposal channel closed
+	httpstopc     chan struct{}        // signals http server to shutdown
+	httpdonec     chan struct{}        // signals http server shutdown complete
 
 	leaderStatus LeaderStatus
 
@@ -464,17 +471,8 @@ func (rs *raftServer) restartNode(join bool) raftlib.Node {
 }
 
 func (rs *raftServer) startTransport() {
-	rs.transport = &rafthttp.Transport{
-		ID:          etcdtypes.ID(rs.ID()),
-		ClusterID:   etcdtypes.ID(rs.cluster.ClusterID()),
-		Raft:        rs,
-		ServerStats: stats.NewServerStats("", ""),
-		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.ID(), 10)),
-		Snapshotter: rs.snapshotter,
-		ErrorC:      rs.errorC,
-	}
-
-	rs.transport.SetLogger(httpLogger)
+	//rs.transport = rs.createHttpTransporter()
+	rs.transport = rs.createAergoP2PTransporter()
 
 	if err := rs.transport.Start(); err != nil {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
@@ -482,9 +480,32 @@ func (rs *raftServer) startTransport() {
 
 	for _, member := range rs.cluster.Members().MapByID {
 		if rs.cluster.NodeID() != member.ID {
-			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Address})
+			rs.transport.AddPeer(etcdtypes.ID(member.ID), member.GetPeerID(), []string{member.Address})
 		}
 	}
+}
+
+func (rs *raftServer) createHttpTransporter() Transporter {
+	transporter := &HttpTransportWrapper{Transport: rafthttp.Transport{
+		ID:          etcdtypes.ID(rs.ID()),
+		ClusterID:   etcdtypes.ID(rs.cluster.ClusterID()),
+		Raft:        rs,
+		ServerStats: stats.NewServerStats("", ""),
+		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.ID(), 10)),
+		Snapshotter: rs.snapshotter,
+		ErrorC:      rs.errorC,
+	}}
+	transporter.SetLogger(httpLogger)
+	return transporter
+}
+
+func (rs *raftServer) createAergoP2PTransporter() Transporter {
+	future := rs.RequestFuture(message.P2PSvc, message.GetRaftTransport{rs.cluster}, time.Second<<4, "getbackend")
+	result, err := future.Result()
+	if err != nil {
+		panic(err.Error())
+	}
+	return result.(Transporter)
 }
 
 func (rs *raftServer) SaveIdentity() error {
@@ -692,7 +713,6 @@ func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
 	var tmpSnapMsg *snap.Message
 
 	snapMsgs := make([]*snap.Message, 0)
-
 	// reset MsgSnap to send snap.Message
 	for i, msg := range msgs {
 		if msg.Type == raftpb.MsgSnap {
@@ -760,6 +780,13 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 func (rs *raftServer) serveRaft() {
 	defer RecoverExit()
 
+	// wait for server close
+	<-rs.httpstopc
+	close(rs.httpdonec)
+}
+
+func (rs *raftServer) serveRaftWithHttpBackEnd() {
+
 	urlstr := rs.listenUrl
 	urlData, err := url.Parse(urlstr)
 	if err != nil {
@@ -789,7 +816,6 @@ func (rs *raftServer) serveRaft() {
 	}
 	close(rs.httpdonec)
 }
-
 func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 	snapshot, err := rs.walDB.GetSnapshot()
 	if err != nil {
@@ -998,7 +1024,7 @@ func (rs *raftServer) recoverTransport() {
 		}
 
 		logger.Info().Str("member", m.ToString()).Msg("add raft peer")
-		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Address})
+		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), m.GetPeerID(), []string{m.Address})
 	}
 }
 
@@ -1108,7 +1134,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 
 		if len(cc.Context) > 0 && rs.ID() != cc.NodeID {
-			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Address})
+			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), member.GetPeerID(), []string{member.Address})
 		} else {
 			logger.Debug().Msg("skip add peer myself for addnode ")
 		}
@@ -1193,7 +1219,11 @@ func (rs *raftServer) setConfState(state *raftpb.ConfState) {
 }
 
 func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
-	return rs.node.Step(ctx, m)
+	node := rs.getNodeSync()
+	if node == nil {
+		return ErrRaftNotReady
+	}
+	return node.Step(ctx, m)
 }
 
 func (rs *raftServer) IsIDRemoved(id uint64) bool {
@@ -1434,4 +1464,44 @@ func unmarshalEntryData(data []byte) (*types.Block, error) {
 	}
 
 	return block, nil
+}
+
+type raftHttpWrapper struct {
+	bf         *BlockFactory
+	raftServer *raftServer
+}
+
+func (rhw *raftHttpWrapper) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	return rhw.raftServer.Process(ctx, m)
+}
+
+func (rhw *raftHttpWrapper) IsIDRemoved(peerID types.PeerID) bool {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID); member != nil {
+		return rhw.raftServer.IsIDRemoved(member.ID)
+	}
+	return true
+}
+
+func (rhw *raftHttpWrapper) ReportUnreachable(peerID types.PeerID) {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID); member != nil {
+		rhw.raftServer.ReportUnreachable(member.ID)
+	}
+}
+
+func (rhw *raftHttpWrapper) ReportSnapshot(peerID types.PeerID, status raftlib.SnapshotStatus) {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID); member != nil {
+		rhw.raftServer.ReportSnapshot(member.ID, status)
+	}
+}
+
+func (rhw *raftHttpWrapper) GetMemberByID(id uint64) *consensus.Member {
+	return rhw.raftServer.cluster.Members().getMember(id)
+}
+
+func (rhw *raftHttpWrapper) GetMemberByPeerID(peerID types.PeerID) *consensus.Member {
+	return rhw.raftServer.cluster.Members().getMemberByPeerID(peerID)
+}
+
+func (rhw *raftHttpWrapper) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+	return rhw.raftServer.snapshotter.SaveFromRemote(r, id, msg)
 }

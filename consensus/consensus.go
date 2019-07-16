@@ -6,14 +6,18 @@
 package consensus
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/etcd/raft"
+	"io"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // DefaultBlockIntervalSec  is the default block generation interval in seconds.
@@ -74,6 +78,8 @@ type ConsensusAccessor interface {
 	ClusterInfo([]byte) *types.GetClusterInfoResponse
 	ConfChange(req *types.MembershipChange) (*Member, error)
 	ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error)
+	// RaftAccessor returns AergoRaftAccessor. It is only valid if chain is raft consensus
+	RaftAccessor() AergoRaftAccessor
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -83,6 +89,19 @@ type ChainDB interface {
 	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
 	NewTx() db.Transaction
+}
+
+// AergoRaftAccessor is interface to access raft messaging. It is wrapping raft message with aergo internal types
+type AergoRaftAccessor interface {
+	Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error
+	IsIDRemoved(peerID types.PeerID) bool
+	ReportUnreachable(peerID types.PeerID)
+	ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus)
+
+	SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error)
+
+	GetMemberByID(id uint64) *Member
+	GetMemberByPeerID(peerID types.PeerID) *Member
 }
 
 type ConsensusType int

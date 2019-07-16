@@ -11,5 +11,3 @@ type SubProtocol uint32
 func (i SubProtocol) Uint32() uint32 {
 	return uint32(i)
 }
-
-
