@@ -1086,6 +1086,12 @@ func LuaDeployContract(
 		}
 	}
 
+	// create a sql database for the contract
+	db := LuaGetDbHandle(&stateSet.service)
+	if db == nil {
+		C.luaL_setsyserror(L)
+		return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
+	}
 	senderState.Nonce += 1
 
 	addr := C.CString(types.EncodeAddress(newContract.ID()))

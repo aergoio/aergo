@@ -23,7 +23,7 @@ import (
 var (
 	ErrDBOpen = errors.New("failed to open the sql database")
 	ErrUndo   = errors.New("failed to undo the sql database")
-	ErrFindRp = errors.New("cannot find a recovery point")
+	ErrFindRp = errors.New("cannot find a recover point")
 
 	database = &Database{}
 	load     sync.Once
@@ -140,33 +140,8 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 
 func BeginTx(dbName string, rp uint64) (Tx, error) {
 	db, err := conn(dbName)
-	defer func() {
-		if err != nil {
-			delete(database.DBs, dbName)
-		}
-	}()
 	if err != nil {
 		return nil, err
-	}
-	if rp == 1 {
-		tx, err := db.BeginTx(context.Background(), nil)
-		if err != nil {
-			goto failed
-		}
-		_, err = tx.ExecContext(context.Background(), "create table if not exists _dummy(_dummy)")
-		if err != nil {
-			goto failed
-		}
-		err = tx.Commit()
-		if err != nil {
-			goto failed
-		}
-	}
-failed:
-	if err != nil {
-		logger.Fatal().Err(err)
-		_ = db.close()
-		return nil, ErrDBOpen
 	}
 	return db.beginTx(rp)
 }
@@ -198,11 +173,13 @@ func readOnlyConn(dbName string) (*DB, error) {
 	if err != nil {
 		return nil, ErrDBOpen
 	}
-	var c *sql.Conn
 	err = db.Ping()
-	if err == nil {
-		c, err = db.Conn(context.Background())
+	if err != nil {
+		logger.Fatal().Err(err)
+		_ = db.Close()
+		return nil, ErrDBOpen
 	}
+	c, err := db.Conn(context.Background())
 	if err != nil {
 		logger.Fatal().Err(err)
 		_ = db.Close()
@@ -230,6 +207,13 @@ func openDB(dbName string) (*DB, error) {
 		return nil, ErrDBOpen
 	}
 	err = c.PingContext(context.Background())
+	if err != nil {
+		logger.Fatal().Err(err)
+		_ = c.Close()
+		_ = db.Close()
+		return nil, ErrDBOpen
+	}
+	_, err = c.ExecContext(context.Background(), "create table if not exists _dummy(_dummy)")
 	if err != nil {
 		logger.Fatal().Err(err)
 		_ = c.Close()
@@ -264,7 +248,7 @@ func (db *DB) beginTx(rp uint64) (Tx, error) {
 			return nil, err
 		}
 		db.tx = &WritableTx{
-			TxCommon: TxCommon{DB: db},
+			TxCommon: TxCommon{db: db},
 			Tx:       tx,
 		}
 	}
@@ -332,9 +316,6 @@ func (db *DB) snapshotView(rp uint64) error {
 		context.Background(),
 		fmt.Sprintf("pragma branch=master.%d", rp),
 	)
-	if err != nil && rp == 1 {
-		return nil
-	}
 	return err
 }
 
@@ -360,11 +341,11 @@ type Tx interface {
 }
 
 type TxCommon struct {
-	*DB
+	db *DB
 }
 
 func (tx *TxCommon) GetHandle() *C.sqlite3 {
-	return tx.DB.conn.db
+	return tx.db.conn.db
 }
 
 type WritableTx struct {
@@ -374,23 +355,23 @@ type WritableTx struct {
 
 func (tx *WritableTx) Commit() error {
 	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("commit")
+		logger.Debug().Str("db_name", tx.db.name).Msg("commit")
 	}
 	return tx.Tx.Commit()
 }
 
 func (tx *WritableTx) Rollback() error {
 	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("rollback")
+		logger.Debug().Str("db_name", tx.db.name).Msg("rollback")
 	}
 	return tx.Tx.Rollback()
 }
 
 func (tx *WritableTx) Savepoint() error {
 	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("savepoint")
+		logger.Debug().Str("db_name", tx.db.name).Msg("savepoint")
 	}
-	_, err := tx.Tx.Exec("SAVEPOINT \"" + tx.DB.name + "\"")
+	_, err := tx.Tx.Exec("SAVEPOINT \"" + tx.db.name + "\"")
 	return err
 }
 
@@ -404,9 +385,9 @@ func (tx *WritableTx) SubSavepoint(name string) error {
 
 func (tx *WritableTx) Release() error {
 	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("release")
+		logger.Debug().Str("db_name", tx.db.name).Msg("release")
 	}
-	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.DB.name + "\"")
+	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.db.name + "\"")
 	return err
 }
 
@@ -420,9 +401,9 @@ func (tx *WritableTx) SubRelease(name string) error {
 
 func (tx *WritableTx) RollbackToSavepoint() error {
 	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("rollback to savepoint")
+		logger.Debug().Str("db_name", tx.db.name).Msg("rollback to savepoint")
 	}
-	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.DB.name + "\"")
+	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.db.name + "\"")
 	return err
 }
 
@@ -443,7 +424,7 @@ func newReadOnlyTx(db *DB, rp uint64) (Tx, error) {
 		return nil, err
 	}
 	tx := &ReadOnlyTx{
-		TxCommon: TxCommon{DB: db},
+		TxCommon: TxCommon{db: db},
 	}
 	return tx, nil
 }
@@ -454,9 +435,9 @@ func (tx *ReadOnlyTx) Commit() error {
 
 func (tx *ReadOnlyTx) Rollback() error {
 	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("read-only tx is closed")
+		logger.Debug().Str("db_name", tx.db.name).Msg("read-only tx is closed")
 	}
-	return tx.DB.close()
+	return tx.db.close()
 }
 
 func (tx *ReadOnlyTx) Savepoint() error {
