@@ -45,22 +45,24 @@ static int crypto_ecverify(lua_State *L)
 static int crypto_verifyProof(lua_State *L)
 {
     int argc = lua_gettop(L);
-    char *k, *v;
+    char *k, *v, *h;
     struct proof *proof;
-    size_t kLen, vLen, nProof;
+    size_t kLen, vLen, hLen, nProof;
     int i, b;
-    if (argc < 3) {
+    const int proofIndex = 4;
+    if (argc < proofIndex) {
         lua_pushboolean(L, 0);
         return 1;
     }
-    nProof = argc - 2;
+    nProof = argc - (proofIndex - 1);
     k = (char *)lua_tolstring(L, 1, &kLen);
     v = (char *)lua_tolstring(L, 2, &vLen);
+    h = (char *)lua_tolstring(L, 3, &hLen);
     proof = (struct proof *)malloc(sizeof(struct proof) * nProof);
-    for (i = 3; i <= argc; ++i) {
-        proof[i-3].data = (char *)lua_tolstring(L, i, &proof[i-3].len);
+    for (i = proofIndex; i <= argc; ++i) {
+        proof[i-proofIndex].data = (char *)lua_tolstring(L, i, &proof[i-proofIndex].len);
     }
-    b = LuaCryptoVerifyProof(k, kLen, v, vLen, proof, nProof);
+    b = LuaCryptoVerifyProof(k, kLen, v, vLen, h, hLen, proof, nProof);
     free(proof);
     lua_pushboolean(L, b);
     return 1;

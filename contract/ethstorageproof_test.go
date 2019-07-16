@@ -88,7 +88,7 @@ func TestVerify(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		if verifyEthStorageProof(tt.key, tt.value, tt.proof) != tt.verify {
+		if verifyEthStorageProof(tt.key, tt.value, keccak256(tt.proof[0]), tt.proof) != tt.verify {
 			t.Errorf("testcase %d: want %v, got %v\n", i, tt.verify, !tt.verify)
 		}
 	}

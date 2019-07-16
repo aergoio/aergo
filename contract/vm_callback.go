@@ -865,16 +865,18 @@ func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 func LuaCryptoVerifyProof(
 	key unsafe.Pointer, keyLen C.int,
 	value unsafe.Pointer, valueLen C.int,
+	hash unsafe.Pointer, hashLen C.int,
 	proof unsafe.Pointer, nProof C.int,
 ) C.int {
 	k, _ := luaCryptoToBytes(key, keyLen)
 	v, _ := luaCryptoToBytes(value, valueLen)
+	h, _ := luaCryptoToBytes(hash, hashLen)
 	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
 	bProof := make([][]byte, int(nProof))
 	for i, p := range cProof {
 		bProof[i], _ = luaCryptoToBytes(p.data, C.int(p.len))
 	}
-	if verifyEthStorageProof(k, v, bProof) {
+	if verifyEthStorageProof(k, v, h, bProof) {
 		return C.int(1)
 	}
 	return C.int(0)
