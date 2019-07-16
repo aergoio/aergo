@@ -103,6 +103,11 @@ func (st *ContractState) GetCode() ([]byte, error) {
 
 // SetRawKV saves (key, value) to st.store without any kind of encoding.
 func (st *ContractState) SetRawKV(key []byte, value []byte) error {
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	//  This direct DB write is risky because it may be inconsistent with the
+	//  state DB upon a block reorganization. It must be replaced by a new
+	//  implementation piggybacking on StateDB's Commit method.
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	return saveData(st.store, key, value)
 }
 

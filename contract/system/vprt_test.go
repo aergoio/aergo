@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"math/big"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -53,8 +54,8 @@ func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
 	}
 	rank.Apply(s)
 	assert.True(t,
-		rank.vp[tc.addr].Cmp(tc.want) == 0,
-		"incorrect result: %s (must be %s)", rank.vp[tc.addr].String(), tc.want)
+		rank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
+		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
 
 	if s != nil {
 		b, err := s.GetRawKV(vprKey(tc.addr[:]))
@@ -65,11 +66,7 @@ func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
 	}
 }
 
-func initVprtTest(t *testing.T) {
-	if isInitialized() {
-		return
-	}
-
+func initDB(t *testing.T) {
 	vprChainStateDB = state.NewChainStateDB()
 	_ = vprChainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
 	vprStateDB = vprChainStateDB.GetStateDB()
@@ -77,13 +74,23 @@ func initVprtTest(t *testing.T) {
 
 	err := vprChainStateDB.SetGenesis(genesis, nil)
 	assert.NoError(t, err, "failed init")
+}
 
+func initRankTable(rankMax int32) {
 	for i := int32(0); i < vprMax; i++ {
 		rank.Set(genAddr(i), new(big.Int).SetUint64(10000))
 		rank.Apply(nil)
 	}
+}
 
-	initializedVprtTest = true
+func initRankTableRand(rankMax int32) {
+	rank = newVpr()
+	max := new(big.Int).SetUint64(20000)
+	src := rand.New(rand.NewSource(0))
+	for i := int32(0); i < rankMax; i++ {
+		rank.Set(genAddr(i), new(big.Int).Rand(src, max))
+		rank.Apply(nil)
+	}
 }
 
 func finalizeTest() {
@@ -105,9 +112,10 @@ func commit() error {
 	return vprStateDB.Commit()
 }
 
-func TestVprtOp(t *testing.T) {
-	initVprtTest(t)
+func TestVprOp(t *testing.T) {
+	initDB(t)
 	defer finalizeTest()
+	initRankTable(vprMax)
 
 	testCases := []vprTC{
 		{
@@ -142,5 +150,21 @@ func TestVprtOp(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc.run(t, s)
+	}
+}
+
+func TestVprTable(t *testing.T) {
+	initDB(t)
+	defer finalizeTest()
+	initRankTableRand(vprMax)
+
+	for i, l := range rank.table.buckets {
+		for e := l.Front(); e.Next() != nil; e = e.Next() {
+			curr := e.Value.(*votingPower)
+			next := e.Next().Value.(*votingPower)
+			assert.True(t, curr.addr != next.addr, "duplicate elems")
+			cmp := curr.power.Cmp(next.power)
+			assert.True(t, cmp == 0 || cmp == 1, "unordered bucket found: idx = %v", i)
+		}
 	}
 }
