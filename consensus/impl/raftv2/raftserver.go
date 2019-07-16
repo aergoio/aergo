@@ -62,6 +62,7 @@ var (
 )
 
 var (
+	ErrRaftNotReady        = errors.New("raft library is not initialized")
 	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
 	ErrInvalidMember       = errors.New("member of conf change is invalid")
 	ErrCCAlreadyAdded      = errors.New("member has already added")
@@ -1218,7 +1219,11 @@ func (rs *raftServer) setConfState(state *raftpb.ConfState) {
 }
 
 func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
-	return rs.node.Step(ctx, m)
+	node := rs.getNodeSync()
+	if node == nil {
+		return ErrRaftNotReady
+	}
+	return node.Step(ctx, m)
 }
 
 func (rs *raftServer) IsIDRemoved(id uint64) bool {
