@@ -19,6 +19,6 @@ mockgen -source=p2p/p2pcommon/pool.go -mock_names=WaitingPeerManager=MockWaiting
 # mock files which are not generated automatically by go generate ./p2p
 mockgen github.com/aergoio/aergo/consensus ConsensusAccessor,AergoRaftAccessor | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g' > p2p/p2pmock/mock_consensus.go
 
-mockgen io Reader,Writer,ReadWriteCloser > p2p/p2pmock/mock_io.go | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g'  > p2p/p2pmock/mock_io.go
+mockgen io Reader,ReadCloser,Writer,WriteCloser,ReadWriteCloser > p2p/p2pmock/mock_io.go | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g'  > p2p/p2pmock/mock_io.go
 
 mockgen github.com/aergoio/aergo/consensus ConsensusAccessor,AergoRaftAccessor | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g' > p2p/p2pmock/mock_consensus.go

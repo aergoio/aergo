@@ -14,7 +14,7 @@ import (
 )
 
 func TestSnapshotReceiver_sendResp(t *testing.T) {
-	logger := log.NewLogger("reftsupport.test")
+	logger := log.NewLogger("raft.support.test")
 	type args struct {
 		resp *types.SnapshotResponse
 	}
