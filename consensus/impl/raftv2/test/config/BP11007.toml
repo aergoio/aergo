@@ -42,6 +42,5 @@ blockinterval = 1
 [consensus.raft]
 blockintervalms=1000
 name="aergo7"
-listenurl="http://0.0.0.0:13007"
 joinclusterusingbackup=false
 #

@@ -43,10 +43,12 @@ for file in BP*.toml; do
     init_genesis.sh $bpname 
 done
 
-WaitPeerConnect 2 60
-if [ $? -ne 1 ];then
-	echo "failed to connect peer of $file for 60 sec. "
-	exit 100
+if [ "$TEST_NOWAIT_PEER" != "1" ];then
+	WaitPeerConnect 2 60
+	if [ $? -ne 1 ];then
+		echo "failed to connect peer of $file for 60 sec. "
+		exit 100
+	fi
 fi
 
 popd

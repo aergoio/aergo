@@ -43,7 +43,6 @@ blockinterval = 1
 newcluster=false
 blockintervalms=1000
 name="aergo5"
-listenurl="http://0.0.0.0:13005"
-snapfrequency=10
+snapfrequency=50
 joinclusterusingbackup=false
 #

@@ -31,6 +31,7 @@ function backupJoin() {
 
 	srcnodename=${nodenames[$1]}
 	srcsvrport=${svrports[$srcnodename]}
+	srcrpcport=${ports[$srcnodename]}
 
 	addnodename=${nodenames[$2]}
 	addsvrport=${svrports[$addnodename]}
@@ -42,13 +43,16 @@ function backupJoin() {
 	echo "========= shutdown srcsvrport $srcsvrport   ========="
 	kill_svr.sh $srcsvrport 
 
-	sleep 20
 
 	echo ""
 	echo "========= copy backup : cp -rf ./data/$srcsvrport ./data/$addsvrport ========="
 	cp -rf ./data/$srcsvrport ./data/$addsvrport 
 
 	run_svr.sh $srcsvrport
+
+	checkSync 10001 $srcrpcport 180
+
+	sleep 20
 
 	echo ""
 	echo "========= add $addnodename ========="
