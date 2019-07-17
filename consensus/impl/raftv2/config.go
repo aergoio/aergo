@@ -87,6 +87,10 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		if bf.bpc.Members().len() == 0 {
 			logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
 		}
+
+		if bf.bpc.Members().getMemberByName(raftConfig.Name) == nil {
+			logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("node name of config is not included in genesis block")
+		}
 	}
 
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty

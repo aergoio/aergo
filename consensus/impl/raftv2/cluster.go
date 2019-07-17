@@ -270,20 +270,26 @@ func (cl *Cluster) RecoverIdentity(id *consensus.RaftIdentity) error {
 	return nil
 }
 
-func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
+func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) (bool, error) {
 	var snapdata = &consensus.SnapshotData{}
 
 	if err := snapdata.Decode(snapshot.Data); err != nil {
-		return err
+		return false, err
 	}
 
 	logger.Info().Str("snap", snapdata.ToString()).Msg("cluster recover from snapshot")
+
+	if cl.isAllMembersEqual(snapdata.Members, snapdata.RemovedMembers) {
+		logger.Info().Msg("cluster recover skipped since all members are equal to previous configure")
+		return true, nil
+	}
+
 	cl.ResetMembers()
 
 	// members restore
 	for _, mbr := range snapdata.Members {
 		if err := cl.addMember(mbr, true); err != nil {
-			return err
+			return false, err
 		}
 	}
 
@@ -293,7 +299,7 @@ func (cl *Cluster) Recover(snapshot *raftpb.Snapshot) error {
 
 	logger.Info().Str("info", cl.toStringWithLock()).Msg("cluster recovered")
 
-	return nil
+	return false, nil
 }
 
 func (cl *Cluster) ResetMembers() {
@@ -531,6 +537,39 @@ func (cl *Cluster) GenerateID() {
 	cl.identity.ClusterID = binary.LittleEndian.Uint64(hash[:8])
 
 	logger.Info().Str("id", EtcdIDToString(cl.ClusterID())).Msg("generate cluster ID")
+}
+
+func (cl *Cluster) isAllMembersEqual(members []*consensus.Member, RemovedMembers []*consensus.Member) bool {
+	membersEqual := func(x []*consensus.Member, y []*consensus.Member) bool {
+		if len(x) != len(y) {
+			return false
+		}
+
+		for i, mX := range x {
+			mY := y[i]
+			if !mX.Equal(mY) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	clMembers := cl.AppliedMembers().ToArray()
+	clRemovedMembers := cl.RemovedMembers().ToArray()
+
+	sort.Sort(consensus.MembersByName(members))
+	sort.Sort(consensus.MembersByName(RemovedMembers))
+
+	if !membersEqual(clMembers, members) {
+		return false
+	}
+
+	if !membersEqual(clRemovedMembers, RemovedMembers) {
+		return false
+	}
+
+	return true
 }
 
 func (mbrs *Members) add(member *consensus.Member) {

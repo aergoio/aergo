@@ -169,3 +169,41 @@ func TestClusterConfChange(t *testing.T) {
 	assert.Error(t, err, "no id to remove")
 
 }
+
+func TestClusterEqual(t *testing.T) {
+	//isAllMembersEqual
+	cl := NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	for _, m := range testMbrs {
+		err := cl.addMember(m, true)
+		assert.NoError(t, err)
+	}
+
+	assert.True(t, cl.isAllMembersEqual(testMbrs, nil))
+
+	rm := testMbrs[2]
+	err := cl.removeMember(rm)
+	assert.NoError(t, err)
+
+	rmMembers := []*consensus.Member{rm}
+	assert.True(t, cl.isAllMembersEqual(testMbrs[0:2], rmMembers))
+
+	cl = NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	for _, m := range testMbrs {
+		newM := *m
+		newM.Address = "invalidaddress"
+		err := cl.addMember(&newM, true)
+		assert.NoError(t, err)
+	}
+
+	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
+
+	cl = NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	for i, m := range testMbrs {
+		newM := *m
+		newM.ID = uint64(i) + 100
+		err := cl.addMember(&newM, true)
+		assert.NoError(t, err)
+	}
+
+	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
+}

@@ -116,9 +116,9 @@ type raftServer struct {
 
 	snapFrequency uint64
 	transport     Transporter
-	stopc         chan struct{}        // signals proposal channel closed
-	httpstopc     chan struct{}        // signals http server to shutdown
-	httpdonec     chan struct{}        // signals http server shutdown complete
+	stopc         chan struct{} // signals proposal channel closed
+	httpstopc     chan struct{} // signals http server to shutdown
+	httpdonec     chan struct{} // signals http server shutdown complete
 
 	leaderStatus LeaderStatus
 
@@ -458,7 +458,7 @@ func (rs *raftServer) restartNode(join bool) raftlib.Node {
 	// When restart from join, cluster must not recover from temporary snapshot since members are empty.
 	// Instead, node must use a cluster info received from remote server
 	if join == false && snapshot != nil {
-		if err := rs.cluster.Recover(snapshot); err != nil {
+		if _, err := rs.cluster.Recover(snapshot); err != nil {
 			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
 		}
 	}
@@ -1005,11 +1005,18 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 	rs.setSnapshotIndex(snapshotToSave.Metadata.Index)
 	rs.setAppliedIndex(snapshotToSave.Metadata.Index)
 
-	if err := rs.cluster.Recover(&snapshotToSave); err != nil {
+	var (
+		isEqual bool
+		err     error
+	)
+
+	if isEqual, err = rs.cluster.Recover(&snapshotToSave); err != nil {
 		return err
 	}
 
-	rs.recoverTransport()
+	if !isEqual {
+		rs.recoverTransport()
+	}
 
 	return updateProgress()
 }
