@@ -4,7 +4,7 @@
 source set_test_env.sh
 source test_common.sh
 
-echo "kill_svr & clean"
+echo "kill_svr & clean all test data"
 clean_test.sh
 init_test.sh 
 

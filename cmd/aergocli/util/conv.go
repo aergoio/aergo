@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"github.com/aergoio/aergo/consensus"
 	"math/big"
 
 	"github.com/aergoio/aergo/types"
@@ -19,8 +20,8 @@ type InOutChainInfo struct {
 	BpNumber       uint32
 	MaxBlockSize   uint64
 	MaxTokens      string
-	StakingMinimum string
-	StakingTotal   string
+	StakingMinimum string `json:",omitempty"`
+	StakingTotal   string `json:",omitempty"`
 }
 
 func ConvChainInfoMsg(msg *types.ChainInfo) string {
@@ -40,7 +41,10 @@ func convChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 	out.BpNumber = msg.BpNumber
 	out.MaxBlockSize = msg.Maxblocksize
 	out.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
-	out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
-	out.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
+
+	if consensus.IsDpos(msg.Id.Consensus) {
+		out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
+		out.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
+	}
 	return out
 }

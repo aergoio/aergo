@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/aergoio/etcd/raft"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -113,6 +114,13 @@ const (
 )
 
 var ConsensusName = []string{"dpos", "raft", "sbp"}
+
+func IsRaft(consensus string) bool {
+	return ConsensusName[ConsensusRAFT] == strings.ToLower(consensus)
+}
+func IsDpos(consensus string) bool {
+	return ConsensusName[ConsensusDPOS] == strings.ToLower(consensus)
+}
 
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {

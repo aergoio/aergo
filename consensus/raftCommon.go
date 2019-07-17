@@ -16,7 +16,6 @@ import (
 	"io"
 	"net"
 	"net/url"
-	"strings"
 )
 
 type EntryType int8
@@ -54,10 +53,6 @@ var (
 	ErrInvalidMemberAttr      = errors.New("invalid member attribute")
 	ErrorMembershipChangeSkip = errors.New("node is not raft leader, so skip membership change request")
 )
-
-func IsRaft(consensus string) bool {
-	return ConsensusName[ConsensusRAFT] == strings.ToLower(consensus)
-}
 
 type WalEntry struct {
 	Type  EntryType
