@@ -85,7 +85,7 @@ func finalizeVprtTest() {
 
 func initRankTable(rankMax int32) {
 	for i := int32(0); i < vprMax; i++ {
-		rank.set(genAddr(i), new(big.Int).SetUint64(10000))
+		rank.add(genAddr(i), new(big.Int).SetUint64(10000))
 		rank.apply(nil)
 	}
 }
@@ -164,7 +164,7 @@ func initRankTableRand(rankMax int32) {
 	max := new(big.Int).SetUint64(20000)
 	src := rand.New(rand.NewSource(0))
 	for i := int32(0); i < rankMax; i++ {
-		rank.set(genAddr(i), new(big.Int).Rand(src, max))
+		rank.add(genAddr(i), new(big.Int).Rand(src, max))
 		rank.apply(nil)
 	}
 }

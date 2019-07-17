@@ -11,12 +11,14 @@ import (
 
 const (
 	vprMax        = 50000
-	vprBucketsMax = 1024
+	vprBucketsMax = 32
 )
 
 var (
 	vprKeyPrefix = []byte("VotingPowerBucket")
-	rank         = newVpr()
+	zeroValue    = &big.Int{}
+
+	rank = newVpr()
 )
 
 type votingPower struct {
@@ -116,8 +118,9 @@ func (b *vprBucket) getBucket(addr types.AccountID) *list.List {
 // Voters Power Ranking (VPR)
 type vpr struct {
 	votingPower map[types.AccountID]*big.Int
-	changes     map[types.AccountID]*big.Int
+	changes     map[types.AccountID]*big.Int // temporary buffer for update
 	table       *vprBucket
+	totalPower  *big.Int
 }
 
 func newVpr() *vpr {
@@ -125,6 +128,7 @@ func newVpr() *vpr {
 		votingPower: make(map[types.AccountID]*big.Int, vprMax),
 		changes:     make(map[types.AccountID]*big.Int, vprMax),
 		table:       newVprBucket(vprBucketsMax),
+		totalPower:  new(big.Int),
 	}
 }
 
@@ -134,23 +138,18 @@ func (v *vpr) votingPowerOf(address types.AccountID) *big.Int {
 
 func (v *vpr) update(addr types.AccountID, fn func(lhs *big.Int)) {
 	if _, exist := v.votingPower[addr]; !exist {
-		v.votingPower[addr] = new(big.Int)
+		v.votingPower[addr] = &big.Int{}
 	}
 
 	if _, exist := v.changes[addr]; !exist {
-		v.changes[addr] = new(big.Int).Set(v.votingPower[addr])
+		v.changes[addr] = &big.Int{}
 	}
+	// Each entry of v.changes corresponds to the change (increment or
+	// decrement) of voting power. It is added to later by calling the v.apply
+	// method.
 	ch := v.changes[addr]
 
 	fn(ch)
-}
-
-func (v *vpr) set(addr types.AccountID, power *big.Int) {
-	v.update(addr,
-		func(lhs *big.Int) {
-			lhs.Set(power)
-		},
-	)
 }
 
 func (v *vpr) add(addr types.AccountID, power *big.Int) {
@@ -171,13 +170,16 @@ func (v *vpr) sub(addr types.AccountID, power *big.Int) {
 
 func (v *vpr) apply(s *state.ContractState) {
 	for key, pow := range v.changes {
-		if curPow := v.votingPower[key]; curPow.Cmp(pow) != 0 {
-			v.votingPower[key] = pow
-			v.table.update(key, pow)
+		if pow.Cmp(zeroValue) != 0 {
+			lhs := v.votingPower[key]
+			lhs.Add(lhs, pow)
+			v.totalPower.Add(v.totalPower, pow)
+
+			v.table.update(key, lhs)
 
 			delete(v.changes, key)
 			if s != nil {
-				s.SetRawKV(vprKey(key[:]), pow.Bytes())
+				s.SetRawKV(vprKey(key[:]), lhs.Bytes())
 			}
 		}
 	}
