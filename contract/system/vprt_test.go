@@ -169,3 +169,39 @@ func initRankTableRand(rankMax int32) {
 		rank.apply(nil)
 	}
 }
+
+func TestVotingPowerCodec(t *testing.T) {
+
+	conv := func(s string) *big.Int {
+		p, ok := new(big.Int).SetString(s, 10)
+		assert.True(t, ok, "number conversion failed")
+		return p
+	}
+
+	tcs := []struct {
+		pow    *big.Int
+		expect int
+	}{
+		{
+			pow:    conv("500000000000000000000000000"),
+			expect: 48,
+		},
+		{
+			pow:    conv("5000000000000"),
+			expect: 42,
+		},
+	}
+
+	for _, tc := range tcs {
+		orig := newVotingPower(genAddr(0), tc.pow)
+		b := orig.marshal()
+		assert.Equal(t, tc.expect, len(b))
+
+		dec := &votingPower{}
+		n := dec.unmarshal(b)
+		assert.Equal(t, len(b)-4, int(n))
+
+		assert.Equal(t, orig.addr, dec.addr)
+		assert.True(t, orig.power.Cmp(dec.power) == 0, "fail to decode")
+	}
+}

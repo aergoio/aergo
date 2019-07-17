@@ -1,7 +1,11 @@
 package system
 
 import (
+	"bytes"
 	"container/list"
+	"encoding/binary"
+	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
@@ -39,6 +43,28 @@ func (vp *votingPower) cmp(pow *big.Int) int {
 	return vp.power.Cmp(pow)
 }
 
+func (vp *votingPower) marshal() []byte {
+	var tmp bytes.Buffer
+	tmp.Write(vp.addr[:])
+	tmp.Write(vp.power.Bytes())
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.LittleEndian, int32(tmp.Len()))
+	tmp.WriteTo(&buf)
+
+	return buf.Bytes()
+}
+
+func (vp *votingPower) unmarshal(b []byte) (n int32) {
+	r := bytes.NewReader(b)
+	binary.Read(r, binary.LittleEndian, &n)
+
+	vp.addr = types.AccountID(types.ToHashID(b[4:36]))
+	vp.power = new(big.Int).SetBytes(b[36:])
+
+	return
+}
+
 type vprBucket struct {
 	buckets map[uint8]*list.List
 	max     uint16
@@ -57,9 +83,10 @@ func newVprBucket(max uint16) *vprBucket {
 	}
 }
 
-func (b *vprBucket) update(addr types.AccountID, pow *big.Int) {
+func (b *vprBucket) update(addr types.AccountID, pow *big.Int) (idx uint8) {
+	idx = getBucketIdx(addr)
+
 	var (
-		idx   = getBucketIdx(addr)
 		bu    *list.List
 		exist bool
 	)
@@ -81,6 +108,23 @@ func (b *vprBucket) update(addr types.AccountID, pow *big.Int) {
 	} else {
 		bu.PushBack(v)
 	}
+
+	return
+}
+
+type dataSetter interface {
+	SetData(key, value []byte) error
+}
+
+type dataGetter interface {
+	GetData(key []byte) ([]byte, error)
+}
+
+func (b *vprBucket) write(s dataSetter, i uint8) {
+}
+
+func (b *vprBucket) read(s dataGetter, i uint8) []*votingPower {
+	return nil
 }
 
 func remove(bu *list.List, addr types.AccountID) *votingPower {
@@ -169,13 +213,14 @@ func (v *vpr) sub(addr types.AccountID, power *big.Int) {
 }
 
 func (v *vpr) apply(s *state.ContractState) {
+	updRows := make([]uint8, 0, math.MaxUint8)
 	for key, pow := range v.changes {
 		if pow.Cmp(zeroValue) != 0 {
 			lhs := v.votingPower[key]
 			lhs.Add(lhs, pow)
 			v.totalPower.Add(v.totalPower, pow)
 
-			v.table.update(key, lhs)
+			updRows = append(updRows, v.table.update(key, lhs))
 
 			delete(v.changes, key)
 			if s != nil {
@@ -183,12 +228,16 @@ func (v *vpr) apply(s *state.ContractState) {
 			}
 		}
 	}
+
+	for _, i := range updRows {
+		v.table.write(s, i)
+	}
 }
 
 func (v *vpr) Bingo(seed []byte) {
 }
 
-func vprKey(key []byte) []byte {
+func vprKey(i uint8) []byte {
 	var vk []byte = vprKeyPrefix
-	return append(vk, key...)
+	return append(vk, []byte(fmt.Sprintf("%v", i))...)
 }
