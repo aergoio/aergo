@@ -47,7 +47,7 @@ func (c *Conf) RemoveValue(r string) {
 	}
 }
 
-func (c *Conf) Validate(key []byte) error {
+func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	if !c.On {
 		return nil
 	}
@@ -60,6 +60,14 @@ func (c *Conf) Validate(key []byte) error {
 			}
 		}
 		return fmt.Errorf("the values of %s should have at least one write permission", strKey)
+	case AccountWhite:
+		for _, v := range context.Admins {
+			address := types.EncodeAddress(v)
+			if context.HasConfValue(address) {
+				return nil
+			}
+		}
+		return fmt.Errorf("the values of %s should have at least one admin address", strKey)
 	default:
 		return nil
 	}

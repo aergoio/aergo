@@ -105,7 +105,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			conf.RemoveValue(context.Args[1])
 		}
 
-		if err := conf.Validate(key); err != nil {
+		if err := conf.Validate(key, context); err != nil {
 			return nil, err
 		}
 
@@ -134,11 +134,13 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
-		if err := conf.Validate(key); err != nil {
+
+		context.Admins = admins
+		context.Conf = conf
+
+		if err := conf.Validate(key, context); err != nil {
 			return nil, err
 		}
-		context.Conf = conf
-		context.Admins = admins
 
 	case ChangeCluster:
 		cc, err := ValidateChangeCluster(ci, blockNo)
