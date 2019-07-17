@@ -25,10 +25,10 @@ var (
 
 	vprOP = []func(types.AccountID, *big.Int){
 		opAdd: func(addr types.AccountID, opr *big.Int) {
-			rank.Add(addr, opr)
+			rank.add(addr, opr)
 		},
 		opSub: func(addr types.AccountID, opr *big.Int) {
-			rank.Sub(addr, opr)
+			rank.sub(addr, opr)
 		},
 	}
 
@@ -52,7 +52,7 @@ func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
 	for _, o := range tc.ops {
 		vprOP[o.op](tc.addr, o.arg)
 	}
-	rank.Apply(s)
+	rank.apply(s)
 	assert.True(t,
 		rank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
 		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
@@ -66,7 +66,7 @@ func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
 	}
 }
 
-func initDB(t *testing.T) {
+func initVprtTest(t *testing.T, initTable func(rankMax int32)) {
 	vprChainStateDB = state.NewChainStateDB()
 	_ = vprChainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
 	vprStateDB = vprChainStateDB.GetStateDB()
@@ -74,28 +74,20 @@ func initDB(t *testing.T) {
 
 	err := vprChainStateDB.SetGenesis(genesis, nil)
 	assert.NoError(t, err, "failed init")
+
+	initTable(vprMax)
+}
+
+func finalizeVprtTest() {
+	_ = vprChainStateDB.Close()
+	_ = os.RemoveAll("test")
 }
 
 func initRankTable(rankMax int32) {
 	for i := int32(0); i < vprMax; i++ {
-		rank.Set(genAddr(i), new(big.Int).SetUint64(10000))
-		rank.Apply(nil)
+		rank.set(genAddr(i), new(big.Int).SetUint64(10000))
+		rank.apply(nil)
 	}
-}
-
-func initRankTableRand(rankMax int32) {
-	rank = newVpr()
-	max := new(big.Int).SetUint64(20000)
-	src := rand.New(rand.NewSource(0))
-	for i := int32(0); i < rankMax; i++ {
-		rank.Set(genAddr(i), new(big.Int).Rand(src, max))
-		rank.Apply(nil)
-	}
-}
-
-func finalizeTest() {
-	_ = vprChainStateDB.Close()
-	_ = os.RemoveAll("test")
 }
 
 func isInitialized() bool {
@@ -113,9 +105,8 @@ func commit() error {
 }
 
 func TestVprOp(t *testing.T) {
-	initDB(t)
-	defer finalizeTest()
-	initRankTable(vprMax)
+	initVprtTest(t, initRankTable)
+	defer finalizeVprtTest()
 
 	testCases := []vprTC{
 		{
@@ -154,9 +145,8 @@ func TestVprOp(t *testing.T) {
 }
 
 func TestVprTable(t *testing.T) {
-	initDB(t)
-	defer finalizeTest()
-	initRankTableRand(vprMax)
+	initVprtTest(t, initRankTableRand)
+	defer finalizeVprtTest()
 
 	for i, l := range rank.table.buckets {
 		for e := l.Front(); e.Next() != nil; e = e.Next() {
@@ -166,5 +156,15 @@ func TestVprTable(t *testing.T) {
 			cmp := curr.power.Cmp(next.power)
 			assert.True(t, cmp == 0 || cmp == 1, "unordered bucket found: idx = %v", i)
 		}
+	}
+}
+
+func initRankTableRand(rankMax int32) {
+	rank = newVpr()
+	max := new(big.Int).SetUint64(20000)
+	src := rand.New(rand.NewSource(0))
+	for i := int32(0); i < rankMax; i++ {
+		rank.set(genAddr(i), new(big.Int).Rand(src, max))
+		rank.apply(nil)
 	}
 }

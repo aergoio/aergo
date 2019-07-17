@@ -73,7 +73,7 @@ func (b *vprBucket) update(addr types.AccountID, pow *big.Int) {
 		v = newVotingPower(addr, pow)
 	}
 
-	if m := findPos(bu, b.cmp(pow)); m != nil {
+	if m := findInsPos(bu, b.cmp(pow)); m != nil {
 		bu.InsertBefore(v, m)
 	} else {
 		bu.PushBack(v)
@@ -89,7 +89,7 @@ func remove(bu *list.List, addr types.AccountID) *votingPower {
 	return nil
 }
 
-func findPos(bu *list.List, fn func(v *votingPower) int) *list.Element {
+func findInsPos(bu *list.List, fn func(v *votingPower) int) *list.Element {
 	for e := bu.Front(); e != nil; e = e.Next() {
 		v := e.Value.(*votingPower)
 		ind := fn(v)
@@ -145,7 +145,7 @@ func (v *vpr) update(addr types.AccountID, fn func(lhs *big.Int)) {
 	fn(ch)
 }
 
-func (v *vpr) Set(addr types.AccountID, power *big.Int) {
+func (v *vpr) set(addr types.AccountID, power *big.Int) {
 	v.update(addr,
 		func(lhs *big.Int) {
 			lhs.Set(power)
@@ -153,7 +153,7 @@ func (v *vpr) Set(addr types.AccountID, power *big.Int) {
 	)
 }
 
-func (v *vpr) Add(addr types.AccountID, power *big.Int) {
+func (v *vpr) add(addr types.AccountID, power *big.Int) {
 	v.update(addr,
 		func(lhs *big.Int) {
 			lhs.Add(lhs, power)
@@ -161,7 +161,7 @@ func (v *vpr) Add(addr types.AccountID, power *big.Int) {
 	)
 }
 
-func (v *vpr) Sub(addr types.AccountID, power *big.Int) {
+func (v *vpr) sub(addr types.AccountID, power *big.Int) {
 	v.update(addr,
 		func(lhs *big.Int) {
 			lhs.Sub(lhs, power)
@@ -169,7 +169,7 @@ func (v *vpr) Sub(addr types.AccountID, power *big.Int) {
 	)
 }
 
-func (v *vpr) Apply(s *state.ContractState) {
+func (v *vpr) apply(s *state.ContractState) {
 	for key, pow := range v.changes {
 		if curPow := v.votingPower[key]; curPow.Cmp(pow) != 0 {
 			v.votingPower[key] = pow
