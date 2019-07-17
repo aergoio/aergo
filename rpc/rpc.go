@@ -171,6 +171,7 @@ func (ns *RPC) BeforeStop() {
 
 func (ns *RPC) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
+		"config":  ns.conf.RPC,
 		"version": ns.version,
 	}
 }

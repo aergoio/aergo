@@ -263,6 +263,7 @@ func (mp *MemPool) Statistics() *map[string]interface{} {
 		"dead":         mp.deadtx,
 		"whitelist":    mp.whitelist.GetWhitelist(),
 		"whitelist_on": mp.whitelist.GetOn(),
+		"config":       mp.cfg.Mempool,
 	}
 }
 

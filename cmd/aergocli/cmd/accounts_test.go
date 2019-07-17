@@ -24,10 +24,10 @@ func TestAccountWithPath(t *testing.T) {
 
 	outputList, err := executeCommand(rootCmd, "account", "list", "--path", testDir)
 	assert.NoError(t, err, "should be success")
-	outputAddress := strings.Split(outputList[1:], "]")[0]
+	outputAddress := strings.Split(outputList[2:], "\"]")[0]
 
 	outputList = re.ReplaceAllString(outputList, "")
-	assert.Equalf(t, len(outputNew)+2, len(outputList), "wrong address list length value = %s", outputList)
+	assert.Equalf(t, len(outputNew)+4, len(outputList), "wrong address list length value = %s", outputList)
 
 	outputExport, err := executeCommand(rootCmd, "account", "export", "--address", outputAddress, "--password", "1", "--path", testDir)
 	assert.NoError(t, err, "should be success")

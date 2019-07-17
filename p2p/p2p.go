@@ -7,13 +7,14 @@ package p2p
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/rs/zerolog"
-	"sync"
-	"time"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -34,7 +35,7 @@ import (
 type P2P struct {
 	*component.BaseComponent
 
-	cfg      *config.Config
+	cfg *config.Config
 	// TODO Which class has role to manager self PeerRole? P2P, PeerManager, or other?
 	selfRole p2pcommon.PeerRole
 	useRaft  bool
@@ -62,7 +63,7 @@ var (
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(cfg *config.Config, chainSvc *chain.ChainService) *P2P {
-	p2psvc := &P2P{cfg:cfg}
+	p2psvc := &P2P{cfg: cfg}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
 	p2psvc.initP2P(cfg, chainSvc)
 	return p2psvc
@@ -78,7 +79,7 @@ func (p2ps *P2P) AfterStart() {
 	}
 	p2ps.mutex.Lock()
 	p2ps.setSelfRole()
-	p2ps.Logger.Info().Array("supportedVersions",p2putil.NewLogStringersMarshaller(versions,10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
+	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.mutex.Unlock()
@@ -127,6 +128,8 @@ func (p2ps *P2P) BeforeStop() {
 func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
 	stmap["netstat"] = p2ps.mm.Summary()
+	stmap["config"] = p2ps.cfg.P2P
+	stmap["status"] = p2ps.nt.SelfMeta()
 	return &stmap
 }
 

@@ -56,7 +56,11 @@ func (as *AccountService) BeforeStop() {
 }
 
 func (as *AccountService) Statistics() *map[string]interface{} {
-	return nil
+	return &map[string]interface{}{
+		"totalaccounts": len(as.accounts),
+		"personal":      as.cfg.Personal,
+		"config":        as.cfg.Account,
+	}
 }
 func (as *AccountService) resolveName(namedAddress []byte) ([]byte, error) {
 	scs, err := as.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
