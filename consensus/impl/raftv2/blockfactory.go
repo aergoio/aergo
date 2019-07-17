@@ -152,7 +152,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		}
 
 		bf.raftServer.SetPeerAccessor(pa)
-		bf.rhw = &raftHttpWrapper{raftServer:bf.raftServer}
+		bf.rhw = &raftHttpWrapper{raftServer: bf.raftServer}
 	} else {
 		bf.rhw = &consensus.DummyRaftAccessor{}
 	}
@@ -666,6 +666,7 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 	var (
 		hardStateInfo *types.HardStateInfo
 		mbrAttrs      []*types.MemberAttr
+		bestBlock     *types.Block
 		err           error
 	)
 
@@ -683,7 +684,11 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 		return &types.GetClusterInfoResponse{Error: err.Error()}
 	}
 
-	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
+	if bestBlock, err = bf.GetBestBlock(); err != nil {
+		return &types.GetClusterInfoResponse{Error: err.Error()}
+	}
+
+	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, BestBlockNo: bestBlock.BlockNo(), HardStateInfo: hardStateInfo}
 }
 
 // ConfChangeInfo returns ConfChangeProgress queries by request ID of ConfChange
