@@ -139,7 +139,7 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 	digest.Write(last.GetHeader().GetChainID())
 	bestChainIDHash := digest.Sum(nil)
 
-	chainInfo, err := rpc.getChainInfo()
+	chainInfo, err := rpc.getChainInfo(ctx)
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to get chain info in blockchain")
 		chainInfo = nil
@@ -158,10 +158,10 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
-	return rpc.getChainInfo()
+	return rpc.getChainInfo(ctx)
 }
 
-func (rpc *AergoRPCService) getChainInfo() (*types.ChainInfo, error) {
+func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo, error) {
 	chainInfo := &types.ChainInfo{}
 
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
@@ -174,12 +174,16 @@ func (rpc *AergoRPCService) getChainInfo() (*types.ChainInfo, error) {
 			Consensus: id.Consensus,
 		}
 
-		chainInfo.BpNumber = uint32(len(genesisInfo.BPs))
-
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
 			chainInfo.Maxtokens = totalBalance.Bytes()
 		}
 	}
+
+	cInfo, err := rpc.GetConsensusInfo(ctx, &types.Empty{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	chainInfo.BpNumber = uint32(len(cInfo.GetBps()))
 
 	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
 

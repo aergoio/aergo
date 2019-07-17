@@ -16,13 +16,14 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"strings"
 )
 
 type EntryType int8
 
 const (
 	EntryBlock EntryType = iota
-	EntryEmpty  // it is generated when node becomes leader
+	EntryEmpty           // it is generated when node becomes leader
 	EntryConfChange
 	InvalidMemberID = 0
 )
@@ -53,6 +54,10 @@ var (
 	ErrInvalidMemberAttr      = errors.New("invalid member attribute")
 	ErrorMembershipChangeSkip = errors.New("node is not raft leader, so skip membership change request")
 )
+
+func IsRaft(consensus string) bool {
+	return ConsensusName[ConsensusRAFT] == strings.ToLower(consensus)
+}
 
 type WalEntry struct {
 	Type  EntryType
@@ -393,6 +398,7 @@ type DummyRaftAccessor struct {
 }
 
 var IllegalArgumentError = errors.New("illegal argument")
+
 func (DummyRaftAccessor) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
 	return IllegalArgumentError
 }
@@ -406,7 +412,6 @@ func (DummyRaftAccessor) ReportUnreachable(peerID types.PeerID) {
 
 func (DummyRaftAccessor) ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus) {
 }
-
 
 func (DummyRaftAccessor) GetMemberByID(id uint64) *Member {
 	return nil
