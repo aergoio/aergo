@@ -13,6 +13,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
 	"os"
@@ -21,6 +22,10 @@ import (
 	"strings"
 )
 
+
+func RandomPeerID() (types.PeerID, error) {
+	return test.RandPeerID()
+}
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
 	ipAddr, err := network.GetSingleIPAddress(m.IPAddress)

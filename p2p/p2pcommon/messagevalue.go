@@ -12,7 +12,7 @@ type MessageValue struct {
 	subProtocol SubProtocol
 	// Length is length of payload
 	length uint32
-	// timestamp is unix time (precision of second)
+	// timestamp is unix time (precision of nanosecond)
 	timestamp int64
 	// ID is 16 bytes unique identifier
 	id MsgID

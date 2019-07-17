@@ -254,7 +254,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		}
 	case *message.GetCluster:
 		peers := p2ps.pm.GetPeers()
-		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
+		//clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
+		clusterReceiver := raftsupport.NewConcClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg, p2ps.Logger)
 		clusterReceiver.StartGet()
 	case *message.SendRaft:
 		p2ps.SendRaftMessage(context, msg)
