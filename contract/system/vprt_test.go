@@ -56,14 +56,15 @@ func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
 	assert.True(t,
 		rank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
 		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
-
-	if s != nil {
-		b, err := s.GetRawKV(vprKey(tc.addr[:]))
-		assert.NoError(t, err, "fail to get a voting power")
-		v := new(big.Int).SetBytes(b)
-		assert.True(t, v.Cmp(tc.want) == 0,
-			"value mismatch: want: %s, actual: %s", tc.want, v)
-	}
+	/*
+		if s != nil {
+			b, err := s.GetRawKV(vprKey(tc.addr[:]))
+			assert.NoError(t, err, "fail to get a voting power")
+			v := new(big.Int).SetBytes(b)
+			assert.True(t, v.Cmp(tc.want) == 0,
+				"value mismatch: want: %s, actual: %s", tc.want, v)
+		}
+	*/
 }
 
 func initVprtTest(t *testing.T, initTable func(rankMax int32)) {

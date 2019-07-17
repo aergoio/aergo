@@ -2,7 +2,6 @@ package system
 
 import (
 	"container/list"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
@@ -10,7 +9,9 @@ import (
 )
 
 const (
-	vprMax        = 50000
+	vprMax = 50000
+	// vprBucketsMax must be smaller than 256. A bigger number is regarded as
+	// 256.
 	vprBucketsMax = 32
 )
 
@@ -39,7 +40,7 @@ func (vp *votingPower) cmp(pow *big.Int) int {
 }
 
 type vprBucket struct {
-	buckets map[uint16]*list.List
+	buckets map[uint8]*list.List
 	max     uint16
 	cmp     func(pow *big.Int) func(v *votingPower) int
 }
@@ -47,7 +48,7 @@ type vprBucket struct {
 func newVprBucket(max uint16) *vprBucket {
 	return &vprBucket{
 		max:     max,
-		buckets: make(map[uint16]*list.List, vprBucketsMax),
+		buckets: make(map[uint8]*list.List, vprBucketsMax),
 		cmp: func(pow *big.Int) func(v *votingPower) int {
 			return func(v *votingPower) int {
 				return v.cmp(pow)
@@ -103,9 +104,8 @@ func findInsPos(bu *list.List, fn func(v *votingPower) int) *list.Element {
 	return nil
 }
 
-func getBucketIdx(addr types.AccountID) uint16 {
-	return binary.LittleEndian.Uint16(addr[:2]) & 0x3FF
-
+func getBucketIdx(addr types.AccountID) uint8 {
+	return uint8(addr[0]) % vprBucketsMax
 }
 
 func (b *vprBucket) getBucket(addr types.AccountID) *list.List {
@@ -179,7 +179,7 @@ func (v *vpr) apply(s *state.ContractState) {
 
 			delete(v.changes, key)
 			if s != nil {
-				s.SetRawKV(vprKey(key[:]), lhs.Bytes())
+
 			}
 		}
 	}
