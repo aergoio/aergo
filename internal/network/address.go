@@ -3,7 +3,7 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package p2putil
+package network
 
 import (
 	"fmt"

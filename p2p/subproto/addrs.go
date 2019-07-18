@@ -7,6 +7,7 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -78,7 +79,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if network.CheckAddressType(rPeerAddr.Address) == network.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)

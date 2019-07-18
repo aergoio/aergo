@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -108,9 +107,9 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 
 	mbrs := make([]*types.MemberAttr, bpLen)
 	for i, bp := range bps {
-		trimUrl := strings.TrimSpace(bp.Address)
+		trimmedAddr := strings.TrimSpace(bp.Address)
 		// TODO when p2p is applied, have to validate peer address
-		if err := isValidURL(trimUrl, false); err != nil {
+		if _, err := types.ParseMultiaddrWithResolve(trimmedAddr); err != nil {
 			return nil, err
 		}
 
@@ -119,7 +118,7 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 			return nil, fmt.Errorf("invalid raft peerID BP[%d]:%s", i, bp.PeerID)
 		}
 
-		mbrs[i] = &types.MemberAttr{Name: bp.Name, Address: trimUrl, PeerID: []byte(peerID)}
+		mbrs[i] = &types.MemberAttr{Name: bp.Name, Address: trimmedAddr, PeerID: []byte(peerID)}
 	}
 
 	return mbrs, nil
@@ -153,23 +152,6 @@ func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func isValidURL(urlstr string, useTls bool) error {
-	var urlobj *url.URL
-	var err error
-
-	if urlobj, err = consensus.ParseToUrl(urlstr); err != nil {
-		logger.Error().Str("url", urlstr).Err(err).Msg("raft bp urlstr is not vaild form")
-		return err
-	}
-
-	if useTls && urlobj.Scheme != "https" {
-		logger.Error().Str("urlstr", urlstr).Msg("raft bp urlstr shoud use https protocol")
-		return ErrNotHttpsURL
-	}
-
-	return nil
 }
 
 func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {

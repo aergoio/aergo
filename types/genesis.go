@@ -184,6 +184,7 @@ func (cid ChainID) ToJSON() string {
 
 type EnterpriseBP struct {
 	Name    string `json:"name"`
+	// multiaddress format with ip or dns with port e.g. /ip4/123.45.67.89/tcp/7846
 	Address string `json:"address"`
 	PeerID  string `json:"peerid"`
 }

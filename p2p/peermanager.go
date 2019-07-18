@@ -182,7 +182,7 @@ func (pm *peerManager) Stop() error {
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
 	for _, target := range pm.conf.NPAddPeers {
-		peerMeta, err := p2putil.ParseMultiAddrString(target)
+		peerMeta, err := p2putil.FromMultiAddrString(target)
 		if err != nil {
 			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
 			continue

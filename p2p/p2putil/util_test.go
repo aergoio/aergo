@@ -8,6 +8,7 @@ package p2putil
 import (
 	"fmt"
 	"github.com/aergoio/aergo/types"
+	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -268,4 +269,40 @@ func TestLRUCache(t *testing.T) {
 			assert.True(t, target.Len() <= 10)
 		}
 	})
+}
+
+func TestParseURI(t *testing.T) {
+	tests := []struct {
+		name string
+
+		arg string
+
+		wantErr  bool
+		wantIP   bool
+		wantPort bool
+	}{
+		{"Thttp", "http://172.121.33.4:1111", false, true, true},
+		{"Thttps", "https://172.121.33.4:1111", false, true, true},
+		{"TMultiAddr", "/ip4/172.121.33.4/tcp/1111", false, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := url.ParseRequestURI(tt.arg)
+			if err != nil {
+				t.Logf("Got addr %v", got)
+			}
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseRequestURI() err %v , wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr {
+				if (len(got.Host) >0 ) != tt.wantIP {
+					t.Errorf("ParseRequestURI() Host %v , want %v", got.Host, tt.wantIP)
+				}
+				if (len(got.Port()) >0 ) != tt.wantPort {
+					t.Errorf("ParseRequestURI() Port %v , want %v", got.Port(), tt.wantPort)
+				}
+			}
+
+		})
+	}
 }

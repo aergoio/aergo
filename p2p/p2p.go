@@ -13,10 +13,10 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/aergo/p2p/transport"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/rs/zerolog"
 
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
@@ -275,7 +275,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if network.CheckAddressType(rPeerAddr.Address) == network.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
@@ -383,7 +383,7 @@ func (p2ps *P2P) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p
 	}
 }
 
-func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream types.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))

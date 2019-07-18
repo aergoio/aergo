@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/etcd/snap"
 	"github.com/libp2p/go-libp2p-core/network"
 	"net/http"
-	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -150,19 +149,16 @@ func (t *AergoRaftTransport) AddPeer(id rtypes.ID, peerID types.PeerID, urls []s
 }
 
 func (t *AergoRaftTransport) connectToPeer(member *consensus.Member) {
-	nodeUrl, err := url.ParseRequestURI(member.Address)
+	pid, err := types.IDFromBytes(member.PeerID)
+	peerMeta, err := p2putil.FromMultiAddrStringWithPID(member.Address,pid)
 	if err != nil {
-		t.logger.Panic().Err(err).Str("url", member.Address).Msg("newURLs should never fail")
+		t.logger.Panic().Err(err).Str("addr", member.Address).Msg("Address must be valid")
 	}
-	port := 7846 // FIXME: use constant variable
-	if nodeUrl.Port() != "" {
-		port, err = strconv.Atoi(nodeUrl.Port())
-		if err != nil {
-			t.logger.Panic().Err(err).Str("port", nodeUrl.Port()).Msg("invalid port info")
-		}
-	}
+
 	// member should be add to designated peer
-	meta := p2pcommon.PeerMeta{ID: member.GetPeerID(), Designated: true, IPAddress: nodeUrl.Hostname(), Port: uint32(port), Outbound: true}
+	meta :=peerMeta
+	meta.Outbound = true
+	meta.Designated = true
 	t.pm.AddDesignatedPeer(meta)
 	t.pm.AddNewPeer(meta)
 }

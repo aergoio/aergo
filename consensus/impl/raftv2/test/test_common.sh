@@ -533,7 +533,7 @@ function makeAddMemberJson() {
 		exit 100
 	fi
 
-	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "aergop2p://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
+	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "/ip4/127.0.0.1/tcp/'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
 
 	echo $memberJson
 }

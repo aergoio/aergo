@@ -15,17 +15,17 @@
   "enterprise_bps": [
     {
       "name": "aergo1",
-      "address": "aergop2p://127.0.0.1:11001",
+      "address": "/ip4/127.0.0.1/tcp/11001",
       "peerid": "16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn"
     },
     {
       "name": "aergo2",
-      "address": "aergop2p://127.0.0.1:11002",
+      "address": "/ip4/127.0.0.1/tcp/11002",
       "peerid": "16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6"
     },
     {
       "name": "aergo3",
-      "address": "aergop2p://127.0.0.1:11003",
+      "address": "/ip4/127.0.0.1/tcp/11003",
       "peerid": "16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"
     }
   ]

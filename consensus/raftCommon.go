@@ -14,8 +14,6 @@ import (
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"io"
-	"net"
-	"net/url"
 )
 
 type EntryType int8
@@ -315,8 +313,8 @@ func (m *Member) IsValid() bool {
 		return false
 	}
 
-	if _, err := ParseToUrl(m.Address); err != nil {
-		logger.Error().Err(err).Msg("parse url of member")
+	if _, err := types.ParseMultiaddrWithResolve(m.Address); err != nil {
+		logger.Error().Err(err).Msg("parse address of member")
 		return false
 	}
 
@@ -367,25 +365,6 @@ func (mbrs MembersByName) Less(i, j int) bool {
 }
 func (mbrs MembersByName) Swap(i, j int) {
 	mbrs[i], mbrs[j] = mbrs[j], mbrs[i]
-}
-
-func ParseToUrl(urlstr string) (*url.URL, error) {
-	var urlObj *url.URL
-	var err error
-
-	if urlObj, err = url.Parse(urlstr); err != nil {
-		return nil, err
-	}
-
-	if urlObj.Scheme != "aergop2p" {
-		return nil, ErrURLInvalidScheme
-	}
-
-	if _, _, err := net.SplitHostPort(urlObj.Host); err != nil {
-		return nil, ErrURLInvalidPort
-	}
-
-	return urlObj, nil
 }
 
 // DummyRaftAccessor returns error if process request comes, or silently ignore raft message.
