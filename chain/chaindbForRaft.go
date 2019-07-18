@@ -314,10 +314,12 @@ var (
 // 1. compare identity with config
 // 2. check if hardstate exists
 // 3. check if last raft entiry index exists
+// last entry index can be 0 if first sync has failed
 func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
 	var (
 		id   *consensus.RaftIdentity
 		last uint64
+		hs   *raftpb.HardState
 		err  error
 	)
 
@@ -329,7 +331,7 @@ func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
 		return false, ErrWalNotEqualIdentity
 	}
 
-	if _, err = cdb.GetHardState(); err != nil {
+	if hs, err = cdb.GetHardState(); err != nil {
 		return false, err
 	}
 
@@ -337,11 +339,9 @@ func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
 		return false, err
 	}
 
-	if last > 0 {
-		return true, nil
-	}
+	logger.Info().Str("identity", id.ToString()).Str("hardstate", types.RaftHardStateToString(*hs)).Uint64("lastidx", last).Msg("existing wal status")
 
-	return false, nil
+	return true, nil
 }
 
 /*
