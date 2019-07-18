@@ -17,7 +17,7 @@ import (
 
 type baseMOFactory struct {
 	trace bool
-
+	p2ps  *P2P
 }
 
 func (mf *baseMOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
@@ -80,7 +80,7 @@ func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNo
 }
 
 func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
-	rmo := &pbRaftMsgOrder{msg:raftMsg}
+	rmo := &pbRaftMsgOrder{msg: raftMsg, raftAcc:mf.p2ps.consacc.RaftAccessor()}
 	msgID := uuid.Must(uuid.NewV4())
 	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.RaftWrapperMessage, raftMsg) {
 		switch msgType {
@@ -95,8 +95,8 @@ func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *ra
 }
 
 // newPbMsgOrder is base form of making sendRequest struct
-func (mf *baseMOFactory)newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, messageBody p2pcommon.MessageBody) bool {
-	id :=p2pcommon.MsgID(msgID)
+func (mf *baseMOFactory) newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, messageBody p2pcommon.MessageBody) bool {
+	id := p2pcommon.MsgID(msgID)
 	originalID := p2pcommon.MsgID(orgID)
 	bytes, err := p2putil.MarshalMessageBody(messageBody)
 	if err != nil {

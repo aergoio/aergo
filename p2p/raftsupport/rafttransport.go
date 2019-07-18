@@ -91,6 +91,10 @@ func (t *AergoRaftTransport) Send(msgs []raftpb.Message) {
 		if peer != nil {
 			peer.SendMessage(t.mf.NewRaftMsgOrder(m.Type, &m))
 			continue
+		} else {
+			t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(member.GetPeerID())).Msg("peer is unreachable")
+			t.raftAcc.ReportUnreachable(member.GetPeerID())
+			continue
 		}
 
 		t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(member.GetPeerID())).Object("raftMsg", &RaftMsgMarshaller{&m}).Msg("can't send message to unconnected peer")

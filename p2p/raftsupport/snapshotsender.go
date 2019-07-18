@@ -38,6 +38,8 @@ func (s *snapshotSender) send(peer p2pcommon.RemotePeer, merged snap.Message) {
 	stream, err := s.getSnapshotStream(peer.Meta())
 	if err != nil {
 		s.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("failed to send snapshot")
+		s.rAcc.ReportUnreachable(peer.ID())
+		s.rAcc.ReportSnapshot(peer.ID(), raft.SnapshotFailure)
 		return
 	}
 

@@ -36,10 +36,9 @@ type P2P struct {
 	*component.BaseComponent
 
 	cfg *config.Config
-	// TODO Which class has role to manager self PeerRole? P2P, PeerManager, or other?
-	selfRole p2pcommon.PeerRole
-	useRaft  bool
 
+	// inited during construction
+	useRaft  bool
 	// caching data from genesis block
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
@@ -50,10 +49,15 @@ type P2P struct {
 	mf      p2pcommon.MoFactory
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
-	consacc consensus.ConsensusAccessor
 	prm     p2pcommon.PeerRoleManager
 
 	mutex sync.Mutex
+
+	// inited between construction and start
+	consacc consensus.ConsensusAccessor
+
+	// inited after start
+	selfRole p2pcommon.PeerRole
 }
 
 var (
@@ -174,7 +178,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
 	// TODO: it should be refactored to support multi version
-	mf := &baseMOFactory{}
+	mf := &baseMOFactory{p2ps: p2ps}
 
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
