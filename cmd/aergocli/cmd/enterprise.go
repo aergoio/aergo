@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -25,6 +26,8 @@ import (
 var (
 	ccBlockNo uint64
 	timeout   uint64
+
+	ErrNotExecutedConfChange = errors.New("change cluster request may be not proposed")
 )
 
 func init() {
@@ -83,8 +86,8 @@ func getConfChangeBlockNo(blockHash []byte) (aergorpc.BlockNo, error) {
 }
 
 type OutConfChange struct {
-	Payload string
-	Status  *aergorpc.EnterpriseTxStatus
+	Payload  string
+	TxStatus *aergorpc.EnterpriseTxStatus
 }
 
 func (occ *OutConfChange) ToString() string {
@@ -109,7 +112,7 @@ func isTimeouted(timer *time.Timer) bool {
 	}
 }
 
-func getChangeClusterStatus(blockHash []byte, timer *time.Timer) (*aergorpc.ConfChangeProgress, error) {
+func getChangeClusterStatus(cmd *cobra.Command, blockHash []byte, timer *time.Timer) (*aergorpc.ConfChangeProgress, error) {
 	var (
 		err               error
 		cycle             = time.Duration(3) * time.Second
@@ -125,6 +128,10 @@ func getChangeClusterStatus(blockHash []byte, timer *time.Timer) (*aergorpc.Conf
 	binary.LittleEndian.PutUint64(b, ccBlockNo)
 
 	for {
+		if isTimeouted(timer) {
+			break
+		}
+
 		msgConfChangeProg, err := client.GetConfChangeProgress(context.Background(), &aergorpc.SingleBytes{Value: b})
 		if err != nil {
 			continue
@@ -134,13 +141,12 @@ func getChangeClusterStatus(blockHash []byte, timer *time.Timer) (*aergorpc.Conf
 			return msgConfChangeProg, nil
 		}
 
-		if isTimeouted(timer) {
-			break
-		}
-
 		time.Sleep(cycle)
 	}
 
+	if msgConfChangeProg == nil {
+		return nil, ErrNotExecutedConfChange
+	}
 	//cmd.Printf(msgConfChangeProg.ToJsonString())
 	return msgConfChangeProg, nil
 }
@@ -197,7 +203,7 @@ var enterpriseTxCmd = &cobra.Command{
 		}
 
 		if tx, msgblock, err = getTxTimeout(); err != nil {
-			cmd.Printf("Failed: %s", err.Error())
+			cmd.Printf("Error: %s", err.Error())
 			return
 		}
 
@@ -205,31 +211,31 @@ var enterpriseTxCmd = &cobra.Command{
 			output.Payload = string(tx.GetBody().Payload)
 
 			if err := json.Unmarshal(tx.GetBody().Payload, &ci); err != nil {
-				cmd.Printf("tx payload is not json: %s", err.Error())
+				cmd.Printf("Error: tx payload is not json: %s", err.Error())
 				return
 			}
 		}
 
 		if msgblock != nil {
-			switch ci.Name {
-			case enterprise.ChangeCluster:
-				if confChange, err = getChangeClusterStatus(msgblock.TxIdx.BlockHash, timer); err != nil {
-					cmd.Printf("Failed to get status of change cluster: %s\n", err.Error())
-					return
+			receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
+			if err != nil {
+				cmd.Println("Error: failed to get receipt")
+				cmd.Println(output.ToString())
+				return
+			}
+			output.TxStatus = &aergorpc.EnterpriseTxStatus{
+				Status: receipt.GetStatus(),
+				Ret:    receipt.GetRet(),
+			}
+
+			if ci.Name == enterprise.ChangeCluster {
+				if confChange, err = getChangeClusterStatus(cmd, msgblock.TxIdx.BlockHash, timer); err != nil {
+					output.TxStatus.CCStatus = &types.ChangeClusterStatus{Error: err.Error()}
 				}
 
-				output.Status = confChange.ToPrintable()
-			default:
-				receipt, err := client.GetReceipt(context.Background(), &aergorpc.SingleBytes{Value: txHashDecode})
-				if err != nil {
-					cmd.Printf("Failed to get receipt: tx=%s, %s\n", args[0], err.Error())
-					return
+				if confChange != nil {
+					output.TxStatus.CCStatus = confChange.ToPrintable()
 				}
-				output.Status = &aergorpc.EnterpriseTxStatus{
-					Status: receipt.GetStatus(),
-					Error:  receipt.GetRet(),
-				}
-
 			}
 
 			cmd.Println(output.ToString())

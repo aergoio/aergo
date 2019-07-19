@@ -7,10 +7,16 @@ import (
 	"strconv"
 )
 
-type EnterpriseTxStatus struct {
-	Status  string        `json:"state"`
+type ChangeClusterStatus struct {
+	State   string        `json:"status"`
 	Error   string        `json:"error"`
-	Members []*MemberAttr `json:"members,omitempty"`
+	Members []*MemberAttr `json:"members"`
+}
+
+type EnterpriseTxStatus struct {
+	Status   string               `json:"status"`
+	Ret      string               `json:"ret"`
+	CCStatus *ChangeClusterStatus `json:"change_cluster,omitempty"`
 }
 
 func (ccProgress *ConfChangeProgress) ToString() string {
@@ -22,8 +28,8 @@ func (ccProgress *ConfChangeProgress) ToString() string {
 	return fmt.Sprintf("State=%s, Error=%s, cluster=%s", ConfChangeState_name[int32(ccProgress.State)], ccProgress.Err, string(mbrsJson))
 }
 
-func (ccProgress *ConfChangeProgress) ToPrintable() *EnterpriseTxStatus {
-	return &EnterpriseTxStatus{Status: ConfChangeState_name[int32(ccProgress.State)], Error: ccProgress.Err, Members: ccProgress.Members}
+func (ccProgress *ConfChangeProgress) ToPrintable() *ChangeClusterStatus {
+	return &ChangeClusterStatus{State: ConfChangeState_name[int32(ccProgress.State)], Error: ccProgress.Err, Members: ccProgress.Members}
 }
 
 func RaftConfChangeToString(cc *raftpb.ConfChange) string {

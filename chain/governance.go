@@ -10,6 +10,7 @@ import (
 
 	"github.com/aergoio/aergo/consensus"
 
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
@@ -38,6 +39,9 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	case types.AergoEnterprise:
 		events, err = enterprise.ExecuteEnterpriseTx(bs, ccc, scs, txBody, sender, receiver, blockNo)
+		if err != nil {
+			err = contract.NewGovEntErr(err)
+		}
 	default:
 		logger.Warn().Str("governance", governance).Msg("receive unknown recipient")
 		err = types.ErrTxInvalidRecipient
