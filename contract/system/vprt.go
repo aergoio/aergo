@@ -5,7 +5,6 @@ import (
 	"container/list"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
@@ -16,7 +15,7 @@ const (
 	vprMax = 50000
 	// vprBucketsMax must be smaller than 256. A bigger number is regarded as
 	// 256.
-	vprBucketsMax = 32
+	vprBucketsMax = 71
 )
 
 var (
@@ -44,18 +43,19 @@ func (vp *votingPower) cmp(pow *big.Int) int {
 }
 
 func (vp *votingPower) marshal() []byte {
-	var tmp bytes.Buffer
-	tmp.Write(vp.addr[:])
-	tmp.Write(vp.power.Bytes())
 
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, int32(tmp.Len()))
-	tmp.WriteTo(&buf)
 
-	return buf.Bytes()
+	buf.Write(vp.addr[:])
+	buf.Write(vp.power.Bytes())
+
+	hdr := make([]byte, 4)
+	binary.LittleEndian.PutUint32(hdr, uint32(buf.Len()))
+
+	return append(hdr, buf.Bytes()...)
 }
 
-func (vp *votingPower) unmarshal(b []byte) (n int32) {
+func (vp *votingPower) unmarshal(b []byte) (n uint32) {
 	r := bytes.NewReader(b)
 	binary.Read(r, binary.LittleEndian, &n)
 
@@ -121,6 +121,13 @@ type dataGetter interface {
 }
 
 func (b *vprBucket) write(s dataSetter, i uint8) {
+	var buf bytes.Buffer
+
+	l := b.buckets[i]
+	for e := l.Front(); e != nil; e = e.Next() {
+		buf.Write(e.Value.(*votingPower).marshal())
+	}
+	s.SetData(vprKey(i), buf.Bytes())
 }
 
 func (b *vprBucket) read(s dataGetter, i uint8) []*votingPower {
@@ -213,24 +220,26 @@ func (v *vpr) sub(addr types.AccountID, power *big.Int) {
 }
 
 func (v *vpr) apply(s *state.ContractState) {
-	updRows := make([]uint8, 0, math.MaxUint8)
+	updRows := make(map[uint8]interface{})
 	for key, pow := range v.changes {
 		if pow.Cmp(zeroValue) != 0 {
 			lhs := v.votingPower[key]
 			lhs.Add(lhs, pow)
 			v.totalPower.Add(v.totalPower, pow)
 
-			updRows = append(updRows, v.table.update(key, lhs))
+			i := v.table.update(key, lhs)
+			if _, exist := updRows[i]; !exist {
+				updRows[i] = struct{}{}
+			}
 
 			delete(v.changes, key)
-			if s != nil {
-
-			}
 		}
 	}
 
-	for _, i := range updRows {
-		v.table.write(s, i)
+	if s != nil {
+		for i, _ := range updRows {
+			v.table.write(s, i)
+		}
 	}
 }
 

@@ -3,12 +3,14 @@ package system
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"os"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -56,15 +58,6 @@ func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
 	assert.True(t,
 		rank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
 		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
-	/*
-		if s != nil {
-			b, err := s.GetRawKV(vprKey(tc.addr[:]))
-			assert.NoError(t, err, "fail to get a voting power")
-			v := new(big.Int).SetBytes(b)
-			assert.True(t, v.Cmp(tc.want) == 0,
-				"value mismatch: want: %s, actual: %s", tc.want, v)
-		}
-	*/
 }
 
 func initVprtTest(t *testing.T, initTable func(rankMax int32)) {
@@ -85,7 +78,7 @@ func finalizeVprtTest() {
 }
 
 func initRankTable(rankMax int32) {
-	for i := int32(0); i < vprMax; i++ {
+	for i := int32(0); i < rankMax; i++ {
 		rank.add(genAddr(i), new(big.Int).SetUint64(10000))
 		rank.apply(nil)
 	}
@@ -139,10 +132,28 @@ func TestVprOp(t *testing.T) {
 
 	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
 	assert.NoError(t, err, "fail to open the system contract state")
+	fmt.Printf(
+		"(before) state, contract: %s, %s\n",
+		enc.ToString(vprStateDB.GetRoot()),
+		enc.ToString(s.GetStorageRoot()))
 
 	for _, tc := range testCases {
 		tc.run(t, s)
 	}
+
+	err = vprStateDB.StageContractState(s)
+	assert.NoError(t, err, "fail to stage")
+	err = vprStateDB.Update()
+	assert.NoError(t, err, "fail to update")
+	err = vprStateDB.Commit()
+	assert.NoError(t, err, "fail to commit")
+
+	s, err = vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	assert.NoError(t, err, "fail to open the system contract state")
+	fmt.Printf(
+		"(after) state, contract: %s, %s\n",
+		enc.ToString(vprStateDB.GetRoot()),
+		enc.ToString(s.GetStorageRoot()))
 }
 
 func TestVprTable(t *testing.T) {
