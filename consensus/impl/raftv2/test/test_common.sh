@@ -59,16 +59,18 @@ function getHeight() {
     existProcess $serverport
     if [ "$?" = "0" ]; then
 		echo "no process $serverport"
-		return 0
+		eval "$2=0"
+		return
     fi
 
-    local height=$(aergocli -p $port blockchain | jq .Height)
+    local _height_=$(aergocli -p $port blockchain | jq .Height)
+#	echo "getHeight _height_=$_height_"
 
-	if [ "$height" = "" ]; then
-		height=0
+	if [ "$_height_" = "" ]; then
+		_height_=0
 	fi
 
-    return $height
+    eval "$2=$_height_"
 }
 
 function getHash() {
@@ -307,15 +309,11 @@ function isChainHang() {
 
 	for ((i=1;i<=$tryHangAgain;i++))
 	do 
-		getHeight $srcPort
-		heightStart=""
-		heightStart=$?
+		getHeight $srcPort heightStart
 
 		sleep $timeout
 
-		heightEnd=""
-		getHeight $srcPort
-		heightEnd=$?
+		getHeight $srcPort heightEnd
 
 		echo "start:$heightStart ~ end:$heightEnd"
 		if [ "$heightEnd" != "$heightStart" ];then
@@ -363,6 +361,8 @@ function checkSync() {
 	local srcPort=$1
 	local curPort=$2
 	local timeout=$3
+	local _srcHeight=
+	local _curHeight=
 
 	echo "============ checkSync $srcPort vs $curPort . timeout=$3sec ==========="
 	echo "src=$srcPort, curPort=$curPort, time=$timeout"
@@ -370,22 +370,20 @@ function checkSync() {
 	for ((i = 1; i<= $3; i++)); do
 		sleep 1
 
-		srcHeight=""
-		curHeight=""
-		getHeight $srcPort 
-		srcHeight=$?
+		_srcHeight=""
+		_curHeight=""
+		getHeight $srcPort _srcHeight
 		
-		getHeight $curPort
-		curHeight=$?
+		getHeight $curPort _curHeight
 
-		echo "srcno=$srcHeight, curno=$curHeight"
+		echo "srcno=$_srcHeight, curno=$_curHeight"
 
-		if [ "$srcHeight" = "0" ] || [ "$curHeight" = "0" ] || [ "$srcHeight" = "255" ] || [ "$curHeight" = "255" ]; then
+		if [ "$_srcHeight" = "0" ] || [ "$_curHeight" = "0" ] || [ "$_srcHeight" = "255" ] || [ "$_curHeight" = "255" ]; then
 			continue
 		fi
 
-		targetNo=$((curHeight + 3))
-		if [ $targetNo -gt $srcHeight ]; then
+		targetNo=$((_curHeight + 3))
+		if [ $targetNo -gt $_srcHeight ]; then
 			echo "sync succeed"
 			isChainHang $curPort 3
 			echo ""
@@ -439,8 +437,7 @@ function checkSyncRunning() {
     for ((i = 1; i<= $try; i++)); do
         curHeight=""
 
-        getHeight $curPort
-        curHeight=$?
+        getHeight $curPort curHeight
 
         curHash=""
         getHash $curPort $curHeight curHash

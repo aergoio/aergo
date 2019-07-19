@@ -316,12 +316,12 @@ func (cl *Cluster) ResetMembers() {
 func (cl *Cluster) isMatch(confstate *raftpb.ConfState) bool {
 	var matched int
 
-	if len(cl.members.MapByID) != len(confstate.Nodes) {
+	if len(cl.AppliedMembers().MapByID) != len(confstate.Nodes) {
 		return false
 	}
 
 	for _, confID := range confstate.Nodes {
-		if _, ok := cl.members.MapByID[confID]; !ok {
+		if _, ok := cl.AppliedMembers().MapByID[confID]; !ok {
 			return false
 		}
 
