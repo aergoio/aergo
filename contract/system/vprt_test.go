@@ -50,11 +50,13 @@ type vprTC struct {
 	want *big.Int
 }
 
-func (tc *vprTC) run(t *testing.T, s *state.ContractState) {
+func (tc *vprTC) run(t *testing.T) {
 	for _, o := range tc.ops {
 		vprOP[o.op](tc.addr, o.arg)
 	}
-	rank.apply(s)
+}
+
+func (tc *vprTC) check(t *testing.T) {
 	assert.True(t,
 		rank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
 		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
@@ -138,7 +140,12 @@ func TestVprOp(t *testing.T) {
 		enc.ToString(s.GetStorageRoot()))
 
 	for _, tc := range testCases {
-		tc.run(t, s)
+		tc.run(t)
+	}
+	n, err := rank.apply(s)
+	assert.NoError(t, err, "fail to update the voting power ranking")
+	for _, tc := range testCases {
+		tc.check(t)
 	}
 
 	err = vprStateDB.StageContractState(s)
@@ -154,6 +161,9 @@ func TestVprOp(t *testing.T) {
 		"(after) state, contract: %s, %s\n",
 		enc.ToString(vprStateDB.GetRoot()),
 		enc.ToString(s.GetStorageRoot()))
+	lRank, err := loadVpr(s)
+	assert.NoError(t, err, "fail to load")
+	assert.Equal(t, n, len(lRank.votingPower), "size mismatch: voting power")
 }
 
 func TestVprTable(t *testing.T) {
@@ -165,7 +175,7 @@ func TestVprTable(t *testing.T) {
 			curr := e.Value.(*votingPower)
 			next := e.Next().Value.(*votingPower)
 			assert.True(t, curr.addr != next.addr, "duplicate elems")
-			cmp := curr.power.Cmp(next.power)
+			cmp := curr.Power().Cmp(next.Power())
 			assert.True(t, cmp == 0 || cmp == 1, "unordered bucket found: idx = %v", i)
 		}
 	}
@@ -210,9 +220,9 @@ func TestVotingPowerCodec(t *testing.T) {
 
 		dec := &votingPower{}
 		n := dec.unmarshal(b)
-		assert.Equal(t, len(b)-4, int(n))
+		assert.Equal(t, len(b), int(n))
 
 		assert.Equal(t, orig.addr, dec.addr)
-		assert.True(t, orig.power.Cmp(dec.power) == 0, "fail to decode")
+		assert.True(t, orig.Power().Cmp(dec.Power()) == 0, "fail to decode")
 	}
 }
