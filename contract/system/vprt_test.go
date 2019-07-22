@@ -211,7 +211,7 @@ func TestVprTable(t *testing.T) {
 			curr := e.Value.(*votingPower)
 			next := e.Next().Value.(*votingPower)
 			assert.True(t, curr.addr != next.addr, "duplicate elems")
-			cmp := curr.Power().Cmp(next.Power())
+			cmp := curr.getPower().Cmp(next.getPower())
 			assert.True(t, cmp == 0 || cmp == 1, "unordered bucket found: idx = %v", i)
 		}
 	}
@@ -248,7 +248,7 @@ func TestVotingPowerCodec(t *testing.T) {
 		assert.Equal(t, len(b), int(n))
 
 		assert.Equal(t, orig.addr, dec.addr)
-		assert.True(t, orig.Power().Cmp(dec.Power()) == 0, "fail to decode")
+		assert.True(t, orig.getPower().Cmp(dec.getPower()) == 0, "fail to decode")
 	}
 }
 
@@ -275,4 +275,5 @@ func TestVprLoader(t *testing.T) {
 	assert.NoError(t, err, "fail to load")
 	assert.Equal(t, nVoters, len(r.votingPower), "size mismatch: voting powers")
 
+	r.checkValidity(t)
 }

@@ -6,9 +6,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"testing"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -34,7 +36,7 @@ func newVotingPower(addr types.AccountID, pow *big.Int) *votingPower {
 	return &votingPower{addr: addr, power: pow}
 }
 
-func (vp *votingPower) Power() *big.Int {
+func (vp *votingPower) getPower() *big.Int {
 	return vp.power
 }
 
@@ -43,14 +45,14 @@ func (vp *votingPower) setPower(pow *big.Int) {
 }
 
 func (vp *votingPower) cmp(pow *big.Int) int {
-	return vp.Power().Cmp(pow)
+	return vp.getPower().Cmp(pow)
 }
 
 func (vp *votingPower) marshal() []byte {
 	var buf bytes.Buffer
 
 	buf.Write(vp.addr[:])
-	buf.Write(vp.Power().Bytes())
+	buf.Write(vp.getPower().Bytes())
 
 	hdr := make([]byte, 4)
 	binary.LittleEndian.PutUint32(hdr, uint32(buf.Len()))
@@ -122,9 +124,10 @@ func (b *vprBucket) update(addr types.AccountID, pow *big.Int) (idx uint8) {
 }
 
 func (b *vprBucket) add(i uint8, vp *votingPower) {
-	var l list.List
-	if l := b.buckets[i]; l == nil {
-		b.buckets[i] = list.New()
+	var l *list.List
+	if l = b.buckets[i]; l == nil {
+		l = list.New()
+		b.buckets[i] = l
 	}
 	l.PushBack(vp)
 }
@@ -202,6 +205,10 @@ type vpr struct {
 	totalPower  *big.Int
 }
 
+func (v *vpr) getTotalPower() *big.Int {
+	return new(big.Int).Set(v.totalPower)
+}
+
 func newVpr() *vpr {
 	return &vpr{
 		votingPower: make(map[types.AccountID]*big.Int, vprMax),
@@ -223,12 +230,21 @@ func loadVpr(s dataGetter) (*vpr, error) {
 			return nil, err
 		}
 		for _, vp := range vps {
-			v.votingPower[vp.addr] = vp.Power()
 			v.table.add(i, vp)
+			v.setVotingPower(vp)
 		}
 	}
 
 	return v, nil
+}
+
+func (v *vpr) setVotingPower(vp *votingPower) {
+	var (
+		pwr   = vp.getPower()
+		total = v.totalPower
+	)
+	v.votingPower[vp.addr] = pwr
+	total.Add(total, pwr)
 }
 
 func (v *vpr) votingPowerOf(address types.AccountID) *big.Int {
@@ -300,10 +316,32 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	return nApplied, nil
 }
 
+// TESTING PURPOSE ONLY! Do not call this function during run time please.
+func (v *vpr) checkValidity(t *testing.T) {
+	sum1 := &big.Int{}
+	sum2 := &big.Int{}
+
+	for _, pow := range v.votingPower {
+		sum1.Add(sum1, pow)
+	}
+	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
+
+	for _, l := range v.table.buckets {
+		for e := l.Front(); e != nil; e = e.Next() {
+			sum2.Add(sum2, toVotingPower(e).getPower())
+		}
+	}
+	assert.True(t, sum2.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
+}
+
 func (v *vpr) Bingo(seed []byte) {
 }
 
 func vprKey(i uint8) []byte {
 	var vk []byte = vprKeyPrefix
 	return append(vk, []byte(fmt.Sprintf("%v", i))...)
+}
+
+func toVotingPower(e *list.Element) *votingPower {
+	return e.Value.(*votingPower)
 }
