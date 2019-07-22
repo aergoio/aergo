@@ -62,6 +62,25 @@ func (m LogBlockHashMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
+type RaftMbrsMarshaller struct {
+	arr []*MemberAttr
+	limit int
+}
+
+func (m RaftMbrsMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.arr)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(m.arr[i].GetName())
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, element := range m.arr {
+			a.Str(element.GetName())
+		}
+	}
+}
+
 func (m *GoAwayNotice) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("reason", m.Message)
 }
@@ -135,5 +154,6 @@ func (m *GetClusterInfoRequest) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetClusterInfoResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogChainID, enc.ToString(m.ChainID)).Str("err", m.Error).Uint64("cluster_id", m.ClusterID)
+	e.Str(LogChainID, enc.ToString(m.ChainID)).Str("err", m.Error).Array("members",RaftMbrsMarshaller{arr:m.MbrAttrs, limit:10}).Uint64("cluster_id", m.ClusterID)
 }
+

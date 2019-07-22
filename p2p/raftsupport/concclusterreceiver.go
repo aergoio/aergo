@@ -83,6 +83,7 @@ func (r *ConcurrentClusterInfoReceiver) runExpireTimer() {
 }
 
 func (r *ConcurrentClusterInfoReceiver) trySendAllPeers() bool {
+	r.logger.Debug().Array("peers", p2putil.NewLogPeersMarshaller(r.peers,10)).Msg("sending get cluster request to connected peers")
 	req := &types.GetClusterInfoRequest{BestBlockHash: r.req.BestBlockHash}
 	for _, peer := range r.peers {
 		if peer.State() == types.RUNNING {
@@ -92,6 +93,7 @@ func (r *ConcurrentClusterInfoReceiver) trySendAllPeers() bool {
 			r.sentCnt++
 		}
 	}
+	r.logger.Debug().Int("sent", r.sentCnt).Msg("sent get cluster requests")
 	return r.sentCnt >= r.requiredResp
 }
 
@@ -153,6 +155,7 @@ func (r *ConcurrentClusterInfoReceiver) handleInWaiting(peer p2pcommon.RemotePee
 		return
 	}
 
+	r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Object("resp", body).Msg("received get cluster response")
 	// return the result
 	if len(body.Error) != 0 {
 		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Err(errors.New(body.Error)).Msg("get cluster response error")
@@ -193,13 +196,17 @@ func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetCluster
 	} else if len(r.succResps) < r.requiredResp {
 		rsp.Err = errors.New("too low responses: " + strconv.Itoa(len(r.succResps)))
 	} else {
+		r.logger.Debug().Int("respCnt", len(r.succResps)).Msg("calculating collected responses")
 		var bestRsp *types.GetClusterInfoResponse = nil
-		for _, rsp := range r.succResps {
+		var bestPid types.PeerID
+		for pid, rsp := range r.succResps {
 			if bestRsp == nil || rsp.BestBlockNo > bestRsp.BestBlockNo {
 				bestRsp = rsp
+				bestPid = pid
 			}
 		}
 		if bestRsp != nil {
+			r.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(bestPid)).Object("resp", bestRsp).Msg("chosed best response")
 			rsp.ClusterID = bestRsp.GetClusterID()
 			rsp.ChainID = bestRsp.GetChainID()
 			rsp.Members = bestRsp.GetMbrAttrs()

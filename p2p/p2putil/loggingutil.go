@@ -98,3 +98,27 @@ func (m *LogPeerMetasMarshaller) MarshalZerologArray(a *zerolog.Array) {
 		}
 	}
 }
+
+
+type LogPeersMarshaller struct {
+	metas []p2pcommon.RemotePeer
+	limit int
+}
+
+func NewLogPeersMarshaller(metas []p2pcommon.RemotePeer, limit int) *LogPeersMarshaller {
+	return &LogPeersMarshaller{metas: metas, limit: limit}
+}
+
+func (m *LogPeersMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.metas)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(m.metas[i].Name())
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, meta := range m.metas {
+			a.Str(meta.Name())
+		}
+	}
+}
