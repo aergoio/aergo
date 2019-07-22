@@ -19,7 +19,7 @@ const (
 )
 
 var (
-	vprKeyPrefix = []byte("VotingPowerBucket")
+	vprKeyPrefix = []byte("VotingPowerBucket/")
 	zeroValue    = &big.Int{}
 
 	rank = newVpr()
@@ -65,7 +65,11 @@ func (vp *votingPower) unmarshal(b []byte) uint32 {
 	binary.Read(r, binary.LittleEndian, &n)
 
 	vp.addr = types.AccountID(types.ToHashID(b[4:36]))
-	vp.setPower(new(big.Int).SetBytes(b[36:]))
+	if int(4+n) < len(b) {
+		vp.setPower(new(big.Int).SetBytes(b[36 : 4+n]))
+	} else {
+		vp.setPower(new(big.Int).SetBytes(b[36:]))
+	}
 
 	return 4 + n
 }
@@ -117,6 +121,14 @@ func (b *vprBucket) update(addr types.AccountID, pow *big.Int) (idx uint8) {
 	return
 }
 
+func (b *vprBucket) add(i uint8, vp *votingPower) {
+	var l list.List
+	if l := b.buckets[i]; l == nil {
+		b.buckets[i] = list.New()
+	}
+	l.PushBack(vp)
+}
+
 type dataSetter interface {
 	SetData(key, value []byte) error
 }
@@ -132,6 +144,7 @@ func (b *vprBucket) write(s dataSetter, i uint8) error {
 	for e := l.Front(); e != nil; e = e.Next() {
 		buf.Write(e.Value.(*votingPower).marshal())
 	}
+
 	return s.SetData(vprKey(i), buf.Bytes())
 }
 
@@ -143,7 +156,7 @@ func (b *vprBucket) read(s dataGetter, i uint8) ([]*votingPower, error) {
 	vps := make([]*votingPower, 0, 10)
 	for off := 0; off < len(buf); {
 		vp := &votingPower{}
-		off += int(vp.unmarshal(buf))
+		off += int(vp.unmarshal(buf[off:]))
 		vps = append(vps, vp)
 	}
 	return vps, nil
@@ -211,6 +224,7 @@ func loadVpr(s dataGetter) (*vpr, error) {
 		}
 		for _, vp := range vps {
 			v.votingPower[vp.addr] = vp.Power()
+			v.table.add(i, vp)
 		}
 	}
 
@@ -254,29 +268,36 @@ func (v *vpr) sub(addr types.AccountID, power *big.Int) {
 }
 
 func (v *vpr) apply(s *state.ContractState) (int, error) {
-	updRows := make(map[uint8]interface{})
+	var (
+		nApplied = 0
+		updRows  = make(map[uint8]interface{})
+	)
+
 	for key, pow := range v.changes {
 		if pow.Cmp(zeroValue) != 0 {
 			lhs := v.votingPower[key]
 			lhs.Add(lhs, pow)
 			v.totalPower.Add(v.totalPower, pow)
 
-			i := v.table.update(key, lhs)
-			if _, exist := updRows[i]; !exist {
-				updRows[i] = struct{}{}
+			if s != nil {
+				i := v.table.update(key, lhs)
+				if _, exist := updRows[i]; !exist {
+					updRows[i] = struct{}{}
+				}
 			}
+
 			delete(v.changes, key)
+			nApplied++
 		}
 	}
 
-	if s != nil {
-		for i, _ := range updRows {
-			if err := v.table.write(s, i); err != nil {
-				return 0, err
-			}
+	for i, _ := range updRows {
+		if err := v.table.write(s, i); err != nil {
+			return 0, err
 		}
 	}
-	return len(updRows), nil
+
+	return nApplied, nil
 }
 
 func (v *vpr) Bingo(seed []byte) {

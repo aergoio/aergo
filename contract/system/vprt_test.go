@@ -62,7 +62,28 @@ func (tc *vprTC) check(t *testing.T) {
 		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
 }
 
-func initVprtTest(t *testing.T, initTable func(rankMax int32)) {
+func initVprtTest(t *testing.T, initTable func()) {
+	initDB(t)
+	initTable()
+}
+
+func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
+	initDB(t)
+
+	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	assert.NoError(t, err, "fail to open the system contract state")
+
+	initTable(s)
+
+	err = vprStateDB.StageContractState(s)
+	assert.NoError(t, err, "fail to stage")
+	err = vprStateDB.Update()
+	assert.NoError(t, err, "fail to update")
+	err = vprStateDB.Commit()
+	assert.NoError(t, err, "fail to commit")
+}
+
+func initDB(t *testing.T) {
 	vprChainStateDB = state.NewChainStateDB()
 	_ = vprChainStateDB.Init(string(db.BadgerImpl), "test", nil, false)
 	vprStateDB = vprChainStateDB.GetStateDB()
@@ -70,8 +91,31 @@ func initVprtTest(t *testing.T, initTable func(rankMax int32)) {
 
 	err := vprChainStateDB.SetGenesis(genesis, nil)
 	assert.NoError(t, err, "failed init")
+}
 
-	initTable(vprMax)
+func initRankTableRandSc(rankMax int32, s *state.ContractState) {
+	rank = newVpr()
+	max := new(big.Int).SetUint64(20000)
+	src := rand.New(rand.NewSource(0))
+	for i := int32(0); i < rankMax; i++ {
+		rank.add(genAddr(i), new(big.Int).Rand(src, max))
+	}
+	rank.apply(s)
+}
+
+func initRankTableRand(rankMax int32) {
+	initRankTableRandSc(rankMax, nil)
+}
+
+func openSystemAccount(t *testing.T) *state.ContractState {
+	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	assert.NoError(t, err, "fail to open the system contract state")
+	fmt.Printf(
+		"(after) state, contract: %s, %s\n",
+		enc.ToString(vprStateDB.GetRoot()),
+		enc.ToString(s.GetStorageRoot()))
+
+	return s
 }
 
 func finalizeVprtTest() {
@@ -80,6 +124,7 @@ func finalizeVprtTest() {
 }
 
 func initRankTable(rankMax int32) {
+	rank = newVpr()
 	for i := int32(0); i < rankMax; i++ {
 		rank.add(genAddr(i), new(big.Int).SetUint64(10000))
 		rank.apply(nil)
@@ -101,7 +146,7 @@ func commit() error {
 }
 
 func TestVprOp(t *testing.T) {
-	initVprtTest(t, initRankTable)
+	initVprtTest(t, func() { initRankTable(vprMax) })
 	defer finalizeVprtTest()
 
 	testCases := []vprTC{
@@ -132,12 +177,7 @@ func TestVprOp(t *testing.T) {
 		},
 	}
 
-	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-	assert.NoError(t, err, "fail to open the system contract state")
-	fmt.Printf(
-		"(before) state, contract: %s, %s\n",
-		enc.ToString(vprStateDB.GetRoot()),
-		enc.ToString(s.GetStorageRoot()))
+	s := openSystemAccount(t)
 
 	for _, tc := range testCases {
 		tc.run(t)
@@ -155,19 +195,15 @@ func TestVprOp(t *testing.T) {
 	err = vprStateDB.Commit()
 	assert.NoError(t, err, "fail to commit")
 
-	s, err = vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-	assert.NoError(t, err, "fail to open the system contract state")
-	fmt.Printf(
-		"(after) state, contract: %s, %s\n",
-		enc.ToString(vprStateDB.GetRoot()),
-		enc.ToString(s.GetStorageRoot()))
+	s = openSystemAccount(t)
+
 	lRank, err := loadVpr(s)
 	assert.NoError(t, err, "fail to load")
 	assert.Equal(t, n, len(lRank.votingPower), "size mismatch: voting power")
 }
 
 func TestVprTable(t *testing.T) {
-	initVprtTest(t, initRankTableRand)
+	initVprtTest(t, func() { initRankTableRand(vprMax) })
 	defer finalizeVprtTest()
 
 	for i, l := range rank.table.buckets {
@@ -181,18 +217,7 @@ func TestVprTable(t *testing.T) {
 	}
 }
 
-func initRankTableRand(rankMax int32) {
-	rank = newVpr()
-	max := new(big.Int).SetUint64(20000)
-	src := rand.New(rand.NewSource(0))
-	for i := int32(0); i < rankMax; i++ {
-		rank.add(genAddr(i), new(big.Int).Rand(src, max))
-		rank.apply(nil)
-	}
-}
-
 func TestVotingPowerCodec(t *testing.T) {
-
 	conv := func(s string) *big.Int {
 		p, ok := new(big.Int).SetString(s, 10)
 		assert.True(t, ok, "number conversion failed")
@@ -225,4 +250,29 @@ func TestVotingPowerCodec(t *testing.T) {
 		assert.Equal(t, orig.addr, dec.addr)
 		assert.True(t, orig.Power().Cmp(dec.Power()) == 0, "fail to decode")
 	}
+}
+
+func TestVprLoader(t *testing.T) {
+	const nVoters = 100
+
+	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	defer finalizeVprtTest()
+	assert.Equal(t, nVoters, len(rank.votingPower), "size mismatch: voting powers")
+	assert.Equal(t, nVoters,
+		func() int {
+			sum := 0
+			for i := uint8(0); i < vprBucketsMax; i++ {
+				if l := rank.table.buckets[i]; l != nil {
+					sum += l.Len()
+				}
+			}
+			return sum
+		}(),
+		"size mismatch: voting powers")
+
+	s := openSystemAccount(t)
+	r, err := loadVpr(s)
+	assert.NoError(t, err, "fail to load")
+	assert.Equal(t, nVoters, len(r.votingPower), "size mismatch: voting powers")
+
 }
