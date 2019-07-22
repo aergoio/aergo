@@ -51,9 +51,9 @@ type outConf struct {
 }
 
 var enterpriseKeyCmd = &cobra.Command{
-	Use:   "query <config key>",
+	Use:   "query (admins | <config key>)",
 	Short: "Print config values of enterprise",
-	Long:  "'permissions' show everything you can set as special key",
+	Long:  "'permissions' show everything you can set as special config key",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
