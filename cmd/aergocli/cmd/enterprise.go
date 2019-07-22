@@ -33,7 +33,7 @@ var (
 func init() {
 	rootCmd.AddCommand(enterpriseCmd)
 
-	enterpriseTxCmd.Flags().Uint64VarP(&timeout, "timeout", "t", 3600, "timeout(second) of geting status of enterprise transaction")
+	enterpriseTxCmd.Flags().Uint64VarP(&timeout, "timeout", "t", 30, "timeout(second) of geting status of enterprise transaction")
 
 	enterpriseCmd.AddCommand(enterpriseKeyCmd)
 	enterpriseCmd.AddCommand(enterpriseTxCmd)
