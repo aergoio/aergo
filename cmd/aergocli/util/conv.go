@@ -42,7 +42,7 @@ func convChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 	out.MaxBlockSize = msg.Maxblocksize
 	out.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()
 
-	if consensus.IsDpos(msg.Id.Consensus) {
+	if consensus.IsDposName(msg.Id.Consensus) {
 		out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
 		out.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
 	}

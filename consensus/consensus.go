@@ -114,12 +114,27 @@ const (
 )
 
 var ConsensusName = []string{"dpos", "raft", "sbp"}
+var ConsensusTypes = map[string]ConsensusType{"dpos": ConsensusDPOS, "raft": ConsensusRAFT, "sbp": ConsensusSBP}
 
-func IsRaft(consensus string) bool {
+var CurConsensusType ConsensusType
+
+func IsRaftName(consensus string) bool {
 	return ConsensusName[ConsensusRAFT] == strings.ToLower(consensus)
 }
-func IsDpos(consensus string) bool {
+func IsDposName(consensus string) bool {
 	return ConsensusName[ConsensusDPOS] == strings.ToLower(consensus)
+}
+
+func SetCurConsensus(consensus string) {
+	CurConsensusType = ConsensusTypes[consensus]
+}
+
+func UseRaft() bool {
+	return CurConsensusType == ConsensusRAFT
+}
+
+func UseDpos() bool {
+	return CurConsensusType == ConsensusDPOS
 }
 
 // ChainConsensus includes chainstatus and validation API.

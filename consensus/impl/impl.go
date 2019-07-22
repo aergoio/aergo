@@ -58,6 +58,7 @@ func newConsensus(cfg *config.Config, hub *component.ComponentHub,
 		raftv2.GetName(): raftv2.GetConstructor(cfg, hub, cs.WalDB(), sdb, pa), // Raft BP
 	}
 
+	consensus.SetCurConsensus(cdb.GetGenesisInfo().ConsensusType())
 	return impl[cdb.GetGenesisInfo().ConsensusType()]()
 }
 

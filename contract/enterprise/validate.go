@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/consensus"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
@@ -143,6 +144,10 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		}
 
 	case ChangeCluster:
+		if !consensus.UseRaft() {
+			return nil, ErrNotSupportedMethod
+		}
+
 		cc, err := ValidateChangeCluster(ci, blockNo)
 		if err != nil {
 			return nil, err

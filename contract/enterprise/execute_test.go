@@ -2,11 +2,11 @@ package enterprise
 
 import (
 	"encoding/pem"
+	"github.com/aergoio/aergo/state"
 	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -181,6 +181,20 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.NoError(t, err, "enable conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, false, conf.On, "conf on")
+}
+
+func TestEnterpriseChangeCluster(t *testing.T) {
+	consensus.SetCurConsensus("raft")
+
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.TxBody{}
+	testBlockNo := types.BlockNo(1)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
 
 	bs := state.NewBlockState(&state.StateDB{})
 	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "address": "http://127.0.0.1:13000", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)

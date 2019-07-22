@@ -7,10 +7,8 @@ source test_common.sh
 echo "pushd TEST_RAFT_INSTANCE=$TEST_RAFT_INSTANCE"
 
 pushd $TEST_RAFT_INSTANCE
-clean.sh all
+clean_all.sh
 rm BP*
-
-prepareConfig 3
 
 echo ""
 echo "======== make initial server ========="

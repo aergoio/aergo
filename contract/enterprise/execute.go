@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 
@@ -106,10 +105,6 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			JsonArgs:        string(jsonArgs),
 		})
 	case ChangeCluster:
-		if ccc == nil {
-			return nil, ErrNotSupportedMethod
-		}
-
 		if bs.CCProposal != nil {
 			return nil, ErrTxEnterpriseAlreadyIncludeChangeCluster
 		}
