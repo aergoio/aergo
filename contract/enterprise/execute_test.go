@@ -252,3 +252,50 @@ func TestCheckArgs(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, AccountWhite)
 }
+
+func TestEnterpriseAdminAccountWhitelist(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.TxBody{}
+	testBlockNo := types.BlockNo(1)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", AccountWhite)
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "remove admin")
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", AccountWhite)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.EqualError(t, err, "admin is in the account whitelist: AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7", AccountWhite)
+}

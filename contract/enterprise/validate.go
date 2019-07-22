@@ -51,8 +51,21 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		context.Admins = admins
 		if ci.Name == AppendAdmin && context.IsAdminExist(address) {
 			return nil, fmt.Errorf("already exist admin: %s", ci.Args[0])
-		} else if ci.Name == RemoveAdmin && !context.IsAdminExist(address) {
-			return nil, fmt.Errorf("admins is not exist : %s", ci.Args[0])
+		} else if ci.Name == RemoveAdmin {
+			if !context.IsAdminExist(address) {
+				return nil, fmt.Errorf("admins is not exist : %s", ci.Args[0])
+			}
+			conf, err := getConf(scs, []byte(AccountWhite))
+			if err != nil {
+				return nil, err
+			}
+			if conf != nil && conf.On {
+				for _, v := range conf.Values {
+					if arg == v {
+						return nil, fmt.Errorf("admin is in the account whitelist: %s", ci.Args[0])
+					}
+				}
+			}
 		}
 
 	case SetConf:
