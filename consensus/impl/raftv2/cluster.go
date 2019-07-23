@@ -483,6 +483,7 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	}
 
 	cl.members = existingCl.Members()
+	cl.Size = existingCl.Size
 
 	myNodeID := existingCl.getNodeID(cl.NodeName())
 
