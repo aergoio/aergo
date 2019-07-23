@@ -43,5 +43,5 @@ enablebp = true
 newcluster=true
 blockintervalms = 1000
 name="aergo2"
-snapfrequency=50
+snapfrequency=10
 #

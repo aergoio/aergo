@@ -120,6 +120,7 @@ type RaftConfig struct {
 	NewCluster             bool   `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
 	JoinClusterUsingBackup bool   `mapstructure:"joinclusterusingbackup" description:"join a exsting cluster using backup datafiles"`
 	SnapFrequency          uint64 `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
+	SlowNodeGap            uint   `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
 }
 
 type MonitorConfig struct {

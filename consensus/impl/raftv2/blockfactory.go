@@ -188,6 +188,10 @@ func Init(raftCfg *config.RaftConfig) {
 		BlockIntervalMs = consensus.BlockInterval
 	}
 
+	if raftCfg.SlowNodeGap > 0 {
+		MaxSlowNodeGap = uint64(raftCfg.SlowNodeGap)
+	}
+
 	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
 		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
 }

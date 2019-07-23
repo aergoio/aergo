@@ -58,7 +58,7 @@ var (
 	ConfSnapFrequency           uint64 = DfltSnapFrequency
 	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
 
-	MaxProgressDiff uint64 = 100
+	MaxSlowNodeGap uint64 = 100 // Criteria for determining whether the server is in a slow state
 )
 
 var (
@@ -327,7 +327,7 @@ func (rs *raftServer) startRaft() {
 	getState := func() RaftServerState {
 		hasWal, err := rs.walDB.HasWal(rs.cluster.identity)
 		if err != nil {
-			logger.Info().Msg("wal database of raft is missing or not valid")
+			logger.Info().Err(err).Msg("wal database of raft is missing or not valid")
 		}
 
 		switch {
@@ -341,26 +341,53 @@ func (rs *raftServer) startRaft() {
 
 	}
 
+	isEmptyLog := func() bool {
+		var (
+			last uint64
+			err  error
+		)
+
+		if last, err = rs.walDB.GetRaftEntryLastIdx(); err != nil {
+			return true
+		}
+
+		// If joined node is crashed before writing snapshot, it may occur that last index is 0 and there is not snapshot.
+		if last == 0 {
+			if tmpsnap, err := rs.walDB.GetSnapshot(); tmpsnap == nil || err != nil {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	switch getState() {
 	case RaftServerStateRestart:
 		logger.Info().Msg("raft restart from wal")
 
 		rs.cluster.ResetMembers()
 
+		if isEmptyLog() {
+			logger.Info().Msg("there is no log, so import cluster information from remote")
+
+			if _, err := rs.ImportExistingCluster(); err != nil {
+				logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
+			}
+		}
+
 		node = rs.restartNode(false)
 
 	case RaftServerStateJoinCluster:
 		logger.Info().Msg("raft start and join existing cluster")
 
-		// get cluster info from existing cluster member and hardstate of bestblock
-		existCluster, hardstateinfo, err := rs.GetExistingCluster()
-		if err != nil {
-			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
-		}
+		var (
+			hardstateinfo *types.HardStateInfo
+			err           error
+		)
 
-		// config validate
-		if !rs.cluster.ValidateAndMergeExistingCluster(existCluster) {
-			logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
+		// get cluster info from existing cluster member and hardstate of bestblock
+		if hardstateinfo, err = rs.ImportExistingCluster(); err != nil {
+			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
 		}
 
 		if rs.joinUsingBackup {
@@ -371,7 +398,7 @@ func (rs *raftServer) startRaft() {
 			}
 
 			if err := rs.SaveIdentity(); err != nil {
-				logger.Fatal().Err(err).Msg("fafiled to save identity")
+				logger.Fatal().Err(err).Msg("failed to save identity")
 			}
 
 			node = rs.restartNode(true)
@@ -400,6 +427,23 @@ func (rs *raftServer) startRaft() {
 
 	go rs.serveRaft()
 	go rs.serveChannels()
+}
+
+func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
+	logger.Info().Msg("import cluster information from remote")
+
+	// get cluster info from existing cluster member and hardstate of bestblock
+	existCluster, hardstateinfo, err := rs.GetExistingCluster()
+	if err != nil {
+		logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
+	}
+
+	// config validate
+	if !rs.cluster.ValidateAndMergeExistingCluster(existCluster) {
+		logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
+	}
+
+	return hardstateinfo, nil
 }
 
 func (rs *raftServer) ID() uint64 {
@@ -1353,7 +1397,7 @@ func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
 			// slow
 			// - Even if node state is ProgressStateReplicate, if matchNo of the node is too lower than last index of leader, it is considered a slow state.
 			var isSlowFollower bool
-			if lastLeaderIndex > raftProgress.Match && (lastLeaderIndex-raftProgress.Match) > MaxProgressDiff {
+			if lastLeaderIndex > raftProgress.Match && (lastLeaderIndex-raftProgress.Match) > MaxSlowNodeGap {
 				isSlowFollower = true
 			}
 

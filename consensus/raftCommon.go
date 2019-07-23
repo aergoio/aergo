@@ -93,6 +93,7 @@ func (rid *RaftIdentity) ToString() string {
 type ChainWAL interface {
 	ChainDB
 
+	ClearWAL()
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
 	GetBlock(blockHash []byte) (*types.Block, error)
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error

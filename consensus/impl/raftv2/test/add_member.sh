@@ -3,6 +3,8 @@ source test_common.sh
 
 addnode=$1
 
+echo "add member $addnode"
+
 if [ "$1" = "" ] || [[ "$1" != aergo* ]] ;then
 	echo "use:add_member.sh aergo4|aergo5|aergo6|aergo7 usebackup"
 	exit 100

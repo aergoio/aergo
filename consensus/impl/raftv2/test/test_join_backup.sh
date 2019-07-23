@@ -17,7 +17,7 @@ for i in  11004 11005 11006 11007; do
 	rm -rf $TEST_RAFT_INSTANCE/data/$i $TEST_RAFT_INSTANCE/BP$i.toml
 done
 
-make_node.sh
+TEST_SKIP_GENESIS=0 make_node.sh
 RUN_TEST_SCRIPT set_system_admin.sh
 
 sleep 2
@@ -42,7 +42,6 @@ function backupJoin() {
 	echo ""
 	echo "========= shutdown srcsvrport $srcsvrport   ========="
 	kill_svr.sh $srcsvrport 
-
 
 	echo ""
 	echo "========= copy backup : cp -rf ./data/$srcsvrport ./data/$addsvrport ========="

@@ -33,7 +33,7 @@ checkSync 10001 10003 10
 echo "kill for delaying 11003"
 kill_svr.sh 11003
 
-sleep 20
+sleep 30
 DEBUG_SYNCER_CRASH=$CRASH_NO run_svr.sh 11003
 # aergo3 (11003)은 crash(CRASH_NO=1) or syncer 에러후(CRASH_NO=0) 정상 상태
 sleep 10
@@ -49,13 +49,12 @@ raftState=
 getRaftState $name raftState
 echo "state of aergo3 = $raftState"
 
-if [ "$raftState" = "ProgressStateSnapshot" ]; then
-	echo "=========== fail : state must not be snapshot =========="
+if [ "$CRASH_NO" = 1 -a "$raftState" != "ProgressStateProbe" ]; then
+	echo "=========== fail : state must be probe(unknown) =========="
 	exit 100
 fi
 
 echo "============== success to catch crash of aergo3 =========="
-
 
 # restart aergo3
 kill_svr.sh 11003

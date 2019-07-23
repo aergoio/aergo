@@ -184,6 +184,7 @@ function getRaftState() {
 	
 	if [ "$#" != 2 ]; then 
 		echo "Usage: getRaftState servername outStateVar"
+		exit 100
 	fi
 
 	local leaderPort=
@@ -295,6 +296,7 @@ function isChainHang() {
 	# "isChainHang: return 1 if true"
 	if [ "$#" != "2" ];then
 		echo "Usage: isChainHang targetRpcPort timeout"
+		exit 100
 	fi
 
 	# 아무노드나 골라서 5초동안 chain이 증가하고 있는지 확인
@@ -580,6 +582,7 @@ function waitClusterTotal() {
 function WaitPeerConnect() {
 	if [ $# -ne 2 ]; then
 		echo "Usage:$0 expectPeerCount Timeout(sec)"
+		exit 100
 	fi 
 
 	_reqcnt=$1
@@ -602,5 +605,30 @@ function WaitPeerConnect() {
 	done
 
 	echo "failed peer connection: peer req=$_reqcnt, res=$_res connected."
+	return 0
+}
+
+
+function WaitShutdown() {
+	if [ $# -ne 2 ]; then
+		echo "Usage:$0 pattern Timeout(sec)"
+		exit 100
+	fi 
+
+	_pattern=$1
+	_timeout=$2
+	local _res
+
+	for ((i = 1; i<= $_timeout; i++)); do
+		existProcess $_pattern
+		if [ "$?" == "0" ]; then
+			echo "no process $_pattern"
+			return 1
+		fi
+
+		sleep 1
+	done
+
+	echo "failed to wait shutdown(pattern=$_pattern)"
 	return 0
 }
