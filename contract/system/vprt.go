@@ -6,15 +6,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"testing"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
-	vprMax = 50000
+	vprMax = uint32(50000)
 	// vprBucketsMax must be smaller than 256. A bigger number is regarded as
 	// 256.
 	vprBucketsMax = 71
@@ -48,6 +46,14 @@ func (vp *votingPower) cmp(pow *big.Int) int {
 	return vp.getPower().Cmp(pow)
 }
 
+func (vp *votingPower) lt(rhs *votingPower) bool {
+	return vp.cmp(rhs.getPower()) < 0
+}
+
+func (vp *votingPower) le(rhs *votingPower) bool {
+	return vp.lt(rhs) || vp.cmp(rhs.getPower()) == 0
+}
+
 func (vp *votingPower) marshal() []byte {
 	var buf bytes.Buffer
 
@@ -79,19 +85,22 @@ func (vp *votingPower) unmarshal(b []byte) uint32 {
 type vprBucket struct {
 	buckets map[uint8]*list.List
 	max     uint16
-	cmp     func(pow *big.Int) func(v *votingPower) int
+	cmp     func(lhs *votingPower, rhs *votingPower) int
+	lowest  *votingPower
 }
 
 func newVprBucket(max uint16) *vprBucket {
 	return &vprBucket{
 		max:     max,
 		buckets: make(map[uint8]*list.List, vprBucketsMax),
-		cmp: func(pow *big.Int) func(v *votingPower) int {
-			return func(v *votingPower) int {
-				return v.cmp(pow)
-			}
+		cmp: func(lhs *votingPower, rhs *votingPower) int {
+			return bytes.Compare(lhs.addr[:], rhs.addr[:])
 		},
 	}
+}
+
+func (b *vprBucket) getLowest() *votingPower {
+	return b.lowest
 }
 
 func (b *vprBucket) update(addr types.AccountID, pow *big.Int) (idx uint8) {
@@ -114,22 +123,37 @@ func (b *vprBucket) update(addr types.AccountID, pow *big.Int) (idx uint8) {
 		v = newVotingPower(addr, pow)
 	}
 
-	if m := findInsPos(bu, b.cmp(pow)); m != nil {
+	if m := b.getInsPos(idx, v); m != nil {
 		bu.InsertBefore(v, m)
 	} else {
 		bu.PushBack(v)
 	}
 
+	b.updateLowest(v)
+
 	return
 }
 
-func (b *vprBucket) add(i uint8, vp *votingPower) {
+func (b *vprBucket) updateLowest(v *votingPower) {
+	if b.lowest == nil {
+		b.lowest = v
+	} else if v.lt(b.lowest) {
+		b.lowest = v
+	}
+}
+
+func (b *vprBucket) trim(count uint32) []types.AccountID {
+	return nil
+}
+
+func (b *vprBucket) addTail(i uint8, vp *votingPower) {
 	var l *list.List
 	if l = b.buckets[i]; l == nil {
 		l = list.New()
 		b.buckets[i] = l
 	}
 	l.PushBack(vp)
+	b.updateLowest(vp)
 }
 
 type dataSetter interface {
@@ -145,7 +169,7 @@ func (b *vprBucket) write(s dataSetter, i uint8) error {
 
 	l := b.buckets[i]
 	for e := l.Front(); e != nil; e = e.Next() {
-		buf.Write(e.Value.(*votingPower).marshal())
+		buf.Write(toVotingPower(e).marshal())
 	}
 
 	return s.SetData(vprKey(i), buf.Bytes())
@@ -165,24 +189,22 @@ func (b *vprBucket) read(s dataGetter, i uint8) ([]*votingPower, error) {
 	return vps, nil
 }
 
-func remove(bu *list.List, addr types.AccountID) *votingPower {
-	for e := bu.Front(); e != nil; e = e.Next() {
-		if v := e.Value.(*votingPower); addr == v.addr {
-			return bu.Remove(e).(*votingPower)
-		}
-	}
-	return nil
-}
-
-func findInsPos(bu *list.List, fn func(v *votingPower) int) *list.Element {
-	for e := bu.Front(); e != nil; e = e.Next() {
-		v := e.Value.(*votingPower)
-		ind := fn(v)
-		if ind < 0 || ind == 0 {
+func (b *vprBucket) getInsPos(i uint8, r *votingPower) *list.Element {
+	for e := b.buckets[i].Front(); e != nil; e = e.Next() {
+		if ind := b.cmp(toVotingPower(e), r); ind < 0 || ind == 0 {
 			return e
 		}
 	}
 
+	return nil
+}
+
+func remove(bu *list.List, addr types.AccountID) *votingPower {
+	for e := bu.Front(); e != nil; e = e.Next() {
+		if v := toVotingPower(e); addr == v.addr {
+			return bu.Remove(e).(*votingPower)
+		}
+	}
 	return nil
 }
 
@@ -209,6 +231,14 @@ func (v *vpr) getTotalPower() *big.Int {
 	return new(big.Int).Set(v.totalPower)
 }
 
+func (v *vpr) lowest() *votingPower {
+	return v.table.getLowest()
+}
+
+func (v *vpr) updateLowest(vp *votingPower) {
+	v.table.updateLowest(vp)
+}
+
 func newVpr() *vpr {
 	return &vpr{
 		votingPower: make(map[types.AccountID]*big.Int, vprMax),
@@ -230,7 +260,7 @@ func loadVpr(s dataGetter) (*vpr, error) {
 			return nil, err
 		}
 		for _, vp := range vps {
-			v.table.add(i, vp)
+			v.table.addTail(i, vp)
 			v.setVotingPower(vp)
 		}
 	}
@@ -314,24 +344,6 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	}
 
 	return nApplied, nil
-}
-
-// TESTING PURPOSE ONLY! Do not call this function during run time please.
-func (v *vpr) checkValidity(t *testing.T) {
-	sum1 := &big.Int{}
-	sum2 := &big.Int{}
-
-	for _, pow := range v.votingPower {
-		sum1.Add(sum1, pow)
-	}
-	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
-
-	for _, l := range v.table.buckets {
-		for e := l.Front(); e != nil; e = e.Next() {
-			sum2.Add(sum2, toVotingPower(e).getPower())
-		}
-	}
-	assert.True(t, sum2.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
 }
 
 func (v *vpr) Bingo(seed []byte) {

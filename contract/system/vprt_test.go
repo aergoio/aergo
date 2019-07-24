@@ -1,6 +1,7 @@
 package system
 
 import (
+	"container/list"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -93,17 +94,17 @@ func initDB(t *testing.T) {
 	assert.NoError(t, err, "failed init")
 }
 
-func initRankTableRandSc(rankMax int32, s *state.ContractState) {
+func initRankTableRandSc(rankMax uint32, s *state.ContractState) {
 	rank = newVpr()
 	max := new(big.Int).SetUint64(20000)
 	src := rand.New(rand.NewSource(0))
-	for i := int32(0); i < rankMax; i++ {
+	for i := uint32(0); i < rankMax; i++ {
 		rank.add(genAddr(i), new(big.Int).Rand(src, max))
 	}
 	rank.apply(s)
 }
 
-func initRankTableRand(rankMax int32) {
+func initRankTableRand(rankMax uint32) {
 	initRankTableRandSc(rankMax, nil)
 }
 
@@ -123,9 +124,9 @@ func finalizeVprtTest() {
 	_ = os.RemoveAll("test")
 }
 
-func initRankTable(rankMax int32) {
+func initRankTable(rankMax uint32) {
 	rank = newVpr()
-	for i := int32(0); i < rankMax; i++ {
+	for i := uint32(0); i < rankMax; i++ {
 		rank.add(genAddr(i), new(big.Int).SetUint64(10000))
 		rank.apply(nil)
 	}
@@ -135,7 +136,7 @@ func isInitialized() bool {
 	return initializedVprtTest
 }
 
-func genAddr(i int32) types.AccountID {
+func genAddr(i uint32) types.AccountID {
 	dig := sha256.New()
 	binary.Write(dig, binary.LittleEndian, i)
 	return types.ToAccountID(dig.Sum(nil))
@@ -174,6 +175,11 @@ func TestVprOp(t *testing.T) {
 			addr: genAddr(14),
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}},
 			want: new(big.Int).SetUint64(9980),
+		},
+		{
+			addr: genAddr(15),
+			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}, {opSub, valTen}},
+			want: new(big.Int).SetUint64(9970),
 		},
 	}
 
@@ -276,4 +282,72 @@ func TestVprLoader(t *testing.T) {
 	assert.Equal(t, nVoters, len(r.votingPower), "size mismatch: voting powers")
 
 	r.checkValidity(t)
+}
+
+func TestVprTotalPower(t *testing.T) {
+	const nVoters = 1000
+
+	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	defer finalizeVprtTest()
+
+	testCases := []vprTC{
+		{
+			addr: genAddr(10),
+			ops:  []vprOpt{{opAdd, valHundred}, {opSub, valTen}},
+		},
+		{
+			addr: genAddr(11),
+			ops:  []vprOpt{{opSub, valTen}, {opAdd, valHundred}},
+		},
+		{
+			addr: genAddr(12),
+			ops:  []vprOpt{{opAdd, valHundred}, {opAdd, valHundred}},
+		},
+		{
+			addr: genAddr(13),
+			ops:  []vprOpt{{opAdd, valTen}, {opAdd, valTen}},
+		},
+		{
+			addr: genAddr(14),
+			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}},
+		},
+		{
+			addr: genAddr(15),
+			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}, {opSub, valTen}},
+		},
+	}
+
+	s := openSystemAccount(t)
+
+	for _, tc := range testCases {
+		tc.run(t)
+	}
+	_, err := rank.apply(s)
+	assert.NoError(t, err, "fail to update the voting power ranking")
+
+	rank.checkValidity(t)
+}
+
+func (v *vpr) checkValidity(t *testing.T) {
+	sum1 := &big.Int{}
+	sum2 := &big.Int{}
+
+	low := v.lowest().getPower()
+	for _, pow := range v.votingPower {
+		sum1.Add(sum1, pow)
+		assert.True(t, low.Cmp(pow) <= 0, "invalid lowest power voter")
+	}
+	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
+
+	for i, l := range v.table.buckets {
+		var next *list.Element
+		for e := l.Front(); e != nil; e = next {
+			if next = e.Next(); next != nil {
+				ind := v.table.cmp(toVotingPower(e), toVotingPower(next))
+				assert.True(t, ind > 0, "bucket[%v] not ordered", i)
+			}
+			sum2.Add(sum2, toVotingPower(e).getPower())
+		}
+	}
+	assert.True(t, sum2.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
 }
