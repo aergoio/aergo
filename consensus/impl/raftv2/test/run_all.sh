@@ -18,6 +18,7 @@ rm BP*
 #make_node.sh
 export TEST_SKIP_GENESIS=0
 RUN_TEST_SCRIPT test_tx.sh 100
+export TEST_SKIP_GENESIS=1
 RUN_TEST_SCRIPT test_up_down.sh
 RUN_TEST_SCRIPT test_leader_change.sh 10
 RUN_TEST_SCRIPT test_slow_follower.sh

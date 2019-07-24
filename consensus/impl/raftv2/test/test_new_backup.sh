@@ -35,3 +35,6 @@ echo ""
 echo "========= add aergo4 ========="
 add_member.sh aergo4
 checkSync 10001 10004 120 result
+
+
+do_sed.sh "toml" "usebackup=true" "usebackup=false" ":"
