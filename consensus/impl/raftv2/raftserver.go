@@ -96,12 +96,12 @@ type raftServer struct {
 	commitC     chan *commitEntry                   // entries committed to log (k,v)
 	errorC      chan error                          // errors from raft session
 
-	id              uint64 // client ID for raft session
-	listenUrl       string
-	join            bool // node is joining an existing cluster
-	joinUsingBackup bool // use backup chaindb datafiles to join a existing cluster
-	getSnapshot     func() ([]byte, error)
-	lastIndex       uint64 // index of log at start
+	id          uint64 // client ID for raft session
+	listenUrl   string
+	join        bool // node is joining an existing cluster
+	UseBackup   bool // use backup chaindb datafiles to join a existing cluster
+	getSnapshot func() ([]byte, error)
+	lastIndex   uint64 // index of log at start
 
 	snapshotIndex uint64
 	appliedIndex  uint64
@@ -249,21 +249,21 @@ func newRaftServer(hub *component.ComponentHub,
 	errorC := make(chan error, 1)
 
 	rs := &raftServer{
-		ComponentHub:    hub,
-		RWMutex:         sync.RWMutex{},
-		cluster:         cluster,
-		walDB:           NewWalDB(chainWal),
-		confChangeC:     confChangeC,
-		commitC:         commitC,
-		errorC:          errorC,
-		listenUrl:       listenUrl,
-		join:            join,
-		joinUsingBackup: useBackup,
-		getSnapshot:     getSnapshot,
-		snapFrequency:   ConfSnapFrequency,
-		stopc:           make(chan struct{}),
-		httpstopc:       make(chan struct{}),
-		httpdonec:       make(chan struct{}),
+		ComponentHub:  hub,
+		RWMutex:       sync.RWMutex{},
+		cluster:       cluster,
+		walDB:         NewWalDB(chainWal),
+		confChangeC:   confChangeC,
+		commitC:       commitC,
+		errorC:        errorC,
+		listenUrl:     listenUrl,
+		join:          join,
+		UseBackup:     useBackup,
+		getSnapshot:   getSnapshot,
+		snapFrequency: ConfSnapFrequency,
+		stopc:         make(chan struct{}),
+		httpstopc:     make(chan struct{}),
+		httpdonec:     make(chan struct{}),
 
 		// rest of structure populated after WAL replay
 
@@ -390,7 +390,7 @@ func (rs *raftServer) startRaft() {
 			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
 		}
 
-		if rs.joinUsingBackup {
+		if rs.UseBackup {
 			logger.Info().Msg("raft use given backup as wal")
 
 			if err := rs.walDB.ResetWAL(hardstateinfo); err != nil {
@@ -408,7 +408,11 @@ func (rs *raftServer) startRaft() {
 			node = rs.startNode(nil)
 		}
 	case RaftServerStateNewCluster:
-		logger.Info().Msg("raft start and make new cluster")
+		logger.Info().Bool("usebackup", rs.UseBackup).Msg("raft start and make new cluster")
+
+		if rs.UseBackup {
+			rs.walDB.ClearWAL()
+		}
 
 		var startPeers []raftlib.Peer
 
@@ -460,7 +464,11 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 			logger.Fatal().Err(err).Msg("failed to get best block, so failed to start raft server")
 		}
 		if blk.BlockNo() > 0 {
-			logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
+			if rs.UseBackup {
+				logger.Info().Uint64("best no", blk.BlockNo()).Str("best hash", blk.ID()).Msg("start from existing block chain")
+			} else {
+				logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
+			}
 		}
 	}
 
@@ -472,7 +480,7 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 
 	// when join to exising cluster, cluster ID is already set
 	if rs.cluster.ClusterID() == InvalidClusterID {
-		rs.cluster.GenerateID()
+		rs.cluster.GenerateID(rs.UseBackup)
 	}
 
 	if err := rs.SaveIdentity(); err != nil {

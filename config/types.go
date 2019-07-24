@@ -109,18 +109,25 @@ type ConsensusConfig struct {
 }
 
 type RaftConfig struct {
-	Name                   string `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
-	ListenUrl              string `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
-	SkipEmpty              bool   `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
-	KeyFile                string `mapstructure:"keyfile" description:"Private Key file for raft https server"`
-	CertFile               string `mapstructure:"certfile" description:"Certificate file for raft https server"`
-	Tick                   uint   `mapstructure:"tick" description:"tick of raft server (millisec)"`
-	BlockFactoryTickMs     int64  `mapstructure:"bpqueuejobms" description:"block creation tick interval for raft (millisec)"`
-	BlockIntervalMs        int64  `mapstructure:"bptimeoutms" description:"block interval for raft (millisec)"`
-	NewCluster             bool   `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
-	JoinClusterUsingBackup bool   `mapstructure:"joinclusterusingbackup" description:"join a exsting cluster using backup datafiles"`
-	SnapFrequency          uint64 `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
-	SlowNodeGap            uint   `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
+	Name               string        `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
+	ListenUrl          string        `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
+	SkipEmpty          bool          `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
+	KeyFile            string        `mapstructure:"keyfile" description:"Private Key file for raft https server"`
+	CertFile           string        `mapstructure:"certfile" description:"Certificate file for raft https server"`
+	Tick               uint          `mapstructure:"tick" description:"tick of raft server (millisec)"`
+	BlockFactoryTickMs int64         `mapstructure:"bpqueuejobms" description:"block creation tick interval for raft (millisec)"`
+	BlockIntervalMs    int64         `mapstructure:"bptimeoutms" description:"block interval for raft (millisec)"`
+	NewCluster         bool          `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
+	UseBackup          bool          `mapstructure:"usebackup" description:"use backup datafiles when creating a new cluster or joining to a existing cluster"`
+	SnapFrequency      uint64        `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
+	SlowNodeGap        uint          `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
+	RecoverBP          *RaftBPConfig `mapstructure:"recoverbp" description:"bp info for creating a new cluster from backup"`
+}
+
+type RaftBPConfig struct {
+	Name    string `mapstructure:"name" description:"raft node name"`
+	Address string `mapstructure:"address" description:"raft address"`
+	PeerID  string `mapstructure:"peerid" description:"peerid of this bp"`
 }
 
 type MonitorConfig struct {

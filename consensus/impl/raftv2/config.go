@@ -21,6 +21,7 @@ var (
 	ErrNotHttpsURL           = errors.New("url scheme is not https")
 	ErrDupBP                 = errors.New("raft bp description is duplicated")
 	ErrInvalidRaftPeerID     = errors.New("peerID of current raft bp is not equals to p2p configure")
+	ErrNotExitRecoverBP      = errors.New("RecoverBP is needed for creating a new cluster from backup")
 )
 
 const (
@@ -73,8 +74,16 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 
 	if raftConfig.NewCluster {
 		var mbrAttrs []*types.MemberAttr
-		if mbrAttrs, err = parseBpsToMembers(chain.Genesis.EnterpriseBPs); err != nil {
-			logger.Error().Err(err).Msg("failed to parse bp list of Genesis block")
+		var ebps []types.EnterpriseBP
+
+		if !raftConfig.UseBackup {
+			ebps = chain.Genesis.EnterpriseBPs
+		} else {
+			ebps = getRecoverBp(raftConfig)
+		}
+
+		if mbrAttrs, err = parseBpsToMembers(ebps); err != nil {
+			logger.Error().Err(err).Bool("usebackup", raftConfig.UseBackup).Msg("failed to parse initial bp list")
 			return err
 		}
 
@@ -97,6 +106,16 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	logger.Info().Bool("skipempty", RaftSkipEmptyBlock).Int64("rafttick(nanosec)", RaftTick.Nanoseconds()).Float64("interval(sec)", consensus.BlockInterval.Seconds()).Msg(bf.bpc.toString())
 
 	return nil
+}
+
+// getRecoverBp returns Enterprise BP to use initial bp of new cluster for recovery from backup
+func getRecoverBp(raftConfig *config.RaftConfig) []types.EnterpriseBP {
+	if raftConfig.RecoverBP == nil {
+		logger.Fatal().Msg("need RecoverBP in config to create a new cluster")
+	}
+
+	cfgBP := raftConfig.RecoverBP
+	return []types.EnterpriseBP{{Name: cfgBP.Name, Address: cfgBP.Address, PeerID: cfgBP.PeerID}}
 }
 
 func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {

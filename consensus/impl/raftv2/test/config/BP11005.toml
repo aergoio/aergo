@@ -44,5 +44,5 @@ newcluster=false
 blockintervalms=1000
 name="aergo5"
 snapfrequency=10
-joinclusterusingbackup=false
+usebackup=false
 #

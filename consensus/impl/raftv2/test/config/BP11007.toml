@@ -42,5 +42,5 @@ blockinterval = 1
 [consensus.raft]
 blockintervalms=1000
 name="aergo7"
-joinclusterusingbackup=false
+usebackup=false
 #
