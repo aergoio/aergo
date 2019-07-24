@@ -22,6 +22,7 @@ type Config struct {
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
 	Account    *AccountConfig    `mapstructure:"account"`
+	Auth       *AuthConfig       `mapstructure:"auth"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -72,6 +73,12 @@ type P2PConfig struct {
 
 	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
+}
+
+// AuthConfig defines configuration for auditing
+type AuthConfig struct {
+	EnableListManager bool `mapstructure:"enablelistmanager" description:"use white/blacklist feature or not"`
+	EnableLocalConf   bool `mapstructure:"enablelocalconf" description:"apply local white/blacklist file or not"`
 }
 
 // PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
@@ -225,4 +232,8 @@ endpoint = "{{.Monitor.ServerEndpoint}}"
 
 [account]
 unlocktimeout = "{{.Account.UnlockTimeout}}"
+
+[auth]
+enablelistmanager = "{{.Auth.EnableListManager}}"
+enablelocalconf = "{{.Auth.EnableLocalConf}}"
 `

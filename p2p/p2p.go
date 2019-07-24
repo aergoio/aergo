@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/list"
 	"sync"
 	"time"
 
@@ -38,7 +39,7 @@ type P2P struct {
 	cfg *config.Config
 
 	// inited during construction
-	useRaft  bool
+	useRaft bool
 	// caching data from genesis block
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
@@ -50,8 +51,8 @@ type P2P struct {
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
 	prm     p2pcommon.PeerRoleManager
-
-	mutex sync.Mutex
+	lm      p2pcommon.ListManager
+	mutex   sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
@@ -81,6 +82,7 @@ func (p2ps *P2P) AfterStart() {
 	for i, ver := range AcceptedInboundVersions {
 		versions[i] = ver
 	}
+	p2ps.lm.Start()
 	p2ps.mutex.Lock()
 	p2ps.setSelfRole()
 	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
@@ -126,11 +128,13 @@ func (p2ps *P2P) BeforeStop() {
 	nt := p2ps.nt
 	p2ps.mutex.Unlock()
 	nt.Stop()
+	p2ps.lm.Stop()
 }
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
 func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
+	stmap["whitelist"] = p2ps.lm.Summary()
 	stmap["netstat"] = p2ps.mm.Summary()
 	stmap["config"] = p2ps.cfg.P2P
 	stmap["status"] = p2ps.nt.SelfMeta()
@@ -173,12 +177,14 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 	p2ps.useRaft = useRaft
-
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
 	// TODO: it should be refactored to support multi version
 	mf := &baseMOFactory{p2ps: p2ps}
+
+	// public network is always disabled white/blacklist in chain
+	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.Logger, genesis.PublicNet())
 
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
@@ -186,7 +192,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
 	}
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, lm, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
 
@@ -201,6 +207,8 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
+	p2ps.lm = lm
+
 	p2ps.mutex.Unlock()
 }
 

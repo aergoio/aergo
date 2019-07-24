@@ -32,7 +32,7 @@ func FailTestGetPeers(t *testing.T) {
 	mockActor.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
 	mockMF := p2pmock.NewMockMoFactory(ctrl)
-	target := NewPeerManager(nil, mockActor, cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config), nil, nil, nil, log.NewLogger("test.p2p"), mockMF, false).(*peerManager)
+	target := NewPeerManager(nil, mockActor, cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config), nil, nil, nil, nil, log.NewLogger("test.p2p"), mockMF, false).(*peerManager)
 
 	iterSize := 500
 	wg := sync.WaitGroup{}
@@ -70,7 +70,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
 	p2pkey.InitNodeInfo(&tConfig.BaseConfig, tConfig.P2P, "1.0.0-test", tLogger)
-	target := NewPeerManager(nil, mockActorServ, tConfig, nil, nil, nil, tLogger, mockMF, false).(*peerManager)
+	target := NewPeerManager(nil, mockActorServ, tConfig, nil, nil, nil, nil, tLogger, mockMF, false).(*peerManager)
 
 	iterSize := 500
 	wg := &sync.WaitGroup{}
@@ -529,10 +529,10 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			if tt.wantSucc {
 				got := gotMeta
 				if got.Designated != tt.wantDesign {
-					t.Errorf("basePeerManager.tryAddPeer() got Designated = %v, want %v", got.Designated, tt.wantDesign)
+					t.Errorf("peerManager.tryRegister() got Designated = %v, want %v", got.Designated, tt.wantDesign)
 				}
 				if got.Hidden != tt.wantHidden {
-					t.Errorf("basePeerManager.tryAddPeer() got Hidden = %v, want %v", got.Hidden, tt.wantHidden)
+					t.Errorf("peerManager.tryRegister() got Hidden = %v, want %v", got.Hidden, tt.wantHidden)
 				}
 
 			}
