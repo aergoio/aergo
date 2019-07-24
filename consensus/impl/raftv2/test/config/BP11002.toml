@@ -41,6 +41,7 @@ enablebp = true
 
 [consensus.raft]
 newcluster=true
+usebackup=false
 blockintervalms = 1000
 name="aergo2"
 snapfrequency=10

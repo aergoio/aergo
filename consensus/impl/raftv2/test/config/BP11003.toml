@@ -41,6 +41,7 @@ blockinterval = 1
 
 [consensus.raft]
 newcluster=true
+usebackup=false
 blockintervalms = 1000
 name="aergo3"
 snapfrequency=10

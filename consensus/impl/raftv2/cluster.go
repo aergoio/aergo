@@ -522,8 +522,17 @@ func (cl *Cluster) IsIDRemoved(id uint64) bool {
 }
 
 // GenerateID generate cluster ID by hashing IDs of all initial members
-func (cl *Cluster) GenerateID() {
+func (cl *Cluster) GenerateID(useBackup bool) {
 	var buf []byte
+
+	if useBackup {
+		blk, err := cl.cdb.GetBestBlock()
+		if err != nil || blk == nil {
+			logger.Fatal().Msg("failed to get best block from backup datafiles")
+		}
+
+		buf = append(buf, blk.BlockHash()...)
+	}
 
 	mbrs := cl.Members().ToArray()
 	sort.Sort(consensus.MembersByName(mbrs))

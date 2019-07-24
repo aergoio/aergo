@@ -4,21 +4,17 @@ echo "============================== raft tx test ============================"
 source set_test_env.sh
 source test_common.sh
 
-echo "pushd TEST_RAFT_INSTANCE=$TEST_RAFT_INSTANCE"
-
-pushd $TEST_RAFT_INSTANCE
-
 echo ""
 echo "======== make initial server ========="
 make_node.sh 
 
 checkSync 10001 10002 30
 checkSync 10001 10003 30
-popd
 
 pushd  $TEST_RAFT_INSTANCE_CLIENT
 run_tx.sh
 popd
+
 checkSync 10001 10002 30
 checkSync 10001 10003 30
 
