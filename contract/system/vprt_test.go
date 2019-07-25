@@ -28,10 +28,10 @@ var (
 
 	vprOP = []func(types.AccountID, *big.Int){
 		opAdd: func(addr types.AccountID, opr *big.Int) {
-			rank.add(addr, opr)
+			votingPowerRank.add(addr, opr)
 		},
 		opSub: func(addr types.AccountID, opr *big.Int) {
-			rank.sub(addr, opr)
+			votingPowerRank.sub(addr, opr)
 		},
 	}
 
@@ -59,8 +59,8 @@ func (tc *vprTC) run(t *testing.T) {
 
 func (tc *vprTC) check(t *testing.T) {
 	assert.True(t,
-		rank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
-		"incorrect result: %s (must be %s)", rank.votingPowerOf(tc.addr).String(), tc.want)
+		votingPowerRank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
+		"incorrect result: %s (must be %s)", votingPowerRank.votingPowerOf(tc.addr).String(), tc.want)
 }
 
 func initVprtTest(t *testing.T, initTable func()) {
@@ -95,13 +95,13 @@ func initDB(t *testing.T) {
 }
 
 func initRankTableRandSc(rankMax uint32, s *state.ContractState) {
-	rank = newVpr()
+	votingPowerRank = newVpr()
 	max := new(big.Int).SetUint64(20000)
 	src := rand.New(rand.NewSource(0))
 	for i := uint32(0); i < rankMax; i++ {
-		rank.add(genAddr(i), new(big.Int).Rand(src, max))
+		votingPowerRank.add(genAddr(i), new(big.Int).Rand(src, max))
 	}
-	rank.apply(s)
+	votingPowerRank.apply(s)
 }
 
 func initRankTableRand(rankMax uint32) {
@@ -125,10 +125,10 @@ func finalizeVprtTest() {
 }
 
 func initRankTable(rankMax uint32) {
-	rank = newVpr()
+	votingPowerRank = newVpr()
 	for i := uint32(0); i < rankMax; i++ {
-		rank.add(genAddr(i), new(big.Int).SetUint64(10000))
-		rank.apply(nil)
+		votingPowerRank.add(genAddr(i), new(big.Int).SetUint64(10000))
+		votingPowerRank.apply(nil)
 	}
 }
 
@@ -188,7 +188,7 @@ func TestVprOp(t *testing.T) {
 	for _, tc := range testCases {
 		tc.run(t)
 	}
-	n, err := rank.apply(s)
+	n, err := votingPowerRank.apply(s)
 	assert.NoError(t, err, "fail to update the voting power ranking")
 	for _, tc := range testCases {
 		tc.check(t)
@@ -205,18 +205,18 @@ func TestVprOp(t *testing.T) {
 
 	lRank, err := loadVpr(s)
 	assert.NoError(t, err, "fail to load")
-	assert.Equal(t, n, len(lRank.votingPower), "size mismatch: voting power")
+	assert.Equal(t, n, lRank.voters.Count(), "size mismatch: voting power")
 }
 
 func TestVprTable(t *testing.T) {
 	initVprtTest(t, func() { initRankTableRand(vprMax) })
 	defer finalizeVprtTest()
 
-	for i, l := range rank.table.buckets {
+	for i, l := range votingPowerRank.store.buckets {
 		for e := l.Front(); e.Next() != nil; e = e.Next() {
 			curr := e.Value.(*votingPower)
 			next := e.Next().Value.(*votingPower)
-			assert.True(t, curr.addr != next.addr, "duplicate elems")
+			assert.True(t, curr.getAddr() != next.getAddr(), "duplicate elems")
 			cmp := curr.getPower().Cmp(next.getPower())
 			assert.True(t, cmp == 0 || cmp == 1, "unordered bucket found: idx = %v", i)
 		}
@@ -253,7 +253,7 @@ func TestVotingPowerCodec(t *testing.T) {
 		n := dec.unmarshal(b)
 		assert.Equal(t, len(b), int(n))
 
-		assert.Equal(t, orig.addr, dec.addr)
+		assert.Equal(t, orig.getAddr(), dec.getAddr())
 		assert.True(t, orig.getPower().Cmp(dec.getPower()) == 0, "fail to decode")
 	}
 }
@@ -263,12 +263,12 @@ func TestVprLoader(t *testing.T) {
 
 	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
 	defer finalizeVprtTest()
-	assert.Equal(t, nVoters, len(rank.votingPower), "size mismatch: voting powers")
+	assert.Equal(t, nVoters, votingPowerRank.voters.Count(), "size mismatch: voting powers")
 	assert.Equal(t, nVoters,
 		func() int {
 			sum := 0
 			for i := uint8(0); i < vprBucketsMax; i++ {
-				if l := rank.table.buckets[i]; l != nil {
+				if l := votingPowerRank.store.buckets[i]; l != nil {
 					sum += l.Len()
 				}
 			}
@@ -279,7 +279,7 @@ func TestVprLoader(t *testing.T) {
 	s := openSystemAccount(t)
 	r, err := loadVpr(s)
 	assert.NoError(t, err, "fail to load")
-	assert.Equal(t, nVoters, len(r.votingPower), "size mismatch: voting powers")
+	assert.Equal(t, nVoters, r.voters.Count(), "size mismatch: voting powers")
 
 	r.checkValidity(t)
 }
@@ -322,10 +322,10 @@ func TestVprTotalPower(t *testing.T) {
 	for _, tc := range testCases {
 		tc.run(t)
 	}
-	_, err := rank.apply(s)
+	_, err := votingPowerRank.apply(s)
 	assert.NoError(t, err, "fail to update the voting power ranking")
 
-	rank.checkValidity(t)
+	votingPowerRank.checkValidity(t)
 }
 
 func (v *vpr) checkValidity(t *testing.T) {
@@ -333,17 +333,18 @@ func (v *vpr) checkValidity(t *testing.T) {
 	sum2 := &big.Int{}
 
 	low := v.lowest().getPower()
-	for _, pow := range v.votingPower {
+	for _, e := range v.voters.powers {
+		pow := toVotingPower(e).getPower()
 		sum1.Add(sum1, pow)
 		assert.True(t, low.Cmp(pow) <= 0, "invalid lowest power voter")
 	}
 	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
 
-	for i, l := range v.table.buckets {
+	for i, l := range v.store.buckets {
 		var next *list.Element
 		for e := l.Front(); e != nil; e = next {
 			if next = e.Next(); next != nil {
-				ind := v.table.cmp(toVotingPower(e), toVotingPower(next))
+				ind := v.store.cmp(toVotingPower(e), toVotingPower(next))
 				assert.True(t, ind > 0, "bucket[%v] not ordered", i)
 			}
 			sum2.Add(sum2, toVotingPower(e).getPower())
