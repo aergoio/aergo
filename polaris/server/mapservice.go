@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/v030"
-	"github.com/libp2p/go-libp2p-core/network"
 	"math"
 	"sync"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
@@ -115,7 +115,7 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 	//return &dummy
 }
 
-func (pms *PeerMapService) onConnect(s network.Stream) {
+func (pms *PeerMapService) onConnect(s types.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
 	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
@@ -303,7 +303,7 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 	}
 }
 
-func (pms *PeerMapService) onPing(s network.Stream) {
+func (pms *PeerMapService) onPing(s types.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pms.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
@@ -417,7 +417,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 }
 
 func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
-	if !pms.allowPrivate && !p2putil.IsExternalAddr(meta.IPAddress) {
+	if !pms.allowPrivate && !network.IsExternalAddr(meta.IPAddress) {
 		pms.Logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(meta)).Msg("peer is private address")
 		return false
 	}

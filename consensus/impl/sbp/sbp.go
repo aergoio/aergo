@@ -220,6 +220,11 @@ func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
 	return &types.ConsensusInfo{Type: GetName()}
 }
 
+var dummyRaft consensus.DummyRaftAccessor
+func (s *SimpleBlockFactory) RaftAccessor() consensus.AergoRaftAccessor {
+	return &dummyRaft
+}
+
 func (s *SimpleBlockFactory) NeedNotify() bool {
 	return true
 }

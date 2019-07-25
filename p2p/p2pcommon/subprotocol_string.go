@@ -6,17 +6,19 @@ import "strconv"
 
 const (
 	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponse"
-	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponseGetMissingRequestGetMissingResponseNewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponseGetHashByNoRequestGetHashByNoResponse"
-	_SubProtocol_name_2 = "GetTXsRequestGetTXsResponseNewTxNotice"
-	_SubProtocol_name_3 = "BlockProducedNotice"
-	_SubProtocol_name_4 = "GetClusterRequestGetClusterResponseRaftWrapperMessage"
+	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponse"
+	_SubProtocol_name_2 = "NewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponseGetHashByNoRequestGetHashByNoResponse"
+	_SubProtocol_name_3 = "GetTXsRequestGetTXsResponseNewTxNotice"
+	_SubProtocol_name_4 = "BlockProducedNotice"
+	_SubProtocol_name_5 = "GetClusterRequestGetClusterResponseRaftWrapperMessage"
 )
 
 var (
 	_SubProtocol_index_0 = [...]uint8{0, 13, 24, 36, 42, 58, 75}
-	_SubProtocol_index_1 = [...]uint8{0, 16, 33, 55, 78, 95, 113, 127, 145, 164, 180, 197, 215, 234}
-	_SubProtocol_index_2 = [...]uint8{0, 13, 27, 38}
-	_SubProtocol_index_4 = [...]uint8{0, 17, 35, 53}
+	_SubProtocol_index_1 = [...]uint8{0, 16, 33, 55, 78}
+	_SubProtocol_index_2 = [...]uint8{0, 14, 32, 51, 67, 84, 102, 121}
+	_SubProtocol_index_3 = [...]uint8{0, 13, 27, 38}
+	_SubProtocol_index_5 = [...]uint8{0, 17, 35, 53}
 )
 
 func (i SubProtocol) String() string {
@@ -24,17 +26,20 @@ func (i SubProtocol) String() string {
 	case 1 <= i && i <= 6:
 		i -= 1
 		return _SubProtocol_name_0[_SubProtocol_index_0[i]:_SubProtocol_index_0[i+1]]
-	case 16 <= i && i <= 28:
+	case 16 <= i && i <= 19:
 		i -= 16
 		return _SubProtocol_name_1[_SubProtocol_index_1[i]:_SubProtocol_index_1[i+1]]
+	case 22 <= i && i <= 28:
+		i -= 22
+		return _SubProtocol_name_2[_SubProtocol_index_2[i]:_SubProtocol_index_2[i+1]]
 	case 32 <= i && i <= 34:
 		i -= 32
-		return _SubProtocol_name_2[_SubProtocol_index_2[i]:_SubProtocol_index_2[i+1]]
+		return _SubProtocol_name_3[_SubProtocol_index_3[i]:_SubProtocol_index_3[i+1]]
 	case i == 48:
-		return _SubProtocol_name_3
+		return _SubProtocol_name_4
 	case 12545 <= i && i <= 12547:
 		i -= 12545
-		return _SubProtocol_name_4[_SubProtocol_index_4[i]:_SubProtocol_index_4[i+1]]
+		return _SubProtocol_name_5[_SubProtocol_index_5[i]:_SubProtocol_index_5[i+1]]
 	default:
 		return "SubProtocol(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

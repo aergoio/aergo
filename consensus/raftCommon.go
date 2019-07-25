@@ -10,11 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"net"
-	"net/url"
+	"io"
 )
 
 type EntryType int8
@@ -82,18 +81,20 @@ type RaftIdentity struct {
 	ClusterID uint64
 	ID        uint64
 	Name      string
+	PeerID    string // base58 encoded format
 }
 
 func (rid *RaftIdentity) ToString() string {
 	if rid == nil {
 		return "raft identity is nil"
 	}
-	return fmt.Sprintf("raft identity[name:%s, nodeid:%x]", rid.Name, rid.ID)
+	return fmt.Sprintf("raft identity[name:%s, nodeid:%x, peerid:%s]", rid.Name, rid.ID, rid.PeerID)
 }
 
 type ChainWAL interface {
 	ChainDB
 
+	ClearWAL()
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
 	GetBlock(blockHash []byte) (*types.Block, error)
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
@@ -314,8 +315,8 @@ func (m *Member) IsValid() bool {
 		return false
 	}
 
-	if _, err := ParseToUrl(m.Address); err != nil {
-		logger.Error().Err(err).Msg("parse url of member")
+	if _, err := types.ParseMultiaddrWithResolve(m.Address); err != nil {
+		logger.Error().Err(err).Msg("parse address of member")
 		return false
 	}
 
@@ -335,7 +336,12 @@ func (m *Member) Equal(other *Member) bool {
 }
 
 func (m *Member) ToString() string {
-	return fmt.Sprintf("{Name:%s, ID:%x, Address:%s, PeerID:%s}", m.Name, m.ID, m.Address, p2putil.ShortForm(types.PeerID(m.PeerID)))
+	data, err := json.Marshal(&m.MemberAttr)
+	if err != nil {
+		logger.Error().Err(err).Str("name", m.Name).Msg("can't unmarshal member")
+		return ""
+	}
+	return string(data)
 }
 
 func (m *Member) HasDuplicatedAttr(x *Member) bool {
@@ -345,53 +351,6 @@ func (m *Member) HasDuplicatedAttr(x *Member) bool {
 
 	return false
 }
-
-/*
-func (m *Member) MarshalJSON() ([]byte, error) {
-	nj := NewJsonMember(m)
-	return json.Marshal(nj)
-}
-
-func (m *Member) UnmarshalJSON(data []byte) error {
-	var err error
-	jm := JsonMember{}
-
-	if err := json.Unmarshal(data, &jm); err != nil {
-		return err
-	}
-
-	*m, err = jm.Member()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-type JsonMember struct {
-	ID     MemberID `json:"id"`
-	Name   string   `json:"name"`
-	Address    string   `json:"url"`
-	PeerID string   `json:"peerid"`
-}
-
-func NewJsonMember(m *Member) JsonMember {
-	return JsonMember{ID: m.ID, Name: m.Name, Address: m.Address, PeerID: types.IDB58Encode(m.PeerID)}
-}
-
-func (jm *JsonMember) Member() (Member, error) {
-	peerID, err := types.IDB58Decode(jm.PeerID)
-	if err != nil {
-		return Member{}, err
-	}
-
-	return Member{
-		ID:     jm.ID,
-		Name:   jm.Name,
-		Address:    jm.Address,
-		PeerID: peerID,
-	}, nil
-}
-*/
 
 // IsCompatible checks if name, url and peerid of this member are the same with other member
 func (m *Member) IsCompatible(other *Member) bool {
@@ -410,21 +369,34 @@ func (mbrs MembersByName) Swap(i, j int) {
 	mbrs[i], mbrs[j] = mbrs[j], mbrs[i]
 }
 
-func ParseToUrl(urlstr string) (*url.URL, error) {
-	var urlObj *url.URL
-	var err error
+// DummyRaftAccessor returns error if process request comes, or silently ignore raft message.
+type DummyRaftAccessor struct {
+}
 
-	if urlObj, err = url.Parse(urlstr); err != nil {
-		return nil, err
-	}
+var IllegalArgumentError = errors.New("illegal argument")
 
-	if urlObj.Scheme != "http" && urlObj.Scheme != "https" {
-		return nil, ErrURLInvalidScheme
-	}
+func (DummyRaftAccessor) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	return IllegalArgumentError
+}
 
-	if _, _, err := net.SplitHostPort(urlObj.Host); err != nil {
-		return nil, ErrURLInvalidPort
-	}
+func (DummyRaftAccessor) IsIDRemoved(peerID types.PeerID) bool {
+	return false
+}
 
-	return urlObj, nil
+func (DummyRaftAccessor) ReportUnreachable(peerID types.PeerID) {
+}
+
+func (DummyRaftAccessor) ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus) {
+}
+
+func (DummyRaftAccessor) GetMemberByID(id uint64) *Member {
+	return nil
+}
+
+func (DummyRaftAccessor) GetMemberByPeerID(peerID types.PeerID) *Member {
+	return nil
+}
+
+func (DummyRaftAccessor) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+	return 0, nil
 }

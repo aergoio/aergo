@@ -22,6 +22,7 @@ var (
 	TooFewBlocksError    = fmt.Errorf("too few blocks received that expected")
 	TooManyBlocksError   = fmt.Errorf("too many blocks received that expected")
 	TooBigBlockError     = fmt.Errorf("block size limit exceeded")
+	InvalidArgumentError = fmt.Errorf("invalid argument")
 )
 
 // PingMsg send types.Ping to each peer.
@@ -196,6 +197,10 @@ type GetClusterRsp struct {
 	HardStateInfo *types.HardStateInfo
 }
 
+type GetRaftTransport struct {
+	Cluster interface{}
+}
+
 type RaftClusterEvent struct {
 	BPAdded   []types.PeerID
 	BPRemoved []types.PeerID
@@ -208,8 +213,8 @@ type ChangeDesignatedPeers struct {
 }
 
 type SendRaft struct {
-	ToWhom  types.PeerID
-	Body    interface{} // for avoiding dependency cycle, though it must be raftpb.Message.
+	ToWhom types.PeerID
+	Body   interface{} // for avoiding dependency cycle, though it must be raftpb.Message.
 }
 
 type SendRaftRsp struct {

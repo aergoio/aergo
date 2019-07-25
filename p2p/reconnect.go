@@ -16,7 +16,10 @@ var (
 
 func init() {
 	// It will get [20s 36s 1m6s 2m1s 3m40s 6m42s 12m12s 22m14s 40m30s 1h13m48s 2h14m29s 4h5m2s 7h26m29s 13h33m32s 24h42m21s]
+	// 20 sec for dpos
 	durations = generateExpDuration(20, 0.6, maxTrial)
+	// 3 sec for raft
+	//durations = generateExpDuration(3, 0.6, 20)
 }
 
 func getNextInterval(trial int) time.Duration {

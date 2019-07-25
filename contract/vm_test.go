@@ -2791,7 +2791,12 @@ function checkAergo()
 "304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
 "AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
 end
-abi.register(get, checkEther, checkAergo)
+
+function keccak256(s)
+	return crypto.keccak256(s)
+end
+
+abi.register(get, checkEther, checkAergo, keccak256)
 `
 	bc, _ := LoadDummyChain()
 	err := bc.ConnectBlock(
@@ -2812,6 +2817,24 @@ abi.register(get, checkEther, checkAergo)
 	}
 
 	err = bc.Query("crypto", `{"Name": "checkAergo", "Args" : []}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query(
+		"crypto",
+		`{"Name": "keccak256", "Args" : ["0x616263"]}`,
+		"",
+		`"0x4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query(
+		"crypto",
+		`{"Name": "keccak256", "Args" : ["0x616572676F"]}`,
+		"",
+		`"0xe98bb03ab37161f8bbfe131f711dcccf3002a9cd9ec31bbd52edf181f7ab09a0"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2973,10 +2996,18 @@ function negativeBignum()
 	bg2 = bignum.sqrt(bg1)
 end
 
+function byteBignum()
+	 state.var {
+        value = state.value()
+    }
+	value = bignum.tobyte(bignum.number("177"))
+	return bignum.frombyte(value)
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum, byteBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -3038,6 +3069,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", `{"Name":"negativeBignum"}`, "bignum not allowed negative value", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"byteBignum"}`, "", `{"_bignum":"177"}`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -4501,7 +4536,6 @@ abi.register(get, getcre)
 	}
 }
 
-
 func TestUtf(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
@@ -4567,7 +4601,7 @@ func TestUtf(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("utf", `{"Name":"query2"}`, "", `["000000000000000000000000000000000000000000000000000000E8D4A51000","0000000000000000000000000000000000000000000000000000000000000000"]`)
+	err = bc.Query("utf", `{"Name":"query2"}`, "", `["E8D4A51000","00"]`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -4589,16 +4623,25 @@ func TestLuaCryptoVerifyProof(t *testing.T) {
 		end))
 	end
 
-	function verifyProof(data)
+	function verifyProofRaw(data)
 		local k = "a6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
 		local v = "2710"
 		local p0 = "f871a0379a71a6fb36a75e085aff02beec9f5934b9648d24e2901da307492219608b3780a006a684f73e33f5c18739fd1339977f6fe328eb5cbe64239244b0cec88744355180808080a023866491ea0336f72e659c2a7daf61285de093b04fa353c48069a807c2ba845f808080808080808080"
 		local p1 = "e5a03eb5be412f275a18f6e4d622aee4ff40b21467c926224771b782d4c095d1444b83822710"
-		local b = crypto.verifyProof(hextobytes(k), hextobytes(v), hextobytes(p0), hextobytes(p1))
+		local b = crypto.verifyProof(hextobytes(k), hextobytes(v), crypto.keccak256(hextobytes(p0)), hextobytes(p0), hextobytes(p1))
 		return b
 	end
 
-	abi.register(verifyProof)`
+	function verifyProofHex(data)
+		local k = "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
+		local v = "0x2710"
+		local p0 = "0xf871a0379a71a6fb36a75e085aff02beec9f5934b9648d24e2901da307492219608b3780a006a684f73e33f5c18739fd1339977f6fe328eb5cbe64239244b0cec88744355180808080a023866491ea0336f72e659c2a7daf61285de093b04fa353c48069a807c2ba845f808080808080808080"
+		local p1 = "0xe5a03eb5be412f275a18f6e4d622aee4ff40b21467c926224771b782d4c095d1444b83822710"
+		local b = crypto.verifyProof(k, v, crypto.keccak256(p0), p0, p1)
+		return b
+	end
+
+	abi.register(verifyProofRaw, verifyProofHex)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -4608,12 +4651,16 @@ func TestLuaCryptoVerifyProof(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bc.Query("eth", `{"Name":"verifyProof"}`, "", `true`)
+	err = bc.Query("eth", `{"Name":"verifyProofRaw"}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("eth", `{"Name":"verifyProofHex"}`, "", `true`)
 	if err != nil {
 		t.Error(err)
 	}
 }
-
 
 func TestMultiArray(t *testing.T) {
 	bc, err := LoadDummyChain()
@@ -4787,6 +4834,96 @@ abi.register(abc, query)
 	}
 	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
 		"", `["A","B","C","D","A","B","v3"]`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNDeploy(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	definition := `
+function constructor()
+  testall()
+end
+
+function testall()
+  deploytest()
+  sendtest()
+end
+
+function deploytest()
+  src = [[
+  function default()
+    contract.send(system.getSender(), system.getAmount())
+  end
+
+  function getargs(...)
+    tb = {...}
+  end
+
+  abi.payable(default)
+  abi.register(getargs)
+  ]]
+
+  addr = contract.deploy(src)
+  id = 'deploy_src'; system.setItem(id, addr)
+  system.print(id, system.getItem(id))
+
+  korean_char_src = [[
+  function 함수()
+    변수 = 1
+    결과 = 변수 + 3
+    system.print('결과', 결과)
+  end
+
+  abi.register(함수)
+  ]]
+
+  
+  korean_char_src222 = [[
+    function default()
+      contract.send(system.getSender(), system.getAmount())
+    end
+  
+    function getargs(...)
+      tb = {...}
+    end
+  
+    function x()
+    end
+
+    abi.payable(default)
+    abi.register(getargs)
+  ]]
+
+  korean_addr =  contract.deploy(korean_char_src)
+  id = 'korean_char_src'; system.setItem(id, korean_addr)
+  system.print(id, system.getItem(id))
+end
+
+function sendtest()
+  addr = system.getItem("deploy_src")
+  system.print('ADDRESS', addr, system.getAmount())
+  
+  id = 's01'; system.setItem(id,{pcall(function() contract.send(addr, system.getAmount()) end)})
+  system.print(id, system.getItem(id))
+end
+
+function default()
+  -- do nothing
+end
+
+abi.payable(constructor, default)
+abi.register(testall)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "n-deploy", 0, definition),
+	)
 	if err != nil {
 		t.Error(err)
 	}

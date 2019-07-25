@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/types"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +22,7 @@ var (
 	ErrNotHttpsURL           = errors.New("url scheme is not https")
 	ErrDupBP                 = errors.New("raft bp description is duplicated")
 	ErrInvalidRaftPeerID     = errors.New("peerID of current raft bp is not equals to p2p configure")
+	ErrNotExitRecoverBP      = errors.New("RecoverBP is needed for creating a new cluster from backup")
 )
 
 const (
@@ -54,37 +55,42 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, p2pkey.NodeID(), genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
 
 	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).
 			Str("key", raftConfig.KeyFile).
 			Str("cert", raftConfig.CertFile).
+			Bool("useTLS", useTls).
 			Msg("failed to validate tls config for raft")
 		return err
 	}
 
-	if raftConfig.ListenUrl != "" {
-		if err := isValidURL(raftConfig.ListenUrl, useTls); err != nil {
-			logger.Error().Err(err).Msg("failed to validate listen url for raft")
-			return err
-		}
-	}
+	//if raftConfig.ListenUrl != "" {
+	//	if err := isValidURL(raftConfig.ListenUrl, useTls); err != nil {
+	//		logger.Error().Err(err).Msg("failed to validate listen url for raft")
+	//		return err
+	//	}
+	//}
 
 	if raftConfig.NewCluster {
 		var mbrAttrs []*types.MemberAttr
-		if mbrAttrs, err = parseBpsToMembers(chain.Genesis.EnterpriseBPs); err != nil {
-			logger.Error().Err(err).Msg("failed to parse bp list of Genesis block")
+		var ebps []types.EnterpriseBP
+
+		if !raftConfig.UseBackup {
+			ebps = chain.Genesis.EnterpriseBPs
+		} else {
+			ebps = getRecoverBp(raftConfig)
+		}
+
+		if mbrAttrs, err = parseBpsToMembers(ebps); err != nil {
+			logger.Error().Err(err).Bool("usebackup", raftConfig.UseBackup).Msg("failed to parse initial bp list")
 			return err
 		}
 
 		if err = bf.bpc.AddInitialMembers(mbrAttrs); err != nil {
-			logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
+			logger.Error().Err(err).Msg("failed to add initial members")
 			return err
-		}
-
-		if bf.bpc.Members().len() == 0 {
-			logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
 		}
 	}
 
@@ -95,6 +101,16 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	return nil
 }
 
+// getRecoverBp returns Enterprise BP to use initial bp of new cluster for recovery from backup
+func getRecoverBp(raftConfig *config.RaftConfig) []types.EnterpriseBP {
+	if raftConfig.RecoverBP == nil {
+		logger.Fatal().Msg("need RecoverBP in config to create a new cluster")
+	}
+
+	cfgBP := raftConfig.RecoverBP
+	return []types.EnterpriseBP{{Name: cfgBP.Name, Address: cfgBP.Address, PeerID: cfgBP.PeerID}}
+}
+
 func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 	bpLen := len(bps)
 	if bpLen == 0 {
@@ -103,9 +119,9 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 
 	mbrs := make([]*types.MemberAttr, bpLen)
 	for i, bp := range bps {
-		trimUrl := strings.TrimSpace(bp.Address)
+		trimmedAddr := strings.TrimSpace(bp.Address)
 		// TODO when p2p is applied, have to validate peer address
-		if err := isValidURL(trimUrl, false); err != nil {
+		if _, err := types.ParseMultiaddrWithResolve(trimmedAddr); err != nil {
 			return nil, err
 		}
 
@@ -114,7 +130,7 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 			return nil, fmt.Errorf("invalid raft peerID BP[%d]:%s", i, bp.PeerID)
 		}
 
-		mbrs[i] = &types.MemberAttr{Name: bp.Name, Address: trimUrl, PeerID: []byte(peerID)}
+		mbrs[i] = &types.MemberAttr{Name: bp.Name, Address: trimmedAddr, PeerID: []byte(peerID)}
 	}
 
 	return mbrs, nil
@@ -150,25 +166,9 @@ func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
 	return true, nil
 }
 
-func isValidURL(urlstr string, useTls bool) error {
-	var urlobj *url.URL
-	var err error
-
-	if urlobj, err = consensus.ParseToUrl(urlstr); err != nil {
-		logger.Error().Str("url", urlstr).Err(err).Msg("raft bp urlstr is not vaild form")
-		return err
-	}
-
-	if useTls && urlobj.Scheme != "https" {
-		logger.Error().Str("urlstr", urlstr).Msg("raft bp urlstr shoud use https protocol")
-		return ErrNotHttpsURL
-	}
-
-	return nil
-}
-
 func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
 	logger.Debug().Msg("add cluster members from config file")
+
 	for _, mbrAttr := range mbrs {
 		m := consensus.NewMember(mbrAttr.Name, mbrAttr.Address, types.PeerID(mbrAttr.PeerID), cl.chainID, cl.chainTimestamp)
 
@@ -178,6 +178,14 @@ func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
 		if err := cl.addMember(m, false); err != nil {
 			return err
 		}
+	}
+
+	if cl.Members().len() == 0 {
+		logger.Fatal().Str("cluster", cl.toString()).Msg("can't start raft server because there are no members in cluster")
+	}
+
+	if cl.Members().getMemberByName(cl.NodeName()) == nil {
+		logger.Fatal().Str("cluster", cl.toString()).Msg("node name of config is not included in genesis block")
 	}
 
 	return nil

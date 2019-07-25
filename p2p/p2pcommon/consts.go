@@ -17,6 +17,8 @@ const (
 	MAGICMain uint32 = 0x47416841
 	MAGICTest uint32 = 0x2e415429
 
+	MAGICRaftSnap uint32 = 0x8fae0fd4
+
 	SigLength = 16
 
 	MaxPayloadLength = 1 << 23 // 8MB
@@ -47,6 +49,8 @@ const (
 const (
 	LegacyP2PSubAddr core.ProtocolID = "/aergop2p/0.3"
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
+	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
+
 )
 
 // constants for handshake. for calculating byte offset of wire handshake
@@ -61,11 +65,14 @@ const HSMaxVersionCnt = 16
 const HSError uint32 = 0
 
 // Codes in wire handshake
+type HSRespCode = uint32
 const (
 	_ uint32 = iota
-	ErrWrongHSReq
-	ErrNoMatchedVersion  //
-
+	HSCodeWrongHSReq
+	HSCodeNoMatchedVersion  //
+	HSCodeAuthFail
+	HSCodeNoPermission
+	HSCodeInvalidState
 )
 
 // constants about private key

@@ -6,12 +6,13 @@
 package subproto
 
 import (
+	"context"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/rs/zerolog"
 )
 
 // receive message, decode payload to raftpb.Message and toss it to raft
@@ -44,7 +45,10 @@ func (ph *raftWrapperHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 		DebugLogRaftWrapMsg(ph.logger, remotePeer, msg.ID(), data)
 	}
 
-	// TODO toss data to raft module
+	// toss data to raft module
+	if err := ph.consAcc.RaftAccessor().Process(context.TODO(), remotePeer.ID(), *data); err != nil {
+		ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Err(err).Msg("error while processing raft message ")
+	}
 }
 
 func (ph *raftWrapperHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
@@ -58,15 +62,7 @@ func (ph *raftWrapperHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommo
 
 
 func DebugLogRaftWrapMsg(logger *log.Logger, peer p2pcommon.RemotePeer, msgID p2pcommon.MsgID, body *raftpb.Message) {
-	logger.Debug().Str(p2putil.LogMsgID, msgID.String()).Str("from_peer", peer.Name()).Object("raftMsg", RaftMsgMarshaller{body}).Msg("Received raft message")
-}
-
-type RaftMsgMarshaller struct {
-	*raftpb.Message
-}
-
-func (m RaftMsgMarshaller) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("type", m.Type.String()).Uint64("term", m.Term).Uint64("index", m.Index)
+	logger.Debug().Str(p2putil.LogMsgID, msgID.String()).Str("from_peer", peer.Name()).Object("raftMsg", raftsupport.RaftMsgMarshaller{body}).Msg("Received raft message")
 }
 
 

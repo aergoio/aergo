@@ -69,7 +69,7 @@ func (ph *pingResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageB
 func (ph *pingResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	//data := msgBody.(*types.Pong)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
 	remotePeer.ConsumeRequest(msg.ID())
 }
 
@@ -85,7 +85,7 @@ func (ph *goAwayHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, e
 
 func (ph *goAwayHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GoAwayNotice)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), ph.peer, data.Message)
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), ph.peer, data)
 
 	// TODO: check to remove peer here or not. (the sending peer will disconnect.)
 }

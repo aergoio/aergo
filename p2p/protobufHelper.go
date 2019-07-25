@@ -6,7 +6,8 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"time"
 
@@ -186,14 +187,15 @@ func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	}
 	if p.logger.IsDebugEnabled() && pr.trace {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
-			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogB58EncMarshaller(pr.txHashes,10)).Msg("Sent tx notice")
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogB58EncMarshaller(pr.txHashes, 10)).Msg("Sent tx notice")
 	}
 	return nil
 }
 
 type pbRaftMsgOrder struct {
 	pbMessageOrder
-	msg *raftpb.Message
+	raftAcc consensus.AergoRaftAccessor
+	msg     *raftpb.Message
 }
 
 func (pr *pbRaftMsgOrder) SendTo(pi p2pcommon.RemotePeer) error {
@@ -201,11 +203,12 @@ func (pr *pbRaftMsgOrder) SendTo(pi p2pcommon.RemotePeer) error {
 
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Object("raftMsg", subproto.RaftMsgMarshaller{pr.msg}).Msg("fail to Send raft message")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("fail to Send raft message")
+		pr.raftAcc.ReportUnreachable(pi.ID())
 		return err
 	}
 	if pr.trace && p.logger.IsDebugEnabled() {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", subproto.RaftMsgMarshaller{pr.msg}).Msg("Sent raft message")
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("Sent raft message")
 	}
 	return nil
 }

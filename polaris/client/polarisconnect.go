@@ -72,7 +72,7 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 			}
 
 			for _, addrStr := range servers {
-				meta, err := p2putil.ParseMultiAddrString(addrStr)
+				meta, err := p2putil.FromMultiAddrString(addrStr)
 				if err != nil {
 					pcs.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in base setting ")
 					continue
@@ -84,7 +84,7 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		}
 		// append custom polarises set in configuration file
 		for _, addrStr := range cfg.NPAddPolarises {
-			meta, err := p2putil.ParseMultiAddrString(addrStr)
+			meta, err := p2putil.FromMultiAddrString(addrStr)
 			if err != nil {
 				pcs.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in config file ")
 				continue

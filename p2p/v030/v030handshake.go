@@ -8,6 +8,7 @@ package v030
 import (
 	"context"
 	"fmt"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"io"
 	"time"
@@ -140,7 +141,7 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	}
 
 	peerAddress := remotePeerStatus.Sender
-	if peerAddress == nil || p2putil.CheckAddressType(peerAddress.Address) == p2putil.AddressTypeError {
+	if peerAddress == nil || network.CheckAddressType(peerAddress.Address) == network.AddressTypeError {
 		h.sendGoAway("invalid peer address")
 		return fmt.Errorf("invalid peer address : %s", peerAddress)
 	}

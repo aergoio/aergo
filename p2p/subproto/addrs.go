@@ -7,6 +7,7 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -78,7 +79,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if network.CheckAddressType(rPeerAddr.Address) == network.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
@@ -102,7 +103,7 @@ func (ph *addressesResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.Mes
 func (ph *addressesResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
-	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, len(data.GetPeers()))
+	p2putil.DebugLogReceiveResponse(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 
 	remotePeer.ConsumeRequest(msg.OriginalID())
 	if len(data.GetPeers()) > 0 {

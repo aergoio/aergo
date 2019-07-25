@@ -18,25 +18,28 @@ rm $TEST_RAFT_INSTANCE/BP*
 echo ""
 echo "========= invalid initial member node3  ========="
 pushd $TEST_RAFT_INSTANCE/config
-do_sed.sh BP11001.toml aergo2 aergo2_xxx =
-popd
+do_sed.sh BP11001.toml aergo1 aergo1_xxx =
 
-TEST_SKIP_GENESIS=0 make_node.sh 
+TEST_SKIP_GENESIS=0 TEST_NOWAIT_PEER=1 make_node.sh
 RUN_TEST_SCRIPT set_system_admin.sh
 
-HasLeader 10001 result
-if [ "$result" = "1" ]; then
+sleep 10
+
+existProcess 10001
+if [ "$?" = "1" ]; then
 	echo "failed to verify invalid cluster"
 	exit 100
 fi
 
+echo "node aergo1 is crashed because of invalid config"
+
 checkSync 10002 10003 30 result
 
 pushd $TEST_RAFT_INSTANCE/config
-do_sed.sh BP11001.toml aergo2_xxx aergo2 =
+do_sed.sh BP11001.toml aergo1_xxx aergo1 =
 popd
 
-#
-#echo ""
-#echo "========= check if reorg occured ======="
-#checkReorg
+
+echo ""
+echo "========= check if reorg occured ======="
+checkReorg

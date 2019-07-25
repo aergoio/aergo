@@ -273,7 +273,7 @@ func (cp *chainProcessor) addBlock(blk *types.Block) error {
 	dbTx := cp.cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	if err := cp.cdb.addBlock(&dbTx, blk); err != nil {
+	if err := cp.cdb.addBlock(dbTx, blk); err != nil {
 		return err
 	}
 
@@ -352,7 +352,7 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 	defer dbTx.Discard()
 
 	// skip to add hash/block if wal of block is already written
-	oldLatest := cp.cdb.connectToChain(&dbTx, block, cp.isByBP && cp.HasWAL())
+	oldLatest := cp.cdb.connectToChain(dbTx, block, cp.isByBP && cp.HasWAL())
 	if err := cp.cdb.addTxsOfBlock(&dbTx, block.GetBody().GetTxs(), block.BlockHash()); err != nil {
 		return 0, err
 	}

@@ -38,20 +38,20 @@ func init() {
 		{types.MemberAttr{
 			ID:      1,
 			Name:    "testm1",
-			Address: "http://127.0.0.1:13001",
-			PeerID:  []byte(testPeerID),
+			Address: "/ip4/127.0.0.1/13001",
+			PeerID:  []byte(testPeerIDs[0]),
 		}},
 		{types.MemberAttr{
 			ID:      2,
 			Name:    "testm2",
-			Address: "http://127.0.0.1:13002",
-			PeerID:  []byte(testPeerID),
+			Address: "/ip4/127.0.0.1/tcp/13002",
+			PeerID:  []byte(testPeerIDs[1]),
 		}},
 		{types.MemberAttr{
 			ID:      3,
 			Name:    "testm3",
-			Address: "http://127.0.0.1:13003",
-			PeerID:  []byte(testPeerID),
+			Address: "/ip4/127.0.0.1/tcp/13003",
+			PeerID:  []byte(testPeerIDs[2]),
 		}},
 	}
 
@@ -74,6 +74,14 @@ func TestMemberJson(t *testing.T) {
 	//t.Logf("peer=%s", types.IDB58Encode(newMbr.GetPeerID()))
 
 	assert.True(t, mbr.Equal(&newMbr))
+
+	mbrRemove := &consensus.Member{types.MemberAttr{ID: 1}}
+	data, err = json.Marshal(mbrRemove)
+	assert.NoError(t, err)
+
+	newMbr = consensus.Member{}
+	err = json.Unmarshal(data, &newMbr)
+	assert.NoError(t, err)
 }
 
 func TestSnapDataJson(t *testing.T) {
@@ -95,22 +103,22 @@ func TestClusterConfChange(t *testing.T) {
 	serverCtx := config.NewServerContext("", "")
 	testCfg := serverCtx.GetDefaultConfig().(*config.Config)
 	testCfg.Consensus.Raft = &config.RaftConfig{
-		Name: "testraft",
+		Name: "test1",
 		/*
 			BPs: []config.RaftBPConfig{
-				{"test1", "http://127.0.0.1:10001", testPeerIDs[0]},
-				{"test2", "http://127.0.0.1:10002", testPeerIDs[1]},
-				{"test3", "http://127.0.0.1:10003", testPeerIDs[2]},
+				{"test1", "/ip4/127.0.0.1/tcp/10001", testPeerIDs[0]},
+				{"test2", "/ip4/127.0.0.1/tcp/10002", testPeerIDs[1]},
+				{"test3", "/ip4/127.0.0.1/tcp/10003", testPeerIDs[2]},
 			},*/
 	}
 
 	mbrs := []*types.MemberAttr{
-		{ID: 0, Name: "test1", Address: "http://127.0.0.1:10001", PeerID: []byte(testPeerIDs[0])},
-		{ID: 1, Name: "test2", Address: "http://127.0.0.1:10002", PeerID: []byte(testPeerIDs[1])},
-		{ID: 2, Name: "test3", Address: "http://127.0.0.1:10003", PeerID: []byte(testPeerIDs[2])},
+		{ID: 0, Name: "test1", Address: "/ip4/127.0.0.1/tcp/10001", PeerID: []byte(testPeerIDs[0])},
+		{ID: 1, Name: "test2", Address: "/ip4/127.0.0.1/tcp/10002", PeerID: []byte(testPeerIDs[1])},
+		{ID: 2, Name: "test3", Address: "/ip4/127.0.0.1/tcp/10003", PeerID: []byte(testPeerIDs[2])},
 	}
 
-	cl := NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	cl := NewCluster([]byte("test"), nil, "test1", testPeerIDs[0], 0, nil)
 
 	err := cl.AddInitialMembers(mbrs)
 	assert.NoError(t, err)
@@ -124,7 +132,7 @@ func TestClusterConfChange(t *testing.T) {
 	// normal case
 	req := &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{ID: 3, Name: "test4", Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{ID: 3, Name: "test4", Address: "/ip4/127.0.0.1/tcp/10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.NoError(t, err)
@@ -141,23 +149,61 @@ func TestClusterConfChange(t *testing.T) {
 	// failed case
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{Address: "/ip4/127.0.0.1/tcp/10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "no name")
 
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_ADD_MEMBER,
-		Attr: &types.MemberAttr{Name: "test4", Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[0])},
+		Attr: &types.MemberAttr{Name: "test4", Address: "/ip4/127.0.0.1/tcp/10004", PeerID: []byte(testPeerIDs[0])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "duplicate peerid")
 
 	req = &types.MembershipChange{
 		Type: types.MembershipChangeType_REMOVE_MEMBER,
-		Attr: &types.MemberAttr{Name: "test4", Address: "http://127.0.0.1:10004", PeerID: []byte(testPeerIDs[3])},
+		Attr: &types.MemberAttr{Name: "test4", Address: "/ip4/127.0.0.1/tcp/10004", PeerID: []byte(testPeerIDs[3])},
 	}
 	_, err = cl.makeProposal(req, true)
 	assert.Error(t, err, "no id to remove")
 
+}
+
+func TestClusterEqual(t *testing.T) {
+	//isAllMembersEqual
+	cl := NewCluster([]byte("test"), nil, "testm1", testPeerIDs[0], 0, nil)
+	for _, m := range testMbrs {
+		err := cl.addMember(m, true)
+		assert.NoError(t, err)
+	}
+
+	assert.True(t, cl.isAllMembersEqual(testMbrs, nil))
+
+	rm := testMbrs[2]
+	err := cl.removeMember(rm)
+	assert.NoError(t, err)
+
+	rmMembers := []*consensus.Member{rm}
+	assert.True(t, cl.isAllMembersEqual(testMbrs[0:2], rmMembers))
+
+	cl = NewCluster([]byte("test"), nil, "testm1", testPeerIDs[0], 0, nil)
+	for _, m := range testMbrs {
+		newM := *m
+		newM.Address = "invalidaddress"
+		err := cl.addMember(&newM, true)
+		assert.NoError(t, err)
+	}
+
+	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
+
+	cl = NewCluster([]byte("test"), nil, "testm1", testPeerIDs[0], 0, nil)
+	for i, m := range testMbrs {
+		newM := *m
+		newM.ID = uint64(i) + 100
+		err := cl.addMember(&newM, true)
+		assert.NoError(t, err)
+	}
+
+	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
 }

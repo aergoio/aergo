@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 
@@ -106,10 +105,6 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			JsonArgs:        string(jsonArgs),
 		})
 	case ChangeCluster:
-		if ccc == nil {
-			return nil, ErrNotSupportedMethod
-		}
-
 		if bs.CCProposal != nil {
 			return nil, ErrTxEnterpriseAlreadyIncludeChangeCluster
 		}
@@ -124,14 +119,16 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			err      error
 		)
 
-		if ccChange, err = ccc.MakeConfChangeProposal(ccReq); err != nil && err != consensus.ErrorMembershipChangeSkip {
-			entLogger.Error().Err(err).Msg("Enterprise tx: failed to make cluster change proposal")
-			return nil, err
-		}
-
-		if err != consensus.ErrorMembershipChangeSkip {
+		if ccChange, err = ccc.MakeConfChangeProposal(ccReq); err != nil {
+			if err != consensus.ErrorMembershipChangeSkip {
+				entLogger.Error().Err(err).Msg("Enterprise tx: failed to make cluster change proposal")
+			} else {
+				entLogger.Info().Msg("Enterprise tx: skipped since this node is not leader")
+			}
+		} else {
 			bs.CCProposal = ccChange
 		}
+
 		/*
 			jsonArgs, err := json.Marshal(context.Call.Args[0])
 			if err != nil {

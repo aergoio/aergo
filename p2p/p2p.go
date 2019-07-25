@@ -7,15 +7,16 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/raftsupport"
-	"github.com/aergoio/aergo/p2p/transport"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/rs/zerolog"
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/p2p/raftsupport"
+	"github.com/aergoio/aergo/p2p/transport"
+	"github.com/rs/zerolog"
+
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
@@ -34,11 +35,10 @@ import (
 type P2P struct {
 	*component.BaseComponent
 
-	cfg      *config.Config
-	// TODO Which class has role to manager self PeerRole? P2P, PeerManager, or other?
-	selfRole p2pcommon.PeerRole
-	useRaft  bool
+	cfg *config.Config
 
+	// inited during construction
+	useRaft  bool
 	// caching data from genesis block
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
@@ -49,10 +49,15 @@ type P2P struct {
 	mf      p2pcommon.MoFactory
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
-	consacc consensus.ConsensusAccessor
 	prm     p2pcommon.PeerRoleManager
 
 	mutex sync.Mutex
+
+	// inited between construction and start
+	consacc consensus.ConsensusAccessor
+
+	// inited after start
+	selfRole p2pcommon.PeerRole
 }
 
 var (
@@ -62,7 +67,7 @@ var (
 
 // NewP2P create a new ActorService for p2p
 func NewP2P(cfg *config.Config, chainSvc *chain.ChainService) *P2P {
-	p2psvc := &P2P{cfg:cfg}
+	p2psvc := &P2P{cfg: cfg}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
 	p2psvc.initP2P(cfg, chainSvc)
 	return p2psvc
@@ -78,7 +83,7 @@ func (p2ps *P2P) AfterStart() {
 	}
 	p2ps.mutex.Lock()
 	p2ps.setSelfRole()
-	p2ps.Logger.Info().Array("supportedVersions",p2putil.NewLogStringersMarshaller(versions,10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
+	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.mutex.Unlock()
@@ -127,6 +132,8 @@ func (p2ps *P2P) BeforeStop() {
 func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
 	stmap["netstat"] = p2ps.mm.Summary()
+	stmap["config"] = p2ps.cfg.P2P
+	stmap["status"] = p2ps.nt.SelfMeta()
 	return &stmap
 }
 
@@ -171,7 +178,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
 	// TODO: it should be refactored to support multi version
-	mf := &baseMOFactory{}
+	mf := &baseMOFactory{p2ps: p2ps}
 
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
@@ -251,13 +258,16 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		}
 	case *message.GetCluster:
 		peers := p2ps.pm.GetPeers()
-		clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
+		//clusterReceiver := raftsupport.NewClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg)
+		clusterReceiver := raftsupport.NewConcClusterInfoReceiver(p2ps, p2ps.mf, peers, time.Second*5, msg, p2ps.Logger)
 		clusterReceiver.StartGet()
 	case *message.SendRaft:
 		p2ps.SendRaftMessage(context, msg)
 	case *message.RaftClusterEvent:
 		p2ps.Logger.Debug().Int("added", len(msg.BPAdded)).Int("removed", len(msg.BPRemoved)).Msg("bp changed")
 		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
+	case message.GetRaftTransport:
+		context.Respond(raftsupport.NewAergoRaftTransport(p2ps.Logger, p2ps.nt, p2ps.pm, p2ps.mf, p2ps.consacc, msg.Cluster))
 	}
 }
 
@@ -270,7 +280,7 @@ func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if network.CheckAddressType(rPeerAddr.Address) == network.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
@@ -378,7 +388,7 @@ func (p2ps *P2P) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p
 	}
 }
 
-func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream types.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))

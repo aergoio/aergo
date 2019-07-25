@@ -107,7 +107,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 	sampleStatus := &types.Status{}
 	logger := log.NewLogger("p2p.test")
 	sampleEmptyHSReq := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, nil}
-	sampleEmptyHSResp := p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrWrongHSReq}
+	sampleEmptyHSResp := p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeWrongHSReq}
 
 	type args struct {
 		r []byte
@@ -135,7 +135,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 		// wrong magic
 		{"TWrongMagic", p2pcommon.HSHeadReq{0x0001, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031}}.Marshal(), p2pcommon.P2PVersion031, 0, false, sampleEmptyHSResp.Marshal(), true},
 		// not supported version (or wrong version)
-		{"TNoVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, 0x030405, 0x000101}}.Marshal(), p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrNoMatchedVersion}.Marshal(), true},
+		{"TNoVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, 0x030405, 0x000101}}.Marshal(), p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// protocol handshake failed
 		{"TVersionHSFailed", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030, 0x000101}}.Marshal(), p2pcommon.P2PVersion031, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), true},
 
@@ -215,9 +215,9 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 		{"TWrongResp", p2pcommon.P2PVersion032, 0, false, outBytes[:6], true},
 		// {"TWrongWrite", sampleEmptyHSReq.Marshal()[:7], sampleEmptyHSResp.Marshal(), true },
 		// wrong magic
-		{"TWrongMagic", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrWrongHSReq}.Marshal(), true},
+		{"TWrongMagic", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeWrongHSReq}.Marshal(), true},
 		// not supported version (or wrong version)
-		{"TNoVersion", p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrNoMatchedVersion}.Marshal(), true},
+		{"TNoVersion", p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// protocol handshake failed
 		{"TVersionHSFailed", p2pcommon.P2PVersion032, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), true},
 

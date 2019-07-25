@@ -47,7 +47,7 @@ const (
 func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
-	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, len(data.Hashes))
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
 	if bh.issue() {
 		go bh.handleBlkReq(msg, data)
 	} else {

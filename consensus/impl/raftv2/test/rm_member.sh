@@ -43,7 +43,10 @@ echo "remove Done"
 # check if total count is decremented
 reqCnt=$((prevCnt-1))
 echo "reqClusterTotal=$reqCnt"
-waitClusterTotal $reqCnt $leaderport 10
+if [ "$myleader" = "$rmnode" ];then
+	leaderport=10001
+fi
+waitClusterTotal $reqCnt $leaderport 60
 if [ $? -ne 1 ]; then
 	echo "remove failed"
 	exit 100

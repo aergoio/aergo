@@ -6,14 +6,19 @@
 package consensus
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/etcd/raft"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 // DefaultBlockIntervalSec  is the default block generation interval in seconds.
@@ -74,6 +79,8 @@ type ConsensusAccessor interface {
 	ClusterInfo([]byte) *types.GetClusterInfoResponse
 	ConfChange(req *types.MembershipChange) (*Member, error)
 	ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error)
+	// RaftAccessor returns AergoRaftAccessor. It is only valid if chain is raft consensus
+	RaftAccessor() AergoRaftAccessor
 }
 
 // ChainDB is a reader interface for the ChainDB.
@@ -85,6 +92,19 @@ type ChainDB interface {
 	NewTx() db.Transaction
 }
 
+// AergoRaftAccessor is interface to access raft messaging. It is wrapping raft message with aergo internal types
+type AergoRaftAccessor interface {
+	Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error
+	IsIDRemoved(peerID types.PeerID) bool
+	ReportUnreachable(peerID types.PeerID)
+	ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus)
+
+	SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error)
+
+	GetMemberByID(id uint64) *Member
+	GetMemberByPeerID(peerID types.PeerID) *Member
+}
+
 type ConsensusType int
 
 const (
@@ -94,6 +114,28 @@ const (
 )
 
 var ConsensusName = []string{"dpos", "raft", "sbp"}
+var ConsensusTypes = map[string]ConsensusType{"dpos": ConsensusDPOS, "raft": ConsensusRAFT, "sbp": ConsensusSBP}
+
+var CurConsensusType ConsensusType
+
+func IsRaftName(consensus string) bool {
+	return ConsensusName[ConsensusRAFT] == strings.ToLower(consensus)
+}
+func IsDposName(consensus string) bool {
+	return ConsensusName[ConsensusDPOS] == strings.ToLower(consensus)
+}
+
+func SetCurConsensus(consensus string) {
+	CurConsensusType = ConsensusTypes[consensus]
+}
+
+func UseRaft() bool {
+	return CurConsensusType == ConsensusRAFT
+}
+
+func UseDpos() bool {
+	return CurConsensusType == ConsensusDPOS
+}
 
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {

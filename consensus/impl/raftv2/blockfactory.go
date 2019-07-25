@@ -94,6 +94,7 @@ type BlockFactory struct {
 	consensus.ChainWAL
 
 	bpc *Cluster
+	rhw consensus.AergoRaftAccessor
 
 	workerQueue chan *Work
 	jobQueue    chan interface{}
@@ -151,6 +152,9 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		}
 
 		bf.raftServer.SetPeerAccessor(pa)
+		bf.rhw = &raftHttpWrapper{raftServer: bf.raftServer}
+	} else {
+		bf.rhw = &consensus.DummyRaftAccessor{}
 	}
 
 	bf.txOp = chain.NewCompTxOp(
@@ -184,6 +188,10 @@ func Init(raftCfg *config.RaftConfig) {
 		BlockIntervalMs = consensus.BlockInterval
 	}
 
+	if raftCfg.SlowNodeGap > 0 {
+		MaxSlowNodeGap = uint64(raftCfg.SlowNodeGap)
+	}
+
 	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
 		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
 }
@@ -198,7 +206,7 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
 	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl,
-		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.JoinClusterUsingBackup,
+		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.UseBackup,
 		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
 		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
@@ -603,6 +611,10 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 	return member, nil
 }
 
+func (bf *BlockFactory) RaftAccessor() consensus.AergoRaftAccessor {
+	return bf.rhw
+}
+
 func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
 	var (
 		proposal *consensus.ConfChangePropose
@@ -658,6 +670,7 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 	var (
 		hardStateInfo *types.HardStateInfo
 		mbrAttrs      []*types.MemberAttr
+		bestBlock     *types.Block
 		err           error
 	)
 
@@ -675,7 +688,11 @@ func (bf *BlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoR
 		return &types.GetClusterInfoResponse{Error: err.Error()}
 	}
 
-	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, HardStateInfo: hardStateInfo}
+	if bestBlock, err = bf.GetBestBlock(); err != nil {
+		return &types.GetClusterInfoResponse{Error: err.Error()}
+	}
+
+	return &types.GetClusterInfoResponse{ChainID: bf.bpc.chainID, ClusterID: bf.bpc.ClusterID(), MbrAttrs: mbrAttrs, BestBlockNo: bestBlock.BlockNo(), HardStateInfo: hardStateInfo}
 }
 
 // ConfChangeInfo returns ConfChangeProgress queries by request ID of ConfChange

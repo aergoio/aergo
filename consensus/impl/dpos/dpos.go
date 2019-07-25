@@ -295,6 +295,11 @@ func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
 	return ci
 }
 
+var dummyRaft consensus.DummyRaftAccessor
+func (dpos *DPoS) RaftAccessor() consensus.AergoRaftAccessor {
+	return &dummyRaft
+}
+
 func isBpTiming(block *types.Block, s *slot.Slot) bool {
 	blockSlot := slot.NewFromUnixNano(block.Header.Timestamp)
 	// The block corresponding to the current slot has already been generated.

@@ -20,6 +20,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/internal/common"
@@ -136,13 +137,19 @@ func (rpc *AergoRPCService) Blockchain(ctx context.Context, in *types.Empty) (*t
 
 	digest := sha256.New()
 	digest.Write(last.GetHeader().GetChainID())
-	bestChainIdHash := digest.Sum(nil)
+	bestChainIDHash := digest.Sum(nil)
 
+	chainInfo, err := rpc.getChainInfo(ctx)
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to get chain info in blockchain")
+		chainInfo = nil
+	}
 	return &types.BlockchainStatus{
 		BestBlockHash:   last.BlockHash(),
 		BestHeight:      last.GetHeader().GetBlockNo(),
 		ConsensusInfo:   ca.GetConsensusInfo(),
-		BestChainIdHash: bestChainIdHash,
+		BestChainIdHash: bestChainIDHash,
+		ChainInfo:       chainInfo,
 	}, nil
 }
 
@@ -151,10 +158,11 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
-	chainInfo := &types.ChainInfo{}
+	return rpc.getChainInfo(ctx)
+}
 
-	future := rpc.hub.RequestFuture(message.ChainSvc, &message.GetParams{},
-		defaultActorTimeout, "rpc.(*AergoRPCService).GetChainInfo")
+func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo, error) {
+	chainInfo := &types.ChainInfo{}
 
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
 		id := genesisInfo.ID
@@ -170,22 +178,25 @@ func (rpc *AergoRPCService) GetChainInfo(ctx context.Context, in *types.Empty) (
 			chainInfo.Maxtokens = totalBalance.Bytes()
 		}
 	}
-	result, err := future.Result()
-	if err != nil {
-		return nil, err
-	}
-	rsp, ok := result.(*message.GetParamsRsp)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
-	}
-	chainInfo.Maxblocksize = rsp.MaxBlockSize
-	chainInfo.BpNumber = uint32(rsp.BpCount)
-	chainInfo.Stakingminimum = rsp.MinStaking.Bytes()
 
-	if total, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingTotal); total != nil {
-		chainInfo.Totalstaking = total.Bytes()
-	} else {
-		return nil, err
+	cInfo, err := rpc.GetConsensusInfo(ctx, &types.Empty{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	chainInfo.BpNumber = uint32(len(cInfo.GetBps()))
+
+	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
+
+	if consensus.IsDposName(chainInfo.Id.Consensus) {
+		if minStaking := types.GetStakingMinimum(); minStaking != nil {
+			chainInfo.Stakingminimum = minStaking.Bytes()
+		}
+
+		if total, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingTotal); total != nil {
+			chainInfo.Totalstaking = total.Bytes()
+		} else {
+			return nil, err
+		}
 	}
 
 	return chainInfo, nil

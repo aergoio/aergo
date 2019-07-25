@@ -15,7 +15,7 @@ for i in {1..7} ; do
 	svrports[$nodename]=$svrport
 	svrname[$nodename]="BP$svrport"
 
-	httpports[$nodename]=$((13000 + $i))
+	httpports[$nodename]=$((11000 + $i))
 
 	if [ -e "$TEST_RAFT_INSTANCE/$svrport.id" ]; then 
 		peerids[$nodename]=`cat $TEST_RAFT_INSTANCE/$svrport.id`
@@ -59,16 +59,18 @@ function getHeight() {
     existProcess $serverport
     if [ "$?" = "0" ]; then
 		echo "no process $serverport"
-		return 0
+		eval "$2=0"
+		return
     fi
 
-    local height=$(aergocli -p $port blockchain | jq .Height)
+    local _height_=$(aergocli -p $port blockchain | jq .Height)
+#	echo "getHeight _height_=$_height_"
 
-	if [ "$height" = "" ]; then
-		height=0
+	if [ "$_height_" = "" ]; then
+		_height_=0
 	fi
 
-    return $height
+    eval "$2=$_height_"
 }
 
 function getHash() {
@@ -182,6 +184,7 @@ function getRaftState() {
 	
 	if [ "$#" != 2 ]; then 
 		echo "Usage: getRaftState servername outStateVar"
+		exit 100
 	fi
 
 	local leaderPort=
@@ -293,6 +296,7 @@ function isChainHang() {
 	# "isChainHang: return 1 if true"
 	if [ "$#" != "2" ];then
 		echo "Usage: isChainHang targetRpcPort timeout"
+		exit 100
 	fi
 
 	# 아무노드나 골라서 5초동안 chain이 증가하고 있는지 확인
@@ -307,15 +311,11 @@ function isChainHang() {
 
 	for ((i=1;i<=$tryHangAgain;i++))
 	do 
-		getHeight $srcPort
-		heightStart=""
-		heightStart=$?
+		getHeight $srcPort heightStart
 
 		sleep $timeout
 
-		heightEnd=""
-		getHeight $srcPort
-		heightEnd=$?
+		getHeight $srcPort heightEnd
 
 		echo "start:$heightStart ~ end:$heightEnd"
 		if [ "$heightEnd" != "$heightStart" ];then
@@ -363,6 +363,8 @@ function checkSync() {
 	local srcPort=$1
 	local curPort=$2
 	local timeout=$3
+	local _srcHeight=
+	local _curHeight=
 
 	echo "============ checkSync $srcPort vs $curPort . timeout=$3sec ==========="
 	echo "src=$srcPort, curPort=$curPort, time=$timeout"
@@ -370,22 +372,20 @@ function checkSync() {
 	for ((i = 1; i<= $3; i++)); do
 		sleep 1
 
-		srcHeight=""
-		curHeight=""
-		getHeight $srcPort 
-		srcHeight=$?
+		_srcHeight=""
+		_curHeight=""
+		getHeight $srcPort _srcHeight
 		
-		getHeight $curPort
-		curHeight=$?
+		getHeight $curPort _curHeight
 
-		echo "srcno=$srcHeight, curno=$curHeight"
+		echo "srcno=$_srcHeight, curno=$_curHeight"
 
-		if [ "$srcHeight" = "0" ] || [ "$curHeight" = "0" ] || [ "$srcHeight" = "255" ] || [ "$curHeight" = "255" ]; then
+		if [ "$_srcHeight" = "0" ] || [ "$_curHeight" = "0" ] || [ "$_srcHeight" = "255" ] || [ "$_curHeight" = "255" ]; then
 			continue
 		fi
 
-		targetNo=$((curHeight + 3))
-		if [ $targetNo -gt $srcHeight ]; then
+		targetNo=$((_curHeight + 3))
+		if [ $targetNo -gt $_srcHeight ]; then
 			echo "sync succeed"
 			isChainHang $curPort 3
 			echo ""
@@ -439,8 +439,7 @@ function checkSyncRunning() {
     for ((i = 1; i<= $try; i++)); do
         curHeight=""
 
-        getHeight $curPort
-        curHeight=$?
+        getHeight $curPort curHeight
 
         curHash=""
         getHash $curPort $curHeight curHash
@@ -533,7 +532,7 @@ function makeAddMemberJson() {
 		exit 100
 	fi
 
-	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "http://127.0.0.1:'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
+	memberJson='[ { "command": "add", "name": "'$_nodename'", "address": "/ip4/127.0.0.1/tcp/'${httpports[$_nodename]}'", "peerid":"'${peerids[$_nodename]}'" } ]'
 
 	echo $memberJson
 }
@@ -583,6 +582,7 @@ function waitClusterTotal() {
 function WaitPeerConnect() {
 	if [ $# -ne 2 ]; then
 		echo "Usage:$0 expectPeerCount Timeout(sec)"
+		exit 100
 	fi 
 
 	_reqcnt=$1
@@ -605,5 +605,30 @@ function WaitPeerConnect() {
 	done
 
 	echo "failed peer connection: peer req=$_reqcnt, res=$_res connected."
+	return 0
+}
+
+
+function WaitShutdown() {
+	if [ $# -ne 2 ]; then
+		echo "Usage:$0 pattern Timeout(sec)"
+		exit 100
+	fi 
+
+	_pattern=$1
+	_timeout=$2
+	local _res
+
+	for ((i = 1; i<= $_timeout; i++)); do
+		existProcess $_pattern
+		if [ "$?" == "0" ]; then
+			echo "no process $_pattern"
+			return 1
+		fi
+
+		sleep 1
+	done
+
+	echo "failed to wait shutdown(pattern=$_pattern)"
 	return 0
 }

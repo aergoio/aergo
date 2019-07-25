@@ -25,11 +25,13 @@ const (
 	LogProtoID    = "protocol_id"
 	LogMsgID      = "msg_id"
 	LogOrgReqID   = "req_id" // LogOrgReqID is msgid of request from remote peer
-	LogBlkHash    = "blk_hash"
+	LogBlkHash    = types.LogBlkHash
+	LogBlkNo      = types.LogBlkNo
 	LogBlkCount   = "blk_cnt"
 	LogTxHash     = "tx_hash"
 	LogTxCount    = "tx_cnt"
-	LogRespStatus = "resp_st"
+	LogRespStatus = types.LogRespStatus
+	LogRaftMsg    = "raftMsg"
 )
 
 func ExtractBlockFromRequest(rawResponse interface{}, err error) (*types.Block, error) {

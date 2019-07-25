@@ -2,11 +2,11 @@ package enterprise
 
 import (
 	"encoding/pem"
+	"github.com/aergoio/aergo/state"
 	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -71,7 +71,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "not allowed key")
 
-	tx.Payload = []byte(`{"name":"appendConf", "args":["abc", "AmLqZ\FnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions", "AmLqZ\FnwMLqLg5fMshgzmfvwBP8uiYGgfV3tBZAm36Tv7jFYcs4f"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "not allowed char")
 
@@ -87,7 +87,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "duplicated set conf")
 
-	tx.Payload = []byte(`{"name":"setConf", "args":["rpcpermissions","abc:R", "bcd:S", "cde:C"]}`)
+	tx.Payload = []byte(`{"name":"setConf", "args":["rpcpermissions","dGVzdAo=:R", "dGVzdDIK:S", "dGVzdDMK:C"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
 
@@ -95,7 +95,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "enable conf")
 
-	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","abc:WR"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","dGVzdAo=:WR"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "append conf")
 
@@ -103,7 +103,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "enable conf")
 
-	tx.Payload = []byte(`{"name":"removeConf", "args":["rpcpermissions","abc:WR"]}`)
+	tx.Payload = []byte(`{"name":"removeConf", "args":["rpcpermissions","dGVzdAo=:WR"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "remove conf")
 }
@@ -182,6 +182,20 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.NoError(t, err, "enable conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, false, conf.On, "conf on")
+}
+
+func TestEnterpriseChangeCluster(t *testing.T) {
+	consensus.SetCurConsensus("raft")
+
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.TxBody{}
+	testBlockNo := types.BlockNo(1)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
 
 	bs := state.NewBlockState(&state.StateDB{})
 	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "add", "name": "aergonew", "address": "http://127.0.0.1:13000", "peerid":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
@@ -200,4 +214,89 @@ func TestBasicEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err)
 	assert.Nil(t, bs.CCProposal)
+}
+
+func TestCheckArgs(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.TxBody{}
+	testBlockNo := types.BlockNo(1)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+
+	block, _ := pem.Decode([]byte(testCert))
+	assert.NotNil(t, block, "parse value 0")
+	cert := types.EncodeB64(block.Bytes)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert + `:RWCS"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, RPCPermissions)
+
+	//missing permission string
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert + `"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.Error(t, err, RPCPermissions)
+
+	//invalid rpc cert
+	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","-+TEST+-:RWCS"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.Error(t, err, RPCPermissions)
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	//invalid account address
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","BmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.Error(t, err, AccountWhite)
+}
+
+func TestEnterpriseAdminAccountWhitelist(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.TxBody{}
+	testBlockNo := types.BlockNo(1)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
+	_, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", AccountWhite)
+
+	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "remove admin")
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", AccountWhite)
+
+	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, "add admin")
+
+	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.NoError(t, err, AccountWhite)
+
+	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
+	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	assert.EqualError(t, err, "admin is in the account whitelist: AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7", AccountWhite)
 }

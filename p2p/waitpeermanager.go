@@ -18,20 +18,20 @@ import (
 )
 
 type handshakeResult struct {
-	s network.Stream
+	s     network.Stream
 	msgRW p2pcommon.MsgReadWriter
 
-	meta p2pcommon.PeerMeta
+	meta   p2pcommon.PeerMeta
 	status *types.Status
 }
 
 func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger,workingJobs:make(map[types.PeerID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager:basePeerManager{pm: pm, logger: logger, workingJobs:make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager: basePeerManager{pm: pm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -39,13 +39,11 @@ func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2p
 }
 
 type basePeerManager struct {
-	pm          *peerManager
+	pm *peerManager
 
 	logger      *log.Logger
 	workingJobs map[types.PeerID]ConnWork
-
 }
-
 
 func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
@@ -109,11 +107,26 @@ func (dpm *basePeerManager) CheckAndConnect() {
 	dpm.connectWaitingPeers(maxJobs)
 }
 
+func (dpm *basePeerManager) InstantConnect(meta p2pcommon.PeerMeta) {
+	if _, ok := dpm.pm.remotePeers[meta.ID]; ok {
+		// skip	if peer is already connected
+		return
+	} else if wp, ok := dpm.pm.waitingPeers[meta.ID]; ok {
+		// reset next trial to try connect
+		wp.NextTrial = time.Now().Add(-time.Hour)
+		wp.TrialCnt = 0
+	} else {
+		// add to waiting peer
+		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now().Add(-time.Hour)}
+	}
+	dpm.connectWaitingPeers(1)
+}
+
 func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 	// do try to connection at most maxJobs cnt,
 	peers := make([]*p2pcommon.WaitingPeer, 0, len(dpm.pm.waitingPeers))
 	for _, wp := range dpm.pm.waitingPeers {
-		peers = append(peers,wp)
+		peers = append(peers, wp)
 	}
 	sort.Sort(byNextTrial(peers))
 
@@ -130,7 +143,7 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 			}
 			dpm.logger.Info().Int("trial", wp.TrialCnt).Str(p2putil.LogPeerID, p2putil.ShortForm(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
 
-			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID:wp.Meta.ID, StartTime:time.Now()}
+			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID: wp.Meta.ID, StartTime: time.Now()}
 			go dpm.runTryOutboundConnect(wp)
 			added++
 		} else {
@@ -154,13 +167,11 @@ func (dpm *basePeerManager) getRemainingSpaces() int {
 	return affordWorker
 }
 
-
 func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 	workResult := p2pcommon.ConnWorkResult{Meta: wp.Meta, TargetPeer: wp}
 	defer func() {
 		dpm.pm.workDoneChannel <- workResult
 	}()
-
 
 	meta := wp.Meta
 	legacy, s, err := dpm.getStream(meta)
@@ -205,13 +216,13 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (bool, network.St
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	msgRW, remoteStatus, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
-		dpm.logger.Debug().Err(err).Bool("outbound",outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
+		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
 		return meta, false
 	}
 	// update peer meta info using sent information from remote peer
 	receivedMeta := p2pcommon.NewMetaFromStatus(remoteStatus, outbound)
 
-	dpm.pm.peerHandshaked <- handshakeResult{meta: receivedMeta, status:remoteStatus, msgRW:msgRW, s:s}
+	dpm.pm.peerHandshaked <- handshakeResult{meta: receivedMeta, status: remoteStatus, msgRW: msgRW, s: s}
 	return receivedMeta, true
 }
 
@@ -223,18 +234,18 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Err(result.Result).Msg("Connection job finished")
 		return
 	} else {
-		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Int("trial",wp.TrialCnt).Err(result.Result).Msg("Connection job finished")
+		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Int("trial", wp.TrialCnt).Err(result.Result).Msg("Connection job finished")
 	}
 	wp.LastResult = result.Result
 	// success to connect
 	if result.Result == nil {
 		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Msg("Deleting unimportant failed peer.")
-		delete(dpm.pm.waitingPeers,meta.ID)
+		delete(dpm.pm.waitingPeers, meta.ID)
 	} else {
 		// leave waitingpeer if needed to reconnect
-		if  !setNextTrial(wp) {
-			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Time("next_time",wp.NextTrial).Msg("Failed Connection will be retried")
-			delete(dpm.pm.waitingPeers,meta.ID)
+		if !setNextTrial(wp) {
+			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Time("next_time", wp.NextTrial).Msg("Failed Connection will be retried")
+			delete(dpm.pm.waitingPeers, meta.ID)
 		}
 	}
 
@@ -243,7 +254,6 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 type staticWPManager struct {
 	basePeerManager
 }
-
 
 func (spm *staticWPManager) OnPeerConnect(pid types.PeerID) {
 	delete(spm.pm.waitingPeers, pid)
@@ -258,7 +268,6 @@ func (spm *staticWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	}
 }
 
-
 func (spm *staticWPManager) OnDiscoveredPeers(metas []p2pcommon.PeerMeta) int {
 	// static manager don't need to discovered peer.
 	return 0
@@ -267,7 +276,7 @@ func (spm *staticWPManager) OnDiscoveredPeers(metas []p2pcommon.PeerMeta) int {
 type dynamicWPManager struct {
 	basePeerManager
 
-	maxPeers    int
+	maxPeers int
 }
 
 func (dpm *dynamicWPManager) OnPeerConnect(pid types.PeerID) {
@@ -296,6 +305,7 @@ func (dpm *dynamicWPManager) OnDiscoveredPeers(metas []p2pcommon.PeerMeta) int {
 			// skip already waiting peer
 			continue
 		}
+
 		// TODO check blacklist later.
 		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 		addedWP++

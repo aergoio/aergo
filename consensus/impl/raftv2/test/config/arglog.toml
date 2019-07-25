@@ -15,11 +15,11 @@ level = "debug"
 [p2p]        			# 이렇게 여러개 쓸수 있음
 level = "debug"
 
-[raft]
+[mempool]        			# 이렇게 여러개 쓸수 있음
 level = "debug"
 
-[rafthttp]
-level = "info"
+[raft]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
 
-[enterprise]
+[enterprise]        			# 이렇게 여러개 쓸수 있음
 level = "debug"

@@ -462,9 +462,11 @@ func (cs *ChainService) Statistics() *map[string]interface{} {
 	if cs.chainVerifier != nil {
 		return cs.chainVerifier.Statistics()
 	}
-
 	return &map[string]interface{}{
-		"orphan": cs.op.curCnt,
+		"testmode": cs.cfg.EnableTestmode,
+		"testnet":  cs.cfg.UseTestnet,
+		"orphan":   cs.op.curCnt,
+		"config":   cs.cfg.Blockchain,
 	}
 }
 

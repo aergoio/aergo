@@ -3,6 +3,8 @@ source test_common.sh
 
 addnode=$1
 
+echo "add member $addnode"
+
 if [ "$1" = "" ] || [[ "$1" != aergo* ]] ;then
 	echo "use:add_member.sh aergo4|aergo5|aergo6|aergo7 usebackup"
 	exit 100
@@ -28,8 +30,8 @@ prevCnt=$(getClusterTotal 10001)
 echo "leader=$leader, port=$leaderport, prevTotal=$prevCnt"
 
 # By RPC
-#echo "aergocli -p $leaderport cluster add --name \"$addnode\" --address \"http://127.0.0.1:${httpports[$addnode]}\" --peerid \"${peerids[$addnode]}\""
-#aergocli -p $leaderport cluster add --name "$addnode" --address "http://127.0.0.1:${httpports[$addnode]}" --peerid "${peerids[$addnode]}"
+#echo "aergocli -p $leaderport cluster add --name \"$addnode\" --address \"/ip4/127.0.0.1/${httpports[$addnode]}\" --peerid \"${peerids[$addnode]}\""
+#aergocli -p $leaderport cluster add --name "$addnode" --address "/ip4/127.0.0.1/${httpports[$addnode]}" --peerid "${peerids[$addnode]}"
 
 # By Enterprise Tx
 walletFile="$TEST_RAFT_INSTANCE/genesis_wallet.txt"
@@ -70,7 +72,7 @@ if [ "$usebackup" == "0" ]; then
 	init_genesis.sh $mySvrName > /dev/null 2>&1
 else 
 	echo "join using backup: $mySvrName"
-	do_sed.sh $myConfig "joinclusterusingbackup=false" "joinclusterusingbackup=true" "/"
+	do_sed.sh $myConfig "usebackup=false" "usebackup=true" "/"
 	run_svr.sh $mySvrName
 fi
 popd

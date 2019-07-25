@@ -25,7 +25,7 @@ nptls = false
 npcert = ""
 npkey = "11001.key"
 npaddpeers = [
-"/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11003/p2p/16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"
+#"/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11003/p2p/16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"
 ]
 
 [blockchain]
@@ -41,8 +41,8 @@ blockinterval = 1
 
 [consensus.raft]
 newcluster=true
+usebackup=false
 blockintervalms = 1000
 name="aergo1"
-listenurl="http://0.0.0.0:13001"
 snapfrequency=10
-#
+recoverbp={name="aergo1",address="/ip4/127.0.0.1/tcp/11001",peerid="16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn"}

@@ -17,7 +17,7 @@ import (
 const (
 	macConcurrentQueryCount = 4
 	// TODO manage coolTime and reconnect interval together in same file.
-	firstReconnectCoolTime = time.Minute
+	firstReconnectCoolTime = time.Minute >> 1
 )
 
 func NewPeerFinder(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.PeerFinder {

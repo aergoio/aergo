@@ -25,7 +25,7 @@ nptls = false
 npcert = ""
 npkey = "11003.key"
 npaddpeers = [
-"/ip4/127.0.0.1/tcp/11001/p2p/16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn","/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11004/p2p/16Uiu2HAmQti7HLHC9rXqkeABtauv2YsCPG3Uo1WLqbXmbuxpbjmF","/ip4/127.0.0.1/tcp/11005/p2p/16Uiu2HAmRm9iKQdfLpeTZUW1YA2TDWabLskzNpizSiFd9nLo6mPy"
+#"/ip4/127.0.0.1/tcp/11001/p2p/16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn","/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11004/p2p/16Uiu2HAmQti7HLHC9rXqkeABtauv2YsCPG3Uo1WLqbXmbuxpbjmF","/ip4/127.0.0.1/tcp/11005/p2p/16Uiu2HAmRm9iKQdfLpeTZUW1YA2TDWabLskzNpizSiFd9nLo6mPy"
 ]
 
 [blockchain]
@@ -41,8 +41,8 @@ blockinterval = 1
 
 [consensus.raft]
 newcluster=true
+usebackup=false
 blockintervalms = 1000
 name="aergo3"
-listenurl="http://0.0.0.0:13003"
 snapfrequency=10
 #

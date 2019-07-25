@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
@@ -57,10 +58,11 @@ var (
 	ConfSnapFrequency           uint64 = DfltSnapFrequency
 	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
 
-	MaxProgressDiff uint64 = 100
+	MaxSlowNodeGap uint64 = 100 // Criteria for determining whether the server is in a slow state
 )
 
 var (
+	ErrRaftNotReady        = errors.New("raft library is not initialized")
 	ErrCCAlreadyApplied    = errors.New("conf change entry is already applied")
 	ErrInvalidMember       = errors.New("member of conf change is invalid")
 	ErrCCAlreadyAdded      = errors.New("member has already added")
@@ -69,6 +71,11 @@ var (
 	ErrEmptySnapshot       = errors.New("received empty snapshot")
 	ErrInvalidRaftIdentity = errors.New("raft identity is not set")
 	ErrProposeNilBlock     = errors.New("proposed block is nil")
+)
+
+const (
+	BackendP2P  = "aergop2p"
+	BackendHTTP = "http"
 )
 
 func init() {
@@ -89,12 +96,12 @@ type raftServer struct {
 	commitC     chan *commitEntry                   // entries committed to log (k,v)
 	errorC      chan error                          // errors from raft session
 
-	id              uint64 // client ID for raft session
-	listenUrl       string
-	join            bool // node is joining an existing cluster
-	joinUsingBackup bool // use backup chaindb datafiles to join a existing cluster
-	getSnapshot     func() ([]byte, error)
-	lastIndex       uint64 // index of log at start
+	id          uint64 // client ID for raft session
+	listenUrl   string
+	join        bool // node is joining an existing cluster
+	UseBackup   bool // use backup chaindb datafiles to join a existing cluster
+	getSnapshot func() ([]byte, error)
+	lastIndex   uint64 // index of log at start
 
 	snapshotIndex uint64
 	appliedIndex  uint64
@@ -108,7 +115,7 @@ type raftServer struct {
 	snapshotter *ChainSnapshotter
 
 	snapFrequency uint64
-	transport     *rafthttp.Transport
+	transport     Transporter
 	stopc         chan struct{} // signals proposal channel closed
 	httpstopc     chan struct{} // signals http server to shutdown
 	httpdonec     chan struct{} // signals http server shutdown complete
@@ -242,21 +249,21 @@ func newRaftServer(hub *component.ComponentHub,
 	errorC := make(chan error, 1)
 
 	rs := &raftServer{
-		ComponentHub:    hub,
-		RWMutex:         sync.RWMutex{},
-		cluster:         cluster,
-		walDB:           NewWalDB(chainWal),
-		confChangeC:     confChangeC,
-		commitC:         commitC,
-		errorC:          errorC,
-		listenUrl:       listenUrl,
-		join:            join,
-		joinUsingBackup: useBackup,
-		getSnapshot:     getSnapshot,
-		snapFrequency:   ConfSnapFrequency,
-		stopc:           make(chan struct{}),
-		httpstopc:       make(chan struct{}),
-		httpdonec:       make(chan struct{}),
+		ComponentHub:  hub,
+		RWMutex:       sync.RWMutex{},
+		cluster:       cluster,
+		walDB:         NewWalDB(chainWal),
+		confChangeC:   confChangeC,
+		commitC:       commitC,
+		errorC:        errorC,
+		listenUrl:     listenUrl,
+		join:          join,
+		UseBackup:     useBackup,
+		getSnapshot:   getSnapshot,
+		snapFrequency: ConfSnapFrequency,
+		stopc:         make(chan struct{}),
+		httpstopc:     make(chan struct{}),
+		httpdonec:     make(chan struct{}),
 
 		// rest of structure populated after WAL replay
 
@@ -320,7 +327,7 @@ func (rs *raftServer) startRaft() {
 	getState := func() RaftServerState {
 		hasWal, err := rs.walDB.HasWal(rs.cluster.identity)
 		if err != nil {
-			logger.Info().Msg("wal database of raft is missing or not valid")
+			logger.Info().Err(err).Msg("wal database of raft is missing or not valid")
 		}
 
 		switch {
@@ -334,29 +341,58 @@ func (rs *raftServer) startRaft() {
 
 	}
 
+	isEmptyLog := func() bool {
+		var (
+			last uint64
+			err  error
+		)
+
+		if last, err = rs.walDB.GetRaftEntryLastIdx(); err != nil {
+			return true
+		}
+
+		// If joined node is crashed before writing snapshot, it may occur that last index is 0 and there is not snapshot.
+		if last == 0 {
+			if tmpsnap, err := rs.walDB.GetSnapshot(); tmpsnap == nil || err != nil {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	switch getState() {
 	case RaftServerStateRestart:
 		logger.Info().Msg("raft restart from wal")
 
 		rs.cluster.ResetMembers()
 
+		if isEmptyLog() {
+			logger.Info().Msg("there is no log, so import cluster information from remote")
+
+			if _, err := rs.ImportExistingCluster(); err != nil {
+				logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
+			}
+		}
+
 		node = rs.restartNode(false)
 
 	case RaftServerStateJoinCluster:
 		logger.Info().Msg("raft start and join existing cluster")
 
+		var (
+			hardstateinfo *types.HardStateInfo
+			err           error
+		)
+
+		rs.cluster.ResetMembers()
+
 		// get cluster info from existing cluster member and hardstate of bestblock
-		existCluster, hardstateinfo, err := rs.GetExistingCluster()
-		if err != nil {
-			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
+		if hardstateinfo, err = rs.ImportExistingCluster(); err != nil {
+			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
 		}
 
-		// config validate
-		if !rs.cluster.ValidateAndMergeExistingCluster(existCluster) {
-			logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
-		}
-
-		if rs.joinUsingBackup {
+		if rs.UseBackup {
 			logger.Info().Msg("raft use given backup as wal")
 
 			if err := rs.walDB.ResetWAL(hardstateinfo); err != nil {
@@ -364,7 +400,7 @@ func (rs *raftServer) startRaft() {
 			}
 
 			if err := rs.SaveIdentity(); err != nil {
-				logger.Fatal().Err(err).Msg("fafiled to save identity")
+				logger.Fatal().Err(err).Msg("failed to save identity")
 			}
 
 			node = rs.restartNode(true)
@@ -374,7 +410,11 @@ func (rs *raftServer) startRaft() {
 			node = rs.startNode(nil)
 		}
 	case RaftServerStateNewCluster:
-		logger.Info().Msg("raft start and make new cluster")
+		logger.Info().Bool("usebackup", rs.UseBackup).Msg("raft start and make new cluster")
+
+		if rs.UseBackup {
+			rs.walDB.ClearWAL()
+		}
 
 		var startPeers []raftlib.Peer
 
@@ -395,6 +435,23 @@ func (rs *raftServer) startRaft() {
 	go rs.serveChannels()
 }
 
+func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
+	logger.Info().Msg("import cluster information from remote")
+
+	// get cluster info from existing cluster member and hardstate of bestblock
+	existCluster, hardstateinfo, err := rs.GetExistingCluster()
+	if err != nil {
+		logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
+	}
+
+	// config validate
+	if !rs.cluster.ValidateAndMergeExistingCluster(existCluster) {
+		logger.Fatal().Str("existcluster", existCluster.toString()).Str("mycluster", rs.cluster.toString()).Msg("this cluster configuration is not compatible with existing cluster")
+	}
+
+	return hardstateinfo, nil
+}
+
 func (rs *raftServer) ID() uint64 {
 	return rs.cluster.NodeID()
 }
@@ -403,13 +460,22 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	var (
 		blk *types.Block
 		err error
+		id  *consensus.RaftIdentity
 	)
 	validateEmpty := func() {
 		if blk, err = rs.walDB.GetBestBlock(); err != nil {
 			logger.Fatal().Err(err).Msg("failed to get best block, so failed to start raft server")
 		}
 		if blk.BlockNo() > 0 {
-			logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
+			if rs.UseBackup {
+				logger.Info().Uint64("best no", blk.BlockNo()).Str("best hash", blk.ID()).Msg("start from existing block chain")
+			} else {
+				logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
+			}
+		}
+
+		if id, err = rs.walDB.GetIdentity(); err == nil && id != nil {
+			logger.Fatal().Err(err).Str("id", id.ToString()).Msg("raft identity is already written. so failed to start raft server")
 		}
 	}
 
@@ -421,7 +487,7 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 
 	// when join to exising cluster, cluster ID is already set
 	if rs.cluster.ClusterID() == InvalidClusterID {
-		rs.cluster.GenerateID()
+		rs.cluster.GenerateID(rs.UseBackup)
 	}
 
 	if err := rs.SaveIdentity(); err != nil {
@@ -451,7 +517,7 @@ func (rs *raftServer) restartNode(join bool) raftlib.Node {
 	// When restart from join, cluster must not recover from temporary snapshot since members are empty.
 	// Instead, node must use a cluster info received from remote server
 	if join == false && snapshot != nil {
-		if err := rs.cluster.Recover(snapshot); err != nil {
+		if _, err := rs.cluster.Recover(snapshot); err != nil {
 			logger.Fatal().Err(err).Msg("failt to recover cluster from snapshot")
 		}
 	}
@@ -464,17 +530,8 @@ func (rs *raftServer) restartNode(join bool) raftlib.Node {
 }
 
 func (rs *raftServer) startTransport() {
-	rs.transport = &rafthttp.Transport{
-		ID:          etcdtypes.ID(rs.ID()),
-		ClusterID:   etcdtypes.ID(rs.cluster.ClusterID()),
-		Raft:        rs,
-		ServerStats: stats.NewServerStats("", ""),
-		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.ID(), 10)),
-		Snapshotter: rs.snapshotter,
-		ErrorC:      rs.errorC,
-	}
-
-	rs.transport.SetLogger(httpLogger)
+	//rs.transport = rs.createHttpTransporter()
+	rs.transport = rs.createAergoP2PTransporter()
 
 	if err := rs.transport.Start(); err != nil {
 		logger.Fatal().Err(err).Msg("failed to start raft http")
@@ -482,13 +539,37 @@ func (rs *raftServer) startTransport() {
 
 	for _, member := range rs.cluster.Members().MapByID {
 		if rs.cluster.NodeID() != member.ID {
-			rs.transport.AddPeer(etcdtypes.ID(member.ID), []string{member.Address})
+			rs.transport.AddPeer(etcdtypes.ID(member.ID), member.GetPeerID(), []string{member.Address})
 		}
 	}
 }
 
+func (rs *raftServer) createHttpTransporter() Transporter {
+	transporter := &HttpTransportWrapper{Transport: rafthttp.Transport{
+		ID:          etcdtypes.ID(rs.ID()),
+		ClusterID:   etcdtypes.ID(rs.cluster.ClusterID()),
+		Raft:        rs,
+		ServerStats: stats.NewServerStats("", ""),
+		LeaderStats: stats.NewLeaderStats(strconv.FormatUint(rs.ID(), 10)),
+		Snapshotter: rs.snapshotter,
+		ErrorC:      rs.errorC,
+	}}
+	transporter.SetLogger(httpLogger)
+	return transporter
+}
+
+func (rs *raftServer) createAergoP2PTransporter() Transporter {
+	future := rs.RequestFuture(message.P2PSvc, message.GetRaftTransport{rs.cluster}, time.Second<<4, "getbackend")
+	result, err := future.Result()
+	if err != nil {
+		panic(err.Error())
+	}
+	return result.(Transporter)
+}
+
 func (rs *raftServer) SaveIdentity() error {
-	if rs.cluster.ClusterID() == 0 || rs.cluster.NodeID() == consensus.InvalidMemberID || len(rs.cluster.NodeName()) == 0 {
+	if rs.cluster.ClusterID() == 0 || rs.cluster.NodeID() == consensus.InvalidMemberID || len(rs.cluster.NodeName()) == 0 || len(rs.cluster.NodePeerID()) == 0 {
+		logger.Error().Str("identity", rs.cluster.identity.ToString()).Msg("failed to save raft identity. identity is invalid")
 		return ErrInvalidRaftIdentity
 	}
 
@@ -566,7 +647,7 @@ func (rs *raftServer) saveConfChangeState(id uint64, state types.ConfChangeState
 		errStr = errCC.Error()
 	}
 
-	pr := types.ConfChangeProgress{State: state, Err: errStr}
+	pr := types.ConfChangeProgress{State: state, Err: errStr, Members: rs.cluster.appliedMembers.ToMemberAttrArray()}
 
 	return rs.walDB.WriteConfChangeProgress(id, &pr)
 }
@@ -692,7 +773,6 @@ func (rs *raftServer) processMessages(msgs []raftpb.Message) error {
 	var tmpSnapMsg *snap.Message
 
 	snapMsgs := make([]*snap.Message, 0)
-
 	// reset MsgSnap to send snap.Message
 	for i, msg := range msgs {
 		if msg.Type == raftpb.MsgSnap {
@@ -731,7 +811,7 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 	*/
 	// TODO add cluster info to snapshot.data
 
-	logger.Debug().Uint64("term", msg.Term).Uint64("index", msg.Index).Msg("send merged snapshot message")
+	logger.Debug().Uint64("term", msg.Snapshot.Metadata.Term).Uint64("index", msg.Snapshot.Metadata.Index).Msg("send merged snapshot message")
 
 	// not using pipe to send snapshot
 	pr, pw := io.Pipe()
@@ -759,6 +839,13 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 
 func (rs *raftServer) serveRaft() {
 	defer RecoverExit()
+
+	// wait for server close
+	<-rs.httpstopc
+	close(rs.httpdonec)
+}
+
+func (rs *raftServer) serveRaftWithHttpBackEnd() {
 
 	urlstr := rs.listenUrl
 	urlData, err := url.Parse(urlstr)
@@ -789,7 +876,6 @@ func (rs *raftServer) serveRaft() {
 	}
 	close(rs.httpdonec)
 }
-
 func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 	snapshot, err := rs.walDB.GetSnapshot()
 	if err != nil {
@@ -979,11 +1065,18 @@ func (rs *raftServer) publishSnapshot(snapshotToSave raftpb.Snapshot) error {
 	rs.setSnapshotIndex(snapshotToSave.Metadata.Index)
 	rs.setAppliedIndex(snapshotToSave.Metadata.Index)
 
-	if err := rs.cluster.Recover(&snapshotToSave); err != nil {
+	var (
+		isEqual bool
+		err     error
+	)
+
+	if isEqual, err = rs.cluster.Recover(&snapshotToSave); err != nil {
 		return err
 	}
 
-	rs.recoverTransport()
+	if !isEqual {
+		rs.recoverTransport()
+	}
 
 	return updateProgress()
 }
@@ -998,7 +1091,7 @@ func (rs *raftServer) recoverTransport() {
 		}
 
 		logger.Info().Str("member", m.ToString()).Msg("add raft peer")
-		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), []string{m.Address})
+		rs.transport.AddPeer(etcdtypes.ID(uint64(m.ID)), m.GetPeerID(), []string{m.Address})
 	}
 }
 
@@ -1108,7 +1201,7 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 		}
 
 		if len(cc.Context) > 0 && rs.ID() != cc.NodeID {
-			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), []string{member.Address})
+			rs.transport.AddPeer(etcdtypes.ID(cc.NodeID), member.GetPeerID(), []string{member.Address})
 		} else {
 			logger.Debug().Msg("skip add peer myself for addnode ")
 		}
@@ -1193,7 +1286,11 @@ func (rs *raftServer) setConfState(state *raftpb.ConfState) {
 }
 
 func (rs *raftServer) Process(ctx context.Context, m raftpb.Message) error {
-	return rs.node.Step(ctx, m)
+	node := rs.getNodeSync()
+	if node == nil {
+		return ErrRaftNotReady
+	}
+	return node.Step(ctx, m)
 }
 
 func (rs *raftServer) IsIDRemoved(id uint64) bool {
@@ -1316,7 +1413,7 @@ func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
 			// slow
 			// - Even if node state is ProgressStateReplicate, if matchNo of the node is too lower than last index of leader, it is considered a slow state.
 			var isSlowFollower bool
-			if lastLeaderIndex > raftProgress.Match && (lastLeaderIndex-raftProgress.Match) > MaxProgressDiff {
+			if lastLeaderIndex > raftProgress.Match && (lastLeaderIndex-raftProgress.Match) > MaxSlowNodeGap {
 				isSlowFollower = true
 			}
 
@@ -1434,4 +1531,44 @@ func unmarshalEntryData(data []byte) (*types.Block, error) {
 	}
 
 	return block, nil
+}
+
+type raftHttpWrapper struct {
+	bf         *BlockFactory
+	raftServer *raftServer
+}
+
+func (rhw *raftHttpWrapper) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	return rhw.raftServer.Process(ctx, m)
+}
+
+func (rhw *raftHttpWrapper) IsIDRemoved(peerID types.PeerID) bool {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID); member != nil {
+		return rhw.raftServer.IsIDRemoved(member.ID)
+	}
+	return true
+}
+
+func (rhw *raftHttpWrapper) ReportUnreachable(peerID types.PeerID) {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID); member != nil {
+		rhw.raftServer.ReportUnreachable(member.ID)
+	}
+}
+
+func (rhw *raftHttpWrapper) ReportSnapshot(peerID types.PeerID, status raftlib.SnapshotStatus) {
+	if member := rhw.raftServer.cluster.Members().getMemberByPeerID(peerID); member != nil {
+		rhw.raftServer.ReportSnapshot(member.ID, status)
+	}
+}
+
+func (rhw *raftHttpWrapper) GetMemberByID(id uint64) *consensus.Member {
+	return rhw.raftServer.cluster.Members().getMember(id)
+}
+
+func (rhw *raftHttpWrapper) GetMemberByPeerID(peerID types.PeerID) *consensus.Member {
+	return rhw.raftServer.cluster.Members().getMemberByPeerID(peerID)
+}
+
+func (rhw *raftHttpWrapper) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+	return rhw.raftServer.snapshotter.SaveFromRemote(r, id, msg)
 }

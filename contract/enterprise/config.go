@@ -15,6 +15,7 @@ const (
 	P2PWhite       = "P2PWHITE"
 	P2PBlack       = "P2PBLACK"
 	RaftWhite      = "RAFTWHITE"
+	AccountWhite   = "ACCOUNTWHITE"
 )
 
 //EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
@@ -23,6 +24,7 @@ var enterpriseKeyDict = map[string]int{
 	P2PWhite:       2,
 	P2PBlack:       3,
 	RaftWhite:      4,
+	AccountWhite:   5,
 }
 
 type Conf struct {
@@ -45,7 +47,7 @@ func (c *Conf) RemoveValue(r string) {
 	}
 }
 
-func (c *Conf) Validate(key []byte) error {
+func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	if !c.On {
 		return nil
 	}
@@ -58,9 +60,16 @@ func (c *Conf) Validate(key []byte) error {
 			}
 		}
 		return fmt.Errorf("the values of %s should have at least one write permission", strKey)
-	case P2PWhite:
+	case AccountWhite:
+		for _, v := range context.Admins {
+			address := types.EncodeAddress(v)
+			if context.HasConfValue(address) {
+				return nil
+			}
+		}
+		return fmt.Errorf("the values of %s should have at least one admin address", strKey)
 	default:
-		return fmt.Errorf("could not validate key(%s)", strKey)
+		return nil
 	}
 	return nil
 }
@@ -76,7 +85,7 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 		return nil, err
 	}
 	ret := &types.EnterpriseConfig{Key: key}
-	if strings.ToUpper(key) == "ALL" {
+	if strings.ToUpper(key) == "PERMISSIONS" {
 		for k, _ := range enterpriseKeyDict {
 			ret.Values = append(ret.Values, k)
 		}

@@ -90,7 +90,7 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 	defer cluster.Unlock()
 
 	if !cluster.isMatch(confstate) {
-		logger.Fatal().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
+		logger.Fatal().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toStringWithLock()).Msg("cluster doesn't match with confstate")
 		return nil, ErrClusterMismatchConfState
 	}
 

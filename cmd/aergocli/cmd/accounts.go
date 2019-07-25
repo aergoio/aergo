@@ -130,14 +130,14 @@ var listCmd = &cobra.Command{
 		if msg != nil {
 			addresslist := msg.GetAccounts()
 			for _, a := range addresslist {
-				out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a.Address))
+				out = fmt.Sprintf("%s\"%s\", ", out, types.EncodeAddress(a.Address))
 			}
 			if addresslist != nil {
 				out = out[:len(out)-2]
 			}
 		} else if addrs != nil {
 			for _, a := range addrs {
-				out = fmt.Sprintf("%s%s, ", out, types.EncodeAddress(a))
+				out = fmt.Sprintf("%s\"%s\", ", out, types.EncodeAddress(a))
 			}
 			out = out[:len(out)-2]
 		}

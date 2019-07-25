@@ -28,13 +28,12 @@ var (
 	nilBuf    = make([]byte, 8)
 )
 
-func verifyEthStorageProof(key, value []byte, proof [][]byte) bool {
+func verifyEthStorageProof(key, value, expectedHash []byte, proof [][]byte) bool {
 	if len(key) == 0 || value == nil || len(proof) == 0 {
 		return false
 	}
 	key = []byte(hex.EncodeToString(keccak256(key)))
 	value = rlpEncodeString55(value)
-	expectedHash := keccak256(proof[0])
 	ks := keyStream{bytes.NewBuffer(key)}
 	for i, p := range proof {
 		if ((i != 0 && len(p) < 32) || !bytes.Equal(expectedHash, keccak256(p))) && !bytes.Equal(expectedHash, p) {

@@ -23,7 +23,6 @@ var (
 
 	component string
 )
-var timeout uint64
 
 func init() {
 	rootCmd.AddCommand(nodeCmd)

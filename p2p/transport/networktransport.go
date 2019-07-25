@@ -8,6 +8,7 @@ package transport
 import (
 	"context"
 	"fmt"
+	network2 "github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/types"
 	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -92,7 +93,7 @@ func (sl *networkTransport) initSelfMeta(peerID types.PeerID, noExpose bool) {
 	var err error
 	var protocolPort int
 	if len(sl.conf.NetProtocolAddr) != 0 {
-		ipAddress, err = p2putil.GetSingleIPAddress(protocolAddr)
+		ipAddress, err = network2.GetSingleIPAddress(protocolAddr)
 		if err != nil {
 			panic("Invalid protocol address " + protocolAddr + " : " + err.Error())
 		}
@@ -126,7 +127,7 @@ func (sl *networkTransport) initServiceBindAddress() {
 	bindAddr := sl.conf.NPBindAddr
 	// if bindAddress or bindPort is not set, it will be same as NetProtocolAddr or NetProtocolPort
 	if len(sl.conf.NPBindAddr) > 0 {
-		bindIP, err := p2putil.GetSingleIPAddress(bindAddr)
+		bindIP, err := network2.GetSingleIPAddress(bindAddr)
 		if err != nil {
 			panic("invalid NPBindAddr " + sl.conf.NPBindAddr)
 		}
@@ -206,7 +207,7 @@ func (sl *networkTransport) ClosePeerConnection(peerID types.PeerID) bool {
 func (sl *networkTransport) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
-	listen, err := p2putil.ToMultiAddr(sl.bindAddress, sl.bindPort)
+	listen, err := types.ToMultiAddr(sl.bindAddress, sl.bindPort)
 	if err != nil {
 		panic("Can't establish listening address: " + err.Error())
 	}

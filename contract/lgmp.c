@@ -206,14 +206,29 @@ static int Btobyte(lua_State *L)
 	if (mpz_sgn(MPZ(a)) < 0)
 		luaL_error(L, mp_num_is_negative);
 
-	bn = mpz_export(NULL, &size, 1, 32, 1, 0, a->mpptr);
+	bn = mpz_export(NULL, &size, 1, 1, 1, 0, a->mpptr);
 	if (bn == NULL) {
-	    bn = calloc(sizeof(char),32);
+	    bn = calloc(sizeof(char),1);
 	    size = 1;
 	}
 
-	lua_pushlstring(L, bn, size * 32);
+	lua_pushlstring(L, bn, size);
 	free (bn);
+	return 1;
+}
+
+static int Bfrombyte(lua_State *L)
+{
+    const char *bn;
+    size_t size;
+	mp_num x;
+	x = bn_alloc(BN_Integer);
+
+    bn = luaL_checklstring(L, 1, &size);
+
+    mpz_import(MPZ(x), size, 1, 1, 1, 0, bn);
+
+	Bnew(L, x);
 	return 1;
 }
 
@@ -478,6 +493,7 @@ static const luaL_Reg R[] =
 	{ "tostring",	Btostring},
 	{ "isbignum",	Bis },
 	{ "tobyte", Btobyte },
+	{ "frombyte", Bfrombyte },
 	{ NULL,		NULL	}
 };
 

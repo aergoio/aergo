@@ -162,7 +162,7 @@ func (th *txResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBod
 
 func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetTransactionsResponse)
-	p2putil.DebugLogReceiveResponseMsg(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, len(data.Txs))
+	p2putil.DebugLogReceiveResponse(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, data)
 
 	th.peer.ConsumeRequest(msg.OriginalID())
 	go func() {

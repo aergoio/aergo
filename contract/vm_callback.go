@@ -844,25 +844,54 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 	return C.int(0), nil
 }
 
+func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
+	var d []byte
+	b := C.GoBytes(data, dataLen)
+	isHex := checkHexString(string(b))
+	if isHex {
+		var err error
+		d, err = hex.DecodeString(string(b[2:]))
+		if err != nil {
+			isHex = false
+		}
+	}
+	if !isHex {
+		d = b
+	}
+	return d, isHex
+}
+
 //export LuaCryptoVerifyProof
 func LuaCryptoVerifyProof(
 	key unsafe.Pointer, keyLen C.int,
 	value unsafe.Pointer, valueLen C.int,
+	hash unsafe.Pointer, hashLen C.int,
 	proof unsafe.Pointer, nProof C.int,
 ) C.int {
-
-	k := C.GoBytes(key, keyLen)
-	v := C.GoBytes(value, valueLen)
+	k, _ := luaCryptoToBytes(key, keyLen)
+	v, _ := luaCryptoToBytes(value, valueLen)
+	h, _ := luaCryptoToBytes(hash, hashLen)
 	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
 	bProof := make([][]byte, int(nProof))
 	for i, p := range cProof {
-		bProof[i] = C.GoBytes(p.data, C.int(p.len))
+		bProof[i], _ = luaCryptoToBytes(p.data, C.int(p.len))
 	}
-
-	if verifyEthStorageProof(k, v, bProof) {
+	if verifyEthStorageProof(k, v, h, bProof) {
 		return C.int(1)
 	}
 	return C.int(0)
+}
+
+//export LuaCryptoKeccak256
+func LuaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int) {
+	d, isHex := luaCryptoToBytes(data, dataLen)
+	h := keccak256(d)
+	if isHex {
+		hex := []byte("0x" + hex.EncodeToString(h))
+		return C.CBytes(hex), len(hex)
+	} else {
+		return C.CBytes(h), len(h)
+	}
 }
 
 func transformAmount(amountStr string) (*big.Int, error) {
