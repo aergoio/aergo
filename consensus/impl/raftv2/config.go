@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/types"
 	"os"
 	"strings"
@@ -54,7 +55,7 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, p2pkey.NodeID(), genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
 
 	if useTls, err = validateTLS(raftConfig); err != nil {
 		logger.Error().Err(err).
@@ -88,16 +89,8 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		}
 
 		if err = bf.bpc.AddInitialMembers(mbrAttrs); err != nil {
-			logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
+			logger.Error().Err(err).Msg("failed to add initial members")
 			return err
-		}
-
-		if bf.bpc.Members().len() == 0 {
-			logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
-		}
-
-		if bf.bpc.Members().getMemberByName(raftConfig.Name) == nil {
-			logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("node name of config is not included in genesis block")
 		}
 	}
 
@@ -175,6 +168,7 @@ func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
 
 func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
 	logger.Debug().Msg("add cluster members from config file")
+
 	for _, mbrAttr := range mbrs {
 		m := consensus.NewMember(mbrAttr.Name, mbrAttr.Address, types.PeerID(mbrAttr.PeerID), cl.chainID, cl.chainTimestamp)
 
@@ -184,6 +178,14 @@ func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
 		if err := cl.addMember(m, false); err != nil {
 			return err
 		}
+	}
+
+	if cl.Members().len() == 0 {
+		logger.Fatal().Str("cluster", cl.toString()).Msg("can't start raft server because there are no members in cluster")
+	}
+
+	if cl.Members().getMemberByName(cl.NodeName()) == nil {
+		logger.Fatal().Str("cluster", cl.toString()).Msg("node name of config is not included in genesis block")
 	}
 
 	return nil

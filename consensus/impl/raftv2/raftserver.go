@@ -385,6 +385,8 @@ func (rs *raftServer) startRaft() {
 			err           error
 		)
 
+		rs.cluster.ResetMembers()
+
 		// get cluster info from existing cluster member and hardstate of bestblock
 		if hardstateinfo, err = rs.ImportExistingCluster(); err != nil {
 			logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
@@ -458,6 +460,7 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 	var (
 		blk *types.Block
 		err error
+		id  *consensus.RaftIdentity
 	)
 	validateEmpty := func() {
 		if blk, err = rs.walDB.GetBestBlock(); err != nil {
@@ -469,6 +472,10 @@ func (rs *raftServer) startNode(startPeers []raftlib.Peer) raftlib.Node {
 			} else {
 				logger.Fatal().Err(err).Msg("blockchain data is not empty, so failed to start raft server")
 			}
+		}
+
+		if id, err = rs.walDB.GetIdentity(); err == nil && id != nil {
+			logger.Fatal().Err(err).Str("id", id.ToString()).Msg("raft identity is already written. so failed to start raft server")
 		}
 	}
 
@@ -561,7 +568,8 @@ func (rs *raftServer) createAergoP2PTransporter() Transporter {
 }
 
 func (rs *raftServer) SaveIdentity() error {
-	if rs.cluster.ClusterID() == 0 || rs.cluster.NodeID() == consensus.InvalidMemberID || len(rs.cluster.NodeName()) == 0 {
+	if rs.cluster.ClusterID() == 0 || rs.cluster.NodeID() == consensus.InvalidMemberID || len(rs.cluster.NodeName()) == 0 || len(rs.cluster.NodePeerID()) == 0 {
+		logger.Error().Str("identity", rs.cluster.identity.ToString()).Msg("failed to save raft identity. identity is invalid")
 		return ErrInvalidRaftIdentity
 	}
 

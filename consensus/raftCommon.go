@@ -81,13 +81,14 @@ type RaftIdentity struct {
 	ClusterID uint64
 	ID        uint64
 	Name      string
+	PeerID    string // base58 encoded format
 }
 
 func (rid *RaftIdentity) ToString() string {
 	if rid == nil {
 		return "raft identity is nil"
 	}
-	return fmt.Sprintf("raft identity[name:%s, nodeid:%x]", rid.Name, rid.ID)
+	return fmt.Sprintf("raft identity[name:%s, nodeid:%x, peerid:%s]", rid.Name, rid.ID, rid.PeerID)
 }
 
 type ChainWAL interface {

@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	raftlib "github.com/aergoio/etcd/raft"
@@ -37,6 +36,7 @@ var (
 	ErrConfChangeChannelBusy    = errors.New("channel of conf change propose is busy")
 	ErrCCMemberIsNil            = errors.New("memeber is nil")
 	ErrNotMatchedRaftName       = errors.New("mismatched name of raft identity")
+	ErrNotMatchedRaftPeerID     = errors.New("mismatched peerid of raft identity")
 	ErrNotExitRaftProgress      = errors.New("progress of this node doesn't exist")
 	ErrUnhealtyNodeExist        = errors.New("can't add some node if unhealthy nodes exist")
 	ErrRemoveHealthyNode        = errors.New("remove of a healthy node may cause the cluster to hang")
@@ -179,7 +179,7 @@ func (mbrs *Members) toString() string {
 	return buf
 }
 
-func NewCluster(chainID []byte, bf *BlockFactory, raftName string, chainTimestamp int64, notifyFn NotifyFn) *Cluster {
+func NewCluster(chainID []byte, bf *BlockFactory, raftName string, p2pPeerID types.PeerID, chainTimestamp int64, notifyFn NotifyFn) *Cluster {
 	cl := &Cluster{
 		chainID:            chainID,
 		chainTimestamp:     chainTimestamp,
@@ -194,13 +194,16 @@ func NewCluster(chainID []byte, bf *BlockFactory, raftName string, chainTimestam
 		cl.cdb = bf.ChainWAL
 	}
 
+	if len(p2pPeerID) > 0 {
+		cl.identity.PeerID = types.IDB58Encode(p2pPeerID)
+	}
 	cl.notifyFn = notifyFn
 
 	return cl
 }
 
 func NewClusterFromMemberAttrs(clusterID uint64, chainID []byte, memberAttrs []*types.MemberAttr) (*Cluster, error) {
-	cl := NewCluster(chainID, nil, "", 0, nil)
+	cl := NewCluster(chainID, nil, "", "", 0, nil)
 
 	for _, mbrAttr := range memberAttrs {
 		var mbr consensus.Member
@@ -238,6 +241,10 @@ func (cl *Cluster) NodeID() uint64 {
 	return cl.identity.ID
 }
 
+func (cl *Cluster) NodePeerID() string {
+	return cl.identity.PeerID
+}
+
 func (cl *Cluster) SetNodeID(nodeid uint64) {
 	cl.identity.ID = nodeid
 }
@@ -257,6 +264,10 @@ func (cl *Cluster) RecoverIdentity(id *consensus.RaftIdentity) error {
 	// check name
 	if cl.identity.Name != id.Name {
 		return ErrNotMatchedRaftName
+	}
+
+	if cl.identity.PeerID != id.PeerID {
+		return ErrNotMatchedRaftPeerID
 	}
 
 	if id.ClusterID == 0 {
@@ -398,9 +409,8 @@ func (cl *Cluster) isValidMember(member *consensus.Member) error {
 	}
 
 	// check if peerID of this node is valid
-	// check if peerID of this node is valid
-	if cl.NodeName() == member.Name && member.GetPeerID() != p2pkey.NodeID() {
-		logger.Error().Str("config", member.GetPeerID().String()).Str("p2pnodeid", p2pkey.NodeID().String()).Msg("peerID value is not matched with P2P")
+	if cl.NodeName() == member.Name && enc.ToString([]byte(member.GetPeerID())) != cl.NodePeerID() {
+		logger.Error().Str("config", member.GetPeerID().String()).Str("cluster peerid", cl.NodePeerID()).Msg("peerID value is not matched with P2P")
 		return ErrInvalidRaftPeerID
 	}
 
@@ -477,9 +487,15 @@ func (cl *Cluster) ValidateAndMergeExistingCluster(existingCl *Cluster) bool {
 	}
 
 	// check if this node is already added in existing cluster
-	if existingCl.Members().getMemberByName(cl.NodeName()) == nil {
+	remoteMember := existingCl.Members().getMemberByName(cl.NodeName())
+	if remoteMember == nil {
 		logger.Error().Msg("This node doesn't exist in the existing cluster")
 		return false
+	}
+
+	// TODO check my network config is equal to member of remote
+	if enc.ToString(remoteMember.PeerID) != cl.NodePeerID() {
+		logger.Error().Msg("peerid is different with peerid of member of existing cluster")
 	}
 
 	cl.members = existingCl.Members()

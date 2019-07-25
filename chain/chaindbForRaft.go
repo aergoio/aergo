@@ -307,7 +307,8 @@ func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 }
 
 var (
-	ErrWalNotEqualIdentity = errors.New("identity of wal is not equal")
+	ErrWalNotEqualIdentityName   = errors.New("name of identity is not equal")
+	ErrWalNotEqualIdentityPeerID = errors.New("peerid of identity is not equal")
 )
 
 // HasWal checks chaindb has valid status of Raft WAL.
@@ -328,7 +329,13 @@ func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
 	}
 
 	if id.Name != identity.Name {
-		return false, ErrWalNotEqualIdentity
+		logger.Debug().Str("config name", identity.Name).Str("saved id", id.Name).Msg("unmatched name of identity")
+		return false, ErrWalNotEqualIdentityName
+	}
+
+	if id.PeerID != identity.PeerID {
+		logger.Debug().Str("config peerid", identity.PeerID).Str("saved id", id.PeerID).Msg("unmatched peerid of identity")
+		return false, ErrWalNotEqualIdentityPeerID
 	}
 
 	if hs, err = cdb.GetHardState(); err != nil {
@@ -468,7 +475,7 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 		return nil, ErrDecodeRaftIdentity
 	}
 
-	logger.Info().Str("id", types.Uint64ToHexaString(id.ID)).Str("name", id.Name).Msg("get raft identity")
+	logger.Info().Str("id", types.Uint64ToHexaString(id.ID)).Str("name", id.Name).Str("peerid", id.PeerID).Msg("get raft identity")
 
 	return &id, nil
 }

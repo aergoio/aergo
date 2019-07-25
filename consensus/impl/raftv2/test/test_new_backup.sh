@@ -20,10 +20,8 @@ sleep 2
 kill_svr.sh 
 
 # prepare backup data
-for i in 11001 11002; do 
-	rm -rf  $TEST_RAFT_INSTANCE/data/$i
-	cp -rf $TEST_RAFT_INSTANCE/data/11003 $TEST_RAFT_INSTANCE/data/$i
-done
+rm -rf  $TEST_RAFT_INSTANCE/data/11001
+cp -rf $TEST_RAFT_INSTANCE/data/11003 $TEST_RAFT_INSTANCE/data/11001
 
 do_sed.sh "toml" "usebackup=false" "usebackup=true" ":"
 run_svr.sh 11001

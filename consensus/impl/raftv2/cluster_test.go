@@ -39,19 +39,19 @@ func init() {
 			ID:      1,
 			Name:    "testm1",
 			Address: "/ip4/127.0.0.1/13001",
-			PeerID:  []byte(testPeerID),
+			PeerID:  []byte(testPeerIDs[0]),
 		}},
 		{types.MemberAttr{
 			ID:      2,
 			Name:    "testm2",
 			Address: "/ip4/127.0.0.1/tcp/13002",
-			PeerID:  []byte(testPeerID),
+			PeerID:  []byte(testPeerIDs[1]),
 		}},
 		{types.MemberAttr{
 			ID:      3,
 			Name:    "testm3",
 			Address: "/ip4/127.0.0.1/tcp/13003",
-			PeerID:  []byte(testPeerID),
+			PeerID:  []byte(testPeerIDs[2]),
 		}},
 	}
 
@@ -103,7 +103,7 @@ func TestClusterConfChange(t *testing.T) {
 	serverCtx := config.NewServerContext("", "")
 	testCfg := serverCtx.GetDefaultConfig().(*config.Config)
 	testCfg.Consensus.Raft = &config.RaftConfig{
-		Name: "testraft",
+		Name: "test1",
 		/*
 			BPs: []config.RaftBPConfig{
 				{"test1", "/ip4/127.0.0.1/tcp/10001", testPeerIDs[0]},
@@ -118,7 +118,7 @@ func TestClusterConfChange(t *testing.T) {
 		{ID: 2, Name: "test3", Address: "/ip4/127.0.0.1/tcp/10003", PeerID: []byte(testPeerIDs[2])},
 	}
 
-	cl := NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	cl := NewCluster([]byte("test"), nil, "test1", testPeerIDs[0], 0, nil)
 
 	err := cl.AddInitialMembers(mbrs)
 	assert.NoError(t, err)
@@ -172,7 +172,7 @@ func TestClusterConfChange(t *testing.T) {
 
 func TestClusterEqual(t *testing.T) {
 	//isAllMembersEqual
-	cl := NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	cl := NewCluster([]byte("test"), nil, "testm1", testPeerIDs[0], 0, nil)
 	for _, m := range testMbrs {
 		err := cl.addMember(m, true)
 		assert.NoError(t, err)
@@ -187,7 +187,7 @@ func TestClusterEqual(t *testing.T) {
 	rmMembers := []*consensus.Member{rm}
 	assert.True(t, cl.isAllMembersEqual(testMbrs[0:2], rmMembers))
 
-	cl = NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	cl = NewCluster([]byte("test"), nil, "testm1", testPeerIDs[0], 0, nil)
 	for _, m := range testMbrs {
 		newM := *m
 		newM.Address = "invalidaddress"
@@ -197,7 +197,7 @@ func TestClusterEqual(t *testing.T) {
 
 	assert.False(t, cl.isAllMembersEqual(testMbrs, nil))
 
-	cl = NewCluster([]byte("test"), nil, "testraft", 0, nil)
+	cl = NewCluster([]byte("test"), nil, "testm1", testPeerIDs[0], 0, nil)
 	for i, m := range testMbrs {
 		newM := *m
 		newM.ID = uint64(i) + 100
