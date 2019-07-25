@@ -79,7 +79,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "duplicate arguments")
 
-	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9"]}`)
+	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n:", "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw:", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9:"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
 
@@ -134,23 +134,23 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.Equal(t, 1, len(admins), "check admin")
 	assert.Equal(t, "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4", types.EncodeAddress(admins[0]), "check admin")
 
-	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9"]}`)
+	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n:", "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw:", "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9:"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
 	conf, err := getConf(scs, []byte("P2PWhite")) //key is ignore case
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 3, len(conf.Values), "conf values length")
-	assert.Equal(t, "16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n", conf.Values[0], "conf value 0")
-	assert.Equal(t, "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw", conf.Values[1], "conf value 1")
-	assert.Equal(t, "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9", conf.Values[2], "conf value 2")
+	assert.Equal(t, "16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n:", conf.Values[0], "conf value 0")
+	assert.Equal(t, "16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw:", conf.Values[1], "conf value 1")
+	assert.Equal(t, "16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9:", conf.Values[2], "conf value 2")
 
-	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"]}`)
+	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B:"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 4, len(conf.Values), "conf values length")
-	assert.Equal(t, "16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B", conf.Values[3], "conf value 3")
+	assert.Equal(t, "16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B:", conf.Values[3], "conf value 3")
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",true]}`)
 	event, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
@@ -209,7 +209,7 @@ func TestEnterpriseChangeCluster(t *testing.T) {
 	assert.NotNil(t, bs.CCProposal)
 
 	bs = state.NewBlockState(&state.StateDB{})
-	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "nocmd", "name": "aergonew", "address": "http://127.0.0.1:13000", "peerID":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
+	tx.Payload = []byte(`{"name":"changeCluster", "args":[{"command" : "nocmd", "name": "aergonew", "address": "http://127.0.0.1:13000", "PeerID":"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B"}]}`)
 	_, err = ExecuteEnterpriseTx(bs, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err)
 	assert.Nil(t, bs.CCProposal)
