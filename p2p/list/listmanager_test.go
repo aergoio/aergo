@@ -9,6 +9,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/enterprise"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -42,10 +43,10 @@ func TestListManagerImpl_Start(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ecfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On:true, Values: tt.confs}
+			ecfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: tt.confs}
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
 			mockCA.EXPECT().GetEnterpriseConfig(enterprise.P2PWhite).Return(ecfg, nil)
-			got := NewListManager(conf, "", mockCA, logger, false).(*listManagerImpl)
+			got := NewListManager(conf, "", mockCA, nil, logger, false).(*listManagerImpl)
 			func() {
 				defer checkPanic(t, tt.wantPanic)
 				got.Start()
@@ -84,8 +85,8 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	IDAddr := idother.Pretty() + ":" + addrother
 
 	logger := log.NewLogger("p2p.list.test")
-	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On:true, Values: []string{IDOnly, AddrOnly, IDAddr}}
-	emptyCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On:true, Values: nil}
+	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: []string{IDOnly, AddrOnly, IDAddr}}
+	emptyCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: nil}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -126,7 +127,10 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
 			mockCA.EXPECT().GetEnterpriseConfig(enterprise.P2PWhite).Return(tt.cfg, nil)
-			b := NewListManager(conf, "", mockCA, logger, false).(*listManagerImpl)
+			mockPRM := p2pmock.NewMockPeerRoleManager(ctrl)
+			mockPRM.EXPECT().GetRole(gomock.Any()).Return(p2pcommon.Watcher).AnyTimes()
+
+			b := NewListManager(conf, "", mockCA, mockPRM, logger, false).(*listManagerImpl)
 			b.Start()
 			if got, _ := b.IsBanned(tt.args.addr, tt.args.pid); got != tt.want {
 				t.Errorf("listManagerImpl.IsBanned() = %v, want %v", got, tt.want)
@@ -155,8 +159,8 @@ func Test_blacklistManagerImpl_IsBanned2(t *testing.T) {
 	id7, _ := types.IDB58Decode("16Uiu2HAmDFV41vku39rsMtXBaFT1MFUDyHxXiDJrUDt7gJycSKnX")
 
 	logger := log.NewLogger("p2p.list.test")
-	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On:true, Values: ent}
-	disabledCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On:false, Values: ent}
+	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: ent}
+	disabledCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: false, Values: ent}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -168,31 +172,46 @@ func Test_blacklistManagerImpl_IsBanned2(t *testing.T) {
 	tests := []struct {
 		name string
 		cfg  *types.EnterpriseConfig
+		role p2pcommon.PeerRole
+
 		args args
 		want bool
 	}{
-		{"T1", listCfg, args{addr1, id1}, true},
-		{"T2", listCfg, args{addr1, id2}, true},
-		{"T3", listCfg, args{addr1, id3}, false},
-		{"T4", listCfg, args{addr2, id4}, true},
-		{"T5", listCfg, args{addr2, id5}, true},
-		{"T6", listCfg, args{addr2, id6}, true},
-		{"T7", listCfg, args{addr2, id7}, false},
+		{"T1", listCfg, p2pcommon.Watcher, args{addr1, id1}, true},
+		{"T2", listCfg, p2pcommon.Watcher, args{addr1, id2}, true},
+		{"T3", listCfg, p2pcommon.Watcher, args{addr1, id3}, false},
+		{"T4", listCfg, p2pcommon.Watcher, args{addr2, id4}, true},
+		{"T5", listCfg, p2pcommon.Watcher, args{addr2, id5}, true},
+		{"T6", listCfg, p2pcommon.Watcher, args{addr2, id6}, true},
+		{"T7", listCfg, p2pcommon.Watcher, args{addr2, id7}, false},
 
-		{"TDis1", disabledCfg, args{addr1, id1}, false},
-		{"TDis2", disabledCfg, args{addr1, id2}, false},
-		{"TDis3", disabledCfg, args{addr1, id3}, false},
-		{"TDis4", disabledCfg, args{addr2, id4}, false},
-		{"TDis5", disabledCfg, args{addr2, id5}, false},
-		{"TDis6", disabledCfg, args{addr2, id6}, false},
-		{"TDis7", disabledCfg, args{addr2, id7}, false},
+		// bp is always allowed
+		{"T1", listCfg, p2pcommon.BlockProducer, args{addr1, id1}, false},
+		{"T2", listCfg, p2pcommon.BlockProducer, args{addr1, id2}, false},
+		{"T3", listCfg, p2pcommon.BlockProducer, args{addr1, id3}, false},
+		{"T4", listCfg, p2pcommon.BlockProducer, args{addr2, id4}, false},
+		{"T5", listCfg, p2pcommon.BlockProducer, args{addr2, id5}, false},
+		{"T6", listCfg, p2pcommon.BlockProducer, args{addr2, id6}, false},
+		{"T7", listCfg, p2pcommon.BlockProducer, args{addr2, id7}, false},
+
+		// disabling conf will allow all connection
+		{"TDis1", disabledCfg, p2pcommon.Watcher, args{addr1, id1}, false},
+		{"TDis2", disabledCfg, p2pcommon.Watcher, args{addr1, id2}, false},
+		{"TDis3", disabledCfg, p2pcommon.Watcher, args{addr1, id3}, false},
+		{"TDis4", disabledCfg, p2pcommon.Watcher, args{addr2, id4}, false},
+		{"TDis5", disabledCfg, p2pcommon.Watcher, args{addr2, id5}, false},
+		{"TDis6", disabledCfg, p2pcommon.Watcher, args{addr2, id6}, false},
+		{"TDis7", disabledCfg, p2pcommon.Watcher, args{addr2, id7}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
 			mockCA.EXPECT().GetEnterpriseConfig(enterprise.P2PWhite).Return(tt.cfg, nil)
-			b := NewListManager(conf, "", mockCA, logger, false).(*listManagerImpl)
+			mockPRM := p2pmock.NewMockPeerRoleManager(ctrl)
+			mockPRM.EXPECT().GetRole(gomock.Any()).Return(tt.role).AnyTimes()
+
+			b := NewListManager(conf, "", mockCA, mockPRM, logger, false).(*listManagerImpl)
 			b.Start()
 			if got, _ := b.IsBanned(tt.args.addr, tt.args.pid); got != tt.want {
 				t.Errorf("listManagerImpl.IsBanned() = %v, want %v", got, tt.want)

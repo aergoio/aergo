@@ -103,17 +103,11 @@ func (p2ps *P2P) setSelfRole() {
 		if !p2ps.useRaft {
 			panic("configuration failure. ")
 		}
-		if p2ps.cfg.Consensus.EnableBp {
-			p2ps.selfRole = p2pcommon.RaftProducer
-		} else {
-			p2ps.selfRole = p2pcommon.RaftWatcher
-		}
+	}
+	if p2ps.cfg.Consensus.EnableBp {
+		p2ps.selfRole = p2pcommon.BlockProducer
 	} else {
-		if p2ps.cfg.Consensus.EnableBp {
-			p2ps.selfRole = p2pcommon.BlockProducer
-		} else {
-			p2ps.selfRole = p2pcommon.Watcher
-		}
+		p2ps.selfRole = p2pcommon.Watcher
 	}
 }
 
@@ -183,14 +177,14 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	// TODO: it should be refactored to support multi version
 	mf := &baseMOFactory{p2ps: p2ps}
 
-	// public network is always disabled white/blacklist in chain
-	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.Logger, genesis.PublicNet())
-
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
 	} else {
 		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
 	}
+
+	// public network is always disabled white/blacklist in chain
+	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, lm, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
@@ -276,6 +270,16 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
 	case message.GetRaftTransport:
 		context.Respond(raftsupport.NewAergoRaftTransport(p2ps.Logger, p2ps.nt, p2ps.pm, p2ps.mf, p2ps.consacc, msg.Cluster))
+	case message.P2PWhiteListConfEnableEvent:
+		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist conf changed")
+		// TODO do more fine grained work
+		p2ps.lm.RefineList()
+		// TODO disconnect newly blacklisted peer.
+	case message.P2PWhiteListConfSetEvent:
+		p2ps.Logger.Debug().Array("enabled", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist conf changed")
+		// TODO do more fine grained work
+		p2ps.lm.RefineList()
+		// TODO disconnect newly blacklisted peer.
 	}
 }
 
@@ -364,7 +368,7 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 
 	// block notice handlers
-	if p2ps.selfRole == p2pcommon.RaftProducer {
+	if p2ps.useRaft && p2ps.selfRole == p2pcommon.BlockProducer {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {

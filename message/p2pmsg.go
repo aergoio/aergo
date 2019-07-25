@@ -220,3 +220,13 @@ type SendRaft struct {
 type SendRaftRsp struct {
 	Err error
 }
+
+type P2PWhiteListConfEnableEvent struct {
+	Name string
+	On bool
+}
+
+type P2PWhiteListConfSetEvent struct {
+	Name string
+	Values []string
+}

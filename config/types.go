@@ -77,7 +77,6 @@ type P2PConfig struct {
 
 // AuthConfig defines configuration for auditing
 type AuthConfig struct {
-	EnableListManager bool `mapstructure:"enablelistmanager" description:"use white/blacklist feature or not"`
 	EnableLocalConf   bool `mapstructure:"enablelocalconf" description:"apply local white/blacklist file or not"`
 }
 
@@ -234,6 +233,5 @@ endpoint = "{{.Monitor.ServerEndpoint}}"
 unlocktimeout = "{{.Account.UnlockTimeout}}"
 
 [auth]
-enablelistmanager = "{{.Auth.EnableListManager}}"
 enablelocalconf = "{{.Auth.EnableLocalConf}}"
 `

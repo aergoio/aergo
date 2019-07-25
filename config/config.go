@@ -92,7 +92,6 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 
 func (ctx *ServerContext) GetDefaultAuthConfig() *AuthConfig {
 	return &AuthConfig{
-		EnableListManager: true,
 		EnableLocalConf:   false,
 	}
 }

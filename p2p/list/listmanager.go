@@ -32,6 +32,7 @@ const (
 type listManagerImpl struct {
 	logger    *log.Logger
 	chainAcc  types.ChainAccessor
+	prm       p2pcommon.PeerRoleManager
 	publicNet bool
 
 	entries []enterprise.WhiteListEntry
@@ -41,13 +42,11 @@ type listManagerImpl struct {
 	stopScheduler chan interface{}
 }
 
-func NewListManager(conf *config.AuthConfig, authDir string, chainAcc types.ChainAccessor, logger *log.Logger, publicNet bool) p2pcommon.ListManager {
-	if !conf.EnableListManager {
-		return newDummyListManager()
-	}
+func NewListManager(conf *config.AuthConfig, authDir string, chainAcc types.ChainAccessor, prm p2pcommon.PeerRoleManager, logger *log.Logger, publicNet bool) p2pcommon.ListManager {
 	bm := &listManagerImpl{
 		logger:    logger,
 		chainAcc:  chainAcc,
+		prm:       prm,
 		publicNet: publicNet,
 
 		authDir:       authDir,
@@ -68,13 +67,23 @@ func (lm *listManagerImpl) Stop() {
 }
 
 func (lm *listManagerImpl) IsBanned(addr string, pid types.PeerID) (bool, time.Time) {
+	// malformed ip address is banned
 	ip := net.ParseIP(addr)
 	if ip == nil {
 		return true, FarawayFuture
 	}
+
+	// empty entry is
 	if len(lm.entries) == 0 {
 		return false, FarawayFuture
 	}
+
+	// bps are automatically allowed
+	if lm.prm.GetRole(pid) == p2pcommon.BlockProducer {
+		return false, FarawayFuture
+	}
+
+	// finally check peer is in list
 	for _, ent := range lm.entries {
 		if ent.Contains(ip, pid) {
 			return false, FarawayFuture
@@ -85,7 +94,7 @@ func (lm *listManagerImpl) IsBanned(addr string, pid types.PeerID) (bool, time.T
 
 func (lm *listManagerImpl) RefineList() {
 	if lm.publicNet {
-		lm.logger.Info().Msg("network is public, skip enterprize list conf in chain")
+		lm.logger.Info().Msg("network is public, apply default policy instead (allow all)")
 		lm.entries = make([]enterprise.WhiteListEntry, 0)
 	} else {
 		wl, err := lm.chainAcc.GetEnterpriseConfig(enterprise.P2PWhite)
@@ -115,6 +124,10 @@ func (lm *listManagerImpl) RefineList() {
 func (lm *listManagerImpl) Summary() map[string]interface{} {
 	// There can be a little error
 	sum := make(map[string]interface{})
-	sum["whitelist"] = lm.entries
+	entries := make([]string, 0, len(lm.entries))
+	for _, e := range lm.entries {
+		entries = append(entries, e.String())
+	}
+	sum["whitelist"] = entries
 	return sum
 }
