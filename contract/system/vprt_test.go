@@ -332,7 +332,7 @@ func (v *vpr) checkValidity(t *testing.T) {
 	sum1 := &big.Int{}
 	sum2 := &big.Int{}
 
-	low := v.lowest().getPower()
+	low := v.getLowest().getPower()
 	for _, e := range v.voters.powers {
 		pow := toVotingPower(e).getPower()
 		sum1.Add(sum1, pow)

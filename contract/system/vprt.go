@@ -97,7 +97,6 @@ func (vp *votingPower) unmarshal(b []byte) uint32 {
 type vprStore struct {
 	buckets map[uint8]*list.List
 	cmp     func(lhs *votingPower, rhs *votingPower) int
-	lowest  *votingPower
 }
 
 func newVprStore(bucketsMax uint32) *vprStore {
@@ -107,10 +106,6 @@ func newVprStore(bucketsMax uint32) *vprStore {
 			return bytes.Compare(lhs.addrBytes(), rhs.addrBytes())
 		},
 	}
-}
-
-func (b *vprStore) getLowest() *votingPower {
-	return b.lowest
 }
 
 func (b *vprStore) update(vp *votingPower) (idx uint8) {
@@ -145,8 +140,6 @@ func (b *vprStore) update(vp *votingPower) (idx uint8) {
 		},
 	)
 
-	b.updateLowest(v)
-
 	return
 }
 
@@ -161,7 +154,7 @@ func search(l *list.List, match func(e *list.Element) bool) *list.Element {
 	return nil
 }
 
-func orderedListElemAdd(l *list.List, e *list.Element, match predicate) {
+func orderedListMove(l *list.List, e *list.Element, match predicate) {
 	if m := search(l, match); m != nil {
 		l.MoveBefore(e, m)
 	} else {
@@ -181,14 +174,6 @@ func orderedListAdd(l *list.List, e *votingPower, match predicate) *list.Element
 	return voter
 }
 
-func (b *vprStore) updateLowest(v *votingPower) {
-	if b.lowest == nil {
-		b.lowest = v
-	} else if v.lt(b.lowest) {
-		b.lowest = v
-	}
-}
-
 func (b *vprStore) addTail(i uint8, vp *votingPower) {
 	var l *list.List
 	if l = b.buckets[i]; l == nil {
@@ -196,7 +181,6 @@ func (b *vprStore) addTail(i uint8, vp *votingPower) {
 		b.buckets[i] = l
 	}
 	l.PushBack(vp)
-	b.updateLowest(vp)
 }
 
 type dataSetter interface {
@@ -302,7 +286,7 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	if e = tv.get(v.getAddr()); e != nil {
 		vp = toVotingPower(e)
 		vp.setPower(v.getPower())
-		orderedListElemAdd(tv.list, e,
+		orderedListMove(tv.list, e,
 			func(e *list.Element) bool {
 				existing := toVotingPower(e).getPower()
 				curr := v.getPower()
@@ -321,24 +305,40 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	return
 }
 
+func (tv *topVoters) addVotingPower(addr types.AccountID, delta *big.Int) *votingPower {
+	vp := tv.getVotingPower(addr)
+	if vp != nil {
+		pwr := vp.getPower()
+		pwr.Add(pwr, delta)
+	} else {
+		vp = newVotingPower(addr, delta)
+	}
+	return tv.update(vp)
+}
+
 // Voters Power Ranking (VPR)
 type vpr struct {
 	changes    map[types.AccountID]*big.Int // temporary buffer for update
 	voters     *topVoters
 	store      *vprStore
 	totalPower *big.Int
+	lowest     *votingPower
 }
 
 func (v *vpr) getTotalPower() *big.Int {
 	return new(big.Int).Set(v.totalPower)
 }
 
-func (v *vpr) lowest() *votingPower {
-	return v.store.getLowest()
+func (v *vpr) getLowest() *votingPower {
+	return v.lowest
 }
 
 func (v *vpr) updateLowest(vp *votingPower) {
-	v.store.updateLowest(vp)
+	if v.lowest == nil {
+		v.lowest = vp
+	} else if vp.lt(v.lowest) {
+		v.lowest = vp
+	}
 }
 
 func newVpr() *vpr {
@@ -362,19 +362,15 @@ func loadVpr(s dataGetter) (*vpr, error) {
 			return nil, err
 		}
 		for _, vp := range vps {
-			v.store.addTail(i, vp)
-			v.setVotingPower(vp)
+			rv := v.voters.update(vp)
+			v.store.addTail(i, rv)
+
+			v.updateLowest(vp)
+			v.addTotal(rv.getPower())
 		}
 	}
 
 	return v, nil
-}
-
-func (v *vpr) setVotingPower(vp *votingPower) *votingPower {
-	rv := v.voters.update(vp)
-	v.addTotal(rv.getPower())
-
-	return rv
 }
 
 func (v *vpr) addTotal(delta *big.Int) {
@@ -384,21 +380,6 @@ func (v *vpr) addTotal(delta *big.Int) {
 
 func (v *vpr) votingPowerOf(addr types.AccountID) *big.Int {
 	return v.voters.powerOf(addr)
-}
-
-func (v *vpr) updateRank(addr types.AccountID, delta *big.Int) *votingPower {
-	vp := v.voters.getVotingPower(addr)
-	if vp != nil {
-		pwr := vp.getPower()
-		pwr.Add(pwr, delta)
-	} else {
-		vp = newVotingPower(addr, delta)
-	}
-
-	rv := v.voters.update(vp)
-	v.addTotal(delta)
-
-	return rv
 }
 
 func (v *vpr) prepare(addr types.AccountID, fn func(lhs *big.Int)) {
@@ -435,16 +416,18 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 		updRows  = make(map[uint8]interface{})
 	)
 
-	for addr, pow := range v.changes {
-		if pow.Cmp(zeroValue) != 0 {
-			vp := v.updateRank(addr, pow)
-
+	for addr, delta := range v.changes {
+		if delta.Cmp(zeroValue) != 0 {
+			vp := v.voters.addVotingPower(addr, delta)
 			if s != nil {
 				i := v.store.update(vp)
 				if _, exist := updRows[i]; !exist {
 					updRows[i] = struct{}{}
 				}
 			}
+
+			v.updateLowest(vp)
+			v.addTotal(delta)
 
 			delete(v.changes, addr)
 			// TODO: Remove a victim chosen above from the VPR bucket.
