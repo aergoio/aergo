@@ -294,7 +294,30 @@ func (tv *topVoters) getBucket(pow *big.Int) (l *list.List) {
 
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	var e *list.Element
-
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	//     TODO: Maintain len(tv.powers) <= tv.max
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	//
+	// * Rejection & Eviction Rule:
+	//
+	// 1. Reject if the new voter has a voting power lesser than the lowest.
+	//
+	// 2. Evict the lowest if the new voter has a voting power larger than
+	//    anyone among the current voting power rankers.
+	//
+	// 3. Randomly select & evict one among the lowest voters if the new voter
+	//    has the same voting power as the lowest voter.
+	//
+	// -------------------------------------------------------------------------
+	//
+	// ISSUE - There exists some unfair case as follows: The VPR slots are
+	// fully occupied (len(tv.powers) == tv.max) so that a voter A is rejected
+	// by the rule above. Afterwards, one voter cancels his staking and is
+	// removed from the VPR. In such a situtation, any voter cating a vote will
+	// be unconditionally included into the VPR since one slot is available for
+	// him even if his voting power is less than the aforementioned voter A.
+	//
+	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	if e = tv.get(v.getAddr()); e != nil {
 		vp = toVotingPower(e)
 		vp.setPower(v.getPower())
