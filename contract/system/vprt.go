@@ -21,6 +21,7 @@ const (
 var (
 	vprKeyPrefix = []byte("VotingPowerBucket/")
 	zeroValue    = &big.Int{}
+	binSize, _   = new(big.Int).SetString("10000000000000", 10)
 
 	votingPowerRank = newVpr()
 )
@@ -237,15 +238,15 @@ func (b *vprStore) getBucket(addr types.AccountID) *list.List {
 }
 
 type topVoters struct {
-	list   *list.List
-	cmp    func(lhs *big.Int, rhs *big.Int) bool
-	max    uint32
-	powers map[types.AccountID]*list.Element
+	buckets map[uint64]*list.List
+	cmp     func(lhs *big.Int, rhs *big.Int) bool
+	max     uint32
+	powers  map[types.AccountID]*list.Element
 }
 
 func newTopVoters(max uint32) *topVoters {
 	return &topVoters{
-		list: list.New(),
+		buckets: make(map[uint64]*list.List),
 		cmp: func(curr *big.Int, e *big.Int) bool {
 			return curr.Cmp(e) >= 0
 		},
@@ -280,13 +281,24 @@ func (tv *topVoters) powerOf(addr types.AccountID) *big.Int {
 	return nil
 }
 
+func (tv *topVoters) getBucket(pow *big.Int) (l *list.List) {
+	idx := new(big.Int).Div(pow, binSize).Uint64()
+
+	if l = tv.buckets[idx]; l == nil {
+		l = list.New()
+		tv.buckets[idx] = l
+	}
+
+	return
+}
+
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	var e *list.Element
 
 	if e = tv.get(v.getAddr()); e != nil {
 		vp = toVotingPower(e)
 		vp.setPower(v.getPower())
-		orderedListMove(tv.list, e,
+		orderedListMove(tv.getBucket(vp.getPower()), e,
 			func(e *list.Element) bool {
 				existing := toVotingPower(e).getPower()
 				curr := v.getPower()
@@ -295,7 +307,7 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 		)
 	} else {
 		vp = v
-		e = orderedListAdd(tv.list, v,
+		e = orderedListAdd(tv.getBucket(vp.getPower()), v,
 			func(e *list.Element) bool {
 				return tv.cmp(v.getPower(), toVotingPower(e).getPower())
 			},
@@ -318,11 +330,12 @@ func (tv *topVoters) addVotingPower(addr types.AccountID, delta *big.Int) *votin
 
 // Voters Power Ranking (VPR)
 type vpr struct {
-	changes    map[types.AccountID]*big.Int // temporary buffer for update
 	voters     *topVoters
 	store      *vprStore
 	totalPower *big.Int
 	lowest     *votingPower
+
+	changes map[types.AccountID]*big.Int // temporary buffer for update
 }
 
 func (v *vpr) getTotalPower() *big.Int {
