@@ -102,6 +102,7 @@ type ChainWAL interface {
 	HasWal(identity RaftIdentity) (bool, error)
 	GetRaftEntryOfBlock(hash []byte) (*WalEntry, error)
 	GetRaftEntryLastIdx() (uint64, error)
+	GetRaftEntryIndexOfBlock(hash []byte) (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
 	WriteSnapshot(snap *raftpb.Snapshot) error

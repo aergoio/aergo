@@ -592,6 +592,10 @@ func (cdb *ChainDB) GetBlock(blockHash []byte) (*types.Block, error) {
 	return cdb.getBlock(blockHash)
 }
 
+func (cdb *ChainDB) GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+	return cdb.getHashByNo(blockNo)
+}
+
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {
 	if blockHash == nil {
 		return nil, fmt.Errorf("block hash invalid(nil)")

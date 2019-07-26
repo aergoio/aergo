@@ -229,14 +229,6 @@ function getLeaderPort() {
 	eval "$1=$_leaderport"
 }
 
-
-function testxxx() {
-	local x
-		getleader x
-
-	echo "testleader=$x"
-}
-
 function isStableLeader() {
 	if [ $# -ne 1 ]; then
 		echo 'Usage: isStableLeader timeout. return value=$?'
@@ -557,18 +549,31 @@ function getClusterTotal() {
 }
 
 function waitClusterTotal() {
-	if [ $# -ne 3 -o ! $1 -ge 0 ];then
-		echo "Usage: $0 totalcount rpcport timewait"
+	if [ $# -lt 2 -o ! $1 -ge 0 ];then
+		echo "Usage: waitClusterTotal totalcount tryCount(every 3 second) reqport"
 		exit 100
 	fi
 
 	reqCount=$1
-	chkPort=$2
-	tryCnt=$3
+	tryCnt=$2
+	reqPort=$3
 
 	i=0
 	while [ $i -lt $tryCnt ]; do
-		total=`aergocli -p $chkPort blockchain | jq .ConsensusInfo.Status.Total`
+		if [ "$reqPort" = "" ]; then
+			local leaderport=
+			getLeaderPort leaderport
+
+			if [ $? -ne 0 -o "$leaderport" = "" ];then
+				echo "failed to get leader port"
+				sleep 3
+				continue
+			fi
+
+			reqPort=$leaderport
+		fi
+
+		total=`aergocli -p $reqPort blockchain | jq .ConsensusInfo.Status.Total`
 		if [ "$total" = "$reqCount" ];then
 			return 1	
 		fi
@@ -576,6 +581,7 @@ function waitClusterTotal() {
 		sleep 3
 	done
 
+	echo "succeed waitClusterTotal"
 	return 0
 }
 

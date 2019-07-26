@@ -17,7 +17,12 @@ if [ "$2" == "usebackup" ]; then
 	echo "try to join $addnode with backup"
 fi
 
-leader=$(aergocli -p 10001 blockchain | jq .ConsensusInfo.Status.Leader)
+reqport=$3
+if [ "$reqport" = "" ];then
+	reqport=10001
+fi
+
+leader=$(aergocli -p $reqport blockchain | jq .ConsensusInfo.Status.Leader)
 leader=${leader//\"/}
 if [[ $leader != aergo* ]]; then
 	echo "leader not exist"
@@ -25,7 +30,7 @@ if [[ $leader != aergo* ]]; then
 fi
 
 leaderport=${ports[$leader]}
-prevCnt=$(getClusterTotal 10001)
+prevCnt=$(getClusterTotal $leaderport)
 
 echo "leader=$leader, port=$leaderport, prevTotal=$prevCnt"
 
@@ -55,8 +60,8 @@ done
 echo "new svr=$mySvrport $mySvrName, $myConfig"
 
 reqCnt=$((prevCnt+1))
-echo "reqClusterTotal=$reqCnt"
-waitClusterTotal $reqCnt 10001 10
+echo "waitClusterTotal=$reqCnt"
+waitClusterTotal $reqCnt 600 $reqport
 if [ $? -ne 1 ]; then
 	echo "add failed"
 	exit 100

@@ -87,6 +87,7 @@ type ConsensusAccessor interface {
 type ChainDB interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetHashByNo(blockNo types.BlockNo) ([]byte, error)
 	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
 	NewTx() db.Transaction

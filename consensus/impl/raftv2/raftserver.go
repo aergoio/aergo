@@ -368,7 +368,7 @@ func (rs *raftServer) startRaft() {
 		rs.cluster.ResetMembers()
 
 		if isEmptyLog() {
-			logger.Info().Msg("there is no log, so import cluster information from remote")
+			logger.Info().Msg("there is no log, so import cluster information from remote. This server may have been added and terminated before the first synchronization was completed")
 
 			if _, err := rs.ImportExistingCluster(); err != nil {
 				logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
@@ -442,6 +442,10 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 	existCluster, hardstateinfo, err := rs.GetExistingCluster()
 	if err != nil {
 		logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
+	}
+
+	if hardstateinfo != nil {
+		logger.Info().Str("hardstate", hardstateinfo.ToString()).Msg("received hard state of best hash from remote cluster")
 	}
 
 	// config validate
@@ -1481,11 +1485,11 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 			logger.Fatal().Msg("failed to get best block of my chain to get existing cluster info")
 		}
 
-		logger.Info().Str("hash", bestBlk.ID()).Uint64("no", bestBlk.BlockNo()).Msg("best block of backup")
-
 		if bestBlk.BlockNo() == 0 {
 			return nil
 		}
+
+		logger.Info().Str("hash", bestBlk.ID()).Uint64("no", bestBlk.BlockNo()).Msg("best block of blockchain")
 
 		return bestBlk.BlockHash()
 	}
@@ -1496,7 +1500,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 		cl, hardstate, err = GetClusterInfo(rs.ComponentHub, bestHash)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
-				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
+				logger.Error().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
 				time.Sleep(time.Second * 10)
 			} else {
 				logger.Warn().Err(err).Int("try", i).Msg("failed try to get cluster")

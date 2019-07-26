@@ -183,7 +183,7 @@ func handleCrashRandom(waitMils int) {
 }
 
 func handleSyncerCrash(val int, cond StopCond) error {
-	if val == 1 {
+	if val >= 1 {
 		logger.Fatal().Int("val", val).Msg("sync crash by DEBUG_SYNC_CRASH")
 		return nil
 	} else {

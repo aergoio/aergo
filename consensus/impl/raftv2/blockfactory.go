@@ -654,15 +654,35 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 // getHardStateOfBlock returns (term/commit) corresponding to best block hash.
 // To get hardstateinfo, it needs to search all raft indexes.
 func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardStateInfo, error) {
-	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
-	if err != nil {
-		logger.Error().Err(err).Msg("can't find raft entry for request hash")
-		return nil, err
+	var (
+		bestBlock *types.Block
+		err       error
+		hash      []byte
+	)
+	if bestBlock, err = bf.GetBlock(bestBlockHash); err != nil {
+		return nil, fmt.Errorf("block does not exist in chain")
 	}
 
-	logger.Debug().Uint64("term", entry.Term).Uint64("comit", entry.Index).Msg("get hardstate of block")
+	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
+	if err == nil {
+		logger.Debug().Uint64("term", entry.Term).Uint64("comit", entry.Index).Msg("get hardstate of block")
 
-	return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+		return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+	}
+
+	logger.Warn().Uint64("request no", bestBlock.BlockNo()).Msg("can't find raft entry for requested hash. so try to find closest raft entry.")
+
+	// find best hash mapping (no < bestBlock no)
+	for i := bestBlock.BlockNo() - 1; i >= 1; i-- {
+		if hash, err = bf.GetHashByNo(i); err == nil {
+			if entry, err = bf.ChainWAL.GetRaftEntryOfBlock(hash); err == nil {
+				logger.Debug().Str("entry", entry.ToString()).Msg("find best closest entry")
+				return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("not exist proper raft entry for requested hash")
 }
 
 // ClusterInfo returns members of cluster and hardstate info corresponding to best block hash
