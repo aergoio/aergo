@@ -239,8 +239,8 @@ func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
 }
 
 func checkP2PBlackWhite(v string) error {
-	if _, err := types.IDB58Decode(v); err != nil {
-		return fmt.Errorf("invalid peer id %s", v)
+	if _, err := NewWhiteListEntry(v); err != nil {
+		return fmt.Errorf("invalid p2p whitelist %s", v)
 	}
 	return nil
 }

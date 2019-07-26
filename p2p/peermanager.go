@@ -40,6 +40,7 @@ type peerManager struct {
 	peerFactory       p2pcommon.PeerFactory
 	mf                p2pcommon.MoFactory
 	mm                metric.MetricsManager
+	lm                p2pcommon.ListManager
 	skipHandshakeSync bool
 
 	peerFinder p2pcommon.PeerFinder
@@ -83,7 +84,7 @@ type getPeerTask struct {
 var _ p2pcommon.PeerManager = (*peerManager)(nil)
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, lm p2pcommon.ListManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
@@ -94,6 +95,7 @@ func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorS
 		peerFactory:       pf,
 		mf:                mf,
 		mm:                mm,
+		lm:                lm,
 		logger:            logger,
 		mutex:             &sync.Mutex{},
 		skipHandshakeSync: skipHandshakeSync,
@@ -146,7 +148,7 @@ func (pm *peerManager) init() {
 	}
 
 	pm.peerFinder = NewPeerFinder(pm.logger, pm, pm.actorService, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers, pm.conf.NPUsePolaris)
-	pm.wpManager = NewWaitingPeerManager(pm.logger, pm, pm.actorService, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers, pm.conf.NPUsePolaris)
+	pm.wpManager = NewWaitingPeerManager(pm.logger, pm, pm.lm, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers)
 	// add designated peers to waiting pool at initial time.
 	for _, meta := range pm.designatedPeers {
 		if _, foundInWait := pm.waitingPeers[meta.ID]; !foundInWait {

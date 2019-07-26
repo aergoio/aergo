@@ -27,12 +27,12 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 	changes := make([]p2pcommon.AttrModifier,0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
 		delete(rm.raftBP, pid)
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.RaftWatcher})
+		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.Watcher})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP removed")
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.RaftProducer})
+		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.BlockProducer})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
 	}
 	rm.p2ps.pm.UpdatePeerRole(changes)
@@ -43,9 +43,9 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
 	defer rm.raftMutex.Unlock()
 	if _, found := rm.raftBP[pid]; found {
 		// TODO check if leader or follower
-		return p2pcommon.RaftProducer
+		return p2pcommon.BlockProducer
 	} else {
-		return p2pcommon.RaftWatcher
+		return p2pcommon.Watcher
 	}
 }
 
@@ -53,7 +53,7 @@ func (rm *RaftRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pc
 	// TODO filter to only contain bp and trusted node.
 	for _, neighbor := range peers {
 		if neighbor != nil && neighbor.State() == types.RUNNING &&
-			neighbor.Role() == p2pcommon.RaftWatcher {
+			neighbor.Role() == p2pcommon.Watcher {
 			sent++
 			neighbor.SendMessage(mo)
 		} else {

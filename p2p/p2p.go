@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/p2p/list"
 	"sync"
 	"time"
 
@@ -38,7 +39,7 @@ type P2P struct {
 	cfg *config.Config
 
 	// inited during construction
-	useRaft  bool
+	useRaft bool
 	// caching data from genesis block
 	chainID *types.ChainID
 	nt      p2pcommon.NetworkTransport
@@ -50,8 +51,8 @@ type P2P struct {
 	signer  p2pcommon.MsgSigner
 	ca      types.ChainAccessor
 	prm     p2pcommon.PeerRoleManager
-
-	mutex sync.Mutex
+	lm      p2pcommon.ListManager
+	mutex   sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
@@ -81,6 +82,7 @@ func (p2ps *P2P) AfterStart() {
 	for i, ver := range AcceptedInboundVersions {
 		versions[i] = ver
 	}
+	p2ps.lm.Start()
 	p2ps.mutex.Lock()
 	p2ps.setSelfRole()
 	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
@@ -101,17 +103,11 @@ func (p2ps *P2P) setSelfRole() {
 		if !p2ps.useRaft {
 			panic("configuration failure. ")
 		}
-		if p2ps.cfg.Consensus.EnableBp {
-			p2ps.selfRole = p2pcommon.RaftProducer
-		} else {
-			p2ps.selfRole = p2pcommon.RaftWatcher
-		}
+	}
+	if p2ps.cfg.Consensus.EnableBp {
+		p2ps.selfRole = p2pcommon.BlockProducer
 	} else {
-		if p2ps.cfg.Consensus.EnableBp {
-			p2ps.selfRole = p2pcommon.BlockProducer
-		} else {
-			p2ps.selfRole = p2pcommon.Watcher
-		}
+		p2ps.selfRole = p2pcommon.Watcher
 	}
 }
 
@@ -126,11 +122,13 @@ func (p2ps *P2P) BeforeStop() {
 	nt := p2ps.nt
 	p2ps.mutex.Unlock()
 	nt.Stop()
+	p2ps.lm.Stop()
 }
 
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
 func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
+	stmap["whitelist"] = p2ps.lm.Summary()
 	stmap["netstat"] = p2ps.mm.Summary()
 	stmap["config"] = p2ps.cfg.P2P
 	stmap["status"] = p2ps.nt.SelfMeta()
@@ -173,7 +171,6 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 	p2ps.useRaft = useRaft
-
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
@@ -185,8 +182,11 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	} else {
 		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
 	}
+
+	// public network is always disabled white/blacklist in chain
+	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, p2ps.Logger, mf, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, lm, p2ps.Logger, mf, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
 
@@ -201,6 +201,8 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	p2ps.sm = syncMan
 	//p2ps.rm = reconMan
 	p2ps.mm = metricMan
+	p2ps.lm = lm
+
 	p2ps.mutex.Unlock()
 }
 
@@ -268,6 +270,16 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.prm.UpdateBP(msg.BPAdded, msg.BPRemoved)
 	case message.GetRaftTransport:
 		context.Respond(raftsupport.NewAergoRaftTransport(p2ps.Logger, p2ps.nt, p2ps.pm, p2ps.mf, p2ps.consacc, msg.Cluster))
+	case message.P2PWhiteListConfEnableEvent:
+		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist conf changed")
+		// TODO do more fine grained work
+		p2ps.lm.RefineList()
+		// TODO disconnect newly blacklisted peer.
+	case message.P2PWhiteListConfSetEvent:
+		p2ps.Logger.Debug().Array("enabled", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist conf changed")
+		// TODO do more fine grained work
+		p2ps.lm.RefineList()
+		// TODO disconnect newly blacklisted peer.
 	}
 }
 
@@ -356,7 +368,7 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 
 	// block notice handlers
-	if p2ps.selfRole == p2pcommon.RaftProducer {
+	if p2ps.useRaft && p2ps.selfRole == p2pcommon.BlockProducer {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {

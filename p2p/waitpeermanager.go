@@ -25,13 +25,13 @@ type handshakeResult struct {
 	status *types.Status
 }
 
-func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.WaitingPeerManager {
+func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager{pm: pm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager: basePeerManager{pm: pm, lm:lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager: basePeerManager{pm: pm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager: basePeerManager{pm: pm, lm:lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -40,6 +40,7 @@ func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, actorService p2p
 
 type basePeerManager struct {
 	pm *peerManager
+	lm p2pcommon.ListManager
 
 	logger      *log.Logger
 	workingJobs map[types.PeerID]ConnWork
@@ -51,6 +52,19 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	addr := s.Conn().RemoteMultiaddr()
 
 	dpm.logger.Info().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
+	ip := p2putil.ExtractIPAddress(addr)
+	if ip == nil {
+		dpm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Can't extract ip address from inbound peer")
+		s.Close()
+		return
+	}
+	if banned, _ := dpm.lm.IsBanned(ip.String(), peerID); banned {
+		dpm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("multiaddr", addr.String()).Msg("inbound peer is banned by list manager")
+		s.Close()
+		return
+	}
+	tempMeta.IPAddress = ip.String()
+
 	query := inboundConnEvent{meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
@@ -141,13 +155,17 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 			if _, exist := dpm.workingJobs[wp.Meta.ID]; exist {
 				continue
 			}
+			if banned, _ := dpm.lm.IsBanned(wp.Meta.IPAddress, wp.Meta.ID); banned {
+				dpm.logger.Info().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(wp.Meta)).Msg("Skipping banned peer")
+				continue
+			}
 			dpm.logger.Info().Int("trial", wp.TrialCnt).Str(p2putil.LogPeerID, p2putil.ShortForm(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
 
 			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID: wp.Meta.ID, StartTime: time.Now()}
 			go dpm.runTryOutboundConnect(wp)
 			added++
 		} else {
-			break
+			continue
 		}
 	}
 }

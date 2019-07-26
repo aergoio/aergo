@@ -67,18 +67,18 @@ func TestFromMultiAddrStringWithPID(t *testing.T) {
 		wantPort int
 		wantErr  bool
 	}{
-		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002","16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58"), 11002, false},
-		{"TMissingAddr", "/tcp/11002","16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58"), 11002, true},
-		{"TIP4MissingPort", "/ip4/192.168.0.58","16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58"), 11002, true},
-		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003","16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("FE80::0202:B3FF:FE1E:8329"), 11003, false},
+		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002", "16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58"), 11002, false},
+		{"TMissingAddr", "/tcp/11002", "16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58"), 11002, true},
+		{"TIP4MissingPort", "/ip4/192.168.0.58", "16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58"), 11002, true},
+		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003", "16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("FE80::0202:B3FF:FE1E:8329"), 11003, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			id, err := types.IDB58Decode(tt.idStr)
 			if err != nil {
-				t.Fatalf("parse id error %v ",err)
+				t.Fatalf("parse id error %v ", err)
 			}
-			got, err := FromMultiAddrStringWithPID(tt.str,id)
+			got, err := FromMultiAddrStringWithPID(tt.str, id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FromMultiAddr() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -93,7 +93,7 @@ func TestFromMultiAddrStringWithPID(t *testing.T) {
 				}
 			}
 
-			ma, _ := types.ParseMultiaddrWithResolve(tt.str+"/p2p/"+tt.idStr)
+			ma, _ := types.ParseMultiaddrWithResolve(tt.str + "/p2p/" + tt.idStr)
 			got2, err := FromMultiAddr(ma)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FromMultiAddr() error = %v, wantErr %v", err, tt.wantErr)
@@ -217,6 +217,29 @@ func TestGenerateKeyFile(t *testing.T) {
 					t.Errorf("GenerateKeyFile() and LoadKeyFile() public key is differ.")
 					return
 				}
+			}
+		})
+	}
+}
+
+func TestExtractIPAddress(t *testing.T) {
+	tests := []struct {
+		name string
+		mastr string
+
+		want net.IP
+	}{
+		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58") },
+		{"TIP4AndPort", "/ip4/192.168.0.58/tcp/11002", net.ParseIP("192.168.0.58") },
+		{"TMissingAddr", "/tcp/11002", nil},
+		{"TIP4Only", "/ip4/192.168.0.58", net.ParseIP("192.168.0.58"),},
+		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("FE80::0202:B3FF:FE1E:8329")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ma, _ := types.ParseMultiaddrWithResolve(tt.mastr)
+			if got := ExtractIPAddress(ma); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractIPAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}
