@@ -25,8 +25,14 @@ var (
 	zeroValue    = &big.Int{}
 	binSize, _   = new(big.Int).SetString("10000000000000", 10)
 
-	votingPowerRank = newVpr()
+	votingPowerRank *vpr
 )
+
+func InitVotingPowerRank(s dataGetter) (err error) {
+	votingPowerRank, err = loadVpr(s)
+
+	return
+}
 
 type votingPower struct {
 	addr  types.AccountID
@@ -431,6 +437,10 @@ func (v *vpr) prepare(addr types.AccountID, fn func(lhs *big.Int)) {
 }
 
 func (v *vpr) add(addr types.AccountID, power *big.Int) {
+	if v == nil {
+		return
+	}
+
 	v.prepare(addr,
 		func(lhs *big.Int) {
 			lhs.Add(lhs, power)
@@ -439,6 +449,10 @@ func (v *vpr) add(addr types.AccountID, power *big.Int) {
 }
 
 func (v *vpr) sub(addr types.AccountID, power *big.Int) {
+	if v == nil {
+		return
+	}
+
 	v.prepare(addr,
 		func(lhs *big.Int) {
 			lhs.Sub(lhs, power)
@@ -447,6 +461,10 @@ func (v *vpr) sub(addr types.AccountID, power *big.Int) {
 }
 
 func (v *vpr) apply(s *state.ContractState) (int, error) {
+	if v == nil {
+		return 0, nil
+	}
+
 	var (
 		nApplied = 0
 		updRows  = make(map[uint8]interface{})

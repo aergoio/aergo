@@ -107,6 +107,8 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 }
 
 func (vr *VoteResult) Sync() error {
+	votingPowerRank.apply(vr.scs)
+
 	if vr.ex {
 		if err := vr.scs.SetData(append(totalKey, vr.key...), vr.total.Bytes()); err != nil {
 			return err

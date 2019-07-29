@@ -162,10 +162,14 @@ func (c *voteCmd) updateVoteResult() error {
 }
 
 func (c *voteCmd) subVote(v *types.Vote) error {
+	votingPowerRank.sub(c.Sender.AccountID(), v.GetAmountBigInt())
+
 	return c.voteResult.SubVote(v)
 }
 
 func (c *voteCmd) addVote(v *types.Vote) error {
+	votingPowerRank.add(c.Sender.AccountID(), v.GetAmountBigInt())
+
 	return c.voteResult.AddVote(v)
 }
 

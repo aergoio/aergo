@@ -8,8 +8,10 @@ package dpos
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"time"
+
+	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -96,6 +98,12 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		return nil, err
 	}
 
+	// Initialize the voting power ranking.
+	err = InitVPR(sdb.GetStateDB())
+	if err != nil {
+		return nil, err
+	}
+
 	Init(bpc.Size())
 
 	quitC := make(chan interface{})
@@ -108,6 +116,14 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		bf:           NewBlockFactory(hub, sdb, quitC),
 		quit:         quitC,
 	}, nil
+}
+
+func InitVPR(sdb *state.StateDB) error {
+	s, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return err
+	}
+	return system.InitVotingPowerRank(s)
 }
 
 // Init initilizes the DPoS parameters.
@@ -296,6 +312,7 @@ func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
 }
 
 var dummyRaft consensus.DummyRaftAccessor
+
 func (dpos *DPoS) RaftAccessor() consensus.AergoRaftAccessor {
 	return &dummyRaft
 }
