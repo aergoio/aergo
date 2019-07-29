@@ -8,6 +8,7 @@ package chain
 import (
 	"bytes"
 	"container/list"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -922,6 +924,17 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
+	vrSeed := func(stateRoot []byte) int64 {
+		return int64(binary.LittleEndian.Uint64(stateRoot))
+	}
+
+	// XXX Check whether the state root used for the seed is deterministic!!!
+	if addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot())); err != nil {
+		logger.Debug().Err(err).Msg("no voting reward winner")
+	} else {
+		logger.Debug().Str("address", addr.String()).Msg("voting reward winner appointed")
+	}
+
 	bpReward := new(big.Int).SetBytes(bState.BpReward)
 	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
 		logger.Debug().Str("reward", new(big.Int).SetBytes(bState.BpReward).String()).Msg("coinbase is skipped")

@@ -21,6 +21,9 @@ const (
 )
 
 var (
+	ErrNoVotingRewardWinner = errors.New("voting reward: no winner")
+	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
+
 	vprKeyPrefix = []byte("VotingPowerBucket/")
 	zeroValue    = &big.Int{}
 	binSize, _   = new(big.Int).SetString("10000000000000", 10)
@@ -498,7 +501,21 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	return nApplied, nil
 }
 
-func (v *vpr) Bingo(seed int64) (types.AccountID, error) {
+func PickVotingRewardWinner(seed int64) (types.AccountID, error) {
+	return votingPowerRank.bingo(seed)
+}
+
+func (v *vpr) bingo(seed int64) (types.AccountID, error) {
+	nilAcc := types.AccountID{}
+
+	if v == nil {
+		return nilAcc, ErrNoVotingRewardRank
+	}
+
+	if v.getTotalPower().Cmp(zeroValue) == 0 {
+		return nilAcc, ErrNoVotingRewardWinner
+	}
+
 	r := new(big.Int).Rand(
 		rand.New(rand.NewSource(seed)),
 		v.getTotalPower())
@@ -512,7 +529,8 @@ func (v *vpr) Bingo(seed int64) (types.AccountID, error) {
 			}
 		}
 	}
-	return types.AccountID{}, errors.New("voting reward: no winner")
+
+	return nilAcc, ErrNoVotingRewardWinner
 }
 
 func vprKey(i uint8) []byte {

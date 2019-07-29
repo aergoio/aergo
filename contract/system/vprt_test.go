@@ -337,7 +337,7 @@ func TestVprSingleWinner(t *testing.T) {
 	stat := make(map[types.AccountID]uint16)
 
 	for i := int64(0); i < 1000; i++ {
-		addr, err := votingPowerRank.Bingo(i)
+		addr, err := votingPowerRank.bingo(i)
 		assert.NoError(t, err)
 		count := stat[addr]
 		stat[addr] = count + 1
@@ -358,7 +358,7 @@ func TestVprPickWinner(t *testing.T) {
 	stat := make(map[types.AccountID]uint16)
 
 	for i := int64(0); i < nVoters; i++ {
-		addr, err := votingPowerRank.Bingo(i)
+		addr, err := votingPowerRank.bingo(i)
 		assert.NoError(t, err)
 		count := stat[addr]
 		stat[addr] = count + 1
