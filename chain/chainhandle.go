@@ -470,16 +470,29 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return ErrBlockCachedErrLRU
 	}
 
-	var err error
+	var (
+		err error
+		blk *types.Block
+	)
 	if !cs.HasWAL() {
 		_, err = cs.getBlock(newBlock.BlockHash())
+		if err == nil {
+			logger.Warn().Msg("block already exists")
+			return nil
+		}
 	} else {
 		// check alread connect block
-		_, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
-	}
-	if err == nil {
-		logger.Warn().Msg("block already exists")
-		return nil
+		blk, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
+		if err == nil {
+			if bytes.Equal([]byte(blk.BlockHash()), []byte(newBlock.BlockHash())) {
+				logger.Warn().Msg("block already exists")
+				return nil
+			} else {
+				/* TODO change to error after testing */
+				logger.Fatal().Str("newblock", newBlock.ID()).Str("savedblock", blk.ID()).Msg("drop invalid request of adding block")
+				return nil
+			}
+		}
 	}
 
 	var needCache bool

@@ -1096,7 +1096,7 @@ func (cl *Cluster) isEnableChangeMembership(cc *raftpb.ConfChange) error {
 	case cc.Type == raftpb.ConfChangeAddNode:
 		for _, mp := range cp.MemberProgresses {
 			if mp.Status != MemberProgressStateHealthy {
-				logger.Error().Str("unhealthy member", mp.ToString()).Msg("exist unhealthy member in cluster. If you want add some node, fix the unhealthy node and try again")
+				logger.Error().Uint64("slowgap", MaxSlowNodeGap).Str("unhealthy member", mp.ToString()).Msg("exist unhealthy member in cluster. If you want add some node, fix the unhealthy node and try again")
 				return ErrUnhealtyNodeExist
 			}
 		}

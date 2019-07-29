@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "================= raft member join with backup test ===================="
+echo "================= raft member join with backup : best entry test ===================="
 
 BP_NAME=""
 
@@ -64,9 +64,9 @@ checkSync 10003 10004 180
 #checkSyncWithLeader 10004 180
 # check log if "can't find raft entry for requested hash. so try to find closest raft entry." exists in aergo3
 
-egrep -q 'find closest raft entry' ./BP11003.log
+egrep -q 'find closest raft entry' $TEST_RAFT_INSTANCE/server_BP11003.log
 if [ "$?" != "0" ]; then
-	echo "failed to sync"
+	echo "not occure log: find closest raft entry"
 	exit 100
 fi
 

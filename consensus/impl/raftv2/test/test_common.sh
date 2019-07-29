@@ -99,23 +99,29 @@ function getHash() {
 
 function getleader() {
 	local curleader=""
-	for i in 10001 10002 10003 10004 10005 ; do
-		getLeaderOf $i curleader
-		if [[ "$curleader" == aergo* ]]; then
-			break
+	local i=0
+	for (( ; ; )); do
+		for i in 10001 10002 10003 10004 10005 ; do
+			getLeaderOf $i curleader
+			if [[ "$curleader" == aergo* ]]; then
+				break
+			fi
+		done
+
+		echo "curleader=$curleader"
+
+		if [[ "$curleader" != aergo* ]]; then
+			echo "<get leader failed>"
+			eval "$1="
+			sleep 3
+			continue
 		fi
+
+		echo "leader=$curleader"
+
+		eval "$1=$curleader"
+		return
 	done
-
-	echo "curleader=$curleader"
-
-	if [[ "$curleader" != aergo* ]]; then
-		echo "<get leader failed>"
-		exit 100
-	fi
-
-	echo "leader=$curleader"
-
-	eval "$1=$curleader"
 }
 
 
@@ -557,11 +563,13 @@ function waitClusterTotal() {
 	reqCount=$1
 	tryCnt=$2
 	reqPort=$3
+	local i
+	echo "Wait cluster: reqCount=$1 tryCnt=$2 reqPort=$3"
 
-	i=0
-	while [ $i -lt $tryCnt ]; do
-		if [ "$reqPort" = "" ]; then
-			local leaderport=
+	local leaderport=$reqPort
+
+	for ((i=1; i<= $tryCnt ; i++)); do
+		if [ "$reqport" = "" ];then
 			getLeaderPort leaderport
 
 			if [ $? -ne 0 -o "$leaderport" = "" ];then
@@ -569,19 +577,20 @@ function waitClusterTotal() {
 				sleep 3
 				continue
 			fi
-
-			reqPort=$leaderport
 		fi
 
-		total=`aergocli -p $reqPort blockchain | jq .ConsensusInfo.Status.Total`
+		total=`aergocli -p $leaderport blockchain | jq .ConsensusInfo.Status.Total`
+		echo "i=$i, total=$total, req=$reqCount"
 		if [ "$total" = "$reqCount" ];then
 			return 1	
 		fi
-		i=$((i + 1))
-		sleep 3
-	done
 
-	echo "succeed waitClusterTotal"
+		sleep 3 
+		echo $i
+	done
+		
+
+	echo "failed waitClusterTotal($total)"
 	return 0
 }
 

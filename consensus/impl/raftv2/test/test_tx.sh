@@ -8,14 +8,14 @@ echo ""
 echo "======== make initial server ========="
 make_node.sh 
 
-checkSync 10001 10002 30
-checkSync 10001 10003 30
+checkSync 10001 10002 60
+checkSync 10001 10003 60
 
 pushd  $TEST_RAFT_INSTANCE_CLIENT
 run_tx.sh
 popd
 
-checkSync 10001 10002 30
-checkSync 10001 10003 30
+checkSync 10001 10002 60
+checkSync 10001 10003 60
 
 

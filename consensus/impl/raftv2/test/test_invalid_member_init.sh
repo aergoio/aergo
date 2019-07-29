@@ -33,7 +33,7 @@ fi
 
 echo "node aergo1 is crashed because of invalid config"
 
-checkSync 10002 10003 30 result
+checkSync 10002 10003 60 result
 
 pushd $TEST_RAFT_INSTANCE/config
 do_sed.sh BP11001.toml aergo1_xxx aergo1 =

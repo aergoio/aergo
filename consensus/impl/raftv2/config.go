@@ -6,7 +6,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/types"
-	"os"
 	"strings"
 	"time"
 
@@ -18,11 +17,8 @@ import (
 var (
 	ErrEmptyBPs              = errors.New("BP list is empty")
 	ErrNotIncludedRaftMember = errors.New("this node isn't included in initial raft members")
-	ErrRaftEmptyTLSFile      = errors.New("cert or key file name is empty")
-	ErrNotHttpsURL           = errors.New("url scheme is not https")
 	ErrDupBP                 = errors.New("raft bp description is duplicated")
 	ErrInvalidRaftPeerID     = errors.New("peerID of current raft bp is not equals to p2p configure")
-	ErrNotExitRecoverBP      = errors.New("RecoverBP is needed for creating a new cluster from backup")
 )
 
 const (
@@ -30,7 +26,6 @@ const (
 )
 
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
-	useTls := true
 	var err error
 
 	genesis := chain.Genesis
@@ -56,22 +51,6 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	}
 
 	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, p2pkey.NodeID(), genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
-
-	if useTls, err = validateTLS(raftConfig); err != nil {
-		logger.Error().Err(err).
-			Str("key", raftConfig.KeyFile).
-			Str("cert", raftConfig.CertFile).
-			Bool("useTLS", useTls).
-			Msg("failed to validate tls config for raft")
-		return err
-	}
-
-	//if raftConfig.ListenUrl != "" {
-	//	if err := isValidURL(raftConfig.ListenUrl, useTls); err != nil {
-	//		logger.Error().Err(err).Msg("failed to validate listen url for raft")
-	//		return err
-	//	}
-	//}
 
 	if raftConfig.NewCluster {
 		var mbrAttrs []*types.MemberAttr
@@ -134,36 +113,6 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 	}
 
 	return mbrs, nil
-}
-
-func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
-	if len(raftCfg.CertFile) == 0 && len(raftCfg.KeyFile) == 0 {
-		return false, nil
-	}
-
-	//두 파일이 모두 설정되어 있는지 확인
-	//실제 file에 존재하는지 확인
-	if len(raftCfg.CertFile) == 0 || len(raftCfg.KeyFile) == 0 {
-		logger.Error().Str("raftcertfile", raftCfg.CertFile).Str("raftkeyfile", raftCfg.KeyFile).
-			Msg(ErrRaftEmptyTLSFile.Error())
-		return false, ErrRaftEmptyTLSFile
-	}
-
-	if len(raftCfg.CertFile) != 0 {
-		if _, err := os.Stat(raftCfg.CertFile); err != nil {
-			logger.Error().Err(err).Msg("not exist certificate file for raft")
-			return false, err
-		}
-	}
-
-	if len(raftCfg.KeyFile) != 0 {
-		if _, err := os.Stat(raftCfg.KeyFile); err != nil {
-			logger.Error().Err(err).Msg("not exist Key file for raft")
-			return false, err
-		}
-	}
-
-	return true, nil
 }
 
 func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {

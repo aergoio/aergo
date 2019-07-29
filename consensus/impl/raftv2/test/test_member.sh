@@ -28,6 +28,7 @@ if [ "$?" != "0" ];then
 	echo "fail to add"
 	exit 100
 fi
+checkSync 10001 10004 120 
 
 date
 echo ""
