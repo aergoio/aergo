@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"container/list"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -295,8 +297,7 @@ func (tv *topVoters) getBucket(pow *big.Int) (l *list.List) {
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	var e *list.Element
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	//     TODO: Maintain len(tv.powers) <= tv.max
-	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	// TODO: Maintain len(tv.powers) <= tv.max
 	//
 	// * Rejection & Eviction Rule:
 	//
@@ -316,7 +317,6 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	// removed from the VPR. In such a situtation, any voter cating a vote will
 	// be unconditionally included into the VPR since one slot is available for
 	// him even if his voting power is less than the aforementioned voter A.
-	//
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	if e = tv.get(v.getAddr()); e != nil {
 		vp = toVotingPower(e)
@@ -361,22 +361,6 @@ type vpr struct {
 	changes map[types.AccountID]*big.Int // temporary buffer for update
 }
 
-func (v *vpr) getTotalPower() *big.Int {
-	return new(big.Int).Set(v.totalPower)
-}
-
-func (v *vpr) getLowest() *votingPower {
-	return v.lowest
-}
-
-func (v *vpr) updateLowest(vp *votingPower) {
-	if v.lowest == nil {
-		v.lowest = vp
-	} else if vp.lt(v.lowest) {
-		v.lowest = vp
-	}
-}
-
 func newVpr() *vpr {
 	return &vpr{
 		voters:     newTopVoters(vprMax),
@@ -407,6 +391,22 @@ func loadVpr(s dataGetter) (*vpr, error) {
 	}
 
 	return v, nil
+}
+
+func (v *vpr) getTotalPower() *big.Int {
+	return new(big.Int).Set(v.totalPower)
+}
+
+func (v *vpr) getLowest() *votingPower {
+	return v.lowest
+}
+
+func (v *vpr) updateLowest(vp *votingPower) {
+	if v.lowest == nil {
+		v.lowest = vp
+	} else if vp.lt(v.lowest) {
+		v.lowest = vp
+	}
 }
 
 func (v *vpr) addTotal(delta *big.Int) {
@@ -480,7 +480,21 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	return nApplied, nil
 }
 
-func (v *vpr) Bingo(seed []byte) {
+func (v *vpr) Bingo(seed int64) (types.AccountID, error) {
+	r := new(big.Int).Rand(
+		rand.New(rand.NewSource(seed)),
+		v.getTotalPower())
+	for i := uint8(0); i < vprBucketsMax; i++ {
+		if l := v.store.buckets[i]; l != nil && l.Len() > 0 {
+			for e := l.Front(); e != nil; e = e.Next() {
+				vp := toVotingPower(e)
+				if r.Sub(r, vp.getPower()).Cmp(zeroValue) <= 0 {
+					return vp.getAddr(), nil
+				}
+			}
+		}
+	}
+	return types.AccountID{}, errors.New("voting reward: no winner")
 }
 
 func vprKey(i uint8) []byte {

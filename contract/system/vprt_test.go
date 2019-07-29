@@ -328,6 +328,48 @@ func TestVprTotalPower(t *testing.T) {
 	votingPowerRank.checkValidity(t)
 }
 
+func TestVprSingleWinner(t *testing.T) {
+	const nVoters = 1
+
+	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	defer finalizeVprtTest()
+
+	stat := make(map[types.AccountID]uint16)
+
+	for i := int64(0); i < 1000; i++ {
+		addr, err := votingPowerRank.Bingo(i)
+		assert.NoError(t, err)
+		count := stat[addr]
+		stat[addr] = count + 1
+	}
+
+	for addr, count := range stat {
+		fmt.Printf("%v: pwr = %v, wins # = %v\n",
+			addr, votingPowerRank.votingPowerOf(addr), count)
+	}
+}
+
+func TestVprPickWinner(t *testing.T) {
+	const nVoters = 1000
+
+	initVprtTestWithSc(t, func(s *state.ContractState) { initRankTableRandSc(nVoters, s) })
+	defer finalizeVprtTest()
+
+	stat := make(map[types.AccountID]uint16)
+
+	for i := int64(0); i < nVoters; i++ {
+		addr, err := votingPowerRank.Bingo(i)
+		assert.NoError(t, err)
+		count := stat[addr]
+		stat[addr] = count + 1
+	}
+
+	for addr, count := range stat {
+		fmt.Printf("%v: pwr = %v, wins # = %v\n",
+			addr, votingPowerRank.votingPowerOf(addr), count)
+	}
+}
+
 func (v *vpr) checkValidity(t *testing.T) {
 	sum1 := &big.Int{}
 	sum2 := &big.Int{}
