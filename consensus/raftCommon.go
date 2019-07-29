@@ -96,7 +96,6 @@ type ChainWAL interface {
 
 	ClearWAL()
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
-	GetBlock(blockHash []byte) (*types.Block, error)
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
 	HasWal(identity RaftIdentity) (bool, error)

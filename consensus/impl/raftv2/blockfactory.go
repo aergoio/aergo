@@ -51,6 +51,7 @@ var (
 	ErrClusterNotReady      = errors.New("cluster is not ready")
 	ErrNotRaftLeader        = errors.New("this node is not leader")
 	ErrInvalidConsensusName = errors.New("invalid consensus name")
+	ErrCancelGenerate       = errors.New("cancel generating block because work becomes stale")
 )
 
 func init() {
@@ -409,6 +410,8 @@ func (bf *BlockFactory) worker() {
 			// RaftEmptyBlockLog: When the leader changes, the new raft leader creates an empty data log with a new term and index.
 			// When block factory receives empty block log, the blockfactory that is running as the leader should reset the proposal in progress.
 			// This proposal may have been dropped on the raft.
+			// Warning : There may be timing issue when reseting. If empty log of buffered channel is processed after propose,
+			// the proposal you just submitted may be canceled incorrectly.
 			if cEntry.block == nil {
 				bf.reset()
 				continue
@@ -435,6 +438,24 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
 		}
 	}()
+
+	checkCancel := func() bool {
+		if !bf.raftServer.IsLeader() {
+			logger.Debug().Msg("cancel because no more leader")
+			return true
+		}
+
+		if b, _ := bf.GetBestBlock(); b != nil && bestBlock.BlockNo() != b.BlockNo() {
+			logger.Debug().Msg("cancel because best block changed")
+			return true
+		}
+
+		return false
+	}
+
+	if checkCancel() {
+		return nil, nil, ErrCancelGenerate
+	}
 
 	blockState := bf.sdb.NewBlockState(bestBlock.GetHeader().GetBlocksRootHash())
 
@@ -573,6 +594,22 @@ func (bf *BlockFactory) NeedNotify() bool {
 
 func (bf *BlockFactory) HasWAL() bool {
 	return true
+}
+
+func (bf *BlockFactory) IsForkEnable() bool {
+	return false
+}
+
+// check already connect block
+// In raft, block hash may already have been writtern when writing log entry.
+func (bf *BlockFactory) IsConnectedBlock(block *types.Block) bool {
+	savedBlk, err := bf.GetBlockByNo(block.GetHeader().GetBlockNo())
+	if err == nil {
+		if bytes.Equal([]byte(savedBlk.BlockHash()), []byte(block.BlockHash())) {
+			return true
+		}
+	}
+	return false
 }
 
 type ErrorMembershipChange struct {

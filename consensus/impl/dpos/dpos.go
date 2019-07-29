@@ -296,6 +296,7 @@ func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
 }
 
 var dummyRaft consensus.DummyRaftAccessor
+
 func (dpos *DPoS) RaftAccessor() consensus.AergoRaftAccessor {
 	return &dummyRaft
 }
@@ -327,6 +328,19 @@ func (dpos *DPoS) NeedNotify() bool {
 }
 
 func (dpos *DPoS) HasWAL() bool {
+	return false
+}
+
+func (dpos *DPoS) IsForkEnable() bool {
+	return true
+}
+
+func (dpos *DPoS) IsConnectedBlock(block *types.Block) bool {
+	_, err := dpos.ChainDB.GetBlock(block.BlockHash())
+	if err == nil {
+		return true
+	}
+
 	return false
 }
 

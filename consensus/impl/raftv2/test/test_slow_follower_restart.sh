@@ -2,7 +2,7 @@
 source test_common.sh
 
 echo ""
-echo "============================== raft server slow follower node test ============================"
+echo "============================== raft server slow follower restart test ============================"
 
 BP_NAME=""
 

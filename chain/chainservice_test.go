@@ -58,6 +58,12 @@ func (stubC *StubConsensus) NeedNotify() bool {
 func (stubC *StubConsensus) HasWAL() bool {
 	return false
 }
+func (stubC *StubConsensus) IsConnectedBlock(block *types.Block) bool {
+	return false
+}
+func (stubC *StubConsensus) IsForkEnable() bool {
+	return true
+}
 
 func (stubC *StubConsensus) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
 	return nil, consensus.ErrNotSupportedMethod

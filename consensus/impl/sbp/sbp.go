@@ -221,6 +221,7 @@ func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
 }
 
 var dummyRaft consensus.DummyRaftAccessor
+
 func (s *SimpleBlockFactory) RaftAccessor() consensus.AergoRaftAccessor {
 	return &dummyRaft
 }
@@ -230,6 +231,19 @@ func (s *SimpleBlockFactory) NeedNotify() bool {
 }
 
 func (s *SimpleBlockFactory) HasWAL() bool {
+	return false
+}
+
+func (s *SimpleBlockFactory) IsForkEnable() bool {
+	return true
+}
+
+func (s *SimpleBlockFactory) IsConnectedBlock(block *types.Block) bool {
+	_, err := s.ChainDB.GetBlock(block.BlockHash())
+	if err == nil {
+		return true
+	}
+
 	return false
 }
 

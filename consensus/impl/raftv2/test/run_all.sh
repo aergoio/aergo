@@ -23,6 +23,7 @@ RUN_TEST_SCRIPT test_up_down.sh
 RUN_TEST_SCRIPT test_leader_change.sh 10
 RUN_TEST_SCRIPT test_slow_follower.sh
 RUN_TEST_SCRIPT test_slow_leader.sh
+RUN_TEST_SCRIPT test_slow_follower_restart.sh
 RUN_TEST_SCRIPT test_syncer_crash.sh 0
 RUN_TEST_SCRIPT test_syncer_crash.sh 1
 RUN_TEST_SCRIPT test_member.sh

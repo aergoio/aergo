@@ -31,8 +31,9 @@ var (
 	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
 	ErrStateNoMarker         = errors.New("statedb marker of block is not exists")
 
-	errBlockStale     = errors.New("produced block becomes stale")
-	errBlockTimestamp = errors.New("invalid timestamp")
+	errBlockStale       = errors.New("produced block becomes stale")
+	errBlockInvalidFork = errors.New("invalid fork occured")
+	errBlockTimestamp   = errors.New("invalid timestamp")
 
 	InAddBlock = make(chan struct{}, 1)
 )
@@ -392,7 +393,10 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		}, false
 	}
 
-	var bestBlock *types.Block
+	var (
+		bestBlock  *types.Block
+		savedBlock *types.Block
+	)
 
 	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
 		return err, false
@@ -412,6 +416,32 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 				No:   newBlock.BlockNo(),
 			},
 		}, false
+	}
+
+	//Fork should never occur in raft.
+	checkFork := func(block *types.Block) error {
+		if cs.IsForkEnable() {
+			return nil
+		}
+		if usedBstate != nil {
+			return nil
+		}
+
+		savedBlock, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
+		if err == nil {
+			/* TODO change to error after testing */
+			logger.Fatal().Str("newblock", newBlock.ID()).Str("savedblock", savedBlock.ID()).Msg("drop block making invalid fork")
+			return &ErrBlock{
+				err:   errBlockInvalidFork,
+				block: &types.BlockInfo{Hash: newBlock.BlockHash(), No: newBlock.BlockNo()},
+			}
+		}
+
+		return nil
+	}
+
+	if err := checkFork(newBlock); err != nil {
+		return err, false
 	}
 
 	if !newBlock.ValidChildOf(bestBlock) {
@@ -470,29 +500,11 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 		return ErrBlockCachedErrLRU
 	}
 
-	var (
-		err error
-		blk *types.Block
-	)
-	if !cs.HasWAL() {
-		_, err = cs.getBlock(newBlock.BlockHash())
-		if err == nil {
-			logger.Warn().Msg("block already exists")
-			return nil
-		}
-	} else {
-		// check alread connect block
-		blk, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
-		if err == nil {
-			if bytes.Equal([]byte(blk.BlockHash()), []byte(newBlock.BlockHash())) {
-				logger.Warn().Msg("block already exists")
-				return nil
-			} else {
-				/* TODO change to error after testing */
-				logger.Fatal().Str("newblock", newBlock.ID()).Str("savedblock", blk.ID()).Msg("drop invalid request of adding block")
-				return nil
-			}
-		}
+	var err error
+
+	if cs.IsConnectedBlock(newBlock) {
+		logger.Warn().Str("hash", newBlock.ID()).Uint64("no", newBlock.BlockNo()).Msg("block is already connected")
+		return nil
 	}
 
 	var needCache bool
