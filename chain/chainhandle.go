@@ -25,11 +25,10 @@ import (
 )
 
 var (
-	ErrorNoAncestor          = errors.New("not found ancestor")
-	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
-	ErrBlockCachedErrLRU     = errors.New("block is in errored blocks cache")
-	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
-	ErrStateNoMarker         = errors.New("statedb marker of block is not exists")
+	ErrorNoAncestor      = errors.New("not found ancestor")
+	ErrBlockOrphan       = errors.New("block is ohphan, so not connected in chain")
+	ErrBlockCachedErrLRU = errors.New("block is in errored blocks cache")
+	ErrStateNoMarker     = errors.New("statedb marker of block is not exists")
 
 	errBlockStale       = errors.New("produced block becomes stale")
 	errBlockInvalidFork = errors.New("invalid fork occured")
