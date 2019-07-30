@@ -23,6 +23,7 @@ type Config struct {
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
 	Account    *AccountConfig    `mapstructure:"account"`
 	Auth       *AuthConfig       `mapstructure:"auth"`
+	Hardfork   *HardforkConfig   `mapstructure:"hardfork"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -231,4 +232,5 @@ unlocktimeout = "{{.Account.UnlockTimeout}}"
 
 [auth]
 enablelocalconf = "{{.Auth.EnableLocalConf}}"
-`
+
+` + hardforkConfigTmpl

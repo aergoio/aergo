@@ -152,26 +152,27 @@ func (cid *ChainID) Read(data []byte) error {
 	return nil
 }
 
-// AsDefault set *cid to the default chaind id (cid must be a valid pointer).
+// AsDefault set *cid to the default chain id (cid must be a valid pointer).
 func (cid *ChainID) AsDefault() {
 	*cid = defaultChainID
 }
 
-// Equals reports wheter cid equals rhs or not.
+// Equals reports whether cid equals rhs or not.
 func (cid *ChainID) Equals(rhs *ChainID) bool {
-	var (
-		lVal, rVal []byte
-		err        error
-	)
-
-	if lVal, err = cid.Bytes(); err != nil {
+	if cid == nil || rhs == nil {
 		return false
 	}
-	if rVal, err = rhs.Bytes(); err != nil {
+	if cid == rhs {
+		return true
+	}
+	if cid.Version != rhs.Version ||
+		cid.PublicNet != rhs.PublicNet ||
+		cid.MainNet != rhs.MainNet ||
+		cid.Magic != rhs.Magic ||
+		cid.Consensus != rhs.Consensus {
 		return false
 	}
-
-	return bytes.Compare(lVal, rVal) == 0
+	return true
 }
 
 // ToJSON returns a JSON encoded string of cid.
@@ -183,7 +184,7 @@ func (cid ChainID) ToJSON() string {
 }
 
 type EnterpriseBP struct {
-	Name    string `json:"name"`
+	Name string `json:"name"`
 	// multiaddress format with ip or dns with port e.g. /ip4/123.45.67.89/tcp/7846
 	Address string `json:"address"`
 	PeerID  string `json:"peerid"`
@@ -278,13 +279,7 @@ func (g Genesis) PublicNet() bool {
 }
 
 func (g Genesis) IsAergoPublicChain() bool {
-
-	testNetCid := GetTestNetGenesis().ID
-	mainNetCid := GetMainNetGenesis().ID
-	if testNetCid.Equals(&g.ID) || mainNetCid.Equals(&g.ID) {
-		return true
-	}
-	return false
+	return g.IsMainNet() || g.IsTestNet()
 }
 
 func (g Genesis) HasDevChainID() bool {
@@ -299,6 +294,14 @@ func (g Genesis) HasPrivateChainID() bool {
 		return false
 	}
 	return true
+}
+
+func (g *Genesis) IsMainNet() bool {
+	return g.ID.Equals(&(GetMainNetGenesis().ID))
+}
+
+func (g *Genesis) IsTestNet() bool {
+	return g.ID.Equals(&(GetTestNetGenesis().ID))
 }
 
 // GetDefaultGenesis returns default genesis structure

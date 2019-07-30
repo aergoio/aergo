@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
@@ -38,7 +39,9 @@ var (
 	ErrInvalidHardState    = errors.New("invalid hard state")
 	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
 	ErrInvalidCCProgress   = errors.New("invalid conf change progress")
+)
 
+var (
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 
@@ -49,6 +52,8 @@ var (
 	raftEntryPrefix              = []byte("r_entry.")
 	raftEntryInvertPrefix        = []byte("r_inv.")
 	raftConfChangeProgressPrefix = []byte("r_ccstatus.")
+
+	hardforkKey = []byte("hardfork")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -769,4 +774,25 @@ func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
 func (cdb *ChainDB) IsNew() bool {
 	//TODO
 	return true
+}
+
+func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
+	var c config.HardforkDbConfig
+	data := cdb.store.Get(hardforkKey)
+	if len(data) == 0 {
+		return c
+	}
+	if err := json.Unmarshal(data, &c); err != nil {
+		return nil
+	}
+	return c
+}
+
+func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {
+	data, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	cdb.store.Set(hardforkKey, data)
+	return nil
 }

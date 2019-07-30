@@ -50,6 +50,7 @@ require (
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v0.0.5
+	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
 	github.com/sunpuyo/badger v0.0.0-20181022123248-bb757672e2c7
 	github.com/willf/bitset v1.1.10 // indirect

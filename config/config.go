@@ -6,9 +6,9 @@
 package config
 
 import (
-	"github.com/aergoio/aergo/types"
 	"runtime"
 
+	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/aergo-lib/config"
 	//	"github.com/aergoio/aergo/types"
 )
@@ -48,6 +48,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Account:    ctx.GetDefaultAccountConfig(),
 		Auth:       ctx.GetDefaultAuthConfig(),
 		Polaris:    ctx.GetDefaultPolarisConfig(),
+		Hardfork:   ctx.GetDefaultHardforkConfig(),
 	}
 }
 
@@ -142,4 +143,8 @@ func (ctx *ServerContext) GetDefaultAccountConfig() *AccountConfig {
 	return &AccountConfig{
 		UnlockTimeout: 60,
 	}
+}
+
+func (ctx *ServerContext) GetDefaultHardforkConfig() *HardforkConfig {
+	return AllEnabledHardforkConfig
 }

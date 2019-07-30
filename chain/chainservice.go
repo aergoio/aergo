@@ -260,6 +260,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic("failed to init genesis block")
 	}
 
+	if err := cs.checkHardfork(); err != nil {
+		msg := "check the hardfork compatibility"
+		logger.Fatal().Err(err).Msg(msg)
+		panic(msg)
+	}
+
 	if ConsensusName() == consensus.ConsensusName[consensus.ConsensusDPOS] {
 		top, err := cs.getVotes(types.OpvoteBP.ID(), 1)
 		if err != nil {
@@ -863,4 +869,35 @@ func (cs *ChainService) ConsensusType() string {
 
 func (cs *ChainService) IsPublic() bool {
 	return cs.GetGenesisInfo().PublicNet()
+}
+
+func (cs *ChainService) checkHardfork() error {
+	config := cs.cfg.Hardfork
+	if Genesis.IsMainNet() {
+		*config = *cfg.MainNetHardforkConfig
+	} else if Genesis.IsTestNet() {
+		*config = *cfg.TestNetHardforkConfig
+	}
+	dbConfig := cs.cdb.Hardfork()
+	if len(dbConfig) == 0 {
+		return cs.cdb.WriteHardfork(config)
+	}
+	if err := config.CheckCompatibility(dbConfig, cs.cdb.getBestBlockNo()); err != nil {
+		return err
+	}
+	return cs.cdb.WriteHardfork(config)
+}
+
+func (cs *ChainService) ChainID(bno types.BlockNo) *types.ChainID {
+	b, err := cs.GetGenesisInfo().ID.Bytes()
+	if err != nil {
+		return nil
+	}
+	cid := new(types.ChainID)
+	err = cid.Read(b)
+	if err != nil {
+		return nil
+	}
+	cid.Version = int32(cs.cfg.Hardfork.Version(bno))
+	return cid
 }
