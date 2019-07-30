@@ -27,5 +27,6 @@ void vm_set_count_hook(lua_State *L, int limit);
 void vm_db_release_resource(lua_State *L);
 void setHardforkV2(lua_State *L);
 int isHardfork(lua_State *L, char *forkname);
+void initViewFunction();
 
 #endif /* _VM_H */

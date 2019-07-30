@@ -12,6 +12,7 @@ package contract
 #cgo windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/bin/libgmp-10.dll -lm
 #cgo !darwin,!windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/lib/libgmp.so -lm
 
+
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
@@ -87,6 +88,7 @@ type StateSet struct {
 	node              string
 	confirmed         bool
 	isQuery           bool
+	nestedView        int32
 	service           C.int
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
@@ -460,10 +462,9 @@ func (ce *Executor) call(target *LState) C.int {
 		return 0
 	}
 	if ce.isView == true {
-		oldIsQuery := ce.stateSet.isQuery
-		ce.stateSet.isQuery = true
+		ce.stateSet.nestedView++
 		defer func() {
-			ce.stateSet.isQuery = oldIsQuery
+			ce.stateSet.nestedView--
 		}()
 	}
 	nret := C.int(0)

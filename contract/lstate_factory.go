@@ -3,6 +3,7 @@ package contract
 /*
 #include <lualib.h>
 #include "lgmp.h"
+#include "vm.h"
 */
 import "C"
 import "sync"
@@ -16,6 +17,7 @@ const MAX_LSTATE_SIZE = 150
 func StartLStateFactory() {
 	once.Do(func() {
 		C.init_bignum()
+		C.initViewFunction()
 		getCh = make(chan *LState, MAX_LSTATE_SIZE)
 		freeCh = make(chan *LState, MAX_LSTATE_SIZE)
 

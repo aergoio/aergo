@@ -3744,24 +3744,32 @@ func TestView(t *testing.T) {
 	defer bc.Release()
 
 	definition := `
-    function test_view()
-        contract.event("ev1", 1,"local", 2, "form")
-        contract.event("ev1", 3,"local", 4, "form")
+    function test_view(a)
+      contract.event("ev1", 1,"local", 2, "form")
+      contract.event("ev1", 3,"local", 4, "form")
     end
+
 	function k()
 		return 10
 	end
+
 	function tx_in_view_function()
 		k2()
 	end
 	function k2()
 		test_view()
 	end
+
+	function k3()
+		ret = contract.pcall(test_view)
+		assert (ret == false)
+		contract.event("ev2", 4, "global")
+	end
 	function tx_after_view_function()
 		k()
         contract.event("ev1", 1,"local", 2, "form")
 	end
-    abi.register(test_view, tx_after_view_function)
+    abi.register(test_view, tx_after_view_function, k2, k3)
     abi.register_view(test_view, k, tx_in_view_function)
 `
 
@@ -3790,6 +3798,18 @@ func TestView(t *testing.T) {
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_after_view_function", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "k2", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "k3", "Args":[]}`),
 	)
 	if err != nil {
 		t.Error(err)

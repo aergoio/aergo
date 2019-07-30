@@ -70,7 +70,7 @@ func LuaSetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, value
 	if stateSet == nil {
 		return C.CString("[System.LuaSetDB] contract state not found")
 	}
-	if stateSet.isQuery == true {
+	if stateSet.isQuery == true || stateSet.nestedView > 0 {
 		return C.CString("[System.LuaSetDB] set not permitted in query")
 	}
 	val := []byte(C.GoString(value))
@@ -154,7 +154,7 @@ func LuaDelDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int) *C.ch
 	if stateSet == nil {
 		return C.CString("[System.LuaDelDB] contract state not found")
 	}
-	if stateSet.isQuery {
+	if stateSet.isQuery == true || stateSet.nestedView > 0 {
 		return C.CString("[System.LuaDelDB] delete not permitted in query")
 	}
 	if err := stateSet.curContract.callState.ctrState.DeleteData(C.GoBytes(key, keyLen)); err != nil {
@@ -266,7 +266,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
-		if stateSet.isQuery == true {
+		if stateSet.isQuery == true || stateSet.nestedView > 0 {
 			return -1, C.CString("[Contract.LuaCallContract] send not permitted in query")
 		}
 		if r := sendBalance(L, senderState, callState.curState, amountBig); r != nil {
@@ -417,7 +417,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
-	if stateSet.isQuery == true && amountBig.Cmp(zeroBig) > 0 {
+	if (stateSet.isQuery == true || stateSet.nestedView > 0) && amountBig.Cmp(zeroBig) > 0 {
 		return C.CString("[Contract.LuaSendAmount] send not permitted in query")
 	}
 	cid, err := getAddressNameResolved(C.GoString(contractId), stateSet.bs)
@@ -581,7 +581,7 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) (C.int, *C.char) {
 	if stateSet == nil {
 		return -1, C.CString("[Contract.pcall] contract state not found")
 	}
-	if stateSet.isQuery == true {
+	if stateSet.isQuery == true || stateSet.nestedView > 0 {
 		return 0, nil
 	}
 	curContract := stateSet.curContract
@@ -980,7 +980,7 @@ func LuaDeployContract(
 	if stateSet == nil {
 		return -1, C.CString("[Contract.LuaDeployContract]not found contract state")
 	}
-	if stateSet.isQuery == true {
+	if stateSet.isQuery == true || stateSet.nestedView > 0 {
 		return -1, C.CString("[Contract.LuaDeployContract]send not permitted in query")
 	}
 	bs := stateSet.bs
@@ -1145,7 +1145,7 @@ func LuaRandomInt(min, max, service C.int) C.int {
 //export LuaEvent
 func LuaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) *C.char {
 	stateSet := curStateSet[*service]
-	if stateSet.isQuery == true {
+	if stateSet.isQuery == true || stateSet.nestedView > 0 {
 		return C.CString("[Contract.Event] event not permitted in query")
 	}
 	if stateSet.eventCount >= maxEventCnt {
@@ -1195,6 +1195,9 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 	if stateSet == nil {
 		return C.CString("[Contract.LuaGovernance] contract state not found")
 	}
+	if stateSet.isQuery == true || stateSet.nestedView > 0 {
+		return C.CString("[Contract.LuaGovernance] governance not permitted in query")
+	}
 	var amountBig *big.Int
 	var payload []byte
 
@@ -1203,9 +1206,6 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		amountBig, err = transformAmount(C.GoString(arg))
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] invalid amount: " + err.Error())
-		}
-		if stateSet.isQuery == true && amountBig.Cmp(zeroBig) > 0 {
-			return C.CString("[Contract.LuaGovernance] governance not permitted in query")
 		}
 		if gType == 'S' {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opstake.Cmd()))
@@ -1279,4 +1279,16 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		}
 	}
 	return nil
+}
+
+//export LuaViewStart
+func LuaViewStart(service *C.int) {
+	stateSet := curStateSet[*service]
+	stateSet.nestedView++
+}
+
+//export LuaViewEnd
+func LuaViewEnd(service *C.int) {
+	stateSet := curStateSet[*service]
+	stateSet.nestedView--
 }

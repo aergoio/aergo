@@ -13,6 +13,10 @@
 const char *luaExecContext= "__exec_context__";
 const char *construct_name= "constructor";
 extern int luaopen_utf8 (lua_State *L);
+extern void (*lj_internal_view_start)(lua_State *);
+extern void (*lj_internal_view_end)(lua_State *);
+void vm_internal_view_start(lua_State *L);
+void vm_internal_view_end(lua_State *L);
 
 static void preloadModules(lua_State *L)
 {
@@ -29,6 +33,7 @@ static void preloadModules(lua_State *L)
 	if (!IsPublic()) {
         luaopen_db(L);
 	}
+
 #ifdef MEASURE
     lua_register(L, "nsec", lj_cf_nsec);
     luaopen_jit(L);
@@ -43,6 +48,12 @@ static void preloadModules(lua_State *L)
     }
     lua_remove(L, -1); /* remove jit.* */
 #endif
+}
+
+void initViewFunction()
+{
+    lj_internal_view_start = vm_internal_view_start;
+    lj_internal_view_end = vm_internal_view_end;
 }
 
 static void setLuaExecContext(lua_State *L, int *service)
@@ -240,3 +251,12 @@ void vm_get_abi_function(lua_State *L, char *fname)
 	lua_pushstring(L, fname);
 }
 
+void vm_internal_view_start(lua_State *L)
+{
+    LuaViewStart((int *)getLuaExecContext(L));
+}
+
+void vm_internal_view_end(lua_State *L)
+{
+    LuaViewEnd((int *)getLuaExecContext(L));
+}
