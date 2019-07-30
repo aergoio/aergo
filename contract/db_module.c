@@ -6,6 +6,7 @@
 #include "vm.h"
 #include "sqlcheck.h"
 #include "lgmp.h"
+#include "_cgo_export.h"
 
 #define LAST_ERROR(L,db,rc)                         \
     do {                                            \
@@ -17,7 +18,7 @@
 #define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
 #define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
 
-extern const int *getLuaExecContext(lua_State *L);
+extern int *getLuaExecContext(lua_State *L);
 
 static int append_resource(lua_State *L, const char *key, void *data)
 {
@@ -314,8 +315,9 @@ static int db_pstmt_exec(lua_State *L)
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
     /*check for exec in function */
-	getLuaExecContext(L);
-
+	if (LuaCheckView(getLuaExecContext(L))> 0) {
+        luaL_error(L, "not permitted in view function");
+    }
     rc = bind(L, pstmt->db, pstmt->s);
     if (rc == -1) {
         sqlite3_reset(pstmt->s);
@@ -393,7 +395,9 @@ static int db_exec(lua_State *L)
     int rc;
 
     /*check for exec in function */
-	getLuaExecContext(L);
+    if (LuaCheckView(getLuaExecContext(L))> 0) {
+        luaL_error(L, "not permitted in view function");
+    }
     cmd = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(cmd)) {
         luaL_error(L, "invalid sql command");

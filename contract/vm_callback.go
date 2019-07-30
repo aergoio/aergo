@@ -888,8 +888,8 @@ func LuaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	d, isHex := luaCryptoToBytes(data, dataLen)
 	h := keccak256(d)
 	if isHex {
-		hex := []byte("0x" + hex.EncodeToString(h))
-		return C.CBytes(hex), len(hex)
+		hexb := []byte("0x" + hex.EncodeToString(h))
+		return C.CBytes(hexb), len(hexb)
 	} else {
 		return C.CBytes(h), len(h)
 	}
@@ -1291,4 +1291,10 @@ func LuaViewStart(service *C.int) {
 func LuaViewEnd(service *C.int) {
 	stateSet := curStateSet[*service]
 	stateSet.nestedView--
+}
+
+//export LuaCheckView
+func LuaCheckView(service *C.int) C.int {
+	stateSet := curStateSet[*service]
+	return C.int(stateSet.nestedView)
 }

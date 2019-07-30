@@ -3749,13 +3749,14 @@ func TestView(t *testing.T) {
       contract.event("ev1", 3,"local", 4, "form")
     end
 
-	function k()
-		return 10
+	function k(a)
+		return a
 	end
 
 	function tx_in_view_function()
 		k2()
 	end
+
 	function k2()
 		test_view()
 	end
@@ -3766,11 +3767,17 @@ func TestView(t *testing.T) {
 		contract.event("ev2", 4, "global")
 	end
 	function tx_after_view_function()
-		k()
+		assert(k(1) == 1)
         contract.event("ev1", 1,"local", 2, "form")
 	end
+	function sqltest()
+  		db.exec([[create table if not exists book (
+			page number,
+			contents text
+		)]])
+	end
     abi.register(test_view, tx_after_view_function, k2, k3)
-    abi.register_view(test_view, k, tx_in_view_function)
+    abi.register_view(test_view, k, tx_in_view_function, sqltest)
 `
 
 	err = bc.ConnectBlock(
@@ -3786,7 +3793,7 @@ func TestView(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("view", `{"Name":"k", "Args":[]}`, "", "10")
+	err = bc.Query("view", `{"Name":"k", "Args":[10]}`, "", "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3810,6 +3817,12 @@ func TestView(t *testing.T) {
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "view", 0, `{"Name": "k3", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "view", 0, `{"Name": "sqltest", "Args":[]}`).Fail("not permitted in view function"),
 	)
 	if err != nil {
 		t.Error(err)
