@@ -9,6 +9,7 @@ const (
 	AergoSystem     = "aergo.system"
 	AergoName       = "aergo.name"
 	AergoEnterprise = "aergo.enterprise"
+	AergoVault      = "aergo.vault" // For community reward program (i.e. voting reward)
 
 	MaxCandidates = 30
 )

@@ -2,8 +2,6 @@ package system
 
 import (
 	"container/list"
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -26,12 +24,12 @@ var (
 	valHundred = new(big.Int).SetUint64(100)
 	valTen     = new(big.Int).SetUint64(10)
 
-	vprOP = []func(types.AccountID, *big.Int){
-		opAdd: func(addr types.AccountID, opr *big.Int) {
-			votingPowerRank.add(addr, opr)
+	vprOP = []func(types.AccountID, types.Address, *big.Int){
+		opAdd: func(id types.AccountID, addr types.Address, opr *big.Int) {
+			votingPowerRank.add(id, addr, opr)
 		},
-		opSub: func(addr types.AccountID, opr *big.Int) {
-			votingPowerRank.sub(addr, opr)
+		opSub: func(id types.AccountID, addr types.Address, opr *big.Int) {
+			votingPowerRank.sub(id, addr, opr)
 		},
 	}
 
@@ -46,21 +44,24 @@ type vprOpt struct {
 }
 
 type vprTC struct {
-	addr types.AccountID
+	seed uint32
 	ops  []vprOpt
 	want *big.Int
 }
 
 func (tc *vprTC) run(t *testing.T) {
 	for _, o := range tc.ops {
-		vprOP[o.op](tc.addr, o.arg)
+		id, addr := genAddr(tc.seed)
+		vprOP[o.op](id, addr, o.arg)
 	}
 }
 
 func (tc *vprTC) check(t *testing.T) {
+	id, _ := genAddr(tc.seed)
+
 	assert.True(t,
-		votingPowerRank.votingPowerOf(tc.addr).Cmp(tc.want) == 0,
-		"incorrect result: %s (must be %s)", votingPowerRank.votingPowerOf(tc.addr).String(), tc.want)
+		votingPowerRank.votingPowerOf(id).Cmp(tc.want) == 0,
+		"incorrect result: %s (must be %s)", votingPowerRank.votingPowerOf(id).String(), tc.want)
 }
 
 func initVprtTest(t *testing.T, initTable func()) {
@@ -99,7 +100,8 @@ func initRankTableRandSc(rankMax uint32, s *state.ContractState) {
 	max := new(big.Int).SetUint64(50000000000000)
 	src := rand.New(rand.NewSource(0))
 	for i := uint32(0); i < rankMax; i++ {
-		votingPowerRank.add(genAddr(i), new(big.Int).Rand(src, max))
+		id, addr := genAddr(i)
+		votingPowerRank.add(id, addr, new(big.Int).Rand(src, max))
 	}
 	votingPowerRank.apply(s)
 }
@@ -127,7 +129,8 @@ func finalizeVprtTest() {
 func initRankTable(rankMax uint32) {
 	votingPowerRank = newVpr()
 	for i := uint32(0); i < rankMax; i++ {
-		votingPowerRank.add(genAddr(i), binSize)
+		id, addr := genAddr(i)
+		votingPowerRank.add(id, addr, binSize)
 		votingPowerRank.apply(nil)
 	}
 }
@@ -136,10 +139,10 @@ func isInitialized() bool {
 	return initializedVprtTest
 }
 
-func genAddr(i uint32) types.AccountID {
-	dig := sha256.New()
-	binary.Write(dig, binary.LittleEndian, i)
-	return types.ToAccountID(dig.Sum(nil))
+func genAddr(i uint32) (types.AccountID, types.Address) {
+	s := fmt.Sprintf("aergo.%v", i)
+	addr, _ := types.DecodeAddress(s)
+	return types.ToAccountID(addr), addr
 }
 
 func commit() error {
@@ -152,32 +155,32 @@ func TestVprOp(t *testing.T) {
 
 	testCases := []vprTC{
 		{
-			addr: genAddr(10),
+			seed: 10,
 			ops:  []vprOpt{{opAdd, valHundred}, {opSub, valTen}},
 			want: new(big.Int).SetUint64(10000000000090),
 		},
 		{
-			addr: genAddr(11),
+			seed: 11,
 			ops:  []vprOpt{{opSub, valTen}, {opAdd, valHundred}},
 			want: new(big.Int).SetUint64(10000000000090),
 		},
 		{
-			addr: genAddr(12),
+			seed: 12,
 			ops:  []vprOpt{{opAdd, valHundred}, {opAdd, valHundred}},
 			want: new(big.Int).SetUint64(10000000000200),
 		},
 		{
-			addr: genAddr(13),
+			seed: 13,
 			ops:  []vprOpt{{opAdd, valTen}, {opAdd, valTen}},
 			want: new(big.Int).SetUint64(10000000000020),
 		},
 		{
-			addr: genAddr(14),
+			seed: 14,
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}},
 			want: new(big.Int).SetUint64(9999999999980),
 		},
 		{
-			addr: genAddr(15),
+			seed: 15,
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}, {opSub, valTen}},
 			want: new(big.Int).SetUint64(9999999999970),
 		},
@@ -216,7 +219,7 @@ func TestVprTable(t *testing.T) {
 		for e := l.Front(); e.Next() != nil; e = e.Next() {
 			curr := e.Value.(*votingPower)
 			next := e.Next().Value.(*votingPower)
-			assert.True(t, curr.getAddr() != next.getAddr(), "duplicate elems")
+			assert.True(t, curr.getID() != next.getID(), "duplicate elems")
 			cmp := curr.getPower().Cmp(next.getPower())
 			assert.True(t, cmp == 0 || cmp == 1, "unordered bucket found: idx = %v", i)
 		}
@@ -236,16 +239,17 @@ func TestVotingPowerCodec(t *testing.T) {
 	}{
 		{
 			pow:    conv("500000000000000000000000000"),
-			expect: 48,
+			expect: 55,
 		},
 		{
 			pow:    conv("5000000000000"),
-			expect: 42,
+			expect: 49,
 		},
 	}
 
 	for _, tc := range tcs {
-		orig := newVotingPower(genAddr(0), tc.pow)
+		id, addr := genAddr(0)
+		orig := newVotingPower(addr, id, tc.pow)
 		b := orig.marshal()
 		assert.Equal(t, tc.expect, len(b))
 
@@ -292,27 +296,27 @@ func TestVprTotalPower(t *testing.T) {
 
 	testCases := []vprTC{
 		{
-			addr: genAddr(10),
+			seed: 10,
 			ops:  []vprOpt{{opAdd, valHundred}, {opSub, valTen}},
 		},
 		{
-			addr: genAddr(11),
+			seed: 11,
 			ops:  []vprOpt{{opSub, valTen}, {opAdd, valHundred}},
 		},
 		{
-			addr: genAddr(12),
+			seed: 12,
 			ops:  []vprOpt{{opAdd, valHundred}, {opAdd, valHundred}},
 		},
 		{
-			addr: genAddr(13),
+			seed: 13,
 			ops:  []vprOpt{{opAdd, valTen}, {opAdd, valTen}},
 		},
 		{
-			addr: genAddr(14),
+			seed: 14,
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}},
 		},
 		{
-			addr: genAddr(15),
+			seed: 15,
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}, {opSub, valTen}},
 		},
 	}
@@ -337,10 +341,11 @@ func TestVprSingleWinner(t *testing.T) {
 	stat := make(map[types.AccountID]uint16)
 
 	for i := int64(0); i < 1000; i++ {
-		addr, err := votingPowerRank.bingo(i)
+		addr, err := votingPowerRank.pickVotingRewardWinner(i)
 		assert.NoError(t, err)
-		count := stat[addr]
-		stat[addr] = count + 1
+		id := types.ToAccountID(addr)
+		count := stat[id]
+		stat[id] = count + 1
 	}
 
 	for addr, count := range stat {
@@ -358,10 +363,11 @@ func TestVprPickWinner(t *testing.T) {
 	stat := make(map[types.AccountID]uint16)
 
 	for i := int64(0); i < nVoters; i++ {
-		addr, err := votingPowerRank.bingo(i)
+		addr, err := votingPowerRank.pickVotingRewardWinner(i)
 		assert.NoError(t, err)
-		count := stat[addr]
-		stat[addr] = count + 1
+		id := types.ToAccountID(addr)
+		count := stat[id]
+		stat[id] = count + 1
 	}
 
 	for addr, count := range stat {

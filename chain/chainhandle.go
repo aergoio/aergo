@@ -924,16 +924,7 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 }
 
 func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
-	vrSeed := func(stateRoot []byte) int64 {
-		return int64(binary.LittleEndian.Uint64(stateRoot))
-	}
-
-	// XXX Check whether the state root used for the seed is deterministic!!!
-	if addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot())); err != nil {
-		logger.Debug().Err(err).Msg("no voting reward winner")
-	} else {
-		logger.Debug().Str("address", addr.String()).Msg("voting reward winner appointed")
-	}
+	SendVotingReward(bState)
 
 	bpReward := new(big.Int).SetBytes(bState.BpReward)
 	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
@@ -959,6 +950,18 @@ func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
 
 	return nil
+}
+
+func SendVotingReward(bState *state.BlockState) {
+	vrSeed := func(stateRoot []byte) int64 {
+		return int64(binary.LittleEndian.Uint64(stateRoot))
+	}
+
+	if addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot())); err != nil {
+		logger.Debug().Err(err).Msg("no voting reward winner")
+	} else {
+		logger.Debug().Str("address", types.EncodeAddress(addr)).Msg("voting reward winner appointed")
+	}
 }
 
 // find an orphan block which is the child of the added block

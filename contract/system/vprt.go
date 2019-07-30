@@ -24,9 +24,10 @@ var (
 	ErrNoVotingRewardWinner = errors.New("voting reward: no winner")
 	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
 
-	vprKeyPrefix = []byte("VotingPowerBucket/")
-	zeroValue    = &big.Int{}
-	binSize, _   = new(big.Int).SetString("10000000000000", 10)
+	vprKeyPrefix     = []byte("VotingPowerBucket/")
+	defaultReward, _ = new(big.Int).SetString("1000000000", 10) // 1 AERGO
+	zeroValue        = &big.Int{}
+	binSize, _       = new(big.Int).SetString("10000000000000", 10)
 
 	votingPowerRank *vpr
 )
@@ -38,24 +39,33 @@ func InitVotingPowerRank(s dataGetter) (err error) {
 }
 
 type votingPower struct {
-	addr  types.AccountID
+	id    types.AccountID
+	addr  types.Address
 	power *big.Int
 }
 
-func newVotingPower(addr types.AccountID, pow *big.Int) *votingPower {
-	return &votingPower{addr: addr, power: pow}
+func newVotingPower(addr []byte, id types.AccountID, pow *big.Int) *votingPower {
+	return &votingPower{addr: addr, id: id, power: pow}
 }
 
-func (vp *votingPower) getAddr() types.AccountID {
+func (vp *votingPower) getAddr() []byte {
 	return vp.addr
 }
 
-func (vp *votingPower) addrBytes() []byte {
-	return vp.addr[:]
+func (vp *votingPower) setAddr(addr []byte) {
+	vp.addr = addr
 }
 
-func (vp *votingPower) setAddr(addr types.AccountID) {
-	vp.addr = addr
+func (vp *votingPower) getID() types.AccountID {
+	return vp.id
+}
+
+func (vp *votingPower) idBytes() []byte {
+	return vp.id[:]
+}
+
+func (vp *votingPower) setID(id types.AccountID) {
+	vp.id = id
 }
 
 func (vp *votingPower) getPower() *big.Int {
@@ -81,29 +91,41 @@ func (vp *votingPower) le(rhs *votingPower) bool {
 func (vp *votingPower) marshal() []byte {
 	var buf bytes.Buffer
 
-	buf.Write(vp.addrBytes())
-	buf.Write(vp.getPower().Bytes())
+	// Account ID
+	buf.Write(vp.idBytes()) // 32 bytes
 
-	hdr := make([]byte, 4)
-	binary.LittleEndian.PutUint32(hdr, uint32(buf.Len()))
+	// Address
+	binary.Write(&buf, binary.LittleEndian, uint16(len(vp.addr)))
+	buf.Write(vp.addr)
 
-	return append(hdr, buf.Bytes()...)
+	// Voting Power
+	pwr := vp.getPower().Bytes()
+	binary.Write(&buf, binary.LittleEndian, uint16(len(pwr)))
+	buf.Write(pwr)
+
+	return buf.Bytes()
 }
 
 func (vp *votingPower) unmarshal(b []byte) uint32 {
-	var n uint32
+	var sz1, sz2 uint16
 
 	r := bytes.NewReader(b)
-	binary.Read(r, binary.LittleEndian, &n)
+	r.Seek(int64(32), 0)
+	binary.Read(r, binary.LittleEndian, &sz1)
+	// <Accound ID (32)> + <address length (2)> + <address>
+	r.Seek(int64(32+2+sz1), 0)
+	binary.Read(r, binary.LittleEndian, &sz2)
 
-	vp.setAddr(types.AccountID(types.ToHashID(b[4:36])))
-	if int(4+n) < len(b) {
-		vp.setPower(new(big.Int).SetBytes(b[36 : 4+n]))
+	vp.setID(types.AccountID(types.ToHashID(b[:32])))
+	vp.setAddr(b[34 : 34+sz1])
+
+	if int(36+sz1+sz2) < len(b) {
+		vp.setPower(new(big.Int).SetBytes(b[36+sz1 : 36+sz1+sz2]))
 	} else {
-		vp.setPower(new(big.Int).SetBytes(b[36:]))
+		vp.setPower(new(big.Int).SetBytes(b[36+sz1:]))
 	}
 
-	return 4 + n
+	return 36 + uint32(sz1) + uint32(sz2)
 }
 
 type vprStore struct {
@@ -115,18 +137,18 @@ func newVprStore(bucketsMax uint32) *vprStore {
 	return &vprStore{
 		buckets: make(map[uint8]*list.List, bucketsMax),
 		cmp: func(lhs *votingPower, rhs *votingPower) int {
-			return bytes.Compare(lhs.addrBytes(), rhs.addrBytes())
+			return bytes.Compare(lhs.idBytes(), rhs.idBytes())
 		},
 	}
 }
 
 func (b *vprStore) update(vp *votingPower) (idx uint8) {
 	var (
-		addr = vp.getAddr()
-		pow  = vp.getPower()
+		id  = vp.getID()
+		pow = vp.getPower()
 	)
 
-	idx = getBucketIdx(addr)
+	idx = getBucketIdx(id)
 
 	var (
 		bu    *list.List
@@ -138,7 +160,7 @@ func (b *vprStore) update(vp *votingPower) (idx uint8) {
 		b.buckets[idx] = bu
 	}
 
-	v := remove(bu, addr)
+	v := remove(bu, id)
 	if v != nil {
 		v.setPower(pow)
 	} else {
@@ -228,9 +250,9 @@ func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
 	return vps, nil
 }
 
-func remove(bu *list.List, addr types.AccountID) *votingPower {
+func remove(bu *list.List, id types.AccountID) *votingPower {
 	for e := bu.Front(); e != nil; e = e.Next() {
-		if v := toVotingPower(e); addr == v.getAddr() {
+		if v := toVotingPower(e); id == v.getID() {
 			return bu.Remove(e).(*votingPower)
 		}
 	}
@@ -327,7 +349,7 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	// be unconditionally included into the VPR since one slot is available for
 	// him even if his voting power is less than the aforementioned voter A.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	if e = tv.get(v.getAddr()); e != nil {
+	if e = tv.get(v.getID()); e != nil {
 		vp = toVotingPower(e)
 		vp.setPower(v.getPower())
 		orderedListMove(tv.getBucket(vp.getPower()), e,
@@ -344,18 +366,20 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 				return tv.cmp(v.getPower(), toVotingPower(e).getPower())
 			},
 		)
-		tv.set(v.getAddr(), e)
+		tv.set(v.getID(), e)
 	}
 	return
 }
 
-func (tv *topVoters) addVotingPower(addr types.AccountID, delta *big.Int) *votingPower {
-	vp := tv.getVotingPower(addr)
+func (tv *topVoters) addVotingPower(id types.AccountID, delta *deltaVP) *votingPower {
+
+	vp := tv.getVotingPower(id)
+
 	if vp != nil {
 		pwr := vp.getPower()
-		pwr.Add(pwr, delta)
+		pwr.Add(pwr, delta.getAmount())
 	} else {
-		vp = newVotingPower(addr, delta)
+		vp = newVotingPower(delta.getAddr(), id, delta.getAmount())
 	}
 	return tv.update(vp)
 }
@@ -367,7 +391,7 @@ type vpr struct {
 	totalPower *big.Int
 	lowest     *votingPower
 
-	changes map[types.AccountID]*big.Int // temporary buffer for update
+	changes map[types.AccountID]*deltaVP // temporary buffer for update
 }
 
 func newVpr() *vpr {
@@ -375,7 +399,7 @@ func newVpr() *vpr {
 		voters:     newTopVoters(vprMax),
 		store:      newVprStore(vprBucketsMax),
 		totalPower: new(big.Int),
-		changes:    make(map[types.AccountID]*big.Int, vprMax),
+		changes:    make(map[types.AccountID]*deltaVP, vprMax),
 	}
 }
 
@@ -427,36 +451,36 @@ func (v *vpr) votingPowerOf(addr types.AccountID) *big.Int {
 	return v.voters.powerOf(addr)
 }
 
-func (v *vpr) prepare(addr types.AccountID, fn func(lhs *big.Int)) {
-	if _, exist := v.changes[addr]; !exist {
-		v.changes[addr] = &big.Int{}
+func (v *vpr) prepare(id types.AccountID, addr types.Address, fn func(lhs *big.Int)) {
+	if _, exist := v.changes[id]; !exist {
+		v.changes[id] = newDeltaVP(addr, new(big.Int))
 	}
 	// Each entry of v.changes corresponds to the change (increment or
 	// decrement) of voting power. It is added to later by calling the v.apply
 	// method.
-	ch := v.changes[addr]
+	ch := v.changes[id]
 
-	fn(ch)
+	fn(ch.getAmount())
 }
 
-func (v *vpr) add(addr types.AccountID, power *big.Int) {
+func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 	if v == nil {
 		return
 	}
 
-	v.prepare(addr,
+	v.prepare(id, addr,
 		func(lhs *big.Int) {
 			lhs.Add(lhs, power)
 		},
 	)
 }
 
-func (v *vpr) sub(addr types.AccountID, power *big.Int) {
+func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 	if v == nil {
 		return
 	}
 
-	v.prepare(addr,
+	v.prepare(id, addr,
 		func(lhs *big.Int) {
 			lhs.Sub(lhs, power)
 		},
@@ -473,9 +497,9 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 		updRows  = make(map[uint8]interface{})
 	)
 
-	for addr, delta := range v.changes {
-		if delta.Cmp(zeroValue) != 0 {
-			vp := v.voters.addVotingPower(addr, delta)
+	for id, delta := range v.changes {
+		if delta.cmp(zeroValue) != 0 {
+			vp := v.voters.addVotingPower(id, delta)
 			if s != nil {
 				i := v.store.update(vp)
 				if _, exist := updRows[i]; !exist {
@@ -484,9 +508,9 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 			}
 
 			v.updateLowest(vp)
-			v.addTotal(delta)
+			v.addTotal(delta.getAmount())
 
-			delete(v.changes, addr)
+			delete(v.changes, id)
 			// TODO: Remove a victim chosen above from the VPR bucket.
 			nApplied++
 		}
@@ -501,19 +525,17 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	return nApplied, nil
 }
 
-func PickVotingRewardWinner(seed int64) (types.AccountID, error) {
-	return votingPowerRank.bingo(seed)
+func PickVotingRewardWinner(seed int64) (types.Address, error) {
+	return votingPowerRank.pickVotingRewardWinner(seed)
 }
 
-func (v *vpr) bingo(seed int64) (types.AccountID, error) {
-	nilAcc := types.AccountID{}
-
+func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 	if v == nil {
-		return nilAcc, ErrNoVotingRewardRank
+		return nil, ErrNoVotingRewardRank
 	}
 
 	if v.getTotalPower().Cmp(zeroValue) == 0 {
-		return nilAcc, ErrNoVotingRewardWinner
+		return nil, ErrNoVotingRewardWinner
 	}
 
 	r := new(big.Int).Rand(
@@ -530,7 +552,7 @@ func (v *vpr) bingo(seed int64) (types.AccountID, error) {
 		}
 	}
 
-	return nilAcc, ErrNoVotingRewardWinner
+	return nil, ErrNoVotingRewardWinner
 }
 
 func vprKey(i uint8) []byte {
@@ -540,4 +562,29 @@ func vprKey(i uint8) []byte {
 
 func toVotingPower(e *list.Element) *votingPower {
 	return e.Value.(*votingPower)
+}
+
+type deltaVP struct {
+	addr_  types.Address
+	amount *big.Int
+}
+
+func newDeltaVP(addr []byte, amount *big.Int) *deltaVP {
+	return &deltaVP{addr_: addr, amount: amount}
+}
+
+func (dv *deltaVP) getAddr() types.Address {
+	return dv.addr_
+}
+
+func (dv *deltaVP) getAmount() *big.Int {
+	return dv.amount
+}
+
+func (dv *deltaVP) cmp(rhs *big.Int) int {
+	return dv.getAmount().Cmp(rhs)
+}
+
+func GetVotingRewardAmount() *big.Int {
+	return defaultReward
 }
