@@ -8,7 +8,6 @@ package chain
 import (
 	"bytes"
 	"container/list"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -36,8 +34,11 @@ var (
 	errBlockStale     = errors.New("produced block becomes stale")
 	errBlockTimestamp = errors.New("invalid timestamp")
 
-	InAddBlock = make(chan struct{}, 1)
+	InAddBlock      = make(chan struct{}, 1)
+	SendBlockReward = sendRewardCoinbase
 )
+
+type BlockRewardFn = func(*state.BlockState, []byte) error
 
 type ErrReorg struct {
 	err error
@@ -633,7 +634,7 @@ func (e *blockExecutor) execute() error {
 		}
 
 		//TODO check result of verifing txs
-		if err := SendRewardCoinbase(e.BlockState, e.coinbaseAcccount); err != nil {
+		if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
 			return err
 		}
 
@@ -923,9 +924,17 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 	return bs.AddReceipt(receipt)
 }
 
-func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
-	SendVotingReward(bState)
+func DecorateBlockRewardFn(fn BlockRewardFn) {
+	SendBlockReward = func(bState *state.BlockState, coinbaseAccount []byte) error {
+		if err := fn(bState, coinbaseAccount); err != nil {
+			return err
+		}
 
+		return sendRewardCoinbase(bState, coinbaseAccount)
+	}
+}
+
+func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
 	bpReward := new(big.Int).SetBytes(bState.BpReward)
 	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
 		logger.Debug().Str("reward", new(big.Int).SetBytes(bState.BpReward).String()).Msg("coinbase is skipped")
@@ -950,18 +959,6 @@ func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error 
 		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
 
 	return nil
-}
-
-func SendVotingReward(bState *state.BlockState) {
-	vrSeed := func(stateRoot []byte) int64 {
-		return int64(binary.LittleEndian.Uint64(stateRoot))
-	}
-
-	if addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot())); err != nil {
-		logger.Debug().Err(err).Msg("no voting reward winner")
-	} else {
-		logger.Debug().Str("address", types.EncodeAddress(addr)).Msg("voting reward winner appointed")
-	}
 }
 
 // find an orphan block which is the child of the added block

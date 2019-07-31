@@ -123,12 +123,11 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	txRes := make([]types.Transaction, 0, nCand)
 
 	defer func() {
-			logger.Info().
-				Int("candidates", nCand).
-				Int("collected", nCollected).
-				Msg("transactions collected")
+		logger.Info().
+			Int("candidates", nCand).
+			Int("collected", nCollected).
+			Msg("transactions collected")
 	}()
-
 
 	op := NewCompTxOp(txOp)
 
@@ -166,7 +165,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	nCollected = len(txRes)
 
-	if err := chain.SendRewardCoinbase(bState, chain.CoinbaseAccount); err != nil {
+	if err := chain.SendBlockReward(bState, chain.CoinbaseAccount); err != nil {
 		return nil, err
 	}
 

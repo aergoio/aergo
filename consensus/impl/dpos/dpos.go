@@ -6,10 +6,12 @@
 package dpos
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 
@@ -93,6 +95,9 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) (consensus.Consensus, error) {
+
+	chain.DecorateBlockRewardFn(sendVotingReward)
+
 	bpc, err := bp.NewCluster(cdb)
 	if err != nil {
 		return nil, err
@@ -116,6 +121,20 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		bf:           NewBlockFactory(hub, sdb, quitC),
 		quit:         quitC,
 	}, nil
+}
+
+func sendVotingReward(bState *state.BlockState, dummy []byte) error {
+	vrSeed := func(stateRoot []byte) int64 {
+		return int64(binary.LittleEndian.Uint64(stateRoot))
+	}
+
+	if addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot())); err == nil {
+		logger.Debug().Str("address", types.EncodeAddress(addr)).Msg("voting reward winner appointed")
+	} else {
+		logger.Debug().Err(err).Msg("no voting reward winner")
+	}
+
+	return nil
 }
 
 func InitVPR(sdb *state.StateDB) error {
