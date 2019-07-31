@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	slotQueueMax              = 100
-	DefaultCommitQueueLen     = 10
+	slotQueueMax = 100
+	//DefaultCommitQueueLen     = 1
 	DefaultBlockFactoryTickMs = 100
 	MinBlockFactoryTickMs     = 10
 )
@@ -41,7 +41,7 @@ var (
 	// blockIntervalMs is the block genration interval in milli-seconds.
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
-	MaxCommitQueueLen  = DefaultCommitQueueLen
+	//MaxCommitQueueLen  = DefaultCommitQueueLen
 
 	BlockFactoryTickMs time.Duration
 	BlockIntervalMs    time.Duration
@@ -206,9 +206,8 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
-	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl,
-		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.UseBackup,
-		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc,
+		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.UseBackup, nil,
 		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
@@ -783,7 +782,8 @@ type RaftOperator struct {
 }
 
 func newRaftOperator(rs *raftServer, cl *Cluster) *RaftOperator {
-	commitC := make(chan *commitEntry, MaxCommitQueueLen)
+	//commitC := make(chan *commitEntry, MaxCommitQueueLen)
+	commitC := make(chan *commitEntry)
 
 	return &RaftOperator{commitC: commitC, rs: rs, cl: cl}
 }

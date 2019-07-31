@@ -104,15 +104,20 @@ func (t *AergoRaftTransport) Send(msgs []raftpb.Message) {
 func (t *AergoRaftTransport) SendSnapshot(m snap.Message) {
 	if m.To == 0 {
 		// ignore intentionally dropped message
+		t.logger.Warn().Msg("drop snap message: to target")
 		return
 	}
 	member := t.raftAcc.GetMemberByID(m.To)
 	if member == nil {
 		// TODO is it ok to ignore?
+		t.logger.Warn().Msg("drop snap message: no member")
+
 		return
 	}
 	peer, _ := t.pm.GetPeer(member.GetPeerID())
 	if peer == nil {
+		t.logger.Warn().Msg("drop snap message:no peer")
+
 		return
 	}
 
@@ -154,13 +159,13 @@ func (t *AergoRaftTransport) AddPeer(id rtypes.ID, peerID types.PeerID, urls []s
 
 func (t *AergoRaftTransport) connectToPeer(member *consensus.Member) {
 	pid, err := types.IDFromBytes(member.PeerID)
-	peerMeta, err := p2putil.FromMultiAddrStringWithPID(member.Address,pid)
+	peerMeta, err := p2putil.FromMultiAddrStringWithPID(member.Address, pid)
 	if err != nil {
 		t.logger.Panic().Err(err).Str("addr", member.Address).Msg("Address must be valid")
 	}
 
 	// member should be add to designated peer
-	meta :=peerMeta
+	meta := peerMeta
 	meta.Outbound = true
 	meta.Designated = true
 	t.pm.AddDesignatedPeer(meta)

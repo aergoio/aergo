@@ -25,7 +25,7 @@ kill_svr.sh 11003
 echo "run aergo3(11003). this node is slower than other nodeds."
 DEBUG_CHAIN_OTHER_SLEEP=10000 run_svr.sh 11003
 
-checkSyncRunning 10001 10003 20
+checkSyncRunning 10001 10003 100
 
 echo "------------ success--------------"
 

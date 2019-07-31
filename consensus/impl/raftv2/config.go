@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	DefaultTickMS = time.Millisecond * 30
+	DefaultTickMS = time.Millisecond * 50
 )
 
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
@@ -36,8 +36,8 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	}
 
 	//set default
-	if raftConfig.Tick != 0 {
-		RaftTick = time.Duration(raftConfig.Tick * 1000000)
+	if raftConfig.HeartbeatTick != 0 {
+		RaftTick = time.Duration(raftConfig.HeartbeatTick * 1000000)
 	}
 
 	if raftConfig.SnapFrequency != 0 {

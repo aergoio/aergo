@@ -77,7 +77,7 @@ type P2PConfig struct {
 
 // AuthConfig defines configuration for auditing
 type AuthConfig struct {
-	EnableLocalConf   bool `mapstructure:"enablelocalconf" description:"apply local white/blacklist file or not"`
+	EnableLocalConf bool `mapstructure:"enablelocalconf" description:"apply local white/blacklist file or not"`
 }
 
 // PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
@@ -116,13 +116,10 @@ type ConsensusConfig struct {
 
 type RaftConfig struct {
 	Name               string        `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
-	ListenUrl          string        `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
 	SkipEmpty          bool          `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
-	KeyFile            string        `mapstructure:"keyfile" description:"Private Key file for raft https server"`
-	CertFile           string        `mapstructure:"certfile" description:"Certificate file for raft https server"`
-	Tick               uint          `mapstructure:"tick" description:"tick of raft server (millisec)"`
-	BlockFactoryTickMs int64         `mapstructure:"bpqueuejobms" description:"block creation tick interval for raft (millisec)"`
-	BlockIntervalMs    int64         `mapstructure:"bptimeoutms" description:"block interval for raft (millisec)"`
+	HeartbeatTick      uint          `mapstructure:"heartbeattick" description:"heartbeat tick of raft server (millisec)"`
+	BlockFactoryTickMs int64         `mapstructure:"blockfactorytickms" description:"interval to check if block factory should run new task(millisec)"`
+	BlockIntervalMs    int64         `mapstructure:"blockintervalms" description:"block interval for raft (millisec). It overrides BlockInterval of consensus"`
 	NewCluster         bool          `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
 	UseBackup          bool          `mapstructure:"usebackup" description:"use backup datafiles when creating a new cluster or joining to a existing cluster"`
 	SnapFrequency      uint64        `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
