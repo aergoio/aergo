@@ -97,8 +97,23 @@ func LoadDatabase(dataDir string) error {
 	return err
 }
 
+func LoadTestDatabase(dataDir string) error {
+	var err error
+	path := filepath.Join(dataDir, statesqlDriver)
+	logger.Debug().Str("path", path).Msg("loading statesql")
+	if err = checkPath(path); err == nil {
+		database.DBs = make(map[string]*DB)
+		database.DataDir = path
+	}
+	return err
+}
+
 func CloseDatabase() {
 	for name, db := range database.DBs {
+		if db.tx != nil {
+			db.tx.Rollback()
+			db.tx = nil
+		}
 		_ = db.close()
 		delete(database.DBs, name)
 	}

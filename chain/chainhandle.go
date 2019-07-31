@@ -633,6 +633,7 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
+		defer contract.CloseDatabase()
 		var preLoadTx *types.Tx
 		nCand := len(e.txs)
 		for i, tx := range e.txs {
