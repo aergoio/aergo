@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/aergoio/aergo/chain"
@@ -128,11 +129,53 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return int64(binary.LittleEndian.Uint64(stateRoot))
 	}
 
-	if addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot())); err == nil {
-		logger.Debug().Str("address", types.EncodeAddress(addr)).Msg("voting reward winner appointed")
-	} else {
+	addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot()))
+	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 	}
+
+	vaultID := types.ToAccountID([]byte(types.AergoVault))
+	vs, err := bState.GetAccountState(vaultID)
+	if err != nil {
+		logger.Info().Err(err).Msg("skip voting reward")
+		return nil
+	}
+
+	vaultBalance := vs.GetBalanceBigInt()
+
+	if vaultBalance.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		logger.Info().Msgf("%s address has zero balance. skip voting reward", types.AergoVault)
+		return nil
+	}
+
+	reward := system.GetVotingRewardAmount()
+	if vaultBalance.Cmp(reward) < 0 {
+		reward = new(big.Int).Set(vaultBalance)
+	}
+
+	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
+	if err = bState.PutState(vaultID, vs); err != nil {
+		return err
+	}
+
+	ID := types.ToAccountID(addr)
+	s, err := bState.GetAccountState(ID)
+	if err != nil {
+		logger.Info().Err(err).Msg("skip voting reward")
+		return nil
+	}
+
+	s.Balance = new(big.Int).Add(s.GetBalanceBigInt(), reward).Bytes()
+
+	err = bState.PutState(ID, s)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().
+		Str("address", types.EncodeAddress(addr)).
+		Str("amount", reward.String()).
+		Msg("voting reward winner appointed")
 
 	return nil
 }
