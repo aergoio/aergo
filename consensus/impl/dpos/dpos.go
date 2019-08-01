@@ -8,8 +8,9 @@ package dpos
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -252,18 +253,24 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 
 // ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
+	withLock := func(fn func()) {
+		dpos.RLock()
+		defer dpos.RUnlock()
+		fn()
+	}
+
 	ci := &types.ConsensusInfo{Type: GetName()}
+	withLock(func() {
+		ci.Bps = dpos.bpc.BPs()
+
+	})
+
 	if dpos.done {
 		var lpbNo types.BlockNo
 
-		// Use a closure to release the mutex even upon panic.
-		func() {
-			dpos.RLock()
-			defer dpos.RUnlock()
-
-			ci.Bps = dpos.bpc.BPs()
+		withLock(func() {
 			lpbNo = dpos.lpbNo()
-		}()
+		})
 
 		if lpbNo > 0 {
 			if block, err := dpos.GetBlockByNo(lpbNo); err == nil {
