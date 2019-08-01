@@ -23,25 +23,24 @@ const (
 	SnapRespHeaderLength = 4
 )
 // TODO consider the scope of type
-type SnapshotReceiver struct {
+type snapshotReceiver struct {
 	logger *log.Logger
 	pm     p2pcommon.PeerManager
 	rAcc   consensus.AergoRaftAccessor
 	peer   p2pcommon.RemotePeer
-	sender io.ReadWriteCloser
+	rwc    io.ReadWriteCloser
 }
 
-func NewSnapshotReceiver(logger *log.Logger, pm p2pcommon.PeerManager, rAcc consensus.AergoRaftAccessor, peer p2pcommon.RemotePeer, sender io.ReadWriteCloser) *SnapshotReceiver {
-	return &SnapshotReceiver{logger: logger, pm: pm, rAcc: rAcc, peer: peer, sender: sender}
+func newSnapshotReceiver(logger *log.Logger, pm p2pcommon.PeerManager, rAcc consensus.AergoRaftAccessor, peer p2pcommon.RemotePeer, sender io.ReadWriteCloser) *snapshotReceiver {
+	return &snapshotReceiver{logger: logger, pm: pm, rAcc: rAcc, peer: peer, rwc: sender}
 }
 
 
-func (s *SnapshotReceiver) Receive() {
-	w := s.sender.(io.Writer)
+func (s *snapshotReceiver) Receive() {
 	resp := &types.SnapshotResponse{Status:types.ResultStatus_OK}
-	defer s.sendResp(w, resp)
+	defer s.sendResp(s.rwc, resp)
 
-	dec := &RaftMsgDecoder{r: s.sender}
+	dec := &RaftMsgDecoder{r: s.rwc}
 	// let snapshots be very large since they can exceed 512MB for large installations
 	m, err := dec.DecodeLimit(uint64(1 << 63))
 	from := rtypes.ID(m.From).String()
@@ -50,7 +49,7 @@ func (s *SnapshotReceiver) Receive() {
 		resp.Status = types.ResultStatus_INVALID_ARGUMENT
 		resp.Message = "malformed message"
 		// TODO return error
-		//recvFailures.WithLabelValues(sender.RemoteAddr).Inc()
+		//recvFailures.WithLabelValues(rwc.RemoteAddr).Inc()
 		//snapshotReceiveFailures.WithLabelValues(from).Inc()
 		return
 	}
@@ -69,7 +68,7 @@ func (s *SnapshotReceiver) Receive() {
 
 	s.logger.Info().Uint64("index", m.Snapshot.Metadata.Index).Str("from", from).Msg("receiving database snapshot")
 	// save incoming database snapshot.
-	_, err = s.rAcc.SaveFromRemote(s.sender, m.Snapshot.Metadata.Index, m)
+	_, err = s.rAcc.SaveFromRemote(s.rwc, m.Snapshot.Metadata.Index, m)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("failed to save KV snapshot")
 		resp.Status = types.ResultStatus_INTERNAL
@@ -105,7 +104,7 @@ func (s *SnapshotReceiver) Receive() {
 	//snapshotReceiveSeconds.WithLabelValues(from).Observe(time.Since(start).Seconds())
 }
 
-func (s *SnapshotReceiver) sendResp(w io.Writer, resp *types.SnapshotResponse) {
+func (s *snapshotReceiver) sendResp(w io.Writer, resp *types.SnapshotResponse) {
 	b, err := proto.Marshal(resp)
 	if err == nil {
 		bytebuf := make([]byte, SnapRespHeaderLength)

@@ -30,9 +30,16 @@ type snapshotSender struct {
 	nt       p2pcommon.NetworkTransport
 	rAcc     consensus.AergoRaftAccessor
 	stopChan chan interface{}
+
+	peer p2pcommon.RemotePeer
 }
 
-func (s *snapshotSender) send(peer p2pcommon.RemotePeer, merged snap.Message) {
+func newSnapshotSender(logger *log.Logger, nt p2pcommon.NetworkTransport, rAcc consensus.AergoRaftAccessor, peer p2pcommon.RemotePeer) *snapshotSender {
+	return &snapshotSender{logger: logger, nt: nt, rAcc: rAcc, stopChan: make(chan interface{}), peer:peer}
+}
+
+func (s *snapshotSender) Send(snapMsg *snap.Message) {
+	peer := s.peer
 
 	// 1. connect to target peer with snap protocol
 	stream, err := s.getSnapshotStream(peer.Meta())
@@ -40,20 +47,20 @@ func (s *snapshotSender) send(peer p2pcommon.RemotePeer, merged snap.Message) {
 		s.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("failed to send snapshot")
 		s.rAcc.ReportUnreachable(peer.ID())
 		s.rAcc.ReportSnapshot(peer.ID(), raft.SnapshotFailure)
+		snapMsg.CloseWithError(errUnreachableMember)
 		return
 	}
 
 	//
-	m := merged.Message
-	body := s.createSnapBody(merged)
+	m := snapMsg.Message
+	body := s.createSnapBody(*snapMsg)
 	defer body.Close()
 
 	s.logger.Info().Uint64("index", m.Snapshot.Metadata.Index).Str(p2putil.LogPeerName, peer.Name()).Msg("start to send database snapshot")
 
 	// send bytes to target peer
 	err = s.pushBMsg(body, stream)
-
-	defer merged.CloseWithError(err)
+	defer snapMsg.CloseWithError(err)
 	if err != nil {
 		s.logger.Warn().Uint64("index", m.Snapshot.Metadata.Index).Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("database snapshot failed to be sent out")
 
@@ -88,7 +95,7 @@ func (s *snapshotSender) pushBMsg(body io.Reader, to io.ReadWriteCloser) error {
 
 	const (
 		WholeTimeLimit  = time.Hour * 24 * 30 // just make indefinitely long term.
-		ProcessingLimit = time.Minute * 20 // receiving peer should complete and response within after receiving whole snapshot data.
+		ProcessingLimit = time.Minute * 20    // receiving peer should complete and response within after receiving whole snapshot data.
 	)
 
 	wErr := make(chan error, 1)
@@ -102,7 +109,7 @@ func (s *snapshotSender) pushBMsg(body io.Reader, to io.ReadWriteCloser) error {
 		}
 		// renew timer if timer is not expired yet.
 		if !t.Stop() {
-			<- t.C
+			<-t.C
 		}
 		t.Reset(ProcessingLimit)
 	}()
