@@ -559,6 +559,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
+		bState.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash())
 
 		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService, block.GetHeader().ChainID)
 
@@ -696,7 +697,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	}
 
 	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
-	ex, err := newBlockExecutor(cs, bstate, block, false)
+	ex, err := newBlockExecutor(cs, bstate.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()), block, false)
 	if err != nil {
 		return err
 	}

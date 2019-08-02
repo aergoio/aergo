@@ -129,7 +129,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return int64(binary.LittleEndian.Uint64(stateRoot))
 	}
 
-	seed := vrSeed(bState.GetRoot())
+	seed := vrSeed(bState.PrevBlockHash())
 	logger.Debug().Int64("value", seed).Msg("generate a seed for voting reward")
 	addr, err := system.PickVotingRewardWinner(seed)
 	if err != nil {

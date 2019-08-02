@@ -1,10 +1,11 @@
 package state
 
 import (
+	"sync"
+
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"github.com/willf/bloom"
-	"sync"
 )
 
 // BlockInfo contains BlockHash and StateRoot
@@ -16,10 +17,11 @@ type BlockInfo struct {
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	StateDB
-	BpReward   []byte //final bp reward, increment when tx executes
-	receipts   types.Receipts
-	CodeMap    codeCache
-	CCProposal *consensus.ConfChangePropose
+	BpReward      []byte //final bp reward, increment when tx executes
+	receipts      types.Receipts
+	CodeMap       codeCache
+	CCProposal    *consensus.ConfChangePropose
+	prevBlockHash []byte
 }
 
 type codeCache struct {
@@ -76,6 +78,17 @@ func (bs *BlockState) Receipts() *types.Receipts {
 		return nil
 	}
 	return &bs.receipts
+}
+
+func (bs *BlockState) SetPrevBlockHash(prevHash []byte) *BlockState {
+	if bs != nil {
+		bs.prevBlockHash = prevHash
+	}
+	return bs
+}
+
+func (bs *BlockState) PrevBlockHash() []byte {
+	return bs.prevBlockHash
 }
 
 func (c *codeCache) Add(key types.AccountID, code []byte) {

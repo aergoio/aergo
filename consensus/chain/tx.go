@@ -165,6 +165,8 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 		nCollected = len(txRes)
 	}
 
+	// Warning: This line must be run even with 0 gathered TXs, since the
+	// function below includes voting reward as well as BP reward.
 	if err := chain.SendBlockReward(bState, chain.CoinbaseAccount); err != nil {
 		return nil, err
 	}

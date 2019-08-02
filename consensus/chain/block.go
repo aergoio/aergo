@@ -3,9 +3,10 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"time"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
@@ -65,7 +66,8 @@ func MaxBlockBodySize() uint32 {
 
 // GenerateBlock generate & return a new block
 func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64, skipEmpty bool) (*types.Block, error) {
-	transactions, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
+
+	transactions, err := GatherTXs(hs, bState.SetPrevBlockHash(prevBlock.BlockHash()), txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, err
 	}
