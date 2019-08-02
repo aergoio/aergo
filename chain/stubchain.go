@@ -209,6 +209,10 @@ func (tchain *StubBlockChain) GetAncestorWithHashes(hashes [][]byte) *types.Bloc
 	return nil
 }
 
+func (tchain *StubBlockChain) ChainID(bno types.BlockNo) *types.ChainID {
+	return nil
+}
+
 func (tchain *StubBlockChain) Rollback(ancestor *types.BlockInfo) {
 	prevBest := tchain.Best
 	tchain.Best = int(ancestor.No)

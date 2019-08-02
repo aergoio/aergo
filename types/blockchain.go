@@ -146,6 +146,7 @@ type ChainAccessor interface {
 
 	// GetEnterpriseConfig always return non-nil object if there is no error, but it can return EnterpriseConfig with empty values
 	GetEnterpriseConfig(key string) (*EnterpriseConfig, error)
+	ChainID(bno BlockNo) *ChainID
 }
 
 type SyncContext struct {
