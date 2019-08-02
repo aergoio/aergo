@@ -129,7 +129,9 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return int64(binary.LittleEndian.Uint64(stateRoot))
 	}
 
-	addr, err := system.PickVotingRewardWinner(vrSeed(bState.GetRoot()))
+	seed := vrSeed(bState.GetRoot())
+	logger.Debug().Int64("value", seed).Msg("generate a seed for voting reward")
+	addr, err := system.PickVotingRewardWinner(seed)
 	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
 	}
@@ -165,7 +167,8 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return nil
 	}
 
-	s.Balance = new(big.Int).Add(s.GetBalanceBigInt(), reward).Bytes()
+	newBalance := new(big.Int).Add(s.GetBalanceBigInt(), reward)
+	s.Balance = newBalance.Bytes()
 
 	err = bState.PutState(ID, s)
 	if err != nil {
@@ -175,6 +178,8 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	logger.Debug().
 		Str("address", types.EncodeAddress(addr)).
 		Str("amount", reward.String()).
+		Str("new balance", newBalance.String()).
+		Str("vault balance", vaultBalance.String()).
 		Msg("voting reward winner appointed")
 
 	return nil
