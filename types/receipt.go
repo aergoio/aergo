@@ -617,7 +617,7 @@ func checkValue(value interface{}, check interface{}) bool {
 			return false
 		}
 	case nil:
-		return false
+		return true
 	case []interface{}:
 		return checkSameArray(value.([]interface{}), check.([]interface{}))
 	case map[string]interface{}:
