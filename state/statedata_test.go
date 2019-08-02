@@ -17,7 +17,7 @@ func TestStateDataBasic(t *testing.T) {
 	defer deinitTest()
 
 	// save data
-	if err := saveData(stateDB.store, testKey, &testData); err != nil {
+	if err := saveData(stateDB.store, testKey, testData); err != nil {
 		t.Errorf("failed to save data: %v", err.Error())
 	}
 
@@ -49,7 +49,7 @@ func TestStateDataEmpty(t *testing.T) {
 
 	// save empty data
 	var testEmpty []byte
-	if err := saveData(stateDB.store, testKey, &testEmpty); err != nil {
+	if err := saveData(stateDB.store, testKey, testEmpty); err != nil {
 		t.Errorf("failed to save nil data: %v", err.Error())
 	}
 
@@ -67,12 +67,12 @@ func TestStateDataOverwrite(t *testing.T) {
 	defer deinitTest()
 
 	// save data
-	if err := saveData(stateDB.store, testKey, &testData); err != nil {
+	if err := saveData(stateDB.store, testKey, testData); err != nil {
 		t.Errorf("failed to save data: %v", err.Error())
 	}
 
 	// save another data to same key
-	if err := saveData(stateDB.store, testKey, &testOver); err != nil {
+	if err := saveData(stateDB.store, testKey, testOver); err != nil {
 		t.Errorf("failed to overwrite data: %v", err.Error())
 	}
 

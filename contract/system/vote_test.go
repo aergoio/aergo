@@ -134,32 +134,32 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildStakingPayload(true)
 
-	context, err := ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, 0)
+	stake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, 0)
 	assert.NoError(t, err, "staking validation")
-	_, err = staking(tx.Body, sender, receiver, scs, 0, context)
+	_, err = stake.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay)
+	voting, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay)
 	assert.NoError(t, err, "voting failed")
-	_, err = voting(tx.Body, sender, receiver, scs, VotingDelay, context)
+	_, err = voting.run()
 	assert.NoError(t, err, "voting failed")
 
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result.GetVotes()), 1, "invalid voting result")
-	assert.Equal(t, context.Call.Args[0].(string), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
+	assert.Equal(t, voting.arg(0), base58.Encode(result.GetVotes()[0].Candidate), "invalid candidate in voting result")
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
 	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	context, err = ValidateSystemTx(tx.Body.Account, tx.Body, sender, scs, VotingDelay+StakingDelay)
+	unstake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay+StakingDelay)
 	assert.NoError(t, err, "unstaking failed")
-	_, err = unstaking(tx.Body, sender, receiver, scs, VotingDelay+StakingDelay, context)
+	_, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
 
 	result2, err := getVoteResult(scs, defaultVoteKey, 23)
@@ -171,7 +171,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 func buildVotingPayload(count int) []byte {
 	var ci types.CallInfo
-	ci.Name = types.VoteBP
+	ci.Name = types.OpvoteBP.Cmd()
 	for i := 0; i < count; i++ {
 		peerID := make([]byte, PeerIDLength)
 		peerID[0] = byte(i)
@@ -184,8 +184,8 @@ func buildVotingPayload(count int) []byte {
 func buildVotingPayloadEx(count int, name string) []byte {
 	var ci types.CallInfo
 	ci.Name = name
-	switch name {
-	case types.VoteBP:
+	switch types.GetOpSysTx(name) {
+	case types.OpvoteBP:
 		for i := 0; i < count; i++ {
 			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 			pid, _ := types.IDFromPublicKey(pub)
@@ -201,4 +201,12 @@ func buildStakingPayload(isStaking bool) []byte {
 		return []byte(`{"Name":"v1stake"}`)
 	}
 	return []byte(`{"Name":"v1unstake"}`)
+}
+
+func TestVotingCatalog(t *testing.T) {
+	cat := GetVotingCatalog()
+	assert.Equal(t, 2, len(cat))
+	for _, issue := range cat {
+		fmt.Println(issue.ID())
+	}
 }

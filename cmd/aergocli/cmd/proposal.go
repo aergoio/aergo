@@ -95,7 +95,7 @@ func execProposal(cmd *cobra.Command, args []string) {
 		return
 	}
 	var ci types.CallInfo
-	ci.Name = types.CreateProposal
+	ci.Name = types.OpcreateProposal.Cmd()
 	ci.Args = append(ci.Args, arg.Id,
 		strconv.FormatUint(uint64(arg.MultipleChoice), 10),
 		arg.Description)

@@ -67,7 +67,7 @@ func TestProposalSetGet(t *testing.T) {
 
 func buildProposalPayload(t *testing.T, name, version string) (*types.CallInfo, []byte) {
 	var ci types.CallInfo
-	ci.Name = types.CreateProposal
+	ci.Name = types.OpcreateProposal.Cmd()
 	proposal := &Proposal{
 		ID:             name,
 		Blockfrom:      1,

@@ -1,20 +1,44 @@
 package system
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
-var proposalListKey = []byte("proposallist")
-
-type whereToVotes = [][]byte
+const (
+	bpCount sysParamIndex = iota // BP count
+	sysParamMax
+)
 
 const proposalPrefixKey = "proposal" //aergo proposal format
+
+var proposalListKey = []byte("proposallist")
+
+//go:generate stringer -type=sysParamIndex
+type sysParamIndex int
+
+func (i sysParamIndex) ID() string {
+	return strings.ToUpper(i.String())
+}
+
+func (i sysParamIndex) Key() []byte {
+	return GenProposalKey(i.String())
+}
+
+func GetVotingIssues() []types.VotingIssue {
+	vi := make([]types.VotingIssue, sysParamMax)
+	for i := bpCount; i < sysParamMax; i++ {
+		vi[int(i)] = i
+	}
+	return vi
+}
+
+type whereToVotes = [][]byte
 
 type Proposal struct {
 	ID             string
@@ -37,10 +61,24 @@ func ProposalIDfromKey(key []byte) string {
 	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
 }
 
-func createProposal(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	proposal := context.Proposal
-	amount := txBody.GetAmountBigInt()
+type proposalCmd struct {
+	*SystemContext
+	amount *big.Int
+}
+
+func newProposalCmd(ctx *SystemContext) (sysCmd, error) {
+	return &proposalCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}, nil
+}
+
+func (c *proposalCmd) run() (*types.Event, error) {
+	var (
+		scs      = c.scs
+		proposal = c.Proposal
+		sender   = c.Sender
+		receiver = c.Receiver
+		amount   = c.amount
+	)
+
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 	if err := setProposal(scs, proposal); err != nil {
@@ -53,11 +91,12 @@ func createProposal(txBody *types.TxBody, sender, receiver *state.V, scs *state.
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
-		EventName:       context.Call.Name[2:],
+		EventName:       c.op.ID(),
 		JsonArgs: `{"who":"` +
-			types.EncodeAddress(txBody.Account) +
+			types.EncodeAddress(sender.ID()) +
 			`", "Proposal":` + string(log) + `}`,
 	}, nil
+
 }
 
 //getProposal find proposal using id
@@ -90,44 +129,6 @@ func deserializeProposal(data []byte) *Proposal {
 	return &proposal
 }
 
-func getProposalHistory(scs *state.ContractState, address []byte) whereToVotes {
-	key := append(proposalListKey, address...)
-	return _getProposalHistory(scs, key)
-}
-func _getProposalHistory(scs *state.ContractState, key []byte) whereToVotes {
-	data, err := scs.GetData(key)
-	if err != nil {
-		panic("could not get proposal history in contract state db")
-	}
-	if len(data) == 0 { //never vote before
-		return nil
-	}
-	return deserializeProposalHistory(data)
-}
-
-func addProposalHistory(scs *state.ContractState, address []byte, proposal *Proposal) error {
-	key := append(proposalListKey, address...)
-	proposalHistory := _getProposalHistory(scs, key)
-	proposalHistory = append(proposalHistory, proposal.GetKey())
-
-	//unique
-	filter := make(map[string]bool)
-	var result whereToVotes
-	for _, entryBytes := range proposalHistory {
-		entry := string(entryBytes)
-		if _, value := filter[entry]; !value {
-			filter[entry] = true
-			result = append(result, entryBytes)
-		}
-	}
-
-	return scs.SetData(key, serializeProposalHistory(result))
-}
-
-func deserializeProposalHistory(data []byte) whereToVotes {
-	return bytes.Split(data, []byte("`"))
-}
-
 func serializeProposalHistory(wtv whereToVotes) []byte {
 	var data []byte
 	for i, w := range wtv {
@@ -137,4 +138,13 @@ func serializeProposalHistory(wtv whereToVotes) []byte {
 		data = append(data, w...)
 	}
 	return data
+}
+
+func isValidID(id string) bool {
+	for i := sysParamIndex(0); i < sysParamMax; i++ {
+		if strings.ToUpper(id) == i.ID() {
+			return true
+		}
+	}
+	return false
 }

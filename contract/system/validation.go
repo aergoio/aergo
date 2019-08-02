@@ -14,13 +14,13 @@ import (
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
 	var ci types.CallInfo
-	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo}
-
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
 		return nil, types.ErrTxInvalidPayload
 	}
-	switch ci.Name {
-	case types.Stake:
+	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo, op: types.GetOpSysTx(ci.Name), scs: scs, txBody: txBody}
+
+	switch context.op {
+	case types.Opstake:
 		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			return nil, types.ErrInsufficientBalance
 		}
@@ -29,20 +29,20 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Staked = staked
-	case types.VoteBP:
-		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(ci.Name[2:]))
+	case types.OpvoteBP:
+		staked, oldvote, err := validateForVote(account, txBody, scs, blockNo, []byte(context.op.ID()))
 		if err != nil {
 			return nil, err
 		}
 		context.Staked = staked
 		context.Vote = oldvote
-	case types.Unstake:
+	case types.Opunstake:
 		staked, err := validateForUnstaking(account, txBody, scs, blockNo)
 		if err != nil {
 			return nil, err
 		}
 		context.Staked = staked
-	case types.CreateProposal:
+	case types.OpcreateProposal:
 		staked, err := checkStakingBefore(account, scs)
 		if err != nil {
 			return nil, err
@@ -81,7 +81,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			MultipleChoice: uint32(multipleChoice),
 			Description:    desc,
 		}
-	case types.VoteProposal:
+	case types.OpvoteProposal:
 		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err
@@ -196,7 +196,7 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 func parseIDForProposal(ci *types.CallInfo) (string, error) {
 	//length should be checked before this function
 	id, ok := ci.Args[0].(string)
-	if !ok || len(id) < 1 {
+	if !ok || len(id) < 1 || !isValidID(id) {
 		return "", fmt.Errorf("args[%d] invalid id", 0)
 	}
 	return id, nil

@@ -34,8 +34,11 @@ var (
 	errBlockStale     = errors.New("produced block becomes stale")
 	errBlockTimestamp = errors.New("invalid timestamp")
 
-	InAddBlock = make(chan struct{}, 1)
+	InAddBlock      = make(chan struct{}, 1)
+	SendBlockReward = sendRewardCoinbase
 )
+
+type BlockRewardFn = func(*state.BlockState, []byte) error
 
 type ErrReorg struct {
 	err error
@@ -556,6 +559,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		}
 
 		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
+		bState.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash())
 
 		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService, block.GetHeader().ChainID)
 
@@ -631,7 +635,7 @@ func (e *blockExecutor) execute() error {
 		}
 
 		//TODO check result of verifing txs
-		if err := SendRewardCoinbase(e.BlockState, e.coinbaseAcccount); err != nil {
+		if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
 			return err
 		}
 
@@ -693,7 +697,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	}
 
 	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
-	ex, err := newBlockExecutor(cs, bstate, block, false)
+	ex, err := newBlockExecutor(cs, bstate.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()), block, false)
 	if err != nil {
 		return err
 	}
@@ -921,7 +925,17 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 	return bs.AddReceipt(receipt)
 }
 
-func SendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
+func DecorateBlockRewardFn(fn BlockRewardFn) {
+	SendBlockReward = func(bState *state.BlockState, coinbaseAccount []byte) error {
+		if err := fn(bState, coinbaseAccount); err != nil {
+			return err
+		}
+
+		return sendRewardCoinbase(bState, coinbaseAccount)
+	}
+}
+
+func sendRewardCoinbase(bState *state.BlockState, coinbaseAccount []byte) error {
 	bpReward := new(big.Int).SetBytes(bState.BpReward)
 	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
 		logger.Debug().Str("reward", new(big.Int).SetBytes(bState.BpReward).String()).Msg("coinbase is skipped")

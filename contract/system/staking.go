@@ -7,7 +7,6 @@ package system
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
@@ -26,21 +25,34 @@ func InitGovernance(consensus string) {
 	consensusType = consensus
 }
 
-func staking(txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	if consensusType != "dpos" {
-		return nil, fmt.Errorf("unsupported staking for the consensus: %s", consensusType)
-	}
+type stakeCmd struct {
+	*SystemContext
+	amount *big.Int
+}
 
-	staked := context.Staked
-	beforeStaked := staked.GetAmountBigInt()
-	amount := txBody.GetAmountBigInt()
-	staked.Amount = new(big.Int).Add(beforeStaked, amount).Bytes()
-	staked.When = blockNo
-	if err := setStaking(scs, sender.ID(), staked); err != nil {
+func newStakeCmd(ctx *SystemContext) (sysCmd, error) {
+	var (
+		cmd    = &stakeCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}
+		staked = cmd.Staked
+	)
+
+	staked.Add(cmd.amount)
+	staked.SetWhen(cmd.BlockNo)
+
+	return cmd, nil
+}
+
+func (c *stakeCmd) run() (*types.Event, error) {
+	var (
+		amount   = c.amount
+		sender   = c.Sender
+		receiver = c.Receiver
+	)
+
+	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
-	if err := addTotal(scs, amount); err != nil {
+	if err := addTotal(c.scs, amount); err != nil {
 		return nil, err
 	}
 	sender.SubBalance(amount)
@@ -51,44 +63,50 @@ func staking(txBody *types.TxBody, sender, receiver *state.V,
 		EventName:       "stake",
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
+			`", "amount":"` + amount.String() + `"}`,
 	}, nil
 }
 
-func unstaking(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	staked := context.Staked
-	amount := txBody.GetAmountBigInt()
-	var backToBalance *big.Int
-	if staked.GetAmountBigInt().Cmp(amount) < 0 {
-		amount = new(big.Int).SetUint64(0)
-		backToBalance = staked.GetAmountBigInt()
-	} else {
-		amount = new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-		backToBalance = txBody.GetAmountBigInt()
-	}
-	staked.Amount = amount.Bytes()
-	//blockNo will be updated in voting
-	staked.When = blockNo
+type unstakeCmd struct {
+	*SystemContext
+}
 
-	if err := setStaking(scs, sender.ID(), staked); err != nil {
+func newUnstakeCmd(ctx *SystemContext) (sysCmd, error) {
+	return &unstakeCmd{
+		SystemContext: ctx,
+	}, nil
+}
+
+func (c *unstakeCmd) run() (*types.Event, error) {
+	var (
+		scs               = c.scs
+		staked            = c.Staked
+		sender            = c.Sender
+		receiver          = c.Receiver
+		balanceAdjustment = staked.Sub(c.txBody.GetAmountBigInt())
+	)
+
+	//blockNo will be updated in voting
+	staked.SetWhen(c.BlockNo)
+
+	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
-	if err := refreshAllVote(txBody, scs, context); err != nil {
+	if err := refreshAllVote(c.SystemContext); err != nil {
 		return nil, err
 	}
-	if err := subTotal(scs, backToBalance); err != nil {
+	if err := subTotal(scs, balanceAdjustment); err != nil {
 		return nil, err
 	}
-	sender.AddBalance(backToBalance)
-	receiver.SubBalance(backToBalance)
+	sender.AddBalance(balanceAdjustment)
+	receiver.SubBalance(balanceAdjustment)
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "unstake",
 		JsonArgs: `{"who":"` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + txBody.GetAmountBigInt().String() + `"}`,
+			`", "amount":"` + balanceAdjustment.String() + `"}`,
 	}, nil
 }
 

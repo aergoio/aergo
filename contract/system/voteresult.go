@@ -18,6 +18,8 @@ type VoteResult struct {
 	key   []byte
 	ex    bool
 	total *big.Int
+
+	scs *state.ContractState
 }
 
 func newVoteResult(key []byte, total *big.Int) *VoteResult {
@@ -104,13 +106,15 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 	return &voteList
 }
 
-func (vr *VoteResult) Sync(scs *state.ContractState) error {
+func (vr *VoteResult) Sync() error {
+	votingPowerRank.apply(vr.scs)
+
 	if vr.ex {
-		if err := scs.SetData(append(totalKey, vr.key...), vr.total.Bytes()); err != nil {
+		if err := vr.scs.SetData(append(totalKey, vr.key...), vr.total.Bytes()); err != nil {
 			return err
 		}
 	}
-	return scs.SetData(append(sortKey, vr.key...), serializeVoteList(vr.buildVoteList(), vr.ex))
+	return vr.scs.SetData(append(sortKey, vr.key...), serializeVoteList(vr.buildVoteList(), vr.ex))
 }
 
 func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
@@ -135,6 +139,8 @@ func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
 			}
 		}
 	}
+	voteResult.scs = scs
+
 	return voteResult, nil
 }
 
@@ -144,7 +150,9 @@ func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 	}
 	res := newVoteResult(defaultVoteKey, nil)
 	res.rmap = voteResult
-	return res.Sync(scs)
+	res.scs = scs
+
+	return res.Sync()
 }
 
 func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList, error) {

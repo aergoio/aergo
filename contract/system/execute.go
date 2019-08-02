@@ -17,45 +17,85 @@ import (
 
 //SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
-	BlockNo  uint64
+	BlockNo  types.BlockNo
 	Call     *types.CallInfo
 	Args     []string
 	Staked   *types.Staking
-	Vote     *types.Vote
-	Proposal *Proposal
+	Vote     *types.Vote // voting
+	Proposal *Proposal   // voting
 	Sender   *state.V
 	Receiver *state.V
+
+	op     types.OpSysTx
+	scs    *state.ContractState
+	txBody *types.TxBody
 }
 
-func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
-
+func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
 	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
 	context.Receiver = receiver
 
-	var event *types.Event
-	switch context.Call.Name {
-	case types.Stake:
-		event, err = staking(txBody, sender, receiver, scs, blockNo, context)
-	case types.VoteBP,
-		types.VoteProposal:
-		event, err = voting(txBody, sender, receiver, scs, blockNo, context)
-	case types.Unstake:
-		event, err = unstaking(txBody, sender, receiver, scs, blockNo, context)
-	case types.CreateProposal:
-		event, err = createProposal(txBody, sender, receiver, scs, blockNo, context)
-	default:
-		err = types.ErrTxInvalidPayload
+	return context, err
+}
+
+func (ctx *SystemContext) arg(i int) interface{} {
+	return ctx.Call.Args[i]
+}
+
+// Update the sender's staking.
+func (c *SystemContext) updateStaking() error {
+	return setStaking(c.scs, c.Sender.ID(), c.Staked)
+}
+
+type sysCmd interface {
+	run() (*types.Event, error)
+	arg(i int) interface{}
+}
+
+type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
+
+func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockNo uint64) (sysCmd, error) {
+
+	cmds := map[types.OpSysTx]sysCmdCtor{
+		types.OpvoteBP:         newVoteCmd,
+		types.OpvoteProposal:   newVoteCmd,
+		types.Opstake:          newStakeCmd,
+		types.Opunstake:        newUnstakeCmd,
+		types.OpcreateProposal: newProposalCmd,
 	}
+
+	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockNo)
 	if err != nil {
 		return nil, err
 	}
-	var events []*types.Event
-	events = append(events, event)
-	return events, nil
+
+	ctor, exist := cmds[types.GetOpSysTx(context.Call.Name)]
+	if !exist {
+		return nil, types.ErrTxInvalidPayload
+	}
+
+	return ctor(context)
+}
+
+func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
+	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+
+	cmd, err := newSysCmd(sender.ID(), txBody, sender, receiver, scs, blockNo)
+	if err != nil {
+		return nil, err
+	}
+
+	event, err := cmd.run()
+	if err != nil {
+		return nil, err
+	}
+
+	return []*types.Event{event}, nil
 }
 
 func GetNamePrice(scs *state.ContractState) *big.Int {
@@ -91,16 +131,21 @@ func getMinimumStaking(scs *state.ContractState) *big.Int {
 }
 
 func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
-	votes := getProposalHistory(scs, address)
 	var results []*types.VoteInfo
-	votes = append(votes, []byte(defaultVoteKey))
-	for _, key := range votes {
-		id := ProposalIDfromKey(key)
+
+	for _, i := range GetVotingCatalog() {
+		id := i.ID()
+		key := i.Key()
+
 		result := &types.VoteInfo{Id: id}
 		v, err := getVote(scs, key, address)
 		if err != nil {
 			return nil, err
 		}
+		if v.Amount == nil {
+			continue
+		}
+
 		if bytes.Equal(key, defaultVoteKey) {
 			for offset := 0; offset < len(v.Candidate); offset += PeerIDLength {
 				candi := base58.Encode(v.Candidate[offset : offset+PeerIDLength])

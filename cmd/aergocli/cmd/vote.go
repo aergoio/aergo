@@ -66,8 +66,8 @@ func execVote(cmd *cobra.Command, args []string) {
 		to = string(b)
 	}
 	var ci types.CallInfo
-	if strings.ToLower(voteId) == strings.ToLower(types.VoteBP) {
-		ci.Name = types.VoteBP
+	if strings.ToLower(voteId) == strings.ToLower(types.OpvoteBP.Cmd()) {
+		ci.Name = types.OpvoteBP.Cmd()
 		err = json.Unmarshal([]byte(to), &ci.Args)
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
@@ -91,7 +91,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			}
 		}
 	} else {
-		ci.Name = types.VoteProposal
+		ci.Name = types.OpvoteProposal.Cmd()
 		err := json.Unmarshal([]byte(to), &ci.Args)
 		if err != nil {
 			cmd.Printf("Failed: %s (%s)\n", err.Error(), to)
@@ -140,7 +140,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 func execBP(cmd *cobra.Command, args []string) {
 	msg, err := client.GetVotes(context.Background(), &types.VoteParams{
 		Count: uint32(number),
-		Id:    types.VoteBP[2:],
+		Id:    types.OpvoteBP.ID(),
 	})
 	if err != nil {
 		cmd.Printf("Failed: %s\n", err.Error())

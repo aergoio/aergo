@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 )
 
@@ -8,13 +9,86 @@ const (
 	AergoSystem     = "aergo.system"
 	AergoName       = "aergo.name"
 	AergoEnterprise = "aergo.enterprise"
+	AergoVault      = "aergo.vault" // For community reward program (i.e. voting reward)
+
+	MaxCandidates = 30
 )
 
-const MaxCandidates = 30
+type VotingIssue interface {
+	ID() string
+	Key() []byte
+}
 
-const CreateProposal = "v1createProposal"
-const VoteProposal = "v1voteProposal"
-const VoteBP = "v1voteBP"
+//go:generate stringer -type=OpSysTx
+// OpSysTx represents a kind of a system transaction.
+type OpSysTx int
+
+const (
+	// For compatibility with the old version, in which the first character of
+	// each voting type is lower, the constant name does not follow go naming
+	// convertion.
+
+	// OpvoteBP corresponds to a voting transaction for a BP election.
+	OpvoteBP OpSysTx = iota
+	// OpvoteProposal corresponds to a proposal transaction for a system parameter change.
+	OpvoteProposal
+	// Opstake represents a staking tranaction.
+	Opstake
+	// Opunstake represents a unstaking tranaction.
+	Opunstake
+	// OpcreateProposal represents a transaction creating a proposal.
+	OpcreateProposal
+	// OpSysTxMax is the maximum of system tx OP numbers.
+	OpSysTxMax
+
+	version = 1
+)
+
+var cmdToOp map[string]OpSysTx
+
+func initSysCmd() {
+	cmdToOp = make(map[string]OpSysTx, OpSysTxMax)
+	for i := OpvoteBP; i < OpSysTxMax; i++ {
+		cmdToOp[i.Cmd()] = i
+	}
+}
+
+func init() {
+	initSysCmd()
+}
+
+// GetVotingIssues returns all the VotingIssues in this package.
+func GetVotingIssues() []VotingIssue {
+	return []VotingIssue{OpvoteBP}
+}
+
+// GetOpSysTx returns a OpSysTx value corresponding to vName.
+func GetOpSysTx(vName string) OpSysTx {
+	return cmdToOp[vName]
+}
+
+// Name returns a unprefixed name corresponding to op.
+func (op OpSysTx) ID() string {
+	const prefixLen = 2 // prefix = "Op"
+
+	if op < OpSysTxMax && op >= 0 {
+		return op.String()[prefixLen:]
+	}
+	return ""
+}
+
+// Cmd returns a string representation for op.
+func (op OpSysTx) Cmd() string {
+	name := op.ID()
+	if len(name) == 0 {
+		return name
+	}
+	return fmt.Sprintf("v%d%s", version, name)
+}
+
+func (op OpSysTx) Key() []byte {
+	return []byte(op.ID())
+}
 
 func (vl VoteList) Len() int { return len(vl.Votes) }
 func (vl VoteList) Less(i, j int) bool {
@@ -34,4 +108,3 @@ func (vl VoteList) Swap(i, j int) { vl.Votes[i], vl.Votes[j] = vl.Votes[j], vl.V
 func (v *Vote) GetAmountBigInt() *big.Int {
 	return new(big.Int).SetBytes(v.Amount)
 }
-

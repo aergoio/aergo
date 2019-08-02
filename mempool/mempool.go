@@ -480,6 +480,10 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 		return account
 	}
 
+	if string(account) == string(types.AergoVault) {
+		return account
+	}
+
 	nameState, err := mp.getAccountState([]byte(types.AergoName))
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to get state %s", types.AergoName)

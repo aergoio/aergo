@@ -50,7 +50,7 @@ func init() {
 	voteCmd.MarkFlagRequired("address")
 	voteCmd.Flags().StringVar(&to, "to", "", "Json string array which has candidates or input file path")
 	voteCmd.MarkFlagRequired("to")
-	voteCmd.Flags().StringVar(&voteId, "id", types.VoteBP, "id to vote")
+	voteCmd.Flags().StringVar(&voteId, "id", types.OpvoteBP.Cmd(), "id to vote")
 
 	stakeCmd.Flags().StringVar(&address, "address", "", "Account address")
 	stakeCmd.MarkFlagRequired("address")

@@ -6,10 +6,15 @@
 package dpos
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
+	"math/big"
 	"time"
+
+	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -91,7 +96,16 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) (consensus.Consensus, error) {
+
+	chain.DecorateBlockRewardFn(sendVotingReward)
+
 	bpc, err := bp.NewCluster(cdb)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize the voting power ranking.
+	err = InitVPR(sdb.GetStateDB())
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +122,75 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		bf:           NewBlockFactory(hub, sdb, quitC),
 		quit:         quitC,
 	}, nil
+}
+
+func sendVotingReward(bState *state.BlockState, dummy []byte) error {
+	vrSeed := func(stateRoot []byte) int64 {
+		return int64(binary.LittleEndian.Uint64(stateRoot))
+	}
+
+	seed := vrSeed(bState.PrevBlockHash())
+	logger.Debug().Int64("value", seed).Msg("generate a seed for voting reward")
+	addr, err := system.PickVotingRewardWinner(seed)
+	if err != nil {
+		logger.Debug().Err(err).Msg("no voting reward winner")
+	}
+
+	vaultID := types.ToAccountID([]byte(types.AergoVault))
+	vs, err := bState.GetAccountState(vaultID)
+	if err != nil {
+		logger.Info().Err(err).Msg("skip voting reward")
+		return nil
+	}
+
+	vaultBalance := vs.GetBalanceBigInt()
+
+	if vaultBalance.Cmp(new(big.Int).SetUint64(0)) == 0 {
+		logger.Info().Msgf("%s address has zero balance. skip voting reward", types.AergoVault)
+		return nil
+	}
+
+	reward := system.GetVotingRewardAmount()
+	if vaultBalance.Cmp(reward) < 0 {
+		reward = new(big.Int).Set(vaultBalance)
+	}
+
+	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
+	if err = bState.PutState(vaultID, vs); err != nil {
+		return err
+	}
+
+	ID := types.ToAccountID(addr)
+	s, err := bState.GetAccountState(ID)
+	if err != nil {
+		logger.Info().Err(err).Msg("skip voting reward")
+		return nil
+	}
+
+	newBalance := new(big.Int).Add(s.GetBalanceBigInt(), reward)
+	s.Balance = newBalance.Bytes()
+
+	err = bState.PutState(ID, s)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().
+		Str("address", types.EncodeAddress(addr)).
+		Str("amount", reward.String()).
+		Str("new balance", newBalance.String()).
+		Str("vault balance", vaultBalance.String()).
+		Msg("voting reward winner appointed")
+
+	return nil
+}
+
+func InitVPR(sdb *state.StateDB) error {
+	s, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return err
+	}
+	return system.InitVotingPowerRank(s)
 }
 
 // Init initilizes the DPoS parameters.
@@ -296,6 +379,7 @@ func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
 }
 
 var dummyRaft consensus.DummyRaftAccessor
+
 func (dpos *DPoS) RaftAccessor() consensus.AergoRaftAccessor {
 	return &dummyRaft
 }

@@ -103,7 +103,7 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 
 func buildVoteBPPayloadEx(count int, err int) []byte {
 	var ci CallInfo
-	ci.Name = VoteBP
+	ci.Name = OpvoteBP.Cmd()
 	_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	peerid, _ := IDFromPublicKey(pub)
 	for i := 0; i < count; i++ {
