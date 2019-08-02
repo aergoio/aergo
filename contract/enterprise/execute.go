@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 
@@ -67,9 +69,19 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 		if err != nil {
 			return nil, err
 		}
+		jsonArgs, err := json.Marshal(context.Args[0])
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, &types.Event{
+			ContractAddress: receiver.ID(),
+			EventName:       "Append ADMIN",
+			EventIdx:        0,
+			JsonArgs:        string(jsonArgs),
+		})
 	case RemoveAdmin:
 		for i, v := range context.Admins {
-			if bytes.Equal(v, types.ToAddress(context.Call.Args[0].(string))) {
+			if bytes.Equal(v, types.ToAddress(context.Args[0])) {
 				context.Admins = append(context.Admins[:i], context.Admins[i+1:]...)
 				break
 			}
@@ -78,6 +90,16 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 		if err != nil {
 			return nil, err
 		}
+		jsonArgs, err := json.Marshal(context.Args[0])
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, &types.Event{
+			ContractAddress: receiver.ID(),
+			EventName:       "Remove ADMIN",
+			EventIdx:        0,
+			JsonArgs:        string(jsonArgs),
+		})
 	case SetConf, AppendConf, RemoveConf:
 		key := context.Args[0]
 		err = setConf(scs, []byte(key), context.Conf)
@@ -100,7 +122,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 		}
 		events = append(events, &types.Event{
 			ContractAddress: receiver.ID(),
-			EventName:       "Enable " + string(key),
+			EventName:       "Enable " + strings.ToUpper(string(key)),
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		})
@@ -158,7 +180,7 @@ func createSetEvent(addr []byte, name string, v []string) ([]*types.Event, error
 	return []*types.Event{
 		&types.Event{
 			ContractAddress: addr,
-			EventName:       "Set " + name,
+			EventName:       "Set " + strings.ToUpper(name),
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		},

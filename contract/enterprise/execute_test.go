@@ -2,9 +2,10 @@ package enterprise
 
 import (
 	"encoding/pem"
-	"github.com/aergoio/aergo/state"
 	"strings"
 	"testing"
+
+	"github.com/aergoio/aergo/state"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
@@ -118,25 +119,31 @@ func TestBasicEnterprise(t *testing.T) {
 	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
 	event, err := ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "add admin")
+	assert.Equal(t, "Append ADMIN", event[0].EventName, "append admin event")
+	assert.Equal(t, "\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\"", event[0].JsonArgs, "append admin event")
 	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "add admin")
 	admins, err := getAdmins(scs)
-	assert.NoError(t, err, "remove admin")
+	assert.NoError(t, err, "get after appending admin")
 	assert.Equal(t, 2, len(admins), "check admin")
 	assert.Equal(t, "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4", types.EncodeAddress(admins[0]), "check admin")
 	assert.Equal(t, "AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7", types.EncodeAddress(admins[1]), "check admin")
+
 	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
-	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	event, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "remove admin")
+	assert.Equal(t, "Remove ADMIN", event[0].EventName, "append admin event")
+	assert.Equal(t, "\"AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7\"", event[0].JsonArgs, "append admin event")
 	admins, err = getAdmins(scs)
-	assert.NoError(t, err, "remove admin")
+	assert.NoError(t, err, "get after removing admin")
 	assert.Equal(t, 1, len(admins), "check admin")
 	assert.Equal(t, "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4", types.EncodeAddress(admins[0]), "check admin")
 
 	tx.Payload = []byte(`{"name":"setConf", "args":["p2pwhite","{\"peerid\":\"16Uiu2HAmAokYAtLbZxJAPRgp2jCc4bD35cJD921trqUANh59Rc4n\"}", "{\"peerid\":\"16Uiu2HAm4xYtGsqk7WGKUxr8prfVpJ25hD23AQ3Be6anEL9Kxkgw\"}", "{\"peerid\":\"16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9\"}"]}`)
-	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	event, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
+	assert.Equal(t, "Set P2PWHITE", event[0].EventName, "append admin event")
 	conf, err := getConf(scs, []byte("P2PWhite")) //key is ignore case
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 3, len(conf.Values), "conf values length")
@@ -147,6 +154,7 @@ func TestBasicEnterprise(t *testing.T) {
 	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","{\"peerid\":\"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B\"}"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.NoError(t, err, "set conf")
+	assert.Equal(t, "Set P2PWHITE", event[0].EventName, "append admin event")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, false, conf.On, "conf on")
 	assert.Equal(t, 4, len(conf.Values), "conf values length")
