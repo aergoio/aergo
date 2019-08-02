@@ -24,9 +24,10 @@ func TestListManagerImpl_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	IDOnly := "16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt:"
-	AddrOnly := ":122.1.3.4"
-	IDAddr := "16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt:122.1.3.4"
+	IDOnly := `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"}`
+	AddrOnly := `{"address":"122.1.3.4"}`
+	AddrRange := `{"peerid":"", "cidr":"122.1.3.4/24"}`
+	IDAddr := `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"122.1.3.4"}`
 
 	tests := []struct {
 		name string
@@ -37,6 +38,7 @@ func TestListManagerImpl_Start(t *testing.T) {
 		{"TEmpty", nil, false},
 		{"TSingle", []string{IDOnly}, false},
 		{"TMulti", []string{IDOnly, AddrOnly, IDAddr}, false},
+		{"TMulti", []string{IDOnly, AddrOnly, IDAddr, AddrRange}, false},
 		{"TWrong", []string{IDOnly, ":e23dgvsdvz.32@", IDAddr}, true},
 		{"TWrong2", []string{IDOnly, "e23dgvsd!v32@:", IDAddr}, true},
 		// TODO: Add test cases.
@@ -80,9 +82,9 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	thirdAddr := "222.8.8.8"
 	thirdID, _ := p2putil.RandomPeerID()
 
-	IDOnly := id1.Pretty() + ":"
-	AddrOnly := ":" + addr1
-	IDAddr := idother.Pretty() + ":" + addrother
+	IDOnly := `{"peerid":"`+id1.Pretty()+`"}`
+	AddrOnly := `{"address":"`+addr1+`"}`
+	IDAddr := `{"peerid":"`+idother.Pretty()+`", "address":"`+addrother+`"}`
 
 	logger := log.NewLogger("p2p.list.test")
 	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: []string{IDOnly, AddrOnly, IDAddr}}
@@ -142,10 +144,10 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 func Test_blacklistManagerImpl_IsBanned2(t *testing.T) {
 	conf := config.NewServerContext("", "").GetDefaultAuthConfig()
 	ent := []string{
-		":192.168.1.14",
-		"16Uiu2HAkvbHmK1Ke1hqAHmahwTGE4ndkdMdXJeXFE3kgBs17k2oQ:",
-		"16Uiu2HAmNxKsrFQ4Wez4DYHW6o72y2Jpy6RMv5TuqAvjcQ5QPZWw:192.168.1.13",
-		"16Uiu2HAmDFV41vku39rsMtXBaFT1MFUDyHxXiDJrUDt7gJycSKnX:192.168.1.12",
+		`{"address":"192.168.1.14"}`,
+		`{"peerid":"16Uiu2HAkvbHmK1Ke1hqAHmahwTGE4ndkdMdXJeXFE3kgBs17k2oQ"}`,
+		`{"peerid":"16Uiu2HAmNxKsrFQ4Wez4DYHW6o72y2Jpy6RMv5TuqAvjcQ5QPZWw", "address":"192.168.1.13"}`,
+		`{"peerid":"16Uiu2HAmDFV41vku39rsMtXBaFT1MFUDyHxXiDJrUDt7gJycSKnX", "address":"192.168.1.12"}`,
 	}
 
 	addr1 := "192.168.1.13"

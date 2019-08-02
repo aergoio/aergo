@@ -239,6 +239,7 @@ func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
 }
 
 func checkP2PBlackWhite(v string) error {
+	// v must be json object. e.g. {"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"", "cidr":"172.21.3.35/24" } , which address and cidr cannot be set in same time.
 	if _, err := NewWhiteListEntry(v); err != nil {
 		return fmt.Errorf("invalid p2p whitelist %s", v)
 	}
