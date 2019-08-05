@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
+	"reflect"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -88,6 +90,10 @@ func (vp *votingPower) le(rhs *votingPower) bool {
 	return vp.lt(rhs) || vp.cmp(rhs.getPower()) == 0
 }
 
+func (vp *votingPower) isZero() bool {
+	return vp.getPower().Cmp(zeroValue) == 0
+}
+
 func (vp *votingPower) marshal() []byte {
 	var buf bytes.Buffer
 
@@ -142,6 +148,13 @@ func newVprStore(bucketsMax uint32) *vprStore {
 	}
 }
 
+func (b *vprStore) equals(rhs *vprStore) bool {
+	if !reflect.DeepEqual(b.buckets, rhs.buckets) {
+		return false
+	}
+	return true
+}
+
 func (b *vprStore) update(vp *votingPower) (idx uint8) {
 	var (
 		id  = vp.getID()
@@ -161,6 +174,11 @@ func (b *vprStore) update(vp *votingPower) (idx uint8) {
 	}
 
 	v := remove(bu, id)
+	if vp.isZero() {
+		// A zero power voter must be removed.
+		return
+	}
+
 	if v != nil {
 		v.setPower(pow)
 	} else {
@@ -288,16 +306,62 @@ func newTopVoters(max uint32) *topVoters {
 	}
 }
 
+func (tv *topVoters) equals(rhs *topVoters) bool {
+	if !reflect.DeepEqual(tv.powers, rhs.powers) {
+		return false
+	}
+
+	/*
+		if len(tv.powers) != len(rhs.powers) {
+			return false
+		}
+
+		for id, e := range tv.powers {
+			lhs := toVotingPower(e)
+			rhs := toVotingPower(tv.powers[id])
+			if lhs.cmp(rhs.getPower()) != 0 {
+				return false
+			}
+		}
+	*/
+
+	if !reflect.DeepEqual(tv.buckets, rhs.buckets) {
+		return false
+	}
+
+	/*
+		if len(tv.buckets) != len(rhs.buckets) {
+			return false
+		}
+		for i, lhs := range tv.buckets {
+			rhs := tv.getBuckets()[i]
+			if !reflect.DeepEqual(lhs, rhs) {
+				return false
+			}
+		}
+	*/
+
+	if tv.max != rhs.max {
+		return false
+	}
+
+	return true
+}
+
 func (tv *topVoters) Count() int {
 	return len(tv.powers)
 }
 
-func (tv *topVoters) get(addr types.AccountID) *list.Element {
-	return tv.powers[addr]
+func (tv *topVoters) get(id types.AccountID) *list.Element {
+	return tv.powers[id]
 }
 
-func (tv *topVoters) set(addr types.AccountID, e *list.Element) {
-	tv.powers[addr] = e
+func (tv *topVoters) set(id types.AccountID, e *list.Element) {
+	tv.powers[id] = e
+}
+
+func (tv *topVoters) del(id types.AccountID) {
+	delete(tv.powers, id)
 }
 
 func (tv *topVoters) getVotingPower(addr types.AccountID) *votingPower {
@@ -323,6 +387,32 @@ func (tv *topVoters) getBucket(pow *big.Int) (l *list.List) {
 	}
 
 	return
+}
+
+func (tv *topVoters) getBuckets() map[uint64]*list.List {
+	return tv.buckets
+}
+
+func (tv *topVoters) delBucket(i uint64) {
+	delete(tv.buckets, i)
+}
+
+func (tv *topVoters) lowest() *votingPower {
+	min := uint64(math.MaxUint64)
+	for i, l := range tv.getBuckets() {
+		if l.Len() == 0 {
+			tv.delBucket(i)
+			continue
+		}
+		if i < min {
+			min = i
+		}
+	}
+
+	if l := tv.buckets[min]; l != nil {
+		return toVotingPower(l.Back())
+	}
+	return nil
 }
 
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
@@ -351,14 +441,23 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	if e = tv.get(v.getID()); e != nil {
 		vp = toVotingPower(e)
-		vp.setPower(v.getPower())
-		orderedListMove(tv.getBucket(vp.getPower()), e,
-			func(e *list.Element) bool {
-				existing := toVotingPower(e).getPower()
-				curr := v.getPower()
-				return tv.cmp(curr, existing)
-			},
-		)
+
+		l := tv.getBucket(vp.getPower())
+		if vp.isZero() {
+			tv.del(v.getID())
+
+			l.Remove(e)
+		} else {
+			vp.setPower(v.getPower())
+
+			orderedListMove(l, e,
+				func(e *list.Element) bool {
+					existing := toVotingPower(e).getPower()
+					curr := v.getPower()
+					return tv.cmp(curr, existing)
+				},
+			)
+		}
 	} else {
 		vp = v
 		e = orderedListAdd(tv.getBucket(vp.getPower()), v,
@@ -426,6 +525,26 @@ func loadVpr(s dataGetter) (*vpr, error) {
 	return v, nil
 }
 
+func (v *vpr) equals(rhs *vpr) bool {
+	if !reflect.DeepEqual(v.getTotalPower(), rhs.getTotalPower()) {
+		return false
+	}
+
+	if !reflect.DeepEqual(v.getLowest(), rhs.getLowest()) {
+		return false
+	}
+
+	if !v.voters.equals(rhs.voters) {
+		return false
+	}
+
+	if len(v.changes) != len(v.changes) {
+		return false
+	}
+
+	return true
+}
+
 func (v *vpr) getTotalPower() *big.Int {
 	return new(big.Int).Set(v.totalPower)
 }
@@ -435,11 +554,20 @@ func (v *vpr) getLowest() *votingPower {
 }
 
 func (v *vpr) updateLowest(vp *votingPower) {
+	if vp.isZero() {
+		v.resetLowest()
+		return
+	}
+
 	if v.lowest == nil {
 		v.lowest = vp
 	} else if vp.lt(v.lowest) {
 		v.lowest = vp
 	}
+}
+
+func (v *vpr) setLowest(vp *votingPower) {
+	v.lowest = vp
 }
 
 func (v *vpr) addTotal(delta *big.Int) {
@@ -464,7 +592,7 @@ func (v *vpr) prepare(id types.AccountID, addr types.Address, fn func(lhs *big.I
 }
 
 func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
-	if v == nil {
+	if v == nil || power == nil || power.Cmp(zeroValue) == 0 {
 		return
 	}
 
@@ -523,6 +651,10 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	}
 
 	return nApplied, nil
+}
+
+func (v *vpr) resetLowest() {
+	v.setLowest(v.voters.lowest())
 }
 
 func PickVotingRewardWinner(seed int64) (types.Address, error) {

@@ -38,6 +38,53 @@ var (
 	initializedVprtTest bool
 )
 
+func (v *vpr) checkValidity(t *testing.T) {
+	sum1 := &big.Int{}
+	sum2 := &big.Int{}
+	sum3 := &big.Int{}
+
+	low := v.getLowest().getPower()
+	for _, e := range v.voters.powers {
+		pow := toVotingPower(e).getPower()
+		sum1.Add(sum1, pow)
+		assert.True(t, low.Cmp(pow) <= 0, "invalid lowest power voter")
+	}
+	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
+
+	for i, l := range v.voters.buckets {
+		var next *list.Element
+		for e := l.Front(); e != nil; e = next {
+			if next = e.Next(); next != nil {
+				assert.True(t,
+					v.voters.cmp(toVotingPower(e).getPower(), toVotingPower(next).getPower()),
+					"bucket[%v] not ordered", i)
+			}
+			sum2.Add(sum2, toVotingPower(e).getPower())
+		}
+	}
+
+	for i, l := range v.store.buckets {
+		var next *list.Element
+		for e := l.Front(); e != nil; e = next {
+			if next = e.Next(); next != nil {
+				ind := v.store.cmp(toVotingPower(e), toVotingPower(next))
+				assert.True(t, ind > 0, "bucket[%v] not ordered", i)
+			}
+			sum3.Add(sum3, toVotingPower(e).getPower())
+		}
+	}
+	assert.True(t, sum3.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
+}
+
+func store(t *testing.T, s *state.ContractState) {
+	err := vprStateDB.StageContractState(s)
+	assert.NoError(t, err, "fail to stage")
+	err = vprStateDB.Update()
+	assert.NoError(t, err, "fail to update")
+	err = vprStateDB.Commit()
+	assert.NoError(t, err, "fail to commit")
+}
+
 type vprOpt struct {
 	op  int
 	arg *big.Int
@@ -77,12 +124,7 @@ func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
 
 	initTable(s)
 
-	err = vprStateDB.StageContractState(s)
-	assert.NoError(t, err, "fail to stage")
-	err = vprStateDB.Update()
-	assert.NoError(t, err, "fail to update")
-	err = vprStateDB.Commit()
-	assert.NoError(t, err, "fail to commit")
+	store(t, s)
 }
 
 func initDB(t *testing.T) {
@@ -197,12 +239,7 @@ func TestVprOp(t *testing.T) {
 		tc.check(t)
 	}
 
-	err = vprStateDB.StageContractState(s)
-	assert.NoError(t, err, "fail to stage")
-	err = vprStateDB.Update()
-	assert.NoError(t, err, "fail to update")
-	err = vprStateDB.Commit()
-	assert.NoError(t, err, "fail to commit")
+	store(t, s)
 
 	s = openSystemAccount(t)
 
@@ -376,40 +413,65 @@ func TestVprPickWinner(t *testing.T) {
 	}
 }
 
-func (v *vpr) checkValidity(t *testing.T) {
-	sum1 := &big.Int{}
-	sum2 := &big.Int{}
-	sum3 := &big.Int{}
-
-	low := v.getLowest().getPower()
-	for _, e := range v.voters.powers {
-		pow := toVotingPower(e).getPower()
-		sum1.Add(sum1, pow)
-		assert.True(t, low.Cmp(pow) <= 0, "invalid lowest power voter")
+func TestVprZeroPowerVoter(t *testing.T) {
+	testCases := []struct {
+		pwr *big.Int
+		chk func(*testing.T)
+	}{
+		{
+			pwr: new(big.Int).SetUint64(0),
+			chk: func(t *testing.T) {
+				assert.Nil(t, votingPowerRank.getLowest(), "zero power votier must not be added.")
+			},
+		},
+		{
+			pwr: new(big.Int).SetUint64(1),
+			chk: func(t *testing.T) {
+				assert.True(t, votingPowerRank.getLowest().cmp(new(big.Int).SetUint64(1)) == 0, "invalid lowest power voter.")
+			},
+		},
+		{
+			pwr: new(big.Int).SetUint64(10),
+			chk: func(t *testing.T) {
+				assert.True(t, votingPowerRank.getLowest().cmp(new(big.Int).SetUint64(1)) == 0, "invalid lowest power voter.")
+			},
+		},
+		{
+			pwr: new(big.Int).SetUint64(100),
+			chk: func(t *testing.T) {
+				assert.True(t, votingPowerRank.getLowest().cmp(new(big.Int).SetUint64(1)) == 0, "invalid lowest power voter.")
+			},
+		},
 	}
-	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
 
-	for i, l := range v.voters.buckets {
-		var next *list.Element
-		for e := l.Front(); e != nil; e = next {
-			if next = e.Next(); next != nil {
-				assert.True(t,
-					v.voters.cmp(toVotingPower(e).getPower(), toVotingPower(next).getPower()),
-					"bucket[%v] not ordered", i)
-			}
-			sum2.Add(sum2, toVotingPower(e).getPower())
+	initVprtTestWithSc(t, func(s *state.ContractState) {
+		votingPowerRank = newVpr()
+		for i, tc := range testCases {
+			fmt.Printf("idx: %v, pwd: %v\n", i, tc.pwr)
+			id, addr := genAddr(uint32(i))
+			votingPowerRank.add(id, addr, tc.pwr)
+			votingPowerRank.apply(s)
+			tc.chk(t)
 		}
-	}
+	})
 
-	for i, l := range v.store.buckets {
-		var next *list.Element
-		for e := l.Front(); e != nil; e = next {
-			if next = e.Next(); next != nil {
-				ind := v.store.cmp(toVotingPower(e), toVotingPower(next))
-				assert.True(t, ind > 0, "bucket[%v] not ordered", i)
-			}
-			sum3.Add(sum3, toVotingPower(e).getPower())
-		}
-	}
-	assert.True(t, sum3.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
+	defer finalizeVprtTest()
+
+	s := openSystemAccount(t)
+
+	idx := 1
+	id, addr := genAddr(uint32(idx))
+	votingPowerRank.sub(id, addr, new(big.Int).SetUint64(1))
+	votingPowerRank.apply(s)
+	assert.True(t, votingPowerRank.getLowest().cmp(new(big.Int).SetUint64(10)) == 0,
+		"invalid lowest power(%v) voter.", votingPowerRank.getLowest().getPower())
+
+	store(t, s)
+
+	s = openSystemAccount(t)
+	lRank, err := loadVpr(s)
+	assert.NoError(t, err, "fail to load")
+	assert.Equal(t, votingPowerRank.voters.Count(), lRank.voters.Count(), "size mismatch: voting power")
+
+	assert.True(t, votingPowerRank.equals(lRank), "VPR mismatch")
 }
