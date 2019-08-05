@@ -16,7 +16,6 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
@@ -582,10 +581,12 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			return nil, err
 		}
 
-		bState = state.NewBlockState(cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()))
-		bState.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash())
+		bState = state.NewBlockState(
+			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
+			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
+		)
 
-		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, block.BlockNo(), block.GetHeader().GetTimestamp(), block.GetHeader().GetPrevBlockHash(), contract.ChainService, block.GetHeader().ChainID)
+		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, types.NewBlockHeaderInfo(block), contract.ChainService, nil)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -613,7 +614,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevBlockHash []byte, preLoadService int, chainID []byte) TxExecFn {
+func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preLoadService int, timeout <-chan struct{}) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -621,11 +622,11 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(ccc, cdb, bState, tx, blockNo, ts, prevBlockHash, preLoadService, common.Hasher(chainID))
+		err := executeTx(ccc, cdb, bState, tx, bi, preLoadService, timeout)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(snapshot); err2 != nil {
-				logger.Panic().Err(err).Msg("faield to rollback block state")
+				logger.Panic().Err(err).Msg("failed to rollback block state")
 			}
 
 			return err
@@ -850,8 +851,15 @@ func adjustRv(ret string) string {
 	return ret
 }
 
-func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, blockNo uint64, ts int64, prevBlockHash []byte, preLoadService int, chainIDHash []byte) error {
-
+func executeTx(
+	ccc consensus.ChainConsensusCluster,
+	cdb contract.ChainAccessor,
+	bs *state.BlockState,
+	tx types.Transaction,
+	bi *types.BlockHeaderInfo,
+	preLoadService int,
+	timeout <-chan struct{},
+) error {
 	txBody := tx.GetBody()
 
 	var account []byte
@@ -866,7 +874,7 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 		account = name.Resolve(bs, txBody.GetAccount())
 	}
 
-	err := tx.Validate(chainIDHash, IsPublic())
+	err := tx.Validate(bi.ChainIdHash(), IsPublic())
 	if err != nil {
 		return err
 	}
@@ -903,11 +911,11 @@ func executeTx(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, 
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), blockNo, ts, prevBlockHash, sender, receiver, preLoadService)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, timeout)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, blockNo)
+		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi.No)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

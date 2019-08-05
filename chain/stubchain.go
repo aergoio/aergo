@@ -40,14 +40,17 @@ func NewStubBlockChain(size int) *StubBlockChain {
 }
 
 func (tchain *StubBlockChain) GenAddBlock() {
+	var bi *types.BlockHeaderInfo
 	var prevBlockRootHash []byte
 	if tchain.BestBlock != nil {
+		bi = types.NewBlockHeaderInfoFromPrevBlock(tchain.BestBlock, time.Now().UnixNano(), types.DummyBlockVersionner(0))
 		prevBlockRootHash = tchain.BestBlock.GetHeader().BlocksRootHash
+	} else {
+		bi = &types.BlockHeaderInfo{Ts: time.Now().UnixNano()}
 	}
-
-	newBlock := types.NewBlock(tchain.BestBlock, testBV, prevBlockRootHash, nil, nil, nil, time.Now().UnixNano())
+	bi.Ts = time.Now().UnixNano()
+	newBlock := types.NewBlock(bi, prevBlockRootHash, nil, nil, nil)
 	tchain.AddBlock(newBlock)
-
 	time.Sleep(time.Nanosecond * 3)
 }
 

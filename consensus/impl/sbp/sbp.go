@@ -30,10 +30,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory, nil),
 	}
 }
 
@@ -181,16 +181,14 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
-
-				ts := time.Now().UnixNano()
-
-				txOp := chain.NewCompTxOp(
-					s.txOp,
-					newTxExec(s.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
+				blockState := s.sdb.NewBlockState(
+					prevBlock.GetHeader().GetBlocksRootHash(),
+					state.SetPrevBlockHash(prevBlock.BlockHash()),
 				)
+				bi := types.NewBlockHeaderInfoFromPrevBlock(prevBlock, time.Now().UnixNano(), s.bv)
+				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.GenerateBlock(s, s.bv, prevBlock, blockState, txOp, ts, false)
+				block, err := chain.GenerateBlock(s, bi, blockState, txOp, false)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

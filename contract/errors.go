@@ -52,6 +52,16 @@ func (e *VmSystemError) System() bool {
 	return e != nil
 }
 
+type VmTimeoutError struct{}
+
+func (e *VmTimeoutError) Error() string {
+	return "contract"
+}
+
+func (e *VmTimeoutError) System() bool {
+	return e != nil
+}
+
 type ErrRuntime interface {
 	Runtime() bool
 }

@@ -90,15 +90,13 @@ func (bc *DummyChain) BestBlockNo() uint64 {
 }
 
 func (bc *DummyChain) newBState() *state.BlockState {
-	b := types.Block{
+	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     time.Now().UnixNano(),
 		},
 	}
-	bc.cBlock = &b
-	// blockInfo := types.NewBlockInfo(b.BlockNo(), b.BlockID(), bc.bestBlockId)
 	return state.NewBlockState(bc.sdb.OpenNewStateDB(bc.sdb.GetRoot()))
 }
 
@@ -141,7 +139,7 @@ func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
 }
 
 type luaTx interface {
-	run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte, receiptTx db.Transaction) error
+	run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error
 }
 
 type luaTxAccount struct {
@@ -163,8 +161,7 @@ func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
 	}
 }
 
-func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
-	receiptTx db.Transaction) error {
+func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 
 	id := types.ToAccountID(l.name)
 	accountState, err := bs.GetAccountState(id)
@@ -191,8 +188,7 @@ func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	}
 }
 
-func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
-	receiptTx db.Transaction) error {
+func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 
 	senderID := types.ToAccountID(l.sender)
 	receiverID := types.ToAccountID(l.receiver)
@@ -381,8 +377,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 
 }
 
-func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
-	receiptTx db.Transaction) error {
+func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 
 	if l.cErr != nil {
 		return l.cErr
@@ -392,8 +387,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts 
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
 			contract.State().SqlRecoveryPoint = 1
 
-			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(),
-				l.hash(), blockNo, ts, prevBlockHash, "", true,
+			stateSet := NewContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
 			if traceState {
@@ -402,7 +396,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts 
 				defer stateSet.traceFile.Close()
 			}
 
-			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
+			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet, nil)
 			if err != nil {
 				return err
 			}
@@ -456,19 +450,17 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts int64, prevBlockHash []byte,
-	receiptTx db.Transaction) error {
+func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) error {
-			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(),
-				l.hash(), blockNo, ts, prevBlockHash, "", true,
+			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 			if traceState {
 				stateSet.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 				defer stateSet.traceFile.Close()
 			}
-			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
+			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet, nil)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				r.TxHash = l.hash()
@@ -509,8 +501,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	defer CloseDatabase()
 
 	for _, x := range txs {
-		if err := x.run(blockState, bc, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,
-			bc.cBlock.Header.PrevBlockHash, tx); err != nil {
+		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
 			return err
 		}
 	}

@@ -67,30 +67,28 @@ func MaxBlockBodySize() uint32 {
 // GenerateBlock generate & return a new block
 func GenerateBlock(
 	hs component.ICompSyncRequester,
-	bv types.BlockVersionner,
-	prevBlock *types.Block,
+	bi *types.BlockHeaderInfo,
 	bState *state.BlockState,
 	txOp TxOp,
-	ts int64,
 	skipEmpty bool,
 ) (*types.Block, error) {
-	transactions, err := GatherTXs(hs, bState.SetPrevBlockHash(prevBlock.BlockHash()), txOp, MaxBlockBodySize())
+	transactions, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, err
 	}
-
-	txs := make([]*types.Tx, 0)
-	for _, x := range transactions {
-		txs = append(txs, x.GetTx())
-	}
-
-	if len(txs) == 0 && skipEmpty {
+	n := len(transactions)
+	if n == 0 && skipEmpty {
 		logger.Debug().Msg("BF: empty block is skipped")
 		return nil, ErrBlockEmpty
 	}
 
-	block := types.NewBlock(prevBlock, bv, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
-	if len(txs) != 0 && logger.IsDebugEnabled() {
+	txs := make([]*types.Tx, n)
+	for i, x := range transactions {
+		txs[i] = x.GetTx()
+	}
+
+	block := types.NewBlock(bi, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount)
+	if n != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).

@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/proto"
@@ -230,40 +231,22 @@ func (v DummyBlockVersionner) Version(BlockNo) int32 {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, bv BlockVersionner, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
-	var (
-		chainID       []byte
-		prevBlockHash []byte
-		blockNo       BlockNo
-	)
-
-	if prevBlock != nil {
-		prevBlockHash = prevBlock.BlockHash()
-		blockNo = prevBlock.Header.BlockNo + 1
-		chainID = prevBlock.Header.GetChainID()
-		UpdateChainIdVersion(chainID, bv.Version(blockNo))
+func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte) *Block {
+	return &Block{
+		Header: &BlockHeader{
+			ChainID:          bi.ChainId,
+			PrevBlockHash:    bi.PrevBlockHash,
+			BlockNo:          bi.No,
+			Timestamp:        bi.Ts,
+			BlocksRootHash:   blockRoot,
+			TxsRootHash:      CalculateTxsRootHash(txs),
+			ReceiptsRootHash: receipts.MerkleRoot(),
+			CoinbaseAccount:  coinbaseAcc,
+		},
+		Body: &BlockBody{
+			Txs: txs,
+		},
 	}
-
-	body := BlockBody{
-		Txs: txs,
-	}
-	header := BlockHeader{
-		ChainID:         chainID,
-		PrevBlockHash:   prevBlockHash,
-		BlockNo:         blockNo,
-		Timestamp:       ts,
-		BlocksRootHash:  blockRoot,
-		CoinbaseAccount: coinbaseAcc,
-	}
-	block := Block{
-		Header: &header,
-		Body:   &body,
-	}
-
-	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
-	block.Header.ReceiptsRootHash = receipts.MerkleRoot()
-
-	return &block
 }
 
 // Localtime retrurns a time.Time object, which is coverted from block
@@ -642,4 +625,38 @@ func (ma *MovingAverage) calculateAvg() int64 {
 	// Finalize average and return
 	avg := ma.sum / int64(ma.count)
 	return avg
+}
+
+type BlockHeaderInfo struct {
+	No            BlockNo
+	Ts            int64
+	PrevBlockHash []byte
+	ChainId       []byte
+}
+
+var EmptyBlockHeaderInfo = &BlockHeaderInfo{}
+
+func NewBlockHeaderInfo(b *Block) *BlockHeaderInfo {
+	return &BlockHeaderInfo{
+		b.BlockNo(),
+		b.GetHeader().GetTimestamp(),
+		b.GetHeader().GetPrevBlockHash(),
+		b.GetHeader().GetChainID(),
+	}
+}
+
+func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) *BlockHeaderInfo {
+	no := prev.GetHeader().GetBlockNo() + 1
+	cid := prev.GetHeader().GetChainID()
+	UpdateChainIdVersion(cid, bv.Version(no))
+	return &BlockHeaderInfo{
+		no,
+		ts,
+		prev.GetHash(),
+		cid,
+	}
+}
+
+func (b *BlockHeaderInfo) ChainIdHash() []byte {
+	return common.Hasher(b.ChainId)
 }

@@ -4,10 +4,10 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/config"
 	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -36,8 +36,8 @@ var (
 	loadReqCh      chan *preLoadReq
 	preLoadInfos   [2]preLoadInfo
 	PubNet         bool
-	HardforkConfig *config.HardforkConfig
 	TraceBlockNo   uint64
+	HardforkConfig *config.HardforkConfig
 )
 
 const BlockFactory = 0
@@ -55,8 +55,15 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preLoadInfos[service].requestedTx = tx
 }
 
-func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+func Execute(
+	bs *state.BlockState,
+	cdb ChainAccessor,
+	tx *types.Tx,
+	sender, receiver *state.V,
+	bi *types.BlockHeaderInfo,
+	preLoadService int,
+	timeout <-chan struct{},
+) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	txBody := tx.GetBody()
 
@@ -91,7 +98,15 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
-			preload := <-replyCh
+			var preload *loadedReply
+			select {
+			case preload = <-replyCh:
+			case <-timeout: // TODO v2
+				err = &VmTimeoutError{}
+				return
+			default:
+				continue
+			}
 			if preload.tx != tx {
 				preload.ex.close()
 				continue
@@ -107,18 +122,18 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 
 	var cFee *big.Int
 	if ex != nil {
-		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
+		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), bi, timeout)
 	} else {
 		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
+			tx.GetHash(), bi, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
 		if stateSet.traceFile != nil {
 			defer stateSet.traceFile.Close()
 		}
 		if receiver.IsDeploy() {
-			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet, timeout)
 		} else {
-			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet, timeout)
 		}
 	}
 
@@ -190,7 +205,7 @@ func preLoadWorker() {
 			continue
 		}
 		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), 0, 0, nil, "", false,
+			tx.GetHash(), &types.BlockHeaderInfo{}, "", false,
 			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)

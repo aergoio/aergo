@@ -32,10 +32,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, timeout <-chan struct{}) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, cdb, bi, contract.BlockFactory, timeout),
 	}
 }
 
@@ -49,7 +49,7 @@ type BlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
 	workerQueue      chan *bpInfo
-	bpTimeoutC       chan interface{}
+	bpTimeoutC       chan struct{}
 	quit             <-chan interface{}
 	maxBlockBodySize uint32
 	ID               string
@@ -70,7 +70,7 @@ func NewBlockFactory(
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		workerQueue:      make(chan *bpInfo),
-		bpTimeoutC:       make(chan interface{}, 1),
+		bpTimeoutC:       make(chan struct{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             quitC,
 		ID:               p2pkey.NodeSID(),
@@ -218,16 +218,14 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		}
 	}()
 
-	ts := bpi.slot.UnixNano()
-
-	bs = bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash())
-
-	txOp := chain.NewCompTxOp(
-		bf.txOp,
-		newTxExec(contract.ChainAccessor(bpi.ChainDB), bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.BlockHash(), bpi.bestBlock.GetHeader().ChainID),
+	bs = bf.sdb.NewBlockState(
+		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
+		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
 	)
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
+	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(contract.ChainAccessor(bpi.ChainDB), bi, bf.bpTimeoutC))
 
-	block, err = chain.GenerateBlock(bf, bf.bv, bpi.bestBlock, bs, txOp, ts, false)
+	block, err = chain.GenerateBlock(bf, bi, bs, txOp, false)
 	if err != nil {
 		return nil, nil, err
 	}

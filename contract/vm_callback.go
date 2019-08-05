@@ -104,7 +104,7 @@ func LuaGetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, blkno
 		}
 		blkNo := bigNo.Uint64()
 
-		chainBlockHeight := stateSet.blockHeight
+		chainBlockHeight := stateSet.blockInfo.No
 		if chainBlockHeight == 0 {
 			bestBlock, err := stateSet.cdb.GetBestBlock()
 			if err != nil {
@@ -675,13 +675,13 @@ func LuaGetHash(L *LState, service *C.int) *C.char {
 //export LuaGetBlockNo
 func LuaGetBlockNo(L *LState, service *C.int) C.lua_Integer {
 	stateSet := curStateSet[*service]
-	return C.lua_Integer(stateSet.blockHeight)
+	return C.lua_Integer(stateSet.blockInfo.No)
 }
 
 //export LuaGetTimeStamp
 func LuaGetTimeStamp(L *LState, service *C.int) C.lua_Integer {
 	stateSet := curStateSet[*service]
-	return C.lua_Integer(stateSet.timestamp / 1e9)
+	return C.lua_Integer(stateSet.blockInfo.Ts / 1e9)
 }
 
 //export LuaGetContractId
@@ -707,7 +707,7 @@ func LuaGetOrigin(L *LState, service *C.int) *C.char {
 //export LuaGetPrevBlockHash
 func LuaGetPrevBlockHash(L *LState, service *C.int) *C.char {
 	stateSet := curStateSet[*service]
-	return C.CString(enc.ToString(stateSet.prevBlockHash))
+	return C.CString(enc.ToString(stateSet.blockInfo.PrevBlockHash))
 }
 
 //export LuaGetDbHandle
@@ -1240,7 +1240,7 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		C.luaL_setsyserror(L)
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
-	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, stateSet.blockHeight)
+	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, stateSet.blockInfo.No)
 	if err != nil {
 		rErr := clearRecovery(L, stateSet, seq, true)
 		if rErr != nil {

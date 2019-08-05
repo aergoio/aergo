@@ -83,12 +83,10 @@ type StateSet struct {
 	cdb               ChainAccessor
 	origin            []byte
 	txHash            []byte
-	blockHeight       uint64
-	timestamp         int64
+	blockInfo         *types.BlockHeaderInfo
 	node              string
 	confirmed         bool
 	isQuery           bool
-	prevBlockHash     []byte
 	service           C.int
 	callState         map[types.AccountID]*CallState
 	lastRecoveryEntry *recoveryEntry
@@ -149,33 +147,30 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 }
 
 func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
-	contractState *state.ContractState, senderID []byte, txHash []byte, blockHeight uint64,
-	timestamp int64, prevBlockHash []byte, node string, confirmed bool,
+	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
 	stateSet := &StateSet{
-		curContract:   newContractInfo(callState, senderID, reciever.ID(), rp, amount),
-		bs:            blockState,
-		cdb:           cdb,
-		origin:        senderID,
-		txHash:        txHash,
-		node:          node,
-		confirmed:     confirmed,
-		isQuery:       query,
-		blockHeight:   blockHeight,
-		timestamp:     timestamp,
-		prevBlockHash: prevBlockHash,
-		service:       C.int(service),
+		curContract: newContractInfo(callState, senderID, reciever.ID(), rp, amount),
+		bs:          blockState,
+		cdb:         cdb,
+		origin:      senderID,
+		txHash:      txHash,
+		node:        node,
+		confirmed:   confirmed,
+		isQuery:     query,
+		blockInfo:   bi,
+		service:     C.int(service),
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
 	if sender != nil {
 		stateSet.callState[sender.AccountID()] = &CallState{curState: sender.State()}
 	}
-	if TraceBlockNo != 0 && TraceBlockNo == blockHeight {
-		stateSet.traceFile = getTraceFile(blockHeight, txHash)
+	if TraceBlockNo != 0 && TraceBlockNo == stateSet.blockInfo.No {
+		stateSet.traceFile = getTraceFile(stateSet.blockInfo.No, txHash)
 	}
 
 	return stateSet
@@ -193,7 +188,7 @@ func NewContextQuery(blockState *state.BlockState, cdb ChainAccessor, receiverId
 		cdb:         cdb,
 		node:        node,
 		confirmed:   confirmed,
-		timestamp:   time.Now().UnixNano(),
+		blockInfo:   &types.BlockHeaderInfo{Ts: time.Now().UnixNano()},
 		isQuery:     true,
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
@@ -289,7 +284,7 @@ func newExecutor(
 		return ce
 	}
 	stateSet.service = backupService
-	if HardforkConfig.IsV2Fork(stateSet.blockHeight) {
+	if HardforkConfig.IsV2Fork(stateSet.blockInfo.No) {
 		C.setHardforkV2(ce.L)
 	}
 
@@ -620,8 +615,12 @@ func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 	return err
 }
 
-func Call(contractState *state.ContractState, code, contractAddress []byte,
-	stateSet *StateSet) (string, []*types.Event, *big.Int, error) {
+func Call(
+	contractState *state.ContractState,
+	code, contractAddress []byte,
+	stateSet *StateSet,
+	timeout <-chan struct{},
+) (string, []*types.Event, *big.Int, error) {
 
 	var err error
 	var ci types.CallInfo
@@ -697,9 +696,9 @@ func Call(contractState *state.ContractState, code, contractAddress []byte,
 func setRandomSeed(stateSet *StateSet) {
 	var randSrc rand.Source
 	if stateSet.isQuery {
-		randSrc = rand.NewSource(stateSet.timestamp)
+		randSrc = rand.NewSource(stateSet.blockInfo.Ts)
 	} else {
-		b, _ := new(big.Int).SetString(enc.ToString(stateSet.prevBlockHash[:7]), 62)
+		b, _ := new(big.Int).SetString(enc.ToString(stateSet.blockInfo.PrevBlockHash[:7]), 62)
 		t, _ := new(big.Int).SetString(enc.ToString(stateSet.txHash[:7]), 62)
 		b.Add(b, t)
 		randSrc = rand.NewSource(b.Int64())
@@ -707,8 +706,15 @@ func setRandomSeed(stateSet *StateSet) {
 	stateSet.seed = rand.New(randSrc)
 }
 
-func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState *state.ContractState,
-	blockNo uint64, ts int64, rp uint64, prevBlockHash []byte) (string, []*types.Event, *big.Int, error) {
+func PreCall(
+	ce *Executor,
+	bs *state.BlockState,
+	sender *state.V,
+	contractState *state.ContractState,
+	rp uint64,
+	bi *types.BlockHeaderInfo,
+	timeout <-chan struct{},
+) (string, []*types.Event, *big.Int, error) {
 	var err error
 
 	defer ce.close()
@@ -720,13 +726,11 @@ func PreCall(ce *Executor, bs *state.BlockState, sender *state.V, contractState 
 	callState.curState = contractState.State
 	stateSet.callState[sender.AccountID()] = &CallState{curState: sender.State()}
 
-	stateSet.blockHeight = blockNo
-	stateSet.timestamp = ts
+	stateSet.blockInfo = bi
 	stateSet.curContract.rp = rp
-	stateSet.prevBlockHash = prevBlockHash
 
-	if TraceBlockNo != 0 && TraceBlockNo == blockNo {
-		stateSet.traceFile = getTraceFile(blockNo, stateSet.txHash)
+	if TraceBlockNo != 0 && TraceBlockNo == stateSet.blockInfo.No {
+		stateSet.traceFile = getTraceFile(stateSet.blockInfo.No, stateSet.txHash)
 		if stateSet.traceFile != nil {
 			defer func() {
 				_ = stateSet.traceFile.Close()
@@ -842,8 +846,12 @@ func setContract(contractState *state.ContractState, contractAddress, code []byt
 	return contract, codeLen, nil
 }
 
-func Create(contractState *state.ContractState, code, contractAddress []byte,
-	stateSet *StateSet) (string, []*types.Event, *big.Int, error) {
+func Create(
+	contractState *state.ContractState,
+	code, contractAddress []byte,
+	stateSet *StateSet,
+	timeout <-chan struct{},
+) (string, []*types.Event, *big.Int, error) {
 	if len(code) == 0 {
 		return "", nil, stateSet.usedFee(), errors.New("contract code is required")
 	}

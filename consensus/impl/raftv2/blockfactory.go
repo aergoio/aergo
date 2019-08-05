@@ -63,10 +63,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo, timeout <-chan struct{}) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(ccc, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(ccc, cdb, bi, contract.BlockFactory, timeout),
 	}
 }
 
@@ -99,7 +99,7 @@ type BlockFactory struct {
 
 	workerQueue chan *Work
 	jobQueue    chan interface{}
-	bpTimeoutC  chan interface{}
+	bpTimeoutC  chan struct{}
 	quit        chan interface{}
 
 	maxBlockBodySize uint32
@@ -138,7 +138,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		ChainWAL:         cdb,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		workerQueue:      make(chan *Work),
-		bpTimeoutC:       make(chan interface{}, 1),
+		bpTimeoutC:       make(chan struct{}, 1),
 		quit:             make(chan interface{}),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		ID:               p2pkey.NodeSID(),
@@ -459,16 +459,14 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 		return nil, nil, ErrCancelGenerate
 	}
 
-	blockState := bf.sdb.NewBlockState(bestBlock.GetHeader().GetBlocksRootHash())
-
-	ts := time.Now().UnixNano()
-
-	txOp := chain.NewCompTxOp(
-		bf.txOp,
-		newTxExec(bf, bf.ChainWAL, bestBlock.GetHeader().GetBlockNo()+1, ts, bestBlock.GetHash(), bestBlock.GetHeader().GetChainID()),
+	blockState := bf.sdb.NewBlockState(
+		bestBlock.GetHeader().GetBlocksRootHash(),
+		state.SetPrevBlockHash(bestBlock.BlockHash()),
 	)
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bestBlock, time.Now().UnixNano(), bf.bv)
+	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi, bf.bpTimeoutC))
 
-	block, err := chain.GenerateBlock(bf, bf.bv, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
+	block, err := chain.GenerateBlock(bf, bi, blockState, txOp, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
 		return nil, nil, chain.ErrBlockEmpty

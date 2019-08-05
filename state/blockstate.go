@@ -45,14 +45,26 @@ func (bi *BlockInfo) GetStateRoot() []byte {
 	return bi.StateRoot.Bytes()
 }
 
+type BlockStateOptFn func(s *BlockState)
+
+func SetPrevBlockHash(h []byte) BlockStateOptFn {
+	return func(s *BlockState) {
+		s.SetPrevBlockHash(h)
+	}
+}
+
 // NewBlockState create new blockState contains blockInfo, account states and undo states
-func NewBlockState(states *StateDB) *BlockState {
-	return &BlockState{
+func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
+	b := &BlockState{
 		StateDB: *states,
 		CodeMap: codeCache{
 			codes: make(map[types.AccountID][]byte),
 		},
 	}
+	for _, opt := range options {
+		opt(b)
+	}
+	return b
 }
 
 func (bs *BlockState) AddReceipt(r *types.Receipt) error {
