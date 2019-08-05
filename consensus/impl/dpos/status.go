@@ -19,6 +19,7 @@ type Status struct {
 	bestBlock *types.Block
 	libState  *libStatus
 	bps       *bp.Snapshots
+	sdb       *state.ChainStateDB
 }
 
 // NewStatus returns a newly allocated Status.
@@ -26,6 +27,7 @@ func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 	s := &Status{
 		libState: newLibStatus(consensusBlockCount(c.Size())),
 		bps:      bp.NewSnapshots(c, cdb, sdb),
+		sdb:      sdb,
 	}
 	s.init(cdb, resetHeight)
 
@@ -80,7 +82,10 @@ func (s *Status) Update(block *types.Block) {
 
 		s.bps.AddSnapshot(block.BlockNo())
 	} else {
-		// Rollback resulting from a reorganization.
+		// Rollback resulting from a reorganization: The code below assumes
+		// that there is no block-by-block rollback; it assumes that the
+		// rollback procedure is performed by simply replacing the current
+		// state DB into that of the branch block.
 		logger.Debug().
 			Str("block hash", block.ID()).
 			Uint64("target block no", block.BlockNo()).
@@ -88,12 +93,20 @@ func (s *Status) Update(block *types.Block) {
 
 		// Block reorganized. TODO: update consensus status, correctly.
 		if err := s.libState.rollbackStatusTo(block, s.libState.Lib); err != nil {
-			logger.Debug().Err(err).Msg("failed to rollback DPoS status")
-			panic(err)
+			logger.Fatal().Err(err).Msg("failed to rollback DPoS status")
 		}
 
 		// Rollback BP list. -- BP list is alos affected by a fork.
 		s.bps.UpdateCluster(block.BlockNo())
+
+		// Rollback Voting Powerank: the snapshot fully re-loaded from the
+		// branch block. TODO: let's find a smarter way or use parallel
+		// loading.
+		if err := InitVPR(s.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())); err != nil {
+			logger.Fatal().Err(err).Msg("failed to rollback Voting Power Rank")
+		} else {
+			logger.Debug().Uint64("from block no", block.BlockNo()).Msg("VPR reloaded")
+		}
 	}
 
 	s.libState.gc()
