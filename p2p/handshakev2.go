@@ -18,8 +18,8 @@ import (
 )
 
 // AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
-var AcceptedInboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion032, p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}
-var AttemptingOutboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}
+var AcceptedInboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}
+var AttemptingOutboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}
 
 // baseWireHandshaker works to handshake to just connected peer, it detect chain networks
 // and protocol versions, and then select InnerHandshaker for that protocol version.

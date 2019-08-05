@@ -42,6 +42,9 @@ func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVers
 
 func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
+	case p2pcommon.P2PVersion033:
+		vhs := v030.NewV033VersionedHS(h.pm, h.actor, h.logger, h, peerID, rwc, chain.Genesis.Block().Hash)
+		return vhs, nil
 	case p2pcommon.P2PVersion032:
 		vhs := v030.NewV032VersionedHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil
@@ -54,4 +57,17 @@ func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVers
 	default:
 		return nil, fmt.Errorf("not supported version")
 	}
+}
+
+func (vm *defaultVersionManager) GetBestChainID() *types.ChainID {
+	bb, _ := vm.ca.GetBestBlock() // error is always nil at current version
+	if bb != nil {
+		return vm.ca.ChainID(bb.BlockNo())
+	} else {
+		return nil
+	}
+}
+
+func (vm *defaultVersionManager) GetChainID(no types.BlockNo) *types.ChainID {
+	return vm.ca.ChainID(no)
 }

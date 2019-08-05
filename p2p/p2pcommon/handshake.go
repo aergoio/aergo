@@ -28,6 +28,9 @@ type HSHandler interface {
 type VersionedManager interface {
 	FindBestP2PVersion(versions []P2PVersion) P2PVersion
 	GetVersionedHandshaker(version P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (VersionedHandshaker, error)
+
+	GetBestChainID() *types.ChainID
+	GetChainID(no types.BlockNo) *types.ChainID
 }
 
 // VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version.

@@ -142,6 +142,34 @@ func (mr *MockVersionedManagerMockRecorder) GetVersionedHandshaker(version, peer
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionedHandshaker", reflect.TypeOf((*MockVersionedManager)(nil).GetVersionedHandshaker), version, peerID, rwc)
 }
 
+// GetBestChainID mocks base method
+func (m *MockVersionedManager) GetBestChainID() *types.ChainID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBestChainID")
+	ret0, _ := ret[0].(*types.ChainID)
+	return ret0
+}
+
+// GetBestChainID indicates an expected call of GetBestChainID
+func (mr *MockVersionedManagerMockRecorder) GetBestChainID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBestChainID", reflect.TypeOf((*MockVersionedManager)(nil).GetBestChainID))
+}
+
+// GetChainID mocks base method
+func (m *MockVersionedManager) GetChainID(no types.BlockNo) *types.ChainID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetChainID", no)
+	ret0, _ := ret[0].(*types.ChainID)
+	return ret0
+}
+
+// GetChainID indicates an expected call of GetChainID
+func (mr *MockVersionedManagerMockRecorder) GetChainID(no interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainID", reflect.TypeOf((*MockVersionedManager)(nil).GetChainID), no)
+}
+
 // MockVersionedHandshaker is a mock of VersionedHandshaker interface
 type MockVersionedHandshaker struct {
 	ctrl     *gomock.Controller

@@ -40,9 +40,12 @@ func (v P2PVersion) String() string {
 
 const (
 	P2PVersionUnknown P2PVersion = 0x00000000
+
 	P2PVersion030     P2PVersion = 0x00000300
 	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
-	P2PVersion032     P2PVersion = 0x00000302 // pseudo version for supporting multi version
+	P2PVersion032     P2PVersion = 0x00000302 // added checking genesis block hash
+
+	P2PVersion033     P2PVersion = 0x00000303 // support hardfork (chainid is changed)
 )
 
 // context of multiaddr, as higher type of p2p message
