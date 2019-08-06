@@ -236,7 +236,7 @@ func (ns *RPC) Receive(context actor.Context) {
 						msg := &message.P2PWhiteListConfSetEvent{
 							Values: values,
 						}
-						ns.TellTo(message.MemPoolSvc, msg)
+						ns.TellTo(message.P2PSvc, msg)
 					}
 				default:
 					logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
