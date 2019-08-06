@@ -79,6 +79,7 @@ func LoadDummyChain() (*DummyChain, error) {
 }
 
 func (bc *DummyChain) Release() {
+	bc.testReceiptDB.Close()
 	_ = os.RemoveAll(bc.tmpDir)
 }
 
