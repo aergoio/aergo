@@ -36,6 +36,7 @@ type listManagerImpl struct {
 	publicNet bool
 
 	entries []enterprise.WhiteListEntry
+	enabled bool
 	rwLock  sync.RWMutex
 	authDir string
 
@@ -96,15 +97,25 @@ func (lm *listManagerImpl) RefineList() {
 	if lm.publicNet {
 		lm.logger.Info().Msg("network is public, apply default policy instead (allow all)")
 		lm.entries = make([]enterprise.WhiteListEntry, 0)
+		lm.enabled = false
 	} else {
 		wl, err := lm.chainAcc.GetEnterpriseConfig(enterprise.P2PWhite)
-		if err != nil || len(wl.Values) == 0 {
-			lm.logger.Info().Msg("no whitelist found. apply default policy instead (allow all)")
+		if err != nil {
+			lm.logger.Info().Msg("error while getting whitelist config. apply default policy instead (allow all)")
 			//ent, _ := NewWhiteListEntry(":")
 			//lm.entries = append(lm.entries, ent)
 			lm.entries = make([]enterprise.WhiteListEntry, 0)
-		} else if !wl.GetOn() {
+			lm.enabled = false
+			return
+		}
+		lm.enabled = wl.GetOn()
+		if !wl.GetOn() {
 			lm.logger.Info().Msg("whitelist conf is disabled. apply default policy instead (allow all)")
+			lm.entries = make([]enterprise.WhiteListEntry, 0)
+		} else if len(wl.Values) == 0 {
+			lm.logger.Info().Msg("no whitelist found. apply default policy instead (allow all)")
+			//ent, _ := NewWhiteListEntry(":")
+			//lm.entries = append(lm.entries, ent)
 			lm.entries = make([]enterprise.WhiteListEntry, 0)
 		} else {
 			entries := make([]enterprise.WhiteListEntry, 0, len(wl.Values))
@@ -129,5 +140,7 @@ func (lm *listManagerImpl) Summary() map[string]interface{} {
 		entries = append(entries, e.String())
 	}
 	sum["whitelist"] = entries
+	sum["whitelist_on"] = lm.enabled
+
 	return sum
 }

@@ -128,10 +128,13 @@ func (p2ps *P2P) BeforeStop() {
 // Statistics show statistic information of p2p module. NOTE: It it not implemented yet
 func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
-	stmap["whitelist"] = p2ps.lm.Summary()
 	stmap["netstat"] = p2ps.mm.Summary()
 	stmap["config"] = p2ps.cfg.P2P
 	stmap["status"] = p2ps.nt.SelfMeta()
+	wlSummary := p2ps.lm.Summary()
+	stmap["whitelist"] = wlSummary["whitelist"]
+	stmap["whitelist_on"] = wlSummary["whitelist_on"]
+
 	return &stmap
 }
 
