@@ -34,6 +34,16 @@ var (
 	votingPowerRank *vpr
 )
 
+type dataSetter interface {
+	SetData(key, value []byte) error
+}
+
+type dataGetter interface {
+	GetData(key []byte) ([]byte, error)
+}
+
+// InitVotingPowerRank reads the stored data from s and initializes the Voting
+// Power Rank, which contains each voters's voting power.
 func InitVotingPowerRank(s dataGetter) (err error) {
 	votingPowerRank, err = loadVpr(s)
 
@@ -233,14 +243,6 @@ func (b *vprStore) addTail(i uint8, vp *votingPower) {
 		b.buckets[i] = l
 	}
 	l.PushBack(vp)
-}
-
-type dataSetter interface {
-	SetData(key, value []byte) error
-}
-
-type dataGetter interface {
-	GetData(key []byte) ([]byte, error)
 }
 
 func (b *vprStore) write(s dataSetter, i uint8) error {

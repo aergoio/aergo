@@ -76,6 +76,14 @@ func (v *vpr) checkValidity(t *testing.T) {
 	assert.True(t, sum3.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
 }
 
+func initVpr() {
+	votingPowerRank = newVpr()
+}
+
+func defaultVpr() *vpr {
+	return votingPowerRank
+}
+
 func store(t *testing.T, s *state.ContractState) {
 	err := vprStateDB.StageContractState(s)
 	assert.NoError(t, err, "fail to stage")
@@ -135,6 +143,19 @@ func initDB(t *testing.T) {
 
 	err := vprChainStateDB.SetGenesis(genesis, nil)
 	assert.NoError(t, err, "failed init")
+}
+
+func getStateRoot() []byte {
+	return vprStateDB.GetRoot()
+}
+
+func openSystemAccountWith(root []byte) *state.ContractState {
+	s, err := vprChainStateDB.OpenNewStateDB(root).OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	if err != nil {
+		return nil
+	}
+
+	return s
 }
 
 func initRankTableRandSc(rankMax uint32, s *state.ContractState) {
@@ -474,4 +495,58 @@ func TestVprZeroPowerVoter(t *testing.T) {
 	assert.Equal(t, votingPowerRank.voters.Count(), lRank.voters.Count(), "size mismatch: voting power")
 
 	assert.True(t, votingPowerRank.equals(lRank), "VPR mismatch")
+}
+
+func TestVprReorg(t *testing.T) {
+	type testCase struct {
+		pwr *big.Int
+		chk func(*testing.T)
+	}
+
+	doTest := func(i int, tc testCase, s *state.ContractState) {
+		fmt.Printf("idx: %v, pwd: %v\n", i, tc.pwr)
+		id, addr := genAddr(uint32(i))
+		votingPowerRank.add(id, addr, tc.pwr)
+		votingPowerRank.apply(s)
+		store(t, s)
+		tc.chk(t)
+	}
+
+	initVprtTestWithSc(t, func(s *state.ContractState) {
+		initVpr()
+	})
+	defer finalizeVprtTest()
+
+	testCases := []testCase{
+
+		{
+			pwr: new(big.Int).SetUint64(1),
+			chk: func(t *testing.T) {
+				assert.True(t, votingPowerRank.getLowest().cmp(new(big.Int).SetUint64(1)) == 0, "invalid lowest power voter.")
+			},
+		},
+		{
+			pwr: new(big.Int).SetUint64(10),
+			chk: func(t *testing.T) {
+				assert.True(t, votingPowerRank.getLowest().cmp(new(big.Int).SetUint64(1)) == 0, "invalid lowest power voter.")
+			},
+		},
+	}
+
+	sRoots := make([][]byte, len(testCases))
+	totalPowers := make([]*big.Int, len(testCases))
+
+	for i, tc := range testCases {
+		s := openSystemAccount(t)
+		doTest(i, tc, s)
+		sRoots[i] = getStateRoot()
+		totalPowers[i] = defaultVpr().getTotalPower()
+	}
+
+	for i, root := range sRoots {
+		s := openSystemAccountWith(root)
+		assert.NotNil(t, s, "failed to open the system account")
+		InitVotingPowerRank(s)
+		assert.Equal(t, defaultVpr().getTotalPower(), totalPowers[i], "invalid total voting power")
+	}
 }
