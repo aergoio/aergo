@@ -163,7 +163,7 @@ v3 = "10000"`,
 	tests := []struct {
 		name string
 		h    uint64
-		want uint64
+		want int32
 	}{
 		{
 			"zero",

@@ -118,7 +118,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		ComponentHub: hub,
 		ChainDB:      cdb,
 		bpc:          bpc,
-		bf:           NewBlockFactory(hub, sdb, quitC),
+		bf:           NewBlockFactory(hub, sdb, quitC, cfg.Hardfork),
 		quit:         quitC,
 	}, nil
 }

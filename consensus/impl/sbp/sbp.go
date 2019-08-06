@@ -55,6 +55,7 @@ type SimpleBlockFactory struct {
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block
+	bv               types.BlockVersionner
 }
 
 // GetName returns the name of the consensus.
@@ -66,13 +67,17 @@ func GetName() string {
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg.Consensus, hub, cdb, sdb)
+		return New(cfg.Hardfork, hub, cdb, sdb)
 	}
 }
 
 // New returns a SimpleBlockFactory.
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB,
-	sdb *state.ChainStateDB) (*SimpleBlockFactory, error) {
+func New(
+	bv types.BlockVersionner,
+	hub *component.ComponentHub,
+	cdb consensus.ChainDB,
+	sdb *state.ChainStateDB,
+) (*SimpleBlockFactory, error) {
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
@@ -81,8 +86,8 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
 		sdb:              sdb,
+		bv:               bv,
 	}
-
 	s.txOp = chain.NewCompTxOp(
 		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
 			select {
@@ -93,7 +98,6 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 			}
 		}),
 	)
-
 	return s, nil
 }
 
@@ -186,7 +190,7 @@ func (s *SimpleBlockFactory) Start() {
 					newTxExec(s.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
 				)
 
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
+				block, err := chain.GenerateBlock(s, s.bv, prevBlock, blockState, txOp, ts, false)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

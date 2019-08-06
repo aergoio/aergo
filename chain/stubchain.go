@@ -22,6 +22,8 @@ type StubBlockChain struct {
 var (
 	ErrNotExistHash  = errors.New("not exist hash")
 	ErrNotExistBlock = errors.New("not exist block of the hash")
+
+	testBV = types.DummyBlockVersionner(0)
 )
 
 func NewStubBlockChain(size int) *StubBlockChain {
@@ -43,7 +45,7 @@ func (tchain *StubBlockChain) GenAddBlock() {
 		prevBlockRootHash = tchain.BestBlock.GetHeader().BlocksRootHash
 	}
 
-	newBlock := types.NewBlock(tchain.BestBlock, prevBlockRootHash, nil, nil, nil, time.Now().UnixNano())
+	newBlock := types.NewBlock(tchain.BestBlock, testBV, prevBlockRootHash, nil, nil, nil, time.Now().UnixNano())
 	tchain.AddBlock(newBlock)
 
 	time.Sleep(time.Nanosecond * 3)

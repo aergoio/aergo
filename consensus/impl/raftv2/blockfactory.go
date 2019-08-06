@@ -112,6 +112,8 @@ type BlockFactory struct {
 
 	raftOp     *RaftOperator
 	raftServer *raftServer
+
+	bv types.BlockVersionner
 }
 
 // GetName returns the name of the consensus.
@@ -142,6 +144,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		ID:               p2pkey.NodeSID(),
 		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
+		bv:               cfg.Hardfork,
 	}
 
 	if cfg.Consensus.EnableBp {
@@ -465,7 +468,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 		newTxExec(bf, bf.ChainWAL, bestBlock.GetHeader().GetBlockNo()+1, ts, bestBlock.GetHash(), bestBlock.GetHeader().GetChainID()),
 	)
 
-	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
+	block, err := chain.GenerateBlock(bf, bf.bv, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
 		return nil, nil, chain.ErrBlockEmpty

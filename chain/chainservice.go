@@ -898,6 +898,6 @@ func (cs *ChainService) ChainID(bno types.BlockNo) *types.ChainID {
 	if err != nil {
 		return nil
 	}
-	cid.Version = int32(cs.cfg.Hardfork.Version(bno))
+	cid.Version = cs.cfg.Hardfork.Version(bno)
 	return cid
 }

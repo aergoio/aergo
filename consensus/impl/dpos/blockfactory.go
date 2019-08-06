@@ -56,10 +56,16 @@ type BlockFactory struct {
 	privKey          crypto.PrivKey
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
+	bv               types.BlockVersionner
 }
 
 // NewBlockFactory returns a new BlockFactory
-func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC <-chan interface{}) *BlockFactory {
+func NewBlockFactory(
+	hub *component.ComponentHub,
+	sdb *state.ChainStateDB,
+	quitC <-chan interface{},
+	bv types.BlockVersionner,
+) *BlockFactory {
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
@@ -70,15 +76,14 @@ func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC
 		ID:               p2pkey.NodeSID(),
 		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
+		bv:               bv,
 	}
-
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
 		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
 			return bf.checkBpTimeout()
 		}),
 	)
-
 	return bf
 }
 
@@ -222,7 +227,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		newTxExec(contract.ChainAccessor(bpi.ChainDB), bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.BlockHash(), bpi.bestBlock.GetHeader().ChainID),
 	)
 
-	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts, false)
+	block, err = chain.GenerateBlock(bf, bf.bv, bpi.bestBlock, bs, txOp, ts, false)
 	if err != nil {
 		return nil, nil, err
 	}

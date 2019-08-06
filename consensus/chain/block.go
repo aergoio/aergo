@@ -65,8 +65,15 @@ func MaxBlockBodySize() uint32 {
 }
 
 // GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64, skipEmpty bool) (*types.Block, error) {
-
+func GenerateBlock(
+	hs component.ICompSyncRequester,
+	bv types.BlockVersionner,
+	prevBlock *types.Block,
+	bState *state.BlockState,
+	txOp TxOp,
+	ts int64,
+	skipEmpty bool,
+) (*types.Block, error) {
 	transactions, err := GatherTXs(hs, bState.SetPrevBlockHash(prevBlock.BlockHash()), txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, err
@@ -82,7 +89,7 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 		return nil, ErrBlockEmpty
 	}
 
-	block := types.NewBlock(prevBlock, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
+	block := types.NewBlock(prevBlock, bv, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
 	if len(txs) != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).

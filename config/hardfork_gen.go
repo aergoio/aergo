@@ -5,7 +5,7 @@ package config
 import (
 	"fmt"
 	"reflect"
-	
+
 	"github.com/aergoio/aergo/types"
 )
 
@@ -45,14 +45,14 @@ func (c *HardforkConfig) CheckCompatibility(dbCfg HardforkDbConfig, h types.Bloc
 	return checkOlderNode(2, h, dbCfg)
 }
 
-func (c *HardforkConfig) Version(h types.BlockNo) uint64 {
+func (c *HardforkConfig) Version(h types.BlockNo) int32 {
 	v := reflect.ValueOf(*c)
 	for i := v.NumField() - 1; i >= 0; i-- {
 		if v.Field(i).Uint() <= h {
-			return uint64(i + 2)
+			return int32(i + 2)
 		}
 	}
-	return uint64(0)
+	return int32(0)
 }
 
 func (c *HardforkConfig) validate() error {

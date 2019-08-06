@@ -78,12 +78,8 @@ func (cid *ChainID) Bytes() ([]byte, error) {
 
 	// warning: when any field added to ChainID, the corresponding
 	// serialization code must be written here.
-	if err := binary.Write(&w, binary.LittleEndian, cid.Version); err != nil {
-		return nil, errCidCodec{
-			codec: cidMarshal,
-			field: "version",
-			err:   err,
-		}
+	if err := writeChainIdVersion(&w, cid.Version); err != nil {
+		return nil, err
 	}
 	if err := binary.Write(&w, binary.LittleEndian, cid.PublicNet); err != nil {
 		return nil, errCidCodec{
@@ -183,6 +179,22 @@ func (cid ChainID) ToJSON() string {
 	return ""
 }
 
+func writeChainIdVersion(w *bytes.Buffer, v int32) error {
+	if err := binary.Write(w, binary.LittleEndian, v); err != nil {
+		return errCidCodec{
+			codec: cidMarshal,
+			field: "version",
+			err:   err,
+		}
+	}
+	return nil
+}
+func UpdateChainIdVersion(cid []byte, v int32) {
+	w := bytes.Buffer{}
+	_ = writeChainIdVersion(&w, v)
+	copy(cid, w.Bytes())
+}
+
 type EnterpriseBP struct {
 	Name string `json:"name"`
 	// multiaddress format with ip or dns with port e.g. /ip4/123.45.67.89/tcp/7846
@@ -217,7 +229,7 @@ func (g *Genesis) Validate() error {
 // Block returns Block corresponding to g.
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
-		g.SetBlock(NewBlock(nil, nil, nil, nil, nil, g.Timestamp))
+		g.SetBlock(NewBlock(nil, nil, nil, nil, nil, nil, g.Timestamp))
 		if id, err := g.ID.Bytes(); err == nil {
 			g.block.SetChainID(id)
 		}

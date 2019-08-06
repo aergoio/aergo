@@ -218,8 +218,18 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 	return BlockNo(buf)
 }
 
+type BlockVersionner interface {
+	Version(no BlockNo) int32
+}
+
+type DummyBlockVersionner int32
+
+func (v DummyBlockVersionner) Version(BlockNo) int32 {
+	return int32(v)
+}
+
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
+func NewBlock(prevBlock *Block, bv BlockVersionner, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
 	var (
 		chainID       []byte
 		prevBlockHash []byte
@@ -229,7 +239,8 @@ func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx,
 	if prevBlock != nil {
 		prevBlockHash = prevBlock.BlockHash()
 		blockNo = prevBlock.Header.BlockNo + 1
-		chainID = prevBlock.GetHeader().GetChainID()
+		chainID = prevBlock.Header.GetChainID()
+		UpdateChainIdVersion(chainID, bv.Version(blockNo))
 	}
 
 	body := BlockBody{
