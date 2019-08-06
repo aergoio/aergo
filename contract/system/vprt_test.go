@@ -160,7 +160,7 @@ func openSystemAccountWith(root []byte) *state.ContractState {
 
 func initRankTableRandSc(rankMax uint32, s *state.ContractState) {
 	votingPowerRank = newVpr()
-	max := new(big.Int).SetUint64(50000000000000)
+	max := new(big.Int).Mul(binSize, new(big.Int).SetUint64(5))
 	src := rand.New(rand.NewSource(0))
 	for i := uint32(0); i < rankMax; i++ {
 		id, addr := genAddr(i)
@@ -216,36 +216,41 @@ func TestVprOp(t *testing.T) {
 	initVprtTest(t, func() { initRankTable(vprMax) })
 	defer finalizeVprtTest()
 
+	rValue := func(rhs int64) *big.Int {
+		defVal := new(big.Int).Set(binSize)
+		return new(big.Int).Set(defVal).Add(defVal, new(big.Int).SetInt64(rhs))
+	}
+
 	testCases := []vprTC{
 		{
 			seed: 10,
 			ops:  []vprOpt{{opAdd, valHundred}, {opSub, valTen}},
-			want: new(big.Int).SetUint64(10000000000090),
+			want: rValue(90),
 		},
 		{
 			seed: 11,
 			ops:  []vprOpt{{opSub, valTen}, {opAdd, valHundred}},
-			want: new(big.Int).SetUint64(10000000000090),
+			want: rValue(90),
 		},
 		{
 			seed: 12,
 			ops:  []vprOpt{{opAdd, valHundred}, {opAdd, valHundred}},
-			want: new(big.Int).SetUint64(10000000000200),
+			want: rValue(200),
 		},
 		{
 			seed: 13,
 			ops:  []vprOpt{{opAdd, valTen}, {opAdd, valTen}},
-			want: new(big.Int).SetUint64(10000000000020),
+			want: rValue(20),
 		},
 		{
 			seed: 14,
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}},
-			want: new(big.Int).SetUint64(9999999999980),
+			want: rValue(-20),
 		},
 		{
 			seed: 15,
 			ops:  []vprOpt{{opSub, valTen}, {opSub, valTen}, {opSub, valTen}},
-			want: new(big.Int).SetUint64(9999999999970),
+			want: rValue(-30),
 		},
 	}
 

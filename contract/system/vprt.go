@@ -26,10 +26,11 @@ var (
 	ErrNoVotingRewardWinner = errors.New("voting reward: no winner")
 	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
 
+	zeroValue = &big.Int{}
+
 	vprKeyPrefix     = []byte("VotingPowerBucket/")
-	defaultReward, _ = new(big.Int).SetString("1000000000000000000", 10) // 1 AERGO
-	zeroValue        = &big.Int{}
-	binSize, _       = new(big.Int).SetString("10000000000000", 10)
+	defaultReward, _ = new(big.Int).SetString("1000000000000000000", 10)     // 1 AERGO
+	binSize, _       = new(big.Int).SetString("10000000000000000000000", 10) // 10000 AERGO
 
 	votingPowerRank *vpr
 )
