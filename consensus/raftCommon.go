@@ -44,8 +44,6 @@ var (
 		2: "EntryConfChange",
 	}
 
-	ErrURLInvalidScheme       = errors.New("url has invalid scheme")
-	ErrURLInvalidPort         = errors.New("url must have host:port style")
 	ErrInvalidMemberID        = errors.New("member id of conf change doesn't match")
 	ErrEmptySnapData          = errors.New("failed to decode snapshot data. encoded data is empty")
 	ErrInvalidMemberAttr      = errors.New("invalid member attribute")
@@ -96,12 +94,12 @@ type ChainWAL interface {
 
 	ClearWAL()
 	ResetWAL(hardStateInfo *types.HardStateInfo) error
-	GetBlock(blockHash []byte) (*types.Block, error)
 	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
 	HasWal(identity RaftIdentity) (bool, error)
 	GetRaftEntryOfBlock(hash []byte) (*WalEntry, error)
 	GetRaftEntryLastIdx() (uint64, error)
+	GetRaftEntryIndexOfBlock(hash []byte) (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
 	WriteSnapshot(snap *raftpb.Snapshot) error

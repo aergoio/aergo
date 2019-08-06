@@ -14,7 +14,6 @@ const (
 	RPCPermissions = "RPCPERMISSIONS"
 	P2PWhite       = "P2PWHITE"
 	P2PBlack       = "P2PBLACK"
-	RaftWhite      = "RAFTWHITE"
 	AccountWhite   = "ACCOUNTWHITE"
 )
 
@@ -23,8 +22,7 @@ var enterpriseKeyDict = map[string]int{
 	RPCPermissions: 1,
 	P2PWhite:       2,
 	P2PBlack:       3,
-	RaftWhite:      4,
-	AccountWhite:   5,
+	AccountWhite:   4,
 }
 
 type Conf struct {

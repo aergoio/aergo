@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	slotQueueMax              = 100
-	DefaultCommitQueueLen     = 10
+	slotQueueMax = 100
+	//DefaultCommitQueueLen     = 1
 	DefaultBlockFactoryTickMs = 100
 	MinBlockFactoryTickMs     = 10
 )
@@ -41,7 +41,7 @@ var (
 	// blockIntervalMs is the block genration interval in milli-seconds.
 	RaftTick           = DefaultTickMS
 	RaftSkipEmptyBlock = false
-	MaxCommitQueueLen  = DefaultCommitQueueLen
+	//MaxCommitQueueLen  = DefaultCommitQueueLen
 
 	BlockFactoryTickMs time.Duration
 	BlockIntervalMs    time.Duration
@@ -51,6 +51,7 @@ var (
 	ErrClusterNotReady      = errors.New("cluster is not ready")
 	ErrNotRaftLeader        = errors.New("this node is not leader")
 	ErrInvalidConsensusName = errors.New("invalid consensus name")
+	ErrCancelGenerate       = errors.New("cancel generating block because work becomes stale")
 )
 
 func init() {
@@ -205,9 +206,8 @@ func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 
 	logger.Info().Str("name", bf.bpc.NodeName()).Msg("create raft server")
 
-	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc, cfg.Consensus.Raft.ListenUrl,
-		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.UseBackup,
-		cfg.Consensus.Raft.CertFile, cfg.Consensus.Raft.KeyFile, nil,
+	bf.raftServer = newRaftServer(bf.ComponentHub, bf.bpc,
+		!cfg.Consensus.Raft.NewCluster, cfg.Consensus.Raft.UseBackup, nil,
 		RaftTick, bf.bpc.confChangeC, bf.raftOp.commitC, false, bf.ChainWAL)
 
 	bf.bpc.rs = bf.raftServer
@@ -409,6 +409,8 @@ func (bf *BlockFactory) worker() {
 			// RaftEmptyBlockLog: When the leader changes, the new raft leader creates an empty data log with a new term and index.
 			// When block factory receives empty block log, the blockfactory that is running as the leader should reset the proposal in progress.
 			// This proposal may have been dropped on the raft.
+			// Warning : There may be timing issue when reseting. If empty log of buffered channel is processed after propose,
+			// the proposal you just submitted may be canceled incorrectly.
 			if cEntry.block == nil {
 				bf.reset()
 				continue
@@ -435,6 +437,24 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
 		}
 	}()
+
+	checkCancel := func() bool {
+		if !bf.raftServer.IsLeader() {
+			logger.Debug().Msg("cancel because no more leader")
+			return true
+		}
+
+		if b, _ := bf.GetBestBlock(); b != nil && bestBlock.BlockNo() != b.BlockNo() {
+			logger.Debug().Msg("cancel because best block changed")
+			return true
+		}
+
+		return false
+	}
+
+	if checkCancel() {
+		return nil, nil, ErrCancelGenerate
+	}
 
 	blockState := bf.sdb.NewBlockState(bestBlock.GetHeader().GetBlocksRootHash())
 
@@ -575,6 +595,22 @@ func (bf *BlockFactory) HasWAL() bool {
 	return true
 }
 
+func (bf *BlockFactory) IsForkEnable() bool {
+	return false
+}
+
+// check already connect block
+// In raft, block hash may already have been writtern when writing log entry.
+func (bf *BlockFactory) IsConnectedBlock(block *types.Block) bool {
+	savedBlk, err := bf.GetBlockByNo(block.GetHeader().GetBlockNo())
+	if err == nil {
+		if bytes.Equal([]byte(savedBlk.BlockHash()), []byte(block.BlockHash())) {
+			return true
+		}
+	}
+	return false
+}
+
 type ErrorMembershipChange struct {
 	Err error
 }
@@ -654,15 +690,35 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 // getHardStateOfBlock returns (term/commit) corresponding to best block hash.
 // To get hardstateinfo, it needs to search all raft indexes.
 func (bf *BlockFactory) getHardStateOfBlock(bestBlockHash []byte) (*types.HardStateInfo, error) {
-	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
-	if err != nil {
-		logger.Error().Err(err).Msg("can't find raft entry for request hash")
-		return nil, err
+	var (
+		bestBlock *types.Block
+		err       error
+		hash      []byte
+	)
+	if bestBlock, err = bf.GetBlock(bestBlockHash); err != nil {
+		return nil, fmt.Errorf("block does not exist in chain")
 	}
 
-	logger.Debug().Uint64("term", entry.Term).Uint64("comit", entry.Index).Msg("get hardstate of block")
+	entry, err := bf.ChainWAL.GetRaftEntryOfBlock(bestBlockHash)
+	if err == nil {
+		logger.Debug().Uint64("term", entry.Term).Uint64("comit", entry.Index).Msg("get hardstate of block")
 
-	return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+		return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+	}
+
+	logger.Warn().Uint64("request no", bestBlock.BlockNo()).Msg("can't find raft entry for requested hash. so try to find closest raft entry.")
+
+	// find best hash mapping (no < bestBlock no)
+	for i := bestBlock.BlockNo() - 1; i >= 1; i-- {
+		if hash, err = bf.GetHashByNo(i); err == nil {
+			if entry, err = bf.ChainWAL.GetRaftEntryOfBlock(hash); err == nil {
+				logger.Debug().Str("entry", entry.ToString()).Msg("find best closest entry")
+				return &types.HardStateInfo{Term: entry.Term, Commit: entry.Index}, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("not exist proper raft entry for requested hash")
 }
 
 // ClusterInfo returns members of cluster and hardstate info corresponding to best block hash
@@ -726,7 +782,8 @@ type RaftOperator struct {
 }
 
 func newRaftOperator(rs *raftServer, cl *Cluster) *RaftOperator {
-	commitC := make(chan *commitEntry, MaxCommitQueueLen)
+	//commitC := make(chan *commitEntry, MaxCommitQueueLen)
+	commitC := make(chan *commitEntry)
 
 	return &RaftOperator{commitC: commitC, rs: rs, cl: cl}
 }

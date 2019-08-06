@@ -46,7 +46,7 @@ echo "reqClusterTotal=$reqCnt"
 if [ "$myleader" = "$rmnode" ];then
 	leaderport=10001
 fi
-waitClusterTotal $reqCnt $leaderport 60
+waitClusterTotal $reqCnt 100
 if [ $? -ne 1 ]; then
 	echo "remove failed"
 	exit 100

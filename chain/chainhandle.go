@@ -25,14 +25,14 @@ import (
 )
 
 var (
-	ErrorNoAncestor          = errors.New("not found ancestor")
-	ErrBlockOrphan           = errors.New("block is ohphan, so not connected in chain")
-	ErrBlockCachedErrLRU     = errors.New("block is in errored blocks cache")
-	ErrBlockTooHighSideChain = errors.New("block no is higher than best block, it should have been reorganized")
-	ErrStateNoMarker         = errors.New("statedb marker of block is not exists")
+	ErrorNoAncestor      = errors.New("not found ancestor")
+	ErrBlockOrphan       = errors.New("block is ohphan, so not connected in chain")
+	ErrBlockCachedErrLRU = errors.New("block is in errored blocks cache")
+	ErrStateNoMarker     = errors.New("statedb marker of block is not exists")
 
-	errBlockStale     = errors.New("produced block becomes stale")
-	errBlockTimestamp = errors.New("invalid timestamp")
+	errBlockStale       = errors.New("produced block becomes stale")
+	errBlockInvalidFork = errors.New("invalid fork occured")
+	errBlockTimestamp   = errors.New("invalid timestamp")
 
 	InAddBlock      = make(chan struct{}, 1)
 	SendBlockReward = sendRewardCoinbase
@@ -395,7 +395,10 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		}, false
 	}
 
-	var bestBlock *types.Block
+	var (
+		bestBlock  *types.Block
+		savedBlock *types.Block
+	)
 
 	if bestBlock, err = cs.cdb.GetBestBlock(); err != nil {
 		return err, false
@@ -415,6 +418,32 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 				No:   newBlock.BlockNo(),
 			},
 		}, false
+	}
+
+	//Fork should never occur in raft.
+	checkFork := func(block *types.Block) error {
+		if cs.IsForkEnable() {
+			return nil
+		}
+		if usedBstate != nil {
+			return nil
+		}
+
+		savedBlock, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
+		if err == nil {
+			/* TODO change to error after testing */
+			logger.Fatal().Str("newblock", newBlock.ID()).Str("savedblock", savedBlock.ID()).Msg("drop block making invalid fork")
+			return &ErrBlock{
+				err:   errBlockInvalidFork,
+				block: &types.BlockInfo{Hash: newBlock.BlockHash(), No: newBlock.BlockNo()},
+			}
+		}
+
+		return nil
+	}
+
+	if err := checkFork(newBlock); err != nil {
+		return err, false
 	}
 
 	if !newBlock.ValidChildOf(bestBlock) {
@@ -474,14 +503,9 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	}
 
 	var err error
-	if !cs.HasWAL() {
-		_, err = cs.getBlock(newBlock.BlockHash())
-	} else {
-		// check alread connect block
-		_, err = cs.getBlockByNo(newBlock.GetHeader().GetBlockNo())
-	}
-	if err == nil {
-		logger.Warn().Msg("block already exists")
+
+	if cs.IsConnectedBlock(newBlock) {
+		logger.Warn().Str("hash", newBlock.ID()).Uint64("no", newBlock.BlockNo()).Msg("block is already connected")
 		return nil
 	}
 
@@ -613,6 +637,7 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
+		defer contract.CloseDatabase()
 		var preLoadTx *types.Tx
 		nCand := len(e.txs)
 		for i, tx := range e.txs {

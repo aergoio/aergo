@@ -7,13 +7,17 @@ package p2p
 
 import (
 	"errors"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/p2p/list"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/network"
 )
 
 const (
@@ -40,8 +44,9 @@ func Test_staticWPManager_OnDiscoveredPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dummyPM := createDummyPM()
-			mockActor := p2pmock.NewMockActorService(ctrl)
-			dp := NewWaitingPeerManager(logger, dummyPM, mockActor, 10, false, false).(*staticWPManager)
+			mockLM := p2pmock.NewMockListManager(ctrl)
+
+			dp := NewWaitingPeerManager(logger, dummyPM, mockLM, 10, false).(*staticWPManager)
 
 			dp.OnDiscoveredPeers(tt.args.metas)
 			if len(dummyPM.waitingPeers) != tt.wantCount {
@@ -71,8 +76,9 @@ func Test_dynamicWPManager_OnDiscoveredPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dummyPM := createDummyPM()
-			mockActor := p2pmock.NewMockActorService(ctrl)
-			dp := NewWaitingPeerManager(logger, dummyPM, mockActor, 10, true, false)
+			mockLM := p2pmock.NewMockListManager(ctrl)
+
+			dp := NewWaitingPeerManager(logger, dummyPM, mockLM, 10, true)
 			for _, id := range tt.args.preConnected {
 				dummyPM.remotePeers[id] = &remotePeerImpl{}
 				dp.OnPeerConnect(id)
@@ -181,9 +187,9 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				mf:              mockMF,
-				hsFactory:       mockHSFactory,
-				peerHandshaked:  make(chan handshakeResult, 10),
+				mf:             mockMF,
+				hsFactory:      mockHSFactory,
+				peerHandshaked: make(chan handshakeResult, 10),
 			}
 			dpm := &basePeerManager{
 				pm:     pm,
@@ -214,4 +220,177 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 
 func dummyStatus(id types.PeerID, noexpose bool) *types.Status {
 	return &types.Status{Sender: &types.PeerAddress{PeerID: []byte(id)}, NoExpose: noexpose}
+}
+
+func Test_basePeerManager_CheckAndConnect(t *testing.T) {
+	type fields struct {
+		pm          *peerManager
+		lm          p2pcommon.ListManager
+		logger      *log.Logger
+		workingJobs map[types.PeerID]ConnWork
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dpm := &basePeerManager{
+				pm:          tt.fields.pm,
+				lm:          tt.fields.lm,
+				logger:      tt.fields.logger,
+				workingJobs: tt.fields.workingJobs,
+			}
+			dpm.CheckAndConnect()
+		})
+	}
+}
+
+func Test_dynamicWPManager_CheckAndConnect(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	type args struct {
+		preConnected []types.PeerID
+		metas        []p2pcommon.PeerMeta
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantCount int
+	}{
+		{"TAllNew", args{nil, desigPeers[:1]}, 1},
+		{"TAllExist", args{desigIDs, desigPeers[:5]}, 0},
+		{"TMixedIDs", args{desigIDs, append(unknownPeers[:5], desigPeers[:5]...)}, 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dummyPM := createDummyPM()
+			mockLM := p2pmock.NewMockListManager(ctrl)
+
+			dp := NewWaitingPeerManager(logger, dummyPM, mockLM, 10, true)
+			for _, id := range tt.args.preConnected {
+				dummyPM.remotePeers[id] = &remotePeerImpl{}
+				dp.OnPeerConnect(id)
+			}
+
+			dp.OnDiscoveredPeers(tt.args.metas)
+			if len(dummyPM.waitingPeers) != tt.wantCount {
+				t.Errorf("count waitingPeer %v, want %v", len(dummyPM.waitingPeers), tt.wantCount)
+			}
+		})
+	}
+}
+
+func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	c := []*p2pcommon.WaitingPeer{}
+	for i := 0 ; i < 5 ; i++ {
+		pid,_ := p2putil.RandomPeerID()
+		meta := p2pcommon.PeerMeta{ID:pid}
+		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now()}
+		c = append(c, wp)
+	}
+	n := []*p2pcommon.WaitingPeer{}
+	for i := 0 ; i < 5 ; i++ {
+		pid,_ := p2putil.RandomPeerID()
+		meta := p2pcommon.PeerMeta{ID:pid}
+		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now().Add(time.Hour*100)}
+		n = append(n, wp)
+	}
+	type args struct {
+		maxJob int
+	}
+	tests := []struct {
+		name string
+		wjs  []*p2pcommon.WaitingPeer
+		args args
+
+		wantCnt int
+	}{
+		{"TEmptyJob", nil, args{4}, 0},
+		{"TFewer", c[:2], args{4}, 2},
+		{"TLarger", c, args{4}, 4},
+		{"TWithNotConn", append(nc(),c[0],n[0],n[1],c[1],n[4],c[4]), args{4}, 3},
+
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockLM := p2pmock.NewMockListManager(ctrl)
+			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			wpMap := make(map[types.PeerID]*p2pcommon.WaitingPeer)
+			for _, w := range tt.wjs {
+				wpMap[w.Meta.ID] = w
+			}
+
+			dummyPM := &peerManager{nt: mockNT, waitingPeers:wpMap, workDoneChannel: make(chan p2pcommon.ConnWorkResult,10)}
+
+			dpm := &basePeerManager{
+				pm:          dummyPM,
+				lm:          mockLM,
+				logger:      logger,
+				workingJobs: make(map[types.PeerID]ConnWork),
+			}
+
+			mockNT.EXPECT().GetOrCreateStream(gomock.Any(), gomock.Any()).Return(nil, errors.New("stream failed")).Times(tt.wantCnt)
+			mockLM.EXPECT().IsBanned(gomock.Any(), gomock.Any()).Return(false, list.FarawayFuture).AnyTimes()
+
+			dpm.connectWaitingPeers(tt.args.maxJob)
+
+			doneCnt := 0
+			expire := time.NewTimer(time.Millisecond * 500)
+			WAITLOOP:
+			for doneCnt < tt.wantCnt {
+				select {
+				case <-dummyPM.workDoneChannel:
+					doneCnt++
+				case <-expire.C:
+					t.Errorf("connectWaitingPeers() job cnt %v, want %v", doneCnt, tt.wantCnt)
+					break WAITLOOP
+				}
+			}
+		})
+	}
+}
+
+func nc() []*p2pcommon.WaitingPeer {
+	return nil
+}
+func Test_basePeerManager_OnInboundConn(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	type fields struct {
+		workingJobs map[types.PeerID]ConnWork
+	}
+	type args struct {
+		s network.Stream
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dummyPM := &peerManager{}
+			mockLM := p2pmock.NewMockListManager(ctrl)
+
+			mockStream := p2pmock.NewMockStream(ctrl)
+
+			dpm := &basePeerManager{
+				pm:          dummyPM,
+				lm:          mockLM,
+				logger:      logger,
+				workingJobs: tt.fields.workingJobs,
+			}
+			dpm.OnInboundConn(mockStream)
+		})
+	}
 }

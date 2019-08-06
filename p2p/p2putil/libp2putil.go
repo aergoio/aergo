@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -84,6 +85,19 @@ func FromMultiAddrStringWithPID(str string, id types.PeerID) (p2pcommon.PeerMeta
 	}
 	ma := multiaddr.Join(addr1, pidAddr)
 	return FromMultiAddr(ma)
+}
+
+// ExtractIPAddress returns ip address from multiaddr. it return null if ma has no ip field.
+func ExtractIPAddress(ma multiaddr.Multiaddr) net.IP {
+	ipStr, err := ma.ValueForProtocol(multiaddr.P_IP4)
+	if err == nil {
+		return net.ParseIP(ipStr)
+	}
+	ipStr, err = ma.ValueForProtocol(multiaddr.P_IP6)
+	if err == nil {
+		return net.ParseIP(ipStr)
+	}
+	return nil
 }
 
 func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {

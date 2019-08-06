@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 echo "================= raft member add/remove test ===================="
+source test_common.sh
 
 BP_NAME=""
 
@@ -7,8 +8,6 @@ BP_NAME=""
 #./aergoconf-gen.sh 10001 tmpl.toml 5
 #clean.sh
 #./inittest.sh
-source test_common.sh
-
 rm BP11004* BP11005*
 
 echo "kill_svr & clean 11004~11007"
@@ -29,7 +28,7 @@ if [ "$?" != "0" ];then
 	echo "fail to add"
 	exit 100
 fi
-checkSync 10001 10004 120 result
+checkSync 10001 10004 120 
 
 date
 echo ""

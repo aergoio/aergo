@@ -27,8 +27,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gogo/protobuf/proto"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"runtime/debug"
 	"strconv"
@@ -97,9 +95,8 @@ type raftServer struct {
 	errorC      chan error                          // errors from raft session
 
 	id          uint64 // client ID for raft session
-	listenUrl   string
-	join        bool // node is joining an existing cluster
-	UseBackup   bool // use backup chaindb datafiles to join a existing cluster
+	join        bool   // node is joining an existing cluster
+	UseBackup   bool   // use backup chaindb datafiles to join a existing cluster
 	getSnapshot func() ([]byte, error)
 	lastIndex   uint64 // index of log at start
 
@@ -117,13 +114,8 @@ type raftServer struct {
 	snapFrequency uint64
 	transport     Transporter
 	stopc         chan struct{} // signals proposal channel closed
-	httpstopc     chan struct{} // signals http server to shutdown
-	httpdonec     chan struct{} // signals http server shutdown complete
 
 	leaderStatus LeaderStatus
-
-	certFile string
-	keyFile  string
 
 	promotable bool
 
@@ -237,8 +229,7 @@ func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftServer(hub *component.ComponentHub,
 	cluster *Cluster,
-	listenUrl string, join bool, useBackup bool,
-	certFile string, keyFile string,
+	join bool, useBackup bool,
 	getSnapshot func() ([]byte, error),
 	tickMS time.Duration,
 	confChangeC chan *consensus.ConfChangePropose,
@@ -256,20 +247,13 @@ func newRaftServer(hub *component.ComponentHub,
 		confChangeC:   confChangeC,
 		commitC:       commitC,
 		errorC:        errorC,
-		listenUrl:     listenUrl,
 		join:          join,
 		UseBackup:     useBackup,
 		getSnapshot:   getSnapshot,
 		snapFrequency: ConfSnapFrequency,
 		stopc:         make(chan struct{}),
-		httpstopc:     make(chan struct{}),
-		httpdonec:     make(chan struct{}),
 
 		// rest of structure populated after WAL replay
-
-		certFile: certFile,
-		keyFile:  keyFile,
-
 		promotable:     true,
 		tickMS:         tickMS,
 		commitProgress: CommitProgress{},
@@ -368,7 +352,7 @@ func (rs *raftServer) startRaft() {
 		rs.cluster.ResetMembers()
 
 		if isEmptyLog() {
-			logger.Info().Msg("there is no log, so import cluster information from remote")
+			logger.Info().Msg("there is no log, so import cluster information from remote. This server may have been added and terminated before the first synchronization was completed")
 
 			if _, err := rs.ImportExistingCluster(); err != nil {
 				logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to import existing cluster info")
@@ -431,7 +415,6 @@ func (rs *raftServer) startRaft() {
 
 	rs.startTransport()
 
-	go rs.serveRaft()
 	go rs.serveChannels()
 }
 
@@ -442,6 +425,10 @@ func (rs *raftServer) ImportExistingCluster() (*types.HardStateInfo, error) {
 	existCluster, hardstateinfo, err := rs.GetExistingCluster()
 	if err != nil {
 		logger.Fatal().Err(err).Str("mine", rs.cluster.toString()).Msg("failed to get existing cluster info")
+	}
+
+	if hardstateinfo != nil {
+		logger.Info().Str("hardstate", hardstateinfo.ToString()).Msg("received hard state of best hash from remote cluster")
 	}
 
 	// config validate
@@ -611,8 +598,6 @@ func (rs *raftServer) stop() {
 
 func (rs *raftServer) stopHTTP() {
 	rs.transport.Stop()
-	close(rs.httpstopc)
-	<-rs.httpdonec
 }
 
 func (rs *raftServer) writeError(err error) {
@@ -837,45 +822,6 @@ func (rs *raftServer) makeSnapMessage(msg *raftpb.Message) (*snap.Message, error
 	return snap.NewMessage(*msg, pr, 4), nil
 }
 
-func (rs *raftServer) serveRaft() {
-	defer RecoverExit()
-
-	// wait for server close
-	<-rs.httpstopc
-	close(rs.httpdonec)
-}
-
-func (rs *raftServer) serveRaftWithHttpBackEnd() {
-
-	urlstr := rs.listenUrl
-	urlData, err := url.Parse(urlstr)
-	if err != nil {
-		logger.Fatal().Err(err).Str("url", urlstr).Msg("Failed parsing URL")
-	}
-
-	ln, err := newStoppableListener(urlData.Host, rs.httpstopc)
-	if err != nil {
-		logger.Fatal().Err(err).Str("url", urlstr).Msg("Failed to listen rafthttp")
-	}
-
-	if len(rs.certFile) != 0 && len(rs.keyFile) != 0 {
-		logger.Info().Str("url", urlstr).Str("certfile", rs.certFile).Str("keyfile", rs.keyFile).
-			Msg("raft http server(tls) started")
-
-		err = (&http.Server{Handler: rs.transport.Handler()}).ServeTLS(ln, rs.certFile, rs.keyFile)
-	} else {
-		logger.Info().Str("url", urlstr).Msg("raft http server started")
-
-		err = (&http.Server{Handler: rs.transport.Handler()}).Serve(ln)
-	}
-
-	select {
-	case <-rs.httpstopc:
-	default:
-		logger.Fatal().Err(err).Msg("Failed to serve rafthttp")
-	}
-	close(rs.httpdonec)
-}
 func (rs *raftServer) loadSnapshot() (*raftpb.Snapshot, error) {
 	snapshot, err := rs.walDB.GetSnapshot()
 	if err != nil {
@@ -1481,11 +1427,11 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 			logger.Fatal().Msg("failed to get best block of my chain to get existing cluster info")
 		}
 
-		logger.Info().Str("hash", bestBlk.ID()).Uint64("no", bestBlk.BlockNo()).Msg("best block of backup")
-
 		if bestBlk.BlockNo() == 0 {
 			return nil
 		}
+
+		logger.Info().Str("hash", bestBlk.ID()).Uint64("no", bestBlk.BlockNo()).Msg("best block of blockchain")
 
 		return bestBlk.BlockHash()
 	}
@@ -1496,7 +1442,7 @@ func (rs *raftServer) GetExistingCluster() (*Cluster, *types.HardStateInfo, erro
 		cl, hardstate, err = GetClusterInfo(rs.ComponentHub, bestHash)
 		if err != nil {
 			if err != ErrGetClusterTimeout && i != MaxTryGetCluster {
-				logger.Debug().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
+				logger.Error().Err(err).Int("try", i).Msg("failed try to get cluster. and sleep")
 				time.Sleep(time.Second * 10)
 			} else {
 				logger.Warn().Err(err).Int("try", i).Msg("failed try to get cluster")

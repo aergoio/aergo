@@ -125,6 +125,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 			Int("candidates", nCand).
 			Int("collected", nCollected).
 			Msg("transactions collected")
+		contract.CloseDatabase()
 	}()
 
 	if nCand > 0 {

@@ -28,14 +28,14 @@ func TestSnapshotReceiver_sendResp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SnapshotReceiver{
+			s := &snapshotReceiver{
 				logger: logger,
 			}
 			w := &bytes.Buffer{}
 			s.sendResp(w, tt.args.resp)
 
 			if w.Len() < 4 {
-				t.Fatalf("SnapshotReceiver.sendResp() = written %v bytes, want at least 4 bytes", w.Len())
+				t.Fatalf("snapshotReceiver.sendResp() = written %v bytes, want at least 4 bytes", w.Len())
 			}
 
 			resp, err := readWireHSResp(w)

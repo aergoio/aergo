@@ -204,6 +204,13 @@ func (ns *RPC) Receive(context actor.Context) {
 						}
 						msg := &message.MemPoolEnableWhitelist{On: value}
 						ns.TellTo(message.MemPoolSvc, msg)
+					} else if conf == enterprise.P2PBlack || conf == enterprise.P2PWhite {
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						msg := message.P2PWhiteListConfEnableEvent{Name: conf, On: value}
+						ns.TellTo(message.P2PSvc, msg)
 					}
 				case "Set":
 					if conf == enterprise.RPCPermissions {
@@ -221,6 +228,15 @@ func (ns *RPC) Receive(context actor.Context) {
 							Accounts: values,
 						}
 						ns.TellTo(message.MemPoolSvc, msg)
+					} else if conf == enterprise.P2PBlack || conf == enterprise.P2PWhite {
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						msg := &message.P2PWhiteListConfSetEvent{
+							Values: values,
+						}
+						ns.TellTo(message.P2PSvc, msg)
 					}
 				default:
 					logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")

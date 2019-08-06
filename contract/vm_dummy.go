@@ -31,6 +31,7 @@ type DummyChain struct {
 	blockIds      []types.BlockID
 	blocks        []*types.Block
 	testReceiptDB db.DB
+	tmpDir        string
 }
 
 var addressRegexp *regexp.Regexp
@@ -42,11 +43,19 @@ func init() {
 }
 
 func LoadDummyChain() (*DummyChain, error) {
-	bc := &DummyChain{sdb: state.NewChainStateDB()}
 	dataPath, err := ioutil.TempDir("", "data")
 	if err != nil {
 		return nil, err
 	}
+	bc := &DummyChain{
+		sdb:    state.NewChainStateDB(),
+		tmpDir: dataPath,
+	}
+	defer func() {
+		if err != nil {
+			bc.Release()
+		}
+	}()
 
 	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
 	if err != nil {
@@ -59,7 +68,7 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
-	LoadDatabase(dataPath) // sql database
+	LoadTestDatabase(dataPath) // sql database
 	StartLStateFactory()
 
 	// To pass the governance tests.
@@ -67,6 +76,11 @@ func LoadDummyChain() (*DummyChain, error) {
 	system.InitGovernance("dpos")
 
 	return bc, nil
+}
+
+func (bc *DummyChain) Release() {
+	bc.testReceiptDB.Close()
+	_ = os.RemoveAll(bc.tmpDir)
 }
 
 func (bc *DummyChain) BestBlockNo() uint64 {
@@ -490,6 +504,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	blockState := bc.newBState()
 	tx := bc.BeginReceiptTx()
 	defer tx.Commit()
+	defer CloseDatabase()
 
 	for _, x := range txs {
 		if err := x.run(blockState, bc, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,

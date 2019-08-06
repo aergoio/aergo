@@ -143,6 +143,8 @@ type ChainAccessor interface {
 	GetHashByNo(blockNo BlockNo) ([]byte, error)
 	GetChainStats() string
 	GetSystemValue(key SystemValue) (*big.Int, error)
+
+	// GetEnterpriseConfig always return non-nil object if there is no error, but it can return EnterpriseConfig with empty values
 	GetEnterpriseConfig(key string) (*EnterpriseConfig, error)
 }
 

@@ -24,6 +24,7 @@ type PeerRoleManager interface {
 	GetRole(pid types.PeerID) PeerRole
 	NotifyNewBlockMsg(mo MsgOrder, peers []RemotePeer) (skipped, sent int)
 }
+//go:generate mockgen -source=peerrole.go -package=p2pmock -destination=../p2pmock/mock_peerrole.go
 
 type AttrModifier struct {
 	ID   types.PeerID

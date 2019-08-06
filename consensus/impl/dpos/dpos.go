@@ -12,15 +12,14 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
+	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -335,18 +334,24 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 
 // ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
+	withLock := func(fn func()) {
+		dpos.RLock()
+		defer dpos.RUnlock()
+		fn()
+	}
+
 	ci := &types.ConsensusInfo{Type: GetName()}
+	withLock(func() {
+		ci.Bps = dpos.bpc.BPs()
+
+	})
+
 	if dpos.done {
 		var lpbNo types.BlockNo
 
-		// Use a closure to release the mutex even upon panic.
-		func() {
-			dpos.RLock()
-			defer dpos.RUnlock()
-
-			ci.Bps = dpos.bpc.BPs()
+		withLock(func() {
 			lpbNo = dpos.lpbNo()
-		}()
+		})
 
 		if lpbNo > 0 {
 			if block, err := dpos.GetBlockByNo(lpbNo); err == nil {
@@ -411,6 +416,19 @@ func (dpos *DPoS) NeedNotify() bool {
 }
 
 func (dpos *DPoS) HasWAL() bool {
+	return false
+}
+
+func (dpos *DPoS) IsForkEnable() bool {
+	return true
+}
+
+func (dpos *DPoS) IsConnectedBlock(block *types.Block) bool {
+	_, err := dpos.ChainDB.GetBlock(block.BlockHash())
+	if err == nil {
+		return true
+	}
+
 	return false
 }
 

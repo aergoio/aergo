@@ -107,6 +107,9 @@ func (mattr *MemberAttr) ToString() string {
 }
 
 func (hs *HardStateInfo) ToString() string {
+	if hs == nil {
+		return fmt.Sprintf("hardstateinfo is nil")
+	}
 	return fmt.Sprintf("{ term=%d, commit=%d }", hs.Term, hs.Commit)
 }
 

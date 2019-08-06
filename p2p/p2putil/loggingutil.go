@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+
 // Deprecated
 func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer p2pcommon.RemotePeer, additional interface{}) {
 	if additional != nil {
@@ -119,6 +120,30 @@ func (m *LogPeersMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	} else {
 		for _, meta := range m.metas {
 			a.Str(meta.Name())
+		}
+	}
+}
+
+
+type LogStringsMarshaller struct {
+	strs []string
+	limit int
+}
+
+func NewLogStringsMarshaller(strs []string, limit int) *LogStringsMarshaller {
+	return &LogStringsMarshaller{strs: strs, limit: limit}
+}
+
+func (m *LogStringsMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.strs)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(m.strs[i])
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, meta := range m.strs {
+			a.Str(meta)
 		}
 	}
 }

@@ -87,6 +87,8 @@ type ConsensusAccessor interface {
 type ChainDB interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetHashByNo(blockNo types.BlockNo) ([]byte, error)
+	GetBlock(hash []byte) (*types.Block, error)
 	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
 	NewTx() db.Transaction
@@ -151,6 +153,8 @@ type ChainConsensus interface {
 	NeedReorganization(rootNo types.BlockNo) bool
 	NeedNotify() bool
 	HasWAL() bool // if consensus has WAL, block has already written in db
+	IsConnectedBlock(block *types.Block) bool
+	IsForkEnable() bool
 	Info() string
 }
 

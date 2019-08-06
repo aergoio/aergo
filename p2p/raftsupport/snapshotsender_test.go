@@ -22,7 +22,7 @@ import (
 	"github.com/aergoio/etcd/snap"
 )
 
-func Test_snapshotSender_send(t *testing.T) {
+func Test_snapshotSender_Send(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -52,15 +52,17 @@ func Test_snapshotSender_send(t *testing.T) {
 			mockPeer.EXPECT().Meta().Return(sampleMeta).AnyTimes()
 			mockPeer.EXPECT().Name().Return("tester").AnyTimes()
 			mockNT.EXPECT().GetOrCreateStream(sampleMeta, p2pcommon.RaftSnapSubAddr).Return(dummyStream, tt.ntErr)
-			mockRaft.EXPECT().ReportUnreachable(gomock.Any()).MaxTimes(1)
-			mockRaft.EXPECT().ReportSnapshot(gomock.Any(), gomock.Any()).MaxTimes(1)
+			if !tt.wantSucc {
+				mockRaft.EXPECT().ReportUnreachable(gomock.Any())
+			}
+			mockRaft.EXPECT().ReportSnapshot(gomock.Any(), gomock.Any())
 
 			rs := raftpb.Message{}
 			msg := snap.NewMessage(rs, rc, 1000)
 
-			s := snapshotSender{nt: mockNT, logger: logger, rAcc: mockRaft, stopChan: make(chan interface{})}
+			s := snapshotSender{nt: mockNT, logger: logger, rAcc: mockRaft, stopChan: make(chan interface{}), peer:mockPeer}
 
-			s.send(mockPeer, *msg)
+			s.Send(msg)
 
 			if tt.ntErr != nil {
 				return
@@ -84,7 +86,7 @@ func Test_snapshotSender_send(t *testing.T) {
 func Test_readWireHSResp(t *testing.T) {
 	sampleBuf := bytes.NewBuffer(nil)
 	sampleResp := types.SnapshotResponse{Status: types.ResultStatus_INVALID_ARGUMENT, Message: "wrong type"}
-	(&SnapshotReceiver{}).sendResp(sampleBuf, &sampleResp)
+	(&snapshotReceiver{}).sendResp(sampleBuf, &sampleResp)
 	sample := sampleBuf.Bytes()
 	currupted := CopyOf(sample)
 	lastidx := len(currupted) - 1

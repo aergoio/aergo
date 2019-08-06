@@ -284,11 +284,6 @@ func (cdb *ChainDB) GetRaftEntryIndexOfBlock(hash []byte) (uint64, error) {
 }
 
 func (cdb *ChainDB) GetRaftEntryOfBlock(hash []byte) (*consensus.WalEntry, error) {
-	// check block is in main chain
-	if _, err := cdb.GetBlock(hash); err != nil {
-		return nil, ErrNotExistBlock
-	}
-
 	idx, err := cdb.GetRaftEntryIndexOfBlock(hash)
 	if err != nil {
 		return nil, err

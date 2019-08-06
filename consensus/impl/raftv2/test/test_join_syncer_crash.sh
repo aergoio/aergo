@@ -17,7 +17,7 @@ TEST_SKIP_GENESIS=0 make_node.sh
 RUN_TEST_SCRIPT set_system_admin.sh
 
 #4 node add & crash
-DEBUG_SYNCER_CRASH=1 add_member.sh aergo4
+DEBUG_SYNCER_CRASH=2 add_member.sh aergo4
 
 WaitShutdown 11004 30
 if [ "$?" = "0" ]; then

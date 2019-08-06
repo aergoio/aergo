@@ -99,23 +99,29 @@ function getHash() {
 
 function getleader() {
 	local curleader=""
-	for i in 10001 10002 10003 10004 10005 ; do
-		getLeaderOf $i curleader
-		if [[ "$curleader" == aergo* ]]; then
-			break
+	local i=0
+	for (( ; ; )); do
+		for i in 10001 10002 10003 10004 10005 ; do
+			getLeaderOf $i curleader
+			if [[ "$curleader" == aergo* ]]; then
+				break
+			fi
+		done
+
+		echo "curleader=$curleader"
+
+		if [[ "$curleader" != aergo* ]]; then
+			echo "<get leader failed>"
+			eval "$1="
+			sleep 3
+			continue
 		fi
+
+		echo "leader=$curleader"
+
+		eval "$1=$curleader"
+		return
 	done
-
-	echo "curleader=$curleader"
-
-	if [[ "$curleader" != aergo* ]]; then
-		echo "<get leader failed>"
-		exit 100
-	fi
-
-	echo "leader=$curleader"
-
-	eval "$1=$curleader"
 }
 
 
@@ -227,14 +233,6 @@ function getLeaderPort() {
 	echo "leader port=$_leaderport"
 
 	eval "$1=$_leaderport"
-}
-
-
-function testxxx() {
-	local x
-		getleader x
-
-	echo "testleader=$x"
 }
 
 function isStableLeader() {
@@ -557,25 +555,42 @@ function getClusterTotal() {
 }
 
 function waitClusterTotal() {
-	if [ $# -ne 3 -o ! $1 -ge 0 ];then
-		echo "Usage: $0 totalcount rpcport timewait"
+	if [ $# -lt 2 -o ! $1 -ge 0 ];then
+		echo "Usage: waitClusterTotal totalcount tryCount(every 3 second) reqport"
 		exit 100
 	fi
 
 	reqCount=$1
-	chkPort=$2
-	tryCnt=$3
+	tryCnt=$2
+	reqPort=$3
+	local i
+	echo "Wait cluster: reqCount=$1 tryCnt=$2 reqPort=$3"
 
-	i=0
-	while [ $i -lt $tryCnt ]; do
-		total=`aergocli -p $chkPort blockchain | jq .ConsensusInfo.Status.Total`
+	local leaderport=$reqPort
+
+	for ((i=1; i<= $tryCnt ; i++)); do
+		if [ "$reqport" = "" ];then
+			getLeaderPort leaderport
+
+			if [ $? -ne 0 -o "$leaderport" = "" ];then
+				echo "failed to get leader port"
+				sleep 3
+				continue
+			fi
+		fi
+
+		total=`aergocli -p $leaderport blockchain | jq .ConsensusInfo.Status.Total`
+		echo "i=$i, total=$total, req=$reqCount"
 		if [ "$total" = "$reqCount" ];then
 			return 1	
 		fi
-		i=$((i + 1))
-		sleep 3
-	done
 
+		sleep 3 
+		echo $i
+	done
+		
+
+	echo "failed waitClusterTotal($total)"
 	return 0
 }
 

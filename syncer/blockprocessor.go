@@ -3,6 +3,7 @@ package syncer
 import (
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"sort"
 
@@ -58,6 +59,7 @@ func (bproc *BlockProcessor) run(msg interface{}) error {
 			return err
 		}
 
+		chain.TestDebugger.Check(chain.DEBUG_SYNCER_CRASH, 2, nil)
 	default:
 		return fmt.Errorf("invalid msg type:%T", msg)
 	}
