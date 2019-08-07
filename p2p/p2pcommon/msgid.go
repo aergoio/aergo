@@ -32,7 +32,7 @@ func ParseBytesToMsgID(b []byte) (MsgID, error) {
 	return m, nil
 }
 
-// MustParseBytes return msgid from byte slice
+// MustParseBytes return MsgID from byte slice
 func MustParseBytes(b []byte) MsgID {
 	if m, err := ParseBytesToMsgID(b); err == nil {
 		return m

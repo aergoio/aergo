@@ -12,6 +12,7 @@
 
 const char *luaExecContext= "__exec_context__";
 const char *construct_name= "constructor";
+extern int luaopen_utf8 (lua_State *L);
 
 static void preloadModules(lua_State *L)
 {
@@ -23,6 +24,8 @@ static void preloadModules(lua_State *L)
 	luaopen_json(L);
 	luaopen_crypto(L);
 	luaopen_gmp(L);
+    luaopen_utf8(L);
+
 	if (!IsPublic()) {
         luaopen_db(L);
 	}

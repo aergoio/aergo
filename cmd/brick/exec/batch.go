@@ -130,7 +130,7 @@ func (c *batch) Run(args string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			// clear screnn
+			// clear screen
 			fmt.Fprintf(stdOut, "\033[H\033[2J")
 		}
 

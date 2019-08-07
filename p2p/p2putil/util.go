@@ -6,20 +6,15 @@
 package p2putil
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"net"
 	"reflect"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 // frequently used constants for indicating p2p log category
@@ -30,11 +25,13 @@ const (
 	LogProtoID    = "protocol_id"
 	LogMsgID      = "msg_id"
 	LogOrgReqID   = "req_id" // LogOrgReqID is msgid of request from remote peer
-	LogBlkHash    = "blk_hash"
+	LogBlkHash    = types.LogBlkHash
+	LogBlkNo      = types.LogBlkNo
 	LogBlkCount   = "blk_cnt"
 	LogTxHash     = "tx_hash"
 	LogTxCount    = "tx_cnt"
-	LogRespStatus = "resp_st"
+	LogRespStatus = types.LogRespStatus
+	LogRaftMsg    = "raftMsg"
 )
 
 func ExtractBlockFromRequest(rawResponse interface{}, err error) (*types.Block, error) {
@@ -67,16 +64,16 @@ func extractTXsFromRequest(rawResponse interface{}, err error) ([]*types.Tx, err
 	if err != nil {
 		return nil, err
 	}
-	var rsponse *message.MemPoolGetRsp
+	var response *message.MemPoolGetRsp
 	switch v := rawResponse.(type) {
 	case *message.MemPoolGetRsp:
-		rsponse = v
+		response = v
 	case message.MemPoolGetRsp:
-		rsponse = &v
+		response = &v
 	default:
 		panic("unexpected data type " + reflect.TypeOf(rawResponse).Name() + "is passed. check if there is a bug. ")
 	}
-	return extractTXs(rsponse)
+	return extractTXs(response)
 }
 
 func extractTXs(from *message.MemPoolGetRsp) ([]*types.Tx, error) {
@@ -136,28 +133,8 @@ func ExternalIP() (net.IP, error) {
 	return nil, errors.New("no external ip address found")
 }
 
-func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer p2pcommon.RemotePeer, additional interface{}) {
-	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
-			Msg("Received a message")
-	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).
-			Msg("Received a message")
-	}
-}
-
-func DebugLogReceiveResponseMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, reqID string, peer p2pcommon.RemotePeer, additional interface{}) {
-	if additional != nil {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
-			Msg("Received a response message")
-	} else {
-		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).
-			Msg("Received a response message")
-	}
-}
-
 // ComparePeerID do byte-wise compare of two peerIDs,
-func ComparePeerID(pid1, pid2 peer.ID) int {
+func ComparePeerID(pid1, pid2 types.PeerID) int {
 	p1 := []byte(string(pid1))
 	p2 := []byte(string(pid2))
 	l1 := len(p1)
@@ -178,32 +155,6 @@ func ComparePeerID(pid1, pid2 peer.ID) int {
 	}
 	// check which is longer
 	return l1 - l2
-}
-
-// bytesArrToString converts array of byte array to json array of b58 encoded string.
-func BytesArrToString(bbarray [][]byte) string {
-	return bytesArrToStringWithLimit(bbarray, 10)
-}
-
-func bytesArrToStringWithLimit(bbarray [][]byte, limit int) string {
-	var buf bytes.Buffer
-	buf.WriteByte('[')
-	var arrSize = len(bbarray)
-	if limit > arrSize {
-		limit = arrSize
-	}
-	for i := 0; i < limit; i++ {
-		hash := bbarray[i]
-		buf.WriteByte('"')
-		buf.WriteString(enc.ToString(hash))
-		buf.WriteByte('"')
-		buf.WriteByte(',')
-	}
-	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
-	}
-	buf.WriteByte(']')
-	return buf.String()
 }
 
 func PrintHashList(blocks []*types.Block) string {

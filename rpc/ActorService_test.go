@@ -98,7 +98,7 @@ func (_m *MockActorService) SendRequest(_a0 string, msg interface{}) {
 	_m.Called(_a0, msg)
 }
 
-// GetChainAccessor implment interface method of ActorService
+// GetChainAccessor implement interface method of ActorService
 func (_m *MockActorService) GetChainAccessor() types.ChainAccessor {
 	return nil
 }

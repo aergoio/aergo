@@ -8,8 +8,9 @@ package dpos
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -19,7 +20,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 var (
@@ -163,7 +163,7 @@ func (dpos *DPoS) QuitChan() chan interface{} {
 	return dpos.quit
 }
 
-func (dpos *DPoS) bpid() peer.ID {
+func (dpos *DPoS) bpid() types.PeerID {
 	return p2pkey.NodeID()
 }
 
@@ -253,18 +253,24 @@ func (dpos *DPoS) getBpInfo(now time.Time) *bpInfo {
 
 // ConsensusInfo returns the basic DPoS-related info.
 func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
+	withLock := func(fn func()) {
+		dpos.RLock()
+		defer dpos.RUnlock()
+		fn()
+	}
+
 	ci := &types.ConsensusInfo{Type: GetName()}
+	withLock(func() {
+		ci.Bps = dpos.bpc.BPs()
+
+	})
+
 	if dpos.done {
 		var lpbNo types.BlockNo
 
-		// Use a closure to release the mutex even upon panic.
-		func() {
-			dpos.RLock()
-			defer dpos.RUnlock()
-
-			ci.Bps = dpos.bpc.BPs()
+		withLock(func() {
 			lpbNo = dpos.lpbNo()
-		}()
+		})
 
 		if lpbNo > 0 {
 			if block, err := dpos.GetBlockByNo(lpbNo); err == nil {
@@ -294,6 +300,12 @@ func (dpos *DPoS) ConsensusInfo() *types.ConsensusInfo {
 	}
 
 	return ci
+}
+
+var dummyRaft consensus.DummyRaftAccessor
+
+func (dpos *DPoS) RaftAccessor() consensus.AergoRaftAccessor {
+	return &dummyRaft
 }
 
 func isBpTiming(block *types.Block, s *slot.Slot) bool {
@@ -326,10 +338,35 @@ func (dpos *DPoS) HasWAL() bool {
 	return false
 }
 
+func (dpos *DPoS) IsForkEnable() bool {
+	return true
+}
+
+func (dpos *DPoS) IsConnectedBlock(block *types.Block) bool {
+	_, err := dpos.ChainDB.GetBlock(block.BlockHash())
+	if err == nil {
+		return true
+	}
+
+	return false
+}
+
 func (dpos *DPoS) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
 	return nil, consensus.ErrNotSupportedMethod
 }
 
-func (dpos *DPoS) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
-	return nil, nil, consensus.ErrNotSupportedMethod
+func (dpos *DPoS) ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (dpos *DPoS) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (dpos *DPoS) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
+	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
+}
+
+func ValidateGenesis(genesis *types.Genesis) error {
+	return nil
 }

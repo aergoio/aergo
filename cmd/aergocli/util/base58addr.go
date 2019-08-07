@@ -186,7 +186,7 @@ func ParseBase58TxBody(jsonTx []byte) (*types.TxBody, error) {
 	return body, nil
 }
 
-func ConvTx(tx *types.Tx) *InOutTx {
+func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 	out := &InOutTx{Body: &InOutTxBody{}}
 	if tx == nil {
 		return out
@@ -200,13 +200,22 @@ func ConvTx(tx *types.Tx) *InOutTx {
 		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
 	}
 	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
-	out.Body.Payload = base58.Encode(tx.Body.Payload)
+	switch payloadType {
+	case Raw:
+		out.Body.Payload = string(tx.Body.Payload)
+	case Base58:
+		out.Body.Payload = base58.Encode(tx.Body.Payload)
+	}
 	out.Body.GasLimit = tx.Body.GasLimit
 	out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
 	out.Body.ChainIdHash = base58.Encode(tx.Body.ChainIdHash)
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out
+}
+
+func ConvTx(tx *types.Tx) *InOutTx {
+	return ConvTxEx(tx, Base58)
 }
 
 func ConvTxInBlock(txInBlock *types.TxInBlock) *InOutTxInBlock {
@@ -278,7 +287,9 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 		return nil
 	}
 	out.ConsensusInfo = toJRM(in.ConsensusInfo)
-
+	if in.ChainInfo != nil {
+		out.ChainInfo = convChainInfo(in.ChainInfo)
+	}
 	jsonout, err := json.Marshal(out)
 	if err != nil {
 		return ""
@@ -288,6 +299,23 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 
 func TxConvBase58Addr(tx *types.Tx) string {
 	return toString(ConvTx(tx))
+}
+
+type EncodingType int
+
+const (
+	Raw EncodingType = 0 + iota
+	Base58
+)
+
+func TxConvBase58AddrEx(tx *types.Tx, payloadType EncodingType) string {
+	switch payloadType {
+	case Raw:
+		return toString(ConvTxEx(tx, Raw))
+	case Base58:
+		return toString(ConvTxEx(tx, Base58))
+	}
+	return ""
 }
 
 func TxInBlockConvBase58Addr(txInBlock *types.TxInBlock) string {

@@ -2,14 +2,13 @@
  * @file
  * @copyright defined in aergo/LICENSE.txt
  */
-
+//go:generate mockgen -source=handshake.go  -package=p2pmock -destination=../p2pmock/mock_handshake.go
 package p2pcommon
 
 import (
 	"context"
 	"encoding/binary"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 	"io"
 	"time"
 )
@@ -17,23 +16,22 @@ import (
 
 // HSHandlerFactory is creator of HSHandler
 type HSHandlerFactory interface {
-	CreateHSHandler(p2pVersion P2PVersion, outbound bool, pid peer.ID) HSHandler
+	CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) HSHandler
 }
 
-// HSHandler handles whole process of connect, handshake, create of remote Peerseer
+// HSHandler handles whole process of connect, handshake, create of remote Peer
 type HSHandler interface {
 	// Handle peer handshake till ttl, and return msgrw for this connection, and status of remote peer.
-	Handle(r io.Reader, w io.Writer, ttl time.Duration) (MsgReadWriter, *types.Status, error)
+	Handle(s io.ReadWriteCloser, ttl time.Duration) (MsgReadWriter, *types.Status, error)
 }
 
 type VersionedManager interface {
 	FindBestP2PVersion(versions []P2PVersion) P2PVersion
-	GetVersionedHandshaker(version P2PVersion, peerID peer.ID, r io.Reader, w io.Writer) (VersionedHandshaker, error)
-
-	InjectHandlers(version P2PVersion, peer RemotePeer)
+	GetVersionedHandshaker(version P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (VersionedHandshaker, error)
 }
 
-// VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version
+// VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version.
+// It is used inside HSHandler
 type VersionedHandshaker interface {
 	DoForOutbound(ctx context.Context) (*types.Status, error)
 	DoForInbound(ctx context.Context) (*types.Status, error)
@@ -84,7 +82,7 @@ func (h HSHeadReq) Marshal() []byte {
 type HSHeadResp struct {
 	// Magic will be same as the magic in HSHeadReq if wire handshake is successful, or 0 if not.
 	Magic    uint32
-	// RespCode is different meaning by value of Magic. It is p2p version which listening peer will use, if wire handshake is succesful, or errCode otherwise.
+	// RespCode is different meaning by value of Magic. It is p2p version which listening peer will use, if wire handshake is successful, or errCode otherwise.
 	RespCode uint32
 }
 

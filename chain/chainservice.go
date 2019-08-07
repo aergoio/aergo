@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -19,17 +20,16 @@ import (
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/hashicorp/golang-lru"
-	"github.com/libp2p/go-libp2p-peer"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -182,11 +182,13 @@ type IChainHandler interface {
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
-	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID peer.ID) error
+	getEnterpriseConf(key string) (*types.EnterpriseConfig, error)
+	addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error
 	getAnchorsNew() (ChainAnchor, types.BlockNo, error)
 	findAncestor(Hashes [][]byte) (*types.BlockInfo, error)
-	setSync(val bool)
+	setSkipMempool(val bool)
 	listEvents(filter *types.FilterInfo) ([]*types.Event, error)
+	verifyBlock(block *types.Block) error
 }
 
 // ChainService manage connectivity of blocks
@@ -201,8 +203,9 @@ type ChainService struct {
 
 	validator *BlockValidator
 
-	chainWorker  *ChainWorker
-	chainManager *ChainManager
+	chainWorker   *ChainWorker
+	chainManager  *ChainManager
+	chainVerifier *ChainVerifier
 
 	stat stats
 
@@ -239,6 +242,12 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
+	if cs.cfg.Blockchain.VerifyOnly {
+		if cs.cfg.Consensus.EnableBp {
+			logger.Fatal().Err(err).Msg("can't be enableBp at verifyOnly mode")
+		}
+		cs.chainVerifier = newChainVerifier(cs, cs.Core)
+	}
 
 	cs.errBlocks, err = lru.New(dfltErrBlocks)
 	if err != nil {
@@ -270,12 +279,28 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
+	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.StartLStateFactory()
+
+	// For a strict governance transaction validation.
+	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
+	system.InitGovernance(cs.ConsensusType())
 
 	// init Debugger
 	cs.initDebugger()
 
+	cs.startChilds()
+
 	return cs
+}
+
+func (cs *ChainService) startChilds() {
+	if !cs.cfg.Blockchain.VerifyOnly {
+		cs.chainManager.Start()
+		cs.chainWorker.Start()
+	} else {
+		cs.chainVerifier.Start()
+	}
 }
 
 func (cs *ChainService) initDebugger() {
@@ -311,6 +336,15 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
+//GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
+func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
+	return cs.getEnterpriseConf(key)
+}
+
+func (cs *ChainService) GetSystemValue(key types.SystemValue) (*big.Int, error) {
+	return cs.getSystemValue(key)
+}
+
 // SetChainConsensus sets cs.cc to cc.
 func (cs *ChainService) SetChainConsensus(cc consensus.ChainConsensus) {
 	cs.ChainConsensus = cc
@@ -323,8 +357,6 @@ func (cs *ChainService) BeforeStart() {
 
 // AfterStart ... do nothing
 func (cs *ChainService) AfterStart() {
-	cs.chainManager.Start()
-	cs.chainWorker.Start()
 }
 
 // BeforeStop close chain database and stop BlockValidator
@@ -338,10 +370,6 @@ func (cs *ChainService) BeforeStop() {
 }
 
 func (cs *ChainService) notifyBlock(block *types.Block, isByBP bool) {
-	if !cs.NeedNotify() {
-		return
-	}
-
 	cs.BaseComponent.RequestTo(message.P2PSvc,
 		&message.NotifyNewBlock{
 			Produced: isByBP,
@@ -373,6 +401,8 @@ func (cs *ChainService) Receive(context actor.Context) {
 		if err != nil {
 			logger.Fatal().Err(err).Msg("CHAIN DATA IS CRASHED, BUT CAN'T BE RECOVERED")
 		}
+
+		cs.setRecovered(true)
 	}
 
 	switch msg := context.Message().(type) {
@@ -395,6 +425,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetVote,
 		*message.GetStaking,
 		*message.GetNameInfo,
+		*message.GetEnterpriseConf,
 		*message.ListEvents:
 		cs.chainWorker.Request(msg, context.Sender())
 
@@ -428,8 +459,14 @@ func (cs *ChainService) Receive(context actor.Context) {
 }
 
 func (cs *ChainService) Statistics() *map[string]interface{} {
+	if cs.chainVerifier != nil {
+		return cs.chainVerifier.Statistics()
+	}
 	return &map[string]interface{}{
-		"orphan": cs.op.curCnt,
+		"testmode": cs.cfg.EnableTestmode,
+		"testnet":  cs.cfg.UseTestnet,
+		"orphan":   cs.op.curCnt,
+		"config":   cs.cfg.Blockchain,
 	}
 }
 
@@ -521,6 +558,23 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 	return name.GetNameInfo(stateDB, qname)
 }
 
+func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
+	stateDB := cs.sdb.GetStateDB()
+	if strings.ToUpper(key) != enterprise.AdminsKey {
+		return enterprise.GetConf(stateDB, key)
+	}
+	return enterprise.GetAdmin(stateDB)
+}
+
+func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
+	stateDB := cs.sdb.GetStateDB()
+	switch key {
+	case types.StakingTotal:
+		return system.GetStakingTotal(stateDB)
+	}
+	return nil, fmt.Errorf("unsupported system value : %s", key)
+}
+
 type ChainManager struct {
 	*SubComponent
 	IChainHandler //to use chain APIs
@@ -534,8 +588,9 @@ type ChainWorker struct {
 }
 
 var (
-	chainManagerName = "Chain Manager"
-	chainWorkerName  = "Chain Worker"
+	chainManagerName  = "Chain Manager"
+	chainWorkerName   = "Chain Worker"
+	chainVerifierName = "Chain Verifier"
 )
 
 func newChainManager(cs *ChainService, core *Core) *ChainManager {
@@ -606,7 +661,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 }
 
 func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, error) {
-	if len(account) <= types.NameLength {
+	if len(account) == types.NameLength {
 		scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
@@ -749,8 +804,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
 			for _, storageKey := range msg.StorageKeys {
-				trieKey := common.Hasher([]byte(storageKey))
-				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(trieKey, contractTrieRoot, msg.Compressed)
+				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(storageKey, contractTrieRoot, msg.Compressed)
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {
@@ -791,15 +845,30 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Owner: owner,
 			Err:   err,
 		})
+	case *message.GetEnterpriseConf:
+		conf, err := cw.getEnterpriseConf(msg.Key)
+		context.Respond(&message.GetEnterpriseConfRsp{
+			Conf: conf,
+			Err:  err,
+		})
 	case *message.ListEvents:
 		events, err := cw.listEvents(msg.Filter)
 		context.Respond(&message.ListEventsRsp{
 			Events: events,
 			Err:    err,
 		})
+
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cw.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
 	}
+}
+
+func (cs *ChainService) ConsensusType() string {
+	return cs.GetGenesisInfo().ConsensusType()
+}
+
+func (cs *ChainService) IsPublic() bool {
+	return cs.GetGenesisInfo().PublicNet()
 }

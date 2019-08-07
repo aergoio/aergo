@@ -17,8 +17,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,6 +34,9 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
+	// Need to pass the
+	InitGovernance("dpos")
+
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
@@ -242,8 +244,8 @@ func buildVotingPayloadEx(count int, name string) []byte {
 	case types.VoteBP:
 		for i := 0; i < count; i++ {
 			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-			pid, _ := peer.IDFromPublicKey(pub)
-			ci.Args = append(ci.Args, peer.IDB58Encode(pid))
+			pid, _ := types.IDFromPublicKey(pub)
+			ci.Args = append(ci.Args, types.IDB58Encode(pid))
 		}
 	case types.VoteNumBP:
 		for i := 12; i < 12+count; i++ {

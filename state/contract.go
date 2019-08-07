@@ -20,7 +20,7 @@ func (states *StateDB) OpenContractState(aid types.AccountID, st *types.State) (
 	storage := states.cache.get(aid)
 	if storage == nil {
 		root := common.Compactz(st.StorageRoot)
-		storage = newBufferedStorage(root, *states.store)
+		storage = newBufferedStorage(root, states.store)
 	}
 	res := &ContractState{
 		State:   st,
@@ -47,12 +47,17 @@ func (states *StateDB) GetNameAccountState() (*ContractState, error) {
 	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 }
 
+// GetEnterpriseAccountState returns the ContractState of the AERGO enterprise account.
+func (states *StateDB) GetEnterpriseAccountState() (*ContractState, error) {
+	return states.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
+}
+
 type ContractState struct {
 	*types.State
 	account types.AccountID
 	code    []byte
 	storage *bufferedStorage
-	store   *db.DB
+	store   db.DB
 }
 
 func (st *ContractState) SetNonce(nonce uint64) {
@@ -76,6 +81,7 @@ func (st *ContractState) SetCode(code []byte) error {
 		return err
 	}
 	st.State.CodeHash = codeHash[:]
+	st.code = code
 	return nil
 }
 func (st *ContractState) GetCode() ([]byte, error) {

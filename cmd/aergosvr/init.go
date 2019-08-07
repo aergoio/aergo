@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/aergoio/aergo/consensus/impl"
 	"os"
 
 	"github.com/aergoio/aergo/chain"
@@ -48,7 +49,8 @@ var initGenesis = &cobra.Command{
 				fmt.Printf("failed to obtain GenesisInfo\n")
 				return
 			}
-			if err := genesis.Validate(); err != nil {
+
+			if err := impl.ValidateGenesis(genesis); err != nil {
 				fmt.Printf(" %s (error:%s)\n", jsonGenesis, err)
 				return
 			}

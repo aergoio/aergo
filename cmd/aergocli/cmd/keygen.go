@@ -9,8 +9,7 @@ import (
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/spf13/cobra"
 )
 
@@ -99,8 +98,8 @@ func generateKeyFiles(prefix string) error {
 	if err != nil {
 		return err
 	}
-	pid, _ := peer.IDFromPublicKey(pub)
-	idBytes := []byte(peer.IDB58Encode(pid))
+	pid, _ := types.IDFromPublicKey(pub)
+	idBytes := []byte(types.IDB58Encode(pid))
 	idf.Write(idBytes)
 	idf.Sync()
 
@@ -112,7 +111,7 @@ func generateKeyJson() error {
 	priv, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 	pkBytes, err := priv.Bytes()
 	pubBytes, err := pub.Bytes()
-	pid, _ := peer.IDFromPublicKey(pub)
+	pid, _ := types.IDFromPublicKey(pub)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func generateKeyJson() error {
 		Address: addressEncoded,
 		PubKey:  b64.StdEncoding.EncodeToString(pubBytes),
 		PrivKey: types.EncodePrivKey(privKeyExport),
-		Id:      peer.IDB58Encode(pid),
+		Id:      types.IDB58Encode(pid),
 	}, "", "    ")
 	if err != nil {
 		return err

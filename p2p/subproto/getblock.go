@@ -6,7 +6,6 @@
 package subproto
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -19,6 +18,7 @@ import (
 
 type blockRequestHandler struct {
 	BaseMsgHandler
+	asyncHelper
 }
 
 var _ p2pcommon.MessageHandler = (*blockRequestHandler)(nil)
@@ -31,7 +31,7 @@ var _ p2pcommon.MessageHandler = (*blockResponseHandler)(nil)
 
 // newBlockReqHandler creates handler for GetBlockRequest
 func NewBlockReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *blockRequestHandler {
-	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	bh := &blockRequestHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetBlocksRequest, pm: pm, peer: peer, actor: actor, logger: logger}, asyncHelper: newAsyncHelper()}
 
 	return bh
 }
@@ -47,7 +47,22 @@ const (
 func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockRequest)
-	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, len(data.Hashes))
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
+	if bh.issue() {
+		go bh.handleBlkReq(msg, data)
+	} else {
+		bh.logger.Info().Str(p2putil.LogProtoID,bh.protocol.String()).Str(p2putil.LogMsgID,msg.ID().String()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("return error for busy")
+		resp := &types.GetBlockResponse{
+			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
+			Blocks: nil, HasNext: false}
+
+		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetBlocksResponse, resp))
+	}
+}
+
+func (bh *blockRequestHandler) handleBlkReq(msg p2pcommon.Message, data *types.GetBlockRequest) {
+	defer bh.release()
+	remotePeer := bh.peer
 
 	requestID := msg.ID()
 	sliceCap := p2pcommon.MaxBlockResponseCount
@@ -90,7 +105,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 				//HasNext:msgSentCount<MaxResponseSplitCount, // always have nextItem ( see foundBlock) but msg count limit will affect
 			}
 			bh.logger.Debug().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending partial getBlock response")
-			err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
+			err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, p2pcommon.GetBlocksResponse, resp), defaultMsgTimeout)
 			if err != nil {
 				bh.logger.Info().Uint64("first_blk_number", blockInfos[0].Header.GetBlockNo()).Err(err).Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending failed")
 				return
@@ -117,7 +132,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 
 	// ???: have to check arguments
 	bh.logger.Debug().Int(p2putil.LogBlkCount, len(blockInfos)).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending last part of getBlock response")
-	err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, GetBlocksResponse, resp), defaultMsgTimeout)
+	err := remotePeer.SendAndWaitMessage(remotePeer.MF().NewMsgResponseOrder(requestID, p2pcommon.GetBlocksResponse, resp), defaultMsgTimeout)
 	if err != nil {
 		bh.logger.Info().Int(p2putil.LogBlkCount, len(data.Hashes)).Err(err).Str(p2putil.LogOrgReqID, requestID.String()).Msg("Sending failed")
 		return
@@ -126,7 +141,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 
 // newBlockRespHandler creates handler for GetBlockResponse
 func NewBlockRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) *blockResponseHandler {
-	bh := &blockResponseHandler{BaseMsgHandler: BaseMsgHandler{protocol: GetBlocksResponse, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	bh := &blockResponseHandler{BaseMsgHandler{protocol: p2pcommon.GetBlocksResponse, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -138,8 +153,7 @@ func (bh *blockResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.
 	remotePeer := bh.peer
 	data := msgBody.(*types.GetBlockResponse)
 	if bh.logger.IsDebugEnabled() {
-		additional := fmt.Sprintf("hashNext=%t,%s", data.HasNext, p2putil.PrintHashList(data.Blocks))
-		p2putil.DebugLogReceiveResponseMsg(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, additional)
+		p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 	}
 
 	// locate request data and remove it if found

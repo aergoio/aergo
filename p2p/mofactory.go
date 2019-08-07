@@ -8,7 +8,7 @@ package p2p
 import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"time"
 
 	"github.com/aergoio/aergo/types"
@@ -16,6 +16,8 @@ import (
 )
 
 type baseMOFactory struct {
+	trace bool
+	p2ps  *P2P
 }
 
 func (mf *baseMOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
@@ -49,7 +51,7 @@ func (mf *baseMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p
 func (mf *baseMOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) p2pcommon.MsgOrder {
 	rmo := &pbBlkNoticeOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.NewBlockNotice, noticeMsg) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.NewBlockNotice, noticeMsg) {
 		rmo.blkHash = noticeMsg.BlockHash
 		rmo.blkNo = noticeMsg.BlockNo
 		return rmo
@@ -60,7 +62,7 @@ func (mf *baseMOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice
 func (mf *baseMOFactory) NewMsgTxBroadcastOrder(message *types.NewTransactionsNotice) p2pcommon.MsgOrder {
 	rmo := &pbTxNoticeOrder{}
 	reqID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, subproto.NewTxNotice, message) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, p2pcommon.NewTxNotice, message) {
 		rmo.txHashes = message.TxHashes
 		return rmo
 	}
@@ -70,35 +72,41 @@ func (mf *baseMOFactory) NewMsgTxBroadcastOrder(message *types.NewTransactionsNo
 func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) p2pcommon.MsgOrder {
 	rmo := &pbBpNoticeOrder{}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, subproto.BlockProducedNotice, noticeMsg) {
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.BlockProducedNotice, noticeMsg) {
 		rmo.block = noticeMsg.Block
 		return rmo
 	}
 	return nil
 }
 
-func (mf *baseMOFactory) newHandshakeMessage(protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.Message {
-	// TODO define handshake specific datatype
-	rmo := &pbRequestOrder{}
+func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
+	rmo := &pbRaftMsgOrder{msg: raftMsg, raftAcc:mf.p2ps.consacc.RaftAccessor()}
 	msgID := uuid.Must(uuid.NewV4())
-	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {
-		return rmo.message
+	if mf.newV030MsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.RaftWrapperMessage, raftMsg) {
+		switch msgType {
+		case raftpb.MsgHeartbeat, raftpb.MsgHeartbeatResp:
+			rmo.trace = false
+		default:
+			// follow default policy
+		}
+		return rmo
 	}
 	return nil
 }
 
-// newPbMsgOrder is base form of making sendrequest struct
-func (mf *baseMOFactory)newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, messageBody p2pcommon.MessageBody) bool {
-	id :=p2pcommon.MsgID(msgID)
-	originalid := p2pcommon.MsgID(orgID)
+// newPbMsgOrder is base form of making sendRequest struct
+func (mf *baseMOFactory) newV030MsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, messageBody p2pcommon.MessageBody) bool {
+	id := p2pcommon.MsgID(msgID)
+	originalID := p2pcommon.MsgID(orgID)
 	bytes, err := p2putil.MarshalMessageBody(messageBody)
 	if err != nil {
 		return false
 	}
-	msg := p2pcommon.NewMessageValue(protocolID, id, originalid, time.Now().UnixNano(), bytes)
+	msg := p2pcommon.NewMessageValue(protocolID, id, originalID, time.Now().UnixNano(), bytes)
 	mo.protocolID = protocolID
 	mo.needSign = true
 	mo.message = msg
+	mo.trace = true
 
 	return true
 }

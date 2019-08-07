@@ -9,9 +9,9 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
+	"github.com/libp2p/go-libp2p-core/network"
 	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -22,7 +22,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-net"
 )
 
 // PeerMapService is
@@ -73,7 +72,7 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 			}
 
 			for _, addrStr := range servers {
-				meta, err := p2putil.ParseMultiAddrString(addrStr)
+				meta, err := p2putil.FromMultiAddrString(addrStr)
 				if err != nil {
 					pcs.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in base setting ")
 					continue
@@ -85,7 +84,7 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		}
 		// append custom polarises set in configuration file
 		for _, addrStr := range cfg.NPAddPolarises {
-			meta, err := p2putil.ParseMultiAddrString(addrStr)
+			meta, err := p2putil.FromMultiAddrString(addrStr)
 			if err != nil {
 				pcs.Logger.Info().Str("addr_str", addrStr).Msg("invalid polaris server address in config file ")
 				continue
@@ -94,12 +93,12 @@ func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
 		}
 
 		if len(pcs.mapServers) == 0 {
-			pcs.Logger.Warn().Msg("using polais is enabled but no active polaris server found. node discovery by polaris is disabled")
+			pcs.Logger.Warn().Msg("using Polaris is enabled but no active polaris server found. node discovery by polaris will not works well")
 		} else {
-			pcs.Logger.Info().Array("polarises", p2putil.NewLogPeerMetasMarshaler(pcs.mapServers, 10)).Msg("using polaris")
+			pcs.Logger.Info().Array("polarises", p2putil.NewLogPeerMetasMarshaller(pcs.mapServers, 10)).Msg("using Polaris")
 		}
 	} else {
-		pcs.Logger.Info().Msg("node discovery by polaris is disabled configuration.")
+		pcs.Logger.Info().Msg("node discovery by Polaris is disabled by configuration.")
 	}
 }
 
@@ -166,7 +165,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Sending map query")
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
 	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
@@ -187,7 +186,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	return nil, fmt.Errorf("remote error %s", resp.Status.String())
 }
 
-func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgWriter) error {
+func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgReadWriter) error {
 	msgID := p2pcommon.NewMsgID()
 	queryReq := &types.MapQuery{Status: status, Size: int32(size), AddMe: register, Excludes: [][]byte{[]byte(mapServerMeta.ID)}}
 	bytes, err := p2putil.MarshalMessageBody(queryReq)
@@ -201,7 +200,7 @@ func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd p2pcommon.MsgReader) (p2pcommon.Message, *types.MapResponse, error) {
+func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd p2pcommon.MsgReadWriter) (p2pcommon.Message, *types.MapResponse, error) {
 	data, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
@@ -216,11 +215,11 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 	return data, queryResp, nil
 }
 
-func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
+func (pcs *PolarisConnectSvc) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	defer s.Close()
 
 	req, err := rw.ReadMsg()
@@ -239,7 +238,7 @@ func (pcs *PolarisConnectSvc) onPing(s net.Stream) {
 		return
 	}
 	msgID := p2pcommon.NewMsgID()
-	respMsg := common.NewPolarisRespMessage(msgID, req.ID(), subproto.PingResponse, bytes)
+	respMsg := common.NewPolarisRespMessage(msgID, req.ID(), p2pcommon.PingResponse, bytes)
 	err = rw.WriteMsg(respMsg)
 	if err != nil {
 		return

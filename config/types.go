@@ -22,6 +22,7 @@ type Config struct {
 	Consensus  *ConsensusConfig  `mapstructure:"consensus"`
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
 	Account    *AccountConfig    `mapstructure:"account"`
+	Auth       *AuthConfig       `mapstructure:"auth"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -44,8 +45,9 @@ type RPCConfig struct {
 	NetServiceTrace bool   `mapstructure:"netservicetrace" description:"Trace RPC service"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`
-	NSCert      string `mapstructure:"nscert" description:"Certificate file for RPC or REST API"`
+	NSCert      string `mapstructure:"nscert" description:"Server Certificate file for RPC or REST API"`
 	NSKey       string `mapstructure:"nskey" description:"Private Key file for RPC or REST API"`
+	NSCACert    string `mapstructure:"nscacert" description:"CA Certificate file for RPC or REST API"`
 	NSAllowCORS bool   `mapstructure:"nsallowcors" description:"Allow CORS to RPC or REST API"`
 }
 
@@ -73,6 +75,11 @@ type P2PConfig struct {
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 }
 
+// AuthConfig defines configuration for auditing
+type AuthConfig struct {
+	EnableLocalConf bool `mapstructure:"enablelocalconf" description:"apply local white/blacklist file or not"`
+}
+
 // PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
 type PolarisConfig struct {
 	AllowPrivate bool   `mapstructure:"allowprivate" description:"allow peer to have private address. for private network and test"`
@@ -87,6 +94,8 @@ type BlockchainConfig struct {
 	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
 	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
 	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(works only on private network)"`
+	VerifyOnly       bool   `mapstructure:"verifyonly" description:"In verify only mode, server verifies block chain of disk. server never modifies block chain'"`
+	StateTrace       uint64 `mapstructure:"statetrace" description:"dump trace of setting state"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -106,21 +115,22 @@ type ConsensusConfig struct {
 }
 
 type RaftConfig struct {
-	Name          string         `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
-	ListenUrl     string         `mapstructure:"listenurl" description:"raft http bind address. If it was set, it only accept connection to this addresse only"`
-	BPs           []RaftBPConfig `mapstructure:"bps"`
-	SkipEmpty     bool           `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
-	KeyFile       string         `mapstructure:"keyfile" description:"Private Key file for raft https server"`
-	CertFile      string         `mapstructure:"certfile" description:"Certificate file for raft https server"`
-	Tick          uint           `mapstructure:"tick" description:"tick of raft server (millisec)"`
-	NewCluster    bool           `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
-	SnapFrequency uint64         `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
+	Name               string        `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
+	SkipEmpty          bool          `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
+	HeartbeatTick      uint          `mapstructure:"heartbeattick" description:"heartbeat tick of raft server (millisec)"`
+	BlockFactoryTickMs int64         `mapstructure:"blockfactorytickms" description:"interval to check if block factory should run new task(millisec)"`
+	BlockIntervalMs    int64         `mapstructure:"blockintervalms" description:"block interval for raft (millisec). It overrides BlockInterval of consensus"`
+	NewCluster         bool          `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
+	UseBackup          bool          `mapstructure:"usebackup" description:"use backup datafiles when creating a new cluster or joining to a existing cluster"`
+	SnapFrequency      uint64        `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
+	SlowNodeGap        uint          `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
+	RecoverBP          *RaftBPConfig `mapstructure:"recoverbp" description:"bp info for creating a new cluster from backup"`
 }
 
 type RaftBPConfig struct {
-	Name  string `mapstructure:"name" description:"raft node name"`
-	Url   string `mapstructure:"url" description:"raft url"`
-	P2pID string `mapstructure:"p2pid" description:"p2p ID of this bp"`
+	Name    string `mapstructure:"name" description:"raft node name"`
+	Address string `mapstructure:"address" description:"raft address"`
+	PeerID  string `mapstructure:"peerid" description:"peerid of this bp"`
 }
 
 type MonitorConfig struct {
@@ -163,6 +173,7 @@ netservicetrace = {{.RPC.NetServiceTrace}}
 nstls = {{.RPC.NSEnableTLS}}
 nscert = "{{.RPC.NSCert}}"
 nskey = "{{.RPC.NSKey}}"
+nscacert = "{{.RPC.NSCACert}}"
 nsallowcors = {{.RPC.NSAllowCORS}}
 
 [p2p]
@@ -217,4 +228,7 @@ endpoint = "{{.Monitor.ServerEndpoint}}"
 
 [account]
 unlocktimeout = "{{.Account.UnlockTimeout}}"
+
+[auth]
+enablelocalconf = "{{.Auth.EnableLocalConf}}"
 `

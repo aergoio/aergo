@@ -19,8 +19,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/proto"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/minio/sha256-simd"
 )
 
@@ -118,6 +117,17 @@ func getLastIndexOfBH() (lastIndex int) {
 	return i
 }
 
+type SystemValue int
+
+const (
+	StakingTotal SystemValue = 0 + iota
+	StakingMin
+)
+
+func (s SystemValue) String() string {
+	return [...]string{"StakingTotal", "StakingMin"}[s]
+}
+
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
 	GetGenesisInfo() *Genesis
@@ -128,12 +138,16 @@ type ChainAccessor interface {
 	// GetHashByNo returns hash of block. It return nil and error if not found block of that number or there is a problem in db store
 	GetHashByNo(blockNo BlockNo) ([]byte, error)
 	GetChainStats() string
+	GetSystemValue(key SystemValue) (*big.Int, error)
+
+	// GetEnterpriseConfig always return non-nil object if there is no error, but it can return EnterpriseConfig with empty values
+	GetEnterpriseConfig(key string) (*EnterpriseConfig, error)
 }
 
 type SyncContext struct {
 	Seq uint64
 
-	PeerID peer.ID
+	PeerID PeerID
 
 	BestNo   BlockNo
 	TargetNo BlockNo //sync target blockno
@@ -147,7 +161,7 @@ type SyncContext struct {
 	NotifyC chan error
 }
 
-func NewSyncCtx(seq uint64, peerID peer.ID, targetNo uint64, bestNo uint64, notifyC chan error) *SyncContext {
+func NewSyncCtx(seq uint64, peerID PeerID, targetNo uint64, bestNo uint64, notifyC chan error) *SyncContext {
 	return &SyncContext{Seq: seq, PeerID: peerID, TargetNo: targetNo, BestNo: bestNo, LastAnchor: 0, NotifyC: notifyC}
 }
 
@@ -178,16 +192,25 @@ func (bi *BlockInfo) Equal(target *BlockInfo) bool {
 // BlockNo is the height of a block, which starts from 0 (genesis block).
 type BlockNo = uint64
 
+func Uint64ToBytes(num uint64) []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, num)
+	return buf
+}
+
+func BytesToUint64(data []byte) uint64 {
+	buf := binary.LittleEndian.Uint64(data)
+	return buf
+}
+
 // BlockNoToBytes represents to serialize block no to bytes
 func BlockNoToBytes(bn BlockNo) []byte {
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, bn)
-	return buf
+	return Uint64ToBytes(bn)
 }
 
 // BlockNoFromBytes represents to deserialize bytes to block no
 func BlockNoFromBytes(raw []byte) BlockNo {
-	buf := binary.LittleEndian.Uint64(raw)
+	buf := BytesToUint64(raw)
 	return BlockNo(buf)
 }
 
@@ -407,14 +430,14 @@ func (block *Block) VerifySign() (valid bool, err error) {
 }
 
 // BPID returns its Block Producer's ID from block.
-func (block *Block) BPID() (id peer.ID, err error) {
+func (block *Block) BPID() (id PeerID, err error) {
 	var pubKey crypto.PubKey
 	if pubKey, err = crypto.UnmarshalPublicKey(block.Header.PubKey); err != nil {
-		return peer.ID(""), err
+		return PeerID(""), err
 	}
 
-	if id, err = peer.IDFromPublicKey(pubKey); err != nil {
-		return peer.ID(""), err
+	if id, err = IDFromPublicKey(pubKey); err != nil {
+		return PeerID(""), err
 	}
 
 	return

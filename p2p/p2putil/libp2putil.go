@@ -8,10 +8,12 @@ package p2putil
 import (
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
 	"net"
@@ -21,52 +23,37 @@ import (
 	"strings"
 )
 
-var InvalidArgument = fmt.Errorf("invalid argument")
 
-// ToMultiAddr make libp2p compatible Multiaddr object
-func ToMultiAddr(ipAddr net.IP, port uint32) (multiaddr.Multiaddr, error) {
-	var addrString string
-	if ipAddr.To4() != nil {
-		addrString = fmt.Sprintf("/ip4/%s/tcp/%d", ipAddr.String(), port)
-	} else if ipAddr.To16() != nil {
-		addrString = fmt.Sprintf("/ip6/%s/tcp/%d", ipAddr.String(), port)
-	} else {
-		return nil, InvalidArgument
-	}
-	peerAddr, err := multiaddr.NewMultiaddr(addrString)
-	if err != nil {
-		return nil, err
-	}
-	return peerAddr, nil
+func RandomPeerID() (types.PeerID, error) {
+	return test.RandPeerID()
 }
-
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
-	ipAddr, err := GetSingleIPAddress(m.IPAddress)
+	ipAddr, err := network.GetSingleIPAddress(m.IPAddress)
 	if err != nil {
 		return nil, err
 	}
-	return ToMultiAddr(ipAddr, m.Port)
+	return types.ToMultiAddr(ipAddr, m.Port)
 }
 
 func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
 	meta := p2pcommon.PeerMeta{}
-	splitted := strings.Split(targetAddr.String(), "/")
-	if len(splitted) != 7 {
+	split := strings.Split(targetAddr.String(), "/")
+	if len(split) != 7 {
 		return meta, fmt.Errorf("invalid NPAddPeer addr format %s", targetAddr.String())
 	}
-	addrType := splitted[1]
+	addrType := split[1]
 	if addrType != "ip4" && addrType != "ip6" {
 		return meta, fmt.Errorf("invalid NPAddPeer addr type %s", addrType)
 	}
-	peerAddrString := splitted[2]
-	peerPortString := splitted[4]
+	peerAddrString := split[2]
+	peerPortString := split[4]
 	peerPort, err := strconv.Atoi(peerPortString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid Peer port %s", peerPortString)
 	}
-	peerIDString := splitted[6]
-	peerID, err := peer.IDB58Decode(peerIDString)
+	peerIDString := split[6]
+	peerID, err := types.IDB58Decode(peerIDString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
 	}
@@ -78,56 +65,39 @@ func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
 	return meta, nil
 }
 
-func ParseMultiAddrString(str string) (p2pcommon.PeerMeta, error) {
-	ma, err := ParseMultiaddrWithResolve(str)
+func FromMultiAddrString(str string) (p2pcommon.PeerMeta, error) {
+	ma, err := types.ParseMultiaddrWithResolve(str)
 	if err != nil {
 		return p2pcommon.PeerMeta{}, err
 	}
 	return FromMultiAddr(ma)
 }
 
-// ParseMultiaddrWithResolve parse string to multiaddr, additionally accept domain name with protocol /dns
-// NOTE: this function is temporarilly use until go-multiaddr start to support dns.
-func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
-	ma, err := multiaddr.NewMultiaddr(str)
+
+func FromMultiAddrStringWithPID(str string, id types.PeerID) (p2pcommon.PeerMeta, error) {
+	addr1, err := types.ParseMultiaddrWithResolve(str)
 	if err != nil {
-		// multiaddr is not support domain name yet. change domain name to ip address manually
-		splitted := strings.Split(str, "/")
-		if len(splitted) < 3 || !strings.HasPrefix(splitted[1], "dns") {
-			return nil, err
-		}
-		domainName := splitted[2]
-		ips, err := ResolveHostDomain(domainName)
-		if err != nil {
-			return nil, fmt.Errorf("Could not get IPs: %v\n", err)
-		}
-		// use ipv4 as possible.
-		ipSelected := false
-		for _, ip := range ips {
-			if ip.To4() != nil {
-				splitted[1] = "ip4"
-				splitted[2] = ip.To4().String()
-				ipSelected = true
-				break
-			}
-		}
-		if !ipSelected {
-			for _, ip := range ips {
-				if ip.To16() != nil {
-					splitted[1] = "ip6"
-					splitted[2] = ip.To16().String()
-					ipSelected = true
-					break
-				}
-			}
-		}
-		if !ipSelected {
-			return nil, err
-		}
-		rejoin := strings.Join(splitted, "/")
-		return multiaddr.NewMultiaddr(rejoin)
+		return p2pcommon.PeerMeta{}, err
 	}
-	return ma, nil
+	pidAddr, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_P2P).Name, id.Pretty())
+	if err != nil {
+		return p2pcommon.PeerMeta{}, err
+	}
+	ma := multiaddr.Join(addr1, pidAddr)
+	return FromMultiAddr(ma)
+}
+
+// ExtractIPAddress returns ip address from multiaddr. it return null if ma has no ip field.
+func ExtractIPAddress(ma multiaddr.Multiaddr) net.IP {
+	ipStr, err := ma.ValueForProtocol(multiaddr.P_IP4)
+	if err == nil {
+		return net.ParseIP(ipStr)
+	}
+	ipStr, err = ma.ValueForProtocol(multiaddr.P_IP6)
+	if err == nil {
+		return net.ParseIP(ipStr)
+	}
+	return nil
 }
 
 func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
@@ -144,11 +114,11 @@ func LoadKeyFile(keyFile string) (crypto.PrivKey, crypto.PubKey, error) {
 }
 
 func GenerateKeyFile(dir, prefix string) (crypto.PrivKey, crypto.PubKey, error) {
-	// invariant: keyfile must not exists.
+	// invariant: key file must not exists.
 	if _, err2 := os.Stat(dir); os.IsNotExist(err2) {
-		mkdirerr := os.MkdirAll(dir, os.ModePerm)
-		if mkdirerr != nil {
-			return nil, nil, mkdirerr
+		mkdirErr := os.MkdirAll(dir, os.ModePerm)
+		if mkdirErr != nil {
+			return nil, nil, mkdirErr
 		}
 	}
 	// file not exist and create new file
@@ -188,14 +158,14 @@ func writeToKeyFiles(priv crypto.PrivKey, pub crypto.PubKey, dir, prefix string)
 	if err != nil {
 		return err
 	}
-	pid, _ := peer.IDFromPublicKey(pub)
-	idBytes := []byte(peer.IDB58Encode(pid))
+	pid, _ := types.IDFromPublicKey(pub)
+	idBytes := []byte(types.IDB58Encode(pid))
 	idf.Write(idBytes)
 	idf.Sync()
 	return nil
 }
 
-func ProtocolIDsToString(sli []protocol.ID) string {
+func ProtocolIDsToString(sli []core.ProtocolID) string {
 	sb := bytes.NewBuffer(nil)
 	sb.WriteByte('[')
 	if len(sli) > 0 {

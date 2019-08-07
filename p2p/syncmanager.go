@@ -8,8 +8,6 @@ package p2p
 import (
 	"bytes"
 	"fmt"
-	"sync"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
@@ -28,37 +26,39 @@ type syncManager struct {
 	blkCache *lru.Cache
 	txCache  *lru.Cache
 
-	syncLock *sync.Mutex
-	syncing  bool
+	hc     chan syncTask
+	finish chan int
+}
+
+type syncTask struct {
+	peer   p2pcommon.RemotePeer
+	hashes []types.TxID
+	data   *types.NewTransactionsNotice
 }
 
 func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logger *log.Logger) p2pcommon.SyncManager {
 	var err error
-	sm := &syncManager{actor: actor, pm: pm, logger: logger, syncLock: &sync.Mutex{}}
+	sm := &syncManager{actor: actor, pm: pm, logger: logger}
+	sm.hc = make(chan syncTask, syncManagerChanSize)
+	sm.finish = make(chan int)
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
-		panic("Failed to create peermanager " + err.Error())
+		panic("Failed to create PeerManager " + err.Error())
 	}
 	sm.txCache, err = lru.New(DefaultGlobalTxCacheSize)
 	if err != nil {
-		panic("Failed to create peermanager " + err.Error())
+		panic("Failed to create PeerManager " + err.Error())
 	}
 
 	return sm
 }
 
-func (sm *syncManager) checkWorkToken() bool {
-	sm.syncLock.Lock()
-	defer sm.syncLock.Unlock()
-	return !sm.syncing
-}
-
 func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, block *types.Block) {
 	hash := types.MustParseBlockID(block.GetHash())
-	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
+	ok, _ := sm.blkCache.ContainsOrAdd(hash, syncManagerChanSize)
 	if ok {
-		sm.logger.Warn().Str(p2putil.LogBlkHash, hash.String()).Str(p2putil.LogPeerName, peer.Name()).Msg("Duplacated blockProduced notice")
+		sm.logger.Warn().Str(p2putil.LogBlkHash, hash.String()).Str(p2putil.LogPeerName, peer.Name()).Msg("Duplicated blockProduced notice")
 		return
 	}
 	// check if block size is over the limit
@@ -68,7 +68,24 @@ func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, bloc
 	}
 
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil})
+}
 
+func (sm *syncManager) Run() {
+	sm.logger.Info().Msg("starting p2p syncmanager")
+SyncLoop:
+	for {
+		select {
+		case t := <-sm.hc:
+			sm.HandleNewTxNotice(t.peer, t.hashes, t.data)
+		case <-sm.finish:
+			break SyncLoop
+		}
+	}
+	sm.logger.Info().Msg("syncmanager is finished")
+}
+
+func (sm *syncManager) Stop() {
+	close(sm.finish)
 }
 
 func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *types.NewBlockNotice) {
@@ -83,7 +100,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *typ
 	// TODO check if evicted return value is needed.
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
-		// Kickout duplicated notice log.
+		// Kick out duplicated notice log.
 		// if sm.logger.IsDebugEnabled() {
 		// 	sm.logger.Debug().Str(LogBlkHash, enc.ToString(data.BlkHash)).Str(LogPeerID, peerID.Pretty()).Msg("Got NewBlock notice, but sent already from other peer")
 		// }
@@ -107,7 +124,7 @@ func (sm *syncManager) HandleGetBlockResponse(peer p2pcommon.RemotePeer, msg p2p
 	peerID := peer.ID()
 
 	// The response should have only one block here, since this peer had requested only one block.
-	// getblockresponse with bulky blocks is only called in newsyncer since aergosvr 0.9.9 , which is handled by other receiver and not come to this code.
+	// getBlockResponse with bulky blocks is only called in newsyncer since aergosvr 0.9.9 , which is handled by other receiver and not come to this code.
 	// if bulky hashes on this condition block, it is probably sync timeout or bug.
 	if len(blocks) != 1 {
 		return
@@ -149,31 +166,6 @@ func (sm *syncManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, hashes []typ
 	sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 }
 
-func blockHashArrToString(bbarray []message.BlockHash) string {
-	return blockHashArrToStringWithLimit(bbarray, 10)
-}
-
-func blockHashArrToStringWithLimit(bbarray []message.BlockHash, limit int) string {
-	var buf bytes.Buffer
-	buf.WriteByte('[')
-	var arrSize = len(bbarray)
-	if limit > arrSize {
-		limit = arrSize
-	}
-	for i := 0; i < limit; i++ {
-		hash := bbarray[i]
-		buf.WriteByte('"')
-		buf.WriteString(enc.ToString([]byte(hash)))
-		buf.WriteByte('"')
-		buf.WriteByte(',')
-	}
-	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
-
 // bytesArrToString converts array of byte array to json array of b58 encoded string.
 func txHashArrToString(bbarray []message.TXHash) string {
 	return txHashArrToStringWithLimit(bbarray, 10)
@@ -190,31 +182,6 @@ func txHashArrToStringWithLimit(bbarray []message.TXHash, limit int) string {
 		hash := bbarray[i]
 		buf.WriteByte('"')
 		buf.WriteString(enc.ToString([]byte(hash)))
-		buf.WriteByte('"')
-		buf.WriteByte(',')
-	}
-	if arrSize > limit {
-		buf.WriteString(fmt.Sprintf(" (and %d more), ", arrSize-limit))
-	}
-	buf.WriteByte(']')
-	return buf.String()
-}
-
-// bytesArrToString converts array of byte array to json array of b58 encoded string.
-func P2PTxHashArrToString(bbarray []types.TxID) string {
-	return P2PTxHashArrToStringWithLimit(bbarray, 10)
-}
-func P2PTxHashArrToStringWithLimit(bbarray []types.TxID, limit int) string {
-	var buf bytes.Buffer
-	buf.WriteByte('[')
-	var arrSize = len(bbarray)
-	if limit > arrSize {
-		limit = arrSize
-	}
-	for i := 0; i < limit; i++ {
-		hash := bbarray[i]
-		buf.WriteByte('"')
-		buf.WriteString(enc.ToString(hash[:]))
 		buf.WriteByte('"')
 		buf.WriteByte(',')
 	}

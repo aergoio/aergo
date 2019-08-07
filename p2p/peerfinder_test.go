@@ -9,9 +9,9 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"reflect"
 	"testing"
 )
@@ -19,43 +19,44 @@ import (
 const desigCnt = 10
 
 var (
-	desigIDs     []peer.ID
+	desigIDs     []types.PeerID
 	desigPeers   []p2pcommon.PeerMeta
-	desigPeerMap = make(map[peer.ID]p2pcommon.PeerMeta)
+	desigPeerMap = make(map[types.PeerID]p2pcommon.PeerMeta)
 
-	unknowIDs   []peer.ID
-	unknowPeers []p2pcommon.PeerMeta
+	unknownIDs   []types.PeerID
+	unknownPeers []p2pcommon.PeerMeta
 )
 
 func init() {
-	desigIDs = make([]peer.ID, desigCnt)
+	desigIDs = make([]types.PeerID, desigCnt)
 	desigPeers = make([]p2pcommon.PeerMeta, desigCnt)
 	for i := 0; i < desigCnt; i++ {
 		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPrivateKey(priv)
+		pid, _ := types.IDFromPrivateKey(priv)
 		desigIDs[i] = pid
 		desigPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: true}
 		desigPeerMap[desigIDs[i]] = desigPeers[i]
 	}
-	unknowIDs = make([]peer.ID, desigCnt)
-	unknowPeers = make([]p2pcommon.PeerMeta, desigCnt)
+	unknownIDs = make([]types.PeerID, desigCnt)
+	unknownPeers = make([]p2pcommon.PeerMeta, desigCnt)
 	for i := 0; i < desigCnt; i++ {
 		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := peer.IDFromPrivateKey(priv)
-		unknowIDs[i] = pid
-		unknowPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: false}
+		pid, _ := types.IDFromPrivateKey(priv)
+		unknownIDs[i] = pid
+		unknownPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: false}
 	}
 }
 func createDummyPM() *peerManager {
 	dummyPM := &peerManager{designatedPeers: desigPeerMap,
-		remotePeers:  make(map[peer.ID]p2pcommon.RemotePeer),
-		waitingPeers: make(map[peer.ID]*p2pcommon.WaitingPeer, 10),
+		remotePeers:  make(map[types.PeerID]p2pcommon.RemotePeer),
+		waitingPeers: make(map[types.PeerID]*p2pcommon.WaitingPeer, 10),
 	}
 	return dummyPM
 }
 
 func TestNewPeerFinder(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
 		useDiscover bool
@@ -85,9 +86,10 @@ func TestNewPeerFinder(t *testing.T) {
 
 func Test_dynamicPeerFinder_OnPeerDisconnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
-		preConnected []peer.ID
+		preConnected []types.PeerID
 		inMeta       p2pcommon.PeerMeta
 	}
 	tests := []struct {
@@ -95,8 +97,8 @@ func Test_dynamicPeerFinder_OnPeerDisconnect(t *testing.T) {
 		args      args
 		wantCount int
 	}{
-		{"TDesgintedPeer", args{desigIDs, desigPeers[0]}, 1},
-		{"TNonPeer", args{unknowIDs, unknowPeers[0]}, 0},
+		{"TDesignatedPeer", args{desigIDs, desigPeers[0]}, 1},
+		{"TNonPeer", args{unknownIDs, unknownPeers[0]}, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,9 +126,10 @@ func Test_dynamicPeerFinder_OnPeerDisconnect(t *testing.T) {
 
 func Test_dynamicPeerFinder_OnPeerConnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	type args struct {
-		preConnected []peer.ID
+		preConnected []types.PeerID
 		inMeta       p2pcommon.PeerMeta
 	}
 	tests := []struct {
@@ -135,7 +138,7 @@ func Test_dynamicPeerFinder_OnPeerConnect(t *testing.T) {
 		wantStatCount int
 	}{
 		{"TDesigPeer", args{desigIDs, desigPeers[0]}, 1},
-		{"TNonPeer", args{unknowIDs, unknowPeers[0]}, 1},
+		{"TNonPeer", args{unknownIDs, unknownPeers[0]}, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

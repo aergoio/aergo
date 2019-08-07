@@ -58,6 +58,16 @@ func (stubC *StubConsensus) NeedNotify() bool {
 func (stubC *StubConsensus) HasWAL() bool {
 	return false
 }
+func (stubC *StubConsensus) IsConnectedBlock(block *types.Block) bool {
+	return false
+}
+func (stubC *StubConsensus) IsForkEnable() bool {
+	return true
+}
+
+func (stubC *StubConsensus) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
 
 func makeBlockChain() *ChainService {
 	serverCtx := config.NewServerContext("", "")
@@ -176,7 +186,8 @@ func testSideBranch(t *testing.T, mainChainBest int) (cs *ChainService, mainChai
 
 	//add sideChainBlock
 	for _, block := range sideChain.Blocks[1 : sideChain.Best+1] {
-		cs.addBlock(block, nil, testPeer)
+		err := cs.addBlock(block, nil, testPeer)
+		assert.NoError(t, err)
 
 		//block added on sidechain
 		testBlockIsOnSideChain(t, cs, block)
@@ -200,7 +211,8 @@ func TestOrphan(t *testing.T) {
 
 	//add orphan
 	for _, block := range sideChain.Blocks[2 : sideChain.Best+1] {
-		cs.addBlock(block, nil, testPeer)
+		err := cs.addBlock(block, nil, testPeer)
+		assert.NoError(t, err)
 
 		//block added on sidechain
 		testBlockIsOrphan(t, cs, block)
@@ -260,7 +272,8 @@ func TestResetChain(t *testing.T) {
 	cs, mainChain := testAddBlock(t, mainChainBest)
 
 	resetHeight := uint64(3)
-	cs.cdb.ResetBest(resetHeight)
+	err := cs.cdb.ResetBest(resetHeight)
+	assert.NoError(t, err)
 
 	// check best
 	assert.Equal(t, resetHeight, cs.cdb.getBestBlockNo())

@@ -8,12 +8,11 @@ package p2p
 import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"time"
 )
 
-// BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requestes blocks are received
+// BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requests blocks are received
 // It will send response actor message if all blocks are received or failed to receive, but not send response if timeout expired.
 type AncestorReceiver struct {
 	syncerSeq uint64
@@ -35,7 +34,7 @@ func NewAncestorReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer
 func (br *AncestorReceiver) StartGet() {
 	// create message data
 	req := &types.GetAncestorRequest{Hashes: br.hashes}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetAncestorRequest, req)
+	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetAncestorRequest, req)
 	br.requestID = mo.GetMsgID()
 	br.peer.SendMessage(mo)
 }

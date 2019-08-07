@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrConsensusAccessorNotReady = errors.New("consensus acessor is not ready")
+	ErrConsensusAccessorNotReady = errors.New("consensus accessor is not ready")
 )
 
 type getClusterRequestHandler struct {
@@ -35,7 +35,7 @@ var _ p2pcommon.MessageHandler = (*getClusterResponseHandler)(nil)
 // NewGetClusterReqHandler creates handler for PingRequest
 func NewGetClusterReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, consAcc consensus.ConsensusAccessor) *getClusterRequestHandler {
 	ph := &getClusterRequestHandler{
-		BaseMsgHandler: BaseMsgHandler{protocol: GetClusterRequest, pm: pm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.GetClusterRequest, pm: pm, peer: peer, actor: actor, logger: logger},
 		consAcc:        consAcc,
 	}
 	return ph
@@ -49,29 +49,23 @@ func (ph *getClusterRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcom
 	//peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.GetClusterInfoRequest)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, data.String())
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, data)
 
-	resp := &types.GetClusterInfoResponse{}
+	var resp *types.GetClusterInfoResponse
 
 	// GetClusterInfo from consensus
 	if ph.consAcc == nil {
-		resp.Error = ErrConsensusAccessorNotReady.Error()
+		resp = &types.GetClusterInfoResponse{Error: ErrConsensusAccessorNotReady.Error()}
 	} else {
-		mbrs, chainID, err := ph.consAcc.ClusterInfo()
-		if err != nil {
-			resp.Error = err.Error()
-		} else {
-			resp.MbrAttrs = mbrs
-			resp.ChainID = chainID
-		}
+		resp = ph.consAcc.ClusterInfo(data.BestBlockHash)
 	}
 
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), GetClusterResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetClusterResponse, resp))
 }
 
 // NewGetClusterRespHandler creates handler for PingRequest
 func NewGetClusterRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *getClusterResponseHandler {
-	ph := &getClusterResponseHandler{BaseMsgHandler{protocol: GetClusterResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &getClusterResponseHandler{BaseMsgHandler{protocol: p2pcommon.GetClusterResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -82,7 +76,7 @@ func (ph *getClusterResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.Me
 func (ph *getClusterResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.GetClusterInfoResponse)
-	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data.String())
+	p2putil.DebugLogReceiveResponse(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
 		// ignore dangling response

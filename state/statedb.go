@@ -61,17 +61,17 @@ type StateDB struct {
 	buffer   *stateBuffer
 	cache    *storageCache
 	trie     *trie.Trie
-	store    *db.DB
+	store    db.DB
 	batchtx  db.Transaction
 	testmode bool
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore *db.DB, root []byte, test bool) *StateDB {
+func NewStateDB(dbstore db.DB, root []byte, test bool) *StateDB {
 	sdb := StateDB{
 		buffer:   newStateBuffer(),
 		cache:    newStorageCache(),
-		trie:     trie.NewTrie(root, common.Hasher, *dbstore),
+		trie:     trie.NewTrie(root, common.Hasher, dbstore),
 		store:    dbstore,
 		testmode: test,
 	}
@@ -168,15 +168,20 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 }
 
 type V struct {
-	sdb    *StateDB
-	id     []byte
-	aid    types.AccountID
-	oldV   *types.State
-	newV   *types.State
-	newOne bool
-	create bool
-	buffer *stateBuffer
+	sdb      *StateDB
+	id       []byte
+	aid      types.AccountID
+	oldV     *types.State
+	newV     *types.State
+	newOne   bool
+	deploy   int8
+	buffer   *stateBuffer
 }
+
+const (
+	deployFlag = 0x01 << iota
+	redeployFlag
+)
 
 func (v *V) ID() []byte {
 	if len(v.id) < types.AddressLength {
@@ -219,8 +224,16 @@ func (v *V) IsNew() bool {
 	return v.newOne
 }
 
-func (v *V) IsCreate() bool {
-	return v.create
+func (v *V) IsDeploy() bool {
+	return v.deploy & deployFlag != 0
+}
+
+func (v *V) SetRedeploy() {
+	v.deploy = deployFlag | redeployFlag
+}
+
+func (v *V) IsRedeploy() bool {
+	return v.deploy & redeployFlag != 0
 }
 
 func (v *V) Reset() {
@@ -240,7 +253,7 @@ func (states *StateDB) CreateAccountStateV(id []byte) (*V, error) {
 		return nil, fmt.Errorf("account(%s) aleardy exists", types.EncodeAddress(v.ID()))
 	}
 	v.newV.SqlRecoveryPoint = 1
-	v.create = true
+	v.deploy = deployFlag
 	return v, nil
 }
 
@@ -484,7 +497,7 @@ func (states *StateDB) Commit() error {
 	states.lock.Lock()
 	defer states.lock.Unlock()
 
-	bulk := (*states.store).NewBulk()
+	bulk := states.store.NewBulk()
 	for _, storage := range states.cache.storages {
 		// stage changes
 		if err := storage.stage(bulk); err != nil {
@@ -529,7 +542,7 @@ func (states *StateDB) HasMarker(root []byte) bool {
 	if root == nil {
 		return false
 	}
-	marker := (*states.store).Get(common.Hasher(root))
+	marker := states.store.Get(common.Hasher(root))
 	if marker != nil && bytes.Equal(marker, stateMarker) {
 		// logger.Debug().Str("stateRoot", enc.ToString(root)).Str("marker", hex.EncodeToString(marker)).Msg("IsMarked")
 		return true

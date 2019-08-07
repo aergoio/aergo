@@ -13,21 +13,18 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-
-	crypto "github.com/libp2p/go-libp2p-crypto"
-	peer "github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
-// this file collect sample global constants used in unit test. I'm tired of creating less meaningfule variables in each tests.
+// this file collect sample global constants used in unit test. I'm tired of creating less meaningful variables in each tests.
 
 var dummyBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 var dummyBlockHeight uint64 = 100215
 var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
-var samplePeerID peer.ID
+var samplePeerID types.PeerID
 var sampleMeta p2pcommon.PeerMeta
 var sampleErr error
 
@@ -35,7 +32,7 @@ var logger *log.Logger
 
 func init() {
 	logger = log.NewLogger("test")
-	samplePeerID, _ = peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+	samplePeerID, _ = types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
 	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
 
@@ -52,15 +49,15 @@ const (
 var sampleMsgID p2pcommon.MsgID
 var sampleKey1Priv crypto.PrivKey
 var sampleKey1Pub crypto.PubKey
-var sampleKey1ID peer.ID
+var sampleKey1ID types.PeerID
 
 var sampleKey2Priv crypto.PrivKey
 var sampleKey2Pub crypto.PubKey
-var sampleKey2ID peer.ID
+var sampleKey2ID types.PeerID
 
-var dummyPeerID peer.ID
-var dummyPeerID2 peer.ID
-var dummyPeerID3 peer.ID
+var dummyPeerID types.PeerID
+var dummyPeerID2 types.PeerID
+var dummyPeerID3 types.PeerID
 
 var dummyBestBlock *types.Block
 var dummyMeta p2pcommon.PeerMeta
@@ -73,7 +70,7 @@ func init() {
 	if !sampleKey1Priv.GetPublic().Equals(sampleKey1Pub) {
 		panic("problem in pk generation ")
 	}
-	sampleKey1ID, _ = peer.IDFromPublicKey(sampleKey1Pub)
+	sampleKey1ID, _ = types.IDFromPublicKey(sampleKey1Pub)
 	if sampleKey1ID.Pretty() != sampleKey1IDbase58 {
 		panic("problem in id generation")
 	}
@@ -81,13 +78,13 @@ func init() {
 	bytes, _ = base64.StdEncoding.DecodeString(sampleKey2PrivBase64)
 	sampleKey2Priv, _ = crypto.UnmarshalPrivateKey(bytes)
 	sampleKey2Pub = sampleKey2Priv.GetPublic()
-	sampleKey2ID, _ = peer.IDFromPublicKey(sampleKey2Pub)
+	sampleKey2ID, _ = types.IDFromPublicKey(sampleKey2Pub)
 
 	sampleMsgID = p2pcommon.NewMsgID()
 
 	dummyPeerID = sampleKey1ID
-	dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-	dummyPeerID3, _ = peer.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
+	dummyPeerID2, _ = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	dummyPeerID3, _ = types.IDB58Decode("16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD")
 
 	dummyBestBlock = &types.Block{Header: &types.BlockHeader{}}
 	dummyMeta = p2pcommon.PeerMeta{ID: dummyPeerID}
@@ -142,7 +139,7 @@ func createDummyMo(ctrl *gomock.Controller) *p2pmock.MockMsgOrder {
 	dummyMo = p2pmock.NewMockMsgOrder(ctrl)
 	dummyMo.EXPECT().IsNeedSign().Return(true).AnyTimes()
 	dummyMo.EXPECT().IsRequest().Return(true).AnyTimes()
-	dummyMo.EXPECT().GetProtocolID().Return(subproto.NewTxNotice).AnyTimes()
+	dummyMo.EXPECT().GetProtocolID().Return(p2pcommon.NewTxNotice).AnyTimes()
 	dummyMo.EXPECT().GetMsgID().Return(p2pcommon.NewMsgID()).AnyTimes()
 	return dummyMo
 }

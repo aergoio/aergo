@@ -10,8 +10,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"testing"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -39,7 +38,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 	var samplePeers = make([]p2pcommon.RemotePeer, 20)
 	for i := 0; i < 20; i++ {
 		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		peerid, _ := peer.IDFromPublicKey(pub)
+		peerid, _ := types.IDFromPublicKey(pub)
 		// first 10 are visible, others are hidden
 		meta := p2pcommon.PeerMeta{ID: peerid, Hidden: i >= 10}
 		samplePeer := p2pmock.NewMockRemotePeer(ctrl)
@@ -47,8 +46,8 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 		samplePeer.EXPECT().Meta().Return(meta).AnyTimes()
 		samplePeers[i] = samplePeer
 	}
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
-	var dummyPeerID2, _ = peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID2, _ = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
 	dummySender := &types.PeerAddress{PeerID: []byte(dummyPeerID), Port: 7845}
 	senderPeer := p2pmock.NewMockRemotePeer(ctrl)
@@ -82,7 +81,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 			mockPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{ID:"16..aadecf@1"}).AnyTimes()
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 			dummyMo := &testMo{}
-			mockMF.EXPECT().NewMsgResponseOrder(gomock.Any(), AddressesResponse, &addrRespSizeMatcher{tt.wantSize}).Return(dummyMo)
+			mockMF.EXPECT().NewMsgResponseOrder(gomock.Any(), p2pcommon.AddressesResponse, &addrRespSizeMatcher{tt.wantSize}).Return(dummyMo)
 
 			ph := NewAddressesReqHandler(mockPM, mockPeer, logger, mockActor)
 			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID()}

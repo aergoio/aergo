@@ -9,7 +9,6 @@ import (
 
 	"github.com/aergoio/aergo/fee"
 	"github.com/gogo/protobuf/proto"
-	peer "github.com/libp2p/go-libp2p-peer"
 	"github.com/mr-tron/base58/base58"
 )
 
@@ -23,12 +22,36 @@ const NameUpdate = "v1updateName"
 
 const TxMaxSize = 200 * 1024
 
+type validator func(tx *TxBody) error
+
+var govValidators map[string]validator
+
+func InitGovernance(consensus string, isPublic bool) {
+	sysValidator := ValidateSystemTx
+	if consensus != "dpos" {
+		sysValidator = func(tx *TxBody) error {
+			return ErrTxInvalidType
+		}
+	}
+
+	govValidators = map[string]validator{
+		AergoSystem: sysValidator,
+		AergoName:   validateNameTx,
+		AergoEnterprise: func(tx *TxBody) error {
+			if isPublic {
+				return ErrTxOnlySupportedInPriv
+			}
+			return nil
+		},
+	}
+}
+
 type Transaction interface {
 	GetTx() *Tx
 	GetBody() *TxBody
 	GetHash() []byte
 	CalculateTxHash() []byte
-	Validate([]byte) error
+	Validate([]byte, bool) error
 	ValidateWithSenderState(senderState *State) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
@@ -67,7 +90,7 @@ func (tx *transaction) CalculateTxHash() []byte {
 	return tx.Tx.CalculateTxHash()
 }
 
-func (tx *transaction) Validate(chainidhash []byte) error {
+func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 	if tx.GetTx() == nil || tx.GetTx().GetBody() == nil {
 		return ErrTxFormatInvalid
 	}
@@ -106,6 +129,14 @@ func (tx *transaction) Validate(chainidhash []byte) error {
 	}
 
 	switch tx.GetBody().Type {
+	case TxType_REDEPLOY:
+		if isPublic {
+			return ErrTxInvalidType
+		}
+		if tx.GetBody().GetRecipient() == nil {
+			return ErrTxInvalidRecipient
+		}
+		fallthrough
 	case TxType_NORMAL:
 		if tx.GetBody().GetRecipient() == nil && len(tx.GetBody().GetPayload()) == 0 {
 			//contract deploy
@@ -115,18 +146,23 @@ func (tx *transaction) Validate(chainidhash []byte) error {
 		if len(tx.GetBody().GetPayload()) <= 0 {
 			return ErrTxFormatInvalid
 		}
-		switch string(tx.GetBody().GetRecipient()) {
-		case AergoSystem:
-			return ValidateSystemTx(tx.GetBody())
-		case AergoName:
-			return validateNameTx(tx.GetBody())
-		default:
-			return ErrTxInvalidRecipient
+
+		if err := validate(tx.GetBody()); err != nil {
+			return err
 		}
+
 	default:
 		return ErrTxInvalidType
 	}
 	return nil
+}
+
+func validate(tx *TxBody) error {
+	if val, exist := govValidators[string(tx.GetRecipient())]; exist {
+		return val(tx)
+	}
+
+	return ErrTxInvalidRecipient
 }
 
 func ValidateSystemTx(tx *TxBody) error {
@@ -155,7 +191,7 @@ func ValidateSystemTx(tx *TxBody) error {
 			if err != nil {
 				return ErrTxInvalidPayload
 			}
-			_, err = peer.IDFromBytes(candidate)
+			_, err = IDFromBytes(candidate)
 			if err != nil {
 				return ErrTxInvalidPayload
 			}
@@ -258,7 +294,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 	amount := tx.GetBody().GetAmountBigInt()
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
-	case TxType_NORMAL:
+	case TxType_NORMAL, TxType_REDEPLOY:
 		spending := new(big.Int).Add(amount, tx.GetMaxFee())
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
@@ -275,6 +311,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 				return ErrInsufficientBalance
 			}
 		case AergoName:
+		case AergoEnterprise:
 		default:
 			return ErrTxInvalidRecipient
 		}

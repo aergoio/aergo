@@ -33,7 +33,7 @@ type txExec struct {
 func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 
@@ -220,6 +220,12 @@ func (s *SimpleBlockFactory) ConsensusInfo() *types.ConsensusInfo {
 	return &types.ConsensusInfo{Type: GetName()}
 }
 
+var dummyRaft consensus.DummyRaftAccessor
+
+func (s *SimpleBlockFactory) RaftAccessor() consensus.AergoRaftAccessor {
+	return &dummyRaft
+}
+
 func (s *SimpleBlockFactory) NeedNotify() bool {
 	return true
 }
@@ -228,10 +234,35 @@ func (s *SimpleBlockFactory) HasWAL() bool {
 	return false
 }
 
+func (s *SimpleBlockFactory) IsForkEnable() bool {
+	return true
+}
+
+func (s *SimpleBlockFactory) IsConnectedBlock(block *types.Block) bool {
+	_, err := s.ChainDB.GetBlock(block.BlockHash())
+	if err == nil {
+		return true
+	}
+
+	return false
+}
+
 func (s *SimpleBlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Member, error) {
 	return nil, consensus.ErrNotSupportedMethod
 }
 
-func (s *SimpleBlockFactory) ClusterInfo() ([]*types.MemberAttr, []byte, error) {
-	return nil, nil, consensus.ErrNotSupportedMethod
+func (s *SimpleBlockFactory) ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (s *SimpleBlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
+	return nil, consensus.ErrNotSupportedMethod
+}
+
+func (s *SimpleBlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
+	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
+}
+
+func ValidateGenesis(genesis *types.Genesis) error {
+	return nil
 }

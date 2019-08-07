@@ -6,10 +6,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"os"
 
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 	}
 	prefix := argsWithoutProg[0]
 	priv, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	pid, _ := peer.IDFromPublicKey(pub)
+	pid, _ := types.IDFromPublicKey(pub)
 
 	pkFile := prefix + ".key"
 	pubFile := prefix + ".pub"
@@ -50,7 +50,7 @@ func main() {
 	pubf.Sync()
 
 	idf, err := os.Create(idFile)
-	idBytes := []byte(peer.IDB58Encode(pid))
+	idBytes := []byte(types.IDB58Encode(pid))
 	if err != nil {
 		panic("wrong key <fileprefix>")
 	}

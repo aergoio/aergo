@@ -7,21 +7,63 @@ package p2putil
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/rs/zerolog"
 )
 
-type LogStringersMarshaler struct {
+
+// Deprecated
+func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer p2pcommon.RemotePeer, additional interface{}) {
+	if additional != nil {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
+			Msg("Received a message")
+	} else {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).
+			Msg("Received a message")
+	}
+}
+
+// Deprecated
+func DebugLogReceiveResponseMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, reqID string, peer p2pcommon.RemotePeer, additional interface{}) {
+	if additional != nil {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).Str("other", fmt.Sprint(additional)).
+			Msg("Received a response message")
+	} else {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).
+			Msg("Received a response message")
+	}
+}
+
+func DebugLogReceive(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer p2pcommon.RemotePeer, additional zerolog.LogObjectMarshaler) {
+	if additional != nil {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).Object("body", additional).Msg("Received a message")
+	} else {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str("from_peer", peer.Name()).
+			Msg("Received a message")
+	}
+}
+
+func DebugLogReceiveResponse(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, reqID string, peer p2pcommon.RemotePeer, additional zerolog.LogObjectMarshaler) {
+	if additional != nil {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).Object("body", additional).
+			Msg("Received a response message")
+	} else {
+		logger.Debug().Str(LogProtoID, protocol.String()).Str(LogMsgID, msgID).Str(LogOrgReqID, reqID).Str("from_peer", peer.Name()).
+			Msg("Received a response message")
+	}
+}
+
+type LogStringersMarshaller struct {
 	arr   []fmt.Stringer
 	limit int
 }
 
-func NewLogStringersMarshaler(arr []fmt.Stringer, limit int) *LogStringersMarshaler {
-	return &LogStringersMarshaler{arr: arr, limit: limit}
+func NewLogStringersMarshaller(arr []fmt.Stringer, limit int) *LogStringersMarshaller {
+	return &LogStringersMarshaller{arr: arr, limit: limit}
 }
 
-func (m *LogStringersMarshaler) MarshalZerologArray(a *zerolog.Array) {
+func (m *LogStringersMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.arr)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
@@ -35,16 +77,16 @@ func (m *LogStringersMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
-type LogPeerMetasMarshaler struct {
+type LogPeerMetasMarshaller struct {
 	metas []p2pcommon.PeerMeta
 	limit int
 }
 
-func NewLogPeerMetasMarshaler(metas []p2pcommon.PeerMeta, limit int) *LogPeerMetasMarshaler {
-	return &LogPeerMetasMarshaler{metas: metas, limit: limit}
+func NewLogPeerMetasMarshaller(metas []p2pcommon.PeerMeta, limit int) *LogPeerMetasMarshaller {
+	return &LogPeerMetasMarshaller{metas: metas, limit: limit}
 }
 
-func (m *LogPeerMetasMarshaler) MarshalZerologArray(a *zerolog.Array) {
+func (m *LogPeerMetasMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.metas)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
@@ -58,26 +100,50 @@ func (m *LogPeerMetasMarshaler) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
-// LogB58EncMarshaler is zerolog array marshaler which print bytes array to baase58 encoded string.
-type LogB58EncMarshaler struct {
-	arr   [][]byte
+
+type LogPeersMarshaller struct {
+	metas []p2pcommon.RemotePeer
 	limit int
 }
 
-func NewLogB58EncMarshaler(arr [][]byte, limit int) *LogB58EncMarshaler {
-	return &LogB58EncMarshaler{arr: arr, limit: limit}
+func NewLogPeersMarshaller(metas []p2pcommon.RemotePeer, limit int) *LogPeersMarshaller {
+	return &LogPeersMarshaller{metas: metas, limit: limit}
 }
 
-func (m *LogB58EncMarshaler) MarshalZerologArray(a *zerolog.Array) {
-	size := len(m.arr)
+func (m *LogPeersMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.metas)
 	if size > m.limit {
 		for i := 0; i < m.limit-1; i++ {
-			a.Str(enc.ToString(m.arr[i]))
+			a.Str(m.metas[i].Name())
 		}
 		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
 	} else {
-		for _, element := range m.arr {
-			a.Str(enc.ToString(element))
+		for _, meta := range m.metas {
+			a.Str(meta.Name())
+		}
+	}
+}
+
+
+type LogStringsMarshaller struct {
+	strs []string
+	limit int
+}
+
+func NewLogStringsMarshaller(strs []string, limit int) *LogStringsMarshaller {
+	return &LogStringsMarshaller{strs: strs, limit: limit}
+}
+
+func (m *LogStringsMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.strs)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(m.strs[i])
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, meta := range m.strs {
+			a.Str(meta)
 		}
 	}
 }

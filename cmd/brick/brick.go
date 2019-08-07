@@ -25,7 +25,7 @@ func completerBroker(d prompt.Document) []prompt.Suggest {
 
 	// if there is nothing typed text or it is a first word
 	if cmd == "" || (cmd != "" && chunkNum == 0 && !strings.HasSuffix(d.TextBeforeCursor(), " ")) {
-		// suggest all commands avaialbe
+		// suggest all commands available
 		for _, executor := range exec.AllExecutors() {
 			s = append(s, prompt.Suggest{Text: executor.Command(), Description: executor.Describe()})
 		}

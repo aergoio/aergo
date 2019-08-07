@@ -6,9 +6,9 @@
 package p2p
 
 import (
-	"bufio"
 	"bytes"
 	"context"
+	"io"
 	"reflect"
 	"sync/atomic"
 	"testing"
@@ -38,8 +38,8 @@ func Test_baseWireHandshaker_writeWireHSRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &baseWireHandshaker{}
 			buffer := bytes.NewBuffer(nil)
-			wr := bufio.NewWriter(buffer)
-			err := h.writeWireHSRequest(tt.args, wr)
+			//wr := bufio.NewWriter(buffer)
+			err := h.writeWireHSRequest(tt.args, buffer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("baseWireHandshaker.writeWireHSRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -76,8 +76,7 @@ func Test_baseWireHandshaker_writeWireHSResponse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &baseWireHandshaker{}
 			buffer := bytes.NewBuffer(nil)
-			wr := bufio.NewWriter(buffer)
-			err := h.writeWireHSResponse(tt.args, wr)
+			err := h.writeWireHSResponse(tt.args, buffer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("baseWireHandshaker.writeWireHSRequest() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -108,7 +107,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 	sampleStatus := &types.Status{}
 	logger := log.NewLogger("p2p.test")
 	sampleEmptyHSReq := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, nil}
-	sampleEmptyHSResp := p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrWrongHSReq}
+	sampleEmptyHSResp := p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeWrongHSReq}
 
 	type args struct {
 		r []byte
@@ -136,7 +135,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 		// wrong magic
 		{"TWrongMagic", p2pcommon.HSHeadReq{0x0001, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031}}.Marshal(), p2pcommon.P2PVersion031, 0, false, sampleEmptyHSResp.Marshal(), true},
 		// not supported version (or wrong version)
-		{"TNoVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, 0x030405, 0x000101}}.Marshal(), p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrNoMatchedVersion}.Marshal(), true},
+		{"TNoVersion", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{0x000010, 0x030405, 0x000101}}.Marshal(), p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// protocol handshake failed
 		{"TVersionHSFailed", p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030, 0x000101}}.Marshal(), p2pcommon.P2PVersion031, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), true},
 
@@ -154,12 +153,11 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 
 			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
 			wbuf := bytes.NewBuffer(nil)
-			dummyReader := bufio.NewReader(bytes.NewBuffer(tt.in))
-			dummyWriter := bufio.NewWriter(wbuf)
+			dummyReader := &RWCWrapper{bytes.NewBuffer(tt.in), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			mockVM.EXPECT().FindBestP2PVersion(gomock.Any()).Return(tt.bestVer).MaxTimes(1)
-			mockVM.EXPECT().GetVersionedHandshaker(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
+			mockVM.EXPECT().GetVersionedHandshaker(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
 			if !tt.vhErr {
 				mockVH.EXPECT().DoForInbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
@@ -168,8 +166,8 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 				mockVH.EXPECT().GetMsgRW().Return(nil).MaxTimes(1)
 			}
 
-			h := NewInbountHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*InboundWireHandshaker)
-			got, got1, err := h.handleInboundPeer(mockCtx, dummyReader, dummyWriter)
+			h := NewInboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*InboundWireHandshaker)
+			got, got1, err := h.handleInboundPeer(mockCtx, dummyReader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InboundWireHandshaker.handleInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -195,39 +193,38 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	sampleChainID := &types.ChainID{}
 	sampleStatus := &types.Status{}
 	logger := log.NewLogger("p2p.test")
-	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}}.Marshal()
+	// This bytes is actually hard-coded in source handshake_v2.go.
+	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
 
-	type args struct {
-		r []byte
-	}
 	tests := []struct {
 		name string
 
-		remoteBestVer p2pcommon.P2PVersion
-		ctxCancel     int    // 0 is not , 1 is during write, 2 is during read
-		vhErr         bool   // version handshaker failed
-		receingBuf    []byte // received resp
+		remoteRespVer  p2pcommon.P2PVersion
+		ctxCancel      int    // 0 is not , 1 is during write, 2 is during read
+		versionHSerror bool   // whether version handshaker return failed or not
+		remoteResponse []byte // emulate response from remote peer
 
 		wantErr bool
 	}{
 		// remote listening peer accept my best p2p version
-		{"TCurrentVersion", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), false},
+		{"TCurrentVersion", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), false},
 		// remote listening peer can connect, but old p2p version
-		{"TOldVersion", p2pcommon.P2PVersion030, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion030.Uint32()}.Marshal(), false},
+		{"TOldVersion", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), false},
+		{"TOlderVersion", p2pcommon.P2PVersion030, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion030.Uint32()}.Marshal(), false},
 		// wrong io read
-		{"TWrongResp", p2pcommon.P2PVersion031, 0, false, outBytes[:6], true},
+		{"TWrongResp", p2pcommon.P2PVersion032, 0, false, outBytes[:6], true},
 		// {"TWrongWrite", sampleEmptyHSReq.Marshal()[:7], sampleEmptyHSResp.Marshal(), true },
 		// wrong magic
-		{"TWrongMagic", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrWrongHSReq}.Marshal(), true},
+		{"TWrongMagic", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeWrongHSReq}.Marshal(), true},
 		// not supported version (or wrong version)
-		{"TNoVersion", p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.ErrNoMatchedVersion}.Marshal(), true},
+		{"TNoVersion", p2pcommon.P2PVersionUnknown, 0, false, p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeNoMatchedVersion}.Marshal(), true},
 		// protocol handshake failed
-		{"TVersionHSFailed", p2pcommon.P2PVersion031, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), true},
+		{"TVersionHSFailed", p2pcommon.P2PVersion032, 0, true, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), true},
 
 		// timeout while read, no reply to remote
 		{"TTimeoutRead", p2pcommon.P2PVersion031, 1, false, []byte{}, true},
 		// timeout while writing, sent but remote not receiving fast
-		{"TTimeoutWrite", p2pcommon.P2PVersion031, 2, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), true},
+		{"TTimeoutWrite", p2pcommon.P2PVersion032, 2, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -238,26 +235,25 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 
 			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
 			wbuf := bytes.NewBuffer(nil)
-			dummyReader := bufio.NewReader(bytes.NewBuffer(tt.receingBuf))
-			dummyWriter := bufio.NewWriter(wbuf)
+			dummyRWC := &RWCWrapper{bytes.NewBuffer(tt.remoteResponse), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
 
-			mockVM.EXPECT().GetVersionedHandshaker(tt.remoteBestVer, gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
-			if !tt.vhErr {
-				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
-				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
-			} else {
+			mockVM.EXPECT().GetVersionedHandshaker(tt.remoteRespVer, gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
+			if tt.versionHSerror {
 				mockVH.EXPECT().DoForOutbound(mockCtx).Return(nil, errors.New("version hs failed")).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(nil).MaxTimes(1)
+			} else {
+				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
+				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
 			}
 
-			h := NewOutbountHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
-			got, got1, err := h.handleOutboundPeer(mockCtx, dummyReader, dummyWriter)
+			h := NewOutboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
+			got, got1, err := h.handleOutboundPeer(mockCtx, dummyRWC)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !bytes.Equal(wbuf.Bytes(), outBytes) {
-				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() send resp %v, want %v", wbuf.Bytes(), tt.receingBuf)
+				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() send resp %v, want %v", wbuf.Bytes(), outBytes)
 			}
 			if !tt.wantErr {
 				if got == nil {
@@ -269,6 +265,24 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 			}
 		})
 	}
+}
+
+type RWCWrapper struct {
+	r io.Reader
+	w io.Writer
+	c io.Closer
+}
+
+func (rwc RWCWrapper) Read(p []byte) (n int, err error) {
+	return rwc.r.Read(p)
+}
+
+func (rwc RWCWrapper) Write(p []byte) (n int, err error) {
+	return rwc.w.Write(p)
+}
+
+func (rwc RWCWrapper) Close() error {
+	return rwc.c.Close()
 }
 
 type ContextTestDouble struct {

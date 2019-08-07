@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/gob"
@@ -9,12 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/libp2p/go-libp2p-peer"
-	"net"
-	"net/url"
+	"io"
 )
 
 type EntryType int8
@@ -26,6 +25,18 @@ const (
 	InvalidMemberID = 0
 )
 
+type ConfChangePropose struct {
+	Ctx context.Context
+	Cc  *raftpb.ConfChange
+
+	ReplyC chan *ConfChangeReply
+}
+
+type ConfChangeReply struct {
+	Member *Member
+	Err    error
+}
+
 var (
 	WalEntryType_name = map[EntryType]string{
 		0: "EntryBlock",
@@ -33,10 +44,10 @@ var (
 		2: "EntryConfChange",
 	}
 
-	ErrURLInvalidScheme = errors.New("url has invalid scheme")
-	ErrURLInvalidPort   = errors.New("url must have host:port style")
-	ErrInvalidMemberID  = errors.New("member id of conf change doesn't match")
-	ErrEmptySnapData    = errors.New("failed to decode snapshot data. encoded data is empty")
+	ErrInvalidMemberID        = errors.New("member id of conf change doesn't match")
+	ErrEmptySnapData          = errors.New("failed to decode snapshot data. encoded data is empty")
+	ErrInvalidMemberAttr      = errors.New("invalid member attribute")
+	ErrorMembershipChangeSkip = errors.New("node is not raft leader, so skip membership change request")
 )
 
 type WalEntry struct {
@@ -65,33 +76,38 @@ func (we *WalEntry) ToString() string {
 }
 
 type RaftIdentity struct {
-	ID   uint64
-	Name string
+	ClusterID uint64
+	ID        uint64
+	Name      string
+	PeerID    string // base58 encoded format
 }
 
 func (rid *RaftIdentity) ToString() string {
 	if rid == nil {
 		return "raft identity is nil"
 	}
-	return fmt.Sprintf("raft identity[name:%s, nodeid:%x]", rid.Name, rid.ID)
+	return fmt.Sprintf("raft identity[name:%s, nodeid:%x, peerid:%s]", rid.Name, rid.ID, rid.PeerID)
 }
 
 type ChainWAL interface {
 	ChainDB
 
-	IsWALInited() bool
-	GetBlock(blockHash []byte) (*types.Block, error)
-	ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error)
-	WriteRaftEntry([]*WalEntry, []*types.Block) error
+	ClearWAL()
+	ResetWAL(hardStateInfo *types.HardStateInfo) error
+	WriteRaftEntry([]*WalEntry, []*types.Block, []*raftpb.ConfChange) error
 	GetRaftEntry(idx uint64) (*WalEntry, error)
-	HasWal() (bool, error)
+	HasWal(identity RaftIdentity) (bool, error)
+	GetRaftEntryOfBlock(hash []byte) (*WalEntry, error)
 	GetRaftEntryLastIdx() (uint64, error)
+	GetRaftEntryIndexOfBlock(hash []byte) (uint64, error)
 	GetHardState() (*raftpb.HardState, error)
 	WriteHardState(hardstate *raftpb.HardState) error
 	WriteSnapshot(snap *raftpb.Snapshot) error
 	GetSnapshot() (*raftpb.Snapshot, error)
 	WriteIdentity(id *RaftIdentity) error
 	GetIdentity() (*RaftIdentity, error)
+	WriteConfChangeProgress(id uint64, progress *types.ConfChangeProgress) error
+	GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error)
 }
 
 type SnapshotData struct {
@@ -255,9 +271,9 @@ type Member struct {
 	types.MemberAttr
 }
 
-func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int64) *Member {
+func NewMember(name string, address string, peerID types.PeerID, chainID []byte, when int64) *Member {
 	//check unique
-	m := &Member{MemberAttr: types.MemberAttr{Name: name, Url: url, PeerID: []byte(peerID)}}
+	m := &Member{MemberAttr: types.MemberAttr{Name: name, Address: address, PeerID: []byte(peerID)}}
 
 	//make ID
 	m.CalculateMemberID(chainID, when)
@@ -266,7 +282,7 @@ func NewMember(name string, url string, peerID peer.ID, chainID []byte, when int
 }
 
 func (m *Member) Clone() *Member {
-	newM := Member{MemberAttr: types.MemberAttr{ID: m.ID, Name: m.Name, Url: m.Url}}
+	newM := Member{MemberAttr: types.MemberAttr{ID: m.ID, Name: m.Name, Address: m.Address}}
 
 	copy(newM.PeerID, m.PeerID)
 
@@ -293,92 +309,50 @@ func (m *Member) CalculateMemberID(chainID []byte, curTimestamp int64) {
 }
 
 func (m *Member) IsValid() bool {
-	if m.ID == InvalidMemberID || len(m.PeerID) == 0 || len(m.Name) == 0 || len(m.Url) == 0 {
+	if m.ID == InvalidMemberID || len(m.PeerID) == 0 || len(m.Name) == 0 || len(m.Address) == 0 {
 		return false
 	}
 
-	if _, err := ParseToUrl(m.Url); err != nil {
-		logger.Error().Err(err).Msg("parse url of member")
+	if _, err := types.ParseMultiaddrWithResolve(m.Address); err != nil {
+		logger.Error().Err(err).Msg("parse address of member")
 		return false
 	}
 
 	return true
 }
 
-func (m *Member) GetPeerID() peer.ID {
-	return peer.ID(m.PeerID)
+func (m *Member) GetPeerID() types.PeerID {
+	return types.PeerID(m.PeerID)
 }
 
 func (m *Member) Equal(other *Member) bool {
 	return m.ID == other.ID &&
 		bytes.Equal(m.PeerID, other.PeerID) &&
 		m.Name == other.Name &&
-		m.Url == other.Url &&
+		m.Address == other.Address &&
 		bytes.Equal([]byte(m.PeerID), []byte(other.PeerID))
 }
 
 func (m *Member) ToString() string {
-	return fmt.Sprintf("{Name:%s, ID:%x, Url:%s, PeerID:%s}", m.Name, m.ID, m.Url, p2putil.ShortForm(peer.ID(m.PeerID)))
+	data, err := json.Marshal(&m.MemberAttr)
+	if err != nil {
+		logger.Error().Err(err).Str("name", m.Name).Msg("can't unmarshal member")
+		return ""
+	}
+	return string(data)
 }
 
 func (m *Member) HasDuplicatedAttr(x *Member) bool {
-	if m.Name == x.Name || m.ID == x.ID || m.Url == x.Url || bytes.Equal(m.PeerID, x.PeerID) {
+	if m.Name == x.Name || m.ID == x.ID || m.Address == x.Address || bytes.Equal(m.PeerID, x.PeerID) {
 		return true
 	}
 
 	return false
 }
 
-/*
-func (m *Member) MarshalJSON() ([]byte, error) {
-	nj := NewJsonMember(m)
-	return json.Marshal(nj)
-}
-
-func (m *Member) UnmarshalJSON(data []byte) error {
-	var err error
-	jm := JsonMember{}
-
-	if err := json.Unmarshal(data, &jm); err != nil {
-		return err
-	}
-
-	*m, err = jm.Member()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-type JsonMember struct {
-	ID     MemberID `json:"id"`
-	Name   string   `json:"name"`
-	Url    string   `json:"url"`
-	PeerID string   `json:"peerid"`
-}
-
-func NewJsonMember(m *Member) JsonMember {
-	return JsonMember{ID: m.ID, Name: m.Name, Url: m.Url, PeerID: peer.IDB58Encode(m.PeerID)}
-}
-
-func (jm *JsonMember) Member() (Member, error) {
-	peerID, err := peer.IDB58Decode(jm.PeerID)
-	if err != nil {
-		return Member{}, err
-	}
-
-	return Member{
-		ID:     jm.ID,
-		Name:   jm.Name,
-		Url:    jm.Url,
-		PeerID: peerID,
-	}, nil
-}
-*/
-
 // IsCompatible checks if name, url and peerid of this member are the same with other member
 func (m *Member) IsCompatible(other *Member) bool {
-	return m.Name == other.Name && m.Url == other.Url && bytes.Equal(m.PeerID, other.PeerID)
+	return m.Name == other.Name && m.Address == other.Address && bytes.Equal(m.PeerID, other.PeerID)
 }
 
 type MembersByName []*Member
@@ -393,21 +367,34 @@ func (mbrs MembersByName) Swap(i, j int) {
 	mbrs[i], mbrs[j] = mbrs[j], mbrs[i]
 }
 
-func ParseToUrl(urlstr string) (*url.URL, error) {
-	var urlObj *url.URL
-	var err error
+// DummyRaftAccessor returns error if process request comes, or silently ignore raft message.
+type DummyRaftAccessor struct {
+}
 
-	if urlObj, err = url.Parse(urlstr); err != nil {
-		return nil, err
-	}
+var IllegalArgumentError = errors.New("illegal argument")
 
-	if urlObj.Scheme != "http" && urlObj.Scheme != "https" {
-		return nil, ErrURLInvalidScheme
-	}
+func (DummyRaftAccessor) Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error {
+	return IllegalArgumentError
+}
 
-	if _, _, err := net.SplitHostPort(urlObj.Host); err != nil {
-		return nil, ErrURLInvalidPort
-	}
+func (DummyRaftAccessor) IsIDRemoved(peerID types.PeerID) bool {
+	return false
+}
 
-	return urlObj, nil
+func (DummyRaftAccessor) ReportUnreachable(peerID types.PeerID) {
+}
+
+func (DummyRaftAccessor) ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus) {
+}
+
+func (DummyRaftAccessor) GetMemberByID(id uint64) *Member {
+	return nil
+}
+
+func (DummyRaftAccessor) GetMemberByPeerID(peerID types.PeerID) *Member {
+	return nil
+}
+
+func (DummyRaftAccessor) SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error) {
+	return 0, nil
 }

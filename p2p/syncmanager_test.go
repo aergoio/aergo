@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -137,7 +136,6 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 
 			_, data := test.setup(t, mockActor, mockCA, mockPeer)
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
-			target.syncing = test.syncing
 			if test.put != nil {
 				target.blkCache.Add(*test.put, true)
 			}
@@ -247,7 +245,7 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 			dummyMsgID := p2pcommon.NewMsgID()
 			target := newSyncManager(mockActor, mockPM, logger).(*syncManager)
 
-			msg := p2pcommon.NewSimpleRespMsgVal(subproto.PingResponse, p2pcommon.NewMsgID(), dummyMsgID)
+			msg := p2pcommon.NewSimpleRespMsgVal(p2pcommon.PingResponse, p2pcommon.NewMsgID(), dummyMsgID)
 			resp := &types.GetBlockResponse{Blocks: test.respBlocks}
 			target.HandleGetBlockResponse(mockPeer, msg, resp)
 

@@ -54,7 +54,7 @@ add_custom_target(distclean GO111MODULE=on go clean ..
 	DEPENDS libtool-clean)
 
 add_custom_target(protoc
-	COMMAND protoc -I/usr/local/include -I${PROTO_DIR} --go_out=plugins=grpc:$ENV{GOPATH}/src ${PROTO_DIR}/*.proto
+	COMMAND protoc -I/usr/local/include -I${PROTO_DIR} --go_out=plugins=grpc:${CMAKE_CURRENT_LIST_DIR}/types ${PROTO_DIR}/*.proto
 	COMMAND GO111MODULE=on go build ../types/...)
 
 add_custom_target(protoclean rm -f ../types/*.pb.go)

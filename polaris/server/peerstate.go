@@ -16,7 +16,6 @@ import (
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -84,7 +83,7 @@ func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 	}
 	defer s.Close()
 
-	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s))
+	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	pc := &pingChecker{peerState: hc, rw: rw}
 	pingResp, err := p2putil.InvokeWithTimer(pc, time.NewTimer(timeout))
 	if pingResp.(*types.Ping) == nil {
@@ -97,11 +96,11 @@ func (hc *peerState) checkConnect(timeout time.Duration) (*types.Ping, error) {
 }
 
 // this method MUST be called in same go routine as AergoPeer.RunPeer()
-func (hc *peerState) sendPing(wt p2pcommon.MsgWriter) (p2pcommon.MsgID, error) {
+func (hc *peerState) sendPing(wt p2pcommon.MsgReadWriter) (p2pcommon.MsgID, error) {
 	// find my best block
 	ping := &types.Ping{}
 	msgID := p2pcommon.NewMsgID()
-	pingMsg, err := createV030Message(msgID, EmptyMsgID, subproto.PingRequest, ping)
+	pingMsg, err := createV030Message(msgID, EmptyMsgID, p2pcommon.PingRequest, ping)
 	if err != nil {
 		hc.Logger.Warn().Err(err).Msg("failed to create ping message")
 		return EmptyMsgID, err
@@ -118,12 +117,12 @@ func (hc *peerState) sendPing(wt p2pcommon.MsgWriter) (p2pcommon.MsgID, error) {
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (hc *peerState) receivePingResp(reqID p2pcommon.MsgID, rd p2pcommon.MsgReader) (p2pcommon.Message, *types.Ping, error) {
+func (hc *peerState) receivePingResp(reqID p2pcommon.MsgID, rd p2pcommon.MsgReadWriter) (p2pcommon.Message, *types.Ping, error) {
 	resp, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
 	}
-	if resp.Subprotocol() != subproto.PingResponse || reqID != resp.OriginalID() {
+	if resp.Subprotocol() != p2pcommon.PingResponse || reqID != resp.OriginalID() {
 		return nil, nil, fmt.Errorf("Not expected response %s : req_id=%s", resp.Subprotocol().String(), resp.OriginalID().String())
 	}
 	pingResp := &types.Ping{}

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
@@ -16,19 +17,104 @@ var (
 	ErrNoWalEntry         = errors.New("no entry")
 	ErrEncodeRaftIdentity = errors.New("failed encoding of raft identity")
 	ErrDecodeRaftIdentity = errors.New("failed decoding of raft identity")
+	ErrNoWalEntryForBlock = errors.New("no raft entry for block")
+	ErrNilHardState       = errors.New("hardstateinfo must not be nil")
 )
 
-// implement ChainWAL interface
-func (cdb *ChainDB) IsWALInited() bool {
-	if idx, err := cdb.GetRaftEntryLastIdx(); idx > 0 && err != nil {
-		return true
+func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
+	if hardStateInfo == nil {
+		return ErrNilHardState
 	}
-	return false
+
+	logger.Info().Str("hardstate", hardStateInfo.ToString()).Msg("reset wal with given hardstate")
+
+	cdb.ClearWAL()
+
+	if err := cdb.WriteHardState(&raftpb.HardState{Term: hardStateInfo.Term, Commit: hardStateInfo.Commit}); err != nil {
+		return err
+	}
+
+	// build snapshot
+	var (
+		snapBlock *types.Block
+		err       error
+	)
+	if snapBlock, err = cdb.GetBestBlock(); err != nil {
+		return err
+	}
+
+	snapData := consensus.NewSnapshotData(nil, nil, snapBlock)
+	if snapData == nil {
+		panic("new snap failed")
+	}
+
+	data, err := snapData.Encode()
+	if err != nil {
+		return err
+	}
+
+	tmpSnapshot := raftpb.Snapshot{
+		Metadata: raftpb.SnapshotMetadata{Index: hardStateInfo.Commit, Term: hardStateInfo.Term},
+		Data:     data,
+	}
+
+	if err := cdb.WriteSnapshot(&tmpSnapshot); err != nil {
+		logger.Fatal().Err(err).Msg("failed to save snapshot to wal")
+	}
+
+	// write initial values
+	// last entry index = commit
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	cdb.writeRaftEntryLastIndex(dbTx, hardStateInfo.Commit)
+
+	dbTx.Commit()
+
+	return nil
 }
 
-func (cdb *ChainDB) ReadAll() (state raftpb.HardState, ents []raftpb.Entry, err error) {
-	//TODO
-	return raftpb.HardState{}, nil, nil
+// ClearWal() removes all data used by raft
+func (cdb *ChainDB) ClearWAL() {
+	logger.Info().Msg("clear all data used by raft")
+
+	removeAllRaftEntries := func(lastIdx uint64) {
+		logger.Debug().Uint64("last", lastIdx).Msg("reset raft entries from datafiles")
+
+		bulk := cdb.store.NewBulk()
+		defer bulk.DiscardLast()
+
+		for i := lastIdx; i >= 1; i-- {
+			bulk.Delete(getRaftEntryKey(i))
+		}
+
+		bulk.Delete(raftEntryLastIdxKey)
+
+		bulk.Flush()
+	}
+
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	dbTx.Delete(raftIdentityKey)
+	// remove hardstate
+
+	dbTx.Delete(raftStateKey)
+
+	// remove snapshot
+	dbTx.Delete(raftSnapKey)
+
+	logger.Debug().Msg("reset identify, hardstate, snapshot from datafiles")
+
+	dbTx.Commit()
+
+	// remove raft entries
+	if last, err := cdb.GetRaftEntryLastIdx(); err == nil {
+		// remove 1 ~ last raft entry
+		removeAllRaftEntries(last)
+	}
+
+	logger.Debug().Msg("clear WAL done")
 }
 
 func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
@@ -53,6 +139,10 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 	data := cdb.store.Get(raftStateKey)
 
+	if len(data) == 0 {
+		return nil, ErrWalNoHardState
+	}
+
 	state := &raftpb.HardState{}
 	if err := proto.Unmarshal(data, state); err != nil {
 		logger.Panic().Msg("failed to unmarshal raft state")
@@ -73,7 +163,14 @@ func getRaftEntryKey(idx uint64) []byte {
 	return key.Bytes()
 }
 
-func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block) error {
+func getRaftEntryInvertKey(blockHash []byte) []byte {
+	var key bytes.Buffer
+	key.Write(raftEntryInvertPrefix)
+	key.Write(blockHash)
+	return key.Bytes()
+}
+
+func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block, ccProposes []*raftpb.ConfChange) error {
 	var data []byte
 	var err error
 	var lastIdx uint64
@@ -97,31 +194,57 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 	}
 
 	for i, entry := range ents {
-		logger.Debug().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Msg("add raft log entry")
+		var targetNo uint64
 
 		if entry.Type == consensus.EntryBlock {
-			if err := cdb.addBlock(&dbTx, blocks[i]); err != nil {
+			if err := cdb.addBlock(dbTx, blocks[i]); err != nil {
 				panic("add block entry")
 				return err
 			}
+
+			targetNo = blocks[i].BlockNo()
 		}
 
 		if data, err = entry.ToBytes(); err != nil {
+			panic("failed to convert entry to bytes")
 			return err
 		}
 
 		lastIdx = entry.Index
 		dbTx.Set(getRaftEntryKey(entry.Index), data)
+
+		// invert key to search raft entry corresponding to block hash
+		if entry.Type == consensus.EntryBlock {
+			dbTx.Set(getRaftEntryInvertKey(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
+		}
+
+		if entry.Type == consensus.EntryConfChange {
+			if ccProposes[i] == nil {
+				logger.Fatal().Str("entry", entry.ToString()).Msg("confChangePropose must not be nil")
+			}
+			if err := cdb.writeConfChangeProgress(dbTx, ccProposes[i].ID,
+				&types.ConfChangeProgress{State: types.ConfChangeState_CONF_CHANGE_STATE_SAVED, Err: ""}); err != nil {
+				return err
+			}
+
+			targetNo = ccProposes[i].ID
+		}
+
+		logger.Info().Str("type", consensus.WalEntryType_name[entry.Type]).Uint64("Index", entry.Index).Uint64("term", entry.Term).Uint64("blockNo/requestID", targetNo).Msg("add raft log entry")
 	}
 
 	// set lastindex
-	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
-
-	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
+	cdb.writeRaftEntryLastIndex(dbTx, lastIdx)
 
 	dbTx.Commit()
 
 	return nil
+}
+
+func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64) {
+	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
+
+	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
@@ -146,6 +269,29 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 	return &entry, nil
 }
 
+func (cdb *ChainDB) GetRaftEntryIndexOfBlock(hash []byte) (uint64, error) {
+	data := cdb.store.Get(getRaftEntryInvertKey(hash))
+	if len(data) == 0 {
+		return 0, ErrNoWalEntryForBlock
+	}
+
+	idx := types.BytesToUint64(data)
+	if idx == 0 {
+		return 0, ErrNoWalEntryForBlock
+	}
+
+	return idx, nil
+}
+
+func (cdb *ChainDB) GetRaftEntryOfBlock(hash []byte) (*consensus.WalEntry, error) {
+	idx, err := cdb.GetRaftEntryIndexOfBlock(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return cdb.GetRaftEntry(idx)
+}
+
 func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 	lastBytes := cdb.store.Get(raftEntryLastIdxKey)
 	if lastBytes == nil || len(lastBytes) == 0 {
@@ -155,17 +301,49 @@ func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
 	return types.BlockNoFromBytes(lastBytes), nil
 }
 
-func (cdb *ChainDB) HasWal() (bool, error) {
-	last, err := cdb.GetRaftEntryLastIdx()
-	if err != nil {
+var (
+	ErrWalNotEqualIdentityName   = errors.New("name of identity is not equal")
+	ErrWalNotEqualIdentityPeerID = errors.New("peerid of identity is not equal")
+)
+
+// HasWal checks chaindb has valid status of Raft WAL.
+// 1. compare identity with config
+// 2. check if hardstate exists
+// 3. check if last raft entiry index exists
+// last entry index can be 0 if first sync has failed
+func (cdb *ChainDB) HasWal(identity consensus.RaftIdentity) (bool, error) {
+	var (
+		id   *consensus.RaftIdentity
+		last uint64
+		hs   *raftpb.HardState
+		err  error
+	)
+
+	if id, err = cdb.GetIdentity(); err != nil || id == nil {
 		return false, err
 	}
 
-	if last > 0 {
-		return true, nil
+	if id.Name != identity.Name {
+		logger.Debug().Str("config name", identity.Name).Str("saved id", id.Name).Msg("unmatched name of identity")
+		return false, ErrWalNotEqualIdentityName
 	}
 
-	return false, nil
+	if id.PeerID != identity.PeerID {
+		logger.Debug().Str("config peerid", identity.PeerID).Str("saved id", id.PeerID).Msg("unmatched peerid of identity")
+		return false, ErrWalNotEqualIdentityPeerID
+	}
+
+	if hs, err = cdb.GetHardState(); err != nil {
+		return false, err
+	}
+
+	if last, err = cdb.GetRaftEntryLastIdx(); err != nil {
+		return false, err
+	}
+
+	logger.Info().Str("identity", id.ToString()).Str("hardstate", types.RaftHardStateToString(*hs)).Uint64("lastidx", last).Msg("existing wal status")
+
+	return true, nil
 }
 
 /*
@@ -267,8 +445,8 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 
 	var val bytes.Buffer
 
-	gob := gob.NewEncoder(&val)
-	if err := gob.Encode(identity); err != nil {
+	enc := gob.NewEncoder(&val)
+	if err := enc.Encode(identity); err != nil {
 		return ErrEncodeRaftIdentity
 	}
 
@@ -292,7 +470,71 @@ func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
 		return nil, ErrDecodeRaftIdentity
 	}
 
-	logger.Info().Uint64("id", id.ID).Str("name", id.Name).Msg("save raft identity")
+	logger.Info().Str("id", types.Uint64ToHexaString(id.ID)).Str("name", id.Name).Str("peerid", id.PeerID).Msg("get raft identity")
 
 	return &id, nil
+}
+
+func (cdb *ChainDB) WriteConfChangeProgress(id uint64, progress *types.ConfChangeProgress) error {
+	dbTx := cdb.store.NewTx()
+	defer dbTx.Discard()
+
+	if err := cdb.writeConfChangeProgress(dbTx, id, progress); err != nil {
+		return err
+	}
+
+	dbTx.Commit()
+
+	return nil
+}
+
+func getConfChangeProgressKey(idx uint64) []byte {
+	var key bytes.Buffer
+	key.Write(raftConfChangeProgressPrefix)
+	l := make([]byte, 8)
+	binary.LittleEndian.PutUint64(l[:], idx)
+	key.Write(l)
+	return key.Bytes()
+}
+
+func (cdb *ChainDB) writeConfChangeProgress(dbTx db.Transaction, id uint64, progress *types.ConfChangeProgress) error {
+	if id == 0 {
+		// it's for intial member's for startup
+		return nil
+	}
+
+	ccKey := getConfChangeProgressKey(id)
+
+	// Make CC Data
+	var data []byte
+	var err error
+
+	if data, err = proto.Marshal(progress); err != nil {
+		logger.Error().Msg("failed to marshal confChangeProgress")
+		return err
+	}
+
+	dbTx.Set(ccKey, data)
+
+	return nil
+}
+
+func (cdb *ChainDB) GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error) {
+	ccKey := getConfChangeProgressKey(id)
+
+	data := cdb.store.Get(ccKey)
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var progress types.ConfChangeProgress
+
+	if err := proto.Unmarshal(data, &progress); err != nil {
+		logger.Error().Msg("failed to unmarshal raft state")
+		return nil, ErrInvalidCCProgress
+	}
+
+	logger.Info().Uint64("id", id).Str("status", progress.ToString()).Msg("get conf change status")
+
+	return &progress, nil
 }

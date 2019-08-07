@@ -20,7 +20,7 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/libp2p/go-libp2p-crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 const (
@@ -34,7 +34,7 @@ type txExec struct {
 func newTxExec(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
 	}
 }
 

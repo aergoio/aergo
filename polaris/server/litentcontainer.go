@@ -10,14 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	peer "github.com/libp2p/go-libp2p-peer"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 )
@@ -126,7 +124,7 @@ func (lntc *LiteContainerService) checkAndAddPeerAddresses(peers []*types.PeerAd
 	selfPeerID := p2pkey.NodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
-		rPeerID := peer.ID(rPeerAddr.PeerID)
+		rPeerID := types.PeerID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}

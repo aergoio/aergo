@@ -34,17 +34,21 @@ var (
 	ErrorLoadBestBlock     = errors.New("failed to load latest block from DB")
 	ErrCantDropGenesis     = errors.New("can't drop genesis block")
 	ErrTooBigResetHeight   = errors.New("reset height is too big")
+	ErrWalNoHardState      = errors.New("not exist hard state")
 	ErrInvalidHardState    = errors.New("invalid hard state")
 	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
+	ErrInvalidCCProgress   = errors.New("invalid conf change progress")
 
 	latestKey      = []byte(chainDBName + ".latest")
 	receiptsPrefix = []byte("r")
 
-	raftIdentityKey     = []byte("r_identity")
-	raftStateKey        = []byte("r_state")
-	raftSnapKey         = []byte("r_snap")
-	raftEntryLastIdxKey = []byte("r_last")
-	raftEntryPrefix     = []byte("r_entry.")
+	raftIdentityKey              = []byte("r_identity")
+	raftStateKey                 = []byte("r_state")
+	raftSnapKey                  = []byte("r_snap")
+	raftEntryLastIdxKey          = []byte("r_last")
+	raftEntryPrefix              = []byte("r_entry.")
+	raftEntryInvertPrefix        = []byte("r_inv.")
+	raftConfChangeProgressPrefix = []byte("r_ccstatus.")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -91,6 +95,7 @@ func (cdb *ChainDB) NewTx() db.Transaction {
 
 func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
+		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, chainDBName)
 		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
@@ -305,7 +310,7 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 		block.BlockID()
 	}
 
-	cdb.connectToChain(&tx, block, false)
+	cdb.connectToChain(tx, block, false)
 	tx.Set([]byte(genesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
 		tx.Set([]byte(genesisBalanceKey), totalBalance.Bytes())
@@ -362,7 +367,7 @@ func (cdb *ChainDB) setLatest(newBestBlock *types.Block) (oldLatest types.BlockN
 	return
 }
 
-func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block, skipAdd bool) (oldLatest types.BlockNo) {
+func (cdb *ChainDB) connectToChain(dbtx db.Transaction, block *types.Block, skipAdd bool) (oldLatest types.BlockNo) {
 	blockNo := block.GetHeader().GetBlockNo()
 	blockIdx := types.BlockNoToBytes(blockNo)
 
@@ -373,12 +378,12 @@ func (cdb *ChainDB) connectToChain(dbtx *db.Transaction, block *types.Block, ski
 	}
 
 	// Update best block hash
-	(*dbtx).Set(latestKey, blockIdx)
-	(*dbtx).Set(blockIdx, block.BlockHash())
+	dbtx.Set(latestKey, blockIdx)
+	dbtx.Set(blockIdx, block.BlockHash())
 
 	// Save the last consensus status.
 	if cdb.cc != nil {
-		if err := cdb.cc.Save(*dbtx); err != nil {
+		if err := cdb.cc.Save(dbtx); err != nil {
 			logger.Error().Err(err).Msg("failed to save DPoS status")
 		}
 	}
@@ -488,7 +493,7 @@ func (cdb *ChainDB) deleteTx(dbtx *db.Transaction, tx *types.Tx) {
 }
 
 // store block info to DB
-func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
+func (cdb *ChainDB) addBlock(dbtx db.Transaction, block *types.Block) error {
 	blockNo := block.GetHeader().GetBlockNo()
 
 	// TODO: Is it possible?
@@ -507,7 +512,7 @@ func (cdb *ChainDB) addBlock(dbtx *db.Transaction, block *types.Block) error {
 	}
 
 	//add block
-	(*dbtx).Set(block.BlockHash(), blockBytes)
+	dbtx.Set(block.BlockHash(), blockBytes)
 
 	return nil
 }
@@ -585,6 +590,10 @@ func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 
 func (cdb *ChainDB) GetBlock(blockHash []byte) (*types.Block, error) {
 	return cdb.getBlock(blockHash)
+}
+
+func (cdb *ChainDB) GetHashByNo(blockNo types.BlockNo) ([]byte, error) {
+	return cdb.getHashByNo(blockNo)
 }
 
 func (cdb *ChainDB) getBlock(blockHash []byte) (*types.Block, error) {

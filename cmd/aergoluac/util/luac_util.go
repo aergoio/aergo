@@ -5,6 +5,7 @@ package util
 #cgo LDFLAGS: ${SRCDIR}/../../../libtool/lib/libluajit-5.1.a -lm
 
 #include <stdlib.h>
+#include <lualib.h>
 #include "compile.h"
 */
 import "C"
@@ -19,10 +20,6 @@ import (
 	"os"
 	"runtime"
 	"unsafe"
-)
-
-var (
-	b bytes.Buffer
 )
 
 func NewLState() *C.lua_State {
@@ -41,7 +38,6 @@ func CloseLState(L *C.lua_State) {
 }
 
 func Compile(L *C.lua_State, code string) ([]byte, error) {
-	b.Reset()
 	cstr := C.CString(code)
 	defer C.free(unsafe.Pointer(cstr))
 	if errMsg := C.vm_loadstring(L, cstr); errMsg != nil {
@@ -50,7 +46,7 @@ func Compile(L *C.lua_State, code string) ([]byte, error) {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		return nil, errors.New(C.GoString(errMsg))
 	}
-	return b.Bytes(), nil
+	return dumpToBytes(L), nil
 }
 
 func CompileFromFile(srcFileName, outFileName, abiFileName string) error {
@@ -82,7 +78,7 @@ func DumpFromFile(srcFileName string) error {
 		return errors.New(C.GoString(errMsg))
 	}
 
-	fmt.Println(encoding.EncodeCode(b.Bytes()))
+	fmt.Println(encoding.EncodeCode(dumpToBytes(L)))
 	return nil
 }
 
@@ -119,19 +115,18 @@ func DumpFromStdin() error {
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
 		return errors.New(C.GoString(errMsg))
 	}
-	fmt.Println(encoding.EncodeCode(b.Bytes()))
+	fmt.Println(encoding.EncodeCode(dumpToBytes(L)))
 	return nil
 }
 
-//export addLen
-func addLen(length C.int) {
-	var l [4]byte
-	binary.LittleEndian.PutUint32(l[:], uint32(length))
-	b.Write(l[:])
-}
-
-//export addByteN
-func addByteN(p *C.char, length C.int) {
-	s := C.GoStringN(p, length)
-	b.WriteString(s)
+func dumpToBytes(L *C.lua_State) []byte {
+	var s *C.char
+	var l C.size_t
+	b := make([]byte, 4)
+	s = C.lua_tolstring(L, -2, &l)
+	binary.LittleEndian.PutUint32(b, uint32(l))
+	b = append(b, C.GoBytes(unsafe.Pointer(s), C.int(l))...)
+	s = C.lua_tolstring(L, -1, &l)
+	b = append(b, C.GoBytes(unsafe.Pointer(s), C.int(l))...)
+	return b
 }

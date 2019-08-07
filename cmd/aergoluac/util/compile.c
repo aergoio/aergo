@@ -108,18 +108,13 @@ const char *vm_stringdump(lua_State *L)
 	if (lua_dump(L, writer_buf, &b) != 0) {
 		return lua_tostring(L, -1);
 	}
-	luaL_pushresult(&b);
+	luaL_pushresult(&b);    /* code dump */
 	if (!lua_isstring(L, -1)) {
 		return "empty bytecode";
 	}
-	addLen(lua_strlen(L, -1));
-	addByteN((char *)lua_tostring(L, -1), lua_strlen(L, -1));
-	lua_pop(L, 1);
-
-    GEN_ABI();
-
-	addByteN((char *)lua_tostring(L, -1), lua_strlen(L, -1));
-
+	lua_pushvalue(L, -2);   /* code dump code */
+    GEN_ABI();              /* code dump code abi */
+    lua_remove(L, -2);      /* code dump abi */
 	return NULL;
 }
 

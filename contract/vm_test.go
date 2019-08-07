@@ -42,6 +42,7 @@ func TestReturn(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -87,6 +88,7 @@ func TestContractHello(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -107,6 +109,7 @@ func TestContractSystem(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -128,6 +131,7 @@ func TestGetABI(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -160,6 +164,7 @@ func TestContractQuery(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -200,6 +205,7 @@ func TestRollback(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -256,6 +262,7 @@ func TestVote(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function constructor()
@@ -505,6 +512,7 @@ func TestInfiniteLoop(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function infiniteLoop()
@@ -584,6 +592,7 @@ func TestUpdateSize(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function infiniteLoop()
@@ -617,6 +626,7 @@ func TestSqlVmSimple(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function createAndInsert()
@@ -743,6 +753,7 @@ func TestSqlVmFail(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function init()
@@ -810,6 +821,8 @@ func TestSqlVmDateTime(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
 function init()
     db.exec("create table if not exists dt_test (n datetime, b bool)")
@@ -866,6 +879,7 @@ func TestSqlConstrains(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function init()
@@ -959,6 +973,7 @@ func TestSqlVmCustomer(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function createTable()
@@ -1095,6 +1110,7 @@ func TestSqlVmDataType(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function createDataTypeTable()
@@ -1217,6 +1233,7 @@ func TestSqlVmFunction(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function sql_func()
@@ -1295,6 +1312,7 @@ func TestSqlVmBook(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function createTable()
@@ -1407,6 +1425,7 @@ func TestSqlVmDateformat(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function init()
@@ -1464,6 +1483,7 @@ func TestSqlVmRecursiveData(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function r()
@@ -1513,6 +1533,7 @@ func TestContractCall(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -1596,6 +1617,7 @@ func TestSparseTable(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function is_table_equal(t1,t2,ignore_mt)
@@ -1681,6 +1703,7 @@ func TestKvstore(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -1771,6 +1794,7 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -1910,6 +1934,7 @@ func TestArray(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -2037,6 +2062,7 @@ func TestPcall(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -2160,6 +2186,7 @@ func TestPcall(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -2228,6 +2255,7 @@ func TestPingpongCall(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -2303,6 +2331,11 @@ func TestArrayArg(t *testing.T) {
 	`
 
 	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "a", 0, definition1),
@@ -2362,6 +2395,11 @@ func TestAbi(t *testing.T) {
 	end`
 
 	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "a", 0, noAbi),
@@ -2422,13 +2460,18 @@ func TestMapKey(t *testing.T) {
 	end
 	abi.register(setCount, getCount, delCount)
 `
-	bc, _ := LoadDummyChain()
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "a", 0, definition),
 	)
 
-	err := bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "{}")
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "{}")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2523,8 +2566,13 @@ end
 
 abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "c", 0, src),
 	)
@@ -2588,8 +2636,13 @@ end
 
 abi.register(CreateDate, Extract, Difftime)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "datetime", 0, src),
 	)
@@ -2634,11 +2687,16 @@ end
 
 abi.register(Length)
 `
-	bc, _ := LoadDummyChain()
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
 	_ = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
-	err := bc.ConnectBlock(
+	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "zeroLen", 0, zeroLen),
 	)
 	if err == nil {
@@ -2733,8 +2791,13 @@ state.var{
 }
 abi.register(GetVar1)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "dupVar", 0, dupVar),
 	)
@@ -2791,10 +2854,20 @@ function checkAergo()
 "304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
 "AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
 end
-abi.register(get, checkEther, checkAergo)
+
+function keccak256(s)
+	return crypto.keccak256(s)
+end
+
+abi.register(get, checkEther, checkAergo, keccak256)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "crypto", 0, src),
 	)
@@ -2815,6 +2888,24 @@ abi.register(get, checkEther, checkAergo)
 	if err != nil {
 		t.Error(err)
 	}
+
+	err = bc.Query(
+		"crypto",
+		`{"Name": "keccak256", "Args" : ["0x616263"]}`,
+		"",
+		`"0x4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query(
+		"crypto",
+		`{"Name": "keccak256", "Args" : ["0x616572676F"]}`,
+		"",
+		`"0xe98bb03ab37161f8bbfe131f711dcccf3002a9cd9ec31bbd52edf181f7ab09a0"`)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestPayable(t *testing.T) {
@@ -2832,8 +2923,13 @@ end
 abi.register(load)
 abi.payable(save)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 	)
 
@@ -2883,8 +2979,13 @@ function default()
 end
 abi.register(default)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "default", 0, src),
 	)
@@ -2973,10 +3074,18 @@ function negativeBignum()
 	bg2 = bignum.sqrt(bg1)
 end
 
+function byteBignum()
+	 state.var {
+        value = state.value()
+    }
+	value = bignum.tobyte(bignum.number("177"))
+	return bignum.frombyte(value)
+end
+
 function constructor()
 end
 
-abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum)
+abi.register(test, sendS, testBignum, argBignum, calladdBignum, checkBignum, calcBignum, negativeBignum, byteBignum)
 abi.payable(constructor)
 `
 	callee := `
@@ -2985,8 +3094,14 @@ abi.payable(constructor)
 	end
 	abi.register(add)
 	`
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 1000000000000),
 		NewLuaTxDef("ktlee", "bigNum", 50000000000, bigNum),
 		NewLuaTxDef("ktlee", "add", 0, callee),
@@ -3038,6 +3153,10 @@ abi.payable(constructor)
 		t.Error(err)
 	}
 	err = bc.Query("bigNum", `{"Name":"negativeBignum"}`, "bignum not allowed negative value", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("bigNum", `{"Name":"byteBignum"}`, "", `{"_bignum":"177"}`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3330,8 +3449,13 @@ end
 abi.register(hello, helloQuery, testConst, testFail, testPcall)
 abi.payable(constructor)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 1000000000000),
 		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
 	)
@@ -3400,6 +3524,7 @@ func TestSqlVmPubNet(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function createAndInsert()
@@ -3431,6 +3556,7 @@ func TestReturnUData(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 	function test_die()
@@ -3457,13 +3583,6 @@ func TestReturnUData(t *testing.T) {
 	}
 }
 
-func checkRandomFloatValue(v string) error {
-	n, _ := strconv.ParseFloat(v, 64)
-	if n < 0.0 || n >= 1.0 {
-		return errors.New("out of range")
-	}
-	return nil
-}
 func checkRandomIntValue(v string, min, max int) error {
 	n, _ := strconv.Atoi(v)
 	if n < min || n > max {
@@ -3477,6 +3596,7 @@ func TestRandom(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	random := `
 function random(...)
@@ -3553,8 +3673,9 @@ func TestBigTable(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
-	big := `
+	bigSrc := `
 function constructor()
     db.exec("create table if not exists table1 (cid integer PRIMARY KEY, rgtime datetime)")
     db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
@@ -3572,7 +3693,7 @@ abi.register(inserts)
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
-		NewLuaTxDef("ktlee", "big", 0, big),
+		NewLuaTxDef("ktlee", "big", 0, bigSrc),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3591,6 +3712,8 @@ func TestEvent(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
     function test_ev()
         contract.event("ev1", 1,"local", 2, "form")
@@ -3618,6 +3741,8 @@ func TestView(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
     function test_view()
         contract.event("ev1", 1,"local", 2, "form")
@@ -3676,6 +3801,8 @@ func TestNsec(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
 	function test_nsec()
 		system.print(nsec())
@@ -3699,6 +3826,8 @@ func TestGovernance(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
     function test_gov()
 		contract.stake("10000 aergo")
@@ -3780,6 +3909,8 @@ func TestContractSend(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
 	function constructor()
 	end
@@ -3848,6 +3979,7 @@ func TestMaxMemSize(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	definition := `
 function oom()
@@ -3963,8 +4095,13 @@ end
 abi.register(hello)
 abi.payable(constructor)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 1000000000000),
 		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
 	)
@@ -4023,8 +4160,13 @@ end
 
 abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval, key_nil)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
 		NewLuaTxDef("ktlee", "invalidkey", 0, src),
 	)
@@ -4151,6 +4293,7 @@ func TestPcallRollback(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -4281,6 +4424,7 @@ func TestPcallRollback(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -4361,6 +4505,7 @@ abi.payable(pcall1, default, constructor)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -4394,6 +4539,8 @@ func TestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
+	defer bc.Release()
+
 	definition := `
 	state.var{
 		counts = state.map(),
@@ -4490,8 +4637,13 @@ function getcre()
 end
 abi.register(get, getcre)
 `
-	bc, _ := LoadDummyChain()
-	err := bc.ConnectBlock(
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000),
 		NewLuaTxDef("ktlee", "bk", 0, bk),
 	)
@@ -4503,6 +4655,405 @@ abi.register(get, getcre)
 		t.Error(err)
 	}
 	err = bc.Query("bk", `{"Name":"getcre"}`, "", `"Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2"`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUtf(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+	function string.tohex(str)
+    return (str:gsub('.', function (c)
+        return string.format('%02X', string.byte(c))
+    end))
+	end
+
+	function query()
+		assert (utf8.char(256) == json.decode('"\\u0100"'), "test1")
+		a = utf8.char(256,128)
+		b = utf8.char(256,10000,45)
+		assert(string.len(a) == 4 and utf8.len(a) == 2, "test2")
+
+		for p,c in utf8.codes(a) do
+			if p == 1 then
+				assert(c == 256, "test11")
+			else
+				assert(c == 128, "test12")
+			end
+		end
+		assert(utf8.offset(b,1)==1, "test3")
+		assert(utf8.offset(b,2)==3, "test4")
+		assert(utf8.offset(b,3)==6, "test5")
+
+		assert(utf8.codepoint(b,1)==256, "test6")
+
+		k1, k2, k3 = utf8.codepoint(b,1,3)
+		assert(k1 == 256 and k2 == 10000 and k3 == nil, "test7" .. k1 .. k2)
+		
+		k1, k2, k3 = utf8.codepoint(b,1,6)
+		assert(k1 == 256 and k2 == 10000 and k3 == 45, "test7" .. k1 .. k2 .. k3)
+	end
+
+	function query2()
+		a = bignum.number(1000000000000)
+		b = bignum.number(0)
+		return (bignum.tobyte(a)):tohex(), (bignum.tobyte(b)):tohex()
+	end
+
+	function query3()
+		a = bignum.number(-1)
+		return (bignum.tobyte(a)):tohex()
+	end
+	abi.register(query, query2, query3)
+	`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "utf", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("utf", `{"Name":"query"}`, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("utf", `{"Name":"query2"}`, "", `["E8D4A51000","00"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("utf", `{"Name":"query3"}`, "bignum not allowed negative value", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLuaCryptoVerifyProof(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+	function hextobytes(str)
+		return (str:gsub('..', function (cc)
+			return string.char(tonumber(cc, 16))
+		end))
+	end
+
+	function verifyProofRaw(data)
+		local k = "a6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
+		local v = "2710"
+		local p0 = "f871a0379a71a6fb36a75e085aff02beec9f5934b9648d24e2901da307492219608b3780a006a684f73e33f5c18739fd1339977f6fe328eb5cbe64239244b0cec88744355180808080a023866491ea0336f72e659c2a7daf61285de093b04fa353c48069a807c2ba845f808080808080808080"
+		local p1 = "e5a03eb5be412f275a18f6e4d622aee4ff40b21467c926224771b782d4c095d1444b83822710"
+		local b = crypto.verifyProof(hextobytes(k), hextobytes(v), crypto.keccak256(hextobytes(p0)), hextobytes(p0), hextobytes(p1))
+		return b
+	end
+
+	function verifyProofHex(data)
+		local k = "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"
+		local v = "0x2710"
+		local p0 = "0xf871a0379a71a6fb36a75e085aff02beec9f5934b9648d24e2901da307492219608b3780a006a684f73e33f5c18739fd1339977f6fe328eb5cbe64239244b0cec88744355180808080a023866491ea0336f72e659c2a7daf61285de093b04fa353c48069a807c2ba845f808080808080808080"
+		local p1 = "0xe5a03eb5be412f275a18f6e4d622aee4ff40b21467c926224771b782d4c095d1444b83822710"
+		local b = crypto.verifyProof(k, v, crypto.keccak256(p0), p0, p1)
+		return b
+	end
+
+	abi.register(verifyProofRaw, verifyProofHex)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "eth", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("eth", `{"Name":"verifyProofRaw"}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query("eth", `{"Name":"verifyProofHex"}`, "", `true`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMultiArray(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+	state.var{
+		mcounts = state.map(2),
+		array = state.array(10, 11),
+		tcounts = state.map(3)
+	}
+
+	function inc()
+		a = system.getItem("key1")
+		if (a == nil) then
+			system.setItem("key1", 1)
+			return
+		end
+		system.setItem("key1", a + 1)
+		mcounts[system.getSender()]["key1"] = a + 1
+		array[1][10] = "k"
+		array[10][5] = "l"
+		tcounts[0][0][0] = 2
+	end
+	function query(a)
+		return system.getItem("key1"), mcounts[a]["key1"], tcounts[0][0][0], tcounts[1][2][3], array:length(), array[1]:length()
+	end
+	function del()
+		tcounts[0][0]:delete(0)
+		tcounts[1][2]:delete(3)
+	end
+	function iter(a)
+		local rv = {}
+		for i, x in array:ipairs() do 
+			for j, y in x:ipairs() do 
+				if y ~= nil then
+					rv[i..","..j] =  y
+				end
+			end
+		end
+		return rv
+	end
+
+	function seterror()
+		rv, err = pcall(function () mcounts[1]["k2y1"] = 4 end)
+		assert(rv == false and string.find(err, "string expected, got number"))
+		rv, err = pcall(function () mcounts["middle"] = 4 end)
+		assert(rv == false and string.find(err, "not permitted to set intermediate dimension of map"))
+		rv, err = pcall(function () array[1] = 4 end)
+		assert(rv == false and string.find(err, "not permitted to set intermediate dimension of array"))
+		rv, err = pcall(function () tcounts[0]:delete(0) end)
+		assert(rv == false and string.find(err, "not permitted to set intermediate dimension of map"))
+		rv, err = pcall(function () tcounts[0][1]:delete() end)
+		assert(rv == false and string.find(err, "invalid key type: 'no value', state.map: 'tcounts'"))
+		rv, err = pcall(function () array[0]:append(2) end)
+		assert(rv == false and string.find(err, "the fixed array cannot use 'append' method"))
+		rv, err = pcall(function () state.var {k = state.map(6)} end)
+		assert(rv == false and string.find(err, "dimension over max limit"), err)
+		rv, err = pcall(function () state.var {k = state.array(1,2,3,4,5,6)} end)
+		assert(rv == false and string.find(err, "dimension over max limit"), err)
+	end
+
+	abi.register(inc, query, iter, seterror, del)
+	abi.payable(inc)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "ma", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "inc", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
+		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,2,{},10,11]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "del", "Args":[]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
+		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,{},{},10,11]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", `{"Name":"iter"}`, "", `{"1,10":"k","10,5":"l"}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("ma", `{"Name":"seterror"}`, "", ``)
+	if err != nil {
+		t.Error(err)
+	}
+	definition2 := `
+state.var {
+  -- global map
+  alpha = state.map(2),
+  beta = state.map(2),
+}
+
+function constructor()
+
+  local d = alpha["dict"]
+  d["a"] = "A"
+  alpha["dict"]["b"] = "B"
+
+  assert(alpha["dict"]["a"]=="A" and alpha["dict"]["b"]=="B")
+
+  -- with local variable
+  local d2 = beta["dict"]
+  d2["a"] = "A"
+  d2["value"] = "v0"
+  beta["dict"]["b"] = "B"
+  beta["dict"]["value"] = "v1"
+  assert(beta["dict"]["a"]=="A" and beta["dict"]["b"]=="B" and beta["dict"]["value"]=="v1")
+end
+
+function abc()
+  local d = alpha["dict"]
+  d["c"] = "C"
+  alpha["dict"]["d"] = "D"
+
+  local d = beta["dict"]
+  d["a"] = "A"
+  d["value"] = "v2"
+  beta["dict"]["b"] = "B"
+  beta["dict"]["value"] = "v3"
+  return alpha["dict"]["c"], alpha["dict"]["d"], beta["dict"]["a"], beta["dict"]["b"], beta["dict"]["value"]
+end
+
+function query()
+  return alpha["dict"]["a"], alpha["dict"]["b"], alpha["dict"]["c"], alpha["dict"]["d"], 
+beta["dict"]["a"], beta["dict"]["b"], beta["dict"]["value"] 
+end
+
+abi.register(abc, query)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "ma", 0, definition2),
+	)
+	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
+		"", `["A","B",{},{},"A","B","v1"]`)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "ma", 0, `{"Name": "abc", "Args":[]}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	receipt := bc.getReceipt(tx.hash())
+	if receipt.GetRet() != `["C","D","A","B","v3"]` {
+		t.Errorf("contract Call ret error :%s", receipt.GetRet())
+	}
+	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
+		"", `["A","B","C","D","A","B","v3"]`)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNDeploy(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function constructor()
+  testall()
+end
+
+function testall()
+  deploytest()
+  sendtest()
+end
+
+function deploytest()
+  src = [[
+  function default()
+    contract.send(system.getSender(), system.getAmount())
+  end
+
+  function getargs(...)
+    tb = {...}
+  end
+
+  abi.payable(default)
+  abi.register(getargs)
+  ]]
+
+  addr = contract.deploy(src)
+  id = 'deploy_src'; system.setItem(id, addr)
+  system.print(id, system.getItem(id))
+
+  korean_char_src = [[
+  function 함수()
+    변수 = 1
+    결과 = 변수 + 3
+    system.print('결과', 결과)
+  end
+
+  abi.register(함수)
+  ]]
+
+  
+  korean_char_src222 = [[
+    function default()
+      contract.send(system.getSender(), system.getAmount())
+    end
+  
+    function getargs(...)
+      tb = {...}
+    end
+  
+    function x()
+    end
+
+    abi.payable(default)
+    abi.register(getargs)
+  ]]
+
+  korean_addr =  contract.deploy(korean_char_src)
+  id = 'korean_char_src'; system.setItem(id, korean_addr)
+  system.print(id, system.getItem(id))
+end
+
+function sendtest()
+  addr = system.getItem("deploy_src")
+  system.print('ADDRESS', addr, system.getAmount())
+  
+  id = 's01'; system.setItem(id,{pcall(function() contract.send(addr, system.getAmount()) end)})
+  system.print(id, system.getItem(id))
+end
+
+function default()
+  -- do nothing
+end
+
+abi.payable(constructor, default)
+abi.register(testall)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "n-deploy", 0, definition),
+	)
 	if err != nil {
 		t.Error(err)
 	}

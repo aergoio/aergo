@@ -197,6 +197,41 @@ static int Btonumber(lua_State *L)
 	return 1;
 }
 
+static int Btobyte(lua_State *L)
+{
+    char *bn;
+    size_t size;
+
+	mp_num a = Bget(L, 1);
+	if (mpz_sgn(MPZ(a)) < 0)
+		luaL_error(L, mp_num_is_negative);
+
+	bn = mpz_export(NULL, &size, 1, 1, 1, 0, a->mpptr);
+	if (bn == NULL) {
+	    bn = calloc(sizeof(char),1);
+	    size = 1;
+	}
+
+	lua_pushlstring(L, bn, size);
+	free (bn);
+	return 1;
+}
+
+static int Bfrombyte(lua_State *L)
+{
+    const char *bn;
+    size_t size;
+	mp_num x;
+	x = bn_alloc(BN_Integer);
+
+    bn = luaL_checklstring(L, 1, &size);
+
+    mpz_import(MPZ(x), size, 1, 1, 1, 0, bn);
+
+	Bnew(L, x);
+	return 1;
+}
+
 static int Biszero(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
@@ -456,7 +491,9 @@ static const luaL_Reg R[] =
 	{ "sub",	Bsub	},
 	{ "tonumber",	Btonumber},
 	{ "tostring",	Btostring},
-	{ "isbignum",	Bis},
+	{ "isbignum",	Bis },
+	{ "tobyte", Btobyte },
+	{ "frombyte", Bfrombyte },
 	{ NULL,		NULL	}
 };
 

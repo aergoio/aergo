@@ -6,7 +6,12 @@
 package rpc
 
 import (
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
@@ -14,13 +19,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/contract/enterprise"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
@@ -29,6 +35,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // RPC is actor for providing rpc service
@@ -44,6 +51,7 @@ type RPC struct {
 
 	ca      types.ChainAccessor
 	version string
+	entConf *types.EnterpriseConfig
 }
 
 //var _ component.IComponent = (*RPCComponent)(nil)
@@ -58,6 +66,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	}
 
 	tracer := opentracing.GlobalTracer()
+
 	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
 	}
@@ -65,6 +74,42 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	if cfg.RPC.NetServiceTrace {
 		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
 		opts = append(opts, grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)))
+	}
+
+	var entConf *types.EnterpriseConfig
+	genesis := chainAccessor.GetGenesisInfo()
+	if !genesis.ID.PublicNet {
+		conf, err := chainAccessor.GetEnterpriseConfig("rpcpermissions")
+		if err != nil {
+			logger.Error().Err(err).Msg("could not get allowed client information")
+		} else {
+			entConf = conf
+		}
+	}
+
+	if cfg.RPC.NSEnableTLS {
+		certificate, err := tls.LoadX509KeyPair(cfg.RPC.NSCert, cfg.RPC.NSKey)
+		if err != nil {
+			logger.Error().Err(err).Msg("could not load server key pair")
+		}
+		certPool := x509.NewCertPool()
+		ca, err := ioutil.ReadFile(cfg.RPC.NSCACert)
+		if err != nil {
+			logger.Error().Err(err).Msg("could not read CA cert")
+		}
+		if ok := certPool.AppendCertsFromPEM(ca); !ok {
+			logger.Error().Bool("AppendCertsFromPEM", ok).Msg("failed to append server cert")
+			err = fmt.Errorf("failed to append server cert")
+		}
+		if err == nil {
+			creds := credentials.NewTLS(&tls.Config{
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				Certificates: []tls.Certificate{certificate},
+				ClientCAs:    certPool,
+			})
+			opts = append(opts, grpc.Creds(creds))
+			logger.Info().Str("cert", cfg.RPC.NSCert).Str("key", cfg.RPC.NSKey).Msg("grpc with TLS")
+		}
 	}
 
 	grpcServer := grpc.NewServer(opts...)
@@ -86,7 +131,9 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 		version:       version,
 	}
 	rpcsvc.BaseComponent = component.NewBaseComponent(message.RPCSvc, rpcsvc, logger)
+
 	actualServer.actorHelper = rpcsvc
+	actualServer.setClientAuth(entConf)
 
 	rpcsvc.httpServer = &http.Server{
 		Handler:        rpcsvc.grpcWebHandlerFunc(grpcWebServer, http.DefaultServeMux),
@@ -124,6 +171,7 @@ func (ns *RPC) BeforeStop() {
 
 func (ns *RPC) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
+		"config":  ns.conf.RPC,
 		"version": ns.version,
 	}
 }
@@ -137,6 +185,64 @@ func (ns *RPC) Receive(context actor.Context) {
 		server.BroadcastToListBlockMetadataStream(meta)
 	case []*types.Event:
 		server := ns.actualServer
+		for _, e := range msg {
+			if bytes.Equal(e.GetContractAddress(), types.AddressPadding([]byte(types.AergoEnterprise))) {
+				eventName := strings.Split(e.GetEventName(), " ")
+				conf := strings.ToUpper(eventName[1])
+				switch eventName[0] {
+				case "Enable":
+					if conf == enterprise.RPCPermissions {
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						server.setClientAuthOn(value)
+					} else if conf == enterprise.AccountWhite {
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						msg := &message.MemPoolEnableWhitelist{On: value}
+						ns.TellTo(message.MemPoolSvc, msg)
+					} else if conf == enterprise.P2PBlack || conf == enterprise.P2PWhite {
+						value := false
+						if e.JsonArgs == "true" {
+							value = true
+						}
+						msg := message.P2PWhiteListConfEnableEvent{Name: conf, On: value}
+						ns.TellTo(message.P2PSvc, msg)
+					}
+				case "Set":
+					if conf == enterprise.RPCPermissions {
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						server.setClientAuthMap(values)
+					} else if conf == enterprise.AccountWhite {
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						msg := &message.MemPoolSetWhitelist{
+							Accounts: values,
+						}
+						ns.TellTo(message.MemPoolSvc, msg)
+					} else if conf == enterprise.P2PBlack || conf == enterprise.P2PWhite {
+						values := make([]string, 1024)
+						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
+							return
+						}
+						msg := &message.P2PWhiteListConfSetEvent{
+							Values: values,
+						}
+						ns.TellTo(message.P2PSvc, msg)
+					}
+				default:
+					logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
+				}
+			}
+		}
 		server.BroadcastToEventStream(msg)
 	case *message.GetServerInfo:
 		context.Respond(ns.CollectServerInfo(msg.Categories))
@@ -194,18 +300,20 @@ func (ns *RPC) serve() {
 
 	// Setup TCP multiplexer
 	tcpm := cmux.New(l)
-	grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-	httpL := tcpm.Match(cmux.HTTP1Fast())
+
+	//grpcL := tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+	matchers := []cmux.Matcher{cmux.HTTP2()}
+	if ns.conf.RPC.NSEnableTLS {
+		matchers = append(matchers, cmux.TLS())
+	} else {
+		//http1 only work without TLS
+		httpL := tcpm.Match(cmux.HTTP1Fast())
+		go ns.serveHTTP(httpL, ns.httpServer)
+	}
+	grpcL := tcpm.Match(matchers...)
+	go ns.serveGRPC(grpcL, ns.grpcServer)
 
 	ns.Info().Msg(fmt.Sprintf("Starting RPC server listening on %s, with TLS: %v", addr, ns.conf.RPC.NSEnableTLS))
-
-	if ns.conf.RPC.NSEnableTLS {
-		ns.Warn().Msg("TLS is enabled in configuration, but currently not supported")
-	}
-
-	// Server both servers
-	go ns.serveGRPC(grpcL, ns.grpcServer)
-	go ns.serveHTTP(httpL, ns.httpServer)
 
 	// Serve TCP multiplexer
 	if err := tcpm.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {

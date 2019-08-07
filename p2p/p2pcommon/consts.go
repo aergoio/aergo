@@ -7,7 +7,7 @@ package p2pcommon
 
 import (
 	"fmt"
-	protocol "github.com/libp2p/go-libp2p-protocol"
+	core "github.com/libp2p/go-libp2p-core"
 	"time"
 )
 
@@ -17,6 +17,8 @@ const (
 	MAGICMain uint32 = 0x47416841
 	MAGICTest uint32 = 0x2e415429
 
+	MAGICRaftSnap uint32 = 0x8fae0fd4
+
 	SigLength = 16
 
 	MaxPayloadLength = 1 << 23 // 8MB
@@ -25,7 +27,7 @@ const (
 	MaxBlockResponseCount       = 2000
 )
 
-// P2PVersion is verion of p2p wire protocol. This version affects p2p handshake, data format transferred, etc
+// P2PVersion is version of p2p wire protocol. This version affects p2p handshake, data format transferred, etc
 type P2PVersion uint32
 
 func (v P2PVersion) Uint32() uint32 {
@@ -33,22 +35,25 @@ func (v P2PVersion) Uint32() uint32 {
 }
 
 func (v P2PVersion) String() string {
-	return fmt.Sprintf("%d.%d.%d", v&0x7fff0000, v&0x0000ff00, v&0x000000ff)
+	return fmt.Sprintf("%d.%d.%d", (v&0x7fff0000)>>16, (v&0x0000ff00)>>8, v&0x000000ff)
 }
 
 const (
 	P2PVersionUnknown P2PVersion = 0x00000000
 	P2PVersion030     P2PVersion = 0x00000300
-	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multiversion
+	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
+	P2PVersion032     P2PVersion = 0x00000302 // pseudo version for supporting multi version
 )
 
 // context of multiaddr, as higher type of p2p message
 const (
-	LegacyP2PSubAddr protocol.ID = "/aergop2p/0.3"
-	P2PSubAddr       protocol.ID = "/aergop2p"
+	LegacyP2PSubAddr core.ProtocolID = "/aergop2p/0.3"
+	P2PSubAddr       core.ProtocolID = "/aergop2p"
+	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
+
 )
 
-// constatns for hanshake. for cacluating byte offset of wire handshake
+// constants for handshake. for calculating byte offset of wire handshake
 const (
 	V030HSHeaderLength = 8
 	HSMagicLength      = 4
@@ -60,11 +65,14 @@ const HSMaxVersionCnt = 16
 const HSError uint32 = 0
 
 // Codes in wire handshake
+type HSRespCode = uint32
 const (
 	_ uint32 = iota
-	ErrWrongHSReq
-	ErrNoMatchedVersion  //
-
+	HSCodeWrongHSReq
+	HSCodeNoMatchedVersion  //
+	HSCodeAuthFail
+	HSCodeNoPermission
+	HSCodeInvalidState
 )
 
 // constants about private key

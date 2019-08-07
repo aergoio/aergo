@@ -166,7 +166,7 @@ func TestMutexPipe_Longterm(t *testing.T) {
 			c := newMutexPipe(tt.cap, listener)
 			c.Open()
 
-			go consumeForLongterm(c, tt.testTime+time.Minute, doneC, finish)
+			go consumeForLongTerm(c, tt.testTime+time.Minute, doneC, finish)
 			expire := time.Now().Add(tt.testTime)
 
 			i := 0
@@ -226,7 +226,7 @@ func TestMutexPipe_MultiLoads(t *testing.T) {
 			c := newDefaultChannelPipe(tt.cap, listener)
 			c.Open()
 
-			go consumeForLongterm(c, tt.testTime+time.Minute, doneC, finish)
+			go consumeForLongTerm(c, tt.testTime+time.Minute, doneC, finish)
 			wg := sync.WaitGroup{}
 			expire := time.Now().Add(tt.testTime)
 			wg.Add(threadsize)

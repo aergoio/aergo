@@ -23,9 +23,9 @@ func NewWalDB(chainWal consensus.ChainWAL) *WalDB {
 
 func (wal *WalDB) SaveEntry(state raftpb.HardState, entries []raftpb.Entry) error {
 	if len(entries) != 0 {
-		walEnts, blocks := wal.convertFromRaft(entries)
+		walEnts, blocks, confChanges := wal.convertFromRaft(entries)
 
-		if err := wal.WriteRaftEntry(walEnts, blocks); err != nil {
+		if err := wal.WriteRaftEntry(walEnts, blocks, confChanges); err != nil {
 			return err
 		}
 	}
@@ -41,10 +41,10 @@ func (wal *WalDB) SaveEntry(state raftpb.HardState, entries []raftpb.Entry) erro
 	return nil
 }
 
-func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry, []*types.Block) {
+func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry, []*types.Block, []*raftpb.ConfChange) {
 	lenEnts := len(entries)
 	if lenEnts == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	getWalEntryType := func(entry *raftpb.Entry) consensus.EntryType {
@@ -66,6 +66,7 @@ func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry
 		if entry.Type == raftpb.EntryNormal && entry.Data != nil {
 			block, err := unmarshalEntryData(entry.Data)
 			if err != nil {
+				logger.Error().Str("entry", types.RaftEntryToString(entry)).Msg("failed to unmarshal entry")
 				return nil, nil, ErrInvalidEntry
 			}
 
@@ -75,20 +76,35 @@ func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry
 		}
 	}
 
+	getConfChange := func(entry *raftpb.Entry) (*raftpb.ConfChange, error) {
+		if entry.Type == raftpb.EntryConfChange {
+			cc, _, err := unmarshalConfChangeEntry(entry)
+			if err != nil {
+				logger.Error().Str("entry", types.RaftEntryToString(entry)).Msg("failed to unmarshal entry")
+				return nil, ErrInvalidEntry
+			}
+			return cc, nil
+		}
+
+		return nil, nil
+	}
+
 	blocks := make([]*types.Block, lenEnts)
 	walents := make([]*consensus.WalEntry, lenEnts)
+	confChanges := make([]*raftpb.ConfChange, lenEnts)
 
 	var (
-		data  []byte
-		block *types.Block
-		err   error
+		data []byte
+		err  error
 	)
 	for i, entry := range entries {
-		if block, data, err = getWalData(&entry); err != nil {
+		if blocks[i], data, err = getWalData(&entry); err != nil {
 			panic("entry unmarshalEntryData error")
 		}
 
-		blocks[i] = block
+		if confChanges[i], err = getConfChange(&entry); err != nil {
+			panic("entry unmarshalEntryConfChange error")
+		}
 
 		walents[i] = &consensus.WalEntry{
 			Type:  getWalEntryType(&entry),
@@ -98,7 +114,7 @@ func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry
 		}
 	}
 
-	return walents, blocks
+	return walents, blocks, confChanges
 }
 
 var ErrInvalidWalEntry = errors.New("invalid wal entry")
@@ -177,8 +193,11 @@ func (wal *WalDB) ReadAll(snapshot *raftpb.Snapshot) (id *consensus.RaftIdentity
 
 	logger.Info().Uint64("snapidx", snapIdx).Uint64("snapterm", snapTerm).Uint64("commit", commitIdx).Uint64("last", lastIdx).Msg("read all entries of wal")
 
-	for i := snapIdx + 1; i <= lastIdx; i++ {
+	start := snapIdx + 1
+
+	for i := start; i <= lastIdx; i++ {
 		walEntry, err := wal.GetRaftEntry(i)
+		// if snapshot is nil, initial confchange entry isn't saved to db
 		if err != nil {
 			logger.Error().Err(err).Uint64("idx", i).Msg("failed to get raft entry")
 			return id, state, nil, err

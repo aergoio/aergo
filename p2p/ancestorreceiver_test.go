@@ -9,7 +9,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -114,7 +113,7 @@ func TestAncestorReceiver_ReceiveResp(t *testing.T) {
 			br := NewAncestorReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := p2pcommon.NewMessageValue(subproto.GetAncestorResponse,  sampleMsgID, p2pcommon.EmptyID, time.Now().UnixNano(), nil)
+			msg := p2pcommon.NewMessageValue(p2pcommon.GetAncestorResponse,  sampleMsgID, p2pcommon.EmptyID, time.Now().UnixNano(), nil)
 			body := &types.GetAncestorResponse{AncestorHash: test.blkRsp, AncestorNo: test.blkNo, Status: test.rspStatus}
 			if test.blkInterval > 0 {
 				time.Sleep(test.blkInterval)

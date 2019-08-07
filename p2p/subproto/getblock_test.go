@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -25,7 +24,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	bigHash := make([]byte, 2*1024*1024)
 	//validSmallBlockRsp := &message.GetBlockRsp{Block:&types.Block{Hash:make([]byte,40)},Err:nil}
@@ -71,11 +70,19 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			}).MinTimes(1)
 
 			h := NewBlockReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &testMessage{subProtocol:GetBlocksRequest,id: p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{subProtocol: p2pcommon.GetBlocksRequest,id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
-			h.Handle(dummyMsg, msgBody)
+			//h.Handle(dummyMsg, msgBody)
+			h.handleBlkReq(dummyMsg, msgBody)
 
-			assert.Equal(t, test.succResult, mockMF.lastStatus == types.ResultStatus_OK)
+			// wait to work finished
+			<-h.w
+
+			mockMF.mutex.Lock()
+			lastStatus := mockMF.lastStatus
+			mockMF.mutex.Unlock()
+
+			assert.Equal(t, test.succResult, lastStatus== types.ResultStatus_OK)
 		})
 	}
 }
@@ -85,7 +92,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test.subproto")
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
 	var sampleBlksB58 = []string{
 		"v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6",
@@ -147,7 +154,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 			mockSM.EXPECT().HandleGetBlockResponse(mockPeer, gomock.Any(), gomock.AssignableToTypeOf(&types.GetBlockResponse{})).Times(test.wantCallSM)
 
 			mockPeer.EXPECT().GetReceiver(gomock.AssignableToTypeOf(p2pcommon.MsgID{})).Return(test.receiver)
-			msg := &testMessage{subProtocol: GetBlocksResponse, id: p2pcommon.NewMsgID()}
+			msg := &testMessage{subProtocol: p2pcommon.GetBlocksResponse, id: p2pcommon.NewMsgID()}
 			body := &types.GetBlockResponse{Blocks: make([]*types.Block, 2)}
 			h := NewBlockRespHandler(mockPM, mockPeer, logger, mockActor, mockSM)
 			h.Handle(msg, body)

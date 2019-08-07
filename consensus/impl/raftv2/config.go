@@ -3,32 +3,32 @@ package raftv2
 import (
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
+	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/types"
 	"strings"
 	"time"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 var (
+	ErrEmptyBPs              = errors.New("BP list is empty")
 	ErrNotIncludedRaftMember = errors.New("this node isn't included in initial raft members")
-	ErrRaftEmptyTLSFile      = errors.New("cert or key file name is empty")
-	ErrNotHttpsURL           = errors.New("url scheme is not https")
 	ErrDupBP                 = errors.New("raft bp description is duplicated")
 	ErrInvalidRaftPeerID     = errors.New("peerID of current raft bp is not equals to p2p configure")
 )
 
 const (
-	DefaultTickMS = time.Millisecond * 30
+	DefaultTickMS = time.Millisecond * 50
 )
 
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
-	useTls := true
 	var err error
+
+	genesis := chain.Genesis
 
 	raftConfig := cfg.Consensus.Raft
 	if raftConfig == nil {
@@ -36,8 +36,8 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	}
 
 	//set default
-	if raftConfig.Tick != 0 {
-		RaftTick = time.Duration(raftConfig.Tick * 1000000)
+	if raftConfig.HeartbeatTick != 0 {
+		RaftTick = time.Duration(raftConfig.HeartbeatTick * 1000000)
 	}
 
 	if raftConfig.SnapFrequency != 0 {
@@ -45,35 +45,32 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 		ConfSnapshotCatchUpEntriesN = raftConfig.SnapFrequency
 	}
 
-	chainID, err := chain.Genesis.ID.Bytes()
+	chainID, err := genesis.ID.Bytes()
 	if err != nil {
 		return err
 	}
 
-	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, chain.Genesis.Timestamp)
+	bf.bpc = NewCluster(chainID, bf, raftConfig.Name, p2pkey.NodeID(), genesis.Timestamp, func(event *message.RaftClusterEvent) { bf.Tell(message.P2PSvc, event) })
 
-	if useTls, err = validateTLS(raftConfig); err != nil {
-		logger.Error().Err(err).
-			Str("key", raftConfig.KeyFile).
-			Str("cert", raftConfig.CertFile).
-			Msg("failed to validate tls config for raft")
-		return err
-	}
+	if raftConfig.NewCluster {
+		var mbrAttrs []*types.MemberAttr
+		var ebps []types.EnterpriseBP
 
-	if raftConfig.ListenUrl != "" {
-		if err := isValidURL(raftConfig.ListenUrl, useTls); err != nil {
-			logger.Error().Err(err).Msg("failed to validate listen url for raft")
+		if !raftConfig.UseBackup {
+			ebps = chain.Genesis.EnterpriseBPs
+		} else {
+			ebps = getRecoverBp(raftConfig)
+		}
+
+		if mbrAttrs, err = parseBpsToMembers(ebps); err != nil {
+			logger.Error().Err(err).Bool("usebackup", raftConfig.UseBackup).Msg("failed to parse initial bp list")
 			return err
 		}
-	}
 
-	if err = bf.bpc.AddInitialMembers(raftConfig, useTls); err != nil {
-		logger.Error().Err(err).Msg("failed to validate bpurls, bpid config for raft")
-		return err
-	}
-
-	if bf.bpc.Members().len() == 0 {
-		logger.Fatal().Str("cluster", bf.bpc.toString()).Msg("can't start raft server because there are no members in cluster")
+		if err = bf.bpc.AddInitialMembers(mbrAttrs); err != nil {
+			logger.Error().Err(err).Msg("failed to add initial members")
+			return err
+		}
 	}
 
 	RaftSkipEmptyBlock = raftConfig.SkipEmpty
@@ -83,74 +80,46 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	return nil
 }
 
-func validateTLS(raftCfg *config.RaftConfig) (bool, error) {
-	if len(raftCfg.CertFile) == 0 && len(raftCfg.KeyFile) == 0 {
-		return false, nil
+// getRecoverBp returns Enterprise BP to use initial bp of new cluster for recovery from backup
+func getRecoverBp(raftConfig *config.RaftConfig) []types.EnterpriseBP {
+	if raftConfig.RecoverBP == nil {
+		logger.Fatal().Msg("need RecoverBP in config to create a new cluster")
 	}
 
-	//두 파일이 모두 설정되어 있는지 확인
-	//실제 file에 존재하는지 확인
-	if len(raftCfg.CertFile) == 0 || len(raftCfg.KeyFile) == 0 {
-		logger.Error().Str("raftcertfile", raftCfg.CertFile).Str("raftkeyfile", raftCfg.KeyFile).
-			Msg(ErrRaftEmptyTLSFile.Error())
-		return false, ErrRaftEmptyTLSFile
-	}
-
-	if len(raftCfg.CertFile) != 0 {
-		if _, err := os.Stat(raftCfg.CertFile); err != nil {
-			logger.Error().Err(err).Msg("not exist certificate file for raft")
-			return false, err
-		}
-	}
-
-	if len(raftCfg.KeyFile) != 0 {
-		if _, err := os.Stat(raftCfg.KeyFile); err != nil {
-			logger.Error().Err(err).Msg("not exist Key file for raft")
-			return false, err
-		}
-	}
-
-	return true, nil
+	cfgBP := raftConfig.RecoverBP
+	return []types.EnterpriseBP{{Name: cfgBP.Name, Address: cfgBP.Address, PeerID: cfgBP.PeerID}}
 }
 
-func isValidURL(urlstr string, useTls bool) error {
-	var urlobj *url.URL
-	var err error
-
-	if urlobj, err = consensus.ParseToUrl(urlstr); err != nil {
-		logger.Error().Str("url", urlstr).Err(err).Msg("raft bp urlstr is not vaild form")
-		return err
+func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
+	bpLen := len(bps)
+	if bpLen == 0 {
+		return nil, ErrEmptyBPs
 	}
 
-	if useTls && urlobj.Scheme != "https" {
-		logger.Error().Str("urlstr", urlstr).Msg("raft bp urlstr shoud use https protocol")
-		return ErrNotHttpsURL
-	}
-
-	return nil
-}
-
-func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) error {
-	logger.Debug().Msg("add cluster members from config file")
-	lenBPs := len(raftCfg.BPs)
-	if lenBPs == 0 {
-		return fmt.Errorf("config of raft bp is empty")
-	}
-
-	// validate each bp
-	for _, raftBP := range raftCfg.BPs {
-		trimUrl := strings.TrimSpace(raftBP.Url)
-
-		if err := isValidURL(trimUrl, useTls); err != nil {
-			return err
+	mbrs := make([]*types.MemberAttr, bpLen)
+	for i, bp := range bps {
+		trimmedAddr := strings.TrimSpace(bp.Address)
+		// TODO when p2p is applied, have to validate peer address
+		if _, err := types.ParseMultiaddrWithResolve(trimmedAddr); err != nil {
+			return nil, err
 		}
 
-		peerID, err := peer.IDB58Decode(raftBP.P2pID)
+		peerID, err := types.IDB58Decode(bp.PeerID)
 		if err != nil {
-			return fmt.Errorf("invalid raft peerID %s", raftBP.P2pID)
+			return nil, fmt.Errorf("invalid raft peerID BP[%d]:%s", i, bp.PeerID)
 		}
 
-		m := consensus.NewMember(raftBP.Name, trimUrl, peerID, cl.chainID, cl.chainTimestamp)
+		mbrs[i] = &types.MemberAttr{Name: bp.Name, Address: trimmedAddr, PeerID: []byte(peerID)}
+	}
+
+	return mbrs, nil
+}
+
+func (cl *Cluster) AddInitialMembers(mbrs []*types.MemberAttr) error {
+	logger.Debug().Msg("add cluster members from config file")
+
+	for _, mbrAttr := range mbrs {
+		m := consensus.NewMember(mbrAttr.Name, mbrAttr.Address, types.PeerID(mbrAttr.PeerID), cl.chainID, cl.chainTimestamp)
 
 		if err := cl.isValidMember(m); err != nil {
 			return err
@@ -158,6 +127,14 @@ func (cl *Cluster) AddInitialMembers(raftCfg *config.RaftConfig, useTls bool) er
 		if err := cl.addMember(m, false); err != nil {
 			return err
 		}
+	}
+
+	if cl.Members().len() == 0 {
+		logger.Fatal().Str("cluster", cl.toString()).Msg("can't start raft server because there are no members in cluster")
+	}
+
+	if cl.Members().getMemberByName(cl.NodeName()) == nil {
+		logger.Fatal().Str("cluster", cl.toString()).Msg("node name of config is not included in genesis block")
 	}
 
 	return nil

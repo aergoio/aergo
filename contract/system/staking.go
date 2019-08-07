@@ -7,11 +7,14 @@ package system
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
+
+var consensusType string
 
 var stakingKey = []byte("staking")
 var stakingTotalKey = []byte("stakingtotal")
@@ -19,8 +22,16 @@ var stakingTotalKey = []byte("stakingtotal")
 const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
 
+func InitGovernance(consensus string) {
+	consensusType = consensus
+}
+
 func staking(txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
+	if consensusType != "dpos" {
+		return nil, fmt.Errorf("unsupported staking for the consensus: %s", consensusType)
+	}
+
 	staked := context.Staked
 	beforeStaked := staked.GetAmountBigInt()
 	amount := txBody.GetAmountBigInt()
@@ -106,15 +117,15 @@ func GetStaking(scs *state.ContractState, address []byte) (*types.Staking, error
 	return nil, errors.New("invalid argument: address should not be nil")
 }
 
-func GetTotal(ar AccountStateReader) (*big.Int, error) {
+func GetStakingTotal(ar AccountStateReader) (*big.Int, error) {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	return GetStakingTotal(scs)
+	return getStakingTotal(scs)
 }
 
-func GetStakingTotal(scs *state.ContractState) (*big.Int, error) {
+func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
 	data, err := scs.GetData(stakingTotalKey)
 	if err != nil {
 		return nil, err

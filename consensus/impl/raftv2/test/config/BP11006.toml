@@ -1,0 +1,47 @@
+# aergo TOML Configration File (https://github.com/toml-lang/toml)
+# base configurations
+datadir = "_data_"
+enableprofile = true
+profileport = 10106
+#loglevel = "info"
+#loglevel = "debug,CHAINSVC=debug,MEMPOOLSVC=error"
+enablerest = true
+[rest]
+restport = 10206
+
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 10006
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+
+[p2p]
+netprotocoladdr = "127.0.0.1"
+netprotocolport = 11006
+nptls = false
+npcert = ""
+npkey = "11006.key"
+npaddpeers = [
+"/ip4/127.0.0.1/tcp/11001/p2p/16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn","/ip4/127.0.0.1/tcp/11002/p2p/16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6","/ip4/127.0.0.1/tcp/11003/p2p/16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ","/ip4/127.0.0.1/tcp/11004/p2p/16Uiu2HAmQti7HLHC9rXqkeABtauv2YsCPG3Uo1WLqbXmbuxpbjmF","/ip4/127.0.0.1/tcp/11005/p2p/16Uiu2HAmRm9iKQdfLpeTZUW1YA2TDWabLskzNpizSiFd9nLo6mPy","/ip4/127.0.0.1/tcp/11007/p2p/16Uiu2HAmQa8PzHLWENzdaK2guzKxaStwPPaa5jqug5SaovRU4KLS"
+]
+
+[blockchain]
+# blockchain configurations
+blockchainplaceholder = false
+maxblocksize = 1000000
+usefastsyncer= true
+[mempool]
+showmetrics = true
+
+[consensus]
+enablebp = true
+blockinterval = 1
+
+[consensus.raft]
+blockintervalms=1000
+name="aergo6"
+usebackup=false
+#

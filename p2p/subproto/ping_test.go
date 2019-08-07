@@ -3,14 +3,13 @@ package subproto
 import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/network"
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
-	inet "github.com/libp2p/go-libp2p-net"
 )
 
 func TestPingProtocol_onStatusRequest(t *testing.T) {
@@ -23,7 +22,7 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	mockIStream := p2pmock.NewMockStream(ctrl)
 	//mockConn := p2pmock.NewMockConn(ctrl)
 
-	//samplePeerID, _ := peer.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+	//samplePeerID, _ := types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	// dummyPeer := AergoPeer{}
 
 	//mockIStream.EXPECT().Conn().Return(mockConn)
@@ -33,12 +32,12 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 	//mockP2PS.EXPECT().LookupPeer(, samplePeerID).Return(nil, false)
 
 	type fields struct {
-		actorServ p2pcommon.ActorService
-		ps        p2pcommon.PeerManager
-		logger    *log.Logger
+		actor  p2pcommon.ActorService
+		ps     p2pcommon.PeerManager
+		logger *log.Logger
 	}
 	type args struct {
-		s inet.Stream
+		s network.Stream
 	}
 	tests := []struct {
 		name   string
@@ -49,9 +48,9 @@ func TestPingProtocol_onStatusRequest(t *testing.T) {
 		{
 			"normal",
 			&fields{
-				actorServ: p2pmock.NewMockActorService(ctrl),
-				logger:    log.NewLogger("test.p2p"),
-				ps:        mockP2PS,
+				actor:  p2pmock.NewMockActorService(ctrl),
+				logger: log.NewLogger("test.p2p"),
+				ps:     mockP2PS,
 			},
 			args{s: mockIStream},
 			func() {
@@ -79,7 +78,7 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	type args struct {
 		hash   []byte
@@ -109,11 +108,11 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 			mockActor.EXPECT().GetChainAccessor().Return(mockCA).MaxTimes(1)
 
 			reqID := p2pcommon.NewMsgID()
-			dummyMF.EXPECT().NewMsgResponseOrder(reqID, PingResponse, gomock.AssignableToTypeOf(&types.Pong{})).Return(nil).Times(tt.sendRespCnt)
+			dummyMF.EXPECT().NewMsgResponseOrder(reqID, p2pcommon.PingResponse, gomock.AssignableToTypeOf(&types.Pong{})).Return(nil).Times(tt.sendRespCnt)
 
 			msg := p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(reqID).AnyTimes()
-			msg.EXPECT().Subprotocol().Return(PingRequest).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(p2pcommon.PingRequest).AnyTimes()
 			body := &types.Ping{BestBlockHash: tt.args.hash, BestHeight: tt.args.height}
 
 			ph := NewPingReqHandler(mockPM, mockPeer, logger, mockActor)

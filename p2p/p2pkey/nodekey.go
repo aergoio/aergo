@@ -12,15 +12,14 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-crypto"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"os"
 	"path/filepath"
 	"time"
 )
 
 type nodeInfo struct {
-	id      peer.ID
+	id      types.PeerID
 	sid     string
 	pubKey  crypto.PubKey
 	privKey crypto.PrivKey
@@ -32,7 +31,7 @@ type nodeInfo struct {
 
 var ni *nodeInfo
 
-// InitNodeInfo initializes node-specific informations like node id.
+// InitNodeInfo initializes node-specific information like node id.
 // Caution: this must be called before all the goroutines are started.
 func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version string, logger *log.Logger) {
 	// check Key and address
@@ -65,7 +64,7 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 			}
 		}
 	}
-	id, _ := peer.IDFromPublicKey(pub)
+	id, _ := types.IDFromPublicKey(pub)
 
 	ni = &nodeInfo{
 		id:        id,
@@ -80,7 +79,7 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 }
 
 // NodeID returns the node id.
-func NodeID() peer.ID {
+func NodeID() types.PeerID {
 	return ni.id
 }
 

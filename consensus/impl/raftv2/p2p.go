@@ -2,9 +2,9 @@ package raftv2
 
 import (
 	"errors"
-	"fmt"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
 	"time"
 )
 
@@ -19,11 +19,11 @@ var (
 )
 
 // GetBestBlock returns the current best block from chainservice
-func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
+func GetClusterInfo(hs *component.ComponentHub, bestHash []byte) (*Cluster, *types.HardStateInfo, error) {
 	logger.Info().Msg("try getclusterinfo to p2p")
 
 	replyC := make(chan *message.GetClusterRsp)
-	hs.Tell(message.P2PSvc, &message.GetCluster{ReplyC: replyC})
+	hs.Tell(message.P2PSvc, &message.GetCluster{BestBlockHash: bestHash, ReplyC: replyC})
 
 	var (
 		rsp   *message.GetClusterRsp
@@ -35,25 +35,25 @@ func GetClusterInfo(hs *component.ComponentHub) (*Cluster, error) {
 	select {
 	case rsp, ok = <-replyC:
 		if !ok {
-			return nil, ErrGetClusterReplyC
+			return nil, nil, ErrGetClusterReplyC
 		}
 
 		if rsp.Err != nil {
-			return nil, fmt.Errorf("get cluster failed: %s", rsp.Err)
+			return nil, nil, rsp.Err
 		}
 
 		if len(rsp.Members) == 0 {
-			return nil, ErrGetClusterEmpty
+			return nil, nil, ErrGetClusterEmpty
 		}
 
 	case <-time.After(MaxTimeOutCluter):
-		return nil, ErrGetClusterTimeout
+		return nil, nil, ErrGetClusterTimeout
 	}
 
-	if newCl, err = NewClusterFromMemberAttrs(rsp.ChainID, rsp.Members); err != nil {
-		return nil, err
+	if newCl, err = NewClusterFromMemberAttrs(rsp.ClusterID, rsp.ChainID, rsp.Members); err != nil {
+		return nil, nil, err
 	}
 
 	//logger.Debug().Str("info", newCl.toString()).Msg("get remote cluster info")
-	return newCl, nil
+	return newCl, rsp.HardStateInfo, nil
 }

@@ -13,17 +13,19 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 
 var (
-	client *util.ConnClient
-	data   string
-	nonce  uint64
-	toJson bool
-	gover  bool
+	client     *util.ConnClient
+	data       string
+	nonce      uint64
+	toJson     bool
+	gover      bool
+	contractID string
 )
 
 func init() {
@@ -33,14 +35,15 @@ func init() {
 	}
 
 	deployCmd := &cobra.Command{
-		Use:   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
-		Short: "Deploy a compiled contract to the server",
-		Args:  cobra.MinimumNArgs(1),
-		Run:   runDeployCmd,
+		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
+		Short:                 "Deploy a compiled contract to the server",
+		Args:                  cobra.MinimumNArgs(1),
+		Run:                   runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
+	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "re-redeploy the contract")
 
 	callCmd := &cobra.Command{
 		Use:   "call [flags] sender contract funcname '[argument...]'",
@@ -155,12 +158,23 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
+	txType := types.TxType_NORMAL
+	var recipient []byte
+	if len(contractID) > 0 {
+		txType = types.TxType_REDEPLOY
+		recipient, err = types.DecodeAddress(contractID)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Nonce:   state.GetNonce() + 1,
-			Account: creator,
-			Payload: payload,
-			Amount:  amountBigInt.Bytes(),
+			Nonce:     state.GetNonce() + 1,
+			Account:   creator,
+			Payload:   payload,
+			Amount:    amountBigInt.Bytes(),
+			Type:      txType,
+			Recipient: recipient,
 		},
 	}
 
@@ -328,15 +342,16 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 			return
 		}
 	}
-	storageKey := bytes.NewBufferString("_sv_")
-	storageKey.WriteString(args[1])
+	storageKeyPlain := bytes.NewBufferString("_sv_")
+	storageKeyPlain.WriteString(args[1])
 	if len(args) > 2 {
-		storageKey.WriteString("-")
-		storageKey.WriteString(args[2])
+		storageKeyPlain.WriteString("-")
+		storageKeyPlain.WriteString(args[2])
 	}
+	storageKey := common.Hasher([]byte(storageKeyPlain.Bytes()))
 	stateQuery := &types.StateQuery{
 		ContractAddress: contract,
-		StorageKeys:     []string{storageKey.String()},
+		StorageKeys:     [][]byte{storageKey},
 		Root:            root,
 		Compressed:      compressed,
 	}

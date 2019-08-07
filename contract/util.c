@@ -418,9 +418,8 @@ static int json_to_lua_table(lua_State *L, char **start, bool check) {
 	return 0;
 }
 
-#define UTF8_MAX 8
 
-static int utf8_encode(char *s, unsigned ch) {
+int lua_util_utf8_encode(char *s, unsigned ch) {
     if (ch < 0x80) {
         s[0] = (char)ch;
         return 1;
@@ -504,7 +503,7 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
                         }
                         memcpy (special, end+1, 4);
                         ch = strtol(special, NULL, 16);
-                        out = utf8_encode(target, ch);
+                        out = lua_util_utf8_encode(target, ch);
                         if (out < 0)
                             return -1;
                         target = target + out - 1;

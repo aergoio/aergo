@@ -50,7 +50,7 @@ func TestHSHeader_Marshal2(t *testing.T) {
 	tests := []struct {
 		name            string
 		input           []byte
-		expectedNewwork uint32
+		expectedNetwork uint32
 		expectedVersion P2PVersion
 	}{
 		{"TMain030", []byte{0x047, 0x041, 0x68, 0x41, 0, 0, 3, 0}, MAGICMain, P2PVersion030},
@@ -61,7 +61,7 @@ func TestHSHeader_Marshal2(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			hs := HSHeader{}
 			hs.Unmarshal(test.input)
-			assert.Equal(t, test.expectedNewwork, hs.Magic)
+			assert.Equal(t, test.expectedNetwork, hs.Magic)
 			assert.Equal(t, test.expectedVersion, hs.Version)
 
 			actualBytes := hs.Marshal()

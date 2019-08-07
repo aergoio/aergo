@@ -1,0 +1,32 @@
+{
+  "chain_id": {
+    "magic": "everjs",
+    "public": false,
+    "mainnet": false,
+    "coinbasefee": "0",
+    "consensus": "raft"
+  },
+  "timestamp": 1545195494000000000,
+  "balance": {
+    "_genesis_wallet_": "500000000000000000000000000"
+  },
+  "bps": [
+  ],
+  "enterprise_bps": [
+    {
+      "name": "aergo1",
+      "address": "/ip4/127.0.0.1/tcp/11001",
+      "peerid": "16Uiu2HAkvaAMCHkd9hZ6hQkdDLKoXP4eLJSqkMF1YqkSNy5v9SVn"
+    },
+    {
+      "name": "aergo2",
+      "address": "/ip4/127.0.0.1/tcp/11002",
+      "peerid": "16Uiu2HAmJqEp9f9WAbzFxkLrnHnW4EuUDM69xkCDPF26HmNCsib6"
+    },
+    {
+      "name": "aergo3",
+      "address": "/ip4/127.0.0.1/tcp/11003",
+      "peerid": "16Uiu2HAmA2ysmFxoQ37sk1Zk2sMrPysqTmwYAFrACyf3LtP3gxpJ"
+    }
+  ]
+}

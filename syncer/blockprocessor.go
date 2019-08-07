@@ -3,6 +3,7 @@ package syncer
 import (
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"sort"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 type BlockProcessor struct {
@@ -30,7 +30,7 @@ type BlockProcessor struct {
 }
 
 type ConnectTask struct {
-	FromPeer peer.ID
+	FromPeer types.PeerID
 	Blocks   []*types.Block
 	firstNo  types.BlockNo
 	cur      int
@@ -59,6 +59,7 @@ func (bproc *BlockProcessor) run(msg interface{}) error {
 			return err
 		}
 
+		chain.TestDebugger.Check(chain.DEBUG_SYNCER_CRASH, 2, nil)
 	default:
 		return fmt.Errorf("invalid msg type:%T", msg)
 	}

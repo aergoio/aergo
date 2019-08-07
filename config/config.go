@@ -46,6 +46,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Consensus:  ctx.GetDefaultConsensusConfig(),
 		Monitor:    ctx.GetDefaultMonitorConfig(),
 		Account:    ctx.GetDefaultAccountConfig(),
+		Auth:       ctx.GetDefaultAuthConfig(),
 		Polaris:    ctx.GetDefaultPolarisConfig(),
 	}
 }
@@ -89,6 +90,12 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 	}
 }
 
+func (ctx *ServerContext) GetDefaultAuthConfig() *AuthConfig {
+	return &AuthConfig{
+		EnableLocalConf:   false,
+	}
+}
+
 func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	return &PolarisConfig{
 		GenesisFile:  "",
@@ -104,6 +111,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		VerifierCount:    types.DefaultVerifierCnt,
 		ForceResetHeight: 0,
 		ZeroFee:          true,
+		StateTrace:       0,
 	}
 }
 

@@ -10,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/libp2p/go-libp2p-peer"
 	"io"
 	"sync"
 	"time"
@@ -91,7 +90,7 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 	defer cluster.Unlock()
 
 	if !cluster.isMatch(confstate) {
-		logger.Fatal().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toString()).Msg("cluster doesn't match with confstate")
+		logger.Fatal().Str("confstate", consensus.ConfStateToString(confstate)).Str("cluster", cluster.toStringWithLock()).Msg("cluster doesn't match with confstate")
 		return nil, ErrClusterMismatchConfState
 	}
 
@@ -144,7 +143,7 @@ func (chainsnap *ChainSnapshotter) syncSnap(snap *raftpb.Snapshot) error {
 	return nil
 }
 
-func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
+func (chainsnap *ChainSnapshotter) checkPeerLive(peerID types.PeerID) bool {
 	if chainsnap.pa == nil {
 		logger.Fatal().Msg("peer accessor of chain snapshotter is not set")
 	}
@@ -157,8 +156,8 @@ func (chainsnap *ChainSnapshotter) checkPeerLive(peerID peer.ID) bool {
 func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) error {
 
 	var leader uint64
-	getSyncLeader := func() (peer.ID, error) {
-		var peerID peer.ID
+	getSyncLeader := func() (types.PeerID, error) {
+		var peerID types.PeerID
 		var err error
 
 		for {
@@ -167,13 +166,13 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 			if leader == HasNoLeader {
 				peerID, err = chainsnap.cluster.getAnyPeerAddressToSync()
 				if err != nil {
-					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
+					logger.Error().Err(err).Str("leader", EtcdIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err
 				}
 			} else {
 				peerID, err = chainsnap.cluster.Members().getMemberPeerAddress(leader)
 				if err != nil {
-					logger.Error().Err(err).Str("leader", MemberIDToString(leader)).Msg("can't get peeraddress of leader")
+					logger.Error().Err(err).Str("leader", EtcdIDToString(leader)).Msg("can't get peeraddress of leader")
 					return "", err
 				}
 			}
@@ -182,12 +181,12 @@ func (chainsnap *ChainSnapshotter) requestSync(snap *consensus.ChainSnapshot) er
 				break
 			}
 
-			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", MemberIDToString(leader)).Msg("peer is not alive")
+			logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", EtcdIDToString(leader)).Msg("peer is not alive")
 
 			time.Sleep(DfltTimeWaitPeerLive)
 		}
 
-		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", MemberIDToString(leader)).Msg("target peer to sync")
+		logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Str("leader", EtcdIDToString(leader)).Msg("target peer to sync")
 
 		return peerID, err
 	}

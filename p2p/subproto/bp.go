@@ -6,8 +6,6 @@
 package subproto
 
 import (
-	"fmt"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -23,7 +21,7 @@ var _ p2pcommon.MessageHandler = (*blockProducedNoticeHandler)(nil)
 
 // newNewBlockNoticeHandler creates handler for NewBlockNotice
 func NewBlockProducedNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager) *blockProducedNoticeHandler {
-	bh := &blockProducedNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: BlockProducedNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
+	bh := &blockProducedNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.BlockProducedNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}}
 	return bh
 }
 
@@ -39,14 +37,12 @@ func (bh *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pc
 		return
 	}
 	// remove to verbose log
-	p2putil.DebugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), remotePeer, log.DoLazyEval(func() string {
-		return fmt.Sprintf("bp=%s,blk_no=%d,blk_hash=%s", enc.ToString(data.ProducerID), data.BlockNo, enc.ToString(data.Block.Hash))
-	}))
-
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer,data)
+	
 	// lru cache can accept hashable key
 	block := data.Block
 	if _, err := types.ParseToBlockID(data.GetBlock().GetHash()); err != nil {
-		// TODO add penelty score
+		// TODO add penalty score
 		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.GetBlock().GetHash())).Msg("malformed blockHash")
 		return
 	}

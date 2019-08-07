@@ -6,19 +6,19 @@
 package raftsupport
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/subproto"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 )
 
-// ClusterInfoReceiver is send p2p getClusterInfo to connected peers and receive p2p responses one of peers return successful response
-// The first version will be simplified version. it send and receive one by one.
+// ClusterInfoReceiver is send p2p getClusterInfo to connected peers and Receive p2p responses one of peers return successful response
+// The first version will be simplified version. it send and Receive one by one.
 type ClusterInfoReceiver struct {
 	mf p2pcommon.MoFactory
 
@@ -69,7 +69,7 @@ func (br *ClusterInfoReceiver) trySendNextPeer() bool {
 		peer := br.peers[br.offset]
 		if peer.State() == types.RUNNING {
 			br.offset++
-			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, subproto.GetClusterRequest, &types.GetClusterInfoRequest{})
+			mo := br.mf.NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetClusterRequest, &types.GetClusterInfoRequest{BestBlockHash: br.req.BestBlockHash})
 			peer.SendMessage(mo)
 			br.sents[mo.GetMsgID()] = peer
 			return true
@@ -130,15 +130,20 @@ func (br *ClusterInfoReceiver) handleInWaiting(msg p2pcommon.Message, msgBody pr
 	}
 
 	// return the result
+	var err error
 	br.finishReceiver()
-	result := &message.GetClusterRsp{ChainID: body.GetChainID(), Members: body.GetMbrAttrs(), Err: nil}
+	if len(body.Error) != 0 {
+		err = fmt.Errorf("get cluster info error: %s", body.Error)
+	}
+	result := &message.GetClusterRsp{ClusterID: body.GetClusterID(), ChainID: body.GetChainID(), Members: body.GetMbrAttrs(),
+		Err: err, HardStateInfo: body.HardStateInfo}
 	br.req.ReplyC <- result
 	close(br.req.ReplyC)
 	return
 }
 
 // cancelReceiving is cancel wait for receiving and return the failure result.
-// it wait remaining (and useless) response. It is assumed cancelings are not frequently occur
+// it wait remaining (and useless) response. It is assumed cancellations are not frequently occur
 func (br *ClusterInfoReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
 	result := &message.GetClusterRsp{Err: err}
@@ -147,7 +152,7 @@ func (br *ClusterInfoReceiver) cancelReceiving(err error, hasNext bool) {
 	br.finishReceiver()
 }
 
-// finishReceiver is to cancel works, assuming cancelings are not frequently occur
+// finishReceiver is to cancel works, assuming cancellations are not frequently occur
 func (br *ClusterInfoReceiver) finishReceiver() {
 	br.status = receiverStatusFinished
 }

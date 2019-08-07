@@ -10,6 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aergoio/etcd/raft"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -73,17 +76,35 @@ type Consensus interface {
 
 type ConsensusAccessor interface {
 	ConsensusInfo() *types.ConsensusInfo
+	ClusterInfo([]byte) *types.GetClusterInfoResponse
 	ConfChange(req *types.MembershipChange) (*Member, error)
-	ClusterInfo() ([]*types.MemberAttr, []byte, error)
+	ConfChangeInfo(requestID uint64) (*types.ConfChangeProgress, error)
+	// RaftAccessor returns AergoRaftAccessor. It is only valid if chain is raft consensus
+	RaftAccessor() AergoRaftAccessor
 }
 
 // ChainDB is a reader interface for the ChainDB.
 type ChainDB interface {
 	GetBestBlock() (*types.Block, error)
 	GetBlockByNo(blockNo types.BlockNo) (*types.Block, error)
+	GetHashByNo(blockNo types.BlockNo) ([]byte, error)
+	GetBlock(hash []byte) (*types.Block, error)
 	GetGenesisInfo() *types.Genesis
 	Get(key []byte) []byte
 	NewTx() db.Transaction
+}
+
+// AergoRaftAccessor is interface to access raft messaging. It is wrapping raft message with aergo internal types
+type AergoRaftAccessor interface {
+	Process(ctx context.Context, peerID types.PeerID, m raftpb.Message) error
+	IsIDRemoved(peerID types.PeerID) bool
+	ReportUnreachable(peerID types.PeerID)
+	ReportSnapshot(peerID types.PeerID, status raft.SnapshotStatus)
+
+	SaveFromRemote(r io.Reader, id uint64, msg raftpb.Message) (int64, error)
+
+	GetMemberByID(id uint64) *Member
+	GetMemberByPeerID(peerID types.PeerID) *Member
 }
 
 type ConsensusType int
@@ -95,9 +116,33 @@ const (
 )
 
 var ConsensusName = []string{"dpos", "raft", "sbp"}
+var ConsensusTypes = map[string]ConsensusType{"dpos": ConsensusDPOS, "raft": ConsensusRAFT, "sbp": ConsensusSBP}
+
+var CurConsensusType ConsensusType
+
+func IsRaftName(consensus string) bool {
+	return ConsensusName[ConsensusRAFT] == strings.ToLower(consensus)
+}
+func IsDposName(consensus string) bool {
+	return ConsensusName[ConsensusDPOS] == strings.ToLower(consensus)
+}
+
+func SetCurConsensus(consensus string) {
+	CurConsensusType = ConsensusTypes[consensus]
+}
+
+func UseRaft() bool {
+	return CurConsensusType == ConsensusRAFT
+}
+
+func UseDpos() bool {
+	return CurConsensusType == ConsensusDPOS
+}
 
 // ChainConsensus includes chainstatus and validation API.
 type ChainConsensus interface {
+	ChainConsensusCluster
+
 	GetType() ConsensusType
 	IsTransactionValid(tx *types.Tx) bool
 	VerifyTimestamp(block *types.Block) bool
@@ -108,23 +153,17 @@ type ChainConsensus interface {
 	NeedReorganization(rootNo types.BlockNo) bool
 	NeedNotify() bool
 	HasWAL() bool // if consensus has WAL, block has already written in db
+	IsConnectedBlock(block *types.Block) bool
+	IsForkEnable() bool
 	Info() string
+}
+
+type ChainConsensusCluster interface {
+	MakeConfChangeProposal(req *types.MembershipChange) (*ConfChangePropose, error)
 }
 
 type TxWriter interface {
 	Set(key, value []byte)
-}
-
-type ConfChangePropose struct {
-	Ctx context.Context
-	Cc  *raftpb.ConfChange
-
-	ReplyC chan *ConfChangeReply
-}
-
-type ConfChangeReply struct {
-	Member *Member
-	Err    error
 }
 
 // Info represents an information for a consensus implementation.

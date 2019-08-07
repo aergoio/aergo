@@ -28,7 +28,7 @@ func GetClient(serverAddr string, opts []grpc.DialOption) interface{} {
 
 	connClient := &ConnClient{
 		AergoRPCServiceClient: types.NewAergoRPCServiceClient(conn),
-		conn: conn,
+		conn:                  conn,
 	}
 
 	return connClient
@@ -42,6 +42,15 @@ func (c *ConnClient) Close() {
 // JSON converts protobuf message(struct) to json notation
 func JSON(pb protobuf.Message) string {
 	jsonout, err := json.MarshalIndent(pb, "", " ")
+	if err != nil {
+		fmt.Printf("Failed: %s\n", err.Error())
+		return ""
+	}
+	return string(jsonout)
+}
+
+func B58JSON(i interface{}) string {
+	jsonout, err := json.MarshalIndent(i, "", " ")
 	if err != nil {
 		fmt.Printf("Failed: %s\n", err.Error())
 		return ""

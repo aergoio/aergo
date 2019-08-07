@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-peer"
 	"testing"
 )
 
@@ -23,7 +22,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	dummyBlock := &types.Block{Hash: dummyBlockHash,
 		Header: &types.BlockHeader{}, Body: &types.BlockBody{}}
@@ -61,7 +60,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 			mockSM := p2pmock.NewMockSyncManager(ctrl)
 			mockSM.EXPECT().HandleBlockProducedNotice(gomock.Any(), gomock.AssignableToTypeOf(&types.Block{})).Times(tt.syncmanagerCallCnt)
 
-			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID(), subProtocol:BlockProducedNotice}
+			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID(), subProtocol: p2pcommon.BlockProducedNotice}
 			body := &types.BlockProducedNotice{Block: tt.payloadBlk}
 			h := NewBlockProducedNoticeHandler(mockPM, mockPeer, logger, mockActor, mockSM)
 			h.Handle(dummyMsg, body)

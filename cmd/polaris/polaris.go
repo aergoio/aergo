@@ -7,19 +7,17 @@ package main
 import (
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	common2 "github.com/aergoio/aergo/polaris/common"
-	"github.com/aergoio/aergo/polaris/server"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"time"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
+	common2 "github.com/aergoio/aergo/polaris/common"
+	"github.com/aergoio/aergo/polaris/server"
 	"github.com/spf13/cobra"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
 )
 
 func main() {
@@ -93,13 +91,13 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	compMng := component.NewComponentHub()
 
-	lntc := server.NewNTContainer(cfg)
-	pmapSvc := server.NewPolarisService(cfg, lntc)
+	lNTC := server.NewNTContainer(cfg)
+	polarisSvc := server.NewPolarisService(cfg, lNTC)
 	rpcSvc := server.NewPolarisRPC(cfg)
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(lntc, pmapSvc, rpcSvc)
+	compMng.Register(lNTC, polarisSvc, rpcSvc)
 
 	//consensusSvc, err := impl.New(cfg.Consensus, compMng, chainSvc)
 	//if err != nil {
@@ -111,15 +109,13 @@ func rootRun(cmd *cobra.Command, args []string) {
 	// actors are started.
 	compMng.Start()
 
-	common.HandleKillSig(func() {
+	var interrupt = common.HandleKillSig(func() {
 		//consensus.Stop(consensusSvc)
 		compMng.Stop()
 	}, svrlog)
 
-	// wait... TODO need to break out when system finished.
-	for {
-		time.Sleep(time.Minute)
-	}
+	// Wait main routine to stop
+	<-interrupt.C
 }
 
 type RedirectService struct {

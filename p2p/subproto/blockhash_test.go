@@ -11,10 +11,11 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 
 	"github.com/aergoio/aergo/chain"
@@ -28,7 +29,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	var sampleMsgID = p2pcommon.NewMsgID()
 
 	var sampleBlksB58 = []string{
@@ -116,7 +117,7 @@ func TestGetHashRequestHandler_handle(t *testing.T) {
 
 			msg := p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
-			msg.EXPECT().Subprotocol().Return(GetHashesRequest).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(p2pcommon.GetHashesRequest).AnyTimes()
 			body := &types.GetHashesRequest{PrevNumber: test.inNum, PrevHash: test.inHash, Size: test.inSize}
 
 			h := NewGetHashesReqHandler(mockPM, mockPeer, logger, mockActor)
@@ -137,7 +138,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 
-	var dummyPeerID, _ = peer.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
+	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	var sampleMsgID = p2pcommon.NewMsgID()
 
 	var sampleBlksB58 = []string{
@@ -191,7 +192,7 @@ func TestGetHashByNoRequestHandler_handle(t *testing.T) {
 
 			msg :=  p2pmock.NewMockMessage(ctrl)
 			msg.EXPECT().ID().Return(sampleMsgID).AnyTimes()
-			msg.EXPECT().Subprotocol().Return(GetHashByNoRequest).AnyTimes()
+			msg.EXPECT().Subprotocol().Return(p2pcommon.GetHashByNoRequest).AnyTimes()
 			body := &types.GetHashByNo{BlockNo: test.inNum}
 
 			h := NewGetHashByNoReqHandler(mockPM, mockPeer, logger, mockActor)
@@ -268,6 +269,7 @@ type testDoubleHashesRespFactory struct {
 	lastStatus types.ResultStatus
 }
 
+
 func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
@@ -294,9 +296,15 @@ func (f *testDoubleHashesRespFactory) NewMsgBPBroadcastOrder(noticeMsg *types.Bl
 	panic("implement me")
 }
 
+func (f *testDoubleHashesRespFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
+
 
 // testDoubleMOFactory keep last created message and last result status of response message
 type testDoubleMOFactory struct {
+	mutex sync.Mutex
 	lastResp   p2pcommon.MessageBody
 	lastStatus types.ResultStatus
 }
@@ -322,10 +330,18 @@ func (f *testDoubleMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.Res
 }
 
 func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
 	f.lastResp = message
 	f.lastStatus = f.lastResp.(types.ResponseMessage).GetStatus()
 	return &testMo{message:&testMessage{id:reqID, subProtocol:protocolID}}
 }
+
+func (f *testDoubleMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
 
 type testMo struct {
 	protocolID p2pcommon.SubProtocol // protocolName and msg struct type MUST be matched.

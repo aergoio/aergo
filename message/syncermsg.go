@@ -2,14 +2,13 @@ package message
 
 import (
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 const SyncerSvc = "SyncerSvc"
 
 //Syncer
 type SyncStart struct {
-	PeerID   peer.ID
+	PeerID   types.PeerID
 	TargetNo types.BlockNo
 	NotifyC  chan error
 }

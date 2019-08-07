@@ -6,13 +6,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
@@ -168,7 +168,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
+	if !cfg.Blockchain.VerifyOnly {
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
+	} else {
+		compMng.Register(chainSvc, mpoolSvc, rpcSvc)
+	}
 
 	consensusSvc, err := impl.New(cfg, compMng, chainSvc, p2pSvc, rpcSvc)
 	if err != nil {
@@ -186,13 +190,11 @@ func rootRun(cmd *cobra.Command, args []string) {
 		consensus.Start(consensusSvc)
 	}
 
-	common.HandleKillSig(func() {
+	var interrupt = common.HandleKillSig(func() {
 		consensus.Stop(consensusSvc)
 		compMng.Stop()
 	}, svrlog)
 
-	// wait... TODO need to break out when system finished.
-	for {
-		time.Sleep(time.Minute)
-	}
+	// Wait main routine to stop
+	<-interrupt.C
 }

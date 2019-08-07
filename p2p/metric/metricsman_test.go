@@ -6,8 +6,8 @@
 package metric
 
 import (
-	"bytes"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -32,8 +32,8 @@ func TestMetricsManager_Stop(t *testing.T) {
 	}
 }
 
-func TestMetricsManager_Remove(t *testing.T) {
-	pid, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+func TestMetricsManager_Size(t *testing.T) {
+	pid, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
 	tests := []struct {
 		name string
@@ -54,26 +54,20 @@ func TestMetricsManager_Remove(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			buf := bytes.NewBuffer(nil)
 			mm := NewMetricManager(1)
-			rd := NewReader(buf)
-			wt := NewWriter(buf)
-			mm.Add(pid, rd, wt)
+			peerMetric := mm.NewMetric(pid, 1)
 
 			assert.Equal(t, int64(0), mm.deadTotalIn)
 			assert.Equal(t, int64(0), mm.deadTotalOut)
 			if test.outSize > 0 {
-				written, _ := wt.Write(make([]byte,test.outSize))
-				assert.Equal(t, test.outSize, written)
-				tempBuf := make([]byte, test.inSize)
-				read,_ := rd.Read(tempBuf)
-				assert.Equal(t, test.inSize, read)
+				peerMetric.OnWrite(p2pcommon.PingRequest,test.outSize)
+				peerMetric.OnRead(p2pcommon.PingResponse,test.inSize)
 
 				assert.Equal(t, int64(0), mm.deadTotalIn)
 				assert.Equal(t, int64(0), mm.deadTotalOut)
 			}
 			if test.remove {
-				result := mm.Remove(pid)
+				result := mm.Remove(pid, 1)
 				assert.Equal(t, int64(test.inSize), result.totalIn)
 				assert.Equal(t, int64(test.outSize), result.totalOut)
 				assert.Equal(t, int64(test.inSize),  mm.deadTotalIn)

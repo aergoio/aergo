@@ -7,7 +7,6 @@ package message
 
 import (
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 )
 
 const ChainSvc = "ChainSvc"
@@ -34,7 +33,7 @@ type GetBlockByNo struct {
 type GetBlockByNoRsp GetBlockRsp
 
 type AddBlock struct {
-	PeerID peer.ID
+	PeerID types.PeerID
 	Block  *types.Block
 	Bstate interface{}
 	IsSync bool
@@ -97,7 +96,7 @@ type GetQueryRsp struct {
 }
 type GetStateQuery struct {
 	ContractAddress []byte
-	StorageKeys     []string
+	StorageKeys     [][]byte
 	Root            []byte
 	Compressed      bool
 }
@@ -108,7 +107,7 @@ type GetStateQueryRsp struct {
 
 // SyncBlockState is request to sync from remote peer. It returns sync result.
 type SyncBlockState struct {
-	PeerID    peer.ID
+	PeerID    types.PeerID
 	BlockNo   types.BlockNo
 	BlockHash []byte
 }
@@ -153,6 +152,15 @@ type GetNameInfoRsp struct {
 	Err   error
 }
 
+type GetEnterpriseConf struct {
+	Key string
+}
+
+type GetEnterpriseConfRsp struct {
+	Conf *types.EnterpriseConfig
+	Err  error
+}
+
 type GetAnchors struct {
 	Seq uint64
 }
@@ -184,4 +192,7 @@ type ListEvents struct {
 type ListEventsRsp struct {
 	Events []*types.Event
 	Err    error
+}
+
+type VerifyStart struct {
 }

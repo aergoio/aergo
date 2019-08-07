@@ -1,0 +1,25 @@
+level = "info"           # default level
+formatter = "console_no_color"    # console_no_color, json 도 가능
+caller = true            # 소스 코드명과 라인 프린트
+timefieldformat = "Jan _2 15:04:05.000"
+
+[chain]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
+
+[dpos]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
+
+[consensus]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
+
+[p2p]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
+
+[mempool]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
+
+[raft]        			# 이렇게 여러개 쓸수 있음
+level = "debug"
+
+[enterprise]        			# 이렇게 여러개 쓸수 있음
+level = "debug"

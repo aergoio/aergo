@@ -8,7 +8,7 @@ package mempool
 import (
 	"bufio"
 	"bytes"
-	"encoding/csv"
+	"encoding/binary"
 	"io"
 	"math/big"
 	"os"
@@ -22,6 +22,7 @@ import (
 	"github.com/aergoio/aergo/account/key"
 	"github.com/aergoio/aergo/chain"
 	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
@@ -59,12 +60,16 @@ type MemPool struct {
 	stateDB     *state.StateDB
 	verifier    *actor.PID
 	orphan      int
-	cache       map[types.TxID]types.Transaction
+	//cache       map[types.TxID]types.Transaction
+	cache       sync.Map
+	length      int
 	pool        map[types.AccountID]*TxList
 	dumpPath    string
 	status      int32
 	coinbasefee *big.Int
 	chainIdHash []byte
+	isPublic    bool
+	whitelist   *whitelistConf
 	// followings are for test
 	testConfig bool
 	deadtx     int
@@ -84,9 +89,10 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	}
 
 	actor := &MemPool{
-		cfg:      cfg,
-		sdb:      sdb,
-		cache:    map[types.TxID]types.Transaction{},
+		cfg: cfg,
+		sdb: sdb,
+		//cache:    map[types.TxID]types.Transaction{},
+		cache:    sync.Map{},
 		pool:     map[types.AccountID]*TxList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
@@ -188,8 +194,10 @@ func (mp *MemPool) evictTransactions() {
 		orphan := len(txs) - list.Len()
 
 		for _, tx := range txs {
-			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
+			mp.cache.Delete(types.ToTxID(tx.GetHash()))
+			mp.length--
 		}
+
 		mp.orphan -= orphan
 		delete(mp.pool, acc)
 	}
@@ -201,9 +209,7 @@ func (mp *MemPool) evictTransactions() {
 // Size returns current maintaining number of transactions
 // and number of orphan transaction
 func (mp *MemPool) Size() (int, int) {
-	mp.RLock()
-	defer mp.RUnlock()
-	return len(mp.cache), mp.orphan
+	return mp.length, mp.orphan
 }
 
 // Receive handles requested messages from other services
@@ -236,6 +242,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 		txs := mp.existEx(bucketHash)
 		context.Respond(&message.MemPoolExistExRsp{Txs: txs})
+
+	case *message.MemPoolSetWhitelist:
+		mp.whitelist.SetWhitelist(msg.Accounts)
+	case *message.MemPoolEnableWhitelist:
+		mp.whitelist.Enable(msg.On)
+
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 
@@ -246,9 +258,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 
 func (mp *MemPool) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
-		"total":  len(mp.cache),
-		"orphan": mp.orphan,
-		"dead":   mp.deadtx,
+		"total":        mp.length,
+		"orphan":       mp.orphan,
+		"dead":         mp.deadtx,
+		"whitelist":    mp.whitelist.GetWhitelist(),
+		"whitelist_on": mp.whitelist.GetOn(),
+		"config":       mp.cfg.Mempool,
 	}
 }
 
@@ -270,7 +285,7 @@ Gather:
 		}
 	}
 	elapsed := time.Since(start)
-	mp.Debug().Str("elapsed", elapsed.String()).Int("len", len(mp.cache)).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
+	mp.Debug().Str("elapsed", elapsed.String()).Int("len", mp.length).Int("orphan", mp.orphan).Int("count", count).Msg("total tx returned")
 	return txs, nil
 }
 
@@ -284,9 +299,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 		acc = tx.GetVerifedAccount()
 	}
 
-	mp.Lock()
-	defer mp.Unlock()
-	if _, found := mp.cache[id]; found {
+	if _, ok := mp.cache.Load(id); ok {
 		return types.ErrTxAlreadyInMempool
 	}
 	/*
@@ -299,6 +312,8 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
+	mp.Lock()
+	defer mp.Unlock()
 
 	list, err := mp.acquireMemPoolList(acc)
 	if err != nil {
@@ -312,8 +327,9 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	}
 
 	mp.orphan -= diff
-	mp.cache[id] = tx
-	mp.Debug().Str("tx_hash", enc.ToString(tx.GetHash())).Msgf("tx add-ed size(%d, %d)", len(mp.cache), mp.orphan)
+	mp.cache.Store(id, tx)
+	mp.length++
+	//mp.Debug().Str("tx_hash", enc.ToString(tx.GetHash())).Msgf("tx add-ed size(%d, %d)", len(mp.cache), mp.orphan)
 
 	if !mp.testConfig {
 		mp.notifyNewTx(tx)
@@ -346,6 +362,19 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
+			cid := types.NewChainID()
+			if err := cid.Read(block.GetHeader().GetChainID()); err != nil {
+				mp.Error().Err(err).Msg("failed to read chain ID")
+			} else {
+				mp.isPublic = cid.PublicNet
+				if !mp.isPublic {
+					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					if err != nil {
+						mp.Warn().Err(err).Msg("failed to init whitelist")
+					}
+					mp.whitelist = newWhitelistConf(mp, conf.GetValues(), conf.GetOn())
+				}
+			}
 			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
@@ -405,22 +434,13 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 		diff, delTxs := list.FilterByState(ns)
 		mp.orphan -= diff
 		for _, tx := range delTxs {
-			delete(mp.cache, types.ToTxID(tx.GetHash())) // need lock
+			mp.cache.Delete(types.ToTxID(tx.GetHash()))
+			mp.length--
 		}
 		mp.releaseMemPoolList(list)
 		check++
 	}
 
-	//FOR TEST
-	for _, tx := range block.GetBody().GetTxs() {
-		hid := types.ToTxID(tx.GetHash())
-		if _, ok := mp.cache[hid]; !ok {
-			continue
-		}
-		mp.Warn().Uint64("nonce on tx", tx.GetBody().GetNonce()).
-			Msg("mismatch ditected")
-		mp.deadtx++
-	}
 	ag[1] = time.Since(start)
 	mp.Debug().Int("given", len(block.GetBody().GetTxs())).
 		Int("check", check).
@@ -432,7 +452,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 // signiture verification
 func (mp *MemPool) verifyTx(tx types.Transaction) error {
-	err := tx.Validate(mp.chainIdHash)
+	err := tx.Validate(mp.chainIdHash, mp.isPublic)
 	if err != nil {
 		return err
 	}
@@ -478,7 +498,9 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 // check if recipient is valid name
 // check tx account is lower than known value
 func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error {
-
+	if !mp.whitelist.Check(types.EncodeAddress(account)) {
+		return types.ErrTxNotAllowedAccount
+	}
 	ns, err := mp.getAccountState(account)
 	if err != nil {
 		return err
@@ -493,6 +515,14 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	//this will be refactored soon
 
 	switch tx.GetBody().GetType() {
+	case types.TxType_REDEPLOY:
+		if chain.IsPublic() {
+			return types.ErrTxInvalidType
+		}
+		if tx.GetBody().GetRecipient() == nil {
+			return types.ErrTxInvalidRecipient
+		}
+		fallthrough
 	case types.TxType_NORMAL:
 		if tx.GetTx().HasNameRecipient() {
 			recipient := tx.GetBody().GetRecipient()
@@ -533,7 +563,20 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
 				return err
 			}
+		case types.AergoEnterprise:
+			enterprisecs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
+			if err != nil {
+				return err
+			}
+			sender, err := mp.stateDB.GetAccountStateV(account)
+			if err != nil {
+				return err
+			}
+			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockNo+1); err != nil {
+				return err
+			}
 		}
+
 	}
 	return err
 }
@@ -545,8 +588,6 @@ func (mp *MemPool) exist(hash []byte) *types.Tx {
 	return txs[0]
 }
 func (mp *MemPool) existEx(hashes []types.TxHash) []*types.Tx {
-	mp.RLock()
-	defer mp.RUnlock()
 
 	if len(hashes) > message.MaxReqestHashes {
 		mp.Error().Int("size", len(hashes)).
@@ -556,8 +597,8 @@ func (mp *MemPool) existEx(hashes []types.TxHash) []*types.Tx {
 
 	ret := make([]*types.Tx, len(hashes))
 	for i, h := range hashes {
-		if v, ok := mp.cache[types.ToTxID(h)]; ok {
-			ret[i] = v.GetTx()
+		if v, ok := mp.cache.Load(types.ToTxID(h)); ok {
+			ret[i] = v.(types.Transaction).GetTx()
 		}
 	}
 	return ret
@@ -624,12 +665,21 @@ func (mp *MemPool) notifyNewTx(tx types.Transaction) {
 	})
 }
 
+func (mp *MemPool) isRunning() bool {
+	if atomic.LoadInt32(&mp.status) != running {
+		mp.Info().Msg("skip to dump txs because mempool is not running yet")
+		return false
+	}
+	return true
+}
+
 func (mp *MemPool) loadTxs() {
 	time.Sleep(time.Second) // FIXME
 	if !atomic.CompareAndSwapInt32(&mp.status, initial, loading) {
 		return
 	}
 	defer atomic.StoreInt32(&mp.status, running)
+
 	file, err := os.Open(mp.dumpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -639,55 +689,53 @@ func (mp *MemPool) loadTxs() {
 	}
 
 	defer file.Close() // nolint: errcheck
-	reader := csv.NewReader(bufio.NewReader(file))
+
+	reader := bufio.NewReader(file)
 
 	var count int
+
 	for {
 		buf := types.Tx{}
-		rc, err := reader.Read()
+		byteInt := make([]byte, 4)
+		_, err := io.ReadFull(reader, byteInt)
 		if err != nil {
 			if err != io.EOF {
 				mp.Error().Err(err).Msg("err on read file during loading")
 			}
 			break
 		}
-		count++
-		dataBuf, err := enc.ToBytes(rc[0])
+
+		reclen := binary.LittleEndian.Uint32(byteInt)
+		buffer := make([]byte, int(reclen))
+		_, err = io.ReadFull(reader, buffer)
 		if err != nil {
-			mp.Error().Err(err).Msg("err on decoding tx during loading")
-			continue
+			if err != io.EOF {
+				mp.Error().Err(err).Msg("err on read file during loading")
+			}
+			break
 		}
-		err = proto.Unmarshal(dataBuf, &buf)
+
+		err = proto.Unmarshal(buffer, &buf)
 		if err != nil {
 			mp.Error().Err(err).Msg("errr on unmarshalling tx during loading")
 			continue
 		}
+		count++
 		mp.put(types.NewTransaction(&buf)) // nolint: errcheck
 	}
 
 	mp.Info().Int("try", count).
-		Int("drop", count-len(mp.cache)-mp.orphan).
-		Int("suceed", len(mp.cache)).
+		Int("drop", count-mp.length-mp.orphan).
+		Int("suceed", mp.length).
 		Int("orphan", mp.orphan).
 		Msg("loading mempool done")
 }
 
-func (mp *MemPool) isRunning() bool {
-	if atomic.LoadInt32(&mp.status) != running {
-		mp.Info().Msg("skip to dump txs because mempool is not running yet")
-		return false
-	}
-	return true
-}
 func (mp *MemPool) dumpTxsToFile() {
-
 	if !mp.isRunning() {
 		return
 	}
-	if len, _ := mp.Size(); len == 0 {
-		os.Remove(mp.dumpPath) // nolint: errcheck
-		return
-	}
+	mp.Info().Msg("start mempool dump")
 
 	file, err := os.Create(mp.dumpPath)
 	if err != nil {
@@ -696,27 +744,54 @@ func (mp *MemPool) dumpTxsToFile() {
 	}
 	defer file.Close() // nolint: errcheck
 
-	writer := csv.NewWriter(bufio.NewWriter(file))
+	writer := bufio.NewWriter(file)
 	defer writer.Flush() //nolint: errcheck
-
 	mp.Lock()
 	defer mp.Unlock()
+
+	var ag [2]time.Duration
 	count := 0
+
+Dump:
 	for _, list := range mp.pool {
 		for _, v := range list.GetAll() {
+
+			var total_data []byte
+			start := time.Now()
 			data, err := proto.Marshal(v.GetTx())
 			if err != nil {
+				mp.Error().Err(err).Msg("Marshal failed")
 				continue
 			}
 
-			strData := enc.ToString(data)
-			err = writer.Write([]string{strData})
-			if err != nil {
-				mp.Error().Err(err).Msg("writing encoded tx fail")
-				break
+			byteInt := make([]byte, 4)
+			binary.LittleEndian.PutUint32(byteInt, uint32(len(data)))
+			total_data = append(total_data, byteInt...)
+			total_data = append(total_data, data...)
+
+			ag[0] += time.Since(start)
+			start = time.Now()
+
+			length := len(total_data)
+			for {
+				size, err := writer.Write(total_data)
+				if err != nil {
+					mp.Error().Err(err).Msg("writing encoded tx fail")
+					break Dump
+				}
+				if length != size {
+					total_data = total_data[size:]
+					length -= size
+				} else {
+					break
+				}
 			}
 			count++
+			ag[1] += time.Since(start)
 		}
 	}
-	mp.Info().Int("count", count).Str("path", mp.dumpPath).Msg("dump txs")
+
+	mp.Info().Int("count", count).Str("path", mp.dumpPath).Str("marshal", ag[0].String()).
+		Str("write", ag[1].String()).Msg("dump txs")
+
 }

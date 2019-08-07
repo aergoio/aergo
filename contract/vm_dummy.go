@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -30,20 +31,31 @@ type DummyChain struct {
 	blockIds      []types.BlockID
 	blocks        []*types.Block
 	testReceiptDB db.DB
+	tmpDir        string
 }
 
 var addressRegexp *regexp.Regexp
+var traceState bool
 
 func init() {
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
+	//	traceState = true
 }
 
 func LoadDummyChain() (*DummyChain, error) {
-	bc := &DummyChain{sdb: state.NewChainStateDB()}
 	dataPath, err := ioutil.TempDir("", "data")
 	if err != nil {
 		return nil, err
 	}
+	bc := &DummyChain{
+		sdb:    state.NewChainStateDB(),
+		tmpDir: dataPath,
+	}
+	defer func() {
+		if err != nil {
+			bc.Release()
+		}
+	}()
 
 	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
 	if err != nil {
@@ -56,10 +68,19 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
-	LoadDatabase(dataPath) // sql database
+	LoadTestDatabase(dataPath) // sql database
 	StartLStateFactory()
 
+	// To pass the governance tests.
+	types.InitGovernance("dpos", true)
+	system.InitGovernance("dpos")
+
 	return bc, nil
+}
+
+func (bc *DummyChain) Release() {
+	bc.testReceiptDB.Close()
+	_ = os.RemoveAll(bc.tmpDir)
 }
 
 func (bc *DummyChain) BestBlockNo() uint64 {
@@ -373,6 +394,12 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts 
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
 
+			if traceState {
+				stateSet.traceFile, _ =
+					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				defer stateSet.traceFile.Close()
+			}
+
 			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				return err
@@ -434,6 +461,11 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, blockNo uint64, ts
 			stateSet := NewContext(bs, bc, sender, contract, eContractState, sender.ID(),
 				l.hash(), blockNo, ts, prevBlockHash, "", true,
 				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount)
+			if traceState {
+				stateSet.traceFile, _ =
+					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				defer stateSet.traceFile.Close()
+			}
 			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
@@ -472,6 +504,7 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 	blockState := bc.newBState()
 	tx := bc.BeginReceiptTx()
 	defer tx.Commit()
+	defer CloseDatabase()
 
 	for _, x := range txs {
 		if err := x.run(blockState, bc, bc.cBlock.Header.BlockNo, bc.cBlock.Header.Timestamp,

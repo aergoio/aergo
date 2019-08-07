@@ -22,7 +22,7 @@ type mutexPipe struct {
 }
 
 // newMutexPipe create pipe to output channel out
-func newMutexPipe(bufsize int, listener PipeEventListener) *mutexPipe {
+func newMutexPipe(bufSize int, listener PipeEventListener) *mutexPipe {
 	if listener == nil {
 		listener = &StatListener{}
 	}
@@ -30,7 +30,7 @@ func newMutexPipe(bufsize int, listener PipeEventListener) *mutexPipe {
 		mutex: new(sync.Mutex),
 		out:   make(chan interface{}, 1),
 
-		queue: NewPressableQueue(bufsize),
+		queue: NewPressableQueue(bufSize),
 
 		listener: listener,
 	}

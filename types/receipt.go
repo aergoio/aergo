@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	successStatus = 0
-	createdStatus = 1
-	errorStatus   = 2
+	successStatus = iota
+	createdStatus
+	errorStatus
+	recreatedStatus
 )
 
 func NewReceipt(contractAddress []byte, status string, jsonRet string) *Receipt {
@@ -42,6 +43,8 @@ func (r *Receipt) marshalBody(b *bytes.Buffer, isMerkle bool) error {
 		status = createdStatus
 	case "ERROR":
 		status = errorStatus
+	case "RECREATED":
+		status = recreatedStatus
 	default:
 		return errors.New("unsupported status in receipt")
 	}
@@ -99,6 +102,8 @@ func (r *Receipt) unmarshalBody(data []byte) ([]byte, uint32) {
 		r.Status = "CREATED"
 	case errorStatus:
 		r.Status = "ERROR"
+	case recreatedStatus:
+		r.Status = "RECREATED"
 	}
 	pos := uint32(34)
 	l := binary.LittleEndian.Uint32(data[pos:])
@@ -566,6 +571,64 @@ func (ev *Event) SetMemoryInfo(receipt *Receipt, blkHash []byte, blkNo BlockNo, 
 	ev.BlockNo = blkNo
 }
 
+func checkSameArray(value []interface{}, check []interface{}) bool {
+	if len(value) != len(check) {
+		return false
+	}
+	for i, v := range value {
+		if checkValue(v, check[i]) == false {
+			return false
+		}
+	}
+	return true
+}
+
+func checkSameMap(value map[string]interface{}, check map[string]interface{}) bool {
+	if len(value) != len(check) {
+		return false
+	}
+	for k, v := range value {
+		if checkValue(v, check[k]) == false {
+			return false
+		}
+	}
+	return true
+}
+
+func checkValue(value interface{}, check interface{}) bool {
+	if reflect.TypeOf(value) != reflect.TypeOf(check) {
+		return false
+	}
+	switch value.(type) {
+	case string:
+		if value.(string) != check.(string) {
+			return false
+		}
+	case float64:
+		if value.(float64) != check.(float64) {
+			return false
+		}
+	case bool:
+		if value.(bool) != check.(bool) {
+			return false
+		}
+	case json.Number:
+		if value.(json.Number) != check.(json.Number) {
+			return false
+		}
+	case nil:
+		return true
+	case []interface{}:
+		return checkSameArray(value.([]interface{}), check.([]interface{}))
+	case map[string]interface{}:
+		return checkSameMap(value.(map[string]interface{}), check.(map[string]interface{}))
+	default:
+		return false
+	}
+
+	return true
+}
+
 func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 	if filter.ContractAddress != nil && !bytes.Equal(ev.ContractAddress, filter.ContractAddress) {
 		return false
@@ -582,32 +645,11 @@ func (ev *Event) Filter(filter *FilterInfo, argFilter []ArgFilter) bool {
 		argLen := len(args)
 		for _, filter := range argFilter {
 			if filter.argNo >= argLen {
-				continue
+				return false
 			}
 			value := args[filter.argNo]
 			check := filter.value
-			if reflect.TypeOf(value) != reflect.TypeOf(check) {
-				return false
-			}
-			switch value.(type) {
-			case string:
-				if value.(string) != check.(string) {
-					return false
-				}
-			case float64:
-				if value.(float64) != check.(float64) {
-					return false
-				}
-			case bool:
-				if value.(bool) != check.(bool) {
-					return false
-				}
-			case json.Number:
-				if value.(json.Number) != check.(json.Number) {
-					return false
-				}
-			case nil:
-			default:
+			if checkValue(value, check) == false {
 				return false
 			}
 		}

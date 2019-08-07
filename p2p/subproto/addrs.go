@@ -7,11 +7,10 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-
-	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type addressesRequestHandler struct {
@@ -28,7 +27,7 @@ var _ p2pcommon.MessageHandler = (*addressesResponseHandler)(nil)
 
 // newAddressesReqHandler creates handler for PingRequest
 func NewAddressesReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *addressesRequestHandler {
-	ph := &addressesRequestHandler{BaseMsgHandler{protocol: AddressesRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &addressesRequestHandler{BaseMsgHandler{protocol: p2pcommon.AddressesRequest, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -40,7 +39,7 @@ func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 	peerID := ph.peer.ID()
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesRequest)
-	p2putil.DebugLogReceiveMsg(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
+	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, nil)
 
 	// check sender
 	maxPeers := data.MaxSize
@@ -68,7 +67,7 @@ func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 	}
 	resp.Peers = addrList
 	// send response
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), AddressesResponse, resp))
+	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.AddressesResponse, resp))
 }
 
 // TODO need refactoring. This code is not bounded to a specific peer but rather whole peer pool, and cause code duplication in p2p.go
@@ -76,11 +75,11 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 	selfPeerID := ph.pm.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
-		rPeerID := peer.ID(rPeerAddr.PeerID)
+		rPeerID := types.PeerID(rPeerAddr.PeerID)
 		if selfPeerID == rPeerID {
 			continue
 		}
-		if p2putil.CheckAdddressType(rPeerAddr.Address) == p2putil.AddressTypeError {
+		if network.CheckAddressType(rPeerAddr.Address) == network.AddressTypeError {
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
@@ -93,7 +92,7 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 
 // newAddressesRespHandler creates handler for PingRequest
 func NewAddressesRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *addressesResponseHandler {
-	ph := &addressesResponseHandler{BaseMsgHandler{protocol: AddressesResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
+	ph := &addressesResponseHandler{BaseMsgHandler{protocol: p2pcommon.AddressesResponse, pm: pm, peer: peer, actor: actor, logger: logger}}
 	return ph
 }
 
@@ -104,7 +103,7 @@ func (ph *addressesResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.Mes
 func (ph *addressesResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := ph.peer
 	data := msgBody.(*types.AddressesResponse)
-	p2putil.DebugLogReceiveResponseMsg(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, len(data.GetPeers()))
+	p2putil.DebugLogReceiveResponse(ph.logger, ph.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
 
 	remotePeer.ConsumeRequest(msg.OriginalID())
 	if len(data.GetPeers()) > 0 {

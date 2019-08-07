@@ -21,7 +21,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,7 +37,7 @@ func init() {
 
 // TODO split this test into two... one is to attempt make connection and the other is test peermanager if same peerid is given
 // Ignoring test for now, for lack of abstraction on AergoPeer struct
-func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
+func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 	var sampleBlockHash, _ = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	var sampleBlockHeight uint64 = 100215
 
@@ -54,7 +53,7 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 
 	//target.Host = &mockHost{peerstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewPeerMetadata())}
 	target.Host = p2pmock.NewMockHost(ctrl)
-	target.selfMeta.ID = peer.ID("gwegw")
+	target.selfMeta.ID = types.PeerID("gwegw")
 
 	sampleAddr1 := p2pcommon.PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}
 	sampleAddr2 := p2pcommon.PeerMeta{ID: "fff", IPAddress: "192.168.0.2", Port: 33888, Outbound: true}
@@ -73,10 +72,10 @@ func IgrenoreTestP2PServiceRunAddPeer(t *testing.T) {
 
 func Test_networkTransport_initSelfMeta(t *testing.T) {
 	logger := log.NewLogger("test.transport")
-	samplePeerID, _ := peer.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	samplePeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
 	type args struct {
-		peerID   peer.ID
+		peerID   types.PeerID
 		noExpose bool
 	}
 	tests := []struct {
@@ -87,7 +86,7 @@ func Test_networkTransport_initSelfMeta(t *testing.T) {
 
 		wantSameAddr bool
 		wantPort     uint32
-		wantID       peer.ID
+		wantID       types.PeerID
 		wantHidden   bool
 	}{
 		{"TIP6", &cfg.P2PConfig{NetProtocolAddr: "fe80::dcbf:beff:fe87:e30a", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
@@ -215,7 +214,7 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 
 			addr := sl.bindAddress
 			port := sl.bindPort
-			// init result must always bind balid address
+			// init result must always bind valid address
 			if tt.wantAddress == nil {
 				if addr.IsLoopback() || addr.IsUnspecified() {
 					t.Errorf("initServiceBindAddress() addr = %v, want valid addr", addr)

@@ -31,6 +31,8 @@ var (
 
 	ErrTxInvalidAccount = errors.New("tx invalid account")
 
+	ErrTxNotAllowedAccount = errors.New("tx not allowed account")
+
 	ErrTxInvalidChainIdHash = errors.New("tx invalid chain id hash")
 
 	//ErrInvalidRecipient
@@ -43,6 +45,8 @@ var (
 	ErrTxInvalidPayload = errors.New("tx invalid payload")
 
 	ErrTxInvalidSize = errors.New("size of tx exceeds max length")
+
+	ErrTxOnlySupportedInPriv = errors.New("tx only supported in private")
 
 	ErrSignNotMatch = errors.New("signature not matched")
 
@@ -68,4 +72,6 @@ var (
 
 	//ErrTooSmallAmount
 	ErrExceedAmount = errors.New("request amount exceeds")
+
+	ErrCreatorNotMatch = errors.New("creator not matched")
 )

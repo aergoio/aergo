@@ -22,3 +22,5 @@ Gopkg.lock
 # developer workspace specific
 /conf
 
+# consensus test directory
+/consensus/**/tmp/

@@ -4,18 +4,36 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
 
 #define TYPE_NAME "_type_"
 #define TYPE_LEN  "_len_"
+#define TYPE_DIMENSION  "_dimension_"
+
+#define STATE_MAX_DIMENSION 5
 
 static int state_map(lua_State *L)
 {
+    int dimension = 1;
+
+    if (luaL_isinteger(L, 1))
+        dimension = luaL_checkint(L, 1);       /* m _type_ map dim*/
+    else if (lua_gettop(L) != 0)
+        luaL_typerror(L, 1, "integer");
+
+    if (dimension > STATE_MAX_DIMENSION) {
+        luaL_error(L, "dimension over max limit(%d): %d, state.map",
+                   STATE_MAX_DIMENSION, dimension);
+    }
     lua_newtable(L);
     lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "map");       /* m _type_ map */
+    lua_rawset(L, -3);
+    lua_pushstring(L, TYPE_DIMENSION);       /* m _dimension_ */
+    lua_pushinteger(L, dimension);       /* m _type_ map dim*/
     lua_rawset(L, -3);
     return 1;
 }
@@ -23,20 +41,43 @@ static int state_map(lua_State *L)
 static int state_array(lua_State *L)
 {
     int32_t len = 0;
-    int is_fixed = lua_gettop(L) != 0;
-    if (is_fixed) {
-        if (!luaL_isinteger(L, 1)) {
-            luaL_typerror(L, 1, "integer");
-        }
-        len = luaL_checkint(L, 1);      /* size */
-        luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
+    int argn = lua_gettop(L);
+
+    if (argn > STATE_MAX_DIMENSION) {
+        luaL_error(L, "dimension over max limit(%d): %d, state.array",
+                   STATE_MAX_DIMENSION, argn);
     }
     lua_newtable(L);
     lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "array");     /* m _type_ array */
     lua_rawset(L, -3);
     lua_pushstring(L, TYPE_LEN);    /* m _len_ */
-    lua_pushinteger(L, len);        /* m _len_ len*/
+    if (argn == 0) {
+        lua_pushinteger(L, len);        /* m _len_ len*/
+    } else if (argn == 1) {
+        if (!luaL_isinteger(L, 1)) {
+            luaL_typerror(L, 1, "integer");
+        }
+        len = luaL_checkint(L, 1);      /* size */
+        luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
+        lua_pushinteger(L, len);        /* m _len_ len*/
+    } else {
+        int i;
+        lua_pushstring(L, TYPE_DIMENSION);   /* m _len_ _dimension_ */
+        for (i = 1; i <= argn; ++i) {
+            if (!luaL_isinteger(L, i)) {
+                luaL_typerror(L, i, "integer");
+            }
+            len = luaL_checkint(L, i);      /* size */
+            luaL_argcheck(L, (len > 0), 1, "the array length must be greater than zero");
+            lua_pushinteger(L, len);
+            lua_pushstring(L, ",");
+        }
+        lua_pop(L, 1);
+        lua_concat(L, argn * 2 - 1);
+        lua_rawset(L, -4);      /* m _len_ */
+        lua_pushinteger(L, 0);  /* m _len_ len*/
+    }
     lua_rawset(L, -3);
     return 1;
 }

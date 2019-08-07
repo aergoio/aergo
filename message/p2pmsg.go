@@ -8,7 +8,6 @@ package message
 import (
 	"fmt"
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-peer"
 	"time"
 )
 
@@ -23,18 +22,19 @@ var (
 	TooFewBlocksError    = fmt.Errorf("too few blocks received that expected")
 	TooManyBlocksError   = fmt.Errorf("too many blocks received that expected")
 	TooBigBlockError     = fmt.Errorf("block size limit exceeded")
+	InvalidArgumentError = fmt.Errorf("invalid argument")
 )
 
 // PingMsg send types.Ping to each peer.
 // The actor returns true if sending is successful.
 type PingMsg struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 }
 
 // GetAddressesMsg send types.AddressesRequest to dest peer. the dest peer will send types.AddressesResponse.
 // The actor returns true if sending is successful.
 type GetAddressesMsg struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Size   uint32
 	Offset uint32
 }
@@ -59,7 +59,7 @@ type NotifyNewTransactions struct {
 // GetTransactions send types.GetTransactionsRequest to dest peer. The receiving peer will send types.GetTransactionsResponse
 // The actor returns true if sending is successful.
 type GetTransactions struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Hashes []TXHash
 }
 
@@ -72,7 +72,7 @@ type TransactionsResponse struct {
 // GetBlockHeaders send type.GetBlockRequest to dest peer
 // The actor returns true if sending is successful.
 type GetBlockHeaders struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	// Hash is the first block to get. Height will be used when Hash mi empty
 	Hash    BlockHash
 	Height  uint64
@@ -91,7 +91,7 @@ type BlockHeadersResponse struct {
 // GetBlockInfos send types.GetBlockRequest to dest peer.
 // The actor returns true if sending is successful.
 type GetBlockInfos struct {
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Hashes []BlockHash
 }
 
@@ -104,13 +104,13 @@ type GetBlockChunks struct {
 // BlockInfosResponse is data from other peer, as a response of types.GetBlockRequest
 // p2p module will send this to chainservice actor.
 type BlockInfosResponse struct {
-	FromWhom peer.ID
+	FromWhom types.PeerID
 	Blocks   []*types.Block
 }
 
 type GetBlockChunksRsp struct {
 	Seq    uint64
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Blocks []*types.Block
 	Err    error
 }
@@ -144,7 +144,7 @@ type GetMetrics struct {
 // GetSyncAncestor is sent from Syncer, send types.GetAncestorRequest to dest peer.
 type GetSyncAncestor struct {
 	Seq    uint64
-	ToWhom peer.ID
+	ToWhom types.PeerID
 	Hashes [][]byte
 }
 
@@ -156,7 +156,7 @@ type GetSyncAncestorRsp struct {
 
 type GetHashes struct {
 	Seq      uint64
-	ToWhom   peer.ID
+	ToWhom   types.PeerID
 	PrevInfo *types.BlockInfo
 	Count    uint64
 }
@@ -171,7 +171,7 @@ type GetHashesRsp struct {
 
 type GetHashByNo struct {
 	Seq     uint64
-	ToWhom  peer.ID
+	ToWhom  types.PeerID
 	BlockNo types.BlockNo
 }
 
@@ -185,11 +185,48 @@ type GetSelf struct {
 }
 
 type GetCluster struct {
-	ReplyC chan *GetClusterRsp
+	BestBlockHash BlockHash
+	ReplyC        chan *GetClusterRsp
 }
 
 type GetClusterRsp struct {
-	ChainID BlockHash
-	Members []*types.MemberAttr
-	Err     error
+	ClusterID     uint64
+	ChainID       BlockHash
+	Members       []*types.MemberAttr
+	Err           error
+	HardStateInfo *types.HardStateInfo
+}
+
+type GetRaftTransport struct {
+	Cluster interface{}
+}
+
+type RaftClusterEvent struct {
+	BPAdded   []types.PeerID
+	BPRemoved []types.PeerID
+}
+
+// ChangeDesignatedPeers will trigger connect or disconnect peers
+type ChangeDesignatedPeers struct {
+	Add    []types.PeerAddress
+	Remove []types.PeerID
+}
+
+type SendRaft struct {
+	ToWhom types.PeerID
+	Body   interface{} // for avoiding dependency cycle, though it must be raftpb.Message.
+}
+
+type SendRaftRsp struct {
+	Err error
+}
+
+type P2PWhiteListConfEnableEvent struct {
+	Name string
+	On bool
+}
+
+type P2PWhiteListConfSetEvent struct {
+	Name string
+	Values []string
 }
