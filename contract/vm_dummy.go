@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/config"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -70,6 +71,7 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadTestDatabase(dataPath) // sql database
 	StartLStateFactory()
+	HardforkConfig = config.AllEnabledHardforkConfig
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)

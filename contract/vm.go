@@ -289,6 +289,9 @@ func newExecutor(
 		return ce
 	}
 	stateSet.service = backupService
+	if HardforkConfig.IsV2Fork(stateSet.blockHeight) {
+		C.setHardforkV2(ce.L)
+	}
 
 	if isCreate {
 		f, err := resolveFunction(ctrState, "constructor", isCreate)

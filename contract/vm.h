@@ -8,6 +8,8 @@
 
 extern const char *construct_name;
 
+#define FORK_V2 "_FORK_V2"
+
 lua_State *vm_newstate();
 int vm_isnil(lua_State *L, int idx);
 void vm_getfield(lua_State *L, const char *name);
@@ -23,5 +25,7 @@ int vm_is_payable_function(lua_State *L, char *fname);
 char *vm_resolve_function(lua_State *L, char *fname, int *viewflag, int *payflag);
 void vm_set_count_hook(lua_State *L, int limit);
 void vm_db_release_resource(lua_State *L);
+void setHardforkV2(lua_State *L);
+int isHardfork(lua_State *L, char *forkname);
 
 #endif /* _VM_H */

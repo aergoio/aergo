@@ -1728,7 +1728,7 @@ func TestKvstore(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("map", `{"Name":"get", "Args":["htwo"]}`, "", "{}")
+	err = bc.Query("map", `{"Name":"get", "Args":["htwo"]}`, "", "null")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1834,16 +1834,16 @@ func TestJson(t *testing.T) {
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "json", 0,
-			`{"Name":"set", "Args":["{\"key1\":{\"arg1\": 1,\"arg2\":{}, \"arg3\":[]}, \"key2\":[5,4,3]}"]}`),
+			`{"Name":"set", "Args":["{\"key1\":{\"arg1\": 1,\"arg2\":null, \"arg3\":[]}, \"key2\":[5,4,3]}"]}`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg1":1,"arg2":{},"arg3":{}},"key2":[5,4,3]}`)
+	err = bc.Query("json", `{"Name":"get", "Args":[]}`, "", `{"key1":{"arg1":1,"arg3":{}},"key2":[5,4,3]}`)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg1\":1,\"arg2\":{},\"arg3\":{}},\"key2\":[5,4,3]}"`)
+	err = bc.Query("json", `{"Name":"getenc", "Args":[]}`, "", `"{\"key1\":{\"arg1\":1,\"arg3\":{}},\"key2\":[5,4,3]}"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2471,7 +2471,7 @@ func TestMapKey(t *testing.T) {
 		NewLuaTxDef("ktlee", "a", 0, definition),
 	)
 
-	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "{}")
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "null")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2510,11 +2510,11 @@ func TestMapKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "{}")
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "null")
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "{}")
+	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "null")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4597,7 +4597,7 @@ func TestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("snap", `{"Name":"query", "Args":[2]}`, "", "[1,{},{},{}]")
+	err = bc.Query("snap", `{"Name":"query", "Args":[2]}`, "", "[1,null,null,null]")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4875,7 +4875,7 @@ func TestMultiArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
-		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,2,{},10,11]")
+		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,2,null,10,11]")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4886,7 +4886,7 @@ func TestMultiArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
-		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,{},{},10,11]")
+		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,null,null,10,11]")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4947,7 +4947,7 @@ abi.register(abc, query)
 		NewLuaTxDef("ktlee", "ma", 0, definition2),
 	)
 	err = bc.Query("ma", `{"Name":"query", "Args":[]}`,
-		"", `["A","B",{},{},"A","B","v1"]`)
+		"", `["A","B",null,null,"A","B","v1"]`)
 	if err != nil {
 		t.Error(err)
 	}

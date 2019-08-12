@@ -4,6 +4,7 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"github.com/aergoio/aergo/config"
 	"math/big"
 	"strconv"
 
@@ -32,10 +33,11 @@ type preLoadInfo struct {
 }
 
 var (
-	loadReqCh    chan *preLoadReq
-	preLoadInfos [2]preLoadInfo
-	PubNet       bool
-	TraceBlockNo uint64
+	loadReqCh      chan *preLoadReq
+	preLoadInfos   [2]preLoadInfo
+	PubNet         bool
+	HardforkConfig *config.HardforkConfig
+	TraceBlockNo   uint64
 )
 
 const BlockFactory = 0

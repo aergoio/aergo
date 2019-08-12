@@ -286,6 +286,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.StartLStateFactory()
+	contract.HardforkConfig = cs.cfg.Hardfork
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())

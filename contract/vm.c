@@ -63,6 +63,23 @@ const int *getLuaExecContext(lua_State *L)
 	return service;
 }
 
+void setHardforkV2(lua_State *L)
+{
+    lua_pushboolean(L, true);
+	lua_setfield (L, LUA_REGISTRYINDEX, FORK_V2);
+}
+
+int isHardfork(lua_State *L, char *forkname)
+{
+	lua_getfield (L, LUA_REGISTRYINDEX, forkname);
+	if (lua_isnil(L, -1)) {
+	    lua_pop(L, 1);
+	    return 0;
+	}
+	lua_pop(L, 1);
+    return 1;
+}
+
 static int loadLibs(lua_State *L)
 {
 	luaL_openlibs(L);
