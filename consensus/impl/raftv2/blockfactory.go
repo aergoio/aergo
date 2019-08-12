@@ -27,24 +27,9 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const (
-	slotQueueMax = 100
-	//DefaultCommitQueueLen     = 1
-	DefaultBlockFactoryTickMs = 100
-	MinBlockFactoryTickMs     = 10
-)
-
 var (
 	logger     *log.Logger
 	httpLogger *log.Logger
-
-	// blockIntervalMs is the block genration interval in milli-seconds.
-	RaftTick           = DefaultTickMS
-	RaftSkipEmptyBlock = false
-	//MaxCommitQueueLen  = DefaultCommitQueueLen
-
-	BlockFactoryTickMs time.Duration
-	BlockIntervalMs    time.Duration
 )
 
 var (
@@ -166,35 +151,6 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	)
 
 	return bf, nil
-}
-
-func Init(raftCfg *config.RaftConfig) {
-	var tickMs time.Duration
-
-	if raftCfg.BlockFactoryTickMs != 0 {
-		if raftCfg.BlockFactoryTickMs < MinBlockFactoryTickMs {
-			tickMs = MinBlockFactoryTickMs
-		} else {
-			tickMs = time.Duration(raftCfg.BlockFactoryTickMs)
-		}
-	} else {
-		tickMs = DefaultBlockFactoryTickMs
-	}
-
-	BlockFactoryTickMs = time.Millisecond * tickMs
-
-	if raftCfg.BlockIntervalMs != 0 {
-		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BlockIntervalMs)
-	} else {
-		BlockIntervalMs = consensus.BlockInterval
-	}
-
-	if raftCfg.SlowNodeGap > 0 {
-		MaxSlowNodeGap = uint64(raftCfg.SlowNodeGap)
-	}
-
-	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
-		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {

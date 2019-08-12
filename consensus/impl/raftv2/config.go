@@ -22,8 +22,74 @@ var (
 )
 
 const (
-	DefaultTickMS = time.Millisecond * 50
+	slotQueueMax = 100
+
+	DefaultBlockFactoryTickMs = 100
+	MinBlockFactoryTickMs     = 10
+	DefaultTickMS             = time.Millisecond * 50
+	DefaultElectionTickCount  = 10
+	DefaultSlowNodeGap        = 100
+	DefaultSnapFrequency      = 30
 )
+
+var (
+	RaftTick = DefaultTickMS
+	// blockIntervalMs is the block genration interval in milli-seconds.
+	RaftSkipEmptyBlock = false
+	//MaxCommitQueueLen  = DefaultCommitQueueLen
+
+	BlockFactoryTickMs time.Duration
+	BlockIntervalMs    time.Duration
+
+	ConfSnapFrequency           uint64 = DefaultSnapFrequency
+	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
+
+	ElectionTickCount        = DefaultElectionTickCount
+	MaxSlowNodeGap    uint64 = DefaultSlowNodeGap // Criteria for determining whether the server is in a slow state
+)
+
+func Init(raftCfg *config.RaftConfig) {
+	var tickMs time.Duration
+
+	//set default
+	if raftCfg.HeartbeatTick != 0 {
+		RaftTick = time.Duration(raftCfg.HeartbeatTick * 1000000)
+	}
+
+	if raftCfg.ElectionTickCount > 0 {
+		ElectionTickCount = raftCfg.ElectionTickCount
+	}
+
+	if raftCfg.SnapFrequency != 0 {
+		ConfSnapFrequency = raftCfg.SnapFrequency
+		ConfSnapshotCatchUpEntriesN = raftCfg.SnapFrequency
+	}
+
+	if raftCfg.BlockFactoryTickMs != 0 {
+		if raftCfg.BlockFactoryTickMs < MinBlockFactoryTickMs {
+			tickMs = MinBlockFactoryTickMs
+		} else {
+			tickMs = time.Duration(raftCfg.BlockFactoryTickMs)
+		}
+	} else {
+		tickMs = DefaultBlockFactoryTickMs
+	}
+
+	BlockFactoryTickMs = time.Millisecond * tickMs
+
+	if raftCfg.BlockIntervalMs != 0 {
+		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BlockIntervalMs)
+	} else {
+		BlockIntervalMs = consensus.BlockInterval
+	}
+
+	if raftCfg.SlowNodeGap > 0 {
+		MaxSlowNodeGap = uint64(raftCfg.SlowNodeGap)
+	}
+
+	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
+		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
+}
 
 func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	var err error
@@ -33,16 +99,6 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 	raftConfig := cfg.Consensus.Raft
 	if raftConfig == nil {
 		panic("raftconfig is not set. please set raftName, raftBPs.")
-	}
-
-	//set default
-	if raftConfig.HeartbeatTick != 0 {
-		RaftTick = time.Duration(raftConfig.HeartbeatTick * 1000000)
-	}
-
-	if raftConfig.SnapFrequency != 0 {
-		ConfSnapFrequency = raftConfig.SnapFrequency
-		ConfSnapshotCatchUpEntriesN = raftConfig.SnapFrequency
 	}
 
 	chainID, err := genesis.ID.Bytes()
