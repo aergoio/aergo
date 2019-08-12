@@ -112,6 +112,17 @@ func TestProposalBPCount(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
+	operatorTx := &types.Tx{
+		Body: &types.TxBody{
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    types.ProposalPrice.Bytes(),
+			Payload:   []byte(`{"Name":"v1addOperator", "Args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`),
+		},
+	}
+	_, err = ExecuteSystemTx(scs, operatorTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not set system operator")
+
 	stakingTx.Body.Account = sender2.ID()
 	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")

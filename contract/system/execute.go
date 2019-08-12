@@ -18,14 +18,15 @@ import (
 
 //SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
-	BlockNo  types.BlockNo
-	Call     *types.CallInfo
-	Args     []string
-	Staked   *types.Staking
-	Vote     *types.Vote // voting
-	Proposal *Proposal   // voting
-	Sender   *state.V
-	Receiver *state.V
+	BlockNo   types.BlockNo
+	Call      *types.CallInfo
+	Args      []string
+	Staked    *types.Staking
+	Vote      *types.Vote // voting
+	Proposal  *Proposal   // voting
+	Sender    *state.V
+	Receiver  *state.V
+	Operators Operators
 
 	op     types.OpSysTx
 	scs    *state.ContractState
@@ -68,6 +69,8 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 		types.Opstake:          newStakeCmd,
 		types.Opunstake:        newUnstakeCmd,
 		types.OpcreateProposal: newProposalCmd,
+		types.OpaddOperator:    newOperatorCmd,
+		types.OpremoveOperator: newOperatorCmd,
 	}
 
 	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockNo)

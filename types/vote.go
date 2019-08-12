@@ -38,6 +38,10 @@ const (
 	Opunstake
 	// OpcreateProposal represents a transaction creating a proposal.
 	OpcreateProposal
+	// OpaddOperator represents a transaction adding a operator.
+	OpaddOperator
+	// OpremoveOperator represents a transaction removing a operator.
+	OpremoveOperator
 	// OpSysTxMax is the maximum of system tx OP numbers.
 	OpSysTxMax
 

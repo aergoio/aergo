@@ -219,6 +219,11 @@ func ValidateSystemTx(tx *TxBody) error {
 		if len(ci.Args) < 1 {
 			return fmt.Errorf("the number of args less then 2")
 		}
+	case OpaddOperator,
+		OpremoveOperator:
+		if len(ci.Args) != 1 {
+			return fmt.Errorf("invalid call arguments")
+		}
 	default:
 		return ErrTxInvalidPayload
 	}

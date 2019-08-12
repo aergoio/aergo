@@ -1,7 +1,9 @@
 package system
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -10,6 +12,8 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
+
+var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
@@ -44,6 +48,10 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		context.Staked = staked
 	case types.OpcreateProposal:
 		staked, err := checkStakingBefore(account, scs)
+		if err != nil {
+			return nil, err
+		}
+		_, err = checkOperator(scs, sender.ID())
 		if err != nil {
 			return nil, err
 		}
@@ -128,6 +136,33 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		context.Proposal = proposal
 		context.Staked = staked
 		context.Vote = oldvote
+	case types.OpaddOperator,
+		types.OpremoveOperator:
+		if err := checkOperatorArg(context, &ci); err != nil {
+			return nil, err
+		}
+		operators, err := checkOperator(scs, sender.ID())
+		if err != nil &&
+			err != ErrTxSystemOperatorIsNotSet {
+			return nil, err
+		}
+		if context.op == types.OpaddOperator {
+			if operators.IsExist(types.ToAddress(context.Args[0])) {
+				return nil, fmt.Errorf("already exist operator: %s", ci.Args[0])
+			}
+			operators = append(operators, types.ToAddress(context.Args[0]))
+		} else if context.op == types.OpremoveOperator {
+			if !operators.IsExist(sender.ID()) {
+				return nil, fmt.Errorf("operator is not exist : %s", ci.Args[0])
+			}
+			for i, v := range operators {
+				if bytes.Equal(v, types.ToAddress(context.Args[0])) {
+					operators = append(operators[:i], operators[i+1:]...)
+					break
+				}
+			}
+		}
+		context.Operators = operators
 	default:
 		return nil, types.ErrTxInvalidPayload
 	}
@@ -200,4 +235,34 @@ func parseIDForProposal(ci *types.CallInfo) (string, error) {
 		return "", fmt.Errorf("args[%d] invalid id", 0)
 	}
 	return id, nil
+}
+
+func checkOperatorArg(context *SystemContext, ci *types.CallInfo) error {
+	if len(ci.Args) != 1 { //args[0] : operator address
+		return fmt.Errorf("invalid argument count %s : %s", ci.Name, ci.Args)
+	}
+	arg, ok := ci.Args[0].(string)
+	if !ok {
+		return fmt.Errorf("invalid string in the argument: %s", ci.Args)
+	}
+	address := types.ToAddress(arg)
+	if len(address) == 0 {
+		return fmt.Errorf("invalid address: %s", ci.Args[0])
+	}
+	context.Args = append(context.Args, arg)
+	return nil
+}
+
+func checkOperator(scs *state.ContractState, address []byte) (Operators, error) {
+	ops, err := getOperators(scs)
+	if err != nil {
+		return nil, fmt.Errorf("could not get admin in enterprise contract")
+	}
+	if ops == nil {
+		return nil, ErrTxSystemOperatorIsNotSet
+	}
+	if i := bytes.Index(bytes.Join(ops, []byte("")), address); i == -1 && i%types.AddressLength != 0 {
+		return nil, fmt.Errorf("operator address not matched")
+	}
+	return ops, nil
 }
