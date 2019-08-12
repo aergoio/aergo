@@ -56,7 +56,7 @@ func (v *vpr) checkValidity(t *testing.T) {
 		for e := l.Front(); e != nil; e = next {
 			if next = e.Next(); next != nil {
 				assert.True(t,
-					v.voters.cmp(toVotingPower(e).getPower(), toVotingPower(next).getPower()),
+					v.voters.cmp(toVotingPower(e), toVotingPower(next)),
 					"bucket[%v] not ordered", i)
 			}
 			sum2.Add(sum2, toVotingPower(e).getPower())
@@ -213,7 +213,7 @@ func commit() error {
 }
 
 func TestVprOp(t *testing.T) {
-	initVprtTest(t, func() { initRankTable(vprMax) })
+	initVprtTest(t, func() { initRankTable(vprMax / 10) })
 	defer finalizeVprtTest()
 
 	rValue := func(rhs int64) *big.Int {
@@ -275,7 +275,7 @@ func TestVprOp(t *testing.T) {
 }
 
 func TestVprTable(t *testing.T) {
-	initVprtTest(t, func() { initRankTableRand(vprMax) })
+	initVprtTest(t, func() { initRankTableRand(vprMax / 2) })
 	defer finalizeVprtTest()
 
 	for i, l := range votingPowerRank.store.buckets {

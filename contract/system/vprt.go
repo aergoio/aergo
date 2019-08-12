@@ -293,7 +293,7 @@ func (b *vprStore) getBucket(addr types.AccountID) *list.List {
 
 type topVoters struct {
 	buckets map[uint64]*list.List
-	cmp     func(lhs *big.Int, rhs *big.Int) bool
+	cmp     func(lhs *votingPower, rhs *votingPower) bool
 	max     uint32
 	powers  map[types.AccountID]*list.Element
 }
@@ -301,8 +301,9 @@ type topVoters struct {
 func newTopVoters(max uint32) *topVoters {
 	return &topVoters{
 		buckets: make(map[uint64]*list.List),
-		cmp: func(curr *big.Int, e *big.Int) bool {
-			return curr.Cmp(e) >= 0
+		cmp: func(curr *votingPower, ne *votingPower) bool {
+			pwrInd := curr.getPower().Cmp(ne.getPower())
+			return pwrInd > 0 || (pwrInd == 0 && bytes.Compare(curr.idBytes(), ne.idBytes()) >= 0)
 		},
 		max:    max,
 		powers: make(map[types.AccountID]*list.Element),
@@ -455,9 +456,7 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 
 			orderedListMove(l, e,
 				func(e *list.Element) bool {
-					existing := toVotingPower(e).getPower()
-					curr := v.getPower()
-					return tv.cmp(curr, existing)
+					return tv.cmp(v, toVotingPower(e))
 				},
 			)
 		}
@@ -465,7 +464,7 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 		vp = v
 		e = orderedListAdd(tv.getBucket(vp.getPower()), v,
 			func(e *list.Element) bool {
-				return tv.cmp(v.getPower(), toVotingPower(e).getPower())
+				return tv.cmp(v, toVotingPower(e))
 			},
 		)
 		tv.set(v.getID(), e)
