@@ -167,7 +167,7 @@ func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	}
 	// lru cache can't accept byte slice key
 	if !remotePeer.UpdateBlkCache(data.BlockHash, data.BlockNo) {
-		bh.sm.HandleNewBlockNotice(remotePeer, data)
+		bh.sm. HandleNewBlockNotice(remotePeer, data)
 	}
 }
 

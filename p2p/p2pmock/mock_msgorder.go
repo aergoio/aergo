@@ -119,6 +119,18 @@ func (mr *MockMsgOrderMockRecorder) SendTo(p interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendTo", reflect.TypeOf((*MockMsgOrder)(nil).SendTo), p)
 }
 
+// CancelSend mocks base method
+func (m *MockMsgOrder) CancelSend(pi p2pcommon.RemotePeer) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CancelSend", pi)
+}
+
+// CancelSend indicates an expected call of CancelSend
+func (mr *MockMsgOrderMockRecorder) CancelSend(pi interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelSend", reflect.TypeOf((*MockMsgOrder)(nil).CancelSend), pi)
+}
+
 // MockMoFactory is a mock of MoFactory interface
 type MockMoFactory struct {
 	ctrl     *gomock.Controller

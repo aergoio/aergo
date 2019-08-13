@@ -67,3 +67,4 @@ func (s *rPeerStatus) activeSince() time.Time {
 	defer s.mu.Unlock()
 	return s.since
 }
+
