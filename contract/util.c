@@ -567,12 +567,13 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 }
 
 void minus_inst_count(lua_State *L, int count) {
-    int cnt = luaL_instcount(L);
-
-    cnt -= count;
-    if (cnt <= 0)
-        cnt = 1;
-    luaL_setinstcount(L, cnt);
+    if (vm_need_resource_limit(L)) {
+        int cnt = luaL_instcount(L);
+        cnt -= count;
+        if (cnt <= 0)
+            cnt = 1;
+        luaL_setinstcount(L, cnt);
+    }
 }
 
 int lua_util_json_to_lua (lua_State *L, char *json, bool check)

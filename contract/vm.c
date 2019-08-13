@@ -74,6 +74,12 @@ const int *getLuaExecContext(lua_State *L)
 	return service;
 }
 
+int vm_need_resource_limit(lua_State *L)
+{
+    // TODO -1
+    return luaIsQuery(*getLuaExecContext(L)) == 1 || !isHardfork(L, FORK_V2);
+}
+
 void setHardforkV2(lua_State *L)
 {
     lua_pushboolean(L, true);
@@ -89,6 +95,10 @@ int isHardfork(lua_State *L, char *forkname)
 	}
 	lua_pop(L, 1);
     return 1;
+}
+
+void vm_set_query(lua_State *L)
+{
 }
 
 static int loadLibs(lua_State *L)
@@ -110,18 +120,28 @@ lua_State *vm_newstate()
 	return L;
 }
 
-static int pcall(lua_State *L, int narg, int nret, int maxinstcount)
+static void set_loadbuf_rlimit(lua_State *L)
+{
+    if (vm_need_resource_limit(L)) {
+        vm_set_count_hook(L, 5000000);
+        luaL_enablemaxmem(L);
+    }
+}
+
+static void unset_loadbuf_rlimit(lua_State *L)
+{
+    if (vm_need_resource_limit(L)) {
+        luaL_disablemaxmem(L);
+        lua_sethook(L, NULL, 0, 0);
+    }
+}
+
+static int pcall(lua_State *L, int narg, int nret)
 {
     int err;
-
-    vm_set_count_hook(L, maxinstcount);
-    luaL_enablemaxmem(L);
-
+    set_loadbuf_rlimit(L);
     err = lua_pcall(L, narg, nret, 0);
-
-    luaL_disablemaxmem(L);
-    lua_sethook(L, NULL, 0, 0);
-
+    unset_loadbuf_rlimit(L);
     return err;
 }
 
@@ -131,7 +151,7 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id,
 
 	setLuaExecContext(L, service);
 
-	err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0, 5000000);
+	err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0);
 	if (err != 0) {
 	    return lua_tostring(L, -1);
 	}
@@ -172,16 +192,37 @@ void vm_set_count_hook(lua_State *L, int limit)
 	lua_sethook(L, count_hook, LUA_MASKCOUNT, limit);
 }
 
+static void timeout_hook(lua_State *L, lua_Debug *ar)
+{
+	int errCode = luaCheckTimeout(*getLuaExecContext(L));
+    if (errCode == 1) { // TODO -1
+        luaL_setuncatchablerror(L);
+        lua_pushstring(L, ERR_BF_TIMEOUT);
+        luaL_throwerror(L);
+    }
+}
+
+void vm_set_timeout_hook(lua_State *L)
+{
+    if (isHardfork(L, FORK_V2)) {
+        lua_sethook(L, timeout_hook, LUA_MASKCOUNT, 100);
+    }
+}
+
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
 {
 	int err;
 	int nr = lua_gettop(L) - argc - 1;
 
-    luaL_enablemaxmem(L);
+    if (vm_need_resource_limit(L)) {
+        luaL_enablemaxmem(L);
+    }
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 
-	luaL_disablemaxmem(L);
+    if (vm_need_resource_limit(L)) {
+        luaL_disablemaxmem(L);
+    }
 
 	if (err != 0) {
         lua_cpcall(L, lua_db_release_resource, NULL);

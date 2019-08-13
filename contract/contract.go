@@ -100,13 +100,17 @@ func Execute(
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
 			var preload *loadedReply
-			select {
-			case preload = <-replyCh:
-			case <-timeout: // TODO v2
-				err = &VmTimeoutError{}
-				return
-			default:
-				continue
+			if HardforkConfig.IsV2Fork(bi.No) {
+				select {
+				case preload = <-replyCh:
+				case <-timeout:
+					err = &VmTimeoutError{}
+					return
+				default:
+					continue
+				}
+			} else {
+				preload = <-replyCh
 			}
 			if preload.tx != tx {
 				preload.ex.close()
@@ -127,14 +131,14 @@ func Execute(
 	} else {
 		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
+			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), timeout)
 		if stateSet.traceFile != nil {
 			defer stateSet.traceFile.Close()
 		}
 		if receiver.IsDeploy() {
-			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet, timeout)
+			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
 		} else {
-			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet, timeout)
+			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
 		}
 	}
 
@@ -207,7 +211,7 @@ func preLoadWorker() {
 		}
 		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), reqInfo.bi, "", false,
-			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
+			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt(), nil)
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
 		replyCh <- &loadedReply{tx, ex, err}

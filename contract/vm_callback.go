@@ -201,12 +201,20 @@ func getCtrState(stateSet *StateSet, aid types.AccountID) (*CallState, error) {
 	return callState, err
 }
 
+func vmNeedResourceLimit(L *LState) bool {
+	return C.vm_need_resource_limit(L) == 1
+}
+
 func setInstCount(parent *LState, child *LState) {
-	C.luaL_setinstcount(parent, C.luaL_instcount(child))
+	if vmNeedResourceLimit(child) {
+		C.luaL_setinstcount(parent, C.luaL_instcount(child))
+	}
 }
 
 func setInstMinusCount(L *LState, deduc C.int) {
-	C.luaL_setinstcount(L, minusCallCount(C.luaL_instcount(L), deduc))
+	if vmNeedResourceLimit(L) {
+		C.luaL_setinstcount(L, minusCallCount(C.luaL_instcount(L), deduc))
+	}
 }
 
 func minusCallCount(curCount C.int, deduc C.int) C.int {
@@ -1297,4 +1305,30 @@ func LuaViewEnd(service *C.int) {
 func LuaCheckView(service *C.int) C.int {
 	stateSet := curStateSet[*service]
 	return C.int(stateSet.nestedView)
+}
+
+//export luaCheckTimeout
+func luaCheckTimeout(service C.int) C.int {
+	stateSet := curStateSet[service]
+	if stateSet == nil {
+		return -1
+	}
+	select {
+	case <-stateSet.timeout:
+		return 1
+	default:
+		return 0
+	}
+}
+
+//export luaIsQuery
+func luaIsQuery(service C.int) C.int {
+	stateSet := curStateSet[service]
+	if stateSet == nil {
+		return -1
+	}
+	if stateSet.isQuery {
+		return 1
+	}
+	return 0
 }

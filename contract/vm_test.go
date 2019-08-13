@@ -508,7 +508,11 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 }
 
 func TestInfiniteLoop(t *testing.T) {
-	bc, err := LoadDummyChain()
+	bc, err := LoadDummyChain(
+		func(d *DummyChain) {
+			d.timeout = 500
+		},
+	)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -528,7 +532,10 @@ end
 function catch()
 	return pcall(infiniteLoop)
 end
-abi.register(infiniteLoop, infiniteCall, catch)`
+function contract_catch()
+	return contract.pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100),
@@ -546,11 +553,11 @@ abi.register(infiniteLoop, infiniteCall, catch)`
 			`{"Name":"infiniteLoop"}`,
 		),
 	)
-	errMsg := "exceeded the maximum instruction count"
+	errTimeout := VmTimeoutError{}
 	if err == nil {
-		t.Errorf("expected: %s", errMsg)
+		t.Errorf("expected: %v", errTimeout)
 	}
-	if err != nil && !strings.Contains(err.Error(), errMsg) {
+	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
 		t.Error(err)
 	}
 
@@ -563,9 +570,24 @@ abi.register(infiniteLoop, infiniteCall, catch)`
 		),
 	)
 	if err == nil {
-		t.Errorf("expected: %s", errMsg)
+		t.Errorf("expected: %v", errTimeout)
 	}
-	if err != nil && !strings.Contains(err.Error(), errMsg) {
+	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"contract_catch"}`,
+		),
+	)
+	if err == nil {
+		t.Errorf("expected: %v", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
 		t.Error(err)
 	}
 
@@ -577,7 +599,7 @@ abi.register(infiniteLoop, infiniteCall, catch)`
 			`{"Name":"infiniteCall"}`,
 		),
 	)
-	errMsg = "stack overflow"
+	errMsg := "stack overflow"
 	if err == nil {
 		t.Errorf("expected: %s", errMsg)
 	}
@@ -4007,7 +4029,7 @@ func TestContractSend(t *testing.T) {
 	}
 }
 
-func TestMaxMemSize(t *testing.T) {
+func TestMaxString(t *testing.T) {
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -4044,7 +4066,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"oom"}`,
 		),
 	)
-	errMsg := "not enough memory"
+	errMsg := "string length overflow"
 	if err == nil {
 		t.Errorf("expected: %s", errMsg)
 	}
@@ -4057,7 +4079,7 @@ abi.register(oom, p, cp)`
 			"oom",
 			0,
 			`{"Name":"p"}`,
-		).Fail(errMsg),
+		),
 	)
 	if err != nil {
 		t.Error(err)
@@ -4068,7 +4090,7 @@ abi.register(oom, p, cp)`
 			"oom",
 			0,
 			`{"Name":"cp"}`,
-		).Fail(errMsg),
+		),
 	)
 	if err != nil {
 		t.Error(err)
@@ -4141,7 +4163,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`[Contract.LuaDeployContract]newExecutor Error :not permitted state referencing at global scope`)
+	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`[System.LuaSetDB] set not permitted in query`)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)

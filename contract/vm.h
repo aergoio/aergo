@@ -9,6 +9,7 @@
 extern const char *construct_name;
 
 #define FORK_V2 "_FORK_V2"
+#define ERR_BF_TIMEOUT "contract timeout"
 
 lua_State *vm_newstate();
 int vm_isnil(lua_State *L, int idx);
@@ -28,5 +29,7 @@ void vm_db_release_resource(lua_State *L);
 void setHardforkV2(lua_State *L);
 int isHardfork(lua_State *L, char *forkname);
 void initViewFunction();
+void vm_set_timeout_hook(lua_State *L);
+int vm_need_resource_limit(lua_State *L);
 
 #endif /* _VM_H */

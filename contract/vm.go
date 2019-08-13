@@ -98,6 +98,7 @@ type StateSet struct {
 	eventCount        int32
 	callDepth         int32
 	traceFile         *os.File
+	timeout           <-chan struct{}
 }
 
 type recoveryEntry struct {
@@ -150,7 +151,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 
 func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
-	query bool, rp uint64, service int, amount *big.Int) *StateSet {
+	query bool, rp uint64, service int, amount *big.Int, timeout <-chan struct{}) *StateSet {
 
 	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
@@ -165,6 +166,7 @@ func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, recieve
 		isQuery:     query,
 		blockInfo:   bi,
 		service:     C.int(service),
+		timeout:     timeout,
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[reciever.AccountID()] = callState
@@ -178,24 +180,24 @@ func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, recieve
 	return stateSet
 }
 
-func NewContextQuery(blockState *state.BlockState, cdb ChainAccessor, receiverId []byte,
-	contractState *state.ContractState, node string, confirmed bool,
-	rp uint64) *StateSet {
-
+func NewContextQuery(
+	blockState *state.BlockState,
+	cdb ChainAccessor,
+	receiverId []byte,
+	contractState *state.ContractState,
+	rp uint64,
+) *StateSet {
 	callState := &CallState{ctrState: contractState, curState: contractState.State}
-
 	stateSet := &StateSet{
 		curContract: newContractInfo(callState, nil, receiverId, rp, big.NewInt(0)),
 		bs:          blockState,
 		cdb:         cdb,
-		node:        node,
-		confirmed:   confirmed,
+		confirmed:   true,
 		blockInfo:   &types.BlockHeaderInfo{Ts: time.Now().UnixNano()},
 		isQuery:     true,
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
 	stateSet.callState[types.ToAccountID(receiverId)] = callState
-
 	return stateSet
 }
 
@@ -269,8 +271,12 @@ func newExecutor(
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
-	backupService := stateSet.service
-	stateSet.service = -1
+	if HardforkConfig.IsV2Fork(stateSet.blockInfo.No) {
+		C.setHardforkV2(ce.L)
+		C.vm_set_timeout_hook(ce.L)
+	}
+	backupNestedView := stateSet.nestedView
+	stateSet.nestedView = 1
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
 	if cErrMsg := C.vm_loadbuff(
@@ -285,10 +291,7 @@ func newExecutor(
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("failed to load code")
 		return ce
 	}
-	stateSet.service = backupService
-	if HardforkConfig.IsV2Fork(stateSet.blockInfo.No) {
-		C.setHardforkV2(ce.L)
-	}
+	stateSet.nestedView = backupNestedView
 
 	if isCreate {
 		f, err := resolveFunction(ctrState, "constructor", isCreate)
@@ -470,6 +473,20 @@ func (ce *Executor) call(target *LState) C.int {
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
+		if C.luaL_hassyserror(ce.L) != C.int(0) {
+			ce.err = newVmSystemError(errors.New(errMsg))
+		} else {
+			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) &&
+				C.ERR_BF_TIMEOUT == errMsg {
+				ce.err = &VmTimeoutError{}
+			} else {
+				ce.err = errors.New(errMsg)
+			}
+		}
+		ctrLog.Warn().Err(ce.err).Str(
+			"contract",
+			types.EncodeAddress(ce.stateSet.curContract.contractId),
+		).Msg("contract is failed")
 		if target != nil {
 			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
 				C.luaL_setuncatchablerror(target)
@@ -478,15 +495,6 @@ func (ce *Executor) call(target *LState) C.int {
 				C.luaL_setsyserror(target)
 			}
 		}
-		if C.luaL_hassyserror(ce.L) != C.int(0) {
-			ce.err = newVmSystemError(errors.New(errMsg))
-		} else {
-			ce.err = errors.New(errMsg)
-		}
-		ctrLog.Warn().Err(ce.err).Str(
-			"contract",
-			types.EncodeAddress(ce.stateSet.curContract.contractId),
-		).Msg("contract is failed")
 		return 0
 	}
 	if target == nil {
@@ -498,7 +506,9 @@ func (ce *Executor) call(target *LState) C.int {
 			ce.jsonRet = retMsg
 		}
 	} else {
-		C.luaL_disablemaxmem(target)
+		if vmNeedResourceLimit(target) {
+			C.luaL_disablemaxmem(target)
+		}
 		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
 			errMsg := C.GoString(cErrMsg)
 			ce.err = errors.New(errMsg)
@@ -507,7 +517,9 @@ func (ce *Executor) call(target *LState) C.int {
 				types.EncodeAddress(ce.stateSet.curContract.contractId),
 			).Msg("failed to move results")
 		}
-		C.luaL_enablemaxmem(target)
+		if vmNeedResourceLimit(target) {
+			C.luaL_enablemaxmem(target)
+		}
 	}
 	if ce.stateSet.traceFile != nil {
 		address := types.EncodeAddress(ce.stateSet.curContract.contractId)
@@ -620,7 +632,6 @@ func Call(
 	contractState *state.ContractState,
 	code, contractAddress []byte,
 	stateSet *StateSet,
-	timeout <-chan struct{},
 ) (string, []*types.Event, *big.Int, error) {
 
 	var err error
@@ -727,6 +738,7 @@ func PreCall(
 	stateSet.callState[sender.AccountID()] = &CallState{curState: sender.State()}
 
 	stateSet.curContract.rp = rp
+	stateSet.timeout = timeout
 
 	if TraceBlockNo != 0 && TraceBlockNo == stateSet.blockInfo.No {
 		stateSet.traceFile = getTraceFile(stateSet.blockInfo.No, stateSet.txHash)
@@ -849,7 +861,6 @@ func Create(
 	contractState *state.ContractState,
 	code, contractAddress []byte,
 	stateSet *StateSet,
-	timeout <-chan struct{},
 ) (string, []*types.Event, *big.Int, error) {
 	if len(code) == 0 {
 		return "", nil, stateSet.usedFee(), errors.New("contract code is required")
@@ -979,8 +990,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 		return
 	}
 
-	stateSet := NewContextQuery(bs, cdb, contractAddress, contractState, "", true,
-		contractState.SqlRecoveryPoint)
+	stateSet := NewContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
 
 	setQueryContext(stateSet)
 	if ctrLog.IsDebugEnabled() {
