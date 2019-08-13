@@ -23,6 +23,7 @@ type loadedReply struct {
 type preLoadReq struct {
 	preLoadService int
 	bs             *state.BlockState
+	bi             *types.BlockHeaderInfo
 	next           *types.Tx
 	current        *types.Tx
 }
@@ -122,7 +123,7 @@ func Execute(
 
 	var cFee *big.Int
 	if ex != nil {
-		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), bi, timeout)
+		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), timeout)
 	} else {
 		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true,
@@ -154,8 +155,8 @@ func Execute(
 	return rv, events, usedFee, nil
 }
 
-func PreLoadRequest(bs *state.BlockState, next, current *types.Tx, preLoadService int) {
-	loadReqCh <- &preLoadReq{preLoadService, bs, next, current}
+func PreLoadRequest(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preLoadService int) {
+	loadReqCh <- &preLoadReq{preLoadService, bs, bi, next, current}
 }
 
 func preLoadWorker() {
@@ -205,7 +206,7 @@ func preLoadWorker() {
 			continue
 		}
 		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), &types.BlockHeaderInfo{}, "", false,
+			tx.GetHash(), reqInfo.bi, "", false,
 			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)

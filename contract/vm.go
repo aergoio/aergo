@@ -712,7 +712,6 @@ func PreCall(
 	sender *state.V,
 	contractState *state.ContractState,
 	rp uint64,
-	bi *types.BlockHeaderInfo,
 	timeout <-chan struct{},
 ) (string, []*types.Event, *big.Int, error) {
 	var err error
@@ -726,7 +725,6 @@ func PreCall(
 	callState.curState = contractState.State
 	stateSet.callState[sender.AccountID()] = &CallState{curState: sender.State()}
 
-	stateSet.blockInfo = bi
 	stateSet.curContract.rp = rp
 
 	if TraceBlockNo != 0 && TraceBlockNo == stateSet.blockInfo.No {

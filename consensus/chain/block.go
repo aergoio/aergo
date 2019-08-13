@@ -72,7 +72,7 @@ func GenerateBlock(
 	txOp TxOp,
 	skipEmpty bool,
 ) (*types.Block, error) {
-	transactions, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
+	transactions, err := GatherTXs(hs, bState, bi, txOp, MaxBlockBodySize())
 	if err != nil {
 		return nil, err
 	}

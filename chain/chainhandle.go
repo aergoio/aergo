@@ -564,11 +564,13 @@ type blockExecutor struct {
 	commitOnly       bool
 	verifyOnly       bool
 	validateSignWait ValidateSignWaitFn
+	bi               *types.BlockHeaderInfo
 }
 
 func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.Block, verifyOnly bool) (*blockExecutor, error) {
 	var exec TxExecFn
 	var validateSignWait ValidateSignWaitFn
+	var bi *types.BlockHeaderInfo
 
 	commitOnly := false
 
@@ -585,8 +587,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
-
-		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, types.NewBlockHeaderInfo(block), contract.ChainService, nil)
+		bi = types.NewBlockHeaderInfo(block)
+		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService, nil)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -610,6 +612,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		commitOnly:       commitOnly,
 		verifyOnly:       verifyOnly,
 		validateSignWait: validateSignWait,
+		bi:               bi,
 	}, nil
 }
 
@@ -644,7 +647,7 @@ func (e *blockExecutor) execute() error {
 		for i, tx := range e.txs {
 			if i != nCand-1 {
 				preLoadTx = e.txs[i+1]
-				contract.PreLoadRequest(e.BlockState, preLoadTx, tx, contract.ChainService)
+				contract.PreLoadRequest(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
 			}
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
