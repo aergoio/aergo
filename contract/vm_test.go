@@ -4065,11 +4065,12 @@ abi.register(oom, p, cp)`
 			`{"Name":"oom"}`,
 		),
 	)
-	errMsg := "string length overflow"
+	errMsg1 := "string length overflow"
+	errMsg2 := "not enough memory"
 	if err == nil {
-		t.Errorf("expected: %s", errMsg)
+		t.Errorf("expected: %s or %s", errMsg1, errMsg2)
 	}
-	if err != nil && !strings.Contains(err.Error(), errMsg) {
+	if err != nil && (!strings.Contains(err.Error(), errMsg1) && !strings.Contains(err.Error(), errMsg2)) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
@@ -4080,7 +4081,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"p"}`,
 		),
 	)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), errMsg2) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
@@ -4091,7 +4092,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"cp"}`,
 		),
 	)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), errMsg2) {
 		t.Error(err)
 	}
 }
