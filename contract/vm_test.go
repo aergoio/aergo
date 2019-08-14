@@ -4066,12 +4066,17 @@ abi.register(oom, p, cp)`
 			`{"Name":"oom"}`,
 		),
 	)
-	errMsg1 := "string length overflow"
-	errMsg2 := "not enough memory"
-	if err == nil {
-		t.Errorf("expected: %s or %s", errMsg1, errMsg2)
+
+	errMsg := "string length overflow"
+	var travis bool
+	if os.Getenv("TRAVIS") == "true" {
+		errMsg = "not enough memory"
+		travis = true
 	}
-	if err != nil && (!strings.Contains(err.Error(), errMsg1) && !strings.Contains(err.Error(), errMsg2)) {
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	}
+	if err != nil && !strings.Contains(err.Error(), errMsg) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
@@ -4082,7 +4087,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"p"}`,
 		),
 	)
-	if err != nil && !strings.Contains(err.Error(), errMsg2) {
+	if err != nil && (!travis || !strings.Contains(err.Error(), errMsg)) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
@@ -4093,7 +4098,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"cp"}`,
 		),
 	)
-	if err != nil && !strings.Contains(err.Error(), errMsg2) {
+	if err != nil && (!travis || !strings.Contains(err.Error(), errMsg)) {
 		t.Error(err)
 	}
 }
@@ -5118,7 +5123,7 @@ abi.register(testall)
 func TestTimeoutCnt(t *testing.T) {
 	timeout := 250
 	if os.Getenv("TRAVIS") == "true" {
-		//timeout = 1000
+		timeout = 1000
 		return
 	}
 	src := `
