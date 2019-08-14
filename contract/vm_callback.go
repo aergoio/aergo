@@ -201,18 +201,18 @@ func getCtrState(stateSet *StateSet, aid types.AccountID) (*CallState, error) {
 	return callState, err
 }
 
-func vmNeedResourceLimit(L *LState) bool {
-	return C.vm_need_resource_limit(L) == 1
+func vmNeedResourceLimit(stateSet *StateSet) bool {
+	return stateSet.isQuery || !HardforkConfig.IsV2Fork(stateSet.blockInfo.No)
 }
 
-func setInstCount(parent *LState, child *LState) {
-	if vmNeedResourceLimit(child) {
+func setInstCount(stateSet *StateSet, parent *LState, child *LState) {
+	if vmNeedResourceLimit(stateSet) {
 		C.luaL_setinstcount(parent, C.luaL_instcount(child))
 	}
 }
 
-func setInstMinusCount(L *LState, deduc C.int) {
-	if vmNeedResourceLimit(L) {
+func setInstMinusCount(stateSet *StateSet, L *LState, deduc C.int) {
+	if vmNeedResourceLimit(stateSet) {
 		C.luaL_setinstcount(L, minusCallCount(C.luaL_instcount(L), deduc))
 	}
 }
@@ -300,7 +300,7 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		stateSet.curContract = prevContractInfo
 	}()
 	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
-	defer setInstCount(L, ce.L)
+	defer setInstCount(stateSet, L, ce.L)
 
 	ret := ce.call(L)
 	if ce.err != nil {
@@ -379,7 +379,7 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		_, _ = stateSet.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
 	}
 	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
-	defer setInstCount(L, ce.L)
+	defer setInstCount(stateSet, L, ce.L)
 
 	ret := ce.call(L)
 	if ce.err != nil {
@@ -484,7 +484,7 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			stateSet.curContract = prevContractInfo
 		}()
 		ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
-		defer setInstCount(L, ce.L)
+		defer setInstCount(stateSet, L, ce.L)
 
 		ce.call(L)
 		if ce.err != nil {
@@ -542,7 +542,7 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *
 //export LuaPrint
 func LuaPrint(L *LState, service *C.int, args *C.char) {
 	stateSet := curStateSet[*service]
-	setInstMinusCount(L, 1000)
+	setInstMinusCount(stateSet, L, 1000)
 	logger.Info().Str("Contract SystemPrint", types.EncodeAddress(stateSet.curContract.contractId)).Msg(C.GoString(args))
 }
 
@@ -670,7 +670,7 @@ func LuaGetBalance(L *LState, service *C.int, contractId *C.char) (*C.char, *C.c
 //export LuaGetSender
 func LuaGetSender(L *LState, service *C.int) *C.char {
 	stateSet := curStateSet[*service]
-	setInstMinusCount(L, 1000)
+	setInstMinusCount(stateSet, L, 1000)
 	return C.CString(types.EncodeAddress(stateSet.curContract.sender))
 }
 
@@ -695,7 +695,7 @@ func LuaGetTimeStamp(L *LState, service *C.int) C.lua_Integer {
 //export LuaGetContractId
 func LuaGetContractId(L *LState, service *C.int) *C.char {
 	stateSet := curStateSet[*service]
-	setInstMinusCount(L, 1000)
+	setInstMinusCount(stateSet, L, 1000)
 	return C.CString(types.EncodeAddress(stateSet.curContract.contractId))
 }
 
@@ -708,7 +708,7 @@ func LuaGetAmount(L *LState, service *C.int) *C.char {
 //export LuaGetOrigin
 func LuaGetOrigin(L *LState, service *C.int) *C.char {
 	stateSet := curStateSet[*service]
-	setInstMinusCount(L, 1000)
+	setInstMinusCount(stateSet, L, 1000)
 	return C.CString(types.EncodeAddress(stateSet.origin))
 }
 
@@ -783,7 +783,7 @@ func decodeHex(hexStr string) ([]byte, error) {
 }
 
 //export LuaECVerify
-func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.char) {
+func LuaECVerify(L *LState, service C.int, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.char) {
 	bMsg, err := decodeHex(C.GoString(msg))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaEcVerify] invalid message format: " + err.Error())
@@ -792,11 +792,15 @@ func LuaECVerify(L *LState, msg *C.char, sig *C.char, addr *C.char) (C.int, *C.c
 	if err != nil {
 		return -1, C.CString("[Contract.LuaEcVerify] invalid signature format: " + err.Error())
 	}
-	address := C.GoString(addr)
-	setInstMinusCount(L, 10000)
+	stateSet := curStateSet[service]
+	if stateSet == nil {
+		return -1, C.CString("[Contract.LuaEcVerify]not found contract state")
+	}
+	setInstMinusCount(stateSet, L, 10000)
 
 	var pubKey *btcec.PublicKey
 	var verifyResult bool
+	address := C.GoString(addr)
 	isAergo := len(address) == types.EncodedAddressLength
 
 	/*Aergo Address*/
@@ -1109,7 +1113,7 @@ func LuaDeployContract(
 	ret := C.int(1)
 	if ce != nil {
 		ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
-		defer setInstCount(L, ce.L)
+		defer setInstCount(ce.stateSet, L, ce.L)
 
 		ret += ce.call(L)
 		if ce.err != nil {
@@ -1319,16 +1323,4 @@ func luaCheckTimeout(service C.int) C.int {
 	default:
 		return 0
 	}
-}
-
-//export luaIsQuery
-func luaIsQuery(service C.int) C.int {
-	stateSet := curStateSet[service]
-	if stateSet == nil {
-		return -1
-	}
-	if stateSet.isQuery {
-		return 1
-	}
-	return 0
 }

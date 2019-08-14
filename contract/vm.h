@@ -31,5 +31,6 @@ int isHardfork(lua_State *L, char *forkname);
 void initViewFunction();
 void vm_set_timeout_hook(lua_State *L);
 int vm_need_resource_limit(lua_State *L);
+void vm_set_query(lua_State *L);
 
 #endif /* _VM_H */

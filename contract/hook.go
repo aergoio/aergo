@@ -11,7 +11,7 @@ func (ce *Executor) setCountHook(limit C.int) {
 	if ce == nil ||
 		ce.L == nil ||
 		ce.err != nil ||
-		!vmNeedResourceLimit(ce.L) {
+		!vmNeedResourceLimit(ce.stateSet) {
 		return
 	}
 	C.vm_set_count_hook(ce.L, limit)

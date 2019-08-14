@@ -274,9 +274,12 @@ func newExecutor(
 	if HardforkConfig.IsV2Fork(stateSet.blockInfo.No) {
 		C.setHardforkV2(ce.L)
 		C.vm_set_timeout_hook(ce.L)
+		if stateSet.isQuery {
+			C.vm_set_query(ce.L)
+		}
 	}
-	backupNestedView := stateSet.nestedView
-	stateSet.nestedView = 1
+	backupService := stateSet.service
+	stateSet.service = -1
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
 	if cErrMsg := C.vm_loadbuff(
@@ -291,7 +294,7 @@ func newExecutor(
 		ctrLog.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("failed to load code")
 		return ce
 	}
-	stateSet.nestedView = backupNestedView
+	stateSet.service = backupService
 
 	if isCreate {
 		f, err := resolveFunction(ctrState, "constructor", isCreate)
@@ -506,7 +509,7 @@ func (ce *Executor) call(target *LState) C.int {
 			ce.jsonRet = retMsg
 		}
 	} else {
-		if vmNeedResourceLimit(target) {
+		if vmNeedResourceLimit(ce.stateSet) {
 			C.luaL_disablemaxmem(target)
 		}
 		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
@@ -517,7 +520,7 @@ func (ce *Executor) call(target *LState) C.int {
 				types.EncodeAddress(ce.stateSet.curContract.contractId),
 			).Msg("failed to move results")
 		}
-		if vmNeedResourceLimit(target) {
+		if vmNeedResourceLimit(ce.stateSet) {
 			C.luaL_enablemaxmem(target)
 		}
 	}

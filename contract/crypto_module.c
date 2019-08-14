@@ -1,6 +1,8 @@
 #include "_cgo_export.h"
 #include "util.h"
 
+extern const int *getLuaExecContext(lua_State *L);
+
 static int crypto_sha256(lua_State *L)
 {
     size_t len;
@@ -23,6 +25,7 @@ static int crypto_ecverify(lua_State *L)
 {
     char *msg, *sig, *addr;
     struct LuaECVerify_return ret;
+	int *service = (int *)getLuaExecContext(L);
 
     luaL_checktype(L, 1, LUA_TSTRING);
     luaL_checktype(L, 2, LUA_TSTRING);
@@ -31,7 +34,7 @@ static int crypto_ecverify(lua_State *L)
     sig = (char *)lua_tostring(L, 2);
     addr = (char *)lua_tostring(L, 3);
 
-    ret = LuaECVerify(L, msg, sig, addr);
+    ret = LuaECVerify(L, *service, msg, sig, addr);
     if (ret.r1 != NULL) {
         strPushAndRelease(L, ret.r1);
         lua_error(L);

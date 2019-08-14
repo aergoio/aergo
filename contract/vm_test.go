@@ -4163,7 +4163,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`[System.LuaSetDB] set not permitted in query`)
+	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`not permitted state referencing at global scope`)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
