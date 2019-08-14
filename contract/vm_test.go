@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -5115,6 +5116,11 @@ abi.register(testall)
 }
 
 func TestTimeoutCnt(t *testing.T) {
+	timeout := 250
+	if os.Getenv("TRAVIS") == "true" {
+		//timeout = 1000
+		return
+	}
 	src := `
 function ecverify(n)
 	for i = 1, n do
@@ -5129,7 +5135,7 @@ abi.register(ecverify)
 `
 	bc, err := LoadDummyChain(
 		func(d *DummyChain) {
-			d.timeout = 250 // milliseconds
+			d.timeout = timeout // milliseconds
 		},
 	)
 	if err != nil {
