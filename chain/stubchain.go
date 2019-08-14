@@ -46,7 +46,8 @@ func (tchain *StubBlockChain) GenAddBlock() {
 		bi = types.NewBlockHeaderInfoFromPrevBlock(tchain.BestBlock, time.Now().UnixNano(), types.DummyBlockVersionner(0))
 		prevBlockRootHash = tchain.BestBlock.GetHeader().BlocksRootHash
 	} else {
-		bi = &types.BlockHeaderInfo{Ts: time.Now().UnixNano()}
+		cid, _ := types.NewChainID().Bytes()
+		bi = &types.BlockHeaderInfo{Ts: time.Now().UnixNano(), ChainId: cid}
 	}
 	bi.Ts = time.Now().UnixNano()
 	newBlock := types.NewBlock(bi, prevBlockRootHash, nil, nil, nil)

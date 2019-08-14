@@ -645,15 +645,25 @@ func NewBlockHeaderInfo(b *Block) *BlockHeaderInfo {
 	}
 }
 
+func makeChainId(cid []byte, v int32) []byte {
+	nv := ChainIdVersion(v)
+	if bytes.Equal(cid[:4], nv) {
+		return cid
+	}
+	newCid := make([]byte, len(cid))
+	copy(newCid, nv)
+	copy(newCid[4:], cid[4:])
+	return newCid
+}
+
 func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) *BlockHeaderInfo {
 	no := prev.GetHeader().GetBlockNo() + 1
 	cid := prev.GetHeader().GetChainID()
-	UpdateChainIdVersion(cid, bv.Version(no))
 	return &BlockHeaderInfo{
 		no,
 		ts,
 		prev.GetHash(),
-		cid,
+		makeChainId(cid, bv.Version(no)),
 	}
 }
 

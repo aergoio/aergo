@@ -15,8 +15,9 @@ const (
 )
 
 func newBlock(ts int64) *types.Block {
+	b, _ := types.NewChainID().Bytes()
 	return types.NewBlock(
-		&types.BlockHeaderInfo{Ts: ts},
+		&types.BlockHeaderInfo{Ts: ts, ChainId: b},
 		nil,
 		nil,
 		nil,

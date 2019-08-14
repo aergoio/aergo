@@ -78,9 +78,7 @@ func (cid *ChainID) Bytes() ([]byte, error) {
 
 	// warning: when any field added to ChainID, the corresponding
 	// serialization code must be written here.
-	if err := writeChainIdVersion(&w, cid.Version); err != nil {
-		return nil, err
-	}
+	w.Write(ChainIdVersion(cid.Version))
 	if err := binary.Write(&w, binary.LittleEndian, cid.PublicNet); err != nil {
 		return nil, errCidCodec{
 			codec: cidMarshal,
@@ -179,20 +177,10 @@ func (cid ChainID) ToJSON() string {
 	return ""
 }
 
-func writeChainIdVersion(w *bytes.Buffer, v int32) error {
-	if err := binary.Write(w, binary.LittleEndian, v); err != nil {
-		return errCidCodec{
-			codec: cidMarshal,
-			field: "version",
-			err:   err,
-		}
-	}
-	return nil
-}
-func UpdateChainIdVersion(cid []byte, v int32) {
-	w := bytes.Buffer{}
-	_ = writeChainIdVersion(&w, v)
-	copy(cid, w.Bytes())
+func ChainIdVersion(v int32) []byte {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, uint32(v))
+	return b
 }
 
 type EnterpriseBP struct {

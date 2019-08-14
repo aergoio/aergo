@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -76,9 +77,13 @@ func TestUpdateChainIdVersion(t *testing.T) {
 		t.Errorf("version mismatch: 0 expected, but got %d", cid0.Version)
 		t.Log(cid0.ToJSON())
 	}
-	UpdateChainIdVersion(b, 1)
+	updatedCID := makeChainId(b, 0)
+	if !bytes.Equal(b, updatedCID) {
+		t.Error("chainid is not equal")
+	}
+	updatedCID = makeChainId(b, 1)
 	cid1 := new(ChainID)
-	cid1.Read(b)
+	cid1.Read(updatedCID)
 	if cid1.Version != 1 {
 		t.Errorf("version mismatch: 1 expected, but got %d", cid1.Version)
 		t.Log(cid1.ToJSON())
