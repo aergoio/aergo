@@ -6,13 +6,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"math/rand"
 	"reflect"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	rb "github.com/emirpasic/gods/trees/redblacktree"
 )
 
 const (
@@ -292,21 +292,29 @@ func (b *vprStore) getBucket(addr types.AccountID) *list.List {
 }
 
 type topVoters struct {
-	buckets map[uint64]*list.List
-	cmp     func(lhs *votingPower, rhs *votingPower) bool
+	members *rb.Tree
 	max     uint32
-	powers  map[types.AccountID]*list.Element
+	powers  map[types.AccountID]*votingPower
 }
 
 func newTopVoters(max uint32) *topVoters {
+	cmp := func(lhs, rhs interface{}) int {
+		var (
+			l = lhs.(*votingPower)
+			r = rhs.(*votingPower)
+		)
+
+		pwrInd := l.getPower().Cmp(r.getPower())
+		if pwrInd == 0 {
+			return -bytes.Compare(l.idBytes(), r.idBytes())
+		}
+		return -pwrInd
+	}
+
 	return &topVoters{
-		buckets: make(map[uint64]*list.List),
-		cmp: func(curr *votingPower, ne *votingPower) bool {
-			pwrInd := curr.getPower().Cmp(ne.getPower())
-			return pwrInd > 0 || (pwrInd == 0 && bytes.Compare(curr.idBytes(), ne.idBytes()) >= 0)
-		},
-		max:    max,
-		powers: make(map[types.AccountID]*list.Element),
+		members: rb.NewWith(cmp),
+		max:     max,
+		powers:  make(map[types.AccountID]*votingPower),
 	}
 }
 
@@ -315,35 +323,9 @@ func (tv *topVoters) equals(rhs *topVoters) bool {
 		return false
 	}
 
-	/*
-		if len(tv.powers) != len(rhs.powers) {
-			return false
-		}
-
-		for id, e := range tv.powers {
-			lhs := toVotingPower(e)
-			rhs := toVotingPower(tv.powers[id])
-			if lhs.cmp(rhs.getPower()) != 0 {
-				return false
-			}
-		}
-	*/
-
-	if !reflect.DeepEqual(tv.buckets, rhs.buckets) {
+	if !reflect.DeepEqual(tv.members.Keys(), rhs.members.Keys()) {
 		return false
 	}
-
-	/*
-		if len(tv.buckets) != len(rhs.buckets) {
-			return false
-		}
-		for i, lhs := range tv.buckets {
-			rhs := tv.getBuckets()[i]
-			if !reflect.DeepEqual(lhs, rhs) {
-				return false
-			}
-		}
-	*/
 
 	if tv.max != rhs.max {
 		return false
@@ -356,12 +338,12 @@ func (tv *topVoters) Count() int {
 	return len(tv.powers)
 }
 
-func (tv *topVoters) get(id types.AccountID) *list.Element {
+func (tv *topVoters) get(id types.AccountID) *votingPower {
 	return tv.powers[id]
 }
 
-func (tv *topVoters) set(id types.AccountID, e *list.Element) {
-	tv.powers[id] = e
+func (tv *topVoters) set(id types.AccountID, v *votingPower) {
+	tv.powers[id] = v
 }
 
 func (tv *topVoters) del(id types.AccountID) {
@@ -369,10 +351,7 @@ func (tv *topVoters) del(id types.AccountID) {
 }
 
 func (tv *topVoters) getVotingPower(addr types.AccountID) *votingPower {
-	if e := tv.powers[addr]; e != nil {
-		return toVotingPower(e)
-	}
-	return nil
+	return tv.powers[addr]
 }
 
 func (tv *topVoters) powerOf(addr types.AccountID) *big.Int {
@@ -382,45 +361,11 @@ func (tv *topVoters) powerOf(addr types.AccountID) *big.Int {
 	return nil
 }
 
-func (tv *topVoters) getBucket(pow *big.Int) (l *list.List) {
-	idx := new(big.Int).Div(pow, binSize).Uint64()
-
-	if l = tv.buckets[idx]; l == nil {
-		l = list.New()
-		tv.buckets[idx] = l
-	}
-
-	return
-}
-
-func (tv *topVoters) getBuckets() map[uint64]*list.List {
-	return tv.buckets
-}
-
-func (tv *topVoters) delBucket(i uint64) {
-	delete(tv.buckets, i)
-}
-
 func (tv *topVoters) lowest() *votingPower {
-	min := uint64(math.MaxUint64)
-	for i, l := range tv.getBuckets() {
-		if l.Len() == 0 {
-			tv.delBucket(i)
-			continue
-		}
-		if i < min {
-			min = i
-		}
-	}
-
-	if l := tv.buckets[min]; l != nil {
-		return toVotingPower(l.Back())
-	}
-	return nil
+	return tv.members.Right().Value.(*votingPower)
 }
 
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
-	var e *list.Element
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	// TODO: Maintain len(tv.powers) <= tv.max
 	//
@@ -443,32 +388,21 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	// be unconditionally included into the VPR since one slot is available for
 	// him even if his voting power is less than the aforementioned voter A.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	if e = tv.get(v.getID()); e != nil {
-		vp = toVotingPower(e)
-
-		l := tv.getBucket(vp.getPower())
+	if vp = tv.get(v.getID()); vp != nil {
+		tv.members.Remove(vp)
 		if vp.isZero() {
-			tv.del(v.getID())
-
-			l.Remove(e)
+			tv.del(vp.getID())
 		} else {
 			vp.setPower(v.getPower())
-
-			orderedListMove(l, e,
-				func(e *list.Element) bool {
-					return tv.cmp(v, toVotingPower(e))
-				},
-			)
+			tv.members.Put(vp, vp)
 		}
 	} else {
 		vp = v
-		e = orderedListAdd(tv.getBucket(vp.getPower()), v,
-			func(e *list.Element) bool {
-				return tv.cmp(v, toVotingPower(e))
-			},
-		)
-		tv.set(v.getID(), e)
+
+		tv.members.Put(v, v)
+		tv.set(v.getID(), v)
 	}
+
 	return
 }
 

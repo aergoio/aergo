@@ -16,7 +16,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/derekparker/trie v0.0.0-20190322172448-1ce4922c7ad9
 	github.com/dgraph-io/badger v1.5.5 // indirect
-	github.com/emirpasic/gods v1.12.0 // indirect
+	github.com/emirpasic/gods v1.12.0
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/funkygao/golib v0.0.0-20180314131852-90d4905c1961
 	github.com/go-logfmt/logfmt v0.4.0 // indirect

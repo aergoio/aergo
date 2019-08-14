@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	testVprMax = vprMax
+
 	opAdd = iota
 	opSub
 )
@@ -45,22 +47,14 @@ func (v *vpr) checkValidity(t *testing.T) {
 
 	low := v.getLowest().getPower()
 	for _, e := range v.voters.powers {
-		pow := toVotingPower(e).getPower()
+		pow := e.getPower()
 		sum1.Add(sum1, pow)
 		assert.True(t, low.Cmp(pow) <= 0, "invalid lowest power voter")
 	}
 	assert.True(t, sum1.Cmp(v.getTotalPower()) == 0, "voting power map inconsistent with total voting power")
 
-	for i, l := range v.voters.buckets {
-		var next *list.Element
-		for e := l.Front(); e != nil; e = next {
-			if next = e.Next(); next != nil {
-				assert.True(t,
-					v.voters.cmp(toVotingPower(e), toVotingPower(next)),
-					"bucket[%v] not ordered", i)
-			}
-			sum2.Add(sum2, toVotingPower(e).getPower())
-		}
+	for _, i := range v.voters.members.Values() {
+		sum2.Add(sum2, i.(*votingPower).getPower())
 	}
 
 	for i, l := range v.store.buckets {
@@ -213,7 +207,7 @@ func commit() error {
 }
 
 func TestVprOp(t *testing.T) {
-	initVprtTest(t, func() { initRankTable(vprMax / 10) })
+	initVprtTest(t, func() { initRankTable(testVprMax) })
 	defer finalizeVprtTest()
 
 	rValue := func(rhs int64) *big.Int {
@@ -275,7 +269,7 @@ func TestVprOp(t *testing.T) {
 }
 
 func TestVprTable(t *testing.T) {
-	initVprtTest(t, func() { initRankTableRand(vprMax / 2) })
+	initVprtTest(t, func() { initRankTableRand(testVprMax) })
 	defer finalizeVprtTest()
 
 	for i, l := range votingPowerRank.store.buckets {
