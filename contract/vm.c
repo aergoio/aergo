@@ -221,7 +221,7 @@ static void timeout_hook(lua_State *L, lua_Debug *ar)
 void vm_set_timeout_hook(lua_State *L)
 {
     if (isHardfork(L, FORK_V2)) {
-        lua_sethook(L, timeout_hook, LUA_MASKCOUNT, 100);
+        lua_sethook(L, timeout_hook, LUA_MASKCOUNT, 200);
     }
 }
 

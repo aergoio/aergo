@@ -5114,4 +5114,43 @@ abi.register(testall)
 	}
 }
 
+func TestTimeoutCnt(t *testing.T) {
+	src := `
+function ecverify(n)
+	for i = 1, n do
+		crypto.ecverify("11e96f2b58622a0ce815b81f94da04ae7a17ba17602feb1fd5afa4b9f2467960",
+"304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
+"AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
+	end
+	return n
+end
+
+abi.register(ecverify)
+`
+	bc, err := LoadDummyChain(
+		func(d *DummyChain) {
+			d.timeout = 250 // milliseconds
+		},
+	)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "timeout-cnt", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
