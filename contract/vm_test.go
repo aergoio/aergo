@@ -510,7 +510,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 func TestInfiniteLoop(t *testing.T) {
 	bc, err := LoadDummyChain(
 		func(d *DummyChain) {
-			d.timeout = 500
+			d.timeout = 50
 		},
 	)
 	if err != nil {
@@ -3703,9 +3703,8 @@ function constructor()
     db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
 end
 
--- About 900MB
 function inserts()
-    for i = 1, 25 do
+    for i = 1, 10 do
         db.exec("insert into table1 (rgtime) select rgtime from table1")
     end
 end
