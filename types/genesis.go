@@ -42,6 +42,11 @@ const (
 	cidUnmarshal
 )
 
+const (
+	versionByteSize = 4
+	chainIdStartOffsetWithoutVersion = versionByteSize
+)
+
 type errCidCodec struct {
 	codec int
 	field string
@@ -178,9 +183,16 @@ func (cid ChainID) ToJSON() string {
 }
 
 func ChainIdVersion(v int32) []byte {
-	b := make([]byte, 4)
+	b := make([]byte, versionByteSize)
 	binary.LittleEndian.PutUint32(b, uint32(v))
 	return b
+}
+
+func ChainIdEqualWithoutVersion(a, b []byte) bool {
+	if len(a) < chainIdStartOffsetWithoutVersion || len(b) < chainIdStartOffsetWithoutVersion {
+		return false
+	}
+	return bytes.Equal(a[chainIdStartOffsetWithoutVersion:], b[chainIdStartOffsetWithoutVersion:])
 }
 
 type EnterpriseBP struct {

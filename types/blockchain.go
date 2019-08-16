@@ -340,7 +340,7 @@ func (block *Block) ValidChildOf(parent *Block) bool {
 		return true
 	}
 
-	return bytes.Compare(parChainID, curChainID) == 0
+	return ChainIdEqualWithoutVersion(parChainID, curChainID)
 }
 
 // Size returns a block size where the tx size is individually calculated. A
