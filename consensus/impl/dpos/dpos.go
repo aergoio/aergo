@@ -133,6 +133,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	addr, err := system.PickVotingRewardWinner(seed)
 	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
+		return nil
 	}
 
 	vaultID := types.ToAccountID([]byte(types.AergoVault))
