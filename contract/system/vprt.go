@@ -552,7 +552,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 }
 
 func (v *vpr) apply(s *state.ContractState) (int, error) {
-	if v == nil {
+	if v == nil || len(v.changes) == 0 {
 		return 0, nil
 	}
 

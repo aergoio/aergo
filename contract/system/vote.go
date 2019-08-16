@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -62,6 +63,9 @@ type voteCmd struct {
 
 	newVote    *types.Vote
 	voteResult *VoteResult
+
+	add func(v *types.Vote) error
+	sub func(v *types.Vote) error
 }
 
 func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
@@ -115,6 +119,22 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		return nil, err
 	}
 
+	if config.MainNetHardforkConfig.Version(cmd.BlockNo) < 2 {
+		cmd.add = func(v *types.Vote) error {
+			return cmd.voteResult.AddVote(v)
+		}
+		cmd.sub = func(v *types.Vote) error {
+			return cmd.voteResult.SubVote(v)
+		}
+	} else {
+		cmd.add = func(v *types.Vote) error {
+			return cmd.addVote(v)
+		}
+		cmd.sub = func(v *types.Vote) error {
+			return cmd.subVote(v)
+		}
+	}
+
 	return cmd, err
 }
 
@@ -150,11 +170,11 @@ func (c *voteCmd) updateVote() error {
 // Apply the new voting to the voting statistics on the (system) contract
 // storage.
 func (c *voteCmd) updateVoteResult() error {
-	if err := c.subVote(c.Vote); err != nil {
+	if err := c.sub(c.Vote); err != nil {
 		return err
 	}
 
-	if err := c.addVote(c.newVote); err != nil {
+	if err := c.add(c.newVote); err != nil {
 		return err
 	}
 
