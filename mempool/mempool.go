@@ -179,7 +179,6 @@ func (mp *MemPool) monitor() {
 	}
 
 }
-
 func (mp *MemPool) evictTransactions() {
 	mp.Lock()
 	defer mp.Unlock()
@@ -344,18 +343,19 @@ func (mp *MemPool) puts(txs ...types.Transaction) []error {
 	return errs
 }
 
-func (mp *MemPool) setStateDB(block *types.Block) bool {
+func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 	if mp.testConfig {
-		return true
+		return true, false
 	}
 
 	newBlockID := types.ToBlockID(block.BlockHash())
 	parentBlockID := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
-	normal := true
+	reorged := true
+	forked := false
 
 	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
 		if types.HashID(parentBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
-			normal = false
+			reorged = false //reorg case
 		}
 		mp.bestBlockID = newBlockID
 		mp.bestBlockNo = block.GetHeader().GetBlockNo()
@@ -375,7 +375,6 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 					mp.whitelist = newWhitelistConf(mp, conf.GetValues(), conf.GetOn())
 				}
 			}
-			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
 				Str("chainidhash", enc.ToString(mp.chainIdHash)).
@@ -385,8 +384,21 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 				mp.Error().Err(err).Msg("failed to set root of StateDB")
 			}
 		}
+
+		givenId := common.Hasher(block.GetHeader().GetChainID())
+		if !bytes.Equal(mp.chainIdHash, givenId) {
+			mp.chainIdHash = givenId
+			forked = true
+		}
 	}
-	return normal
+	return reorged, forked
+}
+
+func (mp *MemPool) resetAll() {
+	mp.orphan = 0
+	mp.length = 0
+	mp.pool = map[types.AccountID]*TxList{}
+	mp.cache = sync.Map{}
 }
 
 // input tx based ? or pool based?
@@ -398,13 +410,16 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	defer mp.Unlock()
 
 	check := 0
-	all := false
 	dirty := map[types.AccountID]bool{}
+	reorg, fork := mp.setStateDB(block)
+	if fork {
+		mp.Debug().Msg("reset mempool on fork")
+		mp.resetAll()
+		return nil
+	}
 
-	if !mp.setStateDB(block) {
-		all = true
-		mp.Debug().Int("cnt", len(mp.pool)).Msg("going to check all account's state")
-	} else {
+	// non-reorg case only look through account related to given block
+	if reorg == false {
 		for _, tx := range block.GetBody().GetTxs() {
 			account := tx.GetBody().GetAccount()
 			recipient := tx.GetBody().GetRecipient()
@@ -422,7 +437,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	ag[0] = time.Since(start)
 	start = time.Now()
 	for acc, list := range mp.pool {
-		if !all && dirty[acc] == false {
+		if !reorg && dirty[acc] == false {
 			continue
 		}
 		ns, err := mp.getAccountState(list.GetAccount())
