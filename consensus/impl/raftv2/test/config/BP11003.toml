@@ -43,6 +43,7 @@ blockinterval = 1
 newcluster=true
 usebackup=false
 blockintervalms = 1000
+blockfactorytickms=30
 name="aergo3"
 snapfrequency=10
 #

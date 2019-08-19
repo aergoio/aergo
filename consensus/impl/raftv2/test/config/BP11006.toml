@@ -42,6 +42,7 @@ blockinterval = 1
 
 [consensus.raft]
 blockintervalms=1000
+blockfactorytickms=30
 name="aergo6"
 usebackup=false
 #
