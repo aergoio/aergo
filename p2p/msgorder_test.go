@@ -347,7 +347,11 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 			} else {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
 			}
-			mockTNT.EXPECT().Report(tt.wantRType, gomock.Any(), 1).Times(1)
+			if tt.wantRType == p2pcommon.Send {
+				mockTNT.EXPECT().ReportSend(gomock.Any(), samplePeerID).Times(1)
+			} else {
+				mockTNT.EXPECT().ReportNotSend(gomock.Any(), 1).Times(1)
+			}
 
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 

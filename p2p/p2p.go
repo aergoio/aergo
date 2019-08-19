@@ -52,9 +52,9 @@ type P2P struct {
 	ca      types.ChainAccessor
 	prm     p2pcommon.PeerRoleManager
 	lm      p2pcommon.ListManager
-	tnt 	*txNoticeTracer
+	tnt     *txNoticeTracer
 
-	mutex   sync.Mutex
+	mutex sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
@@ -182,7 +182,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
 	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
-	mf := &baseMOFactory{p2ps: p2ps, tnt:p2ps.tnt}
+	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
 
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
@@ -244,7 +244,7 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		for i, tx := range msg.Txs {
 			hashes[i] = types.ToTxID(tx.Hash)
 		}
-		p2ps.NotifyNewTX(notifyNewTXs{hashes})
+		p2ps.NotifyNewTX(notifyNewTXs{hashes, nil})
 	case notifyNewTXs:
 		p2ps.NotifyNewTX(msg)
 	case *message.AddBlockRsp:
@@ -428,5 +428,6 @@ func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *t
 }
 
 type notifyNewTXs struct {
-	ids []types.TxID
+	ids         []types.TxID
+	alreadySent []types.PeerID
 }

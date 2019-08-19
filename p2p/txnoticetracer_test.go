@@ -71,7 +71,7 @@ func Test_txNoticeTracer_traceTxNoticeRegister(t *testing.T) {
 
 			tnt := newTxNoticeTracer(logger, mockActor)
 
-			tnt.RegisterTxNotice(tt.report.ids, tt.report.peerCnt)
+			tnt.RegisterTxNotice(tt.report.ids, tt.report.peerCnt, nil)
 			select {
 			case r := <-tnt.reportC:
 				if r.tType != create {
@@ -95,12 +95,10 @@ func Test_txNoticeTracer_traceTxNoticeRegisterResult(t *testing.T) {
 	dummyHashes := make([]types.TxID, 0)
 	dummyHashes = append(dummyHashes, sampleTxHashes...)
 
-	AllSucc := txNoticeSendReport{tType: p2pcommon.Send, peerCnt: 1, hashes: dummyHashes}
-	AllFail := txNoticeSendReport{tType: p2pcommon.Fail, peerCnt: 1, hashes: dummyHashes}
-	AllSkip := txNoticeSendReport{tType: p2pcommon.Skip, peerCnt: 1, hashes: dummyHashes}
-	PartSucc := txNoticeSendReport{tType: p2pcommon.Send, peerCnt: 1, hashes: dummyHashes[1:4]}
-	PartFail := txNoticeSendReport{tType: p2pcommon.Fail, peerCnt: 1, hashes: dummyHashes[1:4]}
-	PartSkip := txNoticeSendReport{tType: p2pcommon.Skip, peerCnt: 1, hashes: dummyHashes[1:4]}
+	AllSucc := txNoticeSendReport{tType: p2pcommon.Send, expect: 1, hashes: dummyHashes, peerIDs:[]types.PeerID{dummyPeerID}}
+	AllFail := txNoticeSendReport{tType: p2pcommon.Fail, expect: 1, hashes: dummyHashes}
+	PartSucc := txNoticeSendReport{tType: p2pcommon.Send, expect: 1, hashes: dummyHashes[1:4], peerIDs:[]types.PeerID{dummyPeerID}}
+	PartFail := txNoticeSendReport{tType: p2pcommon.Fail, expect: 1, hashes: dummyHashes[1:4]}
 	tests := []struct {
 		name string
 
@@ -111,13 +109,11 @@ func Test_txNoticeTracer_traceTxNoticeRegisterResult(t *testing.T) {
 	}{
 		{"TSucc", ad(AllSucc, AllSucc, AllSucc), 0, 0},
 		{"TSucc2", ad(AllSucc, AllSucc, AllFail), 0, 0},
-		{"TSucc3", ad(AllSkip, AllSucc, AllSucc), 0, 0},
+		{"TSucc3", ad(AllFail, AllSucc, AllSucc), 0, 0},
 		{"TFail1", ad(AllFail, AllFail, AllFail), 0, 6},
-		{"TFail2", ad(AllFail, AllSkip, AllFail), 0, 6},
 
 		{"TPartSucc", ad(PartSucc, PartSucc, PartSucc), 3, 0},
 		{"TPartFail1", ad(PartFail, PartFail, PartFail), 3, 3},
-		{"TPartFail2", ad(PartSkip, PartSkip, PartSkip), 3, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,7 +124,7 @@ func Test_txNoticeTracer_traceTxNoticeRegisterResult(t *testing.T) {
 
 			tnt := newTxNoticeTracer(logger, mockActor)
 			// add initial items
-			tnt.newTrace(txNoticeSendReport{create, dummyHashes, 3})
+			tnt.newTrace(txNoticeSendReport{create, dummyHashes, 3, peerIDHolder})
 
 			for _, r := range tt.args {
 				tnt.handleReport(r)
@@ -195,14 +191,16 @@ func Test_txNoticeTracer_cleanupStales(t *testing.T) {
 	o := n.Add(time.Minute * -12)
 
 	tests := []struct {
-		name      string
-		aTimes    []time.Time
-		sents     []int
-		wantRetry int
+		name           string
+		aTimes         []time.Time
+		sents          []int
+		wantRetryIDCnt int
 	}{
 		{"TAllNew", compT(n, n, n, n, n, n), compI(0, 1, 2, 3, 4, 0), 0},
-		{"TOldButSent", compT(o, o, o, n, n, n), compI(3, 1, 2, 0, 4, 0), 0},
-		{"TOldUnsent", compT(o, o, o, n, n, n), compI(3, 0, 0, 0, 4, 0), 2},
+		{"TOldButSent", compT(o, o, o, n, n, n), compI(3, 5, 3, 0, 4, 0), 0},
+		{"TOldMixed", compT(o, o, o, n, n, n), compI(3, 1, 2, 0, 4, 0), 0},
+		{"TOldNotEnough", compT(o, o, o, o, n, n), compI(3, 0, 0, 4, 4, 0), 2},
+		{"TOldUnsent", compT(o, o, o, o, n, n), compI(0, 0, 0, 0, 4, 0), 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -210,21 +208,16 @@ func Test_txNoticeTracer_cleanupStales(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockActor := p2pmock.NewMockActorService(ctrl)
-			if tt.wantRetry > 0 {
-				mockActor.EXPECT().TellRequest(gomock.Any(), gomock.Any()).Do(func(p string, v interface{}) {
-					notiReq := v.(notifyNewTXs)
-					if len(notiReq.ids) != tt.wantRetry {
-						t.Errorf("cleanupStales() retry cnt %v ,want %v", len(notiReq.ids), tt.wantRetry)
-					}
-				})
-			}
 			tnt := newTxNoticeTracer(logger, mockActor)
 			for i, h := range dummyHashes {
-				st := &txNoticeSendStat{hash: h, created: o, accecced: tt.aTimes[i], sent: tt.sents[i]}
+				st := &txNoticeSendStat{hash: h, created: o, accessed: tt.aTimes[i], sentCnt: tt.sents[i]}
 				tnt.txSendStats.Add(h, st)
 			}
 
 			tnt.cleanupStales()
+			if len(tnt.retryIDs) != tt.wantRetryIDCnt {
+				t.Errorf("cleanupStales() retry cnt %v ,want %v", len(tnt.retryIDs), tt.wantRetryIDCnt)
+			}
 		})
 	}
 }
