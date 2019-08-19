@@ -27,24 +27,9 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-const (
-	slotQueueMax = 100
-	//DefaultCommitQueueLen     = 1
-	DefaultBlockFactoryTickMs = 100
-	MinBlockFactoryTickMs     = 10
-)
-
 var (
 	logger     *log.Logger
 	httpLogger *log.Logger
-
-	// blockIntervalMs is the block genration interval in milli-seconds.
-	RaftTick           = DefaultTickMS
-	RaftSkipEmptyBlock = false
-	//MaxCommitQueueLen  = DefaultCommitQueueLen
-
-	BlockFactoryTickMs time.Duration
-	BlockIntervalMs    time.Duration
 )
 
 var (
@@ -87,6 +72,10 @@ func (work *Work) ToString() string {
 	return fmt.Sprintf("bestblock=%s", work.BlockID())
 }
 
+type raftMarker struct {
+	ce *commitEntry
+}
+
 // BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
 //
 // This can be used for testing purpose.
@@ -101,6 +90,8 @@ type BlockFactory struct {
 	jobQueue    chan interface{}
 	bpTimeoutC  chan interface{}
 	quit        chan interface{}
+
+	raftMarker raftMarker
 
 	maxBlockBodySize uint32
 	ID               string
@@ -168,35 +159,6 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	return bf, nil
 }
 
-func Init(raftCfg *config.RaftConfig) {
-	var tickMs time.Duration
-
-	if raftCfg.BlockFactoryTickMs != 0 {
-		if raftCfg.BlockFactoryTickMs < MinBlockFactoryTickMs {
-			tickMs = MinBlockFactoryTickMs
-		} else {
-			tickMs = time.Duration(raftCfg.BlockFactoryTickMs)
-		}
-	} else {
-		tickMs = DefaultBlockFactoryTickMs
-	}
-
-	BlockFactoryTickMs = time.Millisecond * tickMs
-
-	if raftCfg.BlockIntervalMs != 0 {
-		BlockIntervalMs = time.Millisecond * time.Duration(raftCfg.BlockIntervalMs)
-	} else {
-		BlockIntervalMs = consensus.BlockInterval
-	}
-
-	if raftCfg.SlowNodeGap > 0 {
-		MaxSlowNodeGap = uint64(raftCfg.SlowNodeGap)
-	}
-
-	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
-		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
-}
-
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
 	if err := bf.InitCluster(cfg); err != nil {
 		return err
@@ -227,7 +189,11 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	defer bf.jobLock.Unlock()
 
 	if !bf.raftServer.IsLeader() {
-		//logger.Debug().Msg("skip producing block because this bp is not leader")
+		return
+	}
+
+	if !bf.IsLeaderReady() {
+		logger.Debug().Msg("skip producing block because this bp is leader but it's not ready to produce new block")
 		return
 	}
 
@@ -247,6 +213,34 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		bf.prevBlock = b
 		jq <- &Work{b}
 	}
+}
+
+// IsLeaderReady must be called after bf.jobLock
+// check if block factory has finished all blocks of previous term. it can be checked that it has received raft marker of this term.
+// TODO) term may be set when raft leader is changed from hardstate
+func (bf *BlockFactory) IsLeaderReady() bool {
+	status := bf.raftServer.Status()
+	if status.Term <= 0 {
+		logger.Fatal().Msg("failed to get status of raft")
+		return false
+	}
+
+	if status.ID != status.SoftState.Lead {
+		logger.Debug().Str("id", types.Uint64ToHexaString(status.ID)).Str("leader", types.Uint64ToHexaString(status.SoftState.Lead)).Msg("raft marker is not equal")
+		return false
+	}
+
+	if bf.raftMarker.ce == nil {
+		logger.Debug().Msg("not exist raft marker")
+		return false
+	}
+
+	if bf.raftMarker.ce.term == status.Term {
+		logger.Debug().Uint64("marker", bf.raftMarker.ce.term).Uint64("raft", status.Term).Msg("raft marker is not equal")
+		return true
+	}
+
+	return false
 }
 
 func (bf *BlockFactory) GetType() consensus.ConsensusType {
@@ -384,6 +378,7 @@ func (bf *BlockFactory) worker() {
 			)
 
 			if block, blockState, err = bf.generateBlock(work.Block); err != nil {
+				logger.Error().Err(err).Msg("failed to generate block")
 				if err == chain.ErrQuit {
 					logger.Info().Msg("quit worker of block factory")
 					return
@@ -408,11 +403,9 @@ func (bf *BlockFactory) worker() {
 
 			// RaftEmptyBlockLog: When the leader changes, the new raft leader creates an empty data log with a new term and index.
 			// When block factory receives empty block log, the blockfactory that is running as the leader should reset the proposal in progress.
-			// This proposal may have been dropped on the raft.
-			// Warning : There may be timing issue when reseting. If empty log of buffered channel is processed after propose,
-			// the proposal you just submitted may be canceled incorrectly.
-			if cEntry.block == nil {
-				bf.reset()
+			// since it may have been dropped on the raft. Block factory must produce new block after all blocks of previous term are connected. Empty log can be a marker for that.
+			if cEntry.IsMarker() {
+				bf.handleRaftMarker(cEntry)
 				continue
 			}
 
@@ -427,6 +420,17 @@ func (bf *BlockFactory) worker() {
 			return
 		}
 	}
+}
+
+// @RaftMarker: leader which has term of marker can make new block
+// 				When block factory receives marker, it gurantees that all the blocks of previous term has been connected in chain
+// 				since commit is processed by single commit go routine.
+func (bf *BlockFactory) handleRaftMarker(ce *commitEntry) {
+	logger.Debug().Uint64("index", ce.index).Uint64("term", ce.term).Msg("set raft marker(empty block)")
+
+	// set raftMarker to produce block for this term
+	bf.raftMarker.ce = ce
+	bf.reset()
 }
 
 func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *state.BlockState, error) {
@@ -496,9 +500,10 @@ func (bf *BlockFactory) reset() {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
 
-	logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset prev work of block factory")
-
-	bf.prevBlock = nil
+	if bf.prevBlock != nil {
+		logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset previous work of block factory")
+		bf.prevBlock = nil
+	}
 	bf.bpc.resetSavedConfChangePropose()
 }
 

@@ -46,17 +46,12 @@ import (
 )
 
 const (
-	HasNoLeader       uint64 = 0
-	DfltSnapFrequency        = 30
+	HasNoLeader uint64 = 0
 )
 
 //noinspection ALL
 var (
-	raftLogger                  raftlib.Logger
-	ConfSnapFrequency           uint64 = DfltSnapFrequency
-	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
-
-	MaxSlowNodeGap uint64 = 100 // Criteria for determining whether the server is in a slow state
+	raftLogger raftlib.Logger
 )
 
 var (
@@ -137,6 +132,10 @@ type commitEntry struct {
 	term  uint64
 }
 
+func (ce *commitEntry) IsMarker() bool {
+	return ce.block == nil
+}
+
 type CommitProgress struct {
 	sync.Mutex
 
@@ -209,7 +208,7 @@ func RecoverExit() {
 func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 	c := &raftlib.Config{
 		ID:                        nodeID,
-		ElectionTick:              10,
+		ElectionTick:              ElectionTickCount,
 		HeartbeatTick:             1,
 		Storage:                   storage,
 		MaxSizePerMsg:             1024 * 1024,

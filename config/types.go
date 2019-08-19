@@ -118,6 +118,7 @@ type RaftConfig struct {
 	Name               string        `mapstructure:"name" description:"raft node name. this value must be unique in cluster"`
 	SkipEmpty          bool          `mapstructure:"skipempty" description:"skip producing block if there is no tx in block"`
 	HeartbeatTick      uint          `mapstructure:"heartbeattick" description:"heartbeat tick of raft server (millisec)"`
+	ElectionTickCount  int           `mapstructure:"electiontickcount" description:"number of ticks to wait to be a candidate when no heartbeat message comes from leader"`
 	BlockFactoryTickMs int64         `mapstructure:"blockfactorytickms" description:"interval to check if block factory should run new task(millisec)"`
 	BlockIntervalMs    int64         `mapstructure:"blockintervalms" description:"block interval for raft (millisec). It overrides BlockInterval of consensus"`
 	NewCluster         bool          `mapstructure:"newcluster" description:"create a new raft cluster if it doesn't already exist"`
