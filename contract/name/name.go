@@ -34,7 +34,7 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 	return registerOwner(scs, name, owner, owner)
 }
 
-//UpdateName is avaliable after bid implement
+//UpdateName is available after bid implement
 func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
 	sender, receiver *state.V, name, to string) error {
 	amount := tx.GetAmountBigInt()

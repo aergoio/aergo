@@ -146,7 +146,7 @@ func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
 
 func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) error {
 	if voteResult == nil {
-		return errors.New("Invalid argument : voteReult should not nil")
+		return errors.New("Invalid argument : voteResult should not nil")
 	}
 	res := newVoteResult(defaultVoteKey, nil)
 	res.rmap = voteResult

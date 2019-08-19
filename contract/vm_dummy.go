@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
-	luac_util "github.com/aergoio/aergo/cmd/aergoluac/util"
+	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -64,13 +64,13 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 		return nil, err
 	}
 	genesis := types.GetTestGenesis()
-	bc.sdb.SetGenesis(genesis, nil)
+	_ = bc.sdb.SetGenesis(genesis, nil)
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
-	LoadTestDatabase(dataPath) // sql database
+	_ = LoadTestDatabase(dataPath) // sql database
 	StartLStateFactory()
 	HardforkConfig = config.AllEnabledHardforkConfig
 
@@ -118,7 +118,9 @@ func (bc *DummyChain) GetABI(contract string) (*types.ABI, error) {
 
 func (bc *DummyChain) getReceipt(txHash []byte) *types.Receipt {
 	r := new(types.Receipt)
-	r.UnmarshalBinary(bc.testReceiptDB.Get(txHash))
+	if err := r.UnmarshalBinary(bc.testReceiptDB.Get(txHash)); err != nil {
+		return nil
+	}
 	return r
 }
 
@@ -174,10 +176,9 @@ func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.Block
 	if err != nil {
 		return err
 	}
-	updatedAccountState := types.State(*accountState)
+	updatedAccountState := *accountState
 	updatedAccountState.Balance = l.balance.Bytes()
-	bs.PutState(id, &updatedAccountState)
-	return nil
+	return bs.PutState(id, &updatedAccountState)
 }
 
 type luaTxSend struct {
@@ -216,15 +217,16 @@ func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 		return err
 	}
 
-	updatedSenderState := types.State(*senderState)
+	updatedSenderState := *senderState
 	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.balance).Bytes()
-	bs.PutState(senderID, &updatedSenderState)
+	err = bs.PutState(senderID, &updatedSenderState)
+	if err != nil {
+		return err
+	}
 
-	updatedReceiverState := types.State(*receiverState)
+	updatedReceiverState := *receiverState
 	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.balance).Bytes()
-	bs.PutState(receiverID, &updatedReceiverState)
-
-	return nil
+	return bs.PutState(receiverID, &updatedReceiverState)
 }
 
 type luaTxCommon struct {
@@ -243,12 +245,12 @@ type luaTxDef struct {
 var _ luaTx = (*luaTxDef)(nil)
 
 func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
-	L := luac_util.NewLState()
+	L := luac.NewLState()
 	if L == nil {
 		return &luaTxDef{cErr: newVmStartError()}
 	}
-	defer luac_util.CloseLState(L)
-	b, err := luac_util.Compile(L, code)
+	defer luac.CloseLState(L)
+	b, err := luac.Compile(L, code)
 	if err != nil {
 		return &luaTxDef{cErr: err}
 	}
@@ -269,12 +271,12 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 
 func getCompiledABI(code string) ([]byte, error) {
 
-	L := luac_util.NewLState()
+	L := luac.NewLState()
 	if L == nil {
 		return nil, newVmStartError()
 	}
-	defer luac_util.CloseLState(L)
-	b, err := luac_util.Compile(L, code)
+	defer luac.CloseLState(L)
+	b, err := luac.Compile(L, code)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +349,7 @@ func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	code := make([]byte, len(l.code)+argsLen)
 	codeLen := copy(code[0:], l.code)
 	binary.LittleEndian.PutUint32(code[0:], uint32(codeLen))
-	copy(code[codeLen:], []byte(args))
+	copy(code[codeLen:], args)
 
 	l.code = code
 
@@ -381,9 +383,11 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 		return err
 	}
 
-	bs.PutState(creatorId, creatorState.State())
-	bs.PutState(contractId, contractState.State())
-	return nil
+	err = bs.PutState(creatorId, creatorState.State())
+	if err != nil {
+		return err
+	}
+	return bs.PutState(contractId, contractState.State())
 
 }
 
@@ -403,7 +407,9 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 			if traceState {
 				stateSet.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				defer stateSet.traceFile.Close()
+				defer func() {
+					_ = stateSet.traceFile.Close()
+				}()
 			}
 
 			_, _, _, err := Create(eContractState, l.code, l.contract, stateSet)
@@ -470,7 +476,9 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			if traceState {
 				stateSet.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				defer stateSet.traceFile.Close()
+				defer func() {
+					_ = stateSet.traceFile.Close()
+				}()
 			}
 			rv, evs, _, err := Call(eContractState, l.code, l.contract, stateSet)
 			if err != nil {

@@ -67,7 +67,7 @@ func (v *vpr) checkValidity(t *testing.T) {
 			sum3.Add(sum3, toVotingPower(e).getPower())
 		}
 	}
-	assert.True(t, sum3.Cmp(v.getTotalPower()) == 0, "voting power buckects inconsistent with total voting power")
+	assert.True(t, sum3.Cmp(v.getTotalPower()) == 0, "voting power buckets inconsistent with total voting power")
 }
 
 func initVpr() {
@@ -441,7 +441,7 @@ func TestVprZeroPowerVoter(t *testing.T) {
 		{
 			pwr: new(big.Int).SetUint64(0),
 			chk: func(t *testing.T) {
-				assert.Nil(t, votingPowerRank.getLowest(), "zero power votier must not be added.")
+				assert.Nil(t, votingPowerRank.getLowest(), "zero power voter must not be added.")
 			},
 		},
 		{

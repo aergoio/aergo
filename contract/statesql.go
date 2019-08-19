@@ -111,7 +111,7 @@ func LoadTestDatabase(dataDir string) error {
 func CloseDatabase() {
 	for name, db := range database.DBs {
 		if db.tx != nil {
-			db.tx.Rollback()
+			_ = db.tx.Rollback()
 			db.tx = nil
 		}
 		_ = db.close()
@@ -141,8 +141,8 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				if err != nil {
 					return err
 				}
-				receiverChange := types.State(*receiverState)
-				receiverChange.SqlRecoveryPoint = uint64(rp)
+				receiverChange := *receiverState
+				receiverChange.SqlRecoveryPoint = rp
 				err = bs.PutState(db.accountID, &receiverChange)
 				if err != nil {
 					return err

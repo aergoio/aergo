@@ -97,7 +97,7 @@ func decodeRlpTrieNode(data []byte) rlpNode {
 		node = toList(data[1+lenLen:], l)
 	case data[0] >= 0xc0:
 		l := uint64(data[0]) - 0xc0
-		if dataLen != uint64(1+l) {
+		if dataLen != 1+l {
 			return nil
 		}
 		node = toList(data[1:], l)
@@ -113,7 +113,7 @@ func decodeLen(data []byte, lenLen int) (uint64, error) {
 	case 1:
 		return uint64(data[0]), nil
 	default:
-		start := int(8 - lenLen)
+		start := 8 - lenLen
 		copy(lenBuf[:], nilBuf[:start])
 		copy(lenBuf[start:], data[:lenLen])
 		return binary.BigEndian.Uint64(lenBuf), nil
@@ -123,7 +123,6 @@ func decodeLen(data []byte, lenLen int) (uint64, error) {
 func toList(data []byte, dataLen uint64) rlpNode {
 	var (
 		node   rlpNode
-		l      uint64
 		offset = uint64(0)
 	)
 	for {
@@ -140,7 +139,7 @@ func toList(data []byte, dataLen uint64) rlpNode {
 			return nil
 		}
 	}
-	l = uint64(len(node))
+	l := uint64(len(node))
 	if l != uint64(2) && l != uint64(17) {
 		return nil
 	}

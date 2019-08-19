@@ -129,7 +129,7 @@ func (vp *votingPower) unmarshal(b []byte) uint32 {
 	r := bytes.NewReader(b)
 	r.Seek(int64(32), 0)
 	binary.Read(r, binary.LittleEndian, &sz1)
-	// <Accound ID (32)> + <address length (2)> + <address>
+	// <Account ID (32)> + <address length (2)> + <address>
 	r.Seek(int64(32+2+sz1), 0)
 	binary.Read(r, binary.LittleEndian, &sz2)
 
@@ -384,7 +384,7 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	// ISSUE - There exists some unfair case as follows: The VPR slots are
 	// fully occupied (len(tv.powers) == tv.max) so that a voter A is rejected
 	// by the rule above. Afterwards, one voter cancels his staking and is
-	// removed from the VPR. In such a situtation, any voter cating a vote will
+	// removed from the VPR. In such a situation, any voter cating a vote will
 	// be unconditionally included into the VPR since one slot is available for
 	// him even if his voting power is less than the aforementioned voter A.
 	// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -552,7 +552,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 }
 
 func (v *vpr) apply(s *state.ContractState) (int, error) {
-	if v == nil || len(v.changes) == 0 {
+	if v == nil {
 		return 0, nil
 	}
 

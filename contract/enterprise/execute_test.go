@@ -47,7 +47,7 @@ func TestBasicFailEnterprise(t *testing.T) {
 	assert.Error(t, err, "empty arg in set conf")
 	tx.Payload = []byte(`{"name":"enableConf", "args":["raft",true]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.Error(t, err, "admin is not set when enble conf")
+	assert.Error(t, err, "admin is not set when enable conf")
 	tx.Payload = []byte(`{"name":"setConf", "args":["raft","thisisraftid1", "thisisraftid2"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
 	assert.Error(t, err, "admin is not set when set conf")

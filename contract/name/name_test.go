@@ -94,13 +94,13 @@ func TestNameRecursive(t *testing.T) {
 
 	scs = nextBlockContractState(t, bs, scs)
 	ret := getAddress(scs, []byte(name2))
-	assert.Equal(t, owner, ret, "registed owner")
+	assert.Equal(t, owner, ret, "registered owner")
 	name1Owner := GetOwner(scs, []byte(name1))
 	t.Logf("name1 owner is %s", types.EncodeAddress(name1Owner))
-	assert.Equal(t, owner, name1Owner, "check registed pubkey owner")
+	assert.Equal(t, owner, name1Owner, "check registered pubkey owner")
 	name2Owner := GetOwner(scs, []byte(name2))
 	t.Logf("name2 owner is %s", types.EncodeAddress(name2Owner))
-	assert.Equal(t, owner, name2Owner, "check registed named owner")
+	assert.Equal(t, owner, name2Owner, "check registered named owner")
 
 	tx.Payload = buildNamePayload(name1, types.NameUpdate, buyer)
 
@@ -108,7 +108,7 @@ func TestNameRecursive(t *testing.T) {
 	assert.NoError(t, err, "update name")
 	scs = nextBlockContractState(t, bs, scs)
 	ret = getAddress(scs, []byte(name1))
-	assert.Equal(t, buyer, types.EncodeAddress(ret), "registed owner")
+	assert.Equal(t, buyer, types.EncodeAddress(ret), "registered owner")
 }
 
 func TestNameNil(t *testing.T) {

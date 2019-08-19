@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestExcuteNameTx(t *testing.T) {
+func TestExecuteNameTx(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	txBody := &types.TxBody{}
@@ -68,7 +68,7 @@ func TestExcuteNameTx(t *testing.T) {
 	assert.Error(t, err, "execute invalid payload")
 }
 
-func TestExcuteFailNameTx(t *testing.T) {
+func TestExecuteFailNameTx(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
 	txBody := &types.TxBody{}
