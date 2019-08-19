@@ -8,7 +8,6 @@ package p2p
 import (
 	"errors"
 	"github.com/aergoio/aergo/p2p/list"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"testing"
 	"time"
 
@@ -289,13 +288,13 @@ func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
 
 	c := []*p2pcommon.WaitingPeer{}
 	for i := 0 ; i < 5 ; i++ {
-		meta := p2pcommon.PeerMeta{ID:p2putil.RandomPeerID()}
+		meta := p2pcommon.PeerMeta{ID:types.RandomPeerID()}
 		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now()}
 		c = append(c, wp)
 	}
 	n := []*p2pcommon.WaitingPeer{}
 	for i := 0 ; i < 5 ; i++ {
-		meta := p2pcommon.PeerMeta{ID:p2putil.RandomPeerID()}
+		meta := p2pcommon.PeerMeta{ID:types.RandomPeerID()}
 		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now().Add(time.Hour*100)}
 		n = append(n, wp)
 	}

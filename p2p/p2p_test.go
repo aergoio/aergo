@@ -7,7 +7,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/list"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"reflect"
 	"testing"
 
@@ -98,7 +97,7 @@ func TestP2P_banIfFound(t *testing.T) {
 	addr := "172.21.11.3"
 	pids := make([]types.PeerID,sampleCnt)
 	for i:=0; i<sampleCnt; i++ {
-		pids[i] = p2putil.RandomPeerID()
+		pids[i] = types.RandomPeerID()
 	}
 	tests := []struct {
 		name string

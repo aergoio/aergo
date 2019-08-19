@@ -10,12 +10,12 @@ import "github.com/aergoio/aergo/types"
 var (
 	// 89.16 is ceiling of declination of Polaris
 	MainnetMapServer = []string{
-		"/dns/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa",
+		"/dns4/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa",
 	}
 
 	// 89.16 is ceiling of declination of Polaris
 	TestnetMapServer = []string{
-		"/dns/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
+		"/dns4/polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkvJTHFuJXxr15rFEHsJWnyn1QvGatW2E9ED9Mvy4HWjVF",
 	}
 
 	// Hardcoded chainID of ONE MAINNET and ONE TESTNET

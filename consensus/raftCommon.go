@@ -313,7 +313,7 @@ func (m *Member) IsValid() bool {
 		return false
 	}
 
-	if _, err := types.ParseMultiaddrWithResolve(m.Address); err != nil {
+	if _, err := types.ParseMultiaddr(m.Address); err != nil {
 		logger.Error().Err(err).Msg("parse address of member")
 		return false
 	}

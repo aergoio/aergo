@@ -62,6 +62,8 @@ func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger, internalServic
 	}
 	nt.initNT(internalService)
 
+	// uncomment if u want to show libp2p log
+	//log2.SetAllLoggers(logging.DEBUG)
 	return nt
 }
 
@@ -116,15 +118,16 @@ func (sl *networkTransport) AddStreamHandler(pid core.ProtocolID, handler networ
 // GetOrCreateStream try to connect and handshake to remote peer. it can be called after peermanager is inited.
 // It return true if peer is added or return false if failed to add peer or more suitable connection already exists.
 func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, ttl time.Duration, protocolIDs ...core.ProtocolID) (core.Stream, error) {
-	var peerAddr, err = p2putil.PeerMetaToMultiAddr(meta)
+	var peerAddr, err = types.ToMultiAddr(meta.IPAddress, meta.Port)
 	if err != nil {
 		sl.logger.Warn().Err(err).Str("addr", meta.IPAddress).Msg("invalid NPAddPeer address")
 		return nil, fmt.Errorf("invalid IP address %s:%d", meta.IPAddress, meta.Port)
 	}
 	var peerID = meta.ID
+	sl.logger.Debug().Str("peerAddr",peerAddr.String()).Str(p2putil.LogPeerID,p2putil.ShortForm(peerID)).Msg("connecting to peer")
 	sl.Peerstore().AddAddr(peerID, peerAddr, ttl)
 	ctx := context.Background()
-	s, err := sl.NewStream(ctx, meta.ID, protocolIDs...)
+	s, err := sl.NewStream(ctx, peerID, protocolIDs...)
 	if err != nil {
 		sl.logger.Info().Err(err).Str("addr", meta.IPAddress).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Str("p2p_proto", p2putil.ProtocolIDsToString(protocolIDs)).Msg("Error while get stream")
 		return nil, err
@@ -168,11 +171,7 @@ func (sl *networkTransport) ClosePeerConnection(peerID types.PeerID) bool {
 func (sl *networkTransport) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
-	ipAddr, err := network2.GetSingleIPAddress(sl.bindAddress)
-	if err != nil {
-		panic("Can't establish listening address: " + err.Error())
-	}
-	listen, err := types.ToMultiAddr(ipAddr, sl.bindPort)
+	listen, err := types.ToMultiAddr(sl.bindAddress, sl.bindPort)
 	if err != nil {
 		panic("Can't establish listening address: " + err.Error())
 	}

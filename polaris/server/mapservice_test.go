@@ -603,15 +603,15 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 
 func TestPeerMapService_applyNewBLEntry(t *testing.T) {
 	id1, _ := types.IDB58Decode("16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt")
-	id2 := p2putil.RandomPeerID()
-	id3 := p2putil.RandomPeerID()
+	id2 := types.RandomPeerID()
+	id3 := types.RandomPeerID()
 	ad10 := "123.45.67.89"
 	ad11 := "123.45.67.91" // same C class network
 	ad2 := "2001:0db8:0123:4567:89ab:cdef:1234:5678"
 	ad3 := "222.8.8.8"
 	m10 := p2pcommon.PeerMeta{IPAddress: ad10, ID: id1}
-	m11 := p2pcommon.PeerMeta{IPAddress: ad10, ID: p2putil.RandomPeerID()}
-	m12 := p2pcommon.PeerMeta{IPAddress: ad11, ID: p2putil.RandomPeerID()}
+	m11 := p2pcommon.PeerMeta{IPAddress: ad10, ID: types.RandomPeerID()}
+	m12 := p2pcommon.PeerMeta{IPAddress: ad11, ID: types.RandomPeerID()}
 	m2 := p2pcommon.PeerMeta{IPAddress: ad2, ID: id2}
 	m3 := p2pcommon.PeerMeta{IPAddress: ad3, ID: id3}
 

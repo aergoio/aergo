@@ -10,6 +10,7 @@ import (
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	connmgr "github.com/libp2p/go-libp2p-core/connmgr"
+	event "github.com/libp2p/go-libp2p-core/event"
 	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -187,6 +188,20 @@ func (m *MockNetworkTransport) Connect(arg0 context.Context, arg1 peer.AddrInfo)
 func (mr *MockNetworkTransportMockRecorder) Connect(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockNetworkTransport)(nil).Connect), arg0, arg1)
+}
+
+// EventBus mocks base method
+func (m *MockNetworkTransport) EventBus() event.Bus {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EventBus")
+	ret0, _ := ret[0].(event.Bus)
+	return ret0
+}
+
+// EventBus indicates an expected call of EventBus
+func (mr *MockNetworkTransportMockRecorder) EventBus() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventBus", reflect.TypeOf((*MockNetworkTransport)(nil).EventBus))
 }
 
 // FindPeer mocks base method

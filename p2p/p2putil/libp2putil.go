@@ -8,53 +8,51 @@ package p2putil
 import (
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
 
-
-// NOTE use only in test
-func RandomPeerID() types.PeerID {
-	id,_ := test.RandPeerID()
-	return id
-}
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
-	ipAddr, err := network.GetSingleIPAddress(m.IPAddress)
-	if err != nil {
-		return nil, err
-	}
-	return types.ToMultiAddr(ipAddr, m.Port)
+	return types.PeerToMultiAddr(m.IPAddress, m.Port, m.ID)
 }
 
+var addrProtos = []int{multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS, multiaddr.P_DNS4, multiaddr.P_DNS6}
+
+// FromMultiAddr returns PeerMeta from multiaddress. the multiaddress must constain address(ip or domain name),
+// port and peer id.
 func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
+	var err error
+	//var protocol int   this variable will be used soon
+	var addr string
 	meta := p2pcommon.PeerMeta{}
-	split := strings.Split(targetAddr.String(), "/")
-	if len(split) != 7 {
+	for _, p := range addrProtos {
+		addr, err = targetAddr.ValueForProtocol(p)
+		if err == nil {
+			//protocol = p
+			break
+		}
+	}
+	if err != nil {
 		return meta, fmt.Errorf("invalid NPAddPeer addr format %s", targetAddr.String())
 	}
-	addrType := split[1]
-	if addrType != "ip4" && addrType != "ip6" {
-		return meta, fmt.Errorf("invalid NPAddPeer addr type %s", addrType)
+	peerPortString, err := targetAddr.ValueForProtocol(multiaddr.P_TCP)
+	if err != nil {
+		return meta, fmt.Errorf("invalid Peer addr format %s", targetAddr.String())
 	}
-	peerAddrString := split[2]
-	peerPortString := split[4]
 	peerPort, err := strconv.Atoi(peerPortString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid Peer port %s", peerPortString)
 	}
-	peerIDString := split[6]
+	peerIDString, err := targetAddr.ValueForProtocol(multiaddr.P_P2P)
 	peerID, err := types.IDB58Decode(peerIDString)
 	if err != nil {
 		return meta, fmt.Errorf("invalid PeerID %s", peerIDString)
@@ -62,22 +60,22 @@ func FromMultiAddr(targetAddr multiaddr.Multiaddr) (p2pcommon.PeerMeta, error) {
 	meta = p2pcommon.PeerMeta{
 		ID:        peerID,
 		Port:      uint32(peerPort),
-		IPAddress: peerAddrString,
+		IPAddress: addr,
 	}
 	return meta, nil
 }
 
 func FromMultiAddrString(str string) (p2pcommon.PeerMeta, error) {
-	ma, err := types.ParseMultiaddrWithResolve(str)
+	ma, err := multiaddr.NewMultiaddr(str)
 	if err != nil {
 		return p2pcommon.PeerMeta{}, err
 	}
 	return FromMultiAddr(ma)
 }
 
-
+// FromMultiAddrStringWithPID
 func FromMultiAddrStringWithPID(str string, id types.PeerID) (p2pcommon.PeerMeta, error) {
-	addr1, err := types.ParseMultiaddrWithResolve(str)
+	addr1, err := multiaddr.NewMultiaddr(str)
 	if err != nil {
 		return p2pcommon.PeerMeta{}, err
 	}
@@ -181,3 +179,4 @@ func ProtocolIDsToString(sli []core.ProtocolID) string {
 	sb.WriteByte(']')
 	return sb.String()
 }
+

@@ -97,40 +97,61 @@ func RandomUUID() string {
 }
 
 func ExternalIP() (net.IP, error) {
-	ifaces, err := net.Interfaces()
+	ifs, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 {
-			continue // interface down
+	for _, i := range ifs {
+		if (i.Flags & net.FlagUp) == 0 {
+			continue // downed
 		}
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue // loopback interface
+		if (i.Flags & net.FlagLoopback) != 0 {
+			continue // loopback
 		}
-		addrs, err := iface.Addrs()
+		addrs, err := i.Addrs()
 		if err != nil {
 			return nil, err
 		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip == nil || ip.IsLoopback() {
-				continue
-			}
-			ip = ip.To4()
-			if ip == nil {
-				continue // not an ipv4 address
-			}
-			return ip, nil
+		ip := getValidIP(addrs)
+		if ip != nil {
+			return ip, err
 		}
 	}
 	return nil, errors.New("no external ip address found")
+}
+
+func getValidIP(addrs []net.Addr) net.IP {
+	var validIP6 net.IP = nil
+	for _, addr := range addrs {
+		ip := extractIP(addr)
+		if ip == nil || ip.IsLoopback() {
+			continue
+		}
+		//Drop link local address
+		if ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() {
+			continue
+		}
+		if ip.To4() != nil {
+			return ip
+		} else {
+			validIP6 = ip
+		}
+	}
+	if validIP6 != nil {
+		return validIP6
+	}
+	return nil
+}
+
+func extractIP(addr net.Addr) net.IP {
+	switch v := addr.(type) {
+	case *net.IPAddr:
+		return v.IP
+	case *net.IPNet:
+		return v.IP
+	default:
+		return nil
+	}
 }
 
 // ComparePeerID do byte-wise compare of two peerIDs,

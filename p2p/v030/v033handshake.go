@@ -16,6 +16,8 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"io"
+	"strconv"
+	"strings"
 )
 
 // V033Handshaker exchange status data over protocol version .0.3.1
@@ -50,7 +52,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	localID := h.vm.GetChainID(remotePeerStatus.BestHeight)
 	if !localID.Equals(remoteChainID) {
 		h.sendGoAway("different chainID")
-		return fmt.Errorf("different chainID : local is %s, remote is %s (no %d)", localID.ToJSON(), remoteChainID.ToJSON(), remotePeerStatus.BestHeight)
+		return fmt.Errorf("different chainID : local is %s, remote is %s at bloco no %d", PrintChainID(localID), PrintChainID(remoteChainID), remotePeerStatus.BestHeight)
 	}
 
 	peerAddress := remotePeerStatus.Sender
@@ -76,6 +78,27 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	return nil
 }
 
+func PrintChainID(id *types.ChainID) string {
+	var b strings.Builder
+	if id.PublicNet {
+		b.WriteString("publ")
+	} else {
+		b.WriteString("priv")
+	}
+	b.WriteByte(':')
+	if id.MainNet {
+		b.WriteString("main")
+	} else {
+		b.WriteString("test")
+	}
+	b.WriteByte(':')
+	b.WriteString(id.Magic)
+	b.WriteByte(':')
+	b.WriteString(id.Consensus)
+	b.WriteByte(':')
+	b.WriteString(strconv.Itoa(int(id.Version)))
+	return b.String()
+}
 
 func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
 	// TODO need to check auth at first...
