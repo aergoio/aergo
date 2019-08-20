@@ -825,6 +825,8 @@ func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockStat
 		return ErrNotRaftLeader
 	}
 
+	debugRaftProposeSleep()
+
 	rop.proposed = &Proposed{block: block, blockState: blockState}
 
 	if err := rop.rs.Propose(block); err != nil {
