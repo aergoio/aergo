@@ -30,7 +30,7 @@ static void preloadModules(lua_State *L)
 	luaopen_gmp(L);
     luaopen_utf8(L);
 
-	if (!IsPublic()) {
+	if (!isPublic()) {
         luaopen_db(L);
 	}
 
@@ -292,7 +292,7 @@ sqlite3 *vm_get_db(lua_State *L)
     sqlite3 *db;
 
     service = (int *)getLuaExecContext(L);
-    db = LuaGetDbHandle(service);
+    db = luaGetDbHandle(service);
     if (db == NULL) {
         luaL_setsyserror(L);
         lua_pushstring(L, "can't open a database connection");
@@ -310,10 +310,10 @@ void vm_get_abi_function(lua_State *L, char *fname)
 
 void vm_internal_view_start(lua_State *L)
 {
-    LuaViewStart((int *)getLuaExecContext(L));
+    luaViewStart((int *)getLuaExecContext(L));
 }
 
 void vm_internal_view_end(lua_State *L)
 {
-    LuaViewEnd((int *)getLuaExecContext(L));
+    luaViewEnd((int *)getLuaExecContext(L));
 }

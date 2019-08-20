@@ -894,7 +894,7 @@ func Create(
 
 	// create a sql database for the contract
 	if !HardforkConfig.IsV2Fork(stateSet.blockInfo.No) {
-		if db := LuaGetDbHandle(&stateSet.service); db == nil {
+		if db := luaGetDbHandle(&stateSet.service); db == nil {
 			return "", nil, stateSet.usedFee(), newDbSystemError(errors.New("can't open a database connection"))
 		}
 	}

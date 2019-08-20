@@ -315,7 +315,7 @@ static int db_pstmt_exec(lua_State *L)
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
     /*check for exec in function */
-	if (LuaCheckView(getLuaExecContext(L))> 0) {
+	if (luaCheckView(getLuaExecContext(L))> 0) {
         luaL_error(L, "not permitted in view function");
     }
     rc = bind(L, pstmt->db, pstmt->s);
@@ -395,7 +395,7 @@ static int db_exec(lua_State *L)
     int rc;
 
     /*check for exec in function */
-    if (LuaCheckView(getLuaExecContext(L))> 0) {
+    if (luaCheckView(getLuaExecContext(L))> 0) {
         luaL_error(L, "not permitted in view function");
     }
     cmd = luaL_checkstring(L, 1);
