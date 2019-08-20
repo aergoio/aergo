@@ -149,14 +149,14 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.V,
+func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int, timeout <-chan struct{}) *StateSet {
 
-	callState := &CallState{ctrState: contractState, curState: receiver.State()}
+	callState := &CallState{ctrState: contractState, curState: reciever.State()}
 
 	stateSet := &StateSet{
-		curContract: newContractInfo(callState, senderID, receiver.ID(), rp, amount),
+		curContract: newContractInfo(callState, senderID, reciever.ID(), rp, amount),
 		bs:          blockState,
 		cdb:         cdb,
 		origin:      senderID,
@@ -169,7 +169,7 @@ func NewContext(blockState *state.BlockState, cdb ChainAccessor, sender, receive
 		timeout:     timeout,
 	}
 	stateSet.callState = make(map[types.AccountID]*CallState)
-	stateSet.callState[receiver.AccountID()] = callState
+	stateSet.callState[reciever.AccountID()] = callState
 	if sender != nil {
 		stateSet.callState[sender.AccountID()] = &CallState{curState: sender.State()}
 	}
@@ -263,7 +263,7 @@ func newExecutor(
 	stateSet.callDepth++
 	ce := &Executor{
 		code:     contract,
-		L:        getLState(),
+		L:        GetLState(),
 		stateSet: stateSet,
 	}
 	if ce.L == nil {
@@ -613,7 +613,7 @@ func (ce *Executor) close() {
 		if ce.stateSet != nil {
 			ce.stateSet.callDepth--
 		}
-		freeLState(ce.L)
+		FreeLState(ce.L)
 	}
 }
 

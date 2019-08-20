@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -62,6 +63,9 @@ type voteCmd struct {
 
 	newVote    *types.Vote
 	voteResult *VoteResult
+
+	add func(v *types.Vote) error
+	sub func(v *types.Vote) error
 }
 
 func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
@@ -95,8 +99,8 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 	// proposal based voting, while just as an event output for BP election.
 	staked := cmd.Staked
 	// Update the block number when the last action is conducted (voting,
-	// staking etc). Two consecutive votings must be separated by the time
-	// corresponding to VotingDelay (currently 24h). This time limit is check
+	// staking etc). Two consecutive votings must be seperated by the time
+	// corresponding to VotingDeley (currently 24h). This time limit is check
 	// against this block number (Staking.When). Due to this, the Staking value
 	// on the state DB must be updated even for voting.
 	staked.SetWhen(cmd.BlockNo)
@@ -113,6 +117,22 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 	cmd.voteResult, err = loadVoteResult(scs, cmd.issue)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.MainNetHardforkConfig.Version(cmd.BlockNo) < 2 {
+		cmd.add = func(v *types.Vote) error {
+			return cmd.voteResult.AddVote(v)
+		}
+		cmd.sub = func(v *types.Vote) error {
+			return cmd.voteResult.SubVote(v)
+		}
+	} else {
+		cmd.add = func(v *types.Vote) error {
+			return cmd.addVote(v)
+		}
+		cmd.sub = func(v *types.Vote) error {
+			return cmd.subVote(v)
+		}
 	}
 
 	return cmd, err
@@ -150,11 +170,11 @@ func (c *voteCmd) updateVote() error {
 // Apply the new voting to the voting statistics on the (system) contract
 // storage.
 func (c *voteCmd) updateVoteResult() error {
-	if err := c.subVote(c.Vote); err != nil {
+	if err := c.sub(c.Vote); err != nil {
 		return err
 	}
 
-	if err := c.addVote(c.newVote); err != nil {
+	if err := c.add(c.newVote); err != nil {
 		return err
 	}
 

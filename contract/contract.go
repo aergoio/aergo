@@ -133,9 +133,7 @@ func Execute(
 			tx.GetHash(), bi, "", true,
 			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), timeout)
 		if stateSet.traceFile != nil {
-			defer func() {
-				_ = stateSet.traceFile.Close()
-			}()
+			defer stateSet.traceFile.Close()
 		}
 		if receiver.IsDeploy() {
 			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)

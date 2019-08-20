@@ -3531,9 +3531,9 @@ abi.payable(constructor)
 
 func TestSqlVmPubNet(t *testing.T) {
 	flushLState := func() {
-		for i := 0; i <= maxLStateSize; i++ {
-			s := getLState()
-			freeLState(s)
+		for i := 0; i <= MAX_LSTATE_SIZE; i++ {
+			s := GetLState()
+			FreeLState(s)
 		}
 	}
 	PubNet = true

@@ -12,16 +12,16 @@ var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-const maxLStateSize = 150
+const MAX_LSTATE_SIZE = 150
 
 func StartLStateFactory() {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
-		getCh = make(chan *LState, maxLStateSize)
-		freeCh = make(chan *LState, maxLStateSize)
+		getCh = make(chan *LState, MAX_LSTATE_SIZE)
+		freeCh = make(chan *LState, MAX_LSTATE_SIZE)
 
-		for i := 0; i < maxLStateSize; i++ {
+		for i := 0; i < MAX_LSTATE_SIZE; i++ {
 			getCh <- NewLState()
 		}
 		go statePool()
@@ -36,11 +36,11 @@ func statePool() {
 	}
 }
 
-func getLState() *LState {
+func GetLState() *LState {
 	state := <-getCh
 	return state
 }
 
-func freeLState(state *LState) {
+func FreeLState(state *LState) {
 	freeCh <- state
 }

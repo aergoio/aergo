@@ -35,23 +35,23 @@ func PermittedCmd(cmd *C.char) C.int {
 }
 
 func cPermittedSql(sql string) bool {
-	cStr := C.CString(sql)
-	r := C.sqlcheck_is_permitted_sql(cStr)
+	cstr := C.CString(sql)
+	r := C.sqlcheck_is_permitted_sql(cstr)
 	var b bool
 	if r == C.int(1) {
 		b = true
 	}
-	C.free(unsafe.Pointer(cStr))
+	C.free(unsafe.Pointer(cstr))
 	return b
 }
 
 func cReadOnlySql(sql string) bool {
-	cStr := C.CString(sql)
-	r := C.sqlcheck_is_readonly_sql(cStr)
+	cstr := C.CString(sql)
+	r := C.sqlcheck_is_readonly_sql(cstr)
 	var b bool
 	if r == C.int(1) {
 		b = true
 	}
-	C.free(unsafe.Pointer(cStr))
+	C.free(unsafe.Pointer(cstr))
 	return b
 }
