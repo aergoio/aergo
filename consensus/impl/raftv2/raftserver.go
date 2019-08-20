@@ -31,7 +31,6 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/aergoio/aergo/consensus"
@@ -110,6 +109,7 @@ type raftServer struct {
 	transport     Transporter
 	stopc         chan struct{} // signals proposal channel closed
 
+	curTerm      uint64
 	leaderStatus LeaderStatus
 
 	promotable bool
@@ -122,7 +122,9 @@ type raftServer struct {
 }
 
 type LeaderStatus struct {
+	sync.RWMutex
 	leader        uint64
+	term          uint64
 	leaderChanged uint64
 }
 
@@ -697,7 +699,7 @@ func (rs *raftServer) serveChannels() {
 				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("hardstate", types.RaftHardStateToString(rd.HardState)).Msg("ready to process")
 			}
 
-			if rs.IsLeader() {
+			if isLeader, _ := rs.IsLeader(); isLeader {
 				if err := rs.processMessages(rd.Messages); err != nil {
 					logger.Fatal().Err(err).Msg("leader process message error")
 				}
@@ -724,7 +726,7 @@ func (rs *raftServer) serveChannels() {
 				logger.Fatal().Err(err).Msg("failed to append new entries to raft log")
 			}
 
-			if !rs.IsLeader() {
+			if isLeader, _ := rs.IsLeader(); !isLeader {
 				if err := rs.processMessages(rd.Messages); err != nil {
 					logger.Fatal().Err(err).Msg("process message error")
 				}
@@ -736,6 +738,10 @@ func (rs *raftServer) serveChannels() {
 			rs.triggerSnapshot()
 
 			// New block must be created after connecting all commited block
+			if !raftlib.IsEmptyHardState(rd.HardState) {
+				rs.updateTerm(rd.HardState.Term)
+			}
+
 			if rd.SoftState != nil {
 				rs.updateLeader(rd.SoftState)
 			}
@@ -878,6 +884,8 @@ func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 	if len(ents) > 0 {
 		rs.lastIndex = ents[len(ents)-1].Index
 	}
+
+	rs.updateTerm(st.Term)
 
 	logger.Info().Uint64("lastindex", rs.lastIndex).Msg("replaying WAL done")
 
@@ -1264,9 +1272,21 @@ func (rs *raftServer) WaitStartup() {
 	logger.Debug().Msg("raft start succeed")
 }
 
+// updateTerm is called only by raftserver. so it doesn't have lock.
+func (rs *raftServer) updateTerm(term uint64) {
+	rs.curTerm = term
+}
+
 func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 	if softState.Lead != rs.GetLeader() {
-		atomic.StoreUint64(&rs.leaderStatus.leader, softState.Lead)
+		rs.Lock()
+		defer rs.Unlock()
+		rs.leaderStatus.leader = softState.Lead
+
+		if rs.curTerm == 0 {
+			logger.Fatal().Msg("term must not be 0")
+		}
+		rs.leaderStatus.term = rs.curTerm
 
 		rs.leaderStatus.leaderChanged++
 
@@ -1277,12 +1297,40 @@ func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 }
 
 func (rs *raftServer) GetLeader() uint64 {
-	return atomic.LoadUint64(&rs.leaderStatus.leader)
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	//return atomic.LoadUint64(&rs.leaderStatus.leader)
+	return rs.leaderStatus.leader
 }
 
-func (rs *raftServer) IsLeader() bool {
-	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.GetLeader()
+func (rs *raftServer) checkLeader() bool {
+	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.leaderStatus.leader
 }
+
+func (rs *raftServer) IsLeader() (bool, uint64) {
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	return rs.checkLeader(), rs.leaderStatus.term
+}
+
+// IsTermLeader returns true if this node is leader of given term
+func (rs *raftServer) IsLeaderOfTerm(term uint64) bool {
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	return (rs.leaderStatus.term == term) && rs.checkLeader()
+}
+
+/*
+func (rs *raftServer) GetLeaderStatus() (uint64, uint64) {
+	rs.leaderStatus.RLock()
+	defer 	rs.leaderStatus.RUnlock()
+
+	return rs.leaderStatus.term, rs.leaderStatus.leader
+}
+*/
 
 func (rs *raftServer) Status() raftlib.Status {
 	node := rs.getNodeSync()
@@ -1378,7 +1426,8 @@ func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
 	prog := ClusterProgress{}
 
 	node := rs.getNodeSync()
-	if node == nil || !rs.IsLeader() {
+	isLeader, _ := rs.IsLeader()
+	if node == nil || !isLeader {
 		return &prog, nil
 	}
 

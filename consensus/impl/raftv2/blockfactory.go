@@ -62,6 +62,7 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 
 type Work struct {
 	*types.Block
+	term uint64
 }
 
 func (work *Work) GetTimeout() time.Duration {
@@ -72,7 +73,9 @@ func (work *Work) ToString() string {
 	return fmt.Sprintf("bestblock=%s", work.BlockID())
 }
 
-type raftMarker struct {
+type leaderReady struct {
+	sync.RWMutex
+
 	ce *commitEntry
 }
 
@@ -91,7 +94,7 @@ type BlockFactory struct {
 	bpTimeoutC  chan interface{}
 	quit        chan interface{}
 
-	raftMarker raftMarker
+	ready leaderReady
 
 	maxBlockBodySize uint32
 	ID               string
@@ -188,11 +191,12 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
 
-	if !bf.raftServer.IsLeader() {
-		return
-	}
+	var (
+		isReady bool
+		term    uint64
+	)
 
-	if !bf.IsLeaderReady() {
+	if isReady, term = bf.isLeaderReady(); !isReady {
 		logger.Debug().Msg("skip producing block because this bp is leader but it's not ready to produce new block")
 		return
 	}
@@ -211,36 +215,24 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		}
 
 		bf.prevBlock = b
-		jq <- &Work{b}
+		jq <- &Work{Block: b, term: term}
 	}
 }
 
-// IsLeaderReady must be called after bf.jobLock
+// isLeaderReady must be called after bf.jobLock
 // check if block factory has finished all blocks of previous term. it can be checked that it has received raft marker of this term.
 // TODO) term may be set when raft leader is changed from hardstate
-func (bf *BlockFactory) IsLeaderReady() bool {
-	status := bf.raftServer.Status()
-	if status.Term <= 0 {
-		logger.Fatal().Msg("failed to get status of raft")
-		return false
+func (bf *BlockFactory) isLeaderReady() (bool, uint64) {
+	var (
+		isLeader bool
+		term     uint64
+	)
+
+	if isLeader, term = bf.raftServer.IsLeader(); !isLeader {
+		return false, 0
 	}
 
-	if status.ID != status.SoftState.Lead {
-		logger.Debug().Str("id", types.Uint64ToHexaString(status.ID)).Str("leader", types.Uint64ToHexaString(status.SoftState.Lead)).Msg("raft marker is not equal")
-		return false
-	}
-
-	if bf.raftMarker.ce == nil {
-		logger.Debug().Msg("not exist raft marker")
-		return false
-	}
-
-	if bf.raftMarker.ce.term == status.Term {
-		logger.Debug().Uint64("marker", bf.raftMarker.ce.term).Uint64("raft", status.Term).Msg("raft marker is not equal")
-		return true
-	}
-
-	return false
+	return bf.ready.isReady(term), term
 }
 
 func (bf *BlockFactory) GetType() consensus.ConsensusType {
@@ -377,7 +369,7 @@ func (bf *BlockFactory) worker() {
 				err        error
 			)
 
-			if block, blockState, err = bf.generateBlock(work.Block); err != nil {
+			if block, blockState, err = bf.generateBlock(work); err != nil {
 				logger.Error().Err(err).Msg("failed to generate block")
 				if err == chain.ErrQuit {
 					logger.Info().Msg("quit worker of block factory")
@@ -388,7 +380,7 @@ func (bf *BlockFactory) worker() {
 				continue
 			}
 
-			if err = bf.raftOp.propose(block, blockState); err != nil {
+			if err = bf.raftOp.propose(block, blockState, work.term); err != nil {
 				logger.Error().Err(err).Msg("failed to propose block")
 				bf.reset()
 			}
@@ -428,13 +420,47 @@ func (bf *BlockFactory) worker() {
 func (bf *BlockFactory) handleRaftMarker(ce *commitEntry) {
 	logger.Debug().Uint64("index", ce.index).Uint64("term", ce.term).Msg("set raft marker(empty block)")
 
-	// set raftMarker to produce block for this term
-	bf.raftMarker.ce = ce
+	// set ready to produce block for this term
+	bf.ready.set(ce)
 	bf.reset()
 }
 
-func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *state.BlockState, error) {
-	var err error
+func (ready *leaderReady) set(ce *commitEntry) {
+	ready.Lock()
+	defer ready.Unlock()
+
+	ready.ce = ce
+}
+
+func (ready *leaderReady) isReady(curTerm uint64) bool {
+	ready.RLock()
+	defer ready.RUnlock()
+
+	if curTerm <= 0 {
+		logger.Fatal().Msg("failed to get status of raft")
+		return false
+	}
+
+	if ready.ce == nil {
+		logger.Debug().Msg("not exist ready marker")
+		return false
+	}
+
+	if ready.ce.term != curTerm {
+		logger.Debug().Uint64("ready-term", ready.ce.term).Uint64("cur-term", curTerm).Msg("ready term is not equal")
+		return false
+	}
+
+	return true
+}
+
+func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockState, error) {
+	var (
+		bestBlock *types.Block
+		err       error
+	)
+
+	bestBlock = work.Block
 
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
@@ -443,7 +469,7 @@ func (bf *BlockFactory) generateBlock(bestBlock *types.Block) (*types.Block, *st
 	}()
 
 	checkCancel := func() bool {
-		if !bf.raftServer.IsLeader() {
+		if !bf.raftServer.IsLeaderOfTerm(work.term) {
 			logger.Debug().Msg("cancel because no more leader")
 			return true
 		}
@@ -630,7 +656,7 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
 
-	if !bf.raftServer.IsLeader() {
+	if isLeader, _ := bf.raftServer.IsLeader(); !isLeader {
 		return nil, ErrorMembershipChange{ErrNotRaftLeader}
 	}
 
@@ -671,7 +697,7 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	cl.Lock()
 	defer cl.Unlock()
 
-	if !bf.raftServer.IsLeader() {
+	if isLeader, _ := bf.raftServer.IsLeader(); !isLeader {
 		logger.Info().Msg("skipped conf change request since node is not leader")
 		return nil, consensus.ErrorMembershipChangeSkip
 	}
@@ -793,8 +819,8 @@ func newRaftOperator(rs *raftServer, cl *Cluster) *RaftOperator {
 	return &RaftOperator{commitC: commitC, rs: rs, cl: cl}
 }
 
-func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState) error {
-	if !rop.rs.IsLeader() {
+func (rop *RaftOperator) propose(block *types.Block, blockState *state.BlockState, term uint64) error {
+	if !rop.rs.IsLeaderOfTerm(term) {
 		logger.Info().Msg("dropped produced block because this bp became no longer leader")
 		return ErrNotRaftLeader
 	}
