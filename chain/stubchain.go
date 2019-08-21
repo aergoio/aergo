@@ -50,7 +50,7 @@ func (tchain *StubBlockChain) GenAddBlock() {
 		bi = &types.BlockHeaderInfo{Ts: time.Now().UnixNano(), ChainId: cid}
 	}
 	bi.Ts = time.Now().UnixNano()
-	newBlock := types.NewBlock(bi, prevBlockRootHash, nil, nil, nil)
+	newBlock := types.NewBlock(bi, prevBlockRootHash, nil, nil, nil, nil)
 	tchain.AddBlock(newBlock)
 	time.Sleep(time.Nanosecond * 3)
 }

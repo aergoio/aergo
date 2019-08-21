@@ -23,7 +23,7 @@ func TestBlockHash(t *testing.T) {
 	}
 
 	txIn := make([]*Tx, 0)
-	block := NewBlock(EmptyBlockHeaderInfo, nil, nil, txIn, nil)
+	block := NewBlock(EmptyBlockHeaderInfo, nil, nil, txIn, nil, nil)
 
 	h1 := blockHash(block)
 	h2 := block.calculateBlockHash()
@@ -72,7 +72,7 @@ func TestBlockSignBasic(t *testing.T) {
 		return valid
 	}
 
-	block := NewBlock(EmptyBlockHeaderInfo, nil, nil, make([]*Tx, 0), nil)
+	block := NewBlock(EmptyBlockHeaderInfo, nil, nil, make([]*Tx, 0), nil, nil)
 
 	privKey, pubKey := genKeyPair(signAssert)
 	sig := sign(block, privKey)
@@ -82,7 +82,7 @@ func TestBlockSignBasic(t *testing.T) {
 
 func TestBlockSign(t *testing.T) {
 	signAssert := assert.New(t)
-	block := NewBlock(EmptyBlockHeaderInfo, nil, nil, make([]*Tx, 0), nil)
+	block := NewBlock(EmptyBlockHeaderInfo, nil, nil, make([]*Tx, 0), nil, nil)
 
 	privKey, _ := genKeyPair(signAssert)
 	signAssert.Nil(block.Sign(privKey))

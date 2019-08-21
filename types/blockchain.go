@@ -231,7 +231,7 @@ func (v DummyBlockVersionner) Version(BlockNo) int32 {
 }
 
 // NewBlock represents to create a block to store transactions.
-func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte) *Block {
+func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, consensus []byte) *Block {
 	return &Block{
 		Header: &BlockHeader{
 			ChainID:          bi.ChainId,
@@ -242,6 +242,7 @@ func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*
 			TxsRootHash:      CalculateTxsRootHash(txs),
 			ReceiptsRootHash: receipts.MerkleRoot(),
 			CoinbaseAccount:  coinbaseAcc,
+			Consensus:        consensus,
 		},
 		Body: &BlockBody{
 			Txs: txs,
