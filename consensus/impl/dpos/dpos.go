@@ -128,15 +128,6 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return int64(binary.LittleEndian.Uint64(stateRoot))
 	}
 
-	seed := vrSeed(bState.PrevBlockHash())
-	logger.Debug().Int64("value", seed).Msg("generate a seed for voting reward")
-	addr, err := system.PickVotingRewardWinner(seed)
-	if err != nil {
-		logger.Debug().Err(err).Msg("no voting reward winner")
-		return nil
-	}
-	bState.SetConsensus(addr)
-
 	vaultID := types.ToAccountID([]byte(types.AergoVault))
 	vs, err := bState.GetAccountState(vaultID)
 	if err != nil {
@@ -161,6 +152,12 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		return err
 	}
 
+	addr, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
+	if err != nil {
+		logger.Debug().Err(err).Msg("no voting reward winner")
+		return nil
+	}
+
 	ID := types.ToAccountID(addr)
 	s, err := bState.GetAccountState(ID)
 	if err != nil {
@@ -175,6 +172,8 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	if err != nil {
 		return err
 	}
+
+	bState.SetConsensus(addr)
 
 	logger.Debug().
 		Str("address", types.EncodeAddress(addr)).
