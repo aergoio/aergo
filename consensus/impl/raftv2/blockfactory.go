@@ -79,6 +79,37 @@ type leaderReady struct {
 	ce *commitEntry
 }
 
+func (ready *leaderReady) set(ce *commitEntry) {
+	logger.Debug().Uint64("term", ce.term).Msg("set ready marker")
+
+	ready.Lock()
+	defer ready.Unlock()
+
+	ready.ce = ce
+}
+
+func (ready *leaderReady) isReady(curTerm uint64) bool {
+	ready.RLock()
+	defer ready.RUnlock()
+
+	if curTerm <= 0 {
+		logger.Fatal().Msg("failed to get status of raft")
+		return false
+	}
+
+	if ready.ce == nil {
+		logger.Debug().Msg("not exist ready marker")
+		return false
+	}
+
+	if ready.ce.term != curTerm {
+		logger.Debug().Uint64("ready-term", ready.ce.term).Uint64("cur-term", curTerm).Msg("not ready for producing")
+		return false
+	}
+
+	return true
+}
+
 // BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
 //
 // This can be used for testing purpose.
@@ -224,15 +255,14 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 // TODO) term may be set when raft leader is changed from hardstate
 func (bf *BlockFactory) isLeaderReady() (bool, uint64) {
 	var (
-		isLeader bool
-		term     uint64
+		status LeaderStatus
 	)
 
-	if isLeader, term = bf.raftServer.IsLeader(); !isLeader {
+	if status = bf.raftServer.GetLeaderStatus(); !status.IsLeader {
 		return false, 0
 	}
 
-	return bf.ready.isReady(term), term
+	return bf.ready.isReady(status.Term), status.Term
 }
 
 func (bf *BlockFactory) GetType() consensus.ConsensusType {
@@ -396,8 +426,8 @@ func (bf *BlockFactory) worker() {
 			// RaftEmptyBlockLog: When the leader changes, the new raft leader creates an empty data log with a new term and index.
 			// When block factory receives empty block log, the blockfactory that is running as the leader should reset the proposal in progress.
 			// since it may have been dropped on the raft. Block factory must produce new block after all blocks of previous term are connected. Empty log can be a marker for that.
-			if cEntry.IsMarker() {
-				bf.handleRaftMarker(cEntry)
+			if cEntry.IsReadyMarker() {
+				bf.handleReadyMarker(cEntry)
 				continue
 			}
 
@@ -414,44 +444,14 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-// @RaftMarker: leader which has term of marker can make new block
-// 				When block factory receives marker, it gurantees that all the blocks of previous term has been connected in chain
-// 				since commit is processed by single commit go routine.
-func (bf *BlockFactory) handleRaftMarker(ce *commitEntry) {
+// @ReadyMarker: leader can make new block after receiving empty commit entry. It is ready marker.
+//               Receiving a marker ensures that all the blocks of previous term has been connected in chain
+func (bf *BlockFactory) handleReadyMarker(ce *commitEntry) {
 	logger.Debug().Uint64("index", ce.index).Uint64("term", ce.term).Msg("set raft marker(empty block)")
 
 	// set ready to produce block for this term
 	bf.ready.set(ce)
 	bf.reset()
-}
-
-func (ready *leaderReady) set(ce *commitEntry) {
-	ready.Lock()
-	defer ready.Unlock()
-
-	ready.ce = ce
-}
-
-func (ready *leaderReady) isReady(curTerm uint64) bool {
-	ready.RLock()
-	defer ready.RUnlock()
-
-	if curTerm <= 0 {
-		logger.Fatal().Msg("failed to get status of raft")
-		return false
-	}
-
-	if ready.ce == nil {
-		logger.Debug().Msg("not exist ready marker")
-		return false
-	}
-
-	if ready.ce.term != curTerm {
-		logger.Debug().Uint64("ready-term", ready.ce.term).Uint64("cur-term", curTerm).Msg("ready term is not equal")
-		return false
-	}
-
-	return true
 }
 
 func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockState, error) {
@@ -656,7 +656,7 @@ func (bf *BlockFactory) ConfChange(req *types.MembershipChange) (*consensus.Memb
 		return nil, ErrorMembershipChange{ErrClusterNotReady}
 	}
 
-	if isLeader, _ := bf.raftServer.IsLeader(); !isLeader {
+	if !bf.raftServer.IsLeader() {
 		return nil, ErrorMembershipChange{ErrNotRaftLeader}
 	}
 
@@ -697,7 +697,7 @@ func (bf *BlockFactory) MakeConfChangeProposal(req *types.MembershipChange) (*co
 	cl.Lock()
 	defer cl.Unlock()
 
-	if isLeader, _ := bf.raftServer.IsLeader(); !isLeader {
+	if !bf.raftServer.IsLeader() {
 		logger.Info().Msg("skipped conf change request since node is not leader")
 		return nil, consensus.ErrorMembershipChangeSkip
 	}

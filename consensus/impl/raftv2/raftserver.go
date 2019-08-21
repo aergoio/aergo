@@ -123,9 +123,10 @@ type raftServer struct {
 
 type LeaderStatus struct {
 	sync.RWMutex
-	leader        uint64
-	term          uint64
+	Leader        uint64
+	Term          uint64
 	leaderChanged uint64
+	IsLeader      bool
 }
 
 type commitEntry struct {
@@ -134,7 +135,7 @@ type commitEntry struct {
 	term  uint64
 }
 
-func (ce *commitEntry) IsMarker() bool {
+func (ce *commitEntry) IsReadyMarker() bool {
 	return ce.block == nil
 }
 
@@ -699,7 +700,7 @@ func (rs *raftServer) serveChannels() {
 				logger.Debug().Int("entries", len(rd.Entries)).Int("commitentries", len(rd.CommittedEntries)).Str("hardstate", types.RaftHardStateToString(rd.HardState)).Msg("ready to process")
 			}
 
-			if isLeader, _ := rs.IsLeader(); isLeader {
+			if rs.IsLeader() {
 				if err := rs.processMessages(rd.Messages); err != nil {
 					logger.Fatal().Err(err).Msg("leader process message error")
 				}
@@ -726,7 +727,7 @@ func (rs *raftServer) serveChannels() {
 				logger.Fatal().Err(err).Msg("failed to append new entries to raft log")
 			}
 
-			if isLeader, _ := rs.IsLeader(); !isLeader {
+			if !rs.IsLeader() {
 				if err := rs.processMessages(rd.Messages); err != nil {
 					logger.Fatal().Err(err).Msg("process message error")
 				}
@@ -1281,18 +1282,20 @@ func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 	if softState.Lead != rs.GetLeader() {
 		rs.Lock()
 		defer rs.Unlock()
-		rs.leaderStatus.leader = softState.Lead
+
+		rs.leaderStatus.Leader = softState.Lead
 
 		if rs.curTerm == 0 {
 			logger.Fatal().Msg("term must not be 0")
 		}
-		rs.leaderStatus.term = rs.curTerm
+		rs.leaderStatus.Term = rs.curTerm
 
+		rs.leaderStatus.IsLeader = rs.checkLeader()
 		rs.leaderStatus.leaderChanged++
 
-		logger.Info().Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("leader changed")
+		logger.Info().Uint64("term", rs.curTerm).Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("leader changed")
 	} else {
-		logger.Info().Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("soft state leader unchanged")
+		logger.Info().Uint64("term", rs.curTerm).Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("soft state leader unchanged")
 	}
 }
 
@@ -1300,37 +1303,33 @@ func (rs *raftServer) GetLeader() uint64 {
 	rs.leaderStatus.RLock()
 	defer rs.leaderStatus.RUnlock()
 
-	//return atomic.LoadUint64(&rs.leaderStatus.leader)
-	return rs.leaderStatus.leader
+	return rs.leaderStatus.Leader
 }
 
 func (rs *raftServer) checkLeader() bool {
-	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.leaderStatus.leader
+	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.leaderStatus.Leader
 }
 
-func (rs *raftServer) IsLeader() (bool, uint64) {
+func (rs *raftServer) IsLeader() bool {
 	rs.leaderStatus.RLock()
 	defer rs.leaderStatus.RUnlock()
 
-	return rs.checkLeader(), rs.leaderStatus.term
+	return rs.leaderStatus.IsLeader
+}
+
+func (rs *raftServer) GetLeaderStatus() LeaderStatus {
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	tmpStatus := rs.leaderStatus
+	return tmpStatus
 }
 
 // IsTermLeader returns true if this node is leader of given term
 func (rs *raftServer) IsLeaderOfTerm(term uint64) bool {
-	rs.leaderStatus.RLock()
-	defer rs.leaderStatus.RUnlock()
-
-	return (rs.leaderStatus.term == term) && rs.checkLeader()
+	status := rs.GetLeaderStatus()
+	return status.IsLeader && status.Term == term
 }
-
-/*
-func (rs *raftServer) GetLeaderStatus() (uint64, uint64) {
-	rs.leaderStatus.RLock()
-	defer 	rs.leaderStatus.RUnlock()
-
-	return rs.leaderStatus.term, rs.leaderStatus.leader
-}
-*/
 
 func (rs *raftServer) Status() raftlib.Status {
 	node := rs.getNodeSync()
@@ -1426,8 +1425,7 @@ func (rs *raftServer) GetClusterProgress() (*ClusterProgress, error) {
 	prog := ClusterProgress{}
 
 	node := rs.getNodeSync()
-	isLeader, _ := rs.IsLeader()
-	if node == nil || !isLeader {
+	if node == nil || !rs.IsLeader() {
 		return &prog, nil
 	}
 
