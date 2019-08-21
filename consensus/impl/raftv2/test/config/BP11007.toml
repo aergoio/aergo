@@ -44,4 +44,5 @@ blockintervalms=1000
 blockfactorytickms=30
 name="aergo7"
 usebackup=false
+stopdupcommit=true
 #

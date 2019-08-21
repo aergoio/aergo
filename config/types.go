@@ -126,6 +126,7 @@ type RaftConfig struct {
 	SnapFrequency      uint64        `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
 	SlowNodeGap        uint          `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
 	RecoverBP          *RaftBPConfig `mapstructure:"recoverbp" description:"bp info for creating a new cluster from backup"`
+	StopDupCommit      bool          `mapstructure:"stopdupcommit" description:"stop server when commit of duplicate height block occurs. use this only for debugging'"`
 }
 
 type RaftBPConfig struct {

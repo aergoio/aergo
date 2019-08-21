@@ -46,4 +46,5 @@ blockintervalms = 1000
 blockfactorytickms=30
 name="aergo2"
 snapfrequency=10
+stopdupcommit=true
 #

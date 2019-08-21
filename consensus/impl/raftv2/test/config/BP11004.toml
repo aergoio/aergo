@@ -46,4 +46,5 @@ blockfactorytickms=30
 name="aergo4"
 snapfrequency=10
 usebackup=false
+stopdupcommit=true
 #

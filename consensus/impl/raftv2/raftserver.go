@@ -1181,6 +1181,22 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	var lastBlockEnt *raftpb.Entry
 
+	isDuplicateCommit := func(block *types.Block) bool {
+		lastReq := rs.commitProgress.GetRequest()
+
+		if lastReq != nil && lastReq.block.BlockNo() >= block.BlockNo() {
+			if StopDupCommit {
+				logger.Fatal().Str("last", lastReq.block.ID()).Str("dup", block.ID()).Uint64("no", block.BlockNo()).Msg("fork occured by invalid commit entry")
+			} else {
+				logger.Debug().Str("last", lastReq.block.ID()).Str("dup", block.ID()).Uint64("no", block.BlockNo()).Msg("skip commit entry of smaller index")
+			}
+
+			return true
+		}
+
+		return false
+	}
+
 	for i := range ents {
 		logger.Info().Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Str("type", ents[i].Type.String()).Int("datalen", len(ents[i].Data)).Msg("publish entry")
 
@@ -1195,6 +1211,10 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 				}
 
 				if block != nil {
+					if isDuplicateCommit(block) {
+						continue
+					}
+
 					logger.Info().Str("hash", block.ID()).Uint64("no", block.BlockNo()).Msg("commit normal block entry")
 					rs.commitProgress.UpdateRequest(&commitEntry{block: block, index: ents[i].Index, term: ents[i].Term})
 				}
