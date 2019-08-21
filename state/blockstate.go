@@ -17,11 +17,12 @@ type BlockInfo struct {
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	StateDB
-	BpReward      []byte //final bp reward, increment when tx executes
+	BpReward      []byte // final bp reward, increment when tx executes
 	receipts      types.Receipts
 	CodeMap       codeCache
 	CCProposal    *consensus.ConfChangePropose
 	prevBlockHash []byte
+	consensus     []byte // Consensus Header
 }
 
 type codeCache struct {
@@ -65,6 +66,14 @@ func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
 		opt(b)
 	}
 	return b
+}
+
+func (bs *BlockState) Consensus() []byte {
+	return bs.consensus
+}
+
+func (bs *BlockState) SetConsensus(ch []byte) {
+	bs.consensus = ch
 }
 
 func (bs *BlockState) AddReceipt(r *types.Receipt) error {

@@ -35,7 +35,7 @@ const (
 	// 'blockchain_test.go.' Caution: Be sure to adjust the value below if the
 	// structure of the header is changed.
 	DefaultMaxHdrSize = 400
-	lastFieldOfBH     = "Sign"
+	lastFieldOfBH     = "Consensus"
 )
 
 type TxHash = []byte
@@ -263,6 +263,22 @@ func (block *Block) calculateBlockHash() []byte {
 	return digest.Sum(nil)
 }
 
+func serializeStructOmit(w io.Writer, s interface{}, stopIndex int, omit string) error {
+	v := reflect.Indirect(reflect.ValueOf(s))
+
+	var i int
+	for i = 0; i <= stopIndex; i++ {
+		if v.Type().Field(i).Name == omit {
+			continue
+		}
+		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func serializeStruct(w io.Writer, s interface{}, stopIndex int) error {
 	v := reflect.Indirect(reflect.ValueOf(s))
 
@@ -281,7 +297,7 @@ func serializeBH(w io.Writer, bh *BlockHeader) error {
 }
 
 func serializeBhForDigest(w io.Writer, bh *BlockHeader) error {
-	return serializeStruct(w, bh, lastIndexOfBH-1)
+	return serializeStructOmit(w, bh, lastIndexOfBH, "Sign")
 }
 
 func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
@@ -295,6 +311,7 @@ func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 		bh.Confirms,
 		bh.PubKey,
 		bh.Sign,
+		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
 			return err
