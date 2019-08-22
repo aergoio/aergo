@@ -52,6 +52,8 @@ type P2P struct {
 	ca      types.ChainAccessor
 	prm     p2pcommon.PeerRoleManager
 	lm      p2pcommon.ListManager
+	tnt 	*txNoticeTracer
+
 	mutex   sync.Mutex
 
 	// inited between construction and start
@@ -88,6 +90,7 @@ func (p2ps *P2P) AfterStart() {
 	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
 	nt := p2ps.nt
 	nt.Start()
+	p2ps.tnt.Start()
 	p2ps.mutex.Unlock()
 
 	if err := p2ps.pm.Start(); err != nil {
@@ -119,6 +122,7 @@ func (p2ps *P2P) BeforeStop() {
 		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
 	}
 	p2ps.mutex.Lock()
+	p2ps.tnt.Stop()
 	nt := p2ps.nt
 	p2ps.mutex.Unlock()
 	nt.Stop()
@@ -177,8 +181,8 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
-	// TODO: it should be refactored to support multi version
-	mf := &baseMOFactory{p2ps: p2ps}
+	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
+	mf := &baseMOFactory{p2ps: p2ps, tnt:p2ps.tnt}
 
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
@@ -236,7 +240,13 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.GetTransactions:
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
-		p2ps.NotifyNewTX(*msg)
+		hashes := make([]types.TxID, len(msg.Txs))
+		for i, tx := range msg.Txs {
+			hashes[i] = types.ToTxID(tx.Hash)
+		}
+		p2ps.NotifyNewTX(notifyNewTXs{hashes})
+	case notifyNewTXs:
+		p2ps.NotifyNewTX(msg)
 	case *message.AddBlockRsp:
 		// do nothing for now. just for prevent deadletter
 
@@ -406,6 +416,7 @@ func (p2ps *P2P) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p
 func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream types.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
+	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
 	// TODO tune to set prefer role
@@ -414,4 +425,8 @@ func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *t
 	p2ps.insertHandlers(newPeer)
 
 	return newPeer
+}
+
+type notifyNewTXs struct {
+	ids []types.TxID
 }

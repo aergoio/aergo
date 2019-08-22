@@ -3,11 +3,12 @@ package raftv2
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/types"
-	"strings"
-	"time"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
@@ -46,6 +47,7 @@ var (
 
 	ElectionTickCount        = DefaultElectionTickCount
 	MaxSlowNodeGap    uint64 = DefaultSlowNodeGap // Criteria for determining whether the server is in a slow state
+	StopDupCommit            = false
 )
 
 func Init(raftCfg *config.RaftConfig) {
@@ -87,6 +89,9 @@ func Init(raftCfg *config.RaftConfig) {
 		MaxSlowNodeGap = uint64(raftCfg.SlowNodeGap)
 	}
 
+	if raftCfg.StopDupCommit {
+		StopDupCommit = true
+	}
 	logger.Info().Int64("factory tick(ms)", BlockFactoryTickMs.Nanoseconds()/int64(time.Millisecond)).
 		Int64("interval(ms)", BlockIntervalMs.Nanoseconds()/int64(time.Millisecond)).Msg("set block factory tick/interval")
 }

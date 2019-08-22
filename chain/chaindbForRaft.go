@@ -124,7 +124,7 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 	var data []byte
 	var err error
 
-	logger.Info().Uint64("term", hardstate.Term).Uint64("vote", hardstate.Vote).Uint64("commit", hardstate.Commit).Msg("save hard state")
+	logger.Info().Uint64("term", hardstate.Term).Str("vote", types.Uint64ToHexaString(hardstate.Vote)).Uint64("commit", hardstate.Commit).Msg("save hard state")
 
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
@@ -149,7 +149,7 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 		return nil, ErrInvalidHardState
 	}
 
-	logger.Info().Uint64("term", state.Term).Uint64("vote", state.Vote).Uint64("commit", state.Commit).Msg("load hard state")
+	logger.Info().Uint64("term", state.Term).Str("vote", types.Uint64ToHexaString(state.Vote)).Uint64("commit", state.Commit).Msg("load hard state")
 
 	return state, nil
 }

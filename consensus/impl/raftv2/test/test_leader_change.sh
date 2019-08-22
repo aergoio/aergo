@@ -10,13 +10,13 @@ source test_common.sh
 
 pushd $TEST_RAFT_INSTANCE
 
-chainSleep=1000
+#chainSleep=1000
 
 make_node.sh
 
 kill_svr.sh
-DEBUG_CHAIN_BP_SLEEP=$chainSleep run_svr.sh
-#run_svr.sh
+#DEBUG_CHAIN_BP_SLEEP=$chainSleep run_svr.sh
+run_svr.sh
 sleep 3
 
 try=$1

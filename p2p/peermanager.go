@@ -23,9 +23,9 @@ import (
 
 const (
 	initial  = iota
-	running  = iota
-	stopping = iota
-	stopped  = iota
+	running
+	stopping
+	stopped
 )
 
 /**

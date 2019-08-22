@@ -33,7 +33,7 @@ type requestInfo struct {
 
 type queryMsg struct {
 	handler p2pcommon.MessageHandler
-	msg  p2pcommon.Message
+	msg     p2pcommon.Message
 	msgBody p2pcommon.MessageBody
 }
 
@@ -52,6 +52,7 @@ type remotePeerImpl struct {
 	mf        p2pcommon.MoFactory
 	signer    p2pcommon.MsgSigner
 	metric    *metric.PeerMetric
+	tnt       p2pcommon.TxNoticeTracer
 
 	stopChan chan struct{}
 
@@ -147,7 +148,6 @@ func (p *remotePeerImpl) ChangeRole(role p2pcommon.PeerRole) {
 	p.role = role
 }
 
-
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
 	p.handlers[subProtocol] = handler
 }
@@ -233,12 +233,11 @@ WRITELOOP:
 func (p *remotePeerImpl) cleanupWrite() {
 	// 1. cleaning receive handlers. TODO add code
 
-	// 2. canceling not sent orders TODO add code
-
+	// 2. canceling not sent orders
 	for {
 		select {
 		case m := <-p.dWrite:
-			m.IsRequest()
+			m.CancelSend(p)
 		default:
 			return
 		}
@@ -415,22 +414,23 @@ func (p *remotePeerImpl) sendTxNotices() {
 			return
 		}
 		hashes := make([][]byte, 0, p.txNoticeQueue.Size())
-		idx := 0
+		skippedTxID := make([]types.TxID, 0)
 		for element := p.txNoticeQueue.Poll(); element != nil; element = p.txNoticeQueue.Poll() {
 			hash := element.(types.TxID)
 			if p.txHashCache.Contains(hash) {
+				skippedTxID = append(skippedTxID, hash)
 				continue
 			}
 			hashes = append(hashes, hash[:])
-			idx++
 			p.txHashCache.Add(hash, cachePlaceHolder)
-			//if idx >= p.maxTxNoticeHashSize {
-			//	break
-			//}
 		}
-		if idx > 0 {
+		if len(hashes) > 0 {
 			mo := p.mf.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: hashes})
 			p.SendMessage(mo)
+		}
+		if len(skippedTxID) > 0 {
+			// if tx is in cache, the remote peer will have that tx.
+			p.tnt.Report(p2pcommon.Send, skippedTxID, 1)
 		}
 	}
 }

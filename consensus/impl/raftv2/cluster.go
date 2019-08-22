@@ -1026,9 +1026,12 @@ func (cl *Cluster) saveConfChangePropose(ccPropose *consensus.ConfChangePropose)
 
 func (cl *Cluster) resetSavedConfChangePropose() {
 	var ccid uint64
-	if cl.savedChange != nil {
-		ccid = cl.savedChange.Cc.ID
+
+	if cl.savedChange == nil {
+		return
 	}
+
+	ccid = cl.savedChange.Cc.ID
 
 	logger.Debug().Uint64("requestID", ccid).Msg("reset saved conf change propose")
 

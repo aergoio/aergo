@@ -28,6 +28,8 @@ const SampleAddrString = "/ip4/172.21.11.12/tcp/3456"
 const NetAddrString = "172.21.11.12:3456"
 
 func TestGetIP(t *testing.T) {
+	t.Skip("skip test cause infinite loop in Goland IDE")
+
 	addrInput, _ := ma.NewMultiaddr(SampleAddrString)
 
 	netAddr, err := mnet.ToNetAddr(addrInput)
