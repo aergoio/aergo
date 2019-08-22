@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 
@@ -106,15 +107,39 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 	return &voteList
 }
 
+//Sync is write vote result data to state DB. if vote result over the threshold,
 func (vr *VoteResult) Sync() error {
 	votingPowerRank.apply(vr.scs)
-
+	resultList := vr.buildVoteList()
 	if vr.ex {
+		if vr.threshold(resultList.Votes[0].GetAmountBigInt()) {
+			value, ok := new(big.Int).SetString(string(resultList.Votes[0].GetCandidate()), 10)
+			if !ok {
+				return fmt.Errorf("abnormal winner is in vote %s", string(vr.key))
+			}
+			if _, err := updateParam(vr.scs, string(vr.key), value); err != nil {
+				return err
+			}
+		}
 		if err := vr.scs.SetData(append(totalKey, vr.key...), vr.total.Bytes()); err != nil {
 			return err
 		}
 	}
-	return vr.scs.SetData(append(sortKey, vr.key...), serializeVoteList(vr.buildVoteList(), vr.ex))
+	return vr.scs.SetData(append(sortKey, vr.key...), serializeVoteList(resultList, vr.ex))
+}
+
+func (vr *VoteResult) threshold(power *big.Int) bool {
+	if power.Cmp(big.NewInt(0)) == 0 {
+		return false
+	}
+	total, err := getStakingTotal(vr.scs)
+	if err != nil {
+		panic("failed to get staking total when calculate bp count")
+	}
+	if new(big.Int).Div(total, new(big.Int).Div(power, big.NewInt(100))).Cmp(big.NewInt(150)) <= 0 {
+		return true
+	}
+	return false
 }
 
 func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {

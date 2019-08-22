@@ -67,14 +67,9 @@ var lastIndexOfBH int
 func init() {
 	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
 	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
-	ProposalPrice, _ = new(big.Int).SetString("1000000000000000000", 10)
+	ProposalPrice, _ = new(big.Int).SetString("0", 10)
 	NamePrice, _ = new(big.Int).SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
-}
-
-// GetStakingMinimum returns the minimum limit of staking.
-func GetStakingMinimum() *big.Int {
-	return StakingMinimum
 }
 
 func NewAvgTime(sizeMavg int) *AvgTime {

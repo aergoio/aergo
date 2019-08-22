@@ -291,6 +291,11 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 	system.InitGovernance(cs.ConsensusType())
+	systemState, err := cs.SDB().GetSystemAccountState()
+	if err != nil {
+		panic("failed to read aergo.system state")
+	}
+	system.InitSystemParams(systemState, len(cs.GetGenesisInfo().BPs))
 
 	// init Debugger
 	cs.initDebugger()
@@ -565,6 +570,8 @@ func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) 
 	switch key {
 	case types.StakingTotal:
 		return system.GetStakingTotal(stateDB)
+	case types.StakingMin:
+		return system.GetStakingMinimum(stateDB)
 	}
 	return nil, fmt.Errorf("unsupported system value : %s", key)
 }
@@ -853,9 +860,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		})
 	case *message.GetParams:
 		bpcount := system.GetBpCount(cw.sdb)
+		minStaking, err := system.GetStakingMinimum(cw.sdb)
+		if err != nil {
+			minStaking = big.NewInt(1)
+		}
 		context.Respond(&message.GetParamsRsp{
 			BpCount:      bpcount,
-			MinStaking:   system.GetMinimumStaking(cw.sdb),
+			MinStaking:   minStaking,
 			MaxBlockSize: uint64(MaxBlockSize()),
 		})
 	case *message.CheckFeeDelegation:

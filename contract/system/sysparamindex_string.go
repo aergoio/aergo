@@ -4,9 +4,18 @@ package system
 
 import "strconv"
 
-const _sysParamIndex_name = "bpCountnumBPsysParamMax"
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[bpCount-0]
+	_ = x[stakingMin-1]
+	_ = x[sysParamMax-2]
+}
 
-var _sysParamIndex_index = [...]uint8{0, 7, 12, 23}
+const _sysParamIndex_name = "bpCountstakingMinsysParamMax"
+
+var _sysParamIndex_index = [...]uint8{0, 7, 17, 28}
 
 func (i sysParamIndex) String() string {
 	if i < 0 || i >= sysParamIndex(len(_sysParamIndex_index)-1) {

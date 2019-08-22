@@ -15,8 +15,12 @@ import (
 
 var consensusType string
 
-var stakingKey = []byte("staking")
-var stakingTotalKey = []byte("stakingtotal")
+var (
+	stakingKey      = []byte("staking")
+	stakingTotalKey = []byte("stakingtotal")
+
+	ErrInvalidCandidate = errors.New("invalid candidate")
+)
 
 const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
@@ -167,6 +171,29 @@ func subTotal(scs *state.ContractState, amount *big.Int) error {
 	}
 	total := new(big.Int).SetBytes(data)
 	return scs.SetData(stakingTotalKey, new(big.Int).Sub(total, amount).Bytes())
+}
+func GetStakingMinimum(ar AccountStateReader) (*big.Int, error) {
+	scs, err := ar.GetSystemAccountState()
+	if err != nil {
+		return nil, err
+	}
+	return getStakingMinimum(scs)
+}
+
+func getStakingMinimum(scs *state.ContractState) (*big.Int, error) {
+	result, err := getVoteResult(scs, GenProposalKey(STAKINGMIN), 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(result.Votes) == 0 {
+		return types.StakingMinimum, nil
+	}
+	winCandidate := result.Votes[0].GetCandidate()
+	stakingMin, ok := new(big.Int).SetString(string(winCandidate), 10)
+	if !ok {
+		return nil, ErrInvalidCandidate
+	}
+	return stakingMin, nil
 }
 
 func serializeStaking(v *types.Staking) []byte {

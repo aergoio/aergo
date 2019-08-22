@@ -35,11 +35,11 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	}
 	// Need to pass the
 	InitGovernance("dpos")
-
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
+	InitSystemParams(scs, 1)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
@@ -205,7 +205,7 @@ func buildStakingPayload(isStaking bool) []byte {
 
 func TestVotingCatalog(t *testing.T) {
 	cat := GetVotingCatalog()
-	assert.Equal(t, 2, len(cat))
+	assert.Equal(t, 3, len(cat))
 	for _, issue := range cat {
 		fmt.Println(issue.ID())
 	}

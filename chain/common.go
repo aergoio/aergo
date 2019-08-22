@@ -9,7 +9,6 @@ import (
 	"errors"
 
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 )
@@ -76,7 +75,6 @@ func initChainParams(genesis *types.Genesis) {
 	if err := setConsensusName(genesis.ConsensusType()); err != nil {
 		logger.Panic().Err(err).Msg("invalid consensus type in genesis block")
 	}
-	system.InitDefaultBpCount(len(genesis.BPs))
 	if genesis.TotalBalance() != nil {
 		types.MaxAER = genesis.TotalBalance()
 		logger.Info().Str("TotalBalance", types.MaxAER.String()).Msg("set total from genesis")

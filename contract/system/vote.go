@@ -312,6 +312,7 @@ func InitDefaultBpCount(bpCount int) {
 	if lastBpCount > 0 {
 		return
 	}
+	DefaultParams[BPCOUNT] = big.NewInt(int64(bpCount))
 	lastBpCount = bpCount
 }
 
@@ -320,7 +321,7 @@ func getLastBpCount() int {
 }
 
 func GetBpCount(ar AccountStateReader) int {
-	result, err := GetVoteResultEx(ar, GenProposalKey("BPCOUNT"), 1)
+	result, err := GetVoteResultEx(ar, GenProposalKey(BPCOUNT), 1)
 	if err != nil {
 		panic("could not get vote result for min staking")
 	}
@@ -360,6 +361,32 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 		bps = append(bps, enc.ToString(v.Candidate))
 	}
 	return bps, nil
+}
+
+func GetParam(ar AccountStateReader, proposalID string) *big.Int {
+	result, err := GetVoteResultEx(ar, GenProposalKey(proposalID), 1)
+	if err != nil {
+		panic("could not get vote result for min staking")
+	}
+	if len(result.Votes) == 0 {
+		return systemParams.getLastParam(proposalID)
+	}
+	power := result.Votes[0].GetAmountBigInt()
+	if power.Cmp(big.NewInt(0)) == 0 {
+		return systemParams.getLastParam(proposalID)
+	}
+	total, err := GetStakingTotal(ar)
+	if err != nil {
+		panic("failed to get staking total when calculate bp count")
+	}
+	if new(big.Int).Div(total, new(big.Int).Div(power, big.NewInt(100))).Cmp(big.NewInt(150)) <= 0 {
+		winParam, ok := new(big.Int).SetString(string(result.Votes[0].GetCandidate()), 10)
+		if !ok {
+			return systemParams.getLastParam(proposalID)
+		}
+		return systemParams.setLastParam(proposalID, winParam)
+	}
+	return systemParams.getLastParam(proposalID)
 }
 
 func serializeVoteList(vl *types.VoteList, ex bool) []byte {

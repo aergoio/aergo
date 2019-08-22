@@ -768,7 +768,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "ab"]}`),
+			Payload: []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "1"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -783,9 +783,8 @@ func TestProposalExecute2(t *testing.T) {
 	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 
-	//balance0_5 := new(big.Int).Div(types.StakingMinimum, big.NewInt(2))
+	balance0_5 := new(big.Int).Div(types.StakingMinimum, big.NewInt(2))
 	balance1 := types.StakingMinimum
-	//balance1_5 := new(big.Int).Add(balance1, balance0_5)
 	balance2 := new(big.Int).Mul(balance1, big.NewInt(2))
 	balance3 := new(big.Int).Mul(balance1, big.NewInt(3))
 	balance5 := new(big.Int).Mul(balance1, big.NewInt(5))
@@ -843,10 +842,14 @@ func TestProposalExecute2(t *testing.T) {
 		assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
 	}
 
+	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["STAKINGMIN", "2","this vote is for the staking minimum "]}`)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "faild in creating STAKINGMIN")
+
 	tx.Body.Account = sender2.ID()
 	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["BPCOUNT2", "2","this vote is for the number of bp"]}`)
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender2, receiver, blockNo)
-	assert.Error(t, err, "BPCOUNT2 not allowed for IDq")
+	assert.Error(t, err, "BPCOUNT2 not allowed for ID")
 
 	stakingTx.Body.Account = sender3.ID()
 	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender3, receiver, blockNo)
@@ -883,6 +886,24 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "")
 	assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
 
+	votingTx = &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "` + balance0_5.String() + `"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in voting proposal")
+	votingTx.Body.Account = sender2.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "` + balance0_5.String() + `"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	votingTx.Body.Account = sender3.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "13","23"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+
 	blockNo += StakingDelay
 	unstakingTx := &types.Tx{
 		Body: &types.TxBody{
@@ -896,9 +917,9 @@ func TestProposalExecute2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, GenProposalKey("BPCOUNT"), 3)
+	voteResult, err = getVoteResult(scs, GenProposalKey(BPCOUNT), 3)
 	assert.NoError(t, err, "get vote result")
-	internalVoteResult, err := loadVoteResult(scs, GenProposalKey("BPCOUNT"))
+	internalVoteResult, err := loadVoteResult(scs, GenProposalKey(BPCOUNT))
 	assert.Equal(t, balance5, internalVoteResult.GetTotal(), "check result total")
 
 	assert.Equal(t, balance5, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
@@ -907,6 +928,11 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
 	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[2].Amount), "check result amount")
 	assert.Equal(t, "27", string(voteResult.Votes[2].Candidate), "1st place")
+
+	blockNo += StakingDelay
+	unstakingTx.Body.Amount = balance0_5.Bytes()
+	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
 
 	/*
 		blockNo += StakingDelay

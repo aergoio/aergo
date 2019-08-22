@@ -146,17 +146,18 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			err != ErrTxSystemOperatorIsNotSet {
 			return nil, err
 		}
+		operatorAddr := types.ToAddress(context.Args[0])
 		if context.op == types.OpaddOperator {
-			if operators.IsExist(types.ToAddress(context.Args[0])) {
+			if operators.IsExist(operatorAddr) {
 				return nil, fmt.Errorf("already exist operator: %s", ci.Args[0])
 			}
-			operators = append(operators, types.ToAddress(context.Args[0]))
+			operators = append(operators, operatorAddr)
 		} else if context.op == types.OpremoveOperator {
 			if !operators.IsExist(sender.ID()) {
 				return nil, fmt.Errorf("operator is not exist : %s", ci.Args[0])
 			}
 			for i, v := range operators {
-				if bytes.Equal(v, types.ToAddress(context.Args[0])) {
+				if bytes.Equal(v, operatorAddr) {
 					operators = append(operators[:i], operators[i+1:]...)
 					break
 				}
@@ -189,7 +190,11 @@ func validateForStaking(account []byte, txBody *types.TxBody, scs *state.Contrac
 		return nil, types.ErrLessTimeHasPassed
 	}
 	toBe := new(big.Int).Add(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	if getMinimumStaking(scs).Cmp(toBe) > 0 {
+	stakingMin, err := getStakingMinimum(scs)
+	if err != nil {
+		return nil, err
+	}
+	if stakingMin.Cmp(toBe) > 0 {
 		return nil, types.ErrTooSmallAmount
 	}
 	return staked, nil
@@ -222,7 +227,11 @@ func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.Contr
 		return nil, types.ErrLessTimeHasPassed
 	}
 	toBe := new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	if toBe.Cmp(big.NewInt(0)) != 0 && getMinimumStaking(scs).Cmp(toBe) > 0 {
+	stakingMin, err := getStakingMinimum(scs)
+	if err != nil {
+		return nil, err
+	}
+	if toBe.Cmp(big.NewInt(0)) != 0 && stakingMin.Cmp(toBe) > 0 {
 		return nil, types.ErrTooSmallAmount
 	}
 	return staked, nil

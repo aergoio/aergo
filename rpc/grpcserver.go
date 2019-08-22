@@ -188,10 +188,11 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
 
 	if consensus.IsDposName(chainInfo.Id.Consensus) {
-		if minStaking := types.GetStakingMinimum(); minStaking != nil {
+		if minStaking, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingMin); minStaking != nil {
 			chainInfo.Stakingminimum = minStaking.Bytes()
+		} else {
+			return nil, err
 		}
-
 		if total, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingTotal); total != nil {
 			chainInfo.Totalstaking = total.Bytes()
 		} else {

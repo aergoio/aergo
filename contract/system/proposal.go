@@ -12,6 +12,7 @@ import (
 
 const (
 	bpCount sysParamIndex = iota // BP count
+	stakingMin
 	sysParamMax
 )
 
