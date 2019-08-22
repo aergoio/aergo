@@ -122,7 +122,7 @@ func (cs *ChainService) getReceipt(txHash []byte) (*types.Receipt, error) {
 		return nil, errors.New("cannot find a receipt")
 	}
 
-	r, err := cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx)
+	r, err := cs.cdb.getReceipt(block.BlockHash(), block.GetHeader().BlockNo, i.Idx, cs.cfg.Hardfork)
 	if err != nil {
 		return r, err
 	}
@@ -138,7 +138,7 @@ func (cs *ChainService) getEvents(events *[]*types.Event, blkNo types.BlockNo, f
 	if err != nil {
 		return 0
 	}
-	receipts, err := cs.cdb.getReceipts(blkHash, blkNo)
+	receipts, err := cs.cdb.getReceipts(blkHash, blkNo, cs.cfg.Hardfork)
 	if err != nil {
 		return 0
 	}
@@ -598,6 +598,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		// executed by the block factory.
 		commitOnly = true
 	}
+	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
 
 	return &blockExecutor{
 		BlockState:       bState,

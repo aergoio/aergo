@@ -383,11 +383,12 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	if err != nil {
 		return err
 	}
+	usedFee := fee.PayloadTxFee(len(l.code))
 
 	if l.feeDelegate {
 		balance := contractState.Balance()
 
-		if fee.MaxPayloadTxFee(len(l.code)).Cmp(balance) > 0 {
+		if usedFee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		err = CheckFeeDelegation(l.contract, bs, nil, eContractState, l.code,
@@ -402,22 +403,23 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	}
 	creatorState.SubBalance(l.amount)
 	contractState.AddBalance(l.amount)
-	usedFee, err := run(creatorState, contractState, contractId, eContractState)
+	cFee, err := run(creatorState, contractState, contractId, eContractState)
 	if err != nil {
 		return err
 	}
-	if usedFee != nil {
-		if l.feeDelegate {
-			if contractState.Balance().Cmp(usedFee) < 0 {
-				return types.ErrInsufficientBalance
-			}
-			contractState.SubBalance(usedFee)
-		} else {
-			if creatorState.Balance().Cmp(usedFee) < 0 {
-				return types.ErrInsufficientBalance
-			}
-			creatorState.SubBalance(usedFee)
+	if cFee != nil {
+		usedFee.Add(usedFee, cFee)
+	}
+	if l.feeDelegate {
+		if contractState.Balance().Cmp(usedFee) < 0 {
+			return types.ErrInsufficientBalance
 		}
+		contractState.SubBalance(usedFee)
+	} else {
+		if creatorState.Balance().Cmp(usedFee) < 0 {
+			return types.ErrInsufficientBalance
+		}
+		creatorState.SubBalance(usedFee)
 	}
 	bs.PutState(creatorId, creatorState.State())
 	bs.PutState(contractId, contractState.State())

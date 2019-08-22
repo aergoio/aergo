@@ -222,12 +222,17 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 
 type BlockVersionner interface {
 	Version(no BlockNo) int32
+	IsV2Fork(BlockNo) bool
 }
 
 type DummyBlockVersionner int32
 
 func (v DummyBlockVersionner) Version(BlockNo) int32 {
 	return int32(v)
+}
+
+func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
+	return true
 }
 
 // NewBlock represents to create a block to store transactions.

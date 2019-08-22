@@ -225,6 +225,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
 	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(contract.ChainAccessor(bpi.ChainDB), bi, bf.bpTimeoutC))
 
+	bs.Receipts().SetHardFork(bf.bv, bi.No)
 	block, err = chain.GenerateBlock(bf, bi, bs, txOp, false)
 	if err != nil {
 		return nil, nil, err

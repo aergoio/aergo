@@ -8,9 +8,8 @@ package config
 import (
 	"runtime"
 
-	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/aergo-lib/config"
-	//	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/types"
 )
 
 type ServerContext struct {
@@ -93,7 +92,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 
 func (ctx *ServerContext) GetDefaultAuthConfig() *AuthConfig {
 	return &AuthConfig{
-		EnableLocalConf:   false,
+		EnableLocalConf: false,
 	}
 }
 

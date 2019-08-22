@@ -175,13 +175,6 @@ func TestContractQuery(t *testing.T) {
 		NewLuaTxCall("ktlee", "query", 2, `{"Name":"inc", "Args":[]}`),
 	)
 
-	ktlee, err := bc.GetAccountState("ktlee")
-	if err != nil {
-		t.Error(err)
-	}
-	if ktlee.GetBalanceBigInt().Uint64() != uint64(97999999999999998) {
-		t.Error(ktlee.GetBalanceBigInt().Uint64())
-	}
 	query, err := bc.GetAccountState("query")
 	if err != nil {
 		t.Error(err)
@@ -1307,13 +1300,12 @@ end
 abi.register(sql_func, abs_func, typeof_func)`
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("name", 100000000000000000),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "fns", 0, definition),
 	)
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = bc.Query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
 	if err != nil {
 		t.Error(err)
@@ -2823,7 +2815,9 @@ abi.register(GetVar1)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxAccount("ktlee", 1000000000000000000),
+	)
+	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "dupVar", 0, dupVar),
 	)
 	if err == nil {
@@ -2832,7 +2826,6 @@ abi.register(GetVar1)
 	if !strings.Contains(err.Error(), "duplicated variable: 'Var1'") {
 		t.Error(err)
 	}
-
 	dupVar = `
 state.var{
 	Var1 = state.value(),
@@ -3910,7 +3903,7 @@ func TestGovernance(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	amount, _ := new(big.Int).SetString("10000000000000000000000", 10)
+	amount, _ := new(big.Int).SetString("40000000000000000000000", 10)
 	err = bc.ConnectBlock(
 		NewLuaTxCallBig("ktlee", "gov", amount, `{"Name": "test_gov", "Args":[]}`),
 	)
@@ -4164,7 +4157,7 @@ abi.payable(constructor)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 1000000000000),
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "deploy", 50000000000, deploy),
 	)
 	if err != nil {
@@ -5301,4 +5294,5 @@ func TestFeeDelegation(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 // end of test-cases

@@ -185,11 +185,8 @@ func (cdb *ChainDB) checkBlockDropped(dropBlock *types.Block) error {
 	var err error
 
 	if txLen > 0 {
-		if _, err = cdb.getReceipt(hash, no, 0); err == nil {
+		if cdb.checkExistReceipts(hash, no) {
 			return &ErrDropBlock{pos: 0}
-		}
-		if _, err = cdb.getReceipt(hash, no, int32(txLen-1)); err == nil {
-			return &ErrDropBlock{pos: 1}
 		}
 	}
 
@@ -648,8 +645,9 @@ func (cdb *ChainDB) getTx(txHash []byte) (*types.Tx, *types.TxIdx, error) {
 	return tx, txIdx, nil
 }
 
-func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int32) (*types.Receipt, error) {
-	storedReceipts, err := cdb.getReceipts(blockHash, blockNo)
+func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int32,
+	hardForkConfig *config.HardforkConfig) (*types.Receipt, error) {
+	storedReceipts, err := cdb.getReceipts(blockHash, blockNo, hardForkConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -663,7 +661,8 @@ func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int3
 	return receipts[idx], nil
 }
 
-func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo) (*types.Receipts, error) {
+func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
+	hardForkConfig *config.HardforkConfig) (*types.Receipts, error) {
 	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
 	if len(data) == 0 {
 		return nil, errors.New("cannot find a receipt")
@@ -671,10 +670,20 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo) (*types
 	var b bytes.Buffer
 	b.Write(data)
 	var receipts types.Receipts
-	decoder := gob.NewDecoder(&b)
-	decoder.Decode(&receipts)
 
-	return &receipts, nil
+	receipts.SetHardFork(hardForkConfig, blockNo)
+	decoder := gob.NewDecoder(&b)
+	err := decoder.Decode(&receipts)
+
+	return &receipts, err
+}
+
+func (cdb *ChainDB) checkExistReceipts(blockHash []byte, blockNo types.BlockNo) bool {
+	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
+	if len(data) == 0 {
+		return false
+	}
+	return true
 }
 
 type ChainTree struct {
@@ -708,8 +717,8 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	defer dbTx.Discard()
 
 	var val bytes.Buffer
-	gob := gob.NewEncoder(&val)
-	gob.Encode(receipts)
+	gobEncoder := gob.NewEncoder(&val)
+	gobEncoder.Encode(receipts)
 
 	dbTx.Set(receiptsKey(blockHash, blockNo), val.Bytes())
 
