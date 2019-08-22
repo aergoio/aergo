@@ -70,7 +70,7 @@ func (work *Work) GetTimeout() time.Duration {
 }
 
 func (work *Work) ToString() string {
-	return fmt.Sprintf("bestblock=%s", work.BlockID())
+	return fmt.Sprintf("bestblock=%s, no=%d, term=%d", work.BlockID(), work.BlockNo(), work.term)
 }
 
 type leaderReady struct {
@@ -246,7 +246,10 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		}
 
 		bf.prevBlock = b
-		jq <- &Work{Block: b, term: term}
+		work := &Work{Block: b, term: term}
+
+		logger.Debug().Str("work", work.ToString()).Msg("new work generated")
+		jq <- work
 	}
 }
 
@@ -365,7 +368,7 @@ func (bf *BlockFactory) controller() {
 		case info := <-bf.jobQueue:
 			work := info.(*Work)
 
-			logger.Debug().Msgf("received work: %s",
+			logger.Debug().Msgf("received work: %s(%p)",
 				log.DoLazyEval(func() string { return work.ToString() }))
 
 			err := beginBlock(work)
@@ -475,7 +478,10 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 		}
 
 		if b, _ := bf.GetBestBlock(); b != nil && bestBlock.BlockNo() != b.BlockNo() {
-			logger.Debug().Msg("cancel because best block changed")
+			logger.Debug().Uint64("best", b.BlockNo()).Msg("cancel because best block changed")
+			if StopDupCommit {
+				logger.Fatal().Str("work", work.ToString()).Msg("work duplicate")
+			}
 			return true
 		}
 
