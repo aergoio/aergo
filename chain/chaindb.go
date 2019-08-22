@@ -458,15 +458,15 @@ type txInfo struct {
 }
 
 func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHash []byte) error {
+	if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 4, nil); err != nil {
+		return err
+	}
+
 	for i, txEntry := range txs {
 		if err := cdb.addTx(dbTx, txEntry, blockHash, i); err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(blockHash)).Int("txidx", i).
 				Msg("failed to add tx")
 
-			return err
-		}
-
-		if err := TestDebugger.Check(DEBUG_CHAIN_STOP, 4, nil); err != nil {
 			return err
 		}
 	}

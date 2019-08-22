@@ -25,9 +25,6 @@ type syncManager struct {
 
 	blkCache *lru.Cache
 	txCache  *lru.Cache
-
-	hc     chan syncTask
-	finish chan int
 }
 
 type syncTask struct {
@@ -39,16 +36,14 @@ type syncTask struct {
 func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logger *log.Logger) p2pcommon.SyncManager {
 	var err error
 	sm := &syncManager{actor: actor, pm: pm, logger: logger}
-	sm.hc = make(chan syncTask, syncManagerChanSize)
-	sm.finish = make(chan int)
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
 	if err != nil {
-		panic("Failed to create PeerManager " + err.Error())
+		panic("Failed to create p2p block cache" + err.Error())
 	}
 	sm.txCache, err = lru.New(DefaultGlobalTxCacheSize)
 	if err != nil {
-		panic("Failed to create PeerManager " + err.Error())
+		panic("Failed to create p2p tx cache " + err.Error())
 	}
 
 	return sm
@@ -68,24 +63,6 @@ func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, bloc
 	}
 
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peer.ID(), Block: block, Bstate: nil})
-}
-
-func (sm *syncManager) Run() {
-	sm.logger.Info().Msg("starting p2p syncmanager")
-SyncLoop:
-	for {
-		select {
-		case t := <-sm.hc:
-			sm.HandleNewTxNotice(t.peer, t.hashes, t.data)
-		case <-sm.finish:
-			break SyncLoop
-		}
-	}
-	sm.logger.Info().Msg("syncmanager is finished")
-}
-
-func (sm *syncManager) Stop() {
-	close(sm.finish)
 }
 
 func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *types.NewBlockNotice) {

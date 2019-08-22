@@ -31,7 +31,6 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/aergoio/aergo/consensus"
@@ -46,17 +45,12 @@ import (
 )
 
 const (
-	HasNoLeader       uint64 = 0
-	DfltSnapFrequency        = 30
+	HasNoLeader uint64 = 0
 )
 
 //noinspection ALL
 var (
-	raftLogger                  raftlib.Logger
-	ConfSnapFrequency           uint64 = DfltSnapFrequency
-	ConfSnapshotCatchUpEntriesN uint64 = ConfSnapFrequency
-
-	MaxSlowNodeGap uint64 = 100 // Criteria for determining whether the server is in a slow state
+	raftLogger raftlib.Logger
 )
 
 var (
@@ -115,6 +109,7 @@ type raftServer struct {
 	transport     Transporter
 	stopc         chan struct{} // signals proposal channel closed
 
+	curTerm      uint64
 	leaderStatus LeaderStatus
 
 	promotable bool
@@ -127,14 +122,21 @@ type raftServer struct {
 }
 
 type LeaderStatus struct {
-	leader        uint64
+	sync.RWMutex
+	Leader        uint64
+	Term          uint64
 	leaderChanged uint64
+	IsLeader      bool
 }
 
 type commitEntry struct {
 	block *types.Block
 	index uint64
 	term  uint64
+}
+
+func (ce *commitEntry) IsReadyMarker() bool {
+	return ce.block == nil
 }
 
 type CommitProgress struct {
@@ -209,7 +211,7 @@ func RecoverExit() {
 func makeConfig(nodeID uint64, storage *raftlib.MemoryStorage) *raftlib.Config {
 	c := &raftlib.Config{
 		ID:                        nodeID,
-		ElectionTick:              10,
+		ElectionTick:              ElectionTickCount,
 		HeartbeatTick:             1,
 		Storage:                   storage,
 		MaxSizePerMsg:             1024 * 1024,
@@ -737,6 +739,10 @@ func (rs *raftServer) serveChannels() {
 			rs.triggerSnapshot()
 
 			// New block must be created after connecting all commited block
+			if !raftlib.IsEmptyHardState(rd.HardState) {
+				rs.updateTerm(rd.HardState.Term)
+			}
+
 			if rd.SoftState != nil {
 				rs.updateLeader(rd.SoftState)
 			}
@@ -879,6 +885,8 @@ func (rs *raftServer) replayWAL(snapshot *raftpb.Snapshot) error {
 	if len(ents) > 0 {
 		rs.lastIndex = ents[len(ents)-1].Index
 	}
+
+	rs.updateTerm(st.Term)
 
 	logger.Info().Uint64("lastindex", rs.lastIndex).Msg("replaying WAL done")
 
@@ -1173,6 +1181,22 @@ func (rs *raftServer) applyConfChange(ent *raftpb.Entry) bool {
 func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 	var lastBlockEnt *raftpb.Entry
 
+	isDuplicateCommit := func(block *types.Block) bool {
+		lastReq := rs.commitProgress.GetRequest()
+
+		if lastReq != nil && lastReq.block.BlockNo() >= block.BlockNo() {
+			if StopDupCommit {
+				logger.Fatal().Str("last", lastReq.block.ID()).Str("dup", block.ID()).Uint64("no", block.BlockNo()).Msg("fork occured by invalid commit entry")
+			} else {
+				logger.Debug().Str("last", lastReq.block.ID()).Str("dup", block.ID()).Uint64("no", block.BlockNo()).Msg("skip commit entry of smaller index")
+			}
+
+			return true
+		}
+
+		return false
+	}
+
 	for i := range ents {
 		logger.Info().Uint64("idx", ents[i].Index).Uint64("term", ents[i].Term).Str("type", ents[i].Type.String()).Int("datalen", len(ents[i].Data)).Msg("publish entry")
 
@@ -1187,6 +1211,10 @@ func (rs *raftServer) publishEntries(ents []raftpb.Entry) bool {
 				}
 
 				if block != nil {
+					if isDuplicateCommit(block) {
+						continue
+					}
+
 					logger.Info().Str("hash", block.ID()).Uint64("no", block.BlockNo()).Msg("commit normal block entry")
 					rs.commitProgress.UpdateRequest(&commitEntry{block: block, index: ents[i].Index, term: ents[i].Term})
 				}
@@ -1265,24 +1293,62 @@ func (rs *raftServer) WaitStartup() {
 	logger.Debug().Msg("raft start succeed")
 }
 
+// updateTerm is called only by raftserver. so it doesn't have lock.
+func (rs *raftServer) updateTerm(term uint64) {
+	rs.curTerm = term
+}
+
 func (rs *raftServer) updateLeader(softState *raftlib.SoftState) {
 	if softState.Lead != rs.GetLeader() {
-		atomic.StoreUint64(&rs.leaderStatus.leader, softState.Lead)
+		rs.Lock()
+		defer rs.Unlock()
 
+		rs.leaderStatus.Leader = softState.Lead
+
+		if rs.curTerm == 0 {
+			logger.Fatal().Msg("term must not be 0")
+		}
+		rs.leaderStatus.Term = rs.curTerm
+
+		rs.leaderStatus.IsLeader = rs.checkLeader()
 		rs.leaderStatus.leaderChanged++
 
-		logger.Info().Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("leader changed")
+		logger.Info().Uint64("term", rs.curTerm).Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("leader changed")
 	} else {
-		logger.Info().Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("soft state leader unchanged")
+		logger.Info().Uint64("term", rs.curTerm).Str("ID", EtcdIDToString(rs.ID())).Str("leader", EtcdIDToString(softState.Lead)).Msg("soft state leader unchanged")
 	}
 }
 
 func (rs *raftServer) GetLeader() uint64 {
-	return atomic.LoadUint64(&rs.leaderStatus.leader)
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	return rs.leaderStatus.Leader
+}
+
+func (rs *raftServer) checkLeader() bool {
+	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.leaderStatus.Leader
 }
 
 func (rs *raftServer) IsLeader() bool {
-	return rs.ID() != consensus.InvalidMemberID && rs.ID() == rs.GetLeader()
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	return rs.leaderStatus.IsLeader
+}
+
+func (rs *raftServer) GetLeaderStatus() LeaderStatus {
+	rs.leaderStatus.RLock()
+	defer rs.leaderStatus.RUnlock()
+
+	tmpStatus := rs.leaderStatus
+	return tmpStatus
+}
+
+// IsTermLeader returns true if this node is leader of given term
+func (rs *raftServer) IsLeaderOfTerm(term uint64) bool {
+	status := rs.GetLeaderStatus()
+	return status.IsLeader && status.Term == term
 }
 
 func (rs *raftServer) Status() raftlib.Status {

@@ -24,6 +24,7 @@ type MsgOrder interface {
 
 	// SendTo send message to remote peer. it return err if write fails, or nil if write is successful or ignored.
 	SendTo(p RemotePeer) error
+	CancelSend(pi RemotePeer)
 }
 
 type MoFactory interface {
