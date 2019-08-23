@@ -159,7 +159,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainWAL:         cdb,
-		jobQueue:         make(chan interface{}, slotQueueMax),
+		jobQueue:         make(chan interface{}),
 		workerQueue:      make(chan *Work),
 		bpTimeoutC:       make(chan interface{}, 1),
 		quit:             make(chan interface{}),
@@ -232,6 +232,14 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		return
 	}
 
+	prevToString := func(prevBlock *types.Block) string {
+		if prevBlock == nil {
+			return "empty"
+		} else {
+			return prevBlock.ID()
+		}
+	}
+
 	if b, _ := bf.GetBestBlock(); b != nil {
 		if bf.prevBlock != nil && bf.prevBlock.BlockNo() == b.BlockNo() {
 			//logger.Debug().Uint64("bestno", b.BlockNo()).Msg("previous block not connected. skip to generate block")
@@ -245,10 +253,11 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 			return
 		}
 
+		prev := bf.prevBlock
 		bf.prevBlock = b
 		work := &Work{Block: b, term: term}
 
-		logger.Debug().Str("work", work.ToString()).Msg("new work generated")
+		logger.Debug().Str("work", work.ToString()).Str("prev", prevToString(prev)).Msg("new work generated")
 		jq <- work
 	}
 }
@@ -368,7 +377,7 @@ func (bf *BlockFactory) controller() {
 		case info := <-bf.jobQueue:
 			work := info.(*Work)
 
-			logger.Debug().Msgf("received work: %s(%p)",
+			logger.Debug().Msgf("received work: %s",
 				log.DoLazyEval(func() string { return work.ToString() }))
 
 			err := beginBlock(work)
@@ -473,7 +482,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 
 	checkCancel := func() bool {
 		if !bf.raftServer.IsLeaderOfTerm(work.term) {
-			logger.Debug().Msg("cancel because no more leader")
+			logger.Debug().Msg("cancel because blockfactory is not leader of term")
 			return true
 		}
 
@@ -531,6 +540,13 @@ func (bf *BlockFactory) commitC() chan *commitEntry {
 func (bf *BlockFactory) reset() {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
+
+	// empty jobQueue. Pushed works in job queue should be removed before resetting prev work of block factory. Otherwise, it can be possible to make same job since prev work is nil.
+	for len(bf.jobQueue) > 0 {
+		info := <-bf.jobQueue
+		drop := info.(*Work)
+		logger.Debug().Str("work", drop.ToString()).Msg("drop work for reset")
+	}
 
 	if bf.prevBlock != nil {
 		logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset previous work of block factory")
