@@ -12,6 +12,7 @@ type parameters map[string]*big.Int
 const (
 	BPCOUNT    = "BPCOUNT"
 	STAKINGMIN = "STAKINGMIN"
+	RESET      = -1
 )
 
 var (
@@ -23,12 +24,14 @@ var (
 )
 
 func InitSystemParams(g dataGetter, bpCount int) {
-	InitDefaultBpCount(bpCount)
+	initDefaultBpCount(bpCount)
 	systemParams = loadParam(g)
 }
+
 func genParamKey(id string) []byte {
 	return []byte("param\\" + strings.ToUpper(id))
 }
+
 func loadParam(g dataGetter) parameters {
 	ret := map[string]*big.Int{}
 	for _, id := range systemParamList {
@@ -37,9 +40,10 @@ func loadParam(g dataGetter) parameters {
 			panic("could not load blockchain parameter")
 		}
 		if data == nil {
+			ret[id] = DefaultParams[id]
 			continue
 		}
-		_ = systemParams.setLastParam(id, new(big.Int).SetBytes(data))
+		ret[id] = new(big.Int).SetBytes(data)
 	}
 	return ret
 }

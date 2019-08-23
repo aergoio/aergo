@@ -146,9 +146,7 @@ func TestProposalBPCount(t *testing.T) {
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
 
-	ar := &TestAccountStateReader{Scs: scs}
-	InitDefaultBpCount(3)
-	assert.Equal(t, lastBpCount, GetBpCount(ar), "check event")
+	//ar := &TestAccountStateReader{Scs: scs}
 
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
@@ -160,12 +158,12 @@ func TestProposalBPCount(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "valid")
 
-	assert.Equal(t, lastBpCount, GetBpCount(ar), "check bp")
+	assert.Equal(t, 3, GetBpCount(), "check bp")
 
 	validCandiTx.Body.Account = sender2.ID()
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["bpcount", "13", "17"]}`)
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "valid")
-	assert.Equal(t, 13, GetBpCount(ar), "check bp")
+	assert.Equal(t, 13, GetBpCount(), "check bp")
 }

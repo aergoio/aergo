@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
-	"strconv"
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
@@ -303,53 +302,24 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	return getVoteResult(scs, id, n)
 }
 
-// InitDefaultBpCount sets lastBpCount to bpCount.
+// initDefaultBpCount sets lastBpCount to bpCount.
 //
 // Caution: This function must be called only once before all the aergosvr
 // services start.
-func InitDefaultBpCount(bpCount int) {
+func initDefaultBpCount(bpCount int) {
 	// Ensure that it is not modified after it is initialized.
-	if lastBpCount > 0 {
-		return
+	if DefaultParams[BPCOUNT] == nil {
+		DefaultParams[BPCOUNT] = big.NewInt(int64(bpCount))
 	}
-	DefaultParams[BPCOUNT] = big.NewInt(int64(bpCount))
-	lastBpCount = bpCount
 }
 
-func getLastBpCount() int {
-	return lastBpCount
-}
-
-func GetBpCount(ar AccountStateReader) int {
-	result, err := GetVoteResultEx(ar, GenProposalKey(BPCOUNT), 1)
-	if err != nil {
-		panic("could not get vote result for min staking")
-	}
-	if len(result.Votes) == 0 {
-		return getLastBpCount()
-	}
-	power := result.Votes[0].GetAmountBigInt()
-	if power.Cmp(big.NewInt(0)) == 0 {
-		return getLastBpCount()
-	}
-	total, err := GetStakingTotal(ar)
-	if err != nil {
-		panic("failed to get staking total when calculate bp count")
-	}
-	if new(big.Int).Div(total, new(big.Int).Div(power, big.NewInt(100))).Cmp(big.NewInt(150)) <= 0 {
-		bpcount, err := strconv.Atoi(string(result.Votes[0].GetCandidate()))
-		if err != nil {
-			return getLastBpCount()
-		}
-		lastBpCount = bpcount
-		return bpcount
-	}
-	return getLastBpCount()
+func GetBpCount() int {
+	return int(GetParam(BPCOUNT).Uint64())
 }
 
 // GetRankers returns the IDs of the top n rankers.
 func GetRankers(ar AccountStateReader) ([]string, error) {
-	n := GetBpCount(ar)
+	n := GetBpCount()
 
 	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
@@ -363,29 +333,7 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 	return bps, nil
 }
 
-func GetParam(ar AccountStateReader, proposalID string) *big.Int {
-	result, err := GetVoteResultEx(ar, GenProposalKey(proposalID), 1)
-	if err != nil {
-		panic("could not get vote result for min staking")
-	}
-	if len(result.Votes) == 0 {
-		return systemParams.getLastParam(proposalID)
-	}
-	power := result.Votes[0].GetAmountBigInt()
-	if power.Cmp(big.NewInt(0)) == 0 {
-		return systemParams.getLastParam(proposalID)
-	}
-	total, err := GetStakingTotal(ar)
-	if err != nil {
-		panic("failed to get staking total when calculate bp count")
-	}
-	if new(big.Int).Div(total, new(big.Int).Div(power, big.NewInt(100))).Cmp(big.NewInt(150)) <= 0 {
-		winParam, ok := new(big.Int).SetString(string(result.Votes[0].GetCandidate()), 10)
-		if !ok {
-			return systemParams.getLastParam(proposalID)
-		}
-		return systemParams.setLastParam(proposalID, winParam)
-	}
+func GetParam(proposalID string) *big.Int {
 	return systemParams.getLastParam(proposalID)
 }
 

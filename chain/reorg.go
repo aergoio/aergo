@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aergoio/aergo/contract/system"
+
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -171,6 +173,8 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	}
 
 	cs.stat.updateEvent(ReorgStat, time.Since(begT), reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brStartBlock)
+	systemStateDB, err := cs.SDB().GetSystemAccountState()
+	system.InitSystemParams(systemStateDB, system.RESET)
 	logger.Info().Msg("reorg end")
 
 	return nil

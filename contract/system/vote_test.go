@@ -39,7 +39,7 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 
 	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
-	InitSystemParams(scs, 1)
+	InitSystemParams(scs, 3)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")

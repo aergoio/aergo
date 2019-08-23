@@ -291,6 +291,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 	system.InitGovernance(cs.ConsensusType())
+
+	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()
 	if err != nil {
 		panic("failed to read aergo.system state")
@@ -491,7 +493,7 @@ func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
 		if n == 0 {
-			return system.GetVoteResult(cs.sdb, []byte(id), system.GetBpCount(cs.sdb.GetStateDB()))
+			return system.GetVoteResult(cs.sdb, []byte(id), system.GetBpCount())
 		}
 		return system.GetVoteResult(cs.sdb, []byte(id), int(n))
 	case consensus.ConsensusName[consensus.ConsensusRAFT]:
@@ -571,7 +573,7 @@ func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) 
 	case types.StakingTotal:
 		return system.GetStakingTotal(stateDB)
 	case types.StakingMin:
-		return system.GetStakingMinimum(stateDB)
+		return system.GetStakingMinimum(), nil
 	}
 	return nil, fmt.Errorf("unsupported system value : %s", key)
 }
@@ -859,14 +861,9 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:    err,
 		})
 	case *message.GetParams:
-		bpcount := system.GetBpCount(cw.sdb)
-		minStaking, err := system.GetStakingMinimum(cw.sdb)
-		if err != nil {
-			minStaking = big.NewInt(1)
-		}
 		context.Respond(&message.GetParamsRsp{
-			BpCount:      bpcount,
-			MinStaking:   minStaking,
+			BpCount:      system.GetBpCount(),
+			MinStaking:   system.GetStakingMinimum(),
 			MaxBlockSize: uint64(MaxBlockSize()),
 		})
 	case *message.CheckFeeDelegation:
