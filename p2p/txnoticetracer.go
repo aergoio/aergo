@@ -28,7 +28,7 @@ type txNoticeTracer struct {
 }
 
 func newTxNoticeTracer(logger *log.Logger, actor p2pcommon.ActorService) *txNoticeTracer {
-	t := &txNoticeTracer{logger: logger, actor: actor, reportC: make(chan txNoticeSendReport, syncManagerChanSize)}
+	t := &txNoticeTracer{logger: logger, actor: actor, reportC: make(chan txNoticeSendReport, syncManagerChanSize), finish:make(chan int)}
 	var err error
 	t.txSendStats, err = lru.New(DefaultGlobalTxCacheSize * 4)
 	if err != nil {
