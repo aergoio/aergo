@@ -126,7 +126,7 @@ func (cc CcArgument) parse() (*types.MembershipChange, error) {
 		}
 
 		if _, err := types.ParseMultiaddrWithResolve(address); err != nil {
-			return nil, fmt.Errorf("invalid ChangeCluster argument: %s", address, err.Error())
+			return nil, fmt.Errorf("invalid ChangeCluster argument: %s", err.Error())
 		}
 
 	case CmdMembershipRemove:
