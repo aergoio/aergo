@@ -101,5 +101,12 @@ func (c *callContract) Run(args string) (string, error) {
 		return "", err
 	}
 
+	if expectedResult == "" {
+		events := context.Get().GetEvents(callTx)
+		for _, event := range events {
+			logger.Info().Str("args", event.GetJsonArgs()).Msg(event.GetEventName())
+		}
+	}
+
 	return "call a smart contract successfully", nil
 }
