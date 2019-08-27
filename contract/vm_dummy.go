@@ -591,18 +591,28 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	return err
 }
 
-func (bc *DummyChain) QueryOnly(contract, queryInfo string) (string, error) {
+func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) (bool, string, error) {
 	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
 	if err != nil {
-		return "", err
+		return false, "", err
 	}
 	rv, err := Query(strHash(contract), bc.newBState(), nil, cState, []byte(queryInfo))
 
-	if err != nil {
-		return "", err
+	if expectedErr != "" {
+		if err == nil {
+			return false, "", fmt.Errorf("no error, expected: %s", expectedErr)
+		}
+		if !strings.Contains(err.Error(), expectedErr) {
+			return false, "", err
+		}
+		return true, "", nil
 	}
 
-	return string(rv), nil
+	if err != nil {
+		return false, "", err
+	}
+
+	return false, string(rv), nil
 }
 
 func StrToAddress(name string) string {
