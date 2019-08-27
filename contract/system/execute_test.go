@@ -917,9 +917,9 @@ func TestProposalExecute2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, GenProposalKey(BPCOUNT), 3)
+	voteResult, err = getVoteResult(scs, GenProposalKey(bpCount.ID()), 3)
 	assert.NoError(t, err, "get vote result")
-	internalVoteResult, err := loadVoteResult(scs, GenProposalKey(BPCOUNT))
+	internalVoteResult, err := loadVoteResult(scs, GenProposalKey(bpCount.ID()))
 	assert.Equal(t, balance5, internalVoteResult.GetTotal(), "check result total")
 
 	assert.Equal(t, balance5, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")

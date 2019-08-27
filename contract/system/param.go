@@ -10,17 +10,14 @@ import (
 type parameters map[string]*big.Int
 
 const (
-	BPCOUNT    = "BPCOUNT"
-	STAKINGMIN = "STAKINGMIN"
-	RESET      = -1
+	RESET = -1
 )
 
 var (
 	systemParams parameters
 
 	//DefaultParams is for aergo v1 compatibility
-	DefaultParams   = map[string]*big.Int{STAKINGMIN: types.StakingMinimum}
-	systemParamList = []string{BPCOUNT, STAKINGMIN}
+	DefaultParams = map[string]*big.Int{stakingMin.ID(): types.StakingMinimum}
 )
 
 func InitSystemParams(g dataGetter, bpCount int) {
@@ -34,7 +31,8 @@ func genParamKey(id string) []byte {
 
 func loadParam(g dataGetter) parameters {
 	ret := map[string]*big.Int{}
-	for _, id := range systemParamList {
+	for i := sysParamIndex(0); i < sysParamMax; i++ {
+		id := i.ID()
 		data, err := g.GetData(genParamKey(id))
 		if err != nil {
 			panic("could not load blockchain parameter")

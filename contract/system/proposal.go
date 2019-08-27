@@ -33,7 +33,7 @@ func (i sysParamIndex) Key() []byte {
 
 func GetVotingIssues() []types.VotingIssue {
 	vi := make([]types.VotingIssue, sysParamMax)
-	for i := bpCount; i < sysParamMax; i++ {
+	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		vi[int(i)] = i
 	}
 	return vi

@@ -306,15 +306,15 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 //
 // Caution: This function must be called only once before all the aergosvr
 // services start.
-func initDefaultBpCount(bpCount int) {
+func initDefaultBpCount(count int) {
 	// Ensure that it is not modified after it is initialized.
-	if DefaultParams[BPCOUNT] == nil {
-		DefaultParams[BPCOUNT] = big.NewInt(int64(bpCount))
+	if DefaultParams[bpCount.ID()] == nil {
+		DefaultParams[bpCount.ID()] = big.NewInt(int64(count))
 	}
 }
 
 func GetBpCount() int {
-	return int(GetParam(BPCOUNT).Uint64())
+	return int(GetParam(bpCount.ID()).Uint64())
 }
 
 // GetRankers returns the IDs of the top n rankers.

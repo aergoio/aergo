@@ -173,7 +173,7 @@ func subTotal(scs *state.ContractState, amount *big.Int) error {
 	return scs.SetData(stakingTotalKey, new(big.Int).Sub(total, amount).Bytes())
 }
 func GetStakingMinimum() *big.Int {
-	return GetParam(STAKINGMIN)
+	return GetParam(stakingMin.ID())
 }
 
 func serializeStaking(v *types.Staking) []byte {
