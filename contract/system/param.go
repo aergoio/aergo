@@ -17,7 +17,7 @@ var (
 	systemParams parameters
 
 	//DefaultParams is for aergo v1 compatibility
-	DefaultParams = map[string]*big.Int{stakingMin.ID(): types.StakingMinimum}
+	DefaultParams = map[string]*big.Int{stakingMin.ID(): types.StakingMinimum, gasPrice.ID(): big.NewInt(1)}
 )
 
 func InitSystemParams(g dataGetter, bpCount int) {

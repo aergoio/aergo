@@ -21,6 +21,7 @@ import (
 const (
 	PeerIDLength = 39
 	VotingDelay  = 60 * 60 * 24 //block interval
+	//VotingDelay = 10 //block interval
 )
 
 var (

@@ -574,6 +574,8 @@ func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) 
 		return system.GetStakingTotal(stateDB)
 	case types.StakingMin:
 		return system.GetStakingMinimum(), nil
+	case types.GasPrice:
+		return system.GetGasPrice(), nil
 	}
 	return nil, fmt.Errorf("unsupported system value : %s", key)
 }

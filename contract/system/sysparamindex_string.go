@@ -10,12 +10,13 @@ func _() {
 	var x [1]struct{}
 	_ = x[bpCount-0]
 	_ = x[stakingMin-1]
-	_ = x[sysParamMax-2]
+	_ = x[gasPrice-2]
+	_ = x[sysParamMax-3]
 }
 
-const _sysParamIndex_name = "bpCountstakingMinsysParamMax"
+const _sysParamIndex_name = "bpCountstakingMingasPricesysParamMax"
 
-var _sysParamIndex_index = [...]uint8{0, 7, 17, 28}
+var _sysParamIndex_index = [...]uint8{0, 7, 17, 25, 36}
 
 func (i sysParamIndex) String() string {
 	if i < 0 || i >= sysParamIndex(len(_sysParamIndex_index)-1) {

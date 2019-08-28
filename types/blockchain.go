@@ -122,10 +122,11 @@ type SystemValue int
 const (
 	StakingTotal SystemValue = 0 + iota
 	StakingMin
+	GasPrice
 )
 
 func (s SystemValue) String() string {
-	return [...]string{"StakingTotal", "StakingMin"}[s]
+	return [...]string{"StakingTotal", "StakingMin", "GasPrice"}[s]
 }
 
 // ChainAccessor is an interface for a another actor module to get info of chain

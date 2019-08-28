@@ -846,6 +846,10 @@ func TestProposalExecute2(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "faild in creating STAKINGMIN")
 
+	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["GASPRICE", "3","this vote is for the default gas price"]}`)
+	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "faild in creating GASPRICE")
+
 	tx.Body.Account = sender2.ID()
 	tx.Body.Payload = []byte(`{"Name":"v1createProposal", "Args":["BPCOUNT2", "2","this vote is for the number of bp"]}`)
 	_, err = ExecuteSystemTx(scs, tx.GetBody(), sender2, receiver, blockNo)
@@ -903,6 +907,26 @@ func TestProposalExecute2(t *testing.T) {
 	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "13","23"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
+
+	votingTx = &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Payload: []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "` + balance0_5.String() + `"]}`),
+			Type:    types.TxType_GOVERNANCE,
+		},
+	}
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in voting proposal")
+	votingTx.Body.Account = sender2.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "` + balance0_5.String() + `"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	votingTx.Body.Account = sender3.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "13","23"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+	gasPrice := GetParam(gasPrice.ID())
+	assert.Equal(t, balance0_5, gasPrice, "result of gas price voting")
 
 	blockNo += StakingDelay
 	unstakingTx := &types.Tx{

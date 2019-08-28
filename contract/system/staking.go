@@ -172,8 +172,13 @@ func subTotal(scs *state.ContractState, amount *big.Int) error {
 	total := new(big.Int).SetBytes(data)
 	return scs.SetData(stakingTotalKey, new(big.Int).Sub(total, amount).Bytes())
 }
+
 func GetStakingMinimum() *big.Int {
 	return GetParam(stakingMin.ID())
+}
+
+func GetGasPrice() *big.Int {
+	return GetParam(gasPrice.ID())
 }
 
 func serializeStaking(v *types.Staking) []byte {
