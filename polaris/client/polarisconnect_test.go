@@ -21,6 +21,11 @@ import (
 type dummyNTC struct {
 	nt      p2pcommon.NetworkTransport
 	chainID *types.ChainID
+	selfMeta p2pcommon.PeerMeta
+}
+
+func (dntc *dummyNTC) SelfMeta() p2pcommon.PeerMeta {
+	return dntc.selfMeta
 }
 
 func (dntc *dummyNTC) GetNetworkTransport() p2pcommon.NetworkTransport {

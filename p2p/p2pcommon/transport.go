@@ -20,6 +20,7 @@ type NTContainer interface {
 
 	// ChainID return id of current chain.
 	ChainID() *types.ChainID
+	SelfMeta() PeerMeta
 }
 
 // NetworkTransport do manager network connection

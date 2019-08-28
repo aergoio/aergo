@@ -32,7 +32,7 @@ func (p2ps *P2P) GetAddresses(peerID types.PeerID, size uint32) bool {
 
 		return false
 	}
-	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
+	senderAddr := p2ps.SelfMeta().ToPeerAddress()
 	// createPolaris message data
 	req := &types.AddressesRequest{Sender: &senderAddr, MaxSize: 50}
 	remotePeer.SendMessage(p2ps.mf.NewMsgRequestOrder(true, p2pcommon.AddressesRequest, req))

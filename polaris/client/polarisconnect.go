@@ -167,7 +167,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
-	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
+	peerAddress := pcs.ntc.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
 	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID: chainBytes,
 		Version:p2pkey.NodeVersion()}

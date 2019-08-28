@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	initial  = iota
+	initial = iota
 	running
 	stopping
 	stopped
@@ -34,11 +34,11 @@ const (
  */
 type peerManager struct {
 	status            int32
+	is                p2pcommon.InternalService
 	nt                p2pcommon.NetworkTransport
 	hsFactory         p2pcommon.HSHandlerFactory
 	actorService      p2pcommon.ActorService
 	peerFactory       p2pcommon.PeerFactory
-	mf                p2pcommon.MoFactory
 	mm                metric.MetricsManager
 	lm                p2pcommon.ListManager
 	skipHandshakeSync bool
@@ -84,16 +84,16 @@ type getPeerTask struct {
 var _ p2pcommon.PeerManager = (*peerManager)(nil)
 
 // NewPeerManager creates a peer manager object.
-func NewPeerManager(hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, cfg *cfg.Config, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, lm p2pcommon.ListManager, logger *log.Logger, mf p2pcommon.MoFactory, skipHandshakeSync bool) p2pcommon.PeerManager {
+func NewPeerManager(is p2pcommon.InternalService, hsFactory p2pcommon.HSHandlerFactory, actor p2pcommon.ActorService, pf p2pcommon.PeerFactory, nt p2pcommon.NetworkTransport, mm metric.MetricsManager, lm p2pcommon.ListManager, logger *log.Logger, cfg *cfg.Config, skipHandshakeSync bool) p2pcommon.PeerManager {
 	p2pConf := cfg.P2P
 	//logger.SetLevel("debug")
 	pm := &peerManager{
+		is:                is,
 		nt:                nt,
 		hsFactory:         hsFactory,
 		actorService:      actor,
 		conf:              p2pConf,
 		peerFactory:       pf,
-		mf:                mf,
 		mm:                mm,
 		lm:                lm,
 		logger:            logger,
@@ -322,12 +322,12 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 	preExistPeer, ok := pm.remotePeers[peerID]
 	if ok {
 		pm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Peer add collision. Outbound connection of higher hash will survive.")
-		iAmLowerOrEqual := p2putil.ComparePeerID(pm.SelfNodeID(), meta.ID) <= 0
+		iAmLowerOrEqual := p2putil.ComparePeerID(pm.is.SelfNodeID(), meta.ID) <= 0
 		if iAmLowerOrEqual == meta.Outbound {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Close connection and keep earlier handshake connection.")
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Close connection and keep earlier handshake connection.")
 			return nil
 		} else {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Keep connection and close earlier handshake connection.")
 			// stopping lower valued connection
 			preExistPeer.Stop()
 		}
@@ -448,7 +448,7 @@ func (pm *peerManager) GetPeerBlockInfos() []types.PeerBlockInfo {
 func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo {
 	peers := make([]*message.PeerInfo, 0, len(pm.peerCache))
 	if showSelf {
-		meta := pm.SelfMeta()
+		meta := pm.is.SelfMeta()
 		addr := meta.ToPeerAddress()
 		bestBlk, err := pm.actorService.GetChainAccessor().GetBestBlock()
 		if err != nil {
