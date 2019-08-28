@@ -395,7 +395,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 			l.hash(), l.sender, l.amount.Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				logger.Warn().Err(err).Str("txhash", enc.ToString(l.hash())).Msg("checkFeeDelegation Error")
+				ctrLgr.Debug().Err(err).Str("txhash", enc.ToString(l.hash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation

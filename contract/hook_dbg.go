@@ -37,7 +37,7 @@ func (ce *Executor) setCountHook(limit C.int) {
 	if cErrMsg := C.vm_set_debug_hook(ce.L); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 
-		ctrLog.Fatal().Str("err", errMsg).Msg("Fail to initialize lua contract debugger")
+		ctrLgr.Fatal().Str("err", errMsg).Msg("Fail to initialize lua contract debugger")
 	}
 }
 
@@ -203,7 +203,7 @@ func UpdateContractInfo(contract_id_hex string, path string) {
 	if path != "" {
 		absPath, err := filepath.Abs(path)
 		if err != nil {
-			ctrLog.Fatal().Str("path", path).Msg("Try to set a invalid path")
+			ctrLgr.Fatal().Str("path", path).Msg("Try to set a invalid path")
 		}
 		path = filepath.ToSlash(absPath)
 	}
@@ -214,7 +214,7 @@ func UpdateContractInfo(contract_id_hex string, path string) {
 	} else {
 		addr, err := HexAddrToBase58Addr(contract_id_hex)
 		if err != nil {
-			ctrLog.Fatal().Str("contract_id_hex", contract_id_hex).Msg("Fail to Decode Hex Address")
+			ctrLgr.Fatal().Str("contract_id_hex", contract_id_hex).Msg("Fail to Decode Hex Address")
 		}
 		contract_info_map[contract_id_hex] = &contract_info{
 			addr,
@@ -259,7 +259,7 @@ func CSetBreakPoint(contract_name_or_hex_c *C.char, line_c C.double) {
 
 	err := SetBreakPoint(HexAddrOrPlainStrToHexAddr(contract_name_or_hex), line)
 	if err != nil {
-		ctrLog.Error().Err(err).Msg("Fail to add breakpoint")
+		ctrLgr.Error().Err(err).Msg("Fail to add breakpoint")
 	}
 }
 
@@ -270,7 +270,7 @@ func CDelBreakPoint(contract_name_or_hex_c *C.char, line_c C.double) {
 
 	err := DelBreakPoint(HexAddrOrPlainStrToHexAddr(contract_name_or_hex), line)
 	if err != nil {
-		ctrLog.Error().Err(err).Msg("Fail to delete breakpoint")
+		ctrLgr.Error().Err(err).Msg("Fail to delete breakpoint")
 	}
 }
 
@@ -293,7 +293,7 @@ func CSetWatchPoint(code_c *C.char) {
 
 	err := SetWatchPoint(code)
 	if err != nil {
-		ctrLog.Error().Err(err).Msg("Fail to set watchpoint")
+		ctrLgr.Error().Err(err).Msg("Fail to set watchpoint")
 	}
 }
 
@@ -303,7 +303,7 @@ func CDelWatchPoint(idx_c C.double) {
 
 	err := DelWatchPoint(idx)
 	if err != nil {
-		ctrLog.Error().Err(err).Msg("Fail to del watchpoint")
+		ctrLgr.Error().Err(err).Msg("Fail to del watchpoint")
 	}
 }
 

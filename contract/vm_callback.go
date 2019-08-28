@@ -543,7 +543,7 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *
 func luaPrint(L *LState, service *C.int, args *C.char) {
 	stateSet := curStateSet[*service]
 	setInstMinusCount(stateSet, L, 1000)
-	logger.Info().Str("Contract SystemPrint", types.EncodeAddress(stateSet.curContract.contractId)).Msg(C.GoString(args))
+	ctrLgr.Info().Str("Contract SystemPrint", types.EncodeAddress(stateSet.curContract.contractId)).Msg(C.GoString(args))
 }
 
 func setRecoveryPoint(aid types.AccountID, stateSet *StateSet, senderState *types.State,
@@ -736,13 +736,13 @@ func luaGetDbHandle(service *C.int) *C.sqlite3 {
 		tx, err = BeginTx(aid.String(), curContract.rp)
 	}
 	if err != nil {
-		logger.Error().Err(err).Msg("Begin SQL Transaction")
+		sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
 		return nil
 	}
 	if stateSet.isQuery == false {
 		err = tx.Savepoint()
 		if err != nil {
-			logger.Error().Err(err).Msg("Begin SQL Transaction")
+			sqlLgr.Error().Err(err).Msg("Begin SQL Transaction")
 			return nil
 		}
 	}

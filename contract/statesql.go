@@ -28,7 +28,7 @@ var (
 	database = &Database{}
 	load     sync.Once
 
-	logger = log.NewLogger("statesql")
+	sqlLgr = log.NewLogger("statesql")
 
 	queryConn     *SQLiteConn
 	queryConnLock sync.Mutex
@@ -51,7 +51,7 @@ func init() {
 			if _, ok := database.DBs[database.OpenDbName]; !ok {
 				b, err := enc.ToBytes(database.OpenDbName)
 				if err != nil {
-					logger.Error().Err(err).Msg("Open SQL Connection")
+					sqlLgr.Error().Err(err).Msg("Open SQL Connection")
 					return nil
 				}
 				database.DBs[database.OpenDbName] = &DB{
@@ -63,7 +63,7 @@ func init() {
 					accountID: types.AccountID(types.ToHashID(b)),
 				}
 			} else {
-				logger.Warn().Err(errors.New("duplicated connection")).Msg("Open SQL Connection")
+				sqlLgr.Warn().Err(errors.New("duplicated connection")).Msg("Open SQL Connection")
 			}
 			return nil
 		},
@@ -88,7 +88,7 @@ func LoadDatabase(dataDir string) error {
 	var err error
 	load.Do(func() {
 		path := filepath.Join(dataDir, statesqlDriver)
-		logger.Debug().Str("path", path).Msg("loading statesql")
+		sqlLgr.Debug().Str("path", path).Msg("loading statesql")
 		if err = checkPath(path); err == nil {
 			database.DBs = make(map[string]*DB)
 			database.DataDir = path
@@ -100,7 +100,7 @@ func LoadDatabase(dataDir string) error {
 func LoadTestDatabase(dataDir string) error {
 	var err error
 	path := filepath.Join(dataDir, statesqlDriver)
-	logger.Debug().Str("path", path).Msg("loading statesql")
+	sqlLgr.Debug().Str("path", path).Msg("loading statesql")
 	if err = checkPath(path); err == nil {
 		database.DBs = make(map[string]*DB)
 		database.DataDir = path
@@ -134,8 +134,8 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				return ErrFindRp
 			}
 			if rp > 0 {
-				if logger.IsDebugEnabled() {
-					logger.Debug().Str("db_name", id).Uint64("commit_id", rp).Msg("save recovery point")
+				if sqlLgr.IsDebugEnabled() {
+					sqlLgr.Debug().Str("db_name", id).Uint64("commit_id", rp).Msg("save recovery point")
 				}
 				receiverState, err := bs.GetAccountState(db.accountID)
 				if err != nil {
@@ -179,7 +179,7 @@ func BeginTx(dbName string, rp uint64) (Tx, error) {
 	}
 failed:
 	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = db.close()
 		return nil, ErrDBOpen
 	}
@@ -219,7 +219,7 @@ func readOnlyConn(dbName string) (*DB, error) {
 		c, err = db.Conn(context.Background())
 	}
 	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = db.Close()
 		return nil, ErrDBOpen
 	}
@@ -240,13 +240,13 @@ func openDB(dbName string) (*DB, error) {
 	}
 	c, err := db.Conn(context.Background())
 	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = db.Close()
 		return nil, ErrDBOpen
 	}
 	err = c.PingContext(context.Background())
 	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = c.Close()
 		_ = db.Close()
 		return nil, ErrDBOpen
@@ -271,8 +271,8 @@ func (db *DB) beginTx(rp uint64) (Tx, error) {
 		if err != nil {
 			return nil, err
 		}
-		if logger.IsDebugEnabled() {
-			logger.Debug().Str("db_name", db.name).Msg("begin transaction")
+		if sqlLgr.IsDebugEnabled() {
+			sqlLgr.Debug().Str("db_name", db.name).Msg("begin transaction")
 		}
 		tx, err := db.BeginTx(context.Background(), nil)
 		if err != nil {
@@ -307,8 +307,8 @@ func (db *DB) recoveryPoint() uint64 {
 
 func (db *DB) restoreRecoveryPoint(stateRp uint64) error {
 	lastRp := db.recoveryPoint()
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", db.name).
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", db.name).
 			Uint64("state_rp", stateRp).
 			Uint64("last_rp", lastRp).Msgf("restore recovery point")
 	}
@@ -324,8 +324,8 @@ func (db *DB) restoreRecoveryPoint(stateRp uint64) error {
 	if err := db.rollbackToRecoveryPoint(stateRp); err != nil {
 		return err
 	}
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", db.name).Uint64("commit_id", stateRp).
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", db.name).Uint64("commit_id", stateRp).
 			Msg("restore recovery point")
 	}
 	return nil
@@ -340,8 +340,8 @@ func (db *DB) rollbackToRecoveryPoint(rp uint64) error {
 }
 
 func (db *DB) snapshotView(rp uint64) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Uint64("rp", rp).Msgf("snapshot view, %p", db.Conn)
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Uint64("rp", rp).Msgf("snapshot view, %p", db.Conn)
 	}
 	_, err := db.ExecContext(
 		context.Background(),
@@ -388,62 +388,62 @@ type WritableTx struct {
 }
 
 func (tx *WritableTx) Commit() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("commit")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.DB.name).Msg("commit")
 	}
 	return tx.Tx.Commit()
 }
 
 func (tx *WritableTx) Rollback() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("rollback")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.DB.name).Msg("rollback")
 	}
 	return tx.Tx.Rollback()
 }
 
 func (tx *WritableTx) Savepoint() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("savepoint")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.DB.name).Msg("savepoint")
 	}
 	_, err := tx.Tx.Exec("SAVEPOINT \"" + tx.DB.name + "\"")
 	return err
 }
 
 func (tx *WritableTx) SubSavepoint(name string) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", name).Msg("savepoint")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", name).Msg("savepoint")
 	}
 	_, err := tx.Tx.Exec("SAVEPOINT \"" + name + "\"")
 	return err
 }
 
 func (tx *WritableTx) Release() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("release")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.DB.name).Msg("release")
 	}
 	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.DB.name + "\"")
 	return err
 }
 
 func (tx *WritableTx) SubRelease(name string) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("name", name).Msg("release")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("name", name).Msg("release")
 	}
 	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + name + "\"")
 	return err
 }
 
 func (tx *WritableTx) RollbackToSavepoint() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("rollback to savepoint")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.DB.name).Msg("rollback to savepoint")
 	}
 	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.DB.name + "\"")
 	return err
 }
 
 func (tx *WritableTx) RollbackToSubSavepoint(name string) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", name).Msg("rollback to savepoint")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", name).Msg("rollback to savepoint")
 	}
 	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + name + "\"")
 	return err
@@ -468,8 +468,8 @@ func (tx *ReadOnlyTx) Commit() error {
 }
 
 func (tx *ReadOnlyTx) Rollback() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.DB.name).Msg("read-only tx is closed")
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.DB.name).Msg("read-only tx is closed")
 	}
 	return tx.DB.close()
 }

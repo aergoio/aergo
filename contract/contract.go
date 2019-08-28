@@ -229,7 +229,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
 	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
-		logger.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
+		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
 	creator, err := contractState.GetData(creatorMetaKey)
