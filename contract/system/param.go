@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -13,11 +14,26 @@ const (
 	RESET = -1
 )
 
+//go:generate stringer -type=sysParamIndex
+type sysParamIndex int
+
+const (
+	bpCount sysParamIndex = iota // BP count
+	stakingMin
+	gasPrice
+	namePrice
+	sysParamMax
+)
+
 var (
 	systemParams parameters
 
 	//DefaultParams is for aergo v1 compatibility
-	DefaultParams = map[string]*big.Int{stakingMin.ID(): types.StakingMinimum, gasPrice.ID(): big.NewInt(1)}
+	DefaultParams = map[string]*big.Int{
+		stakingMin.ID(): types.StakingMinimum,
+		gasPrice.ID():   big.NewInt(1),
+		namePrice.ID():  big.NewInt(1000000000000000000),
+	}
 )
 
 func InitSystemParams(g dataGetter, bpCount int) {
@@ -64,4 +80,16 @@ func updateParam(s dataSetter, id string, value *big.Int) (*big.Int, error) {
 	}
 	ret := systemParams.setLastParam(id, value)
 	return ret, nil
+}
+
+func GetStakingMinimum() *big.Int {
+	return GetParam(stakingMin.ID())
+}
+
+func GetGasPrice() *big.Int {
+	return GetParam(gasPrice.ID())
+}
+
+func GetNamePrice(scs *state.ContractState) *big.Int {
+	return GetParam(namePrice.ID())
 }

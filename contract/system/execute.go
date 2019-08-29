@@ -101,18 +101,6 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	return []*types.Event{event}, nil
 }
 
-func GetNamePrice(scs *state.ContractState) *big.Int {
-	//	votelist, err := getVoteResult(scs, []byte(types.VoteNamePrice[2:]), 1)
-	//	if err != nil {
-	//		panic("could not get vote result for min staking")
-	//	}
-	//	if len(votelist.Votes) == 0 {
-	//		return types.NamePrice
-	//	}
-	//	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
-	return types.NamePrice
-}
-
 func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
 	var results []*types.VoteInfo
 

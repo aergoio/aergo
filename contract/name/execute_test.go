@@ -1,6 +1,7 @@
 package name
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/aergoio/aergo/state"
@@ -14,7 +15,7 @@ func TestExcuteNameTx(t *testing.T) {
 	txBody := &types.TxBody{}
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	txBody.Recipient = []byte(types.AergoName)
-	txBody.Amount = types.NamePrice.Bytes()
+	txBody.Amount = big.NewInt(1000000000000000000).Bytes() //default value of name price
 
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")

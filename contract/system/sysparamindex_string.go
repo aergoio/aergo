@@ -11,12 +11,13 @@ func _() {
 	_ = x[bpCount-0]
 	_ = x[stakingMin-1]
 	_ = x[gasPrice-2]
-	_ = x[sysParamMax-3]
+	_ = x[namePrice-3]
+	_ = x[sysParamMax-4]
 }
 
-const _sysParamIndex_name = "bpCountstakingMingasPricesysParamMax"
+const _sysParamIndex_name = "bpCountstakingMingasPricenamePricesysParamMax"
 
-var _sysParamIndex_index = [...]uint8{0, 7, 17, 25, 36}
+var _sysParamIndex_index = [...]uint8{0, 7, 17, 25, 34, 45}
 
 func (i sysParamIndex) String() string {
 	if i < 0 || i >= sysParamIndex(len(_sysParamIndex_index)-1) {

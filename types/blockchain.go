@@ -59,16 +59,12 @@ var StakingMinimum *big.Int
 ///ProposalPrice is default value of creating proposal
 var ProposalPrice *big.Int
 
-///NamePrice is default value of creating and updating name
-var NamePrice *big.Int
-
 var lastIndexOfBH int
 
 func init() {
 	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
 	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
 	ProposalPrice, _ = new(big.Int).SetString("0", 10)
-	NamePrice, _ = new(big.Int).SetString("1000000000000000000", 10)
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
@@ -117,17 +113,21 @@ func getLastIndexOfBH() (lastIndex int) {
 	return i
 }
 
+//go:generate stringer -type=SystemValue
 type SystemValue int
 
 const (
 	StakingTotal SystemValue = 0 + iota
 	StakingMin
 	GasPrice
+	NamePrice
 )
 
+/*
 func (s SystemValue) String() string {
-	return [...]string{"StakingTotal", "StakingMin", "GasPrice"}[s]
+	return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
 }
+*/
 
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {

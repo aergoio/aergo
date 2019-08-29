@@ -10,16 +10,6 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-//go:generate stringer -type=sysParamIndex
-type sysParamIndex int
-
-const (
-	bpCount sysParamIndex = iota // BP count
-	stakingMin
-	gasPrice
-	sysParamMax
-)
-
 const proposalPrefixKey = "proposal" //aergo proposal format
 
 var proposalListKey = []byte("proposallist")
