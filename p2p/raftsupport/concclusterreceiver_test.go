@@ -121,7 +121,7 @@ func TestConcurrentClusterInfoReceiver_trySendAllPeers(t *testing.T) {
 			}).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, len(tt.args.stats))
 			for _, run := range tt.args.stats {
-				dummyPeerID, _ := p2putil.RandomPeerID()
+				dummyPeerID := p2putil.RandomPeerID()
 				stat := types.RUNNING
 				if run == 0 {
 					stat = types.STOPPING
@@ -196,7 +196,7 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 			sentTrigger := int32(0)
 			prevCall := (*gomock.Call)(nil)
 			for i, st := range tt.args.retStats {
-				dummyPeerID, _ := p2putil.RandomPeerID()
+				dummyPeerID := p2putil.RandomPeerID()
 				msgID := p2pcommon.NewMsgID()
 				stat := types.RUNNING
 				mockPeer := p2pmock.NewMockRemotePeer(ctrl)

@@ -24,8 +24,10 @@ import (
 )
 
 
-func RandomPeerID() (types.PeerID, error) {
-	return test.RandPeerID()
+// NOTE use only in test
+func RandomPeerID() types.PeerID {
+	id,_ := test.RandPeerID()
+	return id
 }
 // PeerMetaToMultiAddr make libp2p compatible Multiaddr object from peermeta
 func PeerMetaToMultiAddr(m p2pcommon.PeerMeta) (multiaddr.Multiaddr, error) {
