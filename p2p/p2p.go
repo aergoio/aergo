@@ -291,12 +291,29 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist conf changed")
 		// TODO do more fine grained work
 		p2ps.lm.RefineList()
-		// TODO disconnect newly blacklisted peer.
+		// disconnect newly blacklisted peer.
+		p2ps.banIfFound()
 	case message.P2PWhiteListConfSetEvent:
 		p2ps.Logger.Debug().Array("enabled", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist conf changed")
 		// TODO do more fine grained work
 		p2ps.lm.RefineList()
-		// TODO disconnect newly blacklisted peer.
+		// disconnect newly blacklisted peer.
+		p2ps.banIfFound()
+	}
+}
+
+func (p2ps *P2P) banIfFound() {
+	for _, peer := range p2ps.pm.GetPeers() {
+		// FIXME ip check should be currently connected ip address
+		ip, err := network.GetSingleIPAddress(peer.Meta().IPAddress)
+		if err != nil {
+			p2ps.Error().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("Failed to get ip address of peer")
+			continue
+		}
+		if banned, _ := p2ps.lm.IsBanned(ip.String(), peer.ID()); banned {
+			p2ps.Error().Str(p2putil.LogPeerName, peer.Name()).Msg("peer is banned by list manager")
+			peer.Stop()
+		}
 	}
 }
 
