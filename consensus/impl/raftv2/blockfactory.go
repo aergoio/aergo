@@ -70,7 +70,7 @@ func (work *Work) GetTimeout() time.Duration {
 }
 
 func (work *Work) ToString() string {
-	return fmt.Sprintf("bestblock=%s", work.BlockID())
+	return fmt.Sprintf("bestblock=%s, no=%d, term=%d", work.BlockID(), work.BlockNo(), work.term)
 }
 
 type leaderReady struct {
@@ -159,7 +159,7 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		ChainWAL:         cdb,
-		jobQueue:         make(chan interface{}, slotQueueMax),
+		jobQueue:         make(chan interface{}),
 		workerQueue:      make(chan *Work),
 		bpTimeoutC:       make(chan interface{}, 1),
 		quit:             make(chan interface{}),
@@ -228,8 +228,16 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	)
 
 	if isReady, term = bf.isLeaderReady(); !isReady {
-		logger.Debug().Msg("skip producing block because this bp is leader but it's not ready to produce new block")
+		//logger.Debug().Msg("skip producing block because this bp is leader but it's not ready to produce new block")
 		return
+	}
+
+	prevToString := func(prevBlock *types.Block) string {
+		if prevBlock == nil {
+			return "empty"
+		} else {
+			return prevBlock.ID()
+		}
 	}
 
 	if b, _ := bf.GetBestBlock(); b != nil {
@@ -245,8 +253,12 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 			return
 		}
 
+		prev := bf.prevBlock
 		bf.prevBlock = b
-		jq <- &Work{Block: b, term: term}
+		work := &Work{Block: b, term: term}
+
+		logger.Debug().Str("work", work.ToString()).Str("prev", prevToString(prev)).Msg("new work generated")
+		jq <- work
 	}
 }
 
@@ -470,12 +482,15 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 
 	checkCancel := func() bool {
 		if !bf.raftServer.IsLeaderOfTerm(work.term) {
-			logger.Debug().Msg("cancel because no more leader")
+			logger.Debug().Msg("cancel because blockfactory is not leader of term")
 			return true
 		}
 
 		if b, _ := bf.GetBestBlock(); b != nil && bestBlock.BlockNo() != b.BlockNo() {
-			logger.Debug().Msg("cancel because best block changed")
+			logger.Debug().Uint64("best", b.BlockNo()).Msg("cancel because best block changed")
+			if StopDupCommit {
+				logger.Fatal().Str("work", work.ToString()).Msg("work duplicate")
+			}
 			return true
 		}
 
@@ -525,6 +540,13 @@ func (bf *BlockFactory) commitC() chan *commitEntry {
 func (bf *BlockFactory) reset() {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
+
+	// empty jobQueue. Pushed works in job queue should be removed before resetting prev work of block factory. Otherwise, it can be possible to make same job since prev work is nil.
+	for len(bf.jobQueue) > 0 {
+		info := <-bf.jobQueue
+		drop := info.(*Work)
+		logger.Debug().Str("work", drop.ToString()).Msg("drop work for reset")
+	}
 
 	if bf.prevBlock != nil {
 		logger.Info().Str("prev proposed", bf.raftOp.toString()).Msg("reset previous work of block factory")

@@ -141,11 +141,12 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			err      error
 		)
 
+		// MakeConfChangeProposal can make different results depending on the raft status. therefore the result shouldn not be written on receipt
 		if ccChange, err = ccc.MakeConfChangeProposal(ccReq); err != nil {
 			if err != consensus.ErrorMembershipChangeSkip {
-				entLogger.Error().Err(err).Msg("Enterprise tx: failed to make cluster change proposal")
+				entLogger.Error().Str("cluster change", ccReq.ToString()).Err(err).Msg("Enterprise tx: failed to make cluster change proposal")
 			} else {
-				entLogger.Info().Msg("Enterprise tx: skipped since this node is not leader")
+				entLogger.Info().Str("cluster change", ccReq.ToString()).Msg("Enterprise tx: skipped since this node is not leader")
 			}
 		} else {
 			bs.CCProposal = ccChange
