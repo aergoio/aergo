@@ -98,6 +98,7 @@ static int moduleCall(lua_State *L)
 	lua_Integer gas;
 	char *amount;
 
+    lua_gasuse(L, 2000);
 	if (service == NULL) {
 	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
@@ -150,6 +151,7 @@ static int moduleDelegateCall(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer gas;
 
+    lua_gasuse(L, 1000);
 	if (service == NULL) {
 	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
@@ -190,6 +192,7 @@ static int moduleSend(lua_State *L)
 	char *amount;
 	bool needfree = false;
 
+    lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -231,6 +234,7 @@ static int moduleBalance(lua_State *L)
 	lua_Integer amount;
 	struct luaGetBalance_return balance;
 
+    lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -258,6 +262,7 @@ static int modulePcall(lua_State *L)
 	struct luaSetRecoveryPoint_return start_seq;
 	int ret;
 
+    lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -309,6 +314,7 @@ static int moduleDeploy(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	char *amount;
 
+    lua_gasuse(L, 5000);
 	if (service == NULL) {
 	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
@@ -350,6 +356,7 @@ static int moduleEvent(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	char *errStr;
 
+    lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -379,6 +386,7 @@ static int governance(lua_State *L, char type) {
 	char *arg;
 	bool needfree = false;
 
+    lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}

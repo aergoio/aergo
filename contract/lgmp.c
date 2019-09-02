@@ -23,7 +23,8 @@ static const char *mp_min_bignum = "-1157920892373161954235709850086879078532699
 mp_num _max_;
 mp_num _min_;
 
-static mp_num bn_alloc (int type) {
+static mp_num bn_alloc (int type)
+{
 	mp_num new = malloc(sizeof(bn_struct));
 	if (new == NULL)
 		return NULL;
@@ -74,7 +75,7 @@ const char *lua_set_bignum(lua_State *L, char *s)
 
 mp_num Bgetbnum(lua_State *L, int i)
 {
-   return (mp_num)*((void**)luaL_checkudata(L,i,MYTYPE));
+    return (mp_num)*((void**)luaL_checkudata(L,i,MYTYPE));
 }
 
 int lua_isbignumber(lua_State *L, int i)
@@ -86,8 +87,9 @@ int lua_isbignumber(lua_State *L, int i)
 
 int Bis(lua_State *L)
 {
-   lua_pushboolean(L, lua_isbignumber(L, 1) != 0);
-   return 1;
+	lua_gasuse(L, 10);
+    lua_pushboolean(L, lua_isbignumber(L, 1) != 0);
+    return 1;
 }
 
 static mp_num Bget(lua_State *L, int i)
@@ -183,6 +185,7 @@ int lua_bignum_is_zero(lua_State *L, int idx)
 static int Btostring(lua_State *L)
 {
 	char *res = lua_get_bignum_str(L, 1);
+	lua_gasuse(L, 50);
 	if (res == NULL)
 		luaL_error(L, mp_num_memory_error);
 	lua_pushstring(L, res);
@@ -193,6 +196,7 @@ static int Btostring(lua_State *L)
 static int Btonumber(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
+	lua_gasuse(L, 50);
 	lua_pushnumber(L, mpz_get_d(a->mpptr));
 	return 1;
 }
@@ -202,6 +206,7 @@ static int Btobyte(lua_State *L)
     char *bn;
     size_t size;
 
+    lua_gasuse(L, 50);
 	mp_num a = Bget(L, 1);
 	if (mpz_sgn(MPZ(a)) < 0)
 		luaL_error(L, mp_num_is_negative);
@@ -235,21 +240,22 @@ static int Bfrombyte(lua_State *L)
 static int Biszero(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
+	lua_gasuse(L, 10);
 	lua_pushboolean(L, mpz_sgn(MPZ(a)) == 0);
-	
 	return 1;
 }
 
 static int Bisneg(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
+	lua_gasuse(L, 10);
 	lua_pushboolean(L, (mpz_sgn(MPZ(a)) < 0));
-	
 	return 1;
 }
 
 static int Bnumber(lua_State *L) 
 {
+	lua_gasuse(L, 50);
 	Bget(L, 1);
 	lua_settop(L, 1);
 	return 1;
@@ -259,6 +265,7 @@ static int Bcompare(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
 	mp_num b = Bget(L, 2);
+	lua_gasuse(L, 50);
 	lua_pushinteger(L, mpz_cmp(a->mpptr, b->mpptr));
 	return 1;
 }
@@ -267,6 +274,7 @@ static int Beq(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
 	mp_num b = Bget(L, 2);
+	lua_gasuse(L, 50);
 	lua_pushboolean(L, mpz_cmp(a->mpptr, b->mpptr) == 0);
 	return 1;
 }
@@ -275,22 +283,26 @@ static int Blt(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
 	mp_num b = Bget(L, 2);
+	lua_gasuse(L, 50);
 	lua_pushboolean(L, mpz_cmp(a->mpptr, b->mpptr) < 0);
 	return 1;
 }
 
 static int Badd(lua_State *L)			/** add(x,y) */
 {
+	lua_gasuse(L, 100);
 	return Bdo1(L, mpz_add, 0);
 }
 
 static int Bsub(lua_State *L)			/** sub(x,y) */
 {
+	lua_gasuse(L, 100);
 	return Bdo1(L, mpz_sub, 0);
 }
 
 static int Bmul(lua_State *L)			/** mul(x,y) */
 {
+	lua_gasuse(L, 300);
 	return Bdo1(L, mpz_mul, 0);
 }
 
@@ -304,6 +316,7 @@ static int Bpow(lua_State *L)			/** pow(x,y) */
 	if (mpz_sgn(MPZ(b)) < 0)
 		luaL_error(L, mp_num_is_negative);
 
+	lua_gasuse(L, 500);
 	c = bn_alloc(a->type);
 	if (c == NULL)
 		luaL_error(L, mp_num_memory_error);
@@ -350,11 +363,13 @@ static int Bpow(lua_State *L)			/** pow(x,y) */
 
 static int Bdiv(lua_State *L)			/** div(x,y) */
 {
+	lua_gasuse(L, 300);
 	return Bdo1(L, mpz_tdiv_q, 1);
 }
 
 static int Bmod(lua_State *L)			/** mod(x,y) */
 {
+	lua_gasuse(L, 300);
 	return Bdo1(L, mpz_tdiv_r, 1);
 }
 
@@ -365,6 +380,7 @@ static int Bdivmod(lua_State *L)		/** divmod(x,y) */
 	mp_num q;
 	mp_num r;
 
+	lua_gasuse(L, 500);
 	if (mpz_sgn(MPZ(b)) == 0)
 		luaL_error(L, mp_num_divide_zero);
 
@@ -394,6 +410,7 @@ static int Bneg(lua_State *L)			/** neg(x) */
 	mp_num a=Bget(L,1);
 	mp_num res;
 
+	lua_gasuse(L, 100);
 	res = bn_alloc(a->type);
 	if (res == NULL)
 		luaL_error(L, mp_num_memory_error);
@@ -413,6 +430,7 @@ static int Bpowmod(lua_State *L)		/** powmod(x,y,m) */
 	if (mpz_sgn(MPZ(k)) < 0)
 		luaL_error(L, mp_num_is_negative);
 
+	lua_gasuse(L, 500);
 	if (mpz_sgn(MPZ(m)) == 0)
 		luaL_error(L, mp_num_divide_zero);
 
@@ -432,6 +450,7 @@ static int Bsqrt(lua_State *L)			/** sqrt(x) */
 
 	if (mpz_sgn(MPZ(a)) < 0)
 		luaL_error(L, mp_num_is_negative);
+	lua_gasuse(L, 300);
 	res = bn_alloc(a->type);
 	if (res == NULL)
 		luaL_error(L, mp_num_memory_error);

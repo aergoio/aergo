@@ -212,6 +212,8 @@ type ChainService struct {
 	debuggable bool
 }
 
+var _ types.ChainAccessor = (*ChainService)(nil)
+
 // NewChainService creates an instance of ChainService.
 func NewChainService(cfg *cfg.Config) *ChainService {
 	cs := &ChainService{
@@ -330,7 +332,7 @@ func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
 }
 
-// CDB returns cs.sdb as a consensus.ChainDbReader.
+// WalDB returns cs.sdb as a consensus.ChainDbReader.
 func (cs *ChainService) WalDB() consensus.ChainWAL {
 	return cs.cdb
 }

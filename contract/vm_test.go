@@ -549,6 +549,104 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 			`{"Name":"infiniteLoop"}`,
 		),
 	)
+	errTimeout := "exceeded the maximum instruction count"
+	if err == nil {
+		t.Errorf("expected: %s", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"catch"}`,
+		),
+	)
+	if err == nil {
+		t.Errorf("expected: %s", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"contract_catch"}`,
+		),
+	)
+	if err == nil {
+		t.Errorf("expected: %s", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout) {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteCall"}`,
+		).Fail("stack overflow"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInfiniteLoopOnPubNet(t *testing.T) {
+	bc, err := LoadDummyChain(
+		func(d *DummyChain) {
+			d.timeout = 50
+		},
+		onPubNet,
+	)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function infiniteLoop()
+    local t = 0
+	while true do
+	    t = t + 1
+	end
+	return t
+end
+function infiniteCall()
+	infiniteCall()
+end
+function catch()
+	return pcall(infiniteLoop)
+end
+function contract_catch()
+	return contract.pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "loop", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteLoop"}`,
+		),
+	)
 	errTimeout := VmTimeoutError{}
 	if err == nil {
 		t.Errorf("expected: %v", errTimeout)
@@ -593,16 +691,11 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 			"loop",
 			0,
 			`{"Name":"infiniteCall"}`,
-		),
+		).Fail("stack overflow"),
 	)
-	errMsg := "stack overflow"
-	if err == nil {
-		t.Errorf("expected: %s", errMsg)
-	}
-	if err != nil && !strings.Contains(err.Error(), errMsg) {
+	if err != nil {
 		t.Error(err)
 	}
-
 }
 
 func TestUpdateSize(t *testing.T) {
@@ -3524,20 +3617,7 @@ abi.payable(constructor)
 }
 
 func TestSqlVmPubNet(t *testing.T) {
-	flushLState := func() {
-		for i := 0; i <= MAX_LSTATE_SIZE; i++ {
-			s := GetLState()
-			FreeLState(s)
-		}
-	}
-	PubNet = true
-	flushLState()
-	defer func() {
-		PubNet = false
-		flushLState()
-	}()
-
-	bc, err := LoadDummyChain()
+	bc, err := LoadDummyChain(onPubNet)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -4052,25 +4132,92 @@ abi.register(oom, p, cp)`
 		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDef("ktlee", "oom", 0, definition),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	errMsg := "not enough memory"
 	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
 			"oom",
 			0,
 			`{"Name":"oom"}`,
-		),
+		).Fail(errMsg),
 	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"p"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"cp"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
+func TestMaxStringOnPubNet(t *testing.T) {
+	bc, err := LoadDummyChain(onPubNet)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function oom()
+	 local s = "hello"
+
+	 while 1 do
+		 s = s .. s
+	 end
+end
+
+function p()
+	pcall(oom)
+end
+
+function cp()
+	contract.pcall(oom)
+end
+abi.register(oom, p, cp)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "oom", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
 	errMsg := "string length overflow"
 	var travis bool
 	if os.Getenv("TRAVIS") == "true" {
 		errMsg = "not enough memory"
 		travis = true
 	}
-	if err == nil {
-		t.Errorf("expected: %s", errMsg)
-	}
-	if err != nil && !strings.Contains(err.Error(), errMsg) {
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"oom",
+			0,
+			`{"Name":"oom"}`,
+		).Fail(errMsg),
+	)
+	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
@@ -5137,6 +5284,7 @@ abi.register(ecverify)
 		func(d *DummyChain) {
 			d.timeout = timeout // milliseconds
 		},
+		onPubNet,
 	)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -5159,18 +5307,6 @@ abi.register(ecverify)
 }
 
 func TestFeeDelegation(t *testing.T) {
-	flushLState := func() {
-		for i := 0; i <= MAX_LSTATE_SIZE; i++ {
-			s := GetLState()
-			FreeLState(s)
-		}
-	}
-
-	PubNet = true
-	defer func() {
-		PubNet = false
-		flushLState()
-	}()
 	definition := `
 	state.var{
         whitelist = state.map(),
@@ -5202,7 +5338,7 @@ func TestFeeDelegation(t *testing.T) {
     abi.payable(default)
     abi.fee_delegation(query)
 `
-	bc, err := LoadDummyChain()
+	bc, err := LoadDummyChain(onPubNet)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}

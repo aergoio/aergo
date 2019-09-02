@@ -26,7 +26,7 @@ type contract_info struct {
 var contract_info_map = make(map[string]*contract_info)
 var watchpoints = list.New()
 
-func (ce *Executor) setCountHook(limit C.int) {
+func (ce *executor) setCountHook(limit C.int) {
 	if ce == nil || ce.L == nil {
 		return
 	}

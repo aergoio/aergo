@@ -188,6 +188,13 @@ func ChainIdVersion(v int32) []byte {
 	return b
 }
 
+func DecodeChainIdVersion(cid []byte) int32 {
+	if len(cid) < 4 {
+		return -1
+	}
+	return int32(binary.LittleEndian.Uint32(cid))
+}
+
 func ChainIdEqualWithoutVersion(a, b []byte) bool {
 	if len(a) < chainIdStartOffsetWithoutVersion || len(b) < chainIdStartOffsetWithoutVersion {
 		return false

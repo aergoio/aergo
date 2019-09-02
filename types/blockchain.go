@@ -27,7 +27,6 @@ import (
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
 
 	// DefaultMaxHdrSize is the max size of the proto-buf serialized non-body
@@ -45,21 +44,19 @@ type AvgTime struct {
 }
 
 var (
-	DefaultVerifierCnt          = int(math.Max(float64(runtime.NumCPU()/2), float64(1)))
-	DefaultAvgTimeSize          = 60 * 60 * 24
-	AvgTxVerifyTime    *AvgTime = NewAvgTime(DefaultAvgTimeSize)
+	DefaultVerifierCnt = int(math.Max(float64(runtime.NumCPU()/2), float64(1)))
+	DefaultAvgTimeSize = 60 * 60 * 24
+	AvgTxVerifyTime    = NewAvgTime(DefaultAvgTimeSize)
+	// MaxAER is maximum value of aergo
+	MaxAER *big.Int
+	// StakingMinimum is minimum amount for staking
+	StakingMinimum *big.Int
+	// ProposalPrice is default value of creating proposal
+	ProposalPrice *big.Int
+	// NamePrice is default value of creating and updating name
+	NamePrice     *big.Int
+	lastIndexOfBH int
 )
-
-//MaxAER is maximum value of aergo
-var MaxAER *big.Int
-
-//StakingMinimum is minimum amount for staking
-var StakingMinimum *big.Int
-
-///ProposalPrice is default value of creating proposal
-var ProposalPrice *big.Int
-
-var lastIndexOfBH int
 
 func init() {
 	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
@@ -173,7 +170,7 @@ func (ctx *SyncContext) SetAncestor(ancestor *Block) {
 	ctx.RemainCnt = ctx.TotalCnt
 }
 
-// NodeInfo is used for actor message to send block info
+// BlockInfo is used for actor message to send block info
 type BlockInfo struct {
 	Hash []byte
 	No   BlockNo
@@ -651,20 +648,24 @@ type BlockHeaderInfo struct {
 	Ts            int64
 	PrevBlockHash []byte
 	ChainId       []byte
+	Version       int32
 }
 
 var EmptyBlockHeaderInfo = &BlockHeaderInfo{}
 
 func NewBlockHeaderInfo(b *Block) *BlockHeaderInfo {
+	cid := b.GetHeader().GetChainID()
+	v := DecodeChainIdVersion(cid)
 	return &BlockHeaderInfo{
 		b.BlockNo(),
 		b.GetHeader().GetTimestamp(),
 		b.GetHeader().GetPrevBlockHash(),
-		b.GetHeader().GetChainID(),
+		cid,
+		v,
 	}
 }
 
-func makeChainId(cid []byte, v int32) []byte {
+func MakeChainId(cid []byte, v int32) []byte {
 	nv := ChainIdVersion(v)
 	if bytes.Equal(cid[:4], nv) {
 		return cid
@@ -678,11 +679,13 @@ func makeChainId(cid []byte, v int32) []byte {
 func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) *BlockHeaderInfo {
 	no := prev.GetHeader().GetBlockNo() + 1
 	cid := prev.GetHeader().GetChainID()
+	v := bv.Version(no)
 	return &BlockHeaderInfo{
 		no,
 		ts,
 		prev.GetHash(),
-		makeChainId(cid, bv.Version(no)),
+		MakeChainId(cid, v),
+		v,
 	}
 }
 

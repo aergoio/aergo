@@ -50,12 +50,12 @@ type Transaction interface {
 	GetHash() []byte
 	CalculateTxHash() []byte
 	Validate([]byte, bool) error
-	ValidateWithSenderState(senderState *State) error
+	ValidateWithSenderState(senderState *State, gasPrice *big.Int, version int32) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
 	SetVerifedAccount(account Address) bool
 	RemoveVerifedAccount() bool
-	GetMaxFee() *big.Int
+	GetMaxFee(gasPrice *big.Int, version int32) *big.Int
 }
 
 type transaction struct {
@@ -303,7 +303,7 @@ func _validateNameTx(tx *TxBody, ci *CallInfo) error {
 
 }
 
-func (tx *transaction) ValidateWithSenderState(senderState *State) error {
+func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big.Int, version int32) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
@@ -311,7 +311,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL, TxType_REDEPLOY:
-		spending := new(big.Int).Add(amount, tx.GetMaxFee())
+		spending := new(big.Int).Add(amount, tx.GetMaxFee(gasPrice, version))
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
 		}
@@ -391,8 +391,11 @@ func (tx *transaction) Clone() *transaction {
 	return res
 }
 
-func (tx *transaction) GetMaxFee() *big.Int {
-	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
+func (tx *transaction) GetMaxFee(gasPrice *big.Int, version int32) *big.Int {
+	if version < 2 {
+		return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
+	}
+	return new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(tx.GetBody().GasLimit))
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"

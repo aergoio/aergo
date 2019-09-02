@@ -91,28 +91,23 @@ int isHardfork(lua_State *L, char *forkname)
     return 1;
 }
 
-const char *VM_QUERY = "__VM_QUERY__";
+const char *VM_RESOURCE_LIMIT = "__VM_RESOURCE_LIMIT__";
 
-void vm_set_query(lua_State *L)
+void vm_set_resource_limit(lua_State *L)
 {
     lua_pushboolean(L, true);
-	lua_setfield (L, LUA_REGISTRYINDEX, VM_QUERY);
+	lua_setfield (L, LUA_REGISTRYINDEX, VM_RESOURCE_LIMIT);
 }
 
-static int is_query(lua_State *L)
+int vm_need_resource_limit(lua_State *L)
 {
-	lua_getfield (L, LUA_REGISTRYINDEX, VM_QUERY);
+	lua_getfield (L, LUA_REGISTRYINDEX, VM_RESOURCE_LIMIT);
 	if (lua_isnil(L, -1)) {
 	    lua_pop(L, 1);
 	    return 0;
 	}
 	lua_pop(L, 1);
     return 1;
-}
-
-int vm_need_resource_limit(lua_State *L)
-{
-    return is_query(L) || !isHardfork(L, FORK_V2);
 }
 
 static int loadLibs(lua_State *L)
