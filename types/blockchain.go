@@ -53,8 +53,6 @@ var (
 	StakingMinimum *big.Int
 	// ProposalPrice is default value of creating proposal
 	ProposalPrice *big.Int
-	// NamePrice is default value of creating and updating name
-	NamePrice     *big.Int
 	lastIndexOfBH int
 )
 
