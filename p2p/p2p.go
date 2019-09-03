@@ -86,7 +86,7 @@ func (p2ps *P2P) AfterStart() {
 	}
 	p2ps.lm.Start()
 	p2ps.mutex.Lock()
-	p2ps.setSelfRole()
+	p2ps.checkConsensus()
 	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
 	nt := p2ps.nt
 	nt.Start()
@@ -99,18 +99,13 @@ func (p2ps *P2P) AfterStart() {
 	p2ps.mm.Start()
 }
 
-func (p2ps *P2P) setSelfRole() {
+func (p2ps *P2P) checkConsensus() {
 	// set role of self peer
 	ccinfo := p2ps.consacc.ConsensusInfo()
 	if ccinfo.Type == "raft" {
 		if !p2ps.useRaft {
-			panic("configuration failure. ")
+			panic("configuration failure. consensus type of genesis block and consensus accessor are differ")
 		}
-	}
-	if p2ps.cfg.Consensus.EnableBp {
-		p2ps.selfRole = p2pcommon.BlockProducer
-	} else {
-		p2ps.selfRole = p2pcommon.Watcher
 	}
 }
 
@@ -178,6 +173,12 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 	p2ps.useRaft = useRaft
+	if p2ps.cfg.Consensus.EnableBp {
+		p2ps.selfRole = p2pcommon.BlockProducer
+	} else {
+		p2ps.selfRole = p2pcommon.Watcher
+	}
+
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
@@ -284,30 +285,36 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case message.GetRaftTransport:
 		context.Respond(raftsupport.NewAergoRaftTransport(p2ps.Logger, p2ps.nt, p2ps.pm, p2ps.mf, p2ps.consacc, msg.Cluster))
 	case message.P2PWhiteListConfEnableEvent:
-		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist conf changed")
+		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist on/off changed")
 		// TODO do more fine grained work
 		p2ps.lm.RefineList()
 		// disconnect newly blacklisted peer.
-		p2ps.banIfFound()
+		p2ps.checkAndBanInboundPeers()
 	case message.P2PWhiteListConfSetEvent:
-		p2ps.Logger.Debug().Array("enabled", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist conf changed")
+		p2ps.Logger.Debug().Array("entries", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist entries changed")
 		// TODO do more fine grained work
 		p2ps.lm.RefineList()
 		// disconnect newly blacklisted peer.
-		p2ps.banIfFound()
+		p2ps.checkAndBanInboundPeers()
 	}
 }
 
-func (p2ps *P2P) banIfFound() {
+func (p2ps *P2P) checkAndBanInboundPeers() {
 	for _, peer := range p2ps.pm.GetPeers() {
 		// FIXME ip check should be currently connected ip address
 		ip, err := network.GetSingleIPAddress(peer.Meta().IPAddress)
 		if err != nil {
-			p2ps.Error().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("Failed to get ip address of peer")
+			p2ps.Warn().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("Failed to get ip address of peer")
+			continue
+		}
+		// TODO temporal treatment. need more works.
+		// just inbound peers will be disconnected
+		if peer.Meta().Outbound {
+			p2ps.Debug().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("outbound peer is not banned")
 			continue
 		}
 		if banned, _ := p2ps.lm.IsBanned(ip.String(), peer.ID()); banned {
-			p2ps.Error().Str(p2putil.LogPeerName, peer.Name()).Msg("peer is banned by list manager")
+			p2ps.Info().Str(p2putil.LogPeerName, peer.Name()).Msg("peer is banned by list manager")
 			peer.Stop()
 		}
 	}

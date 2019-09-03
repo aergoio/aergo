@@ -38,6 +38,10 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 	rm.p2ps.pm.UpdatePeerRole(changes)
 }
 
+func (rm *RaftRoleManager) SelfRole() p2pcommon.PeerRole {
+	return rm.p2ps.selfRole
+}
+
 func (rm *RaftRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
 	rm.raftMutex.Lock()
 	defer rm.raftMutex.Unlock()
@@ -76,6 +80,10 @@ func (rm *DefaultRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.Pe
 		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.BlockProducer})
 	}
 	rm.p2ps.pm.UpdatePeerRole(changes)
+}
+
+func (rm *DefaultRoleManager) SelfRole() p2pcommon.PeerRole {
+	return rm.p2ps.selfRole
 }
 
 func (rm *DefaultRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
