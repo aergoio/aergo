@@ -12,6 +12,9 @@
 
 const char *luaExecContext= "__exec_context__";
 const char *construct_name= "constructor";
+const char *VM_INST_LIMIT = "__INST_LIMIT__";
+const char *VM_INST_COUNT = "__INST_COUNT_";
+const int VM_TIMEOUT_INST_COUNT = 200;
 extern int luaopen_utf8 (lua_State *L);
 extern void (*lj_internal_view_start)(lua_State *);
 extern void (*lj_internal_view_end)(lua_State *);
@@ -216,8 +219,40 @@ static void timeout_hook(lua_State *L, lua_Debug *ar)
 void vm_set_timeout_hook(lua_State *L)
 {
     if (isHardfork(L, FORK_V2)) {
-        lua_sethook(L, timeout_hook, LUA_MASKCOUNT, 200);
+        lua_sethook(L, timeout_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
     }
+}
+
+static void timeout_count_hook(lua_State *L, lua_Debug *ar)
+{
+	int errCode;
+	int inst_cnt, new_inst_cnt, inst_limit;
+
+    timeout_hook(L, ar);
+
+    lua_getfield(L, LUA_REGISTRYINDEX, VM_INST_COUNT);
+    inst_cnt = lua_tointeger(L, -1);
+    lua_getfield(L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
+    inst_limit = lua_tointeger(L, -1);
+    lua_pop(L, 2);
+    new_inst_cnt = inst_cnt + VM_TIMEOUT_INST_COUNT;
+    if (new_inst_cnt <= 0 || new_inst_cnt > inst_limit) {
+        luaL_setuncatchablerror(L);
+        lua_pushstring(L, "exceeded the maximum instruction count");
+        luaL_throwerror(L);
+    }
+    lua_pushinteger(L, new_inst_cnt);
+    lua_setfield(L, LUA_REGISTRYINDEX, VM_INST_COUNT);
+}
+
+void vm_set_timeout_count_hook(lua_State *L, int limit)
+{
+    lua_pushinteger(L, limit);
+    lua_setfield (L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
+    lua_pushinteger(L, 0);
+    lua_setfield (L, LUA_REGISTRYINDEX, VM_INST_COUNT);
+
+    lua_sethook(L, timeout_count_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
 }
 
 const char *vm_pcall(lua_State *L, int argc, int *nresult)
@@ -311,4 +346,27 @@ void vm_internal_view_start(lua_State *L)
 void vm_internal_view_end(lua_State *L)
 {
     luaViewEnd((int *)getLuaExecContext(L));
+}
+
+int vm_instcount(lua_State *L)
+{
+    if (isHardfork(L, FORK_V2)) {
+        int n;
+        lua_getfield(L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
+        n = lua_tointeger(L, -1);
+        lua_pop(L, 1);
+        return n;
+    } else {
+        return luaL_instcount(L);
+    }
+}
+
+void vm_setinstcount(lua_State *L, int cnt)
+{
+    if (isHardfork(L, FORK_V2)) {
+        lua_pushinteger(L, cnt);
+        lua_setfield(L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
+    } else {
+        luaL_setinstcount(L, cnt);
+    }
 }

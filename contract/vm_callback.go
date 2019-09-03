@@ -209,13 +209,13 @@ func vmIsGasSystem(ctx *vmContext) bool {
 
 func setInstCount(ctx *vmContext, parent *LState, child *LState) {
 	if !vmIsGasSystem(ctx) {
-		C.luaL_setinstcount(parent, C.luaL_instcount(child))
+		C.vm_setinstcount(parent, C.vm_instcount(child))
 	}
 }
 
 func setInstMinusCount(ctx *vmContext, L *LState, deduc C.int) {
 	if !vmIsGasSystem(ctx) {
-		C.luaL_setinstcount(L, minusCallCount(C.luaL_instcount(L), deduc))
+		C.vm_setinstcount(L, minusCallCount(C.vm_instcount(L), deduc))
 	}
 }
 
@@ -301,7 +301,7 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	defer func() {
 		ctx.curContract = prevContractInfo
 	}()
-	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
+	ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 	defer setInstCount(ctx, L, ce.L)
 
 	ret := ce.call(L)
@@ -380,7 +380,7 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[DELEGATECALL Contract %v %v]\n", contractIdStr, fnameStr))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
 	}
-	ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
+	ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 	defer setInstCount(ctx, L, ce.L)
 
 	ret := ce.call(L)
@@ -485,7 +485,7 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		defer func() {
 			ctx.curContract = prevContractInfo
 		}()
-		ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
+		ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 		defer setInstCount(ctx, L, ce.L)
 
 		ce.call(L)
@@ -1116,7 +1116,7 @@ func luaDeployContract(
 	addr := C.CString(types.EncodeAddress(newContract.ID()))
 	ret := C.int(1)
 	if ce != nil {
-		ce.setCountHook(minusCallCount(C.luaL_instcount(L), luaCallCountDeduc))
+		ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 		defer setInstCount(ce.ctx, L, ce.L)
 
 		ret += ce.call(L)

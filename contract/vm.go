@@ -286,9 +286,10 @@ func newExecutor(
 	if HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
 		C.setHardforkV2(ce.L)
 		C.vm_set_timeout_hook(ce.L)
-		ce.setGas()
 	}
-	if !vmIsGasSystem(ctx) {
+	if vmIsGasSystem(ctx) {
+		ce.setGas()
+	} else {
 		C.vm_set_resource_limit(ce.L)
 	}
 	backupService := ctx.service

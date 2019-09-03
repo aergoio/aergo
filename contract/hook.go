@@ -14,5 +14,9 @@ func (ce *executor) setCountHook(limit C.int) {
 		vmIsGasSystem(ce.ctx) {
 		return
 	}
-	C.vm_set_count_hook(ce.L, limit)
+	if HardforkConfig.IsV2Fork(ce.ctx.blockInfo.No) {
+		C.vm_set_timeout_count_hook(ce.L, limit)
+	} else {
+		C.vm_set_count_hook(ce.L, limit)
+	}
 }

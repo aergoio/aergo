@@ -30,7 +30,10 @@ void setHardforkV2(lua_State *L);
 int isHardfork(lua_State *L, char *forkname);
 void initViewFunction();
 void vm_set_timeout_hook(lua_State *L);
+void vm_set_timeout_count_hook(lua_State *L, int limit);
 int vm_need_resource_limit(lua_State *L);
 void vm_set_resource_limit(lua_State *L);
+int vm_instcount(lua_State *L);
+void vm_setinstcount(lua_State *L, int cnt);
 
 #endif /* _VM_H */
