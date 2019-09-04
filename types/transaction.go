@@ -223,7 +223,18 @@ func ValidateSystemTx(tx *TxBody) error {
 		}
 	case OpvoteProposal:
 		if len(ci.Args) < 1 {
-			return fmt.Errorf("the number of args less then 2")
+			return fmt.Errorf("the number of args less then 1")
+		}
+		unique := map[string]int{}
+		for _, v := range ci.Args {
+			encoded, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
+			}
+			if unique[encoded] != 0 {
+				return ErrTxInvalidPayload
+			}
+			unique[encoded]++
 		}
 	case OpaddOperator,
 		OpremoveOperator:

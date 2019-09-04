@@ -110,6 +110,11 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	err = transaction.Validate(chainid, false)
 	assert.Error(t, err, "invalid name length in update")
 
+	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT","3", "3"]}`)
+	transaction.GetTx().Hash = transaction.CalculateTxHash()
+	err = transaction.Validate(chainid, false)
+	assert.Error(t, err, "duplicate arguments")
+
 }
 
 func buildVoteBPPayloadEx(count int, err int) []byte {
