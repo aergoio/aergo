@@ -91,10 +91,10 @@ type PolarisConfig struct {
 type BlockchainConfig struct {
 	MaxBlockSize     uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount  string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
-	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
-	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximum anchor count for sync"`
+	VerifierCount    int    `mapstructure:"verifiercount" description:"maximum transaction verifier count"`
 	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
-	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(works only on private network)"`
+	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(deprecated)"`
 	VerifyOnly       bool   `mapstructure:"verifyonly" description:"In verify only mode, server verifies block chain of disk. server never modifies block chain'"`
 	StateTrace       uint64 `mapstructure:"statetrace" description:"dump trace of setting state"`
 }

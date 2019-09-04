@@ -56,7 +56,6 @@ var (
 	contexts       [maxContext]*vmContext
 	lastQueryIndex int
 	querySync      sync.Mutex
-	zeroFee        *big.Int
 )
 
 type ChainAccessor interface {
@@ -132,7 +131,6 @@ type executor struct {
 func init() {
 	ctrLgr = log.NewLogger("contract")
 	lastQueryIndex = ChainService
-	zeroFee = big.NewInt(0)
 }
 
 func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount *big.Int) *contractInfo {
@@ -210,14 +208,12 @@ func newVmContextQuery(
 
 func (s *vmContext) usedFee() *big.Int {
 	if fee.IsZeroFee() {
-		return zeroFee
+		return fee.NewZeroFee()
 	}
-	if !vmIsGasSystem(s) {
-		size := fee.PaymentDataSize(s.dbUpdateTotalSize)
-		return new(big.Int).Mul(big.NewInt(size), fee.AerPerByte)
-	} else {
+	if vmIsGasSystem(s) {
 		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(s.gasLimit - s.remainedGas))
 	}
+	return fee.PaymentDataFee(s.dbUpdateTotalSize)
 }
 
 func newLState() *LState {

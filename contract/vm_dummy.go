@@ -537,16 +537,13 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 				defer ctx.traceFile.Close()
 			}
-			rv, evs, usedfee, err := Call(eContractState, l.code, l.contract, ctx)
-			if usedfee != nil {
-				usedfee.Add(usedfee, fee.PayloadTxFee(len(l.code)))
-			}
+			rv, evs, ctrFee, err := Call(eContractState, l.code, l.contract, ctx)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
 				r.TxHash = l.hash()
 				b, _ := r.MarshalBinary()
 				receiptTx.Set(l.hash(), b)
-				return usedfee, err
+				return ctrFee, err
 			}
 			_ = bs.StageContractState(eContractState)
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
@@ -559,7 +556,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			}
 			b, _ := r.MarshalBinary()
 			receiptTx.Set(l.hash(), b)
-			return usedfee, nil
+			return ctrFee, nil
 		},
 	)
 	if l.expectedErr != "" {

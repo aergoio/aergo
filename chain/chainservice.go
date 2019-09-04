@@ -281,10 +281,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init related modules
-	if !pubNet && cfg.Blockchain.ZeroFee {
+	if !pubNet {
 		fee.EnableZeroFee()
 	}
-	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.StartLStateFactory()

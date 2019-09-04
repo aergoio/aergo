@@ -110,7 +110,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		MaxAnchorCount:   20,
 		VerifierCount:    types.DefaultVerifierCnt,
 		ForceResetHeight: 0,
-		ZeroFee:          true,
+		ZeroFee:          true, // deprecated
 		StateTrace:       0,
 	}
 }

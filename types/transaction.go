@@ -403,10 +403,19 @@ func (tx *transaction) Clone() *transaction {
 }
 
 func (tx *transaction) GetMaxFee(gasPrice *big.Int, version int32) *big.Int {
-	if version < 2 {
-		return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
+	if fee.IsZeroFee() {
+		return fee.NewZeroFee()
 	}
-	return new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(tx.GetBody().GasLimit))
+	if version >= 2 {
+		return new(big.Int).Add(
+			fee.PayloadTxFee(len(tx.GetBody().GetPayload())),
+			new(big.Int).Mul(
+				gasPrice,
+				new(big.Int).SetUint64(tx.GetBody().GasLimit),
+			),
+		)
+	}
+	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"
