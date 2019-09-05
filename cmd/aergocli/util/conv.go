@@ -2,8 +2,9 @@ package util
 
 import (
 	"encoding/json"
-	"github.com/aergoio/aergo/consensus"
 	"math/big"
+
+	"github.com/aergoio/aergo/consensus"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -22,6 +23,8 @@ type InOutChainInfo struct {
 	MaxTokens      string
 	StakingMinimum string `json:",omitempty"`
 	StakingTotal   string `json:",omitempty"`
+	GasPrice       string `json:",omitempty"`
+	NamePrice      string `json:",omitempty"`
 }
 
 func ConvChainInfoMsg(msg *types.ChainInfo) string {
@@ -46,5 +49,8 @@ func convChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 		out.StakingMinimum = new(big.Int).SetBytes(msg.Stakingminimum).String()
 		out.StakingTotal = new(big.Int).SetBytes(msg.Totalstaking).String()
 	}
+
+	out.GasPrice = new(big.Int).SetBytes(msg.Gasprice).String()
+	out.NamePrice = new(big.Int).SetBytes(msg.Nameprice).String()
 	return out
 }

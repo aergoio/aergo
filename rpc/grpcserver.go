@@ -200,6 +200,18 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 		}
 	}
 
+	if namePrice, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.NamePrice); namePrice != nil {
+		chainInfo.Nameprice = namePrice.Bytes()
+	} else {
+		return nil, err
+	}
+
+	if gasPrice, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.GasPrice); gasPrice != nil {
+		chainInfo.Gasprice = gasPrice.Bytes()
+	} else {
+		return nil, err
+	}
+
 	return chainInfo, nil
 }
 

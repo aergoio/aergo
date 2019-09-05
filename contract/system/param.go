@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -90,6 +89,6 @@ func GetGasPrice() *big.Int {
 	return GetParam(gasPrice.ID())
 }
 
-func GetNamePrice(scs *state.ContractState) *big.Int {
+func GetNamePrice() *big.Int {
 	return GetParam(namePrice.ID())
 }

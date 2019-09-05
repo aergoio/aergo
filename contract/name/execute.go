@@ -83,7 +83,7 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 	name := ci.Args[0].(string)
 	switch ci.Name {
 	case types.NameCreate:
-		namePrice := system.GetNamePrice(systemcs)
+		namePrice := system.GetNamePrice()
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
@@ -92,7 +92,7 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 			return nil, fmt.Errorf("aleady occupied %s", string(name))
 		}
 	case types.NameUpdate:
-		namePrice := system.GetNamePrice(systemcs)
+		namePrice := system.GetNamePrice()
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
