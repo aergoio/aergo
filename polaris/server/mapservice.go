@@ -66,6 +66,7 @@ type PeerMapService struct {
 	ntc p2pcommon.NTContainer
 	nt  p2pcommon.NetworkTransport
 	hc  HealthCheckManager
+	lm  *polarisListManager
 
 	rwmutex      *sync.RWMutex
 	peerRegistry map[types.PeerID]*peerState
@@ -85,6 +86,7 @@ func NewPolarisService(cfg *config.Config, ntc p2pcommon.NTContainer) *PeerMapSe
 
 	pms.PrivateNet = !ntc.ChainID().MainNet
 
+	pms.lm = NewPolarisListManager(cfg.Auth, cfg.BaseConfig.AuthDir, pms.Logger)
 	// initialize map Servers
 	return pms
 }

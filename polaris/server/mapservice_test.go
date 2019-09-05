@@ -42,7 +42,8 @@ func (dntc *dummyNTC) ChainID() *types.ChainID {
 }
 
 var (
-	pmapDummyCfg = &config.Config{P2P: &config.P2PConfig{}, Polaris: &config.PolarisConfig{GenesisFile: "../../examples/genesis.json"}}
+	pmapDummyCfg = &config.Config{P2P: &config.P2PConfig{}, Polaris: &config.PolarisConfig{GenesisFile: "../../examples/genesis.json"},
+		Auth:&config.AuthConfig{EnableLocalConf:false}}
 	pmapDummyNTC = &dummyNTC{chainID: &types.ChainID{}}
 )
 
