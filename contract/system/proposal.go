@@ -73,9 +73,15 @@ func (c *proposalCmd) run() (*types.Event, error) {
 
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
+
+	if err := addProposalIDList(scs, proposal.ID); err != nil {
+		return nil, err
+	}
+
 	if err := setProposal(scs, proposal); err != nil {
 		return nil, err
 	}
+
 	log, err := json.Marshal(proposal)
 	if err != nil {
 		return nil, err
@@ -99,6 +105,37 @@ func getProposal(scs *state.ContractState, id string) (*Proposal, error) {
 		return nil, fmt.Errorf("could not get proposal from contract state DB : %s", id)
 	}
 	return deserializeProposal(data), nil
+}
+
+func addProposalIDList(scs *state.ContractState, proposalID string) error {
+	ids, err := getProposalIDList(scs)
+	if err != nil {
+		return err
+	}
+	var serialized string
+	if len(ids) != 0 {
+		serialized = ids + "\\" + strings.ToUpper(proposalID)
+	} else {
+		serialized = strings.ToUpper(proposalID)
+	}
+	return scs.SetData([]byte(proposalListKey), []byte(serialized))
+}
+
+func getProposalIDList(scs *state.ContractState) (string, error) {
+	data, err := scs.GetData([]byte(proposalListKey))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func GetProposalIDList(scs *state.ContractState) ([]string, error) {
+	ids, err := getProposalIDList(scs)
+	if err != nil {
+		return nil, err
+	}
+	list := strings.Split(ids, "\\")
+	return list, nil
 }
 
 func setProposal(scs *state.ContractState, proposal *Proposal) error {
@@ -133,10 +170,13 @@ func serializeProposalHistory(wtv whereToVotes) []byte {
 }
 
 func isValidID(id string) bool {
-	for i := sysParamIndex(0); i < sysParamMax; i++ {
-		if strings.ToUpper(id) == i.ID() {
-			return true
+	return !strings.Contains(id, "\\")
+	/*
+		for i := sysParamIndex(0); i < sysParamMax; i++ {
+			if strings.ToUpper(id) == i.ID() {
+				return true
+			}
 		}
-	}
-	return false
+		return false
+	*/
 }

@@ -145,8 +145,26 @@ func TestProposalBPCount(t *testing.T) {
 	assert.NoError(t, err, "failed in creating proposal")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
 	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-
+	proposalIDs, err := GetProposalIDList(scs)
+	assert.NoError(t, err, "failed in get proposal list")
+	assert.Equal(t, 1, len(proposalIDs), "check proposal list")
 	//ar := &TestAccountStateReader{Scs: scs}
+
+	tx = &types.Tx{
+		Body: &types.TxBody{
+			Account:   sender.ID(),
+			Recipient: []byte(types.AergoSystem),
+			Amount:    types.ProposalPrice.Bytes(),
+			Payload:   []byte(`{"Name":"v1createProposal", "Args":["gasprice", "1","this vote is for the gas price"]}`),
+		},
+	}
+	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "failed in creating proposal")
+	assert.Equal(t, "createProposal", events[0].EventName, "check event")
+	proposalIDs, err = GetProposalIDList(scs)
+	assert.NoError(t, err, "failed in get proposal list")
+	assert.Equal(t, 2, len(proposalIDs), "check proposal list")
+	assert.Equal(t, []string{"BPCOUNT", "GASPRICE"}, proposalIDs, "check proposal list")
 
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
