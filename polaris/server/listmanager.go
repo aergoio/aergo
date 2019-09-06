@@ -117,6 +117,7 @@ func (lm *polarisListManager) AddEntry(entry enterprise.WhiteListEntry) {
 	newEntry = append(newEntry, lm.entries...)
 	newEntry = append(newEntry, entry)
 	lm.entries = newEntry
+	lm.logger.Info().Str("entry", entry.String()).Msg("Added blacklist entry")
 }
 
 func (lm *polarisListManager) RemoveEntry(idx int) bool {
@@ -125,10 +126,12 @@ func (lm *polarisListManager) RemoveEntry(idx int) bool {
 	if idx < 0 || idx >= len(lm.entries) {
 		return false
 	}
-	newEntry := make([]enterprise.WhiteListEntry,0,len(lm.entries))
-	newEntry = append(newEntry, lm.entries...)
-	newEntry = append(newEntry[:idx], newEntry[idx+1:]...)
-	lm.entries = newEntry
+	toRemove := lm.entries[idx]
+	newEntries := make([]enterprise.WhiteListEntry,0,len(lm.entries))
+	newEntries = append(newEntries, lm.entries...)
+	newEntries = append(newEntries[:idx], newEntries[idx+1:]...)
+	lm.entries = newEntries
+	lm.logger.Info().Str("entry", toRemove.String()).Msg("Removed blacklist entry")
 	return true
 }
 

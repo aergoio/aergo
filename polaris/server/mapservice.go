@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/v030"
 	"math"
+	"net"
 	"sync"
 	"time"
 
@@ -120,13 +121,17 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 }
 
 func (pms *PeerMapService) onConnect(s types.Stream) {
+	defer s.Close()
 	peerID := s.Conn().RemotePeer()
-	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
-	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
-	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
+	remoteIP := p2putil.ExtractIPAddress(s.Conn().RemoteMultiaddr())
+	if remoteIP == nil {
+		pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogPeerID, peerID.String()).Msg("Invalid address information")
+		return
+	}
+	remotePeerMeta :=  p2pcommon.PeerMeta{ID: peerID}
+	pms.Logger.Debug().Str("addr", remoteIP.String()).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
-	defer s.Close()
 
 	// receive input
 	container, query, err := pms.readRequest(remotePeerMeta, rw)
@@ -135,6 +140,11 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 		return
 	}
 
+	// check blacklist
+	if banned,_ := pms.lm.IsBanned(remoteIP.String(), peerID); banned {
+		pms.Logger.Debug().Str("address", remoteIP.String()).Str(p2putil.LogPeerID, peerID.String()).Msg("close soon banned peer")
+		return
+	}
 	resp, err := pms.handleQuery(container, query)
 	if err != nil {
 		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, peerID.String()).Msg("failed to handle query")
@@ -226,8 +236,8 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 
 func (pms *PeerMapService) retrieveList(maxPeers int, exclude types.PeerID) []*types.PeerAddress {
 	list := make([]*types.PeerAddress, 0, maxPeers)
-	pms.rwmutex.Lock()
-	defer pms.rwmutex.Unlock()
+	pms.rwmutex.RLock()
+	defer pms.rwmutex.RUnlock()
 	for id, ps := range pms.peerRegistry {
 		if id == exclude {
 			continue
@@ -266,7 +276,28 @@ func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	defer pms.rwmutex.Unlock()
 	pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
+}
 
+func (pms *PeerMapService) applyNewBLEntry(entry enterprise.WhiteListEntry) {
+	pms.rwmutex.Lock()
+	defer pms.rwmutex.Unlock()
+	pms.Logger.Debug().Msg("Applying added blacklist entry; checking peers and remove from registry if banned")
+	if entry.PeerID != enterprise.NotSpecifiedID {
+		// target is simply single peer
+		if ps, found := pms.peerRegistry[entry.PeerID]; found {
+			ip := net.ParseIP(ps.meta.IPAddress)
+			if ip == nil || entry.Contains(ip, ps.meta.ID) {
+				delete(pms.peerRegistry, ps.meta.ID)
+			}
+		}
+	} else {
+		for id, ps := range pms.peerRegistry {
+			ip := net.ParseIP(ps.meta.IPAddress)
+			if ip == nil || entry.Contains(ip, id) {
+				delete(pms.peerRegistry,id)
+			}
+		}
+	}
 }
 
 func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2pcommon.MsgReadWriter) error {
@@ -318,6 +349,7 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 		}
 		pms.lm.AddEntry(entry)
 		context.Respond(nil)
+		go pms.applyNewBLEntry(entry)
 	case *types.RmEntryParams:
 		context.Respond(pms.lm.RemoveEntry(int(msg.Index)))
 	default:
