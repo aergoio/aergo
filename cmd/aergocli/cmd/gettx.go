@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var rawPayload bool
+
 var gettxCmd = &cobra.Command{
 	Use:   "gettx",
 	Short: "Get transaction information",
@@ -24,9 +26,7 @@ var gettxCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(gettxCmd)
-	// args := make([]string, 0, 10)
-	// args = append(args, "subCommand")
-	// blockCmd.SetArgs(args)
+	gettxCmd.Flags().BoolVar(&rawPayload, "rawpayload", false, "show payload without encoding")
 }
 
 func execGetTX(cmd *cobra.Command, args []string) {
@@ -35,16 +35,20 @@ func execGetTX(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed decode: %s", err.Error())
 		return
 	}
+	payloadEncodingType := util.Base58
+	if rawPayload {
+		payloadEncodingType = util.Raw
+	}
 	msg, err := client.GetTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 	if err == nil {
-		cmd.Println(util.TxConvBase58Addr(msg))
+		cmd.Println(util.ConvTxEx(msg, payloadEncodingType))
 	} else {
 		msgblock, err := client.GetBlockTX(context.Background(), &aergorpc.SingleBytes{Value: txHash})
 		if err != nil {
 			cmd.Printf("Failed: %s", err.Error())
 			return
 		}
-		cmd.Println(util.TxInBlockConvBase58Addr(msgblock))
+		cmd.Println(util.ConvTxInBlockEx(msgblock, payloadEncodingType))
 	}
 
 }

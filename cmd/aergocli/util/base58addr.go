@@ -11,34 +11,6 @@ import (
 	"github.com/mr-tron/base58/base58"
 )
 
-type InOutTx struct {
-	Hash string
-	Body *InOutTxBody
-}
-
-type InOutTxBody struct {
-	Nonce       uint64
-	Account     string
-	Recipient   string
-	Amount      string
-	Payload     string
-	GasLimit    uint64
-	GasPrice    string
-	Type        types.TxType
-	ChainIdHash string
-	Sign        string
-}
-
-type InOutTxIdx struct {
-	BlockHash string
-	Idx       int32
-}
-
-type InOutTxInBlock struct {
-	TxIdx *InOutTxIdx
-	Tx    *InOutTx
-}
-
 type InOutBlockHeader struct {
 	ChainID          string
 	PrevBlockHash    string
@@ -199,7 +171,9 @@ func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 	if tx.Body.Recipient != nil {
 		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
 	}
-	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
+	if tx.Body.Amount != nil {
+		out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
+	}
 	switch payloadType {
 	case Raw:
 		out.Body.Payload = string(tx.Body.Payload)
@@ -207,22 +181,20 @@ func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 		out.Body.Payload = base58.Encode(tx.Body.Payload)
 	}
 	out.Body.GasLimit = tx.Body.GasLimit
-	out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
+	if tx.Body.GasPrice != nil {
+		out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
+	}
 	out.Body.ChainIdHash = base58.Encode(tx.Body.ChainIdHash)
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out
 }
 
-func ConvTx(tx *types.Tx) *InOutTx {
-	return ConvTxEx(tx, Base58)
-}
-
-func ConvTxInBlock(txInBlock *types.TxInBlock) *InOutTxInBlock {
+func ConvTxInBlockEx(txInBlock *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
 	out := &InOutTxInBlock{TxIdx: &InOutTxIdx{}, Tx: &InOutTx{}}
 	out.TxIdx.BlockHash = base58.Encode(txInBlock.GetTxIdx().GetBlockHash())
 	out.TxIdx.Idx = txInBlock.GetTxIdx().GetIdx()
-	out.Tx = ConvTx(txInBlock.GetTx())
+	out.Tx = ConvTxEx(txInBlock.GetTx(), payloadType)
 	return out
 }
 
@@ -295,31 +267,6 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 		return ""
 	}
 	return string(jsonout)
-}
-
-func TxConvBase58Addr(tx *types.Tx) string {
-	return toString(ConvTx(tx))
-}
-
-type EncodingType int
-
-const (
-	Raw EncodingType = 0 + iota
-	Base58
-)
-
-func TxConvBase58AddrEx(tx *types.Tx, payloadType EncodingType) string {
-	switch payloadType {
-	case Raw:
-		return toString(ConvTxEx(tx, Raw))
-	case Base58:
-		return toString(ConvTxEx(tx, Base58))
-	}
-	return ""
-}
-
-func TxInBlockConvBase58Addr(txInBlock *types.TxInBlock) string {
-	return toString(ConvTxInBlock(txInBlock))
 }
 
 func BlockConvBase58Addr(b *types.Block) string {
