@@ -155,10 +155,11 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 			if _, exist := dpm.workingJobs[wp.Meta.ID]; exist {
 				continue
 			}
-			if banned, _ := dpm.lm.IsBanned(wp.Meta.IPAddress, wp.Meta.ID); banned {
-				dpm.logger.Info().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(wp.Meta)).Msg("Skipping banned peer")
-				continue
-			}
+			// 2019.09.02 connecting to outbound peer is not affected by whitelist. inbound peer will block
+			//if banned, _ := dpm.lm.IsBanned(wp.Meta.IPAddress, wp.Meta.ID); banned {
+			//	dpm.logger.Info().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(wp.Meta)).Msg("Skipping banned peer")
+			//	continue
+			//}
 			dpm.logger.Info().Int("trial", wp.TrialCnt).Str(p2putil.LogPeerID, p2putil.ShortForm(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
 
 			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID: wp.Meta.ID, StartTime: time.Now()}

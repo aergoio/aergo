@@ -76,11 +76,11 @@ func checkPanic(t *testing.T, wantPanic bool) {
 func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	conf := config.NewServerContext("", "").GetDefaultAuthConfig()
 	addr1 := "123.45.67.89"
-	id1, _ := p2putil.RandomPeerID()
+	id1 := p2putil.RandomPeerID()
 	addrother := "8.8.8.8"
-	idother, _ := p2putil.RandomPeerID()
+	idother := p2putil.RandomPeerID()
 	thirdAddr := "222.8.8.8"
-	thirdID, _ := p2putil.RandomPeerID()
+	thirdID := p2putil.RandomPeerID()
 
 	IDOnly := `{"peerid":"`+id1.Pretty()+`"}`
 	AddrOnly := `{"address":"`+addr1+`"}`

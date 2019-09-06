@@ -46,6 +46,20 @@ func (mr *MockPeerRoleManagerMockRecorder) UpdateBP(toAdd, toRemove interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBP", reflect.TypeOf((*MockPeerRoleManager)(nil).UpdateBP), toAdd, toRemove)
 }
 
+// SelfRole mocks base method
+func (m *MockPeerRoleManager) SelfRole() p2pcommon.PeerRole {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SelfRole")
+	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	return ret0
+}
+
+// SelfRole indicates an expected call of SelfRole
+func (mr *MockPeerRoleManagerMockRecorder) SelfRole() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfRole", reflect.TypeOf((*MockPeerRoleManager)(nil).SelfRole))
+}
+
 // GetRole mocks base method
 func (m *MockPeerRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
 	m.ctrl.T.Helper()

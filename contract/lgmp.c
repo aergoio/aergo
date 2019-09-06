@@ -131,10 +131,12 @@ static mp_num Bget(lua_State *L, int i)
 	return NULL;
 }
 
-static void bn_copy (mp_num src) 
+static mp_num bn_copy (mp_num src)
 {
 	mp_num new = bn_alloc(src->type);
 	mpz_set(new->mpptr, src->mpptr);
+
+	return new;
 }
 
 static int Bdo1(lua_State *L, void (*f)(mpz_ptr a, mpz_srcptr b, mpz_srcptr c), char is_div)
@@ -326,11 +328,15 @@ static int Bpow(lua_State *L)			/** pow(x,y) */
             return 1;
         }
 	}
+	a = bn_copy(a);
+	b = bn_copy(b);
     while (1) {
         remainder = mpz_tdiv_q_ui(b->mpptr, b->mpptr, 2);
         if (remainder == 1) {
             mpz_mul(c->mpptr, c->mpptr, a->mpptr);
             if (mpz_cmp(c->mpptr, _max_->mpptr) > 0 || mpz_cmp(a->mpptr, _min_->mpptr) < 0) {
+                mp_num_free(a);
+                mp_num_free(b);
                 mp_num_free(c);
                 luaL_error(L, mp_num_limited_max);
             }
@@ -340,11 +346,15 @@ static int Bpow(lua_State *L)			/** pow(x,y) */
 
         mpz_mul(a->mpptr, a->mpptr, a->mpptr);
         if (mpz_cmp(a->mpptr, _max_->mpptr) > 0 || mpz_cmp(a->mpptr, _min_->mpptr) < 0) {
+            mp_num_free(a);
+            mp_num_free(b);
             mp_num_free(c);
             luaL_error(L, mp_num_limited_max);
         }
     }
 	Bnew(L, c);
+	mp_num_free(a);
+    mp_num_free(b);
 	return 1;
 }
 
