@@ -121,7 +121,7 @@ func TestP2P_banIfFound(t *testing.T) {
 			for i:=0; i<sampleCnt; i++ {
 				mPeer := p2pmock.NewMockRemotePeer(ctrl)
 				mPeer.EXPECT().ID().Return(pids[i])
-				mPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{IPAddress:addr})
+				mPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{IPAddress:addr, Outbound:false}).MinTimes(1)
 				mPeer.EXPECT().Name().Return("peer "+pids[i].ShortString()).AnyTimes()
 				if tt.inWhite[i] == 0 {
 					mPeer.EXPECT().Stop()
@@ -137,7 +137,7 @@ func TestP2P_banIfFound(t *testing.T) {
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p"))
 
-			p2ps.banIfFound()
+			p2ps.checkAndBanInboundPeers()
 		})
 	}
 }
