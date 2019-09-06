@@ -8,6 +8,7 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/v030"
 	"math"
 	"sync"
@@ -17,7 +18,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
@@ -79,7 +79,7 @@ func NewPolarisService(cfg *config.Config, ntc p2pcommon.NTContainer) *PeerMapSe
 		allowPrivate: cfg.Polaris.AllowPrivate,
 	}
 
-	pms.BaseComponent = component.NewBaseComponent(message.PolarisSvc, pms, log.NewLogger("polaris"))
+	pms.BaseComponent = component.NewBaseComponent(PolarisSvc, pms, log.NewLogger("polaris"))
 
 	pms.ntc = ntc
 	pms.hc = NewHCM(pms, pms.nt)
@@ -99,6 +99,7 @@ func (pms *PeerMapService) BeforeStart() {}
 
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
+	pms.lm.Start()
 	pms.Logger.Info().Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
 	pms.nt.AddStreamHandler(common.PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
@@ -109,6 +110,7 @@ func (pms *PeerMapService) BeforeStop() {
 		pms.hc.Stop()
 		pms.nt.RemoveStreamHandler(common.PolarisMapSub)
 	}
+	pms.lm.Stop()
 }
 
 func (pms *PeerMapService) Statistics() *map[string]interface{} {
@@ -291,15 +293,33 @@ func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubPr
 func (pms *PeerMapService) Receive(context actor.Context) {
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
-	case *message.CurrentListMsg:
+	case *CurrentListMsg:
 		pms.Logger.Debug().Msg("Got current message")
 		context.Respond(pms.getCurrentPeers(msg))
-	case *message.WhiteListMsg:
+	case *WhiteListMsg:
 		pms.Logger.Debug().Msg("Got whitelist message")
 		context.Respond(pms.getWhiteList(msg))
-	case *message.BlackListMsg:
+	case *BlackListMsg:
 		pms.Logger.Debug().Msg("Got blacklist message")
 		context.Respond(pms.getBlackList(msg))
+	case ListEntriesMsg:
+		ret := &types.BLConfEntries{Enabled:pms.lm.enabled}
+		entries := pms.lm.ListEntries()
+		ret.Entries = make([]string,len(entries))
+		for i, e := range entries {
+			ret.Entries[i] = e.String()
+		}
+		context.Respond(ret)
+	case *types.AddEntryParams:
+		rawEntry := enterprise.RawEntry{PeerId:msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
+		entry, err := enterprise.NewListEntry(rawEntry)
+		if err != nil {
+			context.Respond(types.RPCErrInvalidArgument)
+		}
+		pms.lm.AddEntry(entry)
+		context.Respond(nil)
+	case *types.RmEntryParams:
+		context.Respond(pms.lm.RemoveEntry(int(msg.Index)))
 	default:
 		pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
 	}
@@ -336,7 +356,7 @@ func (pms *PeerMapService) onPing(s types.Stream) {
 
 }
 
-func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types.PolarisPeerList {
+func (pms *PeerMapService) getCurrentPeers(param *CurrentListMsg) *types.PolarisPeerList {
 	retSize := int(param.Size)
 	totalSize := len(pms.peerRegistry)
 	listSize := calcMinimum(retSize, totalSize, ResponseMaxPeerLimit)
@@ -358,12 +378,12 @@ func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types
 	return result
 }
 
-func (pms *PeerMapService) getWhiteList(param *message.WhiteListMsg) *types.PolarisPeerList {
+func (pms *PeerMapService) getWhiteList(param *WhiteListMsg) *types.PolarisPeerList {
 	// TODO implement!
 	return &types.PolarisPeerList{}
 }
 
-func (pms *PeerMapService) getBlackList(param *message.BlackListMsg) *types.PolarisPeerList {
+func (pms *PeerMapService) getBlackList(param *BlackListMsg) *types.PolarisPeerList {
 	// TODO implement!
 	return &types.PolarisPeerList{}
 }

@@ -97,7 +97,6 @@ func TestPeerMapService_readRequest(t *testing.T) {
 	}{
 		{"TNormal", args{meta: dummyMeta, readErr: nil}, false},
 		{"TError", args{meta: dummyMeta, readErr: fmt.Errorf("testerr")}, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

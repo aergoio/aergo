@@ -31,7 +31,7 @@ type WhiteListEntry struct {
 	PeerID  types.PeerID
 }
 
-type rawEntry struct {
+type RawEntry struct {
 	Address string `json:"address"`
 	Cidr    string `json:"cidr"`
 	PeerId  string `json:"peerid"`
@@ -41,7 +41,7 @@ func init() {
 	dummyListEntry = WhiteListEntry{"", notSpecifiedCIDR, NotSpecifiedID}
 }
 func NewWhiteListEntry(str string) (WhiteListEntry, error) {
-	raw := rawEntry{}
+	raw := RawEntry{}
 	err := json.Unmarshal([]byte(str), &raw)
 	if err != nil {
 		return dummyListEntry, InvalidEntryErr
@@ -49,7 +49,7 @@ func NewWhiteListEntry(str string) (WhiteListEntry, error) {
 	return NewListEntry(raw)
 }
 
-func NewListEntry(raw rawEntry) (WhiteListEntry, error) {
+func NewListEntry(raw RawEntry) (WhiteListEntry, error) {
 	literal, _ := json.Marshal(raw)
 
 	if len(raw.Address) == 0 && len(raw.Cidr) == 0 && len(raw.PeerId) == 0 {
@@ -117,7 +117,7 @@ func (e WhiteListEntry) String() string {
 }
 
 func ReadEntries(jsonBytes []byte) ([]WhiteListEntry, error) {
-	var list []rawEntry
+	var list []RawEntry
 
 	err := json.Unmarshal(jsonBytes, &list)
 	if err != nil {
@@ -134,9 +134,9 @@ func ReadEntries(jsonBytes []byte) ([]WhiteListEntry, error) {
 }
 
 func WriteEntries(entries []WhiteListEntry, wr io.Writer) error {
-	rList := make([]rawEntry,len(entries))
+	rList := make([]RawEntry,len(entries))
 	for i, e := range entries {
-		r := rawEntry{}
+		r := RawEntry{}
 		if e.PeerID != NotSpecifiedID {
 			r.PeerId = types.IDB58Encode(e.PeerID)
 		}

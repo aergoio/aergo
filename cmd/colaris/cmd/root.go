@@ -44,6 +44,14 @@ var (
 	}
 )
 
+// flags for blacklist
+var (
+	addAddr string
+	addCidr string
+	addPid  string // base58 encoded string
+	rmIdx   int
+)
+
 func init() {
 	log.SetOutput(os.Stderr)
 	cobra.OnInitialize(initConfig)

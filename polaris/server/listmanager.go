@@ -34,6 +34,7 @@ const (
 
 type polarisListManager struct {
 	logger *log.Logger
+	mutex sync.Mutex
 
 	entries []enterprise.WhiteListEntry
 	enabled bool
@@ -69,6 +70,9 @@ func (lm *polarisListManager) loadListFile() {
 
 	// read our opened xmlFile as a byte array.
 	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	lm.mutex.Lock()
+	defer lm.mutex.Unlock()
 	entries, err := enterprise.ReadEntries(byteValue)
 	if err != nil {
 		lm.logger.Info().Err(err).Str("file", blFile).Msg("Failed to parse blacklist file")
@@ -77,6 +81,7 @@ func (lm *polarisListManager) loadListFile() {
 	lm.logger.Info().Array("entry",ListEntriesMarshaller{entries, 10}).Msg("Loaded blacklist file")
 	lm.entries = entries
 }
+
 func (lm *polarisListManager) saveListFile() {
 	blFile := filepath.Join(lm.authDir, localListFile)
 	lm.logger.Debug().Str("file", blFile).Msg("Saving local blacklist file")
@@ -86,6 +91,9 @@ func (lm *polarisListManager) saveListFile() {
 		return
 	}
 	defer jsonFile.Close()
+	lm.mutex.Lock()
+	defer lm.mutex.Unlock()
+
 	err = enterprise.WriteEntries(lm.entries, jsonFile)
 	if err != nil {
 		lm.logger.Info().Err(err).Str("file", blFile).Msg("Failed to write blacklist file")
@@ -94,12 +102,34 @@ func (lm *polarisListManager) saveListFile() {
 	lm.logger.Info().Array("entry",ListEntriesMarshaller{lm.entries, 10}).Msg("Saved blacklist file")
 }
 
+func (lm *polarisListManager) ListEntries() []enterprise.WhiteListEntry{
+	lm.mutex.Lock()
+	defer lm.mutex.Unlock()
+	newEntry := make([]enterprise.WhiteListEntry,len(lm.entries))
+	copy(newEntry, lm.entries)
+	return newEntry
+}
 func (lm *polarisListManager) AddEntry(entry enterprise.WhiteListEntry) {
+	lm.mutex.Lock()
+	defer lm.mutex.Unlock()
 
+	newEntry := make([]enterprise.WhiteListEntry,0,len(lm.entries)+1)
+	newEntry = append(newEntry, lm.entries...)
+	newEntry = append(newEntry, entry)
+	lm.entries = newEntry
 }
 
-func (lm *polarisListManager) RemoveEntry(idx int) {
-
+func (lm *polarisListManager) RemoveEntry(idx int) bool {
+	lm.mutex.Lock()
+	defer lm.mutex.Unlock()
+	if idx < 0 || idx >= len(lm.entries) {
+		return false
+	}
+	newEntry := make([]enterprise.WhiteListEntry,0,len(lm.entries))
+	newEntry = append(newEntry, lm.entries...)
+	newEntry = append(newEntry[:idx], newEntry[idx+1:]...)
+	lm.entries = newEntry
+	return true
 }
 
 
@@ -120,7 +150,7 @@ func (lm *polarisListManager) Stop() {
 func (lm *polarisListManager) IsBanned(addr string, pid types.PeerID) (bool, time.Time) {
 	// polaris is blaklist
 	// empty entry means no blacklist
-	if len(lm.entries) == 0 {
+	if !lm.enabled || len(lm.entries) == 0 {
 		return false, FarawayFuture
 	}
 
