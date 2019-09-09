@@ -41,6 +41,10 @@ func (b *InOutTxBody) String() string {
 	return toString(b)
 }
 
+func (t *InOutTx) String() string {
+	return toString(t)
+}
+
 func (t *InOutTxInBlock) String() string {
 	return toString(t)
 }
