@@ -1,13 +1,12 @@
 package system
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"sort"
-	"strconv"
+	"strings"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -46,60 +45,14 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Staked = staked
-	case types.OpcreateProposal:
-		staked, err := checkStakingBefore(account, scs)
-		if err != nil {
-			return nil, err
-		}
-		_, err = checkOperator(scs, sender.ID())
-		if err != nil {
-			return nil, err
-		}
-		id, err := parseIDForProposal(&ci)
-		if err != nil {
-			return nil, err
-		}
-		proposal, err := getProposal(scs, id)
-		if err != nil {
-			return nil, err
-		}
-		if proposal != nil {
-			return nil, fmt.Errorf("already created proposal id: %s", proposal.ID)
-		}
-		if len(ci.Args) != 3 {
-			return nil, fmt.Errorf("the request should be have 3 arguments: %d", len(ci.Args))
-		}
-		max, ok := ci.Args[1].(string)
-		if !ok {
-			return nil, fmt.Errorf("could not parse the max")
-		}
-		multipleChoice, err := strconv.ParseUint(max, 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		desc, ok := ci.Args[2].(string)
-		if !ok {
-			return nil, fmt.Errorf("could not parse the desc")
-		}
-		context.Staked = staked
-		context.Proposal = &Proposal{
-			ID:             id,
-			Blockfrom:      0,
-			Blockto:        0,
-			MultipleChoice: uint32(multipleChoice),
-			Description:    desc,
-		}
 	case types.OpvoteProposal:
 		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err
 		}
-		proposal, err := getProposal(scs, id)
-		if err != nil {
-			return nil, err
-		}
+		proposal, err := getProposal(id)
 		if proposal == nil {
-			return nil, fmt.Errorf("the proposal is not created (%s)", id)
+			return nil, err
 		}
 		if blockNo < proposal.Blockfrom {
 			return nil, fmt.Errorf("the voting begins at %d", proposal.Blockfrom)
@@ -136,34 +89,6 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		context.Proposal = proposal
 		context.Staked = staked
 		context.Vote = oldvote
-	case types.OpaddOperator,
-		types.OpremoveOperator:
-		if err := checkOperatorArg(context, &ci); err != nil {
-			return nil, err
-		}
-		operators, err := checkOperator(scs, sender.ID())
-		if err != nil &&
-			err != ErrTxSystemOperatorIsNotSet {
-			return nil, err
-		}
-		operatorAddr := types.ToAddress(context.Args[0])
-		if context.op == types.OpaddOperator {
-			if operators.IsExist(operatorAddr) {
-				return nil, fmt.Errorf("already exist operator: %s", ci.Args[0])
-			}
-			operators = append(operators, operatorAddr)
-		} else if context.op == types.OpremoveOperator {
-			if !operators.IsExist(sender.ID()) {
-				return nil, fmt.Errorf("operator is not exist : %s", ci.Args[0])
-			}
-			for i, v := range operators {
-				if bytes.Equal(v, operatorAddr) {
-					operators = append(operators[:i], operators[i+1:]...)
-					break
-				}
-			}
-		}
-		context.Operators = operators
 	default:
 		return nil, types.ErrTxInvalidPayload
 	}
@@ -237,35 +162,5 @@ func parseIDForProposal(ci *types.CallInfo) (string, error) {
 	if !ok || len(id) < 1 || !isValidID(id) {
 		return "", fmt.Errorf("args[%d] invalid id", 0)
 	}
-	return id, nil
-}
-
-func checkOperatorArg(context *SystemContext, ci *types.CallInfo) error {
-	if len(ci.Args) != 1 { //args[0] : operator address
-		return fmt.Errorf("invalid argument count %s : %s", ci.Name, ci.Args)
-	}
-	arg, ok := ci.Args[0].(string)
-	if !ok {
-		return fmt.Errorf("invalid string in the argument: %s", ci.Args)
-	}
-	address := types.ToAddress(arg)
-	if len(address) == 0 {
-		return fmt.Errorf("invalid address: %s", ci.Args[0])
-	}
-	context.Args = append(context.Args, arg)
-	return nil
-}
-
-func checkOperator(scs *state.ContractState, address []byte) (Operators, error) {
-	ops, err := getOperators(scs)
-	if err != nil {
-		return nil, fmt.Errorf("could not get admin in enterprise contract")
-	}
-	if ops == nil {
-		return nil, ErrTxSystemOperatorIsNotSet
-	}
-	if i := bytes.Index(bytes.Join(ops, []byte("")), address); i == -1 && i%types.AddressLength != 0 {
-		return nil, fmt.Errorf("operator address not matched")
-	}
-	return ops, nil
+	return strings.ToUpper(id), nil
 }

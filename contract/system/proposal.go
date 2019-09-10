@@ -6,13 +6,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
 const proposalPrefixKey = "proposal" //aergo proposal format
-
-var proposalListKey = []byte("proposallist")
 
 func (i sysParamIndex) ID() string {
 	return strings.ToUpper(i.String())
@@ -39,107 +36,76 @@ type Proposal struct {
 	Blockto        uint64
 	MultipleChoice uint32
 	Candidates     []string
+	Default        *big.Int
+}
+
+var SystemProposal = map[string]*Proposal{
+	types.OpvoteBP.ID(): &Proposal{
+		ID:             types.OpvoteBP.ID(),
+		Description:    "",
+		Blockfrom:      0,
+		Blockto:        0,
+		MultipleChoice: 1,
+		Candidates:     nil,
+	},
+	bpCount.ID(): &Proposal{
+		ID:             bpCount.ID(),
+		Description:    "",
+		Blockfrom:      0,
+		Blockto:        0,
+		MultipleChoice: 1,
+		Candidates:     nil,
+	},
+	stakingMin.ID(): &Proposal{
+		ID:             stakingMin.ID(),
+		Description:    "",
+		Blockfrom:      0,
+		Blockto:        0,
+		MultipleChoice: 1,
+		Candidates:     nil,
+	},
+	gasPrice.ID(): &Proposal{
+		ID:             gasPrice.ID(),
+		Description:    "",
+		Blockfrom:      0,
+		Blockto:        0,
+		MultipleChoice: 1,
+		Candidates:     nil,
+	},
+	namePrice.ID(): &Proposal{
+		ID:             namePrice.ID(),
+		Description:    "",
+		Blockfrom:      0,
+		Blockto:        0,
+		MultipleChoice: 1,
+		Candidates:     nil,
+	},
 }
 
 func (a *Proposal) GetKey() []byte {
-	return []byte(proposalPrefixKey + "\\" + strings.ToUpper(a.ID))
+	return []byte(strings.ToUpper(a.ID))
 }
 
 func GenProposalKey(id string) []byte {
-	return []byte(proposalPrefixKey + "\\" + strings.ToUpper(id))
+	return []byte(strings.ToUpper(id))
 }
 
+/*
 func ProposalIDfromKey(key []byte) string {
 	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
 }
-
-type proposalCmd struct {
-	*SystemContext
-	amount *big.Int
-}
-
-func newProposalCmd(ctx *SystemContext) (sysCmd, error) {
-	return &proposalCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}, nil
-}
-
-func (c *proposalCmd) run() (*types.Event, error) {
-	var (
-		scs      = c.scs
-		proposal = c.Proposal
-		sender   = c.Sender
-		receiver = c.Receiver
-		amount   = c.amount
-	)
-
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-
-	if err := addProposalIDList(scs, proposal.ID); err != nil {
-		return nil, err
-	}
-
-	if err := setProposal(scs, proposal); err != nil {
-		return nil, err
-	}
-
-	log, err := json.Marshal(proposal)
-	if err != nil {
-		return nil, err
-	}
-	return &types.Event{
-		ContractAddress: receiver.ID(),
-		EventIdx:        0,
-		EventName:       c.op.ID(),
-		JsonArgs: `{"who":"` +
-			types.EncodeAddress(sender.ID()) +
-			`", "Proposal":` + string(log) + `}`,
-	}, nil
-
-}
+*/
 
 //getProposal find proposal using id
-func getProposal(scs *state.ContractState, id string) (*Proposal, error) {
-	dataKey := GenProposalKey(id)
-	data, err := scs.GetData([]byte(dataKey))
-	if err != nil {
-		return nil, fmt.Errorf("could not get proposal from contract state DB : %s", id)
+func getProposal(id string) (*Proposal, error) {
+	if val, ok := SystemProposal[id]; ok {
+		return val, nil
 	}
-	return deserializeProposal(data), nil
+	return nil, fmt.Errorf("proposal %s is not found", id)
 }
 
-func addProposalIDList(scs *state.ContractState, proposalID string) error {
-	ids, err := getProposalIDList(scs)
-	if err != nil {
-		return err
-	}
-	var serialized string
-	if len(ids) != 0 {
-		serialized = ids + "\\" + strings.ToUpper(proposalID)
-	} else {
-		serialized = strings.ToUpper(proposalID)
-	}
-	return scs.SetData([]byte(proposalListKey), []byte(serialized))
-}
-
-func getProposalIDList(scs *state.ContractState) (string, error) {
-	data, err := scs.GetData([]byte(proposalListKey))
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-func GetProposalIDList(scs *state.ContractState) ([]string, error) {
-	ids, err := getProposalIDList(scs)
-	if err != nil {
-		return nil, err
-	}
-	list := strings.Split(ids, "\\")
-	return list, nil
-}
-
-func setProposal(scs *state.ContractState, proposal *Proposal) error {
-	return scs.SetData(proposal.GetKey(), serializeProposal(proposal))
+func setProposal(proposal *Proposal) {
+	SystemProposal[proposal.ID] = proposal
 }
 
 func serializeProposal(proposal *Proposal) []byte {
@@ -170,13 +136,10 @@ func serializeProposalHistory(wtv whereToVotes) []byte {
 }
 
 func isValidID(id string) bool {
-	return !strings.Contains(id, "\\")
-	/*
-		for i := sysParamIndex(0); i < sysParamMax; i++ {
-			if strings.ToUpper(id) == i.ID() {
-				return true
-			}
+	for i := sysParamIndex(0); i < sysParamMax; i++ {
+		if strings.ToUpper(id) == i.ID() {
+			return true
 		}
-		return false
-	*/
+	}
+	return false
 }

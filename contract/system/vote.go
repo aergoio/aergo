@@ -212,7 +212,7 @@ func refreshAllVote(context *SystemContext) error {
 			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
-		proposal, err := getProposal(scs, i.ID())
+		proposal, err := getProposal(i.ID())
 		if err != nil {
 			return err
 		}

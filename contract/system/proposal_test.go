@@ -25,8 +25,6 @@ func (tas *TestAccountStateReader) GetSystemAccountState() (*state.ContractState
 func TestProposalSetGet(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
-	assert.NoError(t, err, "could not open contract state")
 	originProposal := &Proposal{
 		ID:             "numofbp",
 		Blockfrom:      1,
@@ -35,11 +33,10 @@ func TestProposalSetGet(t *testing.T) {
 		Candidates:     []string{"13", "23", "45"},
 		MultipleChoice: 2,
 	}
-	_, err = getProposal(scs, originProposal.ID)
-	assert.NoError(t, err, "could not get proposal")
-	err = setProposal(scs, originProposal)
-	assert.NoError(t, err, "could not set proposal")
-	testProposal, err := getProposal(scs, originProposal.ID)
+	_, err := getProposal(originProposal.ID)
+	assert.Error(t, err, "before set")
+	setProposal(originProposal)
+	testProposal, err := getProposal(originProposal.ID)
 	assert.NoError(t, err, "could not get proposal")
 	assert.Equal(t, originProposal.ID, testProposal.ID, "proposal name")
 	assert.Equal(t, originProposal.Description, testProposal.Description, "proposal description")
@@ -54,9 +51,9 @@ func TestProposalSetGet(t *testing.T) {
 		Candidates:     []string{"13", "23", "45"},
 		MultipleChoice: 2,
 	}
-	err = setProposal(scs, originProposal2)
+	setProposal(originProposal2)
 	assert.NoError(t, err, "could not get proposal")
-	testProposal2, err := getProposal(scs, originProposal2.ID)
+	testProposal2, err := getProposal(originProposal2.ID)
 	assert.NoError(t, err, "could not get proposal")
 	assert.Equal(t, originProposal2.ID, testProposal2.ID, "proposal name")
 	assert.Equal(t, originProposal2.Description, testProposal2.Description, "proposal description")
@@ -112,17 +109,6 @@ func TestProposalBPCount(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
-	operatorTx := &types.Tx{
-		Body: &types.TxBody{
-			Account:   sender.ID(),
-			Recipient: []byte(types.AergoSystem),
-			Amount:    types.ProposalPrice.Bytes(),
-			Payload:   []byte(`{"Name":"v1addOperator", "Args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`),
-		},
-	}
-	_, err = ExecuteSystemTx(scs, operatorTx.GetBody(), sender, receiver, blockNo)
-	assert.NoError(t, err, "could not set system operator")
-
 	stakingTx.Body.Account = sender2.ID()
 	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
@@ -132,39 +118,6 @@ func TestProposalBPCount(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender3.Balance(), "sender.Balance() should be 2 after staking")
-
-	tx := &types.Tx{
-		Body: &types.TxBody{
-			Account:   sender.ID(),
-			Recipient: []byte(types.AergoSystem),
-			Amount:    types.ProposalPrice.Bytes(),
-			Payload:   []byte(`{"Name":"v1createProposal", "Args":["bpcount", "2","this vote is for the number of bp"]}`),
-		},
-	}
-	events, err := ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
-	assert.NoError(t, err, "failed in creating proposal")
-	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after creating proposal")
-	assert.Equal(t, events[0].ContractAddress, types.AddressPadding([]byte(types.AergoSystem)), "check event")
-	proposalIDs, err := GetProposalIDList(scs)
-	assert.NoError(t, err, "failed in get proposal list")
-	assert.Equal(t, 1, len(proposalIDs), "check proposal list")
-	//ar := &TestAccountStateReader{Scs: scs}
-
-	tx = &types.Tx{
-		Body: &types.TxBody{
-			Account:   sender.ID(),
-			Recipient: []byte(types.AergoSystem),
-			Amount:    types.ProposalPrice.Bytes(),
-			Payload:   []byte(`{"Name":"v1createProposal", "Args":["gasprice", "1","this vote is for the gas price"]}`),
-		},
-	}
-	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, blockNo)
-	assert.NoError(t, err, "failed in creating proposal")
-	assert.Equal(t, "createProposal", events[0].EventName, "check event")
-	proposalIDs, err = GetProposalIDList(scs)
-	assert.NoError(t, err, "failed in get proposal list")
-	assert.Equal(t, 2, len(proposalIDs), "check proposal list")
-	assert.Equal(t, []string{"BPCOUNT", "GASPRICE"}, proposalIDs, "check proposal list")
 
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
@@ -179,7 +132,7 @@ func TestProposalBPCount(t *testing.T) {
 	assert.Equal(t, 3, GetBpCount(), "check bp")
 
 	validCandiTx.Body.Account = sender2.ID()
-	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["bpcount", "13", "17"]}`)
+	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["bpcount", "13"]}`)
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "valid")
