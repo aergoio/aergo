@@ -33,7 +33,7 @@ func init() {
 func Test_polarisListManager_saveListFile(t *testing.T) {
 
 	logger := log.NewLogger("polaris.test")
-	conf := config.AuthConfig{EnableLocalConf: true}
+	conf := config.PolarisConfig{EnableBlacklist: true}
 	lm := NewPolarisListManager(&conf, testAuthDir, logger)
 	lm.entries = sampleEntries
 	lm.saveListFile()
@@ -58,7 +58,7 @@ func Test_polarisListManager_saveListFile(t *testing.T) {
 
 func Test_polarisListManager_RemoveEntry(t *testing.T) {
 	logger := log.NewLogger("polaris.test")
-	conf := &config.AuthConfig{EnableLocalConf: true}
+	conf := &config.PolarisConfig{EnableBlacklist: true}
 
 	tests := []struct {
 		name string
@@ -87,7 +87,7 @@ func Test_polarisListManager_RemoveEntry(t *testing.T) {
 
 func Test_polarisListManager_AddEntry(t *testing.T) {
 	logger := log.NewLogger("polaris.test")
-	conf := &config.AuthConfig{EnableLocalConf: true}
+	conf := &config.PolarisConfig{EnableBlacklist: true}
 
 	tests := []struct {
 		name string
@@ -115,8 +115,8 @@ func Test_polarisListManager_AddEntry(t *testing.T) {
 
 
 func Test_polarisListManager_IsBanned(t *testing.T) {
-	conf := config.NewServerContext("", "").GetDefaultAuthConfig()
-	conf.EnableLocalConf = true
+	conf := config.NewServerContext("", "").GetDefaultPolarisConfig()
+	conf.EnableBlacklist = true
 	logger := log.NewLogger("polaris.test")
 
 	addr1 := "123.45.67.89"

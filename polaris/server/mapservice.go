@@ -87,7 +87,7 @@ func NewPolarisService(cfg *config.Config, ntc p2pcommon.NTContainer) *PeerMapSe
 
 	pms.PrivateNet = !ntc.ChainID().MainNet
 
-	pms.lm = NewPolarisListManager(cfg.Auth, cfg.BaseConfig.AuthDir, pms.Logger)
+	pms.lm = NewPolarisListManager(cfg.Polaris, cfg.BaseConfig.AuthDir, pms.Logger)
 	// initialize map Servers
 	return pms
 }

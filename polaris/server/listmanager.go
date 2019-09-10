@@ -44,10 +44,10 @@ type polarisListManager struct {
 	stopScheduler chan interface{}
 }
 
-func NewPolarisListManager(conf *config.AuthConfig, authDir string, logger *log.Logger) *polarisListManager {
+func NewPolarisListManager(conf *config.PolarisConfig, authDir string, logger *log.Logger) *polarisListManager {
 	lm := &polarisListManager{
 		logger:  logger,
-		enabled: conf.EnableLocalConf,
+		enabled: conf.EnableBlacklist,
 
 		authDir:       authDir,
 		stopScheduler: make(chan interface{}),

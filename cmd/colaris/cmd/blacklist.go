@@ -113,13 +113,9 @@ func removeBlacklistEntry(cmd *cobra.Command, args []string) {
 		Index: uint32(idx),
 	}
 
-	msg, err := client.RemoveBLEntry(context.Background(), uparams)
+	_, err = client.RemoveBLEntry(context.Background(), uparams)
 	if err != nil {
-		desc := "unknown error"
-		if msg != nil {
-			desc = msg.Value
-		}
-		cmd.Printf("Failed: %s", err.Error(), desc)
+		cmd.Printf("Failed: %s \n", err.Error())
 		return
 	}
 
