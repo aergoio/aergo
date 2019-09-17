@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/aergoio/aergo/contract/system"
+
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/name"
@@ -599,6 +601,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		// executed by the block factory.
 		commitOnly = true
 	}
+	bState.SetGasPrice(system.GetGasPriceFromState(bState))
 	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
 
 	return &blockExecutor{
@@ -729,9 +732,9 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 	if err = cs.IsBlockValid(block, bestBlock); err != nil {
 		return err
 	}
-
+	bstate = bstate.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash())
 	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
-	ex, err := newBlockExecutor(cs, bstate.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()), block, false)
+	ex, err := newBlockExecutor(cs, bstate, block, false)
 	if err != nil {
 		return err
 	}

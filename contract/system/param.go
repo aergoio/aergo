@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -91,4 +92,31 @@ func GetGasPrice() *big.Int {
 
 func GetNamePrice() *big.Int {
 	return GetParam(namePrice.ID())
+}
+
+func GetNamePriceFromState(scs *state.ContractState) *big.Int {
+	return getParamFromState(scs, namePrice)
+}
+
+func GetStakingMinimumFromState(scs *state.ContractState) *big.Int {
+	return getParamFromState(scs, stakingMin)
+}
+
+func GetGasPriceFromState(ar AccountStateReader) *big.Int {
+	scs, err := ar.GetSystemAccountState()
+	if err != nil {
+		panic("could not open system state when get gas price")
+	}
+	return getParamFromState(scs, gasPrice)
+}
+
+func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
+	data, err := scs.GetInitialData(genParamKey(id.ID()))
+	if err != nil {
+		panic("could not get blockchain parameter")
+	}
+	if data == nil {
+		return DefaultParams[id.ID()]
+	}
+	return new(big.Int).SetBytes(data)
 }

@@ -83,7 +83,7 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 	name := ci.Args[0].(string)
 	switch ci.Name {
 	case types.NameCreate:
-		namePrice := system.GetNamePrice()
+		namePrice := system.GetNamePriceFromState(systemcs)
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}

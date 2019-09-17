@@ -40,14 +40,6 @@ type Proposal struct {
 }
 
 var SystemProposal = map[string]*Proposal{
-	types.OpvoteBP.ID(): &Proposal{
-		ID:             types.OpvoteBP.ID(),
-		Description:    "",
-		Blockfrom:      0,
-		Blockto:        0,
-		MultipleChoice: 1,
-		Candidates:     nil,
-	},
 	bpCount.ID(): &Proposal{
 		ID:             bpCount.ID(),
 		Description:    "",

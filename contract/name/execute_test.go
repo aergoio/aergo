@@ -112,6 +112,7 @@ func commitContractState(t *testing.T, bs *state.BlockState, scs *state.Contract
 	bs.Commit()
 	sdb.UpdateRoot(bs)
 }
+
 func nextBlockContractState(t *testing.T, bs *state.BlockState, scs *state.ContractState) *state.ContractState {
 	commitContractState(t, bs, scs)
 	return openContractState(t, bs)

@@ -7,10 +7,11 @@ package dpos
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"runtime/debug"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"

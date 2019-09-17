@@ -212,12 +212,14 @@ func refreshAllVote(context *SystemContext) error {
 			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
 		}
-		proposal, err := getProposal(i.ID())
-		if err != nil {
-			return err
-		}
-		if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockNo {
-			continue
+		if types.OpvoteBP.ID() != i.ID() {
+			proposal, err := getProposal(i.ID())
+			if err != nil {
+				return err
+			}
+			if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockNo {
+				continue
+			}
 		}
 		voteResult, err := loadVoteResult(scs, key)
 		if err != nil {
@@ -241,8 +243,8 @@ func refreshAllVote(context *SystemContext) error {
 }
 
 // GetVote return amount, to, err.
-func GetVote(scs *state.ContractState, voter []byte, title []byte) (*types.Vote, error) {
-	return getVote(scs, title, voter)
+func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote, error) {
+	return getVote(scs, issue, voter)
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {

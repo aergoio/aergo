@@ -39,7 +39,7 @@ func TestBasicExecute(t *testing.T) {
 	staking, err := getStaking(scs, tx.GetBody().GetAccount())
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(staking.Amount), "check amount of staking")
 
-	tx.Body.Payload = []byte(`{"Name":"v1voteBP","Args":["16Uiu2HAmBDcLEjBYeEnGU2qDD1KdpEdwDBtN7gqXzNZbHXo8Q841"]}`)
+	tx.Body.Payload = []byte(`{"Name":"v1voteBP","Args":["16Uiu2HAmBDcLEjBYeEnGU2qDD1KdpEdwDBtN7gqXzNZbHXo8Q841", "16Uiu2HAmGFzZFifmEhow88XD9RNgDG5dvmqCyNoxg2t7cwochDAj"]}`)
 	tx.Body.Amount = big.NewInt(0).Bytes()
 	events, err = ExecuteSystemTx(scs, tx.GetBody(), sender, receiver, VotingDelay)
 	assert.NoError(t, err, "Execute system tx failed in voting")
@@ -792,12 +792,12 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, balance1, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "check result amount")
 	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
 
-	blockNo += StakingDelay
-	unstakingTx.Body.Amount = balance0_5.Bytes()
-	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
-	assert.NoError(t, err, "could not execute system tx")
-
 	/*
+		blockNo += StakingDelay
+		unstakingTx.Body.Amount = balance0_5.Bytes()
+		_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
+		assert.NoError(t, err, "could not execute system tx")
+
 		blockNo += StakingDelay
 		//voting result was freeze
 		_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
