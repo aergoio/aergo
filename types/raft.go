@@ -33,13 +33,13 @@ func (ccProgress *ConfChangeProgress) ToPrintable() *ChangeClusterStatus {
 }
 
 func RaftConfChangeToString(cc *raftpb.ConfChange) string {
-	return fmt.Sprintf("request id=%d, type=%s, nodeid=%d", cc.ID, raftpb.ConfChangeType_name[int32(cc.Type)], cc.NodeID)
+	return fmt.Sprintf("requestID=%d, type=%s, nodeid=%d", cc.ID, raftpb.ConfChangeType_name[int32(cc.Type)], cc.NodeID)
 }
 
 func (mc *MembershipChange) ToString() string {
 	var buf string
 
-	buf = fmt.Sprintf("requestID:%d, type:%s,", mc.GetRequestID(), MembershipChangeType_name[int32(mc.Type)])
+	buf = fmt.Sprintf("requestID=%d, type=%s,", mc.GetRequestID(), MembershipChangeType_name[int32(mc.Type)])
 
 	buf = buf + mc.Attr.ToString()
 	return buf

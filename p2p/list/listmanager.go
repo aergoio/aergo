@@ -68,15 +68,15 @@ func (lm *listManagerImpl) Stop() {
 }
 
 func (lm *listManagerImpl) IsBanned(addr string, pid types.PeerID) (bool, time.Time) {
+	// empty entry is
+	if len(lm.entries) == 0 {
+		return false, FarawayFuture
+	}
+
 	// malformed ip address is banned
 	ip := net.ParseIP(addr)
 	if ip == nil {
 		return true, FarawayFuture
-	}
-
-	// empty entry is
-	if len(lm.entries) == 0 {
-		return false, FarawayFuture
 	}
 
 	// bps are automatically allowed
@@ -98,38 +98,40 @@ func (lm *listManagerImpl) RefineList() {
 		lm.logger.Info().Msg("network is public, apply default policy instead (allow all)")
 		lm.entries = make([]enterprise.WhiteListEntry, 0)
 		lm.enabled = false
-	} else {
-		wl, err := lm.chainAcc.GetEnterpriseConfig(enterprise.P2PWhite)
-		if err != nil {
-			lm.logger.Info().Msg("error while getting whitelist config. apply default policy instead (allow all)")
-			//ent, _ := NewWhiteListEntry(":")
-			//lm.entries = append(lm.entries, ent)
-			lm.entries = make([]enterprise.WhiteListEntry, 0)
-			lm.enabled = false
-			return
-		}
-		lm.enabled = wl.GetOn()
-		if !wl.GetOn() {
-			lm.logger.Info().Msg("whitelist conf is disabled. apply default policy instead (allow all)")
-			lm.entries = make([]enterprise.WhiteListEntry, 0)
-		} else if len(wl.Values) == 0 {
-			lm.logger.Info().Msg("no whitelist found. apply default policy instead (allow all)")
-			//ent, _ := NewWhiteListEntry(":")
-			//lm.entries = append(lm.entries, ent)
-			lm.entries = make([]enterprise.WhiteListEntry, 0)
-		} else {
-			entries := make([]enterprise.WhiteListEntry, 0, len(wl.Values))
-			for _, v := range wl.Values {
-				ent, err := enterprise.NewWhiteListEntry(v)
-				if err != nil {
-					panic("invalid whitelist entry " + v)
-				}
-				entries = append(entries, ent)
-			}
-			lm.entries = entries
-			lm.logger.Info().Str("entries", strings.Join(wl.Values, " , ")).Msg("loaded whitelist entries")
-		}
+		return
 	}
+
+	wl, err := lm.chainAcc.GetEnterpriseConfig(enterprise.P2PWhite)
+	if err != nil {
+		lm.logger.Info().Msg("error while getting whitelist config. apply default policy instead (allow all)")
+		//ent, _ := NewWhiteListEntry(":")
+		//lm.entries = append(lm.entries, ent)
+		lm.entries = make([]enterprise.WhiteListEntry, 0)
+		lm.enabled = false
+		return
+	}
+	lm.enabled = wl.GetOn()
+	if !wl.GetOn() {
+		lm.logger.Debug().Msg("whitelist conf is disabled. apply default policy instead (allow all)")
+		lm.entries = make([]enterprise.WhiteListEntry, 0)
+	} else if len(wl.Values) == 0 {
+		lm.logger.Debug().Msg("no whitelist found. apply default policy instead (allow all)")
+		//ent, _ := NewWhiteListEntry(":")
+		//lm.entries = append(lm.entries, ent)
+		lm.entries = make([]enterprise.WhiteListEntry, 0)
+	} else {
+		entries := make([]enterprise.WhiteListEntry, 0, len(wl.Values))
+		for _, v := range wl.Values {
+			ent, err := enterprise.NewWhiteListEntry(v)
+			if err != nil {
+				panic("invalid whitelist entry " + v)
+			}
+			entries = append(entries, ent)
+		}
+		lm.entries = entries
+		lm.logger.Debug().Str("entries", strings.Join(wl.Values, " , ")).Msg("loaded whitelist entries")
+	}
+
 }
 
 func (lm *listManagerImpl) Summary() map[string]interface{} {

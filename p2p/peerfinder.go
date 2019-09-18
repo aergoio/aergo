@@ -23,8 +23,10 @@ const (
 func NewPeerFinder(logger *log.Logger, pm *peerManager, actorService p2pcommon.ActorService, maxCap int, useDiscover, usePolaris bool) p2pcommon.PeerFinder {
 	var pf p2pcommon.PeerFinder
 	if !useDiscover {
+		logger.Info().Msg("peer discover option is disabled, so select static peer finder.")
 		pf = &staticPeerFinder{pm:pm, logger:logger}
 	} else {
+		logger.Info().Bool("usePolaris",usePolaris).Msg("peer discover option is enabled, so select dynamic peer finder.")
 		dp := &dynamicPeerFinder{logger: logger, pm: pm, actorService: actorService, maxCap: maxCap, usePolaris:usePolaris}
 		dp.qStats = make(map[types.PeerID]*queryStat)
 		pf = dp

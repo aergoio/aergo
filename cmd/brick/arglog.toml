@@ -3,10 +3,10 @@ formatter = "console"   # or console_no_color, json
 timefieldformat = " "   # remove time print
 
 [contract]
-level = "info"
+level = "error"
 
 [statesql]
-level = "info"
+level = "error"
 
 [brick]
 level = "info"

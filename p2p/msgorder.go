@@ -56,6 +56,9 @@ func (pr *pbMessageOrder) GetProtocolID() p2pcommon.SubProtocol {
 	return pr.protocolID
 }
 
+func (pr *pbMessageOrder) CancelSend(pi p2pcommon.RemotePeer) {
+}
+
 type pbRequestOrder struct {
 	pbMessageOrder
 	respReceiver p2pcommon.ResponseReceiver
@@ -174,7 +177,8 @@ func (pr *pbBpNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 
 type pbTxNoticeOrder struct {
 	pbMessageOrder
-	txHashes [][]byte
+	txHashes []types.TxID
+	tnt p2pcommon.TxNoticeTracer
 }
 
 func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
@@ -183,13 +187,19 @@ func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
 		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
+		pr.tnt.ReportNotSend(pr.txHashes, 1)
 		return err
 	}
 	if p.logger.IsDebugEnabled() && pr.trace {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
-			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogB58EncMarshaller(pr.txHashes, 10)).Msg("Sent tx notice")
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogTxIDsMarshaller(pr.txHashes, 10)).Msg("Sent tx notice")
 	}
+	pr.tnt.ReportSend(pr.txHashes, pi.ID())
 	return nil
+}
+
+func (pr *pbTxNoticeOrder) CancelSend(pi p2pcommon.RemotePeer) {
+	pr.tnt.ReportNotSend(pr.txHashes, 1)
 }
 
 type pbRaftMsgOrder struct {
@@ -211,4 +221,9 @@ func (pr *pbRaftMsgOrder) SendTo(pi p2pcommon.RemotePeer) error {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("Sent raft message")
 	}
 	return nil
+}
+
+func (pr *pbRaftMsgOrder) CancelSend(pi p2pcommon.RemotePeer) {
+	// TODO test more whether to uncomment or to delete code below
+	//pr.raftAcc.ReportUnreachable(pi.ID())
 }

@@ -125,6 +125,10 @@ func (cc CcArgument) parse() (*types.MembershipChange, error) {
 			return nil, fmt.Errorf("invalid ChangeCluster argument: can't decode peerid string(%s)", peeridStr)
 		}
 
+		if _, err := types.ParseMultiaddrWithResolve(address); err != nil {
+			return nil, fmt.Errorf("invalid ChangeCluster argument: %s", err.Error())
+		}
+
 	case CmdMembershipRemove:
 		mChange.Type = types.MembershipChangeType_REMOVE_MEMBER
 

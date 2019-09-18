@@ -163,11 +163,11 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	if peerID != mapServerMeta.ID {
 		return nil, fmt.Errorf("internal error peerid mismatch, exp %s, actual %s", mapServerMeta.ID.Pretty(), peerID.Pretty())
 	}
-	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Sending map query")
+	pcs.Logger.Debug().Str("polarisID", peerID.String()).Msg("Sending map query")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
-	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
+	peerAddress := pcs.ntc.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
 	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID: chainBytes,
 		Version:p2pkey.NodeVersion()}
@@ -217,7 +217,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 
 func (pcs *PolarisConnectSvc) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
-	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
+	pcs.Logger.Debug().Str("polarisID", peerID.String()).Msg("Received ping from polaris (maybe)")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	defer s.Close()

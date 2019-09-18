@@ -39,20 +39,24 @@ type P2P struct {
 	cfg *config.Config
 
 	// inited during construction
-	useRaft bool
+	useRaft  bool
+	selfMeta p2pcommon.PeerMeta
 	// caching data from genesis block
 	chainID *types.ChainID
-	nt      p2pcommon.NetworkTransport
-	pm      p2pcommon.PeerManager
-	vm      p2pcommon.VersionedManager
-	sm      p2pcommon.SyncManager
-	mm      metric.MetricsManager
-	mf      p2pcommon.MoFactory
-	signer  p2pcommon.MsgSigner
-	ca      types.ChainAccessor
-	prm     p2pcommon.PeerRoleManager
-	lm      p2pcommon.ListManager
-	mutex   sync.Mutex
+
+	nt     p2pcommon.NetworkTransport
+	pm     p2pcommon.PeerManager
+	vm     p2pcommon.VersionedManager
+	sm     p2pcommon.SyncManager
+	mm     metric.MetricsManager
+	mf     p2pcommon.MoFactory
+	signer p2pcommon.MsgSigner
+	ca     types.ChainAccessor
+	prm    p2pcommon.PeerRoleManager
+	lm     p2pcommon.ListManager
+	tnt    *txNoticeTracer
+
+	mutex sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
@@ -70,93 +74,12 @@ var (
 func NewP2P(cfg *config.Config, chainSvc *chain.ChainService) *P2P {
 	p2psvc := &P2P{cfg: cfg}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
-	p2psvc.initP2P(cfg, chainSvc)
+	p2psvc.initP2P(chainSvc)
 	return p2psvc
 }
 
-// BeforeStart starts p2p service.
-func (p2ps *P2P) BeforeStart() {}
-
-func (p2ps *P2P) AfterStart() {
-	versions := make([]fmt.Stringer, len(AcceptedInboundVersions))
-	for i, ver := range AcceptedInboundVersions {
-		versions[i] = ver
-	}
-	p2ps.lm.Start()
-	p2ps.mutex.Lock()
-	p2ps.setSelfRole()
-	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
-	nt := p2ps.nt
-	nt.Start()
-	p2ps.mutex.Unlock()
-
-	if err := p2ps.pm.Start(); err != nil {
-		panic("Failed to start p2p component")
-	}
-	p2ps.mm.Start()
-}
-
-func (p2ps *P2P) setSelfRole() {
-	// set role of self peer
-	ccinfo := p2ps.consacc.ConsensusInfo()
-	if ccinfo.Type == "raft" {
-		if !p2ps.useRaft {
-			panic("configuration failure. ")
-		}
-	}
-	if p2ps.cfg.Consensus.EnableBp {
-		p2ps.selfRole = p2pcommon.BlockProducer
-	} else {
-		p2ps.selfRole = p2pcommon.Watcher
-	}
-}
-
-// BeforeStop is called before actor hub stops. it finishes underlying peer manager
-func (p2ps *P2P) BeforeStop() {
-	p2ps.Logger.Debug().Msg("stopping p2p actor.")
-	p2ps.mm.Stop()
-	if err := p2ps.pm.Stop(); err != nil {
-		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
-	}
-	p2ps.mutex.Lock()
-	nt := p2ps.nt
-	p2ps.mutex.Unlock()
-	nt.Stop()
-	p2ps.lm.Stop()
-}
-
-// Statistics show statistic information of p2p module. NOTE: It it not implemented yet
-func (p2ps *P2P) Statistics() *map[string]interface{} {
-	stmap := make(map[string]interface{})
-	stmap["netstat"] = p2ps.mm.Summary()
-	stmap["config"] = p2ps.cfg.P2P
-	stmap["status"] = p2ps.nt.SelfMeta()
-	wlSummary := p2ps.lm.Summary()
-	stmap["whitelist"] = wlSummary["whitelist"]
-	stmap["whitelist_on"] = wlSummary["whitelist_on"]
-
-	return &stmap
-}
-
-func (p2ps *P2P) GetNetworkTransport() p2pcommon.NetworkTransport {
-	p2ps.mutex.Lock()
-	defer p2ps.mutex.Unlock()
-	return p2ps.nt
-}
-
-func (p2ps *P2P) GetPeerAccessor() p2pcommon.PeerAccessor {
-	return p2ps.pm
-}
-
-func (p2ps *P2P) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
-	p2ps.consacc = ca
-}
-
-func (p2ps *P2P) ChainID() *types.ChainID {
-	return p2ps.chainID
-}
-
-func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
+func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
+	cfg := p2ps.cfg
 	p2ps.ca = chainSvc
 
 	// check genesis block and get meta information from it
@@ -174,11 +97,18 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 	p2ps.useRaft = useRaft
-	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
+	if p2ps.cfg.Consensus.EnableBp {
+		p2ps.selfRole = p2pcommon.BlockProducer
+	} else {
+		p2ps.selfRole = p2pcommon.Watcher
+	}
+
+	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P)
+	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
-	// TODO: it should be refactored to support multi version
-	mf := &baseMOFactory{p2ps: p2ps}
+	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
+	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
 
 	if useRaft {
 		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
@@ -189,7 +119,7 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	// public network is always disabled white/blacklist in chain
 	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, lm, p2ps.Logger, mf, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, p2ps, netTransport, metricMan, lm, p2ps.Logger, cfg, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
 	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
 
@@ -207,6 +137,85 @@ func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
 	p2ps.lm = lm
 
 	p2ps.mutex.Unlock()
+}
+
+// BeforeStart starts p2p service.
+func (p2ps *P2P) BeforeStart() {}
+
+func (p2ps *P2P) AfterStart() {
+	versions := make([]fmt.Stringer, len(AcceptedInboundVersions))
+	for i, ver := range AcceptedInboundVersions {
+		versions[i] = ver
+	}
+	p2ps.lm.Start()
+	p2ps.mutex.Lock()
+	p2ps.checkConsensus()
+	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
+	nt := p2ps.nt
+	nt.Start()
+	p2ps.tnt.Start()
+	p2ps.mutex.Unlock()
+
+	if err := p2ps.pm.Start(); err != nil {
+		panic("Failed to start p2p component")
+	}
+	p2ps.mm.Start()
+}
+
+func (p2ps *P2P) checkConsensus() {
+	// set role of self peer
+	ccinfo := p2ps.consacc.ConsensusInfo()
+	if ccinfo.Type == "raft" {
+		if !p2ps.useRaft {
+			panic("configuration failure. consensus type of genesis block and consensus accessor are differ")
+		}
+	}
+}
+
+// BeforeStop is called before actor hub stops. it finishes underlying peer manager
+func (p2ps *P2P) BeforeStop() {
+	p2ps.Logger.Debug().Msg("stopping p2p actor.")
+	p2ps.mm.Stop()
+	if err := p2ps.pm.Stop(); err != nil {
+		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
+	}
+	p2ps.mutex.Lock()
+	p2ps.tnt.Stop()
+	nt := p2ps.nt
+	p2ps.mutex.Unlock()
+	nt.Stop()
+	p2ps.lm.Stop()
+}
+
+// Statistics show statistic information of p2p module. NOTE: It it not implemented yet
+func (p2ps *P2P) Statistics() *map[string]interface{} {
+	stmap := make(map[string]interface{})
+	stmap["netstat"] = p2ps.mm.Summary()
+	stmap["config"] = p2ps.cfg.P2P
+	stmap["status"] = p2ps.selfMeta
+	wlSummary := p2ps.lm.Summary()
+	stmap["whitelist"] = wlSummary["whitelist"]
+	stmap["whitelist_on"] = wlSummary["whitelist_on"]
+
+	return &stmap
+}
+
+func (p2ps *P2P) GetNetworkTransport() p2pcommon.NetworkTransport {
+	p2ps.mutex.Lock()
+	defer p2ps.mutex.Unlock()
+	return p2ps.nt
+}
+
+func (p2ps *P2P) GetPeerAccessor() p2pcommon.PeerAccessor {
+	return p2ps
+}
+
+func (p2ps *P2P) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
+	p2ps.consacc = ca
+}
+
+func (p2ps *P2P) ChainID() *types.ChainID {
+	return p2ps.chainID
 }
 
 // Receive got actor message and then handle it.
@@ -236,12 +245,18 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.GetTransactions:
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
-		p2ps.NotifyNewTX(*msg)
+		hashes := make([]types.TxID, len(msg.Txs))
+		for i, tx := range msg.Txs {
+			hashes[i] = types.ToTxID(tx.Hash)
+		}
+		p2ps.NotifyNewTX(notifyNewTXs{hashes, nil})
+	case notifyNewTXs:
+		p2ps.NotifyNewTX(msg)
 	case *message.AddBlockRsp:
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetSelf:
-		context.Respond(p2ps.nt.SelfMeta())
+		context.Respond(p2ps.selfMeta)
 	case *message.GetPeers:
 		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden, msg.ShowSelf)
 		context.Respond(&message.GetPeersRsp{Peers: peers})
@@ -274,21 +289,44 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case message.GetRaftTransport:
 		context.Respond(raftsupport.NewAergoRaftTransport(p2ps.Logger, p2ps.nt, p2ps.pm, p2ps.mf, p2ps.consacc, msg.Cluster))
 	case message.P2PWhiteListConfEnableEvent:
-		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist conf changed")
+		p2ps.Logger.Debug().Bool("enabled", msg.On).Msg("p2p whitelist on/off changed")
 		// TODO do more fine grained work
 		p2ps.lm.RefineList()
-		// TODO disconnect newly blacklisted peer.
+		// disconnect newly blacklisted peer.
+		p2ps.checkAndBanInboundPeers()
 	case message.P2PWhiteListConfSetEvent:
-		p2ps.Logger.Debug().Array("enabled", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist conf changed")
+		p2ps.Logger.Debug().Array("entries", p2putil.NewLogStringsMarshaller(msg.Values, 10)).Msg("p2p whitelist entries changed")
 		// TODO do more fine grained work
 		p2ps.lm.RefineList()
-		// TODO disconnect newly blacklisted peer.
+		// disconnect newly blacklisted peer.
+		p2ps.checkAndBanInboundPeers()
+	}
+}
+
+func (p2ps *P2P) checkAndBanInboundPeers() {
+	for _, peer := range p2ps.pm.GetPeers() {
+		// FIXME ip check should be currently connected ip address
+		ip, err := network.GetSingleIPAddress(peer.Meta().IPAddress)
+		if err != nil {
+			p2ps.Warn().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("Failed to get ip address of peer")
+			continue
+		}
+		// TODO temporal treatment. need more works.
+		// just inbound peers will be disconnected
+		if peer.Meta().Outbound {
+			p2ps.Debug().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("outbound peer is not banned")
+			continue
+		}
+		if banned, _ := p2ps.lm.IsBanned(ip.String(), peer.ID()); banned {
+			p2ps.Info().Str(p2putil.LogPeerName, peer.Name()).Msg("peer is banned by list manager")
+			peer.Stop()
+		}
 	}
 }
 
 // TODO need refactoring. this code is copied from subproto/addrs.go
 func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
-	selfPeerID := p2ps.pm.SelfNodeID()
+	selfPeerID := p2ps.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := types.PeerID(rPeerAddr.PeerID)
@@ -345,6 +383,7 @@ func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
 
 func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	logger := p2ps.Logger
+
 
 	// PingHandlers
 	peer.AddMessageHandler(p2pcommon.PingRequest, subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps))
@@ -406,6 +445,7 @@ func (p2ps *P2P) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p
 func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream types.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
+	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
 	// TODO tune to set prefer role
@@ -414,4 +454,29 @@ func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *t
 	p2ps.insertHandlers(newPeer)
 
 	return newPeer
+}
+
+type notifyNewTXs struct {
+	ids         []types.TxID
+	alreadySent []types.PeerID
+}
+
+func (p2ps *P2P) SelfMeta() p2pcommon.PeerMeta {
+	return p2ps.selfMeta
+}
+
+func (p2ps *P2P) SelfNodeID() types.PeerID {
+	return p2ps.selfMeta.ID
+}
+
+func (p2ps *P2P) SelfRole() p2pcommon.PeerRole {
+	return p2ps.selfRole
+}
+
+func (p2ps *P2P) GetPeerBlockInfos() []types.PeerBlockInfo {
+	return p2ps.pm.GetPeerBlockInfos()
+}
+
+func (p2ps *P2P) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
+	return p2ps.pm.GetPeer(ID)
 }

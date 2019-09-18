@@ -233,7 +233,7 @@ func (ns *RPC) Receive(context actor.Context) {
 						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
 							return
 						}
-						msg := &message.P2PWhiteListConfSetEvent{
+						msg := message.P2PWhiteListConfSetEvent{
 							Values: values,
 						}
 						ns.TellTo(message.P2PSvc, msg)

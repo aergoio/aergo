@@ -31,8 +31,7 @@ func FailTestGetPeers(t *testing.T) {
 	dummyBlock := types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActor.EXPECT().CallRequest(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(message.GetBlockRsp{Block: &dummyBlock}, nil)
-	mockMF := p2pmock.NewMockMoFactory(ctrl)
-	target := NewPeerManager(nil, mockActor, cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config), nil, nil, nil, nil, log.NewLogger("test.p2p"), mockMF, false).(*peerManager)
+	target := NewPeerManager(nil, nil, mockActor, nil, nil, nil, nil, log.NewLogger("test.p2p"), cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config), false).(*peerManager)
 
 	iterSize := 500
 	wg := sync.WaitGroup{}
@@ -65,12 +64,11 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockActorServ := p2pmock.NewMockActorService(ctrl)
-	mockMF := p2pmock.NewMockMoFactory(ctrl)
 
 	tLogger := log.NewLogger("test.p2p")
 	tConfig := cfg.NewServerContext("", "").GetDefaultConfig().(*cfg.Config)
 	p2pkey.InitNodeInfo(&tConfig.BaseConfig, tConfig.P2P, "1.0.0-test", tLogger)
-	target := NewPeerManager(nil, mockActorServ, tConfig, nil, nil, nil, nil, tLogger, mockMF, false).(*peerManager)
+	target := NewPeerManager(nil, nil, mockActorServ, nil, nil, nil, nil, tLogger, tConfig, false).(*peerManager)
 
 	iterSize := 500
 	wg := &sync.WaitGroup{}
@@ -511,7 +509,6 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				mf:              mockMF,
 				peerFactory:     mockPeerFactory,
 				designatedPeers: desigPeers,
 				hiddenPeerSet:   hiddenPeers,
@@ -564,6 +561,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockIS := p2pmock.NewMockInternalService(ctrl)
 			mockStream := p2pmock.NewMockStream(ctrl)
 			mockStream.EXPECT().Close().AnyTimes()
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
@@ -573,6 +571,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			}).AnyTimes()
 
 			in := handshakeResult{meta: p2pcommon.NewMetaFromStatus(tt.args.status, tt.args.outbound), status: tt.args.status, msgRW: mockRW, s: mockStream}
+			mockIS.EXPECT().SelfNodeID().Return(selfID).MinTimes(1)
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
@@ -584,12 +583,10 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			}
 
 			// in cases of handshake error
-			mockMF := p2pmock.NewMockMoFactory(ctrl)
-			mockMF.EXPECT().NewMsgRequestOrder(false, p2pcommon.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				mf:              mockMF,
+				is: mockIS,
 				peerFactory:     mockPeerFactory,
 				designatedPeers: make(map[types.PeerID]p2pcommon.PeerMeta),
 				hiddenPeerSet:   make(map[types.PeerID]bool),

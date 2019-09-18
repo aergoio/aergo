@@ -4,24 +4,13 @@ package p2pcommon
 
 import "strconv"
 
-const (
-	_PeerRole_name_0 = "UnknownRoleBlockProducerWatcher"
-	_PeerRole_name_1 = "RaftProducerRaftWatcher"
-)
+const _PeerRole_name = "UnknownRoleBlockProducerWatcher"
 
-var (
-	_PeerRole_index_0 = [...]uint8{0, 11, 24, 31}
-	_PeerRole_index_1 = [...]uint8{0, 12, 23}
-)
+var _PeerRole_index = [...]uint8{0, 11, 24, 31}
 
 func (i PeerRole) String() string {
-	switch {
-	case 0 <= i && i <= 2:
-		return _PeerRole_name_0[_PeerRole_index_0[i]:_PeerRole_index_0[i+1]]
-	case 4 <= i && i <= 5:
-		i -= 4
-		return _PeerRole_name_1[_PeerRole_index_1[i]:_PeerRole_index_1[i+1]]
-	default:
+	if i >= PeerRole(len(_PeerRole_index)-1) {
 		return "PeerRole(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
+	return _PeerRole_name[_PeerRole_index[i]:_PeerRole_index[i+1]]
 }

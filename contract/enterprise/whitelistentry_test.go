@@ -6,40 +6,52 @@
 package enterprise
 
 import (
+	"bytes"
+	"fmt"
 	"net"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
 )
 
-func TestNewWhiteListEntry(t *testing.T) {
+type addrType int
+
+const (
+	none addrType = iota
+	addr
+	cidr
+)
+
+func TestNewListEntry(t *testing.T) {
 	tests := []struct {
 		name string
 		arg  string
 
 		wantErr  bool
 		wantID   bool
-		wantAddr bool
+		wantAddr addrType
 	}{
-		{"TAll", "{\"peerid\":\"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt\", \"address\":\"172.21.3.35\" }", false, true, true},
-		{"TAll2", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35", "cidr":""}`, false, true, true},
+		{"TAll", "{\"peerid\":\"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt\", \"address\":\"172.21.3.35\" }", false, true, addr},
+		{"TAll2", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35", "cidr":""}`, false, true, addr},
 		//{"TAll2", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"", "cidr":"172.21.3.35/32"}`, false, true, true, false},
 
-		{"TIDOnly", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"}`, false, true, false},
-		{"TIDOnly2", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":""}`, false, true,  false},
-		{"TIDOnly3", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"", "cidr":""}`, false, true,  false},
+		{"TIDOnly", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"}`, false, true, none},
+		{"TIDOnly2", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":""}`, false, true, none},
+		{"TIDOnly3", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"", "cidr":""}`, false, true, none},
 
-		{"TIAddrOnly", `{"address":"172.21.3.35"}`, false, false, true},
-		{"TIAddrOnly2", `{"address":"::0123:4567:89ab:cdef:1234:5678"}`, false, false, true},
-		{"TIAddrRange", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"172.21.3.35/24" }`, false, true, true },
-		{"TIAddrRange2", `{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96"}`, false, false, true},
-		{"TEmpty", ":", true, false, false},
-		{"TWrongFormat", `"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"`, true, false, false},
-		{"TWrongFormat2", `"172.21.3.35/24"`, true, false, false},
-		{"TWrongID", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBRf3mBFBJpz3te@GGt"}`, true, false, false},
-		{"TWrongAddr", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.355"}`, true, false, false},
-		{"TWrongAddr2", `{"cidr":":12001:0db8:0123:4567:89ab:cdef:1234:5678/96"}`, true, false, false},
-		{"TWrongEnt", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35", "cidr":"172.21.3.35/24"}`, true, false, false},
+		{"TIAddrOnly", `{"address":"172.21.3.35"}`, false, false, addr},
+		{"TIAddrOnly2", `{"address":"::0123:4567:89ab:cdef:1234:5678"}`, false, false, addr},
+		{"TIAddrRange", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"172.21.3.35/24" }`, false, true, cidr},
+		{"TIAddrRange2", `{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96"}`, false, false, cidr},
+		{"TEmpty", ":", true, false, none},
+		{"TWrongFormat", `"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"`, true, false, none},
+		{"TWrongFormat2", `"172.21.3.35/24"`, true, false, none},
+		{"TWrongID", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBRf3mBFBJpz3te@GGt"}`, true, false, none},
+		{"TWrongAddr", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.355"}`, true, false, none},
+		{"TWrongAddr2", `{"cidr":":12001:0db8:0123:4567:89ab:cdef:1234:5678/96"}`, true, false, none},
+		{"TWrongAddr3", `{"address":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96"}`, true, false, none},
+		{"TWrongAddr3", `{"address":"172.21.3.35/24"}`, true, false, none},
+		{"TWrongEnt", `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35", "cidr":"172.21.3.35/24"}`, true, false, none},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -49,9 +61,17 @@ func TestNewWhiteListEntry(t *testing.T) {
 				return
 			}
 			if !tt.wantErr {
-				if (got.IpNet != notSpecifiedCIDR) != tt.wantAddr {
-					t.Errorf("NewWhiteListEntry().IpNet = %v, want not", got.IpNet)
+				if tt.wantAddr == none {
+					if got.IpNet != notSpecifiedCIDR {
+						t.Errorf("NewWhiteListEntry().IpNet = %v, want not", got.IpNet)
+					}
+				} else {
+					m,b := got.IpNet.Mask.Size()
+					if (m==b) != (tt.wantAddr==addr) {
+						t.Errorf("NewWhiteListEntry().IpNet = %v, want type %v ", got.IpNet, tt.wantAddr)
+					}
 				}
+
 				if (got.PeerID != NotSpecifiedID) != tt.wantID {
 					t.Errorf("NewWhiteListEntry().PeerID = %v, want not", got.PeerID.Pretty())
 				}
@@ -122,6 +142,69 @@ func TestWhiteListEntry_Contains(t *testing.T) {
 			if got := e.Contains(tt.args.addr, tt.args.pid); got != tt.want {
 				t.Errorf("WhiteListEntry.Contains() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestIpNet(t *testing.T) {
+	tests := []struct {
+		name string
+
+		in string
+
+		wantErr bool
+		wantIp  net.IP
+	}{
+		{"TIP4", "192.168.3.4/32", false, net.ParseIP("192.168.3.4")},
+		{"TIP4R", "122.1.3.4/16", false, net.ParseIP("122.1.3.4")},
+		{"TIP6R", "2001:0db8:0123:4567:89ab:cdef:1234:5678/96", false, net.ParseIP("2001:0db8:0123:4567:89ab:cdef:1234:5678")},
+		{"TIP6R", "2001:0db8:0123:4567:89ab:cdef:1234:5678/128", false, net.ParseIP("2001:0db8:0123:4567:89ab:cdef:1234:5678")},
+
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ip, n, err := net.ParseCIDR(tt.in)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseCIDR() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !ip.Equal(tt.wantIp) {
+				t.Errorf("IpNet IP = %v, want %v", ip.String(), tt.wantIp.String())
+			}
+			m, b := n.Mask.Size()
+			t.Logf("mask size is mask %v and bits %v ", m, b)
+		})
+	}
+}
+
+func TestWriteEntries(t *testing.T) {
+	eIDIP, _ := NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35" }`)
+	eIDIR, _ := NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"172.21.3.35/16" }`)
+	eID, _ := NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt" }`)
+	eIR, _ := NewWhiteListEntry(`{"cidr":"172.21.3.35/16" }`)
+	eIP6, _ := NewWhiteListEntry(`{"address":"2001:0db8:0123:4567:89ab:cdef:1234:5678" }`)
+	eIR6, _ := NewWhiteListEntry(`{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96" }`)
+
+	tests := []struct {
+		name string
+		args []WhiteListEntry
+
+		wantErr bool
+	}{
+		{"TA", []WhiteListEntry{eIDIP, eIDIR, eID, eIR, eIP6, eIR6}, false},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wr := &bytes.Buffer{}
+			err := WriteEntries(tt.args, wr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("WriteEntries() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			fmt.Println("RESULT")
+			fmt.Println(wr.String())
 		})
 	}
 }

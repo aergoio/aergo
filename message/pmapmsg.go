@@ -10,7 +10,6 @@ import (
 )
 
 const PolarisRPCSvc = "pRpcSvc"
-const PolarisSvc = "polarisSvc"
 
 type MapQueryMsg struct {
 	Count int
@@ -22,12 +21,4 @@ type MapQueryRsp struct {
 	Err error
 }
 
-type PaginationMsg struct {
-	ReferenceHash []byte
-	Size          uint32
-}
 
-
-type CurrentListMsg PaginationMsg
-type WhiteListMsg PaginationMsg
-type BlackListMsg PaginationMsg

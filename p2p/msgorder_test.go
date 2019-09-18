@@ -22,9 +22,11 @@ import (
 func Test_pbRequestOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
+	factory := &baseMOFactory{tnt:mockTNT}
 
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &baseMOFactory{}
+
 
 	tests := []struct {
 		name     string
@@ -38,9 +40,11 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			mockActorServ := p2pmock.NewMockActorService(ctrl)
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
+
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
@@ -67,8 +71,10 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 func Test_pbMessageOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
+	factory := &baseMOFactory{tnt:mockTNT}
+
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -108,8 +114,10 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
+	factory := &baseMOFactory{tnt:mockTNT}
+
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -170,8 +178,9 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
+	factory := &baseMOFactory{tnt:mockTNT}
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name         string
@@ -245,8 +254,9 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
+	factory := &baseMOFactory{tnt:mockTNT}
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &baseMOFactory{}
 
 	tests := []struct {
 		name     string
@@ -306,10 +316,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 }
 
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-	factory := &baseMOFactory{}
 
 	sampleHashes := make([][]byte, 10)
 	for i := 0; i < 10; i++ {
@@ -320,12 +327,17 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 		writeErr error
 		keyExist int
 		wantErr  bool
+		wantRType p2pcommon.ReportType
 	}{
-		{"TSucc", nil, 0, false},
-		{"TWriteFail", fmt.Errorf("writeFail"), 0, true},
+		{"TSucc", nil, 0, false, p2pcommon.Send},
+		{"TWriteFail", fmt.Errorf("writeFail"), 0, true, p2pcommon.Fail},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
+			factory := &baseMOFactory{tnt:mockTNT}
 			mockActorServ := p2pmock.NewMockActorService(ctrl)
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
@@ -334,6 +346,11 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
 			} else {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
+			}
+			if tt.wantRType == p2pcommon.Send {
+				mockTNT.EXPECT().ReportSend(gomock.Any(), samplePeerID).Times(1)
+			} else {
+				mockTNT.EXPECT().ReportNotSend(gomock.Any(), 1).Times(1)
 			}
 
 			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)

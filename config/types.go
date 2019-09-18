@@ -83,8 +83,9 @@ type AuthConfig struct {
 
 // PolarisConfig defines configuration for polaris server and client (i.e. polarisConnect)
 type PolarisConfig struct {
-	AllowPrivate bool   `mapstructure:"allowprivate" description:"allow peer to have private address. for private network and test"`
-	GenesisFile  string `mapstructure:"genesisfile" description:"json file containing informations of genesisblock to which polaris refer "`
+	AllowPrivate    bool   `mapstructure:"allowprivate" description:"allow peer to have private address. for private network and test"`
+	GenesisFile     string `mapstructure:"genesisfile" description:"json file containing informations of genesisblock to which polaris refer "`
+	EnableBlacklist bool   `mapstructure:"enableblacklist" description:"allow peer to have private address. for private network and test"`
 }
 
 // BlockchainConfig defines configurations for blockchain service
@@ -127,6 +128,7 @@ type RaftConfig struct {
 	SnapFrequency      uint64        `mapstructure:"snapfrequency" description:"frequency which raft make snapshot with log"`
 	SlowNodeGap        uint          `mapstructure:"slownodegap" description:"frequency which raft make snapshot with log"`
 	RecoverBP          *RaftBPConfig `mapstructure:"recoverbp" description:"bp info for creating a new cluster from backup"`
+	StopDupCommit      bool          `mapstructure:"stopdupcommit" description:"stop server when commit of duplicate height block occurs. use this only for debugging'"`
 }
 
 type RaftBPConfig struct {
@@ -204,6 +206,7 @@ npaddpolarises = [{{range .P2P.NPAddPolarises}}
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}
 genesisfile = "{{.Polaris.GenesisFile}}"
+enableblacklist = "{{.Polaris.EnableBlacklist}}"
 
 [blockchain]
 # blockchain configurations

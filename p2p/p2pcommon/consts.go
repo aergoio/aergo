@@ -43,7 +43,7 @@ const (
 
 	P2PVersion030     P2PVersion = 0x00000300
 	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
-	P2PVersion032     P2PVersion = 0x00000302 // added checking genesis block hash
+	P2PVersion032     P2PVersion = 0x00000302 // added equal check of genesis block hash
 
 	P2PVersion033     P2PVersion = 0x00000303 // support hardfork (chainid is changed)
 )

@@ -6,6 +6,7 @@
 package network
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -37,7 +38,8 @@ func init() {
 	}
 }
 
-// IGetSingleIPAddress find and get ip address of given address string. It return first ip if DNS or /etc/hosts has multiple IPs
+// IGetSingleIPAddress find and get ip address of given address string.
+// It return first ip if DNS or /etc/hosts has multiple IPs, or return err if no ip is found or addrStr is malformed.
 func GetSingleIPAddress(addrStr string) (net.IP, error) {
 	switch CheckAddressType(addrStr) {
 	case AddressTypeFQDN:
@@ -53,10 +55,13 @@ func GetSingleIPAddress(addrStr string) (net.IP, error) {
 	}
 }
 
+// ResolveHostDomain look for ip addresses for the domainName. it return ip addresses if found one or more, or return err if not found any ip address
 func ResolveHostDomain(domainName string) ([]net.IP, error) {
 	addrs, err := net.LookupHost(domainName)
-	if err != nil || len(addrs) == 0 {
+	if err != nil {
 		return nil, fmt.Errorf("Could not get IPs: %v\n", err)
+	} else if len(addrs) == 0 {
+		return nil, errors.New("Could not get IPs: no ip found.")
 	}
 	ips := make([]net.IP, len(addrs))
 	for i, addr := range addrs {

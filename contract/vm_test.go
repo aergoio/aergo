@@ -3171,8 +3171,11 @@ function calcBignum()
 	system.print(bg3, bg5, bg6)
 	bg6 = bignum.number(1)
 	assert (bg6 > bg5)
-	pow = bignum.number(2) ^ 8
-	assert(pow == bignum.number(256))
+	a = bignum.number(2)
+	b = bignum.number(8)
+	pow = a ^ b
+	system.print(pow, a, b)
+	assert(pow == bignum.number(256) and a == bignum.number(2) and b == bignum.number(8))
 	assert(bignum.compare(bg6, 1) == 0)
 	system.print((bg6 == 1), bignum.isbignum(pow))
 	div1 = bignum.number(3)/2

@@ -17,12 +17,12 @@ func (c *queryContract) Command() string {
 }
 
 func (c *queryContract) Syntax() string {
-	return fmt.Sprintf("%s %s %s %s", context.ContractSymbol, context.FunctionSymbol,
-		context.ContractArgsSymbol, context.ExpectedSymbol)
+	return fmt.Sprintf("%s %s %s %s %s", context.ContractSymbol, context.FunctionSymbol,
+		context.ContractArgsSymbol, context.ExpectedSymbol, context.ExpectedErrSymbol)
 }
 
 func (c *queryContract) Usage() string {
-	return fmt.Sprintf("query <contract_name> <func_name> `[query_json_str]` `[expected_query_result]`")
+	return fmt.Sprintf("query <contract_name> <func_name> `[query_json_str]` `[expected_query_result]` `[expected_error_str]`")
 }
 
 func (c *queryContract) Describe() string {
@@ -36,16 +36,16 @@ func (c *queryContract) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, _, _, _, err := c.parse(args)
+	_, _, _, _, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *queryContract) parse(args string) (string, string, string, string, error) {
+func (c *queryContract) parse(args string) (string, string, string, string, string, error) {
 
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 2 {
-		return "", "", "", "", fmt.Errorf("need at least 2 arguments. usage: %s", c.Usage())
+		return "", "", "", "", "", fmt.Errorf("need at least 2 arguments. usage: %s", c.Usage())
 	}
 
 	queryCode := "[]"
@@ -55,42 +55,52 @@ func (c *queryContract) parse(args string) (string, string, string, string, erro
 	}
 
 	expectedResult := ""
+	expectedError := ""
 	if len(splitArgs) == 4 {
 		expectedResult = splitArgs[3].Text
-	} else if len(splitArgs) > 4 {
-		return "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
+	} else if len(splitArgs) == 5 {
+		expectedResult = splitArgs[3].Text
+		expectedError = splitArgs[4].Text
+	} else if len(splitArgs) > 5 {
+		return "", "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
 	return splitArgs[0].Text, // contractName
 		splitArgs[1].Text, //funcName
 		queryCode, //queryCode
 		expectedResult, //expectedResult
+		expectedError,
 		nil
 }
 
 func (c *queryContract) Run(args string) (string, error) {
-	contractName, funcName, queryCode, expectedResult, _ := c.parse(args)
+	contractName, funcName, queryCode, expectedResult, expectedError, _ := c.parse(args)
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, queryCode)
 
 	if expectedResult == "" {
 		// there is no expected result
-		result, err := context.Get().QueryOnly(contractName, formattedQuery)
+		isTestPassed, result, err := context.Get().QueryOnly(contractName, formattedQuery, expectedError)
 
 		if err != nil {
 			return "", err
+		} else if isTestPassed {
+			return "query to a smart contract successfully", nil
 		}
 
 		return result, nil
 	}
 	// there is expected result
-	err := context.Get().Query(contractName, formattedQuery, "", expectedResult)
+	err := context.Get().Query(contractName, formattedQuery, expectedError, expectedResult)
 
 	if err != nil {
 		return "", err
 	}
 
 	Index(context.ExpectedSymbol, expectedResult)
+	if expectedError != "" {
+		Index(context.ExpectedErrSymbol, expectedError)
+	}
 
-	return "query compare successfully", nil
+	return "query to a smart contract successfully", nil
 }

@@ -14,8 +14,10 @@ import (
 type ListManager interface {
 	Start()
 	Stop()
+
 	IsBanned(addr string, pid types.PeerID) (bool, time.Time)
 
+	// RefineList update white/blacklist
 	RefineList()
 	Summary() map[string]interface{}
 }

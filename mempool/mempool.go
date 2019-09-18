@@ -256,14 +256,17 @@ func (mp *MemPool) Receive(context actor.Context) {
 }
 
 func (mp *MemPool) Statistics() *map[string]interface{} {
-	return &map[string]interface{}{
-		"total":        mp.length,
-		"orphan":       mp.orphan,
-		"dead":         mp.deadtx,
-		"whitelist":    mp.whitelist.GetWhitelist(),
-		"whitelist_on": mp.whitelist.GetOn(),
-		"config":       mp.cfg.Mempool,
+	ret := map[string]interface{}{
+		"total":  mp.length,
+		"orphan": mp.orphan,
+		"dead":   mp.deadtx,
+		"config": mp.cfg.Mempool,
 	}
+	if !mp.isPublic {
+		ret["whitelist"] = mp.whitelist.GetWhitelist()
+		ret["whitelist_on"] = mp.whitelist.GetOn()
+	}
+	return &ret
 }
 
 func (mp *MemPool) get(maxBlockBodySize uint32) ([]types.Transaction, error) {

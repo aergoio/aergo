@@ -32,7 +32,7 @@ func (p2ps *P2P) GetAddresses(peerID types.PeerID, size uint32) bool {
 
 		return false
 	}
-	senderAddr := p2ps.pm.SelfMeta().ToPeerAddress()
+	senderAddr := p2ps.SelfMeta().ToPeerAddress()
 	// createPolaris message data
 	req := &types.AddressesRequest{Sender: &senderAddr, MaxSize: 50}
 	remotePeer.SendMessage(p2ps.mf.NewMsgRequestOrder(true, p2pcommon.AddressesRequest, req))
@@ -184,15 +184,14 @@ func (p2ps *P2P) GetTXs(peerID types.PeerID, txHashes []message.TXHash) bool {
 }
 
 // NotifyNewTX notice tx(s) id created
-func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
-	hashes := make([]types.TxID, len(newTXs.Txs))
-	for i, tx := range newTXs.Txs {
-		hashes[i] = types.ToTxID(tx.Hash)
-	}
+func (p2ps *P2P) NotifyNewTX(newTXs notifyNewTXs) bool {
+	hashes := newTXs.ids
 	// create message data
 	skipped, sent := 0, 0
 	// send to peers
-	for _, rPeer := range p2ps.pm.GetPeers() {
+	peers := p2ps.pm.GetPeers()
+	p2ps.tnt.RegisterTxNotice(hashes, len(peers), newTXs.alreadySent)
+	for _, rPeer := range peers {
 		if rPeer != nil && rPeer.State() == types.RUNNING {
 			sent++
 			rPeer.PushTxsNotice(hashes)
@@ -201,6 +200,9 @@ func (p2ps *P2P) NotifyNewTX(newTXs message.NotifyNewTransactions) bool {
 		}
 	}
 	//p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Int("hash_cnt", len(hashes)).Msg("Notifying newTXs to peers")
+	if skipped > 0 {
+		p2ps.tnt.ReportNotSend(hashes, skipped)
+	}
 
 	return true
 }

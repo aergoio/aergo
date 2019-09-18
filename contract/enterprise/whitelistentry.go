@@ -7,8 +7,10 @@ package enterprise
 
 import (
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/types"
+	"io"
 	"net"
 )
 
@@ -29,30 +31,40 @@ type WhiteListEntry struct {
 	PeerID  types.PeerID
 }
 
-type rawEntry struct {
+type RawEntry struct {
 	Address string `json:"address"`
 	Cidr    string `json:"cidr"`
 	PeerId  string `json:"peerid"`
 }
-
+var dummyListEntry WhiteListEntry
+func init() {
+	dummyListEntry = WhiteListEntry{"", notSpecifiedCIDR, NotSpecifiedID}
+}
 func NewWhiteListEntry(str string) (WhiteListEntry, error) {
-	entry := WhiteListEntry{str, notSpecifiedCIDR, NotSpecifiedID}
-	raw := rawEntry{}
+	raw := RawEntry{}
 	err := json.Unmarshal([]byte(str), &raw)
 	if err != nil {
-		return entry, InvalidEntryErr
+		return dummyListEntry, InvalidEntryErr
 	}
+	return NewListEntry(raw)
+}
+
+func NewListEntry(raw RawEntry) (WhiteListEntry, error) {
+	literal, _ := json.Marshal(raw)
+
 	if len(raw.Address) == 0 && len(raw.Cidr) == 0 && len(raw.PeerId) == 0 {
-		return entry, InvalidEntryErr
+		return dummyListEntry, InvalidEntryErr
 	}
 	if len(raw.Address) > 0 && len(raw.Cidr) > 0 {
-		return entry, InvalidStateErr
+		return dummyListEntry, InvalidStateErr
 	}
+
+	entry := WhiteListEntry{string(literal), notSpecifiedCIDR, NotSpecifiedID}
 	if len(raw.PeerId) > 0 {
 		pid, err := types.IDB58Decode(raw.PeerId)
 
 		if err != nil || pid.Validate() != nil {
-			return entry, InvalidPeerIDErr
+			return dummyListEntry, InvalidPeerIDErr
 		}
 		entry.PeerID = pid
 	}
@@ -102,4 +114,43 @@ func (e WhiteListEntry) checkPeerID(pid types.PeerID) bool {
 
 func (e WhiteListEntry) String() string {
 	return e.literal
+}
+
+func ReadEntries(jsonBytes []byte) ([]WhiteListEntry, error) {
+	var list []RawEntry
+
+	err := json.Unmarshal(jsonBytes, &list)
+	if err != nil {
+		return nil, err
+	}
+	eList := make([]WhiteListEntry,len(list))
+	for i, r := range list {
+		eList[i],err = NewListEntry(r)
+		if err != nil {
+			return nil, fmt.Errorf("line %v. error %s",i, err.Error())
+		}
+	}
+	return eList, nil
+}
+
+func WriteEntries(entries []WhiteListEntry, wr io.Writer) error {
+	rList := make([]RawEntry,len(entries))
+	for i, e := range entries {
+		r := RawEntry{}
+		if e.PeerID != NotSpecifiedID {
+			r.PeerId = types.IDB58Encode(e.PeerID)
+		}
+		if e.IpNet != nil && e.IpNet != notSpecifiedCIDR {
+			if m, b := e.IpNet.Mask.Size() ; m == b {
+				// single ip
+				r.Address = e.IpNet.IP.String()
+			} else {
+				r.Cidr = e.IpNet.String()
+			}
+		}
+
+		rList[i] = r
+	}
+	en := json.NewEncoder(wr)
+	return en.Encode(rList)
 }

@@ -30,7 +30,7 @@ func TestAergoRaftTransport_SendSnapshot(t *testing.T) {
 
 	logger := log.NewLogger("raft.support.test")
 	dummyChainID := make([]byte, 32)
-	dummyPeerID, _ := p2putil.RandomPeerID()
+	dummyPeerID := p2putil.RandomPeerID()
 	dummyPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID}
 	dummyMemID := uint64(112345531252)
 	dummyMember := &consensus.Member{types.MemberAttr{ID: dummyMemID, PeerID: []byte(dummyPeerID)}}
@@ -119,7 +119,7 @@ func TestAergoRaftTransport_SendSnapshot(t *testing.T) {
 func TestAergoRaftTransport_NewSnapshotSender(t *testing.T) {
 	logger := log.NewLogger("raft.support.test")
 	dummyChainID := make([]byte, 32)
-	dummyPeerID, _ := p2putil.RandomPeerID()
+	dummyPeerID := p2putil.RandomPeerID()
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -193,12 +193,12 @@ func TestAergoRaftTransport_Send(t *testing.T) {
 
 	logger := log.NewLogger("raft.support.test")
 	dummyChainID := make([]byte, 32)
-	dummyPeerID, _ := p2putil.RandomPeerID()
+	dummyPeerID := p2putil.RandomPeerID()
 	dummyPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID}
 	dummyMemID := uint64(11111)
 	dummyMember := &consensus.Member{types.MemberAttr{ID: dummyMemID, PeerID: []byte(dummyPeerID)}}
 	unreachableMemID := uint64(33333)
-	unreachablePeerID, _ := p2putil.RandomPeerID()
+	unreachablePeerID := p2putil.RandomPeerID()
 	unreachableMember := &consensus.Member{types.MemberAttr{ID:unreachableMemID , PeerID: []byte(unreachablePeerID)}}
 
 	zeroM := raftpb.Message{To:0, Type:raftpb.MsgApp}

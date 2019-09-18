@@ -21,9 +21,9 @@ func (c *callContract) Command() string {
 }
 
 func (c *callContract) Syntax() string {
-	return fmt.Sprintf("%s %s %s %s %s", context.AccountSymbol,
+	return fmt.Sprintf("%s %s %s %s %s %s", context.AccountSymbol,
 		context.AmountSymbol, context.ContractSymbol,
-		context.FunctionSymbol, context.ContractArgsSymbol)
+		context.FunctionSymbol, context.ContractArgsSymbol, context.ExpectedErrSymbol)
 }
 
 func (c *callContract) Usage() string {
@@ -62,9 +62,9 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 		callCode = splitArgs[4].Text
 	}
 
-	expectedResult := ""
+	expectedError := ""
 	if len(splitArgs) == 6 {
-		expectedResult = splitArgs[5].Text
+		expectedError = splitArgs[5].Text
 	} else if len(splitArgs) > 6 {
 		return "", nil, "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
@@ -74,13 +74,13 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 		splitArgs[2].Text, //contractName
 		splitArgs[3].Text, //funcName
 		callCode, //callCode
-		expectedResult, //expectedResult
+		expectedError, //expectedError
 		nil
 }
 
 func (c *callContract) Run(args string) (string, error) {
 
-	accountName, amount, contractName, funcName, callCode, expectedResult, _ := c.parse(args)
+	accountName, amount, contractName, funcName, callCode, expectedError, _ := c.parse(args)
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
@@ -88,17 +88,26 @@ func (c *callContract) Run(args string) (string, error) {
 
 	logLevel := zerolog.GlobalLevel()
 
-	if expectedResult != "" {
-		callTx.Fail(expectedResult)
+	if expectedError != "" {
+		callTx.Fail(expectedError)
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
 	err := context.Get().ConnectBlock(callTx)
 
-	if expectedResult != "" {
+	if expectedError != "" {
 		zerolog.SetGlobalLevel(logLevel) // restore log level
 	}
 	if err != nil {
 		return "", err
+	}
+
+	if expectedError == "" {
+		events := context.Get().GetEvents(callTx)
+		for _, event := range events {
+			logger.Info().Str("args", event.GetJsonArgs()).Msg(event.GetEventName())
+		}
+	} else {
+		Index(context.ExpectedErrSymbol, expectedError)
 	}
 
 	return "call a smart contract successfully", nil

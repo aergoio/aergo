@@ -187,7 +187,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				mf:             mockMF,
 				hsFactory:      mockHSFactory,
 				peerHandshaked: make(chan handshakeResult, 10),
 			}
@@ -290,15 +289,13 @@ func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
 
 	c := []*p2pcommon.WaitingPeer{}
 	for i := 0 ; i < 5 ; i++ {
-		pid,_ := p2putil.RandomPeerID()
-		meta := p2pcommon.PeerMeta{ID:pid}
+		meta := p2pcommon.PeerMeta{ID:p2putil.RandomPeerID()}
 		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now()}
 		c = append(c, wp)
 	}
 	n := []*p2pcommon.WaitingPeer{}
 	for i := 0 ; i < 5 ; i++ {
-		pid,_ := p2putil.RandomPeerID()
-		meta := p2pcommon.PeerMeta{ID:pid}
+		meta := p2pcommon.PeerMeta{ID:p2putil.RandomPeerID()}
 		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now().Add(time.Hour*100)}
 		n = append(n, wp)
 	}

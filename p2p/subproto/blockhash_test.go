@@ -365,6 +365,10 @@ func (mo *testMo) SendTo(p p2pcommon.RemotePeer) error {
 	return nil
 }
 
+func (mo *testMo) CancelSend(p p2pcommon.RemotePeer) {
+
+}
+
 type testMessage struct {
 	subProtocol p2pcommon.SubProtocol
 	// Length is lenght of payload

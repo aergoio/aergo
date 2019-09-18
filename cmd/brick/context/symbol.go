@@ -8,6 +8,7 @@ var (
 	AmountSymbol       = "<amount>"
 	ContractArgsSymbol = "<contract_args>"
 	ExpectedSymbol     = "<expected>"
+	ExpectedErrSymbol  = "<expected_err>"
 	FunctionSymbol     = "<function>"
 	CommandSymbol      = "[command]"
 )
@@ -21,6 +22,7 @@ func init() {
 	Symbols[AccountSymbol] = "account address"
 	Symbols[ContractArgsSymbol] = "an array of argments to call a contract"
 	Symbols[AmountSymbol] = "amount of aergo to send"
-	Symbols[ExpectedSymbol] = "expected query result"
+	Symbols[ExpectedSymbol] = "expected result"
+	Symbols[ExpectedErrSymbol] = "expected error"
 	Symbols[FunctionSymbol] = "smart contract function name"
 }

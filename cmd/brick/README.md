@@ -94,7 +94,7 @@ call to execute a smart contract. `call <sender_name> <amount> <contract_name> <
 
 ### query
 
-query to a smart contract. `query <contract_name> <func_name> <query_json_str> [expected_query_result]`
+query to a smart contract. `query <contract_name> <func_name> <query_json_str> [expected_query_result] [expected_error]`
 
 ``` lua
 4> query helloContract hello `[]`
