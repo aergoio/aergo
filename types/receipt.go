@@ -467,12 +467,15 @@ type ReceiptMerkle struct {
 }
 
 func (rm *ReceiptMerkle) GetHash() []byte {
+	h := sha256.New()
+	var b []byte
 	if rm.hardForkConfig.IsV2Fork(rm.blockNo) {
-		h, _ := rm.receipt.MarshalMerkleBinaryV2()
-		return h
+		b, _ = rm.receipt.MarshalMerkleBinaryV2()
+	} else {
+		b, _ = rm.receipt.MarshalMerkleBinary()
 	}
-	h, _ := rm.receipt.MarshalMerkleBinary()
-	return h
+	h.Write(b)
+	return h.Sum(nil)
 }
 
 type Receipts struct {
