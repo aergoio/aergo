@@ -6,6 +6,8 @@
 package client
 
 import (
+	"errors"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/polaris/common"
 	"testing"
 
@@ -137,6 +139,76 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 			pms.BeforeStop()
 
 			ctrl.Finish()
+		})
+	}
+}
+
+func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
+	sampleCahinID := &types.ChainID{Consensus:"dpos"}
+	sm := p2pcommon.PeerMeta{ID:p2putil.RandomPeerID()}
+	ss := &types.Status{}
+
+	sErr := errors.New("send erroor")
+	rErr := errors.New("send erroor")
+
+	succR  := &types.MapResponse{Status:types.ResultStatus_OK, Addresses:[]*types.PeerAddress{&types.PeerAddress{}}}
+	oldVerR  := &types.MapResponse{Status:types.ResultStatus_FAILED_PRECONDITION, Message:common.TooOldVersionMsg}
+	otherR  := &types.MapResponse{Status:types.ResultStatus_INVALID_ARGUMENT,Message:"arg is wrong"}
+
+	type args struct {
+		mapServerMeta p2pcommon.PeerMeta
+		peerStatus *types.Status
+	}
+	tests := []struct {
+		name    string
+		args    args
+
+		sendErr error
+		readErr error
+		mapResp *types.MapResponse
+
+		wantCnt int
+		wantErr bool
+	}{
+		{"TSingle", args{sm, ss}, nil, nil, succR, 1, false},
+		{"TSendFail", args{sm, ss}, sErr, nil, succR,0, true},
+		{"TRecvFail", args{sm, ss}, nil, rErr, succR,0, true},
+		{"TOldVersion", args{sm, ss}, nil, nil, oldVerR, 0, true},
+		{"TFailResp", args{sm, ss}, nil, nil, otherR, 0, true},
+
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			cfg := config.NewServerContext("", "").GetDefaultP2PConfig()
+			cfg.NPUsePolaris = true
+
+			mockNTC := p2pmock.NewMockNTContainer(ctrl)
+			mockNTC.EXPECT().ChainID().Return(sampleCahinID).AnyTimes()
+
+			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
+
+			payload, _ := p2putil.MarshalMessageBody(tt.mapResp)
+			dummyData := common.NewPolarisMessage(p2pcommon.NewMsgID(), common.MapResponse, payload)
+
+			mockRW.EXPECT().WriteMsg(gomock.AssignableToTypeOf(&common.PolarisMessage{})).Return(tt.sendErr)
+			if tt.sendErr == nil {
+				mockRW.EXPECT().ReadMsg().Return(dummyData, tt.readErr)
+			}
+			pcs := NewPolarisConnectSvc(cfg, mockNTC)
+
+
+			got, err := pcs.queryToPolaris(tt.args.mapServerMeta, mockRW, tt.args.peerStatus)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("connectAndQuery() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && len(got) != tt.wantCnt {
+				t.Errorf("connectAndQuery() len(got) = %v, want %v", len(got), tt.wantCnt)
+			}
 		})
 	}
 }

@@ -75,6 +75,8 @@ func rootRun(cmd *cobra.Command, args []string) {
 	svrlog = log.NewLogger("polaris")
 	svrlog.Info().Msg("POLARIS STARTED")
 
+	p2pkey.InitNodeInfo(&cfg.BaseConfig, cfg.P2P, githash, svrlog)
+
 	if cfg.EnableProfile {
 		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
 		go func() {

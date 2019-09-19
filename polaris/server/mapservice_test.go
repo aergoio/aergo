@@ -142,6 +142,10 @@ func TestPeerMapService_readRequest(t *testing.T) {
 }
 
 func TestPeerMapService_handleQuery(t *testing.T) {
+	minVersion, _ := p2pcommon.ParseAergoVersion(p2pcommon.MinimumAergoVersion)
+	tooNewVersion, _ := p2pcommon.ParseAergoVersion(p2pcommon.MaximumAergoVersion)
+	tooOldVersion := minVersion
+	tooOldVersion.Patch = tooOldVersion.Patch-1
 	mainnetbytes, err := common.ONEMainNet.Bytes()
 	if err != nil {
 		t.Error("mainnet var is not set properly", common.ONEMainNet)
@@ -152,6 +156,9 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	good := goodPeerMeta.ToPeerAddress()
 	badPeerMeta := p2pcommon.PeerMeta{ID: types.PeerID("bad"), IPAddress: "211.34.56.78", Port: 7845}
 	bad := badPeerMeta.ToPeerAddress()
+
+	ok := types.ResultStatus_OK
+
 	type args struct {
 		status *types.Status
 		addme  bool
@@ -163,17 +170,21 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 
 		wantErr bool
 		wantMsg bool
+		wantStatus types.ResultStatus
 	}{
 		// check if parameter is bad
-		{"TMissingStat", args{nil, true, 9999}, true, false},
+		{"TMissingStat", args{nil, true, 9999}, true, false, ok},
 		// check if addMe is set or not
-		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &good}, false, 10}, false, false},
-		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &bad}, false, 10}, false, false},
+		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:minVersion.String()}, false, 10}, false, false, ok},
+		{"TOnlyQuery2", args{&types.Status{ChainID: mainnetbytes, Sender: &bad, Version:minVersion.String()}, false, 10}, false, false, ok},
 		// TODO refator mapservice to run commented test
-		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false },
-		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true },
+		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false, ok },
+		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true, ok },
 		// TODO: Add more cases .
 		// check if failed to connect back or not
+		{"TOldVersion", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooOldVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
+		{"TNewVersion", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooNewVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
+
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -199,6 +210,9 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 			if !tt.wantErr && (len(got.Message) > 0) != tt.wantMsg {
 				t.Errorf("PeerMapService.handleQuery() msg = %v, wantMsg %v", got.Message, tt.wantMsg)
 				return
+			}
+			if tt.wantMsg && got.Status != tt.wantStatus {
+				t.Errorf("PeerMapService.handleQuery() msg status = %v, want %v", got.Status.String(), tt.wantStatus.String())
 			}
 
 		})

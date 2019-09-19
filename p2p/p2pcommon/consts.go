@@ -50,7 +50,6 @@ const (
 	LegacyP2PSubAddr core.ProtocolID = "/aergop2p/0.3"
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
 	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
-
 )
 
 // constants for handshake. for calculating byte offset of wire handshake
@@ -66,10 +65,11 @@ const HSError uint32 = 0
 
 // Codes in wire handshake
 type HSRespCode = uint32
+
 const (
 	_ uint32 = iota
 	HSCodeWrongHSReq
-	HSCodeNoMatchedVersion  //
+	HSCodeNoMatchedVersion //
 	HSCodeAuthFail
 	HSCodeNoPermission
 	HSCodeInvalidState

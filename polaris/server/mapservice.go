@@ -101,7 +101,7 @@ func (pms *PeerMapService) BeforeStart() {}
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
 	pms.lm.Start()
-	pms.Logger.Info().Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
+	pms.Logger.Info().Str("minAergoVer", p2pcommon.MinimumAergoVersion).Str("maxAergoVer", p2pcommon.MaximumAergoVersion).Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
 	pms.nt.AddStreamHandler(common.PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
 }
@@ -200,12 +200,21 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 	// make response
 	resp := &types.MapResponse{}
 
+	// check peer version
+	if !p2pcommon.CheckVersion(receivedMeta.Version) {
+		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Str("version", receivedMeta.Version).Msg("peer version is too old, or too new")
+		resp.Status = types.ResultStatus_FAILED_PRECONDITION
+		resp.Message = common.TooOldVersionMsg
+		return resp, nil
+
+	}
+
 	// compare chainID
 	sameChain, err := pms.checkChain(query.Status.ChainID)
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, receivedMeta.ID.String()).Bytes("chainid", query.Status.ChainID).Msg("err parsing chainid")
+		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, receivedMeta.ID.String()).Bytes("chainID", query.Status.ChainID).Msg("err parsing chain id")
 		resp.Status = types.ResultStatus_INVALID_ARGUMENT
-		resp.Message = "invalid chainid"
+		resp.Message = "invalid chain id"
 		return resp, nil
 	} else if !sameChain {
 		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Msg("err different chain")
