@@ -25,7 +25,8 @@ var voteVersion string
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
-	voteStatCmd.MarkFlagRequired("address")
+	voteStatCmd.Flags().StringVar(&voteId, "id", "bpcount", "system paramter")
+	voteStatCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 	rootCmd.AddCommand(bpCmd)
 	bpCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 }
@@ -124,17 +125,43 @@ func execVote(cmd *cobra.Command, args []string) {
 }
 
 func execVoteStat(cmd *cobra.Command, args []string) {
-	rawAddr, err := types.DecodeAddress(address)
-	if err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
+	fflags := cmd.Flags()
+	if fflags.Changed("address") == true {
+		rawAddr, err := types.DecodeAddress(address)
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		msg, err := client.GetAccountVotes(context.Background(), &types.AccountAddress{Value: rawAddr})
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		cmd.Println(util.JSON(msg))
+		return
+	} else if fflags.Changed("id") == true {
+		msg, err := client.GetVotes(context.Background(), &types.VoteParams{
+			Id:    voteId,
+			Count: uint32(number),
+		})
+		if err != nil {
+			cmd.Printf("Failed: %s\n", err.Error())
+			return
+		}
+		cmd.Println("[")
+		comma := ","
+		for i, r := range msg.GetVotes() {
+			cmd.Printf("{\"" + string(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}")
+			if i+1 == len(msg.GetVotes()) {
+				comma = ""
+			}
+			cmd.Println(comma)
+		}
+		cmd.Println("]")
 		return
 	}
-	msg, err := client.GetAccountVotes(context.Background(), &types.AccountAddress{Value: rawAddr})
-	if err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
-		return
-	}
-	cmd.Println(util.JSON(msg))
+	cmd.Println("no --address or --id specified")
+	return
 }
 
 func execBP(cmd *cobra.Command, args []string) {
