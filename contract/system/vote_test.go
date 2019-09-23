@@ -22,14 +22,15 @@ import (
 )
 
 var cdb *state.ChainStateDB
-var sdb *state.StateDB
+var bs *state.BlockState
 
 func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	cdb = state.NewChainStateDB()
 	cdb.Init(string(db.BadgerImpl), "test", nil, false)
 	genesis := types.GetTestGenesis()
-	sdb = cdb.OpenNewStateDB(cdb.GetRoot())
 	err := cdb.SetGenesis(genesis, nil)
+
+	bs = cdb.NewBlockState(cdb.GetRoot())
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
@@ -37,15 +38,15 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	InitGovernance("dpos")
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := bs.OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := sdb.GetAccountStateV(account)
+	sender, err := bs.GetAccountStateV(account)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV([]byte(types.AergoSystem))
+	receiver, err := bs.GetAccountStateV([]byte(types.AergoSystem))
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
 }
@@ -53,9 +54,22 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 func getSender(t *testing.T, addr string) *state.V {
 	account, err := types.DecodeAddress(addr)
 	assert.NoError(t, err, "could not decode test address")
-	sender, err := sdb.GetAccountStateV(account)
+	sender, err := bs.GetAccountStateV(account)
 	assert.NoError(t, err, "could not get test address state")
 	return sender
+}
+
+func commitNextBlock(t *testing.T, scs *state.ContractState) *state.ContractState {
+	bs.StageContractState(scs)
+	bs.Update()
+	bs.Commit()
+	cdb.UpdateRoot(bs)
+	systemContractID := types.ToAccountID([]byte(types.AergoSystem))
+	systemContract, err := bs.GetAccountState(systemContractID)
+	assert.NoError(t, err, "could not get account state")
+	ret, err := bs.OpenContractState(systemContractID, systemContract)
+	assert.NoError(t, err, "could not open contract state")
+	return ret
 }
 
 func deinitTest() {

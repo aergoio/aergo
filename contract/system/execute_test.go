@@ -766,7 +766,7 @@ func TestProposalExecute2(t *testing.T) {
 	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "1004"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
-	gasPrice := GetParam(gasPrice.ID())
+	gasPrice := GetGasPrice()
 	assert.Equal(t, balance0_5, gasPrice, "result of gas price voting")
 
 	blockNo += StakingDelay
@@ -792,12 +792,32 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, balance1, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "check result amount")
 	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
 
-	/*
-		blockNo += StakingDelay
-		unstakingTx.Body.Amount = balance0_5.Bytes()
-		_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
-		assert.NoError(t, err, "could not execute system tx")
+	scs = commitNextBlock(t, scs)
+	blockNo += StakingDelay
 
+	unstakingTx.Body.Amount = balance0_5.Bytes()
+	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+
+	votingTx.Body.Account = sender2.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["NAMEPRICE", "1004"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+
+	votingTx.Body.Account = sender3.ID()
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["NAMEPRICE", "1004"]}`)
+	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
+	assert.NoError(t, err, "could not execute system tx")
+
+	voteResult, err = getVoteResult(scs, GenProposalKey(namePrice.ID()), 3)
+	assert.NoError(t, err, "get vote result")
+	internalVoteResult, err = loadVoteResult(scs, GenProposalKey(namePrice.ID()))
+	assert.Equal(t, new(big.Int).Mul(balance2, big.NewInt(2)), internalVoteResult.GetTotal(), "check result total")
+	assert.Equal(t, "1004", string(voteResult.Votes[0].Candidate), "1st place")
+	currentNamePrice := GetNamePrice()
+	assert.Equal(t, "1004", currentNamePrice.String(), "current name price")
+
+	/*
 		blockNo += StakingDelay
 		//voting result was freeze
 		_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockNo)
