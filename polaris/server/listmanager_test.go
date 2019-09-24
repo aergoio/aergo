@@ -8,7 +8,6 @@ package server
 import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -20,15 +19,15 @@ import (
 
 const testAuthDir = "/tmp"
 
-var sampleEntries []enterprise.WhiteListEntry
+var sampleEntries []types.WhiteListEntry
 func init() {
-	eIDIP, _ := enterprise.NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35" }`)
-	eIDIR, _ := enterprise.NewWhiteListEntry(`{"peerid":"16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD", "cidr":"172.21.3.35/16" }`)
-	eID, _ := enterprise.NewWhiteListEntry(`{"peerid":"16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR" }`)
-	eIR, _ := enterprise.NewWhiteListEntry(`{"cidr":"211.5.3.123/16" }`)
-	eIP6, _ := enterprise.NewWhiteListEntry(`{"address":"2001:0db8:0123:4567:89ab:cdef:1234:5678" }`)
-	eIR6, _ := enterprise.NewWhiteListEntry(`{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96" }`)
-	sampleEntries = []enterprise.WhiteListEntry{eIDIP, eIDIR, eID, eIR, eIP6, eIR6}
+	eIDIP, _ := types.ParseListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35" }`)
+	eIDIR, _ := types.ParseListEntry(`{"peerid":"16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD", "cidr":"172.21.3.35/16" }`)
+	eID, _ := types.ParseListEntry(`{"peerid":"16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR" }`)
+	eIR, _ := types.ParseListEntry(`{"cidr":"211.5.3.123/16" }`)
+	eIP6, _ := types.ParseListEntry(`{"address":"2001:0db8:0123:4567:89ab:cdef:1234:5678" }`)
+	eIR6, _ := types.ParseListEntry(`{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96" }`)
+	sampleEntries = []types.WhiteListEntry{eIDIP, eIDIR, eID, eIR, eIP6, eIR6}
 }
 func Test_polarisListManager_saveListFile(t *testing.T) {
 
@@ -91,7 +90,7 @@ func Test_polarisListManager_AddEntry(t *testing.T) {
 
 	tests := []struct {
 		name string
-		args []enterprise.WhiteListEntry
+		args []types.WhiteListEntry
 		wantSize int
 	}{
 		{"TFirst",sampleEntries[:0], 0},
@@ -126,14 +125,14 @@ func Test_polarisListManager_IsBanned(t *testing.T) {
 	thirdAddr := "222.8.8.8"
 	thirdID := p2putil.RandomPeerID()
 
-	IDOnly, e1 := enterprise.NewWhiteListEntry(`{"peerid":"`+id1.Pretty()+`"}`)
-	AddrOnly, e2 := enterprise.NewWhiteListEntry(`{"address":"`+addr1+`"}`)
-	IDAddr, e3 := enterprise.NewWhiteListEntry(`{"peerid":"`+idother.Pretty()+`", "address":"`+addrother+`"}`)
+	IDOnly, e1 := types.ParseListEntry(`{"peerid":"`+id1.Pretty()+`"}`)
+	AddrOnly, e2 := types.ParseListEntry(`{"address":"`+addr1+`"}`)
+	IDAddr, e3 := types.ParseListEntry(`{"peerid":"`+idother.Pretty()+`", "address":"`+addrother+`"}`)
 	if e1 !=nil || e2 != nil || e3 != nil {
 		t.Fatalf("Inital entry value failure %v , %v , %v",e1,e2,e3)
 	}
-	listCfg := []enterprise.WhiteListEntry{IDOnly, AddrOnly, IDAddr}
-	emptyCfg := []enterprise.WhiteListEntry{}
+	listCfg := []types.WhiteListEntry{IDOnly, AddrOnly, IDAddr}
+	emptyCfg := []types.WhiteListEntry{}
 
 
 	ctrl := gomock.NewController(t)
@@ -145,7 +144,7 @@ func Test_polarisListManager_IsBanned(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		preset []enterprise.WhiteListEntry
+		preset []types.WhiteListEntry
 		args args
 		want bool
 	}{

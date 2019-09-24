@@ -3,15 +3,13 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package enterprise
+package types
 
 import (
 	"bytes"
 	"fmt"
 	"net"
 	"testing"
-
-	"github.com/aergoio/aergo/types"
 )
 
 type addrType int
@@ -55,25 +53,25 @@ func TestNewListEntry(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewWhiteListEntry(tt.arg)
+			got, err := ParseListEntry(tt.arg)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewWhiteListEntry() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseListEntry() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
 				if tt.wantAddr == none {
 					if got.IpNet != notSpecifiedCIDR {
-						t.Errorf("NewWhiteListEntry().IpNet = %v, want not", got.IpNet)
+						t.Errorf("ParseListEntry().IpNet = %v, want not", got.IpNet)
 					}
 				} else {
 					m,b := got.IpNet.Mask.Size()
 					if (m==b) != (tt.wantAddr==addr) {
-						t.Errorf("NewWhiteListEntry().IpNet = %v, want type %v ", got.IpNet, tt.wantAddr)
+						t.Errorf("ParseListEntry().IpNet = %v, want type %v ", got.IpNet, tt.wantAddr)
 					}
 				}
 
 				if (got.PeerID != NotSpecifiedID) != tt.wantID {
-					t.Errorf("NewWhiteListEntry().PeerID = %v, want not", got.PeerID.Pretty())
+					t.Errorf("ParseListEntry().PeerID = %v, want not", got.PeerID.Pretty())
 				}
 			}
 		})
@@ -82,8 +80,8 @@ func TestNewListEntry(t *testing.T) {
 
 func TestWhiteListEntry_Contains(t *testing.T) {
 	sampleIDStr := "16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"
-	sampleID, _ := types.IDB58Decode(sampleIDStr)
-	otherID, _ := types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
+	sampleID, _ := IDB58Decode(sampleIDStr)
+	otherID, _ := IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleIP4Str := "122.1.3.4"
 	sampleIP4 := net.ParseIP(sampleIP4Str)
 	sampleIP6 := net.ParseIP("2001:0db8:0123:4567:89ab:cdef:1234:5678")
@@ -95,7 +93,7 @@ func TestWhiteListEntry_Contains(t *testing.T) {
 	IDAdRange16 := `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"122.1.3.4/16"}`
 	IDAdRange8 := `{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"122.1.3.4/8"}`
 	type args struct {
-		pid  types.PeerID
+		pid  PeerID
 		addr net.IP
 	}
 	tests := []struct {
@@ -137,7 +135,7 @@ func TestWhiteListEntry_Contains(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e, _ := NewWhiteListEntry(tt.cParam)
+			e, _ := ParseListEntry(tt.cParam)
 
 			if got := e.Contains(tt.args.addr, tt.args.pid); got != tt.want {
 				t.Errorf("WhiteListEntry.Contains() = %v, want %v", got, tt.want)
@@ -179,12 +177,12 @@ func TestIpNet(t *testing.T) {
 }
 
 func TestWriteEntries(t *testing.T) {
-	eIDIP, _ := NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35" }`)
-	eIDIR, _ := NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"172.21.3.35/16" }`)
-	eID, _ := NewWhiteListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt" }`)
-	eIR, _ := NewWhiteListEntry(`{"cidr":"172.21.3.35/16" }`)
-	eIP6, _ := NewWhiteListEntry(`{"address":"2001:0db8:0123:4567:89ab:cdef:1234:5678" }`)
-	eIR6, _ := NewWhiteListEntry(`{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96" }`)
+	eIDIP, _ := ParseListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35" }`)
+	eIDIR, _ := ParseListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "cidr":"172.21.3.35/16" }`)
+	eID, _ := ParseListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt" }`)
+	eIR, _ := ParseListEntry(`{"cidr":"172.21.3.35/16" }`)
+	eIP6, _ := ParseListEntry(`{"address":"2001:0db8:0123:4567:89ab:cdef:1234:5678" }`)
+	eIR6, _ := ParseListEntry(`{"cidr":"2001:0db8:0123:4567:89ab:cdef:1234:5678/96" }`)
 
 	tests := []struct {
 		name string

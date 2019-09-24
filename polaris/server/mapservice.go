@@ -8,7 +8,6 @@ package server
 import (
 	"bufio"
 	"fmt"
-	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/v030"
 	"math"
 	"net"
@@ -287,11 +286,11 @@ func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	delete(pms.peerRegistry, peerID)
 }
 
-func (pms *PeerMapService) applyNewBLEntry(entry enterprise.WhiteListEntry) {
+func (pms *PeerMapService) applyNewBLEntry(entry types.WhiteListEntry) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
 	pms.Logger.Debug().Msg("Applying added blacklist entry; checking peers and remove from registry if banned")
-	if entry.PeerID != enterprise.NotSpecifiedID {
+	if entry.PeerID != types.NotSpecifiedID {
 		// target is simply single peer
 		if ps, found := pms.peerRegistry[entry.PeerID]; found {
 			ip := net.ParseIP(ps.meta.IPAddress)
@@ -351,8 +350,8 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 		}
 		context.Respond(ret)
 	case *types.AddEntryParams:
-		rawEntry := enterprise.RawEntry{PeerId:msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
-		entry, err := enterprise.NewListEntry(rawEntry)
+		rawEntry := types.RawEntry{PeerId: msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
+		entry, err := types.NewListEntry(rawEntry)
 		if err != nil {
 			context.Respond(types.RPCErrInvalidArgument)
 		}

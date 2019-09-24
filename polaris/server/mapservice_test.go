@@ -7,7 +7,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -617,7 +616,7 @@ func TestPeerMapService_applyNewBLEntry(t *testing.T) {
 	m3 := p2pcommon.PeerMeta{IPAddress: ad3, ID: id3}
 
 	type args struct {
-		entry enterprise.WhiteListEntry
+		entry types.WhiteListEntry
 	}
 	tests := []struct {
 		name string
@@ -660,8 +659,8 @@ func TestPeerMapService_applyNewBLEntry(t *testing.T) {
 	}
 }
 
-func wle(str string) enterprise.WhiteListEntry {
-	ent, err := enterprise.NewWhiteListEntry(str)
+func wle(str string) types.WhiteListEntry {
+	ent, err := types.ParseListEntry(str)
 	if err != nil {
 		panic("invalid input : " + str + " : " + err.Error())
 	}
@@ -680,9 +679,9 @@ func TestPeerMapService_onConnectWithBlacklist(t *testing.T) {
 	d4 := "{\"address\":\"2001:db8:123:4567:89ab:cdef:1234:5678\",\"cidr\":\"\",\"peerid\":\"\"}"
 	d5 := "{\"address\":\"0.0.0.0\",\"cidr\":\"\",\"peerid\":\"\"}"
 	d6 := "{\"address\":\"\",\"cidr\":\"2001:db8:123:4567:89ab:cdef::/96\",\"peerid\":\"\"}"
-	entries := []enterprise.WhiteListEntry{}
+	entries := []types.WhiteListEntry{}
 	for _, d := range []string{d0, d1, d2, d3, d4, d5, d6} {
-		e, _ := enterprise.NewWhiteListEntry(d)
+		e, _ := types.ParseListEntry(d)
 		entries = append(entries, e)
 	}
 

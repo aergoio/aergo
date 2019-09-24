@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/types"
 	"github.com/rs/zerolog"
 	"io/ioutil"
@@ -36,7 +35,7 @@ type polarisListManager struct {
 	logger *log.Logger
 	mutex sync.Mutex
 
-	entries []enterprise.WhiteListEntry
+	entries []types.WhiteListEntry
 	enabled bool
 	rwLock  sync.RWMutex
 	authDir string
@@ -73,7 +72,7 @@ func (lm *polarisListManager) loadListFile() {
 
 	lm.mutex.Lock()
 	defer lm.mutex.Unlock()
-	entries, err := enterprise.ReadEntries(byteValue)
+	entries, err := types.ReadEntries(byteValue)
 	if err != nil {
 		lm.logger.Info().Err(err).Str("file", blFile).Msg("Failed to parse blacklist file")
 		return
@@ -94,7 +93,7 @@ func (lm *polarisListManager) saveListFile() {
 	lm.mutex.Lock()
 	defer lm.mutex.Unlock()
 
-	err = enterprise.WriteEntries(lm.entries, jsonFile)
+	err = types.WriteEntries(lm.entries, jsonFile)
 	if err != nil {
 		lm.logger.Info().Err(err).Str("file", blFile).Msg("Failed to write blacklist file")
 		return
@@ -102,18 +101,18 @@ func (lm *polarisListManager) saveListFile() {
 	lm.logger.Info().Array("entry",ListEntriesMarshaller{lm.entries, 10}).Msg("Saved blacklist file")
 }
 
-func (lm *polarisListManager) ListEntries() []enterprise.WhiteListEntry{
+func (lm *polarisListManager) ListEntries() []types.WhiteListEntry {
 	lm.mutex.Lock()
 	defer lm.mutex.Unlock()
-	newEntry := make([]enterprise.WhiteListEntry,len(lm.entries))
+	newEntry := make([]types.WhiteListEntry,len(lm.entries))
 	copy(newEntry, lm.entries)
 	return newEntry
 }
-func (lm *polarisListManager) AddEntry(entry enterprise.WhiteListEntry) {
+func (lm *polarisListManager) AddEntry(entry types.WhiteListEntry) {
 	lm.mutex.Lock()
 	defer lm.mutex.Unlock()
 
-	newEntry := make([]enterprise.WhiteListEntry,0,len(lm.entries)+1)
+	newEntry := make([]types.WhiteListEntry,0,len(lm.entries)+1)
 	newEntry = append(newEntry, lm.entries...)
 	newEntry = append(newEntry, entry)
 	lm.entries = newEntry
@@ -127,7 +126,7 @@ func (lm *polarisListManager) RemoveEntry(idx int) bool {
 		return false
 	}
 	toRemove := lm.entries[idx]
-	newEntries := make([]enterprise.WhiteListEntry,0,len(lm.entries))
+	newEntries := make([]types.WhiteListEntry,0,len(lm.entries))
 	newEntries = append(newEntries, lm.entries...)
 	newEntries = append(newEntries[:idx], newEntries[idx+1:]...)
 	lm.entries = newEntries
@@ -190,7 +189,7 @@ func (lm *polarisListManager) Summary() map[string]interface{} {
 }
 
 type ListEntriesMarshaller struct {
-	arr []enterprise.WhiteListEntry
+	arr []types.WhiteListEntry
 	limit int
 }
 
