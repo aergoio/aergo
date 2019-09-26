@@ -13,11 +13,12 @@ import (
 )
 
 type PeerFactory interface {
-	CreateRemotePeer(meta PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw MsgReadWriter) RemotePeer
+	CreateRemotePeer(remoteInfo RemoteInfo, seq uint32, status *types.Status, stream network.Stream, rw MsgReadWriter) RemotePeer
 }
 
 type RemotePeer interface {
 	ID() types.PeerID
+	RemoteInfo() RemoteInfo
 	Meta() PeerMeta
 	ManageNumber() uint32
 	Name() string

@@ -215,10 +215,10 @@ func initMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMeta {
 	if protocolPort <= 0 {
 		panic("invalid NetProtocolPort " + strconv.Itoa(conf.NetProtocolPort))
 	}
+	ma,err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
 	var meta p2pcommon.PeerMeta
-	meta.IPAddress = protocolAddr
-	meta.Port = uint32(protocolPort)
 	meta.ID = peerID
+	meta.Addresses = []types.Multiaddr{ma}
 	meta.Hidden = !conf.NPExposeSelf
 	meta.Version = p2pkey.NodeVersion()
 

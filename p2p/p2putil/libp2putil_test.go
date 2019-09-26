@@ -40,12 +40,12 @@ func TestFromMultiAddr(t *testing.T) {
 				return
 			}
 			if !tt.wantErr {
-				ip := net.ParseIP(got.IPAddress)
+				ip := net.ParseIP(got.PrimaryAddress())
 				if !reflect.DeepEqual(ip, tt.wantIp) {
 					t.Errorf("FromMultiAddr() = %v, want %v", ip.String(), tt.wantIp)
 				}
-				if !reflect.DeepEqual(got.Port, uint32(tt.wantPort)) {
-					t.Errorf("FromMultiAddr() = %v, want %v", got.Port, tt.wantPort)
+				if !reflect.DeepEqual(got.PrimaryPort(), uint32(tt.wantPort)) {
+					t.Errorf("FromMultiAddr() = %v, want %v", got.PrimaryPort(), tt.wantPort)
 				}
 			}
 
@@ -71,6 +71,7 @@ func TestFromMultiAddrStringWithPID(t *testing.T) {
 		{"TIP4MissingPort", "/ip4/192.168.0.58", "16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", "192.168.0.58", 11002, true},
 		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003", "16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", "FE80::0202:B3FF:FE1E:8329", 11003, false},
 		{"TDNS", "/dns/mainnet-polaris.aergo.io/tcp/8916", "16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa", "mainnet-polaris.aergo.io", 8916, false},
+		{"TDNS4", "/dns4/mainnet-polaris.aergo.io/tcp/8916", "16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa", "mainnet-polaris.aergo.io", 8916, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -84,11 +85,11 @@ func TestFromMultiAddrStringWithPID(t *testing.T) {
 				return
 			}
 			if !tt.wantErr {
-				if !network.IsSameAddress(got.IPAddress, tt.wantIp) {
-					t.Errorf("FromMultiAddr() = %v, want %v", got.IPAddress, tt.wantIp)
+				if !network.IsSameAddress(got.PrimaryAddress(), tt.wantIp) {
+					t.Errorf("FromMultiAddr() = %v, want %v", got.PrimaryAddress(), tt.wantIp)
 				}
-				if !reflect.DeepEqual(got.Port, uint32(tt.wantPort)) {
-					t.Errorf("FromMultiAddr() = %v, want %v", got.Port, tt.wantPort)
+				if !reflect.DeepEqual(got.PrimaryPort(), uint32(tt.wantPort)) {
+					t.Errorf("FromMultiAddr() = %v, want %v", got.PrimaryPort(), tt.wantPort)
 				}
 			}
 
@@ -131,11 +132,8 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := p2pcommon.PeerMeta{
-				ID:        tt.fields.ID,
-				IPAddress: tt.fields.IPAddress,
-				Port:      tt.fields.Port,
-			}
+			m := p2pcommon.NewMetaWith1Addr(tt.fields.ID, tt.fields.IPAddress, tt.fields.Port)
+
 			got, err := PeerMetaToMultiAddr(m)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerMeta.PeerMetaToMultiAddr() error = %v, wantErr %v", err, tt.wantErr)
@@ -228,29 +226,6 @@ func TestGenerateKeyFile(t *testing.T) {
 	}
 }
 
-func TestExtractIPAddress(t *testing.T) {
-	tests := []struct {
-		name  string
-		mastr string
-
-		want net.IP
-	}{
-		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("192.168.0.58")},
-		{"TIP4AndPort", "/ip4/192.168.0.58/tcp/11002", net.ParseIP("192.168.0.58")},
-		{"TMissingAddr", "/tcp/11002", nil},
-		{"TIP4Only", "/ip4/192.168.0.58", net.ParseIP("192.168.0.58"),},
-		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", net.ParseIP("FE80::0202:B3FF:FE1E:8329")},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ma, _ := types.ParseMultiaddr(tt.mastr)
-			if got := ExtractIPAddress(ma); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ExtractIPAddress() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestFromMultiAddrString(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -272,8 +247,47 @@ func TestFromMultiAddrString(t *testing.T) {
 				t.Errorf("FromMultiAddrString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && !reflect.DeepEqual(got.IPAddress, tt.wantAddr) {
-				t.Errorf("FromMultiAddrString() got = %v, want %v", got.IPAddress, tt.wantAddr)
+			if !tt.wantErr && !reflect.DeepEqual(got.PrimaryAddress(), tt.wantAddr) {
+				t.Errorf("FromMultiAddrString() got = %v, want %v", got.PrimaryAddress(), tt.wantAddr)
+			}
+		})
+	}
+}
+
+func TestFromMultiAddrToPeerInfo(t *testing.T) {
+	tests := []struct {
+		name string
+		arg  string
+
+		wantAddrPort string
+		wantErr      bool
+	}{
+		{"TIP4peerAddr", "/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", "/ip4/192.168.0.58/tcp/11002", false},
+		{"TIP4AndPort", "/ip4/192.168.0.58/tcp/11002", "/ip4/192.168.0.58/tcp/11002", true},
+		{"TMissingAddr", "/tcp/11002", "", true},
+		{"TIP4Only", "/ip4/192.168.0.58", "192.168.0.58", true},
+		{"TIP6peerAddr", "/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh", "/ip6/fe80::202:b3ff:fe1e:8329/tcp/11003", false},
+		{"TDomainName", "/dns4/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa", "/dns4/mainnet-polaris.aergo.io/tcp/8916", false},
+		{"TDomainName6", "/dns6/mainnet-polaris.aergo.io/tcp/8916/p2p/16Uiu2HAkuxyDkMTQTGFpmnex2SdfTVzYfPztTyK339rqUdsv3ZUa", "/dns6/mainnet-polaris.aergo.io/tcp/8916", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ma, err := types.ParseMultiaddr(tt.arg)
+			if err != nil {
+				t.Fatalf("Wrong input arg %v , errored %v", tt.arg, err)
+			}
+			info, err := FromMultiAddrToPeerInfo(ma)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FromMultiAddrToPeerInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if len(info.Addresses) != 1 {
+					t.Fatalf("FromMultiAddrToPeerInfo() got wrong address size = %v, want just one", len(info.Addresses))
+				}
+				if info.Addresses[0].String() != tt.wantAddrPort {
+					t.Errorf("FromMultiAddrToPeerInfo() addr = %v, want %v", info.Addresses, tt.wantAddrPort)
+				}
 			}
 		})
 	}

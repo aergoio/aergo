@@ -8,6 +8,7 @@ package p2p
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 	"testing"
 	"time"
 
@@ -333,8 +334,10 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
+			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
-			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
+			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, hash := range test.inCache {
 				target.blkHashCache.Add(hash, true)
 			}
@@ -364,8 +367,10 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
+			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
-			target := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
+			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, hash := range test.inCache {
 				target.txHashCache.Add(hash, true)
 			}
@@ -413,7 +418,10 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
+			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+
+			p := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, add := range test.toAdd {
 				p.requests[add] = &requestInfo{receiver: recvList[add]}
 			}
@@ -463,7 +471,10 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 			mockMF.EXPECT().NewMsgTxBroadcastOrder(gomock.Any()).Return(mockMO).
 				Times(test.expectSend)
 
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, nil, logger, mockMF, mockSigner, nil)
+			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+
+			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, mockMF, mockSigner, nil)
 			p.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
 			p.maxTxNoticeHashSize = maxTxHashSize
 
@@ -515,7 +526,10 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			mockMO.EXPECT().GetProtocolID().Return(p2pcommon.PingRequest).AnyTimes()
 			mockMO.EXPECT().GetMsgID().Return(sampleMsgID).AnyTimes()
 
-			p := newRemotePeer(sampleMeta, 0, mockPeerManager, nil, logger, nil, nil, dummyRW)
+			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+
+			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, nil, nil, dummyRW)
 			p.state.SetAndGet(types.RUNNING)
 			go p.runWrite()
 			p.state.SetAndGet(types.RUNNING)

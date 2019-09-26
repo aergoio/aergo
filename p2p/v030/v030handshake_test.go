@@ -74,7 +74,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "dummy.aergo.io"}
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID,"dummy.aergo.io", 7846)
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
@@ -149,7 +149,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "dummy.aergo.io"}
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID,"dummy.aergo.io", 7846)
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}

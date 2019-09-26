@@ -42,17 +42,17 @@ type remotePeerImpl struct {
 	logger       *log.Logger
 	pingDuration time.Duration
 
-	manageNum uint32
-	meta      p2pcommon.PeerMeta
-	name      string
-	state     types.PeerState
-	role      p2pcommon.PeerRole
-	actor     p2pcommon.ActorService
-	pm        p2pcommon.PeerManager
-	mf        p2pcommon.MoFactory
-	signer    p2pcommon.MsgSigner
-	metric    *metric.PeerMetric
-	tnt       p2pcommon.TxNoticeTracer
+	manageNum  uint32
+	remoteInfo p2pcommon.RemoteInfo
+	name       string
+	state      types.PeerState
+	role       p2pcommon.PeerRole
+	actor      p2pcommon.ActorService
+	pm         p2pcommon.PeerManager
+	mf         p2pcommon.MoFactory
+	signer     p2pcommon.MsgSigner
+	metric     *metric.PeerMetric
+	tnt        p2pcommon.TxNoticeTracer
 
 	stopChan chan struct{}
 
@@ -84,10 +84,10 @@ type remotePeerImpl struct {
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
-		meta: meta, manageNum: manageNum, pm: pm,
-		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(meta.ID), manageNum),
+		remoteInfo: remote, manageNum: manageNum, pm: pm,
+		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(remote.Meta.ID), manageNum),
 		actor: actor, logger: log, mf: mf, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
@@ -120,13 +120,17 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 	return rPeer
 }
 
-// ID return id of peer, same as peer.meta.ID
+// ID return id of peer, same as peer.remoteInfo.ID
 func (p *remotePeerImpl) ID() types.PeerID {
-	return p.meta.ID
+	return p.remoteInfo.Meta.ID
+}
+
+func (p *remotePeerImpl) RemoteInfo() p2pcommon.RemoteInfo {
+	return p.remoteInfo
 }
 
 func (p *remotePeerImpl) Meta() p2pcommon.PeerMeta {
-	return p.meta
+	return p.remoteInfo.Meta
 }
 
 func (p *remotePeerImpl) ManageNumber() uint32 {
@@ -138,7 +142,7 @@ func (p *remotePeerImpl) Name() string {
 }
 
 func (p *remotePeerImpl) Version() string {
-	return p.meta.Version
+	return p.remoteInfo.Meta.Version
 }
 
 func (p *remotePeerImpl) Role() p2pcommon.PeerRole {
@@ -289,7 +293,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
 		p.logger.Warn().Err(err).Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Str(p2putil.LogProtoID, subProto.String()).Msg("invalid message data")
 		return fmt.Errorf("invalid message data")
 	}
-	//err = p.signer.verifyMsg(msg, p.meta.ID)
+	//err = p.signer.verifyMsg(msg, p.remoteInfo.ID)
 	//if err != nil {
 	//	p.logger.Warn().Err(err).Str(LogPeerName, p.Name()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Msg("Failed to check signature")
 	//	return fmt.Errorf("Failed to check signature")
@@ -477,7 +481,7 @@ func (p *remotePeerImpl) pruneRequests() {
 	}
 	p.logger.Info().Int("count", deletedCnt).Str(p2putil.LogPeerName, p.Name()).
 		Time("until", expireTime).Msg("Pruned requests which response was not came")
-	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
+	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.remoteInfo.ID.Pretty(), time.Unix(expireTime, 0))
 	if debugLog {
 		p.logger.Debug().Strs("reqs", deletedReqs).Msg("Pruned")
 	}

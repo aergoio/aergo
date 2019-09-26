@@ -15,9 +15,13 @@ import (
 	"github.com/pkg/errors"
 	"net"
 	"strconv"
+	"strings"
 )
 
-// PeerID is identier of peer. it is alias of libp2p.PeerID for now
+// ProducerID is identifier of block producer. It is same format with the PeerID at version 1.x, but might be changed to other format later.
+type ProducerID = core.PeerID
+
+// PeerID is identifier of peer. It is alias of libp2p.PeerID for now
 type PeerID = core.PeerID
 
 // NOTE use only in test
@@ -42,6 +46,9 @@ func IDFromPublicKey(pubKey crypto.PubKey) (PeerID, error) {
 func IDFromPrivateKey(sk crypto.PrivKey) (PeerID, error) {
 	return peer.IDFromPrivateKey(sk)
 }
+func IsSamePeerID(pid1,pid2 PeerID) bool {
+	return string(pid1) == string(pid2)
+}
 
 // Stream is alias of libp2p.Stream
 type Stream = core.Stream
@@ -59,7 +66,7 @@ const (
 	protoP2P  = "p2p"
 )
 
-func PeerToMultiAddr(address string, port uint32, pid PeerID) (multiaddr.Multiaddr, error) {
+func PeerToMultiAddr(address string, port uint32, pid PeerID) (Multiaddr, error) {
 	idport, err := ToMultiAddr(address, port)
 	if err != nil {
 		return nil, err
@@ -72,7 +79,7 @@ func PeerToMultiAddr(address string, port uint32, pid PeerID) (multiaddr.Multiad
 }
 
 // ToMultiAddr make libp2p compatible Multiaddr object
-func ToMultiAddr(address string, port uint32) (multiaddr.Multiaddr, error) {
+func ToMultiAddr(address string, port uint32) (Multiaddr, error) {
 	var maddr, mport *multiaddr.Component
 	var err error
 	switch network.CheckAddressType(address) {
@@ -98,50 +105,72 @@ func ToMultiAddr(address string, port uint32) (multiaddr.Multiaddr, error) {
 	return multiaddr.Join(maddr, mport), nil
 }
 
-func ParseMultiaddr(str string) (multiaddr.Multiaddr, error) {
+// ParseMultiaddr parse multiaddr formatted string to Multiaddr with slightly different manner; it automatically auusme that /dns is /dns4
+func ParseMultiaddr(str string) (Multiaddr, error) {
+	// replace /dns/ to /dns4/ for backward compatibility
+	if strings.HasPrefix(str, "/dns/") {
+		str = strings.Replace(str, "/dns/", "/dns4/", 1)
+	}
 	return multiaddr.NewMultiaddr(str)
-}
-// Deprecated: official multiaddr now support /dns (and also /dns4 and /dns6 )
-// ParseMultiaddrWithResolve parse string to multiaddr, but doesn't check if domain name is valid.
-func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
-	return multiaddr.NewMultiaddr(str)
-	//if err != nil {
-	//	// multiaddr is not support domain name yet. change domain name to ip address manually
-	//	split := strings.Split(str, "/")
-	//	if len(split) < 3 || !strings.HasPrefix(split[1], "dns") {
-	//		return nil, err
-	//	}
-	//	domainName := split[2]
-	//	ips, err := network.ResolveHostDomain(domainName)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("Could not get IPs: %v\n", err)
-	//	}
-	//	// use ipv4 as possible.
-	//	ipSelected := false
-	//	for _, ip := range ips {
-	//		if ip.To4() != nil {
-	//			split[1] = "ip4"
-	//			split[2] = ip.To4().String()
-	//			ipSelected = true
-	//			break
-	//		}
-	//	}
-	//	if !ipSelected {
-	//		for _, ip := range ips {
-	//			if ip.To16() != nil {
-	//				split[1] = "ip6"
-	//				split[2] = ip.To16().String()
-	//				ipSelected = true
-	//				break
-	//			}
-	//		}
-	//	}
-	//	if !ipSelected {
-	//		return nil, err
-	//	}
-	//	rejoin := strings.Join(split, "/")
-	//	return multiaddr.NewMultiaddr(rejoin)
-	//}
-	//return ma, nil
 }
 
+const PortUndefined = uint32(0xffffffff)
+
+var ErrInvalidIPAddress = errors.New("invalid ip address")
+var ErrInvalidPort = errors.New("invalid port")
+
+var addrProtos = []int{multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS4, multiaddr.P_DNS6}
+func AddressFromMultiAddr(ma Multiaddr) string {
+	for _, p := range addrProtos {
+		val, err := ma.ValueForProtocol(p)
+		if err == nil {
+			return val
+		}
+	}
+	return ""
+}
+
+func IsAddress(proto multiaddr.Protocol) bool {
+	switch proto.Code {
+	case multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS4, multiaddr.P_DNS6:
+		return true
+	default:
+		return false
+	}
+}
+
+func GetIPPortFromMultiaddr(ma Multiaddr) (net.IP, uint32, error) {
+	ip := GetIPFromMultiaddr(ma)
+	if ip == nil {
+		return nil, PortUndefined, ErrInvalidIPAddress
+	}
+	port := GetPortFromMultiaddr(ma)
+	if port == PortUndefined {
+		return nil, PortUndefined, ErrInvalidPort
+	}
+	return ip, port, nil
+}
+
+func GetIPFromMultiaddr(ma Multiaddr) net.IP {
+	val, err := ma.ValueForProtocol(multiaddr.P_IP4)
+	if err != nil {
+		val, err = ma.ValueForProtocol(multiaddr.P_IP6)
+	}
+	if err == nil {
+		return net.ParseIP(val)
+	} else {
+		return nil
+	}
+}
+
+func GetPortFromMultiaddr(ma Multiaddr) uint32 {
+	val, err := ma.ValueForProtocol(multiaddr.P_TCP)
+	if err != nil {
+		return PortUndefined
+	}
+	port, err := strconv.Atoi(val)
+	if err != nil {
+		return PortUndefined
+	}
+	return uint32(port)
+}

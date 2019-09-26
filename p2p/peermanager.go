@@ -4,7 +4,6 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -152,7 +151,7 @@ func (pm *peerManager) init() {
 	// add designated peers to waiting pool at initial time.
 	for _, meta := range pm.designatedPeers {
 		if _, foundInWait := pm.waitingPeers[meta.ID]; !foundInWait {
-			pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
+			pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, Designated: true, NextTrial: time.Now()}
 		}
 	}
 }
@@ -183,15 +182,18 @@ func (pm *peerManager) Stop() error {
 
 func (pm *peerManager) initDesignatedPeerList() {
 	// add remote node from config
-	for _, target := range pm.conf.NPAddPeers {
-		peerMeta, err := p2putil.FromMultiAddrString(target)
+	for _, addrStr := range pm.conf.NPAddPeers {
+		ma, err := types.ParseMultiaddr(addrStr)
 		if err != nil {
-			pm.logger.Warn().Err(err).Str("str", target).Msg("invalid NPAddPeer address")
+			pm.logger.Warn().Err(err).Str("str", addrStr).Msg("invalid NPAddPeer address")
 			continue
 		}
-		peerMeta.Designated = true
-		peerMeta.Outbound = true
-		pm.logger.Info().Str(p2putil.LogFullID, peerMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerMeta.ID)).Str("addr", peerMeta.IPAddress).Uint32("port", peerMeta.Port).Msg("Adding Designated peer")
+		peerMeta, err := p2putil.FromMultiAddrToPeerInfo(ma)
+		if err != nil {
+			pm.logger.Warn().Err(err).Str("str", addrStr).Msg("invalid NPAddPeer address")
+			continue
+		}
+		pm.logger.Info().Str(p2putil.LogFullID, peerMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerMeta.ID)).Str("addr", peerMeta.Addresses[0].String()).Msg("Adding Designated peer")
 		pm.designatedPeers[peerMeta.ID] = peerMeta
 	}
 }
@@ -315,29 +317,30 @@ CLEANUPLOOP:
 
 // tryRegister register peer to peer manager, if peer with same peer
 func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePeer {
-	meta := hsresult.meta
+	remote := hsresult.remote
+	meta := remote.Meta
 	peerID := meta.ID
 	preExistPeer, ok := pm.remotePeers[peerID]
 	if ok {
 		pm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Peer add collision. Outbound connection of higher hash will survive.")
 		iAmLowerOrEqual := p2putil.ComparePeerID(pm.is.SelfNodeID(), meta.ID) <= 0
-		if iAmLowerOrEqual == meta.Outbound {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Close connection and keep earlier handshake connection.")
+		if iAmLowerOrEqual == remote.Connection.Outbound {
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Close connection and keep earlier handshake connection.")
 			return nil
 		} else {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", meta.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
 			// stopping lower valued connection
 			preExistPeer.Stop()
 		}
 	}
 
-	meta = pm.changePeerAttributes(meta, peerID)
-	newPeer := pm.peerFactory.CreateRemotePeer(meta, pm.GetNextManageNum(), hsresult.status, hsresult.s, hsresult.msgRW)
+	remote = pm.changePeerAttributes(remote, peerID)
+	newPeer := pm.peerFactory.CreateRemotePeer(remote, pm.GetNextManageNum(), hsresult.status, hsresult.s, hsresult.msgRW)
 
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Str("role", newPeer.Role().String()).Bool("outbound", meta.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", net.ParseIP(meta.IPAddress).String()+":"+strconv.Itoa(int(meta.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("role", newPeer.Role().String()).Bool("outbound", remote.Connection.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -348,15 +351,15 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 	return newPeer
 }
 
-func (pm *peerManager) changePeerAttributes(meta p2pcommon.PeerMeta, peerID types.PeerID) (p2pcommon.PeerMeta) {
+func (pm *peerManager) changePeerAttributes(remote p2pcommon.RemoteInfo, peerID types.PeerID) (p2pcommon.RemoteInfo) {
 	// override options by configurations of node
-	_, meta.Designated = pm.designatedPeers[peerID]
+	_, remote.Designated = pm.designatedPeers[peerID]
 	// hidden is set by either remote peer's asking or local node's config
 	if _, exist := pm.hiddenPeerSet[peerID]; exist {
-		meta.Hidden = true
+		remote.Hidden = true
 	}
 
-	return meta
+	return remote
 }
 
 func (pm *peerManager) GetNextManageNum() uint32 {

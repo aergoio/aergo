@@ -74,6 +74,9 @@ type P2PConfig struct {
 
 	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
+
+	PeerRole string  `mapstructure:"peerrole" description:"Role of peer.  "`
+
 }
 
 // AuthConfig defines configuration for auditing

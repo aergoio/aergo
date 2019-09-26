@@ -18,6 +18,7 @@ require (
 	github.com/derekparker/trie v0.0.0-20190322172448-1ce4922c7ad9
 	github.com/emirpasic/gods v1.12.0
 	github.com/fsnotify/fsnotify v1.4.7
+	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
 	github.com/funkygao/golib v0.0.0-20180314131852-90d4905c1961
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
@@ -25,6 +26,7 @@ require (
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
+	github.com/guptarohit/asciigraph v0.4.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/improbable-eng/grpc-web v0.9.6
 	github.com/libp2p/go-addr-util v0.0.1
@@ -34,10 +36,12 @@ require (
 	github.com/magiconair/properties v1.8.0
 	github.com/mattn/go-colorable v0.1.1
 	github.com/mattn/go-runewidth v0.0.4 // indirect
+	github.com/mattn/go-tty v0.0.0-20190424173100-523744f04859 // indirect
+	github.com/minio/highwayhash v1.0.0 // indirect
 	github.com/minio/sha256-simd v0.1.1
 	github.com/mr-tron/base58 v1.1.2
 	github.com/multiformats/go-multiaddr v0.1.1
-	github.com/multiformats/go-multiaddr-dns v0.2.0
+	github.com/multiformats/go-multiaddr-dns v0.2.0 // indirect
 	github.com/multiformats/go-multiaddr-net v0.1.0
 	github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492 // indirect
 	github.com/opentracing/opentracing-go v1.0.2
@@ -53,7 +57,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
-	github.com/sunpuyo/badger v0.0.0-20181022123248-bb757672e2c7
+	github.com/sunpuyo/badger v0.0.0-20181022123248-bb757672e2c7 // indirect
 	github.com/willf/bitset v1.1.10 // indirect
 	github.com/willf/bloom v2.0.3+incompatible
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect

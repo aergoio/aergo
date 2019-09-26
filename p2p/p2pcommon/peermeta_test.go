@@ -6,47 +6,58 @@
 package p2pcommon
 
 import (
+	"bytes"
+	"github.com/aergoio/aergo/internal/network"
+	"github.com/multiformats/go-multiaddr"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestFromPeerAddress(t *testing.T) {
+func TestFromPeerAddressLegacy(t *testing.T) {
 	type args struct {
-		ip   string
-		port uint32
+		addr string
 		id   string
 	}
 	tests := []struct {
 		name string
 		args args
 	}{
-		{"t1", args{"192.168.1.2", 2, "id0002"}},
-		{"t2", args{"0.0.0.0", 2223, "id2223"}},
-		{"t3", args{"2001:0db8:85a3:08d3:1319:8a2e:0370:7334", 444, "id0002"}},
-		{"t4", args{"::ffff:192.0.1.2", 444, "id0002"}},
-		// TODO: Add test cases.
+		{"t1", args{"/ip4/192.168.1.2/tcp/2", "id0002"}},
+		{"t2", args{"/ip4/0.0.0.0/tcp/2223", "id2223"}},
+		{"t3", args{"/ip6/2001:0db8:85a3:08d3:1319:8a2e:0370:7334/tcp/444", "id0002"}},
+		{"t4", args{"/ip6/::ffff:192.0.1.2/tcp/444", "id0002"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ipAddr := tt.args.ip
-			addr := &types.PeerAddress{Address: ipAddr, Port: tt.args.port, PeerID: []byte(tt.args.id)}
+			addr := &types.PeerAddress{Addresses: []string{tt.args.addr}, PeerID: []byte(tt.args.id)}
 			actual := FromPeerAddress(addr)
-			assert.Equal(t, ipAddr, actual.IPAddress)
-			assert.Equal(t, tt.args.port, actual.Port)
-			assert.Equal(t, tt.args.id, string(actual.ID))
+			if len(actual.Addresses) != 1 {
+				t.Fatalf("FromPeerAddress len(addrs) %v , want 1", len(actual.Addresses))
+			}
+			ma, err := types.ParseMultiaddr(tt.args.addr)
+			if err != nil {
+				t.Fatalf("Wrong test input, %v is not valid input for multiaddr: err %v", tt.args.addr, err.Error())
+			}
+			if !ma.Equal(actual.Addresses[0]) {
+				t.Fatalf("FromPeerAddress Addresses %v , want %v", actual.Addresses[0].String(), ma.String())
+			}
+
+			if string(actual.ID) != tt.args.id {
+				t.Fatalf("FromPeerAddress ID %v , want %v", string(actual.ID), tt.args.id)
+			}
 
 			actual2 := actual.ToPeerAddress()
-			assert.Equal(t, *addr, actual2)
+			if !bytes.Equal(addr.PeerID, actual2.PeerID) {
+				t.Fatalf("ToPeerAddress %v , want %v", actual2.String(), addr.String())
+			}
 		})
 	}
 }
 
 func TestNewMetaFromStatus(t *testing.T) {
 	type args struct {
-		ip       string
-		port     uint32
+		addr     string
 		id       string
 		noExpose bool
 		outbound bool
@@ -55,23 +66,76 @@ func TestNewMetaFromStatus(t *testing.T) {
 		name string
 		args args
 	}{
-		{"TExpose", args{"192.168.1.2", 2, "id0002", false, false}},
-		{"TNoExpose", args{"0.0.0.0", 2223, "id2223", true, false}},
-		{"TOutbound", args{"2001:0db8:85a3:08d3:1319:8a2e:0370:7334", 444, "id0002", false, true}},
+		{"TExpose", args{"/ip4/192.168.1.2/tcp/2", "id0002", false, false}},
+		{"TNoExpose", args{"/ip4/0.0.0.0/tcp/2223", "id2223", true, false}},
+		{"TOutbound", args{"/ip6/2001:0db8:85a3:08d3:1319:8a2e:0370:7334/tcp/444", "id0002", false, true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sender := &types.PeerAddress{Address: tt.args.ip, Port: tt.args.port, PeerID: []byte(tt.args.id)}
+			sender := &types.PeerAddress{Addresses: []string{tt.args.addr}, PeerID: []byte(tt.args.id)}
 			status := &types.Status{Sender: sender, NoExpose: tt.args.noExpose}
-			actual := NewMetaFromStatus(status, tt.args.outbound)
-			assert.Equal(t, tt.args.ip, actual.IPAddress)
-			assert.Equal(t, tt.args.port, actual.Port)
-			assert.Equal(t, tt.args.id, string(actual.ID))
-			assert.Equal(t, tt.args.noExpose, actual.Hidden)
-			assert.Equal(t, tt.args.outbound, actual.Outbound)
+			ma, err := types.ParseMultiaddr(tt.args.addr)
+			if err != nil {
+				t.Fatalf("Wrong test input, %v is not valid input for multiaddr: err %v", tt.args.addr, err.Error())
+			}
 
-			actual2 := actual.ToPeerAddress()
-			assert.Equal(t, *sender, actual2)
+			actual := NewMetaFromStatus(status, tt.args.outbound)
+			if len(actual.Addresses) != 1 {
+				t.Fatalf("FromPeerAddress len(addrs) %v , want 1", len(actual.Addresses))
+			}
+
+			if !ma.Equal(actual.Addresses[0]) {
+				t.Fatalf("FromPeerAddress Addresses %v , want %v", actual.Addresses[0].String(), ma.String())
+			}
+			if string(actual.ID) != tt.args.id {
+				t.Fatalf("FromPeerAddress ID %v , want %v", string(actual.ID), tt.args.id)
+			}
+		})
+	}
+}
+
+func TestNewMetaWith1Addr(t *testing.T) {
+	id1, id2 := types.RandomPeerID(), types.RandomPeerID()
+	type fields struct {
+		addr string
+		port uint32
+		id   types.PeerID
+	}
+	tests := []struct {
+		name      string
+		args      fields
+		wantErr   bool
+		wantProto int
+	}{
+		{"t1", fields{"192.168.1.2", 2, id1}, false, multiaddr.P_IP4},
+		{"t2", fields{"0.0.0.0", 2223, id2}, false, multiaddr.P_IP4},
+		{"t3", fields{"2001:0db8:85a3:08d3:1319:8a2e:0370:7334", 444, id1}, false, multiaddr.P_IP6},
+		{"t4", fields{"::ffff:192.0.1.2", 444, id1}, false, multiaddr.P_IP4},
+		//{"t5", fields{"www.aergo.io", 444, "id0002"}, false, multiaddr.P_IP4},
+		{"t6", fields{"no1.blocko.com", 444, id1}, false, multiaddr.P_DNS4},
+		{"tErrWrongPID", fields{"192.168.1.2", 2, "id0002"}, false, multiaddr.P_IP4},
+		{"tErrFormat", fields{"dw::ffff:192.0.1.2", 444, id1}, true, multiaddr.P_IP4},
+		{"tErrDomain", fields{"dw!.com", 444, id1}, true, multiaddr.P_IP4},
+		{"tErrWrongDomain", fields{".google.com", 444, id1}, true, multiaddr.P_IP4},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NewMetaWith1Addr(tt.args.id, tt.args.addr, tt.args.port)
+			if !tt.wantErr {
+				if !types.IsSamePeerID(got.ID,tt.args.id) {
+					t.Errorf("NewMetaWith1Addr() ID = %v, want %v", got.ID, tt.args.id)
+				}
+				if !network.IsSameAddress(got.PrimaryAddress(),tt.args.addr) {
+					t.Errorf("NewMetaWith1Addr() addr = %v, want %v", got.PrimaryAddress(), tt.args.addr)
+				}
+				if got.PrimaryPort() != tt.args.port {
+					t.Errorf("NewMetaWith1Addr() port = %v, want %v", got.PrimaryPort(), tt.args.port)
+				}
+			} else {
+				if len(got.Addresses) != 0 {
+					t.Errorf("NewMetaWith1Addr() = %v, want error", got.Addresses[0].String())
+				}
+			}
 		})
 	}
 }

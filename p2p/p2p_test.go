@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"github.com/aergoio/aergo/p2p/list"
+	"net"
 	"reflect"
 	"testing"
 
@@ -82,6 +83,7 @@ func TestP2P_InsertHandlers(t *testing.T) {
 func TestP2P_banIfFound(t *testing.T) {
 	sampleCnt := 5
 	addr := "172.21.11.3"
+
 	pids := make([]types.PeerID,sampleCnt)
 	for i:=0; i<sampleCnt; i++ {
 		pids[i] = types.RandomPeerID()
@@ -105,9 +107,12 @@ func TestP2P_banIfFound(t *testing.T) {
 			mockLM := p2pmock.NewMockListManager(ctrl)
 			peers := make([]p2pcommon.RemotePeer,sampleCnt)
 			for i:=0; i<sampleCnt; i++ {
+				meta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), addr, 7846)
+				conn := p2pcommon.RemoteConn{IP:net.ParseIP(addr),Port:7846, Outbound:false}
+				ri := p2pcommon.RemoteInfo{Meta:meta, Connection:conn}
 				mPeer := p2pmock.NewMockRemotePeer(ctrl)
 				mPeer.EXPECT().ID().Return(pids[i])
-				mPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{IPAddress:addr, Outbound:false}).MinTimes(1)
+				mPeer.EXPECT().RemoteInfo().Return(ri).MaxTimes(2)
 				mPeer.EXPECT().Name().Return("peer "+pids[i].ShortString()).AnyTimes()
 				if tt.inWhite[i] == 0 {
 					mPeer.EXPECT().Stop()

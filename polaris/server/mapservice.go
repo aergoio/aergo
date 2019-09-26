@@ -46,7 +46,7 @@ var (
 
 type mapService interface {
 	getPeerCheckers() []peerChecker
-	registerPeer(receivedMeta p2pcommon.PeerMeta) error
+	registerPeer(receivedMeta p2pcommon.PeerMeta, conn p2pcommon.RemoteConn) error
 	unregisterPeer(peerID types.PeerID)
 }
 
@@ -122,18 +122,20 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 func (pms *PeerMapService) onConnect(s types.Stream) {
 	defer s.Close()
 	peerID := s.Conn().RemotePeer()
-	remoteIP := p2putil.ExtractIPAddress(s.Conn().RemoteMultiaddr())
-	if remoteIP == nil {
+	remoteIP, port, err := types.GetIPPortFromMultiaddr(s.Conn().RemoteMultiaddr())
+	if err != nil {
 		pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogPeerID, peerID.String()).Msg("Invalid address information")
 		return
 	}
-	remotePeerMeta :=  p2pcommon.PeerMeta{ID: peerID}
+	conn := p2pcommon.RemoteConn{IP:remoteIP, Port:port,Outbound:false}
+	tempMeta := p2pcommon.PeerMeta{ID: peerID, Addresses:[]types.Multiaddr{s.Conn().RemoteMultiaddr()}}
+	remotePeerInfo :=  p2pcommon.RemoteInfo{Meta: tempMeta, Connection:conn}
 	pms.Logger.Debug().Str("addr", remoteIP.String()).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
 	// receive input
-	container, query, err := pms.readRequest(remotePeerMeta, rw)
+	container, query, err := pms.readRequest(remotePeerInfo, rw)
 	if err != nil {
 		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, peerID.String()).Msg("failed to read query")
 		return
@@ -144,14 +146,14 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 		pms.Logger.Debug().Str("address", remoteIP.String()).Str(p2putil.LogPeerID, peerID.String()).Msg("close soon banned peer")
 		return
 	}
-	resp, err := pms.handleQuery(container, query)
+	resp, err := pms.handleQuery(conn, container, query)
 	if err != nil {
 		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, peerID.String()).Msg("failed to handle query")
 		return
 	}
 
 	// response to peer
-	if err = pms.writeResponse(container, remotePeerMeta, resp, rw); err != nil {
+	if err = pms.writeResponse(container, remotePeerInfo, resp, rw); err != nil {
 		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, peerID.String()).Msg("failed to write query")
 		return
 	}
@@ -165,7 +167,7 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer setup some
-func (pms *PeerMapService) readRequest(meta p2pcommon.PeerMeta, rd p2pcommon.MsgReadWriter) (p2pcommon.Message, *types.MapQuery, error) {
+func (pms *PeerMapService) readRequest(meta p2pcommon.RemoteInfo, rd p2pcommon.MsgReadWriter) (p2pcommon.Message, *types.MapQuery, error) {
 	data, err := rd.ReadMsg()
 	if err != nil {
 		return nil, nil, err
@@ -180,12 +182,24 @@ func (pms *PeerMapService) readRequest(meta p2pcommon.PeerMeta, rd p2pcommon.Msg
 }
 
 // handleQuery check query parameters, return registered peers, and register this peer if requested.
-func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types.MapQuery) (*types.MapResponse, error) {
+func (pms *PeerMapService) handleQuery(conn p2pcommon.RemoteConn, container p2pcommon.Message, query *types.MapQuery) (*types.MapResponse, error) {
 	if query.Status == nil {
 		return nil, fmt.Errorf("malformed query %v", query)
 	}
-	receivedMeta := p2pcommon.FromPeerAddress(query.Status.Sender)
-	receivedMeta.Version = query.Status.Version
+	receivedMeta := p2pcommon.NewMetaFromStatus(query.Status, false)
+	// for backward compatibility to aergo v1 .
+	// TODO make compatible layer more elegant
+	if len(receivedMeta.Version) == 0 || receivedMeta.Version == "(old)" {
+		receivedMeta.Version = query.Status.Version
+	}
+	if len(receivedMeta.Addresses) == 0 {
+		sender := query.Status.Sender
+		ma, err := types.ToMultiAddr(sender.Address, sender.Port)
+		if err != nil {
+			return nil, fmt.Errorf("malformed query %v", query)
+		}
+		receivedMeta.Addresses = []types.Multiaddr{ma}
+	}
 	maxPeers := int(query.Size)
 	if maxPeers <= 0 {
 		return nil, fmt.Errorf("invalid argument count %d", maxPeers)
@@ -235,7 +249,7 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 			return resp, nil
 		}
 		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Msg("AddMe is set, and register peer to peer registry")
-		pms.registerPeer(receivedMeta)
+		pms.registerPeer(receivedMeta, conn)
 	}
 
 	resp.Status = types.ResultStatus_OK
@@ -258,25 +272,50 @@ func (pms *PeerMapService) retrieveList(maxPeers int, exclude types.PeerID) []*t
 	return list
 }
 
-func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta) error {
+func (pms *PeerMapService) registerPeer(receivedMeta p2pcommon.PeerMeta, conn p2pcommon.RemoteConn) error {
 	peerID := receivedMeta.ID
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
 	now := time.Now()
 	prev, ok := pms.peerRegistry[peerID]
 	if !ok {
-		newState := &peerState{connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
+		newState := &peerState{conn:conn, connected: now, PeerMapService: pms, meta: receivedMeta, addr: receivedMeta.ToPeerAddress(), lCheckTime: now}
 		pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(receivedMeta)).Str("version",receivedMeta.GetVersion()).Msg("Registering new peer info")
 		pms.peerRegistry[peerID] = newState
 	} else {
-		if prev.meta != receivedMeta {
+		if !isEqualMeta(prev.meta,receivedMeta) {
 			pms.Logger.Info().Str("meta", p2putil.ShortMetaForm(prev.meta)).Msg("Replacing previous peer info")
+			prev.conn = conn
 			prev.meta = receivedMeta
 			prev.addr = receivedMeta.ToPeerAddress()
 		}
 		prev.lCheckTime = now
 	}
 	return nil
+}
+
+func isEqualMeta(m1, m2 p2pcommon.PeerMeta) (eq bool) {
+	eq = false
+	if m1.ID != m2.ID || m1.Role != m2.Role || m1.Version != m2.Version{
+		return
+	}
+	if len(m1.Addresses) != len(m2.Addresses) {
+		return
+	}
+	for i, a := range m1.Addresses {
+		if !a.Equal(m2.Addresses[i]) {
+			return
+		}
+	}
+	if len(m1.ProducerIDs) != len(m2.ProducerIDs) {
+		return
+	}
+	for i, a := range m1.ProducerIDs {
+		if a != m2.ProducerIDs[i] {
+			return
+		}
+	}
+	return true
 }
 
 func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
@@ -293,22 +332,49 @@ func (pms *PeerMapService) applyNewBLEntry(entry types.WhiteListEntry) {
 	if entry.PeerID != types.NotSpecifiedID {
 		// target is simply single peer
 		if ps, found := pms.peerRegistry[entry.PeerID]; found {
-			ip := net.ParseIP(ps.meta.IPAddress)
-			if ip == nil || entry.Contains(ip, ps.meta.ID) {
-				delete(pms.peerRegistry, ps.meta.ID)
+			ips := findValidIPs(ps)
+			for _, ip := range ips {
+				if entry.Contains(ip, ps.meta.ID) {
+					delete(pms.peerRegistry, ps.meta.ID)
+					break
+				}
 			}
 		}
 	} else {
-		for id, ps := range pms.peerRegistry {
-			ip := net.ParseIP(ps.meta.IPAddress)
-			if ip == nil || entry.Contains(ip, id) {
-				delete(pms.peerRegistry,id)
+		for _, ps := range pms.peerRegistry {
+			ips := findValidIPs(ps)
+			for _, ip := range ips {
+				if entry.Contains(ip, ps.meta.ID) {
+					delete(pms.peerRegistry, ps.meta.ID)
+					break
+				}
 			}
 		}
 	}
 }
 
-func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2pcommon.MsgReadWriter) error {
+
+func findValidIPs(state *peerState) []net.IP {
+	ips := make([]net.IP,0,1)
+	ips = append(ips,state.conn.IP)
+	// only check primary address in v2.0.0
+	addr := state.meta.PrimaryAddress()
+	ip := net.ParseIP(addr)
+	if ip != nil {
+		ips = append(ips,ip)
+	} else {
+		// is domain name
+		candidates, err := network.ResolveHostDomain(addr)
+		if err == nil && len(candidates) > 0 {
+			for _, ip := range candidates {
+				ips = append(ips,ip)
+			}
+		}
+	}
+	return ips
+}
+
+func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, remoteInfo p2pcommon.RemoteInfo, resp *types.MapResponse, wt p2pcommon.MsgReadWriter) error {
 	msgID := p2pcommon.NewMsgID()
 	respMsg, err := createV030Message(msgID, reqContainer.ID(), common.MapResponse, resp)
 	if err != nil {
@@ -480,7 +546,7 @@ func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
 }
 
 func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
-	if !pms.allowPrivate && !network.IsPublicAddr(meta.IPAddress) {
+	if !pms.allowPrivate && !network.IsPublicAddr(meta.PrimaryAddress()) {
 		pms.Logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(meta)).Msg("peer is private address but polaris is not allow by configuration")
 		return false
 	}

@@ -16,11 +16,15 @@ import (
 	"strconv"
 )
 
-func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMeta {
+func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock bool) p2pcommon.PeerMeta {
 	protocolAddr := conf.NetProtocolAddr
 	var ipAddress net.IP
 	var err error
 	var protocolPort int
+	protocolPort = conf.NetProtocolPort
+	if protocolPort <= 0 {
+		panic("invalid NetProtocolPort " + strconv.Itoa(conf.NetProtocolPort))
+	}
 	if len(conf.NetProtocolAddr) != 0 {
 		ipAddress, err = network.GetSingleIPAddress(protocolAddr)
 		if err != nil {
@@ -37,14 +41,19 @@ func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMe
 		ipAddress = extIP
 		protocolAddr = ipAddress.String()
 	}
-	protocolPort = conf.NetProtocolPort
-	if protocolPort <= 0 {
-		panic("invalid NetProtocolPort " + strconv.Itoa(conf.NetProtocolPort))
-	}
+	ma,err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
 	var meta p2pcommon.PeerMeta
-	meta.IPAddress = protocolAddr
-	meta.Port = uint32(protocolPort)
+
 	meta.ID = peerID
+	meta.Addresses = []types.Multiaddr{ma}
+	// TODO
+	if produceBlock {
+		meta.Role = types.PeerRole_Producer
+		// register self id
+		meta.ProducerIDs = []types.PeerID{peerID}
+	} else {
+		meta.Role = types.PeerRole_Watcher
+	}
 	meta.Hidden = !conf.NPExposeSelf
 	meta.Version = p2pkey.NodeVersion()
 

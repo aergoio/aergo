@@ -34,7 +34,8 @@ func init() {
 	logger = log.NewLogger("test")
 	samplePeerID, _ = types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
-	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, Addresses:[]types.Multiaddr{sampleMA}}
 
 }
 

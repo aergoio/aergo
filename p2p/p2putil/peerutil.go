@@ -30,5 +30,5 @@ func ShortForm(pid types.PeerID) string {
 }
 
 func ShortMetaForm(m p2pcommon.PeerMeta) string {
-	return fmt.Sprintf("%s:%d/%s", m.IPAddress, m.Port, ShortForm(m.ID))
+	return fmt.Sprintf("%s:%d/%s", m.PrimaryAddress(), m.PrimaryPort(), ShortForm(m.ID))
 }

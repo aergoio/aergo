@@ -52,7 +52,7 @@ func (m *MockNTContainer) GenesisChainID() *types.ChainID {
 }
 
 // GenesisChainID indicates an expected call of GenesisChainID
-func (mr *MockNTContainerMockRecorder) ChainID() *gomock.Call {
+func (mr *MockNTContainerMockRecorder) GenesisChainID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenesisChainID", reflect.TypeOf((*MockNTContainer)(nil).GenesisChainID))
 }

@@ -22,8 +22,8 @@ import (
 func TestP2P_GetAddresses(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
-	dummyPeerMeta := p2pcommon.PeerMeta{ID:dummyPeerID, IPAddress:"127.0.0.1", Port:7846}
+	ma, _ := types.ParseMultiaddr("/ip4/127.0.0.1/tcp/7846")
+	dummyPeerMeta := p2pcommon.PeerMeta{ID:dummyPeerID, Addresses:[]types.Multiaddr{ma}}
 
 	type args struct {
 		peerID types.PeerID
@@ -51,10 +51,10 @@ func TestP2P_GetAddresses(t *testing.T) {
 			}
 			p2pmock.NewMockRemotePeer(ctrl)
 			mockPM.EXPECT().GetPeer(dummyPeerID).Return(mockPeer, tt.hasPeer).Times(1)
-			mockPM.EXPECT().SelfMeta().Return(dummyPeerMeta).Times(tt.wantSend).MaxTimes(tt.wantSend)
+			//mockPM.EXPECT().SelfMeta().Return(dummyPeerMeta).Times(tt.wantSend).MaxTimes(tt.wantSend)
 			mockMF.EXPECT().NewMsgRequestOrder(true, p2pcommon.AddressesRequest, gomock.AssignableToTypeOf(&types.AddressesRequest{})).Times(tt.wantSend)
 			p2ps := &P2P{
-				pm:mockPM, mf:mockMF,
+				pm:mockPM, mf:mockMF, selfMeta:dummyPeerMeta,
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
 

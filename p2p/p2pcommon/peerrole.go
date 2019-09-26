@@ -10,6 +10,7 @@ import "github.com/aergoio/aergo/types"
 type PeerRole uint8
 
 const (
+	// UnknownRole is old version or literaly unknown
 	UnknownRole PeerRole = iota
 	BlockProducer
 	Watcher

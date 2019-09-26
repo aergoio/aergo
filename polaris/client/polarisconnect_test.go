@@ -187,7 +187,7 @@ func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
 			cfg.NPUsePolaris = true
 
 			mockNTC := p2pmock.NewMockNTContainer(ctrl)
-			mockNTC.EXPECT().ChainID().Return(sampleCahinID).AnyTimes()
+			mockNTC.EXPECT().GenesisChainID().Return(sampleCahinID).AnyTimes()
 
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 

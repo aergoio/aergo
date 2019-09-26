@@ -21,4 +21,4 @@ package p2pcommon
 // libp2p
 //go:generate sh -c "mockgen github.com/libp2p/go-libp2p-core Host | sed -e 's/^package mock_go_libp2p_core/package p2pmock/g' > ../p2pmock/mock_host.go"
 
-//go:generate sh -c "mockgen github.com/libp2p/go-libp2p-core/network Stream | sed -e 's/^package mock_network/package p2pmock/g' > ../p2pmock/mock_stream.go"
+//go:generate sh -c "mockgen github.com/libp2p/go-libp2p-core/network Stream,Conn | sed -e 's/^package mock_network/package p2pmock/g' > ../p2pmock/mock_stream.go"

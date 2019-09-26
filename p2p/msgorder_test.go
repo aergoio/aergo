@@ -8,6 +8,7 @@ package p2p
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"testing"
 	"time"
 
@@ -24,9 +25,10 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 	defer ctrl.Finish()
 	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
 	factory := &baseMOFactory{tnt:mockTNT}
-
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
-
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses:[]types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
 	tests := []struct {
 		name     string
@@ -47,7 +49,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			pr := factory.NewMsgRequestOrder(true, p2pcommon.PingRequest, &types.Ping{})
 			prevCacheSize := len(peer.requests)
 			msgID := pr.GetMsgID()
@@ -73,8 +75,10 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 	defer ctrl.Finish()
 	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
 	factory := &baseMOFactory{tnt:mockTNT}
-
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
 	tests := []struct {
 		name     string
@@ -93,7 +97,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 
 			mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr)
 
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			pr := factory.NewMsgResponseOrder(p2pcommon.NewMsgID(), p2pcommon.PingResponse, &types.Pong{})
 			msgID := pr.GetMsgID()
 			// put dummy request information in cache
@@ -117,7 +121,10 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
 	factory := &baseMOFactory{tnt:mockTNT}
 
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
 	tests := []struct {
 		name     string
@@ -143,7 +150,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			} else {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
 			}
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{}
 
 			target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash, BlockNo:1})
@@ -180,7 +187,10 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 	defer ctrl.Finish()
 	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
 	factory := &baseMOFactory{tnt:mockTNT}
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
 	tests := []struct {
 		name         string
@@ -213,7 +223,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 
 			notiNo := uint64(99999)
 			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
 
 			skipMax := int32(0)
@@ -256,7 +266,10 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 	defer ctrl.Finish()
 	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
 	factory := &baseMOFactory{tnt:mockTNT}
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
 	tests := []struct {
 		name     string
@@ -287,7 +300,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 
 			notiNo := uint64(99999)
 			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
 
 			skipMax := int32(0)
@@ -316,7 +329,10 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 }
 
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "192.168.1.2", Port: 7845}
+	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
 
 	sampleHashes := make([][]byte, 10)
 	for i := 0; i < 10; i++ {
@@ -353,7 +369,7 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				mockTNT.EXPECT().ReportNotSend(gomock.Any(), 1).Times(1)
 			}
 
-			peer := newRemotePeer(sampleMeta, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
+			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 
 			pr := factory.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: sampleHashes})
 			msgID := pr.GetMsgID()

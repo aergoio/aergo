@@ -11,6 +11,7 @@ import (
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	v030 "github.com/aergoio/aergo/p2p/v030"
+	v200 "github.com/aergoio/aergo/p2p/v200"
 	"github.com/aergoio/aergo/types"
 	"io"
 )
@@ -42,6 +43,9 @@ func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVers
 
 func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
+	case p2pcommon.P2PVersion200:
+		vhs := v200.NewV200VersionedHS(h.pm, h.actor, h.logger, h, peerID, rwc, chain.Genesis.Block().Hash)
+		return vhs, nil
 	case p2pcommon.P2PVersion033:
 		vhs := v030.NewV033VersionedHS(h.pm, h.actor, h.logger, h, peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil

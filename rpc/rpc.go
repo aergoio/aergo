@@ -334,8 +334,8 @@ func (ns *RPC) CollectServerInfo(categories []string) *types.ServerInfo {
 	} else {
 		meta := rsp.(p2pcommon.PeerMeta)
 		statusInfo["id"] = meta.ID.Pretty()
-		statusInfo["addr"] = meta.IPAddress
-		statusInfo["port"] = strconv.Itoa(int(meta.Port))
+		statusInfo["addr"] = meta.PrimaryAddress()
+		statusInfo["port"] = strconv.Itoa(int(meta.PrimaryPort()))
 	}
 	configInfo := make(map[string]*types.ConfigItem)
 	types.AddCategory(configInfo, "base").AddBool("personal", ns.conf.BaseConfig.Personal)

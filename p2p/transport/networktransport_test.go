@@ -52,8 +52,8 @@ func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 	target.Host = p2pmock.NewMockHost(ctrl)
 	target.selfMeta.ID = types.PeerID("gwegw")
 
-	sampleAddr1 := p2pcommon.PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}
-	sampleAddr2 := p2pcommon.PeerMeta{ID: "fff", IPAddress: "192.168.0.2", Port: 33888, Outbound: true}
+	sampleAddr1 := p2pcommon.NewMetaWith1Addr(types.RandomPeerID() , "192.168.0.1", 33888)
+	sampleAddr2 := p2pcommon.NewMetaWith1Addr(types.RandomPeerID() , "192.168.0.2", 33888)
 	target.GetOrCreateStream(sampleAddr1, p2pcommon.P2PSubAddr)
 	target.GetOrCreateStream(sampleAddr1, p2pcommon.P2PSubAddr)
 	time.Sleep(time.Second)
@@ -70,8 +70,9 @@ func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 func TestNewNetworkTransport(t *testing.T) {
 	logger := log.NewLogger("test.transport")
 	svrctx := config.NewServerContext("", "")
+	localIP := "192.168.11.3"
 	sampleIP := "211.1.2.3"
-
+	acceptAll := "0.0.0.0"
 	tests := []struct {
 		name string
 
@@ -82,9 +83,11 @@ func TestNewNetworkTransport(t *testing.T) {
 		wantAddress  string
 		wantPort     uint32
 	}{
-		{"TDefault", sampleIP, "", -1, -1, sampleIP, 7846},
-		{"TAddrProto", sampleIP, "", -1, -1, sampleIP, 7846},
-		{"TAddrBind", sampleIP, sampleIP, -1, -1, sampleIP, 7846},
+		{"TDefault", "", "", -1, -1, acceptAll, 7846},
+		{"TAddrProto", sampleIP, "", -1, -1, acceptAll, 7846},
+		{"TAddrBind", "", sampleIP, -1, -1, sampleIP, 7846},
+		{"TAddrSame", sampleIP, sampleIP, -1, -1, sampleIP, 7846},
+
 		{"TAddrDiffer", "123.45.67.89", sampleIP, -1, -1, sampleIP, 7846},
 	}
 	for _, tt := range tests {
@@ -92,20 +95,22 @@ func TestNewNetworkTransport(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			sampleMeta := p2pcommon.PeerMeta{IPAddress: tt.protocolAddr, Port: 7846, ID: p2pkey.NodeID()}
+			port := uint32(7846)
 			conf := svrctx.GetDefaultP2PConfig()
 			if len(tt.protocolAddr) > 0 {
-				sampleMeta.IPAddress = tt.protocolAddr
+				conf.NetProtocolAddr = tt.protocolAddr
 			}
 			if len(tt.bindAddr) > 0 {
 				conf.NPBindAddr = tt.bindAddr
 			}
 			if tt.protocolPort > 0 {
-				sampleMeta.Port = uint32(tt.protocolPort)
+				conf.NetProtocolPort = tt.protocolPort
 			}
 			if tt.bindPort > 0 {
 				conf.NPBindPort = tt.bindPort
 			}
+			sampleMeta := p2pcommon.NewMetaWith1Addr(p2pkey.NodeID(),localIP, port)
+
 			mockIS := p2pmock.NewMockInternalService(ctrl)
 			mockIS.EXPECT().SelfMeta().Return(sampleMeta)
 			got := NewNetworkTransport(conf, logger, mockIS)
@@ -114,13 +119,13 @@ func TestNewNetworkTransport(t *testing.T) {
 				t.Errorf("NewNetworkTransport() privkey is nil, want not")
 			}
 
-			addr := got.bindAddress
-			port := got.bindPort
-			if addr != tt.wantAddress {
-				t.Errorf("initServiceBindAddress() addr = %v, want %v", addr, tt.wantAddress)
+			actualAddr := got.bindAddress
+			actualPort := got.bindPort
+			if actualAddr != tt.wantAddress {
+				t.Errorf("initServiceBindAddress() addr = %v, want %v", actualAddr, tt.wantAddress)
 			}
-			if port != tt.wantPort {
-				t.Errorf("initServiceBindAddress() port = %v, want %v", port, tt.wantPort)
+			if actualPort != tt.wantPort {
+				t.Errorf("initServiceBindAddress() port = %v, want %v", actualPort, tt.wantPort)
 			}
 
 		})
@@ -131,10 +136,10 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 	logger := log.NewLogger("test.transport")
 	svrctx := config.NewServerContext("", "")
 	initialPort := uint32(7846)
-	sampleIP := "203.1.2.111"
+	acceptAll := "0.0.0.0"
 	sampleDomain := "unittest.aergo.io"
-	ipMeta := p2pcommon.PeerMeta{IPAddress: sampleIP, Port: initialPort}
-	dnMeta := p2pcommon.PeerMeta{IPAddress: sampleDomain, Port: initialPort}
+	ipMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), acceptAll, initialPort)
+	dnMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(),sampleDomain, initialPort)
 	tests := []struct {
 		name string
 		meta p2pcommon.PeerMeta
@@ -143,13 +148,13 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 		wantAddress string
 		wantPort    uint32
 	}{
-		{"TEmpty", ipMeta, svrctx.GetDefaultP2PConfig(), sampleIP, initialPort},
+		{"TEmpty", ipMeta, svrctx.GetDefaultP2PConfig(), acceptAll, initialPort},
 		{"TAnywhere", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "0.0.0.0"), "0.0.0.0", initialPort},
 		{"TAnywhereDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "0.0.0.0"), "0.0.0.0", initialPort},
 		{"TLoopbackDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "127.0.0.1"), "127.0.0.1", initialPort},
 		{"TCustAddr", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), "211.1.2.3", initialPort},
 		{"TCustAddrPort", ipMeta, withPort(withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), 7777), "211.1.2.3", 7777},
-		// TODO: Add test cases.
+
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

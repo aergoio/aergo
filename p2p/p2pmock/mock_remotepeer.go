@@ -37,17 +37,17 @@ func (m *MockPeerFactory) EXPECT() *MockPeerFactoryMockRecorder {
 }
 
 // CreateRemotePeer mocks base method
-func (m *MockPeerFactory) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+func (m *MockPeerFactory) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateRemotePeer", meta, seq, status, stream, rw)
+	ret := m.ctrl.Call(m, "CreateRemotePeer", remoteInfo, seq, status, stream, rw)
 	ret0, _ := ret[0].(p2pcommon.RemotePeer)
 	return ret0
 }
 
 // CreateRemotePeer indicates an expected call of CreateRemotePeer
-func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(meta, seq, status, stream, rw interface{}) *gomock.Call {
+func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(remoteInfo, seq, status, stream, rw interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), meta, seq, status, stream, rw)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), remoteInfo, seq, status, stream, rw)
 }
 
 // MockRemotePeer is a mock of RemotePeer interface
@@ -85,6 +85,20 @@ func (m *MockRemotePeer) ID() types.PeerID {
 func (mr *MockRemotePeerMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockRemotePeer)(nil).ID))
+}
+
+// RemoteInfo mocks base method
+func (m *MockRemotePeer) RemoteInfo() p2pcommon.RemoteInfo {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoteInfo")
+	ret0, _ := ret[0].(p2pcommon.RemoteInfo)
+	return ret0
+}
+
+// RemoteInfo indicates an expected call of RemoteInfo
+func (mr *MockRemotePeerMockRecorder) RemoteInfo() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoteInfo", reflect.TypeOf((*MockRemotePeer)(nil).RemoteInfo))
 }
 
 // Meta mocks base method

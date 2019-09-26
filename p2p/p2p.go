@@ -8,6 +8,7 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/list"
+	network2 "github.com/libp2p/go-libp2p-core/network"
 	"sync"
 	"time"
 
@@ -103,7 +104,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 		p2ps.selfRole = p2pcommon.Watcher
 	}
 
-	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P)
+	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
@@ -306,15 +307,11 @@ func (p2ps *P2P) Receive(context actor.Context) {
 func (p2ps *P2P) checkAndBanInboundPeers() {
 	for _, peer := range p2ps.pm.GetPeers() {
 		// FIXME ip check should be currently connected ip address
-		ip, err := network.GetSingleIPAddress(peer.Meta().IPAddress)
-		if err != nil {
-			p2ps.Warn().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("Failed to get ip address of peer")
-			continue
-		}
+		ip := peer.RemoteInfo().Connection.IP
 		// TODO temporal treatment. need more works.
 		// just inbound peers will be disconnected
-		if peer.Meta().Outbound {
-			p2ps.Debug().Str(p2putil.LogPeerName, peer.Name()).Err(err).Msg("outbound peer is not banned")
+		if peer.RemoteInfo().Connection.Outbound {
+			p2ps.Debug().Str(p2putil.LogPeerName, peer.Name()).Msg("outbound peer is not banned")
 			continue
 		}
 		if banned, _ := p2ps.lm.IsBanned(ip.String(), peer.ID()); banned {
@@ -432,14 +429,14 @@ func (p2ps *P2P) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHa
 	}
 }
 
-func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream types.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
-	newPeer := newRemotePeer(meta, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
+func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, status *types.Status, stream network2.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+	newPeer := newRemotePeer(remoteInfo, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
 	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
 	// TODO tune to set prefer role
-	newPeer.role = p2ps.prm.GetRole(meta.ID)
+	newPeer.role = p2ps.prm.GetRole(remoteInfo.Meta.ID)
 	// insert Handlers
 	p2ps.insertHandlers(newPeer)
 

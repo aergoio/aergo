@@ -194,7 +194,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	sampleStatus := &types.Status{}
 	logger := log.NewLogger("p2p.test")
 	// This bytes is actually hard-coded in source handshake_v2.go.
-	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
+	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion200, p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
 
 	tests := []struct {
 		name string

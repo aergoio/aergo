@@ -83,6 +83,15 @@ func (ph *addressesResponseHandler) checkAndAddPeerAddresses(peers []*types.Peer
 			continue
 		}
 		meta := p2pcommon.FromPeerAddress(rPeerAddr)
+		// for backward compatibility. old protocol return just single address in old field
+		if len(meta.Addresses) == 0 {
+			ma, err := types.ToMultiAddr(rPeerAddr.Address, rPeerAddr.Port)
+			if err != nil {
+				continue
+			}
+			meta.Addresses = []types.Multiaddr{ma}
+		}
+
 		peerMetas = append(peerMetas, meta)
 	}
 	if len(peerMetas) > 0 {

@@ -7,6 +7,7 @@ package p2p
 
 import (
 	"errors"
+	network2 "github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/list"
 	"testing"
 	"time"
@@ -92,8 +93,6 @@ func Test_dynamicWPManager_OnDiscoveredPeers(t *testing.T) {
 }
 
 func Test_setNextTrial(t *testing.T) {
-	dummyDesignated := p2pcommon.PeerMeta{Designated: true}
-
 	type args struct {
 		wp     *p2pcommon.WaitingPeer
 		setCnt int
@@ -103,9 +102,9 @@ func Test_setNextTrial(t *testing.T) {
 		args args
 		want bool
 	}{
-		{"TDesig1", args{&p2pcommon.WaitingPeer{Meta: dummyDesignated}, 1}, true},
-		{"TDesigSome", args{&p2pcommon.WaitingPeer{Meta: dummyDesignated}, 5}, true},
-		{"TDesigMany", args{&p2pcommon.WaitingPeer{Meta: dummyDesignated}, 30}, true},
+		{"TDesig1", args{&p2pcommon.WaitingPeer{Meta: dummyMeta, Designated: true}, 1}, true},
+		{"TDesigSome", args{&p2pcommon.WaitingPeer{Meta: dummyMeta, Designated: true}, 5}, true},
+		{"TDesigMany", args{&p2pcommon.WaitingPeer{Meta: dummyMeta, Designated: true}, 30}, true},
 
 		{"TUnknown1", args{&p2pcommon.WaitingPeer{Meta: dummyMeta}, 1}, false},
 		{"TUnknownSome", args{&p2pcommon.WaitingPeer{Meta: dummyMeta}, 5}, false},
@@ -179,6 +178,12 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
 			//mockHandlerFactory := p2pmock.NewMockHSHandlerFactory(ctrl)
 			//mockHandlerFactory.EXPECT().InsertHandlers(gomock.AssignableToTypeOf(&remotePeerImpl{})).MaxTimes(1)
+			if tt.hsErr == nil {
+				mockConn := p2pmock.NewMockConn(ctrl)
+				dummyMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
+				mockStream.EXPECT().Conn().Return(mockConn)
+				mockConn.EXPECT().RemoteMultiaddr().Return(dummyMA)
+			}
 
 			// in cases of handshake error
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
@@ -200,12 +205,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			if tt.wantSucc {
 				if got.ID != tt.wantID {
 					t.Errorf("basePeerManager.tryAddPeer() got ID = %v, want %v", got.ID, tt.wantID)
-				}
-				if got.Outbound != tt.args.outbound {
-					t.Errorf("basePeerManager.tryAddPeer() got bound = %v, want %v", got.Outbound, tt.args.outbound)
-				}
-				if got.Designated != tt.wantDesign {
-					t.Errorf("basePeerManager.tryAddPeer() got Designated = %v, want %v", got.Designated, tt.wantDesign)
 				}
 				if got.Hidden != tt.wantHidden {
 					t.Errorf("basePeerManager.tryAddPeer() got Hidden = %v, want %v", got.Hidden, tt.wantHidden)
@@ -287,15 +286,15 @@ func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
 	defer ctrl.Finish()
 
 	c := []*p2pcommon.WaitingPeer{}
-	for i := 0 ; i < 5 ; i++ {
-		meta := p2pcommon.PeerMeta{ID:types.RandomPeerID()}
-		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now()}
+	for i := 0; i < 5; i++ {
+		meta := p2pcommon.PeerMeta{ID: types.RandomPeerID()}
+		wp := &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now()}
 		c = append(c, wp)
 	}
 	n := []*p2pcommon.WaitingPeer{}
-	for i := 0 ; i < 5 ; i++ {
-		meta := p2pcommon.PeerMeta{ID:types.RandomPeerID()}
-		wp := &p2pcommon.WaitingPeer{Meta:meta, NextTrial:time.Now().Add(time.Hour*100)}
+	for i := 0; i < 5; i++ {
+		meta := p2pcommon.PeerMeta{ID: types.RandomPeerID()}
+		wp := &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now().Add(time.Hour * 100)}
 		n = append(n, wp)
 	}
 	type args struct {
@@ -311,8 +310,7 @@ func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
 		{"TEmptyJob", nil, args{4}, 0},
 		{"TFewer", c[:2], args{4}, 2},
 		{"TLarger", c, args{4}, 4},
-		{"TWithNotConn", append(nc(),c[0],n[0],n[1],c[1],n[4],c[4]), args{4}, 3},
-
+		{"TWithNotConn", append(nc(), c[0], n[0], n[1], c[1], n[4], c[4]), args{4}, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -323,7 +321,7 @@ func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
 				wpMap[w.Meta.ID] = w
 			}
 
-			dummyPM := &peerManager{nt: mockNT, waitingPeers:wpMap, workDoneChannel: make(chan p2pcommon.ConnWorkResult,10)}
+			dummyPM := &peerManager{nt: mockNT, waitingPeers: wpMap, workDoneChannel: make(chan p2pcommon.ConnWorkResult, 10)}
 
 			dpm := &basePeerManager{
 				pm:          dummyPM,
@@ -339,7 +337,7 @@ func Test_basePeerManager_connectWaitingPeers(t *testing.T) {
 
 			doneCnt := 0
 			expire := time.NewTimer(time.Millisecond * 500)
-			WAITLOOP:
+		WAITLOOP:
 			for doneCnt < tt.wantCnt {
 				select {
 				case <-dummyPM.workDoneChannel:
@@ -387,6 +385,52 @@ func Test_basePeerManager_OnInboundConn(t *testing.T) {
 				workingJobs: tt.fields.workingJobs,
 			}
 			dpm.OnInboundConn(mockStream)
+		})
+	}
+}
+
+func Test_createRemoteInfo(t *testing.T) {
+	pid1 := types.RandomPeerID()
+	type args struct {
+		status   *types.Status
+		outbound bool
+	}
+	tests := []struct {
+		name     string
+		args     args
+		ip       string
+		port     uint32
+		wantHidden bool
+	}{
+		{"TOut1", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:false}, true} ,
+			"192.56.1.1",7846, false},
+		{"TOutHidden", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:true}, true},"192.56.1.1",7846, true},
+		{"TIn", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:false}, false} ,
+			"192.56.1.1",7846, false},
+		{"TInHidden", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:true}, true},"192.56.1.1",7846, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			conn := p2pmock.NewMockConn(ctrl)
+			ma, _ := types.ToMultiAddr(tt.ip, tt.port)
+			conn.EXPECT().RemoteMultiaddr().Return(ma).AnyTimes()
+
+			got := createRemoteInfo(conn, tt.args.status, tt.args.outbound)
+			if !types.IsSamePeerID(got.Meta.ID, types.PeerID(pid1)) {
+				t.Errorf("createRemoteInfo() ID = %v, want %v", got.Meta.ID.String(), pid1)
+			}
+			if got.Hidden != tt.wantHidden {
+				t.Errorf("createRemoteInfo() hidden = %v, want %v", got.Hidden, tt.wantHidden)
+			}
+			if got.Connection.Outbound != tt.args.outbound {
+				t.Errorf("createRemoteInfo() outbound = %v, want %v", got.Connection.Outbound, tt.args.outbound)
+			}
+			if !network2.IsSameAddress(got.Connection.IP.String(), tt.ip) {
+				t.Errorf("createRemoteInfo() addr = %v, want %v", got.Connection.IP, tt.ip)
+			}
 		})
 	}
 }

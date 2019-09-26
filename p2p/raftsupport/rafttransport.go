@@ -181,8 +181,6 @@ func (t *AergoRaftTransport) connectToPeer(member *consensus.Member) {
 
 	// member should be add to designated peer
 	meta := peerMeta
-	meta.Outbound = true
-	meta.Designated = true
 	t.pm.AddDesignatedPeer(meta)
 	t.pm.AddNewPeer(meta)
 }

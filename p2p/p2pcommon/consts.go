@@ -50,11 +50,13 @@ const (
 
 	// current version
 	P2PVersion033     P2PVersion = 0x00000303 // support hardfork (chainid is changed)
+
+	P2PVersion200     P2PVersion = 0x00020000 // following aergo version. support peer role and multiple addresses
 )
 
 // AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
-var AcceptedInboundVersions = []P2PVersion{P2PVersion033, P2PVersion032, P2PVersion031}
-var AttemptingOutboundVersions = []P2PVersion{P2PVersion033, P2PVersion032, P2PVersion031}
+var AcceptedInboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
+var AttemptingOutboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
 
 // context of multiaddr, as higher type of p2p message
 const (
