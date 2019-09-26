@@ -7,7 +7,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -142,6 +141,10 @@ func TestPeerMapService_readRequest(t *testing.T) {
 }
 
 func TestPeerMapService_handleQuery(t *testing.T) {
+	minVersion, _ := p2pcommon.ParseAergoVersion(p2pcommon.MinimumAergoVersion)
+	tooNewVersion, _ := p2pcommon.ParseAergoVersion(p2pcommon.MaximumAergoVersion)
+	tooOldVersion := minVersion
+	tooOldVersion.Patch = tooOldVersion.Patch-1
 	mainnetbytes, err := common.ONEMainNet.Bytes()
 	if err != nil {
 		t.Error("mainnet var is not set properly", common.ONEMainNet)
@@ -152,6 +155,9 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 	good := goodPeerMeta.ToPeerAddress()
 	badPeerMeta := p2pcommon.PeerMeta{ID: types.PeerID("bad"), IPAddress: "211.34.56.78", Port: 7845}
 	bad := badPeerMeta.ToPeerAddress()
+
+	ok := types.ResultStatus_OK
+
 	type args struct {
 		status *types.Status
 		addme  bool
@@ -163,17 +169,21 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 
 		wantErr bool
 		wantMsg bool
+		wantStatus types.ResultStatus
 	}{
 		// check if parameter is bad
-		{"TMissingStat", args{nil, true, 9999}, true, false},
+		{"TMissingStat", args{nil, true, 9999}, true, false, ok},
 		// check if addMe is set or not
-		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &good}, false, 10}, false, false},
-		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &bad}, false, 10}, false, false},
+		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:minVersion.String()}, false, 10}, false, false, ok},
+		{"TOnlyQuery2", args{&types.Status{ChainID: mainnetbytes, Sender: &bad, Version:minVersion.String()}, false, 10}, false, false, ok},
 		// TODO refator mapservice to run commented test
-		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false },
-		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true },
+		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false, ok },
+		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true, ok },
 		// TODO: Add more cases .
 		// check if failed to connect back or not
+		{"TOldVersion", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooOldVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
+		{"TNewVersion", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooNewVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
+
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -199,6 +209,9 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 			if !tt.wantErr && (len(got.Message) > 0) != tt.wantMsg {
 				t.Errorf("PeerMapService.handleQuery() msg = %v, wantMsg %v", got.Message, tt.wantMsg)
 				return
+			}
+			if tt.wantMsg && got.Status != tt.wantStatus {
+				t.Errorf("PeerMapService.handleQuery() msg status = %v, want %v", got.Status.String(), tt.wantStatus.String())
 			}
 
 		})
@@ -603,7 +616,7 @@ func TestPeerMapService_applyNewBLEntry(t *testing.T) {
 	m3 := p2pcommon.PeerMeta{IPAddress: ad3, ID: id3}
 
 	type args struct {
-		entry enterprise.WhiteListEntry
+		entry types.WhiteListEntry
 	}
 	tests := []struct {
 		name string
@@ -646,8 +659,8 @@ func TestPeerMapService_applyNewBLEntry(t *testing.T) {
 	}
 }
 
-func wle(str string) enterprise.WhiteListEntry {
-	ent, err := enterprise.NewWhiteListEntry(str)
+func wle(str string) types.WhiteListEntry {
+	ent, err := types.ParseListEntry(str)
 	if err != nil {
 		panic("invalid input : " + str + " : " + err.Error())
 	}
@@ -666,9 +679,9 @@ func TestPeerMapService_onConnectWithBlacklist(t *testing.T) {
 	d4 := "{\"address\":\"2001:db8:123:4567:89ab:cdef:1234:5678\",\"cidr\":\"\",\"peerid\":\"\"}"
 	d5 := "{\"address\":\"0.0.0.0\",\"cidr\":\"\",\"peerid\":\"\"}"
 	d6 := "{\"address\":\"\",\"cidr\":\"2001:db8:123:4567:89ab:cdef::/96\",\"peerid\":\"\"}"
-	entries := []enterprise.WhiteListEntry{}
+	entries := []types.WhiteListEntry{}
 	for _, d := range []string{d0, d1, d2, d3, d4, d5, d6} {
-		e, _ := enterprise.NewWhiteListEntry(d)
+		e, _ := types.ParseListEntry(d)
 		entries = append(entries, e)
 	}
 

@@ -3,20 +3,19 @@
  * @copyright defined in aergo/LICENSE.txt
  */
 
-package enterprise
+package types
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/types"
 	"io"
 	"net"
 )
 
 var notSpecifiedIP, notSpecifiedCIDR, _ = net.ParseCIDR("0.0.0.0/32")
 
-const NotSpecifiedID = types.PeerID("")
+const NotSpecifiedID = PeerID("")
 
 var (
 	InvalidEntryErr     = errors.New("invalid entry format")
@@ -28,7 +27,7 @@ var (
 type WhiteListEntry struct {
 	literal string
 	IpNet   *net.IPNet
-	PeerID  types.PeerID
+	PeerID  PeerID
 }
 
 type RawEntry struct {
@@ -40,7 +39,7 @@ var dummyListEntry WhiteListEntry
 func init() {
 	dummyListEntry = WhiteListEntry{"", notSpecifiedCIDR, NotSpecifiedID}
 }
-func NewWhiteListEntry(str string) (WhiteListEntry, error) {
+func ParseListEntry(str string) (WhiteListEntry, error) {
 	raw := RawEntry{}
 	err := json.Unmarshal([]byte(str), &raw)
 	if err != nil {
@@ -61,7 +60,7 @@ func NewListEntry(raw RawEntry) (WhiteListEntry, error) {
 
 	entry := WhiteListEntry{string(literal), notSpecifiedCIDR, NotSpecifiedID}
 	if len(raw.PeerId) > 0 {
-		pid, err := types.IDB58Decode(raw.PeerId)
+		pid, err := IDB58Decode(raw.PeerId)
 
 		if err != nil || pid.Validate() != nil {
 			return dummyListEntry, InvalidPeerIDErr
@@ -93,7 +92,7 @@ func NewListEntry(raw RawEntry) (WhiteListEntry, error) {
 	return entry, nil
 }
 
-func (e WhiteListEntry) Contains(addr net.IP, pid types.PeerID) bool {
+func (e WhiteListEntry) Contains(addr net.IP, pid PeerID) bool {
 	return e.checkAddr(addr) && e.checkPeerID(pid)
 }
 
@@ -104,7 +103,7 @@ func (e WhiteListEntry) checkAddr(addr net.IP) bool {
 		return true
 	}
 }
-func (e WhiteListEntry) checkPeerID(pid types.PeerID) bool {
+func (e WhiteListEntry) checkPeerID(pid PeerID) bool {
 	if e.PeerID == NotSpecifiedID {
 		return true
 	} else {
@@ -138,7 +137,7 @@ func WriteEntries(entries []WhiteListEntry, wr io.Writer) error {
 	for i, e := range entries {
 		r := RawEntry{}
 		if e.PeerID != NotSpecifiedID {
-			r.PeerId = types.IDB58Encode(e.PeerID)
+			r.PeerId = IDB58Encode(e.PeerID)
 		}
 		if e.IpNet != nil && e.IpNet != notSpecifiedCIDR {
 			if m, b := e.IpNet.Mask.Size() ; m == b {

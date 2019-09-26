@@ -8,7 +8,6 @@ package server
 import (
 	"bufio"
 	"fmt"
-	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/v030"
 	"math"
 	"net"
@@ -101,7 +100,7 @@ func (pms *PeerMapService) BeforeStart() {}
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
 	pms.lm.Start()
-	pms.Logger.Info().Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
+	pms.Logger.Info().Str("minAergoVer", p2pcommon.MinimumAergoVersion).Str("maxAergoVer", p2pcommon.MaximumAergoVersion).Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
 	pms.nt.AddStreamHandler(common.PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
 }
@@ -200,12 +199,21 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 	// make response
 	resp := &types.MapResponse{}
 
+	// check peer version
+	if !p2pcommon.CheckVersion(receivedMeta.Version) {
+		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Str("version", receivedMeta.Version).Msg("peer version is too old, or too new")
+		resp.Status = types.ResultStatus_FAILED_PRECONDITION
+		resp.Message = common.TooOldVersionMsg
+		return resp, nil
+
+	}
+
 	// compare chainID
 	sameChain, err := pms.checkChain(query.Status.ChainID)
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, receivedMeta.ID.String()).Bytes("chainid", query.Status.ChainID).Msg("err parsing chainid")
+		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, receivedMeta.ID.String()).Bytes("chainID", query.Status.ChainID).Msg("err parsing chain id")
 		resp.Status = types.ResultStatus_INVALID_ARGUMENT
-		resp.Message = "invalid chainid"
+		resp.Message = "invalid chain id"
 		return resp, nil
 	} else if !sameChain {
 		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Msg("err different chain")
@@ -278,11 +286,11 @@ func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	delete(pms.peerRegistry, peerID)
 }
 
-func (pms *PeerMapService) applyNewBLEntry(entry enterprise.WhiteListEntry) {
+func (pms *PeerMapService) applyNewBLEntry(entry types.WhiteListEntry) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
 	pms.Logger.Debug().Msg("Applying added blacklist entry; checking peers and remove from registry if banned")
-	if entry.PeerID != enterprise.NotSpecifiedID {
+	if entry.PeerID != types.NotSpecifiedID {
 		// target is simply single peer
 		if ps, found := pms.peerRegistry[entry.PeerID]; found {
 			ip := net.ParseIP(ps.meta.IPAddress)
@@ -342,8 +350,8 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 		}
 		context.Respond(ret)
 	case *types.AddEntryParams:
-		rawEntry := enterprise.RawEntry{PeerId:msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
-		entry, err := enterprise.NewListEntry(rawEntry)
+		rawEntry := types.RawEntry{PeerId: msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
+		entry, err := types.NewListEntry(rawEntry)
 		if err != nil {
 			context.Respond(types.RPCErrInvalidArgument)
 		}

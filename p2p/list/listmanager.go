@@ -35,7 +35,7 @@ type listManagerImpl struct {
 	prm       p2pcommon.PeerRoleManager
 	publicNet bool
 
-	entries []enterprise.WhiteListEntry
+	entries []types.WhiteListEntry
 	enabled bool
 	rwLock  sync.RWMutex
 	authDir string
@@ -96,7 +96,7 @@ func (lm *listManagerImpl) IsBanned(addr string, pid types.PeerID) (bool, time.T
 func (lm *listManagerImpl) RefineList() {
 	if lm.publicNet {
 		lm.logger.Info().Msg("network is public, apply default policy instead (allow all)")
-		lm.entries = make([]enterprise.WhiteListEntry, 0)
+		lm.entries = make([]types.WhiteListEntry, 0)
 		lm.enabled = false
 		return
 	}
@@ -104,25 +104,25 @@ func (lm *listManagerImpl) RefineList() {
 	wl, err := lm.chainAcc.GetEnterpriseConfig(enterprise.P2PWhite)
 	if err != nil {
 		lm.logger.Info().Msg("error while getting whitelist config. apply default policy instead (allow all)")
-		//ent, _ := NewWhiteListEntry(":")
+		//ent, _ := ParseListEntry(":")
 		//lm.entries = append(lm.entries, ent)
-		lm.entries = make([]enterprise.WhiteListEntry, 0)
+		lm.entries = make([]types.WhiteListEntry, 0)
 		lm.enabled = false
 		return
 	}
 	lm.enabled = wl.GetOn()
 	if !wl.GetOn() {
 		lm.logger.Debug().Msg("whitelist conf is disabled. apply default policy instead (allow all)")
-		lm.entries = make([]enterprise.WhiteListEntry, 0)
+		lm.entries = make([]types.WhiteListEntry, 0)
 	} else if len(wl.Values) == 0 {
 		lm.logger.Debug().Msg("no whitelist found. apply default policy instead (allow all)")
-		//ent, _ := NewWhiteListEntry(":")
+		//ent, _ := ParseListEntry(":")
 		//lm.entries = append(lm.entries, ent)
-		lm.entries = make([]enterprise.WhiteListEntry, 0)
+		lm.entries = make([]types.WhiteListEntry, 0)
 	} else {
-		entries := make([]enterprise.WhiteListEntry, 0, len(wl.Values))
+		entries := make([]types.WhiteListEntry, 0, len(wl.Values))
 		for _, v := range wl.Values {
-			ent, err := enterprise.NewWhiteListEntry(v)
+			ent, err := types.ParseListEntry(v)
 			if err != nil {
 				panic("invalid whitelist entry " + v)
 			}

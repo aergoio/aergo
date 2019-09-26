@@ -70,6 +70,20 @@ func (mr *MockNTContainerMockRecorder) GetNetworkTransport() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworkTransport", reflect.TypeOf((*MockNTContainer)(nil).GetNetworkTransport))
 }
 
+// SelfMeta mocks base method
+func (m *MockNTContainer) SelfMeta() p2pcommon.PeerMeta {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SelfMeta")
+	ret0, _ := ret[0].(p2pcommon.PeerMeta)
+	return ret0
+}
+
+// SelfMeta indicates an expected call of SelfMeta
+func (mr *MockNTContainerMockRecorder) SelfMeta() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfMeta", reflect.TypeOf((*MockNTContainer)(nil).SelfMeta))
+}
+
 // MockNetworkTransport is a mock of NetworkTransport interface
 type MockNetworkTransport struct {
 	ctrl     *gomock.Controller
