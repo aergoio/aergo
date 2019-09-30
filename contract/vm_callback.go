@@ -24,6 +24,7 @@ import (
 	"index/suffixarray"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -1278,4 +1279,37 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		}
 	}
 	return nil
+}
+
+//export LuaGetDbHandleSnap
+func LuaGetDbHandleSnap(service *C.int, snap *C.char) *C.char {
+	stateSet := curStateSet[*service]
+	curContract := stateSet.curContract
+	callState := curContract.callState
+
+	if stateSet.isQuery != true {
+		return C.CString("[Contract.LuaSetDbSnap] not permitted in transaction")
+	}
+	if callState.tx != nil {
+		return C.CString("[Contract.LuaSetDbSnap] transaction already started")
+	}
+	rp, err := strconv.ParseUint(C.GoString(snap), 10, 64)
+	if err != nil {
+		return C.CString("[Contract.LuaSetDbSnap] snapshot is not valid" + C.GoString(snap))
+	}
+	aid := types.ToAccountID(curContract.contractId)
+	tx, err := BeginReadOnly(aid.String(), rp)
+	if err != nil {
+		return C.CString("Error Begin SQL Transaction")
+	}
+	callState.tx = tx
+	return nil
+}
+
+//export LuaGetDbSnapshot
+func LuaGetDbSnapshot(service *C.int) *C.char {
+	stateSet := curStateSet[*service]
+	curContract := stateSet.curContract
+
+	return C.CString(strconv.FormatUint(curContract.rp, 10))
 }
