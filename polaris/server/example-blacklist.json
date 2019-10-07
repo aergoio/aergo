@@ -1,0 +1,7 @@
+[{"address":"172.21.3.35","cidr":"","peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt"},
+  {"address":"","cidr":"172.21.0.0/16","peerid":"16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR"},
+  {"address":"","cidr":"","peerid":"16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD"},
+  {"address":"","cidr":"172.21.0.0/16","peerid":""},
+  {"address":"2001:db8:123:4567:89ab:cdef:1234:5678","cidr":"","peerid":""},
+  {"address":"","cidr":"","peerid":""}
+]

@@ -187,7 +187,6 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				mf:             mockMF,
 				hsFactory:      mockHSFactory,
 				peerHandshaked: make(chan handshakeResult, 10),
 			}

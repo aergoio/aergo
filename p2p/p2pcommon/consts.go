@@ -42,7 +42,7 @@ const (
 	P2PVersionUnknown P2PVersion = 0x00000000
 	P2PVersion030     P2PVersion = 0x00000300
 	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
-	P2PVersion032     P2PVersion = 0x00000302 // pseudo version for supporting multi version
+	P2PVersion032     P2PVersion = 0x00000302 // added equal check of genesis block hash
 )
 
 // context of multiaddr, as higher type of p2p message
@@ -50,7 +50,6 @@ const (
 	LegacyP2PSubAddr core.ProtocolID = "/aergop2p/0.3"
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
 	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
-
 )
 
 // constants for handshake. for calculating byte offset of wire handshake
@@ -66,10 +65,11 @@ const HSError uint32 = 0
 
 // Codes in wire handshake
 type HSRespCode = uint32
+
 const (
 	_ uint32 = iota
 	HSCodeWrongHSReq
-	HSCodeNoMatchedVersion  //
+	HSCodeNoMatchedVersion //
 	HSCodeAuthFail
 	HSCodeNoPermission
 	HSCodeInvalidState

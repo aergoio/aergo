@@ -3,7 +3,7 @@
 #include "_cgo_export.h"
 
 #define KEYWORD_MINSIZE 4
-#define KEYWORD_MAXSIZE 7
+#define KEYWORD_MAXSIZE 16
 static char keyword[KEYWORD_MAXSIZE+1];
 
 static int get_keyword(const char *sql)
@@ -63,6 +63,12 @@ static int get_keyword(const char *sql)
                 }
             }
             break;
+        case '(':
+            if (spos > -1) {
+                epos = i;
+                goto LOOP_END;
+            }
+            break;
         default:
             if (!in_lc && !in_bc && spos == -1) {
                 spos = i;
@@ -90,6 +96,24 @@ LOOP_END:
     return -1;
 }
 
+static int sqlcheck_is_permitted_pragma(const char *sql, int end_offset) {
+    if (strncmp(keyword, "PRAGMA", 6) == 0) {
+        end_offset = get_keyword(sql + end_offset);
+        if (end_offset == -1)
+            return 0;
+        if (strncmp(keyword, "TABLE_INFO", 10) == 0)
+            return 1;
+        if (strncmp(keyword, "INDEX_LIST", 10) == 0)
+            return 1;
+        if (strncmp(keyword, "INDEX_INFO", 10) == 0)
+            return 1;
+        if (strncmp(keyword, "FOREIGN_KEY_LIST", 16) == 0)
+            return 1;
+        return 0;
+    }
+    return -1;
+}
+
 int sqlcheck_is_permitted_sql(const char *sql)
 {
     int end_offset = -1;
@@ -107,6 +131,9 @@ int sqlcheck_is_permitted_sql(const char *sql)
                 return 0;
             }
         } else {
+            int ret;
+            if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset)) >= 0)
+                return ret;
             return PermittedCmd(keyword);
         }
     }
@@ -116,10 +143,15 @@ int sqlcheck_is_permitted_sql(const char *sql)
 int sqlcheck_is_readonly_sql(const char *sql)
 {
     int end_offset = -1;
+    int ret;
 
     end_offset = get_keyword(sql);
     if (end_offset > -1) {
-        return strncmp(keyword, "SELECT", 6) == 0;
+        if (strncmp(keyword, "SELECT", 6) == 0 )
+            return 1;
+        if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset)) >= 0)
+            return ret;
+
     }
     return 0;
 }

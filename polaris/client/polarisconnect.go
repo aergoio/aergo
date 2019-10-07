@@ -7,6 +7,7 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/v030"
@@ -23,6 +24,8 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 )
+
+var ErrTooLowVersion = errors.New("aergosvr version is too low")
 
 // PeerMapService is
 type PolarisConnectSvc struct {
@@ -136,7 +139,11 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 	for _, meta := range pcs.mapServers {
 		addrs, err := pcs.connectAndQuery(meta, msg.BestBlock.Hash, msg.BestBlock.Header.BlockNo)
 		if err != nil {
-			pcs.Logger.Warn().Err(err).Str("map_id", p2putil.ShortForm(meta.ID)).Msg("faild to get peer addresses")
+			if err == ErrTooLowVersion {
+				pcs.Logger.Error().Err(err).Str("polarisID", p2putil.ShortForm(meta.ID)).Msg("Polaris responded this aergosvr is too low, check and upgrade aergosvr")
+			} else {
+				pcs.Logger.Warn().Err(err).Str("polarisID", p2putil.ShortForm(meta.ID)).Msg("failed to get peer addresses")
+			}
 			continue
 		}
 		// FIXME delete duplicated peers
@@ -163,16 +170,21 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	if peerID != mapServerMeta.ID {
 		return nil, fmt.Errorf("internal error peerid mismatch, exp %s, actual %s", mapServerMeta.ID.Pretty(), peerID.Pretty())
 	}
-	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Sending map query")
+	pcs.Logger.Debug().Str("polarisID", peerID.String()).Msg("Sending map query")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
-	peerAddress := pcs.nt.SelfMeta().ToPeerAddress()
+	peerAddress := pcs.ntc.SelfMeta().ToPeerAddress()
 	chainBytes, _ := pcs.ntc.ChainID().Bytes()
 	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID: chainBytes,
-		Version:p2pkey.NodeVersion()}
+		Version: p2pkey.NodeVersion()}
+
+	return pcs.queryToPolaris(mapServerMeta, rw, peerStatus)
+}
+
+func (pcs *PolarisConnectSvc) queryToPolaris(mapServerMeta p2pcommon.PeerMeta, rw p2pcommon.MsgReadWriter, peerStatus *types.Status) ([]*types.PeerAddress, error) {
 	// receive input
-	err = pcs.sendRequest(peerStatus, mapServerMeta, pcs.exposeself, 100, rw)
+	err := pcs.sendRequest(peerStatus, mapServerMeta, pcs.exposeself, 100, rw)
 	if err != nil {
 		return nil, err
 	}
@@ -180,10 +192,18 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	if err != nil {
 		return nil, err
 	}
-	if resp.Status == types.ResultStatus_OK {
+	switch resp.Status {
+	case types.ResultStatus_OK:
 		return resp.Addresses, nil
+	case types.ResultStatus_FAILED_PRECONDITION:
+		if resp.Message == common.TooOldVersionMsg {
+			return nil, ErrTooLowVersion
+		} else {
+			return nil, fmt.Errorf("remote error %s", resp.Status.String())
+		}
+	default:
+		return nil, fmt.Errorf("remote error %s", resp.Status.String())
 	}
-	return nil, fmt.Errorf("remote error %s", resp.Status.String())
 }
 
 func (pcs *PolarisConnectSvc) sendRequest(status *types.Status, mapServerMeta p2pcommon.PeerMeta, register bool, size int, wt p2pcommon.MsgReadWriter) error {
@@ -217,7 +237,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 
 func (pcs *PolarisConnectSvc) onPing(s network.Stream) {
 	peerID := s.Conn().RemotePeer()
-	pcs.Logger.Debug().Str(p2putil.LogPeerID, peerID.String()).Msg("Received ping from polaris (maybe)")
+	pcs.Logger.Debug().Str("polarisID", peerID.String()).Msg("Received ping from polaris (maybe)")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 	defer s.Close()

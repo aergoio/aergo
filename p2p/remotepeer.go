@@ -414,11 +414,11 @@ func (p *remotePeerImpl) sendTxNotices() {
 			return
 		}
 		hashes := make([][]byte, 0, p.txNoticeQueue.Size())
-		skippedTxID := make([]types.TxID, 0)
+		skippedTxIDs := make([]types.TxID, 0)
 		for element := p.txNoticeQueue.Poll(); element != nil; element = p.txNoticeQueue.Poll() {
 			hash := element.(types.TxID)
 			if p.txHashCache.Contains(hash) {
-				skippedTxID = append(skippedTxID, hash)
+				skippedTxIDs = append(skippedTxIDs, hash)
 				continue
 			}
 			hashes = append(hashes, hash[:])
@@ -428,9 +428,9 @@ func (p *remotePeerImpl) sendTxNotices() {
 			mo := p.mf.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: hashes})
 			p.SendMessage(mo)
 		}
-		if len(skippedTxID) > 0 {
+		if len(skippedTxIDs) > 0 {
 			// if tx is in cache, the remote peer will have that tx.
-			p.tnt.Report(p2pcommon.Send, skippedTxID, 1)
+			p.tnt.ReportSend(skippedTxIDs, p.ID())
 		}
 	}
 }

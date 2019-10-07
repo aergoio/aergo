@@ -5,7 +5,13 @@
 
 package types
 
-import "strconv"
+import (
+	"errors"
+	"strconv"
+)
+
+var RPCErrInvalidArgument = errors.New("invalid argument")
+var RPCErrInternalError = errors.New("internal error")
 
 func AddCategory(confs map[string]*ConfigItem, category string) *ConfigItem {
 	cat := &ConfigItem{Props: make(map[string]string)}

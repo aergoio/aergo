@@ -10,8 +10,9 @@ import (
 )
 
 type TxNoticeTracer interface {
-	RegisterTxNotice(txIDs []types.TxID, cnt int)
-	Report(reportType ReportType, txIDs []types.TxID, peerCnt int)
+	RegisterTxNotice(txIDs []types.TxID, cnt int, alreadySent []types.PeerID)
+	ReportSend(txIDs []types.TxID, peerID types.PeerID)
+	ReportNotSend(txIDs []types.TxID, cnt int)
 }
 //go:generate mockgen -source=txnotice.go  -package=p2pmock -destination=../p2pmock/mock_txnotice.go
 

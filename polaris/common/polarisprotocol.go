@@ -30,3 +30,8 @@ const (
 
 const PolarisConnectionTTL = time.Second * 30
 
+// Additional messages of polaris response
+const (
+	TooOldVersionMsg = "too old version"
+)
+

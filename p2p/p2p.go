@@ -39,22 +39,24 @@ type P2P struct {
 	cfg *config.Config
 
 	// inited during construction
-	useRaft bool
+	useRaft  bool
+	selfMeta p2pcommon.PeerMeta
 	// caching data from genesis block
 	chainID *types.ChainID
-	nt      p2pcommon.NetworkTransport
-	pm      p2pcommon.PeerManager
-	vm      p2pcommon.VersionedManager
-	sm      p2pcommon.SyncManager
-	mm      metric.MetricsManager
-	mf      p2pcommon.MoFactory
-	signer  p2pcommon.MsgSigner
-	ca      types.ChainAccessor
-	prm     p2pcommon.PeerRoleManager
-	lm      p2pcommon.ListManager
-	tnt 	*txNoticeTracer
 
-	mutex   sync.Mutex
+	nt     p2pcommon.NetworkTransport
+	pm     p2pcommon.PeerManager
+	vm     p2pcommon.VersionedManager
+	sm     p2pcommon.SyncManager
+	mm     metric.MetricsManager
+	mf     p2pcommon.MoFactory
+	signer p2pcommon.MsgSigner
+	ca     types.ChainAccessor
+	prm    p2pcommon.PeerRoleManager
+	lm     p2pcommon.ListManager
+	tnt    *txNoticeTracer
+
+	mutex sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
@@ -72,8 +74,69 @@ var (
 func NewP2P(cfg *config.Config, chainSvc *chain.ChainService) *P2P {
 	p2psvc := &P2P{cfg: cfg}
 	p2psvc.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2psvc, log.NewLogger("p2p"))
-	p2psvc.initP2P(cfg, chainSvc)
+	p2psvc.initP2P(chainSvc)
 	return p2psvc
+}
+
+func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
+	cfg := p2ps.cfg
+	p2ps.ca = chainSvc
+
+	// check genesis block and get meta information from it
+	genesis := chainSvc.CDB().GetGenesisInfo()
+	chainIdBytes, err := genesis.ChainID()
+	if err != nil {
+		panic("genesis block is not set properly: " + err.Error())
+	}
+	chainID := types.NewChainID()
+	err = chainID.Read(chainIdBytes)
+	if err != nil {
+		panic("invalid chainid: " + err.Error())
+	}
+	p2ps.chainID = chainID
+
+	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
+	p2ps.useRaft = useRaft
+	if p2ps.cfg.Consensus.EnableBp {
+		p2ps.selfRole = p2pcommon.BlockProducer
+	} else {
+		p2ps.selfRole = p2pcommon.Watcher
+	}
+
+	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P)
+	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
+	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
+
+	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
+	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
+
+	if useRaft {
+		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
+	} else {
+		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
+	}
+
+	// public network is always disabled white/blacklist in chain
+	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
+	metricMan := metric.NewMetricManager(10)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, p2ps, netTransport, metricMan, lm, p2ps.Logger, cfg, useRaft)
+	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
+	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
+
+	// connect managers each other
+
+	p2ps.mutex.Lock()
+	p2ps.signer = signer
+	p2ps.nt = netTransport
+	p2ps.mf = mf
+	p2ps.pm = peerMan
+	p2ps.vm = versionMan
+	p2ps.sm = syncMan
+	//p2ps.rm = reconMan
+	p2ps.mm = metricMan
+	p2ps.lm = lm
+
+	p2ps.mutex.Unlock()
 }
 
 // BeforeStart starts p2p service.
@@ -129,7 +192,7 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 	stmap := make(map[string]interface{})
 	stmap["netstat"] = p2ps.mm.Summary()
 	stmap["config"] = p2ps.cfg.P2P
-	stmap["status"] = p2ps.nt.SelfMeta()
+	stmap["status"] = p2ps.selfMeta
 	wlSummary := p2ps.lm.Summary()
 	stmap["whitelist"] = wlSummary["whitelist"]
 	stmap["whitelist_on"] = wlSummary["whitelist_on"]
@@ -144,7 +207,7 @@ func (p2ps *P2P) GetNetworkTransport() p2pcommon.NetworkTransport {
 }
 
 func (p2ps *P2P) GetPeerAccessor() p2pcommon.PeerAccessor {
-	return p2ps.pm
+	return p2ps
 }
 
 func (p2ps *P2P) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
@@ -153,65 +216,6 @@ func (p2ps *P2P) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
 
 func (p2ps *P2P) ChainID() *types.ChainID {
 	return p2ps.chainID
-}
-
-func (p2ps *P2P) initP2P(cfg *config.Config, chainSvc *chain.ChainService) {
-	p2ps.ca = chainSvc
-
-	// check genesis block and get meta information from it
-	genesis := chainSvc.CDB().GetGenesisInfo()
-	chainIdBytes, err := genesis.ChainID()
-	if err != nil {
-		panic("genesis block is not set properly: " + err.Error())
-	}
-	chainID := types.NewChainID()
-	err = chainID.Read(chainIdBytes)
-	if err != nil {
-		panic("invalid chainid: " + err.Error())
-	}
-	p2ps.chainID = chainID
-
-	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
-	p2ps.useRaft = useRaft
-	if p2ps.cfg.Consensus.EnableBp {
-		p2ps.selfRole = p2pcommon.BlockProducer
-	} else {
-		p2ps.selfRole = p2pcommon.Watcher
-	}
-
-	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger)
-	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
-
-	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
-	mf := &baseMOFactory{p2ps: p2ps, tnt:p2ps.tnt}
-
-	if useRaft {
-		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
-	} else {
-		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
-	}
-
-	// public network is always disabled white/blacklist in chain
-	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
-	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, cfg, p2ps, netTransport, metricMan, lm, p2ps.Logger, mf, useRaft)
-	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
-
-	// connect managers each other
-
-	p2ps.mutex.Lock()
-	p2ps.signer = signer
-	p2ps.nt = netTransport
-	p2ps.mf = mf
-	p2ps.pm = peerMan
-	p2ps.vm = versionMan
-	p2ps.sm = syncMan
-	//p2ps.rm = reconMan
-	p2ps.mm = metricMan
-	p2ps.lm = lm
-
-	p2ps.mutex.Unlock()
 }
 
 // Receive got actor message and then handle it.
@@ -245,14 +249,14 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		for i, tx := range msg.Txs {
 			hashes[i] = types.ToTxID(tx.Hash)
 		}
-		p2ps.NotifyNewTX(notifyNewTXs{hashes})
+		p2ps.NotifyNewTX(notifyNewTXs{hashes, nil})
 	case notifyNewTXs:
 		p2ps.NotifyNewTX(msg)
 	case *message.AddBlockRsp:
 		// do nothing for now. just for prevent deadletter
 
 	case *message.GetSelf:
-		context.Respond(p2ps.nt.SelfMeta())
+		context.Respond(p2ps.selfMeta)
 	case *message.GetPeers:
 		peers := p2ps.pm.GetPeerAddresses(msg.NoHidden, msg.ShowSelf)
 		context.Respond(&message.GetPeersRsp{Peers: peers})
@@ -322,7 +326,7 @@ func (p2ps *P2P) checkAndBanInboundPeers() {
 
 // TODO need refactoring. this code is copied from subproto/addrs.go
 func (p2ps *P2P) checkAndAddPeerAddresses(peers []*types.PeerAddress) {
-	selfPeerID := p2ps.pm.SelfNodeID()
+	selfPeerID := p2ps.SelfNodeID()
 	peerMetas := make([]p2pcommon.PeerMeta, 0, len(peers))
 	for _, rPeerAddr := range peers {
 		rPeerID := types.PeerID(rPeerAddr.PeerID)
@@ -379,6 +383,7 @@ func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
 
 func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	logger := p2ps.Logger
+
 
 	// PingHandlers
 	peer.AddMessageHandler(p2pcommon.PingRequest, subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps))
@@ -452,5 +457,26 @@ func (p2ps *P2P) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *t
 }
 
 type notifyNewTXs struct {
-	ids []types.TxID
+	ids         []types.TxID
+	alreadySent []types.PeerID
+}
+
+func (p2ps *P2P) SelfMeta() p2pcommon.PeerMeta {
+	return p2ps.selfMeta
+}
+
+func (p2ps *P2P) SelfNodeID() types.PeerID {
+	return p2ps.selfMeta.ID
+}
+
+func (p2ps *P2P) SelfRole() p2pcommon.PeerRole {
+	return p2ps.selfRole
+}
+
+func (p2ps *P2P) GetPeerBlockInfos() []types.PeerBlockInfo {
+	return p2ps.pm.GetPeerBlockInfos()
+}
+
+func (p2ps *P2P) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
+	return p2ps.pm.GetPeer(ID)
 }

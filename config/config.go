@@ -100,6 +100,7 @@ func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	return &PolarisConfig{
 		GenesisFile:  "",
 		AllowPrivate: false,
+		EnableBlacklist: true,
 	}
 }
 

@@ -6,7 +6,11 @@
 package server
 
 import (
+	"github.com/aergoio/aergo/internal/network"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/transport"
+	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -25,6 +29,7 @@ type LiteContainerService struct {
 	*component.BaseComponent
 
 	chainID *types.ChainID
+	meta    p2pcommon.PeerMeta
 	nt      p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
@@ -98,9 +103,10 @@ func (lntc *LiteContainerService) init(cfg *config.Config) {
 	}
 	lntc.chainID = chainID
 
+	lntc.meta = initMeta(p2pkey.NodeID(), cfg.P2P)
 	lntc.Logger.Info().Str("genesis", chainID.ToJSON()).Msg("genesis block loaded")
 
-	netTransport := transport.NewNetworkTransport(cfg.P2P, lntc.Logger)
+	netTransport := transport.NewNetworkTransport(cfg.P2P, lntc.Logger, lntc)
 
 	lntc.mutex.Lock()
 	lntc.nt = netTransport
@@ -133,6 +139,10 @@ func (lntc *LiteContainerService) checkAndAddPeerAddresses(peers []*types.PeerAd
 	}
 }
 
+func (lntc *LiteContainerService) SelfMeta() p2pcommon.PeerMeta {
+	return lntc.meta
+}
+
 // TellRequest implement interface method of ActorService
 func (lntc *LiteContainerService) TellRequest(actor string, msg interface{}) {
 	lntc.TellTo(actor, msg)
@@ -163,4 +173,54 @@ func (lntc *LiteContainerService) CallRequest(actor string, msg interface{}, tim
 func (lntc *LiteContainerService) CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error) {
 	future := lntc.RequestToFuture(actor, msg, p2pcommon.DefaultActorMsgTTL)
 	return future.Result()
+}
+
+func (lntc *LiteContainerService) SelfNodeID() types.PeerID {
+	return lntc.meta.ID
+}
+
+func (lntc *LiteContainerService) SelfRole() p2pcommon.PeerRole {
+	// return dummy value
+	return p2pcommon.Watcher
+}
+
+func (lntc *LiteContainerService) GetChainAccessor() types.ChainAccessor {
+	// return dummy value
+	return nil
+}
+
+// it is copy of initMeta() in p2p package
+func initMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMeta {
+	protocolAddr := conf.NetProtocolAddr
+	var ipAddress net.IP
+	var err error
+	var protocolPort int
+	if len(conf.NetProtocolAddr) != 0 {
+		ipAddress, err = network.GetSingleIPAddress(protocolAddr)
+		if err != nil {
+			panic("Invalid protocol address " + protocolAddr + " : " + err.Error())
+		}
+		if ipAddress.IsUnspecified() {
+			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
+		}
+	} else {
+		extIP, err := p2putil.ExternalIP()
+		if err != nil {
+			panic("error while finding IP address: " + err.Error())
+		}
+		ipAddress = extIP
+		protocolAddr = ipAddress.String()
+	}
+	protocolPort = conf.NetProtocolPort
+	if protocolPort <= 0 {
+		panic("invalid NetProtocolPort " + strconv.Itoa(conf.NetProtocolPort))
+	}
+	var meta p2pcommon.PeerMeta
+	meta.IPAddress = protocolAddr
+	meta.Port = uint32(protocolPort)
+	meta.ID = peerID
+	meta.Hidden = !conf.NPExposeSelf
+	meta.Version = p2pkey.NodeVersion()
+
+	return meta
 }

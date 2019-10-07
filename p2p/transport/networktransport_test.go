@@ -7,8 +7,6 @@ package transport
 
 import (
 	"encoding/hex"
-	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -21,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -70,60 +67,10 @@ func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 	}
 }
 
-func Test_networkTransport_initSelfMeta(t *testing.T) {
-	logger := log.NewLogger("test.transport")
-	samplePeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-
-	type args struct {
-		peerID   types.PeerID
-		noExpose bool
-	}
-	tests := []struct {
-		name string
-		conf *cfg.P2PConfig
-
-		args args
-
-		wantSameAddr bool
-		wantPort     uint32
-		wantID       types.PeerID
-		wantHidden   bool
-	}{
-		{"TIP6", &cfg.P2PConfig{NetProtocolAddr: "fe80::dcbf:beff:fe87:e30a", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
-		{"TIP4", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
-		{"TDN", &cfg.P2PConfig{NetProtocolAddr: "www.aergo.io", NetProtocolPort: 7845}, args{samplePeerID, false}, true, 7845, samplePeerID, false},
-		{"TDefault", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7845}, args{samplePeerID, false}, false, 7845, samplePeerID, false},
-		{"THidden", &cfg.P2PConfig{NetProtocolAddr: "211.1.1.2", NetProtocolPort: 7845}, args{samplePeerID, true}, true, 7845, samplePeerID, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sl := &networkTransport{
-				conf:   tt.conf,
-				logger: logger,
-			}
-
-			sl.initSelfMeta(tt.args.peerID, tt.args.noExpose)
-
-			if tt.wantSameAddr {
-				assert.Equal(t, tt.conf.NetProtocolAddr, sl.selfMeta.IPAddress)
-			} else {
-				assert.NotEqual(t, tt.conf.NetProtocolAddr, sl.selfMeta.IPAddress)
-			}
-			assert.Equal(t, tt.wantPort, sl.selfMeta.Port)
-			assert.Equal(t, tt.wantID, sl.selfMeta.ID)
-			assert.Equal(t, tt.wantHidden, sl.selfMeta.Hidden)
-
-			assert.NotNil(t, sl.bindAddress)
-			fmt.Println("ProtocolAddress: ", sl.selfMeta.IPAddress)
-			fmt.Println("bindAddress:     ", sl.bindAddress.String())
-		})
-	}
-}
-
 func TestNewNetworkTransport(t *testing.T) {
 	logger := log.NewLogger("test.transport")
 	svrctx := config.NewServerContext("", "")
-	sampleAddr := "211.1.2.3"
+	sampleIP := "211.1.2.3"
 
 	tests := []struct {
 		name string
@@ -132,51 +79,45 @@ func TestNewNetworkTransport(t *testing.T) {
 		bindAddr     string
 		protocolPort int
 		bindPort     int
-		wantAddress  net.IP
+		wantAddress  string
 		wantPort     uint32
 	}{
-		{"TDefault", "", "", -1, -1, nil, 7846},
-		{"TAddrProto", sampleAddr, "", -1, -1, net.ParseIP(sampleAddr), 7846},
-		{"TAddrBind", "", sampleAddr,-1, -1, net.ParseIP(sampleAddr), 7846},
-		{"TAddrDiffer", "123.45.67.89", sampleAddr,-1, -1, net.ParseIP(sampleAddr), 7846},
-
+		{"TDefault", sampleIP, "", -1, -1, sampleIP, 7846},
+		{"TAddrProto", sampleIP, "", -1, -1, sampleIP, 7846},
+		{"TAddrBind", sampleIP, sampleIP, -1, -1, sampleIP, 7846},
+		{"TAddrDiffer", "123.45.67.89", sampleIP, -1, -1, sampleIP, 7846},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			sampleMeta := p2pcommon.PeerMeta{IPAddress: tt.protocolAddr, Port: 7846, ID: p2pkey.NodeID()}
 			conf := svrctx.GetDefaultP2PConfig()
 			if len(tt.protocolAddr) > 0 {
-				conf.NetProtocolAddr = tt.protocolAddr
+				sampleMeta.IPAddress = tt.protocolAddr
 			}
 			if len(tt.bindAddr) > 0 {
 				conf.NPBindAddr = tt.bindAddr
 			}
 			if tt.protocolPort > 0 {
-				conf.NetProtocolPort = tt.protocolPort
+				sampleMeta.Port = uint32(tt.protocolPort)
 			}
 			if tt.bindPort > 0 {
 				conf.NPBindPort = tt.bindPort
 			}
-			got := NewNetworkTransport(conf, logger)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockIS.EXPECT().SelfMeta().Return(sampleMeta)
+			got := NewNetworkTransport(conf, logger, mockIS)
 
 			if got.privateKey == nil {
 				t.Errorf("NewNetworkTransport() privkey is nil, want not")
 			}
-			if got.publicKey == nil {
-				t.Errorf("NewNetworkTransport() pubkey is nil, want %v", p2pkey.NodePubKey())
-			}
-			if got.selfMeta.Version == "" {
-				t.Errorf("NewNetworkTransport() = %v, want %v", got.selfMeta.Version, p2pkey.NodeVersion())
-			}
+
 			addr := got.bindAddress
-			port := got .bindPort
-			if tt.wantAddress == nil {
-				if addr.IsLoopback() || addr.IsUnspecified() {
-					t.Errorf("initServiceBindAddress() addr = %v, want valid addr", addr)
-				}
-			} else {
-				if !addr.Equal(tt.wantAddress) {
-					t.Errorf("initServiceBindAddress() addr = %v, want %v", addr, tt.wantAddress)
-				}
+			port := got.bindPort
+			if addr != tt.wantAddress {
+				t.Errorf("initServiceBindAddress() addr = %v, want %v", addr, tt.wantAddress)
 			}
 			if port != tt.wantPort {
 				t.Errorf("initServiceBindAddress() port = %v, want %v", port, tt.wantPort)
@@ -189,42 +130,43 @@ func TestNewNetworkTransport(t *testing.T) {
 func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 	logger := log.NewLogger("test.transport")
 	svrctx := config.NewServerContext("", "")
-	initialPort := 7846
-
+	initialPort := uint32(7846)
+	sampleIP := "203.1.2.111"
+	sampleDomain := "unittest.aergo.io"
+	ipMeta := p2pcommon.PeerMeta{IPAddress: sampleIP, Port: initialPort}
+	dnMeta := p2pcommon.PeerMeta{IPAddress: sampleDomain, Port: initialPort}
 	tests := []struct {
 		name string
+		meta p2pcommon.PeerMeta
 		conf *cfg.P2PConfig
 
-		wantAddress net.IP
-		wantPort    int
+		wantAddress string
+		wantPort    uint32
 	}{
-		{"TEmpty", svrctx.GetDefaultP2PConfig(), nil, initialPort},
-		{"TAnywhere", withAddr(svrctx.GetDefaultP2PConfig(), "0.0.0.0") , net.ParseIP("0.0.0.0"), initialPort},
-		{"TCustAddr", withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3") , net.ParseIP("211.1.2.3"), initialPort},
-		{"TCustAddrPort", withPort(withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"),7777) , net.ParseIP("211.1.2.3"), 7777},
+		{"TEmpty", ipMeta, svrctx.GetDefaultP2PConfig(), sampleIP, initialPort},
+		{"TAnywhere", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "0.0.0.0"), "0.0.0.0", initialPort},
+		{"TAnywhereDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "0.0.0.0"), "0.0.0.0", initialPort},
+		{"TLoopbackDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "127.0.0.1"), "127.0.0.1", initialPort},
+		{"TCustAddr", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), "211.1.2.3", initialPort},
+		{"TCustAddrPort", ipMeta, withPort(withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), 7777), "211.1.2.3", 7777},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sl := &networkTransport{conf: tt.conf,
-				logger: logger,
+				logger:   logger,
 				bindPort: uint32(initialPort),
+				selfMeta:tt.meta,
 			}
 			sl.initServiceBindAddress()
 
 			addr := sl.bindAddress
 			port := sl.bindPort
 			// init result must always bind valid address
-			if tt.wantAddress == nil {
-				if addr.IsLoopback() || addr.IsUnspecified() {
-					t.Errorf("initServiceBindAddress() addr = %v, want valid addr", addr)
-				}
-			} else {
-				if !addr.Equal(tt.wantAddress) {
-					t.Errorf("initServiceBindAddress() addr = %v, want %v", addr, tt.wantAddress)
-				}
+			if addr != tt.wantAddress {
+				t.Errorf("initServiceBindAddress() addr = %v, want %v", addr, tt.wantAddress)
 			}
-			if int(port) != tt.wantPort {
+			if port != tt.wantPort {
 				t.Errorf("initServiceBindAddress() port = %v, want %v", port, tt.wantPort)
 			}
 		})

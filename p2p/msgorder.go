@@ -183,25 +183,23 @@ type pbTxNoticeOrder struct {
 
 func (pr *pbTxNoticeOrder) SendTo(pi p2pcommon.RemotePeer) error {
 	p := pi.(*remotePeerImpl)
-	rType := p2pcommon.Send
-	defer func() {
-		pr.tnt.Report(rType, pr.txHashes, 1)
-	}()
+
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
 		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to SendTo")
-		rType = p2pcommon.Fail
+		pr.tnt.ReportNotSend(pr.txHashes, 1)
 		return err
 	}
 	if p.logger.IsDebugEnabled() && pr.trace {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
 			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Int("hash_cnt", len(pr.txHashes)).Array("hashes", types.NewLogTxIDsMarshaller(pr.txHashes, 10)).Msg("Sent tx notice")
 	}
+	pr.tnt.ReportSend(pr.txHashes, pi.ID())
 	return nil
 }
 
 func (pr *pbTxNoticeOrder) CancelSend(pi p2pcommon.RemotePeer) {
-	pr.tnt.Report(p2pcommon.Skip, pr.txHashes, 1)
+	pr.tnt.ReportNotSend(pr.txHashes, 1)
 }
 
 type pbRaftMsgOrder struct {

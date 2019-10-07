@@ -207,8 +207,8 @@ func (rs *PRPCServer) Metric(ctx context.Context, in *types.MetricsRequest) (*ty
 }
 
 func (rs *PRPCServer) CurrentList(ctx context.Context, p1 *types.Paginations) (*types.PolarisPeerList, error) {
-	result, err := rs.actorHelper.CallRequestDefaultTimeout(message.PolarisSvc,
-		&message.CurrentListMsg{p1.Ref, p1.Size})
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc,
+		&CurrentListMsg{p1.Ref, p1.Size})
 	if err != nil {
 		return nil, err
 	}
@@ -217,12 +217,11 @@ func (rs *PRPCServer) CurrentList(ctx context.Context, p1 *types.Paginations) (*
 		return nil, fmt.Errorf("unkown error")
 	}
 	return list, nil
-
 }
 
 func (rs *PRPCServer) WhiteList(ctx context.Context, p1 *types.Paginations) (*types.PolarisPeerList, error) {
-	result, err := rs.actorHelper.CallRequestDefaultTimeout(message.PolarisSvc,
-		&message.WhiteListMsg{p1.Ref, p1.Size})
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc,
+		&WhiteListMsg{p1.Ref, p1.Size})
 	if err == nil {
 		list := result.(*types.PolarisPeerList)
 		return list, nil
@@ -232,8 +231,8 @@ func (rs *PRPCServer) WhiteList(ctx context.Context, p1 *types.Paginations) (*ty
 }
 
 func (rs *PRPCServer) BlackList(ctx context.Context, p1 *types.Paginations) (*types.PolarisPeerList, error) {
-	result, err := rs.actorHelper.CallRequestDefaultTimeout(message.PolarisSvc,
-		&message.BlackListMsg{p1.Ref, p1.Size})
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc,
+		&BlackListMsg{p1.Ref, p1.Size})
 	if err == nil {
 		list := result.(*types.PolarisPeerList)
 		return list, nil
@@ -241,3 +240,55 @@ func (rs *PRPCServer) BlackList(ctx context.Context, p1 *types.Paginations) (*ty
 		return nil, err
 	}
 }
+
+func (rs *PRPCServer) ListBLEntries(ctx context.Context, entInfo *types.Empty) (*types.BLConfEntries, error) {
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc,	ListEntriesMsg{})
+	if err != nil {
+		return nil, err
+	}
+	list, ok := result.(*types.BLConfEntries)
+	if !ok {
+		return nil, fmt.Errorf("unkown error")
+	}
+	return list, nil
+}
+
+func (rs *PRPCServer) AddBLEntry(ctx context.Context,entInfo *types.AddEntryParams) (*types.SingleString, error) {
+	ret := &types.SingleString{}
+
+	if len(entInfo.PeerID) == 0 && len(entInfo.Cidr) == 0 && len(entInfo.Address) == 0 {
+		ret.Value = "at least one flags is required"
+		return ret, types.RPCErrInvalidArgument
+	} else if len(entInfo.Cidr) > 0 && len(entInfo.Address) > 0 {
+		ret.Value = "either address or cidr is allowed, not both "
+		return ret, types.RPCErrInvalidArgument
+	}
+
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc, entInfo)
+	if err != nil {
+		ret.Value = err.Error()
+		return ret, types.RPCErrInternalError
+	}
+	if result != nil {
+		ret.Value = result.(error).Error()
+		return ret, types.RPCErrInvalidArgument
+	}
+	return ret, nil
+}
+
+func (rs *PRPCServer) RemoveBLEntry(ctx context.Context, msg *types.RmEntryParams) (*types.SingleString, error) {
+	ret := &types.SingleString{}
+	result, err := rs.actorHelper.CallRequestDefaultTimeout(PolarisSvc, msg)
+	if err != nil {
+		ret.Value = err.Error()
+		return ret, types.RPCErrInternalError
+	}
+	removed := result.(bool)
+	if !removed {
+		ret.Value = "index out of range"
+		return ret, types.RPCErrInvalidArgument
+	}
+	return ret, nil
+
+}
+

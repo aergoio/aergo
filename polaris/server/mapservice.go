@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/v030"
 	"math"
+	"net"
 	"sync"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
@@ -66,6 +66,7 @@ type PeerMapService struct {
 	ntc p2pcommon.NTContainer
 	nt  p2pcommon.NetworkTransport
 	hc  HealthCheckManager
+	lm  *polarisListManager
 
 	rwmutex      *sync.RWMutex
 	peerRegistry map[types.PeerID]*peerState
@@ -78,13 +79,14 @@ func NewPolarisService(cfg *config.Config, ntc p2pcommon.NTContainer) *PeerMapSe
 		allowPrivate: cfg.Polaris.AllowPrivate,
 	}
 
-	pms.BaseComponent = component.NewBaseComponent(message.PolarisSvc, pms, log.NewLogger("polaris"))
+	pms.BaseComponent = component.NewBaseComponent(PolarisSvc, pms, log.NewLogger("polaris"))
 
 	pms.ntc = ntc
 	pms.hc = NewHCM(pms, pms.nt)
 
 	pms.PrivateNet = !ntc.ChainID().MainNet
 
+	pms.lm = NewPolarisListManager(cfg.Polaris, cfg.BaseConfig.AuthDir, pms.Logger)
 	// initialize map Servers
 	return pms
 }
@@ -97,7 +99,8 @@ func (pms *PeerMapService) BeforeStart() {}
 
 func (pms *PeerMapService) AfterStart() {
 	pms.nt = pms.ntc.GetNetworkTransport()
-	pms.Logger.Info().Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
+	pms.lm.Start()
+	pms.Logger.Info().Str("minAergoVer", p2pcommon.MinimumAergoVersion).Str("maxAergoVer", p2pcommon.MaximumAergoVersion).Str("version", string(common.PolarisMapSub)).Msg("Starting polaris listening")
 	pms.nt.AddStreamHandler(common.PolarisMapSub, pms.onConnect)
 	pms.hc.Start()
 }
@@ -107,6 +110,7 @@ func (pms *PeerMapService) BeforeStop() {
 		pms.hc.Stop()
 		pms.nt.RemoveStreamHandler(common.PolarisMapSub)
 	}
+	pms.lm.Stop()
 }
 
 func (pms *PeerMapService) Statistics() *map[string]interface{} {
@@ -116,13 +120,17 @@ func (pms *PeerMapService) Statistics() *map[string]interface{} {
 }
 
 func (pms *PeerMapService) onConnect(s types.Stream) {
+	defer s.Close()
 	peerID := s.Conn().RemotePeer()
-	remoteAddrStr := s.Conn().RemoteMultiaddr().String()
-	remotePeerMeta := p2pcommon.PeerMeta{ID: peerID}
-	pms.Logger.Debug().Str("addr", remoteAddrStr).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
+	remoteIP := p2putil.ExtractIPAddress(s.Conn().RemoteMultiaddr())
+	if remoteIP == nil {
+		pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogPeerID, peerID.String()).Msg("Invalid address information")
+		return
+	}
+	remotePeerMeta :=  p2pcommon.PeerMeta{ID: peerID}
+	pms.Logger.Debug().Str("addr", remoteIP.String()).Str(p2putil.LogPeerID, peerID.String()).Msg("Received map query")
 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
-	defer s.Close()
 
 	// receive input
 	container, query, err := pms.readRequest(remotePeerMeta, rw)
@@ -131,6 +139,11 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 		return
 	}
 
+	// check blacklist
+	if banned,_ := pms.lm.IsBanned(remoteIP.String(), peerID); banned {
+		pms.Logger.Debug().Str("address", remoteIP.String()).Str(p2putil.LogPeerID, peerID.String()).Msg("close soon banned peer")
+		return
+	}
 	resp, err := pms.handleQuery(container, query)
 	if err != nil {
 		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, peerID.String()).Msg("failed to handle query")
@@ -186,12 +199,21 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 	// make response
 	resp := &types.MapResponse{}
 
+	// check peer version
+	if !p2pcommon.CheckVersion(receivedMeta.Version) {
+		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Str("version", receivedMeta.Version).Msg("peer version is too old, or too new")
+		resp.Status = types.ResultStatus_FAILED_PRECONDITION
+		resp.Message = common.TooOldVersionMsg
+		return resp, nil
+
+	}
+
 	// compare chainID
 	sameChain, err := pms.checkChain(query.Status.ChainID)
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, receivedMeta.ID.String()).Bytes("chainid", query.Status.ChainID).Msg("err parsing chainid")
+		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, receivedMeta.ID.String()).Bytes("chainID", query.Status.ChainID).Msg("err parsing chain id")
 		resp.Status = types.ResultStatus_INVALID_ARGUMENT
-		resp.Message = "invalid chainid"
+		resp.Message = "invalid chain id"
 		return resp, nil
 	} else if !sameChain {
 		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Msg("err different chain")
@@ -222,8 +244,8 @@ func (pms *PeerMapService) handleQuery(container p2pcommon.Message, query *types
 
 func (pms *PeerMapService) retrieveList(maxPeers int, exclude types.PeerID) []*types.PeerAddress {
 	list := make([]*types.PeerAddress, 0, maxPeers)
-	pms.rwmutex.Lock()
-	defer pms.rwmutex.Unlock()
+	pms.rwmutex.RLock()
+	defer pms.rwmutex.RUnlock()
 	for id, ps := range pms.peerRegistry {
 		if id == exclude {
 			continue
@@ -262,7 +284,28 @@ func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	defer pms.rwmutex.Unlock()
 	pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
+}
 
+func (pms *PeerMapService) applyNewBLEntry(entry types.WhiteListEntry) {
+	pms.rwmutex.Lock()
+	defer pms.rwmutex.Unlock()
+	pms.Logger.Debug().Msg("Applying added blacklist entry; checking peers and remove from registry if banned")
+	if entry.PeerID != types.NotSpecifiedID {
+		// target is simply single peer
+		if ps, found := pms.peerRegistry[entry.PeerID]; found {
+			ip := net.ParseIP(ps.meta.IPAddress)
+			if ip == nil || entry.Contains(ip, ps.meta.ID) {
+				delete(pms.peerRegistry, ps.meta.ID)
+			}
+		}
+	} else {
+		for id, ps := range pms.peerRegistry {
+			ip := net.ParseIP(ps.meta.IPAddress)
+			if ip == nil || entry.Contains(ip, id) {
+				delete(pms.peerRegistry,id)
+			}
+		}
+	}
 }
 
 func (pms *PeerMapService) writeResponse(reqContainer p2pcommon.Message, meta p2pcommon.PeerMeta, resp *types.MapResponse, wt p2pcommon.MsgReadWriter) error {
@@ -289,15 +332,34 @@ func createV030Message(msgID, orgID p2pcommon.MsgID, subProtocol p2pcommon.SubPr
 func (pms *PeerMapService) Receive(context actor.Context) {
 	rawMsg := context.Message()
 	switch msg := rawMsg.(type) {
-	case *message.CurrentListMsg:
+	case *CurrentListMsg:
 		pms.Logger.Debug().Msg("Got current message")
 		context.Respond(pms.getCurrentPeers(msg))
-	case *message.WhiteListMsg:
+	case *WhiteListMsg:
 		pms.Logger.Debug().Msg("Got whitelist message")
 		context.Respond(pms.getWhiteList(msg))
-	case *message.BlackListMsg:
+	case *BlackListMsg:
 		pms.Logger.Debug().Msg("Got blacklist message")
 		context.Respond(pms.getBlackList(msg))
+	case ListEntriesMsg:
+		ret := &types.BLConfEntries{Enabled:pms.lm.enabled}
+		entries := pms.lm.ListEntries()
+		ret.Entries = make([]string,len(entries))
+		for i, e := range entries {
+			ret.Entries[i] = e.String()
+		}
+		context.Respond(ret)
+	case *types.AddEntryParams:
+		rawEntry := types.RawEntry{PeerId: msg.PeerID, Address:msg.Address, Cidr:msg.Cidr}
+		entry, err := types.NewListEntry(rawEntry)
+		if err != nil {
+			context.Respond(types.RPCErrInvalidArgument)
+		}
+		pms.lm.AddEntry(entry)
+		context.Respond(nil)
+		go pms.applyNewBLEntry(entry)
+	case *types.RmEntryParams:
+		context.Respond(pms.lm.RemoveEntry(int(msg.Index)))
 	default:
 		pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
 	}
@@ -334,7 +396,7 @@ func (pms *PeerMapService) onPing(s types.Stream) {
 
 }
 
-func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types.PolarisPeerList {
+func (pms *PeerMapService) getCurrentPeers(param *CurrentListMsg) *types.PolarisPeerList {
 	retSize := int(param.Size)
 	totalSize := len(pms.peerRegistry)
 	listSize := calcMinimum(retSize, totalSize, ResponseMaxPeerLimit)
@@ -356,12 +418,12 @@ func (pms *PeerMapService) getCurrentPeers(param *message.CurrentListMsg) *types
 	return result
 }
 
-func (pms *PeerMapService) getWhiteList(param *message.WhiteListMsg) *types.PolarisPeerList {
+func (pms *PeerMapService) getWhiteList(param *WhiteListMsg) *types.PolarisPeerList {
 	// TODO implement!
 	return &types.PolarisPeerList{}
 }
 
-func (pms *PeerMapService) getBlackList(param *message.BlackListMsg) *types.PolarisPeerList {
+func (pms *PeerMapService) getBlackList(param *BlackListMsg) *types.PolarisPeerList {
 	// TODO implement!
 	return &types.PolarisPeerList{}
 }

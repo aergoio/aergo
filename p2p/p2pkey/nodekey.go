@@ -41,6 +41,10 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 		err  error
 	)
 
+	if !p2pcommon.CheckVersion(version) {
+		logger.Warn().Str("minVersion",p2pcommon.MinimumAergoVersion).Str("maxVersion",p2pcommon.MaximumAergoVersion).Str("version",version).Msg("min/max version range is not set properly. change constant in source and then rebuild it")
+	}
+
 	if p2pCfg.NPKey != "" {
 		priv, pub, err = p2putil.LoadKeyFile(p2pCfg.NPKey)
 		if err != nil {

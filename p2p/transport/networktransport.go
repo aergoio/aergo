@@ -12,8 +12,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/network"
-	"net"
-	"strconv"
 	"sync"
 	"time"
 
@@ -37,10 +35,9 @@ import (
 type networkTransport struct {
 	core.Host
 	privateKey crypto.PrivKey
-	publicKey  crypto.PubKey
 
 	selfMeta    p2pcommon.PeerMeta
-	bindAddress net.IP
+	bindAddress string
 	bindPort    uint32
 
 	// hostInited is
@@ -56,29 +53,24 @@ func (sl *networkTransport) SelfMeta() p2pcommon.PeerMeta {
 	return sl.selfMeta
 }
 
-func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger) *networkTransport {
+func NewNetworkTransport(conf *cfg.P2PConfig, logger *log.Logger, internalService p2pcommon.InternalService) *networkTransport {
 	nt := &networkTransport{
 		conf:   conf,
 		logger: logger,
 
 		hostInited: &sync.WaitGroup{},
 	}
-	nt.initNT()
+	nt.initNT(internalService)
 
 	return nt
 }
 
-func (sl *networkTransport) initNT() {
+func (sl *networkTransport) initNT(internalService p2pcommon.InternalService) {
 	// check Key and address
-	priv := p2pkey.NodePrivKey()
-	pub := p2pkey.NodePubKey()
-	peerID := p2pkey.NodeID()
-	sl.privateKey = priv
-	sl.publicKey = pub
-
+	sl.privateKey = p2pkey.NodePrivKey()
+	sl.selfMeta = internalService.SelfMeta()
 	// init address and port
 	// if not set, it look up ip addresses of machine and choose suitable one (but not so smart) and default port 7845
-	sl.initSelfMeta(peerID, !sl.conf.NPExposeSelf)
 	sl.initServiceBindAddress()
 
 	sl.hostInited.Add(1)
@@ -87,55 +79,24 @@ func (sl *networkTransport) initNT() {
 	// TODO more survey libp2p NAT configuration
 }
 
-func (sl *networkTransport) initSelfMeta(peerID types.PeerID, noExpose bool) {
-	protocolAddr := sl.conf.NetProtocolAddr
-	var ipAddress net.IP
-	var err error
-	var protocolPort int
-	if len(sl.conf.NetProtocolAddr) != 0 {
-		ipAddress, err = network2.GetSingleIPAddress(protocolAddr)
-		if err != nil {
-			panic("Invalid protocol address " + protocolAddr + " : " + err.Error())
-		}
-		if ipAddress.IsUnspecified() {
-			panic("NetProtocolAddr should be a specified IP address, not 0.0.0.0")
-		}
-	} else {
-		extIP, err := p2putil.ExternalIP()
-		if err != nil {
-			panic("error while finding IP address: " + err.Error())
-		}
-		ipAddress = extIP
-		protocolAddr = ipAddress.String()
-	}
-	protocolPort = sl.conf.NetProtocolPort
-	if protocolPort <= 0 {
-		panic("invalid NetProtocolPort " + strconv.Itoa(sl.conf.NetProtocolPort))
-	}
-	sl.selfMeta.IPAddress = protocolAddr
-	sl.selfMeta.Port = uint32(protocolPort)
-	sl.selfMeta.ID = peerID
-	sl.selfMeta.Hidden = noExpose
-	sl.selfMeta.Version = p2pkey.NodeVersion()
-
-	// bind address and port will be overridden if configuration is specified
-	sl.bindAddress = ipAddress
-	sl.bindPort = sl.selfMeta.Port
-}
-
 func (sl *networkTransport) initServiceBindAddress() {
 	bindAddr := sl.conf.NPBindAddr
 	// if bindAddress or bindPort is not set, it will be same as NetProtocolAddr or NetProtocolPort
 	if len(sl.conf.NPBindAddr) > 0 {
-		bindIP, err := network2.GetSingleIPAddress(bindAddr)
+		_, err := network2.GetSingleIPAddress(bindAddr)
 		if err != nil {
 			panic("invalid NPBindAddr " + sl.conf.NPBindAddr)
 		}
 		// check address connectivity
-		sl.bindAddress = bindIP
+		sl.bindAddress = bindAddr
+	} else {
+		// bind address and port will be overridden if configuration is specified
+		sl.bindAddress = sl.selfMeta.IPAddress
 	}
 	if sl.conf.NPBindPort > 0 {
 		sl.bindPort = uint32(sl.conf.NPBindPort)
+	} else {
+		sl.bindPort = sl.selfMeta.Port
 	}
 
 }
@@ -207,7 +168,11 @@ func (sl *networkTransport) ClosePeerConnection(peerID types.PeerID) bool {
 func (sl *networkTransport) startListener() {
 	var err error
 	listens := make([]ma.Multiaddr, 0, 2)
-	listen, err := types.ToMultiAddr(sl.bindAddress, sl.bindPort)
+	ipAddr, err := network2.GetSingleIPAddress(sl.bindAddress)
+	if err != nil {
+		panic("Can't establish listening address: " + err.Error())
+	}
+	listen, err := types.ToMultiAddr(ipAddr, sl.bindPort)
 	if err != nil {
 		panic("Can't establish listening address: " + err.Error())
 	}

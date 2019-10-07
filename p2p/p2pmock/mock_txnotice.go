@@ -5,7 +5,6 @@
 package p2pmock
 
 import (
-	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -35,7 +34,7 @@ func (m *MockTxNoticeTracer) EXPECT() *MockTxNoticeTracerMockRecorder {
 }
 
 // RegisterTxNotice mocks base method
-func (m *MockTxNoticeTracer) RegisterTxNotice(txIDs []types.TxID, cnt int) {
+func (m *MockTxNoticeTracer) RegisterTxNotice(txIDs []types.TxID, cnt int, alreadySent []types.PeerID) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RegisterTxNotice", txIDs, cnt)
 }
@@ -46,14 +45,26 @@ func (mr *MockTxNoticeTracerMockRecorder) RegisterTxNotice(txIDs, cnt interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTxNotice", reflect.TypeOf((*MockTxNoticeTracer)(nil).RegisterTxNotice), txIDs, cnt)
 }
 
-// Report mocks base method
-func (m *MockTxNoticeTracer) Report(reportType p2pcommon.ReportType, txIDs []types.TxID, peerCnt int) {
+// ReportSend mocks base method
+func (m *MockTxNoticeTracer) ReportSend(txIDs []types.TxID, peerID types.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Report", reportType, txIDs, peerCnt)
+	m.ctrl.Call(m, "ReportSend", txIDs, peerID)
 }
 
-// Report indicates an expected call of Report
-func (mr *MockTxNoticeTracerMockRecorder) Report(reportType, txIDs, peerCnt interface{}) *gomock.Call {
+// ReportSend indicates an expected call of ReportSend
+func (mr *MockTxNoticeTracerMockRecorder) ReportSend(txIDs, peerID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Report", reflect.TypeOf((*MockTxNoticeTracer)(nil).Report), reportType, txIDs, peerCnt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportSend", reflect.TypeOf((*MockTxNoticeTracer)(nil).ReportSend), txIDs, peerID)
+}
+
+// ReportNotSend mocks base method
+func (m *MockTxNoticeTracer) ReportNotSend(txIDs []types.TxID, cnt int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ReportNotSend", txIDs, cnt)
+}
+
+// ReportNotSend indicates an expected call of ReportNotSend
+func (mr *MockTxNoticeTracerMockRecorder) ReportNotSend(txIDs, cnt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportNotSend", reflect.TypeOf((*MockTxNoticeTracer)(nil).ReportNotSend), txIDs, cnt)
 }

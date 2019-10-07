@@ -6,6 +6,8 @@
 #include "vm.h"
 #include "sqlcheck.h"
 #include "lgmp.h"
+#include "util.h"
+#include "_cgo_export.h"
 
 #define LAST_ERROR(L,db,rc)                         \
     do {                                            \
@@ -18,6 +20,7 @@
 #define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
 
 extern const int *getLuaExecContext(lua_State *L);
+static void get_column_meta(lua_State *L, sqlite3_stmt* stmt);
 
 static int append_resource(lua_State *L, const char *key, void *data)
 {
@@ -151,6 +154,14 @@ static int db_rs_get(lua_State *L)
         }
     }
     return rs->nc;
+}
+
+static int db_rs_colcnt(lua_State *L)
+{
+    db_rs_t *rs = get_db_rs(L, 1);
+
+    lua_pushinteger(L, rs->nc);
+    return 1;
 }
 
 static void db_rs_close(lua_State *L, db_rs_t *rs, int remove)
@@ -364,6 +375,63 @@ static int db_pstmt_query(lua_State *L)
     return 1;
 }
 
+static void get_column_meta(lua_State *L, sqlite3_stmt* stmt)
+{
+    const char *name, *decltype;
+    int type;
+    int colcnt = sqlite3_column_count(stmt);
+    int i;
+
+    lua_createtable(L, 0, 2);
+    lua_pushinteger(L, colcnt);
+    lua_setfield(L, -2, "colcnt");
+    if (colcnt > 0) {
+        lua_createtable(L, colcnt, 0);  /* colinfos names */
+        lua_createtable(L, colcnt, 0);  /* colinfos names decltypes */
+    }
+    else {
+        lua_pushnil(L);
+        lua_pushnil(L);
+    }
+    for (i = 0; i < colcnt; i++) {
+        name = sqlite3_column_name(stmt, i);
+        if (name == NULL)
+            lua_pushstring(L, "");
+        else
+            lua_pushstring(L, name);
+        lua_rawseti(L, -3, i+1);
+
+        decltype = sqlite3_column_decltype(stmt, i);
+        if (decltype == NULL)
+            lua_pushstring(L, "");
+         else
+            lua_pushstring(L, decltype);
+        lua_rawseti(L, -2, i+1);
+    }
+    lua_setfield(L, -3, "decltypes");
+    lua_setfield(L, -2, "names");
+}
+
+static int db_pstmt_column_info(lua_State *L)
+{
+    int colcnt;
+    db_pstmt_t *pstmt = get_db_pstmt(L, 1);
+	getLuaExecContext(L);
+
+    get_column_meta(L, pstmt->s);
+    return 1;
+}
+
+static int db_pstmt_bind_param_cnt(lua_State *L)
+{
+    db_pstmt_t *pstmt = get_db_pstmt(L, 1);
+	getLuaExecContext(L);
+
+	lua_pushinteger(L, sqlite3_bind_parameter_count(pstmt->s));
+
+	return 1;
+}
+
 static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove)
 {
     if (pstmt->closed)
@@ -484,6 +552,31 @@ static int db_prepare(lua_State *L)
     return 1;
 }
 
+static int db_get_snapshot(lua_State *L)
+{
+    char *snapshot;
+    int *service = (int *)getLuaExecContext(L);
+
+    snapshot = LuaGetDbSnapshot(service);
+    strPushAndRelease(L, snapshot);
+
+    return 1;
+}
+
+static int db_open_with_snapshot(lua_State *L)
+{
+    char *snapshot = (char *)luaL_checkstring(L, 1);
+    char *errStr;
+    int *service = (int *)getLuaExecContext(L);
+
+    errStr = LuaGetDbHandleSnap(service, snapshot);
+    if (errStr != NULL) {
+        strPushAndRelease(L, errStr);
+        luaL_throwerror(L);
+    }
+    return 1;
+}
+
 int lua_db_release_resource(lua_State *L)
 {
     lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY);
@@ -516,6 +609,7 @@ int luaopen_db(lua_State *L)
     static const luaL_Reg rs_methods[] = {
         {"next",  db_rs_next},
         {"get", db_rs_get},
+        {"colcnt", db_rs_colcnt},
         {"__tostring", db_rs_tostr},
         {"__gc", db_rs_gc},
         {NULL, NULL}
@@ -524,6 +618,8 @@ int luaopen_db(lua_State *L)
     static const luaL_Reg pstmt_methods[] = {
         {"exec",  db_pstmt_exec},
         {"query", db_pstmt_query},
+        {"column_info", db_pstmt_column_info},
+        {"bind_param_cnt", db_pstmt_bind_param_cnt},
         {"__tostring", db_pstmt_tostr},
         {"__gc", db_pstmt_gc},
         {NULL, NULL}
@@ -533,6 +629,8 @@ int luaopen_db(lua_State *L)
         {"exec", db_exec},
         {"query", db_query},
         {"prepare", db_prepare},
+        {"getsnap", db_get_snapshot},
+        {"open_with_snapshot", db_open_with_snapshot},
         {NULL, NULL}
     };
 

@@ -3,7 +3,7 @@ package contract
 import "testing"
 
 var testCases = map[string][2]bool{
-	"PRAGMA index_info('idx52')":                                  {false, false},
+	"PRAGMA index_info('idx52')":                                  {true, true},
 	"/* PRAGMA */ insert into t values (1, 2)":                    {true, false},
 	"insert /* PRAGMA */ into t values (1, 2)":                    {true, false},
 	"insert/* PRAGMA */ into t values (1, 2)":                     {true, false},
