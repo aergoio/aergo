@@ -54,13 +54,13 @@ func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 
 	sampleAddr1 := p2pcommon.PeerMeta{ID: "ddd", IPAddress: "192.168.0.1", Port: 33888, Outbound: true}
 	sampleAddr2 := p2pcommon.PeerMeta{ID: "fff", IPAddress: "192.168.0.2", Port: 33888, Outbound: true}
-	target.GetOrCreateStream(sampleAddr1, p2pcommon.LegacyP2PSubAddr)
-	target.GetOrCreateStream(sampleAddr1, p2pcommon.LegacyP2PSubAddr)
+	target.GetOrCreateStream(sampleAddr1, p2pcommon.P2PSubAddr)
+	target.GetOrCreateStream(sampleAddr1, p2pcommon.P2PSubAddr)
 	time.Sleep(time.Second)
 	if len(target.Peerstore().Peers()) != 1 {
 		t.Errorf("Peer count : Expected %d, Actually %d", 1, len(target.Peerstore().Peers()))
 	}
-	target.GetOrCreateStream(sampleAddr2, p2pcommon.LegacyP2PSubAddr)
+	target.GetOrCreateStream(sampleAddr2, p2pcommon.P2PSubAddr)
 	time.Sleep(time.Second * 1)
 	if len(target.Peerstore().Peers()) != 2 {
 		t.Errorf("Peer count : Expected %d, Actually %d", 2, len(target.Peerstore().Peers()))

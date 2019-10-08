@@ -198,8 +198,7 @@ func (pm *peerManager) initDesignatedPeerList() {
 
 func (pm *peerManager) runManagePeers() {
 
-	pm.logger.Info().Str("p2p_proto", p2putil.ProtocolIDsToString([]protocol.ID{p2pcommon.P2PSubAddr, p2pcommon.LegacyP2PSubAddr})).Msg("Starting p2p listening")
-	pm.nt.AddStreamHandler(p2pcommon.LegacyP2PSubAddr, pm.wpManager.OnInboundConnLegacy)
+	pm.logger.Info().Str("p2p_proto", p2putil.ProtocolIDsToString([]protocol.ID{p2pcommon.P2PSubAddr})).Msg("Starting p2p listening")
 	pm.nt.AddStreamHandler(p2pcommon.P2PSubAddr, pm.wpManager.OnInboundConn)
 
 	if !atomic.CompareAndSwapInt32(&pm.status, initial, running) {
@@ -282,7 +281,6 @@ MANLOOP:
 		}
 	}
 	// guaranty no new peer connection will be made
-	pm.nt.RemoveStreamHandler(p2pcommon.LegacyP2PSubAddr)
 	pm.nt.RemoveStreamHandler(p2pcommon.P2PSubAddr)
 
 	pm.logger.Info().Msg("Finishing peerManager")

@@ -143,8 +143,8 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 func (p2ps *P2P) BeforeStart() {}
 
 func (p2ps *P2P) AfterStart() {
-	versions := make([]fmt.Stringer, len(AcceptedInboundVersions))
-	for i, ver := range AcceptedInboundVersions {
+	versions := make([]fmt.Stringer, len(p2pcommon.AcceptedInboundVersions))
+	for i, ver := range p2pcommon.AcceptedInboundVersions {
 		versions[i] = ver
 	}
 	p2ps.lm.Start()
@@ -384,7 +384,6 @@ func (p2ps *P2P) GetChainAccessor() types.ChainAccessor {
 func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	logger := p2ps.Logger
 
-
 	// PingHandlers
 	peer.AddMessageHandler(p2pcommon.PingRequest, subproto.NewPingReqHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.PingResponse, subproto.NewPingRespHandler(p2ps.pm, peer, logger, p2ps))
@@ -425,20 +424,11 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 
 }
 
-func (p2ps *P2P) CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
-	if legacy {
-		handshakeHandler := newHandshaker(p2ps.pm, p2ps, p2ps.Logger, p2ps.chainID, pid)
-		if outbound {
-			return &LegacyOutboundHSHandler{LegacyWireHandshaker: handshakeHandler}
-		} else {
-			return &LegacyInboundHSHandler{LegacyWireHandshaker: handshakeHandler}
-		}
+func (p2ps *P2P) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+	if outbound {
+		return NewOutboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
 	} else {
-		if outbound {
-			return NewOutboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
-		} else {
-			return NewInboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
-		}
+		return NewInboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
 	}
 }
 

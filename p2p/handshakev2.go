@@ -17,10 +17,6 @@ import (
 	"time"
 )
 
-// AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
-var AcceptedInboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}
-var AttemptingOutboundVersions = []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}
-
 // baseWireHandshaker works to handshake to just connected peer, it detect chain networks
 // and protocol versions, and then select InnerHandshaker for that protocol version.
 type baseWireHandshaker struct {
@@ -110,7 +106,7 @@ func (h *OutboundWireHandshaker) Handle(s io.ReadWriteCloser, ttl time.Duration)
 
 func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, rwc io.ReadWriteCloser) (p2pcommon.MsgReadWriter, *types.Status, error) {
 	// send initial hs message
-	versions := AttemptingOutboundVersions
+	versions := p2pcommon.AttemptingOutboundVersions
 
 	hsHeader := p2pcommon.HSHeadReq{Magic: p2pcommon.MAGICMain, Versions: versions}
 	err := h.writeWireHSRequest(hsHeader, rwc)

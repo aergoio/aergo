@@ -38,17 +38,17 @@ func (m *MockHSHandlerFactory) EXPECT() *MockHSHandlerFactoryMockRecorder {
 }
 
 // CreateHSHandler mocks base method
-func (m *MockHSHandlerFactory) CreateHSHandler(legacy, outbound bool, pid types.PeerID) p2pcommon.HSHandler {
+func (m *MockHSHandlerFactory) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateHSHandler", legacy, outbound, pid)
+	ret := m.ctrl.Call(m, "CreateHSHandler", outbound, pid)
 	ret0, _ := ret[0].(p2pcommon.HSHandler)
 	return ret0
 }
 
 // CreateHSHandler indicates an expected call of CreateHSHandler
-func (mr *MockHSHandlerFactoryMockRecorder) CreateHSHandler(legacy, outbound, pid interface{}) *gomock.Call {
+func (mr *MockHSHandlerFactoryMockRecorder) CreateHSHandler(outbound, pid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateHSHandler", reflect.TypeOf((*MockHSHandlerFactory)(nil).CreateHSHandler), legacy, outbound, pid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateHSHandler", reflect.TypeOf((*MockHSHandlerFactory)(nil).CreateHSHandler), outbound, pid)
 }
 
 // MockHSHandler is a mock of HSHandler interface

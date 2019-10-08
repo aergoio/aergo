@@ -35,31 +35,18 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 	}{
 		{"TNewIn", args{false, false}, reflect.TypeOf(&InboundWireHandshaker{})},
 		{"TNewOut", args{false, true}, reflect.TypeOf(&OutboundWireHandshaker{})},
-		{"TLegacyIn", args{true, false}, reflect.TypeOf(&LegacyInboundHSHandler{})},
-		{"TLegacyOut", args{true, true}, reflect.TypeOf(&LegacyOutboundHSHandler{})},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			sampleChainID := types.ChainID{}
-			//mockMF := p2pmock.NewMockMoFactory(ctrl)
-			//mockPeer := (*p2pmock.MockRemotePeer)(nil)
-			//if tt.hasPeer {
-			//	mockPeer = p2pmock.NewMockRemotePeer(ctrl)
-			//	mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
-			//}
-			//p2pmock.NewMockRemotePeer(ctrl)
-			//mockPM.EXPECT().GetPeer(dummyPeerID).Return(mockPeer, tt.hasPeer).Times(1)
-			//mockPM.EXPECT().SelfMeta().Return(dummyPeerMeta).Times(tt.wantSend).MaxTimes(tt.wantSend)
-			//mockMF.EXPECT().NewMsgRequestOrder(true, subproto.AddressesRequest, gomock.AssignableToTypeOf(&types.AddressesRequest{})).Times(tt.wantSend)
 
 			p2ps := &P2P{
 				pm: mockPM, chainID: &sampleChainID,
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
 
-			got := p2ps.CreateHSHandler(tt.args.legacy, tt.args.outbound, dummyPeerID)
+			got := p2ps.CreateHSHandler(tt.args.outbound, dummyPeerID)
 			if !reflect.TypeOf(got).AssignableTo(tt.wantType) {
 				t.Errorf("P2P.CreateHSHandler() type = %v, want %v", reflect.TypeOf(got), tt.wantType)
 			}

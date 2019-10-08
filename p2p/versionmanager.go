@@ -30,7 +30,7 @@ func newDefaultVersionManager(pm p2pcommon.PeerManager, actor p2pcommon.ActorSer
 }
 
 func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {
-	for _, supported := range AcceptedInboundVersions {
+	for _, supported := range p2pcommon.AcceptedInboundVersions {
 		for _, reqVer := range versions {
 			if supported == reqVer {
 				return reqVer
@@ -49,9 +49,6 @@ func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVers
 		vhs := v030.NewV032VersionedHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil
 	case p2pcommon.P2PVersion031:
-		v030hs := v030.NewV030VersionedHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc)
-		return v030hs, nil
-	case p2pcommon.P2PVersion030:
 		v030hs := v030.NewV030VersionedHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc)
 		return v030hs, nil
 	default:

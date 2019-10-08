@@ -16,7 +16,7 @@ import (
 
 // HSHandlerFactory is creator of HSHandler
 type HSHandlerFactory interface {
-	CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) HSHandler
+	CreateHSHandler(outbound bool, pid types.PeerID) HSHandler
 }
 
 // HSHandler handles whole process of connect, handshake, create of remote Peer

@@ -6,6 +6,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 	"reflect"
@@ -31,8 +32,9 @@ func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 
 		want   p2pcommon.P2PVersion
 	}{
-		{"TSingle", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion030}}, p2pcommon.P2PVersion030},
-		{"TMulti", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion030}}, p2pcommon.P2PVersion031},
+		{"TSingle", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion033}}, p2pcommon.P2PVersion033},
+		{"TMulti", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion033}}, p2pcommon.P2PVersion033},
+		{"TOld", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion030}}, p2pcommon.P2PVersionUnknown},
 		{"TUnknown", args{[]p2pcommon.P2PVersion{9999999, 9999998}}, p2pcommon.P2PVersionUnknown},
 	}
 	for _, tt := range tests {
@@ -54,6 +56,9 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 	defer ctrl.Finish()
 
 	dummyChainID := &types.ChainID{}
+	if chain.Genesis == nil {
+		chain.Genesis = &types.Genesis{ID:*dummyChainID}
+	}
 
 
 	type args struct {
@@ -66,8 +71,9 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 		wantErr bool
 	}{
 		//
-		{"TRecent", args{p2pcommon.P2PVersion031}, false},
-		{"TLegacy", args{p2pcommon.P2PVersion030}, false},
+		{"TRecent", args{p2pcommon.P2PVersion033}, false},
+		{"TLegacy", args{p2pcommon.P2PVersion031}, false},
+		{"TOld", args{p2pcommon.P2PVersion030}, true},
 		{"TUnknown", args{9999999}, true},
 	}
 	for _, tt := range tests {
@@ -75,8 +81,10 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 			pm := p2pmock.NewMockPeerManager(ctrl)
 			actor := p2pmock.NewMockActorService(ctrl)
 			ca := p2pmock.NewMockChainAccessor(ctrl)
-
 			r := p2pmock.NewMockReadWriteCloser(ctrl)
+			sampleID := types.RandomPeerID()
+
+			ca.EXPECT().ChainID(gomock.Any()).Return(dummyChainID).MaxTimes(1)
 
 			h := newDefaultVersionManager(pm, actor, ca, logger, dummyChainID)
 

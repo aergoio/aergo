@@ -57,8 +57,6 @@ type WaitingPeerManager interface {
 	InstantConnect(meta PeerMeta)
 
 	OnInboundConn(s network.Stream)
-
-	OnInboundConnLegacy(s network.Stream)
 }
 //go:generate mockgen -source=pool.go -package=p2pmock -destination=../p2pmock/mock_peerfinder.go
 
