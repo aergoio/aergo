@@ -77,6 +77,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:diffBlockNo}
 	olderStatusMsg := &types.Status{ChainID: oldChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:10000}
 	newerStatusMsg := &types.Status{ChainID: newChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:600000}
+	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
 
 	tests := []struct {
 		name       string
@@ -97,6 +98,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 		{"TDiffChain", diffStatusMsg, nil, nil, nil, true, true},
 		{"TNilGenesis", nilGenesisStatusMsg, nil, nil, nil, true, true},
 		{"TDiffGenesis", diffGenesisStatusMsg, nil, nil, nil, true, true},
+		{"TDiffChainVersion", diffVersionStatusMsg, nil, nil, nil, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -164,6 +166,7 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
+	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -181,6 +184,7 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 		{"TDiffChain", diffStatusMsg, nil, nil, nil, true, true},
 		{"TNilGenesis", nilGenesisStatusMsg, nil, nil, nil, true, true},
 		{"TDiffGenesis", diffGenesisStatusMsg, nil, nil, nil, true, true},
+		{"TDiffChainVersion", diffVersionStatusMsg, nil, nil, nil, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

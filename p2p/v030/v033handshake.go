@@ -16,8 +16,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"io"
-	"strconv"
-	"strings"
 )
 
 // V033Handshaker exchange status data over protocol version .0.3.1
@@ -52,7 +50,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	localID := h.vm.GetChainID(remotePeerStatus.BestHeight)
 	if !localID.Equals(remoteChainID) {
 		h.sendGoAway("different chainID")
-		return fmt.Errorf("different chainID : local is %s, remote is %s at bloco no %d", PrintChainID(localID), PrintChainID(remoteChainID), remotePeerStatus.BestHeight)
+		return fmt.Errorf("different chainID : local is %s, remote is %s at bloco no %d", p2putil.PrintChainID(localID), p2putil.PrintChainID(remoteChainID), remotePeerStatus.BestHeight)
 	}
 
 	peerAddress := remotePeerStatus.Sender
@@ -65,7 +63,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	if rMeta.ID != h.peerID {
 		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
-		return fmt.Errorf("Inconsistent peerID")
+		return fmt.Errorf("inconsistent peerID")
 	}
 
 	// check if genesis hashes are identical
@@ -78,34 +76,19 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	return nil
 }
 
-func PrintChainID(id *types.ChainID) string {
-	var b strings.Builder
-	if id.PublicNet {
-		b.WriteString("publ")
-	} else {
-		b.WriteString("priv")
-	}
-	b.WriteByte(':')
-	if id.MainNet {
-		b.WriteString("main")
-	} else {
-		b.WriteString("test")
-	}
-	b.WriteByte(':')
-	b.WriteString(id.Magic)
-	b.WriteByte(':')
-	b.WriteString(id.Consensus)
-	b.WriteByte(':')
-	b.WriteString(strconv.Itoa(int(id.Version)))
-	return b.String()
-}
-
 func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
+	// find my best block
+	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
+	localID := h.vm.GetChainID(bestBlock.Header.BlockNo)
+
 	// outbound: send, receive and check
-	localStatus, err := createStatus(h.pm, h.actor, h.chainID, h.localGenesisHash)
+	localStatus, err := createLocalStatus(h.pm, localID, bestBlock, h.localGenesisHash)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		h.sendGoAway("internal error")
@@ -141,9 +124,14 @@ func (h *V033Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	}
+	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
+	localID := h.vm.GetChainID(bestBlock.Header.BlockNo)
 
 	// send my status message as response
-	localStatus, err := createStatus(h.pm, h.actor, h.chainID, h.localGenesisHash)
+	localStatus, err := createLocalStatus(h.pm, localID, bestBlock, h.localGenesisHash)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		h.sendGoAway("internal error")

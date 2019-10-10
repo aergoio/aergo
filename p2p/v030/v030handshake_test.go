@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	myChainID, theirChainID       *types.ChainID
-	myChainBytes, theirChainBytes []byte
+	myChainID, newVerChainID, theirChainID         *types.ChainID
+	myChainBytes, newVerChainBytes, theirChainBytes []byte
 	samplePeerID, _                      = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	dummyBlockHash, _                    = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	dummyBlockHeight              uint64 = 100215
@@ -34,6 +34,11 @@ func init() {
 	myChainID = types.NewChainID()
 	myChainID.Magic = "itSmain1"
 	myChainBytes, _ = myChainID.Bytes()
+
+	newVerChainID = types.NewChainID()
+	newVerChainID.Read(myChainBytes)
+	newVerChainID.Version = 3
+	newVerChainBytes, _ = newVerChainID.Bytes()
 
 	theirChainID = types.NewChainID()
 	theirChainID.Read(myChainBytes)

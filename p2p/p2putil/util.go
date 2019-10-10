@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -190,3 +192,26 @@ func PrintHashList(blocks []*types.Block) string {
 	}
 
 }
+
+func PrintChainID(id *types.ChainID) string {
+	var b strings.Builder
+	if id.PublicNet {
+		b.WriteString("publ")
+	} else {
+		b.WriteString("priv")
+	}
+	b.WriteByte(':')
+	if id.MainNet {
+		b.WriteString("main")
+	} else {
+		b.WriteString("test")
+	}
+	b.WriteByte(':')
+	b.WriteString(id.Magic)
+	b.WriteByte(':')
+	b.WriteString(id.Consensus)
+	b.WriteByte(':')
+	b.WriteString(strconv.Itoa(int(id.Version)))
+	return b.String()
+}
+

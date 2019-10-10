@@ -57,8 +57,13 @@ func (h *V032Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
+	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
+
 	// outbound: send, receive and check
-	localStatus, err := createStatus(h.pm, h.actor, h.chainID, h.localGenesisHash)
+	localStatus, err := createLocalStatus(h.pm, h.chainID, bestBlock, h.localGenesisHash)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		h.sendGoAway("internal error")
@@ -94,9 +99,13 @@ func (h *V032Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	}
+	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
 
 	// send my status message as response
-	localStatus, err := createStatus(h.pm, h.actor, h.chainID, h.localGenesisHash)
+	localStatus, err := createLocalStatus(h.pm, h.chainID, bestBlock, h.localGenesisHash)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		h.sendGoAway("internal error")
