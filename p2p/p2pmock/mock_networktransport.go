@@ -43,18 +43,18 @@ func (m *MockNTContainer) EXPECT() *MockNTContainerMockRecorder {
 	return m.recorder
 }
 
-// ChainID mocks base method
-func (m *MockNTContainer) ChainID() *types.ChainID {
+// GenesisChainID mocks base method
+func (m *MockNTContainer) GenesisChainID() *types.ChainID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ChainID")
+	ret := m.ctrl.Call(m, "GenesisChainID")
 	ret0, _ := ret[0].(*types.ChainID)
 	return ret0
 }
 
-// ChainID indicates an expected call of ChainID
+// GenesisChainID indicates an expected call of GenesisChainID
 func (mr *MockNTContainerMockRecorder) ChainID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainID", reflect.TypeOf((*MockNTContainer)(nil).ChainID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenesisChainID", reflect.TypeOf((*MockNTContainer)(nil).GenesisChainID))
 }
 
 // GetNetworkTransport mocks base method

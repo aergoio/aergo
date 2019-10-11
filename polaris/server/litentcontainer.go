@@ -80,7 +80,7 @@ func (lntc *LiteContainerService) GetNetworkTransport() p2pcommon.NetworkTranspo
 	return lntc.nt
 }
 
-func (lntc *LiteContainerService) ChainID() *types.ChainID {
+func (lntc *LiteContainerService) GenesisChainID() *types.ChainID {
 	return lntc.chainID
 }
 

@@ -18,8 +18,8 @@ import (
 type NTContainer interface {
 	GetNetworkTransport() NetworkTransport
 
-	// ChainID return id of current chain.
-	ChainID() *types.ChainID
+	// GenesisChainID return inititial chainID of current chain.
+	GenesisChainID() *types.ChainID
 	SelfMeta() PeerMeta
 }
 

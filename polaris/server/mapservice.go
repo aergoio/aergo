@@ -84,7 +84,7 @@ func NewPolarisService(cfg *config.Config, ntc p2pcommon.NTContainer) *PeerMapSe
 	pms.ntc = ntc
 	pms.hc = NewHCM(pms, pms.nt)
 
-	pms.PrivateNet = !ntc.ChainID().MainNet
+	pms.PrivateNet = !ntc.GenesisChainID().MainNet
 
 	pms.lm = NewPolarisListManager(cfg.Polaris, cfg.BaseConfig.AuthDir, pms.Logger)
 	// initialize map Servers
@@ -466,21 +466,22 @@ func (pms *PeerMapService) SendGoAwayMsg(message string, wt p2pcommon.MsgReadWri
 
 //
 func (pms *PeerMapService) checkChain(chainIDBytes []byte) (bool, error) {
-	chainID := types.NewChainID()
-	if err := chainID.Read(chainIDBytes); err != nil {
+	remoteChainID := types.NewChainID()
+	if err := remoteChainID.Read(chainIDBytes); err != nil {
 		return false, err
 	}
-	sameChain := pms.ntc.ChainID().Equals(chainID)
+	localChainID := pms.ntc.GenesisChainID()
+	sameChain := localChainID.Equals(remoteChainID)
 	if !sameChain && pms.Logger.IsDebugEnabled() {
-		pms.Logger.Debug().Str("chain_id", chainID.ToJSON()).Msg("chainid differ")
+		pms.Logger.Debug().Str("chainID", remoteChainID.ToJSON()).Msg("chainID differ")
 
 	}
 	return sameChain, nil
 }
 
 func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
-	if !pms.allowPrivate && !network.IsExternalAddr(meta.IPAddress) {
-		pms.Logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(meta)).Msg("peer is private address")
+	if !pms.allowPrivate && !network.IsPublicAddr(meta.IPAddress) {
+		pms.Logger.Debug().Str("peer_meta", p2putil.ShortMetaForm(meta)).Msg("peer is private address but polaris is not allow by configuration")
 		return false
 	}
 	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary: true}

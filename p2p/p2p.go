@@ -42,7 +42,7 @@ type P2P struct {
 	useRaft  bool
 	selfMeta p2pcommon.PeerMeta
 	// caching data from genesis block
-	chainID *types.ChainID
+	genesisChainID *types.ChainID
 
 	nt     p2pcommon.NetworkTransport
 	pm     p2pcommon.PeerManager
@@ -93,7 +93,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	if err != nil {
 		panic("invalid chainid: " + err.Error())
 	}
-	p2ps.chainID = chainID
+	p2ps.genesisChainID = chainID
 
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 	p2ps.useRaft = useRaft
@@ -121,7 +121,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, p2ps, netTransport, metricMan, lm, p2ps.Logger, cfg, useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.chainID)
+	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.genesisChainID)
 
 	// connect managers each other
 
@@ -214,8 +214,8 @@ func (p2ps *P2P) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
 	p2ps.consacc = ca
 }
 
-func (p2ps *P2P) ChainID() *types.ChainID {
-	return p2ps.chainID
+func (p2ps *P2P) GenesisChainID() *types.ChainID {
+	return p2ps.genesisChainID
 }
 
 // Receive got actor message and then handle it.
@@ -426,9 +426,9 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHandler {
 	if outbound {
-		return NewOutboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+		return NewOutboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.genesisChainID, pid)
 	} else {
-		return NewInboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.chainID, pid)
+		return NewInboundHSHandler(p2ps.pm, p2ps, p2ps.vm, p2ps.Logger, p2ps.genesisChainID, pid)
 	}
 }
 

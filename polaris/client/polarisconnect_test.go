@@ -33,7 +33,7 @@ func (dntc *dummyNTC) SelfMeta() p2pcommon.PeerMeta {
 func (dntc *dummyNTC) GetNetworkTransport() p2pcommon.NetworkTransport {
 	return dntc.nt
 }
-func (dntc *dummyNTC) ChainID() *types.ChainID {
+func (dntc *dummyNTC) GenesisChainID() *types.ChainID {
 	return dntc.chainID
 }
 

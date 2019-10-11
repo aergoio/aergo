@@ -42,7 +42,7 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 			sampleChainID := types.ChainID{}
 
 			p2ps := &P2P{
-				pm: mockPM, chainID: &sampleChainID,
+				pm: mockPM, genesisChainID: &sampleChainID,
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
 

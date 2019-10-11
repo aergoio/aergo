@@ -102,7 +102,7 @@ func CheckAddress(urlStr string) (string, error) {
 	}
 }
 
-func IsExternalAddr(addrStr string) bool {
+func IsPublicAddr(addrStr string) bool {
 	switch CheckAddressType(addrStr) {
 	case AddressTypeIP:
 		parsed := net.ParseIP(addrStr)
