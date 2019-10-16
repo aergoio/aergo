@@ -66,7 +66,7 @@ func (m PeerMeta) ToPeerAddress() types.PeerAddress {
 		pds[i] = []byte(a)
 	}
 
-	addr := types.PeerAddress{PeerID: []byte(m.ID), Address:m.PrimaryAddress(), Port:m.PrimaryPort(), Addresses:addrs, ProducerIDs:pds, Version:m.GetVersion(), Role:uint32(m.Role)}
+	addr := types.PeerAddress{PeerID: []byte(m.ID), Address:m.PrimaryAddress(), Port:m.PrimaryPort(), Addresses:addrs, ProducerIDs:pds, Version:m.GetVersion(), Role:m.Role}
 	return addr
 }
 
