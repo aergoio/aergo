@@ -45,7 +45,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Staked = staked
-	case types.OpvoteProposal:
+	case types.OpvoteParam:
 		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err

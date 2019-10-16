@@ -9,18 +9,15 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[OpvoteBP-0]
-	_ = x[OpvoteProposal-1]
+	_ = x[OpvoteParam-1]
 	_ = x[Opstake-2]
 	_ = x[Opunstake-3]
-	_ = x[OpcreateProposal-4]
-	_ = x[OpaddOperator-5]
-	_ = x[OpremoveOperator-6]
-	_ = x[OpSysTxMax-7]
+	_ = x[OpSysTxMax-4]
 }
 
-const _OpSysTx_name = "OpvoteBPOpvoteProposalOpstakeOpunstakeOpcreateProposalOpaddOperatorOpremoveOperatorOpSysTxMax"
+const _OpSysTx_name = "OpvoteBPOpvoteParamOpstakeOpunstakeOpSysTxMax"
 
-var _OpSysTx_index = [...]uint8{0, 8, 22, 29, 38, 54, 67, 83, 93}
+var _OpSysTx_index = [...]uint8{0, 8, 19, 26, 35, 45}
 
 func (i OpSysTx) String() string {
 	if i < 0 || i >= OpSysTx(len(_OpSysTx_index)-1) {

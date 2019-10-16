@@ -201,27 +201,7 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case OpcreateProposal:
-		if len(ci.Args) != 3 {
-			return fmt.Errorf("invalid the number of arguments %d", len(ci.Args))
-		}
-		id, ok := ci.Args[0].(string)
-		if !ok {
-			return fmt.Errorf("could not create proposal id")
-		}
-		if err := validateAllowedChar([]byte(id)); err != nil {
-			return err
-		}
-		for i, v := range ci.Args {
-			arg, ok := v.(string)
-			if !ok {
-				return ErrTxInvalidPayload
-			}
-			if strings.Contains(arg, "\\") {
-				return fmt.Errorf("'\\' letter not allowed in creating argenda Args[%d]", i)
-			}
-		}
-	case OpvoteProposal:
+	case OpvoteParam:
 		if len(ci.Args) < 1 {
 			return fmt.Errorf("the number of args less then 1")
 		}
@@ -235,11 +215,6 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 			unique[encoded]++
-		}
-	case OpaddOperator,
-		OpremoveOperator:
-		if len(ci.Args) != 1 {
-			return fmt.Errorf("invalid call arguments")
 		}
 	default:
 		return ErrTxInvalidPayload

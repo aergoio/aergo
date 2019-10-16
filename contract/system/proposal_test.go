@@ -1,7 +1,6 @@
 package system
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
@@ -62,24 +61,6 @@ func TestProposalSetGet(t *testing.T) {
 	assert.Equal(t, originProposal2.MultipleChoice, testProposal2.MultipleChoice, "proposal max vote")
 }
 
-func buildProposalPayload(t *testing.T, name, version string) (*types.CallInfo, []byte) {
-	var ci types.CallInfo
-	ci.Name = types.OpcreateProposal.Cmd()
-	proposal := &Proposal{
-		ID:             name,
-		Blockfrom:      1,
-		Blockto:        2,
-		Description:    "the number of block producer",
-		Candidates:     []string{"13", "23", "45"},
-		MultipleChoice: 2,
-	}
-	//data, _ := json.Marshal(proposal)
-	ci.Args = append(ci.Args, proposal)
-	ret, _ := json.Marshal(ci)
-	t.Log(string(ret))
-	return &ci, ret
-}
-
 func TestProposalBPCount(t *testing.T) {
 	scs, sender, receiver := initTest(t)
 	defer deinitTest()
@@ -122,7 +103,7 @@ func TestProposalBPCount(t *testing.T) {
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["bpcount", "13"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -132,7 +113,7 @@ func TestProposalBPCount(t *testing.T) {
 	assert.Equal(t, 3, GetBpCount(), "check bp")
 
 	validCandiTx.Body.Account = sender2.ID()
-	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["bpcount", "13"]}`)
+	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`)
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "valid")

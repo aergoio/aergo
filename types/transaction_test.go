@@ -89,16 +89,6 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	t.Log(string(transaction.GetTx().GetBody().Payload))
 	assert.NoError(t, err, "should success")
 
-	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1addOperator", "Args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
-	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid, false)
-	assert.NoError(t, err, "add operator")
-
-	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1removeOperator", "Args":["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"]}`)
-	transaction.GetTx().Hash = transaction.CalculateTxHash()
-	err = transaction.Validate(chainid, false)
-	assert.NoError(t, err, "remove operator")
-
 	transaction.GetTx().GetBody().Recipient = []byte(`aergo.name`)
 	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1createName", "Args":["1"]}`)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
@@ -110,7 +100,7 @@ func TestGovernanceTypeTransaction(t *testing.T) {
 	err = transaction.Validate(chainid, false)
 	assert.Error(t, err, "invalid name length in update")
 
-	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT","3", "3"]}`)
+	transaction.GetTx().GetBody().Payload = []byte(`{"Name":"v1voteParam", "Args":["BPCOUNT","3", "3"]}`)
 	transaction.GetTx().Hash = transaction.CalculateTxHash()
 	err = transaction.Validate(chainid, false)
 	assert.Error(t, err, "duplicate arguments")

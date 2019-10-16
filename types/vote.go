@@ -30,18 +30,12 @@ const (
 
 	// OpvoteBP corresponds to a voting transaction for a BP election.
 	OpvoteBP OpSysTx = iota
-	// OpvoteProposal corresponds to a proposal transaction for a system parameter change.
-	OpvoteProposal
+	// OpvoteParam corresponds to a proposal transaction for a system parameter change.
+	OpvoteParam
 	// Opstake represents a staking tranaction.
 	Opstake
 	// Opunstake represents a unstaking tranaction.
 	Opunstake
-	// OpcreateProposal represents a transaction creating a proposal.
-	OpcreateProposal
-	// OpaddOperator represents a transaction adding a operator.
-	OpaddOperator
-	// OpremoveOperator represents a transaction removing a operator.
-	OpremoveOperator
 	// OpSysTxMax is the maximum of system tx OP numbers.
 	OpSysTxMax
 

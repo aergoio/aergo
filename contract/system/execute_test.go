@@ -511,7 +511,7 @@ func TestProposalExecute(t *testing.T) {
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "13"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["BPCOUNT", "13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -579,7 +579,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	invalidaVersionTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "non","13"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["numbp", "non","13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -589,7 +589,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	tooEarlyTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["numbp", "13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -599,7 +599,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	tooManyCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "13","23","17"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["numbp", "13","23","17"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -609,7 +609,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	invalidCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["numbp", "ab"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["numbp", "ab"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -652,7 +652,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "1"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["BPCOUNT", "1"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -707,18 +707,18 @@ func TestProposalExecute2(t *testing.T) {
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "23"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["BPCOUNT", "23"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "failed in voting proposal")
 	votingTx.Body.Account = sender2.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "13"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["BPCOUNT", "13"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 	votingTx.Body.Account = sender3.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["BPCOUNT", "13"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["BPCOUNT", "13"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
@@ -734,36 +734,36 @@ func TestProposalExecute2(t *testing.T) {
 	votingTx = &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "` + balance0_5.String() + `"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["STAKINGMIN", "` + balance0_5.String() + `"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "failed in voting proposal")
 	votingTx.Body.Account = sender2.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "` + balance0_5.String() + `"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["STAKINGMIN", "` + balance0_5.String() + `"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 	votingTx.Body.Account = sender3.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["STAKINGMIN", "10000"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["STAKINGMIN", "10000"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
 	votingTx = &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "` + balance0_5.String() + `"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["GASPRICE", "` + balance0_5.String() + `"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "failed in voting proposal")
 	votingTx.Body.Account = sender2.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "` + balance0_5.String() + `"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["GASPRICE", "` + balance0_5.String() + `"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 	votingTx.Body.Account = sender3.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["GASPRICE", "1004"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["GASPRICE", "1004"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 	gasPrice := GetGasPrice()
@@ -800,12 +800,12 @@ func TestProposalExecute2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 
 	votingTx.Body.Account = sender2.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["NAMEPRICE", "1004"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["NAMEPRICE", "1004"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
 	votingTx.Body.Account = sender3.ID()
-	votingTx.Body.Payload = []byte(`{"Name":"v1voteProposal", "Args":["NAMEPRICE", "1004"]}`)
+	votingTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["NAMEPRICE", "1004"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockNo)
 	assert.NoError(t, err, "could not execute system tx")
 
