@@ -427,7 +427,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			account := tx.GetBody().GetAccount()
 			recipient := tx.GetBody().GetRecipient()
 			if tx.HasNameAccount() {
-				account = mp.getAddress(account)
+				account = mp.getOwner(account) // it's for the case that tx sender is named smart contract
 			}
 			if tx.HasNameRecipient() {
 				recipient = mp.getAddress(recipient)
@@ -493,7 +493,16 @@ func (mp *MemPool) verifyTx(tx types.Transaction) error {
 	}
 	return nil
 }
+
 func (mp *MemPool) getAddress(account []byte) []byte {
+	return mp.getNameDest(account, false)
+}
+
+func (mp *MemPool) getOwner(account []byte) []byte {
+	return mp.getNameDest(account, true)
+}
+
+func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 	if mp.testConfig {
 		return account
 	}
@@ -512,7 +521,10 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
 	}
-	return name.GetOwner(scs, account)
+	if owner {
+		return name.GetOwner(scs, account)
+	}
+	return name.GetAddress(scs, account)
 }
 
 func (mp *MemPool) nextBlockVersion() int32 {
