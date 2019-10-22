@@ -63,10 +63,10 @@ func (mr *MockInternalServiceMockRecorder) SelfNodeID() *gomock.Call {
 }
 
 // SelfRole mocks base method
-func (m *MockInternalService) SelfRole() p2pcommon.PeerRole {
+func (m *MockInternalService) SelfRole() types.PeerRole {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SelfRole")
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 

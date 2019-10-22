@@ -47,10 +47,10 @@ func (mr *MockPeerRoleManagerMockRecorder) UpdateBP(toAdd, toRemove interface{})
 }
 
 // SelfRole mocks base method
-func (m *MockPeerRoleManager) SelfRole() p2pcommon.PeerRole {
+func (m *MockPeerRoleManager) SelfRole() types.PeerRole {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SelfRole")
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 
@@ -61,10 +61,10 @@ func (mr *MockPeerRoleManagerMockRecorder) SelfRole() *gomock.Call {
 }
 
 // GetRole mocks base method
-func (m *MockPeerRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
+func (m *MockPeerRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRole", pid)
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 

@@ -22,8 +22,8 @@ type RemotePeer interface {
 	ManageNumber() uint32
 	Name() string
 	Version() string
-	Role() PeerRole
-	ChangeRole(role PeerRole)
+	Role() types.PeerRole
+	ChangeRole(role types.PeerRole)
 
 	AddMessageHandler(subProtocol SubProtocol, handler MessageHandler)
 

@@ -157,10 +157,10 @@ func (mr *MockRemotePeerMockRecorder) Version() *gomock.Call {
 }
 
 // Role mocks base method
-func (m *MockRemotePeer) Role() p2pcommon.PeerRole {
+func (m *MockRemotePeer) Role() types.PeerRole {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Role")
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 
@@ -171,7 +171,7 @@ func (mr *MockRemotePeerMockRecorder) Role() *gomock.Call {
 }
 
 // ChangeRole mocks base method
-func (m *MockRemotePeer) ChangeRole(role p2pcommon.PeerRole) {
+func (m *MockRemotePeer) ChangeRole(role types.PeerRole) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "ChangeRole", role)
 }

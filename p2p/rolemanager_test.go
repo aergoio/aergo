@@ -62,7 +62,7 @@ func TestRaftRoleManager_updateBP(t *testing.T) {
 				if _, found := rm.raftBP[id]; !found {
 					t.Errorf("P2P.UpdateBP() not exist %v, want exist ", id)
 				} else {
-					if rm.GetRole(id) != p2pcommon.BlockProducer {
+					if rm.GetRole(id) != types.PeerRole_Producer {
 						t.Errorf("P2P.GetRole(%v) false, want true", id)
 					}
 				}
@@ -106,11 +106,11 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		wantSkipped int
 		wantSent    int
 	}{
-		{"TAllBP", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}}, 3, 0},
-		{"TAllWat", []rs{{p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMIX", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 2, 1},
-		{"TMIXStop", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.STOPPING}}, 3, 0},
-		{"TMixStop2", []rs{{p2pcommon.BlockProducer, types.STOPPING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 2, 1},
+		{"TAllBP", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}}, 3, 0},
+		{"TAllWat", []rs{{types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
+		{"TMIX", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 2, 1},
+		{"TMIXStop", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.STOPPING}}, 3, 0},
+		{"TMixStop2", []rs{{types.PeerRole_Producer, types.STOPPING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 2, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -210,11 +210,11 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		wantSkipped int
 		wantSent    int
 	}{
-		{"TAllBP", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}}, 0, 3},
-		{"TAllWat", []rs{{p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMix", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMixStop", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.STOPPING}}, 1, 2},
-		{"TMixStop2", []rs{{p2pcommon.BlockProducer, types.STOPPING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 1, 2},
+		{"TAllBP", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}}, 0, 3},
+		{"TAllWat", []rs{{types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
+		{"TMix", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
+		{"TMixStop", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.STOPPING}}, 1, 2},
+		{"TMixStop2", []rs{{types.PeerRole_Producer, types.STOPPING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 1, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -249,7 +249,7 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 }
 
 type rs struct {
-	r p2pcommon.PeerRole
+	r types.PeerRole
 	s types.PeerState
 }
 
@@ -263,10 +263,10 @@ func TestDefaultRoleManager_GetRole(t *testing.T) {
 
 		presetIds []types.PeerID
 		pid       types.PeerID
-		want      p2pcommon.PeerRole
+		want      types.PeerRole
 	}{
-		{"TBP", toPIDS(p1,p2), p1, p2pcommon.BlockProducer},
-		{"TWat", toPIDS(p1,p2), p3, p2pcommon.Watcher},
+		{"TBP", toPIDS(p1,p2), p1, types.PeerRole_Producer},
+		{"TWat", toPIDS(p1,p2), p3, types.PeerRole_Watcher},
 	}
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -16,7 +16,7 @@ type InternalService interface {
 	SelfMeta() PeerMeta
 	SelfNodeID() types.PeerID
 	// SelfRole shows role of this mode
-	SelfRole() PeerRole
+	SelfRole() types.PeerRole
 
 	// accessors of other modules
 	GetChainAccessor() types.ChainAccessor

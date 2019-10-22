@@ -73,10 +73,10 @@ type P2PConfig struct {
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
 	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
-	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
 
-	PeerRole string  `mapstructure:"peerrole" description:"Role of peer.  "`
-
+	PeerRole  string   `mapstructure:"peerrole" description:"Role of peer. It must be sync with enablebp field in consensus config "`
+	Producers []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
+	Agents    []string `mapstructure:"agents" description:"List of peer ids of agents that delegate this producer, only meaningful when peer is producer"`
 }
 
 // AuthConfig defines configuration for auditing
@@ -201,10 +201,11 @@ npdiscoverpeers = true
 npmaxpeers = "{{.P2P.NPMaxPeers}}"
 nppeerpool = "{{.P2P.NPPeerPool}}"
 npexposeself = true
-npusepolaris= {{.P2P.NPUsePolaris}}
+npusepolaris = {{.P2P.NPUsePolaris}}
 npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
+peerrole = "{{.P2P.PeerRole}}"
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}

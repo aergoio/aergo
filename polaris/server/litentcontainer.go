@@ -179,9 +179,9 @@ func (lntc *LiteContainerService) SelfNodeID() types.PeerID {
 	return lntc.meta.ID
 }
 
-func (lntc *LiteContainerService) SelfRole() p2pcommon.PeerRole {
+func (lntc *LiteContainerService) SelfRole() types.PeerRole {
 	// return dummy value
-	return p2pcommon.Watcher
+	return types.PeerRole_Watcher
 }
 
 func (lntc *LiteContainerService) GetChainAccessor() types.ChainAccessor {

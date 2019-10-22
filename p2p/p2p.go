@@ -62,7 +62,7 @@ type P2P struct {
 	consacc consensus.ConsensusAccessor
 
 	// inited after start
-	selfRole p2pcommon.PeerRole
+	selfRole types.PeerRole
 }
 
 var (
@@ -95,13 +95,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	}
 	p2ps.genesisChainID = chainID
 
-	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
-	p2ps.useRaft = useRaft
-	if p2ps.cfg.Consensus.EnableBp {
-		p2ps.selfRole = p2pcommon.BlockProducer
-	} else {
-		p2ps.selfRole = p2pcommon.Watcher
-	}
+	useRaft := p2ps.setupSelfRole(genesis)
 
 	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
@@ -137,6 +131,17 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.lm = lm
 
 	p2ps.mutex.Unlock()
+}
+
+func (p2ps *P2P) setupSelfRole(genesis *types.Genesis) bool {
+	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
+	p2ps.useRaft = useRaft
+	if p2ps.cfg.Consensus.EnableBp {
+		p2ps.selfRole = types.PeerRole_Producer
+	} else {
+		p2ps.selfRole = types.PeerRole_Watcher
+	}
+	return useRaft
 }
 
 // BeforeStart starts p2p service.
@@ -405,7 +410,7 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 
 	// block notice handlers
-	if p2ps.useRaft && p2ps.selfRole == p2pcommon.BlockProducer {
+	if p2ps.useRaft && p2ps.selfRole == types.PeerRole_Producer {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {
@@ -454,7 +459,7 @@ func (p2ps *P2P) SelfNodeID() types.PeerID {
 	return p2ps.selfMeta.ID
 }
 
-func (p2ps *P2P) SelfRole() p2pcommon.PeerRole {
+func (p2ps *P2P) SelfRole() types.PeerRole {
 	return p2ps.selfRole
 }
 

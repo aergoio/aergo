@@ -46,7 +46,7 @@ type remotePeerImpl struct {
 	remoteInfo p2pcommon.RemoteInfo
 	name       string
 	state      types.PeerState
-	role       p2pcommon.PeerRole
+	role       types.PeerRole
 	actor      p2pcommon.ActorService
 	pm         p2pcommon.PeerManager
 	mf         p2pcommon.MoFactory
@@ -145,10 +145,10 @@ func (p *remotePeerImpl) Version() string {
 	return p.remoteInfo.Meta.Version
 }
 
-func (p *remotePeerImpl) Role() p2pcommon.PeerRole {
+func (p *remotePeerImpl) Role() types.PeerRole {
 	return p.role
 }
-func (p *remotePeerImpl) ChangeRole(role p2pcommon.PeerRole) {
+func (p *remotePeerImpl) ChangeRole(role types.PeerRole) {
 	p.role = role
 }
 
