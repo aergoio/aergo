@@ -24,16 +24,21 @@ import (
 
 // V200Handshaker exchange status data over protocol version 1.0.0
 type V200Handshaker struct {
-	pm      p2pcommon.PeerManager
-	actor   p2pcommon.ActorService
-	logger  *log.Logger
-	peerID  types.PeerID
+	pm p2pcommon.PeerManager
+	cm p2pcommon.CertificateManager
+	vm p2pcommon.VersionedManager
+
+	role   types.PeerRole
+	actor  p2pcommon.ActorService
+	logger *log.Logger
+	peerID types.PeerID
 
 	msgRW p2pcommon.MsgReadWriter
 
 	localGenesisHash []byte
-	vm p2pcommon.VersionedManager
+
 	remoteMeta  p2pcommon.PeerMeta
+	remoteCerts []*p2pcommon.AgentCertificateV1
 	remoteHash  types.BlockID
 	remoteNo    types.BlockNo
 }
@@ -45,7 +50,7 @@ func (h *V200Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 }
 
 func NewV200VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V200Handshaker {
-	h := &V200Handshaker{pm: pm, actor: actor, logger: log, peerID: peerID, localGenesisHash:genesis, vm:vm}
+	h := &V200Handshaker{pm: pm, actor: actor, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm}
 	// msg format is not changed
 	h.msgRW = v030.NewV030MsgPipe(rwc)
 	return h
@@ -83,7 +88,7 @@ func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Certificates:h.remoteCerts, Hidden:remotePeerStatus.NoExpose}
 		return hsResult, nil
 	}
 }
@@ -186,6 +191,7 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	}
 
 	h.remoteMeta = rMeta
+	h.checkByRole(remotePeerStatus)
 
 	return nil
 }
@@ -221,7 +227,7 @@ func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	if err != nil {
 		return nil, err
 	}
-	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW,Hidden:remotePeerStatus.NoExpose}
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Certificates:h.remoteCerts, Hidden:remotePeerStatus.NoExpose}
 	return hsResult, nil
 }
 
@@ -239,6 +245,45 @@ func (h *V200Handshaker) sendGoAway(msg string) {
 	if goMsg != nil {
 		h.msgRW.WriteMsg(goMsg)
 	}
+}
+
+func (h *V200Handshaker) checkByRole(status *types.Status) bool {
+	if h.remoteMeta.Role == types.PeerRole_Agent {
+		return h.checkAgent(status)
+	}
+	return true
+}
+
+func (h *V200Handshaker) checkAgent(status *types.Status) bool {
+	// Agent must have at least one block producer
+	if len(h.remoteMeta.ProducerIDs) == 0 {
+		return false
+	}
+	producers := make(map[types.PeerID]bool)
+	for _, id := range h.remoteMeta.ProducerIDs {
+		producers[id] = true
+	}
+	certs := make([]*p2pcommon.AgentCertificateV1, len(status.Certificates))
+	for i, pCert := range status.Certificates {
+		cert, err := CheckAndGetV1(pCert)
+		if err != nil {
+			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("invalid agent certificate")
+			return false
+		}
+		// check certificate
+		if !types.IsSamePeerID(cert.AgentID, h.remoteMeta.ID) {
+			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("certificate is not for this agent")
+			return false
+		}
+		if _, exist := producers[cert.BPID]; !exist {
+			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("peer id of certificate not matched")
+			return false
+		}
+
+		certs[i] = cert
+	}
+	h.remoteCerts = certs
+	return true
 }
 
 func createLocalStatus(pm p2pcommon.PeerManager, chainID *types.ChainID, bestBlock *types.Block, genesis []byte) (*types.Status, error) {

@@ -95,7 +95,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	}
 	p2ps.genesisChainID = chainID
 
-	useRaft := p2ps.setupSelfRole(genesis)
+	useRaft := p2ps.initPeerRoles(genesis)
 
 	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
@@ -104,11 +104,6 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
 	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
 
-	if useRaft {
-		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
-	} else {
-		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
-	}
 
 	// public network is always disabled white/blacklist in chain
 	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
@@ -133,7 +128,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.mutex.Unlock()
 }
 
-func (p2ps *P2P) setupSelfRole(genesis *types.Genesis) bool {
+func (p2ps *P2P) initPeerRoles(genesis *types.Genesis) bool {
 	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 	p2ps.useRaft = useRaft
 	if p2ps.cfg.Consensus.EnableBp {
@@ -141,6 +136,12 @@ func (p2ps *P2P) setupSelfRole(genesis *types.Genesis) bool {
 	} else {
 		p2ps.selfRole = types.PeerRole_Watcher
 	}
+	if useRaft {
+		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
+	} else {
+		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
+	}
+
 	return useRaft
 }
 

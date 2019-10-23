@@ -1,8 +1,9 @@
-package p2p
+package v200
 
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -21,29 +22,13 @@ const (
 var (
 	ErrMalformedCert      = errors.New("malformed certificate data")
 	ErrInvalidCertField   = errors.New("invalid field in certificate ")
-	ErrInvalidCertVersion = errors.New("invalid certificate version")
-	ErrInvalidKey         = errors.New("invalid key in certificate ")
-	ErrInvalidPeerID      = errors.New("invalid peer id in certificate ")
-	ErrVerificationFailed = errors.New("signature verification failed")
 )
 
-// AgentCertificateV1 is a certificate issued by a block producer to guarantee that it is a trustworthy agent.
-type AgentCertificateV1 struct {
-	Version      uint32
-	BPID         types.PeerID
-	BPPubKey     *btcec.PublicKey
-	CreateTime   time.Time
-	ExpireTime   time.Time
-	AgentID      types.PeerID
-	AgentAddress []string
-	Signature    *btcec.Signature
-}
-
 // NewAgentCertV1 create certificate object
-func NewAgentCertV1(bpID, agentID types.PeerID, bpKey *btcec.PrivateKey, addrs []string, ttl time.Duration) (*AgentCertificateV1, error) {
+func NewAgentCertV1(bpID, agentID types.PeerID, bpKey *btcec.PrivateKey, addrs []string, ttl time.Duration) (*p2pcommon.AgentCertificateV1, error) {
 	// need to truncate monotonic clock
 	now := time.Now().Truncate(0)
-	c := &AgentCertificateV1{Version: CertVer_0001, BPID: bpID, BPPubKey: bpKey.PubKey(),
+	c := &p2pcommon.AgentCertificateV1{Version: CertVer_0001, BPID: bpID, BPPubKey: bpKey.PubKey(),
 		CreateTime: now, ExpireTime: now.Add(ttl), AgentID: agentID, AgentAddress: addrs}
 	err := SignCert(bpKey, c)
 	if err != nil {
@@ -52,34 +37,34 @@ func NewAgentCertV1(bpID, agentID types.PeerID, bpKey *btcec.PrivateKey, addrs [
 	return c, nil
 }
 
-func CheckProtoCert(cert *types.AgentCertificate) (*AgentCertificateV1, error) {
+func CheckProtoCert(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1, error) {
 	switch cert.CertVersion {
 	case CertVer_0001:
 		return CheckAndGetV1(cert)
 	default:
-		return nil, ErrInvalidCertVersion
+		return nil, p2pcommon.ErrInvalidCertVersion
 	}
 }
 
-func CheckAndGetV1(cert *types.AgentCertificate) (*AgentCertificateV1, error) {
+func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1, error) {
 	var err error
 
-	wrap := &AgentCertificateV1{Version: cert.CertVersion}
+	wrap := &p2pcommon.AgentCertificateV1{Version: cert.CertVersion}
 	wrap.BPID, err = peer.IDFromBytes(cert.BPID)
 	if err != nil {
-		return nil, ErrInvalidPeerID
+		return nil, p2pcommon.ErrInvalidPeerID
 	}
 	wrap.BPPubKey, err = btcec.ParsePubKey(cert.BPPubKey, btcec.S256())
 	if err != nil {
-		return nil, ErrInvalidKey
+		return nil, p2pcommon.ErrInvalidKey
 	}
 	libp2pKey := p2putil.ConvertPubToLibP2P(wrap.BPPubKey)
 	generatedID, err := peer.IDFromPublicKey(libp2pKey)
 	if err != nil {
-		return nil, ErrInvalidKey
+		return nil, p2pcommon.ErrInvalidKey
 	}
 	if !types.IsSamePeerID(wrap.BPID, generatedID) {
-		return nil, ErrInvalidKey
+		return nil, p2pcommon.ErrInvalidKey
 	}
 
 	wrap.CreateTime = time.Unix(0, int64(cert.CreateTime))
@@ -91,7 +76,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*AgentCertificateV1, error) {
 	}
 	wrap.AgentID, err = peer.IDFromBytes(cert.AgentID)
 	if err != nil {
-		return nil, ErrInvalidPeerID
+		return nil, p2pcommon.ErrInvalidPeerID
 	}
 	if len(cert.AgentAddress) == 0 {
 		return nil, ErrInvalidCertField
@@ -108,12 +93,12 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*AgentCertificateV1, error) {
 
 	// verify seq
 	if !VerifyCert(wrap) {
-		return nil, ErrVerificationFailed
+		return nil, p2pcommon.ErrVerificationFailed
 	}
 	return wrap, nil
 }
 
-func (w *AgentCertificateV1) ToProtoCert() (*types.AgentCertificate, error) {
+func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificate, error) {
 	var err error
 
 	protoC := &types.AgentCertificate{CertVersion: w.Version}
@@ -146,7 +131,7 @@ func (w *AgentCertificateV1) ToProtoCert() (*types.AgentCertificate, error) {
 	return protoC, nil
 }
 
-func SignCert(key *btcec.PrivateKey, wrap *AgentCertificateV1) error {
+func SignCert(key *btcec.PrivateKey, wrap *p2pcommon.AgentCertificateV1) error {
 	hash, err := calculateCertificateHash(wrap)
 	if err != nil {
 		return err
@@ -160,7 +145,7 @@ func SignCert(key *btcec.PrivateKey, wrap *AgentCertificateV1) error {
 	return nil
 }
 
-func VerifyCert(wrap *AgentCertificateV1) bool {
+func VerifyCert(wrap *p2pcommon.AgentCertificateV1) bool {
 	hash, err := calculateCertificateHash(wrap)
 	if err != nil {
 		return false
@@ -170,7 +155,7 @@ func VerifyCert(wrap *AgentCertificateV1) bool {
 }
 
 // version, bpid, bppubkey, create time, expire time, agent id, agent address, signature
-func calculateCertificateHash(cert *AgentCertificateV1) ([]byte, error) {
+func calculateCertificateHash(cert *p2pcommon.AgentCertificateV1) ([]byte, error) {
 	var err error
 	var bArr []byte
 	h := sha256.New()

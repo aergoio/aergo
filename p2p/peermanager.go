@@ -536,5 +536,14 @@ func (pm *peerManager) ListDesignatedPeers() []p2pcommon.PeerMeta {
 	return <-retChan
 }
 
+func (pm *peerManager) GetProducers() []types.PeerID {
+	// TODO
+	return nil
+}
+func (pm *peerManager) GetCertificates() []p2pcommon.AgentCertificateV1 {
+	// TODO
+	return nil
+}
+
 // pmTask should not consume lots of time to process.
 type pmTask func()

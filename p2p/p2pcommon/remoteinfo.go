@@ -17,4 +17,6 @@ type RemoteInfo struct {
 
 	Designated bool // Designated means this peer is designated in config file and connect to in startup phase
 	Hidden     bool // Hidden means that meta info of this peer will not be sent to other peers when getting peer list
+
+	Certificates []*AgentCertificateV1
 }

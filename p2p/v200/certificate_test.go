@@ -1,8 +1,9 @@
-package p2p
+package v200
 
 import (
 	"bytes"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -71,7 +72,7 @@ func TestCheckAndGetV1(t *testing.T) {
 	addrs := []string{"192.168.0.2","2001:0db8:85a3:08d3:1319:8a2e:370:7334","tester.aergo.io"}
 	DAY := time.Hour * 24
 	w, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
-	tmpl, err := w.ToProtoCert()
+	tmpl, err := ConvertCertToProto(w)
 	if err != nil {
 		t.Fatalf("Failed to create test input. %s ", err.Error())
 	}
@@ -87,13 +88,13 @@ func TestCheckAndGetV1(t *testing.T) {
 		wantErr error
 	}{
 		{"TSucc", NCB(tmpl).Build(), nil },
-		{"TEmptyBPID", NCB(tmpl).bpid(nil).Build(), ErrInvalidPeerID },
-		{"TEmptyKey", NCB(tmpl).pubk(nil).Build(), ErrInvalidKey },
-		{"TEmptyAgentID", NCB(tmpl).agid(nil).Build(), ErrInvalidPeerID },
-		{"TEmptyAddrs", NCB(tmpl).addr([][]byte{}).Build(), ErrInvalidCertField },
-		{"TEmptySignature", NCB(tmpl).sig([]byte{}).Build(), ErrInvalidCertField },
-		{"TDiffSignature", NCB(tmpl).sig(w2.Signature.Serialize()).Build(), ErrVerificationFailed },
-		{"TDiffKeyAndID", NCB(tmpl).bpid([]byte(pid2)).Build(), ErrInvalidKey },
+		{"TEmptyBPID", NCB(tmpl).bpid(nil).Build(), p2pcommon.ErrInvalidPeerID},
+		{"TEmptyKey", NCB(tmpl).pubk(nil).Build(), p2pcommon.ErrInvalidKey},
+		{"TEmptyAgentID", NCB(tmpl).agid(nil).Build(), p2pcommon.ErrInvalidPeerID},
+		{"TEmptyAddrs", NCB(tmpl).addr([][]byte{}).Build(), ErrInvalidCertField},
+		{"TEmptySignature", NCB(tmpl).sig([]byte{}).Build(), ErrInvalidCertField},
+		{"TDiffSignature", NCB(tmpl).sig(w2.Signature.Serialize()).Build(), p2pcommon.ErrVerificationFailed},
+		{"TDiffKeyAndID", NCB(tmpl).bpid([]byte(pid2)).Build(), p2pcommon.ErrInvalidKey},
 
 		// TODO: Add test cases.
 	}
@@ -105,7 +106,7 @@ func TestCheckAndGetV1(t *testing.T) {
 				return
 			}
 			if tt.wantErr == nil {
-				p, err := got.ToProtoCert()
+				p, err := ConvertCertToProto(got)
 				if err != nil {
 					t.Fatalf("CheckAndGetV1() wrong obj %v, failed to convert to protobuf obj %v", got, err.Error())
 				}
@@ -185,9 +186,9 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w, err := NewAgentCertV1(tt.args.BPID, tt.args.AgentID, tt.args.pk, tt.args.AgentAddress, tt.args.ttl)
 
-			got, err := w.ToProtoCert()
+			got, err := ConvertCertToProto(w)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ToProtoCert() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ConvertCertToProto() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
@@ -200,9 +201,9 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 				t.Fatalf("CheckAndGetV1() error = %v, want nil", err)
 			}
 			if !reflect.DeepEqual(rev, w) {
-				t.Errorf("ToProtoCert()->CheckAndGetV1() = %v, want %v", rev, w)
+				t.Errorf("ConvertCertToProto()->CheckAndGetV1() = %v, want %v", rev, w)
 			}
-			got2, err := rev.ToProtoCert()
+			got2, err := ConvertCertToProto(rev)
 			if !proto.Equal(got, got2) {
 				t.Errorf("proto cert is differ %v, wantErr %v", got, got2)
 			}
@@ -219,7 +220,7 @@ func Test_calculateCertificateHash(t *testing.T) {
 	w, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
 	w2, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, time.Hour)
 
-	_, err := w.ToProtoCert()
+	_, err := ConvertCertToProto(w)
 	if err != nil {
 		t.Fatalf("Failed to create test input. %s ", err.Error())
 	}

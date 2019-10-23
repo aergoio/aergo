@@ -110,3 +110,7 @@ func (rm *DefaultRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p
 	return
 }
 
+type DposAgentRoleManager struct {
+	DefaultRoleManager
+
+}

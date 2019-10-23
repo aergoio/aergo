@@ -105,6 +105,10 @@ func FromPeerAddressNew(addr *types.PeerAddress) PeerMeta {
 	if found {
 		role = types.PeerRole(int32(addr.Role))
 	}
-	meta := PeerMeta{ID: types.PeerID(addr.PeerID), Addresses: addrs, Role: role, Version: addr.Version}
+	producerIds := make([]types.PeerID,len(addr.ProducerIDs))
+	for i, id := range addr.ProducerIDs {
+		producerIds[i] = types.PeerID(id)
+	}
+	meta := PeerMeta{ID: types.PeerID(addr.PeerID), Addresses: addrs, Role: role, Version: addr.Version, ProducerIDs:producerIds}
 	return meta
 }
