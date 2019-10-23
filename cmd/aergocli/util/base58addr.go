@@ -240,7 +240,9 @@ func ConvBlock(b *types.Block) *InOutBlock {
 		out.Header.Confirms = b.GetHeader().GetConfirms()
 		out.Header.PubKey = base58.Encode(b.GetHeader().GetPubKey())
 		out.Header.Sign = base58.Encode(b.GetHeader().GetSign())
-		out.Header.CoinbaseAccount = base58.Encode(b.GetHeader().GetCoinbaseAccount())
+		if b.GetHeader().GetCoinbaseAccount() != nil {
+			out.Header.CoinbaseAccount = types.EncodeAddress(b.GetHeader().GetCoinbaseAccount())
+		}
 		if b.Body != nil {
 			for _, tx := range b.Body.Txs {
 				out.Body.Txs = append(out.Body.Txs, ConvTx(tx))

@@ -212,7 +212,7 @@ func (r *Receipt) MarshalJSONPB(*jsonpb.Marshaler) ([]byte, error) {
 
 func (r *Receipt) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString(`{"BlokNo":`)
+	b.WriteString(`{"BlockNo":`)
 	b.WriteString(fmt.Sprintf("%d", r.BlockNo))
 	b.WriteString(`,"BlockHash":"`)
 	b.WriteString(enc.ToString(r.BlockHash))
