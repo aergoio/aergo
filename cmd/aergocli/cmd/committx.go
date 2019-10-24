@@ -41,6 +41,7 @@ func init() {
   "Limit": 0,
   "Price": "0",
   "Type": 0,
+  "ChainIdHash": "Base58EncodedBytes",
   "Sign": "Base58EncodedBytes"
  }
 }`)

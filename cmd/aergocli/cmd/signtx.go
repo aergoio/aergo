@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/aergoio/aergo/account/key"
@@ -131,4 +132,18 @@ var verifyCmd = &cobra.Command{
 			cmd.Println(util.TxConvBase58Addr(param[0]))
 		}
 	},
+}
+
+func fillSign(tx *types.Tx, dataDir, pw string, account []byte) string {
+	hash := key.CalculateHashWithoutSign(tx.Body)
+	dataEnvPath := os.ExpandEnv(dataDir)
+	ks := key.NewStore(dataEnvPath, 0)
+	defer ks.CloseStore()
+	var err error
+	tx.Body.Sign, err = ks.Sign(account, pw, hash)
+	if err != nil {
+		return fmt.Sprintf("Failed: %s\n", err.Error())
+	}
+	tx.Hash = tx.CalculateTxHash()
+	return ""
 }
