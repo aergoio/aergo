@@ -104,7 +104,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 	defer ctrl.Finish()
 
 	sampleChainID := &types.ChainID{}
-	sampleStatus := &types.Status{}
+	sampleResult := &p2pcommon.HandshakeResult{}
 	logger := log.NewLogger("p2p.test")
 	sampleEmptyHSReq := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, nil}
 	sampleEmptyHSResp := p2pcommon.HSHeadResp{p2pcommon.HSError, p2pcommon.HSCodeWrongHSReq}
@@ -159,7 +159,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 			mockVM.EXPECT().FindBestP2PVersion(gomock.Any()).Return(tt.bestVer).MaxTimes(1)
 			mockVM.EXPECT().GetVersionedHandshaker(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockVH, nil).MaxTimes(1)
 			if !tt.vhErr {
-				mockVH.EXPECT().DoForInbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
+				mockVH.EXPECT().DoForInbound(mockCtx).Return(sampleResult, nil).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
 			} else {
 				mockVH.EXPECT().DoForInbound(mockCtx).Return(nil, errors.New("version hs failed")).MaxTimes(1)
@@ -167,7 +167,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 			}
 
 			h := NewInboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*InboundWireHandshaker)
-			got, got1, err := h.handleInboundPeer(mockCtx, dummyReader)
+			got, err := h.handleInboundPeer(mockCtx, dummyReader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InboundWireHandshaker.handleInboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -177,9 +177,6 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 			if !tt.wantErr {
 				if got == nil {
 					t.Errorf("InboundWireHandshaker.handleInboundPeer() got msgrw nil, want not")
-				}
-				if got1 == nil {
-					t.Errorf("InboundWireHandshaker.handleInboundPeer() got status nil, want not")
 				}
 			}
 		})
@@ -191,7 +188,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	defer ctrl.Finish()
 
 	sampleChainID := &types.ChainID{}
-	sampleStatus := &types.Status{}
+	sampleResult := &p2pcommon.HandshakeResult{}
 	logger := log.NewLogger("p2p.test")
 	// This bytes is actually hard-coded in source handshake_v2.go.
 	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
@@ -244,12 +241,12 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 				mockVH.EXPECT().DoForOutbound(mockCtx).Return(nil, errors.New("version hs failed")).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(nil).MaxTimes(1)
 			} else {
-				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleStatus, nil).MaxTimes(1)
+				mockVH.EXPECT().DoForOutbound(mockCtx).Return(sampleResult, nil).MaxTimes(1)
 				mockVH.EXPECT().GetMsgRW().Return(dummyMsgRW).MaxTimes(1)
 			}
 
 			h := NewOutboundHSHandler(mockPM, mockActor, mockVM, logger, sampleChainID, samplePeerID).(*OutboundWireHandshaker)
-			got, got1, err := h.handleOutboundPeer(mockCtx, dummyRWC)
+			got, err := h.handleOutboundPeer(mockCtx, dummyRWC)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OutboundWireHandshaker.handleOutboundPeer() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -259,9 +256,6 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 			if !tt.wantErr {
 				if got == nil {
 					t.Errorf("OutboundWireHandshaker.handleOutboundPeer() got msgrw nil, want not")
-				}
-				if got1 == nil {
-					t.Errorf("OutboundWireHandshaker.handleOutboundPeer() got status nil, want not")
 				}
 			}
 		})

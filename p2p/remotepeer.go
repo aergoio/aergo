@@ -487,11 +487,10 @@ func (p *remotePeerImpl) pruneRequests() {
 	}
 }
 
-func (p *remotePeerImpl) UpdateBlkCache(blkHash []byte, blkNumber uint64) bool {
+func (p *remotePeerImpl) UpdateBlkCache(blkHash types.BlockID, blkNumber types.BlockNo) bool {
 	p.UpdateLastNotice(blkHash, blkNumber)
-	hash := types.ToBlockID(blkHash)
 	// lru cache can't accept byte slice key
-	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
+	found, _ := p.blkHashCache.ContainsOrAdd(blkHash, true)
 	return found
 }
 
@@ -506,8 +505,8 @@ func (p *remotePeerImpl) UpdateTxCache(hashes []types.TxID) []types.TxID {
 	return added
 }
 
-func (p *remotePeerImpl) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
-	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
+func (p *remotePeerImpl) UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo) {
+	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash[:], blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {

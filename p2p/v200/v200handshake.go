@@ -14,7 +14,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	v030 "github.com/aergoio/aergo/p2p/v030"
 	"io"
-	"sort"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -22,30 +21,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 )
-
-
-type fakeChainID struct {
-	genID types.ChainID
-	versions []uint64
-}
-func newFC(genID types.ChainID, vers... uint64) fakeChainID {
-	sort.Sort(BlkNoDesc(vers))
-	return fakeChainID{genID:genID, versions:vers}
-}
-func (f fakeChainID) getChainID(no types.BlockNo) *types.ChainID{
-	cp := f.genID
-	for i:=len(f.versions)-1; i>=0 ; i-- {
-		if f.versions[i] <= no {
-			cp.Version = int32(i+2)
-		}
-	}
-	return &cp
-}
-type BlkNoDesc []uint64
-
-func (a BlkNoDesc) Len() int           { return len(a) }
-func (a BlkNoDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a BlkNoDesc) Less(i, j int) bool { return a[i] < a[j] }
 
 // V200Handshaker exchange status data over protocol version 1.0.0
 type V200Handshaker struct {
@@ -58,6 +33,9 @@ type V200Handshaker struct {
 
 	localGenesisHash []byte
 	vm p2pcommon.VersionedManager
+	remoteMeta  p2pcommon.PeerMeta
+	remoteHash  types.BlockID
+	remoteNo    types.BlockNo
 }
 
 var _ p2pcommon.VersionedHandshaker = (*V200Handshaker)(nil)
@@ -74,7 +52,7 @@ func NewV200VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, 
 }
 
 // handshakeOutboundPeer start handshake with outbound peer
-func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
+func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
@@ -105,7 +83,8 @@ func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		return remotePeerStatus, nil
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		return hsResult, nil
 	}
 }
 
@@ -179,6 +158,13 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		return fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
 
+	h.remoteHash, err = types.ParseToBlockID(remotePeerStatus.BestBlockHash)
+	if err != nil {
+		h.sendGoAway("wrong block hash")
+		return err
+	}
+	h.remoteNo = remotePeerStatus.BestHeight
+
 	peerAddress := remotePeerStatus.Sender
 	if peerAddress == nil || network.CheckAddressType(peerAddress.Address) == network.AddressTypeError {
 		h.sendGoAway("invalid peer address")
@@ -199,11 +185,13 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		return fmt.Errorf("different genesis block local: %v , remote %v", enc.ToString(genHash), enc.ToString(remotePeerStatus.Genesis))
 	}
 
+	h.remoteMeta = rMeta
+
 	return nil
 }
 
 // DoForInbound is handle handshake from inbound peer
-func (h *V200Handshaker) DoForInbound(ctx context.Context) (*types.Status, error) {
+func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
@@ -233,7 +221,8 @@ func (h *V200Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err != nil {
 		return nil, err
 	}
-	return remotePeerStatus, nil
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW,Hidden:remotePeerStatus.NoExpose}
+	return hsResult, nil
 }
 
 func (h *V200Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {

@@ -17,12 +17,13 @@ import (
 	"time"
 )
 
-type handshakeResult struct {
-	s     network.Stream
+// connPeerResult is result of connection work of the waitingPeerManager. 
+type connPeerResult struct {
 	msgRW p2pcommon.MsgReadWriter
 
-	remote p2pcommon.RemoteInfo
-	status *types.Status
+	remote   p2pcommon.RemoteInfo
+	bestHash types.BlockID
+	bestNo   types.BlockNo
 }
 
 func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
@@ -64,7 +65,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 		return
 	}
 
-	query := inboundConnEvent{conn:conn, meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
+	query := inboundConnEvent{conn: conn, meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
 		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("same peer as inbound peer already exists.")
@@ -199,28 +200,27 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (network.Stream, 
 // tryAddPeer will do check connecting peer and add. it will return peer meta information received from
 // remote peer. stream s will be owned to remotePeer if succeed to add peer.
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
-	msgRW, remoteStatus, err := h.Handle(s, defaultHandshakeTTL)
+	hResult, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
 		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
 		return meta, false
 	}
 
 	// update peer meta info using sent information from remote peer
-	remoteInfo := createRemoteInfo(s.Conn(), remoteStatus, outbound)
+	remoteInfo := createRemoteInfo(s.Conn(), *hResult, outbound)
 
-	dpm.pm.peerHandshaked <- handshakeResult{remote: remoteInfo, status: remoteStatus, msgRW: msgRW, s: s}
+	dpm.pm.peerHandshaked <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash:hResult.BestBlockHash, bestNo:hResult.BestBlockNo}
 	return remoteInfo.Meta, true
 }
 
-func createRemoteInfo(conn network.Conn, status *types.Status, outbound bool) p2pcommon.RemoteInfo {
+func createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound bool) p2pcommon.RemoteInfo {
 	rma := conn.RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(rma)
 	if err != nil {
 		panic("conn information is wrong")
 	}
 	connection := p2pcommon.RemoteConn{IP: ip, Port: port, Outbound: outbound}
-	meta := p2pcommon.NewMetaFromStatus(status, outbound)
-	rc := p2pcommon.RemoteInfo{Meta: meta, Connection: connection, Hidden: status.NoExpose}
+	rc := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden}
 	return rc
 }
 

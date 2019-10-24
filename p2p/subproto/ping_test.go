@@ -103,7 +103,8 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
 			mockPeer.EXPECT().MF().Return(dummyMF).MinTimes(tt.sendRespCnt)
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(tt.sendRespCnt)
-			mockPeer.EXPECT().UpdateLastNotice(tt.args.hash, tt.args.height).Times(tt.sendRespCnt)
+			blockID, _ := types.ParseToBlockID(tt.args.hash)
+			mockPeer.EXPECT().UpdateLastNotice(blockID, tt.args.height).Times(tt.sendRespCnt)
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
 			mockActor.EXPECT().GetChainAccessor().Return(mockCA).MaxTimes(1)
 

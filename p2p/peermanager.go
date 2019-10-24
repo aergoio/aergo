@@ -57,7 +57,7 @@ type peerManager struct {
 	peerCache []p2pcommon.RemotePeer
 
 	getPeerChannel    chan getPeerTask
-	peerHandshaked    chan handshakeResult
+	peerHandshaked    chan connPeerResult
 	removePeerChannel chan p2pcommon.RemotePeer
 	fillPoolChannel   chan []p2pcommon.PeerMeta
 	addPeerChannel    chan p2pcommon.PeerMeta
@@ -110,7 +110,7 @@ func NewPeerManager(is p2pcommon.InternalService, hsFactory p2pcommon.HSHandlerF
 		peerCache: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		getPeerChannel:    make(chan getPeerTask),
-		peerHandshaked:    make(chan handshakeResult),
+		peerHandshaked:    make(chan connPeerResult),
 		removePeerChannel: make(chan p2pcommon.RemotePeer),
 		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 		addPeerChannel:    make(chan p2pcommon.PeerMeta),
@@ -316,8 +316,8 @@ CLEANUPLOOP:
 }
 
 // tryRegister register peer to peer manager, if peer with same peer
-func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePeer {
-	remote := hsresult.remote
+func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer {
+	remote := hsResult.remote
 	meta := remote.Meta
 	peerID := meta.ID
 	preExistPeer, ok := pm.remotePeers[peerID]
@@ -335,7 +335,8 @@ func (pm *peerManager) tryRegister(hsresult handshakeResult) p2pcommon.RemotePee
 	}
 
 	remote = pm.changePeerAttributes(remote, peerID)
-	newPeer := pm.peerFactory.CreateRemotePeer(remote, pm.GetNextManageNum(), hsresult.status, hsresult.s, hsresult.msgRW)
+	newPeer := pm.peerFactory.CreateRemotePeer(remote, pm.GetNextManageNum(), hsResult.msgRW)
+	newPeer.UpdateBlkCache(hsResult.bestHash, hsResult.bestNo)
 
 	go newPeer.RunPeer()
 

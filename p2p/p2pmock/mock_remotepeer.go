@@ -8,7 +8,6 @@ import (
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
-	network "github.com/libp2p/go-libp2p-core/network"
 	reflect "reflect"
 	time "time"
 )
@@ -37,17 +36,17 @@ func (m *MockPeerFactory) EXPECT() *MockPeerFactoryMockRecorder {
 }
 
 // CreateRemotePeer mocks base method
-func (m *MockPeerFactory) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+func (m *MockPeerFactory) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateRemotePeer", remoteInfo, seq, status, stream, rw)
+	ret := m.ctrl.Call(m, "CreateRemotePeer", remoteInfo, seq, rw)
 	ret0, _ := ret[0].(p2pcommon.RemotePeer)
 	return ret0
 }
 
 // CreateRemotePeer indicates an expected call of CreateRemotePeer
-func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(remoteInfo, seq, status, stream, rw interface{}) *gomock.Call {
+func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(remoteInfo, seq, rw interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), remoteInfo, seq, status, stream, rw)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), remoteInfo, seq, rw)
 }
 
 // MockRemotePeer is a mock of RemotePeer interface
@@ -312,7 +311,7 @@ func (mr *MockRemotePeerMockRecorder) GetReceiver(id interface{}) *gomock.Call {
 }
 
 // UpdateBlkCache mocks base method
-func (m *MockRemotePeer) UpdateBlkCache(blkHash []byte, blkNumber uint64) bool {
+func (m *MockRemotePeer) UpdateBlkCache(blkHash types.BlockID, blkNumber types.BlockNo) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateBlkCache", blkHash, blkNumber)
 	ret0, _ := ret[0].(bool)
@@ -340,7 +339,7 @@ func (mr *MockRemotePeerMockRecorder) UpdateTxCache(hashes interface{}) *gomock.
 }
 
 // UpdateLastNotice mocks base method
-func (m *MockRemotePeer) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
+func (m *MockRemotePeer) UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "UpdateLastNotice", blkHash, blkNumber)
 }

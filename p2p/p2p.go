@@ -8,7 +8,6 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/list"
-	network2 "github.com/libp2p/go-libp2p-core/network"
 	"sync"
 	"time"
 
@@ -429,9 +428,8 @@ func (p2ps *P2P) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHa
 	}
 }
 
-func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, status *types.Status, stream network2.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	newPeer := newRemotePeer(remoteInfo, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
-	newPeer.UpdateBlkCache(status.GetBestBlockHash(), status.GetBestHeight())
 	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 

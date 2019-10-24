@@ -53,6 +53,10 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		return fmt.Errorf("different chainID : local is %s, remote is %s at bloco no %d", p2putil.PrintChainID(localID), p2putil.PrintChainID(remoteChainID), remotePeerStatus.BestHeight)
 	}
 
+	// handshake v0.3.x don't check format of block hash
+	h.remoteHash, _ = types.ParseToBlockID(remotePeerStatus.BestBlockHash)
+	h.remoteNo = remotePeerStatus.BestHeight
+
 	peerAddress := remotePeerStatus.Sender
 	if peerAddress == nil || network.CheckAddressType(peerAddress.Address) == network.AddressTypeError {
 		h.sendGoAway("invalid peer address")
@@ -65,6 +69,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("inconsistent peerID")
 	}
+	h.remoteMeta = rMeta
 
 	// check if genesis hashes are identical
 	genHash := h.localGenesisHash
@@ -76,7 +81,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	return nil
 }
 
-func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
+func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
@@ -107,12 +112,13 @@ func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		return remotePeerStatus, nil
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		return hsResult, nil
 	}
 
 }
 
-func (h *V033Handshaker) DoForInbound(ctx context.Context) (*types.Status, error) {
+func (h *V033Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
@@ -141,5 +147,6 @@ func (h *V033Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err != nil {
 		return nil, err
 	}
-	return remotePeerStatus, nil
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	return hsResult, nil
 }

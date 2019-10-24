@@ -7,7 +7,6 @@ package v030
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
@@ -38,6 +37,7 @@ func TestV032VersionedHS_DoForOutbound(t *testing.T) {
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenesis := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenesis}
 	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash}
@@ -47,11 +47,11 @@ func TestV032VersionedHS_DoForOutbound(t *testing.T) {
 		readReturn *types.Status
 		readError  error
 		writeError error
-		want       *types.Status
+		want       *p2pcommon.HandshakeResult
 		wantErr    bool
 		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, succResult, false, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
 		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
@@ -87,10 +87,8 @@ func TestV032VersionedHS_DoForOutbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
-					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
-					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
-					t.Errorf("PeerHandshaker.DoForOutbound() = %v, want %v", got.ChainID, tt.want.ChainID)
+				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.DoForOutbound() = %v, want %v", got, tt.want)
@@ -120,6 +118,7 @@ func TestV032VersionedHS_DoForInbound(t *testing.T) {
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenHash := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash}
 	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash}
@@ -129,11 +128,11 @@ func TestV032VersionedHS_DoForInbound(t *testing.T) {
 		readReturn *types.Status
 		readError  error
 		writeError error
-		want       *types.Status
+		want       *p2pcommon.HandshakeResult
 		wantErr    bool
 		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, succResult, false, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
 		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
@@ -170,10 +169,8 @@ func TestV032VersionedHS_DoForInbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
-					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
-					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
-					t.Errorf("PeerHandshaker.DoForInbound() = %v, want %v", got.ChainID, tt.want.ChainID)
+				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.DoForInbound() = %v, want %v", got, tt.want)

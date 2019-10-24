@@ -26,7 +26,7 @@ type PeerMeta struct {
 
 func (m *PeerMeta) GetVersion() string {
 	if m.Version == "" {
-		return "(old)"
+		return ""
 	} else {
 		return m.Version
 	}

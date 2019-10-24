@@ -75,13 +75,12 @@ func (m *MockHSHandler) EXPECT() *MockHSHandlerMockRecorder {
 }
 
 // Handle mocks base method
-func (m *MockHSHandler) Handle(s io.ReadWriteCloser, ttl time.Duration) (p2pcommon.MsgReadWriter, *types.Status, error) {
+func (m *MockHSHandler) Handle(s io.ReadWriteCloser, ttl time.Duration) (*p2pcommon.HandshakeResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Handle", s, ttl)
-	ret0, _ := ret[0].(p2pcommon.MsgReadWriter)
-	ret1, _ := ret[1].(*types.Status)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret0, _ := ret[0].(*p2pcommon.HandshakeResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Handle indicates an expected call of Handle
@@ -194,10 +193,10 @@ func (m *MockVersionedHandshaker) EXPECT() *MockVersionedHandshakerMockRecorder 
 }
 
 // DoForOutbound mocks base method
-func (m *MockVersionedHandshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
+func (m *MockVersionedHandshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DoForOutbound", ctx)
-	ret0, _ := ret[0].(*types.Status)
+	ret0, _ := ret[0].(*p2pcommon.HandshakeResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -209,10 +208,10 @@ func (mr *MockVersionedHandshakerMockRecorder) DoForOutbound(ctx interface{}) *g
 }
 
 // DoForInbound mocks base method
-func (m *MockVersionedHandshaker) DoForInbound(ctx context.Context) (*types.Status, error) {
+func (m *MockVersionedHandshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DoForInbound", ctx)
-	ret0, _ := ret[0].(*types.Status)
+	ret0, _ := ret[0].(*p2pcommon.HandshakeResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

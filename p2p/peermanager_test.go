@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
 	"strconv"
 	"sync"
@@ -238,7 +237,7 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 				nt:           mockNT,
 
 				getPeerChannel:    make(chan getPeerTask),
-				peerHandshaked:    make(chan handshakeResult),
+				peerHandshaked:    make(chan connPeerResult),
 				removePeerChannel: make(chan p2pcommon.RemotePeer),
 				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 				inboundConnChan:   make(chan inboundConnEvent),
@@ -443,7 +442,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 
 	type args struct {
 		outbound bool
-		status   *types.Status
+		status   *p2pcommon.HandshakeResult
 	}
 	tests := []struct {
 		name string
@@ -495,17 +494,17 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 
-			meta := p2pcommon.NewMetaFromStatus(tt.args.status, tt.args.outbound)
-			remote := p2pcommon.RemoteInfo{Meta:meta, Connection:p2pcommon.RemoteConn{Outbound:tt.args.outbound}, Hidden:tt.args.status.NoExpose}
-			in := handshakeResult{remote:remote, status: tt.args.status, msgRW: mockRW, s: mockStream}
+			remote := p2pcommon.RemoteInfo{Meta:tt.args.status.Meta, Connection:p2pcommon.RemoteConn{Outbound:tt.args.outbound}, Hidden:tt.args.status.Hidden}
+			in := connPeerResult{remote: remote, msgRW: mockRW,}
 			var gotMeta p2pcommon.RemoteInfo
 
-			mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(), in.status, mockStream, mockRW).Do(func(ri p2pcommon.RemoteInfo, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) {
+			mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(), mockRW).Do(func(ri p2pcommon.RemoteInfo, seq uint32, rw p2pcommon.MsgReadWriter) {
 				gotMeta = ri
 			}).Return(mockPeer)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
 			mockPeer.EXPECT().Role().Return(p2pcommon.BlockProducer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
+			mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any()).AnyTimes()
 
 			// in cases of handshake error
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
@@ -519,7 +518,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 				logger:          logger,
 				mutex:           &sync.Mutex{},
 				remotePeers:     make(map[types.PeerID]p2pcommon.RemotePeer, 100),
-				peerHandshaked:  make(chan handshakeResult, 10),
+				peerHandshaked:  make(chan connPeerResult, 10),
 			}
 
 
@@ -546,10 +545,10 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 	defer ctrl.Finish()
 
 	selfID := p2pkey.NodeID()
-	inboundWillLive := p2putil.ComparePeerID(selfID, dummyPeerID) <= 0
+	inboundSurvived := p2putil.ComparePeerID(selfID, dummyPeerID) <= 0
 	type args struct {
 		outbound bool
-		status   *types.Status
+		status   *p2pcommon.HandshakeResult
 	}
 	tests := []struct {
 		name string
@@ -559,9 +558,9 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 	}{
 		// internal test self peerid is higher than test dummyPeerID
 		{"TIn", args{false,
-			dummyStatus(dummyPeerID, false)}, inboundWillLive},
+			dummyStatus(dummyPeerID, false)}, inboundSurvived},
 		{"TOut", args{true,
-			dummyStatus(dummyPeerID, false)}, !inboundWillLive},
+			dummyStatus(dummyPeerID, false)}, !inboundSurvived},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -574,9 +573,8 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 				return nil, errors.New("close")
 			}).AnyTimes()
 
-			meta := p2pcommon.NewMetaFromStatus(tt.args.status, tt.args.outbound)
-			remote := p2pcommon.RemoteInfo{Meta:meta, Connection:p2pcommon.RemoteConn{Outbound:tt.args.outbound}}
-			in := handshakeResult{remote:remote, status: tt.args.status, msgRW: mockRW, s: mockStream}
+			remote := p2pcommon.RemoteInfo{Meta:tt.args.status.Meta, Connection:p2pcommon.RemoteConn{Outbound:tt.args.outbound}}
+			in := connPeerResult{remote: remote, msgRW: mockRW }
 			mockIS.EXPECT().SelfNodeID().Return(selfID).MinTimes(1)
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
@@ -584,8 +582,9 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			mockPeer.EXPECT().Role().Return(p2pcommon.BlockProducer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			if tt.wantSucc {
+				mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any())
 				mockPeer.EXPECT().Stop().MaxTimes(1)
-				mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(), in.status, mockStream, mockRW).Return(mockPeer)
+				mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(),mockRW).Return(mockPeer)
 			}
 
 			// in cases of handshake error
@@ -599,7 +598,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 				logger:          logger,
 				mutex:           &sync.Mutex{},
 				remotePeers:     make(map[types.PeerID]p2pcommon.RemotePeer, 100),
-				peerHandshaked:  make(chan handshakeResult, 10),
+				peerHandshaked:  make(chan connPeerResult, 10),
 			}
 			pm.remotePeers[dummyPeerID] = mockPeer
 

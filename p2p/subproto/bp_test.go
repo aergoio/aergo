@@ -22,6 +22,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 
 	logger := log.NewLogger("test.subproto")
 	dummyBlockHash, _ := enc.ToBytes("v6zbuQ4aVSdbTwQhaiZGp5pcL5uL55X3kt2wfxor5W6")
+	dummyBlockID := types.MustParseBlockID(dummyBlockHash)
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 
 	dummyBlock := &types.Block{Hash: dummyBlockHash,
@@ -53,7 +54,7 @@ func Test_blockProducedNoticeHandler_handle(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
 			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
-			mockPeer.EXPECT().UpdateLastNotice(dummyBlockHash, gomock.Any()).Times(tt.syncmanagerCallCnt)
+			mockPeer.EXPECT().UpdateLastNotice(dummyBlockID, gomock.Any()).Times(tt.syncmanagerCallCnt)
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
 			mockActor.EXPECT().GetChainAccessor().Return(mockCA).MaxTimes(1)
 

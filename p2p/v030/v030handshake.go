@@ -28,6 +28,9 @@ type V030Handshaker struct {
 	chainID *types.ChainID
 
 	msgRW p2pcommon.MsgReadWriter
+	remoteMeta  p2pcommon.PeerMeta
+	remoteHash  types.BlockID
+	remoteNo    types.BlockNo
 }
 
 var _ p2pcommon.VersionedHandshaker = (*V030Handshaker)(nil)
@@ -43,7 +46,7 @@ func NewV030VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, 
 }
 
 // handshakeOutboundPeer start handshake with outbound peer
-func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
+func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
@@ -71,7 +74,8 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		return remotePeerStatus, nil
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		return hsResult, nil
 	}
 }
 
@@ -161,6 +165,10 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		return fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
 
+	// handshake v0.3.x don't check format of block hash
+	h.remoteHash, _ = types.ParseToBlockID(remotePeerStatus.BestBlockHash)
+	h.remoteNo = remotePeerStatus.BestHeight
+
 	peerAddress := remotePeerStatus.Sender
 	if peerAddress == nil || network.CheckAddressType(peerAddress.Address) == network.AddressTypeError {
 		h.sendGoAway("invalid peer address")
@@ -173,12 +181,13 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("Inconsistent peerID")
 	}
+	h.remoteMeta = rMeta
 
 	return nil
 }
 
 // DoForInbound is handle handshake from inbound peer
-func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error) {
+func (h *V030Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
@@ -206,7 +215,8 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err != nil {
 		return nil, err
 	}
-	return remotePeerStatus, nil
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	return hsResult, nil
 }
 
 func (h *V030Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {

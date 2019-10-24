@@ -7,7 +7,6 @@ package v030
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 	"sort"
@@ -26,23 +25,25 @@ type fakeChainID struct {
 	versions []uint64
 }
 func newFC(genID types.ChainID, vers... uint64) fakeChainID {
-	sort.Sort(BlkNoDesc(vers))
+	genID.Version=0
+	sort.Sort(BlkNoASC(vers))
 	return fakeChainID{genID:genID, versions:vers}
 }
 func (f fakeChainID) getChainID(no types.BlockNo) *types.ChainID{
 	cp := f.genID
 	for i:=len(f.versions)-1; i>=0 ; i-- {
 		if f.versions[i] <= no {
-			cp.Version = int32(i+2)
+			cp.Version = int32(i+1)
+			break
 		}
 	}
 	return &cp
 }
-type BlkNoDesc []uint64
+type BlkNoASC []uint64
 
-func (a BlkNoDesc) Len() int           { return len(a) }
-func (a BlkNoDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a BlkNoDesc) Less(i, j int) bool { return a[i] < a[j] }
+func (a BlkNoASC) Len() int           { return len(a) }
+func (a BlkNoASC) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a BlkNoASC) Less(i, j int) bool { return a[i] < a[j] }
 
 func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -71,6 +72,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenesis := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	dummyStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestBlockHash:dummyBlockHash, BestHeight:dummyBlockHeight}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash:types.MustParseBlockID(dummyBlockHash), BestBlockNo:dummyBlockHeight}
 	diffGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: diffGenesis}
 	nilGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: nil}
 	nilSenderStatusMsg := &types.Status{ChainID: localChainBytes, Sender: nil, Genesis: dummyGenHash}
@@ -84,13 +86,13 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 		readReturn *types.Status
 		readError  error
 		writeError error
-		wantStatus *types.Status
+		want       *p2pcommon.HandshakeResult
 		wantErr    bool
 		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
-		{"TOldChain", olderStatusMsg, nil, nil, dummyStatusMsg, false, false},
-		{"TNewChain", newerStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, succResult, false, false},
+		{"TOldChain", olderStatusMsg, nil, nil, succResult, false, false},
+		{"TNewChain", newerStatusMsg, nil, nil, succResult, false, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
 		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
@@ -128,14 +130,12 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 				t.Errorf("PeerHandshaker.DoForOutbound() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != nil && tt.wantStatus != nil {
-				if !reflect.DeepEqual(got.ChainID, tt.wantStatus.ChainID) {
-					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
-					fmt.Printf("got:(%d) %s \n", len(tt.wantStatus.ChainID), hex.EncodeToString(tt.wantStatus.ChainID))
-					t.Errorf("PeerHandshaker.DoForOutbound() = %v, want %v", got.ChainID, tt.wantStatus.ChainID)
+			if got != nil && tt.want != nil {
+				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
-			} else if !reflect.DeepEqual(got, tt.wantStatus) {
-				t.Errorf("PeerHandshaker.DoForOutbound() = %v, want %v", got, tt.wantStatus)
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PeerHandshaker.DoForOutbound() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -162,6 +162,7 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenHash := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash:types.MustParseBlockID(dummyBlockHash), BestBlockNo:dummyBlockHeight}
 	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash}
 	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash}
@@ -172,11 +173,11 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 		readReturn *types.Status
 		readError  error
 		writeError error
-		want       *types.Status
+		want       *p2pcommon.HandshakeResult
 		wantErr    bool
 		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, succResult, false, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
 		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
@@ -214,10 +215,8 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
-					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
-					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
-					t.Errorf("PeerHandshaker.DoForInbound() = %v, want %v", got.ChainID, tt.want.ChainID)
+				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.DoForInbound() = %v, want %v", got, tt.want)

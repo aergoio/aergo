@@ -148,7 +148,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 		name string
 		args args
 
-		hsRet *types.Status
+		hsRet *p2pcommon.HandshakeResult
 		hsErr error
 
 		wantDesign bool
@@ -175,7 +175,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockHSHandler := p2pmock.NewMockHSHandler(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 			//mockHSFactory.EXPECT().CreateHSHandler(gomock.Any(), tt.args.outbound, tt.args.meta.ID).Return(mockHSHandler)
-			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(mockRW, tt.hsRet, tt.hsErr)
+			mockHSHandler.EXPECT().Handle(gomock.Any(), gomock.Any()).Return(tt.hsRet, tt.hsErr)
 			//mockHandlerFactory := p2pmock.NewMockHSHandlerFactory(ctrl)
 			//mockHandlerFactory.EXPECT().InsertHandlers(gomock.AssignableToTypeOf(&remotePeerImpl{})).MaxTimes(1)
 			if tt.hsErr == nil {
@@ -192,7 +192,7 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 
 			pm := &peerManager{
 				hsFactory:      mockHSFactory,
-				peerHandshaked: make(chan handshakeResult, 10),
+				peerHandshaked: make(chan connPeerResult, 10),
 			}
 			dpm := &basePeerManager{
 				pm:     pm,
@@ -215,8 +215,8 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 	}
 }
 
-func dummyStatus(id types.PeerID, noexpose bool) *types.Status {
-	return &types.Status{Sender: &types.PeerAddress{PeerID: []byte(id)}, NoExpose: noexpose}
+func dummyStatus(id types.PeerID, noexpose bool) *p2pcommon.HandshakeResult {
+	return &p2pcommon.HandshakeResult{Meta: p2pcommon.PeerMeta{ID: id}, Hidden: noexpose}
 }
 
 func Test_basePeerManager_CheckAndConnect(t *testing.T) {
@@ -392,7 +392,7 @@ func Test_basePeerManager_OnInboundConn(t *testing.T) {
 func Test_createRemoteInfo(t *testing.T) {
 	pid1 := types.RandomPeerID()
 	type args struct {
-		status   *types.Status
+		status   p2pcommon.HandshakeResult
 		outbound bool
 	}
 	tests := []struct {
@@ -402,12 +402,12 @@ func Test_createRemoteInfo(t *testing.T) {
 		port     uint32
 		wantHidden bool
 	}{
-		{"TOut1", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:false}, true} ,
+		{"TOut1", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:false}, true} ,
 			"192.56.1.1",7846, false},
-		{"TOutHidden", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:true}, true},"192.56.1.1",7846, true},
-		{"TIn", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:false}, false} ,
+		{"TOutHidden", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:true}, true},"192.56.1.1",7846, true},
+		{"TIn", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:false}, false} ,
 			"192.56.1.1",7846, false},
-		{"TInHidden", args{&types.Status{Sender:&types.PeerAddress{PeerID:[]byte(pid1)}, NoExpose:true}, true},"192.56.1.1",7846, true},
+		{"TInHidden", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:true}, true},"192.56.1.1",7846, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
