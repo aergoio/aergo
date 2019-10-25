@@ -8,6 +8,7 @@ package v200
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/network"
@@ -20,6 +21,11 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+)
+
+var (
+	ErrInvalidAgentStatus = errors.New("invalid agent status")
+	ErrInvalidCertIssue   = errors.New("invalid issue request")
 )
 
 // V200Handshaker exchange status data over protocol version 1.0.0
@@ -68,7 +74,7 @@ func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	}
 	localID := h.vm.GetChainID(bestBlock.Header.BlockNo)
 
-	status, err := createLocalStatus(h.pm, localID, bestBlock, h.localGenesisHash)
+	status, err := h.createLocalStatus(localID, bestBlock)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		h.sendGoAway("internal error")
@@ -88,7 +94,7 @@ func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Certificates:h.remoteCerts, Hidden:remotePeerStatus.NoExpose}
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Certificates: h.remoteCerts, Hidden: remotePeerStatus.NoExpose}
 		return hsResult, nil
 	}
 }
@@ -191,7 +197,11 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	}
 
 	h.remoteMeta = rMeta
-	h.checkByRole(remotePeerStatus)
+
+	if err = h.checkByRole(remotePeerStatus); err != nil {
+		h.sendGoAway("invalid certificate works")
+		return fmt.Errorf("invalid certificate info: %v", err.Error())
+	}
 
 	return nil
 }
@@ -217,7 +227,7 @@ func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	localID := h.vm.GetChainID(bestBlock.Header.BlockNo)
 
 	// send my status message as response
-	localStatus, err := createLocalStatus(h.pm, localID, bestBlock, h.localGenesisHash)
+	localStatus, err := h.createLocalStatus(localID, bestBlock)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create localStatus message.")
 		h.sendGoAway("internal error")
@@ -227,7 +237,7 @@ func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	if err != nil {
 		return nil, err
 	}
-	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Certificates:h.remoteCerts, Hidden:remotePeerStatus.NoExpose}
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Certificates: h.remoteCerts, Hidden: remotePeerStatus.NoExpose}
 	return hsResult, nil
 }
 
@@ -247,17 +257,20 @@ func (h *V200Handshaker) sendGoAway(msg string) {
 	}
 }
 
-func (h *V200Handshaker) checkByRole(status *types.Status) bool {
+func (h *V200Handshaker) checkByRole(status *types.Status) error {
 	if h.remoteMeta.Role == types.PeerRole_Agent {
-		return h.checkAgent(status)
+		err := h.checkAgent(status)
+		if err != nil {
+			return err
+		}
 	}
-	return true
+	return nil
 }
 
-func (h *V200Handshaker) checkAgent(status *types.Status) bool {
+func (h *V200Handshaker) checkAgent(status *types.Status) error {
 	// Agent must have at least one block producer
 	if len(h.remoteMeta.ProducerIDs) == 0 {
-		return false
+		return ErrInvalidAgentStatus
 	}
 	producers := make(map[types.PeerID]bool)
 	for _, id := range h.remoteMeta.ProducerIDs {
@@ -265,29 +278,29 @@ func (h *V200Handshaker) checkAgent(status *types.Status) bool {
 	}
 	certs := make([]*p2pcommon.AgentCertificateV1, len(status.Certificates))
 	for i, pCert := range status.Certificates {
-		cert, err := CheckAndGetV1(pCert)
+		cert, err := p2putil.CheckAndGetV1(pCert)
 		if err != nil {
 			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("invalid agent certificate")
-			return false
+			return ErrInvalidAgentStatus
 		}
 		// check certificate
 		if !types.IsSamePeerID(cert.AgentID, h.remoteMeta.ID) {
 			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("certificate is not for this agent")
-			return false
+			return ErrInvalidAgentStatus
 		}
 		if _, exist := producers[cert.BPID]; !exist {
 			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("peer id of certificate not matched")
-			return false
+			return ErrInvalidAgentStatus
 		}
 
 		certs[i] = cert
 	}
 	h.remoteCerts = certs
-	return true
+	return ErrInvalidAgentStatus
 }
 
-func createLocalStatus(pm p2pcommon.PeerManager, chainID *types.ChainID, bestBlock *types.Block, genesis []byte) (*types.Status, error) {
-	selfAddr := pm.SelfMeta().ToPeerAddress()
+func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *types.Block) (*types.Status, error) {
+	selfAddr := h.pm.SelfMeta().ToPeerAddress()
 	chainIDbytes, err := chainID.Bytes()
 	if err != nil {
 		return nil, err
@@ -299,9 +312,22 @@ func createLocalStatus(pm p2pcommon.PeerManager, chainID *types.ChainID, bestBlo
 		ChainID:       chainIDbytes,
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
-		NoExpose:      pm.SelfMeta().Hidden,
+		NoExpose:      h.pm.SelfMeta().Hidden,
 		Version:       p2pkey.NodeVersion(),
-		Genesis:       genesis,
+		Genesis:       h.localGenesisHash,
+	}
+
+	if h.role == types.PeerRole_Agent {
+		cs := h.cm.GetCertificates()
+		pcs := make([]*types.AgentCertificate, len(cs))
+		for i, c := range h.cm.GetCertificates() {
+			pcs[i], err = p2putil.ConvertCertToProto(c)
+			if err != nil {
+				h.logger.Error().Err(err).Str("bpID", p2putil.ShortForm(c.BPID)).Msg("failed to convert certificate")
+				return nil, errors.New("internal error")
+			}
+		}
+		statusMsg.Certificates = pcs
 	}
 
 	return statusMsg, nil

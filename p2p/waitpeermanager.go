@@ -24,6 +24,7 @@ type connPeerResult struct {
 	remote   p2pcommon.RemoteInfo
 	bestHash types.BlockID
 	bestNo   types.BlockNo
+	Certificates []*p2pcommon.AgentCertificateV1
 }
 
 func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
@@ -209,7 +210,7 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	// update peer meta info using sent information from remote peer
 	remoteInfo := createRemoteInfo(s.Conn(), *hResult, outbound)
 
-	dpm.pm.peerHandshaked <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash:hResult.BestBlockHash, bestNo:hResult.BestBlockNo}
+	dpm.pm.peerHandshaked <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash:hResult.BestBlockHash, bestNo:hResult.BestBlockNo, Certificates:hResult.Certificates}
 	return remoteInfo.Meta, true
 }
 

@@ -1,10 +1,9 @@
-package v200
+package p2putil
 
 import (
 	"bytes"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
@@ -65,7 +64,7 @@ func TestNewAgentCertV1(t *testing.T) {
 
 func TestCheckAndGetV1(t *testing.T) {
 	pk1, _ := btcec.NewPrivateKey(btcec.S256())
-	libp2pKey1 := p2putil.ConvertPKToLibP2P(pk1)
+	libp2pKey1 := ConvertPKToLibP2P(pk1)
 	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
 	pid1, _ := types.IDFromPrivateKey(libp2pKey1)
 	pid2 := types.RandomPeerID()
@@ -158,7 +157,7 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 	pk1, _ := btcec.NewPrivateKey(btcec.S256())
 	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
 
-	pid1, _ := types.IDFromPrivateKey(p2putil.ConvertPKToLibP2P(pk1))
+	pid1, _ := types.IDFromPrivateKey(ConvertPKToLibP2P(pk1))
 	pid2 := types.RandomPeerID()
 	addr0 := "192.168.0.2"
 	addr1 := "2001:0db8:85a3:08d3:1319:8a2e:370:7334"
