@@ -76,9 +76,21 @@ func TestCheckAndGetV1(t *testing.T) {
 		t.Fatalf("Failed to create test input. %s ", err.Error())
 	}
 	w2, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, time.Second)
+	w3, _ :=  NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
+	w3.CreateTime = time.Now().Add(time.Second*10)
+	SignCert(pk1, w3)
+	nftmpl, _ := ConvertCertToProto(w3)
+	w3.CreateTime = time.Now().Add(time.Hour)
+	SignCert(pk1, w3)
+	lftmpl, _ := ConvertCertToProto(w3)
 	if w.Signature.IsEqual(w2.Signature) {
 		t.Fatalf("Something is strange")
 	}
+	w3.CreateTime = time.Now().Add(-1 * time.Hour * 30)
+	w3.ExpireTime = time.Now().Add(-1 * time.Minute)
+	SignCert(pk1, w3)
+	extmpl, _ := ConvertCertToProto(w3)
+
 	type args struct {
 	}
 	tests := []struct {
@@ -90,10 +102,13 @@ func TestCheckAndGetV1(t *testing.T) {
 		{"TEmptyBPID", NCB(tmpl).bpid(nil).Build(), p2pcommon.ErrInvalidPeerID},
 		{"TEmptyKey", NCB(tmpl).pubk(nil).Build(), p2pcommon.ErrInvalidKey},
 		{"TEmptyAgentID", NCB(tmpl).agid(nil).Build(), p2pcommon.ErrInvalidPeerID},
-		{"TEmptyAddrs", NCB(tmpl).addr([][]byte{}).Build(), ErrInvalidCertField},
-		{"TEmptySignature", NCB(tmpl).sig([]byte{}).Build(), ErrInvalidCertField},
+		{"TEmptyAddrs", NCB(tmpl).addr([][]byte{}).Build(), p2pcommon.ErrInvalidCertField},
+		{"TEmptySignature", NCB(tmpl).sig([]byte{}).Build(), p2pcommon.ErrInvalidCertField},
 		{"TDiffSignature", NCB(tmpl).sig(w2.Signature.Serialize()).Build(), p2pcommon.ErrVerificationFailed},
 		{"TDiffKeyAndID", NCB(tmpl).bpid([]byte(pid2)).Build(), p2pcommon.ErrInvalidKey},
+		{"TTinyTimeErrCert", nftmpl, nil},
+		{"TFutureCert", lftmpl, p2pcommon.ErrInvalidCertField},
+		{"TExpiredCert", extmpl, p2pcommon.ErrInvalidCertField},
 
 		// TODO: Add test cases.
 	}
@@ -146,6 +161,14 @@ func (b *cb) addr(k [][]byte) *cb {
 }
 func (b *cb) sig(k []byte) *cb {
 	b.copy.Signature = k
+	return b
+}
+func (b *cb) ctime(t time.Time) *cb {
+	b.copy.CreateTime = t.UnixNano()
+	return b
+}
+func (b *cb) etime(t time.Time) *cb {
+	b.copy.ExpireTime = t.UnixNano()
 	return b
 }
 

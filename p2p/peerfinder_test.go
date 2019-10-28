@@ -32,7 +32,7 @@ func init() {
 	for i := 0; i < desigCnt; i++ {
 		pid := types.RandomPeerID()
 		desigIDs[i] = pid
-		desigPeers[i] = p2pcommon.NewMetaWith1Addr(pid, "192.111.222.33", 7846)
+		desigPeers[i] = p2pcommon.NewMetaWith1Addr(pid, "192.111.222.33", 7846, "v2.0.0")
 		desigPeerMap[desigIDs[i]] = desigPeers[i]
 	}
 	unknownIDs = make([]types.PeerID, desigCnt)
@@ -40,7 +40,7 @@ func init() {
 	for i := 0; i < desigCnt; i++ {
 		pid := types.RandomPeerID()
 		unknownIDs[i] = pid
-		unknownPeers[i] = p2pcommon.NewMetaWith1Addr(pid, "192.111.222.33", 7846)
+		unknownPeers[i] = p2pcommon.NewMetaWith1Addr(pid, "192.111.222.33", 7846, "v2.0.0")
 	}
 }
 func createDummyPM() *peerManager {

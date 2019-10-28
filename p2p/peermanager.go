@@ -44,8 +44,6 @@ type peerManager struct {
 
 	peerFinder p2pcommon.PeerFinder
 	wpManager  p2pcommon.WaitingPeerManager
-	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
-	hiddenPeerSet map[types.PeerID]bool
 
 	mutex        *sync.Mutex
 	manageNumber uint32
@@ -55,6 +53,10 @@ type peerManager struct {
 	conf *cfg.P2PConfig
 	// peerCache is copy-on-write style
 	peerCache []p2pcommon.RemotePeer
+	// blockManagePeers is sum of blockProducers and agent peer
+	bpClassPeers []p2pcommon.RemotePeer
+	// watchers and uncertified agents
+	watchClassPeers []p2pcommon.RemotePeer
 
 	getPeerChannel    chan getPeerTask
 	peerHandshaked    chan connPeerResult
@@ -68,8 +70,9 @@ type peerManager struct {
 
 	eventListeners []p2pcommon.PeerEventListener
 
-	//
+	// designatedPeers and hiddenPeerSet is set in construction time once and will not be changed
 	designatedPeers map[types.PeerID]p2pcommon.PeerMeta
+	hiddenPeerSet   map[types.PeerID]bool
 
 	logger *log.Logger
 }
@@ -107,7 +110,9 @@ func NewPeerManager(is p2pcommon.InternalService, hsFactory p2pcommon.HSHandlerF
 
 		waitingPeers: make(map[types.PeerID]*p2pcommon.WaitingPeer, p2pConf.NPPeerPool),
 
-		peerCache: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
+		peerCache:       make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
+		bpClassPeers:    make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers>>2),
+		watchClassPeers: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		getPeerChannel:    make(chan getPeerTask),
 		peerHandshaked:    make(chan connPeerResult),
@@ -436,6 +441,12 @@ func (pm *peerManager) GetPeers() []p2pcommon.RemotePeer {
 	defer pm.mutex.Unlock()
 	return pm.peerCache
 }
+func (pm *peerManager) GetProducerClassPeers() []p2pcommon.RemotePeer {
+	return pm.bpClassPeers
+}
+func (pm *peerManager) GetWatcherClassPeers() []p2pcommon.RemotePeer {
+	return pm.watchClassPeers
+}
 
 func (pm *peerManager) GetPeerBlockInfos() []types.PeerBlockInfo {
 	pm.mutex.Lock()
@@ -488,13 +499,25 @@ func (pm *peerManager) deletePeer(peer p2pcommon.RemotePeer) {
 }
 
 func (pm *peerManager) updatePeerCache() {
-	newSlice := make([]p2pcommon.RemotePeer, 0, len(pm.remotePeers))
+	size := len(pm.remotePeers)
+	newSlice := make([]p2pcommon.RemotePeer, 0, size)
+	newBSlice := make([]p2pcommon.RemotePeer, 0, size)
+	newWSlice := make([]p2pcommon.RemotePeer, 0, size)
 	for _, rPeer := range pm.remotePeers {
 		newSlice = append(newSlice, rPeer)
+		// TODO need
+		if rPeer.Role() == types.PeerRole_Producer ||  rPeer.Role() == types.PeerRole_Agent {
+			newWSlice  = append(newWSlice, rPeer)
+		} else {
+			newBSlice  = append(newBSlice, rPeer)
+		}
+
 	}
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
 	pm.peerCache = newSlice
+	pm.bpClassPeers = newBSlice
+	pm.watchClassPeers = newWSlice
 }
 
 func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
@@ -534,15 +557,6 @@ func (pm *peerManager) ListDesignatedPeers() []p2pcommon.PeerMeta {
 		retChan <- arr
 	}
 	return <-retChan
-}
-
-func (pm *peerManager) GetProducers() []types.PeerID {
-	// TODO
-	return nil
-}
-func (pm *peerManager) GetCertificates() []p2pcommon.AgentCertificateV1 {
-	// TODO
-	return nil
 }
 
 // pmTask should not consume lots of time to process.

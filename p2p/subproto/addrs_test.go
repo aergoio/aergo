@@ -38,7 +38,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		peerid := types.RandomPeerID()
 		// first 10 are visible, others are hidden
-		meta := p2pcommon.NewMetaWith1Addr(peerid, "test.abc.com", 7846)
+		meta := p2pcommon.NewMetaWith1Addr(peerid, "test.abc.com", 7846, "v2.0.0")
 		meta.Hidden = i >= 10
 		samplePeer := p2pmock.NewMockRemotePeer(ctrl)
 		samplePeer.EXPECT().ID().Return(meta.ID).AnyTimes()
@@ -79,7 +79,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 			mockPeer.EXPECT().ID().Return(dummyPeerID2).AnyTimes()
 			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
 			mockPeer.EXPECT().MF().Return(mockMF).MinTimes(1)
-			mockPeer.EXPECT().Meta().Return(p2pcommon.NewMetaWith1Addr(remoteID,"test.abc.com",7846)).AnyTimes()
+			mockPeer.EXPECT().Meta().Return(p2pcommon.NewMetaWith1Addr(remoteID, "test.abc.com", 7846, "v2.0.0")).AnyTimes()
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 			dummyMo := &testMo{}
 			mockMF.EXPECT().NewMsgResponseOrder(gomock.Any(), p2pcommon.AddressesResponse, &addrRespSizeMatcher{tt.wantSize}).Return(dummyMo)

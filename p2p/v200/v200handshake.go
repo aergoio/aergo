@@ -30,11 +30,11 @@ var (
 
 // V200Handshaker exchange status data over protocol version 1.0.0
 type V200Handshaker struct {
-	pm p2pcommon.PeerManager
 	cm p2pcommon.CertificateManager
 	vm p2pcommon.VersionedManager
 
-	role   types.PeerRole
+	selfMeta p2pcommon.PeerMeta
+
 	actor  p2pcommon.ActorService
 	logger *log.Logger
 	peerID types.PeerID
@@ -55,8 +55,8 @@ func (h *V200Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 	return h.msgRW
 }
 
-func NewV200VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V200Handshaker {
-	h := &V200Handshaker{pm: pm, actor: actor, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm}
+func NewV200VersionedHS(meta p2pcommon.PeerMeta, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, cm p2pcommon.CertificateManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V200Handshaker {
+	h := &V200Handshaker{selfMeta:meta, actor: actor, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm, cm:cm}
 	// msg format is not changed
 	h.msgRW = v030.NewV030MsgPipe(rwc)
 	return h
@@ -300,7 +300,7 @@ func (h *V200Handshaker) checkAgent(status *types.Status) error {
 }
 
 func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *types.Block) (*types.Status, error) {
-	selfAddr := h.pm.SelfMeta().ToPeerAddress()
+	selfAddr := h.selfMeta.ToPeerAddress()
 	chainIDbytes, err := chainID.Bytes()
 	if err != nil {
 		return nil, err
@@ -312,15 +312,15 @@ func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *ty
 		ChainID:       chainIDbytes,
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
-		NoExpose:      h.pm.SelfMeta().Hidden,
+		NoExpose:      h.selfMeta.Hidden,
 		Version:       p2pkey.NodeVersion(),
 		Genesis:       h.localGenesisHash,
 	}
 
-	if h.role == types.PeerRole_Agent {
+	if h.selfMeta.Role == types.PeerRole_Agent {
 		cs := h.cm.GetCertificates()
 		pcs := make([]*types.AgentCertificate, len(cs))
-		for i, c := range h.cm.GetCertificates() {
+		for i, c := range cs {
 			pcs[i], err = p2putil.ConvertCertToProto(c)
 			if err != nil {
 				h.logger.Error().Err(err).Str("bpID", p2putil.ShortForm(c.BPID)).Msg("failed to convert certificate")

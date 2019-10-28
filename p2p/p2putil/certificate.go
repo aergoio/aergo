@@ -2,7 +2,6 @@ package p2putil
 
 import (
 	"encoding/binary"
-	"errors"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -11,10 +10,6 @@ import (
 	"time"
 )
 
-var (
-	ErrMalformedCert    = errors.New("malformed certificate data")
-	ErrInvalidCertField = errors.New("invalid field in certificate ")
-)
 const (
 	timeErrorTolerance = time.Minute
 )
@@ -37,7 +32,7 @@ func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificat
 	//	return nil, ErrInvalidCertField
 	//}
 	if len(w.AgentAddress) == 0 {
-		return nil, ErrInvalidCertField
+		return nil, p2pcommon.ErrInvalidCertField
 	}
 	protoC.AgentAddress = make([][]byte, len(w.AgentAddress))
 	for i, addr := range w.AgentAddress {
@@ -60,7 +55,7 @@ func NewAgentCertV1(bpID, agentID types.PeerID, bpKey *btcec.PrivateKey, addrs [
 		CreateTime: now, ExpireTime: now.Add(ttl), AgentID: agentID, AgentAddress: addrs}
 	err := SignCert(bpKey, c)
 	if err != nil {
-		return nil, ErrInvalidCertField
+		return nil, p2pcommon.ErrInvalidCertField
 	}
 	return c, nil
 }
@@ -99,16 +94,16 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	wrap.ExpireTime = time.Unix(0, int64(cert.ExpireTime))
 	now := time.Now()
 	// create time is adjusted by time error, but expire time is not.
-	if ( wrap.CreateTime.Sub(now) < timeErrorTolerance ) ||
+	if ( wrap.CreateTime.Sub(now) >= timeErrorTolerance ) ||
 		wrap.ExpireTime.Before(now) {
-		return nil, ErrInvalidCertField
+		return nil, p2pcommon.ErrInvalidCertField
 	}
 	wrap.AgentID, err = peer.IDFromBytes(cert.AgentID)
 	if err != nil {
 		return nil, p2pcommon.ErrInvalidPeerID
 	}
 	if len(cert.AgentAddress) == 0 {
-		return nil, ErrInvalidCertField
+		return nil, p2pcommon.ErrInvalidCertField
 	}
 	wrap.AgentAddress = make([]string, len(cert.AgentAddress))
 	for i, addr := range cert.AgentAddress {
@@ -117,7 +112,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	}
 	wrap.Signature, err = btcec.ParseSignature(cert.Signature, btcec.S256())
 	if err != nil {
-		return nil, ErrInvalidCertField
+		return nil, p2pcommon.ErrInvalidCertField
 	}
 
 	// verify seq

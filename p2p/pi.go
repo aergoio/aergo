@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"net"
 	"strconv"
+	"strings"
 )
 
 func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock bool) p2pcommon.PeerMeta {
@@ -45,17 +46,51 @@ func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock boo
 	var meta p2pcommon.PeerMeta
 
 	meta.ID = peerID
+	meta.Role = setupPeerRole(produceBlock, conf)
 	meta.Addresses = []types.Multiaddr{ma}
-	// TODO
-	if produceBlock {
-		meta.Role = types.PeerRole_Producer
+	switch meta.Role {
+	case types.PeerRole_Producer:
 		// register self id
 		meta.ProducerIDs = []types.PeerID{peerID}
-	} else {
-		meta.Role = types.PeerRole_Watcher
+	case types.PeerRole_Agent:
+		size := len(conf.Producers)
+		if size == 0 {
+			panic("invalid configuration: agent peer must have at least one producerID ")
+		}
+		pids := make([]types.PeerID,len(conf.Producers))
+		for i, str := range conf.Producers {
+			pid, err := types.IDB58Decode(str)
+			if err != nil {
+				panic("invalid producerID "+str+" : "+err.Error())
+			}
+			pids[i] = pid
+		}
+		meta.ProducerIDs = pids
 	}
 	meta.Hidden = !conf.NPExposeSelf
 	meta.Version = p2pkey.NodeVersion()
 
 	return meta
+}
+
+func setupPeerRole(enableBp bool, cfg *config.P2PConfig) types.PeerRole {
+	roleInCfg := strings.ToLower(cfg.PeerRole)
+	if enableBp {
+		if len(roleInCfg) > 0 && roleInCfg != "producer" {
+			panic("config mismatch. consensus.enablebp is true but p2p.peerrole is not producer")
+		}
+		return types.PeerRole_Producer
+	} else { // role is blank, watcher or agent only
+		switch roleInCfg {
+		case "agent":
+			return types.PeerRole_Agent
+		case "watcher", "":
+			return types.PeerRole_Watcher
+		case "producer":
+			panic("config mismatch. consensus.enablebp is false but p2p.peerrole is producer")
+
+		default:
+			panic("invalid p2p.peerrole config")
+		}
+	}
 }

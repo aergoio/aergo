@@ -33,12 +33,12 @@ func (m *PeerMeta) GetVersion() string {
 }
 
 // NewMetaWith1Addr make instance of PeerMeta with single address
-func NewMetaWith1Addr(id types.PeerID, addr string, port uint32) PeerMeta {
+func NewMetaWith1Addr(id types.PeerID, addr string, port uint32, version string) PeerMeta {
 	ma, err := types.ToMultiAddr(addr, port)
 	if err != nil {
 		return PeerMeta{}
 	} else {
-		return PeerMeta{ID:id, Addresses:[]types.Multiaddr{ma}}
+		return PeerMeta{ID:id, Addresses:[]types.Multiaddr{ma}, Version:version}
 	}
 }
 // FromStatusToMeta create peerMeta from Status message
@@ -90,6 +90,39 @@ func (m PeerMeta) PrimaryAddress() string {
 	}
 
 }
+
+func (m PeerMeta) Equals(o PeerMeta) bool {
+	if !types.IsSamePeerID(m.ID, o.ID) {
+		return false
+	}
+	if m.Role != o.Role {
+		return false
+	}
+	if len(m.ProducerIDs) != len(o.ProducerIDs) {
+		return false
+	}
+	for i, id := range m.ProducerIDs {
+		if !types.IsSamePeerID(id, o.ProducerIDs[i]) {
+			return false
+		}
+	}
+	if len(m.Addresses) != len(o.Addresses) {
+		return false
+	}
+	for i, ad := range m.Addresses {
+		if !ad.Equal(o.Addresses[i]) {
+			return false
+		}
+	}
+	if m.Version != o.Version {
+		return false
+	}
+	if m.Hidden != o.Hidden {
+		return false
+	}
+	return true
+}
+
 
 func FromPeerAddressNew(addr *types.PeerAddress) PeerMeta {
 	addrs := make([]types.Multiaddr, 0, len(addr.Addresses))

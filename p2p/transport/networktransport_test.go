@@ -52,8 +52,8 @@ func IgnoredTestP2PServiceRunAddPeer(t *testing.T) {
 	target.Host = p2pmock.NewMockHost(ctrl)
 	target.selfMeta.ID = types.PeerID("gwegw")
 
-	sampleAddr1 := p2pcommon.NewMetaWith1Addr(types.RandomPeerID() , "192.168.0.1", 33888)
-	sampleAddr2 := p2pcommon.NewMetaWith1Addr(types.RandomPeerID() , "192.168.0.2", 33888)
+	sampleAddr1 := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), "192.168.0.1", 33888, "v2.0.0")
+	sampleAddr2 := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), "192.168.0.2", 33888, "v2.0.0")
 	target.GetOrCreateStream(sampleAddr1, p2pcommon.P2PSubAddr)
 	target.GetOrCreateStream(sampleAddr1, p2pcommon.P2PSubAddr)
 	time.Sleep(time.Second)
@@ -109,7 +109,7 @@ func TestNewNetworkTransport(t *testing.T) {
 			if tt.bindPort > 0 {
 				conf.NPBindPort = tt.bindPort
 			}
-			sampleMeta := p2pcommon.NewMetaWith1Addr(p2pkey.NodeID(),localIP, port)
+			sampleMeta := p2pcommon.NewMetaWith1Addr(p2pkey.NodeID(), localIP, port, "v2.0.0")
 
 			mockIS := p2pmock.NewMockInternalService(ctrl)
 			mockIS.EXPECT().SelfMeta().Return(sampleMeta)
@@ -138,8 +138,8 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 	initialPort := uint32(7846)
 	acceptAll := "0.0.0.0"
 	sampleDomain := "unittest.aergo.io"
-	ipMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), acceptAll, initialPort)
-	dnMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(),sampleDomain, initialPort)
+	ipMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), acceptAll, initialPort, "v2.0.0")
+	dnMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), sampleDomain, initialPort, "v2.0.0")
 	tests := []struct {
 		name string
 		meta p2pcommon.PeerMeta

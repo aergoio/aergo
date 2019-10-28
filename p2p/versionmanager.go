@@ -17,6 +17,7 @@ import (
 )
 
 type defaultVersionManager struct {
+	is     p2pcommon.InternalService
 	pm     p2pcommon.PeerManager
 	actor  p2pcommon.ActorService
 	ca     types.ChainAccessor
@@ -27,7 +28,7 @@ type defaultVersionManager struct {
 }
 
 func newDefaultVersionManager(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, ca types.ChainAccessor, logger *log.Logger, localChainID *types.ChainID) *defaultVersionManager {
-	return &defaultVersionManager{pm: pm, actor: actor, ca:ca, logger: logger, localChainID: localChainID}
+	return &defaultVersionManager{pm: pm, actor: actor, ca: ca, logger: logger, localChainID: localChainID}
 }
 
 func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {
@@ -41,19 +42,19 @@ func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVers
 	return p2pcommon.P2PVersionUnknown
 }
 
-func (h *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
+func (vm *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion200:
-		vhs := v200.NewV200VersionedHS(h.pm, h.actor, h.logger, h, peerID, rwc, chain.Genesis.Block().Hash)
+		vhs := v200.NewV200VersionedHS(vm.pm.SelfMeta(), vm.actor, vm.logger, vm, nil, peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil
 	case p2pcommon.P2PVersion033:
-		vhs := v030.NewV033VersionedHS(h.pm, h.actor, h.logger, h, peerID, rwc, chain.Genesis.Block().Hash)
+		vhs := v030.NewV033VersionedHS(vm.pm, vm.actor, vm.logger, vm, peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil
 	case p2pcommon.P2PVersion032:
-		vhs := v030.NewV032VersionedHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc, chain.Genesis.Block().Hash)
+		vhs := v030.NewV032VersionedHS(vm.pm, vm.actor, vm.logger, vm.localChainID, peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil
 	case p2pcommon.P2PVersion031:
-		v030hs := v030.NewV030VersionedHS(h.pm, h.actor, h.logger, h.localChainID, peerID, rwc)
+		v030hs := v030.NewV030VersionedHS(vm.pm, vm.actor, vm.logger, vm.localChainID, peerID, rwc)
 		return v030hs, nil
 	default:
 		return nil, fmt.Errorf("not supported version")

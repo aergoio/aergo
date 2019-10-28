@@ -74,14 +74,14 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID,"dummy.aergo.io", 7846)
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version:dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
@@ -128,7 +128,7 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+				if !got.Meta.Equals(tt.want.Meta) {
 					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
@@ -148,7 +148,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID,"dummy.aergo.io", 7846)
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
@@ -156,7 +156,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version:dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
@@ -204,7 +204,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+				if !got.Meta.Equals(tt.want.Meta) {
 					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {

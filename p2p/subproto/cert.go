@@ -27,8 +27,8 @@ type issueCertResponseHandler struct {
 var _ p2pcommon.MessageHandler = (*issueCertResponseHandler)(nil)
 
 // newAddressesReqHandler creates handler for PingRequest
-func NewIssueCertReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *issueCertRequestHandler {
-	ph := &issueCertRequestHandler{BaseMsgHandler{protocol: p2pcommon.AddressesRequest, pm: pm, peer: peer, actor: actor, logger: logger}, nil } //TODO fill CertificateManager
+func NewIssueCertReqHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *issueCertRequestHandler {
+	ph := &issueCertRequestHandler{BaseMsgHandler{protocol: p2pcommon.IssueCertificateRequest, pm: pm, peer: peer, actor: actor, logger: logger}, cm } //TODO fill CertificateManager
 	return ph
 }
 
@@ -62,8 +62,8 @@ func (h *issueCertRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommo
 }
 
 // newAddressesRespHandler creates handler for PingRequest
-func NewIssueCertRespHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *issueCertResponseHandler {
-	ph := &issueCertResponseHandler{BaseMsgHandler{protocol: p2pcommon.AddressesResponse, pm: pm, peer: peer, actor: actor, logger: logger}, nil}
+func NewIssueCertRespHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *issueCertResponseHandler {
+	ph := &issueCertResponseHandler{BaseMsgHandler{protocol: p2pcommon.IssueCertificateResponse, pm: pm, peer: peer, actor: actor, logger: logger}, nil}
 	return ph
 }
 
@@ -85,4 +85,32 @@ func (h *issueCertResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 			h.logger.Info().Err(err).Msg("Failed to convert certificate")
 		}
 	}
+}
+
+type certRenewedNoticeHandler struct {
+	BaseMsgHandler
+	cm p2pcommon.CertificateManager
+}
+
+
+// newAddressesRespHandler creates handler for PingRequest
+func NewCertRenewedNoticeHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *certRenewedNoticeHandler {
+	ph := &certRenewedNoticeHandler{BaseMsgHandler{protocol: p2pcommon.CertificateRenewedNotice, pm: pm, peer: peer, actor: actor, logger: logger}, nil}
+	return ph
+}
+
+func (h *certRenewedNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
+	return p2putil.UnmarshalAndReturn(rawbytes, &types.CertificateRenewedNotice{})
+}
+
+func (h *certRenewedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+	remotePeer := h.peer
+	data := msgBody.(*types.CertificateRenewedNotice)
+	p2putil.DebugLogReceiveResponse(h.logger, h.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
+
+	// TODO check authorization (i.e. if remotePeer is agent )
+	// verify certificate
+	// add certificate to peer
+
+
 }

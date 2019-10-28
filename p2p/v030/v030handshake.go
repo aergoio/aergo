@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"io"
 	"time"
 
@@ -252,7 +251,7 @@ func createLocalStatus(pm p2pcommon.PeerManager, chainID *types.ChainID, bestBlo
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 		NoExpose:      pm.SelfMeta().Hidden,
-		Version:       p2pkey.NodeVersion(),
+		Version:       pm.SelfMeta().Version,
 		Genesis:       genesis,
 	}
 

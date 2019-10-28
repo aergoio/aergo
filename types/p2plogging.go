@@ -181,5 +181,13 @@ func (m *GetClusterInfoResponse) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *IssueCertificateResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("cert", m.String())
+	if m.Certificate != nil {
+		e.Str("cert", m.Certificate.String())
+	}
+}
+
+func (m *CertificateRenewedNotice) MarshalZerologObject(e *zerolog.Event) {
+	if m.Certificate != nil {
+		e.Str("cert", m.Certificate.String())
+	}
 }

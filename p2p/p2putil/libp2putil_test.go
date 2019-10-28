@@ -132,7 +132,7 @@ func TestPeerMeta_ToMultiAddr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := p2pcommon.NewMetaWith1Addr(tt.fields.ID, tt.fields.IPAddress, tt.fields.Port)
+			m := p2pcommon.NewMetaWith1Addr(tt.fields.ID, tt.fields.IPAddress, tt.fields.Port, "v2.0.0")
 
 			got, err := PeerMetaToMultiAddr(m)
 			if (err != nil) != tt.wantErr {

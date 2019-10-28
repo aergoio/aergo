@@ -112,7 +112,7 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	for i := 0; i < peersLen; i++ {
 		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		pid, _ := types.IDFromPrivateKey(pkey)
-		meta := p2pcommon.NewMetaWith1Addr(pid, "192.168.3.3", 7846)
+		meta := p2pcommon.NewMetaWith1Addr(pid, "192.168.3.3", 7846, "v2.0.0")
 		meta.Hidden = i < hiddenCnt
 		samplePeers[i] = &remotePeerImpl{remoteInfo: p2pcommon.RemoteInfo{Meta:meta}, lastStatus: &types.LastBlockStatus{}}
 	}

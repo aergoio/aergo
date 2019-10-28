@@ -25,8 +25,8 @@ func TestP2P_CreateHSHandler(t *testing.T) {
 	defer ctrl.Finish()
 
 	type args struct {
-		legacy bool
-		outbound   bool
+		legacy   bool
+		outbound bool
 	}
 	tests := []struct {
 		name string
@@ -84,19 +84,19 @@ func TestP2P_banIfFound(t *testing.T) {
 	sampleCnt := 5
 	addr := "172.21.11.3"
 
-	pids := make([]types.PeerID,sampleCnt)
-	for i:=0; i<sampleCnt; i++ {
+	pids := make([]types.PeerID, sampleCnt)
+	for i := 0; i < sampleCnt; i++ {
 		pids[i] = types.RandomPeerID()
 	}
 	tests := []struct {
 		name string
 
-		inWhite []int
+		inWhite     []int
 		wantStopCnt int
 	}{
-		{"TAllWhite", []int{1,1,1,1,1},0 },
-		{"TAllBan", []int{0,0,0,0,0},5 },
-		{"TMix", []int{0,1,1,0,1},2 },
+		{"TAllWhite", []int{1, 1, 1, 1, 1}, 0},
+		{"TAllBan", []int{0, 0, 0, 0, 0}, 5},
+		{"TMix", []int{0, 1, 1, 0, 1}, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,21 +105,21 @@ func TestP2P_banIfFound(t *testing.T) {
 
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockLM := p2pmock.NewMockListManager(ctrl)
-			peers := make([]p2pcommon.RemotePeer,sampleCnt)
-			for i:=0; i<sampleCnt; i++ {
-				meta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), addr, 7846)
-				conn := p2pcommon.RemoteConn{IP:net.ParseIP(addr),Port:7846, Outbound:false}
-				ri := p2pcommon.RemoteInfo{Meta:meta, Connection:conn}
+			peers := make([]p2pcommon.RemotePeer, sampleCnt)
+			for i := 0; i < sampleCnt; i++ {
+				meta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), addr, 7846, "v2.0.0")
+				conn := p2pcommon.RemoteConn{IP: net.ParseIP(addr), Port: 7846, Outbound: false}
+				ri := p2pcommon.RemoteInfo{Meta: meta, Connection: conn}
 				mPeer := p2pmock.NewMockRemotePeer(ctrl)
 				mPeer.EXPECT().ID().Return(pids[i])
 				mPeer.EXPECT().RemoteInfo().Return(ri).MaxTimes(2)
-				mPeer.EXPECT().Name().Return("peer "+pids[i].ShortString()).AnyTimes()
+				mPeer.EXPECT().Name().Return("peer " + pids[i].ShortString()).AnyTimes()
 				if tt.inWhite[i] == 0 {
 					mPeer.EXPECT().Stop()
 				}
 
 				peers[i] = mPeer
-				mockLM.EXPECT().IsBanned(addr, pids[i]).Return(tt.inWhite[i]==0, list.FarawayFuture)
+				mockLM.EXPECT().IsBanned(addr, pids[i]).Return(tt.inWhite[i] == 0, list.FarawayFuture)
 			}
 			mockPM.EXPECT().GetPeers().Return(peers)
 			p2ps := &P2P{
@@ -130,5 +130,11 @@ func TestP2P_banIfFound(t *testing.T) {
 
 			p2ps.checkAndBanInboundPeers()
 		})
+	}
+}
+
+func checkPanic(t *testing.T, wantPanic bool) {
+	if r := recover(); (r != nil) != wantPanic {
+		t.Errorf("panic of NewListManager() %v, want %v", r != nil, wantPanic)
 	}
 }

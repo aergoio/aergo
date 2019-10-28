@@ -87,7 +87,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPPeerPool:      100,
 		NPUsePolaris:    true,
 		NPExposeSelf:    true,
-		PeerRole:        "watcher",
+		PeerRole:        "",
 	}
 }
 

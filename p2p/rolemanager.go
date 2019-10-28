@@ -24,7 +24,7 @@ type RaftRoleManager struct {
 func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
 	rm.raftMutex.Lock()
 	defer rm.raftMutex.Unlock()
-	changes := make([]p2pcommon.AttrModifier,0, len(toAdd)+len(toRemove))
+	changes := make([]p2pcommon.AttrModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
 		delete(rm.raftBP, pid)
 		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Watcher})
@@ -39,7 +39,7 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 }
 
 func (rm *RaftRoleManager) SelfRole() types.PeerRole {
-	return rm.p2ps.selfRole
+	return rm.p2ps.selfMeta.Role
 }
 
 func (rm *RaftRoleManager) GetRole(pid types.PeerID) types.PeerRole {
@@ -69,10 +69,14 @@ func (rm *RaftRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pc
 
 type DefaultRoleManager struct {
 	p2ps *P2P
+
+	agentsSet          map[types.PeerID]bool
+	bpSet              map[types.PeerID]bool
+	blockManagePeerSet map[types.PeerID]map[types.PeerID]bool
 }
 
 func (rm *DefaultRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
-	changes := make([]p2pcommon.AttrModifier,0, len(toAdd)+len(toRemove))
+	changes := make([]p2pcommon.AttrModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
 		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Watcher})
 	}
@@ -83,7 +87,7 @@ func (rm *DefaultRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.Pe
 }
 
 func (rm *DefaultRoleManager) SelfRole() types.PeerRole {
-	return rm.p2ps.selfRole
+	return rm.p2ps.selfMeta.Role
 }
 
 func (rm *DefaultRoleManager) GetRole(pid types.PeerID) types.PeerRole {
@@ -110,7 +114,33 @@ func (rm *DefaultRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p
 	return
 }
 
+func (rm *DefaultRoleManager) IsManagedAgent(peerID types.PeerID) bool {
+	_, found := rm.agentsSet[peerID]
+	return found
+}
+
+func (rm *DefaultRoleManager) IsChargedProducer(peerID types.PeerID) bool {
+	return false
+}
+
+func (rm *DefaultRoleManager) IsTossBPNotice(bpID, peerID types.PeerID) bool {
+	if bpMap, found := rm.blockManagePeerSet[peerID]; found {
+		_, foundInBP := bpMap[peerID]
+		return !foundInBP
+	}
+	return false
+}
+
+func (rm *DefaultRoleManager) ListBlockManagePeers(exclude types.PeerID) map[types.PeerID]bool {
+	return nil
+}
+
 type DposAgentRoleManager struct {
 	DefaultRoleManager
+	inChargeSet map[types.PeerID]bool
+}
 
+func (rm *DposAgentRoleManager) IsChargedProducer(peerID types.PeerID) bool {
+	_, found := rm.inChargeSet[peerID]
+	return found
 }

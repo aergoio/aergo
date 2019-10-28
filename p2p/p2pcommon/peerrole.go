@@ -18,6 +18,8 @@ type PeerRoleManager interface {
 	GetRole(pid types.PeerID) types.PeerRole
 	// NotifyNewBlockMsg selects target peers with the appropriate role and sends them a NewBlockNotice
 	NotifyNewBlockMsg(mo MsgOrder, peers []RemotePeer) (skipped, sent int)
+
+	//ListBlockManagePeers(exclude types.PeerID) map[types.PeerID]bool
 }
 
 //go:generate mockgen -source=peerrole.go -package=p2pmock -destination=../p2pmock/mock_peerrole.go
