@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -46,6 +47,9 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 		context.Staked = staked
 	case types.OpvoteParam:
+		if config.MainNetHardforkConfig.Version(blockNo) < 2 {
+			return nil, fmt.Errorf("not supported operation")
+		}
 		id, err := parseIDForProposal(&ci)
 		if err != nil {
 			return nil, err

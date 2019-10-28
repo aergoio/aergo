@@ -77,7 +77,8 @@ func TestProposalBPCount(t *testing.T) {
 	sender2.AddBalance(balance3)
 	sender3.AddBalance(balance3)
 
-	blockNo := uint64(0)
+	blockNo := uint64(20000000) //v2 block number
+	blockNo--                   //set v1
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -107,6 +108,10 @@ func TestProposalBPCount(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
+	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
+	assert.Error(t, err, "before v2")
+
+	blockNo++ //set v2
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
 	assert.NoError(t, err, "valid")
 

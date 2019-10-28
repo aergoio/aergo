@@ -365,7 +365,6 @@ func TestValidateSystemTxForVoting(t *testing.T) {
 
 	tx.Body.Payload[1] = '2'
 	_, err = ValidateSystemTx(tx.Body.Account, tx.GetBody(), nil, scs, blockNo)
-	t.Log(err.Error())
 	assert.NotNil(t, err, "failed to validate system tx for voting")
 
 	tx.Body.Payload = append(tx.Body.Payload, 'i')
@@ -492,7 +491,7 @@ func TestProposalExecute(t *testing.T) {
 
 	sender.AddBalance(balance3)
 
-	blockNo := uint64(0)
+	blockNo := uint64(20000000)
 
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
@@ -636,7 +635,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 	sender2 := getSender(t, "AmNqJN2P1MA2Uc6X5byA4mDg2iuo95ANAyWCmd3LkZe4GhJkSyr4")
 	sender2.AddBalance(balance3)
 
-	blockNo := uint64(0)
+	blockNo := uint64(20000000)
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -649,6 +648,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
+	blockNo++
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -679,7 +679,7 @@ func TestProposalExecute2(t *testing.T) {
 	sender2.AddBalance(balance3)
 	sender3.AddBalance(balance3)
 
-	blockNo := uint64(0)
+	blockNo := uint64(20000000)
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
