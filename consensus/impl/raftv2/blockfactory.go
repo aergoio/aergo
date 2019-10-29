@@ -511,6 +511,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 		state.SetPrevBlockHash(bestBlock.BlockHash()),
 		state.SetGasPrice(system.GetGasPrice()),
 	)
+	blockState.Receipts().SetHardFork(bf.bv, bi.No)
 
 	block, err := chain.GenerateBlock(bf, bi, blockState, txOp, RaftSkipEmptyBlock)
 	if err == chain.ErrBlockEmpty {
