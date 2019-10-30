@@ -947,7 +947,8 @@ func executeTx(
 		if tx.GetMaxFee(bs.GasPrice, bi.Version).Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
-		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+		var contractState *state.ContractState
+		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
 			return err
 		}

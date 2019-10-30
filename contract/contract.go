@@ -155,6 +155,15 @@ func Execute(
 		}
 		return "", events, usedFee, newVmError(err)
 	}
+	if isFeeDelegation {
+		if receiver.Balance().Cmp(usedFee) < 0 {
+			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
+		}
+	} else {
+		if sender.Balance().Cmp(usedFee) < 0 {
+			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
+		}
+	}
 
 	err = bs.StageContractState(contractState)
 	if err != nil {
@@ -251,4 +260,3 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 func useGas(version int32) bool {
 	return version >= 2 && PubNet
 }
-
