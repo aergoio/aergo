@@ -3,6 +3,8 @@ package util
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"math/big"
 	"strconv"
 	"time"
@@ -47,6 +49,7 @@ type InOutPeerAddress struct {
 }
 
 type InOutPeer struct {
+	Role      string
 	Address   InOutPeerAddress
 	BestBlock InOutBlockIdx
 	LastCheck time.Time
@@ -54,6 +57,21 @@ type InOutPeer struct {
 	Hidden    bool
 	Self      bool
 	Version   string
+}
+
+type LongInOutPeer struct {
+	InOutPeer
+	ProducerIDs []string
+	Certificates []*InOutCert
+}
+
+type InOutCert struct {
+	CertVersion uint32
+	ProducerID string
+	CreateTime time.Time
+	ExpireTime time.Time
+	AgentID string
+	Addresses []string
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -224,6 +242,7 @@ func ConvBlock(b *types.Block) *InOutBlock {
 
 func ConvPeer(p *types.Peer) *InOutPeer {
 	out := &InOutPeer{}
+	out.Role = p.Address.Role.String()
 	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
 	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
@@ -237,6 +256,28 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 		out.Version = p.Version
 	} else {
 		out.Version = "(old)"
+	}
+	return out
+}
+
+func ConvPeerLong(p *types.Peer) *LongInOutPeer {
+	out := &LongInOutPeer{InOutPeer:*ConvPeer(p)}
+	if p.Address.Role == types.PeerRole_Agent {
+		out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
+		for i,pid := range p.Address.ProducerIDs {
+			out.ProducerIDs[i] = base58.Encode(pid)
+		}
+		out.Certificates =  make([]*InOutCert, len(p.Certificates))
+		for i,cert := range p.Certificates {
+			addrs := []string{}
+			for _, ad := range cert.AgentAddress {
+				addrs = append(addrs, string(ad))
+			}
+			out.Certificates[i] = &InOutCert{CertVersion:cert.CertVersion,
+				ProducerID:base58.Encode(cert.BPID), AgentID:base58.Encode(cert.AgentID),
+				CreateTime:time.Unix(0, cert.CreateTime), ExpireTime:time.Unix(0, cert.ExpireTime),
+				Addresses:addrs	}
+		}
 	}
 	return out
 }
@@ -280,7 +321,21 @@ func PeerListToString(p *types.PeerList) string {
 	}
 	return toString(peers)
 }
-
+func ShortPeerListToString(p *types.PeerList) string {
+	var peers []string
+	for _, peer := range p.GetPeers() {
+		pa := peer.Address
+		peers = append(peers, fmt.Sprintf("%s;%s/%d;%s;%d",p2putil.ShortForm(types.PeerID(pa.PeerID)),pa.Address,pa.Port,pa.Role.String(), peer.Bestblock.BlockNo))
+	}
+	return toString(peers)
+}
+func LongPeerListToString(p *types.PeerList) string {
+	peers := []*LongInOutPeer{}
+	for _, peer := range p.GetPeers() {
+		peers = append(peers, ConvPeerLong(peer))
+	}
+	return toString(peers)
+}
 func toString(out interface{}) string {
 	jsonout, err := json.MarshalIndent(out, "", " ")
 	if err != nil {
