@@ -5,10 +5,11 @@
 package mempool
 
 import (
-	"github.com/aergoio/aergo/config"
 	"math/big"
 	"math/rand"
 	"testing"
+
+	"github.com/aergoio/aergo/config"
 
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/types"
@@ -20,6 +21,7 @@ var dummyMempool = &MemPool{
 			V2: 0,
 		},
 	},
+	bestBlockInfo: getCurrentBestBlockInfoMock(),
 }
 
 func NewState(nonce uint64, bal uint64) *types.State {

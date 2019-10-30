@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -103,7 +102,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 	// corresponding to VotingDeley (currently 24h). This time limit is check
 	// against this block number (Staking.When). Due to this, the Staking value
 	// on the state DB must be updated even for voting.
-	staked.SetWhen(cmd.BlockNo)
+	staked.SetWhen(cmd.BlockInfo.No)
 
 	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeVote
@@ -119,7 +118,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		return nil, err
 	}
 
-	if config.MainNetHardforkConfig.Version(cmd.BlockNo) < 2 {
+	if cmd.BlockInfo.Version < 2 {
 		cmd.add = func(v *types.Vote) error {
 			return cmd.voteResult.AddVote(v)
 		}
@@ -217,7 +216,7 @@ func refreshAllVote(context *SystemContext) error {
 			if err != nil {
 				return err
 			}
-			if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockNo {
+			if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockInfo.No {
 				continue
 			}
 		}

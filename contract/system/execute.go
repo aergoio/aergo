@@ -17,14 +17,14 @@ import (
 
 //SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
-	BlockNo  types.BlockNo
-	Call     *types.CallInfo
-	Args     []string
-	Staked   *types.Staking
-	Vote     *types.Vote // voting
-	Proposal *Proposal   // voting
-	Sender   *state.V
-	Receiver *state.V
+	BlockInfo *types.BlockHeaderInfo
+	Call      *types.CallInfo
+	Args      []string
+	Staked    *types.Staking
+	Vote      *types.Vote // voting
+	Proposal  *Proposal   // voting
+	Sender    *state.V
+	Receiver  *state.V
 
 	op     types.OpSysTx
 	scs    *state.ContractState
@@ -32,8 +32,8 @@ type SystemContext struct {
 }
 
 func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
-	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
+	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
+	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -59,16 +59,16 @@ type sysCmd interface {
 type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
 
 func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockNo uint64) (sysCmd, error) {
+	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (sysCmd, error) {
 
 	cmds := map[types.OpSysTx]sysCmdCtor{
-		types.OpvoteBP:       newVoteCmd,
+		types.OpvoteBP:    newVoteCmd,
 		types.OpvoteParam: newVoteCmd,
-		types.Opstake:        newStakeCmd,
-		types.Opunstake:      newUnstakeCmd,
+		types.Opstake:     newStakeCmd,
+		types.Opunstake:   newUnstakeCmd,
 	}
 
-	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockNo)
+	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +82,9 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 }
 
 func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
-	cmd, err := newSysCmd(sender.ID(), txBody, sender, receiver, scs, blockNo)
+	cmd, err := newSysCmd(sender.ID(), txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}

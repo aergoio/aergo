@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -16,12 +15,14 @@ import (
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
 func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
-	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
+	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
 		return nil, types.ErrTxInvalidPayload
 	}
-	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo, op: types.GetOpSysTx(ci.Name), scs: scs, txBody: txBody}
+	blockNo := blockInfo.No
+
+	context := &SystemContext{Call: &ci, Sender: sender, BlockInfo: blockInfo, op: types.GetOpSysTx(ci.Name), scs: scs, txBody: txBody}
 
 	switch context.op {
 	case types.Opstake:
@@ -47,7 +48,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 		context.Staked = staked
 	case types.OpvoteParam:
-		if config.MainNetHardforkConfig.Version(blockNo) < 2 {
+		if blockInfo.Version < 2 {
 			return nil, fmt.Errorf("not supported operation")
 		}
 		id, err := parseIDForProposal(&ci)

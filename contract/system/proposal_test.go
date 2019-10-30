@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
@@ -77,8 +78,7 @@ func TestProposalBPCount(t *testing.T) {
 	sender2.AddBalance(balance3)
 	sender3.AddBalance(balance3)
 
-	blockNo := uint64(20000000) //v2 block number
-	blockNo--                   //set v1
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
 	stakingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -87,17 +87,17 @@ func TestProposalBPCount(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err := ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockNo)
+	_, err := ExecuteSystemTx(scs, stakingTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	stakingTx.Body.Account = sender2.ID()
-	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender2, receiver, blockNo)
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender2.Balance(), "sender.Balance() should be 2 after staking")
 
 	stakingTx.Body.Account = sender3.ID()
-	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender3, receiver, blockNo)
+	_, err = ExecuteSystemTx(scs, stakingTx.GetBody(), sender3, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender3.Balance(), "sender.Balance() should be 2 after staking")
 
@@ -108,11 +108,12 @@ func TestProposalBPCount(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
+	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "before v2")
 
-	blockNo++ //set v2
-	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockNo)
+	blockInfo.No++ //set v2
+	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 
 	assert.Equal(t, 3, GetBpCount(), "check bp")
@@ -120,7 +121,7 @@ func TestProposalBPCount(t *testing.T) {
 	validCandiTx.Body.Account = sender2.ID()
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`)
 
-	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockNo)
+	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, 13, GetBpCount(), "check bp")
 }

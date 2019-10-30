@@ -19,7 +19,7 @@ import (
 )
 
 func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
-	blockNo types.BlockNo) ([]*types.Event, error) {
+	blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	if len(txBody.Payload) <= 0 {
 		return nil, types.ErrTxFormatInvalid
@@ -31,10 +31,11 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	if err != nil {
 		return nil, err
 	}
+	blockNo := blockInfo.No
 	var events []*types.Event
 	switch governance {
 	case types.AergoSystem:
-		events, err = system.ExecuteSystemTx(scs, txBody, sender, receiver, blockNo)
+		events, err = system.ExecuteSystemTx(scs, txBody, sender, receiver, blockInfo)
 	case types.AergoName:
 		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
 	case types.AergoEnterprise:

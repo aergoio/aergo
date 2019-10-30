@@ -148,7 +148,8 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildStakingPayload(true)
 
-	stake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, 0)
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
+	stake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")
 	_, err = stake.run()
 	assert.NoError(t, err, "staking failed")
@@ -156,7 +157,8 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 		"sender.Balance() should be reduced after staking")
 
 	tx.Body.Payload = buildVotingPayload(1)
-	voting, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay)
+	blockInfo.No += VotingDelay
+	voting, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
 	_, err = voting.run()
 	assert.NoError(t, err, "voting failed")
@@ -168,10 +170,11 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, VotingDelay)
+	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, blockInfo)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
-	unstake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, VotingDelay+StakingDelay)
+	blockInfo.No += StakingDelay
+	unstake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "unstaking failed")
 	_, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")

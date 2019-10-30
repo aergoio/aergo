@@ -1260,7 +1260,7 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		C.luaL_setsyserror(L)
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
-	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, ctx.blockInfo.No)
+	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, ctx.blockInfo)
 	if err != nil {
 		rErr := clearRecovery(L, ctx, seq, true)
 		if rErr != nil {

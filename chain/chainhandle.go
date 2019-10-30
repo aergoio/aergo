@@ -938,7 +938,7 @@ func executeTx(
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi.No)
+		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

@@ -41,7 +41,7 @@ func newStakeCmd(ctx *SystemContext) (sysCmd, error) {
 	)
 
 	staked.Add(cmd.amount)
-	staked.SetWhen(cmd.BlockNo)
+	staked.SetWhen(cmd.BlockInfo.No)
 
 	return cmd, nil
 }
@@ -91,7 +91,7 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	)
 
 	//blockNo will be updated in voting
-	staked.SetWhen(c.BlockNo)
+	staked.SetWhen(c.BlockInfo.No)
 
 	if err := c.updateStaking(); err != nil {
 		return nil, err

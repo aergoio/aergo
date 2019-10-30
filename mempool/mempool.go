@@ -54,12 +54,12 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
-	sdb         *state.ChainStateDB
-	bestBlockID types.BlockID
-	bestBlockNo types.BlockNo
-	stateDB     *state.StateDB
-	verifier    *actor.PID
-	orphan      int
+	sdb           *state.ChainStateDB
+	bestBlockID   types.BlockID
+	bestBlockInfo *types.BlockHeaderInfo
+	stateDB       *state.StateDB
+	verifier      *actor.PID
+	orphan        int
 	//cache       map[types.TxID]types.Transaction
 	cache       sync.Map
 	length      int
@@ -112,6 +112,7 @@ func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
 		mp.bestBlockID = getCurrentBestBlockNoMock()
+		mp.bestBlockInfo = getCurrentBestBlockInfoMock()
 	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
@@ -361,7 +362,7 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			reorged = false //reorg case
 		}
 		mp.bestBlockID = newBlockID
-		mp.bestBlockNo = block.GetHeader().GetBlockNo()
+		mp.bestBlockInfo = types.NewBlockHeaderInfo(block)
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
@@ -528,7 +529,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 }
 
 func (mp *MemPool) nextBlockVersion() int32 {
-	return mp.cfg.Hardfork.Version(mp.bestBlockNo + 1)
+	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No)
 }
 
 // check tx sanity
@@ -586,7 +587,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 			if _, err := system.ValidateSystemTx(account, tx.GetBody(),
-				sender, scs, mp.bestBlockNo+1); err != nil {
+				sender, scs, mp.bestBlockInfo); err != nil {
 				return err
 			}
 		case types.AergoName:
@@ -610,7 +611,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if err != nil {
 				return err
 			}
-			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockNo+1); err != nil {
+			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockInfo.No+1); err != nil {
 				return err
 			}
 		}
