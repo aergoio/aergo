@@ -157,14 +157,24 @@ static int pcall(lua_State *L, int narg, int nret)
     return err;
 }
 
+static int cp_setLuaExecContext(lua_State *L)
+{
+    int *service = (int *)lua_topointer(L, 1);
+    setLuaExecContext(L, service);
+    return 0;
+}
+
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
 	int err;
 
-	setLuaExecContext(L, service);
+	err = lua_cpcall(L, cp_setLuaExecContext, service);
+    if (err != 0) {
+	    return lua_tostring(L, -1);
+	}
 
-	err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0);
-	if (err != 0) {
+    err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0);
+    if (err != 0) {
 	    return lua_tostring(L, -1);
 	}
 

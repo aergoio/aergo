@@ -267,6 +267,7 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
+	refreshGas(ctx, L)
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer ce.close()
 
@@ -364,6 +365,7 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
+	refreshGas(ctx, L)
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer ce.close()
 
@@ -456,6 +458,7 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
+		refreshGas(ctx, L)
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer ce.close()
 		if ce.err != nil {
@@ -1095,6 +1098,7 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
+	refreshGas(ctx, L)
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	if ce != nil {
 		defer ce.close()

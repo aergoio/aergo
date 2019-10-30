@@ -211,7 +211,7 @@ func (s *vmContext) usedFee() *big.Int {
 		return fee.NewZeroFee()
 	}
 	if vmIsGasSystem(s) {
-		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(s.gasLimit - s.remainedGas))
+		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(s.gasLimit-s.remainedGas))
 	}
 	return fee.PaymentDataFee(s.dbUpdateTotalSize)
 }
@@ -292,6 +292,7 @@ func newExecutor(
 	ctx.service = -1
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
+	defer ce.refreshGas()
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&contract[0])),
@@ -491,6 +492,7 @@ func checkPayable(callee *types.Function, amount *big.Int) error {
 }
 
 func (ce *executor) call(target *LState) C.int {
+	defer ce.refreshGas()
 	if ce.err != nil {
 		return 0
 	}
@@ -646,10 +648,18 @@ func (ce *executor) close() {
 	if ce != nil {
 		if ce.ctx != nil {
 			ce.ctx.callDepth--
-			ce.ctx.remainedGas -= uint64(C.lua_gasget(ce.L))
+			ce.refreshGas()
 		}
 		freeLState(ce.L)
 	}
+}
+
+func (ce *executor) refreshGas() {
+	refreshGas(ce.ctx, ce.L)
+}
+
+func refreshGas(ctx *vmContext, L *LState) {
+	ctx.remainedGas = uint64(C.lua_gasget(L))
 }
 
 func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
