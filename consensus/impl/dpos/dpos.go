@@ -147,11 +147,6 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		reward = new(big.Int).Set(vaultBalance)
 	}
 
-	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
-	if err = bState.PutState(vaultID, vs); err != nil {
-		return err
-	}
-
 	addr, err := system.PickVotingRewardWinner(vrSeed(bState.PrevBlockHash()))
 	if err != nil {
 		logger.Debug().Err(err).Msg("no voting reward winner")
@@ -170,6 +165,11 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 
 	err = bState.PutState(ID, s)
 	if err != nil {
+		return err
+	}
+
+	vs.Balance = vaultBalance.Sub(vaultBalance, reward).Bytes()
+	if err = bState.PutState(vaultID, vs); err != nil {
 		return err
 	}
 
