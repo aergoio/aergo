@@ -69,15 +69,22 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if int64(len(candis)) > int64(proposal.MultipleChoice) {
 			return nil, fmt.Errorf("too many candidates arguments (max : %d)", proposal.MultipleChoice)
 		}
+		for _, c := range candis {
+			candidate, ok := c.(string)
+			if !ok {
+				return nil, fmt.Errorf("include invalid candidate")
+			}
+			_, ok = new(big.Int).SetString(candidate, 10)
+			if !ok {
+				return nil, fmt.Errorf("include invalid count")
+			}
+		}
 		sort.Slice(proposal.Candidates, func(i, j int) bool {
 			return proposal.Candidates[i] <= proposal.Candidates[j]
 		})
 		if len(proposal.Candidates) != 0 {
 			for _, c := range candis {
-				candidate, ok := c.(string)
-				if !ok {
-					return nil, fmt.Errorf("include invalid candidate")
-				}
+				candidate, _ := c.(string) //already checked
 				i := sort.SearchStrings(proposal.Candidates, candidate)
 				if i < len(proposal.Candidates) && proposal.Candidates[i] == candidate {
 					//fmt.Printf("Found %s at index %d in %v.\n", x, i, a)

@@ -595,6 +595,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, invalidaVersionTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "the proposal is not created (numbp, non)")
 
+	//deprecated
 	tooEarlyTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -604,26 +605,28 @@ func TestProposalExecuteFail1(t *testing.T) {
 	}
 	_, err = ExecuteSystemTx(scs, tooEarlyTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "the voting begins at 1")
+
 	blockInfo.No += 10
+	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	tooManyCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteParam", "Args":["numbp", "13","23","17"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13","23","17"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
 	_, err = ExecuteSystemTx(scs, tooManyCandiTx.GetBody(), sender, receiver, blockInfo)
-	assert.Error(t, err, "too many candidates arguments (max : 2)")
+	assert.Error(t, err, "too many candidates arguments (max : 1)")
 
 	invalidCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteParam", "Args":["numbp", "ab"]}`),
+			Payload: []byte(`{"Name":"v1voteParam", "Args":["bpcount", "ab"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
 	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
-	assert.Error(t, err, "candidate should be in [13 23 17]")
+	assert.Error(t, err, "include invalid count")
 
 	blockInfo.No += VotingDelay
 	tooLateTx := tooEarlyTx
