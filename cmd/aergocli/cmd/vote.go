@@ -20,12 +20,13 @@ import (
 
 var revert bool
 var voteId string
+var voteStatId string
 var voteVersion string
 
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
-	voteStatCmd.Flags().StringVar(&voteId, "id", "bpcount", "system paramter")
+	voteStatCmd.Flags().StringVar(&voteStatId, "id", "bpcount", "system paramter")
 	voteStatCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 	rootCmd.AddCommand(bpCmd)
 	bpCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
@@ -141,7 +142,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	} else if fflags.Changed("id") == true {
 		msg, err := client.GetVotes(context.Background(), &types.VoteParams{
-			Id:    voteId,
+			Id:    voteStatId,
 			Count: uint32(number),
 		})
 		if err != nil {
