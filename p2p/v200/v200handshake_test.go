@@ -424,3 +424,52 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestV200Handshaker_checkAgent(t *testing.T) {
+	type fields struct {
+		cm               p2pcommon.CertificateManager
+		vm               p2pcommon.VersionedManager
+		selfMeta         p2pcommon.PeerMeta
+		actor            p2pcommon.ActorService
+		logger           *log.Logger
+		peerID           types.PeerID
+		msgRW            p2pcommon.MsgReadWriter
+		localGenesisHash []byte
+		remoteMeta       p2pcommon.PeerMeta
+		remoteCerts      []*p2pcommon.AgentCertificateV1
+		remoteHash       types.BlockID
+		remoteNo         types.BlockNo
+	}
+	type args struct {
+		status *types.Status
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &V200Handshaker{
+				cm:               tt.fields.cm,
+				vm:               tt.fields.vm,
+				selfMeta:         tt.fields.selfMeta,
+				actor:            tt.fields.actor,
+				logger:           tt.fields.logger,
+				peerID:           tt.fields.peerID,
+				msgRW:            tt.fields.msgRW,
+				localGenesisHash: tt.fields.localGenesisHash,
+				remoteMeta:       tt.fields.remoteMeta,
+				remoteCerts:      tt.fields.remoteCerts,
+				remoteHash:       tt.fields.remoteHash,
+				remoteNo:         tt.fields.remoteNo,
+			}
+			if err := h.checkAgent(tt.args.status); (err != nil) != tt.wantErr {
+				t.Errorf("checkAgent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

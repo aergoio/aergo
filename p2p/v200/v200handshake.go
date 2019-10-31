@@ -56,7 +56,7 @@ func (h *V200Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 }
 
 func NewV200VersionedHS(meta p2pcommon.PeerMeta, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, cm p2pcommon.CertificateManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V200Handshaker {
-	h := &V200Handshaker{selfMeta:meta, actor: actor, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm, cm:cm}
+	h := &V200Handshaker{selfMeta: meta, actor: actor, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm, cm: cm}
 	// msg format is not changed
 	h.msgRW = v030.NewV030MsgPipe(rwc)
 	return h
@@ -296,7 +296,7 @@ func (h *V200Handshaker) checkAgent(status *types.Status) error {
 		certs[i] = cert
 	}
 	h.remoteCerts = certs
-	return ErrInvalidAgentStatus
+	return nil
 }
 
 func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *types.Block) (*types.Status, error) {
@@ -319,13 +319,10 @@ func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *ty
 
 	if h.selfMeta.Role == types.PeerRole_Agent {
 		cs := h.cm.GetCertificates()
-		pcs := make([]*types.AgentCertificate, len(cs))
-		for i, c := range cs {
-			pcs[i], err = p2putil.ConvertCertToProto(c)
-			if err != nil {
-				h.logger.Error().Err(err).Str("bpID", p2putil.ShortForm(c.BPID)).Msg("failed to convert certificate")
-				return nil, errors.New("internal error")
-			}
+		pcs, err := p2putil.ConvertCertsToProto(cs)
+		if err != nil {
+			h.logger.Error().Err(err).Msg("failed to convert certificates")
+			return nil, errors.New("internal error")
 		}
 		statusMsg.Certificates = pcs
 	}

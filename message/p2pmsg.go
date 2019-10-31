@@ -124,6 +124,7 @@ type GetPeers struct {
 
 type PeerInfo struct {
 	Addr            *types.PeerAddress
+	Certificates    []*types.AgentCertificate
 	Version         string
 	Hidden          bool
 	CheckTime       time.Time
@@ -223,10 +224,18 @@ type SendRaftRsp struct {
 
 type P2PWhiteListConfEnableEvent struct {
 	Name string
-	On bool
+	On   bool
 }
 
 type P2PWhiteListConfSetEvent struct {
-	Name string
+	Name   string
 	Values []string
+}
+
+type IssueAgentCertificate struct {
+	ProducerID types.PeerID
+}
+
+type NotifyCertRenewed struct {
+	Cert *types.AgentCertificate
 }

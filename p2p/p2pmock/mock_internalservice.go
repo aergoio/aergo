@@ -89,3 +89,17 @@ func (mr *MockInternalServiceMockRecorder) GetChainAccessor() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainAccessor", reflect.TypeOf((*MockInternalService)(nil).GetChainAccessor))
 }
+
+// CertificateManager mocks base method
+func (m *MockInternalService) CertificateManager() p2pcommon.CertificateManager {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CertificateManager")
+	ret0, _ := ret[0].(p2pcommon.CertificateManager)
+	return ret0
+}
+
+// CertificateManager indicates an expected call of CertificateManager
+func (mr *MockInternalServiceMockRecorder) CertificateManager() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CertificateManager", reflect.TypeOf((*MockInternalService)(nil).CertificateManager))
+}

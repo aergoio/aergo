@@ -97,7 +97,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
 	// set selfMeta.Role and init role manager
 	p2ps.prm = p2ps.initRoleManager(p2ps.useRaft, p2ps.selfMeta.Role)
-	p2ps.cm = newCertificateManager(p2ps.selfMeta)
+	p2ps.cm = newCertificateManager(p2ps, p2ps.selfMeta, p2ps.Logger)
 
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
@@ -111,9 +111,10 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	metricMan := metric.NewMetricManager(10)
 	peerMan := NewPeerManager(p2ps, p2ps, p2ps, p2ps, netTransport, metricMan, lm, p2ps.Logger, cfg, p2ps.useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.genesisChainID)
+	versionMan := newDefaultVersionManager(p2ps, p2ps, peerMan, p2ps.ca, p2ps.Logger, p2ps.genesisChainID)
 
 	// connect managers each other
+	peerMan.AddPeerEventListener(p2ps.cm)
 
 	p2ps.mutex.Lock()
 	p2ps.signer = signer
@@ -164,6 +165,7 @@ func (p2ps *P2P) AfterStart() {
 		panic("Failed to start p2p component")
 	}
 	p2ps.mm.Start()
+	p2ps.cm.Start()
 }
 
 func (p2ps *P2P) checkConsensus() {
@@ -179,6 +181,7 @@ func (p2ps *P2P) checkConsensus() {
 // BeforeStop is called before actor hub stops. it finishes underlying peer manager
 func (p2ps *P2P) BeforeStop() {
 	p2ps.Logger.Debug().Msg("stopping p2p actor.")
+	p2ps.cm.Stop()
 	p2ps.mm.Stop()
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
@@ -304,6 +307,10 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.lm.RefineList()
 		// disconnect newly blacklisted peer.
 		p2ps.checkAndBanInboundPeers()
+	case message.IssueAgentCertificate:
+		p2ps.SendIssueCertMessage(context, msg)
+	case message.NotifyCertRenewed:
+		p2ps.NotifyCertRenewed(context, msg)
 	}
 }
 
@@ -472,4 +479,9 @@ func (p2ps *P2P) GetPeerBlockInfos() []types.PeerBlockInfo {
 
 func (p2ps *P2P) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
 	return p2ps.pm.GetPeer(ID)
+}
+
+func (p2ps *P2P) CertificateManager() p2pcommon.CertificateManager {
+	// return dummy value
+	return p2ps.cm
 }

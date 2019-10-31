@@ -40,6 +40,7 @@ type peerManager struct {
 	peerFactory       p2pcommon.PeerFactory
 	mm                metric.MetricsManager
 	lm                p2pcommon.ListManager
+	cm                p2pcommon.CertificateManager
 	skipHandshakeSync bool
 
 	peerFinder p2pcommon.PeerFinder
@@ -153,6 +154,8 @@ func (pm *peerManager) init() {
 
 	pm.peerFinder = NewPeerFinder(pm.logger, pm, pm.actorService, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers, pm.conf.NPUsePolaris)
 	pm.wpManager = NewWaitingPeerManager(pm.logger, pm, pm.lm, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers)
+	pm.AddPeerEventListener(pm.peerFinder)
+	pm.AddPeerEventListener(pm.wpManager)
 	// add designated peers to waiting pool at initial time.
 	for _, meta := range pm.designatedPeers {
 		if _, foundInWait := pm.waitingPeers[meta.ID]; !foundInWait {
@@ -168,6 +171,8 @@ func (pm *peerManager) AddPeerEventListener(l p2pcommon.PeerEventListener) {
 }
 
 func (pm *peerManager) Start() error {
+	// connect other sub modules
+	pm.cm = pm.is.CertificateManager()
 	go pm.runManagePeers()
 
 	return nil
@@ -228,9 +233,6 @@ MANLOOP:
 			}
 		case hsreslt := <-pm.peerHandshaked:
 			if peer := pm.tryRegister(hsreslt); peer != nil {
-				pm.peerFinder.OnPeerConnect(peer.ID())
-				pm.wpManager.OnPeerConnect(peer.ID())
-
 				pm.checkSync(peer)
 
 				// query other peers
@@ -241,8 +243,7 @@ MANLOOP:
 			}
 		case peer := <-pm.removePeerChannel:
 			if pm.removePeer(peer) {
-				pm.peerFinder.OnPeerDisconnect(peer)
-				pm.wpManager.OnPeerDisconnect(peer)
+				// add code if needed
 			}
 			if !connManTimer.Stop() {
 				<-connManTimer.C
@@ -467,8 +468,10 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		if err != nil {
 			return nil
 		}
+		// TODO add self certificates if local peer is agent
+		localCerts, err := p2putil.ConvertCertsToProto(pm.cm.GetCertificates())
 		selfpi := &message.PeerInfo{
-			&addr, meta.Version, meta.Hidden, time.Now(), bestBlk.BlockHash(), bestBlk.Header.BlockNo, types.RUNNING, true}
+			Addr: &addr, Certificates: localCerts, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}
 		peers = append(peers, selfpi)
 	}
 	for _, aPeer := range pm.peerCache {
@@ -478,8 +481,9 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		}
 		addr := meta.ToPeerAddress()
 		lastStatus := aPeer.LastStatus()
+		rCerts, _ := p2putil.ConvertCertsToProto(aPeer.RemoteInfo().Certificates)
 		pi := &message.PeerInfo{
-			&addr, meta.Version, meta.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
+			&addr, rCerts, meta.Version, meta.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers
@@ -506,10 +510,10 @@ func (pm *peerManager) updatePeerCache() {
 	for _, rPeer := range pm.remotePeers {
 		newSlice = append(newSlice, rPeer)
 		// TODO need
-		if rPeer.Role() == types.PeerRole_Producer ||  rPeer.Role() == types.PeerRole_Agent {
-			newWSlice  = append(newWSlice, rPeer)
+		if rPeer.Role() == types.PeerRole_Producer || rPeer.Role() == types.PeerRole_Agent {
+			newWSlice = append(newWSlice, rPeer)
 		} else {
-			newBSlice  = append(newBSlice, rPeer)
+			newBSlice = append(newBSlice, rPeer)
 		}
 
 	}

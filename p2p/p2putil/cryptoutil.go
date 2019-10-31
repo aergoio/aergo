@@ -5,6 +5,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
+// ConvertPKToBTCEC return nil if converison is failed
 func ConvertPKToBTCEC(pk crypto.PrivKey) *btcec.PrivateKey {
 	raw, err := pk.Raw()
 	if err != nil {
@@ -14,6 +15,7 @@ func ConvertPKToBTCEC(pk crypto.PrivKey) *btcec.PrivateKey {
 	return priv
 }
 
+// ConvertPubKeyToBTCEC return nil if converison is failed
 func ConvertPubKeyToBTCEC(pk crypto.PubKey) *btcec.PublicKey {
 	raw, err := pk.Raw()
 	if err != nil {
@@ -22,6 +24,8 @@ func ConvertPubKeyToBTCEC(pk crypto.PubKey) *btcec.PublicKey {
 	pub, _ := btcec.ParsePubKey(raw, btcec.S256())
 	return pub
 }
+
+// ConvertPKToLibP2P return nil if converison is failed
 func ConvertPKToLibP2P(pk  *btcec.PrivateKey) crypto.PrivKey {
 	libp2pKey, err := crypto.UnmarshalSecp256k1PrivateKey(pk.Serialize())
 	if err != nil {
@@ -31,6 +35,7 @@ func ConvertPKToLibP2P(pk  *btcec.PrivateKey) crypto.PrivKey {
 }
 
 
+// ConvertPubToLibP2P return nil if converison is failed
 func ConvertPubToLibP2P(pk  *btcec.PublicKey) crypto.PubKey {
 	libp2pKey, err := crypto.UnmarshalSecp256k1PublicKey(pk.SerializeCompressed())
 	if err != nil {

@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	timeErrorTolerance = time.Minute
+	TimeErrorTolerance = time.Minute
+	DefaultCertTTL = time.Hour * 6
+	DefaultExpireBufTerm = time.Hour * 6
 )
 
 func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificate, error) {
@@ -45,6 +47,18 @@ func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificat
 		return nil, err
 	}
 	return protoC, nil
+}
+
+func ConvertCertsToProto(cs []*p2pcommon.AgentCertificateV1) ([]*types.AgentCertificate, error) {
+	var err error
+	ret := make([]*types.AgentCertificate,len(cs))
+	for i, c := range cs {
+		ret[i], err = ConvertCertToProto(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ret, nil
 }
 
 // NewAgentCertV1 create certificate object
@@ -93,9 +107,8 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	wrap.CreateTime = time.Unix(0, int64(cert.CreateTime))
 	wrap.ExpireTime = time.Unix(0, int64(cert.ExpireTime))
 	now := time.Now()
-	// create time is adjusted by time error, but expire time is not.
-	if ( wrap.CreateTime.Sub(now) >= timeErrorTolerance ) ||
-		wrap.ExpireTime.Before(now) {
+	// check certificate is valid
+	if !wrap.IsValidInTime(now, TimeErrorTolerance) {
 		return nil, p2pcommon.ErrInvalidCertField
 	}
 	wrap.AgentID, err = peer.IDFromBytes(cert.AgentID)

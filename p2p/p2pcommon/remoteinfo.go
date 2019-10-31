@@ -1,6 +1,8 @@
 package p2pcommon
 
-import "net"
+import (
+	"net"
+)
 
 // RemoteConn is information of single peer connection
 type RemoteConn struct {

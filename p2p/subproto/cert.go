@@ -63,7 +63,7 @@ func (h *issueCertRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommo
 
 // newAddressesRespHandler creates handler for PingRequest
 func NewIssueCertRespHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *issueCertResponseHandler {
-	ph := &issueCertResponseHandler{BaseMsgHandler{protocol: p2pcommon.IssueCertificateResponse, pm: pm, peer: peer, actor: actor, logger: logger}, nil}
+	ph := &issueCertResponseHandler{BaseMsgHandler{protocol: p2pcommon.IssueCertificateResponse, pm: pm, peer: peer, actor: actor, logger: logger}, cm}
 	return ph
 }
 
@@ -95,7 +95,7 @@ type certRenewedNoticeHandler struct {
 
 // newAddressesRespHandler creates handler for PingRequest
 func NewCertRenewedNoticeHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *certRenewedNoticeHandler {
-	ph := &certRenewedNoticeHandler{BaseMsgHandler{protocol: p2pcommon.CertificateRenewedNotice, pm: pm, peer: peer, actor: actor, logger: logger}, nil}
+	ph := &certRenewedNoticeHandler{BaseMsgHandler{protocol: p2pcommon.CertificateRenewedNotice, pm: pm, peer: peer, actor: actor, logger: logger}, cm}
 	return ph
 }
 
@@ -106,11 +106,18 @@ func (h *certRenewedNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.Mess
 func (h *certRenewedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := h.peer
 	data := msgBody.(*types.CertificateRenewedNotice)
-	p2putil.DebugLogReceiveResponse(h.logger, h.protocol, msg.ID().String(), msg.OriginalID().String(), remotePeer, data)
+	p2putil.DebugLogReceive(h.logger, h.protocol, msg.ID().String(), remotePeer, data)
 
 	// TODO check authorization (i.e. if remotePeer is agent )
+	if remotePeer.Role() != types.PeerRole_Agent {
+		h.logger.Debug().Str("role", remotePeer.Role().String()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("invalid peer status. peer is not agent")
+		return
+	}
 	// verify certificate
-	// add certificate to peer
-
-
+	cert, err := p2putil.CheckAndGetV1(data.Certificate)
+	if err != nil {
+		h.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Err(err).Msg("cert verification failed")
+		return
+	}
+	remotePeer.AddCertificate(cert)
 }

@@ -222,8 +222,8 @@ func createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound b
 	}
 
 	connection := p2pcommon.RemoteConn{IP: ip, Port: port, Outbound: outbound}
-	rc := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden, Certificates:r.Certificates}
-	return rc
+	ri := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden, Certificates:r.Certificates}
+	return ri
 }
 
 func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {

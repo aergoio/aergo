@@ -27,8 +27,8 @@ type defaultVersionManager struct {
 	localChainID *types.ChainID
 }
 
-func newDefaultVersionManager(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, ca types.ChainAccessor, logger *log.Logger, localChainID *types.ChainID) *defaultVersionManager {
-	return &defaultVersionManager{pm: pm, actor: actor, ca: ca, logger: logger, localChainID: localChainID}
+func newDefaultVersionManager(is p2pcommon.InternalService, actor p2pcommon.ActorService, pm p2pcommon.PeerManager, ca types.ChainAccessor, logger *log.Logger, localChainID *types.ChainID) *defaultVersionManager {
+	return &defaultVersionManager{is:is, pm: pm, actor: actor, ca: ca, logger: logger, localChainID: localChainID}
 }
 
 func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {
@@ -45,7 +45,7 @@ func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVers
 func (vm *defaultVersionManager) GetVersionedHandshaker(version p2pcommon.P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (p2pcommon.VersionedHandshaker, error) {
 	switch version {
 	case p2pcommon.P2PVersion200:
-		vhs := v200.NewV200VersionedHS(vm.pm.SelfMeta(), vm.actor, vm.logger, vm, nil, peerID, rwc, chain.Genesis.Block().Hash)
+		vhs := v200.NewV200VersionedHS(vm.pm.SelfMeta(), vm.actor, vm.logger, vm, vm.is.CertificateManager(), peerID, rwc, chain.Genesis.Block().Hash)
 		return vhs, nil
 	case p2pcommon.P2PVersion033:
 		vhs := v030.NewV033VersionedHS(vm.pm, vm.actor, vm.logger, vm, peerID, rwc, chain.Genesis.Block().Hash)

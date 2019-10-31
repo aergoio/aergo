@@ -52,4 +52,7 @@ type RemotePeer interface {
 
 	// TODO
 	MF() MoFactory
+
+	// AddCertificate add to my certificate list
+	AddCertificate(cert *AgentCertificateV1)
 }

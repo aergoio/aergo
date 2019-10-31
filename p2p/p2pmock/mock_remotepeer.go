@@ -363,3 +363,15 @@ func (mr *MockRemotePeerMockRecorder) MF() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MF", reflect.TypeOf((*MockRemotePeer)(nil).MF))
 }
+
+// AddCertificate mocks base method
+func (m *MockRemotePeer) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddCertificate", cert)
+}
+
+// AddCertificate indicates an expected call of AddCertificate
+func (mr *MockRemotePeerMockRecorder) AddCertificate(cert interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockRemotePeer)(nil).AddCertificate), cert)
+}

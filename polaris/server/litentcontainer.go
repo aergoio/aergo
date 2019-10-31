@@ -189,6 +189,11 @@ func (lntc *LiteContainerService) GetChainAccessor() types.ChainAccessor {
 	return nil
 }
 
+func (lntc *LiteContainerService) CertificateManager() p2pcommon.CertificateManager {
+	// return dummy value
+	return nil
+}
+
 // it is copy of initMeta() in p2p package
 func initMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMeta {
 	protocolAddr := conf.NetProtocolAddr

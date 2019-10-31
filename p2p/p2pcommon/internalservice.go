@@ -22,6 +22,8 @@ type InternalService interface {
 	GetChainAccessor() types.ChainAccessor
 	//GetConsensusAccessor() consensus.ConsensusAccessor
 
+	CertificateManager() CertificateManager
+
 	// TODO add other methods
 }
 //go:generate mockgen -source=internalservice.go  -package=p2pmock -destination=../p2pmock/mock_internalservice.go

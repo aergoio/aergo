@@ -54,6 +54,7 @@ type remotePeerImpl struct {
 	metric     *metric.PeerMetric
 	tnt        p2pcommon.TxNoticeTracer
 
+	certChan chan *p2pcommon.AgentCertificateV1
 	stopChan chan struct{}
 
 	// direct write channel
@@ -95,9 +96,9 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		lastStatus: &types.LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
-
-		requests: make(map[p2pcommon.MsgID]*requestInfo),
-		reqMutex: &sync.Mutex{},
+		certChan:   make(chan *p2pcommon.AgentCertificateV1),
+		requests:   make(map[p2pcommon.MsgID]*requestInfo),
+		reqMutex:   &sync.Mutex{},
 
 		handlers: make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
 
@@ -146,10 +147,10 @@ func (p *remotePeerImpl) Version() string {
 }
 
 func (p *remotePeerImpl) Role() types.PeerRole {
-	return p.role
+	return p.remoteInfo.Meta.Role
 }
 func (p *remotePeerImpl) ChangeRole(role types.PeerRole) {
-	p.role = role
+	p.remoteInfo.Meta.Role = role
 }
 
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
@@ -178,6 +179,7 @@ func (p *remotePeerImpl) RunPeer() {
 	go p.runRead()
 
 	txNoticeTicker := time.NewTicker(txNoticeInterval)
+	certCleanupTicker := time.NewTicker(certCleanupInterval)
 
 	// peer state is changed to RUNNING after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
 	p.state.SetAndGet(types.RUNNING)
@@ -189,6 +191,14 @@ READNOPLOOP:
 			// no operation for now
 		case <-txNoticeTicker.C:
 			p.trySendTxNotices()
+		case <-certCleanupTicker.C:
+			p.cleanupCerts()
+		case c := <-p.certChan:
+			if c != nil || p.Meta().Role == types.PeerRole_Agent {
+				p.addCert(c)
+			} else {
+				p.logger.Debug().Str("role", p.Role().String()).Str(p2putil.LogPeerName, p.Name()).Msg("invalid peer status. peer is not agent")
+			}
 		case <-p.stopChan:
 			break READNOPLOOP
 		}
@@ -511,4 +521,43 @@ func (p *remotePeerImpl) UpdateLastNotice(blkHash types.BlockID, blkNumber types
 
 func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
+}
+
+func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
+	if !containsID(p.Meta().ProducerIDs, cert.BPID) {
+		// this agent is not in charge of that bp id.
+		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID",p2putil.ShortForm(cert.BPID)).Msg("drop agent certificate, since issuer is not managed producer of remote peer")
+		return
+	}
+	if !types.IsSamePeerID(p.ID(), cert.AgentID) {
+		// this certificate is not my certificate
+		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Str("agentID", p2putil.ShortForm(cert.AgentID)).Msg("drop agent certificate, since agent id is not the remote peer")
+		return
+	}
+
+	newCerts := make([]*p2pcommon.AgentCertificateV1, 0, len(p.remoteInfo.Certificates)+1)
+	for _, oldCert := range p.remoteInfo.Certificates {
+		if !types.IsSamePeerID(oldCert.BPID, cert.BPID) {
+			// replace old certificate if it already exists.
+			newCerts = append(newCerts, oldCert)
+		}
+	}
+	newCerts = append(newCerts, cert)
+	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Time("cTime", cert.CreateTime).Time("eTime", cert.ExpireTime).Msg("agent certificate is added to certificate list of remote peer")
+	p.remoteInfo.Certificates = newCerts
+}
+
+func (p *remotePeerImpl) cleanupCerts() {
+	now := time.Now()
+	certs2 := p.remoteInfo.Certificates[:0]
+	for _, cert := range p.remoteInfo.Certificates {
+		if cert.IsValidInTime(now, p2putil.TimeErrorTolerance) {
+			certs2 = append(certs2, cert)
+		}
+	}
+	p.remoteInfo.Certificates = certs2
+}
+
+func (p *remotePeerImpl) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
+	p.certChan <- cert
 }

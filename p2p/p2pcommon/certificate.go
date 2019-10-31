@@ -21,6 +21,13 @@ const (
 	CertVersion0001 uint32 = 0x01
 )
 
+
+const (
+	timeErrorTolerance = time.Minute
+
+)
+
+
 // AgentCertificateV1 is a certificate issued by a block producer to guarantee that it is a trustworthy agent.
 type AgentCertificateV1 struct {
 	Version      uint32
@@ -33,12 +40,23 @@ type AgentCertificateV1 struct {
 	Signature    *btcec.Signature
 }
 
-func (c *AgentCertificateV1) IsValidInTime(t time.Time) bool {
+func (c *AgentCertificateV1) IsValidInTime(t time.Time, errTolerance time.Duration) bool {
 	// TODO consider the case is time error between peers
-	return t.After(c.CreateTime) && t.Before(c.ExpireTime)
+	return (c.CreateTime.Sub(t) < errTolerance ) && t.Before(c.ExpireTime)
 }
 
+func (c *AgentCertificateV1) IsNeedUpdate(t time.Time, bufTerm time.Duration) bool {
+	// TODO consider the case is time error between peers
+	return c.ExpireTime.Sub(t) < bufTerm
+}
+
+// CertificateManager manages local peer's certificates and related information
 type CertificateManager interface {
+	PeerEventListener
+
+	Start()
+	Stop()
+
 	// methods for bp
 	// CreateCertificate create certificate for the agent. It will return ErrInvalidRole error if local peer is not block producer
 	CreateCertificate(remoteMeta PeerMeta) (*AgentCertificateV1, error)
@@ -51,4 +69,4 @@ type CertificateManager interface {
 	// AddCertificate add to my certificate list
 	AddCertificate(cert *AgentCertificateV1)
 }
-//go:generate mockgen -source=certificate.go -package=p2pmock -destination=../p2pmock/mock_certificate.go
+//go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon CertificateManager | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_certificate.go"

@@ -55,8 +55,8 @@ const (
 )
 
 // AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
-var AcceptedInboundVersions = []P2PVersion{P2PVersion033, P2PVersion032, P2PVersion031}
-var AttemptingOutboundVersions = []P2PVersion{P2PVersion033, P2PVersion032, P2PVersion031}
+var AcceptedInboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
+var AttemptingOutboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
 var ExperimentalVersions = []P2PVersion{P2PVersion200}
 
 // context of multiaddr, as higher type of p2p message

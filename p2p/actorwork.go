@@ -244,3 +244,34 @@ func (p2ps *P2P) SendRaftMessage(context actor.Context, msg *message.SendRaft) {
 	remotePeer.SendMessage(p2ps.mf.NewRaftMsgOrder(body.Type, &body))
 	// return success
 }
+
+
+func (p2ps *P2P) SendIssueCertMessage(context actor.Context, msg message.IssueAgentCertificate) {
+	peerID := msg.ProducerID
+	remotePeer, exists := p2ps.pm.GetPeer(peerID)
+	if !exists {
+		return
+	}
+
+	// TODO need to check remote server version.
+	body := &types.IssueCertificateRequest{}
+	remotePeer.SendMessage(p2ps.mf.NewMsgRequestOrder(true, p2pcommon.IssueCertificateRequest, body))
+}
+
+
+func (p2ps *P2P) NotifyCertRenewed(context actor.Context, renewed message.NotifyCertRenewed) {
+	body := &types.CertificateRenewedNotice{Certificate:renewed.Cert}
+	msg := p2ps.mf.NewMsgRequestOrder(false, p2pcommon.CertificateRenewedNotice, body)
+
+	skipped, sent := 0, 0
+	for _, neighbor := range p2ps.pm.GetPeers() {
+		if neighbor != nil && neighbor.State() == types.RUNNING {
+			sent++
+			neighbor.SendMessage(msg)
+		} else {
+			skipped++
+		}
+	}
+	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str("cert", renewed.Cert.String()).Msg("Notifying certificate renewed")
+
+}
