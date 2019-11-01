@@ -69,6 +69,7 @@ func LoadDummyChain() (*DummyChain, error) {
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	LoadTestDatabase(dataPath) // sql database
+	SetStateSQLMaxDBSize(1024)
 	StartLStateFactory()
 
 	// To pass the governance tests.

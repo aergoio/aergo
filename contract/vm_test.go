@@ -3684,9 +3684,8 @@ function constructor()
     db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
 end
 
--- About 900MB
-function inserts()
-    for i = 1, 25 do
+function inserts(n)
+    for i = 1, n do
         db.exec("insert into table1 (rgtime) select rgtime from table1")
     end
 end
@@ -3702,8 +3701,9 @@ abi.register(inserts)
 		t.Error(err)
 	}
 
+	// About 900MB
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts"}`),
+		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts", "Args":[25]}`),
 	)
 	if err != nil {
 		t.Error(err)

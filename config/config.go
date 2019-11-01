@@ -6,8 +6,9 @@
 package config
 
 import (
-	"github.com/aergoio/aergo/types"
 	"runtime"
+
+	"github.com/aergoio/aergo/types"
 
 	"github.com/aergoio/aergo-lib/config"
 	//	"github.com/aergoio/aergo/types"
@@ -20,7 +21,8 @@ type ServerContext struct {
 func NewServerContext(homePath string, configFilePath string) *ServerContext {
 	serverCxt := &ServerContext{}
 	serverCxt.BaseContext = config.NewBaseContext(serverCxt, homePath, configFilePath, EnvironmentPrefix)
-	serverCxt.Vc.SetDefault("blockchain.zerofee", true)
+	serverCxt.Vc.SetDefault("blockchain.zerofee", serverCxt.GetDefaultBlockchainConfig().ZeroFee)
+	serverCxt.Vc.SetDefault("sql.maxdbsize", serverCxt.GetDefaultSQLConfig().MaxDbSize)
 	return serverCxt
 }
 
@@ -48,6 +50,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Account:    ctx.GetDefaultAccountConfig(),
 		Auth:       ctx.GetDefaultAuthConfig(),
 		Polaris:    ctx.GetDefaultPolarisConfig(),
+		SQL:        ctx.GetDefaultSQLConfig(),
 	}
 }
 
@@ -92,14 +95,14 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 
 func (ctx *ServerContext) GetDefaultAuthConfig() *AuthConfig {
 	return &AuthConfig{
-		EnableLocalConf:   false,
+		EnableLocalConf: false,
 	}
 }
 
 func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	return &PolarisConfig{
-		GenesisFile:  "",
-		AllowPrivate: false,
+		GenesisFile:     "",
+		AllowPrivate:    false,
 		EnableBlacklist: true,
 	}
 }
@@ -142,5 +145,11 @@ func (ctx *ServerContext) GetDefaultMonitorConfig() *MonitorConfig {
 func (ctx *ServerContext) GetDefaultAccountConfig() *AccountConfig {
 	return &AccountConfig{
 		UnlockTimeout: 60,
+	}
+}
+
+func (ctx *ServerContext) GetDefaultSQLConfig() *SQLConfig {
+	return &SQLConfig{
+		MaxDbSize: 20,
 	}
 }

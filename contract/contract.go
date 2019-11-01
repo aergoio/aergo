@@ -36,6 +36,7 @@ var (
 	preLoadInfos [2]preLoadInfo
 	PubNet       bool
 	TraceBlockNo uint64
+	maxSQLDBSize uint32
 )
 
 const BlockFactory = 0
@@ -218,4 +219,14 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 		return newVmError(types.ErrCreatorNotMatch)
 	}
 	return nil
+}
+
+func SetStateSQLMaxDBSize(size uint32) {
+	if size > stateSQLMaxDBSize {
+		maxSQLDBSize = stateSQLMaxDBSize
+	} else if size < stateSQLMinDBSize {
+		maxSQLDBSize = stateSQLMinDBSize
+	} else {
+		maxSQLDBSize = size
+	}
 }

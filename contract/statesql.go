@@ -127,7 +127,7 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 			err := db.tx.Commit()
 			db.tx = nil
 			if err != nil {
-				return err
+				continue
 			}
 			rp := db.recoveryPoint()
 			if rp == 0 {
@@ -177,7 +177,11 @@ func conn(dbName string) (*DB, error) {
 }
 
 func dataSrc(dbName string) string {
-	return fmt.Sprintf("file:%s/%s.db?branches=on&max_db_size=%d", database.DataDir, dbName, StateSqlMaxDbSize)
+	return fmt.Sprintf(
+		"file:%s/%s.db?branches=on&max_db_size=%d",
+		database.DataDir,
+		dbName,
+		maxSQLDBSize*1024*1024)
 }
 
 func readOnlyConn(dbName string) (*DB, error) {

@@ -23,6 +23,7 @@ type Config struct {
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
 	Account    *AccountConfig    `mapstructure:"account"`
 	Auth       *AuthConfig       `mapstructure:"auth"`
+	SQL        *SQLConfig        `mapstructure:"sql"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -144,6 +145,10 @@ type MonitorConfig struct {
 // Account defines configurations for account service
 type AccountConfig struct {
 	UnlockTimeout uint `mapstructure:"unlocktimeout" description:"lock automatically after timeout (sec)"`
+}
+
+type SQLConfig struct {
+	MaxDbSize uint32 `mapstructure:"maxdbsize" description:"maximum database size of a contract (MB)"`
 }
 
 /*

@@ -209,7 +209,6 @@ sqlite3 *vm_get_db(lua_State *L)
     service = (int *)getLuaExecContext(L);
     db = LuaGetDbHandle(service);
     if (db == NULL) {
-        luaL_setsyserror(L);
         lua_pushstring(L, "can't open a database connection");
         luaL_throwerror(L);
     }
