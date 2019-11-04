@@ -237,7 +237,7 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 				nt:           mockNT,
 
 				getPeerChannel:    make(chan getPeerTask),
-				peerHandshaked:    make(chan connPeerResult),
+				peerConnected:     make(chan connPeerResult),
 				removePeerChannel: make(chan p2pcommon.RemotePeer),
 				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 				inboundConnChan:   make(chan inboundConnEvent),
@@ -502,7 +502,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 				gotMeta = ri
 			}).Return(mockPeer)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
-			mockPeer.EXPECT().Role().Return(types.PeerRole_Producer).AnyTimes()
+			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -518,7 +518,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 				logger:          logger,
 				mutex:           &sync.Mutex{},
 				remotePeers:     make(map[types.PeerID]p2pcommon.RemotePeer, 100),
-				peerHandshaked:  make(chan connPeerResult, 10),
+				peerConnected:   make(chan connPeerResult, 10),
 			}
 
 
@@ -579,7 +579,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
-			mockPeer.EXPECT().Role().Return(types.PeerRole_Producer).AnyTimes()
+			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			if tt.wantSucc {
 				mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any())
@@ -591,14 +591,14 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				is: mockIS,
+				is:              mockIS,
 				peerFactory:     mockPeerFactory,
 				designatedPeers: make(map[types.PeerID]p2pcommon.PeerMeta),
 				hiddenPeerSet:   make(map[types.PeerID]bool),
 				logger:          logger,
 				mutex:           &sync.Mutex{},
 				remotePeers:     make(map[types.PeerID]p2pcommon.RemotePeer, 100),
-				peerHandshaked:  make(chan connPeerResult, 10),
+				peerConnected:   make(chan connPeerResult, 10),
 			}
 			pm.remotePeers[dummyPeerID] = mockPeer
 

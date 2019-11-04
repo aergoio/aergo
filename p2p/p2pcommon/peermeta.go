@@ -13,10 +13,12 @@ import (
 
 // PeerMeta contains non changeable information of peer node during connected state
 type PeerMeta struct {
-	ID   types.PeerID
+	ID types.PeerID
+	// AcceptedRole is the role that the remote peer claims: the local peer may not admit it, and only admits it when there is a proper proof, such as vote result in chain or AgentCertificate.
 	Role types.PeerRole
 	// ProducerIDs is a list of block producer IDs produced by this peer if the peer is BP, and if it is Agent, it is a list of block producer IDs that this peer acts as.
 	ProducerIDs []types.PeerID
+	AgentID     types.PeerID
 	// Address is advertised address to which other peer can connect.
 	Addresses []types.Multiaddr
 	// Version is build version of binary
@@ -38,9 +40,10 @@ func NewMetaWith1Addr(id types.PeerID, addr string, port uint32, version string)
 	if err != nil {
 		return PeerMeta{}
 	} else {
-		return PeerMeta{ID:id, Addresses:[]types.Multiaddr{ma}, Version:version}
+		return PeerMeta{ID: id, Addresses: []types.Multiaddr{ma}, Version: version}
 	}
 }
+
 // FromStatusToMeta create peerMeta from Status message
 func NewMetaFromStatus(status *types.Status, outbound bool) PeerMeta {
 	meta := FromPeerAddressNew(status.Sender)
@@ -57,16 +60,16 @@ func FromPeerAddress(addr *types.PeerAddress) PeerMeta {
 
 // ToPeerAddress convert PeerMeta to PeerAddress
 func (m PeerMeta) ToPeerAddress() types.PeerAddress {
-	addrs := make([]string,len(m.Addresses))
+	addrs := make([]string, len(m.Addresses))
 	for i, a := range m.Addresses {
 		addrs[i] = a.String()
 	}
-	pds := make([][]byte,len(m.ProducerIDs))
+	pds := make([][]byte, len(m.ProducerIDs))
 	for i, a := range m.ProducerIDs {
 		pds[i] = []byte(a)
 	}
 
-	addr := types.PeerAddress{PeerID: []byte(m.ID), Address:m.PrimaryAddress(), Port:m.PrimaryPort(), Addresses:addrs, ProducerIDs:pds, Version:m.GetVersion(), Role:m.Role}
+	addr := types.PeerAddress{PeerID: []byte(m.ID), Address: m.PrimaryAddress(), Port: m.PrimaryPort(), Addresses: addrs, ProducerIDs: pds, Version: m.GetVersion(), Role: m.Role}
 	return addr
 }
 
@@ -123,7 +126,6 @@ func (m PeerMeta) Equals(o PeerMeta) bool {
 	return true
 }
 
-
 func FromPeerAddressNew(addr *types.PeerAddress) PeerMeta {
 	addrs := make([]types.Multiaddr, 0, len(addr.Addresses))
 	for _, a := range addr.Addresses {
@@ -138,10 +140,10 @@ func FromPeerAddressNew(addr *types.PeerAddress) PeerMeta {
 	if found {
 		role = types.PeerRole(int32(addr.Role))
 	}
-	producerIds := make([]types.PeerID,len(addr.ProducerIDs))
+	producerIds := make([]types.PeerID, len(addr.ProducerIDs))
 	for i, id := range addr.ProducerIDs {
 		producerIds[i] = types.PeerID(id)
 	}
-	meta := PeerMeta{ID: types.PeerID(addr.PeerID), Addresses: addrs, Role: role, Version: addr.Version, ProducerIDs:producerIds}
+	meta := PeerMeta{ID: types.PeerID(addr.PeerID), Addresses: addrs, Role: role, Version: addr.Version, ProducerIDs: producerIds}
 	return meta
 }

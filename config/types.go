@@ -76,7 +76,7 @@ type P2PConfig struct {
 
 	PeerRole  string   `mapstructure:"peerrole" description:"Role of peer. It must be sync with enablebp field in consensus config "`
 	Producers []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
-	Agents    []string `mapstructure:"agents" description:"List of peer ids of agents that delegate this producer, only meaningful when peer is producer"`
+	Agent     string `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
 }
 
 // AuthConfig defines configuration for auditing

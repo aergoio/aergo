@@ -104,20 +104,38 @@ func (h *certRenewedNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.Mess
 }
 
 func (h *certRenewedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
-	remotePeer := h.peer
+	p := h.peer
 	data := msgBody.(*types.CertificateRenewedNotice)
-	p2putil.DebugLogReceive(h.logger, h.protocol, msg.ID().String(), remotePeer, data)
+	p2putil.DebugLogReceive(h.logger, h.protocol, msg.ID().String(), p, data)
 
 	// TODO check authorization (i.e. if remotePeer is agent )
-	if remotePeer.Role() != types.PeerRole_Agent {
-		h.logger.Debug().Str("role", remotePeer.Role().String()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("invalid peer status. peer is not agent")
+	if p.Meta().Role != types.PeerRole_Agent {
+		h.logger.Debug().Str("role", p.AcceptedRole().String()).Str(p2putil.LogPeerName, p.Name()).Msg("invalid peer status. peer is not agent")
 		return
 	}
+
 	// verify certificate
 	cert, err := p2putil.CheckAndGetV1(data.Certificate)
 	if err != nil {
-		h.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Err(err).Msg("cert verification failed")
+		h.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Err(err).Msg("cert verification failed")
 		return
 	}
-	remotePeer.AddCertificate(cert)
+
+	// check contents of certificates
+	if !p2putil.ContainsID(p.Meta().ProducerIDs, cert.BPID) {
+		// this agent is not in charge of that bp id.
+		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID",p2putil.ShortForm(cert.BPID)).Msg("drop renewed certificate, since issuer is not managed producer of remote peer")
+		return
+	}
+	if !types.IsSamePeerID(p.ID(), cert.AgentID) {
+		// this certificate is not my certificate
+		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Str("agentID", p2putil.ShortForm(cert.AgentID)).Msg("drop renewed certificate, since agent id is not the remote peer")
+		return
+	}
+
+	// TODO
+	p.AddCertificate(cert)
+	if p.AcceptedRole() == types.PeerRole_Watcher {
+		h.pm.UpdatePeerRole([]p2pcommon.AttrModifier{{ID: p.ID(), Role:types.PeerRole_Agent}})
+	}
 }

@@ -60,7 +60,7 @@ type peerManager struct {
 	watchClassPeers []p2pcommon.RemotePeer
 
 	getPeerChannel    chan getPeerTask
-	peerHandshaked    chan connPeerResult
+	peerConnected     chan connPeerResult
 	removePeerChannel chan p2pcommon.RemotePeer
 	fillPoolChannel   chan []p2pcommon.PeerMeta
 	addPeerChannel    chan p2pcommon.PeerMeta
@@ -116,7 +116,7 @@ func NewPeerManager(is p2pcommon.InternalService, hsFactory p2pcommon.HSHandlerF
 		watchClassPeers: make([]p2pcommon.RemotePeer, 0, p2pConf.NPMaxPeers),
 
 		getPeerChannel:    make(chan getPeerTask),
-		peerHandshaked:    make(chan connPeerResult),
+		peerConnected:     make(chan connPeerResult),
 		removePeerChannel: make(chan p2pcommon.RemotePeer),
 		fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 		addPeerChannel:    make(chan p2pcommon.PeerMeta),
@@ -231,7 +231,7 @@ MANLOOP:
 			} else {
 				req.ret <- nil
 			}
-		case hsreslt := <-pm.peerHandshaked:
+		case hsreslt := <-pm.peerConnected:
 			if peer := pm.tryRegister(hsreslt); peer != nil {
 				pm.checkSync(peer)
 
@@ -335,6 +335,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 			return nil
 		} else {
 			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
 			// stopping lower valued connection
 			preExistPeer.Stop()
 		}
@@ -347,7 +348,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Str("role", newPeer.Role().String()).Bool("outbound", remote.Connection.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -358,7 +359,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	return newPeer
 }
 
-func (pm *peerManager) changePeerAttributes(remote p2pcommon.RemoteInfo, peerID types.PeerID) (p2pcommon.RemoteInfo) {
+func (pm *peerManager) changePeerAttributes(remote p2pcommon.RemoteInfo, peerID types.PeerID) p2pcommon.RemoteInfo {
 	// override options by configurations of node
 	_, remote.Designated = pm.designatedPeers[peerID]
 	// hidden is set by either remote peer's asking or local node's config
@@ -390,10 +391,11 @@ func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
 		pm.logger.Debug().Int("size", len(changes)).Msg("changing roles of peers")
 		for _, ch := range changes {
 			if peer, found := pm.remotePeers[ch.ID]; found {
-				pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.Role().String()).Str("to", ch.Role.String()).Msg("changing role of peer")
+				pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("changing role of peer")
 				peer.ChangeRole(ch.Role)
 			}
 		}
+		pm.updatePeerCache()
 	}
 }
 
@@ -471,7 +473,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		// TODO add self certificates if local peer is agent
 		localCerts, err := p2putil.ConvertCertsToProto(pm.cm.GetCertificates())
 		selfpi := &message.PeerInfo{
-			Addr: &addr, Certificates: localCerts, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}
+			Addr: &addr, Certificates: localCerts, AcceptedRole:meta.Role, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}
 		peers = append(peers, selfpi)
 	}
 	for _, aPeer := range pm.peerCache {
@@ -483,7 +485,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		lastStatus := aPeer.LastStatus()
 		rCerts, _ := p2putil.ConvertCertsToProto(aPeer.RemoteInfo().Certificates)
 		pi := &message.PeerInfo{
-			&addr, rCerts, meta.Version, meta.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
+			&addr, rCerts, aPeer.AcceptedRole(), meta.Version, meta.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers
@@ -509,8 +511,7 @@ func (pm *peerManager) updatePeerCache() {
 	newWSlice := make([]p2pcommon.RemotePeer, 0, size)
 	for _, rPeer := range pm.remotePeers {
 		newSlice = append(newSlice, rPeer)
-		// TODO need
-		if rPeer.Role() == types.PeerRole_Producer || rPeer.Role() == types.PeerRole_Agent {
+		if rPeer.AcceptedRole() == types.PeerRole_Producer || rPeer.AcceptedRole() == types.PeerRole_Agent {
 			newWSlice = append(newWSlice, rPeer)
 		} else {
 			newBSlice = append(newBSlice, rPeer)

@@ -242,7 +242,7 @@ func ConvBlock(b *types.Block) *InOutBlock {
 
 func ConvPeer(p *types.Peer) *InOutPeer {
 	out := &InOutPeer{}
-	out.Role = p.Address.Role.String()
+	out.Role = p.AcceptedRole.String()
 	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
 	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
@@ -325,7 +325,7 @@ func ShortPeerListToString(p *types.PeerList) string {
 	var peers []string
 	for _, peer := range p.GetPeers() {
 		pa := peer.Address
-		peers = append(peers, fmt.Sprintf("%s;%s/%d;%s;%d",p2putil.ShortForm(types.PeerID(pa.PeerID)),pa.Address,pa.Port,pa.Role.String(), peer.Bestblock.BlockNo))
+		peers = append(peers, fmt.Sprintf("%s;%s/%d;%s;%d",p2putil.ShortForm(types.PeerID(pa.PeerID)),pa.Address,pa.Port,peer.AcceptedRole.String(), peer.Bestblock.BlockNo))
 	}
 	return toString(peers)
 }

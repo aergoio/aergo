@@ -95,7 +95,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.useRaft = genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 
 	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
-	// set selfMeta.Role and init role manager
+	// set selfMeta.AcceptedRole and init role manager
 	p2ps.prm = p2ps.initRoleManager(p2ps.useRaft, p2ps.selfMeta.Role)
 	p2ps.cm = newCertificateManager(p2ps, p2ps.selfMeta, p2ps.Logger)
 
@@ -448,8 +448,12 @@ func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, r
 	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
-	// TODO tune to set prefer role
-	newPeer.role = p2ps.prm.GetRole(remoteInfo.Meta.ID)
+	// FIXME need refactoring
+	// raft role
+	if p2ps.useRaft {
+		newPeer.remoteInfo.AcceptedRole = p2ps.prm.GetRole(remoteInfo.Meta.ID)
+	}
+
 	// insert Handlers
 	p2ps.insertHandlers(newPeer)
 

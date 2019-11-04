@@ -17,8 +17,6 @@ import (
 )
 
 func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	dummyChainID := &types.ChainID{}
 
@@ -39,6 +37,10 @@ func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			is := p2pmock.NewMockInternalService(ctrl)
 			pm := p2pmock.NewMockPeerManager(ctrl)
 			actor := p2pmock.NewMockActorService(ctrl)
 			ca := p2pmock.NewMockChainAccessor(ctrl)
@@ -52,9 +54,6 @@ func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 }
 
 func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	dummyChainID := &types.ChainID{}
 	if chain.Genesis == nil {
 		chain.Genesis = &types.Genesis{ID:*dummyChainID}
@@ -78,6 +77,10 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			is := p2pmock.NewMockInternalService(ctrl)
 			pm := p2pmock.NewMockPeerManager(ctrl)
 			actor := p2pmock.NewMockActorService(ctrl)
 			ca := p2pmock.NewMockChainAccessor(ctrl)

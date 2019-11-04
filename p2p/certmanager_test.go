@@ -102,8 +102,7 @@ func Test_agentCertificateManager_AddCertificate(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockActor.EXPECT().TellRequest(message.P2PSvc, gomock.Any()).Times(tt.wantNotify)
 			cm := &agentCertificateManager{
-				baseCertManager: baseCertManager{actor:mockActor,self:sampleMeta},
-				logger:         logger,
+				baseCertManager: baseCertManager{actor:mockActor,self:sampleMeta, logger:logger},
 				certs:          []*p2pcommon.AgentCertificateV1{},
 			}
 

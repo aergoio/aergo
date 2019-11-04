@@ -18,7 +18,7 @@ var emptyIDArr []types.PeerID
 var emptyCertArr []*p2pcommon.AgentCertificateV1
 
 func newCertificateManager(actor p2pcommon.ActorService, self p2pcommon.PeerMeta, logger *log.Logger) p2pcommon.CertificateManager {
-	d := baseCertManager{actor: actor, self: self}
+	d := baseCertManager{actor: actor, self: self, logger:logger}
 	switch self.Role {
 	case types.PeerRole_Producer:
 		pk := p2putil.ConvertPKToBTCEC(p2pkey.NodePrivKey())
@@ -27,7 +27,7 @@ func newCertificateManager(actor p2pcommon.ActorService, self p2pcommon.PeerMeta
 		}
 		return &bpCertificateManager{baseCertManager: d, key:pk}
 	case types.PeerRole_Agent:
-		return &agentCertificateManager{baseCertManager: d, logger:logger}
+		return &agentCertificateManager{baseCertManager: d}
 	case types.PeerRole_Watcher:
 		return &watcherCertificateManager{baseCertManager: d}
 	default:
@@ -38,6 +38,7 @@ func newCertificateManager(actor p2pcommon.ActorService, self p2pcommon.PeerMeta
 type baseCertManager struct {
 	actor p2pcommon.ActorService
 	self  p2pcommon.PeerMeta
+	logger *log.Logger
 }
 
 func (cm *baseCertManager) Start() {
@@ -73,6 +74,11 @@ type bpCertificateManager struct {
 }
 
 func (d *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {
+	if types.IsSamePeerID(d.self.AgentID, remoteMeta.ID) {
+		// this agent is not in charge of that bp id.
+		d.logger.Info().Str("agentID",p2putil.ShortForm(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
+		return nil, p2pcommon.ErrInvalidRole
+	}
 	addrs := make([]string, len(remoteMeta.Addresses))
 	for i, ad := range remoteMeta.Addresses {
 		addrs[i] = types.AddressFromMultiAddr(ad)
@@ -83,7 +89,6 @@ func (d *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) 
 type agentCertificateManager struct {
 	baseCertManager
 
-	logger *log.Logger
 	ticker *time.Ticker
 	mutex  sync.Mutex
 	certs  []*p2pcommon.AgentCertificateV1
@@ -135,7 +140,7 @@ func (cm *agentCertificateManager) GetCertificates() []*p2pcommon.AgentCertifica
 func (cm *agentCertificateManager) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
-	if !containsID(cm.self.ProducerIDs, cert.BPID) {
+	if !p2putil.ContainsID(cm.self.ProducerIDs, cert.BPID) {
 		// this agent is not in charge of that bp id.
 		cm.logger.Info().Str("bpID",p2putil.ShortForm(cert.BPID)).Msg("drop issued certificate, since issuer is not my managed producer")
 		return
@@ -165,7 +170,7 @@ func (cm *agentCertificateManager) AddCertificate(cert *p2pcommon.AgentCertifica
 
 func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {
 	// check if peer is producer which is managed
-	if !containsID(cm.self.ProducerIDs, pid) {
+	if !p2putil.ContainsID(cm.self.ProducerIDs, pid) {
 		return
 	}
 	// check if certificate exists adn is still valid
@@ -184,15 +189,6 @@ func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {
 }
 
 func (cm *agentCertificateManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
-}
-
-func containsID(pool []types.PeerID, id types.PeerID) bool {
-	for _, pid := range pool {
-		if types.IsSamePeerID(pid, id) {
-			return true
-		}
-	}
-	return false
 }
 
 type watcherCertificateManager struct {

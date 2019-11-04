@@ -46,7 +46,6 @@ type remotePeerImpl struct {
 	remoteInfo p2pcommon.RemoteInfo
 	name       string
 	state      types.PeerState
-	role       types.PeerRole
 	actor      p2pcommon.ActorService
 	pm         p2pcommon.PeerManager
 	mf         p2pcommon.MoFactory
@@ -146,11 +145,11 @@ func (p *remotePeerImpl) Version() string {
 	return p.remoteInfo.Meta.Version
 }
 
-func (p *remotePeerImpl) Role() types.PeerRole {
-	return p.remoteInfo.Meta.Role
+func (p *remotePeerImpl) AcceptedRole() types.PeerRole {
+	return p.remoteInfo.AcceptedRole
 }
 func (p *remotePeerImpl) ChangeRole(role types.PeerRole) {
-	p.remoteInfo.Meta.Role = role
+	p.remoteInfo.AcceptedRole = role
 }
 
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
@@ -194,11 +193,7 @@ READNOPLOOP:
 		case <-certCleanupTicker.C:
 			p.cleanupCerts()
 		case c := <-p.certChan:
-			if c != nil || p.Meta().Role == types.PeerRole_Agent {
-				p.addCert(c)
-			} else {
-				p.logger.Debug().Str("role", p.Role().String()).Str(p2putil.LogPeerName, p.Name()).Msg("invalid peer status. peer is not agent")
-			}
+			p.addCert(c)
 		case <-p.stopChan:
 			break READNOPLOOP
 		}
@@ -524,17 +519,6 @@ func (p *remotePeerImpl) sendGoAway(msg string) {
 }
 
 func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
-	if !containsID(p.Meta().ProducerIDs, cert.BPID) {
-		// this agent is not in charge of that bp id.
-		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID",p2putil.ShortForm(cert.BPID)).Msg("drop agent certificate, since issuer is not managed producer of remote peer")
-		return
-	}
-	if !types.IsSamePeerID(p.ID(), cert.AgentID) {
-		// this certificate is not my certificate
-		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Str("agentID", p2putil.ShortForm(cert.AgentID)).Msg("drop agent certificate, since agent id is not the remote peer")
-		return
-	}
-
 	newCerts := make([]*p2pcommon.AgentCertificateV1, 0, len(p.remoteInfo.Certificates)+1)
 	for _, oldCert := range p.remoteInfo.Certificates {
 		if !types.IsSamePeerID(oldCert.BPID, cert.BPID) {

@@ -156,18 +156,18 @@ func (mr *MockRemotePeerMockRecorder) Version() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockRemotePeer)(nil).Version))
 }
 
-// Role mocks base method
-func (m *MockRemotePeer) Role() types.PeerRole {
+// AcceptedRole mocks base method
+func (m *MockRemotePeer) AcceptedRole() types.PeerRole {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Role")
+	ret := m.ctrl.Call(m, "AcceptedRole")
 	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 
-// Role indicates an expected call of Role
-func (mr *MockRemotePeerMockRecorder) Role() *gomock.Call {
+// AcceptedRole indicates an expected call of AcceptedRole
+func (mr *MockRemotePeerMockRecorder) AcceptedRole() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Role", reflect.TypeOf((*MockRemotePeer)(nil).Role))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcceptedRole", reflect.TypeOf((*MockRemotePeer)(nil).AcceptedRole))
 }
 
 // ChangeRole mocks base method

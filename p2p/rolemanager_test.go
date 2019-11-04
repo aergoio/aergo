@@ -128,7 +128,7 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			for i, ap := range tt.argPeer {
 				mpeer := p2pmock.NewMockRemotePeer(ctrl)
 				mpeer.EXPECT().ID().Return(pids[i]).AnyTimes()
-				mpeer.EXPECT().Role().Return(ap.r).AnyTimes()
+				mpeer.EXPECT().AcceptedRole().Return(ap.r).AnyTimes()
 				mpeer.EXPECT().State().Return(ap.s).AnyTimes()
 				mpeer.EXPECT().SendMessage(gomock.Any()).MaxTimes(1)
 
@@ -231,7 +231,7 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			for i, ap := range tt.argPeer {
 				mPeer := p2pmock.NewMockRemotePeer(ctrl)
 				mPeer.EXPECT().ID().Return(pids[i]).AnyTimes()
-				mPeer.EXPECT().Role().Return(ap.r).AnyTimes()
+				mPeer.EXPECT().AcceptedRole().Return(ap.r).AnyTimes()
 				mPeer.EXPECT().State().Return(ap.s).AnyTimes()
 				mPeer.EXPECT().SendMessage(gomock.Any()).MaxTimes(1)
 

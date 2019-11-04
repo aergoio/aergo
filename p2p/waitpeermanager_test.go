@@ -191,8 +191,8 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				hsFactory:      mockHSFactory,
-				peerHandshaked: make(chan connPeerResult, 10),
+				hsFactory:     mockHSFactory,
+				peerConnected: make(chan connPeerResult, 10),
 			}
 			dpm := &basePeerManager{
 				pm:     pm,

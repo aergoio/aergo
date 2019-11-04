@@ -57,7 +57,7 @@ func (rm *RaftRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pc
 	// TODO filter to only contain bp and trusted node.
 	for _, neighbor := range peers {
 		if neighbor != nil && neighbor.State() == types.RUNNING &&
-			neighbor.Role() == types.PeerRole_Watcher {
+			neighbor.AcceptedRole() == types.PeerRole_Watcher {
 			sent++
 			neighbor.SendMessage(mo)
 		} else {

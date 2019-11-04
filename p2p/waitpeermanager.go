@@ -210,7 +210,7 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	// update peer meta info using sent information from remote peer
 	remoteInfo := createRemoteInfo(s.Conn(), *hResult, outbound)
 
-	dpm.pm.peerHandshaked <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash:hResult.BestBlockHash, bestNo:hResult.BestBlockNo, Certificates:hResult.Certificates}
+	dpm.pm.peerConnected <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash:hResult.BestBlockHash, bestNo:hResult.BestBlockNo, Certificates:hResult.Certificates}
 	return remoteInfo.Meta, true
 }
 
@@ -222,7 +222,23 @@ func createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound b
 	}
 
 	connection := p2pcommon.RemoteConn{IP: ip, Port: port, Outbound: outbound}
-	ri := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden, Certificates:r.Certificates}
+	ri := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden, Certificates:r.Certificates, AcceptedRole:types.PeerRole_Watcher}
+
+	// TODO Is it OK to this function has logic for policy?
+	// check role
+	switch r.Meta.Role {
+	case types.PeerRole_Producer:
+		// TODO check consensus and peer id is in to top vote list or bp list
+		ri.AcceptedRole = types.PeerRole_Producer
+	case types.PeerRole_Agent:
+		// check if agent has at least one certificate
+		if len(r.Certificates) > 0 {
+			ri.AcceptedRole = types.PeerRole_Agent
+		}
+	default:
+		ri.AcceptedRole = r.Meta.Role
+	}
+
 	return ri
 }
 

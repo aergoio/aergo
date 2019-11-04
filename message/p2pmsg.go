@@ -125,6 +125,7 @@ type GetPeers struct {
 type PeerInfo struct {
 	Addr            *types.PeerAddress
 	Certificates    []*types.AgentCertificate
+	AcceptedRole    types.PeerRole
 	Version         string
 	Hidden          bool
 	CheckTime       time.Time
