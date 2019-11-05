@@ -72,11 +72,14 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		for _, c := range candis {
 			candidate, ok := c.(string)
 			if !ok {
-				return nil, fmt.Errorf("include invalid candidate")
+				return nil, fmt.Errorf("include invalid character")
 			}
-			_, ok = new(big.Int).SetString(candidate, 10)
+			candidateNumber, ok := new(big.Int).SetString(candidate, 10)
 			if !ok {
-				return nil, fmt.Errorf("include invalid count")
+				return nil, fmt.Errorf("include invalid number")
+			}
+			if !validateById(id, candidateNumber) {
+				return nil, fmt.Errorf("include invalid number range")
 			}
 		}
 		sort.Slice(proposal.Candidates, func(i, j int) bool {
@@ -175,4 +178,23 @@ func parseIDForProposal(ci *types.CallInfo) (string, error) {
 		return "", fmt.Errorf("args[%d] invalid id", 0)
 	}
 	return strings.ToUpper(id), nil
+}
+
+func validateById(id string, candidate *big.Int) bool {
+	if big.NewInt(0).Cmp(candidate) == 0 {
+		return false
+	}
+	switch id {
+	case bpCount.ID():
+		if big.NewInt(100).Cmp(candidate) < 0 {
+			return false
+		}
+	case stakingMin.ID(),
+		gasPrice.ID(),
+		namePrice.ID():
+		if types.MaxAER.Cmp(candidate) < 0 {
+			return false
+		}
+	}
+	return true
 }
