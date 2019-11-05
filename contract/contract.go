@@ -4,6 +4,7 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 
@@ -83,9 +84,16 @@ func Execute(
 	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
 		return
 	}
-	if useGas(bi.Version) && txBody.GetGasLimit() == 0 {
-		err = newVmError(types.ErrNotEnoughGas)
-		return
+
+	gasLimit := txBody.GetGasLimit()
+	if useGas(bi.Version) && gasLimit == 0 {
+		balance := new(big.Int).Sub(sender.Balance(), txBody.GetAmountBigInt())
+		n := balance.Div(balance, bs.GasPrice)
+		if n.IsUint64() {
+			gasLimit = n.Uint64()
+		} else {
+			gasLimit = math.MaxUint64
+		}
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
@@ -131,11 +139,11 @@ func Execute(
 
 	var ctrFee *big.Int
 	if ex != nil {
-		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), timeout)
+		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit, timeout)
 	} else {
 		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), gasLimit,
 			timeout, isFeeDelegation)
 		if ctx.traceFile != nil {
 			defer ctx.traceFile.Close()

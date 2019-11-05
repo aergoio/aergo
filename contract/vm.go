@@ -771,7 +771,7 @@ func PreCall(
 	bs *state.BlockState,
 	sender *state.V,
 	contractState *state.ContractState,
-	rp uint64,
+	rp, gasLimit uint64,
 	timeout <-chan struct{},
 ) (string, []*types.Event, *big.Int, error) {
 	var err error
@@ -786,6 +786,7 @@ func PreCall(
 	ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
 
 	ctx.curContract.rp = rp
+	ctx.gasLimit = gasLimit
 	ctx.timeout = timeout
 
 	if TraceBlockNo != 0 && TraceBlockNo == ctx.blockInfo.No {
