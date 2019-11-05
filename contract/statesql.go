@@ -406,7 +406,11 @@ func (tx *WritableTx) Release() error {
 	if logger.IsDebugEnabled() {
 		logger.Debug().Str("db_name", tx.db.name).Msg("release")
 	}
-	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.db.name + "\"")
+	err := tx.db.conn.DBCacheFlush()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.db.name + "\"")
 	return err
 }
 
