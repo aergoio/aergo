@@ -475,9 +475,9 @@ func (ce *Executor) call(target *LState) C.int {
 			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
 				C.luaL_setuncatchablerror(target)
 			}
-			if C.luaL_hassyserror(ce.L) != C.int(0) {
-				C.luaL_setsyserror(target)
-			}
+			//if C.luaL_hassyserror(ce.L) != C.int(0) {
+			//	C.luaL_setsyserror(target)
+			//}
 		}
 		if C.luaL_hassyserror(ce.L) != C.int(0) {
 			ce.err = newVmSystemError(errors.New(errMsg))
@@ -541,7 +541,7 @@ func (ce *Executor) commitCalledContract() error {
 		if v.tx != nil {
 			err = v.tx.Release()
 			if err != nil {
-				return newDbSystemError(err)
+				return newVmError(err)
 			}
 		}
 		if v.ctrState == rootContract {
@@ -588,7 +588,7 @@ func (ce *Executor) rollbackToSavepoint() error {
 		}
 		err = v.tx.RollbackToSavepoint()
 		if err != nil {
-			return newDbSystemError(err)
+			return newVmError(err)
 		}
 	}
 	return nil
@@ -871,7 +871,7 @@ func Create(contractState *state.ContractState, code, contractAddress []byte,
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
-		return "", nil, stateSet.usedFee(), newDbSystemError(errors.New("can't open a database connection"))
+		return "", nil, stateSet.usedFee(), newVmError(errors.New("can't open a database connection"))
 	}
 
 	ce := newExecutor(contract, contractAddress, stateSet, &ci, stateSet.curContract.amount, true, contractState)
