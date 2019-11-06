@@ -3684,9 +3684,8 @@ function constructor()
     db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
 end
 
--- About 900MB
-function inserts()
-    for i = 1, 25 do
+function inserts(n)
+    for i = 1, n do
         db.exec("insert into table1 (rgtime) select rgtime from table1")
     end
 end
@@ -3702,8 +3701,49 @@ abi.register(inserts)
 		t.Error(err)
 	}
 
+	// About 900MB
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts"}`),
+		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts", "Args":[25]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	SetStateSQLMaxDBSize(20)
+
+	bigSrc = `
+function constructor()
+    db.exec("create table if not exists aergojdbc001 (name text, yyyymmdd text)")
+    db.exec("insert into aergojdbc001 values ('홍길동', '20191007')")
+    db.exec("insert into aergojdbc001 values ('홍길동', '20191007')")
+    db.exec("insert into aergojdbc001 values ('홍길동', '20191007')")
+end
+
+function inserts()
+	db.exec("insert into aergojdbc001 select * from aergojdbc001")
+end
+
+abi.register(inserts)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "big20", 0, bigSrc),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < 17; i++ {
+		err = bc.ConnectBlock(
+			NewLuaTxCall("ktlee", "big20", 0, `{"Name": "inserts"}`),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"),
 	)
 	if err != nil {
 		t.Error(err)

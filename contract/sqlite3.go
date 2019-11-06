@@ -1137,6 +1137,14 @@ func (c *SQLiteConn) SetLimit(id int, newVal int) int {
 	return int(C._sqlite3_limit(c.db, C.int(id), C.int(newVal)))
 }
 
+func (c *SQLiteConn) DBCacheFlush() error {
+	rv := C.sqlite3_db_cacheflush(c.db)
+	if rv != C.SQLITE_OK {
+		return c.lastError()
+	}
+	return nil
+}
+
 // Close the statement.
 func (s *SQLiteStmt) Close() error {
 	s.mu.Lock()

@@ -283,7 +283,6 @@ func LuaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 			senderState.GetBalanceBigInt().String(), callState.curState.GetBalanceBigInt().String()))
 	}
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaCallContract] database error: " + err.Error())
 	}
 	stateSet.curContract = newContractInfo(callState, prevContractInfo.contractId, cid,
@@ -363,7 +362,6 @@ func LuaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	seq, err := setRecoveryPoint(aid, stateSet, nil, stateSet.curContract.callState, zeroBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
 	}
 	if stateSet.traceFile != nil {
@@ -459,7 +457,6 @@ func LuaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		}
 		seq, err := setRecoveryPoint(aid, stateSet, senderState, callState, amountBig, false)
 		if err != nil {
-			C.luaL_setsyserror(L)
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
 		if stateSet.traceFile != nil {
@@ -588,7 +585,6 @@ func LuaSetRecoveryPoint(L *LState, service *C.int) (C.int, *C.char) {
 	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), stateSet, nil,
 		curContract.callState, zeroBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[Contract.pcall] database error: " + err.Error())
 	}
 	if stateSet.traceFile != nil {
@@ -602,7 +598,6 @@ func clearRecovery(L *LState, stateSet *StateSet, start int, error bool) error {
 	for {
 		if error {
 			if item.recovery() != nil {
-				C.luaL_setsyserror(L)
 				return errors.New("database error")
 			}
 		}
@@ -1055,7 +1050,6 @@ func LuaDeployContract(
 
 	seq, err := setRecoveryPoint(newContract.AccountID(), stateSet, senderState, callState, amountBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
 	if stateSet.traceFile != nil {
@@ -1092,7 +1086,6 @@ func LuaDeployContract(
 	// create a sql database for the contract
 	db := LuaGetDbHandle(&stateSet.service)
 	if db == nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
 	}
 	senderState.Nonce += 1
@@ -1237,7 +1230,6 @@ func LuaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 	}
 	seq, err := setRecoveryPoint(aid, stateSet, senderState, scsState, zeroBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
 	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, stateSet.blockHeight)
