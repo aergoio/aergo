@@ -50,6 +50,7 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 		return errors.New("Wrong value in --amount flag\n" + err.Error())
 	}
 	tx := &types.Tx{Body: &types.TxBody{
+		Type:      types.TxType_TRANSFER,
 		Account:   account,
 		Recipient: recipient,
 		Amount:    amountBigInt.Bytes(),
