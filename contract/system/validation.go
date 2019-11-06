@@ -47,7 +47,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Staked = staked
-	case types.OpvoteParam:
+	case types.OpvoteDAO:
 		if blockInfo.Version < 2 {
 			return nil, fmt.Errorf("not supported operation")
 		}

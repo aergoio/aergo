@@ -93,7 +93,7 @@ func execVote(cmd *cobra.Command, args []string) {
 			}
 		}
 	} else {
-		ci.Name = types.OpvoteParam.Cmd()
+		ci.Name = types.OpvoteDAO.Cmd()
 		err := json.Unmarshal([]byte(to), &ci.Args)
 		if err != nil {
 			cmd.Printf("Failed: %s (%s)\n", err.Error(), to)

@@ -63,7 +63,7 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 
 	cmds := map[types.OpSysTx]sysCmdCtor{
 		types.OpvoteBP:    newVoteCmd,
-		types.OpvoteParam: newVoteCmd,
+		types.OpvoteDAO: newVoteCmd,
 		types.Opstake:     newStakeCmd,
 		types.Opunstake:   newUnstakeCmd,
 	}

@@ -104,7 +104,7 @@ func TestProposalBPCount(t *testing.T) {
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`),
+			Payload: []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -119,7 +119,7 @@ func TestProposalBPCount(t *testing.T) {
 	assert.Equal(t, 3, GetBpCount(), "check bp")
 
 	validCandiTx.Body.Account = sender2.ID()
-	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`)
+	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`)
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
@@ -168,7 +168,7 @@ func TestFailProposals(t *testing.T) {
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`),
+			Payload: []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -181,7 +181,7 @@ func TestFailProposals(t *testing.T) {
 	invalidCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteParam", "Args":["bpcount", "0"]}`),
+			Payload: []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "0"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
@@ -189,7 +189,7 @@ func TestFailProposals(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "invalid range")
 
-	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["bpcount", "101"]}`)
+	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "101"]}`)
 	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "invalid range")
 
@@ -199,22 +199,22 @@ func TestFailProposals(t *testing.T) {
 	assert.Equal(t, 3, GetBpCount(), "check bp")
 
 	validCandiTx.Body.Account = sender2.ID()
-	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["bpcount", "13"]}`)
+	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`)
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, 13, GetBpCount(), "check bp")
 
-	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["gasprice", "500000000000000000000000001"]}`)
+	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "500000000000000000000000001"]}`)
 	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "invalid range")
 
-	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["gasprice", "101"]}`)
+	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, big.NewInt(1), GetGasPrice(), "check gas price")
 
-	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteParam", "Args":["gasprice", "101"]}`)
+	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, big.NewInt(101), GetGasPrice(), "check gas price")

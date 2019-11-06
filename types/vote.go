@@ -30,8 +30,8 @@ const (
 
 	// OpvoteBP corresponds to a voting transaction for a BP election.
 	OpvoteBP OpSysTx = iota
-	// OpvoteParam corresponds to a proposal transaction for a system parameter change.
-	OpvoteParam
+	// OpvoteDAO corresponds to a proposal transaction for a system parameter change.
+	OpvoteDAO
 	// Opstake represents a staking tranaction.
 	Opstake
 	// Opunstake represents a unstaking tranaction.

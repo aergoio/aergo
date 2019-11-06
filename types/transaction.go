@@ -212,7 +212,7 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-	case OpvoteParam:
+	case OpvoteDAO:
 		if len(ci.Args) < 1 {
 			return fmt.Errorf("the number of args less then 1")
 		}
