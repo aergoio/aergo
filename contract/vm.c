@@ -65,15 +65,20 @@ static void setLuaExecContext(lua_State *L, int *service)
 	lua_setglobal(L, luaExecContext);
 }
 
+const int *getLuaExecContextNoErr(lua_State *L)
+{
+	const int *service;
+	lua_getglobal(L, luaExecContext);
+	service = (const int *)lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	return service;
+}
+
 const int *getLuaExecContext(lua_State *L)
 {
-	int *service;
-	lua_getglobal(L, luaExecContext);
-	service = (int *)lua_touserdata(L, -1);
-	lua_pop(L, 1);
-	if (*service == -1)
+	const int *service = getLuaExecContextNoErr(L);
+	if (service == NULL || *service < 0)
 	    luaL_error(L, "not permitted state referencing at global scope");
-
 	return service;
 }
 
@@ -216,7 +221,7 @@ void vm_set_count_hook(lua_State *L, int limit)
 
 static void timeout_hook(lua_State *L, lua_Debug *ar)
 {
-	int errCode = luaCheckTimeout(*getLuaExecContext(L));
+	int errCode = luaCheckTimeout((int *)getLuaExecContextNoErr(L));
     if (errCode == 1) {
         luaL_setuncatchablerror(L);
         lua_pushstring(L, ERR_BF_TIMEOUT);

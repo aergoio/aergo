@@ -1320,13 +1320,19 @@ func luaCheckView(service *C.int) C.int {
 }
 
 //export luaCheckTimeout
-func luaCheckTimeout(service C.int) C.int {
-	ctx := contexts[service]
-	if ctx == nil {
+func luaCheckTimeout(service *C.int) C.int {
+	if service == nil {
 		return -1
 	}
+	sno := *service
+	if sno < BlockFactory {
+		sno = sno + MaxVmService
+	}
+	if sno != BlockFactory {
+		return 0
+	}
 	select {
-	case <-ctx.timeout:
+	case <-bpTimeout:
 		return 1
 	default:
 		return 0

@@ -48,10 +48,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo, timeout <-chan struct{}) chain.TxOp {
+func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(ccc, cdb, bi, contract.BlockFactory, timeout),
+		execTx: bc.NewTxExecutor(ccc, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -192,6 +192,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 			return bf.checkBpTimeout()
 		}),
 	)
+
+	contract.SetBPTimeout(bf.bpTimeoutC)
 
 	return bf, nil
 }
@@ -505,7 +507,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	}
 
 	bi := types.NewBlockHeaderInfoFromPrevBlock(bestBlock, time.Now().UnixNano(), bf.bv)
-	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi, bf.bpTimeoutC))
+	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi))
 	blockState := bf.sdb.NewBlockState(
 		bestBlock.GetHeader().GetBlocksRootHash(),
 		state.SetPrevBlockHash(bestBlock.BlockHash()),

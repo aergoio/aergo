@@ -170,7 +170,7 @@ func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
 }
 
 type luaTx interface {
-	run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error
+	run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error
 }
 
 type luaTxAccount struct {
@@ -194,7 +194,7 @@ func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
 	}
 }
 
-func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error {
+func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 
 	id := types.ToAccountID(l.name)
 	accountState, err := bs.GetAccountState(id)
@@ -223,7 +223,7 @@ func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	}
 }
 
-func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error {
+func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 
 	senderID := types.ToAccountID(l.sender)
 	receiverID := types.ToAccountID(l.receiver)
@@ -452,7 +452,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 
 }
 
-func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error {
+func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 
 	if l.cErr != nil {
 		return l.cErr
@@ -463,7 +463,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 			contract.State().SqlRecoveryPoint = 1
 
 			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, 0, timeout, false)
+				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, 0, false)
 
 			if traceState {
 				ctx.traceFile, _ =
@@ -540,11 +540,11 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction, timeout <-chan struct{}) error {
+func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, ChainService, l.luaTxCommon.amount, 0, timeout, l.feeDelegate)
+				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, 0, l.feeDelegate)
 			if traceState {
 				ctx.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -592,11 +592,14 @@ func (bc *DummyChain) ConnectBlock(txs ...luaTx) error {
 
 	timeout := make(chan struct{})
 	go func() {
-		<-time.Tick(time.Duration(bc.timeout) * time.Millisecond)
-		timeout <- struct{}{}
+		if bc.timeout != 0 {
+			<-time.Tick(time.Duration(bc.timeout) * time.Millisecond)
+			timeout <- struct{}{}
+		}
 	}()
+	SetBPTimeout(timeout)
 	for _, x := range txs {
-		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx, timeout); err != nil {
+		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
 			return err
 		}
 	}

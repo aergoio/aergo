@@ -590,7 +590,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
-		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService, nil)
+		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -621,7 +621,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preLoadService int, timeout <-chan struct{}) TxExecFn {
+func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preLoadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -633,7 +633,7 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 		}
 		snapshot := bState.Snapshot()
 
-		err := executeTx(ccc, cdb, bState, tx, bi, preLoadService, timeout)
+		err := executeTx(ccc, cdb, bState, tx, bi, preLoadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(snapshot); err2 != nil {
@@ -880,7 +880,6 @@ func executeTx(
 	tx types.Transaction,
 	bi *types.BlockHeaderInfo,
 	preLoadService int,
-	timeout <-chan struct{},
 ) error {
 	txBody := tx.GetBody()
 
@@ -933,8 +932,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi,
-			preLoadService, timeout, false)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -961,8 +959,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi,
-			preLoadService, timeout, true)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, true)
 		receiver.SubBalance(txFee)
 	}
 

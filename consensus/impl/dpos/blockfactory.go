@@ -34,10 +34,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, timeout <-chan struct{}) chain.TxOp {
+func newTxExec(cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, cdb, bi, contract.BlockFactory, timeout),
+		execTx: bc.NewTxExecutor(nil, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -86,6 +86,7 @@ func NewBlockFactory(
 			return bf.checkBpTimeout()
 		}),
 	)
+	contract.SetBPTimeout(bf.bpTimeoutC)
 	return bf
 }
 
@@ -228,7 +229,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	)
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err = chain.GenerateBlock(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi, bf.bpTimeoutC)), false)
+	block, err = chain.GenerateBlock(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false)
 	if err != nil {
 		return nil, nil, err
 	}

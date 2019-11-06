@@ -101,7 +101,6 @@ type vmContext struct {
 	traceFile         *os.File
 	gasLimit          uint64
 	remainedGas       uint64
-	timeout           <-chan struct{}
 }
 
 type recoveryEntry struct {
@@ -153,7 +152,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 
 func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
-	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, timeout <-chan struct{}, feeDelegation bool) *vmContext {
+	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	cs := &callState{ctrState: contractState, curState: reciever.State()}
 
@@ -170,7 +169,6 @@ func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, recie
 		service:         C.int(service),
 		gasLimit:        gasLimit,
 		remainedGas:     gasLimit,
-		timeout:         timeout,
 		isFeeDelegation: feeDelegation,
 	}
 	ctx.callState = make(map[types.AccountID]*callState)
@@ -289,7 +287,7 @@ func newExecutor(
 		C.vm_set_resource_limit(ce.L)
 	}
 	backupService := ctx.service
-	ctx.service = -1
+	ctx.service = ctx.service - MaxVmService
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
 	defer ce.refreshGas()
@@ -772,7 +770,6 @@ func PreCall(
 	sender *state.V,
 	contractState *state.ContractState,
 	rp, gasLimit uint64,
-	timeout <-chan struct{},
 ) (string, []*types.Event, *big.Int, error) {
 	var err error
 
@@ -787,7 +784,6 @@ func PreCall(
 
 	ctx.curContract.rp = rp
 	ctx.gasLimit = gasLimit
-	ctx.timeout = timeout
 
 	if TraceBlockNo != 0 && TraceBlockNo == ctx.blockInfo.No {
 		ctx.traceFile = getTraceFile(ctx.blockInfo.No, ctx.txHash)

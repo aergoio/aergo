@@ -40,10 +40,14 @@ var (
 	PubNet         bool
 	TraceBlockNo   uint64
 	HardforkConfig *config.HardforkConfig
+	bpTimeout      <-chan struct{}
 )
 
-const BlockFactory = 0
-const ChainService = 1
+const (
+	BlockFactory = iota
+	ChainService
+	MaxVmService
+)
 
 func init() {
 	loadReqCh = make(chan *preLoadReq, 10)
@@ -64,7 +68,6 @@ func Execute(
 	sender, receiver *state.V,
 	bi *types.BlockHeaderInfo,
 	preLoadService int,
-	timeout <-chan struct{},
 	isFeeDelegation bool,
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
@@ -117,13 +120,21 @@ func Execute(
 		for {
 			var preload *loadedReply
 			if HardforkConfig.IsV2Fork(bi.No) {
-				select {
-				case preload = <-replyCh:
-				case <-timeout:
-					err = &VmTimeoutError{}
-					return
-				default:
-					continue
+				if preLoadService == BlockFactory {
+					select {
+					case preload = <-replyCh:
+					case <-bpTimeout:
+						err = &VmTimeoutError{}
+						return
+					default:
+						continue
+					}
+				} else {
+					select {
+					case preload = <-replyCh:
+					default:
+						continue
+					}
 				}
 			} else {
 				preload = <-replyCh
@@ -143,12 +154,11 @@ func Execute(
 
 	var ctrFee *big.Int
 	if ex != nil {
-		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit, timeout)
+		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
 		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), bi, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt(), gasLimit,
-			timeout, isFeeDelegation)
+			tx.GetHash(), bi, "", true, false, receiver.RP(),
+			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 		if ctx.traceFile != nil {
 			defer ctx.traceFile.Close()
 		}
@@ -238,7 +248,7 @@ func preLoadWorker() {
 		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
 			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
-			nil, txBody.Type == types.TxType_FEEDELEGATION)
+			txBody.Type == types.TxType_FEEDELEGATION)
 
 		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), ctx)
 		replyCh <- &loadedReply{tx, ex, err}
@@ -271,4 +281,8 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 
 func useGas(version int32) bool {
 	return version >= 2 && PubNet
+}
+
+func SetBPTimeout(timeout <-chan struct{}) {
+	bpTimeout = timeout
 }
