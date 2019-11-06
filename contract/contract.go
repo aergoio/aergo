@@ -87,12 +87,16 @@ func Execute(
 
 	gasLimit := txBody.GetGasLimit()
 	if useGas(bi.Version) && gasLimit == 0 {
-		balance := new(big.Int).Sub(sender.Balance(), txBody.GetAmountBigInt())
+		balance := new(big.Int).Sub(sender.Balance(), new(big.Int).Add(txBody.GetAmountBigInt(), usedFee))
 		n := balance.Div(balance, bs.GasPrice)
 		if n.IsUint64() {
 			gasLimit = n.Uint64()
 		} else {
 			gasLimit = math.MaxUint64
+		}
+		if gasLimit == 0 {
+			err = newVmError(types.ErrNotEnoughGas)
+			return
 		}
 	}
 

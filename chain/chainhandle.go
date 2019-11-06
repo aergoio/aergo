@@ -932,7 +932,7 @@ func executeTx(
 	var rv string
 	var events []*types.Event
 	switch txBody.Type {
-	case types.TxType_NORMAL, types.TxType_REDEPLOY:
+	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
 		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi,
 			preLoadService, timeout, false)
 		sender.SubBalance(txFee)

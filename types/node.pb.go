@@ -44,7 +44,7 @@ func (x PeerRole) String() string {
 	return proto.EnumName(PeerRole_name, int32(x))
 }
 func (PeerRole) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_node_3b90ca11e3156ed9, []int{0}
+	return fileDescriptor_node_faa64f4957ae13e5, []int{0}
 }
 
 // PeerAddress contains static information of peer and addresses to connect peer
@@ -68,7 +68,7 @@ func (m *PeerAddress) Reset()         { *m = PeerAddress{} }
 func (m *PeerAddress) String() string { return proto.CompactTextString(m) }
 func (*PeerAddress) ProtoMessage()    {}
 func (*PeerAddress) Descriptor() ([]byte, []int) {
-	return fileDescriptor_node_3b90ca11e3156ed9, []int{0}
+	return fileDescriptor_node_faa64f4957ae13e5, []int{0}
 }
 func (m *PeerAddress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerAddress.Unmarshal(m, b)
@@ -142,9 +142,9 @@ func init() {
 	proto.RegisterEnum("types.PeerRole", PeerRole_name, PeerRole_value)
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor_node_3b90ca11e3156ed9) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor_node_faa64f4957ae13e5) }
 
-var fileDescriptor_node_3b90ca11e3156ed9 = []byte{
+var fileDescriptor_node_faa64f4957ae13e5 = []byte{
 	// 229 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0x90, 0x31, 0x4b, 0xc4, 0x40,
 	0x10, 0x85, 0xdd, 0xcb, 0x25, 0xb9, 0x4c, 0x72, 0x10, 0xa7, 0x90, 0x29, 0x2c, 0x16, 0xab, 0xc5,

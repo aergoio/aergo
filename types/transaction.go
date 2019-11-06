@@ -155,6 +155,17 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 		if len(tx.GetBody().GetPayload()) <= 0 {
 			return ErrTxFormatInvalid
 		}
+	case TxType_TRANSFER, TxType_CALL:
+		if tx.GetBody().GetRecipient() == nil {
+			return ErrTxInvalidRecipient
+		}
+	case TxType_DEPLOY:
+		if tx.GetBody().GetRecipient() != nil {
+			return ErrTxInvalidRecipient
+		}
+		if len(tx.GetBody().GetPayload()) == 0 {
+			return ErrTxFormatInvalid
+		}
 	default:
 		return ErrTxInvalidType
 	}
