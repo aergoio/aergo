@@ -52,14 +52,6 @@ func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock boo
 	case types.PeerRole_Producer:
 		// register self id
 		meta.ProducerIDs = []types.PeerID{peerID}
-		if len(conf.Agent) > 0 {
-			pid, err := types.IDB58Decode(conf.Agent)
-			if err != nil {
-				panic("invalid agentID "+conf.Agent+" : "+err.Error())
-			}
-			meta.AgentID = pid
-		}
-
 	case types.PeerRole_Agent:
 		size := len(conf.Producers)
 		if size == 0 {

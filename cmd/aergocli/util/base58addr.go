@@ -262,11 +262,11 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 
 func ConvPeerLong(p *types.Peer) *LongInOutPeer {
 	out := &LongInOutPeer{InOutPeer:*ConvPeer(p)}
+	out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
+	for i,pid := range p.Address.ProducerIDs {
+		out.ProducerIDs[i] = base58.Encode(pid)
+	}
 	if p.Address.Role == types.PeerRole_Agent {
-		out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
-		for i,pid := range p.Address.ProducerIDs {
-			out.ProducerIDs[i] = base58.Encode(pid)
-		}
 		out.Certificates =  make([]*InOutCert, len(p.Certificates))
 		for i,cert := range p.Certificates {
 			addrs := []string{}

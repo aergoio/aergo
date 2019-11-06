@@ -68,5 +68,7 @@ type CertificateManager interface {
 	GetCertificates() []*AgentCertificateV1
 	// AddCertificate add to my certificate list
 	AddCertificate(cert *AgentCertificateV1)
+
+	CanHandle(bpID types.PeerID) bool
 }
 //go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon CertificateManager | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_certificate.go"

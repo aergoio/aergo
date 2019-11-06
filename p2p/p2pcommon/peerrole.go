@@ -16,8 +16,11 @@ type PeerRoleManager interface {
 	SelfRole() types.PeerRole
 	// GetRole returns role of remote peer
 	GetRole(pid types.PeerID) types.PeerRole
-	// NotifyNewBlockMsg selects target peers with the appropriate role and sends them a NewBlockNotice
-	NotifyNewBlockMsg(mo MsgOrder, peers []RemotePeer) (skipped, sent int)
+	// FilterBPNoticeReceiver selects target peers with the appropriate role and sends them a BlockProducedNotice
+	FilterBPNoticeReceiver(block *types.Block, pm PeerManager) []RemotePeer
+
+	// FilterNewBlockNoticeReceiver selects target peers with the appropriate role and sends them a NewBlockNotice
+	FilterNewBlockNoticeReceiver(block *types.Block, pm PeerManager) []RemotePeer
 
 	//ListBlockManagePeers(exclude types.PeerID) map[types.PeerID]bool
 }

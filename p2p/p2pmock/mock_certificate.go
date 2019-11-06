@@ -46,6 +46,20 @@ func (mr *MockCertificateManagerMockRecorder) AddCertificate(arg0 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockCertificateManager)(nil).AddCertificate), arg0)
 }
 
+// CanHandle mocks base method
+func (m *MockCertificateManager) CanHandle(arg0 peer.ID) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CanHandle", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// CanHandle indicates an expected call of CanHandle
+func (mr *MockCertificateManagerMockRecorder) CanHandle(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanHandle", reflect.TypeOf((*MockCertificateManager)(nil).CanHandle), arg0)
+}
+
 // CreateCertificate mocks base method
 func (m *MockCertificateManager) CreateCertificate(arg0 p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {
 	m.ctrl.T.Helper()

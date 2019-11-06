@@ -92,7 +92,7 @@ func (e *EB) C() message.RaftClusterEvent {
 	return message.RaftClusterEvent{BPAdded: e.a, BPRemoved: e.r}
 }
 
-func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
+func TestRaftRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -109,8 +109,6 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		{"TAllBP", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}}, 3, 0},
 		{"TAllWat", []rs{{types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
 		{"TMIX", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 2, 1},
-		{"TMIXStop", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.STOPPING}}, 3, 0},
-		{"TMixStop2", []rs{{types.PeerRole_Producer, types.STOPPING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 2, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,7 +116,7 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
 			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).AnyTimes()
 
-			mockMO := p2pmock.NewMockMsgOrder(ctrl)
+			dummyBlock := &types.Block{}
 
 			rm := &RaftRoleManager{
 				p2ps:   nil,
@@ -134,12 +132,11 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 
 				mockPeers = append(mockPeers, mpeer)
 			}
-			gotSkipped, gotSent := rm.NotifyNewBlockMsg(mockMO, mockPeers)
-			if gotSkipped != tt.wantSkipped {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSkipped = %v, want %v", gotSkipped, tt.wantSkipped)
-			}
-			if gotSent != tt.wantSent {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSent = %v, want %v", gotSent, tt.wantSent)
+			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
+
+			filtered := rm.FilterBPNoticeReceiver(dummyBlock, mockPM)
+			if len(filtered) != tt.wantSent {
+				t.Errorf("RaftRoleManager.FilterBPNoticeReceiver() peers = %v, want %v", len(filtered), tt.wantSent)
 			}
 		})
 	}
@@ -213,16 +210,12 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		{"TAllBP", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}}, 0, 3},
 		{"TAllWat", []rs{{types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
 		{"TMix", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
-		{"TMixStop", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.STOPPING}}, 1, 2},
-		{"TMixStop2", []rs{{types.PeerRole_Producer, types.STOPPING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 1, 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
 			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).AnyTimes()
-
-			mockMO := p2pmock.NewMockMsgOrder(ctrl)
 
 			rm := &DefaultRoleManager{
 				p2ps: nil,
@@ -237,12 +230,12 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 
 				mockPeers = append(mockPeers, mPeer)
 			}
-			gotSkipped, gotSent := rm.NotifyNewBlockMsg(mockMO, mockPeers)
-			if gotSkipped != tt.wantSkipped {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSkipped = %v, want %v", gotSkipped, tt.wantSkipped)
-			}
-			if gotSent != tt.wantSent {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSent = %v, want %v", gotSent, tt.wantSent)
+			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
+
+			sampleBlock := &types.Block{}
+			filtered := rm.FilterBPNoticeReceiver(sampleBlock, mockPM)
+			if len(filtered) != tt.wantSent {
+				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() peers = %v, want %v", len(filtered), tt.wantSent)
 			}
 		})
 	}

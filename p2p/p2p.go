@@ -8,6 +8,7 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/list"
+	"net"
 	"sync"
 	"time"
 
@@ -43,6 +44,7 @@ type P2P struct {
 	selfMeta p2pcommon.PeerMeta
 	// caching data from genesis block
 	genesisChainID *types.ChainID
+	localSettings  p2pcommon.LocalSettings
 
 	nt     p2pcommon.NetworkTransport
 	pm     p2pcommon.PeerManager
@@ -95,16 +97,16 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.useRaft = genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 
 	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
+	p2ps.initLocalSettings(cfg.P2P)
 	// set selfMeta.AcceptedRole and init role manager
-	p2ps.prm = p2ps.initRoleManager(p2ps.useRaft, p2ps.selfMeta.Role)
-	p2ps.cm = newCertificateManager(p2ps, p2ps.selfMeta, p2ps.Logger)
+	p2ps.cm = newCertificateManager(p2ps, p2ps, p2ps.Logger)
+	p2ps.prm = p2ps.initRoleManager(p2ps.useRaft, p2ps.selfMeta.Role, p2ps.cm)
 
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
 	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
 	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
-
 
 	// public network is always disabled white/blacklist in chain
 	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
@@ -130,13 +132,13 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.mutex.Unlock()
 }
 
-func (p2ps *P2P) initRoleManager(useRaft bool, role types.PeerRole) p2pcommon.PeerRoleManager {
+func (p2ps *P2P) initRoleManager(useRaft bool, role types.PeerRole, cm p2pcommon.CertificateManager) p2pcommon.PeerRoleManager {
 	var prm p2pcommon.PeerRoleManager
 	if useRaft {
 		prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
 	} else {
 		if role == types.PeerRole_Agent {
-			prm = &DposAgentRoleManager{DefaultRoleManager{p2ps: p2ps}, make(map[types.PeerID]bool)}
+			prm = &DposAgentRoleManager{DefaultRoleManager{p2ps: p2ps}, cm, make(map[types.PeerID]bool)}
 		} else {
 			prm = &DefaultRoleManager{p2ps: p2ps}
 		}
@@ -311,6 +313,8 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.SendIssueCertMessage(context, msg)
 	case message.NotifyCertRenewed:
 		p2ps.NotifyCertRenewed(context, msg)
+	case message.TossBPNotice:
+		p2ps.TossBPNotice(msg)
 	}
 }
 
@@ -419,6 +423,9 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	if p2ps.useRaft && p2ps.selfMeta.Role == types.PeerRole_Producer {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	} else if p2ps.selfMeta.Role == types.PeerRole_Agent {
+		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewAgentBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm, p2ps.cm), p2ps.Logger, zerolog.DebugLevel))
+		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
@@ -429,7 +436,7 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.GetClusterResponse, subproto.NewGetClusterRespHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.RaftWrapperMessage, subproto.NewRaftWrapperHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
 
-    // certificate
+	// certificate
 	peer.AddMessageHandler(p2pcommon.IssueCertificateRequest, subproto.NewIssueCertReqHandler(p2ps.pm, p2ps.cm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.IssueCertificateResponse, subproto.NewIssueCertRespHandler(p2ps.pm, p2ps.cm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.CertificateRenewedNotice, subproto.NewCertRenewedNoticeHandler(p2ps.pm, p2ps.cm, peer, logger, p2ps))
@@ -473,8 +480,8 @@ func (p2ps *P2P) SelfNodeID() types.PeerID {
 	return p2ps.selfMeta.ID
 }
 
-func (p2ps *P2P) SelfRole() types.PeerRole {
-	return p2ps.selfMeta.Role
+func (p2ps *P2P) LocalSettings() p2pcommon.LocalSettings {
+	return p2ps.localSettings
 }
 
 func (p2ps *P2P) GetPeerBlockInfos() []types.PeerBlockInfo {
@@ -488,4 +495,41 @@ func (p2ps *P2P) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
 func (p2ps *P2P) CertificateManager() p2pcommon.CertificateManager {
 	// return dummy value
 	return p2ps.cm
+}
+
+func (p2ps *P2P) RoleManager() p2pcommon.PeerRoleManager {
+	// return dummy value
+	return p2ps.prm
+}
+
+func (p2ps *P2P) initLocalSettings(conf *config.P2PConfig) {
+	meta := p2ps.selfMeta
+	switch meta.Role {
+	case types.PeerRole_Producer:
+		// set agent id
+		if len(conf.Agent) > 0 {
+			pid, err := types.IDB58Decode(conf.Agent)
+			if err != nil {
+				panic("invalid agentID "+conf.Agent+" : "+err.Error())
+			}
+			p2ps.localSettings.AgentID = pid
+		}
+	case types.PeerRole_Agent:
+		// set internal zone for agent
+		if len(conf.InternalZones) > 0 {
+			nets := make([]*net.IPNet, len(conf.InternalZones))
+			for i, z := range conf.InternalZones {
+				_, ipnet, err := net.ParseCIDR(z)
+				if err != nil {
+					panic("invalid address range "+z+" : "+err.Error())
+				}
+				nets[i] = ipnet
+			}
+			p2ps.localSettings.InternalZones = nets
+		}
+	default:
+		// do nothing for now
+	}
+
+
 }

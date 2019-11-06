@@ -27,19 +27,24 @@ func Test_newCertificateManager(t *testing.T) {
 		{"TAgent", args{types.PeerRole_Agent}, false, reflect.TypeOf(&agentCertificateManager{})},
 		{"TWatcher", args{types.PeerRole_Watcher}, false, reflect.TypeOf(&watcherCertificateManager{})},
 		{"TWrong", args{99999}, true, reflect.TypeOf(&watcherCertificateManager{})},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			meta := p2pcommon.NewMetaWith1Addr(samplePeerID, "192.168.0.6", 7846, "v2.0.0")
 			meta.Role = tt.args.role
 			meta.ProducerIDs = []types.PeerID{types.RandomPeerID()}
-			got := newCertificateManager(nil, meta, logger)
-			if (got==nil) != tt.wantNil {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			is := p2pmock.NewMockInternalService(ctrl)
+			is.EXPECT().SelfMeta().Return(meta)
+			is.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{}).MaxTimes(1)
+
+			got := newCertificateManager(nil, is, logger)
+			if (got == nil) != tt.wantNil {
 				t.Errorf("newCertificateManager() = %v, want nil %v", got, tt.wantNil)
 			}
 			if !tt.wantNil && reflect.TypeOf(got) != tt.wantType {
-				t.Errorf("newCertificateManager() = %v, want %v", reflect.TypeOf(got) , tt.wantType)
+				t.Errorf("newCertificateManager() = %v, want %v", reflect.TypeOf(got), tt.wantType)
 			}
 		})
 	}
@@ -51,24 +56,30 @@ func Test_newCertificateManagerAgent(t *testing.T) {
 		pds []types.PeerID
 	}
 	tests := []struct {
-		name     string
-		args     args
-		wantNil  bool
+		name    string
+		args    args
+		wantNil bool
 	}{
-		{"TSingle", args{[]types.PeerID{types.RandomPeerID()}}, false, },
-		{"TMulti", args{[]types.PeerID{types.RandomPeerID(),types.RandomPeerID(),types.RandomPeerID()}}, false, },
+		{"TSingle", args{[]types.PeerID{types.RandomPeerID()}}, false,},
+		{"TMulti", args{[]types.PeerID{types.RandomPeerID(), types.RandomPeerID(), types.RandomPeerID()}}, false,},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			meta := p2pcommon.NewMetaWith1Addr(samplePeerID, "192.168.0.6", 7846, "v2.0.0")
 			meta.Role = types.PeerRole_Agent
 			meta.ProducerIDs = tt.args.pds
-			got := newCertificateManager(nil, meta, logger)
-			if (got==nil) != tt.wantNil {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			is := p2pmock.NewMockInternalService(ctrl)
+			is.EXPECT().SelfMeta().Return(meta)
+			is.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{}).MaxTimes(1)
+
+			got := newCertificateManager(nil, is, logger)
+			if (got == nil) != tt.wantNil {
 				t.Errorf("newCertificateManager() = %v, want nil %v", got, tt.wantNil)
 			}
 			if !tt.wantNil && len(got.GetProducers()) != len(tt.args.pds) {
-				t.Errorf("newCertificateManager() = %v, want %v",got.GetProducers() , tt.args.pds)
+				t.Errorf("newCertificateManager() = %v, want %v", got.GetProducers(), tt.args.pds)
 			}
 		})
 	}
@@ -82,9 +93,9 @@ func Test_agentCertificateManager_AddCertificate(t *testing.T) {
 		cert *p2pcommon.AgentCertificateV1
 	}
 	tests := []struct {
-		name   string
+		name string
 
-		args   args
+		args args
 
 		wantNotify int
 	}{
@@ -102,8 +113,9 @@ func Test_agentCertificateManager_AddCertificate(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockActor.EXPECT().TellRequest(message.P2PSvc, gomock.Any()).Times(tt.wantNotify)
 			cm := &agentCertificateManager{
-				baseCertManager: baseCertManager{actor:mockActor,self:sampleMeta, logger:logger},
-				certs:          []*p2pcommon.AgentCertificateV1{},
+				baseCertManager: baseCertManager{actor: mockActor, self: sampleMeta, logger: logger},
+				certs:           []*p2pcommon.AgentCertificateV1{},
+				certMap:         make(map[types.PeerID]*p2pcommon.AgentCertificateV1),
 			}
 
 			cm.AddCertificate(tt.args.cert)

@@ -18,12 +18,12 @@ type PeerMeta struct {
 	Role types.PeerRole
 	// ProducerIDs is a list of block producer IDs produced by this peer if the peer is BP, and if it is Agent, it is a list of block producer IDs that this peer acts as.
 	ProducerIDs []types.PeerID
-	AgentID     types.PeerID
 	// Address is advertised address to which other peer can connect.
 	Addresses []types.Multiaddr
 	// Version is build version of binary
 	Version string
 	Hidden  bool // Hidden means that meta info of this peer will not be sent to other peers when getting peer list
+
 }
 
 func (m *PeerMeta) GetVersion() string {

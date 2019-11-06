@@ -74,17 +74,30 @@ func (mr *MockPeerRoleManagerMockRecorder) GetRole(pid interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRole", reflect.TypeOf((*MockPeerRoleManager)(nil).GetRole), pid)
 }
 
-// NotifyNewBlockMsg mocks base method
-func (m *MockPeerRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pcommon.RemotePeer) (int, int) {
+// FilterBPNoticeReceiver mocks base method
+func (m *MockPeerRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NotifyNewBlockMsg", mo, peers)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(int)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "FilterBPNoticeReceiver", block, pm)
+	ret0, _ := ret[0].([]p2pcommon.RemotePeer)
+	return ret0
 }
 
-// NotifyNewBlockMsg indicates an expected call of NotifyNewBlockMsg
-func (mr *MockPeerRoleManagerMockRecorder) NotifyNewBlockMsg(mo, peers interface{}) *gomock.Call {
+// FilterBPNoticeReceiver indicates an expected call of FilterBPNoticeReceiver
+func (mr *MockPeerRoleManagerMockRecorder) FilterBPNoticeReceiver(block, pm interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotifyNewBlockMsg", reflect.TypeOf((*MockPeerRoleManager)(nil).NotifyNewBlockMsg), mo, peers)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterBPNoticeReceiver", reflect.TypeOf((*MockPeerRoleManager)(nil).FilterBPNoticeReceiver), block, pm)
+}
+
+// FilterNewBlockNoticeReceiver mocks base method
+func (m *MockPeerRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilterNewBlockNoticeReceiver", block, pm)
+	ret0, _ := ret[0].([]p2pcommon.RemotePeer)
+	return ret0
+}
+
+// FilterNewBlockNoticeReceiver indicates an expected call of FilterNewBlockNoticeReceiver
+func (mr *MockPeerRoleManagerMockRecorder) FilterNewBlockNoticeReceiver(block, pm interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterNewBlockNoticeReceiver", reflect.TypeOf((*MockPeerRoleManager)(nil).FilterNewBlockNoticeReceiver), block, pm)
 }

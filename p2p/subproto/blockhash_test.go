@@ -296,11 +296,19 @@ func (f *testDoubleHashesRespFactory) NewRaftMsgOrder(msgType raftpb.MessageType
 	panic("implement me")
 }
 
+func (f *testDoubleHashesRespFactory) NewTossMsgOrder(orgMsg p2pcommon.Message) p2pcommon.MsgOrder {
+	panic("implement me")
+}
+
 // testDoubleMOFactory keep last created message and last result status of response message
 type testDoubleMOFactory struct {
 	mutex      sync.Mutex
 	lastResp   p2pcommon.MessageBody
 	lastStatus types.ResultStatus
+}
+
+func (f *testDoubleMOFactory) NewTossMsgOrder(orgMsg p2pcommon.Message) p2pcommon.MsgOrder {
+	panic("implement me")
 }
 
 func (f *testDoubleMOFactory) NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) p2pcommon.MsgOrder {

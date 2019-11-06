@@ -8,6 +8,7 @@ package subproto
 import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
@@ -37,8 +38,8 @@ func (bh *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pc
 		return
 	}
 	// remove to verbose log
-	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer,data)
-	
+	p2putil.DebugLogReceive(bh.logger, bh.protocol, msg.ID().String(), remotePeer, data)
+
 	// lru cache can accept hashable key
 	block := data.Block
 	if blockID, err := types.ParseToBlockID(data.GetBlock().GetHash()); err != nil {
@@ -49,5 +50,55 @@ func (bh *blockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pc
 		// block by blockProduced notice must be new fresh block
 		remotePeer.UpdateLastNotice(blockID, data.BlockNo)
 		bh.sm.HandleBlockProducedNotice(bh.peer, block)
+	}
+}
+
+// handler for agent
+type agentBlockProducedNoticeHandler struct {
+	BaseMsgHandler
+	cm p2pcommon.CertificateManager
+}
+
+var _ p2pcommon.MessageHandler = (*agentBlockProducedNoticeHandler)(nil)
+
+// newNewBlockNoticeHandler creates handler for NewBlockNotice
+func NewAgentBlockProducedNoticeHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService, sm p2pcommon.SyncManager, cm p2pcommon.CertificateManager) *agentBlockProducedNoticeHandler {
+	bh := &agentBlockProducedNoticeHandler{BaseMsgHandler: BaseMsgHandler{protocol: p2pcommon.BlockProducedNotice, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger}, cm:cm}
+	return bh
+}
+
+func (bh *agentBlockProducedNoticeHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody, error) {
+	return p2putil.UnmarshalAndReturn(rawbytes, &types.BlockProducedNotice{})
+}
+
+// TODO redundant code with blockProducedNoticeHandler
+func (h *agentBlockProducedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+	remotePeer := h.peer
+	data := msgBody.(*types.BlockProducedNotice)
+	if data.Block == nil || len(data.Block.Hash) == 0 {
+		h.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Msg("invalid blockProduced notice. block is null")
+		return
+	}
+	// remove to verbose log
+	p2putil.DebugLogReceive(h.logger, h.protocol, msg.ID().String(), remotePeer, data)
+
+	// lru cache can accept hashable key
+	block := data.Block
+	if blockID, err := types.ParseToBlockID(data.GetBlock().GetHash()); err != nil {
+		// TODO add penalty score
+		h.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.GetBlock().GetHash())).Msg("malformed blockHash")
+		return
+	} else {
+		bpID, err := block.BPID()
+		if err != nil {
+			h.logger.Debug().Err(err).Str("blockID",block.BlockID().String()).Msg("invalid block publick key")
+			return
+		}
+		if h.cm.CanHandle(bpID) {
+			// toss notice to other agents or bp
+			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{block, msg})
+		}
+		remotePeer.UpdateLastNotice(blockID, data.BlockNo)
+		h.sm.HandleBlockProducedNotice(h.peer, block)
 	}
 }

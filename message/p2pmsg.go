@@ -240,3 +240,13 @@ type IssueAgentCertificate struct {
 type NotifyCertRenewed struct {
 	Cert *types.AgentCertificate
 }
+
+type TossDirection bool
+const (
+
+)
+type TossBPNotice struct {
+	Block *types.Block
+	// OriginalMsg is actually p2pcommon.Message. it is declared by interface{} for ad-hoc way to avoid import cycle
+	OriginalMsg interface{}
+}

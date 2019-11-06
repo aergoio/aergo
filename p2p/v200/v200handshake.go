@@ -30,12 +30,12 @@ var (
 
 // V200Handshaker exchange status data over protocol version 1.0.0
 type V200Handshaker struct {
+	is p2pcommon.InternalService
 	cm p2pcommon.CertificateManager
 	vm p2pcommon.VersionedManager
 
 	selfMeta p2pcommon.PeerMeta
 
-	actor  p2pcommon.ActorService
 	logger *log.Logger
 	peerID types.PeerID
 
@@ -55,8 +55,8 @@ func (h *V200Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 	return h.msgRW
 }
 
-func NewV200VersionedHS(meta p2pcommon.PeerMeta, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, cm p2pcommon.CertificateManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V200Handshaker {
-	h := &V200Handshaker{selfMeta: meta, actor: actor, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm, cm: cm}
+func NewV200VersionedHS(is p2pcommon.InternalService, log *log.Logger, vm p2pcommon.VersionedManager, cm p2pcommon.CertificateManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V200Handshaker {
+	h := &V200Handshaker{selfMeta: is.SelfMeta(), is: is, logger: log, peerID: peerID, localGenesisHash: genesis, vm: vm, cm: cm}
 	// msg format is not changed
 	h.msgRW = v030.NewV030MsgPipe(rwc)
 	return h
@@ -68,7 +68,7 @@ func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	// find my best block
-	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	bestBlock, err := h.is.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 		return nil, err
 	}
 
-	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	bestBlock, err := h.is.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
 	}

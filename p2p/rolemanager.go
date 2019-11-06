@@ -53,18 +53,18 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	}
 }
 
-func (rm *RaftRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pcommon.RemotePeer) (skipped, sent int) {
-	// TODO filter to only contain bp and trusted node.
+func (rm *RaftRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	peers := pm.GetPeers()
+	filtered := make([]p2pcommon.RemotePeer, 0, len(peers))
 	for _, neighbor := range peers {
-		if neighbor != nil && neighbor.State() == types.RUNNING &&
-			neighbor.AcceptedRole() == types.PeerRole_Watcher {
-			sent++
-			neighbor.SendMessage(mo)
-		} else {
-			skipped++
+		if neighbor.AcceptedRole() != types.PeerRole_Producer {
+			filtered = append(filtered, neighbor)
 		}
 	}
-	return
+	return filtered
+}
+func (rm *RaftRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return rm.FilterBPNoticeReceiver(block, pm)
 }
 
 type DefaultRoleManager struct {
@@ -101,46 +101,36 @@ func (rm *DefaultRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	return types.PeerRole_Watcher
 }
 
-func (rm *DefaultRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pcommon.RemotePeer) (skipped, sent int) {
-	// TODO filter to only contain bp and trusted node.
-	for _, neighbor := range peers {
-		if neighbor != nil && neighbor.State() == types.RUNNING {
-			sent++
-			neighbor.SendMessage(mo)
-		} else {
-			skipped++
-		}
-	}
-	return
+func (rm *DefaultRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return pm.GetPeers()
 }
 
-func (rm *DefaultRoleManager) IsManagedAgent(peerID types.PeerID) bool {
-	_, found := rm.agentsSet[peerID]
-	return found
-}
-
-func (rm *DefaultRoleManager) IsChargedProducer(peerID types.PeerID) bool {
-	return false
-}
-
-func (rm *DefaultRoleManager) IsTossBPNotice(bpID, peerID types.PeerID) bool {
-	if bpMap, found := rm.blockManagePeerSet[peerID]; found {
-		_, foundInBP := bpMap[peerID]
-		return !foundInBP
-	}
-	return false
-}
-
-func (rm *DefaultRoleManager) ListBlockManagePeers(exclude types.PeerID) map[types.PeerID]bool {
-	return nil
+func (rm *DefaultRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return pm.GetPeers()
 }
 
 type DposAgentRoleManager struct {
 	DefaultRoleManager
+	cm p2pcommon.CertificateManager
 	inChargeSet map[types.PeerID]bool
 }
 
-func (rm *DposAgentRoleManager) IsChargedProducer(peerID types.PeerID) bool {
-	_, found := rm.inChargeSet[peerID]
-	return found
+func (rm *DposAgentRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	// agent always receive this message when he is in charged
+	bpID, err := block.BPID()
+	if err != nil {
+		rm.p2ps.Debug().Err(err).Str("blockID",block.BlockID().String()).Msg("invalid block public key")
+		return nil
+	}
+	pmimpl := pm.(*peerManager)
+	peers := make([]p2pcommon.RemotePeer, 0, len(pmimpl.bpClassPeers))
+	for _, peer := range pmimpl.bpClassPeers {
+		if !p2putil.ContainsID(peer.Meta().ProducerIDs, bpID) {
+			peers = append(peers, peer)
+		}
+	}
+	return peers
+}
+func (rm *DposAgentRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return pm.GetPeers()
 }

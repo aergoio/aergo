@@ -7,6 +7,7 @@ package p2pcommon
 
 import (
 	"github.com/aergoio/aergo/types"
+	"net"
 )
 
 // InternalService provides informations of self node and reference of other p2p components.
@@ -15,8 +16,7 @@ type InternalService interface {
 	//NetworkTransport
 	SelfMeta() PeerMeta
 	SelfNodeID() types.PeerID
-	// SelfRole shows role of this mode
-	SelfRole() types.PeerRole
+	LocalSettings() LocalSettings
 
 	// accessors of other modules
 	GetChainAccessor() types.ChainAccessor
@@ -24,6 +24,13 @@ type InternalService interface {
 
 	CertificateManager() CertificateManager
 
+	RoleManager() PeerRoleManager
 	// TODO add other methods
 }
+
 //go:generate mockgen -source=internalservice.go  -package=p2pmock -destination=../p2pmock/mock_internalservice.go
+
+type LocalSettings struct {
+	AgentID       types.PeerID
+	InternalZones []*net.IPNet
+}
