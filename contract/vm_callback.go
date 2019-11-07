@@ -1237,7 +1237,7 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteBP.Cmd(), C.GoString(arg)))
 	case 'D':
 		amountBig = zeroBig
-		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteParam.Cmd(), C.GoString(arg)))
+		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteDAO.Cmd(), C.GoString(arg)))
 	}
 
 	aid := types.ToAccountID([]byte(types.AergoSystem))
