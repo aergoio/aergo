@@ -241,7 +241,7 @@ func TestP2P_NotifyBlockProduced(t *testing.T) {
 
 				mockPeers = append(mockPeers, mPeer)
 			}
-			mockRM.EXPECT().FilterBPNoticeReceiver(dummyNotice.Block, mockPM).Return(mockPeers)
+			mockPM.EXPECT().GetPeers().Return(mockPeers)
 			mockMF.EXPECT().NewMsgBPBroadcastOrder(gomock.AssignableToTypeOf(&types.BlockProducedNotice{}))
 
 			_ = p2ps.NotifyBlockProduced(dummyNotice)

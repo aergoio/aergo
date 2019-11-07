@@ -39,10 +39,11 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 		peerid := types.RandomPeerID()
 		// first 10 are visible, others are hidden
 		meta := p2pcommon.NewMetaWith1Addr(peerid, "test.abc.com", 7846, "v2.0.0")
-		meta.Hidden = i >= 10
 		samplePeer := p2pmock.NewMockRemotePeer(ctrl)
 		samplePeer.EXPECT().ID().Return(meta.ID).AnyTimes()
 		samplePeer.EXPECT().Meta().Return(meta).AnyTimes()
+		samplePeer.EXPECT().RemoteInfo().Return(p2pcommon.RemoteInfo{Hidden: i >= 10}).AnyTimes()
+
 		samplePeers[i] = samplePeer
 	}
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")

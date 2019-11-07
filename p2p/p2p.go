@@ -157,7 +157,8 @@ func (p2ps *P2P) AfterStart() {
 	p2ps.lm.Start()
 	p2ps.mutex.Lock()
 	p2ps.checkConsensus()
-	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfMeta.Role.String()).Msg("Starting p2p component")
+	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("info",p2putil.ShortMetaForm(p2ps.selfMeta)).Str("role", p2ps.selfMeta.Role.String()).Msg("Starting p2p component")
+
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.tnt.Start()
@@ -427,7 +428,7 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewAgentBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm, p2ps.cm), p2ps.Logger, zerolog.DebugLevel))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {
-		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
+		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps, p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	}
 
@@ -512,7 +513,10 @@ func (p2ps *P2P) initLocalSettings(conf *config.P2PConfig) {
 			if err != nil {
 				panic("invalid agentID "+conf.Agent+" : "+err.Error())
 			}
+			p2ps.Logger.Info().Str("fullID",pid.String()).Str("agentID",p2putil.ShortForm(pid)).Msg("found agent setting. use peer as agent if connected")
 			p2ps.localSettings.AgentID = pid
+		} else {
+			p2ps.Logger.Debug().Msg("no agent was set. local peer is standalone producer.")
 		}
 	case types.PeerRole_Agent:
 		// set internal zone for agent
@@ -525,7 +529,10 @@ func (p2ps *P2P) initLocalSettings(conf *config.P2PConfig) {
 				}
 				nets[i] = ipnet
 			}
+			p2ps.Logger.Info().Array("producerIDs",p2putil.NewLogPeerIdsMarshaller(meta.ProducerIDs,25)).Array("internalZones",p2putil.NewLogIPNetMarshaller(nets,10)).Msg("init agent setting. use peer as agent if connected")
 			p2ps.localSettings.InternalZones = nets
+		} else {
+			panic("agent must configure one or more internalzones ")
 		}
 	default:
 		// do nothing for now

@@ -45,8 +45,10 @@ func NewMetaWith1Addr(id types.PeerID, addr string, port uint32, version string)
 }
 
 // FromStatusToMeta create peerMeta from Status message
-func NewMetaFromStatus(status *types.Status, outbound bool) PeerMeta {
+func NewMetaFromStatus(status *types.Status) PeerMeta {
 	meta := FromPeerAddressNew(status.Sender)
+	// hidden field of remote peer should be got from Status struct
+	meta.Hidden = status.NoExpose
 	//if len(meta.Version) == 0 {
 	//	meta.Version = status.Sender.Version
 	//}

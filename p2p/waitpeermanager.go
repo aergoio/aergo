@@ -21,19 +21,19 @@ import (
 type connPeerResult struct {
 	msgRW p2pcommon.MsgReadWriter
 
-	remote   p2pcommon.RemoteInfo
-	bestHash types.BlockID
-	bestNo   types.BlockNo
+	remote       p2pcommon.RemoteInfo
+	bestHash     types.BlockID
+	bestNo       types.BlockNo
 	Certificates []*p2pcommon.AgentCertificateV1
 }
 
-func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
+func NewWaitingPeerManager(logger *log.Logger, is p2pcommon.InternalService, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager: basePeerManager{pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager: basePeerManager{is:is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager: basePeerManager{pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager: basePeerManager{is:is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -41,6 +41,7 @@ func NewWaitingPeerManager(logger *log.Logger, pm *peerManager, lm p2pcommon.Lis
 }
 
 type basePeerManager struct {
+	is p2pcommon.InternalService
 	pm *peerManager
 	lm p2pcommon.ListManager
 
@@ -208,21 +209,22 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	}
 
 	// update peer meta info using sent information from remote peer
-	remoteInfo := createRemoteInfo(s.Conn(), *hResult, outbound)
+	remoteInfo := dpm.createRemoteInfo(s.Conn(), *hResult, outbound)
 
-	dpm.pm.peerConnected <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash:hResult.BestBlockHash, bestNo:hResult.BestBlockNo, Certificates:hResult.Certificates}
+	dpm.pm.peerConnected <- connPeerResult{remote: remoteInfo, msgRW: hResult.MsgRW, bestHash: hResult.BestBlockHash, bestNo: hResult.BestBlockNo, Certificates: hResult.Certificates}
 	return remoteInfo.Meta, true
 }
 
-func createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound bool) p2pcommon.RemoteInfo {
+func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound bool) p2pcommon.RemoteInfo {
 	rma := conn.RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(rma)
 	if err != nil {
-		panic("conn information is wrong")
+		panic("conn information is wrong : "+err.Error())
 	}
 
 	connection := p2pcommon.RemoteConn{IP: ip, Port: port, Outbound: outbound}
-	ri := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden, Certificates:r.Certificates, AcceptedRole:types.PeerRole_Watcher}
+	zone := p2pcommon.PeerZone(p2putil.IsContainedIP(ip, dpm.is.LocalSettings().InternalZones))
+	ri := p2pcommon.RemoteInfo{Meta: r.Meta, Connection: connection, Hidden: r.Hidden, Certificates: r.Certificates, AcceptedRole: types.PeerRole_Watcher, Zone: zone}
 
 	// TODO Is it OK to this function has logic for policy?
 	// check role
@@ -234,6 +236,8 @@ func createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound b
 		// check if agent has at least one certificate
 		if len(r.Certificates) > 0 {
 			ri.AcceptedRole = types.PeerRole_Agent
+		} else {
+			dpm.logger.Debug().Str(p2putil.LogPeerID,p2putil.ShortForm(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
 		}
 	default:
 		ri.AcceptedRole = r.Meta.Role

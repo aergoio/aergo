@@ -76,7 +76,7 @@ type P2PConfig struct {
 
 	PeerRole  string   `mapstructure:"peerrole" description:"Role of peer. It must be sync with enablebp field in consensus config "`
 	Producers []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
-	InternalZones []string `mapstructure:"producers" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
+	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
 	Agent     string `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
 }
 

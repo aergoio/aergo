@@ -17,7 +17,7 @@ type PeerRoleManager interface {
 	// GetRole returns role of remote peer
 	GetRole(pid types.PeerID) types.PeerRole
 	// FilterBPNoticeReceiver selects target peers with the appropriate role and sends them a BlockProducedNotice
-	FilterBPNoticeReceiver(block *types.Block, pm PeerManager) []RemotePeer
+	FilterBPNoticeReceiver(block *types.Block, pm PeerManager, targetZone PeerZone) []RemotePeer
 
 	// FilterNewBlockNoticeReceiver selects target peers with the appropriate role and sends them a NewBlockNotice
 	FilterNewBlockNoticeReceiver(block *types.Block, pm PeerManager) []RemotePeer

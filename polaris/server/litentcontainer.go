@@ -28,11 +28,20 @@ import (
 type LiteContainerService struct {
 	*component.BaseComponent
 
+	dummySetting p2pcommon.LocalSettings
 	chainID *types.ChainID
 	meta    p2pcommon.PeerMeta
 	nt      p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
+}
+
+func (lntc *LiteContainerService) LocalSettings() p2pcommon.LocalSettings {
+	return lntc.dummySetting
+}
+
+func (lntc *LiteContainerService) RoleManager() p2pcommon.PeerRoleManager {
+	panic("implement me")
 }
 
 var (

@@ -153,7 +153,7 @@ func (pm *peerManager) init() {
 	}
 
 	pm.peerFinder = NewPeerFinder(pm.logger, pm, pm.actorService, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers, pm.conf.NPUsePolaris)
-	pm.wpManager = NewWaitingPeerManager(pm.logger, pm, pm.lm, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers)
+	pm.wpManager = NewWaitingPeerManager(pm.logger, pm.is, pm, pm.lm, pm.conf.NPPeerPool, pm.conf.NPDiscoverPeers)
 	pm.AddPeerEventListener(pm.peerFinder)
 	pm.AddPeerEventListener(pm.wpManager)
 	// add designated peers to waiting pool at initial time.
@@ -348,7 +348,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone",remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -477,15 +477,16 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		peers = append(peers, selfpi)
 	}
 	for _, aPeer := range pm.peerCache {
-		meta := aPeer.Meta()
-		if noHidden && meta.Hidden {
+		ri := aPeer.RemoteInfo()
+		if noHidden && ri.Hidden {
 			continue
 		}
+		meta := aPeer.Meta()
 		addr := meta.ToPeerAddress()
 		lastStatus := aPeer.LastStatus()
 		rCerts, _ := p2putil.ConvertCertsToProto(aPeer.RemoteInfo().Certificates)
 		pi := &message.PeerInfo{
-			&addr, rCerts, aPeer.AcceptedRole(), meta.Version, meta.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
+			&addr, rCerts, aPeer.AcceptedRole(), meta.Version, ri.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
 		peers = append(peers, pi)
 	}
 	return peers
@@ -505,6 +506,8 @@ func (pm *peerManager) deletePeer(peer p2pcommon.RemotePeer) {
 }
 
 func (pm *peerManager) updatePeerCache() {
+	pm.mutex.Lock()
+	defer pm.mutex.Unlock()
 	size := len(pm.remotePeers)
 	newSlice := make([]p2pcommon.RemotePeer, 0, size)
 	newBSlice := make([]p2pcommon.RemotePeer, 0, size)
@@ -512,14 +515,12 @@ func (pm *peerManager) updatePeerCache() {
 	for _, rPeer := range pm.remotePeers {
 		newSlice = append(newSlice, rPeer)
 		if rPeer.AcceptedRole() == types.PeerRole_Producer || rPeer.AcceptedRole() == types.PeerRole_Agent {
-			newWSlice = append(newWSlice, rPeer)
-		} else {
 			newBSlice = append(newBSlice, rPeer)
+		} else {
+			newWSlice = append(newWSlice, rPeer)
 		}
 
 	}
-	pm.mutex.Lock()
-	defer pm.mutex.Unlock()
 	pm.peerCache = newSlice
 	pm.bpClassPeers = newBSlice
 	pm.watchClassPeers = newWSlice

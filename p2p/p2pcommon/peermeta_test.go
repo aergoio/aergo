@@ -81,7 +81,7 @@ func TestNewMetaFromStatus(t *testing.T) {
 				t.Fatalf("Wrong test input, %v is not valid input for multiaddr: err %v", tt.args.addr, err.Error())
 			}
 
-			actual := NewMetaFromStatus(status, tt.args.outbound)
+			actual := NewMetaFromStatus(status)
 			if len(actual.Addresses) != 1 {
 				t.Fatalf("NewMetaFromStatus len(addrs) %v , want 1", len(actual.Addresses))
 			}
@@ -92,7 +92,10 @@ func TestNewMetaFromStatus(t *testing.T) {
 			if string(actual.ID) != tt.args.id {
 				t.Fatalf("NewMetaFromStatus ID %v , want %v", string(actual.ID), tt.args.id)
 			}
-			if !actual.Equals(FromPeerAddress(sender)) {
+			// Hidden property is not in peer address
+			conv2 := FromPeerAddress(sender)
+			conv2.Hidden = status.NoExpose
+			if !actual.Equals(conv2) {
 				t.Fatalf("FromPeerAddress ID %v , want %v", actual, FromPeerAddress(sender))
 			}
 		})

@@ -78,17 +78,18 @@ type bpCertificateManager struct {
 	key *btcec.PrivateKey
 }
 
-func (d *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {
-	if types.IsSamePeerID(d.settings.AgentID, remoteMeta.ID) {
+func (cm *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {
+	if !types.IsSamePeerID(cm.settings.AgentID, remoteMeta.ID) {
 		// this agent is not in charge of that bp id.
-		d.logger.Info().Str("agentID", p2putil.ShortForm(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
+		cm.logger.Info().Str("agentID", p2putil.ShortForm(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
 		return nil, p2pcommon.ErrInvalidRole
 	}
+
 	addrs := make([]string, len(remoteMeta.Addresses))
 	for i, ad := range remoteMeta.Addresses {
 		addrs[i] = types.AddressFromMultiAddr(ad)
 	}
-	return p2putil.NewAgentCertV1(d.self.ID, remoteMeta.ID, d.key, addrs, time.Hour*24)
+	return p2putil.NewAgentCertV1(cm.self.ID, remoteMeta.ID, cm.key, addrs, time.Hour*24)
 }
 
 type agentCertificateManager struct {

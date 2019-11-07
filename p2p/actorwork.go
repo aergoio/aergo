@@ -130,7 +130,7 @@ func (p2ps *P2P) NotifyNewBlock(blockNotice message.NotifyNewBlock) bool {
 	mo := p2ps.mf.NewMsgBlkBroadcastOrder(req)
 
 	// sending new block notice (relay inv message is not need to every nodes)
-	peers := p2ps.prm.FilterBPNoticeReceiver(blockNotice.Block, p2ps.pm)
+	peers := p2ps.prm.FilterNewBlockNoticeReceiver(blockNotice.Block, p2ps.pm )
 	sent, skipped := 0,0
 	for _, neighbor := range peers {
 		if neighbor != nil && neighbor.State() == types.RUNNING {
@@ -151,7 +151,7 @@ func (p2ps *P2P) NotifyBlockProduced(blockNotice message.NotifyNewBlock) bool {
 	req := &types.BlockProducedNotice{ProducerID: nil, BlockNo: blockNotice.BlockNo, Block: blockNotice.Block}
 	mo := p2ps.mf.NewMsgBPBroadcastOrder(req)
 
-	peers := p2ps.prm.FilterBPNoticeReceiver(blockNotice.Block, p2ps.pm)
+	peers := p2ps.pm.GetPeers()
 	sent, skipped := 0,0
 	for _, neighbor := range peers {
 		if neighbor.State() == types.RUNNING {
@@ -286,12 +286,12 @@ func (p2ps *P2P) NotifyCertRenewed(context actor.Context, renewed message.Notify
 
 }
 
-
 func (p2ps *P2P) TossBPNotice(msg message.TossBPNotice) bool {
 	orgMsg := msg.OriginalMsg.(p2pcommon.Message)
 	mo := p2ps.mf.NewTossMsgOrder(orgMsg)
 
-	peers := p2ps.prm.FilterBPNoticeReceiver(msg.Block, p2ps.pm)
+	targetZone := p2pcommon.PeerZone(msg.TossIn)
+	peers := p2ps.prm.FilterBPNoticeReceiver(msg.Block, p2ps.pm, targetZone)
 	skipped, sent := 0, 0
 	for _, neighbor := range peers {
 		if neighbor != nil && neighbor.State() == types.RUNNING {
@@ -302,6 +302,6 @@ func (p2ps *P2P) TossBPNotice(msg message.TossBPNotice) bool {
 		}
 	}
 
-	p2ps.Debug().Int("skipped_cnt", skipped).Int("sent_cnt", sent).Str(p2putil.LogMsgID, orgMsg.ID().String()).Msg("Tossing block produced notice")
+	p2ps.Debug().Int("skipCnt", skipped).Int("sendCnt", sent).Str("Target", targetZone.String()).Str(p2putil.LogMsgID, orgMsg.ID().String()).Msg("Tossing block produced notice")
 	return true
 }

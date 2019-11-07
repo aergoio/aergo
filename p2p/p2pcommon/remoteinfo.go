@@ -5,6 +5,21 @@ import (
 	"net"
 )
 
+type PeerZone bool
+
+const (
+	ExternalZone PeerZone = false
+	InternalZone PeerZone = true
+)
+
+func (z PeerZone) String() string {
+	if z == InternalZone {
+		return "Internal"
+	} else {
+		return "External"
+	}
+}
+
 // RemoteConn is information of single peer connection
 type RemoteConn struct {
 	IP       net.IP
@@ -23,4 +38,5 @@ type RemoteInfo struct {
 	// AcceptedRole is role as which the local peer treat the remote peer
 	AcceptedRole types.PeerRole
 	Certificates []*AgentCertificateV1
+	Zone         PeerZone
 }

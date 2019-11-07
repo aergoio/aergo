@@ -53,7 +53,7 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	}
 }
 
-func (rm *RaftRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+func (rm *RaftRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
 	peers := pm.GetPeers()
 	filtered := make([]p2pcommon.RemotePeer, 0, len(peers))
 	for _, neighbor := range peers {
@@ -64,7 +64,7 @@ func (rm *RaftRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcomm
 	return filtered
 }
 func (rm *RaftRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
-	return rm.FilterBPNoticeReceiver(block, pm)
+	return rm.FilterBPNoticeReceiver(block, pm, p2pcommon.InternalZone)
 }
 
 type DefaultRoleManager struct {
@@ -101,7 +101,7 @@ func (rm *DefaultRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	return types.PeerRole_Watcher
 }
 
-func (rm *DefaultRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+func (rm *DefaultRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
 	return pm.GetPeers()
 }
 
@@ -115,22 +115,18 @@ type DposAgentRoleManager struct {
 	inChargeSet map[types.PeerID]bool
 }
 
-func (rm *DposAgentRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
-	// agent always receive this message when he is in charged
-	bpID, err := block.BPID()
-	if err != nil {
-		rm.p2ps.Debug().Err(err).Str("blockID",block.BlockID().String()).Msg("invalid block public key")
-		return nil
-	}
+func (rm *DposAgentRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
+	// FIXME type conversion to concrete type is poor solution.
 	pmimpl := pm.(*peerManager)
 	peers := make([]p2pcommon.RemotePeer, 0, len(pmimpl.bpClassPeers))
 	for _, peer := range pmimpl.bpClassPeers {
-		if !p2putil.ContainsID(peer.Meta().ProducerIDs, bpID) {
+		if peer.RemoteInfo().Zone == targetZone {
 			peers = append(peers, peer)
 		}
 	}
 	return peers
 }
+
 func (rm *DposAgentRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
 	return pm.GetPeers()
 }

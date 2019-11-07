@@ -182,7 +182,7 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		return fmt.Errorf("invalid peer address : %s", peerAddress)
 	}
 
-	rMeta := p2pcommon.FromPeerAddress(peerAddress)
+	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
 		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")

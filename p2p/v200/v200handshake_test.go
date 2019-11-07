@@ -376,7 +376,7 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 	}{
 		{"TBP", args{types.PeerRole_Producer, nil, nil}, nil, nil, false},
 		{"TWatcher", args{types.PeerRole_Watcher, nil, nil}, nil, nil, false},
-		{"TAgent", args{types.PeerRole_Agent, pids, certs}, pids, nil, false},
+		{"TAgent", args{types.PeerRole_Agent, pids, certs}, pids, certs, false},
 		{"TAgentLessCert", args{types.PeerRole_Agent, pids, certs[1:3]},  pids, certs[1:3], false},
 		{"TWrongCert", args{types.PeerRole_Agent, pids, []*p2pcommon.AgentCertificateV1{&wrongCert}},  pids, certs[1:3], true},
 
@@ -421,6 +421,21 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 						if !types.IsSamePeerID(gpid, pid) {
 							t.Errorf("createLocalStatus() producers = %v, wantErr %v", sender.ProducerIDs, tt.wantProdIDs)
 							return
+						}
+					}
+				}
+				if len(got.Certificates) != len(tt.wantCert) {
+					t.Errorf("createLocalStatus() certs size = %v, want %v", len(got.Certificates) , len(tt.wantCert))
+					return
+				} else {
+					for i, c := range tt.wantCert {
+						conv, err := p2putil.ConvertCertToProto(c)
+						if err != nil {
+							t.Fatalf("converting certs failed = Err %v", err.Error())
+						}
+						pc := got.Certificates[i]
+						if !reflect.DeepEqual(conv, pc) {
+							t.Fatalf("createLocalStatus() cert %v, want %v", pc, conv)
 						}
 					}
 				}

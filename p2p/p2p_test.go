@@ -69,6 +69,7 @@ func TestP2P_InsertHandlers(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().AddMessageHandler(gomock.AssignableToTypeOf(p2pcommon.PingResponse), gomock.Any()).MinTimes(1)
+			mockPeer.EXPECT().ID().AnyTimes()
 
 			p2ps := &P2P{
 				pm: mockPM,

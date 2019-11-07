@@ -186,7 +186,7 @@ func (pms *PeerMapService) handleQuery(conn p2pcommon.RemoteConn, container p2pc
 	if query.Status == nil {
 		return nil, fmt.Errorf("malformed query %v", query)
 	}
-	receivedMeta := p2pcommon.NewMetaFromStatus(query.Status, false)
+	receivedMeta := p2pcommon.NewMetaFromStatus(query.Status)
 	// for backward compatibility to aergo v1 .
 	// TODO make compatible layer more elegant
 	if len(receivedMeta.Version) == 0 || receivedMeta.Version == "(old)" {

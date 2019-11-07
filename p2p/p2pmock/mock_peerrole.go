@@ -75,7 +75,7 @@ func (mr *MockPeerRoleManagerMockRecorder) GetRole(pid interface{}) *gomock.Call
 }
 
 // FilterBPNoticeReceiver mocks base method
-func (m *MockPeerRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+func (m *MockPeerRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FilterBPNoticeReceiver", block, pm)
 	ret0, _ := ret[0].([]p2pcommon.RemotePeer)

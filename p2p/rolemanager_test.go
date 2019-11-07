@@ -92,7 +92,7 @@ func (e *EB) C() message.RaftClusterEvent {
 	return message.RaftClusterEvent{BPAdded: e.a, BPRemoved: e.r}
 }
 
-func TestRaftRoleManager_FilterBPNoticeReceiver(t *testing.T) {
+func TestRaftRoleManager_FilterBPNoticeReceiverTossOut(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -134,7 +134,7 @@ func TestRaftRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 			}
 			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
 
-			filtered := rm.FilterBPNoticeReceiver(dummyBlock, mockPM)
+			filtered := rm.FilterBPNoticeReceiver(dummyBlock, mockPM, p2pcommon.ExternalZone)
 			if len(filtered) != tt.wantSent {
 				t.Errorf("RaftRoleManager.FilterBPNoticeReceiver() peers = %v, want %v", len(filtered), tt.wantSent)
 			}
@@ -193,7 +193,7 @@ func TestDefaultRoleManager_updateBP(t *testing.T) {
 	}
 }
 
-func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
+func TestDefaultRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -233,7 +233,7 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
 
 			sampleBlock := &types.Block{}
-			filtered := rm.FilterBPNoticeReceiver(sampleBlock, mockPM)
+			filtered := rm.FilterBPNoticeReceiver(sampleBlock, mockPM, p2pcommon.ExternalZone)
 			if len(filtered) != tt.wantSent {
 				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() peers = %v, want %v", len(filtered), tt.wantSent)
 			}
