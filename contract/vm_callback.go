@@ -1220,8 +1220,8 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 	}
 	var amountBig *big.Int
 	var payload []byte
-
-	if gType != 'V' {
+	switch gType {
+	case 'S', 'U':
 		var err error
 		amountBig, err = transformAmount(C.GoString(arg))
 		if err != nil {
@@ -1232,10 +1232,14 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 		} else {
 			payload = []byte(fmt.Sprintf(`{"Name":"%s"}`, types.Opunstake.Cmd()))
 		}
-	} else {
+	case 'V':
 		amountBig = zeroBig
 		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteBP.Cmd(), C.GoString(arg)))
+	case 'D':
+		amountBig = zeroBig
+		payload = []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, types.OpvoteParam.Cmd(), C.GoString(arg)))
 	}
+
 	aid := types.ToAccountID([]byte(types.AergoSystem))
 	scsState, err := getCtrState(ctx, aid)
 	if err != nil {
@@ -1250,6 +1254,9 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 	txBody := types.TxBody{
 		Amount:  amountBig.Bytes(),
 		Payload: payload,
+	}
+	if HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
+		txBody.Account = curContract.contractId
 	}
 	err = types.ValidateSystemTx(&txBody)
 	if err != nil {

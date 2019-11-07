@@ -391,7 +391,7 @@ static int governance(lua_State *L, char type) {
 		luaL_error(L, "cannot find execution context");
 	}
 
-    if (type != 'V') {
+    if (type == 'S' || type == 'U') {
     	if (lua_isnil(L, 1))
 	    return 0;
 
@@ -445,6 +445,10 @@ static int moduleVote(lua_State *L) {
     return governance(L, 'V');
 }
 
+static int moduleVoteDao(lua_State *L) {
+    return governance(L, 'D');
+}
+
 static const luaL_Reg call_methods[] = {
 	{"value", call_value},
 	{"amount", call_value},
@@ -486,6 +490,7 @@ static const luaL_Reg contract_lib[] = {
 	{"stake", moduleStake},
 	{"unstake", moduleUnstake},
 	{"vote", moduleVote},
+	{"voteDao", moduleVoteDao},
 	{NULL, NULL}
 };
 
