@@ -363,7 +363,7 @@ static int moduleEvent(lua_State *L)
 
 	event_name = (char *)luaL_checkstring(L, 1);
 	if (isHardfork(L, FORK_V2) == 1) {
-	    json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), true);
+	    json_args = lua_util_get_json_array_from_stack (L, 2, lua_gettop(L), true);
 	}
 	else {
 	    json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), false);

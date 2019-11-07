@@ -623,6 +623,32 @@ char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_
 	return sbuf.buf;
 }
 
+char *lua_util_get_json_array_from_stack (lua_State *L, int start, int end, bool json_form)
+{
+	int i;
+	sbuff_t sbuf;
+	int start_idx;
+	callinfo_t *callinfo = NULL;
+	lua_util_sbuf_init (&sbuf, 64);
+
+	copy_to_buffer ("[", 1, &sbuf);
+	start_idx = sbuf.idx;
+	for (i = start; i <= end; ++i) {
+		if (!lua_util_dump_json (L, i, &sbuf, json_form, false, &callinfo)) {
+			callinfo_del(callinfo);
+			free(sbuf.buf);
+			return NULL;
+		}
+	}
+	callinfo_del(callinfo);
+	if (sbuf.idx != start_idx)
+		sbuf.idx--;
+	copy_to_buffer ("]", 2, &sbuf);
+
+    minus_inst_count(L, strlen(sbuf.buf));
+	return sbuf.buf;
+}
+
 char *lua_util_get_json (lua_State *L, int idx, bool json_form)
 {
 	sbuff_t sbuf;
