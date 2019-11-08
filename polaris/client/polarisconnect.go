@@ -229,6 +229,16 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 	if err != nil {
 		return data, nil, err
 	}
+	// old version of polaris will return old formatted PeerAddress, so conversion to new format is needed.
+	for _, addr := range queryResp.Addresses {
+		if len(addr.Addresses) == 0 {
+			ma, err := types.ToMultiAddr(addr.Address, addr.Port)
+			if err != nil {
+				continue
+			}
+			addr.Addresses=[]string{ma.String()}
+		}
+	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")
 
 	return data, queryResp, nil
