@@ -121,7 +121,7 @@ func (c *deployContract) Run(args string) (string, error) {
 	updateContractInfoInterface(contractName, defPath)
 
 	err = context.Get().ConnectBlock(
-		contract.NewRawLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
+		contract.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
 	)
 
 	if enableWatch && !strings.HasPrefix(defPath, "http") {

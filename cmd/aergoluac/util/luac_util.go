@@ -15,11 +15,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
 	"io/ioutil"
 	"os"
 	"runtime"
 	"unsafe"
+
+	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
 )
 
 func NewLState() *C.lua_State {
@@ -38,9 +39,9 @@ func CloseLState(L *C.lua_State) {
 }
 
 func Compile(L *C.lua_State, code string) ([]byte, error) {
-	cstr := C.CString(code)
-	defer C.free(unsafe.Pointer(cstr))
-	if errMsg := C.vm_loadstring(L, cstr); errMsg != nil {
+	cStr := C.CString(code)
+	defer C.free(unsafe.Pointer(cStr))
+	if errMsg := C.vm_loadstring(L, cStr); errMsg != nil {
 		return nil, errors.New(C.GoString(errMsg))
 	}
 	if errMsg := C.vm_stringdump(L); errMsg != nil {

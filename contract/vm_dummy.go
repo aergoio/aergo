@@ -5,10 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"path"
@@ -17,8 +15,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/fee"
+	"github.com/aergoio/aergo/internal/enc"
+
 	"github.com/aergoio/aergo-lib/db"
-	luac_util "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -181,10 +182,7 @@ type luaTxAccount struct {
 var _ luaTx = (*luaTxAccount)(nil)
 
 func NewLuaTxAccount(name string, balance uint64) *luaTxAccount {
-	return &luaTxAccount{
-		name:    strHash(name),
-		balance: new(big.Int).SetUint64(balance),
-	}
+	return NewLuaTxAccountBig(name, new(big.Int).SetUint64(balance))
 }
 
 func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
@@ -195,7 +193,6 @@ func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
 }
 
 func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
-
 	id := types.ToAccountID(l.name)
 	accountState, err := bs.GetAccountState(id)
 	if err != nil {
@@ -224,7 +221,6 @@ func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 }
 
 func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
-
 	senderID := types.ToAccountID(l.sender)
 	receiverID := types.ToAccountID(l.receiver)
 
@@ -278,66 +274,22 @@ type luaTxDef struct {
 var _ luaTx = (*luaTxDef)(nil)
 
 func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
-	L := luac_util.NewLState()
-	if L == nil {
-		return &luaTxDef{cErr: newVmStartError()}
-	}
-	defer luac_util.CloseLState(L)
-	b, err := luac_util.Compile(L, code)
+	return NewLuaTxDefBig(sender, contract, new(big.Int).SetUint64(amount), code)
+}
+
+func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {
+	byteCode, err := compile(code)
 	if err != nil {
 		return &luaTxDef{cErr: err}
 	}
-	codeWithInit := make([]byte, 4+len(b))
-	binary.LittleEndian.PutUint32(codeWithInit, uint32(4+len(b)))
-	copy(codeWithInit[4:], b)
+	byteCodeWithArgs := make([]byte, 4+len(byteCode))
+	binary.LittleEndian.PutUint32(byteCodeWithArgs, uint32(4+len(byteCode)))
+	copy(byteCodeWithArgs[4:], byteCode)
 	return &luaTxDef{
 		luaTxCommon: luaTxCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
-			code:     codeWithInit,
-			amount:   new(big.Int).SetUint64(amount),
-			id:       newTxId(),
-		},
-		cErr: nil,
-	}
-}
-
-func getCompiledABI(code string) ([]byte, error) {
-
-	L := luac_util.NewLState()
-	if L == nil {
-		return nil, newVmStartError()
-	}
-	defer luac_util.CloseLState(L)
-	b, err := luac_util.Compile(L, code)
-	if err != nil {
-		return nil, err
-	}
-
-	codeLen := binary.LittleEndian.Uint32(b[:4])
-
-	return b[4+codeLen:], nil
-}
-
-func NewRawLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {
-
-	byteAbi, err := getCompiledABI(code)
-	if err != nil {
-		return &luaTxDef{cErr: err}
-	}
-
-	byteCode := []byte(code)
-	payload := make([]byte, 8+len(byteCode)+len(byteAbi))
-	binary.LittleEndian.PutUint32(payload[0:], uint32(len(byteCode)+len(byteAbi)+8))
-	binary.LittleEndian.PutUint32(payload[4:], uint32(len(byteCode)))
-	codeLen := copy(payload[8:], byteCode)
-	copy(payload[8+codeLen:], byteAbi)
-
-	return &luaTxDef{
-		luaTxCommon: luaTxCommon{
-			sender:   strHash(sender),
-			contract: strHash(contract),
-			code:     payload,
+			code:     byteCodeWithArgs,
 			amount:   amount,
 			id:       newTxId(),
 		},
@@ -375,7 +327,7 @@ func (l *luaTxDef) hash() []byte {
 
 func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	argsLen := len([]byte(args))
-	if argsLen == 0 || l.cErr != nil {
+	if argsLen == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
 		return l
 	}
 
@@ -453,17 +405,15 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 }
 
 func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
-
 	if l.cErr != nil {
 		return l.cErr
 	}
-
 	return contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			contract.State().SqlRecoveryPoint = 1
 
 			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, 0, false)
+				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, math.MaxUint64, false)
 
 			if traceState {
 				ctx.traceFile, _ =
@@ -471,15 +421,15 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 				defer ctx.traceFile.Close()
 			}
 
-			_, _, _, err := Create(eContractState, l.code, l.contract, ctx)
+			_, _, ctrFee, err := Create(eContractState, l.code, l.contract, ctx)
 			if err != nil {
-				return nil, err
+				return ctrFee, err
 			}
 			err = bs.StageContractState(eContractState)
 			if err != nil {
-				return nil, err
+				return ctrFee, err
 			}
-			return nil, nil
+			return ctrFee, nil
 		},
 	)
 }
@@ -492,15 +442,7 @@ type luaTxCall struct {
 var _ luaTx = (*luaTxCall)(nil)
 
 func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCall {
-	return &luaTxCall{
-		luaTxCommon: luaTxCommon{
-			sender:   strHash(sender),
-			contract: strHash(contract),
-			amount:   new(big.Int).SetUint64(amount),
-			code:     []byte(code),
-			id:       newTxId(),
-		},
-	}
+	return NewLuaTxCallBig(sender, contract, new(big.Int).SetUint64(amount), code)
 }
 
 func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *luaTxCall {
@@ -544,7 +486,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, 0, l.feeDelegate)
+				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, math.MaxUint64, l.feeDelegate)
 			if traceState {
 				ctx.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -697,7 +639,7 @@ func StrToAddress(name string) string {
 	return types.EncodeAddress(strHash(name))
 }
 
-func onPubNet(dc *DummyChain) {
+func OnPubNet(dc *DummyChain) {
 	flushLState := func() {
 		for i := 0; i <= lStateMaxSize; i++ {
 			s := getLState()

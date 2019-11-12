@@ -605,7 +605,7 @@ func TestInfiniteLoopOnPubNet(t *testing.T) {
 		func(d *DummyChain) {
 			d.timeout = 50
 		},
-		onPubNet,
+		OnPubNet,
 	)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -3620,7 +3620,7 @@ abi.payable(constructor)
 }
 
 func TestSqlVmPubNet(t *testing.T) {
-	bc, err := LoadDummyChain(onPubNet)
+	bc, err := LoadDummyChain(OnPubNet)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -4175,7 +4175,7 @@ abi.register(oom, p, cp)`
 }
 
 func TestMaxStringOnPubNet(t *testing.T) {
-	bc, err := LoadDummyChain(onPubNet)
+	bc, err := LoadDummyChain(OnPubNet)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -5287,7 +5287,7 @@ abi.register(ecverify)
 		func(d *DummyChain) {
 			d.timeout = timeout // milliseconds
 		},
-		onPubNet,
+		OnPubNet,
 	)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -5341,7 +5341,7 @@ func TestFeeDelegation(t *testing.T) {
     abi.payable(default)
     abi.fee_delegation(query)
 `
-	bc, err := LoadDummyChain(onPubNet)
+	bc, err := LoadDummyChain(OnPubNet)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}

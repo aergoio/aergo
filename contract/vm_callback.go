@@ -28,7 +28,6 @@ import (
 
 	"github.com/aergoio/aergo/internal/common"
 
-	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
@@ -1021,13 +1020,11 @@ func luaDeployContract(
 	}
 
 	if len(code) == 0 {
-		l := luacUtil.NewLState()
-		if l == nil {
-			return -1, C.CString("[Contract.LuaDeployContract] get luaState error")
-		}
-		defer luacUtil.CloseLState(l)
-		code, err = luacUtil.Compile(l, contractStr)
+		code, err = compile(contractStr)
 		if err != nil {
+			if err == ErrVmStart {
+				return -1, C.CString("[Contract.LuaDeployContract] get luaState error")
+			}
 			return -1, C.CString("[Contract.LuaDeployContract]compile error:" + err.Error())
 		}
 	}

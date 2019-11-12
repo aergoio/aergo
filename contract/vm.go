@@ -36,6 +36,7 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
+	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -209,9 +210,20 @@ func (s *vmContext) usedFee() *big.Int {
 		return fee.NewZeroFee()
 	}
 	if vmIsGasSystem(s) {
-		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(s.gasLimit-s.remainedGas))
+		usedGas := s.usedGas()
+		if ctrLgr.IsDebugEnabled() {
+			ctrLgr.Debug().Uint64("used gas", usedGas).Str("LuaVM", "Shutdown").Msg("gas system")
+		}
+		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(usedGas))
 	}
 	return fee.PaymentDataFee(s.dbUpdateTotalSize)
+}
+
+func (s *vmContext) usedGas() uint64 {
+	if fee.IsZeroFee() || !vmIsGasSystem(s) {
+		return 0
+	}
+	return s.gasLimit - s.remainedGas
 }
 
 func newLState() *LState {
@@ -273,7 +285,7 @@ func newExecutor(
 		ctx:  ctx,
 	}
 	if ce.L == nil {
-		ce.err = newVmStartError()
+		ce.err = ErrVmStart
 		ctrLgr.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
@@ -290,7 +302,12 @@ func newExecutor(
 	ctx.service = ctx.service - MaxVmService
 	hexId := C.CString(hex.EncodeToString(contractId))
 	defer C.free(unsafe.Pointer(hexId))
-	defer ce.refreshGas()
+	defer func() {
+		ce.refreshGas()
+		if ctrLgr.IsDebugEnabled() {
+			ctrLgr.Debug().Uint64("used gas", ce.ctx.usedGas()).Str("LuaVM", "Loaded").Msg("gas system")
+		}
+	}()
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&contract[0])),
@@ -1215,4 +1232,17 @@ func (re *recoveryEntry) recovery() error {
 		}
 	}
 	return nil
+}
+
+func compile(code string) ([]byte, error) {
+	L := luacUtil.NewLState()
+	if L == nil {
+		return nil, ErrVmStart
+	}
+	defer luacUtil.CloseLState(L)
+	byteCode, err := luacUtil.Compile(L, code)
+	if err != nil {
+		return nil, err
+	}
+	return byteCode, nil
 }
