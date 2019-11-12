@@ -307,7 +307,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big
 	amount := tx.GetBody().GetAmountBigInt()
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
-	case TxType_NORMAL, TxType_REDEPLOY:
+	case TxType_NORMAL, TxType_REDEPLOY, TxType_TRANSFER, TxType_DEPLOY:
 		spending := new(big.Int).Add(amount, tx.GetMaxFee(gasPrice, version))
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
