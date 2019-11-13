@@ -14,6 +14,7 @@ type InOutChainId struct {
 	Public    bool
 	Mainnet   bool
 	Consensus string
+	Version   int32
 }
 
 type InOutChainInfo struct {
@@ -41,6 +42,7 @@ func convChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 	out.Chainid.Public = msg.Id.Public
 	out.Chainid.Mainnet = msg.Id.Mainnet
 	out.Chainid.Consensus = msg.Id.Consensus
+	out.Chainid.Version = msg.Id.Version
 	out.BpNumber = msg.BpNumber
 	out.MaxBlockSize = msg.Maxblocksize
 	out.MaxTokens = new(big.Int).SetBytes(msg.Maxtokens).String()

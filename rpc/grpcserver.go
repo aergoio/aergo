@@ -165,15 +165,22 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 	chainInfo := &types.ChainInfo{}
 
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
-		id := genesisInfo.ID
-
+		ca := rpc.actorHelper.GetChainAccessor()
+		last, err := ca.GetBestBlock()
+		if err != nil {
+			return nil, err
+		}
+		id := types.NewChainID()
+		if err = id.Read(last.GetHeader().GetChainID()); err != nil {
+			return nil, err
+		}
 		chainInfo.Id = &types.ChainId{
 			Magic:     id.Magic,
 			Public:    id.PublicNet,
 			Mainnet:   id.MainNet,
 			Consensus: id.Consensus,
+			Version:   id.Version,
 		}
-
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
 			chainInfo.Maxtokens = totalBalance.Bytes()
 		}
