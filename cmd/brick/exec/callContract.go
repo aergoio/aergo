@@ -93,6 +93,8 @@ func (c *callContract) Run(args string) (string, error) {
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
 	err := context.Get().ConnectBlock(callTx)
+	r := context.Get().GetReceipt(callTx.Hash())
+	logger.Info().Uint64("gas used", r.GasUsed).Msg("gas information")
 
 	if expectedError != "" {
 		zerolog.SetGlobalLevel(logLevel) // restore log level

@@ -212,7 +212,7 @@ func (s *vmContext) usedFee() *big.Int {
 	if vmIsGasSystem(s) {
 		usedGas := s.usedGas()
 		if ctrLgr.IsDebugEnabled() {
-			ctrLgr.Debug().Uint64("used gas", usedGas).Str("LuaVM", "Shutdown").Msg("gas system")
+			ctrLgr.Debug().Uint64("gas used", usedGas).Str("lua vm", "executed").Msg("gas information")
 		}
 		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(usedGas))
 	}
@@ -305,7 +305,7 @@ func newExecutor(
 	defer func() {
 		ce.refreshGas()
 		if ctrLgr.IsDebugEnabled() {
-			ctrLgr.Debug().Uint64("used gas", ce.ctx.usedGas()).Str("LuaVM", "Loaded").Msg("gas system")
+			ctrLgr.Debug().Uint64("gas used", ce.ctx.usedGas()).Str("lua vm", "loaded").Msg("gas information")
 		}
 	}()
 	if cErrMsg := C.vm_loadbuff(

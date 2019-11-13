@@ -99,7 +99,7 @@ func TestContractHello(t *testing.T) {
 	)
 	tx := NewLuaTxCall("ktlee", "hello", 0, `{"Name":"hello", "Args":["World"]}`)
 	_ = bc.ConnectBlock(tx)
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `"Hello World"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -120,7 +120,7 @@ func TestContractSystem(t *testing.T) {
 	)
 	tx := NewLuaTxCall("ktlee", "system", 0, `{"Name":"testState", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","99NTyZ796bpvwLLhMmsfwo8J3Wu3rUioUQsHE9CSYQKz","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
 	if receipt.GetRet() != exRv {
 		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
@@ -1706,13 +1706,13 @@ func TestContractCall(t *testing.T) {
 	}
 	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"dadd", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `99` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 	tx = NewLuaTxCall("ktlee", "caller", 0, `{"Name":"dadd", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
-	receipt = bc.getReceipt(tx.hash())
+	receipt = bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `100` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -1771,7 +1771,7 @@ abi.register(r)`
 	if err != nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `1` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -1991,7 +1991,7 @@ func TestJson(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `"100"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -2252,7 +2252,7 @@ func TestPcall(t *testing.T) {
 
 	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"getOrigin", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != "\""+types.EncodeAddress(strHash("ktlee"))+"\"" {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3105,7 +3105,7 @@ abi.register(default)
 	}
 	tx := NewLuaTxCall("ktlee", "default", 0, "")
 	err = bc.ConnectBlock(tx)
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `"default"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3227,7 +3227,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `"25000000000"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3236,7 +3236,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt = bc.getReceipt(tx.hash())
+	receipt = bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `"23999900001"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3245,7 +3245,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt = bc.getReceipt(tx.hash())
+	receipt = bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `"999999999999999999999999999999"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3580,7 +3580,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf","Hello world"]` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3590,7 +3590,7 @@ abi.payable(constructor)
 	}
 	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testConst"}`)
 	err = bc.ConnectBlock(tx)
-	receipt = bc.getReceipt(tx.hash())
+	receipt = bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","Hello world2"]` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3613,7 +3613,7 @@ abi.payable(constructor)
 	if err != nil && deployAcc.Nonce == 2 {
 		t.Error(err)
 	}
-	receipt = bc.getReceipt(tx.hash())
+	receipt = bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -3736,7 +3736,7 @@ abi.register(random)`
 	if err != nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	err = checkRandomIntValue(receipt.GetRet(), 1, 3)
 	if err != nil {
 		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
@@ -3744,7 +3744,7 @@ abi.register(random)`
 
 	tx = NewLuaTxCall("ktlee", "random", 0, `{"Name": "random", "Args":[3, 10]}`)
 	err = bc.ConnectBlock(tx)
-	receipt = bc.getReceipt(tx.hash())
+	receipt = bc.GetReceipt(tx.Hash())
 	err = checkRandomIntValue(receipt.GetRet(), 3, 10)
 	if err != nil {
 		t.Errorf("error: %s, return value: %s", err.Error(), receipt.GetRet())
@@ -4585,7 +4585,7 @@ func TestPcallRollback(t *testing.T) {
 
 	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"getOrigin", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != "\""+types.EncodeAddress(strHash("ktlee"))+"\"" {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
@@ -5161,7 +5161,7 @@ abi.register(abc, query)
 	if err != nil {
 		t.Error(err)
 	}
-	receipt := bc.getReceipt(tx.hash())
+	receipt := bc.GetReceipt(tx.Hash())
 	if receipt.GetRet() != `["C","D","A","B","v3"]` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}

@@ -120,9 +120,10 @@ func (c *deployContract) Run(args string) (string, error) {
 
 	updateContractInfoInterface(contractName, defPath)
 
-	err = context.Get().ConnectBlock(
-		contract.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg),
-	)
+	tx := contract.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg)
+	err = context.Get().ConnectBlock(tx)
+	r := context.Get().GetReceipt(tx.Hash())
+	logger.Info().Uint64("gas used", r.GasUsed).Msg("gas information")
 
 	if enableWatch && !strings.HasPrefix(defPath, "http") {
 		absPath, _ := filepath.Abs(defPath)

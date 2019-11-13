@@ -290,3 +290,11 @@ func useGas(version int32) bool {
 func SetBPTimeout(timeout <-chan struct{}) {
 	bpTimeout = timeout
 }
+
+func GasUsed(txFee, gasPrice *big.Int, txBody *types.TxBody, version int32) uint64 {
+	if fee.IsZeroFee() || txBody.Type == types.TxType_GOVERNANCE || version < 2 {
+		return 0
+	}
+	ctrFee := new(big.Int).Sub(txFee, fee.PayloadTxFee(len(txBody.GetPayload())))
+	return ctrFee.Div(ctrFee, gasPrice).Uint64()
+}

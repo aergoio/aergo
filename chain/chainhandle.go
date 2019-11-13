@@ -1005,6 +1005,7 @@ func executeTx(
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
+	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody, bi.Version)
 
 	return bs.AddReceipt(receipt)
 }

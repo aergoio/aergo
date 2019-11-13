@@ -105,6 +105,8 @@ func (r *Receipt) marshalBodyV2(b *bytes.Buffer, isMerkle bool) error {
 	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.CumulativeFeeUsed)))
 	b.Write(l[:4])
 	b.Write(r.CumulativeFeeUsed)
+	binary.LittleEndian.PutUint64(l[:], r.GasUsed)
+	b.Write(l)
 
 	if r.FeeDelegation {
 		b.WriteByte(1)
@@ -227,6 +229,9 @@ func (r *Receipt) unmarshalBodyV2(data []byte) ([]byte, uint32) {
 	pos += 4
 	r.CumulativeFeeUsed = data[pos : pos+l]
 	pos += l
+	ll := binary.LittleEndian.Uint64(data[pos:])
+	r.GasUsed = ll
+	pos += 8
 	if data[pos] == 1 {
 		r.FeeDelegation = true
 	}
@@ -275,22 +280,8 @@ func (r *Receipt) unmarshalStoreBinaryV2(data []byte) ([]byte, error) {
 	return evData, nil
 }
 
-func (r *Receipt) MarshalBinary() ([]byte, error) {
-	var b bytes.Buffer
-
-	err := r.marshalBody(&b, false)
-	if err != nil {
-		return nil, err
-	}
-	for _, ev := range r.Events {
-		evB, err := ev.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		b.Write(evB)
-	}
-
-	return b.Bytes(), nil
+func (r *Receipt) MarshalBinaryTest() ([]byte, error) {
+	return r.marshalStoreBinaryV2()
 }
 
 func (r *Receipt) MarshalMerkleBinary() ([]byte, error) {
@@ -331,8 +322,8 @@ func (r *Receipt) MarshalMerkleBinaryV2() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (r *Receipt) UnmarshalBinary(data []byte) error {
-	_, err := r.ReadFrom(data)
+func (r *Receipt) UnmarshalBinaryTest(data []byte) error {
+	_, err := r.unmarshalStoreBinaryV2(data)
 	return err
 }
 
@@ -384,8 +375,10 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(EncodeAddress(r.From))
 	b.WriteString(`","to":"`)
 	b.WriteString(EncodeAddress(r.To))
-	b.WriteString(`","usedFee":`)
+	b.WriteString(`","feeUsed":`)
 	b.WriteString(new(big.Int).SetBytes(r.FeeUsed).String())
+	b.WriteString(`,"gasUsed":`)
+	b.WriteString(strconv.FormatUint(r.GasUsed, 10))
 	b.WriteString(`,"feeDelegation":`)
 	if r.FeeDelegation {
 		b.WriteString("true")

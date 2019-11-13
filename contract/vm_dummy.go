@@ -135,7 +135,7 @@ func (bc *DummyChain) GetEvents(tx *luaTxCall) []*types.Event {
 	h.Write([]byte(strconv.FormatUint(tx.id, 10)))
 	b := h.Sum(nil)
 
-	receipt := bc.getReceipt(b)
+	receipt := bc.GetReceipt(b)
 	if receipt != nil {
 		return receipt.Events
 	}
@@ -143,9 +143,9 @@ func (bc *DummyChain) GetEvents(tx *luaTxCall) []*types.Event {
 	return nil
 }
 
-func (bc *DummyChain) getReceipt(txHash []byte) *types.Receipt {
+func (bc *DummyChain) GetReceipt(txHash []byte) *types.Receipt {
 	r := new(types.Receipt)
-	r.UnmarshalBinary(bc.testReceiptDB.Get(txHash))
+	r.UnmarshalBinaryTest(bc.testReceiptDB.Get(txHash))
 	return r
 }
 
@@ -258,7 +258,7 @@ type luaTxCommon struct {
 	feeDelegate bool
 }
 
-func (l *luaTxCommon) hash() []byte {
+func (l *luaTxCommon) Hash() []byte {
 	h := sha256.New()
 	h.Write([]byte(strconv.FormatUint(l.id, 10)))
 	b := h.Sum(nil)
@@ -314,13 +314,6 @@ func newTxId() uint64 {
 	return luaTxId
 }
 
-func (l *luaTxDef) hash() []byte {
-	h := sha256.New()
-	h.Write([]byte(strconv.FormatUint(l.id, 10)))
-	b := h.Sum(nil)
-	return b
-}
-
 func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
 		return l
@@ -357,10 +350,10 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 			return types.ErrInsufficientBalance
 		}
 		err = CheckFeeDelegation(l.contract, bs, nil, eContractState, l.code,
-			l.hash(), l.sender, l.amount.Bytes())
+			l.Hash(), l.sender, l.amount.Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				ctrLgr.Debug().Err(err).Str("txhash", enc.ToString(l.hash())).Msg("checkFeeDelegation Error")
+				ctrLgr.Debug().Err(err).Str("txhash", enc.ToString(l.Hash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation
@@ -400,7 +393,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
 			contract.State().SqlRecoveryPoint = 1
 
-			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
+			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, math.MaxUint64, false)
 
 			if traceState {
@@ -411,12 +404,22 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 
 			_, _, ctrFee, err := Create(eContractState, l.code, l.contract, ctx)
 			if err != nil {
+				r := types.NewReceipt(contract.ID(), err.Error(), "")
+				r.TxHash = l.Hash()
+				r.GasUsed = ctrFee.Uint64()
+				b, _ := r.MarshalBinaryTest()
+				receiptTx.Set(l.Hash(), b)
 				return ctrFee, err
 			}
 			err = bs.StageContractState(eContractState)
 			if err != nil {
 				return ctrFee, err
 			}
+			r := types.NewReceipt(contract.ID(), "CREATED", "")
+			r.TxHash = l.Hash()
+			r.GasUsed = ctrFee.Uint64()
+			b, _ := r.MarshalBinaryTest()
+			receiptTx.Set(l.Hash(), b)
 			return ctrFee, nil
 		},
 	)
@@ -458,13 +461,6 @@ func NewLuaTxCallFeeDelegate(sender, contract string, amount uint64, code string
 	}
 }
 
-func (l *luaTxCall) hash() []byte {
-	h := sha256.New()
-	h.Write([]byte(strconv.FormatUint(l.id, 10)))
-	b := h.Sum(nil)
-	return b
-}
-
 func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	l.expectedErr = expectedErr
 	return l
@@ -473,7 +469,7 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(&l.luaTxCommon, bs,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (*big.Int, error) {
-			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.hash(), bi, "", true,
+			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contract.State().SqlRecoveryPoint, BlockFactory, l.luaTxCommon.amount, math.MaxUint64, l.feeDelegate)
 			if traceState {
 				ctx.traceFile, _ =
@@ -483,22 +479,24 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			rv, evs, ctrFee, err := Call(eContractState, l.code, l.contract, ctx)
 			if err != nil {
 				r := types.NewReceipt(l.contract, err.Error(), "")
-				r.TxHash = l.hash()
-				b, _ := r.MarshalBinary()
-				receiptTx.Set(l.hash(), b)
+				r.TxHash = l.Hash()
+				r.GasUsed = ctrFee.Uint64()
+				b, _ := r.MarshalBinaryTest()
+				receiptTx.Set(l.Hash(), b)
 				return ctrFee, err
 			}
 			_ = bs.StageContractState(eContractState)
 			r := types.NewReceipt(l.contract, "SUCCESS", rv)
 			r.Events = evs
-			r.TxHash = l.hash()
+			r.TxHash = l.Hash()
+			r.GasUsed = ctrFee.Uint64()
 			blockHash := make([]byte, 32)
 			for _, ev := range evs {
 				ev.TxHash = r.TxHash
 				ev.BlockHash = blockHash
 			}
-			b, _ := r.MarshalBinary()
-			receiptTx.Set(l.hash(), b)
+			b, _ := r.MarshalBinaryTest()
+			receiptTx.Set(l.Hash(), b)
 			return ctrFee, nil
 		},
 	)
