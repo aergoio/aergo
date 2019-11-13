@@ -562,13 +562,17 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return types.ErrTxInvalidRecipient
 		}
 		fallthrough
-	case types.TxType_NORMAL:
+	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL:
 		if tx.GetTx().HasNameRecipient() {
 			recipient := tx.GetBody().GetRecipient()
 			recipientAddr := mp.getAddress(recipient)
 			if recipientAddr == nil {
 				return types.ErrTxInvalidRecipient
 			}
+		}
+	case types.TxType_DEPLOY:
+		if tx.GetBody().GetRecipient() != nil {
+			return types.ErrTxInvalidRecipient
 		}
 	case types.TxType_GOVERNANCE:
 		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
