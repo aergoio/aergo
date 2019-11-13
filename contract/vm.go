@@ -1234,15 +1234,15 @@ func (re *recoveryEntry) recovery() error {
 	return nil
 }
 
-func compile(code string) ([]byte, error) {
+func compile(code string) (luacUtil.ByteCodeABI, error) {
 	L := luacUtil.NewLState()
 	if L == nil {
 		return nil, ErrVmStart
 	}
 	defer luacUtil.CloseLState(L)
-	byteCode, err := luacUtil.Compile(L, code)
+	byteCodeAbi, err := luacUtil.Compile(L, code)
 	if err != nil {
 		return nil, err
 	}
-	return byteCode, nil
+	return byteCodeAbi, nil
 }

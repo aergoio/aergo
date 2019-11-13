@@ -2,7 +2,6 @@ package contract
 
 // helper functions
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,12 +14,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
-
-	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	"github.com/minio/sha256-simd"
@@ -282,14 +281,11 @@ func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaT
 	if err != nil {
 		return &luaTxDef{cErr: err}
 	}
-	byteCodeWithArgs := make([]byte, 4+len(byteCode))
-	binary.LittleEndian.PutUint32(byteCodeWithArgs, uint32(4+len(byteCode)))
-	copy(byteCodeWithArgs[4:], byteCode)
 	return &luaTxDef{
 		luaTxCommon: luaTxCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
-			code:     byteCodeWithArgs,
+			code:     util.NewDeployPayload(byteCode, nil),
 			amount:   amount,
 			id:       newTxId(),
 		},
@@ -326,18 +322,10 @@ func (l *luaTxDef) hash() []byte {
 }
 
 func (l *luaTxDef) Constructor(args string) *luaTxDef {
-	argsLen := len([]byte(args))
-	if argsLen == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
+	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
 		return l
 	}
-
-	code := make([]byte, len(l.code)+argsLen)
-	codeLen := copy(code[0:], l.code)
-	binary.LittleEndian.PutUint32(code[0:], uint32(codeLen))
-	copy(code[codeLen:], []byte(args))
-
-	l.code = code
-
+	l.code = util.NewDeployPayload(util.DeployPayload(l.code).Code(), []byte(args))
 	return l
 }
 

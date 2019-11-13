@@ -38,7 +38,7 @@ func CloseLState(L *C.lua_State) {
 	}
 }
 
-func Compile(L *C.lua_State, code string) ([]byte, error) {
+func Compile(L *C.lua_State, code string) (ByteCodeABI, error) {
 	cStr := C.CString(code)
 	defer C.free(unsafe.Pointer(cStr))
 	if errMsg := C.vm_loadstring(L, cStr); errMsg != nil {
@@ -120,14 +120,69 @@ func DumpFromStdin() error {
 	return nil
 }
 
-func dumpToBytes(L *C.lua_State) []byte {
-	var s *C.char
-	var l C.size_t
-	b := make([]byte, 4)
-	s = C.lua_tolstring(L, -2, &l)
-	binary.LittleEndian.PutUint32(b, uint32(l))
-	b = append(b, C.GoBytes(unsafe.Pointer(s), C.int(l))...)
-	s = C.lua_tolstring(L, -1, &l)
-	b = append(b, C.GoBytes(unsafe.Pointer(s), C.int(l))...)
-	return b
+func dumpToBytes(L *C.lua_State) ByteCodeABI {
+	var (
+		c, a *C.char
+		lc, la C.size_t
+	)
+	c = C.lua_tolstring(L, -2, &lc)
+	a = C.lua_tolstring(L, -1, &la)
+	return NewByteCodeABI(C.GoBytes(unsafe.Pointer(c), C.int(lc)), C.GoBytes(unsafe.Pointer(a), C.int(la)))
+}
+
+type ByteCodeABI []byte
+
+const byteCodeLenLen = 4
+
+func NewByteCodeABI(byteCode, abi []byte) ByteCodeABI {
+	byteCodeLen := len(byteCode)
+	code := make(ByteCodeABI, byteCodeLenLen+byteCodeLen+len(abi))
+	binary.LittleEndian.PutUint32(code, uint32(byteCodeLen))
+	copy(code[byteCodeLenLen:], byteCode)
+	copy(code[byteCodeLenLen+byteCodeLen:], abi)
+	return code
+}
+
+func (bc ByteCodeABI) ByteCodeLen() int {
+	return int(binary.LittleEndian.Uint32(bc[:byteCodeLenLen]))
+}
+
+func (bc ByteCodeABI) ABI() []byte {
+	return bc[byteCodeLenLen+bc.ByteCodeLen():]
+}
+
+func (bc ByteCodeABI) Len() int {
+	return len(bc)
+}
+
+type DeployPayload []byte
+
+const byteCodeAbiLenLen = 4
+
+func NewDeployPayload(code ByteCodeABI, args []byte) DeployPayload {
+	payload := make([]byte, byteCodeAbiLenLen+code.Len()+len(args))
+	binary.LittleEndian.PutUint32(payload[0:], uint32(code.Len()+byteCodeAbiLenLen))
+	copy(payload[byteCodeAbiLenLen:], code)
+	copy(payload[byteCodeAbiLenLen+code.Len():], args)
+	return payload
+}
+
+func (dp DeployPayload) headLen() int {
+	return int(binary.LittleEndian.Uint32(dp[:byteCodeAbiLenLen]))
+}
+
+func (dp DeployPayload) Code() ByteCodeABI {
+	return ByteCodeABI(dp[byteCodeAbiLenLen:dp.headLen()])
+}
+
+func (dp DeployPayload) CodeLen() int {
+	return dp.headLen() - byteCodeAbiLenLen
+}
+
+func (dp DeployPayload) HasArgs() bool {
+	return len(dp) > dp.headLen()
+}
+
+func (dp DeployPayload) Args() []byte {
+	return dp[dp.headLen():]
 }

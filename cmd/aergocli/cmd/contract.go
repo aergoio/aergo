@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
+	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -92,6 +92,9 @@ func init() {
 
 func runDeployCmd(cmd *cobra.Command, args []string) {
 	var err error
+	var code []byte
+	var deployArgs []byte
+
 	creator, err := types.DecodeAddress(args[0])
 	if err != nil {
 		log.Fatal(err)
@@ -106,8 +109,6 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			_, _ = fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile> [args]")
 			os.Exit(1)
 		}
-		var code []byte
-		var argLen int
 		code, err = ioutil.ReadFile(args[1])
 		if err != nil {
 			log.Fatal(err)
@@ -123,39 +124,24 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			argLen = len(args[3])
+			deployArgs = []byte(args[3])
 		}
-		payload = make([]byte, 8+len(code)+len(abi)+argLen)
-		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+len(abi)+8))
-		binary.LittleEndian.PutUint32(payload[4:], uint32(len(code)))
-		codeLen := copy(payload[8:], code)
-		abiLen := copy(payload[8+codeLen:], abi)
-		if argLen != 0 {
-			copy(payload[8+codeLen+abiLen:], args[3])
-		}
+		payload = luac.NewDeployPayload(luac.NewByteCodeABI(code, abi), deployArgs)
 	} else {
-		var argLen int
-
 		if len(args) == 2 {
 			var ci types.CallInfo
 			err = json.Unmarshal([]byte(args[1]), &ci.Args)
 			if err != nil {
 				log.Fatal(err)
 			}
-			argLen = len(args[1])
+			deployArgs = []byte(args[1])
 		}
-		code, err := luacEncoding.DecodeCode(data)
-		payload = make([]byte, 4+len(code)+argLen)
-		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+4))
-		codeLen := copy(payload[4:], code)
-		if argLen != 0 {
-			copy(payload[4+codeLen:], args[1])
-		}
-
+		code, err = luacEncoding.DecodeCode(data)
 		if err != nil {
 			_, _ = fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
 		}
+		payload = luac.NewDeployPayload(code, deployArgs)
 	}
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
