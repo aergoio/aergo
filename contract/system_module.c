@@ -59,7 +59,7 @@ int setItemWithPrefix(lua_State *L)
 		luaL_throwerror(L);
 	}
 
-	lua_gasuse(L, GAS_SDATA*strlen(jsonValue));
+	lua_gasuse_mul(L, GAS_SDATA, strlen(jsonValue));
 	if ((errStr = luaSetDB(L, service, dbKey, keylen, jsonValue)) != NULL) {
 		free(jsonValue);
 		strPushAndRelease(L, errStr);

@@ -81,18 +81,18 @@ static int utflen (lua_State *L) {
                    "final position out of string");
   lua_gasuse(L, 50);
   while (posi <= posj) {
-    const char *s1 = utf8_decode(s + posi, NULL);
+    const char *s1;
+    lua_gasuse(L, GAS_MID);
+    s1 = utf8_decode(s + posi, NULL);
     if (s1 == NULL) {  /* conversion error? */
       lua_pushnil(L);  /* return nil ... */
       lua_pushinteger(L, posi + 1);  /* ... and current position */
-      lua_gasuse(L, (posi+1)*GAS_MID);
       return 2;
     }
     posi = s1 - s;
     n++;
   }
   lua_pushinteger(L, n);
-  lua_gasuse(L, n*GAS_MID);
   return 1;
 }
 
@@ -120,13 +120,13 @@ static int codepoint (lua_State *L) {
   se = s + pose;
   for (s += posi - 1; s < se;) {
     int code;
+    lua_gasuse(L, GAS_MID);
     s = utf8_decode(s, &code);
     if (s == NULL)
       return luaL_error(L, "invalid UTF-8 code");
     lua_pushinteger(L, code);
     n++;
   }
-  lua_gasuse(L, n*GAS_MID);
   return n;
 }
 
@@ -208,7 +208,7 @@ static int byteoffset (lua_State *L) {
        }
      }
   }
-  lua_gasuse(L, move*GAS_FASTEST);
+  lua_gasuse_mul(L, GAS_FASTEST, move);
   if (n == 0)  /* did it find given character? */
     lua_pushinteger(L, posi + 1);
   else  /* no such character */
