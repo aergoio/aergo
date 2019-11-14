@@ -84,6 +84,10 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	types.InitGovernance("dpos", true)
 	system.InitGovernance("dpos")
 
+	// To pass dao parameters test
+	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	system.InitSystemParams(scs, 3)
+
 	for _, opt := range opts {
 		opt(bc)
 	}
