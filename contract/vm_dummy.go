@@ -404,7 +404,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 
 			_, _, ctrFee, err := Create(eContractState, l.code, l.contract, ctx)
 			if err != nil {
-				r := types.NewReceipt(contract.ID(), err.Error(), "")
+				r := types.NewReceipt(contract.ID(), "ERROR", err.Error())
 				r.TxHash = l.Hash()
 				r.GasUsed = ctrFee.Uint64()
 				b, _ := r.MarshalBinaryTest()
@@ -478,7 +478,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			}
 			rv, evs, ctrFee, err := Call(eContractState, l.code, l.contract, ctx)
 			if err != nil {
-				r := types.NewReceipt(l.contract, err.Error(), "")
+				r := types.NewReceipt(l.contract, "ERROR", err.Error())
 				r.TxHash = l.Hash()
 				r.GasUsed = ctrFee.Uint64()
 				b, _ := r.MarshalBinaryTest()
