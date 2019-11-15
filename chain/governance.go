@@ -37,7 +37,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	case types.AergoSystem:
 		events, err = system.ExecuteSystemTx(scs, txBody, sender, receiver, blockInfo)
 	case types.AergoName:
-		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockNo)
+		events, err = name.ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
 	case types.AergoEnterprise:
 		events, err = enterprise.ExecuteEnterpriseTx(bs, ccc, scs, txBody, sender, receiver, blockNo)
 		if err != nil {

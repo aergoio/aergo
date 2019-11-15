@@ -12,7 +12,7 @@ import (
 )
 
 func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
+	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	systemContractState, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
 
@@ -42,23 +42,35 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			ci.Args[0].(string)); err != nil {
 			return nil, err
 		}
+		jsonArgs := ""
+		if blockInfo.Version < 2 {
+			jsonArgs = `{"name":"` + ci.Args[0].(string) + `"}`
+		} else {
+			jsonArgs = `["` + ci.Args[0].(string) + `"]`
+		}
 		events = append(events, &types.Event{
 			ContractAddress: receiver.ID(),
 			EventIdx:        0,
 			EventName:       "create name",
-			JsonArgs:        `{"name":"` + ci.Args[0].(string) + `"}`,
+			JsonArgs:        jsonArgs,
 		})
 	case types.NameUpdate:
 		if err = UpdateName(bs, scs, txBody, sender, nameState,
 			ci.Args[0].(string), ci.Args[1].(string)); err != nil {
 			return nil, err
 		}
+		jsonArgs := ""
+		if blockInfo.Version < 2 {
+			jsonArgs = `{"name":"` + ci.Args[0].(string) +
+				`","to":"` + ci.Args[1].(string) + `"}`
+		} else {
+			jsonArgs = `["` + ci.Args[0].(string) + `","` + ci.Args[1].(string) + `"]`
+		}
 		events = append(events, &types.Event{
 			ContractAddress: receiver.ID(),
 			EventIdx:        0,
 			EventName:       "update name",
-			JsonArgs: `{"name":"` + ci.Args[0].(string) +
-				`","to":"` + ci.Args[1].(string) + `"}`,
+			JsonArgs:        jsonArgs,
 		})
 	case types.SetContractOwner:
 		ownerState, err := SetContractOwner(bs, scs, ci.Args[0].(string), nameState)
