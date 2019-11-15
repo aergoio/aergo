@@ -57,6 +57,19 @@ func PayloadTxFee(payloadSize int) *big.Int {
 	)
 }
 
+func TxGas(payloadSize int) uint64 {
+	if IsZeroFee() {
+		return 0
+	}
+	size := paymentDataSize(int64(payloadSize))
+	if size > payloadMaxSize {
+		size = payloadMaxSize
+	}
+	txGas := uint64(100000)
+	payloadGas := uint64(size) * uint64(5)
+	return txGas + payloadGas
+}
+
 func MaxPayloadTxFee(payloadSize int) *big.Int {
 	if IsZeroFee() {
 		return NewZeroFee()

@@ -942,7 +942,12 @@ func executeTx(
 		}
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
-		if tx.GetMaxFee(bs.GasPrice, bi.Version).Cmp(balance) > 0 {
+		var fee *big.Int
+		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.Version)
+		if err != nil {
+			return err
+		}
+		if fee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		var contractState *state.ContractState
@@ -1005,7 +1010,7 @@ func executeTx(
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody, bi.Version)
+	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.Version)
 
 	return bs.AddReceipt(receipt)
 }

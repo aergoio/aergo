@@ -72,7 +72,7 @@ func Execute(
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
 
-	usedFee = fee.PayloadTxFee(len(txBody.GetPayload()))
+	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.Version)
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -102,6 +102,12 @@ func Execute(
 			return
 		}
 	}
+
+	if gasLimit <= fee.TxGas(len(txBody.GetPayload())) {
+		err = newVmError(types.ErrNotEnoughGas)
+		return
+	}
+	gasLimit -= fee.TxGas(len(txBody.GetPayload()))
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
@@ -193,6 +199,14 @@ func Execute(
 	}
 
 	return rv, events, usedFee, nil
+}
+
+func txFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
+	if version < 2 {
+		return fee.PayloadTxFee(payloadSize)
+	}
+	txGas := fee.TxGas(payloadSize)
+	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
 }
 
 func PreLoadRequest(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preLoadService int) {
@@ -291,10 +305,9 @@ func SetBPTimeout(timeout <-chan struct{}) {
 	bpTimeout = timeout
 }
 
-func GasUsed(txFee, gasPrice *big.Int, txBody *types.TxBody, version int32) uint64 {
-	if fee.IsZeroFee() || txBody.Type == types.TxType_GOVERNANCE || version < 2 {
+func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {
+	if fee.IsZeroFee() || txType == types.TxType_GOVERNANCE || version < 2 {
 		return 0
 	}
-	ctrFee := new(big.Int).Sub(txFee, fee.PayloadTxFee(len(txBody.GetPayload())))
-	return ctrFee.Div(ctrFee, gasPrice).Uint64()
+	return new(big.Int).Div(txFee, gasPrice).Uint64()
 }

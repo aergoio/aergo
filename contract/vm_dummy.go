@@ -18,7 +18,6 @@ import (
 	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -341,7 +340,7 @@ func contractFrame(l *luaTxCommon, bs *state.BlockState,
 	if err != nil {
 		return err
 	}
-	usedFee := fee.PayloadTxFee(len(l.code))
+	usedFee := txFee(len(l.code), new(big.Int).SetUint64(1), 2)
 
 	if l.feeDelegate {
 		balance := contractState.Balance()

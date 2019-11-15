@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -55,7 +56,7 @@ type Transaction interface {
 	GetVerifedAccount() Address
 	SetVerifedAccount(account Address) bool
 	RemoveVerifedAccount() bool
-	GetMaxFee(gasPrice *big.Int, version int32) *big.Int
+	GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error)
 }
 
 type transaction struct {
@@ -308,7 +309,11 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
 	case TxType_NORMAL, TxType_REDEPLOY, TxType_TRANSFER, TxType_CALL, TxType_DEPLOY:
-		spending := new(big.Int).Add(amount, tx.GetMaxFee(gasPrice, version))
+		fee, err := tx.GetMaxFee(new(big.Int).Sub(balance, amount), gasPrice, version)
+		if err != nil {
+			return err
+		}
+		spending := new(big.Int).Add(amount, fee)
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
 		}
@@ -388,20 +393,27 @@ func (tx *transaction) Clone() *transaction {
 	return res
 }
 
-func (tx *transaction) GetMaxFee(gasPrice *big.Int, version int32) *big.Int {
+func (tx *transaction) GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error) {
 	if fee.IsZeroFee() {
-		return fee.NewZeroFee()
+		return fee.NewZeroFee(), nil
 	}
 	if version >= 2 {
-		return new(big.Int).Add(
-			fee.PayloadTxFee(len(tx.GetBody().GetPayload())),
-			new(big.Int).Mul(
-				gasPrice,
-				new(big.Int).SetUint64(tx.GetBody().GasLimit),
-			),
-		)
+		minGasLimit := fee.TxGas(len(tx.GetBody().GetPayload()))
+		gasLimit := tx.GetBody().GasLimit
+		if gasLimit == 0 {
+			n := balance.Div(balance, gasPrice)
+			if n.IsUint64() {
+				gasLimit = n.Uint64()
+			} else {
+				gasLimit = math.MaxUint64
+			}
+		}
+		if minGasLimit > gasLimit {
+			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
+		}
+		return new(big.Int).Mul(new(big.Int).SetUint64(gasLimit), gasPrice), nil
 	}
-	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
+	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload())), nil
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"
