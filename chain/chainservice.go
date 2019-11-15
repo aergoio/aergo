@@ -239,15 +239,18 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic("invalid config: blockchain")
 	}
 
-	cs.validator = NewBlockValidator(cs, cs.sdb)
+	var verifyMode = cs.cfg.Blockchain.VerifyOnly || cs.cfg.Blockchain.VerifyBlock != 0
+
+	cs.validator = NewBlockValidator(cs, cs.sdb, cs.cfg.Blockchain.VerifyBlock != 0)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
 	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
-	if cs.cfg.Blockchain.VerifyOnly {
+	// TODO set VerifyOnly true if cs.cfg.Blockchain.VerifyBlock is not 0
+	if verifyMode {
 		if cs.cfg.Consensus.EnableBp {
 			logger.Fatal().Err(err).Msg("can't be enableBp at verifyOnly mode")
 		}
-		cs.chainVerifier = newChainVerifier(cs, cs.Core)
+		cs.chainVerifier = newChainVerifier(cs, cs.Core, cs.cfg.Blockchain.VerifyBlock)
 	}
 
 	cs.errBlocks, err = lru.New(dfltErrBlocks)
@@ -310,7 +313,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 }
 
 func (cs *ChainService) startChilds() {
-	if !cs.cfg.Blockchain.VerifyOnly {
+	if !cs.cfg.Blockchain.VerifyOnly && cs.cfg.Blockchain.VerifyBlock == 0 {
 		cs.chainManager.Start()
 		cs.chainWorker.Start()
 	} else {

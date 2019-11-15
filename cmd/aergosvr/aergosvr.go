@@ -168,7 +168,8 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	// Register services to Hub. Don't need to do nil-check since Register
 	// function skips nil parameters.
-	if !cfg.Blockchain.VerifyOnly {
+	var verifyOnly = cfg.Blockchain.VerifyOnly || cfg.Blockchain.VerifyBlock != 0
+	if !verifyOnly {
 		compMng.Register(chainSvc, mpoolSvc, rpcSvc, syncSvc, p2pSvc, accountSvc, pmapSvc)
 	} else {
 		compMng.Register(chainSvc, mpoolSvc, rpcSvc)

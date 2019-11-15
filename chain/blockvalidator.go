@@ -8,6 +8,7 @@ package chain
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -18,6 +19,7 @@ type BlockValidator struct {
 	signVerifier *SignVerifier
 	sdb          *state.ChainStateDB
 	isNeedWait   bool
+	verbose      bool
 }
 
 var (
@@ -28,13 +30,14 @@ var (
 	ErrorBlockVerifyReceiptRoot    = errors.New("Block verify failed, because receipt root hash is not equal")
 )
 
-func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainStateDB) *BlockValidator {
+func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainStateDB, verbose bool) *BlockValidator {
 	bv := BlockValidator{
 		signVerifier: NewSignVerifier(comm, sdb, VerifierCount, dfltUseMempool),
 		sdb:          sdb,
+		verbose:      verbose,
 	}
 
-	logger.Info().Msg("started signverifier")
+	logger.Info().Bool("verbose", bv.verbose).Msg("started signverifier")
 	return &bv
 }
 
@@ -67,6 +70,30 @@ func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 	return nil
 }
 
+type validateReport struct {
+	name   string
+	pass   bool
+	src    []byte
+	target []byte
+}
+
+func (t validateReport) toString() string {
+	var (
+		result string
+		msgStr string
+	)
+
+	if t.pass {
+		result = "pass"
+	} else {
+		result = "failed"
+	}
+
+	msgStr = fmt.Sprintf("%s : %s. block= %s, computed=%s", t.name, result, enc.ToString(t.src), enc.ToString(t.target))
+
+	return msgStr
+}
+
 func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	txs := block.GetBody().GetTxs()
 
@@ -74,12 +101,20 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	logger.Debug().Int("Txlen", len(txs)).Str("TxRoot", enc.ToString(block.GetHeader().GetTxsRootHash())).
 		Msg("tx root verify")
 
+	hdrRootHash := block.GetHeader().GetTxsRootHash()
 	computeTxRootHash := types.CalculateTxsRootHash(txs)
-	if bytes.Equal(block.GetHeader().GetTxsRootHash(), computeTxRootHash) == false {
+
+	ret := bytes.Equal(hdrRootHash, computeTxRootHash)
+	if bv.verbose {
+		bv.report(validateReport{name: "Verify tx merkle root", pass: ret, src: hdrRootHash, target: computeTxRootHash})
+	}
+
+	if !ret {
 		logger.Error().Str("block", block.ID()).
-			Str("txroot", enc.ToString(block.GetHeader().GetTxsRootHash())).
+			Str("txroot", enc.ToString(hdrRootHash)).
 			Str("compute txroot", enc.ToString(computeTxRootHash)).
 			Msg("tx root validation failed")
+
 		return ErrorBlockVerifyTxRoot
 	}
 
@@ -92,6 +127,10 @@ func (bv *BlockValidator) ValidateBody(block *types.Block) error {
 	bv.isNeedWait = true
 
 	return nil
+}
+
+func (bv *BlockValidator) report(report validateReport) {
+	logger.Info().Msg(report.toString())
 }
 
 func (bv *BlockValidator) WaitVerifyDone() error {
@@ -113,7 +152,12 @@ func (bv *BlockValidator) WaitVerifyDone() error {
 func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts, block *types.Block) error {
 	hdrRoot := block.GetHeader().GetBlocksRootHash()
 
-	if !bytes.Equal(hdrRoot, sdbRoot) {
+	ret := bytes.Equal(hdrRoot, sdbRoot)
+
+	if bv.verbose {
+		bv.report(validateReport{name: "Verify block state root", pass: ret, src: hdrRoot, target: sdbRoot})
+	}
+	if !ret {
 		logger.Error().Str("block", block.ID()).
 			Str("hdrroot", enc.ToString(hdrRoot)).
 			Str("sdbroot", enc.ToString(sdbRoot)).
@@ -126,7 +170,11 @@ func (bv *BlockValidator) ValidatePost(sdbRoot []byte, receipts *types.Receipts,
 
 	hdrRoot = block.GetHeader().ReceiptsRootHash
 	receiptsRoot := receipts.MerkleRoot()
-	if !bytes.Equal(hdrRoot, receiptsRoot) {
+	ret = bytes.Equal(hdrRoot, receiptsRoot)
+
+	if bv.verbose {
+		bv.report(validateReport{name: "Verify receipt merkle root", pass: ret, src: hdrRoot, target: receiptsRoot})
+	} else if !ret {
 		logger.Error().Str("block", block.ID()).
 			Str("hdrroot", enc.ToString(hdrRoot)).
 			Str("receipts_root", enc.ToString(receiptsRoot)).
