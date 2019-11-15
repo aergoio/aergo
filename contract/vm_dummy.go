@@ -289,7 +289,7 @@ func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaT
 		luaTxCommon: luaTxCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
-			code:     util.NewDeployPayload(byteCode, nil),
+			code:     util.NewLuaCodePayload(byteCode, nil),
 			amount:   amount,
 			id:       newTxId(),
 		},
@@ -322,7 +322,7 @@ func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
 		return l
 	}
-	l.code = util.NewDeployPayload(util.DeployPayload(l.code).Code(), []byte(args))
+	l.code = util.NewLuaCodePayload(util.LuaCodePayload(l.code).Code(), []byte(args))
 	return l
 }
 

@@ -23,7 +23,7 @@ func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaT
 		luaTxCommon: luaTxCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
-			code:     luacUtil.NewDeployPayload(luacUtil.NewByteCodeABI([]byte(code), abi), nil),
+			code:     luacUtil.NewLuaCodePayload(luacUtil.NewLuaCode([]byte(code), abi), nil),
 			amount:   amount,
 			id:       newTxId(),
 		},

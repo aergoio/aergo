@@ -126,7 +126,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			}
 			deployArgs = []byte(args[3])
 		}
-		payload = luac.NewDeployPayload(luac.NewByteCodeABI(code, abi), deployArgs)
+		payload = luac.NewLuaCodePayload(luac.NewLuaCode(code, abi), deployArgs)
 	} else {
 		if len(args) == 2 {
 			var ci types.CallInfo
@@ -141,7 +141,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			_, _ = fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
 		}
-		payload = luac.NewDeployPayload(code, deployArgs)
+		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {

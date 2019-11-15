@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"index/suffixarray"
 	"math/big"
 	"regexp"
@@ -252,7 +253,7 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 		return -1, C.CString("[Contract.LuaCallContract] getAccount error: " + err.Error())
 	}
 
-	callee := getContract(cs.ctrState, nil)
+	callee := getContract(cs.ctrState)
 	if callee == nil {
 		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
 	}
@@ -352,7 +353,7 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
-	contract := getContract(contractState, nil)
+	contract := getContract(contractState)
 	if contract == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
 	}
@@ -452,7 +453,7 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		}
 		var ci types.CallInfo
 		ci.Name = "default"
-		code := getContract(cs.ctrState, nil)
+		code := getContract(cs.ctrState)
 		if code == nil {
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
@@ -1058,7 +1059,7 @@ func luaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract] invalid args:" + err.Error())
 	}
-	runCode := getContract(contractState, code)
+	runCode := util.LuaCode(code).ByteCode()
 
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {

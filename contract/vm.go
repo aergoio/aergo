@@ -699,7 +699,7 @@ func Call(
 
 	var err error
 	var ci types.CallInfo
-	contract := getContract(contractState, nil)
+	contract := getContract(contractState)
 	if contract != nil {
 		if len(code) > 0 {
 			err = getCallInfo(&ci, code, contractAddress)
@@ -860,7 +860,7 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 		contractCode = bs.CodeMap.Get(contractAid)
 	}
 	if contractCode == nil {
-		contractCode = getContract(contractState, nil)
+		contractCode = getContract(contractState)
 		if contractCode != nil && bs != nil {
 			bs.CodeMap.Add(contractAid, contractCode)
 		}
@@ -888,35 +888,28 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 
 }
 
-func setContract(contractState *state.ContractState, contractAddress, code []byte) ([]byte, uint32, error) {
-	if len(code) <= 4 {
-		err := fmt.Errorf("invalid code (%d bytes is too short)", len(code))
+func setContract(contractState *state.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
+	codePayload := luacUtil.LuaCodePayload(payload)
+	if _, err := codePayload.IsValidFormat(); err != nil {
 		ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
-		return nil, 0, err
+		return nil, nil, err
 	}
-	codeLen := codeLength(code[0:])
-	if uint32(len(code)) < codeLen {
-		err := fmt.Errorf("invalid code (expected %d bytes, actual %d bytes)", codeLen, len(code))
-		ctrLgr.Warn().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
-		return nil, 0, err
-	}
-	sCode := code[4:codeLen]
-
-	err := contractState.SetCode(sCode)
+	code := codePayload.Code()
+	err := contractState.SetCode(code.Bytes())
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
-	contract := getContract(contractState, sCode)
+	contract := getContract(contractState)
 	if contract == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
 		ctrLgr.Warn().Str("error", "cannot load contract").Str(
 			"contract",
 			types.EncodeAddress(contractAddress),
 		).Msg("deploy")
-		return nil, 0, err
+		return nil, nil, err
 	}
 
-	return contract, codeLen, nil
+	return contract, codePayload.Args(), nil
 }
 
 func Create(
@@ -931,7 +924,7 @@ func Create(
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 	}
-	contract, codeLen, err := setContract(contractState, contractAddress, code)
+	contract, args, err := setContract(contractState, contractAddress, code)
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
@@ -940,8 +933,8 @@ func Create(
 		return "", nil, ctx.usedFee(), err
 	}
 	var ci types.CallInfo
-	if len(code) != int(codeLen) {
-		err = getCallInfo(&ci.Args, code[codeLen:], contractAddress)
+	if len(args) > 0 {
+		err = getCallInfo(&ci.Args, args, contractAddress)
 		if err != nil {
 			errMsg, _ := json.Marshal("constructor call error:" + err.Error())
 			return string(errMsg), nil, ctx.usedFee(), nil
@@ -1040,7 +1033,7 @@ func setQueryContext(ctx *vmContext) {
 
 func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
-	contract := getContract(contractState, nil)
+	contract := getContract(contractState)
 	if contract != nil {
 		err = getCallInfo(&ci, queryInfo, contractAddress)
 	} else {
@@ -1100,7 +1093,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 		return fmt.Errorf("%s function is not declared of fee delegation", ci.Name)
 	}
 
-	contract := getContract(contractState, nil)
+	contract := getContract(contractState)
 	if contract == nil {
 		addr := types.EncodeAddress(contractAddress)
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", addr).Msg("checkFeeDelegation")
@@ -1141,52 +1134,39 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	return nil
 }
 
-func getContract(contractState *state.ContractState, code []byte) []byte {
-	var val []byte
-	val = code
-	if val == nil {
-		var err error
-		val, err = contractState.GetCode()
-
-		if err != nil {
-			return nil
-		}
-	}
-	valLen := len(val)
-	if valLen <= 4 {
+func getContract(contractState *state.ContractState) []byte {
+	code, err := contractState.GetCode()
+	if err != nil {
 		return nil
 	}
-	l := codeLength(val[0:])
-	if 4+l > uint32(valLen) {
-		return nil
-	}
-	return val[4 : 4+l]
+	return luacUtil.LuaCode(code).ByteCode()
 }
 
 func GetABI(contractState *state.ContractState) (*types.ABI, error) {
-	val, err := contractState.GetCode()
+	code, err := contractState.GetCode()
 	if err != nil {
 		return nil, err
 	}
-	valLen := len(val)
-	if valLen == 0 {
+	luaCode := luacUtil.LuaCode(code)
+	if luaCode.Len() == 0 {
 		return nil, errors.New("cannot find contract")
 	}
-	if valLen <= 4 {
-		return nil, errors.New("cannot find abi")
-	}
-	l := codeLength(val)
-	if 4+l >= uint32(len(val)) {
+	rawAbi := luaCode.ABI()
+	if len(rawAbi) == 0 {
 		return nil, errors.New("cannot find abi")
 	}
 	abi := new(types.ABI)
-	if err := json.Unmarshal(val[4+l:], abi); err != nil {
+	if err = json.Unmarshal(rawAbi, abi); err != nil {
 		return nil, err
 	}
 	return abi, nil
 }
 
 func codeLength(val []byte) uint32 {
+	return binary.LittleEndian.Uint32(val[0:])
+}
+
+func contractLength(val []byte) uint32 {
 	return binary.LittleEndian.Uint32(val[0:])
 }
 
@@ -1234,7 +1214,7 @@ func (re *recoveryEntry) recovery() error {
 	return nil
 }
 
-func compile(code string) (luacUtil.ByteCodeABI, error) {
+func compile(code string) (luacUtil.LuaCode, error) {
 	L := luacUtil.NewLState()
 	if L == nil {
 		return nil, ErrVmStart

@@ -84,6 +84,7 @@ func (st *ContractState) SetCode(code []byte) error {
 	st.code = code
 	return nil
 }
+
 func (st *ContractState) GetCode() ([]byte, error) {
 	if st.code != nil {
 		// already loaded.
