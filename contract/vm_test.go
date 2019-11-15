@@ -5266,7 +5266,7 @@ abi.register(testall)
 }
 
 func TestTimeoutCnt(t *testing.T) {
-	timeout := 250
+	timeout := 50
 	if os.Getenv("TRAVIS") == "true" {
 		timeout = 1000
 		return
@@ -5302,7 +5302,33 @@ abi.register(ecverify)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`),
+		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`).Fail("contract"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	src2 := `
+function a()
+    src = [[
+while true do
+end
+    function b()
+    end
+    abi.register(b)
+    ]]
+    contract.deploy(src)
+end
+
+abi.register(a)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "timeout-cnt2", 0, src2),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract"),
 	)
 	if err != nil {
 		t.Error(err)

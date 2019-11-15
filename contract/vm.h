@@ -35,5 +35,6 @@ int vm_need_resource_limit(lua_State *L);
 void vm_set_resource_limit(lua_State *L);
 int vm_instcount(lua_State *L);
 void vm_setinstcount(lua_State *L, int cnt);
+const char *vm_copy_service(lua_State *L, lua_State *main);
 
 #endif /* _VM_H */

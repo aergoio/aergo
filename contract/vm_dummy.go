@@ -281,7 +281,7 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 }
 
 func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {
-	byteCode, err := compile(code)
+	byteCode, err := compile(code, nil)
 	if err != nil {
 		return &luaTxDef{cErr: err}
 	}

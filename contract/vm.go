@@ -1214,14 +1214,23 @@ func (re *recoveryEntry) recovery() error {
 	return nil
 }
 
-func compile(code string) (luacUtil.LuaCode, error) {
+func compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 	L := luacUtil.NewLState()
 	if L == nil {
 		return nil, ErrVmStart
 	}
+	if parent != nil {
+		var lState = (*LState)(L)
+		C.vm_copy_service(lState, parent)
+		C.setHardforkV2(lState)
+		C.vm_set_timeout_hook(lState)
+	}
 	defer luacUtil.CloseLState(L)
 	byteCodeAbi, err := luacUtil.Compile(L, code)
 	if err != nil {
+		if parent != nil && C.luaL_hasuncatchablerror((*LState)(L)) != C.int(0) {
+			C.luaL_setuncatchablerror(parent)
+		}
 		return nil, err
 	}
 	return byteCodeAbi, nil

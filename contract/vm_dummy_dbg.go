@@ -7,7 +7,7 @@ import (
 )
 
 func getCompiledABI(code string) ([]byte, error) {
-	byteCodeAbi, err := compile(code)
+	byteCodeAbi, err := compile(code, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -30,4 +30,3 @@ func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaT
 		cErr: nil,
 	}
 }
-

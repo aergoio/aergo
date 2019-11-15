@@ -169,6 +169,18 @@ static int cp_setLuaExecContext(lua_State *L)
     return 0;
 }
 
+const char *vm_copy_service(lua_State *L, lua_State *main)
+{
+    int *service = (int *)getLuaExecContext(main);
+	int err;
+
+ 	err = lua_cpcall(L, cp_setLuaExecContext, service);
+    if (err != 0) {
+	    return lua_tostring(L, -1);
+	}
+	return NULL;
+}
+
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
 {
 	int err;

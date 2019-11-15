@@ -1021,11 +1021,19 @@ func luaDeployContract(
 	}
 
 	if len(code) == 0 {
-		code, err = compile(contractStr)
+		if HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
+			code, err = compile(contractStr, L)
+		} else {
+			code, err = compile(contractStr, nil)
+		}
 		if err != nil {
-			if err == ErrVmStart {
+			if C.luaL_hasuncatchablerror(L) != C.int(0) &&
+				C.ERR_BF_TIMEOUT == err.Error() {
+				return -1, C.CString(C.ERR_BF_TIMEOUT)
+			} else if err == ErrVmStart {
 				return -1, C.CString("[Contract.LuaDeployContract] get luaState error")
 			}
+
 			return -1, C.CString("[Contract.LuaDeployContract]compile error:" + err.Error())
 		}
 	}
