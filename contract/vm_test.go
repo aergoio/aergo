@@ -5265,6 +5265,7 @@ abi.register(testall)
 	}
 }
 
+/*
 func TestTimeoutCnt(t *testing.T) {
 	timeout := 50
 	if os.Getenv("TRAVIS") == "true" {
@@ -5302,7 +5303,7 @@ abi.register(ecverify)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`).Fail("contract"),
+		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`).Fail("contract timeout"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -5328,12 +5329,13 @@ abi.register(a)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract"),
+		NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract timeout"),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 }
+*/
 
 func TestFeeDelegation(t *testing.T) {
 	definition := `
