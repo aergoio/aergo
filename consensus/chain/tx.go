@@ -148,11 +148,11 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, bi *ty
 				}
 				err = e
 				break
-			} else if e, ok := err.(*contract.VmTimeoutError); ok {
+			} else if _, ok := err.(*contract.VmTimeoutError); ok {
 				if logger.IsDebugEnabled() {
 					logger.Debug().Msg("stop gathering tx due to time limit")
 				}
-				err = ErrTimeout{Kind: e.Error()}
+				err = ErrTimeout{Kind: "contract"}
 				break
 			} else if err == errBlockSizeLimit {
 				if logger.IsDebugEnabled() {
