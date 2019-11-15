@@ -8,7 +8,6 @@ package server
 import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"os"
@@ -119,11 +118,11 @@ func Test_polarisListManager_IsBanned(t *testing.T) {
 	logger := log.NewLogger("polaris.test")
 
 	addr1 := "123.45.67.89"
-	id1 := p2putil.RandomPeerID()
+	id1 := types.RandomPeerID()
 	addrother := "8.8.8.8"
-	idother := p2putil.RandomPeerID()
+	idother := types.RandomPeerID()
 	thirdAddr := "222.8.8.8"
-	thirdID := p2putil.RandomPeerID()
+	thirdID := types.RandomPeerID()
 
 	IDOnly, e1 := types.ParseListEntry(`{"peerid":"`+id1.Pretty()+`"}`)
 	AddrOnly, e2 := types.ParseListEntry(`{"address":"`+addr1+`"}`)

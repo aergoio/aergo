@@ -93,11 +93,12 @@ static int moduleCall(lua_State *L)
 	char *contract;
 	char *fname;
 	char *json_args;
-	struct LuaCallContract_return ret;
+	struct luaCallContract_return ret;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer gas;
 	char *amount;
 
+    lua_gasuse(L, 2000);
 	if (service == NULL) {
 	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
@@ -124,7 +125,7 @@ static int moduleCall(lua_State *L)
 		luaL_throwerror(L);
 	}
 
-    ret = LuaCallContract(L, service, contract, fname, json_args, amount, gas);
+    ret = luaCallContract(L, service, contract, fname, json_args, amount, gas);
 	if (ret.r1 != NULL) {
 		free(json_args);
 	    reset_amount_info(L);
@@ -146,10 +147,11 @@ static int moduleDelegateCall(lua_State *L)
 	char *contract;
 	char *fname;
 	char *json_args;
-	struct LuaDelegateCallContract_return ret;
+	struct luaDelegateCallContract_return ret;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer gas;
 
+    lua_gasuse(L, 1000);
 	if (service == NULL) {
 	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
@@ -169,7 +171,7 @@ static int moduleDelegateCall(lua_State *L)
 	    reset_amount_info(L);
 		luaL_throwerror(L);
 	}
-	ret = LuaDelegateCallContract(L, service, contract, fname, json_args, gas);
+	ret = luaDelegateCallContract(L, service, contract, fname, json_args, gas);
 	if (ret.r1 != NULL) {
 		free(json_args);
 	    reset_amount_info(L);
@@ -190,6 +192,7 @@ static int moduleSend(lua_State *L)
 	char *amount;
 	bool needfree = false;
 
+    lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -214,7 +217,7 @@ static int moduleSend(lua_State *L)
     default:
 		luaL_error(L, "invalid input");
 	}
-	errStr = LuaSendAmount(L, service, contract, amount);
+	errStr = luaSendAmount(L, service, contract, amount);
 	if (needfree)
 	    free(amount);
 	if (errStr != NULL) {
@@ -229,8 +232,9 @@ static int moduleBalance(lua_State *L)
 	char *contract;
 	int *service = (int *)getLuaExecContext(L);
 	lua_Integer amount;
-	struct LuaGetBalance_return balance;
+	struct luaGetBalance_return balance;
 
+    lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
@@ -241,7 +245,7 @@ static int moduleBalance(lua_State *L)
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
 
-	balance = LuaGetBalance(L, service, contract);
+	balance = luaGetBalance(L, service, contract);
 	if (balance.r1 != NULL) {
 	    strPushAndRelease(L, balance.r1);
 		luaL_throwerror(L);
@@ -255,14 +259,15 @@ static int modulePcall(lua_State *L)
 {
 	int argc = lua_gettop(L) - 1;
 	int *service = (int *)getLuaExecContext(L);
-	struct LuaSetRecoveryPoint_return start_seq;
+	struct luaSetRecoveryPoint_return start_seq;
 	int ret;
 
+    lua_gasuse(L, 300);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
-	start_seq = LuaSetRecoveryPoint(L, service);
+	start_seq = luaSetRecoveryPoint(L, service);
 	if (start_seq.r0 < 0) {
 	    strPushAndRelease(L, start_seq.r1);
 	    luaL_throwerror(L);
@@ -275,7 +280,7 @@ static int modulePcall(lua_State *L)
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
 		if (start_seq.r0 > 0) {
-		    char *errStr = LuaClearRecovery(L, service, start_seq.r0, true);
+		    char *errStr = luaClearRecovery(L, service, start_seq.r0, true);
 			if (errStr != NULL) {
 			    strPushAndRelease(L, errStr);
 				luaL_throwerror(L);
@@ -286,7 +291,7 @@ static int modulePcall(lua_State *L)
 	lua_pushboolean(L, true);
 	lua_insert(L, 1);
 	if (start_seq.r0 == 1) {
-        char *errStr = LuaClearRecovery(L, service, start_seq.r0, false);
+        char *errStr = luaClearRecovery(L, service, start_seq.r0, false);
 		if (errStr != NULL) {
 			strPushAndRelease(L, errStr);
 			luaL_throwerror(L);
@@ -305,10 +310,11 @@ static int moduleDeploy(lua_State *L)
 	char *contract;
 	char *fname;
 	char *json_args;
-	struct LuaDeployContract_return ret;
+	struct luaDeployContract_return ret;
 	int *service = (int *)getLuaExecContext(L);
 	char *amount;
 
+    lua_gasuse(L, 5000);
 	if (service == NULL) {
 	    reset_amount_info(L);
 		luaL_error(L, "cannot find execution context");
@@ -327,7 +333,7 @@ static int moduleDeploy(lua_State *L)
 		luaL_throwerror(L);
 	}
 
-	ret = LuaDeployContract(L, service, contract, json_args, amount);
+	ret = luaDeployContract(L, service, contract, json_args, amount);
 	if (ret.r0 < 0) {
 		free(json_args);
 	    reset_amount_info(L);
@@ -350,16 +356,22 @@ static int moduleEvent(lua_State *L)
 	int *service = (int *)getLuaExecContext(L);
 	char *errStr;
 
+    lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
 	event_name = (char *)luaL_checkstring(L, 1);
-	json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), false);
+	if (isHardfork(L, FORK_V2) == 1) {
+	    json_args = lua_util_get_json_array_from_stack (L, 2, lua_gettop(L), true);
+	}
+	else {
+	    json_args = lua_util_get_json_from_stack (L, 2, lua_gettop(L), false);
+	}
 	if (json_args == NULL) {
 		luaL_throwerror(L);
 	}
-	errStr = LuaEvent(L, service, event_name, json_args);
+	errStr = luaEvent(L, service, event_name, json_args);
 	if (errStr != NULL) {
 	    strPushAndRelease(L, errStr);
 	    luaL_throwerror(L);
@@ -374,11 +386,12 @@ static int governance(lua_State *L, char type) {
 	char *arg;
 	bool needfree = false;
 
+    lua_gasuse(L, 500);
 	if (service == NULL) {
 		luaL_error(L, "cannot find execution context");
 	}
 
-    if (type != 'V') {
+    if (type == 'S' || type == 'U') {
     	if (lua_isnil(L, 1))
 	    return 0;
 
@@ -410,7 +423,7 @@ static int governance(lua_State *L, char type) {
 		}
 		needfree = true;
     }
-	ret = LuaGovernance(L, service, type, arg);
+	ret = luaGovernance(L, service, type, arg);
 	if (needfree)
 	    free(arg);
 	if (ret != NULL) {
@@ -430,6 +443,10 @@ static int moduleUnstake(lua_State *L) {
 
 static int moduleVote(lua_State *L) {
     return governance(L, 'V');
+}
+
+static int moduleVoteDao(lua_State *L) {
+    return governance(L, 'D');
 }
 
 static const luaL_Reg call_methods[] = {
@@ -473,6 +490,7 @@ static const luaL_Reg contract_lib[] = {
 	{"stake", moduleStake},
 	{"unstake", moduleUnstake},
 	{"vote", moduleVote},
+	{"voteDao", moduleVoteDao},
 	{NULL, NULL}
 };
 

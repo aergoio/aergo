@@ -28,11 +28,20 @@ import (
 type LiteContainerService struct {
 	*component.BaseComponent
 
+	dummySetting p2pcommon.LocalSettings
 	chainID *types.ChainID
 	meta    p2pcommon.PeerMeta
 	nt      p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
+}
+
+func (lntc *LiteContainerService) LocalSettings() p2pcommon.LocalSettings {
+	return lntc.dummySetting
+}
+
+func (lntc *LiteContainerService) RoleManager() p2pcommon.PeerRoleManager {
+	panic("implement me")
 }
 
 var (
@@ -80,7 +89,7 @@ func (lntc *LiteContainerService) GetNetworkTransport() p2pcommon.NetworkTranspo
 	return lntc.nt
 }
 
-func (lntc *LiteContainerService) ChainID() *types.ChainID {
+func (lntc *LiteContainerService) GenesisChainID() *types.ChainID {
 	return lntc.chainID
 }
 
@@ -179,12 +188,17 @@ func (lntc *LiteContainerService) SelfNodeID() types.PeerID {
 	return lntc.meta.ID
 }
 
-func (lntc *LiteContainerService) SelfRole() p2pcommon.PeerRole {
+func (lntc *LiteContainerService) SelfRole() types.PeerRole {
 	// return dummy value
-	return p2pcommon.Watcher
+	return types.PeerRole_Watcher
 }
 
 func (lntc *LiteContainerService) GetChainAccessor() types.ChainAccessor {
+	// return dummy value
+	return nil
+}
+
+func (lntc *LiteContainerService) CertificateManager() p2pcommon.CertificateManager {
 	// return dummy value
 	return nil
 }
@@ -215,10 +229,10 @@ func initMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMeta {
 	if protocolPort <= 0 {
 		panic("invalid NetProtocolPort " + strconv.Itoa(conf.NetProtocolPort))
 	}
+	ma,err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
 	var meta p2pcommon.PeerMeta
-	meta.IPAddress = protocolAddr
-	meta.Port = uint32(protocolPort)
 	meta.ID = peerID
+	meta.Addresses = []types.Multiaddr{ma}
 	meta.Hidden = !conf.NPExposeSelf
 	meta.Version = p2pkey.NodeVersion()
 

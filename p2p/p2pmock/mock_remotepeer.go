@@ -8,7 +8,6 @@ import (
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
-	network "github.com/libp2p/go-libp2p-core/network"
 	reflect "reflect"
 	time "time"
 )
@@ -37,17 +36,17 @@ func (m *MockPeerFactory) EXPECT() *MockPeerFactoryMockRecorder {
 }
 
 // CreateRemotePeer mocks base method
-func (m *MockPeerFactory) CreateRemotePeer(meta p2pcommon.PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+func (m *MockPeerFactory) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateRemotePeer", meta, seq, status, stream, rw)
+	ret := m.ctrl.Call(m, "CreateRemotePeer", remoteInfo, seq, rw)
 	ret0, _ := ret[0].(p2pcommon.RemotePeer)
 	return ret0
 }
 
 // CreateRemotePeer indicates an expected call of CreateRemotePeer
-func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(meta, seq, status, stream, rw interface{}) *gomock.Call {
+func (mr *MockPeerFactoryMockRecorder) CreateRemotePeer(remoteInfo, seq, rw interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), meta, seq, status, stream, rw)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRemotePeer", reflect.TypeOf((*MockPeerFactory)(nil).CreateRemotePeer), remoteInfo, seq, rw)
 }
 
 // MockRemotePeer is a mock of RemotePeer interface
@@ -85,6 +84,20 @@ func (m *MockRemotePeer) ID() types.PeerID {
 func (mr *MockRemotePeerMockRecorder) ID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockRemotePeer)(nil).ID))
+}
+
+// RemoteInfo mocks base method
+func (m *MockRemotePeer) RemoteInfo() p2pcommon.RemoteInfo {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoteInfo")
+	ret0, _ := ret[0].(p2pcommon.RemoteInfo)
+	return ret0
+}
+
+// RemoteInfo indicates an expected call of RemoteInfo
+func (mr *MockRemotePeerMockRecorder) RemoteInfo() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoteInfo", reflect.TypeOf((*MockRemotePeer)(nil).RemoteInfo))
 }
 
 // Meta mocks base method
@@ -143,22 +156,22 @@ func (mr *MockRemotePeerMockRecorder) Version() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockRemotePeer)(nil).Version))
 }
 
-// Role mocks base method
-func (m *MockRemotePeer) Role() p2pcommon.PeerRole {
+// AcceptedRole mocks base method
+func (m *MockRemotePeer) AcceptedRole() types.PeerRole {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Role")
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret := m.ctrl.Call(m, "AcceptedRole")
+	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 
-// Role indicates an expected call of Role
-func (mr *MockRemotePeerMockRecorder) Role() *gomock.Call {
+// AcceptedRole indicates an expected call of AcceptedRole
+func (mr *MockRemotePeerMockRecorder) AcceptedRole() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Role", reflect.TypeOf((*MockRemotePeer)(nil).Role))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcceptedRole", reflect.TypeOf((*MockRemotePeer)(nil).AcceptedRole))
 }
 
 // ChangeRole mocks base method
-func (m *MockRemotePeer) ChangeRole(role p2pcommon.PeerRole) {
+func (m *MockRemotePeer) ChangeRole(role types.PeerRole) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "ChangeRole", role)
 }
@@ -298,7 +311,7 @@ func (mr *MockRemotePeerMockRecorder) GetReceiver(id interface{}) *gomock.Call {
 }
 
 // UpdateBlkCache mocks base method
-func (m *MockRemotePeer) UpdateBlkCache(blkHash []byte, blkNumber uint64) bool {
+func (m *MockRemotePeer) UpdateBlkCache(blkHash types.BlockID, blkNumber types.BlockNo) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateBlkCache", blkHash, blkNumber)
 	ret0, _ := ret[0].(bool)
@@ -326,7 +339,7 @@ func (mr *MockRemotePeerMockRecorder) UpdateTxCache(hashes interface{}) *gomock.
 }
 
 // UpdateLastNotice mocks base method
-func (m *MockRemotePeer) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
+func (m *MockRemotePeer) UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "UpdateLastNotice", blkHash, blkNumber)
 }
@@ -349,4 +362,16 @@ func (m *MockRemotePeer) MF() p2pcommon.MoFactory {
 func (mr *MockRemotePeerMockRecorder) MF() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MF", reflect.TypeOf((*MockRemotePeer)(nil).MF))
+}
+
+// AddCertificate mocks base method
+func (m *MockRemotePeer) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddCertificate", cert)
+}
+
+// AddCertificate indicates an expected call of AddCertificate
+func (mr *MockRemotePeerMockRecorder) AddCertificate(cert interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockRemotePeer)(nil).AddCertificate), cert)
 }

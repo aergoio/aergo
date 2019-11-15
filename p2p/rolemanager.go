@@ -24,89 +24,109 @@ type RaftRoleManager struct {
 func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
 	rm.raftMutex.Lock()
 	defer rm.raftMutex.Unlock()
-	changes := make([]p2pcommon.AttrModifier,0, len(toAdd)+len(toRemove))
+	changes := make([]p2pcommon.AttrModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
 		delete(rm.raftBP, pid)
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.Watcher})
+		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Watcher})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP removed")
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.BlockProducer})
+		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Producer})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
 	}
 	rm.p2ps.pm.UpdatePeerRole(changes)
 }
 
-func (rm *RaftRoleManager) SelfRole() p2pcommon.PeerRole {
-	return rm.p2ps.selfRole
+func (rm *RaftRoleManager) SelfRole() types.PeerRole {
+	return rm.p2ps.selfMeta.Role
 }
 
-func (rm *RaftRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
+func (rm *RaftRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	rm.raftMutex.Lock()
 	defer rm.raftMutex.Unlock()
 	if _, found := rm.raftBP[pid]; found {
 		// TODO check if leader or follower
-		return p2pcommon.BlockProducer
+		return types.PeerRole_Producer
 	} else {
-		return p2pcommon.Watcher
+		return types.PeerRole_Watcher
 	}
 }
 
-func (rm *RaftRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pcommon.RemotePeer) (skipped, sent int) {
-	// TODO filter to only contain bp and trusted node.
+func (rm *RaftRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
+	peers := pm.GetPeers()
+	filtered := make([]p2pcommon.RemotePeer, 0, len(peers))
 	for _, neighbor := range peers {
-		if neighbor != nil && neighbor.State() == types.RUNNING &&
-			neighbor.Role() == p2pcommon.Watcher {
-			sent++
-			neighbor.SendMessage(mo)
-		} else {
-			skipped++
+		if neighbor.AcceptedRole() != types.PeerRole_Producer {
+			filtered = append(filtered, neighbor)
 		}
 	}
-	return
+	return filtered
+}
+func (rm *RaftRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return rm.FilterBPNoticeReceiver(block, pm, p2pcommon.InternalZone)
 }
 
 type DefaultRoleManager struct {
 	p2ps *P2P
+
+	agentsSet          map[types.PeerID]bool
+	bpSet              map[types.PeerID]bool
+	blockManagePeerSet map[types.PeerID]map[types.PeerID]bool
 }
 
 func (rm *DefaultRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
-	changes := make([]p2pcommon.AttrModifier,0, len(toAdd)+len(toRemove))
+	changes := make([]p2pcommon.AttrModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.Watcher})
+		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Watcher})
 	}
 	for _, pid := range toAdd {
-		changes = append(changes, p2pcommon.AttrModifier{pid, p2pcommon.BlockProducer})
+		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Producer})
 	}
 	rm.p2ps.pm.UpdatePeerRole(changes)
 }
 
-func (rm *DefaultRoleManager) SelfRole() p2pcommon.PeerRole {
-	return rm.p2ps.selfRole
+func (rm *DefaultRoleManager) SelfRole() types.PeerRole {
+	return rm.p2ps.selfMeta.Role
 }
 
-func (rm *DefaultRoleManager) GetRole(pid types.PeerID) p2pcommon.PeerRole {
+func (rm *DefaultRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	prettyID := pid.Pretty()
 	bps := rm.p2ps.consacc.ConsensusInfo().Bps
 	for _, bp := range bps {
 		if strings.Contains(bp, prettyID) {
-			return p2pcommon.BlockProducer
+			return types.PeerRole_Producer
 		}
 	}
-	return p2pcommon.Watcher
+	return types.PeerRole_Watcher
 }
 
-func (rm *DefaultRoleManager) NotifyNewBlockMsg(mo p2pcommon.MsgOrder, peers []p2pcommon.RemotePeer) (skipped, sent int) {
-	// TODO filter to only contain bp and trusted node.
-	for _, neighbor := range peers {
-		if neighbor != nil && neighbor.State() == types.RUNNING {
-			sent++
-			neighbor.SendMessage(mo)
-		} else {
-			skipped++
+func (rm *DefaultRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
+	return pm.GetPeers()
+}
+
+func (rm *DefaultRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return pm.GetPeers()
+}
+
+type DposAgentRoleManager struct {
+	DefaultRoleManager
+	cm p2pcommon.CertificateManager
+	inChargeSet map[types.PeerID]bool
+}
+
+func (rm *DposAgentRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
+	// FIXME type conversion to concrete type is poor solution.
+	pmimpl := pm.(*peerManager)
+	peers := make([]p2pcommon.RemotePeer, 0, len(pmimpl.bpClassPeers))
+	for _, peer := range pmimpl.bpClassPeers {
+		if peer.RemoteInfo().Zone == targetZone {
+			peers = append(peers, peer)
 		}
 	}
-	return
+	return peers
 }
 
+func (rm *DposAgentRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
+	return pm.GetPeers()
+}

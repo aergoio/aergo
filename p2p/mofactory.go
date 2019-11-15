@@ -99,6 +99,11 @@ func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *ra
 	return nil
 }
 
+func (mf *baseMOFactory) NewTossMsgOrder(orgMsg p2pcommon.Message) p2pcommon.MsgOrder {
+	rmo := &pbTossOrder{pbMessageOrder{message:orgMsg, protocolID:orgMsg.Subprotocol(),needSign:true}}
+	return rmo
+}
+
 // newPbMsgOrder is base form of making sendRequest struct
 func (mf *baseMOFactory) fillUpMsgOrder(mo *pbMessageOrder, msgID, orgID uuid.UUID, protocolID p2pcommon.SubProtocol, messageBody p2pcommon.MessageBody) bool {
 	id := p2pcommon.MsgID(msgID)

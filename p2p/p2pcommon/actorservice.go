@@ -15,20 +15,20 @@ import (
 // FIXME move to more general package. it used in p2p and rpc
 type ActorService interface {
 	// TellRequest send actor request, which does not need to get return value, and forget it.
-	TellRequest(actor string, msg interface{})
+	TellRequest(actorName string, msg interface{})
 	// SendRequest send actor request, and the response is expected to go back asynchronously.
-	SendRequest(actor string, msg interface{})
+	SendRequest(actorName string, msg interface{})
 	// CallRequest send actor request and wait the handling of that message to finished,
 	// and get return value.
-	CallRequest(actor string, msg interface{}, timeout time.Duration) (interface{}, error)
+	CallRequest(actorName string, msg interface{}, timeout time.Duration) (interface{}, error)
 	// CallRequestDefaultTimeout is CallRequest with default timeout
-	CallRequestDefaultTimeout(actor string, msg interface{}) (interface{}, error)
+	CallRequestDefaultTimeout(actorName string, msg interface{}) (interface{}, error)
 
 	// FutureRequest send actor request and get the Future object to get the state and return value of message
-	FutureRequest(actor string, msg interface{}, timeout time.Duration) *actor.Future
+	FutureRequest(actorName string, msg interface{}, timeout time.Duration) *actor.Future
 	// FutureRequestDefaultTimeout is FutureRequest with default timeout
-	FutureRequestDefaultTimeout(actor string, msg interface{}) *actor.Future
+	FutureRequestDefaultTimeout(actorName string, msg interface{}) *actor.Future
 
 	GetChainAccessor() types.ChainAccessor
 }
-//go:generate mockgen -source=actorservice.go  -package=p2pmock -destination=../p2pmock/mock_actorservice.go
+//go:generate mockgen -source=actorservice.go -package=p2pmock -destination=../p2pmock/mock_actorservice.go

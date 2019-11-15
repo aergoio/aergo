@@ -13,29 +13,42 @@ import (
 	"time"
 )
 
+type HandshakeResult struct {
+	MsgRW MsgReadWriter
+
+	Meta          PeerMeta
+	BestBlockHash types.BlockID
+	BestBlockNo   types.BlockNo
+	Hidden        bool
+	Certificates []*AgentCertificateV1
+}
 
 // HSHandlerFactory is creator of HSHandler
 type HSHandlerFactory interface {
-	CreateHSHandler(legacy bool, outbound bool, pid types.PeerID) HSHandler
+	CreateHSHandler(outbound bool, pid types.PeerID) HSHandler
 }
 
 // HSHandler handles whole process of connect, handshake, create of remote Peer
 type HSHandler interface {
 	// Handle peer handshake till ttl, and return msgrw for this connection, and status of remote peer.
-	Handle(s io.ReadWriteCloser, ttl time.Duration) (MsgReadWriter, *types.Status, error)
+	Handle(s io.ReadWriteCloser, ttl time.Duration) (*HandshakeResult, error)
 }
 
 type VersionedManager interface {
 	FindBestP2PVersion(versions []P2PVersion) P2PVersion
 	GetVersionedHandshaker(version P2PVersion, peerID types.PeerID, rwc io.ReadWriteCloser) (VersionedHandshaker, error)
+
+	GetBestChainID() *types.ChainID
+	GetChainID(no types.BlockNo) *types.ChainID
 }
 
 // VersionedHandshaker do handshake related to chain, and return msgreadwriter for a protocol version.
 // It is used inside HSHandler
 type VersionedHandshaker interface {
-	DoForOutbound(ctx context.Context) (*types.Status, error)
-	DoForInbound(ctx context.Context) (*types.Status, error)
+	DoForOutbound(ctx context.Context) (*HandshakeResult, error)
+	DoForInbound(ctx context.Context) (*HandshakeResult, error)
 	GetMsgRW() MsgReadWriter
+
 }
 
 // HSHeader is legacy type of data which peer send first to listening peer in wire handshake
@@ -81,7 +94,7 @@ func (h HSHeadReq) Marshal() []byte {
 // HSHeadResp is data which listening peer send back to connecting peer as response
 type HSHeadResp struct {
 	// Magic will be same as the magic in HSHeadReq if wire handshake is successful, or 0 if not.
-	Magic    uint32
+	Magic uint32
 	// RespCode is different meaning by value of Magic. It is p2p version which listening peer will use, if wire handshake is successful, or errCode otherwise.
 	RespCode uint32
 }

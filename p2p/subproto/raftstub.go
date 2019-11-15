@@ -38,7 +38,12 @@ func (bh *raftBPNoticeDiscardHandler) Handle(msg p2pcommon.Message, msgBody p2pc
 		return
 	}
 	// just update last status
-	remotePeer.UpdateLastNotice(data.GetBlock().GetHash(), data.BlockNo)
+	if blockID, err := types.ParseToBlockID(data.GetBlock().Hash); err != nil {
+		bh.logger.Info().Err(err).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("invalid block hash")
+		return
+	} else {
+		remotePeer.UpdateLastNotice(blockID, data.BlockNo)
+	}
 }
 
 // raftBPNoticeDiscardHandler silently discard blk notice. It is for raft block producer, since raft BP receive notice from raft HTTPS
@@ -62,12 +67,12 @@ func (bh *raftNewBlkNoticeDiscardHandler) Handle(msg p2pcommon.Message, msgBody 
 	remotePeer := bh.peer
 	data := msgBody.(*types.NewBlockNotice)
 
-	if _, err := types.ParseToBlockID(data.BlockHash); err != nil {
+	if blockID, err := types.ParseToBlockID(data.BlockHash); err != nil {
 		// TODO Add penalty score and break
 		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
 		return
+	} else {
+		// just update last status
+		remotePeer.UpdateLastNotice(blockID, data.BlockNo)
 	}
-
-	// just update last status
-	remotePeer.UpdateLastNotice(data.BlockHash, data.BlockNo)
 }

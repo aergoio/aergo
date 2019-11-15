@@ -2,11 +2,12 @@ package raftv2
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var (
@@ -55,7 +56,7 @@ func init() {
 		}},
 	}
 
-	testBlock := types.NewBlock(nil, nil, nil, nil, nil, 0)
+	testBlock := types.NewBlock(types.EmptyBlockHeaderInfo, nil, nil, nil, nil, nil)
 
 	testSnapData = consensus.NewSnapshotData(testMbrs, nil, testBlock)
 }

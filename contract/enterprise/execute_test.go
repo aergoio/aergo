@@ -152,7 +152,8 @@ func TestBasicEnterprise(t *testing.T) {
 	assert.Equal(t, `{"peerid":"16Uiu2HAmGiJ2QgVAWHMUtzLKKNM5eFUJ3Ds3FN7nYJq1mHN5ZPj9"}`, conf.Values[2], "conf value 2")
 
 	tx.Payload = []byte(`{"name":"appendConf", "args":["p2pwhite","{\"peerid\":\"16Uiu2HAmAAtqye6QQbeG9EZnrWJbGK8Xw74cZxpnGGEAZAB3zJ8B\"}"]}`)
-	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	event, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
+	t.Log(event)
 	assert.NoError(t, err, "set conf")
 	assert.Equal(t, "Set P2PWHITE", event[0].EventName, "append admin event")
 	conf, err = getConf(scs, []byte("p2pwhite"))
@@ -162,7 +163,7 @@ func TestBasicEnterprise(t *testing.T) {
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["p2pwhite",true]}`)
 	event, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	//t.Log(event)
+	t.Log(event)
 	assert.NoError(t, err, "enable conf")
 	conf, err = getConf(scs, []byte("p2pwhite"))
 	assert.Equal(t, true, conf.On, "conf on")

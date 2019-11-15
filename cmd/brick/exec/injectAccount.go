@@ -6,6 +6,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -56,7 +57,7 @@ func (c *injectAccount) parse(args string) (string, *big.Int, error) {
 	return splitArgs[0].Text, amount, nil
 }
 
-func (c *injectAccount) Run(args string) (string, error) {
+func (c *injectAccount) Run(args string) (string, uint64, []*types.Event, error) {
 	accountName, amount, _ := c.parse(args)
 
 	err := context.Get().ConnectBlock(
@@ -64,10 +65,10 @@ func (c *injectAccount) Run(args string) (string, error) {
 	)
 
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
 	Index(context.AccountSymbol, accountName)
 
-	return "inject an account successfully", nil
+	return "inject an account successfully", 0, nil, nil
 }

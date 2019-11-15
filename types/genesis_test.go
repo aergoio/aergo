@@ -1,8 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
-	fmt "fmt"
+	"fmt"
 	"testing"
 	"time"
 
@@ -65,4 +66,26 @@ func TestCodecChainID(t *testing.T) {
 	err = id2.Read(b)
 	a.Nil(err)
 	a.True(id1.Equals(id2))
+}
+
+func TestUpdateChainIdVersion(t *testing.T) {
+	g := GetMainNetGenesis()
+	b := g.Block().GetHeader().GetChainID()
+	cid0 := new(ChainID)
+	cid0.Read(b)
+	if cid0.Version != 0 {
+		t.Errorf("version mismatch: 0 expected, but got %d", cid0.Version)
+		t.Log(cid0.ToJSON())
+	}
+	updatedCID := MakeChainId(b, 0)
+	if !bytes.Equal(b, updatedCID) {
+		t.Error("chainid is not equal")
+	}
+	updatedCID = MakeChainId(b, 1)
+	cid1 := new(ChainID)
+	cid1.Read(updatedCID)
+	if cid1.Version != 1 {
+		t.Errorf("version mismatch: 1 expected, but got %d", cid1.Version)
+		t.Log(cid1.ToJSON())
+	}
 }

@@ -8,7 +8,9 @@ package p2putil
 import (
 	"fmt"
 	"github.com/aergoio/aergo/types"
+	"net"
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -40,7 +42,6 @@ func TestGetIP(t *testing.T) {
 	if NetAddrString != netAddr.String() {
 		t.Errorf("Expected %s, but actually %s", NetAddrString, netAddr)
 	}
-
 	addrInput, _ = ma.NewMultiaddr(SampleAddrString + "/ipfs/16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	netAddr, err = mnet.ToNetAddr(addrInput)
 	if nil == err {
@@ -306,5 +307,88 @@ func TestParseURI(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestExternalIP(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"T1", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ip, err := ExternalIP()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExternalIP() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			t.Logf("Got IP %v",ip.String())
+		})
+	}
+}
+
+func Test_getValidIP(t *testing.T) {
+	loIP4:="127.0.0.1"
+	llIP4:="169.254.0.2"
+	priIP4:="192.168.1.3"
+	pubIP4:="116.127.31.76"
+	loIP6:="::1"
+	llIP6:="fe80::"
+	priIP6:="192.168.1.3"
+	//pubIP6:="116.127.31.76"
+	wrapped:="::ffff:df01:1111"
+
+	tests := []struct {
+		name string
+		args []string
+		want net.IP
+	}{
+		{"TEmpty",[]string{}, nil},
+		{"TLo4",[]string{loIP4}, nil},
+		{"TLo6",[]string{loIP6}, nil},
+		{"TLoLL",[]string{loIP4,llIP4}, nil},
+		{"TLoLL6",[]string{loIP6,llIP6}, nil},
+		{"TLL4",[]string{llIP4}, nil},
+		{"TLL6",[]string{llIP6}, nil},
+		{"T4Only",[]string{pubIP4}, net.ParseIP(pubIP4)},
+		{"TLo4Uo6",[]string{loIP4, priIP6}, net.ParseIP(priIP6)},
+		{"TLL6P4",[]string{priIP4, llIP6}, net.ParseIP(priIP4)},
+		{"TP4LL6",[]string{llIP6,priIP4}, net.ParseIP(priIP4)},
+		{"TWrapped6",[]string{wrapped}, net.ParseIP(wrapped)},
+
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addrs := []net.Addr{}
+			for _, ipstr := range tt.args {
+				ip := net.ParseIP(ipstr)
+				if ip == nil {
+					t.Fatalf("invalid ip sample %v", ipstr)
+				}
+				addrs = append(addrs, &net.IPAddr{IP:ip,Zone:"ip+net"})
+			}
+			if got := getValidIP(addrs); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getValidIP() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMonotonicClocks(t *testing.T) {
+	mt := time.Now()
+	mt2 := mt.Add(time.Hour)
+	wt := mt.Truncate(0)
+	wt2 := wt.Add(time.Hour)
+
+	if !mt.Equal(wt) {
+		t.Errorf("Equal(): Monotonic and wall clock differ! %v and %v ",mt, wt)
+	}
+	if !mt2.Equal(wt2) {
+		t.Errorf("Monotonic and wall clock differ! %v and %v ",mt, wt)
+	}
+	if !reflect.DeepEqual(mt,wt) {
+		// this is expected situation. you should compare clocks by Equal() method, not by reflection.
 	}
 }

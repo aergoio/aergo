@@ -22,8 +22,8 @@ import (
 func TestP2P_GetAddresses(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
-	dummyPeerMeta := p2pcommon.PeerMeta{ID:dummyPeerID, IPAddress:"127.0.0.1", Port:7846}
+	ma, _ := types.ParseMultiaddr("/ip4/127.0.0.1/tcp/7846")
+	dummyPeerMeta := p2pcommon.PeerMeta{ID:dummyPeerID, Addresses:[]types.Multiaddr{ma}}
 
 	type args struct {
 		peerID types.PeerID
@@ -51,10 +51,10 @@ func TestP2P_GetAddresses(t *testing.T) {
 			}
 			p2pmock.NewMockRemotePeer(ctrl)
 			mockPM.EXPECT().GetPeer(dummyPeerID).Return(mockPeer, tt.hasPeer).Times(1)
-			mockPM.EXPECT().SelfMeta().Return(dummyPeerMeta).Times(tt.wantSend).MaxTimes(tt.wantSend)
+			//mockPM.EXPECT().SelfMeta().Return(dummyPeerMeta).Times(tt.wantSend).MaxTimes(tt.wantSend)
 			mockMF.EXPECT().NewMsgRequestOrder(true, p2pcommon.AddressesRequest, gomock.AssignableToTypeOf(&types.AddressesRequest{})).Times(tt.wantSend)
 			p2ps := &P2P{
-				pm:mockPM, mf:mockMF,
+				pm:mockPM, mf:mockMF, selfMeta:dummyPeerMeta,
 			}
 			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
 
@@ -194,6 +194,60 @@ func TestP2P_SendRaftMessage(t *testing.T) {
 
 			ps.SendRaftMessage(mockCtx, &message.SendRaft{ToWhom:tt.args.pid, Body:tt.args.body})
 
+		})
+	}
+}
+
+func TestP2P_NotifyBlockProduced(t *testing.T) {
+	rp, ra, rw := types.PeerRole_Producer, types.PeerRole_Agent, types.PeerRole_Watcher
+	sr,ss := types.RUNNING, types.STOPPING
+
+	tests := []struct {
+		name   string
+		argPeer []rs
+
+		wantSend int
+	}{
+		{"TAllRun", []rs{{rp,sr}, {rp, sr}, {rp, sr}},  3},
+		{"TAllStop", []rs{{rw, ss}, {ra, ss}, {rw, ss}},  0},
+		{"TMix", []rs{{rp, sr}, {rp, ss}, {rw, sr}},  2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			selfMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "192.168.1.2", 7846, "v2.0.0")
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			mockMF := p2pmock.NewMockMoFactory(ctrl)
+			mockRM := p2pmock.NewMockPeerRoleManager(ctrl)
+			p2ps := &P2P{
+				pm:mockPM, mf:mockMF, selfMeta:selfMeta, prm:mockRM,
+			}
+			p2ps.BaseComponent = component.NewBaseComponent(message.P2PSvc, p2ps, log.NewLogger("p2p.test"))
+
+			dummyNotice := message.NotifyNewBlock{Block:&types.Block{Hash:[]byte(types.RandomPeerID())}}
+
+			sentCnt := 0
+			mockPeers := make([]p2pcommon.RemotePeer,0,3)
+			for _, ap := range tt.argPeer {
+				mPeer := p2pmock.NewMockRemotePeer(ctrl)
+				mPeer.EXPECT().ID().Return(types.RandomPeerID()).AnyTimes()
+				mPeer.EXPECT().AcceptedRole().Return(ap.r).AnyTimes()
+				mPeer.EXPECT().State().Return(ap.s).AnyTimes()
+				mPeer.EXPECT().SendMessage(gomock.Any()).Do(func(_ interface{}) {
+					sentCnt++
+				}).MaxTimes(1)
+
+				mockPeers = append(mockPeers, mPeer)
+			}
+			mockPM.EXPECT().GetPeers().Return(mockPeers)
+			mockMF.EXPECT().NewMsgBPBroadcastOrder(gomock.AssignableToTypeOf(&types.BlockProducedNotice{}))
+
+			_ = p2ps.NotifyBlockProduced(dummyNotice)
+			if sentCnt != tt.wantSend {
+				t.Errorf("P2P.NotifyBlockProduced() sent count = %v, want %v", sentCnt, tt.wantSend)
+			}
 		})
 	}
 }

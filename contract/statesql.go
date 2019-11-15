@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/aergoio/aergo/internal/enc"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
@@ -23,12 +24,12 @@ import (
 var (
 	ErrDBOpen = errors.New("failed to open the sql database")
 	ErrUndo   = errors.New("failed to undo the sql database")
-	ErrFindRp = errors.New("cannot find a recover point")
+	ErrFindRp = errors.New("cannot find a recovery point")
 
-	database = &Database{}
+	database = &sqlDatabase{}
 	load     sync.Once
 
-	logger = log.NewLogger("statesql")
+	sqlLgr = log.NewLogger("statesql")
 
 	queryConn     *SQLiteConn
 	queryConnLock sync.Mutex
@@ -39,8 +40,8 @@ const (
 	queryDriver    = "query"
 )
 
-type Database struct {
-	DBs        map[string]*DB
+type sqlDatabase struct {
+	DBs        map[string]*litetree
 	OpenDbName string
 	DataDir    string
 }
@@ -51,10 +52,10 @@ func init() {
 			if _, ok := database.DBs[database.OpenDbName]; !ok {
 				b, err := enc.ToBytes(database.OpenDbName)
 				if err != nil {
-					logger.Error().Err(err).Msg("Open SQL Connection")
+					sqlLgr.Error().Err(err).Msg("Open SQL Connection")
 					return nil
 				}
-				database.DBs[database.OpenDbName] = &DB{
+				database.DBs[database.OpenDbName] = &litetree{
 					Conn:      nil,
 					db:        nil,
 					tx:        nil,
@@ -63,7 +64,7 @@ func init() {
 					accountID: types.AccountID(types.ToHashID(b)),
 				}
 			} else {
-				logger.Warn().Err(errors.New("duplicated connection")).Msg("Open SQL Connection")
+				sqlLgr.Warn().Err(errors.New("duplicated connection")).Msg("Open SQL Connection")
 			}
 			return nil
 		},
@@ -88,21 +89,21 @@ func LoadDatabase(dataDir string) error {
 	var err error
 	load.Do(func() {
 		path := filepath.Join(dataDir, statesqlDriver)
-		logger.Debug().Str("path", path).Msg("loading statesql")
+		sqlLgr.Debug().Str("path", path).Msg("loading statesql")
 		if err = checkPath(path); err == nil {
-			database.DBs = make(map[string]*DB)
+			database.DBs = make(map[string]*litetree)
 			database.DataDir = path
 		}
 	})
 	return err
 }
 
-func LoadTestDatabase(dataDir string) error {
+func loadTestDatabase(dataDir string) error {
 	var err error
 	path := filepath.Join(dataDir, statesqlDriver)
-	logger.Debug().Str("path", path).Msg("loading statesql")
+	sqlLgr.Debug().Str("path", path).Msg("loading statesql")
 	if err = checkPath(path); err == nil {
-		database.DBs = make(map[string]*DB)
+		database.DBs = make(map[string]*litetree)
 		database.DataDir = path
 	}
 	return err
@@ -111,7 +112,7 @@ func LoadTestDatabase(dataDir string) error {
 func CloseDatabase() {
 	for name, db := range database.DBs {
 		if db.tx != nil {
-			db.tx.Rollback()
+			db.tx.rollback()
 			db.tx = nil
 		}
 		_ = db.close()
@@ -124,7 +125,7 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 
 	for id, db := range database.DBs {
 		if db.tx != nil {
-			err := db.tx.Commit()
+			err := db.tx.commit()
 			db.tx = nil
 			if err != nil {
 				continue
@@ -134,8 +135,8 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 				return ErrFindRp
 			}
 			if rp > 0 {
-				if logger.IsDebugEnabled() {
-					logger.Debug().Str("db_name", id).Uint64("commit_id", rp).Msg("save recovery point")
+				if sqlLgr.IsDebugEnabled() {
+					sqlLgr.Debug().Str("db_name", id).Uint64("commit_id", rp).Msg("save recovery point")
 				}
 				receiverState, err := bs.GetAccountState(db.accountID)
 				if err != nil {
@@ -153,23 +154,48 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 	return nil
 }
 
-func BeginTx(dbName string, rp uint64) (Tx, error) {
+func beginTx(dbName string, rp uint64) (sqlTx, error) {
 	db, err := conn(dbName)
+	defer func() {
+		if err != nil {
+			delete(database.DBs, dbName)
+		}
+	}()
 	if err != nil {
 		return nil, err
+	}
+	if rp == 1 {
+		tx, err := db.BeginTx(context.Background(), nil)
+		if err != nil {
+			goto failed
+		}
+		_, err = tx.ExecContext(context.Background(), "create table if not exists _dummy(_dummy)")
+		if err != nil {
+			goto failed
+		}
+		err = tx.Commit()
+		if err != nil {
+			goto failed
+		}
+	}
+failed:
+	if err != nil {
+		sqlLgr.Fatal().Err(err)
+		_ = db.close()
+		return nil, ErrDBOpen
 	}
 	return db.beginTx(rp)
 }
 
-func BeginReadOnly(dbName string, rp uint64) (Tx, error) {
+func beginReadOnly(dbName string, rp uint64) (sqlTx, error) {
 	db, err := readOnlyConn(dbName)
 	if err != nil {
 		return nil, err
 	}
-	return newReadOnlyTx(db, rp)
+	return newReadOnlySqlTx(db, rp)
 }
 
-func conn(dbName string) (*DB, error) {
+func conn(dbName string) (*litetree, error) {
 	if db, ok := database.DBs[dbName]; ok {
 		return db, nil
 	}
@@ -184,7 +210,7 @@ func dataSrc(dbName string) string {
 		maxSQLDBSize*1024*1024)
 }
 
-func readOnlyConn(dbName string) (*DB, error) {
+func readOnlyConn(dbName string) (*litetree, error) {
 	queryConnLock.Lock()
 	defer queryConnLock.Unlock()
 
@@ -192,19 +218,17 @@ func readOnlyConn(dbName string) (*DB, error) {
 	if err != nil {
 		return nil, ErrDBOpen
 	}
+	var c *sql.Conn
 	err = db.Ping()
+	if err == nil {
+		c, err = db.Conn(context.Background())
+	}
 	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = db.Close()
 		return nil, ErrDBOpen
 	}
-	c, err := db.Conn(context.Background())
-	if err != nil {
-		logger.Fatal().Err(err)
-		_ = db.Close()
-		return nil, ErrDBOpen
-	}
-	return &DB{
+	return &litetree{
 		Conn: c,
 		db:   db,
 		tx:   nil,
@@ -213,7 +237,7 @@ func readOnlyConn(dbName string) (*DB, error) {
 	}, nil
 }
 
-func openDB(dbName string) (*DB, error) {
+func openDB(dbName string) (*litetree, error) {
 	database.OpenDbName = dbName
 	db, err := sql.Open(statesqlDriver, dataSrc(dbName))
 	if err != nil {
@@ -221,20 +245,13 @@ func openDB(dbName string) (*DB, error) {
 	}
 	c, err := db.Conn(context.Background())
 	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = db.Close()
 		return nil, ErrDBOpen
 	}
 	err = c.PingContext(context.Background())
 	if err != nil {
-		logger.Fatal().Err(err)
-		_ = c.Close()
-		_ = db.Close()
-		return nil, ErrDBOpen
-	}
-	_, err = c.ExecContext(context.Background(), "create table if not exists _dummy(_dummy)")
-	if err != nil {
-		logger.Fatal().Err(err)
+		sqlLgr.Fatal().Err(err)
 		_ = c.Close()
 		_ = db.Close()
 		return nil, ErrDBOpen
@@ -244,31 +261,31 @@ func openDB(dbName string) (*DB, error) {
 	return database.DBs[dbName], nil
 }
 
-type DB struct {
+type litetree struct {
 	*sql.Conn
 	db        *sql.DB
-	tx        Tx
+	tx        sqlTx
 	conn      *SQLiteConn
 	name      string
 	accountID types.AccountID
 }
 
-func (db *DB) beginTx(rp uint64) (Tx, error) {
+func (db *litetree) beginTx(rp uint64) (sqlTx, error) {
 	if db.tx == nil {
 		err := db.restoreRecoveryPoint(rp)
 		if err != nil {
 			return nil, err
 		}
-		if logger.IsDebugEnabled() {
-			logger.Debug().Str("db_name", db.name).Msg("begin transaction")
+		if sqlLgr.IsDebugEnabled() {
+			sqlLgr.Debug().Str("db_name", db.name).Msg("begin transaction")
 		}
 		tx, err := db.BeginTx(context.Background(), nil)
 		if err != nil {
 			return nil, err
 		}
-		db.tx = &WritableTx{
-			TxCommon: TxCommon{db: db},
-			Tx:       tx,
+		db.tx = &writableSqlTx{
+			sqlTxCommon: sqlTxCommon{litetree: db},
+			Tx:          tx,
 		}
 	}
 	return db.tx, nil
@@ -278,7 +295,7 @@ type branchInfo struct {
 	TotalCommits uint64 `json:"total_commits"`
 }
 
-func (db *DB) recoveryPoint() uint64 {
+func (db *litetree) recoveryPoint() uint64 {
 	row := db.QueryRowContext(context.Background(), "pragma branch_info(master)")
 	var rv string
 	err := row.Scan(&rv)
@@ -293,10 +310,10 @@ func (db *DB) recoveryPoint() uint64 {
 	return bi.TotalCommits
 }
 
-func (db *DB) restoreRecoveryPoint(stateRp uint64) error {
+func (db *litetree) restoreRecoveryPoint(stateRp uint64) error {
 	lastRp := db.recoveryPoint()
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", db.name).
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", db.name).
 			Uint64("state_rp", stateRp).
 			Uint64("last_rp", lastRp).Msgf("restore recovery point")
 	}
@@ -312,14 +329,14 @@ func (db *DB) restoreRecoveryPoint(stateRp uint64) error {
 	if err := db.rollbackToRecoveryPoint(stateRp); err != nil {
 		return err
 	}
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", db.name).Uint64("commit_id", stateRp).
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", db.name).Uint64("commit_id", stateRp).
 			Msg("restore recovery point")
 	}
 	return nil
 }
 
-func (db *DB) rollbackToRecoveryPoint(rp uint64) error {
+func (db *litetree) rollbackToRecoveryPoint(rp uint64) error {
 	_, err := db.ExecContext(
 		context.Background(),
 		fmt.Sprintf("pragma branch_truncate(master.%d)", rp),
@@ -327,18 +344,21 @@ func (db *DB) rollbackToRecoveryPoint(rp uint64) error {
 	return err
 }
 
-func (db *DB) snapshotView(rp uint64) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Uint64("rp", rp).Msgf("snapshot view, %p", db.Conn)
+func (db *litetree) snapshotView(rp uint64) error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Uint64("rp", rp).Msgf("snapshot view, %p", db.Conn)
 	}
 	_, err := db.ExecContext(
 		context.Background(),
 		fmt.Sprintf("pragma branch=master.%d", rp),
 	)
+	if err != nil && rp == 1 {
+		return nil
+	}
 	return err
 }
 
-func (db *DB) close() error {
+func (db *litetree) close() error {
 	err := db.Conn.Close()
 	if err != nil {
 		_ = db.db.Close()
@@ -347,142 +367,142 @@ func (db *DB) close() error {
 	return db.db.Close()
 }
 
-type Tx interface {
-	Commit() error
-	Rollback() error
-	Savepoint() error
-	Release() error
-	RollbackToSavepoint() error
-	SubSavepoint(string) error
-	SubRelease(string) error
-	RollbackToSubSavepoint(string) error
-	GetHandle() *C.sqlite3
+type sqlTx interface {
+	commit() error
+	rollback() error
+	savepoint() error
+	release() error
+	rollbackToSavepoint() error
+	subSavepoint(string) error
+	subRelease(string) error
+	rollbackToSubSavepoint(string) error
+	getHandle() *C.sqlite3
 }
 
-type TxCommon struct {
-	db *DB
+type sqlTxCommon struct {
+	*litetree
 }
 
-func (tx *TxCommon) GetHandle() *C.sqlite3 {
-	return tx.db.conn.db
+func (tx *sqlTxCommon) getHandle() *C.sqlite3 {
+	return tx.litetree.conn.db
 }
 
-type WritableTx struct {
-	TxCommon
+type writableSqlTx struct {
+	sqlTxCommon
 	*sql.Tx
 }
 
-func (tx *WritableTx) Commit() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.db.name).Msg("commit")
+func (tx *writableSqlTx) commit() error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("commit")
 	}
 	return tx.Tx.Commit()
 }
 
-func (tx *WritableTx) Rollback() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.db.name).Msg("rollback")
+func (tx *writableSqlTx) rollback() error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("rollback")
 	}
 	return tx.Tx.Rollback()
 }
 
-func (tx *WritableTx) Savepoint() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.db.name).Msg("savepoint")
+func (tx *writableSqlTx) savepoint() error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("savepoint")
 	}
-	_, err := tx.Tx.Exec("SAVEPOINT \"" + tx.db.name + "\"")
+	_, err := tx.Tx.Exec("SAVEPOINT \"" + tx.litetree.name + "\"")
 	return err
 }
 
-func (tx *WritableTx) SubSavepoint(name string) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", name).Msg("savepoint")
+func (tx *writableSqlTx) subSavepoint(name string) error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", name).Msg("savepoint")
 	}
 	_, err := tx.Tx.Exec("SAVEPOINT \"" + name + "\"")
 	return err
 }
 
-func (tx *WritableTx) Release() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.db.name).Msg("release")
+func (tx *writableSqlTx) release() error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("release")
 	}
-	err := tx.db.conn.DBCacheFlush()
+	err := tx.litetree.conn.DBCacheFlush()
 	if err != nil {
 		return err
 	}
-	_, err = tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.db.name + "\"")
+	_, err = tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.litetree.name + "\"")
 	return err
 }
 
-func (tx *WritableTx) SubRelease(name string) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("name", name).Msg("release")
+func (tx *writableSqlTx) subRelease(name string) error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("name", name).Msg("release")
 	}
 	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + name + "\"")
 	return err
 }
 
-func (tx *WritableTx) RollbackToSavepoint() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.db.name).Msg("rollback to savepoint")
+func (tx *writableSqlTx) rollbackToSavepoint() error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("rollback to savepoint")
 	}
-	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.db.name + "\"")
+	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + tx.litetree.name + "\"")
 	return err
 }
 
-func (tx *WritableTx) RollbackToSubSavepoint(name string) error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", name).Msg("rollback to savepoint")
+func (tx *writableSqlTx) rollbackToSubSavepoint(name string) error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", name).Msg("rollback to savepoint")
 	}
 	_, err := tx.Tx.Exec("ROLLBACK TO SAVEPOINT \"" + name + "\"")
 	return err
 }
 
-type ReadOnlyTx struct {
-	TxCommon
+type readOnlySqlTx struct {
+	sqlTxCommon
 }
 
-func newReadOnlyTx(db *DB, rp uint64) (Tx, error) {
+func newReadOnlySqlTx(db *litetree, rp uint64) (sqlTx, error) {
 	if err := db.snapshotView(rp); err != nil {
 		return nil, err
 	}
-	tx := &ReadOnlyTx{
-		TxCommon: TxCommon{db: db},
+	tx := &readOnlySqlTx{
+		sqlTxCommon: sqlTxCommon{litetree: db},
 	}
 	return tx, nil
 }
 
-func (tx *ReadOnlyTx) Commit() error {
+func (tx *readOnlySqlTx) commit() error {
 	return errors.New("only select queries allowed")
 }
 
-func (tx *ReadOnlyTx) Rollback() error {
-	if logger.IsDebugEnabled() {
-		logger.Debug().Str("db_name", tx.db.name).Msg("read-only tx is closed")
+func (tx *readOnlySqlTx) rollback() error {
+	if sqlLgr.IsDebugEnabled() {
+		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("read-only tx is closed")
 	}
-	return tx.db.close()
+	return tx.litetree.close()
 }
 
-func (tx *ReadOnlyTx) Savepoint() error {
+func (tx *readOnlySqlTx) savepoint() error {
 	return errors.New("only select queries allowed")
 }
 
-func (tx *ReadOnlyTx) Release() error {
+func (tx *readOnlySqlTx) release() error {
 	return errors.New("only select queries allowed")
 }
 
-func (tx *ReadOnlyTx) RollbackToSavepoint() error {
-	return tx.Rollback()
+func (tx *readOnlySqlTx) rollbackToSavepoint() error {
+	return tx.rollback()
 }
 
-func (tx *ReadOnlyTx) SubSavepoint(name string) error {
+func (tx *readOnlySqlTx) subSavepoint(name string) error {
 	return nil
 }
 
-func (tx *ReadOnlyTx) SubRelease(name string) error {
+func (tx *readOnlySqlTx) subRelease(name string) error {
 	return nil
 }
 
-func (tx *ReadOnlyTx) RollbackToSubSavepoint(name string) error {
+func (tx *readOnlySqlTx) rollbackToSubSavepoint(name string) error {
 	return nil
 }

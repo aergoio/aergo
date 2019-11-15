@@ -10,49 +10,53 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/types"
 )
 
-// TxList is internal struct for transactions per account
-type TxList struct {
+// txList is internal struct for transactions per account
+type txList struct {
 	sync.RWMutex
 	base     *types.State
 	lastTime time.Time
 	account  []byte
 	ready    int
 	list     []types.Transaction // nonce-ordered tx list
+	mp       *MemPool
 }
 
-// NewTxList creates new TxList with given State
-func NewTxList(acc []byte, st *types.State) *TxList {
-	return &TxList{
+// newTxList creates new txList with given State
+func newTxList(acc []byte, st *types.State, mp *MemPool) *txList {
+	return &txList{
 		base:    st,
 		account: acc,
+		mp:      mp,
 	}
 }
 
-func (tl *TxList) GetLastModifiedTime() time.Time {
+func (tl *txList) GetLastModifiedTime() time.Time {
 	return tl.lastTime
 }
-func (tl *TxList) GetAccount() []byte {
+
+func (tl *txList) GetAccount() []byte {
 	return tl.account
 }
 
-// Len returns number of transactios which are ready to be processed
-func (tl *TxList) Len() int {
+// Len returns number of transactions which are ready to be processed
+func (tl *txList) Len() int {
 	tl.RLock()
 	defer tl.RUnlock()
 	return tl.ready
 }
 
-// Empty check TxList is empty including orphan
-func (tl *TxList) Empty() bool {
+// Empty check txList is empty including orphan
+func (tl *txList) Empty() bool {
 	tl.RLock()
 	defer tl.RUnlock()
 	return len(tl.list) == 0
 }
 
-func (tl *TxList) search(tx types.Transaction) (int, bool) {
+func (tl *txList) search(tx types.Transaction) (int, bool) {
 	key := tx.GetBody().GetNonce()
 	ind := sort.Search(len(tl.list), func(i int) bool {
 		comp := tl.list[i].GetBody().GetNonce()
@@ -63,14 +67,14 @@ func (tl *TxList) search(tx types.Transaction) (int, bool) {
 	}
 	return ind, false
 }
-func (tl *TxList) compare(tx types.Transaction, index int) bool {
+func (tl *txList) compare(tx types.Transaction, index int) bool {
 	if tx.GetBody().GetNonce() == tl.list[index].GetBody().GetNonce() {
 		return true
 	}
 	return false
 }
 
-func (tl *TxList) continuous(index int) bool {
+func (tl *txList) continuous(index int) bool {
 	l := tl.base.Nonce
 	r := tl.list[index].GetBody().GetNonce()
 	if tl.ready > 0 {
@@ -83,10 +87,10 @@ func (tl *TxList) continuous(index int) bool {
 	return false
 }
 
-// Put inserts transaction into TxList
-// if transaction is processible, it is appended to list
+// Put inserts transaction into txList
+// if transaction is processable, it is appended to list
 // if not, transaction is managed as orphan
-func (tl *TxList) Put(tx types.Transaction) (int, error) {
+func (tl *txList) Put(tx types.Transaction) (int, error) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -121,9 +125,7 @@ func (tl *TxList) Put(tx types.Transaction) (int, error) {
 	return oldCnt - newCnt, nil
 }
 
-// SetMinNonce sets new minimum nonce for TxList
-// evict on some transactions is possible due to minimum nonce
-func (tl *TxList) FilterByState(st *types.State) (int, []types.Transaction) {
+func (tl *txList) FilterByState(st *types.State) (int, []types.Transaction) {
 	tl.Lock()
 	defer tl.Unlock()
 
@@ -143,7 +145,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []types.Transaction) {
 	var left []types.Transaction
 	removed := tl.list[:0]
 	for i, x := range tl.list {
-		err := x.ValidateWithSenderState(st)
+		err := x.ValidateWithSenderState(st, system.GetGasPrice(), tl.mp.nextBlockVersion())
 		if err == nil || err == types.ErrTxNonceToohigh {
 			if err != nil && !balCheck {
 				left = append(left, tl.list[i:]...)
@@ -171,7 +173,7 @@ func (tl *TxList) FilterByState(st *types.State) (int, []types.Transaction) {
 
 // FilterByPrice will evict transactions that needs more amount than balance
 /*
-func (tl *TxList) FilterByPrice(balance uint64) error {
+func (tl *txList) FilterByPrice(balance uint64) error {
 	tl.Lock()
 	defer tl.Unlock()
 	return nil
@@ -179,27 +181,27 @@ func (tl *TxList) FilterByPrice(balance uint64) error {
 */
 
 // Get returns processible transactions
-func (tl *TxList) Get() []types.Transaction {
+func (tl *txList) Get() []types.Transaction {
 	tl.RLock()
 	defer tl.RUnlock()
 	return tl.list[:tl.ready]
 }
 
 // GetAll returns all transactions including orphans
-func (tl *TxList) GetAll() []types.Transaction {
+func (tl *txList) GetAll() []types.Transaction {
 	tl.Lock()
 	defer tl.Unlock()
 	return tl.list
 
 }
 
-func (tl *TxList) len() int {
+func (tl *txList) len() int {
 	return len(tl.list)
 }
 
 /*
 
-func (tl *TxList) printList() {
+func (tl *txList) printList() {
 	fmt.Printf("\t\t")
 	for i := 0; i < len(tl.list); i++ {
 		cur := tl.list[i].GetBody().GetNonce()
@@ -209,7 +211,7 @@ func (tl *TxList) printList() {
 
 }
 
-func (tl *TxList) checkSanity() bool {
+func (tl *txList) checkSanity() bool {
 	prev := uint64(0)
 	for _, v := range tl.list {
 		x := v.GetBody().GetNonce()
@@ -220,7 +222,7 @@ func (tl *TxList) checkSanity() bool {
 	}
 	return true
 }
-func (tl *TxList) printList() {
+func (tl *txList) printList() {
 
 	var f, l, before uint64
 	if tl.list != nil {

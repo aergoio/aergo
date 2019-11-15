@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
+	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
 	aergorpc "github.com/aergoio/aergo/types"
@@ -21,12 +21,14 @@ import (
 )
 
 var (
-	client     *util.ConnClient
-	data       string
-	nonce      uint64
-	toJson     bool
-	gover      bool
-	contractID string
+	client        *util.ConnClient
+	data          string
+	nonce         uint64
+	toJson        bool
+	gover         bool
+	feeDelegation bool
+	contractID    string
+	gas           uint64
 )
 
 func init() {
@@ -34,6 +36,7 @@ func init() {
 		Use:   "contract [flags] subcommand",
 		Short: "Contract command",
 	}
+	contractCmd.PersistentFlags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
 
 	deployCmd := &cobra.Command{
 		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
@@ -44,7 +47,7 @@ func init() {
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
-	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "re-redeploy the contract")
+	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "redeploy the contract")
 	deployCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to account data directory")
 	deployCmd.Flags().StringVar(&pw, "password", "", "Password")
 
@@ -59,6 +62,7 @@ func init() {
 	callCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
+	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "fee dellegation")
 	callCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to account data directory")
 	callCmd.Flags().StringVar(&pw, "password", "", "Password")
 
@@ -93,6 +97,9 @@ func init() {
 
 func runDeployCmd(cmd *cobra.Command, args []string) {
 	var err error
+	var code []byte
+	var deployArgs []byte
+
 	creator, err := types.DecodeAddress(args[0])
 	if err != nil {
 		log.Fatal(err)
@@ -107,8 +114,6 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			_, _ = fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile> [args]")
 			os.Exit(1)
 		}
-		var code []byte
-		var argLen int
 		code, err = ioutil.ReadFile(args[1])
 		if err != nil {
 			log.Fatal(err)
@@ -124,50 +129,35 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			argLen = len(args[3])
+			deployArgs = []byte(args[3])
 		}
-		payload = make([]byte, 8+len(code)+len(abi)+argLen)
-		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+len(abi)+8))
-		binary.LittleEndian.PutUint32(payload[4:], uint32(len(code)))
-		codeLen := copy(payload[8:], code)
-		abiLen := copy(payload[8+codeLen:], abi)
-		if argLen != 0 {
-			copy(payload[8+codeLen+abiLen:], args[3])
-		}
+		payload = luac.NewLuaCodePayload(luac.NewLuaCode(code, abi), deployArgs)
 	} else {
-		var argLen int
-
 		if len(args) == 2 {
 			var ci types.CallInfo
 			err = json.Unmarshal([]byte(args[1]), &ci.Args)
 			if err != nil {
 				log.Fatal(err)
 			}
-			argLen = len(args[1])
+			deployArgs = []byte(args[1])
 		}
-		code, err := luacEncoding.DecodeCode(data)
-		payload = make([]byte, 4+len(code)+argLen)
-		binary.LittleEndian.PutUint32(payload[0:], uint32(len(code)+4))
-		codeLen := copy(payload[4:], code)
-		if argLen != 0 {
-			copy(payload[4+codeLen:], args[1])
-		}
-
+		code, err = luacEncoding.DecodeCode(data)
 		if err != nil {
 			_, _ = fmt.Fprint(os.Stderr, err)
 			os.Exit(1)
 		}
+		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
 		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
-	txType := types.TxType_NORMAL
-	var recipient []byte
+	txType := types.TxType_DEPLOY
+	var contract []byte
 	if len(contractID) > 0 {
 		txType = types.TxType_REDEPLOY
-		recipient, err = types.DecodeAddress(contractID)
+		contract, err = types.DecodeAddress(contractID)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -178,8 +168,9 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			Account:   creator,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
+			GasLimit:  gas,
 			Type:      txType,
-			Recipient: recipient,
+			Recipient: contract,
 		},
 	}
 
@@ -261,9 +252,14 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
 		os.Exit(1)
 	}
-	txType := types.TxType_NORMAL
+
+	var txType types.TxType
 	if gover {
 		txType = types.TxType_GOVERNANCE
+	} else if feeDelegation {
+		txType = types.TxType_FEEDELEGATION
+	} else {
+		txType = types.TxType_CALL
 	}
 
 	tx := &types.Tx{
@@ -273,6 +269,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 			Recipient: contract,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
+			GasLimit:  gas,
 			Type:      txType,
 		},
 	}

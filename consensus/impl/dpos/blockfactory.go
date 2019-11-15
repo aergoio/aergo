@@ -7,14 +7,17 @@ package dpos
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
+	"runtime/debug"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -31,10 +34,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -48,36 +51,42 @@ type BlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
 	workerQueue      chan *bpInfo
-	bpTimeoutC       chan interface{}
+	bpTimeoutC       chan struct{}
 	quit             <-chan interface{}
 	maxBlockBodySize uint32
 	ID               string
 	privKey          crypto.PrivKey
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
+	bv               types.BlockVersionner
 }
 
 // NewBlockFactory returns a new BlockFactory
-func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC <-chan interface{}) *BlockFactory {
+func NewBlockFactory(
+	hub *component.ComponentHub,
+	sdb *state.ChainStateDB,
+	quitC <-chan interface{},
+	bv types.BlockVersionner,
+) *BlockFactory {
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		workerQueue:      make(chan *bpInfo),
-		bpTimeoutC:       make(chan interface{}, 1),
+		bpTimeoutC:       make(chan struct{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             quitC,
 		ID:               p2pkey.NodeSID(),
 		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
+		bv:               bv,
 	}
-
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
 		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
 			return bf.checkBpTimeout()
 		}),
 	)
-
+	contract.SetBPTimeout(bf.bpTimeoutC)
 	return bf
 }
 
@@ -208,19 +217,19 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 			block = nil
 			bs = nil
 			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
+			logger.Debug().Str("callstack", string(debug.Stack()))
 		}
 	}()
 
-	ts := bpi.slot.UnixNano()
-
-	bs = bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash())
-
-	txOp := chain.NewCompTxOp(
-		bf.txOp,
-		newTxExec(contract.ChainAccessor(bpi.ChainDB), bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.BlockHash(), bpi.bestBlock.GetHeader().ChainID),
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
+	bs = bf.sdb.NewBlockState(
+		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
+		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
+		state.SetGasPrice(system.GetGasPrice()),
 	)
+	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts, false)
+	block, err = chain.GenerateBlock(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false)
 	if err != nil {
 		return nil, nil, err
 	}

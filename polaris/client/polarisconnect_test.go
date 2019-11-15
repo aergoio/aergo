@@ -33,7 +33,7 @@ func (dntc *dummyNTC) SelfMeta() p2pcommon.PeerMeta {
 func (dntc *dummyNTC) GetNetworkTransport() p2pcommon.NetworkTransport {
 	return dntc.nt
 }
-func (dntc *dummyNTC) ChainID() *types.ChainID {
+func (dntc *dummyNTC) GenesisChainID() *types.ChainID {
 	return dntc.chainID
 }
 
@@ -75,7 +75,7 @@ func TestPolarisConnectSvc_initSvc(t *testing.T) {
 		{"TCustomPlusCfg", args{true, []string{polar2, polar3}, &customChainID}, 2, []types.PeerID{dummyPeerID2, dummyPeerID3}},
 		{"TWrongPolarisAddr", args{true, []string{"/ip4/256.256.1.1/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []types.PeerID{}},
 		{"TWrongPolarisAddr2", args{true, []string{"/egwgew5/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []types.PeerID{}},
-		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 0, []types.PeerID{}},
+		{"TWrongPolarisAddr3", args{true, []string{"/dns/nowhere1234.io/tcp/8915/p2p/16Uiu2HAmU8Wc925gZ5QokM4sGDKjysdPwRCQFoYobvoVnyutccCD"}, &customChainID}, 1, []types.PeerID{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 
 func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
 	sampleCahinID := &types.ChainID{Consensus:"dpos"}
-	sm := p2pcommon.PeerMeta{ID:p2putil.RandomPeerID()}
+	sm := p2pcommon.PeerMeta{ID:types.RandomPeerID()}
 	ss := &types.Status{}
 
 	sErr := errors.New("send erroor")
@@ -187,7 +187,7 @@ func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
 			cfg.NPUsePolaris = true
 
 			mockNTC := p2pmock.NewMockNTContainer(ctrl)
-			mockNTC.EXPECT().ChainID().Return(sampleCahinID).AnyTimes()
+			mockNTC.EXPECT().GenesisChainID().Return(sampleCahinID).AnyTimes()
 
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
 

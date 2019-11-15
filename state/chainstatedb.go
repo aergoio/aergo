@@ -199,8 +199,6 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 	return false
 }
 
-func (sdb *ChainStateDB) NewBlockState(root []byte) *BlockState {
-	bState := NewBlockState(sdb.OpenNewStateDB(root))
-
-	return bState
+func (sdb *ChainStateDB) NewBlockState(root []byte, options ...BlockStateOptFn) *BlockState {
+	return NewBlockState(sdb.OpenNewStateDB(root), options...)
 }

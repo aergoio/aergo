@@ -36,13 +36,13 @@ func (m *MockTxNoticeTracer) EXPECT() *MockTxNoticeTracerMockRecorder {
 // RegisterTxNotice mocks base method
 func (m *MockTxNoticeTracer) RegisterTxNotice(txIDs []types.TxID, cnt int, alreadySent []types.PeerID) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterTxNotice", txIDs, cnt)
+	m.ctrl.Call(m, "RegisterTxNotice", txIDs, cnt, alreadySent)
 }
 
 // RegisterTxNotice indicates an expected call of RegisterTxNotice
-func (mr *MockTxNoticeTracerMockRecorder) RegisterTxNotice(txIDs, cnt interface{}) *gomock.Call {
+func (mr *MockTxNoticeTracerMockRecorder) RegisterTxNotice(txIDs, cnt, alreadySent interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTxNotice", reflect.TypeOf((*MockTxNoticeTracer)(nil).RegisterTxNotice), txIDs, cnt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTxNotice", reflect.TypeOf((*MockTxNoticeTracer)(nil).RegisterTxNotice), txIDs, cnt, alreadySent)
 }
 
 // ReportSend mocks base method

@@ -4,9 +4,11 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -15,13 +17,14 @@ import (
 
 type loadedReply struct {
 	tx  *types.Tx
-	ex  *Executor
+	ex  *executor
 	err error
 }
 
 type preLoadReq struct {
 	preLoadService int
 	bs             *state.BlockState
+	bi             *types.BlockHeaderInfo
 	next           *types.Tx
 	current        *types.Tx
 }
@@ -32,15 +35,20 @@ type preLoadInfo struct {
 }
 
 var (
-	loadReqCh    chan *preLoadReq
-	preLoadInfos [2]preLoadInfo
-	PubNet       bool
-	TraceBlockNo uint64
-	maxSQLDBSize uint32
+	loadReqCh      chan *preLoadReq
+	preLoadInfos   [2]preLoadInfo
+	PubNet         bool
+	TraceBlockNo   uint64
+	HardforkConfig *config.HardforkConfig
+	bpTimeout      <-chan struct{}
+	maxSQLDBSize   uint32
 )
 
-const BlockFactory = 0
-const ChainService = 1
+const (
+	BlockFactory = iota
+	ChainService
+	MaxVmService
+)
 
 func init() {
 	loadReqCh = make(chan *preLoadReq, 10)
@@ -54,12 +62,18 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preLoadInfos[service].requestedTx = tx
 }
 
-func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint64, ts int64, prevBlockHash []byte,
-	sender, receiver *state.V, preLoadService int) (rv string, events []*types.Event, usedFee *big.Int, err error) {
-
+func Execute(
+	bs *state.BlockState,
+	cdb ChainAccessor,
+	tx *types.Tx,
+	sender, receiver *state.V,
+	bi *types.BlockHeaderInfo,
+	preLoadService int,
+	isFeeDelegation bool,
+) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
 
-	usedFee = fee.PayloadTxFee(len(txBody.GetPayload()))
+	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.Version)
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -75,6 +89,27 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 		return
 	}
 
+	gasLimit := txBody.GetGasLimit()
+	if useGas(bi.Version) && gasLimit == 0 {
+		balance := new(big.Int).Sub(sender.Balance(), new(big.Int).Add(txBody.GetAmountBigInt(), usedFee))
+		n := balance.Div(balance, bs.GasPrice)
+		if n.IsUint64() {
+			gasLimit = n.Uint64()
+		} else {
+			gasLimit = math.MaxUint64
+		}
+		if gasLimit == 0 {
+			err = newVmError(types.ErrNotEnoughGas)
+			return
+		}
+	}
+
+	if gasLimit <= fee.TxGas(len(txBody.GetPayload())) {
+		err = newVmError(types.ErrNotEnoughGas)
+		return
+	}
+	gasLimit -= fee.TxGas(len(txBody.GetPayload()))
+
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return
@@ -86,11 +121,31 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 		bs.CodeMap.Remove(receiver.AccountID())
 	}
 
-	var ex *Executor
+	var ex *executor
 	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
 		replyCh := preLoadInfos[preLoadService].replyCh
 		for {
-			preload := <-replyCh
+			var preload *loadedReply
+			if HardforkConfig.IsV2Fork(bi.No) {
+				if preLoadService == BlockFactory {
+					select {
+					case preload = <-replyCh:
+					case <-bpTimeout:
+						err = &VmTimeoutError{}
+						return
+					default:
+						continue
+					}
+				} else {
+					select {
+					case preload = <-replyCh:
+					default:
+						continue
+					}
+				}
+			} else {
+				preload = <-replyCh
+			}
 			if preload.tx != tx {
 				preload.ex.close()
 				continue
@@ -104,30 +159,39 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 		}
 	}
 
-	var cFee *big.Int
+	var ctrFee *big.Int
 	if ex != nil {
-		rv, events, cFee, err = PreCall(ex, bs, sender, contractState, blockNo, ts, receiver.RP(), prevBlockHash)
+		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
-		stateSet := NewContext(bs, cdb, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), blockNo, ts, prevBlockHash, "", true,
-			false, receiver.RP(), preLoadService, txBody.GetAmountBigInt())
-		if stateSet.traceFile != nil {
-			defer stateSet.traceFile.Close()
+		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
+			tx.GetHash(), bi, "", true, false, receiver.RP(),
+			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+		if ctx.traceFile != nil {
+			defer ctx.traceFile.Close()
 		}
 		if receiver.IsDeploy() {
-			rv, events, cFee, err = Create(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
 		} else {
-			rv, events, cFee, err = Call(contractState, txBody.Payload, receiver.ID(), stateSet)
+			rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
 		}
 	}
 
-	usedFee.Add(usedFee, cFee)
+	usedFee.Add(usedFee, ctrFee)
 
 	if err != nil {
 		if isSystemError(err) {
 			return "", events, usedFee, err
 		}
 		return "", events, usedFee, newVmError(err)
+	}
+	if isFeeDelegation {
+		if receiver.Balance().Cmp(usedFee) < 0 {
+			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
+		}
+	} else {
+		if sender.Balance().Cmp(usedFee) < 0 {
+			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
+		}
 	}
 
 	err = bs.StageContractState(contractState)
@@ -138,8 +202,16 @@ func Execute(bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, blockNo uint
 	return rv, events, usedFee, nil
 }
 
-func PreLoadRequest(bs *state.BlockState, next, current *types.Tx, preLoadService int) {
-	loadReqCh <- &preLoadReq{preLoadService, bs, next, current}
+func txFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
+	if version < 2 {
+		return fee.PayloadTxFee(payloadSize)
+	}
+	txGas := fee.TxGas(payloadSize)
+	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
+}
+
+func PreLoadRequest(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preLoadService int) {
+	loadReqCh <- &preLoadReq{preLoadService, bs, bi, next, current}
 }
 
 func preLoadWorker() {
@@ -161,7 +233,11 @@ func preLoadWorker() {
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
-		if txBody.Type != types.TxType_NORMAL || len(recipient) == 0 {
+		if (txBody.Type != types.TxType_NORMAL &&
+			txBody.Type != types.TxType_TRANSFER &&
+			txBody.Type != types.TxType_CALL &&
+			txBody.Type != types.TxType_FEEDELEGATION) ||
+			len(recipient) == 0 {
 			continue
 		}
 
@@ -188,11 +264,12 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		stateSet := NewContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), 0, 0, nil, "", false,
-			false, receiver.RP(), reqInfo.preLoadService, txBody.GetAmountBigInt())
+		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
+			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
+			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+			txBody.Type == types.TxType_FEEDELEGATION)
 
-		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), stateSet)
+		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), ctx)
 		replyCh <- &loadedReply{tx, ex, err}
 	}
 }
@@ -208,7 +285,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
 	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
-		logger.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
+		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
 	creator, err := contractState.GetData(creatorMetaKey)
@@ -219,6 +296,21 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 		return newVmError(types.ErrCreatorNotMatch)
 	}
 	return nil
+}
+
+func useGas(version int32) bool {
+	return version >= 2 && PubNet
+}
+
+func SetBPTimeout(timeout <-chan struct{}) {
+	bpTimeout = timeout
+}
+
+func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {
+	if fee.IsZeroFee() || txType == types.TxType_GOVERNANCE || version < 2 {
+		return 0
+	}
+	return new(big.Int).Div(txFee, gasPrice).Uint64()
 }
 
 func SetStateSQLMaxDBSize(size uint32) {

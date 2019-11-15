@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -30,10 +31,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
 	}
 }
 
@@ -55,6 +56,7 @@ type SimpleBlockFactory struct {
 	quit             chan interface{}
 	sdb              *state.ChainStateDB
 	prevBlock        *types.Block
+	bv               types.BlockVersionner
 }
 
 // GetName returns the name of the consensus.
@@ -66,13 +68,17 @@ func GetName() string {
 func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) consensus.Constructor {
 	return func() (consensus.Consensus, error) {
-		return New(cfg.Consensus, hub, cdb, sdb)
+		return New(cfg.Hardfork, hub, cdb, sdb)
 	}
 }
 
 // New returns a SimpleBlockFactory.
-func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus.ChainDB,
-	sdb *state.ChainStateDB) (*SimpleBlockFactory, error) {
+func New(
+	bv types.BlockVersionner,
+	hub *component.ComponentHub,
+	cdb consensus.ChainDB,
+	sdb *state.ChainStateDB,
+) (*SimpleBlockFactory, error) {
 	s := &SimpleBlockFactory{
 		ComponentHub:     hub,
 		ChainDB:          cdb,
@@ -81,8 +87,8 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             make(chan interface{}),
 		sdb:              sdb,
+		bv:               bv,
 	}
-
 	s.txOp = chain.NewCompTxOp(
 		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
 			select {
@@ -93,7 +99,6 @@ func New(cfg *config.ConsensusConfig, hub *component.ComponentHub, cdb consensus
 			}
 		}),
 	)
-
 	return s, nil
 }
 
@@ -177,16 +182,16 @@ func (s *SimpleBlockFactory) Start() {
 		select {
 		case e := <-s.jobQueue:
 			if prevBlock, ok := e.(*types.Block); ok {
-				blockState := s.sdb.NewBlockState(prevBlock.GetHeader().GetBlocksRootHash())
-
-				ts := time.Now().UnixNano()
-
-				txOp := chain.NewCompTxOp(
-					s.txOp,
-					newTxExec(s.ChainDB, prevBlock.GetHeader().GetBlockNo()+1, ts, prevBlock.GetHash(), prevBlock.GetHeader().GetChainID()),
+				bi := types.NewBlockHeaderInfoFromPrevBlock(prevBlock, time.Now().UnixNano(), s.bv)
+				blockState := s.sdb.NewBlockState(
+					prevBlock.GetHeader().GetBlocksRootHash(),
+					state.SetPrevBlockHash(prevBlock.BlockHash()),
+					state.SetGasPrice(system.GetGasPrice()),
 				)
+				blockState.Receipts().SetHardFork(s.bv, bi.No)
+				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.GenerateBlock(s, prevBlock, blockState, txOp, ts, false)
+				block, err := chain.GenerateBlock(s, bi, blockState, txOp, false)
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

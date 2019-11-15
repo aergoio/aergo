@@ -100,7 +100,7 @@ func UnlockChain() {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp TxOp, maxBlockBodySize uint32) ([]types.Transaction, error) {
+func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, bi *types.BlockHeaderInfo, txOp TxOp, maxBlockBodySize uint32) ([]types.Transaction, error) {
 	var (
 		nCollected int
 		nCand      int
@@ -117,57 +117,64 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 
 	txIn := FetchTXs(hs, maxBlockBodySize)
 	nCand = len(txIn)
-	if nCand == 0 {
-		return txIn, nil
-	}
+
 	txRes := make([]types.Transaction, 0, nCand)
 
 	defer func() {
-			logger.Info().
-				Int("candidates", nCand).
-				Int("collected", nCollected).
-				Msg("transactions collected")
-			contract.CloseDatabase()
+		logger.Info().
+			Int("candidates", nCand).
+			Int("collected", nCollected).
+			Msg("transactions collected")
+		contract.CloseDatabase()
 	}()
 
+	if nCand > 0 {
+		op := NewCompTxOp(txOp)
 
-	op := NewCompTxOp(txOp)
+		var preLoadTx *types.Tx
+		for i, tx := range txIn {
+			if i != nCand-1 {
+				preLoadTx = txIn[i+1].GetTx()
+				contract.PreLoadRequest(bState, bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
+			}
 
-	var preLoadTx *types.Tx
-	for i, tx := range txIn {
-		if i != nCand-1 {
-			preLoadTx = txIn[i+1].GetTx()
-			contract.PreLoadRequest(bState, preLoadTx, tx.GetTx(), contract.BlockFactory)
+			err := op.Apply(bState, tx)
+			contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
+
+			//don't include tx that error is occurred
+			if e, ok := err.(ErrTimeout); ok {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Msg("stop gathering tx due to time limit")
+				}
+				err = e
+				break
+			} else if _, ok := err.(*contract.VmTimeoutError); ok {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Msg("stop gathering tx due to time limit")
+				}
+				err = ErrTimeout{Kind: "contract"}
+				break
+			} else if err == errBlockSizeLimit {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Msg("stop gathering tx due to size limit")
+				}
+				break
+			} else if err != nil {
+				//FIXME handling system error (panic?)
+				// ex) gas error/nonce error skip, but other system error panic
+				logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+				continue
+			}
+
+			txRes = append(txRes, tx)
 		}
 
-		err := op.Apply(bState, tx)
-		contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
-
-		//don't include tx that error is occured
-		if e, ok := err.(ErrTimeout); ok {
-			if logger.IsDebugEnabled() {
-				logger.Debug().Msg("stop gathering tx due to time limit")
-			}
-			err = e
-			break
-		} else if err == errBlockSizeLimit {
-			if logger.IsDebugEnabled() {
-				logger.Debug().Msg("stop gathering tx due to size limit")
-			}
-			break
-		} else if err != nil {
-			//FIXME handling system error (panic?)
-			// ex) gas error/nonce error skip, but other system error panic
-			logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
-			continue
-		}
-
-		txRes = append(txRes, tx)
+		nCollected = len(txRes)
 	}
 
-	nCollected = len(txRes)
-
-	if err := chain.SendRewardCoinbase(bState, chain.CoinbaseAccount); err != nil {
+	// Warning: This line must be run even with 0 gathered TXs, since the
+	// function below includes voting reward as well as BP reward.
+	if err := chain.SendBlockReward(bState, chain.CoinbaseAccount); err != nil {
 		return nil, err
 	}
 

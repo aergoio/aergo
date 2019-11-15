@@ -3,6 +3,8 @@ package util
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"math/big"
 	"strconv"
 	"time"
@@ -10,34 +12,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 )
-
-type InOutTx struct {
-	Hash string
-	Body *InOutTxBody
-}
-
-type InOutTxBody struct {
-	Nonce       uint64
-	Account     string
-	Recipient   string
-	Amount      string
-	Payload     string
-	GasLimit    uint64
-	GasPrice    string
-	Type        types.TxType
-	ChainIdHash string
-	Sign        string
-}
-
-type InOutTxIdx struct {
-	BlockHash string
-	Idx       int32
-}
-
-type InOutTxInBlock struct {
-	TxIdx *InOutTxIdx
-	Tx    *InOutTx
-}
 
 type InOutBlockHeader struct {
 	ChainID          string
@@ -75,6 +49,7 @@ type InOutPeerAddress struct {
 }
 
 type InOutPeer struct {
+	Role      string
 	Address   InOutPeerAddress
 	BestBlock InOutBlockIdx
 	LastCheck time.Time
@@ -82,6 +57,21 @@ type InOutPeer struct {
 	Hidden    bool
 	Self      bool
 	Version   string
+}
+
+type LongInOutPeer struct {
+	InOutPeer
+	ProducerIDs []string
+	Certificates []*InOutCert
+}
+
+type InOutCert struct {
+	CertVersion uint32
+	ProducerID string
+	CreateTime time.Time
+	ExpireTime time.Time
+	AgentID string
+	Addresses []string
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -199,7 +189,9 @@ func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 	if tx.Body.Recipient != nil {
 		out.Body.Recipient = types.EncodeAddress(tx.Body.Recipient)
 	}
-	out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
+	if tx.Body.Amount != nil {
+		out.Body.Amount = new(big.Int).SetBytes(tx.Body.Amount).String()
+	}
 	switch payloadType {
 	case Raw:
 		out.Body.Payload = string(tx.Body.Payload)
@@ -207,22 +199,20 @@ func ConvTxEx(tx *types.Tx, payloadType EncodingType) *InOutTx {
 		out.Body.Payload = base58.Encode(tx.Body.Payload)
 	}
 	out.Body.GasLimit = tx.Body.GasLimit
-	out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
+	if tx.Body.GasPrice != nil {
+		out.Body.GasPrice = new(big.Int).SetBytes(tx.Body.GasPrice).String()
+	}
 	out.Body.ChainIdHash = base58.Encode(tx.Body.ChainIdHash)
 	out.Body.Sign = base58.Encode(tx.Body.Sign)
 	out.Body.Type = tx.Body.Type
 	return out
 }
 
-func ConvTx(tx *types.Tx) *InOutTx {
-	return ConvTxEx(tx, Base58)
-}
-
-func ConvTxInBlock(txInBlock *types.TxInBlock) *InOutTxInBlock {
+func ConvTxInBlockEx(txInBlock *types.TxInBlock, payloadType EncodingType) *InOutTxInBlock {
 	out := &InOutTxInBlock{TxIdx: &InOutTxIdx{}, Tx: &InOutTx{}}
 	out.TxIdx.BlockHash = base58.Encode(txInBlock.GetTxIdx().GetBlockHash())
 	out.TxIdx.Idx = txInBlock.GetTxIdx().GetIdx()
-	out.Tx = ConvTx(txInBlock.GetTx())
+	out.Tx = ConvTxEx(txInBlock.GetTx(), payloadType)
 	return out
 }
 
@@ -254,6 +244,7 @@ func ConvBlock(b *types.Block) *InOutBlock {
 
 func ConvPeer(p *types.Peer) *InOutPeer {
 	out := &InOutPeer{}
+	out.Role = p.AcceptedRole.String()
 	out.Address.Address = p.GetAddress().GetAddress()
 	out.Address.Port = strconv.Itoa(int(p.GetAddress().GetPort()))
 	out.Address.PeerId = base58.Encode(p.GetAddress().GetPeerID())
@@ -267,6 +258,28 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 		out.Version = p.Version
 	} else {
 		out.Version = "(old)"
+	}
+	return out
+}
+
+func ConvPeerLong(p *types.Peer) *LongInOutPeer {
+	out := &LongInOutPeer{InOutPeer:*ConvPeer(p)}
+	out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
+	for i,pid := range p.Address.ProducerIDs {
+		out.ProducerIDs[i] = base58.Encode(pid)
+	}
+	if p.Address.Role == types.PeerRole_Agent {
+		out.Certificates =  make([]*InOutCert, len(p.Certificates))
+		for i,cert := range p.Certificates {
+			addrs := []string{}
+			for _, ad := range cert.AgentAddress {
+				addrs = append(addrs, string(ad))
+			}
+			out.Certificates[i] = &InOutCert{CertVersion:cert.CertVersion,
+				ProducerID:base58.Encode(cert.BPID), AgentID:base58.Encode(cert.AgentID),
+				CreateTime:time.Unix(0, cert.CreateTime), ExpireTime:time.Unix(0, cert.ExpireTime),
+				Addresses:addrs	}
+		}
 	}
 	return out
 }
@@ -299,31 +312,6 @@ func ConvBlockchainStatus(in *types.BlockchainStatus) string {
 	return string(jsonout)
 }
 
-func TxConvBase58Addr(tx *types.Tx) string {
-	return toString(ConvTx(tx))
-}
-
-type EncodingType int
-
-const (
-	Raw EncodingType = 0 + iota
-	Base58
-)
-
-func TxConvBase58AddrEx(tx *types.Tx, payloadType EncodingType) string {
-	switch payloadType {
-	case Raw:
-		return toString(ConvTxEx(tx, Raw))
-	case Base58:
-		return toString(ConvTxEx(tx, Base58))
-	}
-	return ""
-}
-
-func TxInBlockConvBase58Addr(txInBlock *types.TxInBlock) string {
-	return toString(ConvTxInBlock(txInBlock))
-}
-
 func BlockConvBase58Addr(b *types.Block) string {
 	return toString(ConvBlock(b))
 }
@@ -335,7 +323,21 @@ func PeerListToString(p *types.PeerList) string {
 	}
 	return toString(peers)
 }
-
+func ShortPeerListToString(p *types.PeerList) string {
+	var peers []string
+	for _, peer := range p.GetPeers() {
+		pa := peer.Address
+		peers = append(peers, fmt.Sprintf("%s;%s/%d;%s;%d",p2putil.ShortForm(types.PeerID(pa.PeerID)),pa.Address,pa.Port,peer.AcceptedRole.String(), peer.Bestblock.BlockNo))
+	}
+	return toString(peers)
+}
+func LongPeerListToString(p *types.PeerList) string {
+	peers := []*LongInOutPeer{}
+	for _, peer := range p.GetPeers() {
+		peers = append(peers, ConvPeerLong(peer))
+	}
+	return toString(peers)
+}
 func toString(out interface{}) string {
 	jsonout, err := json.MarshalIndent(out, "", " ")
 	if err != nil {

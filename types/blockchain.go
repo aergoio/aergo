@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
 	"github.com/gogo/protobuf/proto"
@@ -26,7 +27,6 @@ import (
 const (
 	// DefaultMaxBlockSize is the maximum block size (currently 1MiB)
 	DefaultMaxBlockSize = 1 << 20
-	DefaultTxVerifyTime = time.Microsecond * 200
 	DefaultEvictPeriod  = 12
 
 	// DefaultMaxHdrSize is the max size of the proto-buf serialized non-body
@@ -34,7 +34,7 @@ const (
 	// 'blockchain_test.go.' Caution: Be sure to adjust the value below if the
 	// structure of the header is changed.
 	DefaultMaxHdrSize = 400
-	lastFieldOfBH     = "Sign"
+	lastFieldOfBH     = "Consensus"
 )
 
 type TxHash = []byte
@@ -44,32 +44,23 @@ type AvgTime struct {
 }
 
 var (
-	DefaultVerifierCnt          = int(math.Max(float64(runtime.NumCPU()/2), float64(1)))
-	DefaultAvgTimeSize          = 60 * 60 * 24
-	AvgTxVerifyTime    *AvgTime = NewAvgTime(DefaultAvgTimeSize)
+	DefaultVerifierCnt = int(math.Max(float64(runtime.NumCPU()/2), float64(1)))
+	DefaultAvgTimeSize = 60 * 60 * 24
+	AvgTxVerifyTime    = NewAvgTime(DefaultAvgTimeSize)
+	// MaxAER is maximum value of aergo
+	MaxAER *big.Int
+	// StakingMinimum is minimum amount for staking
+	StakingMinimum *big.Int
+	// ProposalPrice is default value of creating proposal
+	ProposalPrice *big.Int
+	lastIndexOfBH int
 )
-
-//MaxAER is maximum value of aergo
-var MaxAER *big.Int
-
-//StakingMinimum is minimum amount for staking
-var StakingMinimum *big.Int
-
-///NamePrice is default value of creating and updating name
-var NamePrice *big.Int
-
-var lastIndexOfBH int
 
 func init() {
 	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
 	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
-	NamePrice, _ = new(big.Int).SetString("1000000000000000000", 10)
+	ProposalPrice, _ = new(big.Int).SetString("0", 10)
 	lastIndexOfBH = getLastIndexOfBH()
-}
-
-// GetStakingMinimum returns the minimum limit of staking.
-func GetStakingMinimum() *big.Int {
-	return StakingMinimum
 }
 
 func NewAvgTime(sizeMavg int) *AvgTime {
@@ -117,16 +108,21 @@ func getLastIndexOfBH() (lastIndex int) {
 	return i
 }
 
+//go:generate stringer -type=SystemValue
 type SystemValue int
 
 const (
 	StakingTotal SystemValue = 0 + iota
 	StakingMin
+	GasPrice
+	NamePrice
 )
 
+/*
 func (s SystemValue) String() string {
-	return [...]string{"StakingTotal", "StakingMin"}[s]
+	return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
 }
+*/
 
 // ChainAccessor is an interface for a another actor module to get info of chain
 type ChainAccessor interface {
@@ -142,6 +138,7 @@ type ChainAccessor interface {
 
 	// GetEnterpriseConfig always return non-nil object if there is no error, but it can return EnterpriseConfig with empty values
 	GetEnterpriseConfig(key string) (*EnterpriseConfig, error)
+	ChainID(bno BlockNo) *ChainID
 }
 
 type SyncContext struct {
@@ -171,7 +168,7 @@ func (ctx *SyncContext) SetAncestor(ancestor *Block) {
 	ctx.RemainCnt = ctx.TotalCnt
 }
 
-// NodeInfo is used for actor message to send block info
+// BlockInfo is used for actor message to send block info
 type BlockInfo struct {
 	Hash []byte
 	No   BlockNo
@@ -214,40 +211,39 @@ func BlockNoFromBytes(raw []byte) BlockNo {
 	return BlockNo(buf)
 }
 
+type BlockVersionner interface {
+	Version(no BlockNo) int32
+	IsV2Fork(BlockNo) bool
+}
+
+type DummyBlockVersionner int32
+
+func (v DummyBlockVersionner) Version(BlockNo) int32 {
+	return int32(v)
+}
+
+func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
+	return true
+}
+
 // NewBlock represents to create a block to store transactions.
-func NewBlock(prevBlock *Block, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, ts int64) *Block {
-	var (
-		chainID       []byte
-		prevBlockHash []byte
-		blockNo       BlockNo
-	)
-
-	if prevBlock != nil {
-		prevBlockHash = prevBlock.BlockHash()
-		blockNo = prevBlock.Header.BlockNo + 1
-		chainID = prevBlock.GetHeader().GetChainID()
+func NewBlock(bi *BlockHeaderInfo, blockRoot []byte, receipts *Receipts, txs []*Tx, coinbaseAcc []byte, consensus []byte) *Block {
+	return &Block{
+		Header: &BlockHeader{
+			ChainID:          bi.ChainId,
+			PrevBlockHash:    bi.PrevBlockHash,
+			BlockNo:          bi.No,
+			Timestamp:        bi.Ts,
+			BlocksRootHash:   blockRoot,
+			TxsRootHash:      CalculateTxsRootHash(txs),
+			ReceiptsRootHash: receipts.MerkleRoot(),
+			CoinbaseAccount:  coinbaseAcc,
+			Consensus:        consensus,
+		},
+		Body: &BlockBody{
+			Txs: txs,
+		},
 	}
-
-	body := BlockBody{
-		Txs: txs,
-	}
-	header := BlockHeader{
-		ChainID:         chainID,
-		PrevBlockHash:   prevBlockHash,
-		BlockNo:         blockNo,
-		Timestamp:       ts,
-		BlocksRootHash:  blockRoot,
-		CoinbaseAccount: coinbaseAcc,
-	}
-	block := Block{
-		Header: &header,
-		Body:   &body,
-	}
-
-	block.Header.TxsRootHash = CalculateTxsRootHash(body.Txs)
-	block.Header.ReceiptsRootHash = receipts.MerkleRoot()
-
-	return &block
 }
 
 // Localtime retrurns a time.Time object, which is coverted from block
@@ -262,6 +258,22 @@ func (block *Block) calculateBlockHash() []byte {
 	serializeBH(digest, block.Header)
 
 	return digest.Sum(nil)
+}
+
+func serializeStructOmit(w io.Writer, s interface{}, stopIndex int, omit string) error {
+	v := reflect.Indirect(reflect.ValueOf(s))
+
+	var i int
+	for i = 0; i <= stopIndex; i++ {
+		if v.Type().Field(i).Name == omit {
+			continue
+		}
+		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func serializeStruct(w io.Writer, s interface{}, stopIndex int) error {
@@ -282,7 +294,7 @@ func serializeBH(w io.Writer, bh *BlockHeader) error {
 }
 
 func serializeBhForDigest(w io.Writer, bh *BlockHeader) error {
-	return serializeStruct(w, bh, lastIndexOfBH-1)
+	return serializeStructOmit(w, bh, lastIndexOfBH, "Sign")
 }
 
 func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
@@ -296,6 +308,7 @@ func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 		bh.Confirms,
 		bh.PubKey,
 		bh.Sign,
+		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
 			return err
@@ -341,7 +354,7 @@ func (block *Block) ValidChildOf(parent *Block) bool {
 		return true
 	}
 
-	return bytes.Compare(parChainID, curChainID) == 0
+	return ChainIdEqualWithoutVersion(parChainID, curChainID)
 }
 
 // Size returns a block size where the tx size is individually calculated. A
@@ -626,4 +639,54 @@ func (ma *MovingAverage) calculateAvg() int64 {
 	// Finalize average and return
 	avg := ma.sum / int64(ma.count)
 	return avg
+}
+
+type BlockHeaderInfo struct {
+	No            BlockNo
+	Ts            int64
+	PrevBlockHash []byte
+	ChainId       []byte
+	Version       int32
+}
+
+var EmptyBlockHeaderInfo = &BlockHeaderInfo{}
+
+func NewBlockHeaderInfo(b *Block) *BlockHeaderInfo {
+	cid := b.GetHeader().GetChainID()
+	v := DecodeChainIdVersion(cid)
+	return &BlockHeaderInfo{
+		b.BlockNo(),
+		b.GetHeader().GetTimestamp(),
+		b.GetHeader().GetPrevBlockHash(),
+		cid,
+		v,
+	}
+}
+
+func MakeChainId(cid []byte, v int32) []byte {
+	nv := ChainIdVersion(v)
+	if bytes.Equal(cid[:4], nv) {
+		return cid
+	}
+	newCid := make([]byte, len(cid))
+	copy(newCid, nv)
+	copy(newCid[4:], cid[4:])
+	return newCid
+}
+
+func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) *BlockHeaderInfo {
+	no := prev.GetHeader().GetBlockNo() + 1
+	cid := prev.GetHeader().GetChainID()
+	v := bv.Version(no)
+	return &BlockHeaderInfo{
+		no,
+		ts,
+		prev.GetHash(),
+		MakeChainId(cid, v),
+		v,
+	}
+}
+
+func (b *BlockHeaderInfo) ChainIdHash() []byte {
+	return common.Hasher(b.ChainId)
 }

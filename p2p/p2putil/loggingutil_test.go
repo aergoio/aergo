@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/funkygao/golib/rand"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -67,10 +66,7 @@ func TestLogStringersMarshaler_MarshalZerologArray(t *testing.T) {
 func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 	sampleArr := make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
-		meta := p2pcommon.PeerMeta{}
-		meta.ID = pseudoGenID()
-		meta.IPAddress = fmt.Sprintf("192.168.0.%d", i)
-		meta.Port = uint32(i * 1000)
+		meta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), fmt.Sprintf("192.168.0.%d", i), uint32(i*1000), "v2.0.0")
 		meta.Hidden = i%2 == 0
 		sampleArr[i] = meta
 	}
@@ -157,12 +153,6 @@ func TestLogB58EncMarshaler_MarshalZerologArray(t *testing.T) {
 			}
 		})
 	}
-}
-
-func pseudoGenID() types.PeerID {
-	priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	id, _ := types.IDFromPrivateKey(priv)
-	return id
 }
 
 type NumOrderer struct {

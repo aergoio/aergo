@@ -52,22 +52,21 @@ func NewPolarisConnectSvc(cfg *config.P2PConfig, ntc p2pcommon.NTContainer) *Pol
 	// init
 	pcs.ntc = ntc
 	pcs.initSvc(cfg)
-	// TODO need more pretty way to get chainID
 
 	return pcs
 }
 
 func (pcs *PolarisConnectSvc) initSvc(cfg *config.P2PConfig) {
-	pcs.PrivateChain = !pcs.ntc.ChainID().PublicNet
+	pcs.PrivateChain = !pcs.ntc.GenesisChainID().PublicNet
 	if cfg.NPUsePolaris {
 		// private network does not use public polaris
 		if !pcs.PrivateChain {
 			servers := make([]string, 0)
 			// add hardcoded built-in servers if net is ONE net.
-			if *pcs.ntc.ChainID() == common.ONEMainNet {
+			if *pcs.ntc.GenesisChainID() == common.ONEMainNet {
 				pcs.Logger.Info().Msg("chain is ONE Mainnet so use default polaris for mainnet")
 				servers = common.MainnetMapServer
-			} else if *pcs.ntc.ChainID() == common.ONETestNet {
+			} else if *pcs.ntc.GenesisChainID() == common.ONETestNet {
 				pcs.Logger.Info().Msg("chain is ONE Testnet so use default polaris for testnet")
 				servers = common.TestnetMapServer
 			} else {
@@ -175,7 +174,7 @@ func (pcs *PolarisConnectSvc) connectAndQuery(mapServerMeta p2pcommon.PeerMeta, 
 	rw := v030.NewV030ReadWriter(bufio.NewReader(s), bufio.NewWriter(s), nil)
 
 	peerAddress := pcs.ntc.SelfMeta().ToPeerAddress()
-	chainBytes, _ := pcs.ntc.ChainID().Bytes()
+	chainBytes, _ := pcs.ntc.GenesisChainID().Bytes()
 	peerStatus := &types.Status{Sender: &peerAddress, BestBlockHash: bestHash, BestHeight: bestHeight, ChainID: chainBytes,
 		Version: p2pkey.NodeVersion()}
 
@@ -229,6 +228,16 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 	err = p2putil.UnmarshalMessageBody(data.Payload(), queryResp)
 	if err != nil {
 		return data, nil, err
+	}
+	// old version of polaris will return old formatted PeerAddress, so conversion to new format is needed.
+	for _, addr := range queryResp.Addresses {
+		if len(addr.Addresses) == 0 {
+			ma, err := types.ToMultiAddr(addr.Address, addr.Port)
+			if err != nil {
+				continue
+			}
+			addr.Addresses=[]string{ma.String()}
+		}
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")
 

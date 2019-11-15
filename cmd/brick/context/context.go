@@ -27,7 +27,7 @@ type context struct {
 }
 
 func Reset() {
-	chain, err := contract.LoadDummyChain()
+	chain, err := contract.LoadDummyChain(contract.OnPubNet)
 	if err != nil {
 		panic(err)
 	}

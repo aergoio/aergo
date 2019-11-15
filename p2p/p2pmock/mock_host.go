@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	connmgr "github.com/libp2p/go-libp2p-core/connmgr"
+	event "github.com/libp2p/go-libp2p-core/event"
 	network "github.com/libp2p/go-libp2p-core/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -93,6 +94,20 @@ func (m *MockHost) Connect(arg0 context.Context, arg1 peer.AddrInfo) error {
 func (mr *MockHostMockRecorder) Connect(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockHost)(nil).Connect), arg0, arg1)
+}
+
+// EventBus mocks base method
+func (m *MockHost) EventBus() event.Bus {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EventBus")
+	ret0, _ := ret[0].(event.Bus)
+	return ret0
+}
+
+// EventBus indicates an expected call of EventBus
+func (mr *MockHostMockRecorder) EventBus() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventBus", reflect.TypeOf((*MockHost)(nil).EventBus))
 }
 
 // ID mocks base method

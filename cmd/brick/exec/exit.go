@@ -2,6 +2,8 @@ package exec
 
 import (
 	"os"
+
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -30,8 +32,8 @@ func (c *exit) Validate(args string) error {
 	return nil
 }
 
-func (c *exit) Run(args string) (string, error) {
+func (c *exit) Run(args string) (string, uint64, []*types.Event, error) {
 
 	os.Exit(0) // exit program
-	return "", nil
+	return "", 0, nil, nil
 }

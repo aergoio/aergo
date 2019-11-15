@@ -161,7 +161,7 @@ func parseBpsToMembers(bps []types.EnterpriseBP) ([]*types.MemberAttr, error) {
 	for i, bp := range bps {
 		trimmedAddr := strings.TrimSpace(bp.Address)
 		// TODO when p2p is applied, have to validate peer address
-		if _, err := types.ParseMultiaddrWithResolve(trimmedAddr); err != nil {
+		if _, err := types.ParseMultiaddr(trimmedAddr); err != nil {
 			return nil, err
 		}
 

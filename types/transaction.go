@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -14,8 +15,6 @@ import (
 
 //governance type transaction which has aergo.system in recipient
 
-const Stake = "v1stake"
-const Unstake = "v1unstake"
 const SetContractOwner = "v1setOwner"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
@@ -52,12 +51,12 @@ type Transaction interface {
 	GetHash() []byte
 	CalculateTxHash() []byte
 	Validate([]byte, bool) error
-	ValidateWithSenderState(senderState *State) error
+	ValidateWithSenderState(senderState *State, gasPrice *big.Int, version int32) error
 	HasVerifedAccount() bool
 	GetVerifedAccount() Address
 	SetVerifedAccount(account Address) bool
 	RemoveVerifedAccount() bool
-	GetMaxFee() *big.Int
+	GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error)
 }
 
 type transaction struct {
@@ -150,7 +149,24 @@ func (tx *transaction) Validate(chainidhash []byte, isPublic bool) error {
 		if err := validate(tx.GetBody()); err != nil {
 			return err
 		}
-
+	case TxType_FEEDELEGATION:
+		if tx.GetBody().GetRecipient() == nil {
+			return ErrTxInvalidRecipient
+		}
+		if len(tx.GetBody().GetPayload()) <= 0 {
+			return ErrTxFormatInvalid
+		}
+	case TxType_TRANSFER, TxType_CALL:
+		if tx.GetBody().GetRecipient() == nil {
+			return ErrTxInvalidRecipient
+		}
+	case TxType_DEPLOY:
+		if tx.GetBody().GetRecipient() != nil {
+			return ErrTxInvalidRecipient
+		}
+		if len(tx.GetBody().GetPayload()) == 0 {
+			return ErrTxFormatInvalid
+		}
 	default:
 		return ErrTxInvalidType
 	}
@@ -170,10 +186,11 @@ func ValidateSystemTx(tx *TxBody) error {
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return ErrTxInvalidPayload
 	}
-	switch ci.Name {
-	case Stake,
-		Unstake:
-	case VoteBP:
+	op := GetOpSysTx(ci.Name)
+	switch op {
+	case Opstake,
+		Opunstake:
+	case OpvoteBP:
 		unique := map[string]int{}
 		for i, v := range ci.Args {
 			if i >= MaxCandidates {
@@ -196,24 +213,21 @@ func ValidateSystemTx(tx *TxBody) error {
 				return ErrTxInvalidPayload
 			}
 		}
-		/* TODO: will be changed
-		case VoteNumBP,
-			VoteGasPrice,
-			VoteNamePrice,
-			VoteMinStaking:
-			for i, v := range ci.Args {
-				if i > 1 {
-					return ErrTxInvalidPayload
-				}
-				vstr, ok := v.(string)
-				if !ok {
-					return ErrTxInvalidPayload
-				}
-				if _, ok := new(big.Int).SetString(vstr, 10); !ok {
-					return ErrTxInvalidPayload
-				}
+	case OpvoteDAO:
+		if len(ci.Args) < 1 {
+			return fmt.Errorf("the number of args less then 1")
+		}
+		unique := map[string]int{}
+		for _, v := range ci.Args {
+			encoded, ok := v.(string)
+			if !ok {
+				return ErrTxInvalidPayload
 			}
-		*/
+			if unique[encoded] != 0 {
+				return ErrTxInvalidPayload
+			}
+			unique[encoded]++
+		}
 	default:
 		return ErrTxInvalidPayload
 	}
@@ -287,15 +301,19 @@ func _validateNameTx(tx *TxBody, ci *CallInfo) error {
 
 }
 
-func (tx *transaction) ValidateWithSenderState(senderState *State) error {
+func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big.Int, version int32) error {
 	if (senderState.GetNonce() + 1) > tx.GetBody().GetNonce() {
 		return ErrTxNonceTooLow
 	}
 	amount := tx.GetBody().GetAmountBigInt()
 	balance := senderState.GetBalanceBigInt()
 	switch tx.GetBody().GetType() {
-	case TxType_NORMAL, TxType_REDEPLOY:
-		spending := new(big.Int).Add(amount, tx.GetMaxFee())
+	case TxType_NORMAL, TxType_REDEPLOY, TxType_TRANSFER, TxType_CALL, TxType_DEPLOY:
+		fee, err := tx.GetMaxFee(new(big.Int).Sub(balance, amount), gasPrice, version)
+		if err != nil {
+			return err
+		}
+		spending := new(big.Int).Add(amount, fee)
 		if spending.Cmp(balance) > 0 {
 			return ErrInsufficientBalance
 		}
@@ -306,7 +324,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 			if err := json.Unmarshal(tx.GetBody().GetPayload(), &ci); err != nil {
 				return ErrTxInvalidPayload
 			}
-			if ci.Name == Stake &&
+			if ci.Name == Opstake.Cmd() &&
 				amount.Cmp(balance) > 0 {
 				return ErrInsufficientBalance
 			}
@@ -314,6 +332,10 @@ func (tx *transaction) ValidateWithSenderState(senderState *State) error {
 		case AergoEnterprise:
 		default:
 			return ErrTxInvalidRecipient
+		}
+	case TxType_FEEDELEGATION:
+		if amount.Cmp(balance) > 0 {
+			return ErrInsufficientBalance
 		}
 	}
 	if (senderState.GetNonce() + 1) < tx.GetBody().GetNonce() {
@@ -371,15 +393,34 @@ func (tx *transaction) Clone() *transaction {
 	return res
 }
 
-func (tx *transaction) GetMaxFee() *big.Int {
-	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload()))
+func (tx *transaction) GetMaxFee(balance, gasPrice *big.Int, version int32) (*big.Int, error) {
+	if fee.IsZeroFee() {
+		return fee.NewZeroFee(), nil
+	}
+	if version >= 2 {
+		minGasLimit := fee.TxGas(len(tx.GetBody().GetPayload()))
+		gasLimit := tx.GetBody().GasLimit
+		if gasLimit == 0 {
+			n := balance.Div(balance, gasPrice)
+			if n.IsUint64() {
+				gasLimit = n.Uint64()
+			} else {
+				gasLimit = math.MaxUint64
+			}
+		}
+		if minGasLimit > gasLimit {
+			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
+		}
+		return new(big.Int).Mul(new(big.Int).SetUint64(gasLimit), gasPrice), nil
+	}
+	return fee.MaxPayloadTxFee(len(tx.GetBody().GetPayload())), nil
 }
 
 const allowedNameChar = "abcdefghijklmnopqrstuvwxyz1234567890"
 
 func validateAllowedChar(param []byte) error {
 	if param == nil {
-		return fmt.Errorf("invalid parameter in NameTx")
+		return fmt.Errorf("not allowed character : nil")
 	}
 	for _, char := range string(param) {
 		if !strings.Contains(allowedNameChar, strings.ToLower(string(char))) {

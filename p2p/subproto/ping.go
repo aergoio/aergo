@@ -44,11 +44,12 @@ func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	remotePeer := ph.peer
 	pingData := msgBody.(*types.Ping)
 	p2putil.DebugLogReceive(ph.logger, ph.protocol, msg.ID().String(), remotePeer, pingData)
-	if _, err := types.ParseToBlockID(pingData.GetBestBlockHash()); err != nil {
+	if blockID, err := types.ParseToBlockID(pingData.GetBestBlockHash()); err != nil {
 		ph.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Msg("ping is old format or wrong")
 		return
+	} else {
+		remotePeer.UpdateLastNotice(blockID, pingData.BestHeight)
 	}
-	remotePeer.UpdateLastNotice(pingData.BestBlockHash, pingData.BestHeight)
 
 	// generate response message
 	ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("Sending ping response")

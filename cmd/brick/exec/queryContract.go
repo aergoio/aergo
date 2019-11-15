@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -73,7 +74,7 @@ func (c *queryContract) parse(args string) (string, string, string, string, stri
 		nil
 }
 
-func (c *queryContract) Run(args string) (string, error) {
+func (c *queryContract) Run(args string) (string, uint64, []*types.Event, error) {
 	contractName, funcName, queryCode, expectedResult, expectedError, _ := c.parse(args)
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, queryCode)
@@ -83,18 +84,18 @@ func (c *queryContract) Run(args string) (string, error) {
 		isTestPassed, result, err := context.Get().QueryOnly(contractName, formattedQuery, expectedError)
 
 		if err != nil {
-			return "", err
+			return "", 0, nil, err
 		} else if isTestPassed {
-			return "query to a smart contract successfully", nil
+			return "query to a smart contract successfully", 0, nil, nil
 		}
 
-		return result, nil
+		return result, 0, nil, nil
 	}
 	// there is expected result
 	err := context.Get().Query(contractName, formattedQuery, expectedError, expectedResult)
 
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
 	Index(context.ExpectedSymbol, expectedResult)
@@ -102,5 +103,5 @@ func (c *queryContract) Run(args string) (string, error) {
 		Index(context.ExpectedErrSymbol, expectedError)
 	}
 
-	return "query to a smart contract successfully", nil
+	return "query to a smart contract successfully", 0, nil, nil
 }

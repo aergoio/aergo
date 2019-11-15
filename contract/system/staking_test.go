@@ -27,24 +27,75 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 	sender.AddBalance(minplusmin)
 
-	ci, err := ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, 0)
-	_, err = staking(tx.Body, sender, receiver, scs, 0, ci)
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
+	staking, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	event, err := staking.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
+	assert.Equal(t, event.EventName, "stake", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"amount\":\"10000000000000000000000\"}", "event args")
 	saved, err := getStaking(scs, tx.Body.Account)
 	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
 	total, err := getStakingTotal(scs)
 	assert.Equal(t, types.StakingMinimum, total, "total value")
-
+	blockInfo.No += (StakingDelay - 1)
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
-	ci, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, StakingDelay-1)
+	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 
-	ci, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, StakingDelay)
+	blockInfo.No++
+	unstake, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "should be success")
-	_, err = unstaking(tx.Body, sender, receiver, scs, StakingDelay, ci)
+	event, err = unstake.run()
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
+	assert.Equal(t, event.EventName, "unstake", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"amount\":\"10000000000000000000000\"}", "event args")
+	saved, err = getStaking(scs, tx.Body.Account)
+	assert.Equal(t, new(big.Int).SetUint64(0).Bytes(), saved.Amount, "saved staking value")
+	total, err = getStakingTotal(scs)
+	assert.NoError(t, err, "should be success")
+	assert.Equal(t, new(big.Int).SetUint64(0), total, "total value")
+}
+
+func TestBasicStakingUnstakingV2(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  types.StakingMinimum.Bytes(),
+			Payload: []byte(`{"Name":"v1stake"}`),
+		},
+	}
+	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
+	sender.AddBalance(minplusmin)
+
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 2}
+	staking, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	event, err := staking.run()
+	assert.NoError(t, err, "staking failed")
+	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
+	assert.Equal(t, event.EventName, "stake", "event name")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
+	saved, err := getStaking(scs, tx.Body.Account)
+	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
+	total, err := getStakingTotal(scs)
+	assert.Equal(t, types.StakingMinimum, total, "total value")
+	blockInfo.No += (StakingDelay - 1)
+	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
+	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, blockInfo)
+	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
+
+	blockInfo.No++
+	unstake, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	assert.NoError(t, err, "should be success")
+	event, err = unstake.run()
+	assert.NoError(t, err, "should be success")
+	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
+	assert.Equal(t, event.EventName, "unstake", "event name")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
 	saved, err = getStaking(scs, tx.Body.Account)
 	assert.Equal(t, new(big.Int).SetUint64(0).Bytes(), saved.Amount, "saved staking value")
 	total, err = getStakingTotal(scs)
@@ -64,19 +115,22 @@ func TestStaking1Unstaking2(t *testing.T) {
 		},
 	}
 	sender.AddBalance(types.MaxAER)
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
 
-	ci, err := ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, 0)
-	_, err = staking(tx.Body, sender, receiver, scs, 0, ci)
+	stake, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	_, err = stake.run()
 	assert.Equal(t, err, nil, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be 'MaxAER - StakingMin' after staking")
 
+	blockInfo.No += (StakingDelay - 1)
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
-	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, StakingDelay-1)
+	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 
+	blockInfo.No++
 	tx.Body.Amount = new(big.Int).Add(types.StakingMinimum, types.StakingMinimum).Bytes()
-	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, StakingDelay)
+	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Error(t, err, "should return exceed error")
 }
 
@@ -97,12 +151,13 @@ func TestUnstakingError(t *testing.T) {
 			Payload: []byte(`{"Name":"v1unstake"}`),
 		},
 	}
-	sender, err := sdb.GetAccountStateV(tx.Body.Account)
+	sender, err := bs.GetAccountStateV(tx.Body.Account)
 	assert.NoError(t, err, "could not get test address state")
-	receiver, err := sdb.GetAccountStateV(tx.Body.Recipient)
+	receiver, err := bs.GetAccountStateV(tx.Body.Recipient)
 	assert.NoError(t, err, "could not get test address state")
 	sender.AddBalance(types.MaxAER)
 
-	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, 0)
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
+	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, blockInfo)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "should be success")
 }

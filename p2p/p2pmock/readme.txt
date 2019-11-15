@@ -22,6 +22,8 @@ The generate decriptions of these mock objects are in p2p/p2pcommon/temptypes.go
 # mock files which are not generated automatically by go generate ./p2p
 mockgen github.com/aergoio/aergo/consensus ConsensusAccessor,AergoRaftAccessor | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g' > p2p/p2pmock/mock_consensus.go
 
+mockgen -source=types/blockchain.go -package=p2pmock -destination=p2p/p2pmock/mock_chainaccessor.go
+
 mockgen io Reader,ReadCloser,Writer,WriteCloser,ReadWriteCloser > p2p/p2pmock/mock_io.go | gsed -e 's/^package mock_[a-zA-Z0-9_]\+/package p2pmock/g'  > p2p/p2pmock/mock_io.go
 
 mockgen github.com/aergoio/aergo/types ChainAccessor | sed -e 's/^package mock_mock_[a-zA-Z0-9_]\+/package p2pmock/g' > ../p2pmock/mock_chainaccessor.go

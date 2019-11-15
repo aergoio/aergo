@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/types"
 	"github.com/fsnotify/fsnotify"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
@@ -119,7 +120,7 @@ func (c *batch) parse(args string) (string, error) {
 	return batchFilePath, nil
 }
 
-func (c *batch) Run(args string) (string, error) {
+func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 	stdOut := colorable.NewColorableStdout()
 
 	var err error
@@ -128,7 +129,7 @@ func (c *batch) Run(args string) (string, error) {
 		if c.level == 0 && enableWatch {
 			watcher, err = fsnotify.NewWatcher()
 			if err != nil {
-				return "", err
+				return "", 0, nil, err
 			}
 			// clear screen
 			fmt.Fprintf(stdOut, "\033[H\033[2J")
@@ -139,7 +140,7 @@ func (c *batch) Run(args string) (string, error) {
 		batchFilePath, _ := c.parse(args)
 		cmdLines, err := c.readBatchFile(batchFilePath)
 		if err != nil {
-			return "", err
+			return "", 0, nil, err
 		}
 
 		c.level++
@@ -225,5 +226,5 @@ func (c *batch) Run(args string) (string, error) {
 		break
 	}
 
-	return "batch exec is finished", nil
+	return "batch exec is finished", 0, nil, nil
 }

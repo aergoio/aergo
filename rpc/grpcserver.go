@@ -165,15 +165,22 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 	chainInfo := &types.ChainInfo{}
 
 	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
-		id := genesisInfo.ID
-
+		ca := rpc.actorHelper.GetChainAccessor()
+		last, err := ca.GetBestBlock()
+		if err != nil {
+			return nil, err
+		}
+		id := types.NewChainID()
+		if err = id.Read(last.GetHeader().GetChainID()); err != nil {
+			return nil, err
+		}
 		chainInfo.Id = &types.ChainId{
 			Magic:     id.Magic,
 			Public:    id.PublicNet,
 			Mainnet:   id.MainNet,
 			Consensus: id.Consensus,
+			Version:   id.Version,
 		}
-
 		if totalBalance := genesisInfo.TotalBalance(); totalBalance != nil {
 			chainInfo.Maxtokens = totalBalance.Bytes()
 		}
@@ -188,15 +195,28 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 	chainInfo.Maxblocksize = uint64(chain.MaxBlockSize())
 
 	if consensus.IsDposName(chainInfo.Id.Consensus) {
-		if minStaking := types.GetStakingMinimum(); minStaking != nil {
+		if minStaking, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingMin); minStaking != nil {
 			chainInfo.Stakingminimum = minStaking.Bytes()
+		} else {
+			return nil, err
 		}
-
 		if total, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.StakingTotal); total != nil {
 			chainInfo.Totalstaking = total.Bytes()
 		} else {
 			return nil, err
 		}
+	}
+
+	if namePrice, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.NamePrice); namePrice != nil {
+		chainInfo.Nameprice = namePrice.Bytes()
+	} else {
+		return nil, err
+	}
+
+	if gasPrice, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.GasPrice); gasPrice != nil {
+		chainInfo.Gasprice = gasPrice.Bytes()
+	} else {
+		return nil, err
 	}
 
 	return chainInfo, nil
@@ -896,7 +916,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version, Certificates:pi.Certificates, AcceptedRole:pi.AcceptedRole}
 		ret.Peers = append(ret.Peers, peer)
 	}
 
@@ -948,12 +968,8 @@ func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.Accou
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
 	}
-	ids := []string{}
-	for _, v := range types.AllVotes {
-		ids = append(ids, v[2:])
-	}
 	result, err := rpc.hub.RequestFuture(message.ChainSvc,
-		&message.GetVote{Addr: in.Value, Ids: ids}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
+		&message.GetVote{Addr: in.Value}, defaultActorTimeout, "rpc.(*AergoRPCService).GetAccountVote").Result()
 	if err != nil {
 		return nil, err
 	}

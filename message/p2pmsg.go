@@ -124,6 +124,8 @@ type GetPeers struct {
 
 type PeerInfo struct {
 	Addr            *types.PeerAddress
+	Certificates    []*types.AgentCertificate
+	AcceptedRole    types.PeerRole
 	Version         string
 	Hidden          bool
 	CheckTime       time.Time
@@ -223,10 +225,28 @@ type SendRaftRsp struct {
 
 type P2PWhiteListConfEnableEvent struct {
 	Name string
-	On bool
+	On   bool
 }
 
 type P2PWhiteListConfSetEvent struct {
-	Name string
+	Name   string
 	Values []string
+}
+
+type IssueAgentCertificate struct {
+	ProducerID types.PeerID
+}
+
+type NotifyCertRenewed struct {
+	Cert *types.AgentCertificate
+}
+
+type TossDirection bool
+
+type TossBPNotice struct {
+	Block  *types.Block
+	// toss notice to internal zone or not
+	TossIn bool
+	// OriginalMsg is actually p2pcommon.Message. it is declared by interface{} for ad-hoc way to avoid import cycle
+	OriginalMsg interface{}
 }
