@@ -503,7 +503,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 	}
 }
 
-func TestInfiniteLoop(t *testing.T) {
+func xestInfiniteLoop(t *testing.T) {
 	bc, err := LoadDummyChain(
 		func(d *DummyChain) {
 			d.timeout = 50
