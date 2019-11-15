@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -36,10 +37,10 @@ func (c *undoCommit) Validate(args string) error {
 	return nil
 }
 
-func (c *undoCommit) Run(args string) (string, error) {
+func (c *undoCommit) Run(args string) (string, uint64, []*types.Event, error) {
 	err := context.Get().DisConnectBlock()
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
-	return "Undo, Succesfully", nil
+	return "Undo, Succesfully", 0, nil, nil
 }

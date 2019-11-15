@@ -6,6 +6,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -56,22 +57,22 @@ func (c *getStateAccount) parse(args string) (string, string, error) {
 	return splitArgs[0].Text, expectedResult, nil
 }
 
-func (c *getStateAccount) Run(args string) (string, error) {
+func (c *getStateAccount) Run(args string) (string, uint64, []*types.Event, error) {
 	accountName, expectedResult, _ := c.parse(args)
 
 	state, err := context.Get().GetAccountState(accountName)
 
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 	if expectedResult == "" {
-		return fmt.Sprintf("%s = %d", contract.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), nil
+		return fmt.Sprintf("%s = %d", contract.StrToAddress(accountName), new(big.Int).SetBytes(state.GetBalance())), 0, nil, nil
 	} else {
 		strRet := fmt.Sprintf("%d", new(big.Int).SetBytes(state.GetBalance()))
 		if expectedResult == strRet {
-			return "state compare successfully", nil
+			return "state compare successfully", 0, nil, nil
 		} else {
-			return "", fmt.Errorf("state compre fail. Expected: %s, Actual: %s", expectedResult, strRet)
+			return "", 0, nil, fmt.Errorf("state compre fail. Expected: %s, Actual: %s", expectedResult, strRet)
 		}
 	}
 }

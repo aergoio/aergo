@@ -134,12 +134,8 @@ func (bc *DummyChain) GetABI(contract string) (*types.ABI, error) {
 	return GetABI(cState)
 }
 
-func (bc *DummyChain) GetEvents(tx *luaTxCall) []*types.Event {
-	h := sha256.New()
-	h.Write([]byte(strconv.FormatUint(tx.id, 10)))
-	b := h.Sum(nil)
-
-	receipt := bc.GetReceipt(b)
+func (bc *DummyChain) GetEvents(txhash []byte) []*types.Event {
+	receipt := bc.GetReceipt(txhash)
 	if receipt != nil {
 		return receipt.Events
 	}

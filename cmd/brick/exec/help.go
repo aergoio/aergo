@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -41,7 +42,7 @@ func (c *help) Validate(args string) error {
 	return nil
 }
 
-func (c *help) Run(args string) (string, error) {
+func (c *help) Run(args string) (string, uint64, []*types.Event, error) {
 	var result strings.Builder
 
 	if args == "" {
@@ -55,7 +56,7 @@ func (c *help) Run(args string) (string, error) {
 			result.WriteString(fmt.Sprintf("%-12s%s\n", executor.Command(), executor.Usage()))
 		}
 
-		return result.String(), nil
+		return result.String(), 0, nil, nil
 	}
 
 	// print details of a specific command
@@ -64,5 +65,5 @@ func (c *help) Run(args string) (string, error) {
 		result.WriteString(fmt.Sprintf("%s\tusage: %s\tdescr: %s", executor.Command(), executor.Usage(), executor.Describe()))
 	}
 
-	return result.String(), nil
+	return result.String(), 0, nil, nil
 }

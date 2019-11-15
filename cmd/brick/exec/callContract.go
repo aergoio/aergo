@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -78,7 +79,7 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 		nil
 }
 
-func (c *callContract) Run(args string) (string, error) {
+func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) {
 
 	accountName, amount, contractName, funcName, callCode, expectedError, _ := c.parse(args)
 
@@ -93,24 +94,18 @@ func (c *callContract) Run(args string) (string, error) {
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
 	err := context.Get().ConnectBlock(callTx)
-	r := context.Get().GetReceipt(callTx.Hash())
-	logger.Info().Uint64("gas used", r.GasUsed).Msg("gas information")
 
 	if expectedError != "" {
 		zerolog.SetGlobalLevel(logLevel) // restore log level
 	}
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
-	if expectedError == "" {
-		events := context.Get().GetEvents(callTx)
-		for _, event := range events {
-			logger.Info().Str("args", event.GetJsonArgs()).Msg(event.GetEventName())
-		}
-	} else {
+	if expectedError != "" {
 		Index(context.ExpectedErrSymbol, expectedError)
+		return "call a smart contract successfully", 0, nil, nil
 	}
+	return "call a smart contract successfully", context.Get().GetReceipt(callTx.Hash()).GasUsed, context.Get().GetEvents(callTx.Hash()), nil
 
-	return "call a smart contract successfully", nil
 }

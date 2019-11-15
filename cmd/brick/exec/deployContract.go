@@ -11,6 +11,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -110,20 +111,18 @@ func (c *deployContract) parse(args string) (string, *big.Int, string, string, s
 		nil
 }
 
-func (c *deployContract) Run(args string) (string, error) {
+func (c *deployContract) Run(args string) (string, uint64, []*types.Event, error) {
 	accountName, amount, contractName, defPath, constuctorArg, _ := c.parse(args)
 
 	defByte, err := c.readDefFile(defPath)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
 	updateContractInfoInterface(contractName, defPath)
 
 	tx := contract.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg)
 	err = context.Get().ConnectBlock(tx)
-	r := context.Get().GetReceipt(tx.Hash())
-	logger.Info().Uint64("gas used", r.GasUsed).Msg("gas information")
 
 	if enableWatch && !strings.HasPrefix(defPath, "http") {
 		absPath, _ := filepath.Abs(defPath)
@@ -131,11 +130,14 @@ func (c *deployContract) Run(args string) (string, error) {
 	}
 
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
 	Index(context.ContractSymbol, contractName)
 	Index(context.AccountSymbol, contractName)
 
-	return "deploy a smart contract successfully", nil
+	return "deploy a smart contract successfully",
+		context.Get().GetReceipt(tx.Hash()).GasUsed,
+		context.Get().GetEvents(tx.Hash()),
+		nil
 }
