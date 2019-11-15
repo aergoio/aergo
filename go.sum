@@ -27,6 +27,8 @@ github.com/aergoio/aergo-lib v0.0.0-20191115021947-ee2c1f8ffdd8 h1:ZvmOXydpTJIvM
 github.com/aergoio/aergo-lib v0.0.0-20191115021947-ee2c1f8ffdd8/go.mod h1:qd7MzfQhkAowcPO0uI7Eb8kP3YjjaOgLNITOyeHeMSU=
 github.com/aergoio/aergo-lib v0.0.0-20191115071435-13e0e47d81b9 h1:PXzwWcpXAgWvXXY/uiTtF+Ae6zyhq+0q7AEvmxB4tU4=
 github.com/aergoio/aergo-lib v0.0.0-20191115071435-13e0e47d81b9/go.mod h1:tahZEXHDnOP4zvFWiQeDejABnpA8XtgOJ8GOkpATL3M=
+github.com/aergoio/aergo-lib v0.0.0-20191115072213-6103468b06ac h1:bc/065kFApJEvpO1G8LbTdGfNHLJTOHASiwWf1gw5Os=
+github.com/aergoio/aergo-lib v0.0.0-20191115072213-6103468b06ac/go.mod h1:61qF70hU+nP/wQ0lS5rmd90LhhBztZjpgZr8XpHW014=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399 h1:dJSTOiNe0xJFreGUBSh4bY3KGDxjilUVxAKqjij1pcw=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399/go.mod h1:Blp9ztau8P3FoDynvGUeKUD6qqW/2xQ80kNwU+ywPUM=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
