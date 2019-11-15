@@ -18,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -87,6 +88,8 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	// To pass dao parameters test
 	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	system.InitSystemParams(scs, 3)
+
+	fee.EnableZeroFee()
 
 	for _, opt := range opts {
 		opt(bc)
@@ -633,10 +636,12 @@ func OnPubNet(dc *DummyChain) {
 		}
 	}
 	PubNet = true
+	fee.DisableZeroFee()
 	flushLState()
 
 	dc.clearLState = func() {
 		PubNet = false
+		fee.EnableZeroFee()
 		flushLState()
 	}
 }

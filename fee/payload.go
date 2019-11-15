@@ -29,6 +29,10 @@ func EnableZeroFee() {
 	zeroFee = true
 }
 
+func DisableZeroFee() {
+	zeroFee = false
+}
+
 func IsZeroFee() bool {
 	return zeroFee
 }
