@@ -6,21 +6,19 @@ require (
 	github.com/Shopify/sarama v1.22.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v0.0.0-20191115021947-ee2c1f8ffdd8
+	github.com/aergoio/aergo-lib v0.0.0-20191115071435-13e0e47d81b9
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/apache/thrift v0.12.0 // indirect
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/coreos/go-semver v0.3.0
-	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/derekparker/trie v0.0.0-20190322172448-1ce4922c7ad9
 	github.com/emirpasic/gods v1.12.0
 	github.com/fsnotify/fsnotify v1.4.8-0.20180830220226-ccc981bf8038
 	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
 	github.com/funkygao/golib v0.0.0-20180314131852-90d4905c1961
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/gogo/protobuf v1.3.0
 	github.com/golang/mock v1.3.1
@@ -32,8 +30,8 @@ require (
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-core v0.2.3
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
-	github.com/magiconair/properties v1.8.0
-	github.com/mattn/go-colorable v0.1.1
+	github.com/magiconair/properties v1.8.1
+	github.com/mattn/go-colorable v0.1.4
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mattn/go-tty v0.0.0-20190424173100-523744f04859 // indirect
 	github.com/minio/highwayhash v1.0.0 // indirect
@@ -50,18 +48,16 @@ require (
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
 	github.com/prometheus/client_golang v1.0.0 // indirect
 	github.com/rs/cors v1.6.0 // indirect
-	github.com/rs/zerolog v1.14.3
+	github.com/rs/zerolog v1.16.1-0.20191111091419-e709c5d91e35
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v0.0.5
-	github.com/spf13/viper v1.3.2
+	github.com/spf13/viper v1.5.0
 	github.com/stretchr/testify v1.4.0
 	github.com/sunpuyo/badger v0.0.0-20181022123248-bb757672e2c7 // indirect
 	github.com/willf/bitset v1.1.10 // indirect
 	github.com/willf/bloom v2.0.3+incompatible
-	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	golang.org/x/crypto v0.0.0-20191112222119-e1110fd1c708
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	google.golang.org/grpc v1.21.1
 )
