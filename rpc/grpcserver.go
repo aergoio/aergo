@@ -916,7 +916,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version, Certificates:pi.Certificates, AcceptedRole:pi.AcceptedRole}
 		ret.Peers = append(ret.Peers, peer)
 	}
 

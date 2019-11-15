@@ -8,6 +8,7 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo/p2p/list"
+	"net"
 	"sync"
 	"time"
 
@@ -43,6 +44,7 @@ type P2P struct {
 	selfMeta p2pcommon.PeerMeta
 	// caching data from genesis block
 	genesisChainID *types.ChainID
+	localSettings  p2pcommon.LocalSettings
 
 	nt     p2pcommon.NetworkTransport
 	pm     p2pcommon.PeerManager
@@ -54,15 +56,13 @@ type P2P struct {
 	ca     types.ChainAccessor
 	prm    p2pcommon.PeerRoleManager
 	lm     p2pcommon.ListManager
+	cm     p2pcommon.CertificateManager
 	tnt    *txNoticeTracer
 
 	mutex sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
-
-	// inited after start
-	selfRole p2pcommon.PeerRole
 }
 
 var (
@@ -94,36 +94,29 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 		panic("invalid chainid: " + err.Error())
 	}
 	p2ps.genesisChainID = chainID
-
-	useRaft := genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
-	p2ps.useRaft = useRaft
-	if p2ps.cfg.Consensus.EnableBp {
-		p2ps.selfRole = p2pcommon.BlockProducer
-	} else {
-		p2ps.selfRole = p2pcommon.Watcher
-	}
+	p2ps.useRaft = genesis.ConsensusType() == consensus.ConsensusName[consensus.ConsensusRAFT]
 
 	p2ps.selfMeta = SetupSelfMeta(p2pkey.NodeID(), cfg.P2P, cfg.Consensus.EnableBp)
+	p2ps.initLocalSettings(cfg.P2P)
+	// set selfMeta.AcceptedRole and init role manager
+	p2ps.cm = newCertificateManager(p2ps, p2ps, p2ps.Logger)
+	p2ps.prm = p2ps.initRoleManager(p2ps.useRaft, p2ps.selfMeta.Role, p2ps.cm)
+
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
 	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
 	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
 
-	if useRaft {
-		p2ps.prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
-	} else {
-		p2ps.prm = &DefaultRoleManager{p2ps: p2ps}
-	}
-
 	// public network is always disabled white/blacklist in chain
 	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
 	metricMan := metric.NewMetricManager(10)
-	peerMan := NewPeerManager(p2ps, p2ps, p2ps, p2ps, netTransport, metricMan, lm, p2ps.Logger, cfg, useRaft)
+	peerMan := NewPeerManager(p2ps, p2ps, p2ps, p2ps, netTransport, metricMan, lm, p2ps.Logger, cfg, p2ps.useRaft)
 	syncMan := newSyncManager(p2ps, peerMan, p2ps.Logger)
-	versionMan := newDefaultVersionManager(peerMan, p2ps, p2ps.ca, p2ps.Logger, p2ps.genesisChainID)
+	versionMan := newDefaultVersionManager(p2ps, p2ps, peerMan, p2ps.ca, p2ps.Logger, p2ps.genesisChainID)
 
 	// connect managers each other
+	peerMan.AddPeerEventListener(p2ps.cm)
 
 	p2ps.mutex.Lock()
 	p2ps.signer = signer
@@ -139,6 +132,20 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	p2ps.mutex.Unlock()
 }
 
+func (p2ps *P2P) initRoleManager(useRaft bool, role types.PeerRole, cm p2pcommon.CertificateManager) p2pcommon.PeerRoleManager {
+	var prm p2pcommon.PeerRoleManager
+	if useRaft {
+		prm = &RaftRoleManager{p2ps: p2ps, logger: p2ps.Logger, raftBP: make(map[types.PeerID]bool)}
+	} else {
+		if role == types.PeerRole_Agent {
+			prm = &DposAgentRoleManager{DefaultRoleManager{p2ps: p2ps}, cm, make(map[types.PeerID]bool)}
+		} else {
+			prm = &DefaultRoleManager{p2ps: p2ps}
+		}
+	}
+	return prm
+}
+
 // BeforeStart starts p2p service.
 func (p2ps *P2P) BeforeStart() {}
 
@@ -150,7 +157,8 @@ func (p2ps *P2P) AfterStart() {
 	p2ps.lm.Start()
 	p2ps.mutex.Lock()
 	p2ps.checkConsensus()
-	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("role", p2ps.selfRole.String()).Msg("Starting p2p component")
+	p2ps.Logger.Info().Array("supportedVersions", p2putil.NewLogStringersMarshaller(versions, 10)).Str("info",p2putil.ShortMetaForm(p2ps.selfMeta)).Str("role", p2ps.selfMeta.Role.String()).Msg("Starting p2p component")
+
 	nt := p2ps.nt
 	nt.Start()
 	p2ps.tnt.Start()
@@ -160,6 +168,7 @@ func (p2ps *P2P) AfterStart() {
 		panic("Failed to start p2p component")
 	}
 	p2ps.mm.Start()
+	p2ps.cm.Start()
 }
 
 func (p2ps *P2P) checkConsensus() {
@@ -175,6 +184,7 @@ func (p2ps *P2P) checkConsensus() {
 // BeforeStop is called before actor hub stops. it finishes underlying peer manager
 func (p2ps *P2P) BeforeStop() {
 	p2ps.Logger.Debug().Msg("stopping p2p actor.")
+	p2ps.cm.Stop()
 	p2ps.mm.Stop()
 	if err := p2ps.pm.Stop(); err != nil {
 		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
@@ -300,6 +310,12 @@ func (p2ps *P2P) Receive(context actor.Context) {
 		p2ps.lm.RefineList()
 		// disconnect newly blacklisted peer.
 		p2ps.checkAndBanInboundPeers()
+	case message.IssueAgentCertificate:
+		p2ps.SendIssueCertMessage(context, msg)
+	case message.NotifyCertRenewed:
+		p2ps.NotifyCertRenewed(context, msg)
+	case message.TossBPNotice:
+		p2ps.TossBPNotice(msg)
 	}
 }
 
@@ -405,11 +421,14 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 
 	// block notice handlers
-	if p2ps.useRaft && p2ps.selfRole == p2pcommon.BlockProducer {
+	if p2ps.useRaft && p2ps.selfMeta.Role == types.PeerRole_Producer {
 		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.NewBPNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewBlkNoticeDiscardHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
+	} else if p2ps.selfMeta.Role == types.PeerRole_Agent {
+		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewAgentBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm, p2ps.cm), p2ps.Logger, zerolog.DebugLevel))
+		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	} else {
-		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
+		peer.AddMessageHandler(p2pcommon.BlockProducedNotice, subproto.WithTimeLog(subproto.NewBlockProducedNoticeHandler(p2ps, p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 		peer.AddMessageHandler(p2pcommon.NewBlockNotice, subproto.NewNewBlockNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm))
 	}
 
@@ -418,6 +437,10 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.GetClusterResponse, subproto.NewGetClusterRespHandler(p2ps.pm, peer, logger, p2ps))
 	peer.AddMessageHandler(p2pcommon.RaftWrapperMessage, subproto.NewRaftWrapperHandler(p2ps.pm, peer, logger, p2ps, p2ps.consacc))
 
+	// certificate
+	peer.AddMessageHandler(p2pcommon.IssueCertificateRequest, subproto.NewIssueCertReqHandler(p2ps.pm, p2ps.cm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.IssueCertificateResponse, subproto.NewIssueCertRespHandler(p2ps.pm, p2ps.cm, peer, logger, p2ps))
+	peer.AddMessageHandler(p2pcommon.CertificateRenewedNotice, subproto.NewCertRenewedNoticeHandler(p2ps.pm, p2ps.cm, peer, logger, p2ps))
 }
 
 func (p2ps *P2P) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHandler {
@@ -433,8 +456,12 @@ func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, r
 	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
-	// TODO tune to set prefer role
-	newPeer.role = p2ps.prm.GetRole(remoteInfo.Meta.ID)
+	// FIXME need refactoring
+	// raft role
+	if p2ps.useRaft {
+		newPeer.remoteInfo.AcceptedRole = p2ps.prm.GetRole(remoteInfo.Meta.ID)
+	}
+
 	// insert Handlers
 	p2ps.insertHandlers(newPeer)
 
@@ -454,8 +481,8 @@ func (p2ps *P2P) SelfNodeID() types.PeerID {
 	return p2ps.selfMeta.ID
 }
 
-func (p2ps *P2P) SelfRole() p2pcommon.PeerRole {
-	return p2ps.selfRole
+func (p2ps *P2P) LocalSettings() p2pcommon.LocalSettings {
+	return p2ps.localSettings
 }
 
 func (p2ps *P2P) GetPeerBlockInfos() []types.PeerBlockInfo {
@@ -464,4 +491,52 @@ func (p2ps *P2P) GetPeerBlockInfos() []types.PeerBlockInfo {
 
 func (p2ps *P2P) GetPeer(ID types.PeerID) (p2pcommon.RemotePeer, bool) {
 	return p2ps.pm.GetPeer(ID)
+}
+
+func (p2ps *P2P) CertificateManager() p2pcommon.CertificateManager {
+	// return dummy value
+	return p2ps.cm
+}
+
+func (p2ps *P2P) RoleManager() p2pcommon.PeerRoleManager {
+	// return dummy value
+	return p2ps.prm
+}
+
+func (p2ps *P2P) initLocalSettings(conf *config.P2PConfig) {
+	meta := p2ps.selfMeta
+	switch meta.Role {
+	case types.PeerRole_Producer:
+		// set agent id
+		if len(conf.Agent) > 0 {
+			pid, err := types.IDB58Decode(conf.Agent)
+			if err != nil {
+				panic("invalid agentID "+conf.Agent+" : "+err.Error())
+			}
+			p2ps.Logger.Info().Str("fullID",pid.String()).Str("agentID",p2putil.ShortForm(pid)).Msg("found agent setting. use peer as agent if connected")
+			p2ps.localSettings.AgentID = pid
+		} else {
+			p2ps.Logger.Debug().Msg("no agent was set. local peer is standalone producer.")
+		}
+	case types.PeerRole_Agent:
+		// set internal zone for agent
+		if len(conf.InternalZones) > 0 {
+			nets := make([]*net.IPNet, len(conf.InternalZones))
+			for i, z := range conf.InternalZones {
+				_, ipnet, err := net.ParseCIDR(z)
+				if err != nil {
+					panic("invalid address range "+z+" : "+err.Error())
+				}
+				nets[i] = ipnet
+			}
+			p2ps.Logger.Info().Array("producerIDs",p2putil.NewLogPeerIdsMarshaller(meta.ProducerIDs,25)).Array("internalZones",p2putil.NewLogIPNetMarshaller(nets,10)).Msg("init agent setting. use peer as agent if connected")
+			p2ps.localSettings.InternalZones = nets
+		} else {
+			panic("agent must configure one or more internalzones ")
+		}
+	default:
+		// do nothing for now
+	}
+
+
 }

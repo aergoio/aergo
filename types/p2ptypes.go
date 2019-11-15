@@ -120,6 +120,7 @@ var ErrInvalidIPAddress = errors.New("invalid ip address")
 var ErrInvalidPort = errors.New("invalid port")
 
 var addrProtos = []int{multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS4, multiaddr.P_DNS6}
+// AddressFromMultiAddr returns address (ip4, ip6 or full qualified domain name)
 func AddressFromMultiAddr(ma Multiaddr) string {
 	for _, p := range addrProtos {
 		val, err := ma.ValueForProtocol(p)

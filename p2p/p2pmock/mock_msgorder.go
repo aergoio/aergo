@@ -251,3 +251,17 @@ func (mr *MockMoFactoryMockRecorder) NewRaftMsgOrder(msgType, raftMsg interface{
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewRaftMsgOrder", reflect.TypeOf((*MockMoFactory)(nil).NewRaftMsgOrder), msgType, raftMsg)
 }
+
+// NewTossMsgOrder mocks base method
+func (m *MockMoFactory) NewTossMsgOrder(orgMsg p2pcommon.Message) p2pcommon.MsgOrder {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewTossMsgOrder", orgMsg)
+	ret0, _ := ret[0].(p2pcommon.MsgOrder)
+	return ret0
+}
+
+// NewTossMsgOrder indicates an expected call of NewTossMsgOrder
+func (mr *MockMoFactoryMockRecorder) NewTossMsgOrder(orgMsg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewTossMsgOrder", reflect.TypeOf((*MockMoFactory)(nil).NewTossMsgOrder), orgMsg)
+}

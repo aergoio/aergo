@@ -40,7 +40,7 @@ func FailTestGetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
-			remoteInfo := p2pcommon.RemoteInfo{Meta:peerMeta}
+			remoteInfo := p2pcommon.RemoteInfo{Meta: peerMeta}
 			target.remotePeers[peerID] = newRemotePeer(remoteInfo, 0, target, mockActor, logger, nil, nil, nil)
 			if i == (iterSize >> 2) {
 				wg.Done()
@@ -80,7 +80,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 		for i := 0; i < iterSize; i++ {
 			peerID := types.PeerID(strconv.Itoa(i))
 			peerMeta := p2pcommon.PeerMeta{ID: peerID}
-			remoteInfo := p2pcommon.RemoteInfo{Meta:peerMeta}
+			remoteInfo := p2pcommon.RemoteInfo{Meta: peerMeta}
 			target.insertPeer(peerID, newRemotePeer(remoteInfo, 0, target, mockActorServ, logger, nil, nil, nil))
 			if i == (iterSize >> 2) {
 				wg.Done()
@@ -95,7 +95,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 		for _ = range target.GetPeers() {
 			cnt++
 		}
-		assert.True(t, cnt > (iterSize >> 2))
+		assert.True(t, cnt > (iterSize>>2))
 		waitChan <- 0
 	}()
 
@@ -112,9 +112,9 @@ func TestPeerManager_GetPeerAddresses(t *testing.T) {
 	for i := 0; i < peersLen; i++ {
 		pkey, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		pid, _ := types.IDFromPrivateKey(pkey)
-		meta := p2pcommon.NewMetaWith1Addr(pid, "192.168.3.3", 7846)
+		meta := p2pcommon.NewMetaWith1Addr(pid, "192.168.3.3", 7846, "v2.0.0")
 		meta.Hidden = i < hiddenCnt
-		samplePeers[i] = &remotePeerImpl{remoteInfo: p2pcommon.RemoteInfo{Meta:meta}, lastStatus: &types.LastBlockStatus{}}
+		samplePeers[i] = &remotePeerImpl{remoteInfo: p2pcommon.RemoteInfo{Meta: meta}, lastStatus: &types.LastBlockStatus{}}
 	}
 
 	tests := []struct {
@@ -237,7 +237,7 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 				nt:           mockNT,
 
 				getPeerChannel:    make(chan getPeerTask),
-				peerHandshaked:    make(chan connPeerResult),
+				peerConnected:     make(chan connPeerResult),
 				removePeerChannel: make(chan p2pcommon.RemotePeer),
 				fillPoolChannel:   make(chan []p2pcommon.PeerMeta, 2),
 				inboundConnChan:   make(chan inboundConnEvent),
@@ -494,7 +494,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 
-			remote := p2pcommon.RemoteInfo{Meta:tt.args.status.Meta, Connection:p2pcommon.RemoteConn{Outbound:tt.args.outbound}, Hidden:tt.args.status.Hidden}
+			remote := p2pcommon.RemoteInfo{Meta: tt.args.status.Meta, Connection: p2pcommon.RemoteConn{Outbound: tt.args.outbound}, Hidden: tt.args.status.Hidden}
 			in := connPeerResult{remote: remote, msgRW: mockRW,}
 			var gotMeta p2pcommon.RemoteInfo
 
@@ -502,7 +502,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 				gotMeta = ri
 			}).Return(mockPeer)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
-			mockPeer.EXPECT().Role().Return(p2pcommon.BlockProducer).AnyTimes()
+			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -518,9 +518,8 @@ func Test_peerManager_tryRegister(t *testing.T) {
 				logger:          logger,
 				mutex:           &sync.Mutex{},
 				remotePeers:     make(map[types.PeerID]p2pcommon.RemotePeer, 100),
-				peerHandshaked:  make(chan connPeerResult, 10),
+				peerConnected:   make(chan connPeerResult, 10),
 			}
-
 
 			r := pm.tryRegister(in)
 			if (r != nil) != tt.wantSucc {
@@ -573,40 +572,105 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 				return nil, errors.New("close")
 			}).AnyTimes()
 
-			remote := p2pcommon.RemoteInfo{Meta:tt.args.status.Meta, Connection:p2pcommon.RemoteConn{Outbound:tt.args.outbound}}
-			in := connPeerResult{remote: remote, msgRW: mockRW }
+			remote := p2pcommon.RemoteInfo{Meta: tt.args.status.Meta, Connection: p2pcommon.RemoteConn{Outbound: tt.args.outbound}}
+			in := connPeerResult{remote: remote, msgRW: mockRW}
 			mockIS.EXPECT().SelfNodeID().Return(selfID).MinTimes(1)
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
-			mockPeer.EXPECT().Role().Return(p2pcommon.BlockProducer).AnyTimes()
+			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			if tt.wantSucc {
 				mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any())
 				mockPeer.EXPECT().Stop().MaxTimes(1)
-				mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(),mockRW).Return(mockPeer)
+				mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(), mockRW).Return(mockPeer)
 			}
 
 			// in cases of handshake error
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
 
 			pm := &peerManager{
-				is: mockIS,
+				is:              mockIS,
 				peerFactory:     mockPeerFactory,
 				designatedPeers: make(map[types.PeerID]p2pcommon.PeerMeta),
 				hiddenPeerSet:   make(map[types.PeerID]bool),
 				logger:          logger,
 				mutex:           &sync.Mutex{},
 				remotePeers:     make(map[types.PeerID]p2pcommon.RemotePeer, 100),
-				peerHandshaked:  make(chan connPeerResult, 10),
+				peerConnected:   make(chan connPeerResult, 10),
 			}
 			pm.remotePeers[dummyPeerID] = mockPeer
-
 
 			r := pm.tryRegister(in)
 			if (r != nil) != tt.wantSucc {
 				t.Errorf("peerManager.tryRegister() succ = %v, want %v", r != nil, tt.wantSucc)
 			}
 		})
+	}
+}
+
+func Test_peerManager_updatePeerCache(t *testing.T) {
+	rp, ra, rw := types.PeerRole_Producer, types.PeerRole_Agent, types.PeerRole_Watcher
+	rl := types.PeerRole_LegacyVersion
+
+	pids := []types.PeerID{types.RandomPeerID(), types.RandomPeerID(), types.RandomPeerID(), types.RandomPeerID()}
+	type arg struct {
+		add  bool
+		id   types.PeerID
+		role types.PeerRole
+	}
+	tests := []struct {
+		name string
+		arg arg
+
+		wantSize  int
+		wantBp    int
+		wantWatch int
+	}{
+		// first add watcher
+		{"TA1", arg{true, pids[0], rw}, 1, 0, 1,},
+		// add producer
+		{"TA2", arg{true, pids[1], rp}, 2, 1, 1,},
+		// add agent
+		{"TA3", arg{true, pids[2], ra}, 3, 2, 1,},
+		// add legacy version
+		{"TA4", arg{true, pids[3], rl}, 4, 2, 2,},
+		// update watcher to agent
+		{"TM1", arg{true, pids[0], ra}, 4, 3, 1,},
+		// update agent to watcher
+		{"TM2", arg{true, pids[2], rw}, 4, 2, 2,},
+		// remove watcher
+		{"TR1", arg{false, pids[2], rw}, 3, 2, 1,},
+	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	pm := &peerManager{
+		logger:        logger,
+		mutex:         &sync.Mutex{},
+		remotePeers:   make(map[types.PeerID]p2pcommon.RemotePeer, 100),
+		peerConnected: make(chan connPeerResult, 10),
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			peer := &remotePeerImpl{remoteInfo: p2pcommon.RemoteInfo{Meta: p2pcommon.PeerMeta{ID: tt.arg.id}, AcceptedRole: tt.arg.role}}
+			if tt.arg.add {
+				pm.remotePeers[tt.arg.id] = peer
+			} else {
+				delete(pm.remotePeers, tt.arg.id)
+			}
+			pm.updatePeerCache()
+
+			if len(pm.remotePeers) != tt.wantSize {
+				t.Errorf("updatePeerCache() total size = %v , want %v", len(pm.remotePeers), tt.wantSize)
+			}
+			if len(pm.bpClassPeers) != tt.wantBp {
+				t.Errorf("updatePeerCache() bp&agent size = %v , want %v", len(pm.bpClassPeers), tt.wantBp)
+			}
+			if len(pm.watchClassPeers) != tt.wantWatch {
+				t.Errorf("updatePeerCache() watcher size = %v , want %v", len(pm.watchClassPeers), tt.wantWatch)
+			}
+			pm.updatePeerCache()
+		})
+
 	}
 }

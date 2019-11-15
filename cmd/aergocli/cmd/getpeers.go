@@ -26,6 +26,7 @@ var getpeersCmd = &cobra.Command{
 var nohidden bool
 var showself bool
 var sortFlag string
+var detailed int
 
 const (
 	sortAddr    = "addr"
@@ -34,11 +35,18 @@ const (
 	sortDefault = "no"
 )
 
+const (
+	DetailShort   int = -1
+	DetailDefault     = 0
+	DetailLong        = 1
+)
+
 func init() {
 	rootCmd.AddCommand(getpeersCmd)
 	getpeersCmd.Flags().BoolVar(&nohidden, "nohidden", false, "exclude hidden peers")
 	getpeersCmd.Flags().BoolVar(&showself, "self", false, "show self peer info")
 	getpeersCmd.Flags().StringVar(&sortFlag, "sort", "no", "sort peers by address, id or other")
+	getpeersCmd.Flags().IntVar(&detailed, "detail", 0, "detail level")
 }
 
 func execGetPeers(cmd *cobra.Command, args []string) {
@@ -50,8 +58,16 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	}
 	// address and peerid should be encoded, respectively
 	sorter.Sort(msg.Peers)
-	cmd.Println(util.PeerListToString(msg))
+	if detailed == 0 {
+		cmd.Println(util.PeerListToString(msg))
+	} else if detailed > 0 {
+		// TODO show long fields
+		cmd.Println(util.LongPeerListToString(msg))
+	} else {
+		cmd.Println(util.ShortPeerListToString(msg))
+	}
 }
+
 
 func Must(a0 string, _ error) string {
 	return a0

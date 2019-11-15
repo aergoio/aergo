@@ -9,6 +9,7 @@ import (
 	"errors"
 	network2 "github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/list"
+	"net"
 	"testing"
 	"time"
 
@@ -45,8 +46,9 @@ func Test_staticWPManager_OnDiscoveredPeers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dummyPM := createDummyPM()
 			mockLM := p2pmock.NewMockListManager(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
 
-			dp := NewWaitingPeerManager(logger, dummyPM, mockLM, 10, false).(*staticWPManager)
+			dp := NewWaitingPeerManager(logger, mockIS, dummyPM, mockLM, 10, false).(*staticWPManager)
 
 			dp.OnDiscoveredPeers(tt.args.metas)
 			if len(dummyPM.waitingPeers) != tt.wantCount {
@@ -77,8 +79,9 @@ func Test_dynamicWPManager_OnDiscoveredPeers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dummyPM := createDummyPM()
 			mockLM := p2pmock.NewMockListManager(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
 
-			dp := NewWaitingPeerManager(logger, dummyPM, mockLM, 10, true)
+			dp := NewWaitingPeerManager(logger, mockIS, dummyPM, mockLM, 10, true)
 			for _, id := range tt.args.preConnected {
 				dummyPM.remotePeers[id] = &remotePeerImpl{}
 				dp.OnPeerConnect(id)
@@ -189,13 +192,16 @@ func Test_basePeerManager_tryAddPeer(t *testing.T) {
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMF.EXPECT().NewMsgRequestOrder(false, p2pcommon.GoAway, gomock.Any()).Return(&pbRequestOrder{}).MaxTimes(1)
 			mockRW.EXPECT().WriteMsg(gomock.Any()).MaxTimes(1)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{}).AnyTimes()
 
 			pm := &peerManager{
-				hsFactory:      mockHSFactory,
-				peerHandshaked: make(chan connPeerResult, 10),
+				hsFactory:     mockHSFactory,
+				peerConnected: make(chan connPeerResult, 10),
 			}
 			dpm := &basePeerManager{
 				pm:     pm,
+				is:     mockIS,
 				logger: logger,
 			}
 			got, got1 := dpm.tryAddPeer(tt.args.outbound, tt.args.meta, mockStream, mockHSHandler)
@@ -266,8 +272,9 @@ func Test_dynamicWPManager_CheckAndConnect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dummyPM := createDummyPM()
 			mockLM := p2pmock.NewMockListManager(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
 
-			dp := NewWaitingPeerManager(logger, dummyPM, mockLM, 10, true)
+			dp := NewWaitingPeerManager(logger, mockIS, dummyPM, mockLM, 10, true)
 			for _, id := range tt.args.preConnected {
 				dummyPM.remotePeers[id] = &remotePeerImpl{}
 				dp.OnPeerConnect(id)
@@ -389,25 +396,28 @@ func Test_basePeerManager_OnInboundConn(t *testing.T) {
 	}
 }
 
-func Test_createRemoteInfo(t *testing.T) {
+func Test_basePeerManager_createRemoteInfo(t *testing.T) {
+	i4, n4, _ := net.ParseCIDR("192.56.1.1/24")
+	innerIP := i4.String()
+
 	pid1 := types.RandomPeerID()
 	type args struct {
 		status   p2pcommon.HandshakeResult
 		outbound bool
 	}
 	tests := []struct {
-		name     string
-		args     args
-		ip       string
-		port     uint32
+		name       string
+		args       args
+		ip         string
+		port       uint32
 		wantHidden bool
 	}{
-		{"TOut1", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:false}, true} ,
-			"192.56.1.1",7846, false},
-		{"TOutHidden", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:true}, true},"192.56.1.1",7846, true},
-		{"TIn", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:false}, false} ,
-			"192.56.1.1",7846, false},
-		{"TInHidden", args{p2pcommon.HandshakeResult{Meta:p2pcommon.PeerMeta{ID:pid1}, Hidden:true}, true},"192.56.1.1",7846, true},
+		{"TOut1", args{p2pcommon.HandshakeResult{Meta: p2pcommon.PeerMeta{ID: pid1}, Hidden: false}, true},
+			innerIP, 7846, false},
+		{"TOutHidden", args{p2pcommon.HandshakeResult{Meta: p2pcommon.PeerMeta{ID: pid1}, Hidden: true}, true}, innerIP, 7846, true},
+		{"TIn", args{p2pcommon.HandshakeResult{Meta: p2pcommon.PeerMeta{ID: pid1}, Hidden: false}, false},
+			innerIP, 7846, false},
+		{"TInHidden", args{p2pcommon.HandshakeResult{Meta: p2pcommon.PeerMeta{ID: pid1}, Hidden: true}, true}, innerIP, 7846, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -417,8 +427,14 @@ func Test_createRemoteInfo(t *testing.T) {
 			conn := p2pmock.NewMockConn(ctrl)
 			ma, _ := types.ToMultiAddr(tt.ip, tt.port)
 			conn.EXPECT().RemoteMultiaddr().Return(ma).AnyTimes()
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{n4}}).AnyTimes()
 
-			got := createRemoteInfo(conn, tt.args.status, tt.args.outbound)
+			dpm := &basePeerManager{
+				logger: logger,
+				is: mockIS,
+			}
+			got := dpm.createRemoteInfo(conn, tt.args.status, tt.args.outbound)
 			if !types.IsSamePeerID(got.Meta.ID, types.PeerID(pid1)) {
 				t.Errorf("createRemoteInfo() ID = %v, want %v", got.Meta.ID.String(), pid1)
 			}
@@ -430,6 +446,56 @@ func Test_createRemoteInfo(t *testing.T) {
 			}
 			if !network2.IsSameAddress(got.Connection.IP.String(), tt.ip) {
 				t.Errorf("createRemoteInfo() addr = %v, want %v", got.Connection.IP, tt.ip)
+			}
+		})
+	}
+}
+
+func Test_basePeerManager_createRemoteInfoOfZone(t *testing.T) {
+	i4, n4, _ := net.ParseCIDR("192.56.1.1/24")
+	innerIP := i4.String()
+	innerIP2 := "192.56.1.200"
+	externalIP1 := "192.56.2.1"
+
+	pid1 := types.RandomPeerID()
+	sampleMeta := p2pcommon.PeerMeta{ID: pid1}
+	type args struct {
+		status   p2pcommon.HandshakeResult
+	}
+	tests := []struct {
+		name       string
+		args       args
+		ip         string
+		wantZone   p2pcommon.PeerZone
+	}{
+		{"TInternal1", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false} },
+			innerIP,  p2pcommon.InternalZone},
+		{"TInternal2", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false}},
+			innerIP2, p2pcommon.InternalZone},
+		{"TExternal", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false}},
+			externalIP1, p2pcommon.ExternalZone},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			conn := p2pmock.NewMockConn(ctrl)
+			ma, _ := types.ToMultiAddr(tt.ip, 7846)
+			conn.EXPECT().RemoteMultiaddr().Return(ma).AnyTimes()
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{n4}}).AnyTimes()
+
+			dpm := &basePeerManager{
+				logger: logger,
+				is: mockIS,
+			}
+			got := dpm.createRemoteInfo(conn, tt.args.status, false)
+			if !types.IsSamePeerID(got.Meta.ID, types.PeerID(pid1)) {
+				t.Errorf("createRemoteInfo() ID = %v, want %v", got.Meta.ID.String(), pid1)
+			}
+			if got.Zone != tt.wantZone {
+				t.Errorf("createRemoteInfo() Zone = %v, want %v", got.Zone, tt.wantZone)
 			}
 		})
 	}

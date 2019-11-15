@@ -375,3 +375,20 @@ func Test_getValidIP(t *testing.T) {
 		})
 	}
 }
+
+func TestMonotonicClocks(t *testing.T) {
+	mt := time.Now()
+	mt2 := mt.Add(time.Hour)
+	wt := mt.Truncate(0)
+	wt2 := wt.Add(time.Hour)
+
+	if !mt.Equal(wt) {
+		t.Errorf("Equal(): Monotonic and wall clock differ! %v and %v ",mt, wt)
+	}
+	if !mt2.Equal(wt2) {
+		t.Errorf("Monotonic and wall clock differ! %v and %v ",mt, wt)
+	}
+	if !reflect.DeepEqual(mt,wt) {
+		// this is expected situation. you should compare clocks by Equal() method, not by reflection.
+	}
+}

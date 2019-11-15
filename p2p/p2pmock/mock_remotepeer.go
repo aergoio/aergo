@@ -156,22 +156,22 @@ func (mr *MockRemotePeerMockRecorder) Version() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockRemotePeer)(nil).Version))
 }
 
-// Role mocks base method
-func (m *MockRemotePeer) Role() p2pcommon.PeerRole {
+// AcceptedRole mocks base method
+func (m *MockRemotePeer) AcceptedRole() types.PeerRole {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Role")
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret := m.ctrl.Call(m, "AcceptedRole")
+	ret0, _ := ret[0].(types.PeerRole)
 	return ret0
 }
 
-// Role indicates an expected call of Role
-func (mr *MockRemotePeerMockRecorder) Role() *gomock.Call {
+// AcceptedRole indicates an expected call of AcceptedRole
+func (mr *MockRemotePeerMockRecorder) AcceptedRole() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Role", reflect.TypeOf((*MockRemotePeer)(nil).Role))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcceptedRole", reflect.TypeOf((*MockRemotePeer)(nil).AcceptedRole))
 }
 
 // ChangeRole mocks base method
-func (m *MockRemotePeer) ChangeRole(role p2pcommon.PeerRole) {
+func (m *MockRemotePeer) ChangeRole(role types.PeerRole) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "ChangeRole", role)
 }
@@ -362,4 +362,16 @@ func (m *MockRemotePeer) MF() p2pcommon.MoFactory {
 func (mr *MockRemotePeerMockRecorder) MF() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MF", reflect.TypeOf((*MockRemotePeer)(nil).MF))
+}
+
+// AddCertificate mocks base method
+func (m *MockRemotePeer) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddCertificate", cert)
+}
+
+// AddCertificate indicates an expected call of AddCertificate
+func (mr *MockRemotePeerMockRecorder) AddCertificate(cert interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockRemotePeer)(nil).AddCertificate), cert)
 }

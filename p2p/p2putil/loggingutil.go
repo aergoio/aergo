@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/types"
 	"github.com/rs/zerolog"
+	"net"
 )
 
 
@@ -144,6 +146,54 @@ func (m *LogStringsMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	} else {
 		for _, meta := range m.strs {
 			a.Str(meta)
+		}
+	}
+}
+
+
+type LogPeerIdsMarshaller struct {
+	arr   []types.PeerID
+	limit int
+}
+
+func NewLogPeerIdsMarshaller(arr []types.PeerID, limit int) *LogPeerIdsMarshaller {
+	return &LogPeerIdsMarshaller{arr: arr, limit: limit}
+}
+
+func (m LogPeerIdsMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.arr)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(ShortForm(m.arr[i]))
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, element := range m.arr {
+			a.Str(ShortForm(element))
+		}
+	}
+}
+
+
+type LogIPNetMarshaller struct {
+	arr   []*net.IPNet
+	limit int
+}
+
+func NewLogIPNetMarshaller(arr []*net.IPNet, limit int) *LogIPNetMarshaller {
+	return &LogIPNetMarshaller{arr: arr, limit: limit}
+}
+
+func (m LogIPNetMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.arr)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(m.arr[i].String())
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, element := range m.arr {
+			a.Str(element.String())
 		}
 	}
 }

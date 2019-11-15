@@ -22,8 +22,8 @@ type RemotePeer interface {
 	ManageNumber() uint32
 	Name() string
 	Version() string
-	Role() PeerRole
-	ChangeRole(role PeerRole)
+	AcceptedRole() types.PeerRole
+	ChangeRole(role types.PeerRole)
 
 	AddMessageHandler(subProtocol SubProtocol, handler MessageHandler)
 
@@ -52,4 +52,7 @@ type RemotePeer interface {
 
 	// TODO
 	MF() MoFactory
+
+	// AddCertificate add to my certificate list
+	AddCertificate(cert *AgentCertificateV1)
 }

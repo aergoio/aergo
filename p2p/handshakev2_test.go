@@ -191,7 +191,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 	sampleResult := &p2pcommon.HandshakeResult{}
 	logger := log.NewLogger("p2p.test")
 	// This bytes is actually hard-coded in source handshake_v2.go.
-	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
+	outBytes := p2pcommon.HSHeadReq{p2pcommon.MAGICMain, []p2pcommon.P2PVersion{p2pcommon.P2PVersion200, p2pcommon.P2PVersion033, p2pcommon.P2PVersion032, p2pcommon.P2PVersion031}}.Marshal()
 
 	tests := []struct {
 		name string
@@ -204,7 +204,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 		wantErr bool
 	}{
 		// remote listening peer accept my best p2p version
-		{"TCurrentVersion", p2pcommon.P2PVersion033, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion033.Uint32()}.Marshal(), false},
+		{"TCurrentVersion", p2pcommon.P2PVersion200, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion200.Uint32()}.Marshal(), false},
 		// remote listening peer can connect, but old p2p version
 		{"TOldVersion", p2pcommon.P2PVersion032, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion032.Uint32()}.Marshal(), false},
 		{"TOlderVersion", p2pcommon.P2PVersion031, 0, false, p2pcommon.HSHeadResp{p2pcommon.MAGICMain, p2pcommon.P2PVersion031.Uint32()}.Marshal(), false},

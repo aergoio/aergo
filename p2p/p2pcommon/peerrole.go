@@ -5,32 +5,30 @@
 
 package p2pcommon
 
-import "github.com/aergoio/aergo/types"
-
-type PeerRole uint8
-
-const (
-	// UnknownRole is old version or literaly unknown
-	UnknownRole PeerRole = iota
-	BlockProducer
-	Watcher
-	_
+import (
+	"github.com/aergoio/aergo/types"
 )
-//go:generate stringer -type=PeerRole
 
 type PeerRoleManager interface {
 	UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID)
 
 	// SelfRole returns role of this peer itself
-	SelfRole() PeerRole
+	SelfRole() types.PeerRole
 	// GetRole returns role of remote peer
-	GetRole(pid types.PeerID) PeerRole
-	// NotifyNewBlockMsg selects target peers with the appropriate role and sends them a NewBlockNotice
-	NotifyNewBlockMsg(mo MsgOrder, peers []RemotePeer) (skipped, sent int)
+	GetRole(pid types.PeerID) types.PeerRole
+	// FilterBPNoticeReceiver selects target peers with the appropriate role and sends them a BlockProducedNotice
+	FilterBPNoticeReceiver(block *types.Block, pm PeerManager, targetZone PeerZone) []RemotePeer
+
+	// FilterNewBlockNoticeReceiver selects target peers with the appropriate role and sends them a NewBlockNotice
+	FilterNewBlockNoticeReceiver(block *types.Block, pm PeerManager) []RemotePeer
+
+	//ListBlockManagePeers(exclude types.PeerID) map[types.PeerID]bool
 }
+
 //go:generate mockgen -source=peerrole.go -package=p2pmock -destination=../p2pmock/mock_peerrole.go
 
 type AttrModifier struct {
 	ID   types.PeerID
-	Role PeerRole
+	Role types.PeerRole
 }
+

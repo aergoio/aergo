@@ -180,3 +180,14 @@ func (m *GetClusterInfoResponse) MarshalZerologObject(e *zerolog.Event) {
 	e.Str(LogChainID, enc.ToString(m.ChainID)).Str("err", m.Error).Array("members",RaftMbrsMarshaller{arr:m.MbrAttrs, limit:10}).Uint64("cluster_id", m.ClusterID)
 }
 
+func (m *IssueCertificateResponse) MarshalZerologObject(e *zerolog.Event) {
+	if m.Certificate != nil {
+		e.Str("cert", m.Certificate.String())
+	}
+}
+
+func (m *CertificateRenewedNotice) MarshalZerologObject(e *zerolog.Event) {
+	if m.Certificate != nil {
+		e.Str("cert", m.Certificate.String())
+	}
+}

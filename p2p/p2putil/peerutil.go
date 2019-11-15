@@ -32,3 +32,13 @@ func ShortForm(pid types.PeerID) string {
 func ShortMetaForm(m p2pcommon.PeerMeta) string {
 	return fmt.Sprintf("%s:%d/%s", m.PrimaryAddress(), m.PrimaryPort(), ShortForm(m.ID))
 }
+
+func ContainsID(pool []types.PeerID, id types.PeerID) bool {
+	for _, pid := range pool {
+		if types.IsSamePeerID(pid, id) {
+			return true
+		}
+	}
+	return false
+}
+

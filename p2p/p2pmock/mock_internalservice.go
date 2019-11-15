@@ -62,18 +62,18 @@ func (mr *MockInternalServiceMockRecorder) SelfNodeID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfNodeID", reflect.TypeOf((*MockInternalService)(nil).SelfNodeID))
 }
 
-// SelfRole mocks base method
-func (m *MockInternalService) SelfRole() p2pcommon.PeerRole {
+// LocalSettings mocks base method
+func (m *MockInternalService) LocalSettings() p2pcommon.LocalSettings {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SelfRole")
-	ret0, _ := ret[0].(p2pcommon.PeerRole)
+	ret := m.ctrl.Call(m, "LocalSettings")
+	ret0, _ := ret[0].(p2pcommon.LocalSettings)
 	return ret0
 }
 
-// SelfRole indicates an expected call of SelfRole
-func (mr *MockInternalServiceMockRecorder) SelfRole() *gomock.Call {
+// LocalSettings indicates an expected call of LocalSettings
+func (mr *MockInternalServiceMockRecorder) LocalSettings() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelfRole", reflect.TypeOf((*MockInternalService)(nil).SelfRole))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalSettings", reflect.TypeOf((*MockInternalService)(nil).LocalSettings))
 }
 
 // GetChainAccessor mocks base method
@@ -88,4 +88,32 @@ func (m *MockInternalService) GetChainAccessor() types.ChainAccessor {
 func (mr *MockInternalServiceMockRecorder) GetChainAccessor() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainAccessor", reflect.TypeOf((*MockInternalService)(nil).GetChainAccessor))
+}
+
+// CertificateManager mocks base method
+func (m *MockInternalService) CertificateManager() p2pcommon.CertificateManager {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CertificateManager")
+	ret0, _ := ret[0].(p2pcommon.CertificateManager)
+	return ret0
+}
+
+// CertificateManager indicates an expected call of CertificateManager
+func (mr *MockInternalServiceMockRecorder) CertificateManager() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CertificateManager", reflect.TypeOf((*MockInternalService)(nil).CertificateManager))
+}
+
+// RoleManager mocks base method
+func (m *MockInternalService) RoleManager() p2pcommon.PeerRoleManager {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RoleManager")
+	ret0, _ := ret[0].(p2pcommon.PeerRoleManager)
+	return ret0
+}
+
+// RoleManager indicates an expected call of RoleManager
+func (mr *MockInternalServiceMockRecorder) RoleManager() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RoleManager", reflect.TypeOf((*MockInternalService)(nil).RoleManager))
 }

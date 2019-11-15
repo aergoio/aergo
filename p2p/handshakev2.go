@@ -32,6 +32,7 @@ type baseWireHandshaker struct {
 
 	result     p2pcommon.HandshakeResult
 	remoteMeta p2pcommon.PeerMeta
+	remoteCert []*p2pcommon.AgentCertificateV1
 }
 
 type InboundWireHandshaker struct {

@@ -63,7 +63,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	newChainBytes, _ := newChainID.Bytes()
 
  	diffBlockNo := dummyBlockHeight+100000
-	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID,"dummy.aergo.io", 7846)
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
@@ -71,14 +71,14 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenesis := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	dummyStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestBlockHash:dummyBlockHash, BestHeight:dummyBlockHeight}
+	dummyStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestBlockHash:dummyBlockHash, BestHeight:dummyBlockHeight, Version:dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash:types.MustParseBlockID(dummyBlockHash), BestBlockNo:dummyBlockHeight}
-	diffGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: diffGenesis}
-	nilGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: nil}
+	diffGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: diffGenesis, Version:dummyAddr.Version}
+	nilGenesisStatusMsg := &types.Status{ChainID: localChainBytes, Sender: &dummyAddr, Genesis: nil, Version:dummyAddr.Version}
 	nilSenderStatusMsg := &types.Status{ChainID: localChainBytes, Sender: nil, Genesis: dummyGenHash}
-	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:diffBlockNo}
-	olderStatusMsg := &types.Status{ChainID: oldChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:10000}
-	newerStatusMsg := &types.Status{ChainID: newChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:600000}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:diffBlockNo, Version:dummyAddr.Version}
+	olderStatusMsg := &types.Status{ChainID: oldChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:10000, Version:dummyAddr.Version}
+	newerStatusMsg := &types.Status{ChainID: newChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, BestHeight:600000, Version:dummyAddr.Version}
 	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
 
 	tests := []struct {
@@ -131,7 +131,7 @@ func TestV033VersionedHS_DoForOutbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+				if !got.Meta.Equals(tt.want.Meta) {
 					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
@@ -151,7 +151,7 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID,"dummy.aergo.io", 7846)
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
@@ -161,13 +161,13 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenHash := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta, BestBlockHash:types.MustParseBlockID(dummyBlockHash), BestBlockNo:dummyBlockHeight}
-	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash}
-	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil}
-	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash}
-	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
-	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash}
+	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash, Version:dummyAddr.Version}
+	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version:dummyAddr.Version}
+	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	diffVersionStatusMsg := &types.Status{ChainID: newVerChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -215,7 +215,7 @@ func TestV033VersionedHS_DoForInbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+				if !got.Meta.Equals(tt.want.Meta) {
 					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {

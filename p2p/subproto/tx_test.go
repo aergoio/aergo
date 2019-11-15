@@ -249,7 +249,7 @@ func TestNewTxNoticeHandler_handle(t *testing.T) {
 	logger := log.NewLogger("test.subproto")
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
 	var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
-	sampleMeta := p2pcommon.NewMetaWith1Addr(dummyPeerID, "192.168.1.2", 4321)
+	sampleMeta := p2pcommon.NewMetaWith1Addr(dummyPeerID, "192.168.1.2", 4321, "v2.0.0")
 	sampleHeader := &testMessage{id:p2pcommon.NewMsgID()}
 
 	var filledArrs = make([]types.TxID, 1)

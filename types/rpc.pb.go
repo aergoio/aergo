@@ -698,6 +698,8 @@ type Peer struct {
 	LashCheck            int64           `protobuf:"varint,5,opt,name=lashCheck,proto3" json:"lashCheck,omitempty"`
 	Selfpeer             bool            `protobuf:"varint,6,opt,name=selfpeer,proto3" json:"selfpeer,omitempty"`
 	Version              string          `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	Certificates         []*AgentCertificate `protobuf:"bytes,8,rep,name=certificates,proto3" json:"certificates,omitempty"`
+	AcceptedRole         PeerRole            `protobuf:"varint,9,opt,name=acceptedRole,proto3,enum=types.PeerRole" json:"acceptedRole,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -774,6 +776,20 @@ func (m *Peer) GetVersion() string {
 		return m.Version
 	}
 	return ""
+}
+
+func (m *Peer) GetCertificates() []*AgentCertificate {
+	if m != nil {
+		return m.Certificates
+	}
+	return nil
+}
+
+func (m *Peer) GetAcceptedRole() PeerRole {
+	if m != nil {
+		return m.AcceptedRole
+	}
+	return PeerRole_LegacyVersion
 }
 
 type PeerList struct {

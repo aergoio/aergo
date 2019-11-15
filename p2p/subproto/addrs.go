@@ -54,7 +54,7 @@ func (ph *addressesRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 		if aPeer.ID() == peerID {
 			continue
 		}
-		if aPeer.Meta().Hidden {
+		if aPeer.RemoteInfo().Hidden {
 			continue
 		}
 

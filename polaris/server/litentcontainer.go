@@ -28,11 +28,20 @@ import (
 type LiteContainerService struct {
 	*component.BaseComponent
 
+	dummySetting p2pcommon.LocalSettings
 	chainID *types.ChainID
 	meta    p2pcommon.PeerMeta
 	nt      p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
+}
+
+func (lntc *LiteContainerService) LocalSettings() p2pcommon.LocalSettings {
+	return lntc.dummySetting
+}
+
+func (lntc *LiteContainerService) RoleManager() p2pcommon.PeerRoleManager {
+	panic("implement me")
 }
 
 var (
@@ -179,12 +188,17 @@ func (lntc *LiteContainerService) SelfNodeID() types.PeerID {
 	return lntc.meta.ID
 }
 
-func (lntc *LiteContainerService) SelfRole() p2pcommon.PeerRole {
+func (lntc *LiteContainerService) SelfRole() types.PeerRole {
 	// return dummy value
-	return p2pcommon.Watcher
+	return types.PeerRole_Watcher
 }
 
 func (lntc *LiteContainerService) GetChainAccessor() types.ChainAccessor {
+	// return dummy value
+	return nil
+}
+
+func (lntc *LiteContainerService) CertificateManager() p2pcommon.CertificateManager {
 	// return dummy value
 	return nil
 }

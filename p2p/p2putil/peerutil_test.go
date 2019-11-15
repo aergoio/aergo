@@ -30,7 +30,7 @@ func TestPeerMeta_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := p2pcommon.NewMetaWith1Addr(tt.fields.id, tt.fields.ip, tt.fields.port)
+			m := p2pcommon.NewMetaWith1Addr(tt.fields.id, tt.fields.ip, tt.fields.port, "v2.0.0")
 			actual := ShortMetaForm(m)
 			wantIP := net.ParseIP(tt.fields.ip)
 			if !strings.Contains(actual, wantIP.String()) {

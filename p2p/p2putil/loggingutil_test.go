@@ -66,7 +66,7 @@ func TestLogStringersMarshaler_MarshalZerologArray(t *testing.T) {
 func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 	sampleArr := make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
-		meta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), fmt.Sprintf("192.168.0.%d", i), uint32(i * 1000) )
+		meta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), fmt.Sprintf("192.168.0.%d", i), uint32(i*1000), "v2.0.0")
 		meta.Hidden = i%2 == 0
 		sampleArr[i] = meta
 	}

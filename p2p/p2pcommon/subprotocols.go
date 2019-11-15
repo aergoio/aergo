@@ -14,7 +14,11 @@ const (
 	GoAway
 	AddressesRequest
 	AddressesResponse
+	IssueCertificateRequest
+	IssueCertificateResponse
+	CertificateRenewedNotice
 )
+
 const (
 	GetBlocksRequest SubProtocol = 0x010 + iota
 	GetBlocksResponse

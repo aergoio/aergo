@@ -9,9 +9,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"net"
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -99,9 +102,8 @@ func TestV200StatusHS_doForOutbound(t *testing.T) {
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test")
-	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockIS := p2pmock.NewMockInternalService(ctrl)
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
-	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 	fc := newFC(*myChainID, 10000, 20000, dummyBlockHeight+100)
 	localChainID := *fc.getChainID(dummyBlockHeight)
@@ -112,12 +114,12 @@ func TestV200StatusHS_doForOutbound(t *testing.T) {
 	newChainBytes, _ := newChainID.Bytes()
 
 	diffBlockNo := dummyBlockHeight + 100000
-	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846)
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyMeta.Version = sampleVersion
 	dummyAddr := dummyMeta.ToPeerAddress()
-	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
-	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
+	mockIS.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
+	mockIS.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
@@ -183,7 +185,7 @@ func TestV200StatusHS_doForOutbound(t *testing.T) {
 			mockVM.EXPECT().GetBestChainID().Return(myChainID).AnyTimes()
 			mockVM.EXPECT().GetChainID(gomock.Any()).DoAndReturn(fc.getChainID).AnyTimes()
 
-			h := NewV200VersionedHS(mockPM, mockActor, logger, mockVM, samplePeerID, dummyReader, dummyGenHash)
+			h := NewV200VersionedHS(mockIS, logger, mockVM, nil, samplePeerID, dummyReader, dummyGenHash)
 			h.msgRW = mockRW
 			got, err := h.DoForOutbound(context.Background())
 			if (err != nil) != tt.wantErr {
@@ -191,7 +193,7 @@ func TestV200StatusHS_doForOutbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+				if !got.Meta.Equals(tt.want.Meta) {
 					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
@@ -207,9 +209,8 @@ func TestV200VersionedHS_DoForInbound(t *testing.T) {
 
 	// t.SkipNow()
 	logger := log.NewLogger("test")
-	mockActor := p2pmock.NewMockActorService(ctrl)
+	mockIS := p2pmock.NewMockInternalService(ctrl)
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
-	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 	fc := newFC(*myChainID, 10000, 20000, dummyBlockHeight+100)
 	localChainID := *fc.getChainID(dummyBlockHeight)
@@ -219,13 +220,13 @@ func TestV200VersionedHS_DoForInbound(t *testing.T) {
 	newChainID := fc.getChainID(600000)
 	newChainBytes, _ := newChainID.Bytes()
 
-	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846)
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyMeta.Version = sampleVersion
 	dummyAddr := dummyMeta.ToPeerAddress()
-	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	//dummyBlkRsp := message.GetBestBlockRsp{Block: dummyBlock}
-	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
+	mockIS.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
+	mockIS.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
@@ -284,7 +285,7 @@ func TestV200VersionedHS_DoForInbound(t *testing.T) {
 			mockVM.EXPECT().GetBestChainID().Return(myChainID).AnyTimes()
 			mockVM.EXPECT().GetChainID(gomock.Any()).DoAndReturn(fc.getChainID).AnyTimes()
 
-			h := NewV200VersionedHS(mockPM, mockActor, logger, mockVM, samplePeerID, dummyReader, dummyGenHash)
+			h := NewV200VersionedHS(mockIS, logger, mockVM, nil, samplePeerID, dummyReader, dummyGenHash)
 			h.msgRW = mockRW
 			got, err := h.DoForInbound(context.Background())
 			if (err != nil) != tt.wantErr {
@@ -292,7 +293,7 @@ func TestV200VersionedHS_DoForInbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.Meta, tt.want.Meta) {
+				if !got.Meta.Equals(tt.want.Meta) {
 					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
@@ -337,6 +338,183 @@ func Test_createMessage(t *testing.T) {
 			}
 			if got != nil && got.Subprotocol() != tt.args.protocolID {
 				t.Errorf("status.ProtocolID = %v, want %v", got.Subprotocol(), tt.args.protocolID)
+			}
+		})
+	}
+}
+
+func TestV200Handshaker_createLocalStatus(t *testing.T) {
+	logger := log.NewLogger("handshake.test")
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
+	dummyMeta.Version = sampleVersion
+
+	sampleSize := 5
+	certs := make([]*p2pcommon.AgentCertificateV1,sampleSize)
+	pids := make([]types.PeerID,sampleSize)
+
+	for i := 0 ; i<5 ; i++ {
+		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		id, _ := types.IDFromPrivateKey(priv)
+		pids[i] = id
+ 		certs[i], _ = p2putil.NewAgentCertV1(id, samplePeerID,p2putil.ConvertPKToBTCEC(priv), []string{"192.168.1.3"}, time.Hour*24 )
+	}
+	wrongCert := *certs[0]
+	wrongCert.AgentAddress = []string{}
+	type args struct {
+		role types.PeerRole
+		pids []types.PeerID
+		cert []*p2pcommon.AgentCertificateV1
+	}
+	tests := []struct {
+		name string
+
+		args        args
+
+		wantProdIDs []types.PeerID
+		wantCert    []*p2pcommon.AgentCertificateV1
+		wantErr     bool
+	}{
+		{"TBP", args{types.PeerRole_Producer, nil, nil}, nil, nil, false},
+		{"TWatcher", args{types.PeerRole_Watcher, nil, nil}, nil, nil, false},
+		{"TAgent", args{types.PeerRole_Agent, pids, certs}, pids, certs, false},
+		{"TAgentLessCert", args{types.PeerRole_Agent, pids, certs[1:3]},  pids, certs[1:3], false},
+		{"TWrongCert", args{types.PeerRole_Agent, pids, []*p2pcommon.AgentCertificateV1{&wrongCert}},  pids, certs[1:3], true},
+
+		//{"TAgentUnknownCert", args{types.PeerRole_Agent, pids[:2], certs}, nil, nil, true},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			dummyReader := p2pmock.NewMockReadWriteCloser(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockVM := p2pmock.NewMockVersionedManager(ctrl)
+			mockCM := p2pmock.NewMockCertificateManager(ctrl)
+
+			inMeta := dummyMeta
+			inMeta.Role = tt.args.role
+			inMeta.ProducerIDs = tt.args.pids
+			sampleChainID := &types.ChainID{}
+			sampleBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{}}
+			mockCM.EXPECT().GetCertificates().Return(tt.args.cert).MaxTimes(1)
+			mockIS.EXPECT().SelfMeta().Return(inMeta).AnyTimes()
+
+			h := NewV200VersionedHS(mockIS, logger, mockVM, mockCM, samplePeerID, dummyReader, dummyGenHash)
+
+			got, err := h.createLocalStatus(sampleChainID, sampleBlock)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("createLocalStatus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				sender := got.Sender
+				if sender.Role != tt.args.role {
+					t.Errorf("createLocalStatus() role = %v, want %v", sender.Role, tt.args.role)
+				}
+				if len(sender.ProducerIDs) != len(tt.wantProdIDs) {
+					t.Errorf("createLocalStatus() producers = %v, want %v", sender.ProducerIDs, tt.wantProdIDs)
+				} else {
+					for i, pid := range tt.wantProdIDs {
+						gpid := types.PeerID(sender.ProducerIDs[i])
+						if !types.IsSamePeerID(gpid, pid) {
+							t.Errorf("createLocalStatus() producers = %v, wantErr %v", sender.ProducerIDs, tt.wantProdIDs)
+							return
+						}
+					}
+				}
+				if len(got.Certificates) != len(tt.wantCert) {
+					t.Errorf("createLocalStatus() certs size = %v, want %v", len(got.Certificates) , len(tt.wantCert))
+					return
+				} else {
+					for i, c := range tt.wantCert {
+						conv, err := p2putil.ConvertCertToProto(c)
+						if err != nil {
+							t.Fatalf("converting certs failed = Err %v", err.Error())
+						}
+						pc := got.Certificates[i]
+						if !reflect.DeepEqual(conv, pc) {
+							t.Fatalf("createLocalStatus() cert %v, want %v", pc, conv)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestV200Handshaker_checkAgent(t *testing.T) {
+	logger := log.NewLogger("handshake.test")
+	ipInternal := "192.168.1.33"
+	ipExternal1 := "192.168.2.9"
+	//ipExternal2 := "211.44.55.66"
+
+	agentID := types.RandomPeerID()
+	producerIDs := make([]types.PeerID,5)
+	certs := make([]*p2pcommon.AgentCertificateV1,5)
+	for i := 0 ; i<5 ; i++ {
+		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+		id, _ := types.IDFromPrivateKey(priv)
+		producerIDs[i] = id
+		certs[i], _ = p2putil.NewAgentCertV1(id, agentID,p2putil.ConvertPKToBTCEC(priv), []string{ipExternal1}, time.Hour*24 )
+		logger.Info().Str("peerID",p2putil.ShortForm(id)).Int("idx",i).Msg("producer id")
+	}
+	pCerts,_  := p2putil.ConvertCertsToProto(certs)
+	wrongCert := *certs[0]
+	wrongPCert, _ := p2putil.ConvertCertToProto(&wrongCert)
+	wrongPCert.AgentAddress = [][]byte{}
+
+	selfMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
+	selfMeta.Version = sampleVersion
+
+	_, n, _  := net.ParseCIDR(ipInternal+"/24")
+	sampleSettings := p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{n} }
+	type args struct {
+		rID types.PeerID
+		rAddr string
+		rCerts []*types.AgentCertificate
+
+	}
+	tests := []struct {
+		name    string
+
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		// success
+		{"T1",args{agentID, ipInternal, pCerts[:3]}, false},
+		// agentID mismatch
+		{"TAgentIDMismatch",args{types.RandomPeerID(), ipInternal, pCerts[:3]}, true},
+		// not in charged
+		{"TBPIDMismatch",args{agentID, ipInternal, pCerts[2:4]}, true},
+		// wrong cert
+		{"TWrongCert",args{agentID, ipInternal, []*types.AgentCertificate{pCerts[2], wrongPCert}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			dummyReader := p2pmock.NewMockReadWriteCloser(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockVM := p2pmock.NewMockVersionedManager(ctrl)
+			mockCM := p2pmock.NewMockCertificateManager(ctrl)
+			mockIS.EXPECT().SelfMeta().Return(selfMeta).AnyTimes()
+			mockIS.EXPECT().LocalSettings().Return(sampleSettings).AnyTimes()
+
+			rMeta := p2pcommon.NewMetaWith1Addr(tt.args.rID, tt.args.rAddr, 7846, sampleVersion)
+			rMeta.Role = types.PeerRole_Agent
+			rMeta.ProducerIDs = producerIDs[:3]
+			pa := rMeta.ToPeerAddress()
+			inStatus := &types.Status{Sender:&pa, Certificates:tt.args.rCerts}
+
+			h := NewV200VersionedHS(mockIS, logger, mockVM, mockCM, samplePeerID, dummyReader, dummyGenHash)
+			h.remoteMeta = rMeta
+
+			if err := h.checkAgent(inStatus); (err != nil) != tt.wantErr {
+				t.Errorf("checkAgent() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

@@ -87,6 +87,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPPeerPool:      100,
 		NPUsePolaris:    true,
 		NPExposeSelf:    true,
+		PeerRole:        "",
 	}
 }
 
@@ -98,8 +99,8 @@ func (ctx *ServerContext) GetDefaultAuthConfig() *AuthConfig {
 
 func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	return &PolarisConfig{
-		GenesisFile:  "",
-		AllowPrivate: false,
+		GenesisFile:     "",
+		AllowPrivate:    false,
 		EnableBlacklist: true,
 	}
 }
