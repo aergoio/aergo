@@ -151,17 +151,21 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
 	stake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")
-	_, err = stake.run()
+	event, err := stake.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
+	assert.Equal(t, event.EventName, "stake", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"amount\":\"10000000000000000000000\"}", "event args")
 
 	tx.Body.Payload = buildVotingPayload(1)
 	blockInfo.No += VotingDelay
 	voting, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
-	_, err = voting.run()
+	event, err = voting.run()
 	assert.NoError(t, err, "voting failed")
+	assert.Equal(t, event.EventName, "voteBP", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"vote\":[\"111111111111111111111111111111111111111\"]}")
 
 	result, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
@@ -176,14 +180,45 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	blockInfo.No += StakingDelay
 	unstake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "unstaking failed")
-	_, err = unstake.run()
+	event, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
+	assert.Equal(t, event.EventName, "unstake", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"amount\":\"10000000000000000000000\"}", "event args")
 
 	result2, err := getVoteResult(scs, defaultVoteKey, 23)
 	assert.NoError(t, err, "voting failed")
 	assert.EqualValues(t, len(result2.GetVotes()), 1, "invalid voting result")
 	assert.Equal(t, result.GetVotes()[0].Candidate, result2.GetVotes()[0].Candidate, "invalid candidate in voting result")
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
+
+	blockInfo.No += StakingDelay
+	blockInfo.Version = 2
+	tx.Body.Payload = buildStakingPayload(true)
+	stake, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	assert.NoError(t, err, "staking validation")
+	event, err = stake.run()
+	assert.NoError(t, err, "staking failed")
+	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
+		"sender.Balance() should be reduced after staking")
+	assert.Equal(t, event.EventName, "stake", "event name")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
+
+	tx.Body.Payload = buildVotingPayload(2)
+	blockInfo.No += VotingDelay
+	voting, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	assert.NoError(t, err, "voting failed")
+	event, err = voting.run()
+	assert.NoError(t, err, "voting failed")
+	assert.Equal(t, event.EventName, "voteBP", "event name")
+	assert.Equal(t, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"[\"111111111111111111111111111111111111111\",\"esSRNKFHpMYCTUPeaQ3coZDgiERzi8R6g6UNFHhEhVwD5jvYV81M\"]\"]", event.JsonArgs, "event args")
+
+	blockInfo.No += StakingDelay
+	tx.Body.Payload = buildStakingPayload(false)
+	unstake, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	event, err = unstake.run()
+	assert.NoError(t, err, "unstaking failed")
+	assert.Equal(t, event.EventName, "unstake", "event name")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
 }
 
 func buildVotingPayload(count int) []byte {

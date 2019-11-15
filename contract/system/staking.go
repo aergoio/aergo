@@ -61,13 +61,23 @@ func (c *stakeCmd) run() (*types.Event, error) {
 	}
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
+	if c.SystemContext.BlockInfo.Version < 2 {
+		return &types.Event{
+			ContractAddress: receiver.ID(),
+			EventIdx:        0,
+			EventName:       "stake",
+			JsonArgs: `{"who":"` +
+				types.EncodeAddress(sender.ID()) +
+				`", "amount":"` + amount.String() + `"}`,
+		}, nil
+	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "stake",
-		JsonArgs: `{"who":"` +
+		JsonArgs: `["` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + amount.String() + `"}`,
+			`", "` + amount.String() + `"]`,
 	}, nil
 }
 
@@ -104,13 +114,23 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}
 	sender.AddBalance(balanceAdjustment)
 	receiver.SubBalance(balanceAdjustment)
+	if c.SystemContext.BlockInfo.Version < 2 {
+		return &types.Event{
+			ContractAddress: receiver.ID(),
+			EventIdx:        0,
+			EventName:       "unstake",
+			JsonArgs: `{"who":"` +
+				types.EncodeAddress(sender.ID()) +
+				`", "amount":"` + balanceAdjustment.String() + `"}`,
+		}, nil
+	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "unstake",
-		JsonArgs: `{"who":"` +
+		JsonArgs: `["` +
 			types.EncodeAddress(sender.ID()) +
-			`", "amount":"` + balanceAdjustment.String() + `"}`,
+			`", "` + balanceAdjustment.String() + `"]`,
 	}, nil
 }
 

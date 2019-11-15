@@ -150,14 +150,23 @@ func (c *voteCmd) run() (*types.Event, error) {
 	if err := c.updateVoteResult(); err != nil {
 		return nil, err
 	}
-
+	if c.SystemContext.BlockInfo.Version < 2 {
+		return &types.Event{
+			ContractAddress: c.Receiver.ID(),
+			EventIdx:        0,
+			EventName:       c.op.ID(),
+			JsonArgs: `{"who":"` +
+				types.EncodeAddress(c.txBody.Account) +
+				`", "vote":` + string(c.args) + `}`,
+		}, nil
+	}
 	return &types.Event{
 		ContractAddress: c.Receiver.ID(),
 		EventIdx:        0,
 		EventName:       c.op.ID(),
-		JsonArgs: `{"who":"` +
+		JsonArgs: `["` +
 			types.EncodeAddress(c.txBody.Account) +
-			`", "vote":` + string(c.args) + `}`,
+			`", "` + string(c.args) + `"]`,
 	}, nil
 }
 

@@ -29,9 +29,11 @@ func TestBasicStakingUnstaking(t *testing.T) {
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
 	staking, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
-	_, err = staking.run()
+	event, err := staking.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
+	assert.Equal(t, event.EventName, "stake", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"amount\":\"10000000000000000000000\"}", "event args")
 	saved, err := getStaking(scs, tx.Body.Account)
 	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
 	total, err := getStakingTotal(scs)
@@ -44,9 +46,56 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	blockInfo.No++
 	unstake, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "should be success")
-	_, err = unstake.run()
+	event, err = unstake.run()
 	assert.NoError(t, err, "should be success")
 	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
+	assert.Equal(t, event.EventName, "unstake", "event name")
+	assert.Equal(t, event.JsonArgs, "{\"who\":\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"amount\":\"10000000000000000000000\"}", "event args")
+	saved, err = getStaking(scs, tx.Body.Account)
+	assert.Equal(t, new(big.Int).SetUint64(0).Bytes(), saved.Amount, "saved staking value")
+	total, err = getStakingTotal(scs)
+	assert.NoError(t, err, "should be success")
+	assert.Equal(t, new(big.Int).SetUint64(0), total, "total value")
+}
+
+func TestBasicStakingUnstakingV2(t *testing.T) {
+	scs, sender, receiver := initTest(t)
+	defer deinitTest()
+
+	tx := &types.Tx{
+		Body: &types.TxBody{
+			Account: sender.ID(),
+			Amount:  types.StakingMinimum.Bytes(),
+			Payload: []byte(`{"Name":"v1stake"}`),
+		},
+	}
+	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
+	sender.AddBalance(minplusmin)
+
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 2}
+	staking, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	event, err := staking.run()
+	assert.NoError(t, err, "staking failed")
+	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
+	assert.Equal(t, event.EventName, "stake", "event name")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
+	saved, err := getStaking(scs, tx.Body.Account)
+	assert.Equal(t, types.StakingMinimum.Bytes(), saved.Amount, "saved staking value")
+	total, err := getStakingTotal(scs)
+	assert.Equal(t, types.StakingMinimum, total, "total value")
+	blockInfo.No += (StakingDelay - 1)
+	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
+	_, err = ValidateSystemTx(sender.ID(), tx.GetBody(), sender, scs, blockInfo)
+	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
+
+	blockInfo.No++
+	unstake, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	assert.NoError(t, err, "should be success")
+	event, err = unstake.run()
+	assert.NoError(t, err, "should be success")
+	assert.Equal(t, sender.Balance(), minplusmin, "sender.Balance() cacluation failed")
+	assert.Equal(t, event.EventName, "unstake", "event name")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
 	saved, err = getStaking(scs, tx.Body.Account)
 	assert.Equal(t, new(big.Int).SetUint64(0).Bytes(), saved.Amount, "saved staking value")
 	total, err = getStakingTotal(scs)

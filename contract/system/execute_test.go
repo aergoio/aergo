@@ -524,7 +524,9 @@ func TestProposalExecute(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockInfo)
+	event, err := ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockInfo)
+	assert.Equal(t, "voteDAO", event[0].EventName, "event name")
+	assert.Equal(t, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"[\"13\"]\"]", event[0].JsonArgs, "event args")
 	assert.NoError(t, err, "failed in voting proposal")
 
 	vinfo, err := GetVotes(scs, sender.ID())
