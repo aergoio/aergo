@@ -20,12 +20,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"index/suffixarray"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/aergoio/aergo/cmd/aergoluac/util"
 
 	"github.com/aergoio/aergo/internal/common"
 
@@ -294,7 +296,6 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 			senderState.GetBalanceBigInt().String(), cs.curState.GetBalanceBigInt().String()))
 	}
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaCallContract] database error: " + err.Error())
 	}
 	ctx.curContract = newContractInfo(cs, prevContractInfo.contractId, cid,
@@ -375,7 +376,6 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
 	}
 	if ctx.traceFile != nil {
@@ -472,7 +472,6 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		}
 		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false)
 		if err != nil {
-			C.luaL_setsyserror(L)
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
 		if ctx.traceFile != nil {
@@ -601,7 +600,6 @@ func luaSetRecoveryPoint(L *LState, service *C.int) (C.int, *C.char) {
 	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
 		curContract.callState, zeroBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[Contract.pcall] database error: " + err.Error())
 	}
 	if ctx.traceFile != nil {
@@ -615,7 +613,6 @@ func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
 	for {
 		if error {
 			if item.recovery() != nil {
-				C.luaL_setsyserror(L)
 				return errors.New("database error")
 			}
 		}
@@ -1078,7 +1075,6 @@ func luaDeployContract(
 
 	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
 	if ctx.traceFile != nil {
@@ -1116,7 +1112,6 @@ func luaDeployContract(
 	// create a sql database for the contract
 	if !HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
 		if db := luaGetDbHandle(&ctx.service); db == nil {
-			C.luaL_setsyserror(L)
 			return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
 		}
 	}
@@ -1270,7 +1265,6 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 	}
 	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false)
 	if err != nil {
-		C.luaL_setsyserror(L)
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
 	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, ctx.blockInfo)
@@ -1362,4 +1356,37 @@ func luaIsFeeDelegation(L *LState, service *C.int) (C.int, *C.char) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+//export LuaGetDbHandleSnap
+func LuaGetDbHandleSnap(service *C.int, snap *C.char) *C.char {
+	stateSet := contexts[*service]
+	curContract := stateSet.curContract
+	callState := curContract.callState
+
+	if stateSet.isQuery != true {
+		return C.CString("[Contract.LuaSetDbSnap] not permitted in transaction")
+	}
+	if callState.tx != nil {
+		return C.CString("[Contract.LuaSetDbSnap] transaction already started")
+	}
+	rp, err := strconv.ParseUint(C.GoString(snap), 10, 64)
+	if err != nil {
+		return C.CString("[Contract.LuaSetDbSnap] snapshot is not valid" + C.GoString(snap))
+	}
+	aid := types.ToAccountID(curContract.contractId)
+	tx, err := beginReadOnly(aid.String(), rp)
+	if err != nil {
+		return C.CString("Error Begin SQL Transaction")
+	}
+	callState.tx = tx
+	return nil
+}
+
+//export LuaGetDbSnapshot
+func LuaGetDbSnapshot(service *C.int) *C.char {
+	stateSet := contexts[*service]
+	curContract := stateSet.curContract
+
+	return C.CString(strconv.FormatUint(curContract.rp, 10))
 }

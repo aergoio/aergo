@@ -41,6 +41,7 @@ var (
 	TraceBlockNo   uint64
 	HardforkConfig *config.HardforkConfig
 	bpTimeout      <-chan struct{}
+	maxSQLDBSize   uint32
 )
 
 const (
@@ -310,4 +311,14 @@ func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint6
 		return 0
 	}
 	return new(big.Int).Div(txFee, gasPrice).Uint64()
+}
+
+func SetStateSQLMaxDBSize(size uint32) {
+	if size > stateSQLMaxDBSize {
+		maxSQLDBSize = stateSQLMaxDBSize
+	} else if size < stateSQLMinDBSize {
+		maxSQLDBSize = stateSQLMinDBSize
+	} else {
+		maxSQLDBSize = size
+	}
 }

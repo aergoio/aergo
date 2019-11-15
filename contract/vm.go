@@ -538,9 +538,9 @@ func (ce *executor) call(target *LState) C.int {
 			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
 				C.luaL_setuncatchablerror(target)
 			}
-			if C.luaL_hassyserror(ce.L) != C.int(0) {
-				C.luaL_setsyserror(target)
-			}
+			//if C.luaL_hassyserror(ce.L) != C.int(0) {
+			//	C.luaL_setsyserror(target)
+			//}
 		}
 		return 0
 	}
@@ -599,7 +599,7 @@ func (ce *executor) commitCalledContract() error {
 		if v.tx != nil {
 			err = v.tx.release()
 			if err != nil {
-				return newDbSystemError(err)
+				return newVmError(err)
 			}
 		}
 		if v.ctrState == rootContract {
@@ -646,7 +646,7 @@ func (ce *executor) rollbackToSavepoint() error {
 		}
 		err = v.tx.rollbackToSavepoint()
 		if err != nil {
-			return newDbSystemError(err)
+			return newVmError(err)
 		}
 	}
 	return nil
@@ -946,7 +946,7 @@ func Create(
 	// create a sql database for the contract
 	if !HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
 		if db := luaGetDbHandle(&ctx.service); db == nil {
-			return "", nil, ctx.usedFee(), newDbSystemError(errors.New("can't open a database connection"))
+			return "", nil, ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
 		}
 	}
 

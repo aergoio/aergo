@@ -76,6 +76,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	loadTestDatabase(dataPath) // sql database
+	SetStateSQLMaxDBSize(1024)
 	StartLStateFactory()
 	HardforkConfig = config.AllEnabledHardforkConfig
 

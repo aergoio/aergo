@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/aergoio/aergo/internal/enc"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/state"
@@ -127,7 +128,7 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 			err := db.tx.commit()
 			db.tx = nil
 			if err != nil {
-				return err
+				continue
 			}
 			rp := db.recoveryPoint()
 			if rp == 0 {
@@ -202,7 +203,11 @@ func conn(dbName string) (*litetree, error) {
 }
 
 func dataSrc(dbName string) string {
-	return fmt.Sprintf("file:%s/%s.db?branches=on&max_db_size=%d", database.DataDir, dbName, StateSqlMaxDbSize)
+	return fmt.Sprintf(
+		"file:%s/%s.db?branches=on&max_db_size=%d",
+		database.DataDir,
+		dbName,
+		maxSQLDBSize*1024*1024)
 }
 
 func readOnlyConn(dbName string) (*litetree, error) {
@@ -421,7 +426,11 @@ func (tx *writableSqlTx) release() error {
 	if sqlLgr.IsDebugEnabled() {
 		sqlLgr.Debug().Str("db_name", tx.litetree.name).Msg("release")
 	}
-	_, err := tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.litetree.name + "\"")
+	err := tx.litetree.conn.DBCacheFlush()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Tx.Exec("RELEASE SAVEPOINT \"" + tx.litetree.name + "\"")
 	return err
 }
 

@@ -15,6 +15,7 @@ import (
 	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/types"
+	aergorpc "github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,8 @@ func init() {
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
 	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "redeploy the contract")
+	deployCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to account data directory")
+	deployCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	callCmd := &cobra.Command{
 		Use:   "call [flags] sender contract funcname '[argument...]'",
@@ -60,6 +63,8 @@ func init() {
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
 	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "fee dellegation")
+	callCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to account data directory")
+	callCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	stateQueryCmd := &cobra.Command{
 		Use:   "statequery [flags] contract varname varindex",
@@ -169,11 +174,30 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		},
 	}
 
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil || msg == nil {
-		log.Fatal(err)
+	if cmd.Flags().Changed("path") {
+		var msgs *types.CommitResultList
+		if errStr := fillChainId(tx); errStr != "" {
+			cmd.Printf(errStr)
+			return
+		}
+		if errStr := fillSign(tx, dataDir, pw, creator); errStr != "" {
+			cmd.Printf(errStr)
+			return
+		}
+		txs := []*types.Tx{tx}
+		msgs, err = client.CommitTX(context.Background(), &types.TxList{Txs: txs})
+		if err != nil {
+			log.Fatal("Failed request to aergo server\n" + err.Error())
+		}
+		cmd.Println(util.JSON(msgs))
+	} else {
+		msg, err := client.SendTX(context.Background(), tx)
+		if err != nil || msg == nil {
+			log.Fatal(err)
+		}
+		cmd.Println(util.JSON(msg))
+
 	}
-	cmd.Println(util.JSON(msg))
 }
 
 func runCallCmd(cmd *cobra.Command, args []string) {
@@ -275,11 +299,30 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		fmt.Println(util.TxConvBase58Addr(sign))
 		return
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil || msg == nil {
-		log.Fatal(err)
+
+	if cmd.Flags().Changed("path") {
+		var msgs *types.CommitResultList
+		if errStr := fillChainId(tx); errStr != "" {
+			cmd.Printf(errStr)
+			return
+		}
+		if errStr := fillSign(tx, dataDir, pw, caller); errStr != "" {
+			cmd.Printf(errStr)
+			return
+		}
+		txs := []*types.Tx{tx}
+		msgs, err = client.CommitTX(context.Background(), &types.TxList{Txs: txs})
+		if err != nil {
+			log.Fatal("Failed request to aergo server\n" + err.Error())
+		}
+		cmd.Println(util.JSON(msgs))
+	} else {
+		msg, err := client.SendTX(context.Background(), tx)
+		if err != nil || msg == nil {
+			log.Fatal(err)
+		}
+		cmd.Println(util.JSON(msg))
 	}
-	cmd.Println(util.JSON(msg))
 }
 
 func runGetABICmd(cmd *cobra.Command, args []string) {
@@ -357,4 +400,13 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	cmd.Println(ret)
+}
+
+func fillChainId(tx *types.Tx) string {
+	msg, err := client.Blockchain(context.Background(), &aergorpc.Empty{})
+	if err != nil {
+		return fmt.Sprintf("Failed: %s\n", err.Error())
+	}
+	tx.Body.ChainIdHash = msg.GetBestChainIdHash()
+	return ""
 }

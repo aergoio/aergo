@@ -3781,8 +3781,8 @@ function constructor()
     db.exec("insert into table1 (rgtime) values (datetime('2018-10-30 16:00:00'))")
 end
 
-function inserts()
-    for i = 1, 10 do
+function inserts(n)
+    for i = 1, n do
         db.exec("insert into table1 (rgtime) select rgtime from table1")
     end
 end
@@ -3798,8 +3798,49 @@ abi.register(inserts)
 		t.Error(err)
 	}
 
+	// About 900MB
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts"}`),
+		NewLuaTxCall("ktlee", "big", 0, `{"Name": "inserts", "Args":[25]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	SetStateSQLMaxDBSize(20)
+
+	bigSrc = `
+function constructor()
+    db.exec("create table if not exists aergojdbc001 (name text, yyyymmdd text)")
+    db.exec("insert into aergojdbc001 values ('홍길동', '20191007')")
+    db.exec("insert into aergojdbc001 values ('홍길동', '20191007')")
+    db.exec("insert into aergojdbc001 values ('홍길동', '20191007')")
+end
+
+function inserts()
+	db.exec("insert into aergojdbc001 select * from aergojdbc001")
+end
+
+abi.register(inserts)
+`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100),
+		NewLuaTxDef("ktlee", "big20", 0, bigSrc),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < 17; i++ {
+		err = bc.ConnectBlock(
+			NewLuaTxCall("ktlee", "big20", 0, `{"Name": "inserts"}`),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"),
 	)
 	if err != nil {
 		t.Error(err)
@@ -5458,6 +5499,124 @@ func TestFeeDelegation(t *testing.T) {
 		NewLuaTxDef("ktlee", "fd2", 0, definition2),
 	)
 	if strings.Contains(err.Error(), "no 'check_delegation' function") == false {
+		t.Error(err)
+	}
+}
+
+func TestJdbcSql(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function init()
+    db.exec("create table if not exists total(a int, b int, c text)")
+    db.exec("insert into total(a,c) values (1,2)")
+    db.exec("insert into total values (2,2,3)")
+    db.exec("insert into total values (3,2,3)")
+    db.exec("insert into total values (4,2,3)")
+    db.exec("insert into total values (5,2,3)")
+    db.exec("insert into total values (6,2,3)")
+    db.exec("insert into total values (7,2,3)")
+end
+
+function exec(sql, ...)
+    local stmt = db.prepare(sql)
+    stmt:exec(...)
+end
+
+function query(sql, ...)
+    local stmt = db.prepare(sql)
+	local rs = stmt:query(...)
+    local r = {}
+    local colcnt = rs:colcnt()
+	local colmetas
+    while rs:next() do
+		if colmetas == nil then
+			colmetas = stmt:column_info()
+		end
+
+		local k = {rs:get()}
+		for i = 1, colcnt do
+			if k[i] == nil then
+				k[i] = {}
+			end
+        end
+        table.insert(r, k)
+    end
+--  if (#r == 0) then
+--      return {"colcnt":0, "rowcnt":0}
+--  end
+
+    return {snap=db.getsnap(), colcnt=colcnt, rowcnt=#r, data=r, colmetas=colmetas}
+end
+
+function queryS(snap, sql, ...)
+	db.open_with_snapshot(snap)
+
+    local stmt = db.prepare(sql)
+	local rs = stmt:query(...)
+    local r = {}
+    local colcnt = rs:colcnt()
+	local colmetas
+    while rs:next() do
+		if colmetas == nil then
+			colmetas = stmt:column_info()
+		end
+
+		local k = {rs:get()}
+		for i = 1, colcnt do
+			if k[i] == nil then
+				k[i] = {}
+			end
+        end
+        table.insert(r, k)
+    end
+--  if (#r == 0) then
+--      return {"colcnt":0, "rowcnt":0}
+--  end
+
+    return {snap=db.getsnap(), colcnt=colcnt, rowcnt=#r, data=r, colmetas=colmetas}
+end
+function getmeta(sql)
+    local stmt = db.prepare(sql)
+
+	return stmt:column_info(), stmt:bind_param_cnt()
+end
+abi.register(init, exec, query, getmeta, queryS)`
+
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "jdbc", 0, definition),
+		NewLuaTxCall("ktlee", "jdbc", 0, `{"Name":"init"}`),
+	)
+
+	err = bc.Query("jdbc", `{"Name":"query", "Args":["select a,b,c from total"]}`, "",
+		`{"colcnt":3,"colmetas":{"colcnt":3,"decltypes":["int","int","text"],"names":["a","b","c"]},"data":[[1,{},"2"],[2,2,"3"],[3,2,"3"],[4,2,"3"],[5,2,"3"],[6,2,"3"],[7,2,"3"]],"rowcnt":7,"snap":"2"}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("jdbc", `{"Name":"getmeta", "Args":["select a,b,?+1 from total"]}`, "",
+		`[{"colcnt":3,"decltypes":["int","int",""],"names":["a","b","?+1"]},1]`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "jdbc", 0, `{"Name": "exec", "Args":["insert into total values (3,4,5)"]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("jdbc", `{"Name":"query", "Args":["select a,b,c from total"]}`, "",
+		`{"colcnt":3,"colmetas":{"colcnt":3,"decltypes":["int","int","text"],"names":["a","b","c"]},"data":[[1,{},"2"],[2,2,"3"],[3,2,"3"],[4,2,"3"],[5,2,"3"],[6,2,"3"],[7,2,"3"],[3,4,"5"]],"rowcnt":8,"snap":"3"}`)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("jdbc", `{"Name":"queryS", "Args":["2", "select a,b,c from total"]}`, "",
+		`{"colcnt":3,"colmetas":{"colcnt":3,"decltypes":["int","int","text"],"names":["a","b","c"]},"data":[[1,{},"2"],[2,2,"3"],[3,2,"3"],[4,2,"3"],[5,2,"3"],[6,2,"3"],[7,2,"3"]],"rowcnt":7,"snap":"3"}`)
+	if err != nil {
 		t.Error(err)
 	}
 }

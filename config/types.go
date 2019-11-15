@@ -24,6 +24,7 @@ type Config struct {
 	Account    *AccountConfig    `mapstructure:"account"`
 	Auth       *AuthConfig       `mapstructure:"auth"`
 	Hardfork   *HardforkConfig   `mapstructure:"hardfork"`
+	SQL        *SQLConfig        `mapstructure:"sql"`
 }
 
 // BaseConfig defines base configurations for aergo server
@@ -74,10 +75,10 @@ type P2PConfig struct {
 
 	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
 
-	PeerRole  string   `mapstructure:"peerrole" description:"Role of peer. It must be sync with enablebp field in consensus config "`
-	Producers []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
+	PeerRole      string   `mapstructure:"peerrole" description:"Role of peer. It must be sync with enablebp field in consensus config "`
+	Producers     []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
 	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
-	Agent     string `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
+	Agent         string   `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
 }
 
 // AuthConfig defines configuration for auditing
@@ -149,6 +150,10 @@ type MonitorConfig struct {
 // Account defines configurations for account service
 type AccountConfig struct {
 	UnlockTimeout uint `mapstructure:"unlocktimeout" description:"lock automatically after timeout (sec)"`
+}
+
+type SQLConfig struct {
+	MaxDbSize uint32 `mapstructure:"maxdbsize" description:"maximum database size of a contract (MB)"`
 }
 
 /*

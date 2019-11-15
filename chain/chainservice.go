@@ -286,6 +286,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
+	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
 	contract.StartLStateFactory()
 	contract.HardforkConfig = cs.cfg.Hardfork
 

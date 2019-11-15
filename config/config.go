@@ -19,7 +19,8 @@ type ServerContext struct {
 func NewServerContext(homePath string, configFilePath string) *ServerContext {
 	serverCxt := &ServerContext{}
 	serverCxt.BaseContext = config.NewBaseContext(serverCxt, homePath, configFilePath, EnvironmentPrefix)
-	serverCxt.Vc.SetDefault("blockchain.zerofee", true)
+	serverCxt.Vc.SetDefault("blockchain.zerofee", serverCxt.GetDefaultBlockchainConfig().ZeroFee)
+	serverCxt.Vc.SetDefault("sql.maxdbsize", serverCxt.GetDefaultSQLConfig().MaxDbSize)
 	return serverCxt
 }
 
@@ -48,6 +49,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Auth:       ctx.GetDefaultAuthConfig(),
 		Polaris:    ctx.GetDefaultPolarisConfig(),
 		Hardfork:   ctx.GetDefaultHardforkConfig(),
+		SQL:        ctx.GetDefaultSQLConfig(),
 	}
 }
 
@@ -148,4 +150,10 @@ func (ctx *ServerContext) GetDefaultAccountConfig() *AccountConfig {
 
 func (ctx *ServerContext) GetDefaultHardforkConfig() *HardforkConfig {
 	return AllEnabledHardforkConfig
+}
+
+func (ctx *ServerContext) GetDefaultSQLConfig() *SQLConfig {
+	return &SQLConfig{
+		MaxDbSize: 20,
+	}
 }
