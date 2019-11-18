@@ -28,13 +28,14 @@ var (
 
 	zeroValue = &big.Int{}
 
-	vprKeyPrefix  = []byte("VotingPowerBucket/")
-	fiveAergo, _  = new(big.Int).SetString("5000000000000000000", 10)
-	ten           = new(big.Int).SetUint64(10)
-	million       = new(big.Int).Exp(ten, new(big.Int).SetUint64(6), nil)
-	oneYIS        = new(big.Int).SetUint64(365 * 24 * 60 * 60)
-	defaultReward = new(big.Int).Div(new(big.Int).Mul(fiveAergo, million), oneYIS) // 5M AERGO / Year
-	binSize, _    = new(big.Int).SetString("10000000000000000000000", 10)          // 10000 AERGO
+	vprKeyPrefix     = []byte("VotingPowerBucket/")
+	million          = new(big.Int).Exp(ten, new(big.Int).SetUint64(6), nil)
+	annualRewardM, _ = new(big.Int).SetString("5045760000000000000", 10)
+	annualReward     = new(big.Int).Mul(annualRewardM, million)
+	ten              = new(big.Int).SetUint64(10)
+	oneYIS           = new(big.Int).SetUint64(365 * 24 * 60 * 60)
+	defaultReward    = new(big.Int).Div(annualReward, oneYIS)                // 0.16 AERGO per sec
+	binSize, _       = new(big.Int).SetString("10000000000000000000000", 10) // 10000 AERGO
 
 	votingPowerRank *vpr
 )
