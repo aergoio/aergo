@@ -77,7 +77,7 @@ func (c *stakeCmd) run() (*types.Event, error) {
 		EventName:       "stake",
 		JsonArgs: `["` +
 			types.EncodeAddress(sender.ID()) +
-			`", "` + amount.String() + `"]`,
+			`", {"_bignum":"` + amount.String() + `"}]`,
 	}, nil
 }
 
@@ -130,7 +130,7 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 		EventName:       "unstake",
 		JsonArgs: `["` +
 			types.EncodeAddress(sender.ID()) +
-			`", "` + balanceAdjustment.String() + `"]`,
+			`", {"_bignum":"` + balanceAdjustment.String() + `"}]`,
 	}, nil
 }
 
