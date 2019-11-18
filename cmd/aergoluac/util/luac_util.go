@@ -15,7 +15,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -184,7 +183,7 @@ type LuaCodePayload []byte
 
 const codeLenLen = 4
 
-func NewLuaCodePayload(code types.Code, args []byte) LuaCodePayload {
+func NewLuaCodePayload(code LuaCode, args []byte) LuaCodePayload {
 	payload := make([]byte, codeLenLen+code.Len()+len(args))
 	binary.LittleEndian.PutUint32(payload[0:], uint32(code.Len()+codeLenLen))
 	copy(payload[codeLenLen:], code.Bytes())
@@ -199,7 +198,7 @@ func (p LuaCodePayload) headLen() int {
 	return int(binary.LittleEndian.Uint32(p[:codeLenLen]))
 }
 
-func (p LuaCodePayload) Code() types.Code {
+func (p LuaCodePayload) Code() LuaCode {
 	if v, _ := p.IsValidFormat(); !v {
 		return nil
 	}
