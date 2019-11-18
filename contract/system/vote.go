@@ -84,7 +84,7 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 		}
 		//for event. voteDAO allow only one candidate. it should be validate before.
 		voteID := cmd.Call.Args[0].(string)
-		cmd.args = []byte(strings.ToUpper(voteID) + `, {"_bignum":"` + cmd.Call.Args[1].(string) + `"}`)
+		cmd.args = []byte(`"` + strings.ToUpper(voteID) + `", {"_bignum":"` + cmd.Call.Args[1].(string) + `"}`)
 	} else {
 		cmd.issue = []byte(ctx.op.ID())
 		cmd.args, err = json.Marshal(cmd.Call.Args)
