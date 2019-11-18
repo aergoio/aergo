@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "vm.h"
 #include "system_module.h"
 #include "contract_module.h"
@@ -198,25 +199,27 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id,
 	return NULL;
 }
 
-void vm_getfield(lua_State *L, const char *name)
-{
-	lua_getfield(L, LUA_GLOBALSINDEX, name);
-}
-
 int vm_isnil(lua_State *L, int idx)
 {
-	return lua_isnil(L, idx);
+    uint8_t before = lua_setusegas(L, 0);
+    int isnil = lua_isnil(L, idx);
+    lua_setusegas(L, before);
+	return isnil;
 }
 
 void vm_get_autoload(lua_State *L, char *fname)
 {
+    uint8_t before = lua_setusegas(L, 0);
     lua_getfield(L, LUA_GLOBALSINDEX, fname);
+    lua_setusegas(L, before);
 }
 
 void vm_remove_constructor(lua_State *L)
 {
+    uint8_t before = lua_setusegas(L, 0);
 	lua_pushnil(L);
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
+    lua_setusegas(L, before);
 }
 
 static void count_hook(lua_State *L, lua_Debug *ar)
@@ -311,35 +314,49 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 
 const char *vm_get_json_ret(lua_State *L, int nresult, int* err)
 {
-	int top = lua_gettop(L);
-	char *json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, true);
+    uint8_t before = lua_setusegas(L, 0);
+	int top;
+	char *json_ret;
+
+	top = lua_gettop(L);
+	json_ret = lua_util_get_json_from_stack(L, top - nresult + 1, top, true);
 
 	if (json_ret == NULL) {
 	    *err = 1;
+	    lua_setusegas(L, before);
 		return lua_tostring(L, -1);
     }
 
 	lua_pushstring(L, json_ret);
 	free(json_ret);
 	
+    lua_setusegas(L, before);
 	return lua_tostring(L, -1);
 }
 
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 {
+    uint8_t before1 = lua_setusegas(L, 0);
+    uint8_t before2 = lua_setusegas(target, 0);
 	int i;
-	int top = lua_gettop(L);
+	int top;
 	char *json;
 
+    top = lua_gettop(L);
 	for (i = top - cnt + 1; i <= top; ++i) {
 		json = lua_util_get_json (L, i, false);
-		if (json == NULL)
+		if (json == NULL) {
+		    lua_setusegas(L, before1);
+		    lua_setusegas(target, before2);
 			return lua_tostring(L, -1);
+        }
 
 		minus_inst_count(L, strlen(json));
 		lua_util_json_to_lua(target, json, false);
 		free (json);
 	}
+    lua_setusegas(L, before1);
+    lua_setusegas(target, before2);
 	return NULL;
 }
 
@@ -359,9 +376,11 @@ sqlite3 *vm_get_db(lua_State *L)
 
 void vm_get_abi_function(lua_State *L, char *fname)
 {
+    uint8_t before = lua_setusegas(L, 0);
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "call");
 	lua_pushstring(L, fname);
+	lua_setusegas(L, before);
 }
 
 void vm_internal_view_start(lua_State *L)
