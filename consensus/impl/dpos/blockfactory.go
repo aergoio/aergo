@@ -229,7 +229,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	)
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err = chain.GenerateBlock(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false)
+	block, err = chain.NewBlockGenerator(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false).GenerateBlock()
 	if err != nil {
 		return nil, nil, err
 	}

@@ -515,7 +515,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	)
 	blockState.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err := chain.GenerateBlock(bf, bi, blockState, txOp, RaftSkipEmptyBlock)
+	block, err := chain.NewBlockGenerator(bf, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
 		return nil, nil, chain.ErrBlockEmpty
