@@ -100,8 +100,10 @@ func UnlockChain() {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, bi *types.BlockHeaderInfo, txOp TxOp, maxBlockBodySize uint32) ([]types.Transaction, error) {
+func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	var (
+		bState = g.bState
+
 		nCollected int
 		nCand      int
 	)
@@ -115,7 +117,7 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, bi *ty
 	}
 	defer UnlockChain()
 
-	txIn := FetchTXs(hs, maxBlockBodySize)
+	txIn := FetchTXs(g.hs, g.maxBlockBodySize)
 	nCand = len(txIn)
 
 	txRes := make([]types.Transaction, 0, nCand)
@@ -129,13 +131,13 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, bi *ty
 	}()
 
 	if nCand > 0 {
-		op := NewCompTxOp(txOp)
+		op := NewCompTxOp(g.txOp)
 
 		var preLoadTx *types.Tx
 		for i, tx := range txIn {
 			if i != nCand-1 {
 				preLoadTx = txIn[i+1].GetTx()
-				contract.PreLoadRequest(bState, bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
+				contract.PreLoadRequest(bState, g.bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
 			}
 
 			err := op.Apply(bState, tx)

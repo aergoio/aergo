@@ -65,21 +65,23 @@ func MaxBlockBodySize() uint32 {
 }
 
 type BlockGenerator struct {
-	hs        component.ICompSyncRequester
-	bi        *types.BlockHeaderInfo
-	bState    *state.BlockState
-	txOp      TxOp
-	skipEmpty bool
+	hs               component.ICompSyncRequester
+	bi               *types.BlockHeaderInfo
+	bState           *state.BlockState
+	txOp             TxOp
+	skipEmpty        bool
+	maxBlockBodySize uint32
 }
 
 func NewBlockGenerator(hs component.ICompSyncRequester, bi *types.BlockHeaderInfo, bState *state.BlockState,
 	txOp TxOp, skipEmpty bool) *BlockGenerator {
 	return &BlockGenerator{
-		hs:        hs,
-		bi:        bi,
-		bState:    bState,
-		txOp:      txOp,
-		skipEmpty: skipEmpty,
+		hs:               hs,
+		bi:               bi,
+		bState:           bState,
+		txOp:             txOp,
+		skipEmpty:        skipEmpty,
+		maxBlockBodySize: MaxBlockBodySize(),
 	}
 }
 
@@ -87,7 +89,7 @@ func NewBlockGenerator(hs component.ICompSyncRequester, bi *types.BlockHeaderInf
 func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 	bState := g.bState
 
-	transactions, err := GatherTXs(g.hs, bState, g.bi, g.txOp, MaxBlockBodySize())
+	transactions, err := g.GatherTXs()
 	if err != nil {
 		return nil, err
 	}
