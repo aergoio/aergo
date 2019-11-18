@@ -64,7 +64,55 @@ func MaxBlockBodySize() uint32 {
 	return chain.MaxBlockBodySize()
 }
 
-// GenerateBlock generate & return a new block
+type BlockGenerator struct {
+	hs        component.ICompSyncRequester
+	bi        *types.BlockHeaderInfo
+	bState    *state.BlockState
+	txOp      TxOp
+	skipEmpty bool
+}
+
+func NewBlockGenerator(hs component.ICompSyncRequester, bi *types.BlockHeaderInfo, bState *state.BlockState,
+	txOp TxOp, skipEmpty bool) *BlockGenerator {
+	return &BlockGenerator{
+		hs:        hs,
+		bi:        bi,
+		bState:    bState,
+		txOp:      txOp,
+		skipEmpty: skipEmpty,
+	}
+}
+
+func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
+	bState := g.bState
+
+	transactions, err := GatherTXs(g.hs, bState, g.bi, g.txOp, MaxBlockBodySize())
+	if err != nil {
+		return nil, err
+	}
+	n := len(transactions)
+	if n == 0 && g.skipEmpty {
+		logger.Debug().Msg("BF: empty block is skipped")
+		return nil, ErrBlockEmpty
+	}
+
+	txs := make([]*types.Tx, n)
+	for i, x := range transactions {
+		txs[i] = x.GetTx()
+	}
+
+	block := types.NewBlock(g.bi, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, bState.Consensus())
+	if n != 0 && logger.IsDebugEnabled() {
+		logger.Debug().
+			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
+			Int("hashed", len(txs)).
+			Msg("BF: tx root hash")
+	}
+
+	return block, nil
+}
+
+// GenerateBlock generate & return a new block.
 func GenerateBlock(
 	hs component.ICompSyncRequester,
 	bi *types.BlockHeaderInfo,
