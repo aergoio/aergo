@@ -90,25 +90,28 @@ func Execute(
 	}
 
 	gasLimit := txBody.GetGasLimit()
-	if useGas(bi.Version) && gasLimit == 0 {
-		balance := new(big.Int).Sub(sender.Balance(), new(big.Int).Add(txBody.GetAmountBigInt(), usedFee))
-		n := balance.Div(balance, bs.GasPrice)
-		if n.IsUint64() {
-			gasLimit = n.Uint64()
-		} else {
-			gasLimit = math.MaxUint64
-		}
+	if useGas(bi.Version) {
 		if gasLimit == 0 {
+			balance := new(big.Int).Sub(sender.Balance(), new(big.Int).Add(txBody.GetAmountBigInt(), usedFee))
+			n := balance.Div(balance, bs.GasPrice)
+			if n.IsUint64() {
+				gasLimit = n.Uint64()
+			} else {
+				gasLimit = math.MaxUint64
+			}
+			if gasLimit == 0 {
+				err = newVmError(types.ErrNotEnoughGas)
+				return
+			}
+		}
+		if gasLimit <= fee.TxGas(len(txBody.GetPayload())) {
 			err = newVmError(types.ErrNotEnoughGas)
 			return
 		}
+		gasLimit -= fee.TxGas(len(txBody.GetPayload()))
+	} else {
+		gasLimit = 0
 	}
-
-	if gasLimit <= fee.TxGas(len(txBody.GetPayload())) {
-		err = newVmError(types.ErrNotEnoughGas)
-		return
-	}
-	gasLimit -= fee.TxGas(len(txBody.GetPayload()))
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
