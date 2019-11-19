@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
 	"strings"
 
@@ -401,12 +400,7 @@ func (tx *transaction) GetMaxFee(balance, gasPrice *big.Int, version int32) (*bi
 		minGasLimit := fee.TxGas(len(tx.GetBody().GetPayload()))
 		gasLimit := tx.GetBody().GasLimit
 		if gasLimit == 0 {
-			n := balance.Div(balance, gasPrice)
-			if n.IsUint64() {
-				gasLimit = n.Uint64()
-			} else {
-				gasLimit = math.MaxUint64
-			}
+			gasLimit = fee.MaxGasLimit(balance, gasPrice)
 		}
 		if minGasLimit > gasLimit {
 			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)

@@ -4,7 +4,6 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 
@@ -92,23 +91,19 @@ func Execute(
 	gasLimit := txBody.GetGasLimit()
 	if useGas(bi.Version) {
 		if gasLimit == 0 {
-			balance := new(big.Int).Sub(sender.Balance(), new(big.Int).Add(txBody.GetAmountBigInt(), usedFee))
-			n := balance.Div(balance, bs.GasPrice)
-			if n.IsUint64() {
-				gasLimit = n.Uint64()
-			} else {
-				gasLimit = math.MaxUint64
-			}
+			balance := new(big.Int).Sub(sender.Balance(), usedFee)
+			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 			if gasLimit == 0 {
 				err = newVmError(types.ErrNotEnoughGas)
 				return
 			}
 		}
-		if gasLimit <= fee.TxGas(len(txBody.GetPayload())) {
+		usedGas := fee.TxGas(len(txBody.GetPayload()))
+		if gasLimit <= usedGas {
 			err = newVmError(types.ErrNotEnoughGas)
 			return
 		}
-		gasLimit -= fee.TxGas(len(txBody.GetPayload()))
+		gasLimit -= usedGas
 	} else {
 		gasLimit = 0
 	}
