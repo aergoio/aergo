@@ -491,7 +491,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		return err, true
 	}
 
-	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Msg("Block added successfully")
+	logger.Info().Uint64("best", cs.cdb.getBestBlockNo()).Str("hash", newBlock.ID()).Msg("block added successfully")
 
 	return nil, true
 }

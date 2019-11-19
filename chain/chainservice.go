@@ -626,7 +626,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		defer runtime.UnlockOSThread()
 
 		block := msg.Block
-		logger.Info().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
+		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
 			Uint64("no", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
