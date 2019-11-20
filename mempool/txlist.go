@@ -6,6 +6,7 @@
 package mempool
 
 import (
+	"bytes"
 	"sort"
 	"sync"
 	"time"
@@ -158,6 +159,14 @@ func (tl *txList) FilterByState(st *types.State) (int, []types.Transaction) {
 	}
 
 	tl.list = left
+	tl.updateReady()
+	newCnt := len(tl.list) - tl.ready
+
+	tl.lastTime = time.Now()
+	return oldCnt - newCnt, removed
+}
+
+func (tl *txList) updateReady() {
 	tl.ready = 0
 	for i := 0; i < len(tl.list); i++ {
 		if !tl.continuous(i) {
@@ -165,10 +174,20 @@ func (tl *txList) FilterByState(st *types.State) (int, []types.Transaction) {
 		}
 		tl.ready++
 	}
-	newCnt := len(tl.list) - tl.ready
+}
 
-	tl.lastTime = time.Now()
-	return oldCnt - newCnt, removed
+//RemoveTx will remove a transaction in the list and return the number of changed orphan, removed transaction
+func (tl *txList) RemoveTx(tx *types.Tx) (int, types.Transaction) {
+	oldLen := tl.Len()
+	for i, x := range tl.list {
+		if bytes.Equal(tx.GetHash(), x.GetTx().GetHash()) {
+			tl.list = append(tl.list[:i], tl.list[i+1:]...)
+			tl.updateReady()
+			tl.lastTime = time.Now()
+			return oldLen - tl.Len() - 1, x
+		}
+	}
+	return 0, nil
 }
 
 // FilterByPrice will evict transactions that needs more amount than balance
