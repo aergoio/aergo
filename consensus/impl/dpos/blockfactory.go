@@ -264,7 +264,7 @@ func (bf *BlockFactory) rejected() *chain.RejTxInfo {
 }
 
 func (bf *BlockFactory) setRejected(rej *chain.RejTxInfo) {
-	logger.Warn().Str("hash", enc.ToString(rej.Hash())).Msg("mark timeout tx for rescheduling")
+	logger.Warn().Str("hash", enc.ToString(rej.Hash())).Msg("timeout tx reserved for rescheduling")
 	bf.recentRejectedTx = rej
 }
 
