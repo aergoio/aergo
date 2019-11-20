@@ -54,71 +54,6 @@ static void preloadModules(lua_State *L)
 #endif
 }
 
-void initViewFunction()
-{
-    lj_internal_view_start = vm_internal_view_start;
-    lj_internal_view_end = vm_internal_view_end;
-}
-
-static void setLuaExecContext(lua_State *L, int *service)
-{
-	lua_pushlightuserdata(L, service);
-	lua_setglobal(L, luaExecContext);
-}
-
-const int *getLuaExecContextNoErr(lua_State *L)
-{
-	const int *service;
-	lua_getglobal(L, luaExecContext);
-	service = (const int *)lua_touserdata(L, -1);
-	lua_pop(L, 1);
-	return service;
-}
-
-const int *getLuaExecContext(lua_State *L)
-{
-	const int *service = getLuaExecContextNoErr(L);
-	if (service == NULL || *service < 0)
-	    luaL_error(L, "not permitted state referencing at global scope");
-	return service;
-}
-
-void setHardforkV2(lua_State *L)
-{
-    lua_pushboolean(L, true);
-	lua_setfield (L, LUA_REGISTRYINDEX, FORK_V2);
-}
-
-int isHardfork(lua_State *L, char *forkname)
-{
-	lua_getfield (L, LUA_REGISTRYINDEX, forkname);
-	if (lua_isnil(L, -1)) {
-	    lua_pop(L, 1);
-	    return 0;
-	}
-	lua_pop(L, 1);
-    return 1;
-}
-
-const char *VM_RESOURCE_LIMIT = "__VM_RESOURCE_LIMIT__";
-
-void vm_set_resource_limit(lua_State *L)
-{
-    lua_pushboolean(L, true);
-	lua_setfield (L, LUA_REGISTRYINDEX, VM_RESOURCE_LIMIT);
-}
-
-int vm_need_resource_limit(lua_State *L)
-{
-	lua_getfield (L, LUA_REGISTRYINDEX, VM_RESOURCE_LIMIT);
-	if (lua_isnil(L, -1)) {
-	    lua_pop(L, 1);
-	    return 0;
-	}
-	lua_pop(L, 1);
-    return 1;
-}
-
 static int loadLibs(lua_State *L)
 {
 	luaL_openlibs(L);
@@ -138,60 +73,71 @@ lua_State *vm_newstate()
 	return L;
 }
 
-static void set_loadbuf_rlimit(lua_State *L)
+void initViewFunction()
 {
-    if (vm_need_resource_limit(L)) {
+    lj_internal_view_start = vm_internal_view_start;
+    lj_internal_view_end = vm_internal_view_end;
+}
+
+int getLuaExecContext(lua_State *L)
+{
+	int service = luaL_service(L);
+	if (service < 0)
+	    luaL_error(L, "not permitted state referencing at global scope");
+	return service;
+}
+
+int vm_is_hardfork(lua_State *L, int version)
+{
+    int v = luaL_hardforkversion(L);
+    return v >= version;
+}
+
+static int pcall(lua_State *L)
+{
+    int err;
+    if (lua_usegas(L)) {
+        lua_enablegas(L);
+    } else {
         vm_set_count_hook(L, 5000000);
         luaL_enablemaxmem(L);
     }
-}
-
-static void unset_loadbuf_rlimit(lua_State *L)
-{
-    if (vm_need_resource_limit(L)) {
+    err = lua_pcall(L, 0, 0, 0);
+    if (lua_usegas(L)) {
+        lua_disablegas(L);
+    } else {
         luaL_disablemaxmem(L);
         lua_sethook(L, NULL, 0, 0);
     }
-}
-
-static int pcall(lua_State *L, int narg, int nret)
-{
-    int err;
-    set_loadbuf_rlimit(L);
-    err = lua_pcall(L, narg, nret, 0);
-    unset_loadbuf_rlimit(L);
     return err;
 }
 
-static int cp_setLuaExecContext(lua_State *L)
+static int cp_getLuaExecContext(lua_State *L)
 {
-    int *service = (int *)lua_topointer(L, 1);
-    setLuaExecContext(L, service);
+    int *service = (int*)lua_topointer(L, 1);
+    *service = getLuaExecContext(L);
     return 0;
 }
 
 const char *vm_copy_service(lua_State *L, lua_State *main)
 {
-    int *service = (int *)getLuaExecContext(main);
-	int err;
+    int err;
+    int service;
 
- 	err = lua_cpcall(L, cp_setLuaExecContext, service);
+    err = lua_cpcall(L, cp_getLuaExecContext, &service);
     if (err != 0) {
-	    return lua_tostring(L, -1);
-	}
-	return NULL;
+        return lua_tostring(L, -1);
+    }
+    luaL_set_service(L, service);
+    return NULL;
 }
 
-const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int *service)
+const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int service)
 {
 	int err;
 
-	err = lua_cpcall(L, cp_setLuaExecContext, service);
-    if (err != 0) {
-	    return lua_tostring(L, -1);
-	}
-
-    err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L, 0, 0);
+    luaL_set_service(L, service);
+    err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L);
     if (err != 0) {
 	    return lua_tostring(L, -1);
 	}
@@ -199,27 +145,16 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id,
 	return NULL;
 }
 
-int vm_isnil(lua_State *L, int idx)
+int vm_autoload(lua_State *L, char *fname)
 {
-    uint8_t before = lua_setusegas(L, 0);
-    int isnil = lua_isnil(L, idx);
-    lua_setusegas(L, before);
-	return isnil;
-}
-
-void vm_get_autoload(lua_State *L, char *fname)
-{
-    uint8_t before = lua_setusegas(L, 0);
     lua_getfield(L, LUA_GLOBALSINDEX, fname);
-    lua_setusegas(L, before);
+    return lua_isnil(L, -1) == 0;
 }
 
 void vm_remove_constructor(lua_State *L)
 {
-    uint8_t before = lua_setusegas(L, 0);
 	lua_pushnil(L);
 	lua_setfield(L, LUA_GLOBALSINDEX, construct_name);
-    lua_setusegas(L, before);
 }
 
 static void count_hook(lua_State *L, lua_Debug *ar)
@@ -236,7 +171,7 @@ void vm_set_count_hook(lua_State *L, int limit)
 
 static void timeout_hook(lua_State *L, lua_Debug *ar)
 {
-	int errCode = luaCheckTimeout((int *)getLuaExecContextNoErr(L));
+	int errCode = luaCheckTimeout(luaL_service(L));
     if (errCode == 1) {
         luaL_setuncatchablerror(L);
         lua_pushstring(L, ERR_BF_TIMEOUT);
@@ -248,7 +183,7 @@ static void timeout_hook(lua_State *L, lua_Debug *ar)
 
 void vm_set_timeout_hook(lua_State *L)
 {
-    if (isHardfork(L, FORK_V2)) {
+    if (vm_is_hardfork(L, 2)) {
         lua_sethook(L, timeout_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
     }
 }
@@ -256,32 +191,25 @@ void vm_set_timeout_hook(lua_State *L)
 static void timeout_count_hook(lua_State *L, lua_Debug *ar)
 {
 	int errCode;
-	int inst_cnt, new_inst_cnt, inst_limit;
+	int inst_count, new_inst_count, inst_limit;
 
     timeout_hook(L, ar);
 
-    lua_getfield(L, LUA_REGISTRYINDEX, VM_INST_COUNT);
-    inst_cnt = lua_tointeger(L, -1);
-    lua_getfield(L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
-    inst_limit = lua_tointeger(L, -1);
-    lua_pop(L, 2);
-    new_inst_cnt = inst_cnt + VM_TIMEOUT_INST_COUNT;
-    if (new_inst_cnt <= 0 || new_inst_cnt > inst_limit) {
+    inst_count = luaL_tminstcount(L);
+    inst_limit = luaL_tminstlimit(L);
+    new_inst_count = inst_count + VM_TIMEOUT_INST_COUNT;
+    if (new_inst_count <= 0 || new_inst_count > inst_limit) {
         luaL_setuncatchablerror(L);
         lua_pushstring(L, "exceeded the maximum instruction count");
         luaL_throwerror(L);
     }
-    lua_pushinteger(L, new_inst_cnt);
-    lua_setfield(L, LUA_REGISTRYINDEX, VM_INST_COUNT);
+    luaL_set_tminstcount(L, new_inst_count);
 }
 
 void vm_set_timeout_count_hook(lua_State *L, int limit)
 {
-    lua_pushinteger(L, limit);
-    lua_setfield (L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
-    lua_pushinteger(L, 0);
-    lua_setfield (L, LUA_REGISTRYINDEX, VM_INST_COUNT);
-
+    luaL_set_tminstlimit(L, limit);
+    luaL_set_tminstcount(L, 0);
     lua_sethook(L, timeout_count_hook, LUA_MASKCOUNT, VM_TIMEOUT_INST_COUNT);
 }
 
@@ -290,13 +218,17 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 	int err;
 	int nr = lua_gettop(L) - argc - 1;
 
-    if (vm_need_resource_limit(L)) {
+    if (lua_usegas(L)) {
+        lua_enablegas(L);
+    } else {
         luaL_enablemaxmem(L);
     }
 
 	err = lua_pcall(L, argc, LUA_MULTRET, 0);
 
-    if (vm_need_resource_limit(L)) {
+    if (lua_usegas(L)) {
+        lua_disablegas(L);
+    } else {
         luaL_disablemaxmem(L);
     }
 
@@ -314,7 +246,6 @@ const char *vm_pcall(lua_State *L, int argc, int *nresult)
 
 const char *vm_get_json_ret(lua_State *L, int nresult, int* err)
 {
-    uint8_t before = lua_setusegas(L, 0);
 	int top;
 	char *json_ret;
 
@@ -323,31 +254,37 @@ const char *vm_get_json_ret(lua_State *L, int nresult, int* err)
 
 	if (json_ret == NULL) {
 	    *err = 1;
-	    lua_setusegas(L, before);
 		return lua_tostring(L, -1);
     }
 
 	lua_pushstring(L, json_ret);
 	free(json_ret);
 	
-    lua_setusegas(L, before);
 	return lua_tostring(L, -1);
 }
 
 const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 {
-    uint8_t before1 = lua_setusegas(L, 0);
-    uint8_t before2 = lua_setusegas(target, 0);
 	int i;
 	int top;
 	char *json;
+
+	if (lua_usegas(L)) {
+	    lua_disablegas(target);
+	} else {
+	    luaL_disablemaxmem(target);
+	}
 
     top = lua_gettop(L);
 	for (i = top - cnt + 1; i <= top; ++i) {
 		json = lua_util_get_json (L, i, false);
 		if (json == NULL) {
-		    lua_setusegas(L, before1);
-		    lua_setusegas(target, before2);
+            if (lua_usegas(L)) {
+                lua_enablegas(target);
+            } else {
+                luaL_enablemaxmem(target);
+            }
+
 			return lua_tostring(L, -1);
         }
 
@@ -355,17 +292,22 @@ const char *vm_copy_result(lua_State *L, lua_State *target, int cnt)
 		lua_util_json_to_lua(target, json, false);
 		free (json);
 	}
-    lua_setusegas(L, before1);
-    lua_setusegas(target, before2);
+
+    if (lua_usegas(L)) {
+        lua_enablegas(target);
+    } else {
+        luaL_enablemaxmem(target);
+    }
+
 	return NULL;
 }
 
 sqlite3 *vm_get_db(lua_State *L)
 {
-    int *service;
+    int service;
     sqlite3 *db;
 
-    service = (int *)getLuaExecContext(L);
+    service = getLuaExecContext(L);
     db = luaGetDbHandle(service);
     if (db == NULL) {
         lua_pushstring(L, "can't open a database connection");
@@ -376,42 +318,41 @@ sqlite3 *vm_get_db(lua_State *L)
 
 void vm_get_abi_function(lua_State *L, char *fname)
 {
-    uint8_t before = lua_setusegas(L, 0);
 	lua_getfield(L, LUA_GLOBALSINDEX, "abi");
 	lua_getfield(L, -1, "call");
 	lua_pushstring(L, fname);
-	lua_setusegas(L, before);
 }
 
 void vm_internal_view_start(lua_State *L)
 {
-    luaViewStart((int *)getLuaExecContext(L));
+    luaViewStart(getLuaExecContext(L));
 }
 
 void vm_internal_view_end(lua_State *L)
 {
-    luaViewEnd((int *)getLuaExecContext(L));
+    luaViewEnd(getLuaExecContext(L));
 }
 
 int vm_instcount(lua_State *L)
 {
-    if (isHardfork(L, FORK_V2)) {
-        int n;
-        lua_getfield(L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
-        n = lua_tointeger(L, -1);
-        lua_pop(L, 1);
-        return n;
+    if (lua_usegas(L))
+        return 0;
+
+    if (vm_is_hardfork(L, 2)) {
+        return luaL_tminstlimit(L);
     } else {
         return luaL_instcount(L);
     }
 }
 
-void vm_setinstcount(lua_State *L, int cnt)
+void vm_setinstcount(lua_State *L, int count)
 {
-    if (isHardfork(L, FORK_V2)) {
-        lua_pushinteger(L, cnt);
-        lua_setfield(L, LUA_REGISTRYINDEX, VM_INST_LIMIT);
+    if (lua_usegas(L))
+        return;
+
+    if (vm_is_hardfork(L, 2)) {
+        luaL_set_tminstlimit(L, count);
     } else {
-        luaL_setinstcount(L, cnt);
+        luaL_setinstcount(L, count);
     }
 }

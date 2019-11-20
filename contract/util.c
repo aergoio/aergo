@@ -205,7 +205,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 		break;
 	}
 	case LUA_TNIL:
-		if (json_form && isHardfork(L, FORK_V2) == 0)
+		if (json_form && !vm_is_hardfork(L, 2))
 			src_val = "{},";
 		else
 			src_val = "null,";
@@ -237,7 +237,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 		if (table_idx < 0)
 			table_idx = lua_gettop(L) + idx + 1;
 		tbl_len = lua_objlen(L, table_idx);
-		if ((json_form || isHardfork(L, FORK_V2) == 1) && tbl_len > 0) {
+		if ((json_form || vm_is_hardfork(L, 2)) && tbl_len > 0) {
 			double number;
 			char *check_array = calloc(tbl_len, sizeof(char));
 			is_array = true;
@@ -543,7 +543,7 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 			++end;
 		}
         sscanf(json, "%lf", &d);
-        if (isHardfork(L, FORK_V2) == 1 && d == (int64_t)d) {
+        if (vm_is_hardfork(L, 2) && d == (int64_t)d) {
             lua_pushinteger(L, (int64_t)d);
         } else {
             lua_pushnumber(L, d);
@@ -573,7 +573,7 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 }
 
 void minus_inst_count(lua_State *L, int count) {
-    if (vm_need_resource_limit(L)) {
+    if (!lua_usegas(L)) {
         int cnt = vm_instcount(L);
         cnt -= count;
         if (cnt <= 0)
