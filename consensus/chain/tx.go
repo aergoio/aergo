@@ -117,7 +117,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	}
 	defer UnlockChain()
 
-	txIn := FetchTXs(g.hs, g.maxBlockBodySize)
+	txIn := g.fetchTXs(g.hs, g.maxBlockBodySize)
 	nCand = len(txIn)
 
 	txRes := make([]types.Transaction, 0, nCand)
@@ -150,11 +150,20 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 				}
 				err = e
 				break
-			} else if _, ok := err.(*contract.VmTimeoutError); ok {
+			} else if cause, ok := err.(*contract.VmTimeoutError); ok {
 				if logger.IsDebugEnabled() {
 					logger.Debug().Msg("stop gathering tx due to time limit")
 				}
+				// Mark the rejected TX by timeout. The marked TX will be
+				// forced to be the first TX of the next block. By doing this,
+				// the TX may have a chance to use the maximum block execution
+				// time. If the TX is rejected by timeout even with this, it
+				// may be evicted from the mempool after checking the actual
+				// execution time.
+				g.setRejected(tx, cause, i == 0)
+
 				err = ErrTimeout{Kind: "contract"}
+
 				break
 			} else if err == errBlockSizeLimit {
 				if logger.IsDebugEnabled() {
@@ -162,9 +171,11 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 				}
 				break
 			} else if err != nil {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+				}
 				//FIXME handling system error (panic?)
 				// ex) gas error/nonce error skip, but other system error panic
-				logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
 				continue
 			}
 

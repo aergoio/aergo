@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"runtime/debug"
@@ -59,6 +60,8 @@ type BlockFactory struct {
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
 	bv               types.BlockVersionner
+
+	recentRejectedTx *chain.RejTxInfo
 }
 
 // NewBlockFactory returns a new BlockFactory
@@ -229,10 +232,16 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	)
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err = chain.NewBlockGenerator(bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false).GenerateBlock()
+	bGen := chain.NewBlockGenerator(
+		bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)),
+		false).WithDeco(bf.deco())
+
+	block, err = bGen.GenerateBlock()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	bf.handleRejected(bGen, block)
 
 	block.SetConfirms(block.BlockNo() - lpbNo)
 
@@ -248,6 +257,83 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		Msg("block produced")
 
 	return
+}
+
+func (bf *BlockFactory) rejected() *chain.RejTxInfo {
+	return bf.recentRejectedTx
+}
+
+func (bf *BlockFactory) setRejected(rej *chain.RejTxInfo) {
+	logger.Warn().Str("hash", enc.ToString(rej.Hash())).Msg("mark timeout tx for rescheduling")
+	bf.recentRejectedTx = rej
+}
+
+func (bf *BlockFactory) unsetRejected() {
+	bf.recentRejectedTx = nil
+}
+
+func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.Block) {
+	var (
+		bfRej = bf.rejected()
+		rej   = bGen.Rejected()
+		txs   = block.GetBody().GetTxs()
+	)
+
+	if bfRej != nil {
+		if rej == nil {
+			if len(txs) != 0 && bytes.Compare(txs[0].GetHash(), bfRej.Hash()) == 0 {
+				bf.unsetRejected()
+				return
+			}
+			// XXX Remove if the timeout tx evection feature is implemented.
+			logger.Fatal().
+				Str("rejected", enc.ToString(bfRej.Hash())).
+				Str("block", block.ID()).
+				Msg("the recent rejected tx must be the first of the block")
+		} else if bytes.Compare(rej.Hash(), bfRej.Hash()) == 0 {
+			// Failed by timeout even if the tx is the first of the block.
+			bGen.SetTimeoutTx(bfRej.Tx())
+			bf.unsetRejected()
+		}
+	}
+
+	if rej != nil {
+		bf.setRejected(rej)
+	}
+}
+
+func (bf *BlockFactory) deco() chain.FetchDeco {
+	if bf.recentRejectedTx == nil {
+		return nil
+	}
+	rejTxHash := bf.recentRejectedTx.Hash()
+
+	return func(fetch chain.FetchFn) chain.FetchFn {
+		return func(hs component.ICompSyncRequester, maxBlockBodySize uint32) []types.Transaction {
+			txs := fetch(hs, maxBlockBodySize)
+
+			j := 0
+			for i, tx := range txs {
+				if bytes.Compare(tx.GetHash(), rejTxHash) == 0 {
+					j = i
+					break
+				}
+			}
+
+			if j != 0 {
+				x := []types.Transaction{txs[j]}
+				x = append(x, txs[:j]...)
+				x = append(x, txs[j+1:]...)
+				txs = x
+			} else {
+				x := []types.Transaction{txs[j]}
+				x = append(x, txs...)
+				txs = x
+			}
+
+			return txs
+		}
+	}
 }
 
 func (bf *BlockFactory) checkBpTimeout() error {

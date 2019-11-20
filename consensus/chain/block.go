@@ -64,11 +64,17 @@ func MaxBlockBodySize() uint32 {
 	return chain.MaxBlockBodySize()
 }
 
+type FetchFn = func(component.ICompSyncRequester, uint32) []types.Transaction
+type FetchDeco = func(FetchFn) FetchFn
+
 type BlockGenerator struct {
+	bState   *state.BlockState
+	rejected *RejTxInfo
+
 	hs               component.ICompSyncRequester
 	bi               *types.BlockHeaderInfo
-	bState           *state.BlockState
 	txOp             TxOp
+	fetchTXs         func(component.ICompSyncRequester, uint32) []types.Transaction
 	skipEmpty        bool
 	maxBlockBodySize uint32
 }
@@ -76,13 +82,43 @@ type BlockGenerator struct {
 func NewBlockGenerator(hs component.ICompSyncRequester, bi *types.BlockHeaderInfo, bState *state.BlockState,
 	txOp TxOp, skipEmpty bool) *BlockGenerator {
 	return &BlockGenerator{
+		bState: bState,
+
 		hs:               hs,
 		bi:               bi,
-		bState:           bState,
 		txOp:             txOp,
+		fetchTXs:         FetchTXs,
 		skipEmpty:        skipEmpty,
 		maxBlockBodySize: MaxBlockBodySize(),
 	}
+}
+
+type RejTxInfo struct {
+	tx        types.Transaction
+	orig      error
+	evictable bool
+}
+
+func newTxRej(tx types.Transaction, orig error, evictable bool) *RejTxInfo {
+	return &RejTxInfo{tx: tx, orig: orig, evictable: evictable}
+}
+
+func (r *RejTxInfo) Tx() types.Transaction {
+	return r.tx
+}
+
+func (r *RejTxInfo) Hash() []byte {
+	return r.tx.GetHash()
+}
+
+func (g *BlockGenerator) Rejected() *RejTxInfo {
+	return g.rejected
+}
+
+// SetTimeoutTx set bState.timeoutTx to tx.
+func (g *BlockGenerator) SetTimeoutTx(tx types.Transaction) {
+	logger.Warn().Str("hash", enc.ToString(tx.GetHash())).Msg("timeout tx marked for eviction")
+	g.bState.SetTimeoutTx(tx)
 }
 
 // GenerateBlock generate & return a new block.
@@ -113,6 +149,17 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 	}
 
 	return block, nil
+}
+
+func (g *BlockGenerator) WithDeco(fn FetchDeco) *BlockGenerator {
+	if fn != nil {
+		g.fetchTXs = fn(g.fetchTXs)
+	}
+	return g
+}
+
+func (g *BlockGenerator) setRejected(tx types.Transaction, cause error, evictable bool) {
+	g.rejected = newTxRej(tx, cause, evictable)
 }
 
 // ConnectBlock send an AddBlock request to the chain service.

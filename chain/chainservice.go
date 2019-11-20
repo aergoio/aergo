@@ -632,6 +632,11 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		var bstate *state.BlockState
 		if msg.Bstate != nil {
 			bstate = msg.Bstate.(*state.BlockState)
+			if timeoutTx := bstate.TimeoutTx(); timeoutTx != nil {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Str("hash", enc.ToString(timeoutTx.GetHash())).Msg("received timeout tx")
+				}
+			}
 		}
 		err := cm.addBlock(block, bstate, msg.PeerID)
 		if err != nil {
