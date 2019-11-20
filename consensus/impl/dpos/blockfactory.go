@@ -288,10 +288,12 @@ func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.
 		}
 		// XXX Remove after the timeout TX eviction is successfully
 		// implemented.
-		logger.Fatal().
-			Str("rejected", enc.ToString(bfRej.Hash())).
-			Str("block", block.ID()).
-			Msg("the recent rejected tx must be the first of the block")
+		/*
+			logger.Fatal().
+				Str("rejected", enc.ToString(bfRej.Hash())).
+				Str("block", block.ID()).
+				Msg("the recent rejected tx must be the first of the block")
+		*/
 	} else {
 		if rej.Evictable() {
 			// The first TX failed to execute due to timeout.
