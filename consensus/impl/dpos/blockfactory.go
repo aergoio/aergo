@@ -307,7 +307,11 @@ func (bf *BlockFactory) deco() chain.FetchDeco {
 	if bf.recentRejectedTx == nil {
 		return nil
 	}
-	rejTxHash := bf.recentRejectedTx.Hash()
+
+	var (
+		rej       = bf.rejected()
+		rejTxHash = rej.Hash()
+	)
 
 	return func(fetch chain.FetchFn) chain.FetchFn {
 		return func(hs component.ICompSyncRequester, maxBlockBodySize uint32) []types.Transaction {
@@ -321,18 +325,16 @@ func (bf *BlockFactory) deco() chain.FetchDeco {
 				}
 			}
 
+			x := []types.Transaction{rej.Tx()}
+
 			if j != 0 {
-				x := []types.Transaction{txs[j]}
 				x = append(x, txs[:j]...)
 				x = append(x, txs[j+1:]...)
-				txs = x
 			} else {
-				x := []types.Transaction{txs[j]}
 				x = append(x, txs...)
-				txs = x
 			}
 
-			return txs
+			return x
 		}
 	}
 }

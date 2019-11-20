@@ -112,7 +112,7 @@ func (r *RejTxInfo) Hash() []byte {
 }
 
 func (r *RejTxInfo) Evictable() bool {
-	return r.Evictable
+	return r.evictable
 }
 
 func (g *BlockGenerator) Rejected() *RejTxInfo {
