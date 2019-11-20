@@ -279,26 +279,27 @@ func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.
 		txs   = block.GetBody().GetTxs()
 	)
 
-	if bfRej != nil {
-		if rej == nil {
-			if len(txs) != 0 && bytes.Compare(txs[0].GetHash(), bfRej.Hash()) == 0 {
-				bf.unsetRejected()
-				return
-			}
-			// XXX Remove if the timeout tx evection feature is implemented.
-			logger.Fatal().
-				Str("rejected", enc.ToString(bfRej.Hash())).
-				Str("block", block.ID()).
-				Msg("the recent rejected tx must be the first of the block")
-		} else if bytes.Compare(rej.Hash(), bfRej.Hash()) == 0 {
-			// Failed by timeout even if the tx is the first of the block.
-			bGen.SetTimeoutTx(bfRej.Tx())
+	if rej == nil {
+		if bfRej != nil && len(txs) != 0 && bytes.Compare(txs[0].GetHash(), bfRej.Hash()) == 0 {
+			// The last timeout TX has been successfully executed by
+			// rescheduling.
 			bf.unsetRejected()
+			return
 		}
-	}
-
-	if rej != nil {
-		bf.setRejected(rej)
+		// XXX Remove after the timeout TX eviction is successfully
+		// implemented.
+		logger.Fatal().
+			Str("rejected", enc.ToString(bfRej.Hash())).
+			Str("block", block.ID()).
+			Msg("the recent rejected tx must be the first of the block")
+	} else {
+		if rej.Evictable() {
+			// The first TX failed to execute due to timeout.
+			bGen.SetTimeoutTx(rej.Tx())
+			bf.unsetRejected()
+		} else {
+			bf.setRejected(rej)
+		}
 	}
 }
 
