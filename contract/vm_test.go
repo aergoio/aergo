@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -5306,24 +5307,16 @@ abi.register(testall)
 	}
 }
 
-/*
 func TestTimeoutCnt(t *testing.T) {
-	timeout := 50
-	if os.Getenv("TRAVIS") == "true" {
-		timeout = 1000
-		return
-	}
+	timeout := 500
 	src := `
-function ecverify(n)
-	for i = 1, n do
-		crypto.ecverify("11e96f2b58622a0ce815b81f94da04ae7a17ba17602feb1fd5afa4b9f2467960",
-"304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402",
-"AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
+function infinite_loop(n)
+	while true do
 	end
-	return n
+	return 0
 end
 
-abi.register(ecverify)
+abi.register(infinite_loop)
 `
 	bc, err := LoadDummyChain(
 		func(d *DummyChain) {
@@ -5344,11 +5337,16 @@ abi.register(ecverify)
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "ecverify", "Args":[700]}`).Fail("contract timeout"),
+		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "infinite_loop"}`).Fail("contract timeout"),
 	)
 	if err != nil {
 		t.Error(err)
 	}
+	err = bc.Query("timeout-cnt", `{"Name": "infinite_loop"}`, "exceeded the maximum instruction count")
+	if err != nil {
+		t.Error(err)
+	}
+
 	src2 := `
 function a()
     src = [[
@@ -5376,7 +5374,6 @@ abi.register(a)
 		t.Error(err)
 	}
 }
-*/
 
 func TestFeeDelegation(t *testing.T) {
 	definition := `
@@ -5618,6 +5615,171 @@ abi.register(init, exec, query, getmeta, queryS)`
 		`{"colcnt":3,"colmetas":{"colcnt":3,"decltypes":["int","int","text"],"names":["a","b","c"]},"data":[[1,{},"2"],[2,2,"3"],[3,2,"3"],[4,2,"3"],[5,2,"3"],[6,2,"3"],[7,2,"3"]],"rowcnt":7,"snap":"3"}`)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestDeployFee(t *testing.T) {
+	src := `
+	paddr = nil
+	function deploy()
+	src = [[
+		function hello(say, key)
+	return "Hello " .. say .. system.getItem(key)
+	end
+	function getcre()
+	return system.getCreator()
+	end
+	function constructor()
+	end
+	abi.register(hello, getcre)
+]]
+	paddr = contract.deploy(src)
+	system.print("addr :", paddr)
+	ret = contract.call(paddr, "hello", "world", "key")
+	end
+
+	function testPcall()
+		ret = contract.pcall(deploy)
+		return contract.call(paddr, "getcre")
+	end
+
+	abi.register(testPcall)`
+
+	bc, err := LoadDummyChain(
+		func(d *DummyChain) {
+			d.timeout = 50
+		},
+		OnPubNet,
+	)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "deploy", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	state, err := bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	bal := state.GetBalanceBigInt().Uint64()
+	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name": "testPcall"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r := bc.GetReceipt(tx.Hash())
+	expectedFee := uint64(118971)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err = bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
+		t.Errorf(
+			"expected: %d, but got: %d",
+			bal-expectedFee,
+			state.GetBalanceBigInt().Uint64(),
+		)
+	}
+}
+
+func TestOP(t *testing.T) {
+	src, err := ioutil.ReadFile("op.lua")
+	if err != nil {
+		t.Error(err)
+	}
+	bc, err := LoadDummyChain(OnPubNet)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+	balance, _ := new(big.Int).SetString("10000000000000000", 10)
+	err = bc.ConnectBlock(
+		NewLuaTxAccountBig("ktlee", balance),
+		NewLuaTxDef("ktlee", "op", 0, string(src)),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	state, err := bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	bal := state.GetBalanceBigInt().Uint64()
+	tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r := bc.GetReceipt(tx.Hash())
+	expectedFee := uint64(117610)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err = bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
+		t.Errorf(
+			"expected: %d, but got: %d",
+			bal-expectedFee,
+			state.GetBalanceBigInt().Uint64(),
+		)
+	}
+}
+
+func TestBF(t *testing.T) {
+	src, err := ioutil.ReadFile("bf.lua")
+	if err != nil {
+		t.Error(err)
+	}
+	bc, err := LoadDummyChain(OnPubNet)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+	balance, _ := new(big.Int).SetString("10000000000000000", 10)
+	err = bc.ConnectBlock(
+		NewLuaTxAccountBig("ktlee", balance),
+		NewLuaTxDef("ktlee", "op", 0, string(src)),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	state, err := bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	bal := state.GetBalanceBigInt().Uint64()
+	tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r := bc.GetReceipt(tx.Hash())
+	expectedFee := uint64(47456244)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err = bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
+		t.Errorf(
+			"expected: %d, but got: %d",
+			bal-expectedFee,
+			state.GetBalanceBigInt().Uint64(),
+		)
 	}
 }
 

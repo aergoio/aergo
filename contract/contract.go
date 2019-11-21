@@ -145,7 +145,7 @@ func Execute(
 				preload = <-replyCh
 			}
 			if preload.tx != tx {
-				preload.ex.close()
+				preload.ex.close(nil)
 				continue
 			}
 			ex = preload.ex
@@ -221,7 +221,7 @@ func preLoadWorker() {
 		if len(replyCh) > 2 {
 			select {
 			case preload := <-replyCh:
-				preload.ex.close()
+				preload.ex.close(nil)
 			default:
 			}
 		}
