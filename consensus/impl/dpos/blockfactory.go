@@ -63,6 +63,7 @@ type BlockFactory struct {
 	bv               types.BlockVersionner
 
 	recentRejectedTx *chain.RejTxInfo
+	noTTE            bool
 }
 
 // NewBlockFactory returns a new BlockFactory
@@ -71,6 +72,7 @@ func NewBlockFactory(
 	sdb *state.ChainStateDB,
 	quitC <-chan interface{},
 	bv types.BlockVersionner,
+	noTTE bool,
 ) *BlockFactory {
 	bf := &BlockFactory{
 		ComponentHub:     hub,
@@ -83,6 +85,7 @@ func NewBlockFactory(
 		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
 		bv:               bv,
+		noTTE:            noTTE,
 	}
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
@@ -234,8 +237,9 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
 	bGen := chain.NewBlockGenerator(
-		bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)),
-		false).WithDeco(bf.deco())
+		bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false).
+		WithDeco(bf.deco()).
+		SetNoTTE(bf.noTTE)
 
 	begT := time.Now()
 
@@ -304,14 +308,10 @@ func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.
 }
 
 func (bf *BlockFactory) deco() chain.FetchDeco {
-	if bf.recentRejectedTx == nil {
+	rej := bf.rejected()
+	if rej == nil {
 		return nil
 	}
-
-	var (
-		rej       = bf.rejected()
-		rejTxHash = rej.Hash()
-	)
 
 	return func(fetch chain.FetchFn) chain.FetchFn {
 		return func(hs component.ICompSyncRequester, maxBlockBodySize uint32) []types.Transaction {
@@ -319,7 +319,7 @@ func (bf *BlockFactory) deco() chain.FetchDeco {
 
 			j := 0
 			for i, tx := range txs {
-				if bytes.Compare(tx.GetHash(), rejTxHash) == 0 {
+				if bytes.Compare(tx.GetHash(), rej.Hash()) == 0 {
 					j = i
 					break
 				}

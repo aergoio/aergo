@@ -160,7 +160,9 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 				// time. If the TX is rejected by timeout even with this, it
 				// may be evicted from the mempool after checking the actual
 				// execution time.
-				g.setRejected(tx, cause, i == 0)
+				if g.tteEnabled() {
+					g.setRejected(tx, cause, i == 0)
+				}
 
 				err = ErrTimeout{Kind: "contract"}
 

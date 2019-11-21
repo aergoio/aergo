@@ -18,9 +18,9 @@ import (
 var (
 	// ErrQuit indicates that shutdown is initiated.
 	ErrQuit           = errors.New("shutdown initiated")
-	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 	ErrBlockEmpty     = errors.New("no transactions in block")
 	ErrSyncChain      = errors.New("failed to sync request")
+	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
 
 // ErrTimeout can be used to indicatefor any kind of timeout.
@@ -70,6 +70,7 @@ type FetchDeco = func(FetchFn) FetchFn
 type BlockGenerator struct {
 	bState   *state.BlockState
 	rejected *RejTxInfo
+	noTTE    bool // disable eviction by timeout if true
 
 	hs               component.ICompSyncRequester
 	bi               *types.BlockHeaderInfo
@@ -162,8 +163,17 @@ func (g *BlockGenerator) WithDeco(fn FetchDeco) *BlockGenerator {
 	return g
 }
 
+func (g *BlockGenerator) SetNoTTE(noTTE bool) *BlockGenerator {
+	g.noTTE = noTTE
+	return g
+}
+
 func (g *BlockGenerator) setRejected(tx types.Transaction, cause error, evictable bool) {
 	g.rejected = newTxRej(tx, cause, evictable)
+}
+
+func (g *BlockGenerator) tteEnabled() bool {
+	return !g.noTTE
 }
 
 // ConnectBlock send an AddBlock request to the chain service.

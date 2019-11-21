@@ -116,9 +116,10 @@ type MempoolConfig struct {
 
 // ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
-	EnableBp      bool        `mapstructure:"enablebp" description:"enable block production"`
-	BlockInterval int64       `mapstructure:"blockinterval" description:"block production interval (sec)"`
-	Raft          *RaftConfig `mapstructure:"raft"`
+	EnableBp            bool        `mapstructure:"enablebp" description:"enable block production"`
+	BlockInterval       int64       `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	Raft                *RaftConfig `mapstructure:"raft"`
+	NoTimeoutTxEviction bool        `mapstructure:"notte" description:"disable timeout tx eviction"`
 }
 
 type RaftConfig struct {
