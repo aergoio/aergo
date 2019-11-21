@@ -602,3 +602,32 @@ func TestDeleteInvokePriceFilterOut(t *testing.T) {
 	simulateBlockGen(txs[1:2]...)
 	checkRemainder(0, 0)
 }
+
+func TestRemoveTx(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	err := pool.put(genTx(0, 0, 1, 0))
+	assert.NoError(t, err, "put")
+	two := genTx(0, 0, 2, 0)
+	err = pool.put(two)
+	assert.NoError(t, err, "put")
+	three := genTx(0, 0, 3, 0)
+	err = pool.put(three)
+	assert.NoError(t, err, "put")
+	err = pool.put(genTx(0, 0, 5, 0))
+	assert.NoError(t, err, "put")
+	err = pool.put(genTx(0, 0, 6, 0))
+	assert.NoError(t, err, "put")
+	err = pool.put(genTx(0, 0, 7, 0))
+	assert.NoError(t, err, "put")
+	assert.Equal(t, 6, pool.length, "length")
+	assert.Equal(t, 3, pool.orphan, "orphan")
+	err = pool.removeTx(two.GetTx())
+	assert.Equal(t, 5, pool.length, "length")
+	assert.Equal(t, 4, pool.orphan, "orphan")
+	err = pool.removeTx(three.GetTx())
+	assert.NoError(t, err, "remove")
+	assert.Equal(t, 4, pool.length, "length")
+	assert.Equal(t, 3, pool.orphan, "orphan")
+}

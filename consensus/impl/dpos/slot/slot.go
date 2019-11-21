@@ -134,6 +134,11 @@ func (s *Slot) NextBpIndex(bpCount uint16) int64 {
 	return s.nextIndex % int64(bpCount)
 }
 
+// BpTimeout returns the max time limit for block production in nsec.
+func BpMaxTime() time.Duration {
+	return time.Duration(bpMaxTimeLimitMs) * 1000
+}
+
 func msToPrevIndex(ms int64) int64 {
 	return msToIndex(ms)
 }

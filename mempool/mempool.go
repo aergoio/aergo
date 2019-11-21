@@ -229,6 +229,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 		context.Respond(&message.MemPoolDelRsp{
 			Err: errs,
 		})
+	case *message.MemPoolDelTx:
+		mp.Info().Str("txhash", enc.ToString(msg.Tx.GetHash())).Msg("remove tx in mempool")
+		err := mp.removeTx(msg.Tx)
+		context.Respond(&message.MemPoolDelTxRsp{
+			Err: err,
+		})
 	case *message.MemPoolExist:
 		tx := mp.exist(msg.Hash)
 		context.Respond(&message.MemPoolExistRsp{
@@ -872,4 +878,29 @@ Dump:
 	mp.Info().Int("count", count).Str("path", mp.dumpPath).Str("marshal", ag[0].String()).
 		Str("write", ag[1].String()).Msg("dump txs")
 
+}
+
+func (mp *MemPool) removeTx(tx *types.Tx) error {
+	mp.Lock()
+	defer mp.Unlock()
+
+	if mp.exist(tx.GetHash()) == nil {
+		mp.Warn().Str("txhash", enc.ToString(tx.GetHash())).Msg("could not find tx to remove")
+		return types.ErrTxNotFound
+	}
+	acc := tx.GetBody().GetAccount()
+	list, err := mp.acquireMemPoolList(acc)
+	if err != nil {
+		return err
+	}
+	newOrphan, removed := list.RemoveTx(tx)
+	if removed == nil {
+		mp.Error().Str("txhash", enc.ToString(tx.GetHash())).Msg("already removed tx")
+	}
+	mp.orphan += newOrphan
+	mp.releaseMemPoolList(list)
+
+	mp.cache.Delete(types.ToTxID(tx.GetHash()))
+	mp.length--
+	return nil
 }
