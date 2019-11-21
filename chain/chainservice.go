@@ -636,6 +636,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 				if logger.IsDebugEnabled() {
 					logger.Debug().Str("hash", enc.ToString(timeoutTx.GetHash())).Msg("received timeout tx")
 				}
+				cm.TellTo(message.MemPoolSvc, &message.MemPoolDelTx{Tx: timeoutTx.GetTx()})
 			}
 		}
 		err := cm.addBlock(block, bstate, msg.PeerID)

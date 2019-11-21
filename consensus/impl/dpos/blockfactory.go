@@ -279,6 +279,7 @@ func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.
 		txs   = block.GetBody().GetTxs()
 	)
 
+	// TODO: cleanup
 	if rej == nil {
 		if bfRej != nil && len(txs) != 0 && bytes.Compare(txs[0].GetHash(), bfRej.Hash()) == 0 {
 			// The last timeout TX has been successfully executed by
