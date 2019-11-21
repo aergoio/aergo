@@ -24,3 +24,6 @@ Gopkg.lock
 
 # consensus test directory
 /consensus/**/tmp/
+
+# python cache
+__pycache__

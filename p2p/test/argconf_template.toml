@@ -1,0 +1,67 @@
+# aergo TOML Configration File (https://github.com/toml-lang/toml)
+# base configurations
+datadir = "${home}/data/X${rpc}"
+dbtype = "badgerdb"
+genesispath = "${home}/data/X${rpc}/genesis.block"
+
+enableprofile = false
+ProfilePort = ${profport}
+enablerest = true
+
+[rpc]
+netserviceaddr = "127.0.0.1"
+netserviceport = ${rpc}
+netservicetrace = false
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+
+[p2p]
+netprotocoladdr = "${hostaddr}"
+netprotocolport = ${p2pport}
+#npbindaddr = ""
+#npbindport = -1
+# TLS and certificate is not applied in alpha release.
+nptls = false
+npcert = ""
+# Set file path of key file
+npkey = "${home}/keys/${pkfilename}"
+nptestmode = true
+npaddpeers = ${peers}
+
+#npmaxpeers = "100"
+#nppeerpool = "100"
+npexposeself = ${expose}
+npdiscoverpeers = ${discover}
+npusepolaris= ${usepolaris}
+npaddpolarises = ${polarises}
+peerrole = "${role}"
+agent = "$agent"
+producers = $producers
+
+[blockchain]
+# blockchain configurations
+maxblocksize = 1048576
+coinbaseaccount = ""
+maxanchorcount = "20"
+usefastsyncer = "true"
+verifiercount = "2"
+
+[mempool]
+showmetrics = false
+enablefadeout = false
+fadeoutperiod = 12
+verifiers = 4
+dumpfilepath = "${home}/data/X${rpc}/mempool.dump"
+
+[consensus]
+enablebp = ${enablebp}
+blockinterval = 1
+
+[monitor]
+protocol = ""
+endpoint = ""
+
+[hardfork]
+v2 = 1000000000

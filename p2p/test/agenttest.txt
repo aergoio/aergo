@@ -1,0 +1,22 @@
+TODO docker로 할 방법은 없을까?
+
+0. 준비
+  사용자 설정 내용
+    테스트 머신 정보:
+        OS
+        접속 정보 (ip address/port , id ) - pub key등록은 별도로 함
+        테스트 디렉토리 정보
+    노드 구성 정보
+        시작 port
+        BP갯수, agent 위치 등은 기본 템플릿 사용
+    arglog.toml 변경
+
+1. 기본 파일 generate
+    key 파일 생성
+    config 파일 생성
+
+2. 파일 복사
+    ssh 로 각 노드에 복사
+
+
+
