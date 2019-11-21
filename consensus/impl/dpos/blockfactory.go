@@ -17,6 +17,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
@@ -236,12 +237,14 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)),
 		false).WithDeco(bf.deco())
 
+	begT := time.Now()
+
 	block, err = bGen.GenerateBlock()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	bf.handleRejected(bGen, block)
+	bf.handleRejected(bGen, block, time.Since(begT))
 
 	block.SetConfirms(block.BlockNo() - lpbNo)
 
@@ -272,11 +275,13 @@ func (bf *BlockFactory) unsetRejected() {
 	bf.recentRejectedTx = nil
 }
 
-func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.Block) {
+func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.Block, et time.Duration) {
+
 	var (
-		bfRej = bf.rejected()
-		rej   = bGen.Rejected()
-		txs   = block.GetBody().GetTxs()
+		cutoff = slot.BpMaxTime() * 2 / 3
+		bfRej  = bf.rejected()
+		rej    = bGen.Rejected()
+		txs    = block.GetBody().GetTxs()
 	)
 
 	// TODO: cleanup
@@ -287,16 +292,8 @@ func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.
 			bf.unsetRejected()
 			return
 		}
-		// XXX Remove after the timeout TX eviction is successfully
-		// implemented.
-		/*
-			logger.Fatal().
-				Str("rejected", enc.ToString(bfRej.Hash())).
-				Str("block", block.ID()).
-				Msg("the recent rejected tx must be the first of the block")
-		*/
 	} else {
-		if rej.Evictable() {
+		if rej.Evictable() && et >= cutoff {
 			// The first TX failed to execute due to timeout.
 			bGen.SetTimeoutTx(rej.Tx())
 			bf.unsetRejected()
