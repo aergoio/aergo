@@ -178,7 +178,7 @@ func (p *remotePeerImpl) RunPeer() {
 	go p.runRead()
 
 	txNoticeTicker := time.NewTicker(txNoticeInterval)
-	certCleanupTicker := time.NewTicker(certCleanupInterval)
+	certCleanupTicker := time.NewTicker(p2pcommon.RemoteCertCheckInterval)
 
 	// peer state is changed to RUNNING after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
 	p.state.SetAndGet(types.RUNNING)
@@ -529,17 +529,27 @@ func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
 	newCerts = append(newCerts, cert)
 	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Time("cTime", cert.CreateTime).Time("eTime", cert.ExpireTime).Msg("agent certificate is added to certificate list of remote peer")
 	p.remoteInfo.Certificates = newCerts
+	if len(newCerts) > 0 && p.AcceptedRole() == types.PeerRole_Watcher {
+		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("peer has certificates now. peer is promoted to Agent")
+		p.pm.UpdatePeerRole([]p2pcommon.AttrModifier{{ID: p.ID(), Role:types.PeerRole_Agent}})
+	}
 }
 
 func (p *remotePeerImpl) cleanupCerts() {
 	now := time.Now()
 	certs2 := p.remoteInfo.Certificates[:0]
 	for _, cert := range p.remoteInfo.Certificates {
-		if cert.IsValidInTime(now, p2putil.TimeErrorTolerance) {
+		if cert.IsValidInTime(now, p2pcommon.TimeErrorTolerance) {
 			certs2 = append(certs2, cert)
+		} else {
+			p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("issuer", p2putil.ShortForm(cert.BPID)).Msg("Certificate is expired")
 		}
 	}
 	p.remoteInfo.Certificates = certs2
+	if len(certs2) == 0 && p.AcceptedRole() == types.PeerRole_Agent {
+		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("All Certificates are expired. peer is demoted to Watcher")
+		p.pm.UpdatePeerRole([]p2pcommon.AttrModifier{{ID: p.ID(), Role:types.PeerRole_Watcher}})
+	}
 }
 
 func (p *remotePeerImpl) AddCertificate(cert *p2pcommon.AgentCertificateV1) {

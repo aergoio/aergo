@@ -110,3 +110,13 @@ const (
 	DefaultNodeTTL = time.Minute * 10
 )
 
+// constants about certificate
+const (
+	TimeErrorTolerance   = time.Minute
+	DefaultCertTTL       = time.Hour * 24
+	DefaultExpireBufTerm = time.Hour * 6
+
+	LocalCertCheckInterval  = time.Hour
+	RemoteCertCheckInterval = time.Hour
+)
+

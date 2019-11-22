@@ -10,12 +10,6 @@ import (
 	"time"
 )
 
-const (
-	TimeErrorTolerance = time.Minute
-	DefaultCertTTL = time.Hour * 6
-	DefaultExpireBufTerm = time.Hour * 6
-)
-
 func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificate, error) {
 	var err error
 
@@ -108,7 +102,7 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	wrap.ExpireTime = time.Unix(0, int64(cert.ExpireTime))
 	now := time.Now()
 	// check certificate is valid
-	if !wrap.IsValidInTime(now, TimeErrorTolerance) {
+	if !wrap.IsValidInTime(now, p2pcommon.TimeErrorTolerance) {
 		return nil, p2pcommon.ErrInvalidCertField
 	}
 	wrap.AgentID, err = peer.IDFromBytes(cert.AgentID)
