@@ -79,9 +79,6 @@ func Test_certRenewedNoticeHandler_Handle(t *testing.T) {
 			if tt.wantAddCert {
 				peer.EXPECT().AddCertificate(gomock.Any())
 			}
-			if tt.wantUpdateRole {
-				pm.EXPECT().UpdatePeerRole(gomock.Any())
-			}
 			h := NewCertRenewedNoticeHandler(pm, cm, peer, logger, actor)
 			h.Handle(dummyMsg, body)
 		})

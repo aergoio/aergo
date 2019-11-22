@@ -40,11 +40,12 @@ type AgentCertificateV1 struct {
 	Signature    *btcec.Signature
 }
 
+// IsValidInTime check if this certificate is expired
 func (c *AgentCertificateV1) IsValidInTime(t time.Time, errTolerance time.Duration) bool {
-	// TODO consider the case is time error between peers
 	return (c.CreateTime.Sub(t) < errTolerance ) && t.Before(c.ExpireTime)
 }
 
+// IsNeedUpdate check if this certificate need to be renewed.
 func (c *AgentCertificateV1) IsNeedUpdate(t time.Time, bufTerm time.Duration) bool {
 	// TODO consider the case is time error between peers
 	return c.ExpireTime.Sub(t) < bufTerm
