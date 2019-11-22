@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
+	"strings"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -77,11 +78,13 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 	cmd := &voteCmd{SystemContext: ctx}
 	if cmd.Proposal != nil {
 		cmd.issue = cmd.Proposal.GetKey()
-		cmd.args, err = json.Marshal(cmd.Call.Args[1:]) //[0] is name
+		cmd.candidate, err = json.Marshal(cmd.Call.Args[1:]) //[0] is name
 		if err != nil {
 			return nil, err
 		}
-		cmd.candidate = cmd.args
+		//for event. voteDAO allow only one candidate. it should be validate before.
+		voteID := cmd.Call.Args[0].(string)
+		cmd.args = []byte(`"` + strings.ToUpper(voteID) + `", {"_bignum":"` + cmd.Call.Args[1].(string) + `"}`)
 	} else {
 		cmd.issue = []byte(ctx.op.ID())
 		cmd.args, err = json.Marshal(cmd.Call.Args)
@@ -166,7 +169,7 @@ func (c *voteCmd) run() (*types.Event, error) {
 		EventName:       c.op.ID(),
 		JsonArgs: `["` +
 			types.EncodeAddress(c.txBody.Account) +
-			`", "` + string(c.args) + `"]`,
+			`", ` + string(c.args) + `]`,
 	}, nil
 }
 

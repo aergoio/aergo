@@ -20,12 +20,12 @@ func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaT
 		return &luaTxDef{cErr: err}
 	}
 	return &luaTxDef{
-		luaTxCommon: luaTxCommon{
+		luaTxContractCommon: luaTxContractCommon{
 			sender:   strHash(sender),
 			contract: strHash(contract),
 			code:     luacUtil.NewLuaCodePayload(luacUtil.NewLuaCode([]byte(code), abi), nil),
 			amount:   amount,
-			id:       newTxId(),
+			txId:     newTxId(),
 		},
 		cErr: nil,
 	}

@@ -201,16 +201,17 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
 		"sender.Balance() should be reduced after staking")
 	assert.Equal(t, event.EventName, "stake", "event name")
-	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", {\"_bignum\":\"10000000000000000000000\"}]", "event args")
 
-	tx.Body.Payload = buildVotingPayload(2)
+	tx.Body.Payload = buildVotingPayload(30)
 	blockInfo.No += VotingDelay
 	voting, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
 	event, err = voting.run()
 	assert.NoError(t, err, "voting failed")
 	assert.Equal(t, event.EventName, "voteBP", "event name")
-	assert.Equal(t, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"[\"111111111111111111111111111111111111111\",\"esSRNKFHpMYCTUPeaQ3coZDgiERzi8R6g6UNFHhEhVwD5jvYV81M\"]\"]", event.JsonArgs, "event args")
+	assert.Equal(t, `["AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4", ["111111111111111111111111111111111111111","esSRNKFHpMYCTUPeaQ3coZDgiERzi8R6g6UNFHhEhVwD5jvYV81M","2JjsqjdVadi5PuwnJ9o6Ec7SNRTrzRFqCMBwjVaPUPzsRAUr5yF1h","2xcKG6wjsT4cbNRAwjC8rQff48hHz8PFJ2HR6js5i6VodFDmdTN23","3cUkgUFzAGR9nptZbJbBUDDsjqviyqWfPhNtTz9mwnzjqKxhAwV2P","4GMC6qaET5mgzHMxEszE61n6RZA9yYe5VNUMqESUBVVg3QhciRc2j","4vDdXCtUju8EBjqLtTPGhpLK7GPayFmVb3ZqCUjARBzcFVSYFuj35","5a64waCj2iUmPCJjY2nKKctXnyd1xxtugifJZj1retVYTaBToPr3R","6DxWMwWyKXqJaen8BcBMwRSkUgrSxg2KnPkmvyJYtazUfevPLsy3m","6spwnJqDcMBqn7FWqBaQZDzyAQ5sxP9jt4rFJDbF8HVQsjfJtN647","7XhPCg9TuAYNyZiuUkyTB2ZBr7KJx6H9yjwifTswMyzM5pQERrD4T","8BZpd3TiBytvB2CJ8LNVnq7QXpYjwoQa5R3C2iAdbgVHHu99yLL4o","8qSG3QmxUoFTNUfgmumYQdfdDXnAwWXzB68fPxTKqNzDVyt5WpT59","9VJhTn6CmcbzZw95RVAb2SDquF1bwDfQGmE8mCk255V9i4d14Ja5V","A9B8t9QT4RxXmPcU54ZdeEn4axF2vvnpNSKc8T2iJmz5v9Mvbnh5q","Ao3aJWihMFK4xr5ridxgG3LHGfUTvdvEU7R5VhKQYUV28E6r9Gp6B","BSv1it2we4fcAJZFNDMisqtVxNhtvM3eZnWYrwc6nAyxLJqmgkw6X","C6nT9FMBvt29Mm2e1nkmVeSie5wKv4B4fTc2EBto1sUtYPahEF46s","CketZcfSDhNgZDW2fN9p7SzwKoAkumJUm8hVbSBVFZypkUKcmjB7D","DQXKyyygWWjDkfyRJwYrjFZA1WQBuURtronxxgUBVGUkxZ4YKDJ7Z","E4PmQMHvoL5kx8SoxWwuM47NhDdcuBZJxUtSKvksixyhAdoTrhR7u","EiGCpicB69SJ9avCc6LwxrfbNvs3ttgj49yuhB3ZxfUdNiYPQBY8F","FN8eF5vRNxnqM3PbFfjzafDp4e6Utbp99q5P4RLGCMyZaoHJwff8b","G215fTEffn9NYVryuF93CTn2kMKutJwZFWArRfcxS4UVnt2EV9n8w","GfsX5pYuxbVujxLNYpY5pGLFS4ZLt24yMBGKnuuefkyRzxmA2du9H","HKjxWBsAFQrSwQomCPw8S4tU7mnmsjCPSrMoAACLuTUND3W5a829d","HycPvZBQYECz8sH9qyLB3sSgoV2CsSKoYXTGXQV399yJR8F17c99y","JdUqLvVeq3ZXLKkYVYjDffzuVCFds9TDeCYjtemjNrUEdCyvf6GAK","KHMGmHou7rv4XnDw988GHUZ8AuV4rradjseDFu4RcYyAqHirCaPAf","KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73NTmk4WB1"]]`,
+		event.JsonArgs, "event args")
 
 	blockInfo.No += StakingDelay
 	tx.Body.Payload = buildStakingPayload(false)
@@ -218,7 +219,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	event, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
 	assert.Equal(t, event.EventName, "unstake", "event name")
-	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"10000000000000000000000\"]", "event args")
+	assert.Equal(t, event.JsonArgs, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", {\"_bignum\":\"10000000000000000000000\"}]", "event args")
 }
 
 func buildVotingPayload(count int) []byte {

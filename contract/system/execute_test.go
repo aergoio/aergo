@@ -520,13 +520,13 @@ func TestProposalExecute(t *testing.T) {
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
-			Payload: []byte(`{"Name":"v1voteDAO", "Args":["BPCOUNT", "13"]}`),
+			Payload: []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`),
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
 	event, err := ExecuteSystemTx(scs, votingTx.GetBody(), sender, receiver, blockInfo)
 	assert.Equal(t, "voteDAO", event[0].EventName, "event name")
-	assert.Equal(t, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"[\"13\"]\"]", event[0].JsonArgs, "event args")
+	assert.Equal(t, "[\"AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4\", \"BPCOUNT\", {\"_bignum\":\"13\"}]", event[0].JsonArgs, "event args")
 	assert.NoError(t, err, "failed in voting proposal")
 
 	vinfo, err := GetVotes(scs, sender.ID())

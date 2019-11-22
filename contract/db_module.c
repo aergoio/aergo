@@ -19,7 +19,7 @@
 #define RESOURCE_PSTMT_KEY "_RESOURCE_PSTMT_KEY_"
 #define RESOURCE_RS_KEY "_RESOURCE_RS_KEY_"
 
-extern const int *getLuaExecContext(lua_State *L);
+extern int getLuaExecContext(lua_State *L);
 static void get_column_meta(lua_State *L, sqlite3_stmt* stmt);
 
 static int append_resource(lua_State *L, const char *key, void *data)
@@ -325,7 +325,7 @@ static int db_pstmt_exec(lua_State *L)
     db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
     /*check for exec in function */
-	if (luaCheckView((int *)getLuaExecContext(L))> 0) {
+	if (luaCheckView(getLuaExecContext(L)) > 0) {
         luaL_error(L, "not permitted in view function");
     }
     rc = bind(L, pstmt->db, pstmt->s);
@@ -462,7 +462,7 @@ static int db_exec(lua_State *L)
     int rc;
 
     /*check for exec in function */
-    if (luaCheckView((int *)getLuaExecContext(L))> 0) {
+    if (luaCheckView(getLuaExecContext(L))> 0) {
         luaL_error(L, "not permitted in view function");
     }
     cmd = luaL_checkstring(L, 1);
@@ -558,7 +558,7 @@ static int db_prepare(lua_State *L)
 static int db_get_snapshot(lua_State *L)
 {
     char *snapshot;
-    int *service = (int *)getLuaExecContext(L);
+    int service = getLuaExecContext(L);
 
     snapshot = LuaGetDbSnapshot(service);
     strPushAndRelease(L, snapshot);
@@ -570,7 +570,7 @@ static int db_open_with_snapshot(lua_State *L)
 {
     char *snapshot = (char *)luaL_checkstring(L, 1);
     char *errStr;
-    int *service = (int *)getLuaExecContext(L);
+    int service = getLuaExecContext(L);
 
     errStr = LuaGetDbHandleSnap(service, snapshot);
     if (errStr != NULL) {

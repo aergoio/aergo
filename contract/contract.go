@@ -4,7 +4,6 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 
@@ -89,28 +88,24 @@ func Execute(
 		return
 	}
 
-	gasLimit := txBody.GetGasLimit()
+	var gasLimit uint64
 	if useGas(bi.Version) {
+		gasLimit = txBody.GetGasLimit()
 		if gasLimit == 0 {
-			balance := new(big.Int).Sub(sender.Balance(), new(big.Int).Add(txBody.GetAmountBigInt(), usedFee))
-			n := balance.Div(balance, bs.GasPrice)
-			if n.IsUint64() {
-				gasLimit = n.Uint64()
-			} else {
-				gasLimit = math.MaxUint64
-			}
+			balance := new(big.Int).Sub(sender.Balance(), usedFee)
+			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 			if gasLimit == 0 {
 				err = newVmError(types.ErrNotEnoughGas)
 				return
 			}
+		} else {
+			usedGas := fee.TxGas(len(txBody.GetPayload()))
+			if gasLimit <= usedGas {
+				err = newVmError(types.ErrNotEnoughGas)
+				return
+			}
+			gasLimit -= usedGas
 		}
-		if gasLimit <= fee.TxGas(len(txBody.GetPayload())) {
-			err = newVmError(types.ErrNotEnoughGas)
-			return
-		}
-		gasLimit -= fee.TxGas(len(txBody.GetPayload()))
-	} else {
-		gasLimit = 0
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())

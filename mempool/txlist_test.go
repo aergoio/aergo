@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aergoio/aergo/config"
 
 	"github.com/aergoio/aergo/fee"
@@ -201,4 +203,48 @@ func TestListPutRandom(t *testing.T) {
 	if len(ret) != count {
 		t.Error("put failed", len(ret), count)
 	}
+}
+
+func TestListRemoveTx(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	mpl := newTxList(nil, NewState(3, 0), dummyMempool)
+
+	four := genTx(0, 0, uint64(4), 0)
+	five := genTx(0, 0, uint64(5), 0)
+	six := genTx(0, 0, uint64(6), 0)
+	eight := genTx(0, 0, uint64(8), 0)
+	nine := genTx(0, 0, uint64(9), 0)
+	ten := genTx(0, 0, uint64(10), 0)
+	mpl.Put(four)
+	mpl.Put(five)
+	mpl.Put(six)
+	mpl.Put(eight)
+	mpl.Put(nine)
+	mpl.Put(ten)
+
+	if mpl.Len() != 3 {
+		t.Error("should be 3 not ", len(mpl.list))
+	}
+
+	changedOrphan, tx := mpl.RemoveTx(four.GetTx())
+	assert.Equal(t, 5, mpl.len(), "list length")
+	assert.Equal(t, 2, changedOrphan, "new orphan count")
+	assert.Equal(t, four.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(four)
+
+	changedOrphan, tx = mpl.RemoveTx(five.GetTx())
+	assert.Equal(t, 1, changedOrphan, "new orphan count")
+	assert.Equal(t, five.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(five)
+
+	changedOrphan, tx = mpl.RemoveTx(six.GetTx())
+	assert.Equal(t, 0, changedOrphan, "new orphan count")
+	assert.Equal(t, six.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(six)
+
+	changedOrphan, tx = mpl.RemoveTx(nine.GetTx())
+	assert.Equal(t, -1, changedOrphan, "new orphan count")
+	assert.Equal(t, nine.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(six)
 }

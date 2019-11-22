@@ -5,7 +5,7 @@
 #include "lgmp.h"
 #include "_cgo_export.h"
 
-extern const int *getLuaExecContext(lua_State *L);
+extern int getLuaExecContext(lua_State *L);
 
 static const char *contract_str = "contract";
 static const char *call_str = "call";
@@ -94,15 +94,11 @@ static int moduleCall(lua_State *L)
 	char *fname;
 	char *json_args;
 	struct luaCallContract_return ret;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	lua_Integer gas;
 	char *amount;
 
     lua_gasuse(L, 2000);
-	if (service == NULL) {
-	    reset_amount_info(L);
-		luaL_error(L, "cannot find execution context");
-	}
 
 	lua_getfield(L, 1, amount_str);
 	if (lua_isnil(L, -1))
@@ -148,14 +144,10 @@ static int moduleDelegateCall(lua_State *L)
 	char *fname;
 	char *json_args;
 	struct luaDelegateCallContract_return ret;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	lua_Integer gas;
 
     lua_gasuse(L, 1000);
-	if (service == NULL) {
-	    reset_amount_info(L);
-		luaL_error(L, "cannot find execution context");
-	}
 
 	lua_getfield(L, 1, fee_str);
 	if (lua_isnil(L, -1))
@@ -188,14 +180,12 @@ static int moduleSend(lua_State *L)
 {
 	char *contract;
 	char *errStr;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	char *amount;
 	bool needfree = false;
 
     lua_gasuse(L, 300);
-	if (service == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
+
 	contract = (char *)luaL_checkstring(L, 1);
 	if (lua_isnil(L, 2))
 	    return 0;
@@ -230,14 +220,11 @@ static int moduleSend(lua_State *L)
 static int moduleBalance(lua_State *L)
 {
 	char *contract;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	lua_Integer amount;
 	struct luaGetBalance_return balance;
 
     lua_gasuse(L, 300);
-	if (service == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
 
     if (lua_gettop(L) == 0 || lua_isnil(L, 1))
         contract = NULL;
@@ -258,14 +245,11 @@ static int moduleBalance(lua_State *L)
 static int modulePcall(lua_State *L)
 {
 	int argc = lua_gettop(L) - 1;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	struct luaSetRecoveryPoint_return start_seq;
 	int ret;
 
     lua_gasuse(L, 300);
-	if (service == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
 
 	start_seq = luaSetRecoveryPoint(L, service);
 	if (start_seq.r0 < 0) {
@@ -311,14 +295,10 @@ static int moduleDeploy(lua_State *L)
 	char *fname;
 	char *json_args;
 	struct luaDeployContract_return ret;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	char *amount;
 
     lua_gasuse(L, 5000);
-	if (service == NULL) {
-	    reset_amount_info(L);
-		luaL_error(L, "cannot find execution context");
-	}
 
 	lua_getfield(L, 1, amount_str);
 	if (lua_isnil(L, -1))
@@ -353,16 +333,13 @@ static int moduleEvent(lua_State *L)
 {
 	char *event_name;
 	char *json_args;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	char *errStr;
 
     lua_gasuse(L, 500);
-	if (service == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
 
 	event_name = (char *)luaL_checkstring(L, 1);
-	if (isHardfork(L, FORK_V2) == 1) {
+	if (vm_is_hardfork(L, 2)) {
 	    json_args = lua_util_get_json_array_from_stack (L, 2, lua_gettop(L), true);
 	}
 	else {
@@ -382,14 +359,11 @@ static int moduleEvent(lua_State *L)
 
 static int governance(lua_State *L, char type) {
 	char *ret;
-	int *service = (int *)getLuaExecContext(L);
+	int service = getLuaExecContext(L);
 	char *arg;
 	bool needfree = false;
 
     lua_gasuse(L, 500);
-	if (service == NULL) {
-		luaL_error(L, "cannot find execution context");
-	}
 
     if (type == 'S' || type == 'U') {
     	if (lua_isnil(L, 1))

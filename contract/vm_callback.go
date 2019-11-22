@@ -70,8 +70,8 @@ func addUpdateSize(s *vmContext, updateSize int64) error {
 }
 
 //export luaSetDB
-func luaSetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
-	ctx := contexts[*service]
+func luaSetDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
+	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[System.LuaSetDB] contract state not found")
 	}
@@ -97,8 +97,8 @@ func luaSetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, value
 }
 
 //export luaGetDB
-func luaGetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
-	ctx := contexts[*service]
+func luaGetDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int, blkno *C.char) (*C.char, *C.char) {
+	ctx := contexts[service]
 	if ctx == nil {
 		return nil, C.CString("[System.LuaGetDB] contract state not found")
 	}
@@ -154,8 +154,8 @@ func luaGetDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int, blkno
 }
 
 //export luaDelDB
-func luaDelDB(L *LState, service *C.int, key unsafe.Pointer, keyLen C.int) *C.char {
-	ctx := contexts[*service]
+func luaDelDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) *C.char {
+	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[System.LuaDelDB] contract state not found")
 	}
@@ -217,11 +217,14 @@ func setInstCount(ctx *vmContext, parent *LState, child *LState) {
 
 func setInstMinusCount(ctx *vmContext, L *LState, deduc C.int) {
 	if !vmIsGasSystem(ctx) {
-		C.vm_setinstcount(L, minusCallCount(C.vm_instcount(L), deduc))
+		C.vm_setinstcount(L, minusCallCount(ctx, C.vm_instcount(L), deduc))
 	}
 }
 
-func minusCallCount(curCount C.int, deduc C.int) C.int {
+func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
+	if vmIsGasSystem(ctx) {
+		return 0
+	}
 	remain := curCount - deduc
 	if remain <= 0 {
 		remain = 1
@@ -230,12 +233,12 @@ func minusCallCount(curCount C.int, deduc C.int) C.int {
 }
 
 //export luaCallContract
-func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.char, args *C.char,
+func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char, args *C.char,
 	amount *C.char, gas uint64) (C.int, *C.char) {
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
 
-	ctx := contexts[*service]
+	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaCallContract] contract state not found")
 	}
@@ -271,7 +274,10 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 
 	refreshGas(ctx, L)
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
-	defer ce.close()
+	defer func() {
+		ce.close()
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}()
 
 	if ce.err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] newExecutor error: " + ce.err.Error())
@@ -303,10 +309,9 @@ func luaCallContract(L *LState, service *C.int, contractId *C.char, fname *C.cha
 	defer func() {
 		ctx.curContract = prevContractInfo
 	}()
-	ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 	defer setInstCount(ctx, L, ce.L)
 
-	ret := ce.call(L)
+	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 	if ce.err != nil {
 		err := clearRecovery(L, ctx, seq, true)
 		if err != nil {
@@ -335,13 +340,13 @@ func getOnlyContractState(ctx *vmContext, aid types.AccountID) (*state.ContractS
 }
 
 //export luaDelegateCallContract
-func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
+func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	fname *C.char, args *C.char, gas uint64) (C.int, *C.char) {
 	contractIdStr := C.GoString(contractId)
 	fnameStr := C.GoString(fname)
 	argsStr := C.GoString(args)
 
-	ctx := contexts[*service]
+	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] contract state not found")
 	}
@@ -368,7 +373,10 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 
 	refreshGas(ctx, L)
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
-	defer ce.close()
+	defer func() {
+		ce.close()
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}()
 
 	if ce.err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] newExecutor error: " + ce.err.Error())
@@ -382,10 +390,9 @@ func luaDelegateCallContract(L *LState, service *C.int, contractId *C.char,
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[DELEGATECALL Contract %v %v]\n", contractIdStr, fnameStr))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
 	}
-	ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 	defer setInstCount(ctx, L, ce.L)
 
-	ret := ce.call(L)
+	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 	if ce.err != nil {
 		err := clearRecovery(L, ctx, seq, true)
 		if err != nil {
@@ -420,8 +427,8 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 }
 
 //export luaSendAmount
-func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char) *C.char {
-	ctx := contexts[*service]
+func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) *C.char {
+	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaSendAmount] contract state not found")
 	}
@@ -460,7 +467,10 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 
 		refreshGas(ctx, L)
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
-		defer ce.close()
+		defer func() {
+			ce.close()
+			C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+		}()
 		if ce.err != nil {
 			return C.CString("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
 		}
@@ -487,10 +497,9 @@ func luaSendAmount(L *LState, service *C.int, contractId *C.char, amount *C.char
 		defer func() {
 			ctx.curContract = prevContractInfo
 		}()
-		ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 		defer setInstCount(ctx, L, ce.L)
 
-		ce.call(L)
+		ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 		if ce.err != nil {
 			err := clearRecovery(L, ctx, seq, true)
 			if err != nil {
@@ -544,8 +553,8 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *
 }
 
 //export luaPrint
-func luaPrint(L *LState, service *C.int, args *C.char) {
-	ctx := contexts[*service]
+func luaPrint(L *LState, service C.int, args *C.char) {
+	ctx := contexts[service]
 	setInstMinusCount(ctx, L, 1000)
 	ctrLgr.Info().Str("Contract SystemPrint", types.EncodeAddress(ctx.curContract.contractId)).Msg(C.GoString(args))
 }
@@ -588,8 +597,8 @@ func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.St
 }
 
 //export luaSetRecoveryPoint
-func luaSetRecoveryPoint(L *LState, service *C.int) (C.int, *C.char) {
-	ctx := contexts[*service]
+func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
+	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.pcall] contract state not found")
 	}
@@ -630,8 +639,8 @@ func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
 }
 
 //export luaClearRecovery
-func luaClearRecovery(L *LState, service *C.int, start int, error bool) *C.char {
-	ctx := contexts[*service]
+func luaClearRecovery(L *LState, service C.int, start int, error bool) *C.char {
+	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.pcall] contract state not found")
 	}
@@ -646,8 +655,8 @@ func luaClearRecovery(L *LState, service *C.int, start int, error bool) *C.char 
 }
 
 //export luaGetBalance
-func luaGetBalance(L *LState, service *C.int, contractId *C.char) (*C.char, *C.char) {
-	ctx := contexts[*service]
+func luaGetBalance(L *LState, service C.int, contractId *C.char) (*C.char, *C.char) {
+	ctx := contexts[service]
 	if contractId == nil {
 		return C.CString(ctx.curContract.callState.ctrState.GetBalanceBigInt().String()), nil
 	}
@@ -670,59 +679,59 @@ func luaGetBalance(L *LState, service *C.int, contractId *C.char) (*C.char, *C.c
 }
 
 //export luaGetSender
-func luaGetSender(L *LState, service *C.int) *C.char {
-	ctx := contexts[*service]
+func luaGetSender(L *LState, service C.int) *C.char {
+	ctx := contexts[service]
 	setInstMinusCount(ctx, L, 1000)
 	return C.CString(types.EncodeAddress(ctx.curContract.sender))
 }
 
 //export luaGetHash
-func luaGetHash(L *LState, service *C.int) *C.char {
-	ctx := contexts[*service]
+func luaGetHash(L *LState, service C.int) *C.char {
+	ctx := contexts[service]
 	return C.CString(enc.ToString(ctx.txHash))
 }
 
 //export luaGetBlockNo
-func luaGetBlockNo(L *LState, service *C.int) C.lua_Integer {
-	ctx := contexts[*service]
+func luaGetBlockNo(L *LState, service C.int) C.lua_Integer {
+	ctx := contexts[service]
 	return C.lua_Integer(ctx.blockInfo.No)
 }
 
 //export luaGetTimeStamp
-func luaGetTimeStamp(L *LState, service *C.int) C.lua_Integer {
-	ctx := contexts[*service]
+func luaGetTimeStamp(L *LState, service C.int) C.lua_Integer {
+	ctx := contexts[service]
 	return C.lua_Integer(ctx.blockInfo.Ts / 1e9)
 }
 
 //export luaGetContractId
-func luaGetContractId(L *LState, service *C.int) *C.char {
-	ctx := contexts[*service]
+func luaGetContractId(L *LState, service C.int) *C.char {
+	ctx := contexts[service]
 	setInstMinusCount(ctx, L, 1000)
 	return C.CString(types.EncodeAddress(ctx.curContract.contractId))
 }
 
 //export luaGetAmount
-func luaGetAmount(L *LState, service *C.int) *C.char {
-	ctx := contexts[*service]
+func luaGetAmount(L *LState, service C.int) *C.char {
+	ctx := contexts[service]
 	return C.CString(ctx.curContract.amount.String())
 }
 
 //export luaGetOrigin
-func luaGetOrigin(L *LState, service *C.int) *C.char {
-	ctx := contexts[*service]
+func luaGetOrigin(L *LState, service C.int) *C.char {
+	ctx := contexts[service]
 	setInstMinusCount(ctx, L, 1000)
 	return C.CString(types.EncodeAddress(ctx.origin))
 }
 
 //export luaGetPrevBlockHash
-func luaGetPrevBlockHash(L *LState, service *C.int) *C.char {
-	ctx := contexts[*service]
+func luaGetPrevBlockHash(L *LState, service C.int) *C.char {
+	ctx := contexts[service]
 	return C.CString(enc.ToString(ctx.blockInfo.PrevBlockHash))
 }
 
 //export luaGetDbHandle
-func luaGetDbHandle(service *C.int) *C.sqlite3 {
-	ctx := contexts[*service]
+func luaGetDbHandle(service C.int) *C.sqlite3 {
+	ctx := contexts[service]
 	curContract := ctx.curContract
 	cs := curContract.callState
 	if cs.tx != nil {
@@ -981,7 +990,7 @@ func transformAmount(amountStr string) (*big.Int, error) {
 //export luaDeployContract
 func luaDeployContract(
 	L *LState,
-	service *C.int,
+	service C.int,
 	contract *C.char,
 	args *C.char,
 	amount *C.char,
@@ -990,7 +999,7 @@ func luaDeployContract(
 	argsStr := C.GoString(args)
 	contractStr := C.GoString(contract)
 
-	ctx := contexts[*service]
+	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaDeployContract]not found contract state")
 	}
@@ -1102,8 +1111,11 @@ func luaDeployContract(
 
 	refreshGas(ctx, L)
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
+	defer func() {
+		ce.close()
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}()
 	if ce != nil {
-		defer ce.close()
 		if ce.err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
 		}
@@ -1111,7 +1123,7 @@ func luaDeployContract(
 
 	// create a sql database for the contract
 	if !HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
-		if db := luaGetDbHandle(&ctx.service); db == nil {
+		if db := luaGetDbHandle(ctx.service); db == nil {
 			return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
 		}
 	}
@@ -1121,10 +1133,9 @@ func luaDeployContract(
 	addr := C.CString(types.EncodeAddress(newContract.ID()))
 	ret := C.int(1)
 	if ce != nil {
-		ce.setCountHook(minusCallCount(C.vm_instcount(L), luaCallCountDeduc))
 		defer setInstCount(ce.ctx, L, ce.L)
 
-		ret += ce.call(L)
+		ret += ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
 		if ce.err != nil {
 			err := clearRecovery(L, ctx, seq, true)
 			if err != nil {
@@ -1164,8 +1175,8 @@ func luaRandomInt(min, max, service C.int) C.int {
 }
 
 //export luaEvent
-func luaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) *C.char {
-	ctx := contexts[*service]
+func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char {
+	ctx := contexts[service]
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[Contract.Event] event not permitted in query")
 	}
@@ -1192,8 +1203,8 @@ func luaEvent(L *LState, service *C.int, eventName *C.char, args *C.char) *C.cha
 }
 
 //export luaIsContract
-func luaIsContract(L *LState, service *C.int, contractId *C.char) (C.int, *C.char) {
-	ctx := contexts[*service]
+func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char) {
+	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaIsContract] contract state not found")
 	}
@@ -1211,8 +1222,8 @@ func luaIsContract(L *LState, service *C.int, contractId *C.char) (C.int, *C.cha
 }
 
 //export luaGovernance
-func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char {
-	ctx := contexts[*service]
+func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
+	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaGovernance] contract state not found")
 	}
@@ -1309,33 +1320,29 @@ func luaGovernance(L *LState, service *C.int, gType C.char, arg *C.char) *C.char
 }
 
 //export luaViewStart
-func luaViewStart(service *C.int) {
-	ctx := contexts[*service]
+func luaViewStart(service C.int) {
+	ctx := contexts[service]
 	ctx.nestedView++
 }
 
 //export luaViewEnd
-func luaViewEnd(service *C.int) {
-	ctx := contexts[*service]
+func luaViewEnd(service C.int) {
+	ctx := contexts[service]
 	ctx.nestedView--
 }
 
 //export luaCheckView
-func luaCheckView(service *C.int) C.int {
-	ctx := contexts[*service]
+func luaCheckView(service C.int) C.int {
+	ctx := contexts[service]
 	return C.int(ctx.nestedView)
 }
 
 //export luaCheckTimeout
-func luaCheckTimeout(service *C.int) C.int {
-	if service == nil {
-		return -1
+func luaCheckTimeout(service C.int) C.int {
+	if service < BlockFactory {
+		service = service + MaxVmService
 	}
-	sno := *service
-	if sno < BlockFactory {
-		sno = sno + MaxVmService
-	}
-	if sno != BlockFactory {
+	if service != BlockFactory {
 		return 0
 	}
 	select {
@@ -1347,8 +1354,8 @@ func luaCheckTimeout(service *C.int) C.int {
 }
 
 //export luaIsFeeDelegation
-func luaIsFeeDelegation(L *LState, service *C.int) (C.int, *C.char) {
-	ctx := contexts[*service]
+func luaIsFeeDelegation(L *LState, service C.int) (C.int, *C.char) {
+	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaIsContract] contract state not found")
 	}
@@ -1359,8 +1366,8 @@ func luaIsFeeDelegation(L *LState, service *C.int) (C.int, *C.char) {
 }
 
 //export LuaGetDbHandleSnap
-func LuaGetDbHandleSnap(service *C.int, snap *C.char) *C.char {
-	stateSet := contexts[*service]
+func LuaGetDbHandleSnap(service C.int, snap *C.char) *C.char {
+	stateSet := contexts[service]
 	curContract := stateSet.curContract
 	callState := curContract.callState
 
@@ -1384,8 +1391,8 @@ func LuaGetDbHandleSnap(service *C.int, snap *C.char) *C.char {
 }
 
 //export LuaGetDbSnapshot
-func LuaGetDbSnapshot(service *C.int) *C.char {
-	stateSet := contexts[*service]
+func LuaGetDbSnapshot(service C.int) *C.char {
+	stateSet := contexts[service]
 	curContract := stateSet.curContract
 
 	return C.CString(strconv.FormatUint(curContract.rp, 10))

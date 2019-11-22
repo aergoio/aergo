@@ -78,7 +78,7 @@ static void state_map_check_index(lua_State *L, state_map_t *m)
                            lua_typename(L, stored_type), m->id);
             }
         }
-        if (isHardfork(L, FORK_V2)) {
+        if (vm_is_hardfork(L, 2)) {
             m->key_type = stored_type;
         }
         lua_pop(L, 1);

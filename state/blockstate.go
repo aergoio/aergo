@@ -25,6 +25,8 @@ type BlockState struct {
 	prevBlockHash []byte
 	consensus     []byte // Consensus Header
 	GasPrice      *big.Int
+
+	timeoutTx types.Transaction
 }
 
 type codeCache struct {
@@ -113,6 +115,14 @@ func (bs *BlockState) SetGasPrice(gasPrice *big.Int) *BlockState {
 		bs.GasPrice = gasPrice
 	}
 	return bs
+}
+
+func (bs *BlockState) TimeoutTx() types.Transaction {
+	return bs.timeoutTx
+}
+
+func (bs *BlockState) SetTimeoutTx(tx types.Transaction) {
+	bs.timeoutTx = tx
 }
 
 func (bs *BlockState) PrevBlockHash() []byte {

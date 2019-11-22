@@ -66,15 +66,14 @@ func (c *sendCoin) Run(args string) (string, uint64, []*types.Event, error) {
 	senderName, receiverName, amount, _ := c.parse(args)
 
 	// assuming target is contract
-	err := context.Get().ConnectBlock(
-		contract.NewLuaTxCallBig(senderName, receiverName, amount, ""),
-	)
+	var tx contract.LuaTxTester
+	tx = contract.NewLuaTxCallBig(senderName, receiverName, amount, "")
+	err := context.Get().ConnectBlock(tx)
 
-	if err != nil && strings.HasPrefix(err.Error(), "cannot find contract") {
+	if err != nil && strings.HasPrefix(err.Error(), "not found contract") {
 		// retry to normal address
-		err := context.Get().ConnectBlock(
-			contract.NewLuaTxSendBig(senderName, receiverName, amount),
-		)
+		tx = contract.NewLuaTxSendBig(senderName, receiverName, amount)
+		err := context.Get().ConnectBlock(tx)
 		if err != nil {
 			return "", 0, nil, err
 		}
@@ -84,6 +83,8 @@ func (c *sendCoin) Run(args string) (string, uint64, []*types.Event, error) {
 
 	Index(context.AccountSymbol, receiverName)
 
-	return "send aergo successfully", 0, nil, nil
-
+	return "send aergo successfully",
+		context.Get().GetReceipt(tx.Hash()).GasUsed,
+		nil,
+		nil
 }

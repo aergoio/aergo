@@ -5,16 +5,16 @@ package config
 import (
 	"fmt"
 	"reflect"
-
+	
 	"github.com/aergoio/aergo/types"
 )
 
 var (
 	MainNetHardforkConfig = &HardforkConfig{
-		V2: types.BlockNo(20000000),
+		V2: types.BlockNo(19611555),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
-		V2: types.BlockNo(20000000),
+		V2: types.BlockNo(18714241),
 	}
 	AllEnabledHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(0),

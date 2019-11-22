@@ -31,7 +31,7 @@ var (
 	//DefaultParams is for aergo v1 compatibility
 	DefaultParams = map[string]*big.Int{
 		stakingMin.ID(): types.StakingMinimum,
-		gasPrice.ID():   big.NewInt(1),
+		gasPrice.ID():   big.NewInt(50000000000),
 		namePrice.ID():  big.NewInt(1000000000000000000),
 	}
 )
