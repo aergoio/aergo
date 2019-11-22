@@ -25,7 +25,7 @@ func TxGas(payloadSize int) uint64 {
 
 func MaxGasLimit(balance, gasPrice *big.Int) uint64 {
 	gasLimit := uint64(math.MaxUint64)
-	n := balance.Div(balance, gasPrice)
+	n := new(big.Int).Div(balance, gasPrice)
 	if n.IsUint64() {
 		gasLimit = n.Uint64()
 	}
