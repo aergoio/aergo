@@ -28,7 +28,7 @@ static int crypto_ecverify(lua_State *L)
     struct luaECVerify_return ret;
 	int service = getLuaExecContext(L);
 
-    lua_gasuse(L, 10000);
+    lua_gasuse(L, 5000);
     luaL_checktype(L, 1, LUA_TSTRING);
     luaL_checktype(L, 2, LUA_TSTRING);
     luaL_checktype(L, 3, LUA_TSTRING);
@@ -55,7 +55,7 @@ static int crypto_verifyProof(lua_State *L)
     size_t kLen, vLen, hLen, nProof;
     int i, b;
     const int proofIndex = 4;
-    lua_gasuse(L, 10000);
+    lua_gasuse(L, 5000);
     if (argc < proofIndex) {
         lua_pushboolean(L, 0);
         return 1;
