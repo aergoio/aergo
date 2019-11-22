@@ -274,7 +274,10 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 	refreshGas(ctx, L)
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
-	defer ce.close(L)
+	defer func() {
+		ce.close()
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}()
 
 	if ce.err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] newExecutor error: " + ce.err.Error())
@@ -370,7 +373,10 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 
 	refreshGas(ctx, L)
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
-	defer ce.close(L)
+	defer func() {
+		ce.close()
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}()
 
 	if ce.err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] newExecutor error: " + ce.err.Error())
@@ -461,7 +467,10 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 
 		refreshGas(ctx, L)
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
-		defer ce.close(L)
+		defer func() {
+			ce.close()
+			C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+		}()
 		if ce.err != nil {
 			return C.CString("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
 		}
@@ -1102,8 +1111,11 @@ func luaDeployContract(
 
 	refreshGas(ctx, L)
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
+	defer func() {
+		ce.close()
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}()
 	if ce != nil {
-		defer ce.close(L)
 		if ce.err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
 		}

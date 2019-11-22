@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	txGasSize = 100000
-	payloadGasSize = 5
+	txGasSize = uint64(100000)
+	payloadGasSize = uint64(5)
 )
 
 func TxGas(payloadSize int) uint64 {
@@ -18,8 +18,8 @@ func TxGas(payloadSize int) uint64 {
 	if size > payloadMaxSize {
 		size = payloadMaxSize
 	}
-	txGas := uint64(txGasSize)
-	payloadGas := uint64(size) * uint64(payloadGasSize)
+	txGas := txGasSize
+	payloadGas := uint64(size) * payloadGasSize
 	return txGas + payloadGas
 }
 

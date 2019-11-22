@@ -88,8 +88,9 @@ func Execute(
 		return
 	}
 
-	gasLimit := txBody.GetGasLimit()
+	var gasLimit uint64
 	if useGas(bi.Version) {
+		gasLimit = txBody.GetGasLimit()
 		if gasLimit == 0 {
 			balance := new(big.Int).Sub(sender.Balance(), usedFee)
 			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
@@ -97,15 +98,14 @@ func Execute(
 				err = newVmError(types.ErrNotEnoughGas)
 				return
 			}
+		} else {
+			usedGas := fee.TxGas(len(txBody.GetPayload()))
+			if gasLimit <= usedGas {
+				err = newVmError(types.ErrNotEnoughGas)
+				return
+			}
+			gasLimit -= usedGas
 		}
-		usedGas := fee.TxGas(len(txBody.GetPayload()))
-		if gasLimit <= usedGas {
-			err = newVmError(types.ErrNotEnoughGas)
-			return
-		}
-		gasLimit -= usedGas
-	} else {
-		gasLimit = 0
 	}
 
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
@@ -145,7 +145,7 @@ func Execute(
 				preload = <-replyCh
 			}
 			if preload.tx != tx {
-				preload.ex.close(nil)
+				preload.ex.close()
 				continue
 			}
 			ex = preload.ex
@@ -221,7 +221,7 @@ func preLoadWorker() {
 		if len(replyCh) > 2 {
 			select {
 			case preload := <-replyCh:
-				preload.ex.close(nil)
+				preload.ex.close()
 			default:
 			}
 		}

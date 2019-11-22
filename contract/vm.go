@@ -290,7 +290,6 @@ func newExecutor(
 	}
 	if v := HardforkConfig.Version(ctx.blockInfo.No); v >= 2 {
 		C.luaL_set_hardforkversion(ce.L, C.int(v))
-		C.vm_set_timeout_hook(ce.L)
 	}
 	if vmIsGasSystem(ctx) {
 		ce.setGas()
@@ -329,7 +328,7 @@ func newExecutor(
 		}
 		ce.isView = f.View
 		if loaded := vmAutoload(ce.L, constructor); !loaded {
-			ce.close(nil)
+			ce.close()
 			return nil
 		}
 		ce.numArgs = C.int(len(ci.Args))
@@ -634,15 +633,12 @@ func (ce *executor) setGas() {
 	C.lua_gasset(ce.L, C.ulonglong(ce.ctx.remainedGas))
 }
 
-func (ce *executor) close(parent *LState) {
+func (ce *executor) close() {
 	if ce != nil {
 		if ce.ctx != nil {
 			ce.ctx.callDepth--
 		}
 		freeLState(ce.L)
-	}
-	if parent != nil {
-		C.lua_gasset(parent, C.ulonglong(ce.ctx.remainedGas))
 	}
 }
 
@@ -702,7 +698,7 @@ func Call(
 
 	contexts[ctx.service] = ctx
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
-	defer ce.close(nil)
+	defer ce.close()
 
 	ce.call(callMaxInstLimit, nil)
 	err = ce.err
@@ -773,7 +769,7 @@ func PreCall(
 ) (string, []*types.Event, *big.Int, error) {
 	var err error
 
-	defer ce.close(nil)
+	defer ce.close()
 
 	ctx := ce.ctx
 	ctx.bs = bs
@@ -935,7 +931,7 @@ func Create(
 	if ce == nil {
 		return "", nil, ctx.usedFee(), nil
 	}
-	defer ce.close(nil)
+	defer ce.close()
 
 	ce.call(callMaxInstLimit, nil)
 	err = ce.err
@@ -1034,7 +1030,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 		ctrLgr.Debug().Str("abi", string(queryInfo)).Str("contract", types.EncodeAddress(contractAddress)).Msg("query")
 	}
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
-	defer ce.close(nil)
+	defer ce.close()
 	defer func() {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			err = dbErr
@@ -1095,7 +1091,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	ci.Args = append([]interface{}{ci.Name}, ci.Args...)
 	ci.Name = checkFeeDelegationFn
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, true, contractState)
-	defer ce.close(nil)
+	defer ce.close()
 	defer func() {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			err = dbErr

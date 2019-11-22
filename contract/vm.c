@@ -96,10 +96,16 @@ int vm_is_hardfork(lua_State *L, int version)
 static int pcall(lua_State *L)
 {
     int err;
+
     if (lua_usegas(L)) {
         lua_enablegas(L);
+		vm_set_timeout_hook(L);
     } else {
-        vm_set_count_hook(L, 5000000);
+        if (vm_is_hardfork(L, 2)) {
+            vm_set_timeout_count_hook(L, 5000000);
+        } else {
+            vm_set_count_hook(L, 5000000);
+        }
         luaL_enablemaxmem(L);
     }
     err = lua_pcall(L, 0, 0, 0);
@@ -107,8 +113,9 @@ static int pcall(lua_State *L)
         lua_disablegas(L);
     } else {
         luaL_disablemaxmem(L);
-        lua_sethook(L, NULL, 0, 0);
     }
+    lua_sethook(L, NULL, 0, 0);
+
     return err;
 }
 
