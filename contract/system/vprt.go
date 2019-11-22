@@ -618,7 +618,7 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 		if l := v.store.buckets[i]; l != nil && l.Len() > 0 {
 			for e := l.Front(); e != nil; e = e.Next() {
 				vp := toVotingPower(e)
-				if r.Sub(r, vp.getPower()).Cmp(zeroValue) <= 0 {
+				if r.Sub(r, vp.getPower()).Cmp(zeroValue) < 0 {
 					return vp.getAddr(), nil
 				}
 			}

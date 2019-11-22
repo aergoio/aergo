@@ -147,7 +147,7 @@ static int moduleDelegateCall(lua_State *L)
 	int service = getLuaExecContext(L);
 	lua_Integer gas;
 
-    lua_gasuse(L, 1000);
+    lua_gasuse(L, 2000);
 
 	lua_getfield(L, 1, fee_str);
 	if (lua_isnil(L, -1))
