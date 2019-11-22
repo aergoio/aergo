@@ -22,7 +22,7 @@ type Executor interface {
 	Usage() string
 	Describe() string
 	Validate(args string) error
-	Run(args string) (string, uint64, []*types.Event, error)
+	Run(args string) (string, uint64, []*types.Event, error) // message, gas used, events, error
 }
 
 var execImpls = make(map[string]Executor)

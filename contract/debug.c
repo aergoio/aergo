@@ -6,6 +6,8 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
+#include "_cgo_export.h"
+
 // --- lua functions ---
 
 static int get_contract_info_lua(lua_State *L) {

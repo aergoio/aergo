@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -67,19 +68,19 @@ func (c *setb) parse(args string) (uint64, string, error) {
 	return line, contractIDHex, nil
 }
 
-func (c *setb) Run(args string) (string, error) {
+func (c *setb) Run(args string) (string, uint64, []*types.Event, error) {
 	line, contractIDHex, _ := c.parse(args)
 
 	err := contract.SetBreakPoint(contractIDHex, line)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 	addr, err := contract.HexAddrToBase58Addr(contractIDHex)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
-	return "set breakpoint: " + fmt.Sprintf("%s:%d", addr, line), nil
+	return "set breakpoint: " + fmt.Sprintf("%s:%d", addr, line), 0, nil, nil
 }
 
 // =========== delb ==============
@@ -125,19 +126,19 @@ func (c *delb) parse(args string) (uint64, string, error) {
 	return line, contractIDHex, nil
 }
 
-func (c *delb) Run(args string) (string, error) {
+func (c *delb) Run(args string) (string, uint64, []*types.Event, error) {
 	line, contractIDHex, _ := c.parse(args)
 
 	err := contract.DelBreakPoint(contractIDHex, line)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 	addr, err := contract.HexAddrToBase58Addr(contractIDHex)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
-	return "del breakpoint: " + fmt.Sprintf("%s:%d", addr, line), nil
+	return "del breakpoint: " + fmt.Sprintf("%s:%d", addr, line), 0, nil, nil
 }
 
 // =========== listb ==============
@@ -164,10 +165,10 @@ func (c *listb) Validate(args string) error {
 	return nil
 }
 
-func (c *listb) Run(args string) (string, error) {
+func (c *listb) Run(args string) (string, uint64, []*types.Event, error) {
 	contract.PrintBreakPoints()
 
-	return "list breakpoints", nil
+	return "list breakpoints", 0, nil, nil
 }
 
 // =========== resetb ==============
@@ -194,10 +195,10 @@ func (c *resetb) Validate(args string) error {
 	return nil
 }
 
-func (c *resetb) Run(args string) (string, error) {
+func (c *resetb) Run(args string) (string, uint64, []*types.Event, error) {
 	contract.ResetBreakPoints()
 
-	return "reset breakpoints", nil
+	return "reset breakpoints", 0, nil, nil
 }
 
 // =====================================
@@ -239,15 +240,15 @@ func (c *setw) parse(args string) (string, error) {
 	return splitArgs[0].Text, nil
 }
 
-func (c *setw) Run(args string) (string, error) {
+func (c *setw) Run(args string) (string, uint64, []*types.Event, error) {
 	watch_expr, _ := c.parse(args)
 
 	err := contract.SetWatchPoint(watch_expr)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
-	return "set watchpoint: " + watch_expr, nil
+	return "set watchpoint: " + watch_expr, 0, nil, nil
 }
 
 // =========== delw ==============
@@ -291,15 +292,15 @@ func (c *delw) parse(args string) (uint64, error) {
 	return idx, nil
 }
 
-func (c *delw) Run(args string) (string, error) {
+func (c *delw) Run(args string) (string, uint64, []*types.Event, error) {
 	idx, _ := c.parse(args)
 
 	err := contract.DelWatchPoint(idx)
 	if err != nil {
-		return "", err
+		return "", 0, nil, err
 	}
 
-	return "del watchpoint: " + fmt.Sprintf("%d", idx), nil
+	return "del watchpoint: " + fmt.Sprintf("%d", idx), 0, nil, nil
 }
 
 // =========== listw ==============
@@ -326,7 +327,7 @@ func (c *listw) Validate(args string) error {
 	return nil
 }
 
-func (c *listw) Run(args string) (string, error) {
+func (c *listw) Run(args string) (string, uint64, []*types.Event, error) {
 	watchpoints := contract.ListWatchPoints()
 	i := 0
 	for e := watchpoints.Front(); e != nil; e = e.Next() {
@@ -334,7 +335,7 @@ func (c *listw) Run(args string) (string, error) {
 		fmt.Printf("%d: %s\n", i, e.Value)
 	}
 
-	return "list watchpoints", nil
+	return "list watchpoints", 0, nil, nil
 }
 
 // =========== resetb ==============
@@ -361,10 +362,10 @@ func (c *resetw) Validate(args string) error {
 	return nil
 }
 
-func (c *resetw) Run(args string) (string, error) {
+func (c *resetw) Run(args string) (string, uint64, []*types.Event, error) {
 	contract.ResetWatchPoints()
 
-	return "reset watchpoints", nil
+	return "reset watchpoints", 0, nil, nil
 }
 
 // =====================================

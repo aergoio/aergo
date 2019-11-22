@@ -340,22 +340,6 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 	return NewLuaTxDefBig(sender, contract, new(big.Int).SetUint64(amount), code)
 }
 
-func NewLuaTxDefBig(sender, contract string, amount *big.Int, code string) *luaTxDef {
-	byteCode, err := compile(code, nil)
-	if err != nil {
-		return &luaTxDef{cErr: err}
-	}
-	return &luaTxDef{
-		luaTxContractCommon: luaTxContractCommon{
-			_sender:   strHash(sender),
-			_contract: strHash(contract),
-			_code:     util.NewLuaCodePayload(byteCode, nil),
-			_amount:   amount,
-			txId:     newTxId(),
-		},
-		cErr: nil,
-	}
-}
 
 func strHash(d string) []byte {
 	// using real address
