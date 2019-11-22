@@ -5674,7 +5674,7 @@ func TestDeployFee(t *testing.T) {
 		t.Error(err)
 	}
 	r := bc.GetReceipt(tx.Hash())
-	expectedFee := uint64(119108)
+	expectedFee := uint64(118971)
 	if r.GetGasUsed() != expectedFee {
 		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
 	}
@@ -5720,7 +5720,7 @@ func TestOP(t *testing.T) {
 		t.Error(err)
 	}
 	r := bc.GetReceipt(tx.Hash())
-	expectedFee := uint64(146209)
+	expectedFee := uint64(117610)
 	if r.GetGasUsed() != expectedFee {
 		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
 	}
@@ -5766,7 +5766,7 @@ func TestBF(t *testing.T) {
 		t.Error(err)
 	}
 	r := bc.GetReceipt(tx.Hash())
-	expectedFee := uint64(55574664)
+	expectedFee := uint64(47456244)
 	if r.GetGasUsed() != expectedFee {
 		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
 	}
