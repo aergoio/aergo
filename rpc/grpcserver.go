@@ -360,7 +360,7 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 	rpc.blockStreamLock.Lock()
 	rpc.blockStream[streamId] = stream
 	rpc.blockStreamLock.Unlock()
-	logger.Info().Uint32("id", streamId).Msg("block stream added")
+	logger.Debug().Uint32("id", streamId).Msg("block stream added")
 
 	for {
 		select {
@@ -368,7 +368,7 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 			rpc.blockStreamLock.Lock()
 			delete(rpc.blockStream, streamId)
 			rpc.blockStreamLock.Unlock()
-			logger.Info().Uint32("id", streamId).Msg("block stream deleted")
+			logger.Debug().Uint32("id", streamId).Msg("block stream deleted")
 			return nil
 		}
 	}
@@ -380,7 +380,7 @@ func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream type
 	rpc.blockMetadataStreamLock.Lock()
 	rpc.blockMetadataStream[streamID] = stream
 	rpc.blockMetadataStreamLock.Unlock()
-	logger.Info().Uint32("id", streamID).Msg("block meta stream added")
+	logger.Debug().Uint32("id", streamID).Msg("block meta stream added")
 
 	for {
 		select {
@@ -388,7 +388,7 @@ func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream type
 			rpc.blockMetadataStreamLock.Lock()
 			delete(rpc.blockMetadataStream, streamID)
 			rpc.blockMetadataStreamLock.Unlock()
-			logger.Info().Uint32("id", streamID).Msg("block meta stream deleted")
+			logger.Debug().Uint32("id", streamID).Msg("block meta stream deleted")
 			return nil
 		}
 	}
