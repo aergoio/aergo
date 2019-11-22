@@ -6,7 +6,6 @@
 package chain
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -178,7 +177,7 @@ type IChainHandler interface {
 	getBlockByNo(blockNo types.BlockNo) (*types.Block, error)
 	getTx(txHash []byte) (*types.Tx, *types.TxIdx, error)
 	getReceipt(txHash []byte) (*types.Receipt, error)
-	getAccountVote(id []string, addr []byte) (*types.AccountVoteInfo, error)
+	getAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	getVotes(id string, n uint32) (*types.VoteList, error)
 	getStaking(addr []byte) (*types.Staking, error)
 	getNameInfo(name string, blockNo types.BlockNo) (*types.NameInfo, error)
@@ -212,6 +211,8 @@ type ChainService struct {
 	recovered  atomic.Value
 	debuggable bool
 }
+
+var _ types.ChainAccessor = (*ChainService)(nil)
 
 // NewChainService creates an instance of ChainService.
 func NewChainService(cfg *cfg.Config) *ChainService {
@@ -261,8 +262,14 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		panic("failed to init genesis block")
 	}
 
+	if err := cs.checkHardfork(); err != nil {
+		msg := "check the hardfork compatibility"
+		logger.Fatal().Err(err).Msg(msg)
+		panic(msg)
+	}
+
 	if ConsensusName() == consensus.ConsensusName[consensus.ConsensusDPOS] {
-		top, err := cs.getVotes(types.VoteBP[2:], 1)
+		top, err := cs.getVotes(types.OpvoteBP.ID(), 1)
 		if err != nil {
 			logger.Debug().Err(err).Msg("failed to get elected BPs")
 		} else {
@@ -274,18 +281,25 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	}
 
 	// init related modules
-	if !pubNet && cfg.Blockchain.ZeroFee {
+	if !pubNet {
 		fee.EnableZeroFee()
 	}
-	logger.Info().Bool("enablezerofee", fee.IsZeroFee()).Msg("fee")
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
 	contract.StartLStateFactory()
+	contract.HardforkConfig = cs.cfg.Hardfork
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
 	system.InitGovernance(cs.ConsensusType())
+
+	//reset parameter of aergo.system
+	systemState, err := cs.SDB().GetSystemAccountState()
+	if err != nil {
+		panic("failed to read aergo.system state")
+	}
+	system.InitSystemParams(systemState, len(cs.GetGenesisInfo().BPs))
 
 	// init Debugger
 	cs.initDebugger()
@@ -318,7 +332,7 @@ func (cs *ChainService) CDB() consensus.ChainDB {
 	return cs.cdb
 }
 
-// CDB returns cs.sdb as a consensus.ChainDbReader.
+// WalDB returns cs.sdb as a consensus.ChainDbReader.
 func (cs *ChainService) WalDB() consensus.ChainWAL {
 	return cs.cdb
 }
@@ -427,7 +441,9 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetStaking,
 		*message.GetNameInfo,
 		*message.GetEnterpriseConf,
-		*message.ListEvents:
+		*message.GetParams,
+		*message.ListEvents,
+		*message.CheckFeeDelegation:
 		cs.chainWorker.Request(msg, context.Sender())
 
 		//handle directly
@@ -478,6 +494,9 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
+		if n == 0 {
+			return system.GetVoteResult(cs.sdb, []byte(id), system.GetBpCount())
+		}
 		return system.GetVoteResult(cs.sdb, []byte(id), int(n))
 	case consensus.ConsensusName[consensus.ConsensusRAFT]:
 		//return cs.GetBPs()
@@ -487,7 +506,7 @@ func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	}
 }
 
-func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.AccountVoteInfo, error) {
+func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, error) {
 	if cs.GetType() != consensus.ConsensusDPOS {
 		return nil, ErrNotSupportedConsensus
 	}
@@ -496,33 +515,16 @@ func (cs *ChainService) getAccountVote(ids []string, addr []byte) (*types.Accoun
 	if err != nil {
 		return nil, err
 	}
-
-	var voteInfo types.AccountVoteInfo
-
-	for _, id := range ids {
-		vote, err := system.GetVote(scs, addr, []byte(id))
-		if err != nil {
-			return nil, err
-		}
-		var candidates []string
-		to := vote.GetCandidate()
-		if len(to) == 0 {
-			continue
-		}
-		if id == types.VoteBP[2:] {
-			for offset := 0; offset < len(to); offset += system.PeerIDLength {
-				candidates = append(candidates, types.EncodeB58(to[offset:offset+system.PeerIDLength]))
-			}
-		} else {
-			err := json.Unmarshal(to, &candidates)
-			if err != nil {
-				return nil, err
-			}
-		}
-		voteInfo.Voting = append(voteInfo.Voting, &types.VoteInfo{Id: id, Candidates: candidates})
+	namescs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	if err != nil {
+		return nil, err
+	}
+	voteInfo, err := system.GetVotes(scs, name.GetAddress(namescs, addr))
+	if err != nil {
+		return nil, err
 	}
 
-	return &voteInfo, nil
+	return &types.AccountVoteInfo{Voting: voteInfo}, nil
 }
 
 func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
@@ -572,6 +574,12 @@ func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) 
 	switch key {
 	case types.StakingTotal:
 		return system.GetStakingTotal(stateDB)
+	case types.StakingMin:
+		return system.GetStakingMinimum(), nil
+	case types.GasPrice:
+		return system.GetGasPrice(), nil
+	case types.NamePrice:
+		return system.GetNamePrice(), nil
 	}
 	return nil, fmt.Errorf("unsupported system value : %s", key)
 }
@@ -618,12 +626,18 @@ func (cm *ChainManager) Receive(context actor.Context) {
 		defer runtime.UnlockOSThread()
 
 		block := msg.Block
-		logger.Info().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
+		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
 			Uint64("no", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
 		if msg.Bstate != nil {
 			bstate = msg.Bstate.(*state.BlockState)
+			if timeoutTx := bstate.TimeoutTx(); timeoutTx != nil {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Str("hash", enc.ToString(timeoutTx.GetHash())).Msg("received timeout tx")
+				}
+				cm.TellTo(message.MemPoolSvc, &message.MemPoolDelTx{Tx: timeoutTx.GetTx()})
+			}
 		}
 		err := cm.addBlock(block, bstate, msg.PeerID)
 		if err != nil {
@@ -829,7 +843,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err: err,
 		})
 	case *message.GetVote:
-		info, err := cw.getAccountVote(msg.Ids, msg.Addr)
+		info, err := cw.getAccountVote(msg.Addr)
 		context.Respond(&message.GetAccountVoteRsp{
 			Info: info,
 			Err:  err,
@@ -858,6 +872,25 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Events: events,
 			Err:    err,
 		})
+	case *message.GetParams:
+		context.Respond(&message.GetParamsRsp{
+			BpCount:      system.GetBpCount(),
+			MinStaking:   system.GetStakingMinimum(),
+			MaxBlockSize: uint64(MaxBlockSize()),
+		})
+	case *message.CheckFeeDelegation:
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
+		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.CheckFeeDelegationRsp{Err: err})
+		} else {
+			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			err := contract.CheckFeeDelegation(msg.Contract, bs, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
+			context.Respond(message.CheckFeeDelegationRsp{Err: err})
+		}
 
 	case *actor.Started, *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
 	default:
@@ -872,4 +905,35 @@ func (cs *ChainService) ConsensusType() string {
 
 func (cs *ChainService) IsPublic() bool {
 	return cs.GetGenesisInfo().PublicNet()
+}
+
+func (cs *ChainService) checkHardfork() error {
+	config := cs.cfg.Hardfork
+	if Genesis.IsMainNet() {
+		*config = *cfg.MainNetHardforkConfig
+	} else if Genesis.IsTestNet() {
+		*config = *cfg.TestNetHardforkConfig
+	}
+	dbConfig := cs.cdb.Hardfork()
+	if len(dbConfig) == 0 {
+		return cs.cdb.WriteHardfork(config)
+	}
+	if err := config.CheckCompatibility(dbConfig, cs.cdb.getBestBlockNo()); err != nil {
+		return err
+	}
+	return cs.cdb.WriteHardfork(config)
+}
+
+func (cs *ChainService) ChainID(bno types.BlockNo) *types.ChainID {
+	b, err := cs.GetGenesisInfo().ID.Bytes()
+	if err != nil {
+		return nil
+	}
+	cid := new(types.ChainID)
+	err = cid.Read(b)
+	if err != nil {
+		return nil
+	}
+	cid.Version = cs.cfg.Hardfork.Version(bno)
+	return cid
 }

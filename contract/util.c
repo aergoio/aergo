@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 #include "util.h"
 #include "vm.h"
 #include "math.h"
@@ -163,6 +164,8 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	char *src_val;
 	char tmp[128];
 
+    lua_gasuse(L, GAS_MID);
+
 	switch (lua_type(L, idx)) {
 	case LUA_TNUMBER: {
 		if (json_form && iskey) {
@@ -202,7 +205,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 		break;
 	}
 	case LUA_TNIL:
-		if (json_form)
+		if (json_form && !vm_is_hardfork(L, 2))
 			src_val = "{},";
 		else
 			src_val = "null,";
@@ -234,7 +237,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 		if (table_idx < 0)
 			table_idx = lua_gettop(L) + idx + 1;
 		tbl_len = lua_objlen(L, table_idx);
-		if (json_form && tbl_len > 0) {
+		if ((json_form || vm_is_hardfork(L, 2)) && tbl_len > 0) {
 			double number;
 			char *check_array = calloc(tbl_len, sizeof(char));
 			is_array = true;
@@ -351,6 +354,7 @@ static bool lua_util_dump_json (lua_State *L, int idx, sbuff_t *sbuf, bool json_
 	return true;
 
 }
+
 static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum);
 
 static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
@@ -456,6 +460,8 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 	char *json = *start;
 	char special[5];
 
+    lua_gasuse(L, GAS_MID);
+
 	special[4] = '\0';
 	while(isspace(*json)) ++json;
 	if (*json == '"') {
@@ -537,7 +543,11 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 			++end;
 		}
         sscanf(json, "%lf", &d);
-        lua_pushnumber(L, d);
+        if (vm_is_hardfork(L, 2) && d == (int64_t)d) {
+            lua_pushinteger(L, (int64_t)d);
+        } else {
+            lua_pushnumber(L, d);
+        }
 		json = end;
 	} else if (*json == '{') {
 		if (json_to_lua_table(L, &json, check) != 0)
@@ -563,12 +573,13 @@ static int json_to_lua (lua_State *L, char **start, bool check, bool is_bignum) 
 }
 
 void minus_inst_count(lua_State *L, int count) {
-    int cnt = luaL_instcount(L);
-
-    cnt -= count;
-    if (cnt <= 0)
-        cnt = 1;
-    luaL_setinstcount(L, cnt);
+    if (!lua_usegas(L)) {
+        int cnt = vm_instcount(L);
+        cnt -= count;
+        if (cnt <= 0)
+            cnt = 1;
+        vm_setinstcount(L, cnt);
+    }
 }
 
 int lua_util_json_to_lua (lua_State *L, char *json, bool check)
@@ -612,6 +623,32 @@ char *lua_util_get_json_from_stack (lua_State *L, int start, int end, bool json_
 	return sbuf.buf;
 }
 
+char *lua_util_get_json_array_from_stack (lua_State *L, int start, int end, bool json_form)
+{
+	int i;
+	sbuff_t sbuf;
+	int start_idx;
+	callinfo_t *callinfo = NULL;
+	lua_util_sbuf_init (&sbuf, 64);
+
+	copy_to_buffer ("[", 1, &sbuf);
+	start_idx = sbuf.idx;
+	for (i = start; i <= end; ++i) {
+		if (!lua_util_dump_json (L, i, &sbuf, json_form, false, &callinfo)) {
+			callinfo_del(callinfo);
+			free(sbuf.buf);
+			return NULL;
+		}
+	}
+	callinfo_del(callinfo);
+	if (sbuf.idx != start_idx)
+		sbuf.idx--;
+	copy_to_buffer ("]", 2, &sbuf);
+
+    minus_inst_count(L, strlen(sbuf.buf));
+	return sbuf.buf;
+}
+
 char *lua_util_get_json (lua_State *L, int idx, bool json_form)
 {
 	sbuff_t sbuf;
@@ -634,7 +671,10 @@ char *lua_util_get_json (lua_State *L, int idx, bool json_form)
 
 static int lua_json_encode (lua_State *L)
 {
-	char *json = lua_util_get_json(L, -1, true);
+	char *json;
+
+	lua_gasuse(L, 50);
+	json = lua_util_get_json(L, -1, true);
 	if (json == NULL)
 		luaL_throwerror(L);
 	lua_pushstring(L, json);
@@ -647,6 +687,7 @@ static int lua_json_decode (lua_State *L)
 	char *org = (char *)luaL_checkstring(L, -1);
 	char *json = strdup(org);
 
+    lua_gasuse(L, 50);
     minus_inst_count(L, strlen(json));
 	if (lua_util_json_to_lua(L, json, true) != 0) {
 		free (json);

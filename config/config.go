@@ -8,10 +8,8 @@ package config
 import (
 	"runtime"
 
-	"github.com/aergoio/aergo/types"
-
 	"github.com/aergoio/aergo-lib/config"
-	//	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/types"
 )
 
 type ServerContext struct {
@@ -50,6 +48,7 @@ func (ctx *ServerContext) GetDefaultConfig() interface{} {
 		Account:    ctx.GetDefaultAccountConfig(),
 		Auth:       ctx.GetDefaultAuthConfig(),
 		Polaris:    ctx.GetDefaultPolarisConfig(),
+		Hardfork:   ctx.GetDefaultHardforkConfig(),
 		SQL:        ctx.GetDefaultSQLConfig(),
 	}
 }
@@ -90,6 +89,7 @@ func (ctx *ServerContext) GetDefaultP2PConfig() *P2PConfig {
 		NPPeerPool:      100,
 		NPUsePolaris:    true,
 		NPExposeSelf:    true,
+		PeerRole:        "",
 	}
 }
 
@@ -114,7 +114,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		MaxAnchorCount:   20,
 		VerifierCount:    types.DefaultVerifierCnt,
 		ForceResetHeight: 0,
-		ZeroFee:          true,
+		ZeroFee:          true, // deprecated
 		StateTrace:       0,
 	}
 }
@@ -146,6 +146,10 @@ func (ctx *ServerContext) GetDefaultAccountConfig() *AccountConfig {
 	return &AccountConfig{
 		UnlockTimeout: 60,
 	}
+}
+
+func (ctx *ServerContext) GetDefaultHardforkConfig() *HardforkConfig {
+	return AllEnabledHardforkConfig
 }
 
 func (ctx *ServerContext) GetDefaultSQLConfig() *SQLConfig {

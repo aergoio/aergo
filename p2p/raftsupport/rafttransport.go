@@ -181,8 +181,6 @@ func (t *AergoRaftTransport) connectToPeer(member *consensus.Member) {
 
 	// member should be add to designated peer
 	meta := peerMeta
-	meta.Outbound = true
-	meta.Designated = true
 	t.pm.AddDesignatedPeer(meta)
 	t.pm.AddNewPeer(meta)
 }
@@ -255,7 +253,7 @@ func (t *AergoRaftTransport) OnRaftSnapshot(s network.Stream) {
 		return
 	}
 	//// TODO raft role is not properly set yet.
-	//if peer.Role() != p2pcommon.RaftLeader {
+	//if peer.AcceptedRole() != p2pcommon.RaftLeader {
 	//	t.logger.Warn().Str(p2putil.LogPeerName, peer.Name()).Msg("Closing snapshot stream from follower node")
 	//	hsresp.RespCode = p2pcommon.HSCodeNoPermission
 	//	s.Write(hsresp.Marshal())

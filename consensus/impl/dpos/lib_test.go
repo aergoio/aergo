@@ -56,7 +56,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 		bpKey:         bpKey,
 		bpClusterSize: clusterSize,
 	}
-	tc.setGenesis(types.NewBlock(nil, nil, nil, nil, nil, 0))
+	tc.setGenesis(newBlock(0))
 
 	// Prevent DB access
 	tc.status.done = true
@@ -82,7 +82,7 @@ func (tc *testChain) addBlock(i types.BlockNo) error {
 	spk := enc.ToString(b)
 
 	prevBlock := tc.chain[len(tc.chain)-1]
-	block := types.NewBlock(prevBlock, nil, nil, nil, nil, 0)
+	block := newBlockFromPrev(prevBlock, 0, types.DummyBlockVersionner(0))
 
 	confirmNo := func(no types.BlockNo) (confirms types.BlockNo) {
 		lpb := types.BlockNo(0)

@@ -1,16 +1,19 @@
 #include "_cgo_export.h"
 #include "util.h"
 
+extern int getLuaExecContext(lua_State *L);
+
 static int crypto_sha256(lua_State *L)
 {
     size_t len;
     char *arg;
-    struct LuaCryptoSha256_return ret;
+    struct luaCryptoSha256_return ret;
 
+    lua_gasuse(L, 500);
     luaL_checktype(L, 1, LUA_TSTRING);
     arg = (char *)lua_tolstring(L, 1, &len);
 
-    ret = LuaCryptoSha256(L, arg, len);
+    ret = luaCryptoSha256(L, arg, len);
     if (ret.r1 < 0) {
         strPushAndRelease(L, ret.r1);
         lua_error(L);
@@ -22,8 +25,10 @@ static int crypto_sha256(lua_State *L)
 static int crypto_ecverify(lua_State *L)
 {
     char *msg, *sig, *addr;
-    struct LuaECVerify_return ret;
+    struct luaECVerify_return ret;
+	int service = getLuaExecContext(L);
 
+    lua_gasuse(L, 10000);
     luaL_checktype(L, 1, LUA_TSTRING);
     luaL_checktype(L, 2, LUA_TSTRING);
     luaL_checktype(L, 3, LUA_TSTRING);
@@ -31,7 +36,7 @@ static int crypto_ecverify(lua_State *L)
     sig = (char *)lua_tostring(L, 2);
     addr = (char *)lua_tostring(L, 3);
 
-    ret = LuaECVerify(L, msg, sig, addr);
+    ret = luaECVerify(L, service, msg, sig, addr);
     if (ret.r1 != NULL) {
         strPushAndRelease(L, ret.r1);
         lua_error(L);
@@ -50,6 +55,7 @@ static int crypto_verifyProof(lua_State *L)
     size_t kLen, vLen, hLen, nProof;
     int i, b;
     const int proofIndex = 4;
+    lua_gasuse(L, 10000);
     if (argc < proofIndex) {
         lua_pushboolean(L, 0);
         return 1;
@@ -62,7 +68,7 @@ static int crypto_verifyProof(lua_State *L)
     for (i = proofIndex; i <= argc; ++i) {
         proof[i-proofIndex].data = (char *)lua_tolstring(L, i, &proof[i-proofIndex].len);
     }
-    b = LuaCryptoVerifyProof(k, kLen, v, vLen, h, hLen, proof, nProof);
+    b = luaCryptoVerifyProof(k, kLen, v, vLen, h, hLen, proof, nProof);
     free(proof);
     lua_pushboolean(L, b);
     return 1;
@@ -72,12 +78,13 @@ static int crypto_keccak256(lua_State *L)
 {
     size_t len;
     char *arg;
-    struct LuaCryptoKeccak256_return ret;
+    struct luaCryptoKeccak256_return ret;
 
+    lua_gasuse(L, 500);
     luaL_checktype(L, 1, LUA_TSTRING);
     arg = (char *)lua_tolstring(L, 1, &len);
 
-    ret = LuaCryptoKeccak256(arg, len);
+    ret = luaCryptoKeccak256(arg, len);
     lua_pushlstring(L, ret.r0, ret.r1);
     free(ret.r0);
 	return 1;

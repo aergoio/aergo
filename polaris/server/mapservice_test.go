@@ -10,6 +10,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/libp2p/go-libp2p-core/network"
+	"net"
 	"reflect"
 	"sync"
 	"testing"
@@ -22,7 +23,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +39,7 @@ func (dntc *dummyNTC) SelfMeta() p2pcommon.PeerMeta {
 func (dntc *dummyNTC) GetNetworkTransport() p2pcommon.NetworkTransport {
 	return dntc.nt
 }
-func (dntc *dummyNTC) ChainID() *types.ChainID {
+func (dntc *dummyNTC) GenesisChainID() *types.ChainID {
 	return dntc.chainID
 }
 
@@ -114,8 +114,8 @@ func TestPeerMapService_readRequest(t *testing.T) {
 			mockRd := p2pmock.NewMockMsgReadWriter(ctrl)
 
 			mockRd.EXPECT().ReadMsg().Times(1).Return(msgStub, tt.args.readErr)
-
-			got, got1, err := pms.readRequest(tt.args.meta, mockRd)
+			ri := p2pcommon.RemoteInfo{Meta:tt.args.meta}
+			got, got1, err := pms.readRequest(ri, mockRd)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerMapService.readRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -150,15 +150,18 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 		t.Error("mainnet var is not set properly", common.ONEMainNet)
 	}
 	dummyPeerID2, err := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
-
-	goodPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID2, IPAddress: "211.34.56.78", Port: 7845}
+	goodAddr, _ := types.ParseMultiaddr("/ip4/211.34.56.78/tcp/7846")
+	goodPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID2, Addresses:[]types.Multiaddr{goodAddr}}
 	good := goodPeerMeta.ToPeerAddress()
-	badPeerMeta := p2pcommon.PeerMeta{ID: types.PeerID("bad"), IPAddress: "211.34.56.78", Port: 7845}
+	sameConn := p2pcommon.RemoteConn{net.ParseIP("211.34.56.78"), 42744, false}
+	//diffConn := p2pcommon.RemoteConn{net.ParseIP("11.55.56.78"), 42742, false}
+	badPeerMeta := p2pcommon.PeerMeta{ID: types.PeerID("bad"), Addresses:[]types.Multiaddr{goodAddr}}
 	bad := badPeerMeta.ToPeerAddress()
 
 	ok := types.ResultStatus_OK
 
 	type args struct {
+		conn p2pcommon.RemoteConn
 		status *types.Status
 		addme  bool
 		size   int32
@@ -172,17 +175,18 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 		wantStatus types.ResultStatus
 	}{
 		// check if parameter is bad
-		{"TMissingStat", args{nil, true, 9999}, true, false, ok},
+		{"TMissingStat", args{sameConn,nil, true, 9999}, true, false, ok},
 		// check if addMe is set or not
-		{"TOnlyQuery", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:minVersion.String()}, false, 10}, false, false, ok},
-		{"TOnlyQuery2", args{&types.Status{ChainID: mainnetbytes, Sender: &bad, Version:minVersion.String()}, false, 10}, false, false, ok},
+		{"TOnlyQuery", args{sameConn,&types.Status{ChainID: mainnetbytes, Sender: &good, Version:minVersion.String()}, false, 10}, false, false, ok},
+		{"TOnlyQuery2", args{sameConn,&types.Status{ChainID: mainnetbytes, Sender: &bad, Version:minVersion.String()}, false, 10}, false, false, ok},
 		// TODO refator mapservice to run commented test
 		//{"TAddWithGood",args{&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false, ok },
 		//{"TAddWithBad",args{&types.Status{ChainID:mainnetbytes, Sender:&bad}, true, 10}, false , true, ok },
-		// TODO: Add more cases .
+		//{"TDiffConn",args{diffConn,&types.Status{ChainID:mainnetbytes, Sender:&good}, true, 10}, false, false, ok },
+
 		// check if failed to connect back or not
-		{"TOldVersion", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooOldVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
-		{"TNewVersion", args{&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooNewVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
+		{"TOldVersion", args{sameConn,&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooOldVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
+		{"TNewVersion", args{sameConn,&types.Status{ChainID: mainnetbytes, Sender: &good, Version:tooNewVersion.String()}, false, 10}, false, true, types.ResultStatus_FAILED_PRECONDITION},
 
 	}
 	for _, tt := range tests {
@@ -195,13 +199,16 @@ func TestPeerMapService_handleQuery(t *testing.T) {
 			pmapDummyNTC.chainID = &common.ONEMainNet
 			pmapDummyNTC.nt = mockNT
 			mockNT.EXPECT().AddStreamHandler(gomock.Any(), gomock.Any())
-			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), common.PolarisPingSub, gomock.Any()).Return(mockStream, nil)
+			mockNT.EXPECT().GetOrCreateStreamWithTTL(gomock.Any(), gomock.Any(), common.PolarisPingSub).Return(mockStream, nil).MinTimes(1)
 
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.AfterStart()
 			query := &types.MapQuery{Status: tt.args.status, AddMe: tt.args.addme, Size: tt.args.size}
+			if query.Status != nil && query.Status.Sender != nil {
+				query.Status.Sender.Version = query.Status.Version
+			}
 
-			got, err := pms.handleQuery(nil, query)
+			got, err := pms.handleQuery(tt.args.conn, nil, query)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PeerMapService.handleQuery() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -223,8 +230,7 @@ var metas []p2pcommon.PeerMeta
 func init() {
 	metas = make([]p2pcommon.PeerMeta, 20)
 	for i := 0; i < 20; i++ {
-		_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		peerid, _ := types.IDFromPublicKey(pub)
+		peerid := types.RandomPeerID()
 		metas[i] = p2pcommon.PeerMeta{ID: peerid}
 	}
 }
@@ -250,6 +256,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.nt = mockNT
 
+			conn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
 			wg := &sync.WaitGroup{}
 			finWg := &sync.WaitGroup{}
 			wg.Add(1)
@@ -257,7 +264,7 @@ func TestPeerMapService_registerPeer(t *testing.T) {
 			for _, meta := range tt.args {
 				go func(in p2pcommon.PeerMeta) {
 					wg.Wait()
-					pms.registerPeer(in)
+					pms.registerPeer(in, conn)
 					finWg.Done()
 				}(meta)
 			}
@@ -289,10 +296,12 @@ func TestPeerMapService_unregisterPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockNT := p2pmock.NewMockNetworkTransport(ctrl)
+			conn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
+
 			pms := NewPolarisService(pmapDummyCfg, pmapDummyNTC)
 			pms.nt = mockNT
 			for _, meta := range metas {
-				pms.registerPeer(meta)
+				pms.registerPeer(meta, conn)
 			}
 			wg := &sync.WaitGroup{}
 			finWg := &sync.WaitGroup{}
@@ -353,7 +362,8 @@ func TestPeerMapService_writeResponse(t *testing.T) {
 				rwmutex:       tt.fields.mutex,
 				peerRegistry:  tt.fields.peerRegistry,
 			}
-			if err := pms.writeResponse(tt.args.reqContainer, tt.args.meta, tt.args.resp, tt.args.wt); (err != nil) != tt.wantErr {
+			ri := p2pcommon.RemoteInfo{Meta:tt.args.meta}
+			if err := pms.writeResponse(tt.args.reqContainer, ri, tt.args.resp, tt.args.wt); (err != nil) != tt.wantErr {
 				t.Errorf("PeerMapService.writeResponse() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -603,17 +613,17 @@ func TestPeerMapService_getPeerCheckers(t *testing.T) {
 
 func TestPeerMapService_applyNewBLEntry(t *testing.T) {
 	id1, _ := types.IDB58Decode("16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt")
-	id2 := p2putil.RandomPeerID()
-	id3 := p2putil.RandomPeerID()
-	ad10 := "123.45.67.89"
-	ad11 := "123.45.67.91" // same C class network
-	ad2 := "2001:0db8:0123:4567:89ab:cdef:1234:5678"
-	ad3 := "222.8.8.8"
-	m10 := p2pcommon.PeerMeta{IPAddress: ad10, ID: id1}
-	m11 := p2pcommon.PeerMeta{IPAddress: ad10, ID: p2putil.RandomPeerID()}
-	m12 := p2pcommon.PeerMeta{IPAddress: ad11, ID: p2putil.RandomPeerID()}
-	m2 := p2pcommon.PeerMeta{IPAddress: ad2, ID: id2}
-	m3 := p2pcommon.PeerMeta{IPAddress: ad3, ID: id3}
+	id2 := types.RandomPeerID()
+	id3 := types.RandomPeerID()
+	ad10,_ := types.ParseMultiaddr("/ip4/123.45.67.89/tcp/7846")
+	ad11,_ := types.ParseMultiaddr("/ip4/123.45.67.91/tcp/7846") // same C class network
+	ad2,_ := types.ParseMultiaddr("/ip6/2001:0db8:0123:4567:89ab:cdef:1234:5678/tcp/7846")
+	ad3,_ := types.ParseMultiaddr("/ip4/222.8.8.8/tcp/7846")
+	m10 := p2pcommon.PeerMeta{Addresses: []types.Multiaddr{ad10}, ID: id1}
+	m11 := p2pcommon.PeerMeta{Addresses: []types.Multiaddr{ad10}, ID: types.RandomPeerID()}
+	m12 := p2pcommon.PeerMeta{Addresses: []types.Multiaddr{ad11}, ID: types.RandomPeerID()}
+	m2 := p2pcommon.PeerMeta{Addresses: []types.Multiaddr{ad2}, ID: id2}
+	m3 := p2pcommon.PeerMeta{Addresses: []types.Multiaddr{ad3}, ID: id3}
 
 	type args struct {
 		entry types.WhiteListEntry
@@ -708,6 +718,49 @@ func TestPeerMapService_onConnectWithBlacklist(t *testing.T) {
 			}
 
 			pms.onConnect(tt.args.s)
+		})
+	}
+}
+
+func Test_isEqualMeta(t *testing.T) {
+	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
+	v1, v2 := "v1.3.3", "v2.0.0"
+	a1,_ := types.ParseMultiaddr("/ip4/192.168.0.58/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh")
+	a2,_ := types.ParseMultiaddr("/ip6/FE80::0202:B3FF:FE1E:8329/tcp/11003/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh")
+	a3,_ := types.ParseMultiaddr("/dns4/test.aergo.io/tcp/11002/p2p/16Uiu2HAmHuBgtnisgPLbujFvxPNZw3Qvpk3VLUwTzh5C67LAZSFh")
+	addrs := []types.Multiaddr{a1,a2,a3}
+	type args struct {
+		m1 p2pcommon.PeerMeta
+		m2 p2pcommon.PeerMeta
+	}
+	tests := []struct {
+		name   string
+		args   args
+		wantEq bool
+	}{
+		{"TEq", args{
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher},
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher}}, true},
+		{"TDiffID", args{
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher},
+			p2pcommon.PeerMeta{ID:pid2, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher}}, false},
+		{"TDiffVer", args{
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher},
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v2, Role:types.PeerRole_Watcher}}, false},
+		{"TDiffAddr", args{
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher},
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs[:2], Version:v1, Role:types.PeerRole_Watcher}}, false},
+		{"TDiffRole", args{
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Watcher},
+			p2pcommon.PeerMeta{ID:pid1, Addresses:addrs, Version:v1, Role:types.PeerRole_Producer}}, false},
+
+
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotEq := isEqualMeta(tt.args.m1, tt.args.m2); gotEq != tt.wantEq {
+				t.Errorf("isEqualMeta() = %v, want %v", gotEq, tt.wantEq)
+			}
 		})
 	}
 }

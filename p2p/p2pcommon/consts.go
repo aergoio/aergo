@@ -40,14 +40,27 @@ func (v P2PVersion) String() string {
 
 const (
 	P2PVersionUnknown P2PVersion = 0x00000000
+
+	// not supported versions
 	P2PVersion030     P2PVersion = 0x00000300
+
+	// legacy versions
 	P2PVersion031     P2PVersion = 0x00000301 // pseudo version for supporting multi version
 	P2PVersion032     P2PVersion = 0x00000302 // added equal check of genesis block hash
+
+	// current version
+	P2PVersion033     P2PVersion = 0x00000303 // support hardfork (chainid is changed)
+
+	P2PVersion200     P2PVersion = 0x00020000 // following aergo version. support peer role and multiple addresses
 )
+
+// AcceptedInboundVersions is list of versions this aergosvr supports. The first is the best recommended version.
+var AcceptedInboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
+var AttemptingOutboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
+var ExperimentalVersions = []P2PVersion{P2PVersion200}
 
 // context of multiaddr, as higher type of p2p message
 const (
-	LegacyP2PSubAddr core.ProtocolID = "/aergop2p/0.3"
 	P2PSubAddr       core.ProtocolID = "/aergop2p"
 	RaftSnapSubAddr  core.ProtocolID = "/aergop2p/raftsnap"
 )
@@ -96,3 +109,4 @@ const (
 	// DefaultNodeTTL is time to determine which the remote peer is not working.
 	DefaultNodeTTL = time.Minute * 10
 )
+

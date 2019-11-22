@@ -15,11 +15,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
 	"io/ioutil"
 	"os"
 	"runtime"
 	"unsafe"
+
+	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
 )
 
 func NewLState() *C.lua_State {
@@ -37,10 +38,10 @@ func CloseLState(L *C.lua_State) {
 	}
 }
 
-func Compile(L *C.lua_State, code string) ([]byte, error) {
-	cstr := C.CString(code)
-	defer C.free(unsafe.Pointer(cstr))
-	if errMsg := C.vm_loadstring(L, cstr); errMsg != nil {
+func Compile(L *C.lua_State, code string) (LuaCode, error) {
+	cStr := C.CString(code)
+	defer C.free(unsafe.Pointer(cStr))
+	if errMsg := C.vm_loadstring(L, cStr); errMsg != nil {
 		return nil, errors.New(C.GoString(errMsg))
 	}
 	if errMsg := C.vm_stringdump(L); errMsg != nil {
@@ -119,14 +120,115 @@ func DumpFromStdin() error {
 	return nil
 }
 
-func dumpToBytes(L *C.lua_State) []byte {
-	var s *C.char
-	var l C.size_t
-	b := make([]byte, 4)
-	s = C.lua_tolstring(L, -2, &l)
-	binary.LittleEndian.PutUint32(b, uint32(l))
-	b = append(b, C.GoBytes(unsafe.Pointer(s), C.int(l))...)
-	s = C.lua_tolstring(L, -1, &l)
-	b = append(b, C.GoBytes(unsafe.Pointer(s), C.int(l))...)
-	return b
+func dumpToBytes(L *C.lua_State) LuaCode {
+	var (
+		c, a *C.char
+		lc, la C.size_t
+	)
+	c = C.lua_tolstring(L, -2, &lc)
+	a = C.lua_tolstring(L, -1, &la)
+	return NewLuaCode(C.GoBytes(unsafe.Pointer(c), C.int(lc)), C.GoBytes(unsafe.Pointer(a), C.int(la)))
+}
+
+type LuaCode []byte
+
+const byteCodeLenLen = 4
+
+func NewLuaCode(byteCode, abi []byte) LuaCode {
+	byteCodeLen := len(byteCode)
+	code := make(LuaCode, byteCodeLenLen+byteCodeLen+len(abi))
+	binary.LittleEndian.PutUint32(code, uint32(byteCodeLen))
+	copy(code[byteCodeLenLen:], byteCode)
+	copy(code[byteCodeLenLen+byteCodeLen:], abi)
+	return code
+}
+
+func (c LuaCode) ByteCode() []byte {
+	if !c.IsValidFormat() {
+		return nil
+	}
+	return c[byteCodeLenLen:byteCodeLenLen+ c.byteCodeLen()]
+}
+
+func (c LuaCode) byteCodeLen() int {
+	if c.Len() < byteCodeLenLen {
+		return 0
+	}
+	return int(binary.LittleEndian.Uint32(c[:byteCodeLenLen]))
+}
+
+func (c LuaCode) ABI() []byte {
+	if !c.IsValidFormat() {
+		return nil
+	}
+	return c[byteCodeLenLen+c.byteCodeLen():]
+}
+
+func (c LuaCode) Len() int {
+	return len(c)
+}
+
+func (c LuaCode) IsValidFormat() bool {
+	if c.Len() <= byteCodeLenLen {
+		return false
+	}
+	return byteCodeLenLen + c.byteCodeLen() < c.Len()
+}
+
+func (c LuaCode) Bytes() []byte {
+	return c
+}
+
+type LuaCodePayload []byte
+
+const codeLenLen = 4
+
+func NewLuaCodePayload(code LuaCode, args []byte) LuaCodePayload {
+	payload := make([]byte, codeLenLen+code.Len()+len(args))
+	binary.LittleEndian.PutUint32(payload[0:], uint32(code.Len()+codeLenLen))
+	copy(payload[codeLenLen:], code.Bytes())
+	copy(payload[codeLenLen+code.Len():], args)
+	return payload
+}
+
+func (p LuaCodePayload) headLen() int {
+	if p.Len() < codeLenLen {
+		return 0
+	}
+	return int(binary.LittleEndian.Uint32(p[:codeLenLen]))
+}
+
+func (p LuaCodePayload) Code() LuaCode {
+	if v, _ := p.IsValidFormat(); !v {
+		return nil
+	}
+	return LuaCode(p[codeLenLen:p.headLen()])
+}
+
+func (p LuaCodePayload) HasArgs() bool {
+	if v, _ := p.IsValidFormat(); !v {
+		return false
+	}
+	return len(p) > p.headLen()
+}
+
+func (p LuaCodePayload) Args() []byte {
+	if v, _ := p.IsValidFormat(); !v {
+		return nil
+	}
+	return p[p.headLen():]
+}
+
+func (p LuaCodePayload) Len() int {
+	return len(p)
+}
+
+func (p LuaCodePayload) IsValidFormat() (bool, error) {
+	if p.Len() <= codeLenLen {
+		return false, fmt.Errorf("invalid code (%d bytes is too short)", p.Len())
+	}
+	if p.Len() < p.headLen() {
+		return false, fmt.Errorf("invalid code (expected %d bytes, actual %d bytes)", p.headLen(), p.Len())
+	}
+	return true, nil
 }

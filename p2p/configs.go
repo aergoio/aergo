@@ -17,6 +17,8 @@ const (
 	txNoticeInterval = time.Second * 1
 	// writeMsgBufferSize is queue size of message to a peer. connection will be closed when queue is exceeded.
 	writeMsgBufferSize = 40
+
+	certCleanupInterval = time.Hour
 )
 
 // constants for legacy sync algorithm. DEPRECATED newer sync logging in syncer package is used now.

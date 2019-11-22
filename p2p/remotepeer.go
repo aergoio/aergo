@@ -42,18 +42,18 @@ type remotePeerImpl struct {
 	logger       *log.Logger
 	pingDuration time.Duration
 
-	manageNum uint32
-	meta      p2pcommon.PeerMeta
-	name      string
-	state     types.PeerState
-	role      p2pcommon.PeerRole
-	actor     p2pcommon.ActorService
-	pm        p2pcommon.PeerManager
-	mf        p2pcommon.MoFactory
-	signer    p2pcommon.MsgSigner
-	metric    *metric.PeerMetric
-	tnt       p2pcommon.TxNoticeTracer
+	manageNum  uint32
+	remoteInfo p2pcommon.RemoteInfo
+	name       string
+	state      types.PeerState
+	actor      p2pcommon.ActorService
+	pm         p2pcommon.PeerManager
+	mf         p2pcommon.MoFactory
+	signer     p2pcommon.MsgSigner
+	metric     *metric.PeerMetric
+	tnt        p2pcommon.TxNoticeTracer
 
+	certChan chan *p2pcommon.AgentCertificateV1
 	stopChan chan struct{}
 
 	// direct write channel
@@ -84,10 +84,10 @@ type remotePeerImpl struct {
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
 
 // newRemotePeer create an object which represent a remote peer.
-func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
+func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, mf p2pcommon.MoFactory, signer p2pcommon.MsgSigner, rw p2pcommon.MsgReadWriter) *remotePeerImpl {
 	rPeer := &remotePeerImpl{
-		meta: meta, manageNum: manageNum, pm: pm,
-		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(meta.ID), manageNum),
+		remoteInfo: remote, manageNum: manageNum, pm: pm,
+		name:  fmt.Sprintf("%s#%d", p2putil.ShortForm(remote.Meta.ID), manageNum),
 		actor: actor, logger: log, mf: mf, signer: signer, rw: rw,
 		pingDuration: defaultPingInterval,
 		state:        types.STARTING,
@@ -95,9 +95,9 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 		lastStatus: &types.LastBlockStatus{},
 		stopChan:   make(chan struct{}, 1),
 		closeWrite: make(chan struct{}),
-
-		requests: make(map[p2pcommon.MsgID]*requestInfo),
-		reqMutex: &sync.Mutex{},
+		certChan:   make(chan *p2pcommon.AgentCertificateV1),
+		requests:   make(map[p2pcommon.MsgID]*requestInfo),
+		reqMutex:   &sync.Mutex{},
 
 		handlers: make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
 
@@ -120,13 +120,17 @@ func newRemotePeer(meta p2pcommon.PeerMeta, manageNum uint32, pm p2pcommon.PeerM
 	return rPeer
 }
 
-// ID return id of peer, same as peer.meta.ID
+// ID return id of peer, same as peer.remoteInfo.ID
 func (p *remotePeerImpl) ID() types.PeerID {
-	return p.meta.ID
+	return p.remoteInfo.Meta.ID
+}
+
+func (p *remotePeerImpl) RemoteInfo() p2pcommon.RemoteInfo {
+	return p.remoteInfo
 }
 
 func (p *remotePeerImpl) Meta() p2pcommon.PeerMeta {
-	return p.meta
+	return p.remoteInfo.Meta
 }
 
 func (p *remotePeerImpl) ManageNumber() uint32 {
@@ -138,14 +142,14 @@ func (p *remotePeerImpl) Name() string {
 }
 
 func (p *remotePeerImpl) Version() string {
-	return p.meta.Version
+	return p.remoteInfo.Meta.Version
 }
 
-func (p *remotePeerImpl) Role() p2pcommon.PeerRole {
-	return p.role
+func (p *remotePeerImpl) AcceptedRole() types.PeerRole {
+	return p.remoteInfo.AcceptedRole
 }
-func (p *remotePeerImpl) ChangeRole(role p2pcommon.PeerRole) {
-	p.role = role
+func (p *remotePeerImpl) ChangeRole(role types.PeerRole) {
+	p.remoteInfo.AcceptedRole = role
 }
 
 func (p *remotePeerImpl) AddMessageHandler(subProtocol p2pcommon.SubProtocol, handler p2pcommon.MessageHandler) {
@@ -174,6 +178,7 @@ func (p *remotePeerImpl) RunPeer() {
 	go p.runRead()
 
 	txNoticeTicker := time.NewTicker(txNoticeInterval)
+	certCleanupTicker := time.NewTicker(certCleanupInterval)
 
 	// peer state is changed to RUNNING after all sub goroutine is ready, and to STOPPED before fll sub goroutine is stopped.
 	p.state.SetAndGet(types.RUNNING)
@@ -185,6 +190,10 @@ READNOPLOOP:
 			// no operation for now
 		case <-txNoticeTicker.C:
 			p.trySendTxNotices()
+		case <-certCleanupTicker.C:
+			p.cleanupCerts()
+		case c := <-p.certChan:
+			p.addCert(c)
 		case <-p.stopChan:
 			break READNOPLOOP
 		}
@@ -289,7 +298,7 @@ func (p *remotePeerImpl) handleMsg(msg p2pcommon.Message) (err error) {
 		p.logger.Warn().Err(err).Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Str(p2putil.LogProtoID, subProto.String()).Msg("invalid message data")
 		return fmt.Errorf("invalid message data")
 	}
-	//err = p.signer.verifyMsg(msg, p.meta.ID)
+	//err = p.signer.verifyMsg(msg, p.remoteInfo.ID)
 	//if err != nil {
 	//	p.logger.Warn().Err(err).Str(LogPeerName, p.Name()).Str(LogMsgID, msg.ID().String()).Str(LogProtoID, subProto.String()).Msg("Failed to check signature")
 	//	return fmt.Errorf("Failed to check signature")
@@ -477,17 +486,16 @@ func (p *remotePeerImpl) pruneRequests() {
 	}
 	p.logger.Info().Int("count", deletedCnt).Str(p2putil.LogPeerName, p.Name()).
 		Time("until", expireTime).Msg("Pruned requests which response was not came")
-	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.meta.ID.Pretty(), time.Unix(expireTime, 0))
+	//.Msg("Pruned %d requests but no response to peer %s until %v", deletedCnt, p.remoteInfo.ID.Pretty(), time.Unix(expireTime, 0))
 	if debugLog {
 		p.logger.Debug().Strs("reqs", deletedReqs).Msg("Pruned")
 	}
 }
 
-func (p *remotePeerImpl) UpdateBlkCache(blkHash []byte, blkNumber uint64) bool {
+func (p *remotePeerImpl) UpdateBlkCache(blkHash types.BlockID, blkNumber types.BlockNo) bool {
 	p.UpdateLastNotice(blkHash, blkNumber)
-	hash := types.ToBlockID(blkHash)
 	// lru cache can't accept byte slice key
-	found, _ := p.blkHashCache.ContainsOrAdd(hash, true)
+	found, _ := p.blkHashCache.ContainsOrAdd(blkHash, true)
 	return found
 }
 
@@ -502,10 +510,38 @@ func (p *remotePeerImpl) UpdateTxCache(hashes []types.TxID) []types.TxID {
 	return added
 }
 
-func (p *remotePeerImpl) UpdateLastNotice(blkHash []byte, blkNumber uint64) {
-	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash, blkNumber}
+func (p *remotePeerImpl) UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo) {
+	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash[:], blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {
 	// TODO: send goaway message and close connection
+}
+
+func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
+	newCerts := make([]*p2pcommon.AgentCertificateV1, 0, len(p.remoteInfo.Certificates)+1)
+	for _, oldCert := range p.remoteInfo.Certificates {
+		if !types.IsSamePeerID(oldCert.BPID, cert.BPID) {
+			// replace old certificate if it already exists.
+			newCerts = append(newCerts, oldCert)
+		}
+	}
+	newCerts = append(newCerts, cert)
+	p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Time("cTime", cert.CreateTime).Time("eTime", cert.ExpireTime).Msg("agent certificate is added to certificate list of remote peer")
+	p.remoteInfo.Certificates = newCerts
+}
+
+func (p *remotePeerImpl) cleanupCerts() {
+	now := time.Now()
+	certs2 := p.remoteInfo.Certificates[:0]
+	for _, cert := range p.remoteInfo.Certificates {
+		if cert.IsValidInTime(now, p2putil.TimeErrorTolerance) {
+			certs2 = append(certs2, cert)
+		}
+	}
+	p.remoteInfo.Certificates = certs2
+}
+
+func (p *remotePeerImpl) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
+	p.certChan <- cert
 }

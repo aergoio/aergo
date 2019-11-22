@@ -71,3 +71,13 @@ type MemPoolDel struct {
 type MemPoolDelRsp struct {
 	Err error
 }
+
+// MemPoolDelTx is interface of MemPool service for deleting a transaction
+type MemPoolDelTx struct {
+	Tx *types.Tx
+}
+
+// MemPoolDelTxRsp defines struct of result for MemPoolDelTx
+type MemPoolDelTxRsp struct {
+	Err error
+}

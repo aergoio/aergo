@@ -6,15 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/libp2p/go-libp2p-core/crypto"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
@@ -22,9 +17,14 @@ import (
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 var (
@@ -48,10 +48,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(ccc, contract.ChainAccessor(cdb), blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(ccc, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -110,7 +110,7 @@ func (ready *leaderReady) isReady(curTerm uint64) bool {
 	return true
 }
 
-// BlockFactory implments a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
+// BlockFactory implements a raft block factory which generate block each cfg.Consensus.BlockIntervalMs if this node is leader of raft
 //
 // This can be used for testing purpose.
 type BlockFactory struct {
@@ -122,7 +122,7 @@ type BlockFactory struct {
 
 	workerQueue chan *Work
 	jobQueue    chan interface{}
-	bpTimeoutC  chan interface{}
+	bpTimeoutC  chan struct{}
 	quit        chan interface{}
 
 	ready leaderReady
@@ -137,6 +137,8 @@ type BlockFactory struct {
 
 	raftOp     *RaftOperator
 	raftServer *raftServer
+
+	bv types.BlockVersionner
 }
 
 // GetName returns the name of the consensus.
@@ -161,12 +163,13 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		ChainWAL:         cdb,
 		jobQueue:         make(chan interface{}),
 		workerQueue:      make(chan *Work),
-		bpTimeoutC:       make(chan interface{}, 1),
+		bpTimeoutC:       make(chan struct{}, 1),
 		quit:             make(chan interface{}),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		ID:               p2pkey.NodeSID(),
 		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
+		bv:               cfg.Hardfork,
 	}
 
 	if cfg.Consensus.EnableBp {
@@ -189,6 +192,8 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 			return bf.checkBpTimeout()
 		}),
 	)
+
+	contract.SetBPTimeout(bf.bpTimeoutC)
 
 	return bf, nil
 }
@@ -501,16 +506,16 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 		return nil, nil, ErrCancelGenerate
 	}
 
-	blockState := bf.sdb.NewBlockState(bestBlock.GetHeader().GetBlocksRootHash())
-
-	ts := time.Now().UnixNano()
-
-	txOp := chain.NewCompTxOp(
-		bf.txOp,
-		newTxExec(bf, bf.ChainWAL, bestBlock.GetHeader().GetBlockNo()+1, ts, bestBlock.GetHash(), bestBlock.GetHeader().GetChainID()),
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bestBlock, time.Now().UnixNano(), bf.bv)
+	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi))
+	blockState := bf.sdb.NewBlockState(
+		bestBlock.GetHeader().GetBlocksRootHash(),
+		state.SetPrevBlockHash(bestBlock.BlockHash()),
+		state.SetGasPrice(system.GetGasPrice()),
 	)
+	blockState.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err := chain.GenerateBlock(bf, bestBlock, blockState, txOp, ts, RaftSkipEmptyBlock)
+	block, err := chain.NewBlockGenerator(bf, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
 		return nil, nil, chain.ErrBlockEmpty

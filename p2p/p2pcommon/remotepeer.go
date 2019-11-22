@@ -8,22 +8,22 @@ package p2pcommon
 
 import (
 	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-core/network"
 	"time"
 )
 
 type PeerFactory interface {
-	CreateRemotePeer(meta PeerMeta, seq uint32, status *types.Status, stream network.Stream, rw MsgReadWriter) RemotePeer
+	CreateRemotePeer(remoteInfo RemoteInfo, seq uint32, rw MsgReadWriter) RemotePeer
 }
 
 type RemotePeer interface {
 	ID() types.PeerID
+	RemoteInfo() RemoteInfo
 	Meta() PeerMeta
 	ManageNumber() uint32
 	Name() string
 	Version() string
-	Role() PeerRole
-	ChangeRole(role PeerRole)
+	AcceptedRole() types.PeerRole
+	ChangeRole(role types.PeerRole)
 
 	AddMessageHandler(subProtocol SubProtocol, handler MessageHandler)
 
@@ -44,12 +44,15 @@ type RemotePeer interface {
 	GetReceiver(id MsgID) ResponseReceiver
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.
-	UpdateBlkCache(blkHash []byte, blkNumber uint64) bool
+	UpdateBlkCache(blkHash types.BlockID, blkNumber types.BlockNo) bool
 	// updateTxCache add hashes to transaction cache and return newly added hashes.
 	UpdateTxCache(hashes []types.TxID) []types.TxID
 	// updateLastNotice change estimate of the last status of remote peer
-	UpdateLastNotice(blkHash []byte, blkNumber uint64)
+	UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo)
 
 	// TODO
 	MF() MoFactory
+
+	// AddCertificate add to my certificate list
+	AddCertificate(cert *AgentCertificateV1)
 }

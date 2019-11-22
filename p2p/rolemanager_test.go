@@ -62,7 +62,7 @@ func TestRaftRoleManager_updateBP(t *testing.T) {
 				if _, found := rm.raftBP[id]; !found {
 					t.Errorf("P2P.UpdateBP() not exist %v, want exist ", id)
 				} else {
-					if rm.GetRole(id) != p2pcommon.BlockProducer {
+					if rm.GetRole(id) != types.PeerRole_Producer {
 						t.Errorf("P2P.GetRole(%v) false, want true", id)
 					}
 				}
@@ -92,7 +92,7 @@ func (e *EB) C() message.RaftClusterEvent {
 	return message.RaftClusterEvent{BPAdded: e.a, BPRemoved: e.r}
 }
 
-func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
+func TestRaftRoleManager_FilterBPNoticeReceiverTossOut(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -106,11 +106,9 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		wantSkipped int
 		wantSent    int
 	}{
-		{"TAllBP", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}}, 3, 0},
-		{"TAllWat", []rs{{p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMIX", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 2, 1},
-		{"TMIXStop", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.STOPPING}}, 3, 0},
-		{"TMixStop2", []rs{{p2pcommon.BlockProducer, types.STOPPING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 2, 1},
+		{"TAllBP", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}}, 3, 0},
+		{"TAllWat", []rs{{types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
+		{"TMIX", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 2, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,7 +116,7 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
 			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).AnyTimes()
 
-			mockMO := p2pmock.NewMockMsgOrder(ctrl)
+			dummyBlock := &types.Block{}
 
 			rm := &RaftRoleManager{
 				p2ps:   nil,
@@ -128,18 +126,17 @@ func TestRaftRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			for i, ap := range tt.argPeer {
 				mpeer := p2pmock.NewMockRemotePeer(ctrl)
 				mpeer.EXPECT().ID().Return(pids[i]).AnyTimes()
-				mpeer.EXPECT().Role().Return(ap.r).AnyTimes()
+				mpeer.EXPECT().AcceptedRole().Return(ap.r).AnyTimes()
 				mpeer.EXPECT().State().Return(ap.s).AnyTimes()
 				mpeer.EXPECT().SendMessage(gomock.Any()).MaxTimes(1)
 
 				mockPeers = append(mockPeers, mpeer)
 			}
-			gotSkipped, gotSent := rm.NotifyNewBlockMsg(mockMO, mockPeers)
-			if gotSkipped != tt.wantSkipped {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSkipped = %v, want %v", gotSkipped, tt.wantSkipped)
-			}
-			if gotSent != tt.wantSent {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSent = %v, want %v", gotSent, tt.wantSent)
+			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
+
+			filtered := rm.FilterBPNoticeReceiver(dummyBlock, mockPM, p2pcommon.ExternalZone)
+			if len(filtered) != tt.wantSent {
+				t.Errorf("RaftRoleManager.FilterBPNoticeReceiver() peers = %v, want %v", len(filtered), tt.wantSent)
 			}
 		})
 	}
@@ -196,7 +193,7 @@ func TestDefaultRoleManager_updateBP(t *testing.T) {
 	}
 }
 
-func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
+func TestDefaultRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -210,19 +207,15 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 		wantSkipped int
 		wantSent    int
 	}{
-		{"TAllBP", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}}, 0, 3},
-		{"TAllWat", []rs{{p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMix", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 0, 3},
-		{"TMixStop", []rs{{p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.STOPPING}}, 1, 2},
-		{"TMixStop2", []rs{{p2pcommon.BlockProducer, types.STOPPING}, {p2pcommon.BlockProducer, types.RUNNING}, {p2pcommon.Watcher, types.RUNNING}}, 1, 2},
+		{"TAllBP", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}}, 0, 3},
+		{"TAllWat", []rs{{types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
+		{"TMix", []rs{{types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Producer, types.RUNNING}, {types.PeerRole_Watcher, types.RUNNING}}, 0, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
 			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).AnyTimes()
-
-			mockMO := p2pmock.NewMockMsgOrder(ctrl)
 
 			rm := &DefaultRoleManager{
 				p2ps: nil,
@@ -231,25 +224,25 @@ func TestDefaultRoleManager_NotifyNewBlockMsg(t *testing.T) {
 			for i, ap := range tt.argPeer {
 				mPeer := p2pmock.NewMockRemotePeer(ctrl)
 				mPeer.EXPECT().ID().Return(pids[i]).AnyTimes()
-				mPeer.EXPECT().Role().Return(ap.r).AnyTimes()
+				mPeer.EXPECT().AcceptedRole().Return(ap.r).AnyTimes()
 				mPeer.EXPECT().State().Return(ap.s).AnyTimes()
 				mPeer.EXPECT().SendMessage(gomock.Any()).MaxTimes(1)
 
 				mockPeers = append(mockPeers, mPeer)
 			}
-			gotSkipped, gotSent := rm.NotifyNewBlockMsg(mockMO, mockPeers)
-			if gotSkipped != tt.wantSkipped {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSkipped = %v, want %v", gotSkipped, tt.wantSkipped)
-			}
-			if gotSent != tt.wantSent {
-				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() gotSent = %v, want %v", gotSent, tt.wantSent)
+			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
+
+			sampleBlock := &types.Block{}
+			filtered := rm.FilterBPNoticeReceiver(sampleBlock, mockPM, p2pcommon.ExternalZone)
+			if len(filtered) != tt.wantSent {
+				t.Errorf("RaftRoleManager.NotifyNewBlockMsg() peers = %v, want %v", len(filtered), tt.wantSent)
 			}
 		})
 	}
 }
 
 type rs struct {
-	r p2pcommon.PeerRole
+	r types.PeerRole
 	s types.PeerState
 }
 
@@ -263,10 +256,10 @@ func TestDefaultRoleManager_GetRole(t *testing.T) {
 
 		presetIds []types.PeerID
 		pid       types.PeerID
-		want      p2pcommon.PeerRole
+		want      types.PeerRole
 	}{
-		{"TBP", toPIDS(p1,p2), p1, p2pcommon.BlockProducer},
-		{"TWat", toPIDS(p1,p2), p3, p2pcommon.Watcher},
+		{"TBP", toPIDS(p1,p2), p1, types.PeerRole_Producer},
+		{"TWat", toPIDS(p1,p2), p3, types.PeerRole_Watcher},
 	}
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

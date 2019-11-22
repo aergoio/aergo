@@ -80,7 +80,7 @@ func (lm *listManagerImpl) IsBanned(addr string, pid types.PeerID) (bool, time.T
 	}
 
 	// bps are automatically allowed
-	if lm.prm.GetRole(pid) == p2pcommon.BlockProducer {
+	if lm.prm.GetRole(pid) == types.PeerRole_Producer {
 		return false, FarawayFuture
 	}
 

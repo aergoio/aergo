@@ -29,7 +29,7 @@ func (m *Account) Reset()         { *m = Account{} }
 func (m *Account) String() string { return proto.CompactTextString(m) }
 func (*Account) ProtoMessage()    {}
 func (*Account) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8e28828dcb8d24f0, []int{0}
+	return fileDescriptor_account_cb7e4603149fac0e, []int{0}
 }
 func (m *Account) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Account.Unmarshal(m, b)
@@ -37,8 +37,8 @@ func (m *Account) XXX_Unmarshal(b []byte) error {
 func (m *Account) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Account.Marshal(b, m, deterministic)
 }
-func (m *Account) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Account.Merge(m, src)
+func (dst *Account) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Account.Merge(dst, src)
 }
 func (m *Account) XXX_Size() int {
 	return xxx_messageInfo_Account.Size(m)
@@ -67,7 +67,7 @@ func (m *AccountList) Reset()         { *m = AccountList{} }
 func (m *AccountList) String() string { return proto.CompactTextString(m) }
 func (*AccountList) ProtoMessage()    {}
 func (*AccountList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8e28828dcb8d24f0, []int{1}
+	return fileDescriptor_account_cb7e4603149fac0e, []int{1}
 }
 func (m *AccountList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AccountList.Unmarshal(m, b)
@@ -75,8 +75,8 @@ func (m *AccountList) XXX_Unmarshal(b []byte) error {
 func (m *AccountList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AccountList.Marshal(b, m, deterministic)
 }
-func (m *AccountList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AccountList.Merge(m, src)
+func (dst *AccountList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AccountList.Merge(dst, src)
 }
 func (m *AccountList) XXX_Size() int {
 	return xxx_messageInfo_AccountList.Size(m)
@@ -99,9 +99,9 @@ func init() {
 	proto.RegisterType((*AccountList)(nil), "types.AccountList")
 }
 
-func init() { proto.RegisterFile("account.proto", fileDescriptor_8e28828dcb8d24f0) }
+func init() { proto.RegisterFile("account.proto", fileDescriptor_account_cb7e4603149fac0e) }
 
-var fileDescriptor_8e28828dcb8d24f0 = []byte{
+var fileDescriptor_account_cb7e4603149fac0e = []byte{
 	// 110 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4d, 0x4c, 0x4e, 0xce,
 	0x2f, 0xcd, 0x2b, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x2d, 0xa9, 0x2c, 0x48, 0x2d,

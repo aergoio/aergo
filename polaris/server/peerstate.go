@@ -31,6 +31,7 @@ const (
 type peerState struct {
 	*PeerMapService
 
+	conn      p2pcommon.RemoteConn
 	meta      p2pcommon.PeerMeta
 	addr      types.PeerAddress
 	connected time.Time

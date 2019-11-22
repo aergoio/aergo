@@ -100,8 +100,10 @@ func UnlockChain() {
 
 // GatherTXs returns transactions from txIn. The selection is done by applying
 // txDo.
-func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp TxOp, maxBlockBodySize uint32) ([]types.Transaction, error) {
+func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	var (
+		bState = g.bState
+
 		nCollected int
 		nCand      int
 	)
@@ -115,59 +117,79 @@ func GatherTXs(hs component.ICompSyncRequester, bState *state.BlockState, txOp T
 	}
 	defer UnlockChain()
 
-	txIn := FetchTXs(hs, maxBlockBodySize)
+	txIn := g.fetchTXs(g.hs, g.maxBlockBodySize)
 	nCand = len(txIn)
-	if nCand == 0 {
-		return txIn, nil
-	}
+
 	txRes := make([]types.Transaction, 0, nCand)
 
 	defer func() {
-			logger.Info().
-				Int("candidates", nCand).
-				Int("collected", nCollected).
-				Msg("transactions collected")
-			contract.CloseDatabase()
+		logger.Info().
+			Int("candidates", nCand).
+			Int("collected", nCollected).
+			Msg("transactions collected")
+		contract.CloseDatabase()
 	}()
 
+	if nCand > 0 {
+		op := NewCompTxOp(g.txOp)
 
-	op := NewCompTxOp(txOp)
+		var preLoadTx *types.Tx
+		for i, tx := range txIn {
+			if i != nCand-1 {
+				preLoadTx = txIn[i+1].GetTx()
+				contract.PreLoadRequest(bState, g.bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
+			}
 
-	var preLoadTx *types.Tx
-	for i, tx := range txIn {
-		if i != nCand-1 {
-			preLoadTx = txIn[i+1].GetTx()
-			contract.PreLoadRequest(bState, preLoadTx, tx.GetTx(), contract.BlockFactory)
+			err := op.Apply(bState, tx)
+			contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
+
+			//don't include tx that error is occurred
+			if e, ok := err.(ErrTimeout); ok {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Msg("stop gathering tx due to time limit")
+				}
+				err = e
+				break
+			} else if cause, ok := err.(*contract.VmTimeoutError); ok {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Msg("stop gathering tx due to time limit")
+				}
+				// Mark the rejected TX by timeout. The marked TX will be
+				// forced to be the first TX of the next block. By doing this,
+				// the TX may have a chance to use the maximum block execution
+				// time. If the TX is rejected by timeout even with this, it
+				// may be evicted from the mempool after checking the actual
+				// execution time.
+				if g.tteEnabled() {
+					g.setRejected(tx, cause, i == 0)
+				}
+
+				err = ErrTimeout{Kind: "contract"}
+
+				break
+			} else if err == errBlockSizeLimit {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Msg("stop gathering tx due to size limit")
+				}
+				break
+			} else if err != nil {
+				if logger.IsDebugEnabled() {
+					logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
+				}
+				//FIXME handling system error (panic?)
+				// ex) gas error/nonce error skip, but other system error panic
+				continue
+			}
+
+			txRes = append(txRes, tx)
 		}
 
-		err := op.Apply(bState, tx)
-		contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
-
-		//don't include tx that error is occured
-		if e, ok := err.(ErrTimeout); ok {
-			if logger.IsDebugEnabled() {
-				logger.Debug().Msg("stop gathering tx due to time limit")
-			}
-			err = e
-			break
-		} else if err == errBlockSizeLimit {
-			if logger.IsDebugEnabled() {
-				logger.Debug().Msg("stop gathering tx due to size limit")
-			}
-			break
-		} else if err != nil {
-			//FIXME handling system error (panic?)
-			// ex) gas error/nonce error skip, but other system error panic
-			logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
-			continue
-		}
-
-		txRes = append(txRes, tx)
+		nCollected = len(txRes)
 	}
 
-	nCollected = len(txRes)
-
-	if err := chain.SendRewardCoinbase(bState, chain.CoinbaseAccount); err != nil {
+	// Warning: This line must be run even with 0 gathered TXs, since the
+	// function below includes voting reward as well as BP reward.
+	if err := chain.SendBlockReward(bState, chain.CoinbaseAccount); err != nil {
 		return nil, err
 	}
 

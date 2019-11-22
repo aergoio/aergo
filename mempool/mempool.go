@@ -54,16 +54,16 @@ type MemPool struct {
 	sync.RWMutex
 	cfg *cfg.Config
 
-	sdb         *state.ChainStateDB
-	bestBlockID types.BlockID
-	bestBlockNo types.BlockNo
-	stateDB     *state.StateDB
-	verifier    *actor.PID
-	orphan      int
+	sdb           *state.ChainStateDB
+	bestBlockID   types.BlockID
+	bestBlockInfo *types.BlockHeaderInfo
+	stateDB       *state.StateDB
+	verifier      *actor.PID
+	orphan        int
 	//cache       map[types.TxID]types.Transaction
 	cache       sync.Map
 	length      int
-	pool        map[types.AccountID]*TxList
+	pool        map[types.AccountID]*txList
 	dumpPath    string
 	status      int32
 	coinbasefee *big.Int
@@ -93,7 +93,7 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		sdb: sdb,
 		//cache:    map[types.TxID]types.Transaction{},
 		cache:    sync.Map{},
-		pool:     map[types.AccountID]*TxList{},
+		pool:     map[types.AccountID]*txList{},
 		dumpPath: cfg.Mempool.DumpFilePath,
 		status:   initial,
 		verifier: nil,
@@ -107,11 +107,12 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 	return actor
 }
 
-// Start runs mempool servivce
+// BeforeStart runs mempool servivce
 func (mp *MemPool) BeforeStart() {
 	if mp.testConfig {
 		initStubData()
 		mp.bestBlockID = getCurrentBestBlockNoMock()
+		mp.bestBlockInfo = getCurrentBestBlockInfoMock()
 	}
 	//mp.Info("mempool start on: current Block :", mp.curBestBlockNo)
 }
@@ -139,7 +140,7 @@ func (mp *MemPool) AfterStart() {
 	go mp.monitor()
 }
 
-// Stop handles clean-up for mempool service
+// BeforeStop handles clean-up for mempool service
 func (mp *MemPool) BeforeStop() {
 	if mp.verifier != nil {
 		mp.verifier.GracefulStop()
@@ -179,7 +180,6 @@ func (mp *MemPool) monitor() {
 	}
 
 }
-
 func (mp *MemPool) evictTransactions() {
 	mp.Lock()
 	defer mp.Unlock()
@@ -228,6 +228,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 		errs := mp.removeOnBlockArrival(msg.Block)
 		context.Respond(&message.MemPoolDelRsp{
 			Err: errs,
+		})
+	case *message.MemPoolDelTx:
+		mp.Info().Str("txhash", enc.ToString(msg.Tx.GetHash())).Msg("remove tx in mempool")
+		err := mp.removeTx(msg.Tx)
+		context.Respond(&message.MemPoolDelTxRsp{
+			Err: err,
 		})
 	case *message.MemPoolExist:
 		tx := mp.exist(msg.Hash)
@@ -347,21 +353,22 @@ func (mp *MemPool) puts(txs ...types.Transaction) []error {
 	return errs
 }
 
-func (mp *MemPool) setStateDB(block *types.Block) bool {
+func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 	if mp.testConfig {
-		return true
+		return true, false
 	}
 
 	newBlockID := types.ToBlockID(block.BlockHash())
 	parentBlockID := types.ToBlockID(block.GetHeader().GetPrevBlockHash())
-	normal := true
+	reorged := true
+	forked := false
 
 	if types.HashID(newBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
 		if types.HashID(parentBlockID).Compare(types.HashID(mp.bestBlockID)) != 0 {
-			normal = false
+			reorged = false //reorg case
 		}
 		mp.bestBlockID = newBlockID
-		mp.bestBlockNo = block.GetHeader().GetBlockNo()
+		mp.bestBlockInfo = types.NewBlockHeaderInfo(block)
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
@@ -378,7 +385,6 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 					mp.whitelist = newWhitelistConf(mp, conf.GetValues(), conf.GetOn())
 				}
 			}
-			mp.chainIdHash = common.Hasher(block.GetHeader().GetChainID())
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
 				Str("chainidhash", enc.ToString(mp.chainIdHash)).
@@ -388,8 +394,21 @@ func (mp *MemPool) setStateDB(block *types.Block) bool {
 				mp.Error().Err(err).Msg("failed to set root of StateDB")
 			}
 		}
+
+		givenId := common.Hasher(block.GetHeader().GetChainID())
+		if !bytes.Equal(mp.chainIdHash, givenId) {
+			mp.chainIdHash = givenId
+			forked = true
+		}
 	}
-	return normal
+	return reorged, forked
+}
+
+func (mp *MemPool) resetAll() {
+	mp.orphan = 0
+	mp.length = 0
+	mp.pool = map[types.AccountID]*txList{}
+	mp.cache = sync.Map{}
 }
 
 // input tx based ? or pool based?
@@ -401,18 +420,21 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	defer mp.Unlock()
 
 	check := 0
-	all := false
 	dirty := map[types.AccountID]bool{}
+	reorg, fork := mp.setStateDB(block)
+	if fork {
+		mp.Debug().Msg("reset mempool on fork")
+		mp.resetAll()
+		return nil
+	}
 
-	if !mp.setStateDB(block) {
-		all = true
-		mp.Debug().Int("cnt", len(mp.pool)).Msg("going to check all account's state")
-	} else {
+	// non-reorg case only look through account related to given block
+	if reorg == false {
 		for _, tx := range block.GetBody().GetTxs() {
 			account := tx.GetBody().GetAccount()
 			recipient := tx.GetBody().GetRecipient()
 			if tx.HasNameAccount() {
-				account = mp.getAddress(account)
+				account = mp.getOwner(account) // it's for the case that tx sender is named smart contract
 			}
 			if tx.HasNameRecipient() {
 				recipient = mp.getAddress(recipient)
@@ -425,7 +447,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	ag[0] = time.Since(start)
 	start = time.Now()
 	for acc, list := range mp.pool {
-		if !all && dirty[acc] == false {
+		if !reorg && dirty[acc] == false {
 			continue
 		}
 		ns, err := mp.getAccountState(list.GetAccount())
@@ -478,8 +500,21 @@ func (mp *MemPool) verifyTx(tx types.Transaction) error {
 	}
 	return nil
 }
+
 func (mp *MemPool) getAddress(account []byte) []byte {
+	return mp.getNameDest(account, false)
+}
+
+func (mp *MemPool) getOwner(account []byte) []byte {
+	return mp.getNameDest(account, true)
+}
+
+func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 	if mp.testConfig {
+		return account
+	}
+
+	if string(account) == string(types.AergoVault) {
 		return account
 	}
 
@@ -493,7 +528,14 @@ func (mp *MemPool) getAddress(account []byte) []byte {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
 	}
-	return name.GetOwner(scs, account)
+	if owner {
+		return name.GetOwner(scs, account)
+	}
+	return name.GetAddress(scs, account)
+}
+
+func (mp *MemPool) nextBlockVersion() int32 {
+	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No)
 }
 
 // check tx sanity
@@ -508,7 +550,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	if err != nil {
 		return err
 	}
-	err = tx.ValidateWithSenderState(ns)
+	err = tx.ValidateWithSenderState(ns, system.GetGasPrice(), mp.nextBlockVersion())
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
@@ -526,13 +568,17 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return types.ErrTxInvalidRecipient
 		}
 		fallthrough
-	case types.TxType_NORMAL:
+	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL:
 		if tx.GetTx().HasNameRecipient() {
 			recipient := tx.GetBody().GetRecipient()
 			recipientAddr := mp.getAddress(recipient)
 			if recipientAddr == nil {
 				return types.ErrTxInvalidRecipient
 			}
+		}
+	case types.TxType_DEPLOY:
+		if tx.GetBody().GetRecipient() != nil {
+			return types.ErrTxInvalidRecipient
 		}
 	case types.TxType_GOVERNANCE:
 		aergoState, err := mp.getAccountState(tx.GetBody().GetRecipient())
@@ -551,7 +597,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 			if _, err := system.ValidateSystemTx(account, tx.GetBody(),
-				sender, scs, mp.bestBlockNo+1); err != nil {
+				sender, scs, mp.bestBlockInfo); err != nil {
 				return err
 			}
 		case types.AergoName:
@@ -575,11 +621,46 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if err != nil {
 				return err
 			}
-			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockNo+1); err != nil {
+			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockInfo.No+1); err != nil {
 				return err
 			}
 		}
+	case types.TxType_FEEDELEGATION:
+		var recipient []byte
 
+		recipient = tx.GetBody().GetRecipient()
+		if tx.GetTx().HasNameRecipient() {
+			recipient = mp.getAddress(recipient)
+			if recipient == nil {
+				return types.ErrTxInvalidRecipient
+			}
+		}
+		aergoState, err := mp.getAccountState(recipient)
+		if err != nil {
+			return err
+		}
+		bal := aergoState.GetBalanceBigInt()
+		fee, err := tx.GetMaxFee(bal, system.GetGasPrice(), mp.nextBlockVersion())
+		if err != nil {
+			return err
+		}
+		if fee.Cmp(bal) > 0 {
+			return types.ErrInsufficientBalance
+		}
+		txBody := tx.GetBody()
+		rsp, err := mp.RequestToFuture(message.ChainSvc,
+			&message.CheckFeeDelegation{txBody.GetPayload(), recipient,
+				txBody.GetAccount(), tx.GetHash(), txBody.GetAmount()},
+			time.Second).Result()
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
+			return err
+		}
+		err = rsp.(message.CheckFeeDelegationRsp).Err
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
+			return err
+		}
 	}
 	return err
 }
@@ -607,7 +688,7 @@ func (mp *MemPool) existEx(hashes []types.TxHash) []*types.Tx {
 	return ret
 }
 
-func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
+func (mp *MemPool) acquireMemPoolList(acc []byte) (*txList, error) {
 	list := mp.getMemPoolList(acc)
 	if list != nil {
 		return list, nil
@@ -617,18 +698,18 @@ func (mp *MemPool) acquireMemPoolList(acc []byte) (*TxList, error) {
 		return nil, err
 	}
 	id := types.ToAccountID(acc)
-	mp.pool[id] = NewTxList(acc, ns)
+	mp.pool[id] = newTxList(acc, ns, mp)
 	return mp.pool[id], nil
 }
 
-func (mp *MemPool) releaseMemPoolList(list *TxList) {
+func (mp *MemPool) releaseMemPoolList(list *txList) {
 	if list.Empty() {
 		id := types.ToAccountID(list.account)
 		delete(mp.pool, id)
 	}
 }
 
-func (mp *MemPool) getMemPoolList(acc []byte) *TxList {
+func (mp *MemPool) getMemPoolList(acc []byte) *txList {
 	id := types.ToAccountID(acc)
 	return mp.pool[id]
 }
@@ -797,4 +878,29 @@ Dump:
 	mp.Info().Int("count", count).Str("path", mp.dumpPath).Str("marshal", ag[0].String()).
 		Str("write", ag[1].String()).Msg("dump txs")
 
+}
+
+func (mp *MemPool) removeTx(tx *types.Tx) error {
+	mp.Lock()
+	defer mp.Unlock()
+
+	if mp.exist(tx.GetHash()) == nil {
+		mp.Warn().Str("txhash", enc.ToString(tx.GetHash())).Msg("could not find tx to remove")
+		return types.ErrTxNotFound
+	}
+	acc := tx.GetBody().GetAccount()
+	list, err := mp.acquireMemPoolList(acc)
+	if err != nil {
+		return err
+	}
+	newOrphan, removed := list.RemoveTx(tx)
+	if removed == nil {
+		mp.Error().Str("txhash", enc.ToString(tx.GetHash())).Msg("already removed tx")
+	}
+	mp.orphan += newOrphan
+	mp.releaseMemPoolList(list)
+
+	mp.cache.Delete(types.ToTxID(tx.GetHash()))
+	mp.length--
+	return nil
 }

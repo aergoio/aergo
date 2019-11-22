@@ -76,7 +76,7 @@ func (st *ContractState) GetBalance() *big.Int {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := common.Hasher(code)
-	err := saveData(st.store, codeHash[:], &code)
+	err := st.SetRawKV(codeHash[:], code)
 	if err != nil {
 		return err
 	}
@@ -84,6 +84,7 @@ func (st *ContractState) SetCode(code []byte) error {
 	st.code = code
 	return nil
 }
+
 func (st *ContractState) GetCode() ([]byte, error) {
 	if st.code != nil {
 		// already loaded.
@@ -99,6 +100,20 @@ func (st *ContractState) GetCode() ([]byte, error) {
 		return nil, err
 	}
 	return st.code, nil
+}
+
+// SetRawKV saves (key, value) to st.store without any kind of encoding.
+func (st *ContractState) SetRawKV(key []byte, value []byte) error {
+	return saveData(st.store, key, value)
+}
+
+// GetRawKV loads (key, value) from st.store.
+func (st *ContractState) GetRawKV(key []byte) ([]byte, error) {
+	var b []byte
+	if err := loadData(st.store, key, &b); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 // HasKey returns existence of the key

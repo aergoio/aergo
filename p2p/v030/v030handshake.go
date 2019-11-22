@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"io"
 	"time"
 
@@ -28,6 +27,9 @@ type V030Handshaker struct {
 	chainID *types.ChainID
 
 	msgRW p2pcommon.MsgReadWriter
+	remoteMeta  p2pcommon.PeerMeta
+	remoteHash  types.BlockID
+	remoteNo    types.BlockNo
 }
 
 var _ p2pcommon.VersionedHandshaker = (*V030Handshaker)(nil)
@@ -43,11 +45,15 @@ func NewV030VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, 
 }
 
 // handshakeOutboundPeer start handshake with outbound peer
-func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, error) {
+func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
 
-	status, err := createStatus(h.pm, h.actor, h.chainID, nil)
+	status, err := createLocalStatus(h.pm, h.chainID, bestBlock, nil)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create status message.")
 		h.sendGoAway("internal error")
@@ -67,7 +73,8 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*types.Status, erro
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		return remotePeerStatus, nil
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		return hsResult, nil
 	}
 }
 
@@ -124,6 +131,23 @@ func (h *V030Handshaker) receiveRemoteStatus(ctx context.Context) (*types.Status
 		return nil, err
 	}
 
+	// convert old fashioned data structure to current versions.
+	//    modify address information to array, and set version to peerAddress
+	sender := remotePeerStatus.Sender
+	if sender == nil {
+		h.sendGoAway("malformed status message")
+		return nil, fmt.Errorf("malformed status message")
+	}
+	if len(sender.Addresses) == 0 {
+		ma, err := types.ToMultiAddr(sender.Address, sender.Port)
+		if err != nil {
+			h.sendGoAway("malformed status message")
+			return nil, err
+		}
+		sender.Addresses = append(sender.Addresses, ma.String())
+	}
+	sender.Version = remotePeerStatus.Version
+
 	return remotePeerStatus, nil
 }
 
@@ -140,24 +164,29 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 		return fmt.Errorf("different chainID : %s", remoteChainID.ToJSON())
 	}
 
+	// handshake v0.3.x don't check format of block hash
+	h.remoteHash, _ = types.ParseToBlockID(remotePeerStatus.BestBlockHash)
+	h.remoteNo = remotePeerStatus.BestHeight
+
 	peerAddress := remotePeerStatus.Sender
 	if peerAddress == nil || network.CheckAddressType(peerAddress.Address) == network.AddressTypeError {
 		h.sendGoAway("invalid peer address")
 		return fmt.Errorf("invalid peer address : %s", peerAddress)
 	}
 
-	rMeta := p2pcommon.FromPeerAddress(peerAddress)
+	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
 		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("Inconsistent peerID")
 	}
+	h.remoteMeta = rMeta
 
 	return nil
 }
 
 // DoForInbound is handle handshake from inbound peer
-func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error) {
+func (h *V030Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
 	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
@@ -169,9 +198,13 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	}
+	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
 
 	// send my localStatus message as response
-	localStatus, err := createStatus(h.pm, h.actor, h.chainID, nil)
+	localStatus, err := createLocalStatus(h.pm, h.chainID, bestBlock, nil)
 	if err != nil {
 		h.logger.Warn().Err(err).Msg("Failed to create localStatus message.")
 		h.sendGoAway("internal error")
@@ -181,7 +214,8 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*types.Status, error
 	if err != nil {
 		return nil, err
 	}
-	return remotePeerStatus, nil
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	return hsResult, nil
 }
 
 func (h *V030Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {
@@ -200,13 +234,12 @@ func (h *V030Handshaker) sendGoAway(msg string) {
 	}
 }
 
-func createStatus(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, chainID *types.ChainID, genesis []byte) (*types.Status, error) {
-	// find my best block
-	bestBlock, err := actor.GetChainAccessor().GetBestBlock()
-	if err != nil {
-		return nil, err
-	}
+func createLocalStatus(pm p2pcommon.PeerManager, chainID *types.ChainID, bestBlock *types.Block, genesis []byte) (*types.Status, error) {
 	selfAddr := pm.SelfMeta().ToPeerAddress()
+	// for backward compatibility
+	selfAddr.Address = pm.SelfMeta().PrimaryAddress()
+	selfAddr.Port = pm.SelfMeta().PrimaryPort()
+
 	chainIDbytes, err := chainID.Bytes()
 	if err != nil {
 		return nil, err
@@ -218,7 +251,7 @@ func createStatus(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, chainI
 		BestBlockHash: bestBlock.BlockHash(),
 		BestHeight:    bestBlock.GetHeader().GetBlockNo(),
 		NoExpose:      pm.SelfMeta().Hidden,
-		Version:       p2pkey.NodeVersion(),
+		Version:       pm.SelfMeta().Version,
 		Genesis:       genesis,
 	}
 

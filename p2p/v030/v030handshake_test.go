@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	myChainID, theirChainID       *types.ChainID
-	myChainBytes, theirChainBytes []byte
+	myChainID, newVerChainID, theirChainID         *types.ChainID
+	myChainBytes, newVerChainBytes, theirChainBytes []byte
 	samplePeerID, _                      = types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 	dummyBlockHash, _                    = hex.DecodeString("4f461d85e869ade8a0544f8313987c33a9c06534e50c4ad941498299579bd7ac")
 	dummyBlockHeight              uint64 = 100215
@@ -34,6 +34,11 @@ func init() {
 	myChainID = types.NewChainID()
 	myChainID.Magic = "itSmain1"
 	myChainBytes, _ = myChainID.Bytes()
+
+	newVerChainID = types.NewChainID()
+	newVerChainID.Read(myChainBytes)
+	newVerChainID.Version = 3
+	newVerChainBytes, _ = newVerChainID.Bytes()
 
 	theirChainID = types.NewChainID()
 	theirChainID.Read(myChainBytes)
@@ -69,14 +74,15 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "dummy.aergo.io"}
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version:dummyAddr.Version}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
 	tests := []struct {
@@ -84,11 +90,11 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 		readReturn *types.Status
 		readError  error
 		writeError error
-		want       *types.Status
+		want       *p2pcommon.HandshakeResult
 		wantErr    bool
 		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, succResult, false, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
 		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
@@ -122,10 +128,8 @@ func TestV030StatusHS_doForOutbound(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
-					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
-					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
-					t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got.ChainID, tt.want.ChainID)
+				if !got.Meta.Equals(tt.want.Meta) {
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got, tt.want)
@@ -144,7 +148,7 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockCA := p2pmock.NewMockChainAccessor(ctrl)
 	mockPM := p2pmock.NewMockPeerManager(ctrl)
 
-	dummyMeta := p2pcommon.PeerMeta{ID: samplePeerID, IPAddress: "dummy.aergo.io"}
+	dummyMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	dummyAddr := dummyMeta.ToPeerAddress()
 	mockPM.EXPECT().SelfMeta().Return(dummyMeta).AnyTimes()
 	dummyBlock := &types.Block{Hash: dummyBlockHash, Header: &types.BlockHeader{BlockNo: dummyBlockHeight}}
@@ -152,7 +156,8 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 	mockActor.EXPECT().GetChainAccessor().Return(mockCA).AnyTimes()
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Version:dummyAddr.Version}
+	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
 	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil}
 	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr}
 	tests := []struct {
@@ -160,11 +165,11 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 		readReturn *types.Status
 		readError  error
 		writeError error
-		want       *types.Status
+		want       *p2pcommon.HandshakeResult
 		wantErr    bool
 		wantGoAway bool
 	}{
-		{"TSuccess", dummyStatusMsg, nil, nil, dummyStatusMsg, false, false},
+		{"TSuccess", dummyStatusMsg, nil, nil, succResult, false, false},
 		{"TUnexpMsg", nil, nil, nil, nil, true, true},
 		{"TRFail", dummyStatusMsg, fmt.Errorf("failed"), nil, nil, true, true},
 		{"TRNoSender", nilSenderStatusMsg, nil, nil, nil, true, true},
@@ -199,10 +204,8 @@ func TestV030StatusHS_handshakeInboundPeer(t *testing.T) {
 				return
 			}
 			if got != nil && tt.want != nil {
-				if !reflect.DeepEqual(got.ChainID, tt.want.ChainID) {
-					fmt.Printf("got:(%d) %s \n", len(got.ChainID), hex.EncodeToString(got.ChainID))
-					fmt.Printf("got:(%d) %s \n", len(tt.want.ChainID), hex.EncodeToString(tt.want.ChainID))
-					t.Errorf("PeerHandshaker.handshakeOutboundPeer() = %v, want %v", got.ChainID, tt.want.ChainID)
+				if !got.Meta.Equals(tt.want.Meta) {
+					t.Errorf("PeerHandshaker.handshakeOutboundPeer() peerID = %v, want %v", got.Meta, tt.want.Meta)
 				}
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PeerHandshaker.handshakeInboundPeer() = %v, want %v", got, tt.want)

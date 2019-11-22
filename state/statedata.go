@@ -16,8 +16,8 @@ func saveData(store db.DB, key []byte, data interface{}) error {
 	var err error
 	var raw []byte
 	switch data.(type) {
-	case *[]byte:
-		raw = *(data.(*[]byte))
+	case ([]byte):
+		raw = data.([]byte)
 	case proto.Message:
 		raw, err = proto.Marshal(data.(proto.Message))
 		if err != nil {

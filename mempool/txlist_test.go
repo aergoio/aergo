@@ -9,17 +9,31 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/aergoio/aergo/config"
+
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/types"
 )
 
+var dummyMempool = &MemPool{
+	cfg: &config.Config{
+		Hardfork: &config.HardforkConfig{
+			V2: 0,
+		},
+	},
+	bestBlockInfo: getCurrentBestBlockInfoMock(),
+}
+
 func NewState(nonce uint64, bal uint64) *types.State {
 	return &types.State{Nonce: nonce, Balance: new(big.Int).SetUint64(bal).Bytes()}
 }
+
 func TestListPutBasic(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := newTxList(nil, NewState(0, 0), dummyMempool)
 
 	count := 100
 	nonce := make([]int, count)
@@ -42,7 +56,7 @@ func TestListPutBasic(t *testing.T) {
 func TestListPutBasicOrphan(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := newTxList(nil, NewState(0, 0), dummyMempool)
 
 	count := 20
 	nonce := make([]int, count)
@@ -67,7 +81,7 @@ func TestListPutBasicOrphan(t *testing.T) {
 func TestListPutErrors(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(9, 0))
+	mpl := newTxList(nil, NewState(9, 0), dummyMempool)
 	added, err := mpl.Put(genTx(0, 0, uint64(1), 0))
 	if added != 0 || err != types.ErrTxNonceTooLow {
 		t.Errorf("put should be failed with ErrTxNonceTooLow, but %s", err)
@@ -87,7 +101,7 @@ func TestListPutErrors(t *testing.T) {
 func TestListDel(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := newTxList(nil, NewState(0, 0), dummyMempool)
 
 	fee.EnableZeroFee()
 	ret, txs := mpl.FilterByState(NewState(2, 100))
@@ -145,7 +159,7 @@ func TestListDel(t *testing.T) {
 func TestListDelMiddle(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(3, 0))
+	mpl := newTxList(nil, NewState(3, 0), dummyMempool)
 
 	mpl.Put(genTx(0, 0, uint64(4), 0))
 	mpl.Put(genTx(0, 0, uint64(5), 0))
@@ -169,7 +183,7 @@ func TestListDelMiddle(t *testing.T) {
 func TestListPutRandom(t *testing.T) {
 	initTest(t)
 	defer deinitTest()
-	mpl := NewTxList(nil, NewState(0, 0))
+	mpl := newTxList(nil, NewState(0, 0), dummyMempool)
 
 	count := 100
 	txs := make([]types.Transaction, count)
@@ -189,4 +203,48 @@ func TestListPutRandom(t *testing.T) {
 	if len(ret) != count {
 		t.Error("put failed", len(ret), count)
 	}
+}
+
+func TestListRemoveTx(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+	mpl := newTxList(nil, NewState(3, 0), dummyMempool)
+
+	four := genTx(0, 0, uint64(4), 0)
+	five := genTx(0, 0, uint64(5), 0)
+	six := genTx(0, 0, uint64(6), 0)
+	eight := genTx(0, 0, uint64(8), 0)
+	nine := genTx(0, 0, uint64(9), 0)
+	ten := genTx(0, 0, uint64(10), 0)
+	mpl.Put(four)
+	mpl.Put(five)
+	mpl.Put(six)
+	mpl.Put(eight)
+	mpl.Put(nine)
+	mpl.Put(ten)
+
+	if mpl.Len() != 3 {
+		t.Error("should be 3 not ", len(mpl.list))
+	}
+
+	changedOrphan, tx := mpl.RemoveTx(four.GetTx())
+	assert.Equal(t, 5, mpl.len(), "list length")
+	assert.Equal(t, 2, changedOrphan, "new orphan count")
+	assert.Equal(t, four.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(four)
+
+	changedOrphan, tx = mpl.RemoveTx(five.GetTx())
+	assert.Equal(t, 1, changedOrphan, "new orphan count")
+	assert.Equal(t, five.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(five)
+
+	changedOrphan, tx = mpl.RemoveTx(six.GetTx())
+	assert.Equal(t, 0, changedOrphan, "new orphan count")
+	assert.Equal(t, six.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(six)
+
+	changedOrphan, tx = mpl.RemoveTx(nine.GetTx())
+	assert.Equal(t, -1, changedOrphan, "new orphan count")
+	assert.Equal(t, nine.GetTx().GetHash(), tx.GetHash(), "removed tx")
+	mpl.Put(six)
 }

@@ -5,156 +5,127 @@
 package system
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58"
 )
 
+//SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
-	BlockNo  uint64
-	Call     *types.CallInfo
-	Args     []string
-	Staked   *types.Staking
-	Vote     *types.Vote
-	Sender   *state.V
-	Receiver *state.V
+	BlockInfo *types.BlockHeaderInfo
+	Call      *types.CallInfo
+	Args      []string
+	Staked    *types.Staking
+	Vote      *types.Vote // voting
+	Proposal  *Proposal   // voting
+	Sender    *state.V
+	Receiver  *state.V
+
+	op     types.OpSysTx
+	scs    *state.ContractState
+	txBody *types.TxBody
 }
 
-func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockNo types.BlockNo) ([]*types.Event, error) {
-
-	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockNo)
+func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
+	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
 	context.Receiver = receiver
 
-	var event *types.Event
-	switch context.Call.Name {
-	case types.Stake:
-		event, err = staking(txBody, sender, receiver, scs, blockNo, context)
-	case types.VoteBP:
-		event, err = voting(txBody, sender, receiver, scs, blockNo, context)
-	case types.Unstake:
-		event, err = unstaking(txBody, sender, receiver, scs, blockNo, context)
-	default:
-		err = types.ErrTxInvalidPayload
+	return context, err
+}
+
+func (ctx *SystemContext) arg(i int) interface{} {
+	return ctx.Call.Args[i]
+}
+
+// Update the sender's staking.
+func (c *SystemContext) updateStaking() error {
+	return setStaking(c.scs, c.Sender.ID(), c.Staked)
+}
+
+type sysCmd interface {
+	run() (*types.Event, error)
+	arg(i int) interface{}
+}
+
+type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
+
+func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (sysCmd, error) {
+
+	cmds := map[types.OpSysTx]sysCmdCtor{
+		types.OpvoteBP:    newVoteCmd,
+		types.OpvoteDAO: newVoteCmd,
+		types.Opstake:     newStakeCmd,
+		types.Opunstake:   newUnstakeCmd,
 	}
+
+	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
-	var events []*types.Event
-	events = append(events, event)
-	return events, nil
-}
 
-func GetNamePrice(scs *state.ContractState) *big.Int {
-	votelist, err := getVoteResult(scs, []byte(types.VoteNamePrice[2:]), 1)
-	if err != nil {
-		panic("could not get vote result for min staking")
-	}
-	if len(votelist.Votes) == 0 {
-		return types.NamePrice
-	}
-	return new(big.Int).SetBytes(votelist.Votes[0].GetCandidate())
-}
-
-func GetMinimumStaking(scs *state.ContractState) *big.Int {
-	votelist, err := getVoteResult(scs, []byte(types.VoteMinStaking[2:]), 1)
-	if err != nil {
-		panic("could not get vote result for min staking")
-	}
-	if len(votelist.Votes) == 0 {
-		return types.StakingMinimum
-	}
-	minimumStaking, ok := new(big.Int).SetString(string(votelist.Votes[0].GetCandidate()), 10)
-	if !ok {
-		panic("could not get vote result for min staking")
-	}
-	return minimumStaking
-}
-
-func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
-	scs *state.ContractState, blockNo uint64) (*SystemContext, error) {
-	var ci types.CallInfo
-	context := &SystemContext{Call: &ci, Sender: sender, BlockNo: blockNo}
-
-	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
+	ctor, exist := cmds[types.GetOpSysTx(context.Call.Name)]
+	if !exist {
 		return nil, types.ErrTxInvalidPayload
 	}
-	switch ci.Name {
-	case types.Stake:
-		if sender != nil && sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
-			return nil, types.ErrInsufficientBalance
-		}
-		staked, err := validateForStaking(account, txBody, scs, blockNo)
-		if err != nil {
-			return nil, err
-		}
-		context.Staked = staked
-	case types.VoteBP:
-		staked, err := getStaking(scs, account)
-		if err != nil {
-			return nil, err
-		}
-		if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
-			return nil, types.ErrMustStakeBeforeVote
-		}
-		oldvote, err := GetVote(scs, account, []byte(ci.Name[2:]))
-		if err != nil {
-			return nil, err
-		}
-		if oldvote.Amount != nil && staked.GetWhen()+VotingDelay > blockNo {
-			return nil, types.ErrLessTimeHasPassed
-		}
-		context.Staked = staked
-		context.Vote = oldvote
-	case types.Unstake:
-		staked, err := validateForUnstaking(account, txBody, scs, blockNo)
-		if err != nil {
-			return nil, err
-		}
-		context.Staked = staked
-	default:
-		return nil, types.ErrTxInvalidPayload
-	}
-	return context, nil
+
+	return ctor(context)
 }
 
-func validateForStaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
-	staked, err := getStaking(scs, account)
+func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
+	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
+
+	cmd, err := newSysCmd(sender.ID(), txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
-	if staked.GetAmount() != nil && staked.GetWhen()+StakingDelay > blockNo {
-		return nil, types.ErrLessTimeHasPassed
-	}
-	toBe := new(big.Int).Add(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	if GetMinimumStaking(scs).Cmp(toBe) > 0 {
-		return nil, types.ErrTooSmallAmount
-	}
-	return staked, nil
-}
 
-func validateForUnstaking(account []byte, txBody *types.TxBody, scs *state.ContractState, blockNo uint64) (*types.Staking, error) {
-	staked, err := getStaking(scs, account)
+	event, err := cmd.run()
 	if err != nil {
 		return nil, err
 	}
-	if staked.GetAmountBigInt().Cmp(big.NewInt(0)) == 0 {
-		return nil, types.ErrMustStakeBeforeUnstake
+
+	return []*types.Event{event}, nil
+}
+
+func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
+	var results []*types.VoteInfo
+
+	for _, i := range GetVotingCatalog() {
+		id := i.ID()
+		key := i.Key()
+
+		result := &types.VoteInfo{Id: id}
+		v, err := getVote(scs, key, address)
+		if err != nil {
+			return nil, err
+		}
+		if v.Amount == nil {
+			continue
+		}
+
+		if bytes.Equal(key, defaultVoteKey) {
+			for offset := 0; offset < len(v.Candidate); offset += PeerIDLength {
+				candi := base58.Encode(v.Candidate[offset : offset+PeerIDLength])
+				result.Candidates = append(result.Candidates, candi)
+			}
+		} else {
+			err := json.Unmarshal(v.Candidate, &result.Candidates)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %s", err.Error(), string(v.Candidate))
+			}
+		}
+		result.Amount = new(big.Int).SetBytes(v.Amount).String()
+		results = append(results, result)
 	}
-	if staked.GetAmountBigInt().Cmp(txBody.GetAmountBigInt()) < 0 {
-		return nil, types.ErrExceedAmount
-	}
-	if staked.GetWhen()+StakingDelay > blockNo {
-		return nil, types.ErrLessTimeHasPassed
-	}
-	toBe := new(big.Int).Sub(staked.GetAmountBigInt(), txBody.GetAmountBigInt())
-	if toBe.Cmp(big.NewInt(0)) != 0 && GetMinimumStaking(scs).Cmp(toBe) > 0 {
-		return nil, types.ErrTooSmallAmount
-	}
-	return staked, nil
+	return results, nil
 }

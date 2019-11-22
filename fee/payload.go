@@ -6,7 +6,6 @@ import (
 
 const (
 	baseTxFee            = "2000000000000000" // 0.002 AERGO
-	aerPerByte           = 5000000000000      // 5,000 GAER, feePerBytes * PayloadMaxBytes = 1 AERGO
 	payloadMaxSize       = 200 * 1024
 	StateDbMaxUpdateSize = payloadMaxSize
 	freeByteSize         = 200
@@ -16,38 +15,47 @@ var (
 	baseTxAergo   *big.Int
 	zeroFee       bool
 	stateDbMaxFee *big.Int
-	zero          *big.Int
-	AerPerByte    *big.Int
+	aerPerByte    *big.Int
 )
 
 func init() {
 	baseTxAergo, _ = new(big.Int).SetString(baseTxFee, 10)
 	zeroFee = false
-	AerPerByte = big.NewInt(aerPerByte)
-	stateDbMaxFee = new(big.Int).Mul(AerPerByte, big.NewInt(StateDbMaxUpdateSize-freeByteSize))
-	zero = big.NewInt(0)
+	aerPerByte = big.NewInt(5000000000000) // 5,000 GAER, feePerBytes * PayloadMaxBytes = 1 AERGO
+	stateDbMaxFee = new(big.Int).Mul(aerPerByte, big.NewInt(StateDbMaxUpdateSize-freeByteSize))
 }
 
 func EnableZeroFee() {
 	zeroFee = true
 }
 
+func DisableZeroFee() {
+	zeroFee = false
+}
+
 func IsZeroFee() bool {
 	return zeroFee
 }
 
+func NewZeroFee() *big.Int {
+	return big.NewInt(0)
+}
+
 func PayloadTxFee(payloadSize int) *big.Int {
 	if IsZeroFee() {
-		return zero
+		return NewZeroFee()
 	}
-	size := PaymentDataSize(int64(payloadSize))
+	if payloadSize == 0 {
+		return new(big.Int).Set(baseTxAergo)
+	}
+	size := paymentDataSize(int64(payloadSize))
 	if size > payloadMaxSize {
 		size = payloadMaxSize
 	}
 	return new(big.Int).Add(
 		baseTxAergo,
 		new(big.Int).Mul(
-			AerPerByte,
+			aerPerByte,
 			big.NewInt(size),
 		),
 	)
@@ -55,18 +63,22 @@ func PayloadTxFee(payloadSize int) *big.Int {
 
 func MaxPayloadTxFee(payloadSize int) *big.Int {
 	if IsZeroFee() {
-		return zero
+		return NewZeroFee()
 	}
 	if payloadSize == 0 {
-		return baseTxAergo
+		return new(big.Int).Set(baseTxAergo)
 	}
 	return new(big.Int).Add(PayloadTxFee(payloadSize), stateDbMaxFee)
 }
 
-func PaymentDataSize(dataSize int64) int64 {
+func paymentDataSize(dataSize int64) int64 {
 	pSize := dataSize - freeByteSize
 	if pSize < 0 {
 		pSize = 0
 	}
 	return pSize
+}
+
+func PaymentDataFee(dataSize int64) *big.Int {
+	return new(big.Int).Mul(big.NewInt(paymentDataSize(dataSize)), aerPerByte)
 }

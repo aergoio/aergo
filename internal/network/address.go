@@ -102,7 +102,7 @@ func CheckAddress(urlStr string) (string, error) {
 	}
 }
 
-func IsExternalAddr(addrStr string) bool {
+func IsPublicAddr(addrStr string) bool {
 	switch CheckAddressType(addrStr) {
 	case AddressTypeIP:
 		parsed := net.ParseIP(addrStr)
@@ -121,4 +121,18 @@ func isPrivateIP(ip net.IP) bool {
 		}
 	}
 	return false
+}
+
+// IsSameAddress check two string is same ip address or domain name.
+func IsSameAddress(ip1str, ip2str string) bool {
+	ip1 := net.ParseIP(ip1str)
+	ip2 := net.ParseIP(ip2str)
+	if ip1 != nil && ip2 != nil {
+		return ip1.Equal(ip2)
+	} else if ip1 == nil && ip2 == nil {
+		// check if domain
+		return ip1str == ip2str
+	} else {
+		return false
+	}
 }

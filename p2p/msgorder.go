@@ -227,3 +227,23 @@ func (pr *pbRaftMsgOrder) CancelSend(pi p2pcommon.RemotePeer) {
 	// TODO test more whether to uncomment or to delete code below
 	//pr.raftAcc.ReportUnreachable(pi.ID())
 }
+
+
+type pbTossOrder struct {
+	pbMessageOrder
+}
+
+func (pr *pbTossOrder) SendTo(pi p2pcommon.RemotePeer) error {
+	p := pi.(*remotePeerImpl)
+	err := p.rw.WriteMsg(pr.message)
+	if err != nil {
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Msg("fail to toss")
+		return err
+	}
+
+	if pr.trace {
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, pr.GetProtocolID().String()).
+			Str(p2putil.LogMsgID, pr.GetMsgID().String()).Msg("toss message")
+	}
+	return nil
+}

@@ -23,6 +23,7 @@ type Config struct {
 	Monitor    *MonitorConfig    `mapstructure:"monitor"`
 	Account    *AccountConfig    `mapstructure:"account"`
 	Auth       *AuthConfig       `mapstructure:"auth"`
+	Hardfork   *HardforkConfig   `mapstructure:"hardfork"`
 	SQL        *SQLConfig        `mapstructure:"sql"`
 }
 
@@ -73,7 +74,11 @@ type P2PConfig struct {
 	NPAddPolarises []string `mapstructure:"npaddpolarises" description:"Add addresses of polarises if default polaris is not sufficient"`
 
 	LogFullPeerID bool `mapstructure:"logfullpeerid" description:"Whether to use full legnth peerID or short form"`
-	// NPPrivateChain and NPMainNet are not set from configfile, it must be got from genesis block. TODO this properties should not be in config
+
+	PeerRole      string   `mapstructure:"peerrole" description:"Role of peer. It must be sync with enablebp field in consensus config "`
+	Producers     []string `mapstructure:"producers" description:"List of peer ids of block producers, only meaningful when peer is agent"`
+	InternalZones []string `mapstructure:"internalzones" description:"List of address ranges that are recognised as inner zone of agent. defined by CIDR notation."`
+	Agent         string   `mapstructure:"agent" description:"Peer id of agent that delegates this producer, only available when local peer is producer"`
 }
 
 // AuthConfig defines configuration for auditing
@@ -92,10 +97,10 @@ type PolarisConfig struct {
 type BlockchainConfig struct {
 	MaxBlockSize     uint32 `mapstructure:"maxblocksize"  description:"maximum block size in bytes"`
 	CoinbaseAccount  string `mapstructure:"coinbaseaccount" description:"wallet address for coinbase"`
-	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximun anchor count for sync"`
-	VerifierCount    int    `mapstructure:"verifiercount" description:"maximun transaction verifier count"`
+	MaxAnchorCount   int    `mapstructure:"maxanchorcount" description:"maximum anchor count for sync"`
+	VerifierCount    int    `mapstructure:"verifiercount" description:"maximum transaction verifier count"`
 	ForceResetHeight uint64 `mapstructure:"forceresetheight" description:"best height to reset chain manually"`
-	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(works only on private network)"`
+	ZeroFee          bool   `mapstructure:"zerofee" description:"enable zero-fee mode(deprecated)"`
 	VerifyOnly       bool   `mapstructure:"verifyonly" description:"In verify only mode, server verifies block chain of disk. server never modifies block chain'"`
 	StateTrace       uint64 `mapstructure:"statetrace" description:"dump trace of setting state"`
 }
@@ -111,9 +116,10 @@ type MempoolConfig struct {
 
 // ConsensusConfig defines configurations for consensus service
 type ConsensusConfig struct {
-	EnableBp      bool        `mapstructure:"enablebp" description:"enable block production"`
-	BlockInterval int64       `mapstructure:"blockinterval" description:"block production interval (sec)"`
-	Raft          *RaftConfig `mapstructure:"raft"`
+	EnableBp            bool        `mapstructure:"enablebp" description:"enable block production"`
+	BlockInterval       int64       `mapstructure:"blockinterval" description:"block production interval (sec)"`
+	Raft                *RaftConfig `mapstructure:"raft"`
+	NoTimeoutTxEviction bool        `mapstructure:"notte" description:"disable timeout tx eviction"`
 }
 
 type RaftConfig struct {
@@ -202,10 +208,11 @@ npdiscoverpeers = true
 npmaxpeers = "{{.P2P.NPMaxPeers}}"
 nppeerpool = "{{.P2P.NPPeerPool}}"
 npexposeself = true
-npusepolaris= {{.P2P.NPUsePolaris}}
+npusepolaris = {{.P2P.NPUsePolaris}}
 npaddpolarises = [{{range .P2P.NPAddPolarises}}
 "{{.}}", {{end}}
 ]
+peerrole = "{{.P2P.PeerRole}}"
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}
@@ -240,4 +247,5 @@ unlocktimeout = "{{.Account.UnlockTimeout}}"
 
 [auth]
 enablelocalconf = "{{.Auth.EnableLocalConf}}"
-`
+
+` + hardforkConfigTmpl

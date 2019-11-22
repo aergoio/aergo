@@ -34,6 +34,20 @@ func (m *MockChainAccessor) EXPECT() *MockChainAccessorMockRecorder {
 	return m.recorder
 }
 
+// ChainID mocks base method
+func (m *MockChainAccessor) ChainID(arg0 uint64) *types.ChainID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChainID", arg0)
+	ret0, _ := ret[0].(*types.ChainID)
+	return ret0
+}
+
+// ChainID indicates an expected call of ChainID
+func (mr *MockChainAccessorMockRecorder) ChainID(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChainID", reflect.TypeOf((*MockChainAccessor)(nil).ChainID), arg0)
+}
+
 // GetBestBlock mocks base method
 func (m *MockChainAccessor) GetBestBlock() (*types.Block, error) {
 	m.ctrl.T.Helper()

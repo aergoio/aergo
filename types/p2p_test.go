@@ -46,7 +46,7 @@ func TestUnmarshalSize(t *testing.T) {
 	expectedLen = proto.Size(sample)
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
-	fmt.Println("Hundread hashes notice size ",len(actual))
+	fmt.Println("Hundred hashes notice size ",len(actual))
 	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
 	assert.Equal(t,expectedLen, len(actual) )
 

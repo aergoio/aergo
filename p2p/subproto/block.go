@@ -160,14 +160,15 @@ func (bh *newBlockNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 	// remove to verbose log
 	// debugLogReceiveMsg(bh.logger, bh.protocol, msg.ID().String(), peerID, log.DoLazyEval(func() string { return enc.ToString(data.BlkHash) }))
 
-	if _, err := types.ParseToBlockID(data.BlockHash); err != nil {
+	if blockID, err := types.ParseToBlockID(data.BlockHash); err != nil {
 		// TODO Add penalty score and break
 		bh.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str("hash", enc.ToString(data.BlockHash)).Msg("malformed blockHash")
 		return
-	}
-	// lru cache can't accept byte slice key
-	if !remotePeer.UpdateBlkCache(data.BlockHash, data.BlockNo) {
-		bh.sm. HandleNewBlockNotice(remotePeer, data)
+	} else {
+		// lru cache can't accept byte slice key
+		if !remotePeer.UpdateBlkCache(blockID, data.BlockNo) {
+			bh.sm.HandleNewBlockNotice(remotePeer, data)
+		}
 	}
 }
 

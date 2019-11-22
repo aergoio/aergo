@@ -5,7 +5,7 @@ package p2pcommon
 import "strconv"
 
 const (
-	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponse"
+	_SubProtocol_name_0 = "StatusRequestPingRequestPingResponseGoAwayAddressesRequestAddressesResponseIssueCertificateRequestIssueCertificateResponseCertificateRenewedNotice"
 	_SubProtocol_name_1 = "GetBlocksRequestGetBlocksResponseGetBlockHeadersRequestGetBlockHeadersResponse"
 	_SubProtocol_name_2 = "NewBlockNoticeGetAncestorRequestGetAncestorResponseGetHashesRequestGetHashesResponseGetHashByNoRequestGetHashByNoResponse"
 	_SubProtocol_name_3 = "GetTXsRequestGetTXsResponseNewTxNotice"
@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	_SubProtocol_index_0 = [...]uint8{0, 13, 24, 36, 42, 58, 75}
+	_SubProtocol_index_0 = [...]uint8{0, 13, 24, 36, 42, 58, 75, 98, 122, 146}
 	_SubProtocol_index_1 = [...]uint8{0, 16, 33, 55, 78}
 	_SubProtocol_index_2 = [...]uint8{0, 14, 32, 51, 67, 84, 102, 121}
 	_SubProtocol_index_3 = [...]uint8{0, 13, 27, 38}
@@ -23,7 +23,7 @@ var (
 
 func (i SubProtocol) String() string {
 	switch {
-	case 1 <= i && i <= 6:
+	case 1 <= i && i <= 9:
 		i -= 1
 		return _SubProtocol_name_0[_SubProtocol_index_0[i]:_SubProtocol_index_0[i+1]]
 	case 16 <= i && i <= 19:

@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
+	"strings"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
@@ -17,89 +18,203 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-var defaultBpCount int
+const (
+	PeerIDLength = 39
+	VotingDelay  = 60 * 60 * 24 //block interval
+	//VotingDelay = 10 //block interval
+)
 
-var voteKey = []byte("vote")
-var sortKey = []byte("sort")
+var (
+	votingCatalog []types.VotingIssue
 
-const PeerIDLength = 39
+	lastBpCount int
 
-const VotingDelay = 60 * 60 * 24 //block interval
-//const VotingDelay = 5
+	voteKey        = []byte("vote")
+	totalKey       = []byte("total")
+	sortKey        = []byte("sort")
+	defaultVoteKey = []byte(types.OpvoteBP.ID())
+)
 
-var defaultVoteKey = []byte(types.VoteBP)[2:]
+func init() {
+	initVotingCatalog()
+}
 
-func voting(txBody *types.TxBody, sender, receiver *state.V, scs *state.ContractState,
-	blockNo types.BlockNo, context *SystemContext) (*types.Event, error) {
-	key := []byte(context.Call.Name)[2:]
-	oldvote := context.Vote
-	staked := context.Staked
-	//update block number
-	staked.When = blockNo
-	err := setStaking(scs, sender.ID(), staked)
-	if err != nil {
-		return nil, err
+func initVotingCatalog() {
+	votingCatalog = make([]types.VotingIssue, 0)
+
+	fuse := func(issues []types.VotingIssue) {
+		votingCatalog = append(votingCatalog, issues...)
 	}
 
-	voteResult, err := loadVoteResult(scs, key)
-	if err != nil {
-		return nil, err
+	fuse(types.GetVotingIssues())
+	fuse(GetVotingIssues())
+}
+
+func GetVotingCatalog() []types.VotingIssue {
+	return votingCatalog
+}
+
+type voteCmd struct {
+	*SystemContext
+
+	issue     []byte
+	args      []byte
+	candidate []byte
+
+	newVote    *types.Vote
+	voteResult *VoteResult
+
+	add func(v *types.Vote) error
+	sub func(v *types.Vote) error
+}
+
+func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
+	var (
+		scs = ctx.scs
+
+		err error
+	)
+
+	cmd := &voteCmd{SystemContext: ctx}
+	if cmd.Proposal != nil {
+		cmd.issue = cmd.Proposal.GetKey()
+		cmd.candidate, err = json.Marshal(cmd.Call.Args[1:]) //[0] is name
+		if err != nil {
+			return nil, err
+		}
+		//for event. voteDAO allow only one candidate. it should be validate before.
+		voteID := cmd.Call.Args[0].(string)
+		cmd.args = []byte(`"` + strings.ToUpper(voteID) + `", {"_bignum":"` + cmd.Call.Args[1].(string) + `"}`)
+	} else {
+		cmd.issue = []byte(ctx.op.ID())
+		cmd.args, err = json.Marshal(cmd.Call.Args)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range cmd.Call.Args {
+			candidate, _ := base58.Decode(v.(string))
+			cmd.candidate = append(cmd.candidate, candidate...)
+		}
 	}
 
-	err = voteResult.SubVote(oldvote)
-	if err != nil {
-		return nil, err
-	}
+	// The variable args is a JSON bytes. It is used as vote.candidate for the
+	// proposal based voting, while just as an event output for BP election.
+	staked := cmd.Staked
+	// Update the block number when the last action is conducted (voting,
+	// staking etc). Two consecutive votings must be seperated by the time
+	// corresponding to VotingDeley (currently 24h). This time limit is check
+	// against this block number (Staking.When). Due to this, the Staking value
+	// on the state DB must be updated even for voting.
+	staked.SetWhen(cmd.BlockInfo.No)
 
 	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
 		return nil, types.ErrMustStakeBeforeVote
 	}
-	vote := &types.Vote{Amount: staked.GetAmount()}
-	args, err := json.Marshal(context.Call.Args)
+
+	cmd.newVote = &types.Vote{
+		Candidate: cmd.candidate,
+		Amount:    staked.GetAmount(),
+	}
+
+	cmd.voteResult, err = loadVoteResult(scs, cmd.issue)
 	if err != nil {
 		return nil, err
 	}
-	var candidates []byte
-	if bytes.Equal(key, defaultVoteKey) {
-		for _, v := range context.Call.Args {
-			candidate, _ := base58.Decode(v.(string))
-			candidates = append(candidates, candidate...)
+
+	if cmd.BlockInfo.Version < 2 {
+		cmd.add = func(v *types.Vote) error {
+			return cmd.voteResult.AddVote(v)
 		}
-		vote.Candidate = candidates
+		cmd.sub = func(v *types.Vote) error {
+			return cmd.voteResult.SubVote(v)
+		}
 	} else {
-		vote.Candidate = args
+		cmd.add = func(v *types.Vote) error {
+			return cmd.addVote(v)
+		}
+		cmd.sub = func(v *types.Vote) error {
+			return cmd.subVote(v)
+		}
 	}
 
-	err = setVote(scs, key, sender.ID(), vote)
-	if err != nil {
-		return nil, err
-	}
-	err = voteResult.AddVote(vote)
-	if err != nil {
+	return cmd, err
+}
+
+func (c *voteCmd) run() (*types.Event, error) {
+	// To update Staking.When field (not Staking.Amount).
+	if err := c.updateStaking(); err != nil {
 		return nil, err
 	}
 
-	err = voteResult.Sync(scs)
-	if err != nil {
+	if err := c.updateVote(); err != nil {
 		return nil, err
+	}
+
+	if err := c.updateVoteResult(); err != nil {
+		return nil, err
+	}
+	if c.SystemContext.BlockInfo.Version < 2 {
+		return &types.Event{
+			ContractAddress: c.Receiver.ID(),
+			EventIdx:        0,
+			EventName:       c.op.ID(),
+			JsonArgs: `{"who":"` +
+				types.EncodeAddress(c.txBody.Account) +
+				`", "vote":` + string(c.args) + `}`,
+		}, nil
 	}
 	return &types.Event{
-		ContractAddress: receiver.ID(),
+		ContractAddress: c.Receiver.ID(),
 		EventIdx:        0,
-		EventName:       context.Call.Name[2:],
-		JsonArgs: `{"who":"` +
-			types.EncodeAddress(txBody.Account) +
-			`", "vote":` + string(args) + `}`,
+		EventName:       c.op.ID(),
+		JsonArgs: `["` +
+			types.EncodeAddress(c.txBody.Account) +
+			`", ` + string(c.args) + `]`,
 	}, nil
 }
 
-func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
-	context *SystemContext) error {
-	account := context.Sender.ID()
-	staked := context.Staked
-	stakedAmount := new(big.Int).SetBytes(staked.Amount)
-	for _, keystr := range types.AllVotes {
-		key := []byte(keystr[2:])
+// Update the sender's voting record.
+func (c *voteCmd) updateVote() error {
+	return setVote(c.scs, c.issue, c.Sender.ID(), c.newVote)
+}
+
+// Apply the new voting to the voting statistics on the (system) contract
+// storage.
+func (c *voteCmd) updateVoteResult() error {
+	if err := c.sub(c.Vote); err != nil {
+		return err
+	}
+
+	if err := c.add(c.newVote); err != nil {
+		return err
+	}
+
+	return c.voteResult.Sync()
+}
+
+func (c *voteCmd) subVote(v *types.Vote) error {
+	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+
+	return c.voteResult.SubVote(v)
+}
+
+func (c *voteCmd) addVote(v *types.Vote) error {
+	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+
+	return c.voteResult.AddVote(v)
+}
+
+func refreshAllVote(context *SystemContext) error {
+	var (
+		scs          = context.scs
+		account      = context.Sender.ID()
+		staked       = context.Staked
+		stakedAmount = new(big.Int).SetBytes(staked.Amount)
+	)
+
+	for _, i := range GetVotingCatalog() {
+		key := i.Key()
+
 		oldvote, err := getVote(scs, key, account)
 		if err != nil {
 			return err
@@ -107,6 +222,15 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 		if oldvote.Amount == nil ||
 			new(big.Int).SetBytes(oldvote.Amount).Cmp(stakedAmount) <= 0 {
 			continue
+		}
+		if types.OpvoteBP.ID() != i.ID() {
+			proposal, err := getProposal(i.ID())
+			if err != nil {
+				return err
+			}
+			if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockInfo.No {
+				continue
+			}
 		}
 		voteResult, err := loadVoteResult(scs, key)
 		if err != nil {
@@ -122,16 +246,16 @@ func refreshAllVote(txBody *types.TxBody, scs *state.ContractState,
 		if err = voteResult.AddVote(oldvote); err != nil {
 			return err
 		}
-		if err = voteResult.Sync(scs); err != nil {
+		if err = voteResult.Sync(); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-//GetVote return amount, to, err
-func GetVote(scs *state.ContractState, voter []byte, title []byte) (*types.Vote, error) {
-	return getVote(scs, title, voter)
+// GetVote return amount, to, err.
+func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote, error) {
+	return getVote(scs, issue, voter)
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
@@ -140,7 +264,7 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 	if err != nil {
 		return nil, err
 	}
-	var vote types.Vote
+
 	if len(data) != 0 {
 		if bytes.Equal(key, defaultVoteKey) {
 			return deserializeVote(data), nil
@@ -149,7 +273,7 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 		}
 	}
 
-	return &vote, nil
+	return &types.Vote{}, nil
 }
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
@@ -164,7 +288,7 @@ func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) erro
 // BuildOrderedCandidates returns a candidate list ordered by votes.xs
 func BuildOrderedCandidates(vote map[string]*big.Int) []string {
 	// TODO: cleanup
-	voteResult := newVoteResult(defaultVoteKey)
+	voteResult := newVoteResult(defaultVoteKey, nil)
 	voteResult.rmap = vote
 	l := voteResult.buildVoteList()
 	bps := make([]string, 0, len(l.Votes))
@@ -186,28 +310,30 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	if err != nil {
 		return nil, err
 	}
+	if !bytes.Equal(id, defaultVoteKey) {
+		id = GenProposalKey(string(id))
+	}
 	return getVoteResult(scs, id, n)
 }
 
-// InitDefaultBpCount sets defaultBpCount to bpCount.
+// initDefaultBpCount sets lastBpCount to bpCount.
 //
 // Caution: This function must be called only once before all the aergosvr
 // services start.
-func InitDefaultBpCount(bpCount int) {
+func initDefaultBpCount(count int) {
 	// Ensure that it is not modified after it is initialized.
-	if defaultBpCount > 0 {
-		return
+	if DefaultParams[bpCount.ID()] == nil {
+		DefaultParams[bpCount.ID()] = big.NewInt(int64(count))
 	}
-	defaultBpCount = bpCount
 }
 
-func getDefaultBpCount() int {
-	return defaultBpCount
+func GetBpCount() int {
+	return int(GetParam(bpCount.ID()).Uint64())
 }
 
 // GetRankers returns the IDs of the top n rankers.
 func GetRankers(ar AccountStateReader) ([]string, error) {
-	n := getDefaultBpCount()
+	n := GetBpCount()
 
 	vl, err := GetVoteResult(ar, defaultVoteKey, n)
 	if err != nil {
@@ -218,8 +344,11 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 	for _, v := range vl.Votes {
 		bps = append(bps, enc.ToString(v.Candidate))
 	}
-
 	return bps, nil
+}
+
+func GetParam(proposalID string) *big.Int {
+	return systemParams.getLastParam(proposalID)
 }
 
 func serializeVoteList(vl *types.VoteList, ex bool) []byte {

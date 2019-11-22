@@ -35,5 +35,6 @@ type MoFactory interface {
 	NewMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) MsgOrder
 	NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNotice) MsgOrder
 	NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) MsgOrder
+	NewTossMsgOrder(orgMsg Message) MsgOrder
 }
 

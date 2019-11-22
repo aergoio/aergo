@@ -19,9 +19,13 @@ type StubBlockChain struct {
 	BestBlock *types.Block
 }
 
+var _ types.ChainAccessor = (*StubBlockChain)(nil)
+
 var (
 	ErrNotExistHash  = errors.New("not exist hash")
 	ErrNotExistBlock = errors.New("not exist block of the hash")
+
+	testBV = types.DummyBlockVersionner(0)
 )
 
 func NewStubBlockChain(size int) *StubBlockChain {
@@ -38,14 +42,18 @@ func NewStubBlockChain(size int) *StubBlockChain {
 }
 
 func (tchain *StubBlockChain) GenAddBlock() {
+	var bi *types.BlockHeaderInfo
 	var prevBlockRootHash []byte
 	if tchain.BestBlock != nil {
+		bi = types.NewBlockHeaderInfoFromPrevBlock(tchain.BestBlock, time.Now().UnixNano(), types.DummyBlockVersionner(0))
 		prevBlockRootHash = tchain.BestBlock.GetHeader().BlocksRootHash
+	} else {
+		cid, _ := types.NewChainID().Bytes()
+		bi = &types.BlockHeaderInfo{Ts: time.Now().UnixNano(), ChainId: cid}
 	}
-
-	newBlock := types.NewBlock(tchain.BestBlock, prevBlockRootHash, nil, nil, nil, time.Now().UnixNano())
+	bi.Ts = time.Now().UnixNano()
+	newBlock := types.NewBlock(bi, prevBlockRootHash, nil, nil, nil, nil)
 	tchain.AddBlock(newBlock)
-
 	time.Sleep(time.Nanosecond * 3)
 }
 
@@ -204,6 +212,10 @@ func (tchain *StubBlockChain) GetAncestorWithHashes(hashes [][]byte) *types.Bloc
 		}
 	}
 
+	return nil
+}
+
+func (tchain *StubBlockChain) ChainID(bno types.BlockNo) *types.ChainID {
 	return nil
 }
 

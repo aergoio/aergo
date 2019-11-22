@@ -3,9 +3,10 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"time"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
@@ -17,9 +18,9 @@ import (
 var (
 	// ErrQuit indicates that shutdown is initiated.
 	ErrQuit           = errors.New("shutdown initiated")
-	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 	ErrBlockEmpty     = errors.New("no transactions in block")
 	ErrSyncChain      = errors.New("failed to sync request")
+	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
 
 // ErrTimeout can be used to indicatefor any kind of timeout.
@@ -63,25 +64,89 @@ func MaxBlockBodySize() uint32 {
 	return chain.MaxBlockBodySize()
 }
 
-// GenerateBlock generate & return a new block
-func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bState *state.BlockState, txOp TxOp, ts int64, skipEmpty bool) (*types.Block, error) {
-	transactions, err := GatherTXs(hs, bState, txOp, MaxBlockBodySize())
+type FetchFn = func(component.ICompSyncRequester, uint32) []types.Transaction
+type FetchDeco = func(FetchFn) FetchFn
+
+type BlockGenerator struct {
+	bState   *state.BlockState
+	rejected *RejTxInfo
+	noTTE    bool // disable eviction by timeout if true
+
+	hs               component.ICompSyncRequester
+	bi               *types.BlockHeaderInfo
+	txOp             TxOp
+	fetchTXs         func(component.ICompSyncRequester, uint32) []types.Transaction
+	skipEmpty        bool
+	maxBlockBodySize uint32
+}
+
+func NewBlockGenerator(hs component.ICompSyncRequester, bi *types.BlockHeaderInfo, bState *state.BlockState,
+	txOp TxOp, skipEmpty bool) *BlockGenerator {
+	return &BlockGenerator{
+		bState: bState,
+
+		hs:               hs,
+		bi:               bi,
+		txOp:             txOp,
+		fetchTXs:         FetchTXs,
+		skipEmpty:        skipEmpty,
+		maxBlockBodySize: MaxBlockBodySize(),
+	}
+}
+
+type RejTxInfo struct {
+	tx        types.Transaction
+	orig      error
+	evictable bool
+}
+
+func newTxRej(tx types.Transaction, orig error, evictable bool) *RejTxInfo {
+	return &RejTxInfo{tx: tx, orig: orig, evictable: evictable}
+}
+
+func (r *RejTxInfo) Tx() types.Transaction {
+	return r.tx
+}
+
+func (r *RejTxInfo) Hash() []byte {
+	return r.tx.GetHash()
+}
+
+func (r *RejTxInfo) Evictable() bool {
+	return r.evictable
+}
+
+func (g *BlockGenerator) Rejected() *RejTxInfo {
+	return g.rejected
+}
+
+// SetTimeoutTx set bState.timeoutTx to tx.
+func (g *BlockGenerator) SetTimeoutTx(tx types.Transaction) {
+	logger.Warn().Str("hash", enc.ToString(tx.GetHash())).Msg("timeout tx marked for eviction")
+	g.bState.SetTimeoutTx(tx)
+}
+
+// GenerateBlock generate & return a new block.
+func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
+	bState := g.bState
+
+	transactions, err := g.GatherTXs()
 	if err != nil {
 		return nil, err
 	}
-
-	txs := make([]*types.Tx, 0)
-	for _, x := range transactions {
-		txs = append(txs, x.GetTx())
-	}
-
-	if len(txs) == 0 && skipEmpty {
+	n := len(transactions)
+	if n == 0 && g.skipEmpty {
 		logger.Debug().Msg("BF: empty block is skipped")
 		return nil, ErrBlockEmpty
 	}
 
-	block := types.NewBlock(prevBlock, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, ts)
-	if len(txs) != 0 && logger.IsDebugEnabled() {
+	txs := make([]*types.Tx, n)
+	for i, x := range transactions {
+		txs[i] = x.GetTx()
+	}
+
+	block := types.NewBlock(g.bi, bState.GetRoot(), bState.Receipts(), txs, chain.CoinbaseAccount, bState.Consensus())
+	if n != 0 && logger.IsDebugEnabled() {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).
@@ -89,6 +154,26 @@ func GenerateBlock(hs component.ICompSyncRequester, prevBlock *types.Block, bSta
 	}
 
 	return block, nil
+}
+
+func (g *BlockGenerator) WithDeco(fn FetchDeco) *BlockGenerator {
+	if fn != nil {
+		g.fetchTXs = fn(g.fetchTXs)
+	}
+	return g
+}
+
+func (g *BlockGenerator) SetNoTTE(noTTE bool) *BlockGenerator {
+	g.noTTE = noTTE
+	return g
+}
+
+func (g *BlockGenerator) setRejected(tx types.Transaction, cause error, evictable bool) {
+	g.rejected = newTxRej(tx, cause, evictable)
+}
+
+func (g *BlockGenerator) tteEnabled() bool {
+	return !g.noTTE
 }
 
 // ConnectBlock send an AddBlock request to the chain service.

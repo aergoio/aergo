@@ -56,10 +56,10 @@ func (mp *MemPool) generateInfiniteTx() {
 const defaultBalance = uint64(10000000)
 
 var (
-	lock        sync.RWMutex
-	balance     = map[string]uint64{}
-	nonce       = map[string]uint64{}
-	bestBlockNo = types.BlockNo(1)
+	lock          sync.RWMutex
+	balance       = map[string]uint64{}
+	nonce         = map[string]uint64{}
+	bestBlockInfo = &types.BlockHeaderInfo{No: 1}
 )
 
 func initStubData() {
@@ -67,7 +67,7 @@ func initStubData() {
 	defer lock.Unlock()
 	balance = map[string]uint64{}
 	nonce = map[string]uint64{}
-	bestBlockNo = types.BlockNo(1)
+	bestBlockInfo = &types.BlockHeaderInfo{No: 1}
 
 }
 func getNonceByAccMock(acc string) uint64 {
@@ -91,4 +91,8 @@ func getBalanceByAccMock(acc string) uint64 {
 
 func getCurrentBestBlockNoMock() types.BlockID {
 	return types.ToBlockID(nil)
+}
+
+func getCurrentBestBlockInfoMock() *types.BlockHeaderInfo {
+	return bestBlockInfo
 }

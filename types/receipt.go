@@ -62,6 +62,57 @@ func (r *Receipt) marshalBody(b *bytes.Buffer, isMerkle bool) error {
 	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.CumulativeFeeUsed)))
 	b.Write(l[:4])
 	b.Write(r.CumulativeFeeUsed)
+
+	if len(r.Bloom) == 0 {
+		b.WriteByte(0)
+	} else {
+		b.WriteByte(1)
+		b.Write(r.Bloom)
+	}
+	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.Events)))
+	b.Write(l[:4])
+
+	return nil
+}
+
+func (r *Receipt) marshalBodyV2(b *bytes.Buffer, isMerkle bool) error {
+	l := make([]byte, 8)
+	b.Write(r.ContractAddress)
+	var status byte
+	switch r.Status {
+	case "SUCCESS":
+		status = successStatus
+	case "CREATED":
+		status = createdStatus
+	case "ERROR":
+		status = errorStatus
+	case "RECREATED":
+		status = recreatedStatus
+	default:
+		return errors.New("unsupported status in receipt")
+	}
+	b.WriteByte(status)
+	if !isMerkle || status != errorStatus {
+		binary.LittleEndian.PutUint32(l[:4], uint32(len(r.Ret)))
+		b.Write(l[:4])
+		b.WriteString(r.Ret)
+	}
+	b.Write(r.TxHash)
+
+	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.FeeUsed)))
+	b.Write(l[:4])
+	b.Write(r.FeeUsed)
+	binary.LittleEndian.PutUint32(l[:4], uint32(len(r.CumulativeFeeUsed)))
+	b.Write(l[:4])
+	b.Write(r.CumulativeFeeUsed)
+	binary.LittleEndian.PutUint64(l[:], r.GasUsed)
+	b.Write(l)
+
+	if r.FeeDelegation {
+		b.WriteByte(1)
+	} else {
+		b.WriteByte(0)
+	}
 	if len(r.Bloom) == 0 {
 		b.WriteByte(0)
 	} else {
@@ -78,6 +129,24 @@ func (r *Receipt) marshalStoreBinary() ([]byte, error) {
 	var b bytes.Buffer
 
 	err := r.marshalBody(&b, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, ev := range r.Events {
+		evB, err := ev.marshalStoreBinary(r)
+		if err != nil {
+			return nil, err
+		}
+		b.Write(evB)
+	}
+
+	return b.Bytes(), nil
+}
+
+func (r *Receipt) marshalStoreBinaryV2() ([]byte, error) {
+	var b bytes.Buffer
+
+	err := r.marshalBodyV2(&b, false)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +201,53 @@ func (r *Receipt) unmarshalBody(data []byte) ([]byte, uint32) {
 	return data[pos+4:], evCount
 }
 
+func (r *Receipt) unmarshalBodyV2(data []byte) ([]byte, uint32) {
+	r.ContractAddress = data[:33]
+	status := data[33]
+	switch status {
+	case successStatus:
+		r.Status = "SUCCESS"
+	case createdStatus:
+		r.Status = "CREATED"
+	case errorStatus:
+		r.Status = "ERROR"
+	case recreatedStatus:
+		r.Status = "RECREATED"
+	}
+	pos := uint32(34)
+	l := binary.LittleEndian.Uint32(data[pos:])
+	pos += 4
+	r.Ret = string(data[pos : pos+l])
+	pos += l
+	r.TxHash = data[pos : pos+32]
+	pos += 32
+	l = binary.LittleEndian.Uint32(data[pos:])
+	pos += 4
+	r.FeeUsed = data[pos : pos+l]
+	pos += l
+	l = binary.LittleEndian.Uint32(data[pos:])
+	pos += 4
+	r.CumulativeFeeUsed = data[pos : pos+l]
+	pos += l
+	ll := binary.LittleEndian.Uint64(data[pos:])
+	r.GasUsed = ll
+	pos += 8
+	if data[pos] == 1 {
+		r.FeeDelegation = true
+	}
+	pos += 1
+	bloomCheck := data[pos]
+	pos += 1
+	if bloomCheck == 1 {
+		r.Bloom = data[pos : pos+BloomBitByte]
+		pos += BloomBitByte
+	}
+	pos += l
+	evCount := binary.LittleEndian.Uint32(data[pos:])
+
+	return data[pos+4:], evCount
+}
+
 func (r *Receipt) unmarshalStoreBinary(data []byte) ([]byte, error) {
 	evData, evCount := r.unmarshalBody(data)
 
@@ -148,22 +264,24 @@ func (r *Receipt) unmarshalStoreBinary(data []byte) ([]byte, error) {
 	return evData, nil
 }
 
-func (r *Receipt) MarshalBinary() ([]byte, error) {
-	var b bytes.Buffer
+func (r *Receipt) unmarshalStoreBinaryV2(data []byte) ([]byte, error) {
+	evData, evCount := r.unmarshalBodyV2(data)
 
-	err := r.marshalBody(&b, false)
-	if err != nil {
-		return nil, err
-	}
-	for _, ev := range r.Events {
-		evB, err := ev.MarshalBinary()
+	r.Events = make([]*Event, evCount)
+	var err error
+	for i := uint32(0); i < evCount; i++ {
+		var ev Event
+		evData, err = ev.unmarshalStoreBinary(evData, r)
 		if err != nil {
 			return nil, err
 		}
-		b.Write(evB)
+		r.Events[i] = &ev
 	}
+	return evData, nil
+}
 
-	return b.Bytes(), nil
+func (r *Receipt) MarshalBinaryTest() ([]byte, error) {
+	return r.marshalStoreBinaryV2()
 }
 
 func (r *Receipt) MarshalMerkleBinary() ([]byte, error) {
@@ -185,8 +303,27 @@ func (r *Receipt) MarshalMerkleBinary() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (r *Receipt) UnmarshalBinary(data []byte) error {
-	_, err := r.ReadFrom(data)
+func (r *Receipt) MarshalMerkleBinaryV2() ([]byte, error) {
+	var b bytes.Buffer
+
+	err := r.marshalBodyV2(&b, true)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ev := range r.Events {
+		evB, err := ev.MarshalMerkleBinary()
+		if err != nil {
+			return nil, err
+		}
+		b.Write(evB)
+	}
+
+	return b.Bytes(), nil
+}
+
+func (r *Receipt) UnmarshalBinaryTest(data []byte) error {
+	_, err := r.unmarshalStoreBinaryV2(data)
 	return err
 }
 
@@ -212,7 +349,7 @@ func (r *Receipt) MarshalJSONPB(*jsonpb.Marshaler) ([]byte, error) {
 
 func (r *Receipt) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
-	b.WriteString(`{"BlokNo":`)
+	b.WriteString(`{"BlockNo":`)
 	b.WriteString(fmt.Sprintf("%d", r.BlockNo))
 	b.WriteString(`,"BlockHash":"`)
 	b.WriteString(enc.ToString(r.BlockHash))
@@ -238,8 +375,16 @@ func (r *Receipt) MarshalJSON() ([]byte, error) {
 	b.WriteString(EncodeAddress(r.From))
 	b.WriteString(`","to":"`)
 	b.WriteString(EncodeAddress(r.To))
-	b.WriteString(`","usedFee":`)
+	b.WriteString(`","feeUsed":`)
 	b.WriteString(new(big.Int).SetBytes(r.FeeUsed).String())
+	b.WriteString(`,"gasUsed":`)
+	b.WriteString(strconv.FormatUint(r.GasUsed, 10))
+	b.WriteString(`,"feeDelegation":`)
+	if r.FeeDelegation {
+		b.WriteString("true")
+	} else {
+		b.WriteString("false")
+	}
 	b.WriteString(`,"events":[`)
 	for i, ev := range r.Events {
 		if i != 0 {
@@ -308,9 +453,29 @@ func (bf *bloomFilter) GetHash() []byte {
 	return h.Sum(nil)
 }
 
+type ReceiptMerkle struct {
+	receipt        *Receipt
+	blockNo        BlockNo
+	hardForkConfig BlockVersionner
+}
+
+func (rm *ReceiptMerkle) GetHash() []byte {
+	h := sha256.New()
+	var b []byte
+	if rm.hardForkConfig.IsV2Fork(rm.blockNo) {
+		b, _ = rm.receipt.MarshalMerkleBinaryV2()
+	} else {
+		b, _ = rm.receipt.MarshalMerkleBinary()
+	}
+	h.Write(b)
+	return h.Sum(nil)
+}
+
 type Receipts struct {
-	bloom    *bloomFilter
-	receipts []*Receipt
+	bloom          *bloomFilter
+	receipts       []*Receipt
+	blockNo        BlockNo
+	hardForkConfig BlockVersionner
 }
 
 func (rs *Receipts) Get() []*Receipt {
@@ -322,6 +487,11 @@ func (rs *Receipts) Get() []*Receipt {
 
 func (rs *Receipts) Set(receipts []*Receipt) {
 	rs.receipts = receipts
+}
+
+func (rs *Receipts) SetHardFork(hardForkConfig BlockVersionner, blockNo BlockNo) {
+	rs.hardForkConfig = hardForkConfig
+	rs.blockNo = blockNo
 }
 
 const BloomBitByte = 256
@@ -357,7 +527,7 @@ func (rs *Receipts) MerkleRoot() []byte {
 	}
 	mes := make([]merkle.MerkleEntry, rsSize)
 	for i, r := range rs.receipts {
-		mes[i] = r
+		mes[i] = &ReceiptMerkle{r, rs.blockNo, rs.hardForkConfig}
 	}
 	if rs.bloom != nil {
 		mes[rsSize-1] = rs.bloom
@@ -381,8 +551,14 @@ func (rs *Receipts) MarshalBinary() ([]byte, error) {
 	}
 	binary.LittleEndian.PutUint32(l, uint32(len(rs.receipts)))
 	b.Write(l)
+	var rB []byte
+	var err error
 	for _, r := range rs.receipts {
-		rB, err := r.marshalStoreBinary()
+		if rs.hardForkConfig.IsV2Fork(rs.blockNo) {
+			rB, err = r.marshalStoreBinaryV2()
+		} else {
+			rB, err = r.marshalStoreBinary()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -420,7 +596,11 @@ func (rs *Receipts) UnmarshalBinary(data []byte) error {
 	var err error
 	for i := uint32(0); i < rCount; i++ {
 		var r Receipt
-		unread, err = r.unmarshalStoreBinary(unread)
+		if rs.hardForkConfig.IsV2Fork(rs.blockNo) {
+			unread, err = r.unmarshalStoreBinaryV2(unread)
+		} else {
+			unread, err = r.unmarshalStoreBinary(unread)
+		}
 		if err != nil {
 			return err
 		}

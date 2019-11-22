@@ -6,15 +6,20 @@
 package dpos
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"runtime"
+	"runtime/debug"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
+	"github.com/aergoio/aergo/consensus/impl/dpos/slot"
 	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
@@ -31,10 +36,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb contract.ChainAccessor, blockNo types.BlockNo, ts int64, prevHash []byte, chainID []byte) chain.TxOp {
+func newTxExec(cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, cdb, blockNo, ts, prevHash, contract.BlockFactory, chainID),
+		execTx: bc.NewTxExecutor(nil, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -48,36 +53,47 @@ type BlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
 	workerQueue      chan *bpInfo
-	bpTimeoutC       chan interface{}
+	bpTimeoutC       chan struct{}
 	quit             <-chan interface{}
 	maxBlockBodySize uint32
 	ID               string
 	privKey          crypto.PrivKey
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
+	bv               types.BlockVersionner
+
+	recentRejectedTx *chain.RejTxInfo
+	noTTE            bool
 }
 
 // NewBlockFactory returns a new BlockFactory
-func NewBlockFactory(hub *component.ComponentHub, sdb *state.ChainStateDB, quitC <-chan interface{}) *BlockFactory {
+func NewBlockFactory(
+	hub *component.ComponentHub,
+	sdb *state.ChainStateDB,
+	quitC <-chan interface{},
+	bv types.BlockVersionner,
+	noTTE bool,
+) *BlockFactory {
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
 		workerQueue:      make(chan *bpInfo),
-		bpTimeoutC:       make(chan interface{}, 1),
+		bpTimeoutC:       make(chan struct{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             quitC,
 		ID:               p2pkey.NodeSID(),
 		privKey:          p2pkey.NodePrivKey(),
 		sdb:              sdb,
+		bv:               bv,
+		noTTE:            noTTE,
 	}
-
 	bf.txOp = chain.NewCompTxOp(
 		// timeout check
 		chain.TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
 			return bf.checkBpTimeout()
 		}),
 	)
-
+	contract.SetBPTimeout(bf.bpTimeoutC)
 	return bf
 }
 
@@ -208,22 +224,31 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 			block = nil
 			bs = nil
 			err = fmt.Errorf("panic ocurred during block generation - %v", panicMsg)
+			logger.Debug().Str("callstack", string(debug.Stack()))
 		}
 	}()
 
-	ts := bpi.slot.UnixNano()
-
-	bs = bf.sdb.NewBlockState(bpi.bestBlock.GetHeader().GetBlocksRootHash())
-
-	txOp := chain.NewCompTxOp(
-		bf.txOp,
-		newTxExec(contract.ChainAccessor(bpi.ChainDB), bpi.bestBlock.GetHeader().GetBlockNo()+1, ts, bpi.bestBlock.BlockHash(), bpi.bestBlock.GetHeader().ChainID),
+	bi := types.NewBlockHeaderInfoFromPrevBlock(bpi.bestBlock, bpi.slot.UnixNano(), bf.bv)
+	bs = bf.sdb.NewBlockState(
+		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
+		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
+		state.SetGasPrice(system.GetGasPrice()),
 	)
+	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err = chain.GenerateBlock(bf, bpi.bestBlock, bs, txOp, ts, false)
+	bGen := chain.NewBlockGenerator(
+		bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false).
+		WithDeco(bf.deco()).
+		SetNoTTE(bf.noTTE)
+
+	begT := time.Now()
+
+	block, err = bGen.GenerateBlock()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	bf.handleRejected(bGen, block, time.Since(begT))
 
 	block.SetConfirms(block.BlockNo() - lpbNo)
 
@@ -239,6 +264,79 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 		Msg("block produced")
 
 	return
+}
+
+func (bf *BlockFactory) rejected() *chain.RejTxInfo {
+	return bf.recentRejectedTx
+}
+
+func (bf *BlockFactory) setRejected(rej *chain.RejTxInfo) {
+	logger.Warn().Str("hash", enc.ToString(rej.Hash())).Msg("timeout tx reserved for rescheduling")
+	bf.recentRejectedTx = rej
+}
+
+func (bf *BlockFactory) unsetRejected() {
+	bf.recentRejectedTx = nil
+}
+
+func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.Block, et time.Duration) {
+
+	var (
+		cutoff = slot.BpMaxTime() * 2 / 3
+		bfRej  = bf.rejected()
+		rej    = bGen.Rejected()
+		txs    = block.GetBody().GetTxs()
+	)
+
+	// TODO: cleanup
+	if rej == nil {
+		if bfRej != nil && len(txs) != 0 && bytes.Compare(txs[0].GetHash(), bfRej.Hash()) == 0 {
+			// The last timeout TX has been successfully executed by
+			// rescheduling.
+			bf.unsetRejected()
+			return
+		}
+	} else {
+		if rej.Evictable() && et >= cutoff {
+			// The first TX failed to execute due to timeout.
+			bGen.SetTimeoutTx(rej.Tx())
+			bf.unsetRejected()
+		} else {
+			bf.setRejected(rej)
+		}
+	}
+}
+
+func (bf *BlockFactory) deco() chain.FetchDeco {
+	rej := bf.rejected()
+	if rej == nil {
+		return nil
+	}
+
+	return func(fetch chain.FetchFn) chain.FetchFn {
+		return func(hs component.ICompSyncRequester, maxBlockBodySize uint32) []types.Transaction {
+			txs := fetch(hs, maxBlockBodySize)
+
+			j := 0
+			for i, tx := range txs {
+				if bytes.Compare(tx.GetHash(), rej.Hash()) == 0 {
+					j = i
+					break
+				}
+			}
+
+			x := []types.Transaction{rej.Tx()}
+
+			if j != 0 {
+				x = append(x, txs[:j]...)
+				x = append(x, txs[j+1:]...)
+			} else {
+				x = append(x, txs...)
+			}
+
+			return x
+		}
+	}
 }
 
 func (bf *BlockFactory) checkBpTimeout() error {

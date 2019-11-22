@@ -6,6 +6,8 @@
 package message
 
 import (
+	"math/big"
+
 	"github.com/aergoio/aergo/types"
 )
 
@@ -120,7 +122,6 @@ type GetElected struct {
 
 type GetVote struct {
 	Addr []byte
-	Ids  []string
 }
 
 // GetElectedRsp is return to get voting result
@@ -194,5 +195,24 @@ type ListEventsRsp struct {
 	Err    error
 }
 
-type VerifyStart struct {
+type VerifyStart struct{}
+
+type GetParams struct{}
+
+type GetParamsRsp struct {
+	BpCount      int
+	MinStaking   *big.Int
+	MaxBlockSize uint64
+}
+
+type CheckFeeDelegation struct {
+	Payload  []byte
+	Contract []byte
+	Sender   []byte
+	TxHash   []byte
+	Amount   []byte
+}
+
+type CheckFeeDelegationRsp struct {
+	Err error
 }

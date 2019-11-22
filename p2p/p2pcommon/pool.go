@@ -15,16 +15,15 @@ import (
 const (
 	WaitingPeerManagerInterval = time.Minute >> 2
 
-	PolarisQueryInterval   = time.Minute * 10
-	PeerQueryInterval      = time.Hour
-	PeerFirstInterval      = time.Second * 4
+	PolarisQueryInterval = time.Minute * 10
+	PeerQueryInterval    = time.Hour
+	PeerFirstInterval    = time.Second * 4
 
 	MaxConcurrentHandshake = 5
-
 )
 
 var (
-	ErrNoWaitings = errors.New("no waiting peer exists")
+	ErrNoWaiting = errors.New("no waiting peer exists")
 )
 
 type PeerEventListener interface {
@@ -57,15 +56,15 @@ type WaitingPeerManager interface {
 	InstantConnect(meta PeerMeta)
 
 	OnInboundConn(s network.Stream)
-
-	OnInboundConnLegacy(s network.Stream)
 }
+
 //go:generate mockgen -source=pool.go -package=p2pmock -destination=../p2pmock/mock_peerfinder.go
 
 type WaitingPeer struct {
-	Meta      PeerMeta
-	TrialCnt  int
-	NextTrial time.Time
+	Meta       PeerMeta
+	Designated bool
+	TrialCnt   int
+	NextTrial  time.Time
 
 	LastResult error
 }
@@ -76,6 +75,7 @@ type ConnWorkResult struct {
 	// TargetPeer is nil if Inbound is true
 	TargetPeer *WaitingPeer
 	Meta       PeerMeta
+	ConnInfo   RemoteInfo
 
 	P2PVer uint32
 	Result error

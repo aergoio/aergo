@@ -46,15 +46,24 @@ func TestBlockConvBase58(t *testing.T) {
 	const accountBase58 = "AmMW2bVcfroiuV4Bvy56op5zzqn42xgrLCwSxMka23K75yTBmudz"
 	const recipientBase58 = "AmMW2bVcfroiuV4Bvy56op5zzqn42xgrLCwSxMka23K75yTBmudz"
 	const payloadBase58 = "525mQMtsWaDLVJbzQZgTFkSG33gtZsho7m4io1HUCeJi"
-	testBlock := &types.Block{Body: &types.BlockBody{Txs: []*types.Tx{}}}
+
+	account, err := types.DecodeAddress(accountBase58)
+	assert.NoError(t, err, "should be decode account")
+
+	testBlock := &types.Block{
+		Header: &types.BlockHeader{
+			CoinbaseAccount: account,
+		},
+		Body: &types.BlockBody{
+			Txs: []*types.Tx{},
+		},
+	}
 	result := ConvBlock(nil)
 	assert.Empty(t, result, "failed to convert nil")
 
 	result = ConvBlock(testBlock)
 	assert.Empty(t, result.Body.Txs, "failed to convert txs")
-
-	account, err := types.DecodeAddress(accountBase58)
-	assert.NoError(t, err, "should be decode account")
+	assert.Equal(t, accountBase58, result.Header.CoinbaseAccount, "failed to convert coinbase account")
 
 	recipient, err := types.DecodeAddress(recipientBase58)
 	assert.NoError(t, err, "should be decode recipient")

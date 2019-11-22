@@ -22,8 +22,8 @@ func TestHSHeader_Marshal(t *testing.T) {
 		fields fields
 		wantLen int
 	}{
-		{"T1", fields{MAGICMain, P2PVersion030}, 8},
-		{"T2", fields{MAGICTest, P2PVersion031}, 8},
+		{"T1", fields{MAGICTest, P2PVersion031}, 8},
+		{"T3", fields{MAGICMain, P2PVersion033}, 8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestHSHeader_Marshal2(t *testing.T) {
 		expectedNetwork uint32
 		expectedVersion P2PVersion
 	}{
-		{"TMain030", []byte{0x047, 0x041, 0x68, 0x41, 0, 0, 3, 0}, MAGICMain, P2PVersion030},
+		{"TMain033", []byte{0x047, 0x041, 0x68, 0x41, 0, 0, 3, 3}, MAGICMain, P2PVersion033},
 		{"TMain020", []byte{0x02e, 0x041, 0x54, 0x29, 0, 1, 3, 5}, MAGICTest, 0x010305},
 		// TODO: test cases
 	}

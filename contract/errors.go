@@ -16,10 +16,6 @@ func isSystemError(err error) bool {
 
 type vmStartError struct{}
 
-func newVmStartError() error {
-	return &vmStartError{}
-}
-
 func (e *vmStartError) Error() string {
 	return "cannot start a VM"
 }
@@ -27,6 +23,8 @@ func (e *vmStartError) Error() string {
 func (e *vmStartError) System() bool {
 	return e != nil
 }
+
+var ErrVmStart = &vmStartError{}
 
 type DbSystemError struct {
 	error
@@ -49,6 +47,16 @@ func newVmSystemError(e error) error {
 }
 
 func (e *VmSystemError) System() bool {
+	return e != nil
+}
+
+type VmTimeoutError struct{}
+
+func (e *VmTimeoutError) Error() string {
+	return "contract timeout"
+}
+
+func (e *VmTimeoutError) System() bool {
 	return e != nil
 }
 

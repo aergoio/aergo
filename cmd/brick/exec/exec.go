@@ -1,12 +1,15 @@
 package exec
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/types"
+	"github.com/rs/zerolog"
 )
 
 var logger = log.NewLogger("brick")
@@ -19,7 +22,7 @@ type Executor interface {
 	Usage() string
 	Describe() string
 	Validate(args string) error
-	Run(args string) (string, error)
+	Run(args string) (string, uint64, []*types.Event, error)
 }
 
 var execImpls = make(map[string]Executor)
@@ -75,7 +78,7 @@ func Execute(cmd, args string) {
 		return
 	}
 
-	result, err := executor.Run(args)
+	result, gasUsed, events, err := executor.Run(args)
 	if err != nil {
 		letBatchKnowErr = err
 		batchErrorCount++
@@ -83,6 +86,27 @@ func Execute(cmd, args string) {
 		return
 	}
 
-	//logger.Info().Str("result", result).Str("cmd", cmd).Msg("execution success")
-	logger.Info().Str("cmd", cmd).Msg(result)
+	eventArray := zerolog.Arr()
+
+	for _, event := range events {
+		eventArgs := zerolog.Arr()
+		var parsedArgs []interface{}
+		json.Unmarshal([]byte(event.GetJsonArgs()), &parsedArgs)
+
+		for _, v := range parsedArgs {
+			eventArgs.Interface(v)
+		}
+
+		eventArray.RawJSON([]byte(fmt.Sprintf(`{"name":"%s", "args":%s}`, event.GetEventName(), event.GetJsonArgs())))
+	}
+
+	logEntry := logger.Info().Str("cmd", cmd)
+
+	if gasUsed > 0 {
+		logEntry.Uint64("gas", gasUsed)
+	}
+	if events != nil {
+		logEntry.Array("events", eventArray)
+	}
+	logEntry.Msg(result)
 }

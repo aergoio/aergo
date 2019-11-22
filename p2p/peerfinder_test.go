@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"reflect"
 	"testing"
 )
@@ -31,19 +30,17 @@ func init() {
 	desigIDs = make([]types.PeerID, desigCnt)
 	desigPeers = make([]p2pcommon.PeerMeta, desigCnt)
 	for i := 0; i < desigCnt; i++ {
-		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := types.IDFromPrivateKey(priv)
+		pid := types.RandomPeerID()
 		desigIDs[i] = pid
-		desigPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: true}
+		desigPeers[i] = p2pcommon.NewMetaWith1Addr(pid, "192.111.222.33", 7846, "v2.0.0")
 		desigPeerMap[desigIDs[i]] = desigPeers[i]
 	}
 	unknownIDs = make([]types.PeerID, desigCnt)
 	unknownPeers = make([]p2pcommon.PeerMeta, desigCnt)
 	for i := 0; i < desigCnt; i++ {
-		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-		pid, _ := types.IDFromPrivateKey(priv)
+		pid := types.RandomPeerID()
 		unknownIDs[i] = pid
-		unknownPeers[i] = p2pcommon.PeerMeta{ID: pid, Designated: false}
+		unknownPeers[i] = p2pcommon.NewMetaWith1Addr(pid, "192.111.222.33", 7846, "v2.0.0")
 	}
 }
 func createDummyPM() *peerManager {

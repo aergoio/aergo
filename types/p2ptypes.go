@@ -6,19 +6,29 @@
 package types
 
 import (
-	"fmt"
 	"github.com/aergoio/aergo/internal/network"
 	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/test"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"net"
+	"strconv"
 	"strings"
 )
 
-// PeerID is identier of peer. it is alias of libp2p.PeerID for now
+// ProducerID is identifier of block producer. It is same format with the PeerID at version 1.x, but might be changed to other format later.
+type ProducerID = core.PeerID
+
+// PeerID is identifier of peer. It is alias of libp2p.PeerID for now
 type PeerID = core.PeerID
+
+// NOTE use only in test
+func RandomPeerID() PeerID {
+	id, _ := test.RandPeerID()
+	return id
+}
 
 func IDB58Decode(b58 string) (PeerID, error) {
 	return peer.IDB58Decode(b58)
@@ -36,6 +46,9 @@ func IDFromPublicKey(pubKey crypto.PubKey) (PeerID, error) {
 func IDFromPrivateKey(sk crypto.PrivKey) (PeerID, error) {
 	return peer.IDFromPrivateKey(sk)
 }
+func IsSamePeerID(pid1,pid2 PeerID) bool {
+	return string(pid1) == string(pid2)
+}
 
 // Stream is alias of libp2p.Stream
 type Stream = core.Stream
@@ -45,63 +58,120 @@ type Multiaddr = multiaddr.Multiaddr
 
 var InvalidArgument = errors.New("invalid argument")
 
-// ToMultiAddr make libp2p compatible Multiaddr object
-func ToMultiAddr(ipAddr net.IP, port uint32) (multiaddr.Multiaddr, error) {
-	var addrString string
-	if ipAddr.To4() != nil {
-		addrString = fmt.Sprintf("/ip4/%s/tcp/%d", ipAddr.String(), port)
-	} else if ipAddr.To16() != nil {
-		addrString = fmt.Sprintf("/ip6/%s/tcp/%d", ipAddr.String(), port)
-	} else {
-		return nil, InvalidArgument
-	}
-	peerAddr, err := multiaddr.NewMultiaddr(addrString)
+const (
+	protoDNS4 = "dns4"
+	protoIP4  = "ip4"
+	protoIP6  = "ip6"
+	protoTCP  = "tcp"
+	protoP2P  = "p2p"
+)
+
+func PeerToMultiAddr(address string, port uint32, pid PeerID) (Multiaddr, error) {
+	idport, err := ToMultiAddr(address, port)
 	if err != nil {
 		return nil, err
 	}
-	return peerAddr, nil
+	mid, err := multiaddr.NewComponent(protoP2P, pid.Pretty())
+	if err != nil {
+		return nil, err
+	}
+	return multiaddr.Join(idport, mid), nil
 }
 
-// ParseMultiaddrWithResolve parse string to multiaddr, additionally accept domain name with protocol /dns
-// NOTE: this function is temporarily use until go-multiaddr start to support dns.
-func ParseMultiaddrWithResolve(str string) (multiaddr.Multiaddr, error) {
-	ma, err := multiaddr.NewMultiaddr(str)
-	if err != nil {
-		// multiaddr is not support domain name yet. change domain name to ip address manually
-		split := strings.Split(str, "/")
-		if len(split) < 3 || !strings.HasPrefix(split[1], "dns") {
-			return nil, err
+// ToMultiAddr make libp2p compatible Multiaddr object
+func ToMultiAddr(address string, port uint32) (Multiaddr, error) {
+	var maddr, mport *multiaddr.Component
+	var err error
+	switch network.CheckAddressType(address) {
+	case network.AddressTypeFQDN:
+		maddr, err = multiaddr.NewComponent(protoDNS4, address)
+	case network.AddressTypeIP:
+		ip := net.ParseIP(address)
+		if ip.To4() != nil {
+			maddr, err = multiaddr.NewComponent(protoIP4, address)
+		} else {
+			maddr, err = multiaddr.NewComponent(protoIP6, address)
 		}
-		domainName := split[2]
-		ips, err := network.ResolveHostDomain(domainName)
-		if err != nil {
-			return nil, fmt.Errorf("Could not get IPs: %v\n", err)
-		}
-		// use ipv4 as possible.
-		ipSelected := false
-		for _, ip := range ips {
-			if ip.To4() != nil {
-				split[1] = "ip4"
-				split[2] = ip.To4().String()
-				ipSelected = true
-				break
-			}
-		}
-		if !ipSelected {
-			for _, ip := range ips {
-				if ip.To16() != nil {
-					split[1] = "ip6"
-					split[2] = ip.To16().String()
-					ipSelected = true
-					break
-				}
-			}
-		}
-		if !ipSelected {
-			return nil, err
-		}
-		rejoin := strings.Join(split, "/")
-		return multiaddr.NewMultiaddr(rejoin)
+	default:
+		return nil, errors.New("invalid address")
 	}
-	return ma, nil
+	if err != nil {
+		return nil, err
+	}
+	mport, err = multiaddr.NewComponent(protoTCP, strconv.Itoa(int(port)))
+	if err != nil {
+		return nil, err
+	}
+	return multiaddr.Join(maddr, mport), nil
+}
+
+// ParseMultiaddr parse multiaddr formatted string to Multiaddr with slightly different manner; it automatically auusme that /dns is /dns4
+func ParseMultiaddr(str string) (Multiaddr, error) {
+	// replace /dns/ to /dns4/ for backward compatibility
+	if strings.HasPrefix(str, "/dns/") {
+		str = strings.Replace(str, "/dns/", "/dns4/", 1)
+	}
+	return multiaddr.NewMultiaddr(str)
+}
+
+const PortUndefined = uint32(0xffffffff)
+
+var ErrInvalidIPAddress = errors.New("invalid ip address")
+var ErrInvalidPort = errors.New("invalid port")
+
+var addrProtos = []int{multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS4, multiaddr.P_DNS6}
+// AddressFromMultiAddr returns address (ip4, ip6 or full qualified domain name)
+func AddressFromMultiAddr(ma Multiaddr) string {
+	for _, p := range addrProtos {
+		val, err := ma.ValueForProtocol(p)
+		if err == nil {
+			return val
+		}
+	}
+	return ""
+}
+
+func IsAddress(proto multiaddr.Protocol) bool {
+	switch proto.Code {
+	case multiaddr.P_IP4, multiaddr.P_IP6, multiaddr.P_DNS4, multiaddr.P_DNS6:
+		return true
+	default:
+		return false
+	}
+}
+
+func GetIPPortFromMultiaddr(ma Multiaddr) (net.IP, uint32, error) {
+	ip := GetIPFromMultiaddr(ma)
+	if ip == nil {
+		return nil, PortUndefined, ErrInvalidIPAddress
+	}
+	port := GetPortFromMultiaddr(ma)
+	if port == PortUndefined {
+		return nil, PortUndefined, ErrInvalidPort
+	}
+	return ip, port, nil
+}
+
+func GetIPFromMultiaddr(ma Multiaddr) net.IP {
+	val, err := ma.ValueForProtocol(multiaddr.P_IP4)
+	if err != nil {
+		val, err = ma.ValueForProtocol(multiaddr.P_IP6)
+	}
+	if err == nil {
+		return net.ParseIP(val)
+	} else {
+		return nil
+	}
+}
+
+func GetPortFromMultiaddr(ma Multiaddr) uint32 {
+	val, err := ma.ValueForProtocol(multiaddr.P_TCP)
+	if err != nil {
+		return PortUndefined
+	}
+	port, err := strconv.Atoi(val)
+	if err != nil {
+		return PortUndefined
+	}
+	return uint32(port)
 }

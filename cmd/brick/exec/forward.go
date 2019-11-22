@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/types"
 )
 
 func init() {
@@ -57,14 +58,14 @@ func (c *forward) parse(args string) (int, error) {
 	return amount, nil
 }
 
-func (c *forward) Run(args string) (string, error) {
+func (c *forward) Run(args string) (string, uint64, []*types.Event, error) {
 	amount, _ := c.parse(args)
 
 	for i := 0; i < amount; i++ {
 		if err := context.Get().ConnectBlock(); err != nil {
-			return "", err
+			return "", 0, nil, err
 		}
 	}
 
-	return "fast forward blocks successfully", nil
+	return "fast forward blocks successfully", 0, nil, nil
 }

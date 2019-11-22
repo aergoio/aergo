@@ -42,6 +42,11 @@ const (
 	cidUnmarshal
 )
 
+const (
+	versionByteSize                  = 4
+	chainIdStartOffsetWithoutVersion = versionByteSize
+)
+
 type errCidCodec struct {
 	codec int
 	field string
@@ -78,13 +83,7 @@ func (cid *ChainID) Bytes() ([]byte, error) {
 
 	// warning: when any field added to ChainID, the corresponding
 	// serialization code must be written here.
-	if err := binary.Write(&w, binary.LittleEndian, cid.Version); err != nil {
-		return nil, errCidCodec{
-			codec: cidMarshal,
-			field: "version",
-			err:   err,
-		}
-	}
+	w.Write(ChainIdVersion(cid.Version))
 	if err := binary.Write(&w, binary.LittleEndian, cid.PublicNet); err != nil {
 		return nil, errCidCodec{
 			codec: cidMarshal,
@@ -152,26 +151,27 @@ func (cid *ChainID) Read(data []byte) error {
 	return nil
 }
 
-// AsDefault set *cid to the default chaind id (cid must be a valid pointer).
+// AsDefault set *cid to the default chain id (cid must be a valid pointer).
 func (cid *ChainID) AsDefault() {
 	*cid = defaultChainID
 }
 
-// Equals reports wheter cid equals rhs or not.
+// Equals reports whether cid equals rhs or not.
 func (cid *ChainID) Equals(rhs *ChainID) bool {
-	var (
-		lVal, rVal []byte
-		err        error
-	)
-
-	if lVal, err = cid.Bytes(); err != nil {
+	if cid == nil || rhs == nil {
 		return false
 	}
-	if rVal, err = rhs.Bytes(); err != nil {
+	if cid == rhs {
+		return true
+	}
+	if cid.Version != rhs.Version ||
+		cid.PublicNet != rhs.PublicNet ||
+		cid.MainNet != rhs.MainNet ||
+		cid.Magic != rhs.Magic ||
+		cid.Consensus != rhs.Consensus {
 		return false
 	}
-
-	return bytes.Compare(lVal, rVal) == 0
+	return true
 }
 
 // ToJSON returns a JSON encoded string of cid.
@@ -182,8 +182,28 @@ func (cid ChainID) ToJSON() string {
 	return ""
 }
 
+func ChainIdVersion(v int32) []byte {
+	b := make([]byte, versionByteSize)
+	binary.LittleEndian.PutUint32(b, uint32(v))
+	return b
+}
+
+func DecodeChainIdVersion(cid []byte) int32 {
+	if len(cid) < 4 {
+		return -1
+	}
+	return int32(binary.LittleEndian.Uint32(cid))
+}
+
+func ChainIdEqualWithoutVersion(a, b []byte) bool {
+	if len(a) < chainIdStartOffsetWithoutVersion || len(b) < chainIdStartOffsetWithoutVersion {
+		return false
+	}
+	return bytes.Equal(a[chainIdStartOffsetWithoutVersion:], b[chainIdStartOffsetWithoutVersion:])
+}
+
 type EnterpriseBP struct {
-	Name    string `json:"name"`
+	Name string `json:"name"`
 	// multiaddress format with ip or dns with port e.g. /ip4/123.45.67.89/tcp/7846
 	Address string `json:"address"`
 	PeerID  string `json:"peerid"`
@@ -216,7 +236,7 @@ func (g *Genesis) Validate() error {
 // Block returns Block corresponding to g.
 func (g *Genesis) Block() *Block {
 	if g.block == nil {
-		g.SetBlock(NewBlock(nil, nil, nil, nil, nil, g.Timestamp))
+		g.SetBlock(NewBlock(&BlockHeaderInfo{Ts: g.Timestamp}, nil, nil, nil, nil, nil))
 		if id, err := g.ID.Bytes(); err == nil {
 			g.block.SetChainID(id)
 		}
@@ -278,13 +298,7 @@ func (g Genesis) PublicNet() bool {
 }
 
 func (g Genesis) IsAergoPublicChain() bool {
-
-	testNetCid := GetTestNetGenesis().ID
-	mainNetCid := GetMainNetGenesis().ID
-	if testNetCid.Equals(&g.ID) || mainNetCid.Equals(&g.ID) {
-		return true
-	}
-	return false
+	return g.IsMainNet() || g.IsTestNet()
 }
 
 func (g Genesis) HasDevChainID() bool {
@@ -299,6 +313,14 @@ func (g Genesis) HasPrivateChainID() bool {
 		return false
 	}
 	return true
+}
+
+func (g *Genesis) IsMainNet() bool {
+	return g.ID.Equals(&(GetMainNetGenesis().ID))
+}
+
+func (g *Genesis) IsTestNet() bool {
+	return g.ID.Equals(&(GetTestNetGenesis().ID))
 }
 
 // GetDefaultGenesis returns default genesis structure
