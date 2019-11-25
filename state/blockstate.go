@@ -118,6 +118,9 @@ func (bs *BlockState) SetGasPrice(gasPrice *big.Int) *BlockState {
 }
 
 func (bs *BlockState) TimeoutTx() types.Transaction {
+	if bs == nil {
+		return nil
+	}
 	return bs.timeoutTx
 }
 
