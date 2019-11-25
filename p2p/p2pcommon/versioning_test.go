@@ -57,13 +57,15 @@ func TestCheckVersion(t *testing.T) {
 	}{
 		{"TOld", "0.0.1", false},
 		{"TOld2", "v1.2.0", false},
-		{"TPre", "1.2.1-30-g8905410d", false},
-		{"TMin", "1.2.3", true},
-		{"TMin3", "v1.2.3", true},
-		{"TMax", "1.2.99", true},
-		{"TMax3", "v1.2.99", true},
-		{"TSomewhatUnclear", "2.0.0-30-g8905410d", true},
-		{"TNew", "2.0.0", false},
+		{"TOld2", "v1.2.99", false},
+		{"TOld2", "v1.99.99", false},
+		{"TPre", "2.0.0-30-g8905410d", false},
+		{"TMin", "2.0.0", true},
+		{"TMin3", "v2.0.0", true},
+		{"TMax", "2.99.99", true},
+		{"TMax3", "v2.99.99", true},
+		{"TSomewhatUnclear", "3.0.0-30-g8905410d", true},
+		{"TNew", "3.0.0", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
