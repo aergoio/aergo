@@ -32,8 +32,8 @@ func ParseAergoVersion(verStr string) (AergoVersion, error) {
 
 // Supported Aergo version. polaris will register aergosvr within the version range. This version range should be modified when new release is born.
 const (
-	MinimumAergoVersion = "v1.2.3"
-	MaximumAergoVersion = "v2.0.0"
+	MinimumAergoVersion = "v2.0.0"
+	MaximumAergoVersion = "v3.0.0"
 )
 var (
 	minAergoVersion AergoVersion // inclusive
