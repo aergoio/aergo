@@ -10,13 +10,11 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
+	"io/ioutil"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
-
-const testAuthDir = "/tmp"
 
 var sampleEntries []types.WhiteListEntry
 func init() {
@@ -29,17 +27,21 @@ func init() {
 	sampleEntries = []types.WhiteListEntry{eIDIP, eIDIR, eID, eIR, eIP6, eIR6}
 }
 func Test_polarisListManager_saveListFile(t *testing.T) {
+	tmpAuthDir, err := ioutil.TempDir("","aergoTestPolaris")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory to test: %v ",err.Error())
+	} else {
+		t.Logf("Create tmp directory on %v",tmpAuthDir)
+		defer os.RemoveAll(tmpAuthDir)
+	}
 
 	logger := log.NewLogger("polaris.test")
 	conf := config.PolarisConfig{EnableBlacklist: true}
-	lm := NewPolarisListManager(&conf, testAuthDir, logger)
+	lm := NewPolarisListManager(&conf, tmpAuthDir, logger)
 	lm.entries = sampleEntries
 	lm.saveListFile()
-	defer func() {
-		os.Remove(filepath.Join(testAuthDir, localListFile))
-	}()
 
-	lm2 := NewPolarisListManager(&conf, testAuthDir, logger)
+	lm2 := NewPolarisListManager(&conf, tmpAuthDir, logger)
 	lm2.loadListFile()
 	if len(lm2.entries) != len(lm.entries) {
 		t.Errorf("polarisListManager.loadListFile() entry count %v, want %v", len(lm2.entries), len(lm.entries))
