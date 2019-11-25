@@ -124,7 +124,7 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 			}
 
 			//expire := time.Now().Add(test.ttl)
-			br := NewBlockReceiver(mockActor, mockPeer, seqNo, test.input, time.Minute<<2)
+			br := NewBlockReceiver(mockActor, mockPeer, seqNo, test.input, time.Minute>>1)
 			br.StartGet()
 
 			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetBlocksResponse, sampleMsgID)
