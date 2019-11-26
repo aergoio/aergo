@@ -249,14 +249,17 @@ func refreshAllVote(context *SystemContext) error {
 		if err != nil {
 			return err
 		}
-		if err = voteResult.SubVote(oldvote); err != nil {
+
+		cmd := newVprCmd(context, voteResult)
+
+		if err = cmd.sub(oldvote); err != nil {
 			return err
 		}
 		oldvote.Amount = staked.GetAmount()
 		if err = setVote(scs, key, account, oldvote); err != nil {
 			return err
 		}
-		if err = voteResult.AddVote(oldvote); err != nil {
+		if err = cmd.add(oldvote); err != nil {
 			return err
 		}
 		if err = voteResult.Sync(); err != nil {
