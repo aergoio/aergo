@@ -22,8 +22,8 @@ var (
 	ErrInvalidCandidate = errors.New("invalid candidate")
 )
 
-const StakingDelay = 60 * 60 * 24 //block interval
-//const StakingDelay = 5
+//const StakingDelay = 60 * 60 * 24 //block interval
+const StakingDelay = 60
 
 func InitGovernance(consensus string) {
 	consensusType = consensus
