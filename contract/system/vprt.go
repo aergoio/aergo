@@ -367,7 +367,11 @@ func (tv *topVoters) powerOf(addr types.AccountID) *big.Int {
 }
 
 func (tv *topVoters) lowest() *votingPower {
-	return tv.members.Right().Value.(*votingPower)
+	lowest := tv.members.Right()
+	if lowest == nil {
+		return nil
+	}
+	return lowest.Value.(*votingPower)
 }
 
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
