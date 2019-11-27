@@ -629,6 +629,9 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		var recipient []byte
 
 		recipient = tx.GetBody().GetRecipient()
+		if recipient == nil {
+			return types.ErrTxInvalidRecipient
+		}
 		if tx.GetTx().HasNameRecipient() {
 			recipient = mp.getAddress(recipient)
 			if recipient == nil {
