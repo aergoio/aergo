@@ -561,7 +561,7 @@ func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 }
 
 func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
-	if v == nil {
+	if v == nil || v.voters.powers[id] == nil {
 		return
 	}
 
