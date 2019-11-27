@@ -232,8 +232,8 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	bs = bf.sdb.NewBlockState(
 		bpi.bestBlock.GetHeader().GetBlocksRootHash(),
 		state.SetPrevBlockHash(bpi.bestBlock.BlockHash()),
-		state.SetGasPrice(system.GetGasPrice()),
 	)
+	bs.SetGasPrice(system.GetGasPriceFromState(bs))
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
 	bGen := chain.NewBlockGenerator(

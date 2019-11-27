@@ -54,74 +54,24 @@ func GetVotingCatalog() []types.VotingIssue {
 	return votingCatalog
 }
 
-type voteCmd struct {
+type vprCmd struct {
 	*SystemContext
-
-	issue     []byte
-	args      []byte
-	candidate []byte
-
-	newVote    *types.Vote
 	voteResult *VoteResult
 
 	add func(v *types.Vote) error
 	sub func(v *types.Vote) error
 }
 
-func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
-	var (
-		scs = ctx.scs
+func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
+	cmd := &vprCmd{SystemContext: ctx, voteResult: vr}
 
-		err error
-	)
-
-	cmd := &voteCmd{SystemContext: ctx}
-	if cmd.Proposal != nil {
-		cmd.issue = cmd.Proposal.GetKey()
-		cmd.candidate, err = json.Marshal(cmd.Call.Args[1:]) //[0] is name
-		if err != nil {
-			return nil, err
-		}
-		//for event. voteDAO allow only one candidate. it should be validate before.
-		voteID := cmd.Call.Args[0].(string)
-		cmd.args = []byte(`"` + strings.ToUpper(voteID) + `", {"_bignum":"` + cmd.Call.Args[1].(string) + `"}`)
-	} else {
-		cmd.issue = []byte(ctx.op.ID())
-		cmd.args, err = json.Marshal(cmd.Call.Args)
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range cmd.Call.Args {
-			candidate, _ := base58.Decode(v.(string))
-			cmd.candidate = append(cmd.candidate, candidate...)
-		}
+	if vprLogger.IsDebugEnabled() {
+		vprLogger.Debug().
+			Int32("block version", ctx.BlockInfo.Version).
+			Msg("create new voting power table command")
 	}
 
-	// The variable args is a JSON bytes. It is used as vote.candidate for the
-	// proposal based voting, while just as an event output for BP election.
-	staked := cmd.Staked
-	// Update the block number when the last action is conducted (voting,
-	// staking etc). Two consecutive votings must be seperated by the time
-	// corresponding to VotingDeley (currently 24h). This time limit is check
-	// against this block number (Staking.When). Due to this, the Staking value
-	// on the state DB must be updated even for voting.
-	staked.SetWhen(cmd.BlockInfo.No)
-
-	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
-		return nil, types.ErrMustStakeBeforeVote
-	}
-
-	cmd.newVote = &types.Vote{
-		Candidate: cmd.candidate,
-		Amount:    staked.GetAmount(),
-	}
-
-	cmd.voteResult, err = loadVoteResult(scs, cmd.issue)
-	if err != nil {
-		return nil, err
-	}
-
-	if cmd.BlockInfo.Version < 2 {
+	if ctx.BlockInfo.Version < 2 {
 		cmd.add = func(v *types.Vote) error {
 			return cmd.voteResult.AddVote(v)
 		}
@@ -136,6 +86,87 @@ func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
 			return cmd.subVote(v)
 		}
 	}
+
+	return cmd
+}
+
+func (c *vprCmd) subVote(v *types.Vote) error {
+	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+
+	return c.voteResult.SubVote(v)
+}
+
+func (c *vprCmd) addVote(v *types.Vote) error {
+	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+
+	return c.voteResult.AddVote(v)
+}
+
+type voteCmd struct {
+	*vprCmd
+
+	issue     []byte
+	args      []byte
+	candidate []byte
+
+	newVote *types.Vote
+}
+
+func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
+	var (
+		scs = ctx.scs
+
+		err error
+	)
+
+	cmd := &voteCmd{}
+
+	if ctx.Proposal != nil {
+		cmd.issue = ctx.Proposal.GetKey()
+		cmd.candidate, err = json.Marshal(ctx.Call.Args[1:]) //[0] is name
+		if err != nil {
+			return nil, err
+		}
+		//for event. voteDAO allow only one candidate. it should be validate before.
+		voteID := ctx.Call.Args[0].(string)
+		cmd.args = []byte(`"` + strings.ToUpper(voteID) + `", {"_bignum":"` + ctx.Call.Args[1].(string) + `"}`)
+	} else {
+		cmd.issue = []byte(ctx.op.ID())
+		cmd.args, err = json.Marshal(ctx.Call.Args)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range ctx.Call.Args {
+			candidate, _ := base58.Decode(v.(string))
+			cmd.candidate = append(cmd.candidate, candidate...)
+		}
+	}
+
+	// The variable args is a JSON bytes. It is used as vote.candidate for the
+	// proposal based voting, while just as an event output for BP election.
+	staked := ctx.Staked
+	// Update the block number when the last action is conducted (voting,
+	// staking etc). Two consecutive votings must be seperated by the time
+	// corresponding to VotingDeley (currently 24h). This time limit is check
+	// against this block number (Staking.When). Due to this, the Staking value
+	// on the state DB must be updated even for voting.
+	staked.SetWhen(ctx.BlockInfo.No)
+
+	if staked.GetAmountBigInt().Cmp(new(big.Int).SetUint64(0)) == 0 {
+		return nil, types.ErrMustStakeBeforeVote
+	}
+
+	cmd.newVote = &types.Vote{
+		Candidate: cmd.candidate,
+		Amount:    staked.GetAmount(),
+	}
+
+	voteResult, err := loadVoteResult(scs, cmd.issue)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.vprCmd = newVprCmd(ctx, voteResult)
 
 	return cmd, err
 }
@@ -189,19 +220,14 @@ func (c *voteCmd) updateVoteResult() error {
 		return err
 	}
 
+	if vprLogger.IsDebugEnabled() {
+		vprLogger.Debug().
+			Str("sub", c.Vote.GetAmountBigInt().String()).
+			Str("add", c.Vote.GetAmountBigInt().String()).
+			Msg("update vote result")
+	}
+
 	return c.voteResult.Sync()
-}
-
-func (c *voteCmd) subVote(v *types.Vote) error {
-	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-
-	return c.voteResult.SubVote(v)
-}
-
-func (c *voteCmd) addVote(v *types.Vote) error {
-	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-
-	return c.voteResult.AddVote(v)
 }
 
 func refreshAllVote(context *SystemContext) error {
@@ -236,14 +262,17 @@ func refreshAllVote(context *SystemContext) error {
 		if err != nil {
 			return err
 		}
-		if err = voteResult.SubVote(oldvote); err != nil {
+
+		cmd := newVprCmd(context, voteResult)
+
+		if err = cmd.sub(oldvote); err != nil {
 			return err
 		}
 		oldvote.Amount = staked.GetAmount()
 		if err = setVote(scs, key, account, oldvote); err != nil {
 			return err
 		}
-		if err = voteResult.AddVote(oldvote); err != nil {
+		if err = cmd.add(oldvote); err != nil {
 			return err
 		}
 		if err = voteResult.Sync(); err != nil {

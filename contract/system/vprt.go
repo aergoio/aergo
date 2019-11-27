@@ -10,6 +10,8 @@ import (
 	"math/rand"
 	"reflect"
 
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
@@ -38,6 +40,8 @@ var (
 	binSize, _       = new(big.Int).SetString("10000000000000000000000", 10) // 10000 AERGO
 
 	votingPowerRank *vpr
+
+	vprLogger = log.NewLogger("vpr")
 )
 
 type dataSetter interface {
@@ -367,7 +371,11 @@ func (tv *topVoters) powerOf(addr types.AccountID) *big.Int {
 }
 
 func (tv *topVoters) lowest() *votingPower {
-	return tv.members.Right().Value.(*votingPower)
+	lowest := tv.members.Right()
+	if lowest == nil {
+		return nil
+	}
+	return lowest.Value.(*votingPower)
 }
 
 func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
@@ -487,6 +495,9 @@ func (v *vpr) equals(rhs *vpr) bool {
 }
 
 func (v *vpr) getTotalPower() *big.Int {
+	if v == nil {
+		return nil
+	}
 	return new(big.Int).Set(v.totalPower)
 }
 
@@ -539,18 +550,34 @@ func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 
 	v.prepare(id, addr,
 		func(lhs *big.Int) {
+			if vprLogger.IsDebugEnabled() {
+				vprLogger.Debug().
+					Str("op", "add").
+					Str("addr", enc.ToString(addr)).
+					Str("orig", lhs.String()).
+					Str("delta", power.String()).
+					Msg("prepare voting power change")
+			}
 			lhs.Add(lhs, power)
 		},
 	)
 }
 
 func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
-	if v == nil {
+	if v == nil || v.voters.powers[id] == nil {
 		return
 	}
 
 	v.prepare(id, addr,
 		func(lhs *big.Int) {
+			if vprLogger.IsDebugEnabled() {
+				vprLogger.Debug().
+					Str("op", "sub").
+					Str("addr", enc.ToString(addr)).
+					Str("orig", lhs.String()).
+					Str("delta", power.String()).
+					Msg("prepare voting power change")
+			}
 			lhs.Sub(lhs, power)
 		},
 	)
@@ -611,15 +638,25 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 		return nil, ErrNoVotingRewardWinner
 	}
 
+	totalVp := v.getTotalPower()
 	r := new(big.Int).Rand(
 		rand.New(rand.NewSource(seed)),
-		v.getTotalPower())
+		totalVp)
 	for i := uint8(0); i < vprBucketsMax; i++ {
 		if l := v.store.buckets[i]; l != nil && l.Len() > 0 {
 			for e := l.Front(); e != nil; e = e.Next() {
 				vp := toVotingPower(e)
 				if r.Sub(r, vp.getPower()).Cmp(zeroValue) < 0 {
-					return vp.getAddr(), nil
+					winner := vp.getAddr()
+
+					if vprLogger.IsDebugEnabled() {
+						vprLogger.Debug().
+							Str("total voting power", totalVp.String()).
+							Str("addr", enc.ToString(winner)).
+							Msg("pick voting reward winner")
+					}
+
+					return winner, nil
 				}
 			}
 		}
@@ -660,4 +697,8 @@ func (dv *deltaVP) cmp(rhs *big.Int) int {
 
 func GetVotingRewardAmount() *big.Int {
 	return defaultReward
+}
+
+func GetTotalVotingPower() *big.Int {
+	return votingPowerRank.getTotalPower()
 }

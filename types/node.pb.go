@@ -33,6 +33,7 @@ var PeerRole_name = map[int32]string{
 	2: "Watcher",
 	3: "Agent",
 }
+
 var PeerRole_value = map[string]int32{
 	"LegacyVersion": 0,
 	"Producer":      1,
@@ -43,8 +44,9 @@ var PeerRole_value = map[string]int32{
 func (x PeerRole) String() string {
 	return proto.EnumName(PeerRole_name, int32(x))
 }
+
 func (PeerRole) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_node_2c4eb40676311241, []int{0}
+	return fileDescriptor_0c843d59d2d938e7, []int{0}
 }
 
 // PeerAddress contains static information of peer and addresses to connect peer
@@ -68,7 +70,7 @@ func (m *PeerAddress) Reset()         { *m = PeerAddress{} }
 func (m *PeerAddress) String() string { return proto.CompactTextString(m) }
 func (*PeerAddress) ProtoMessage()    {}
 func (*PeerAddress) Descriptor() ([]byte, []int) {
-	return fileDescriptor_node_2c4eb40676311241, []int{0}
+	return fileDescriptor_0c843d59d2d938e7, []int{0}
 }
 func (m *PeerAddress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerAddress.Unmarshal(m, b)
@@ -76,8 +78,8 @@ func (m *PeerAddress) XXX_Unmarshal(b []byte) error {
 func (m *PeerAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PeerAddress.Marshal(b, m, deterministic)
 }
-func (dst *PeerAddress) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PeerAddress.Merge(dst, src)
+func (m *PeerAddress) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PeerAddress.Merge(m, src)
 }
 func (m *PeerAddress) XXX_Size() int {
 	return xxx_messageInfo_PeerAddress.Size(m)
@@ -157,7 +159,7 @@ func (m *AgentCertificate) Reset()         { *m = AgentCertificate{} }
 func (m *AgentCertificate) String() string { return proto.CompactTextString(m) }
 func (*AgentCertificate) ProtoMessage()    {}
 func (*AgentCertificate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_node_2c4eb40676311241, []int{1}
+	return fileDescriptor_0c843d59d2d938e7, []int{1}
 }
 func (m *AgentCertificate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AgentCertificate.Unmarshal(m, b)
@@ -165,8 +167,8 @@ func (m *AgentCertificate) XXX_Unmarshal(b []byte) error {
 func (m *AgentCertificate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AgentCertificate.Marshal(b, m, deterministic)
 }
-func (dst *AgentCertificate) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AgentCertificate.Merge(dst, src)
+func (m *AgentCertificate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AgentCertificate.Merge(m, src)
 }
 func (m *AgentCertificate) XXX_Size() int {
 	return xxx_messageInfo_AgentCertificate.Size(m)
@@ -239,9 +241,9 @@ func init() {
 	proto.RegisterEnum("types.PeerRole", PeerRole_name, PeerRole_value)
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor_node_2c4eb40676311241) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor_0c843d59d2d938e7) }
 
-var fileDescriptor_node_2c4eb40676311241 = []byte{
+var fileDescriptor_0c843d59d2d938e7 = []byte{
 	// 356 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x92, 0x4f, 0x4f, 0xe3, 0x30,
 	0x10, 0xc5, 0xd7, 0x4d, 0x93, 0x26, 0xd3, 0x74, 0x37, 0x3b, 0x87, 0x95, 0xb5, 0x42, 0x28, 0x2a,
