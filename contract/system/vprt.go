@@ -665,3 +665,7 @@ func (dv *deltaVP) cmp(rhs *big.Int) int {
 func GetVotingRewardAmount() *big.Int {
 	return defaultReward
 }
+
+func GetTotalVotingPower() *big.Int {
+	return votingPowerRank.getTotalPower()
+}

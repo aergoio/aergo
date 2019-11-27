@@ -33,7 +33,7 @@ func (m *MapQuery) Reset()         { *m = MapQuery{} }
 func (m *MapQuery) String() string { return proto.CompactTextString(m) }
 func (*MapQuery) ProtoMessage()    {}
 func (*MapQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pmap_ba7224a1ea31f7b2, []int{0}
+	return fileDescriptor_c373235fa8835f5c, []int{0}
 }
 func (m *MapQuery) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapQuery.Unmarshal(m, b)
@@ -41,8 +41,8 @@ func (m *MapQuery) XXX_Unmarshal(b []byte) error {
 func (m *MapQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MapQuery.Marshal(b, m, deterministic)
 }
-func (dst *MapQuery) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MapQuery.Merge(dst, src)
+func (m *MapQuery) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MapQuery.Merge(m, src)
 }
 func (m *MapQuery) XXX_Size() int {
 	return xxx_messageInfo_MapQuery.Size(m)
@@ -94,7 +94,7 @@ func (m *MapResponse) Reset()         { *m = MapResponse{} }
 func (m *MapResponse) String() string { return proto.CompactTextString(m) }
 func (*MapResponse) ProtoMessage()    {}
 func (*MapResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pmap_ba7224a1ea31f7b2, []int{1}
+	return fileDescriptor_c373235fa8835f5c, []int{1}
 }
 func (m *MapResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapResponse.Unmarshal(m, b)
@@ -102,8 +102,8 @@ func (m *MapResponse) XXX_Unmarshal(b []byte) error {
 func (m *MapResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MapResponse.Marshal(b, m, deterministic)
 }
-func (dst *MapResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MapResponse.Merge(dst, src)
+func (m *MapResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MapResponse.Merge(m, src)
 }
 func (m *MapResponse) XXX_Size() int {
 	return xxx_messageInfo_MapResponse.Size(m)
@@ -140,9 +140,9 @@ func init() {
 	proto.RegisterType((*MapResponse)(nil), "types.MapResponse")
 }
 
-func init() { proto.RegisterFile("pmap.proto", fileDescriptor_pmap_ba7224a1ea31f7b2) }
+func init() { proto.RegisterFile("pmap.proto", fileDescriptor_c373235fa8835f5c) }
 
-var fileDescriptor_pmap_ba7224a1ea31f7b2 = []byte{
+var fileDescriptor_c373235fa8835f5c = []byte{
 	// 228 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x90, 0x51, 0x4a, 0xc4, 0x40,
 	0x10, 0x44, 0x99, 0xcd, 0x66, 0x4d, 0x3a, 0xea, 0x47, 0xeb, 0xc7, 0x90, 0xaf, 0x61, 0x41, 0x18,

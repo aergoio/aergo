@@ -18,14 +18,16 @@ type InOutChainId struct {
 }
 
 type InOutChainInfo struct {
-	Chainid        InOutChainId
-	BpNumber       uint32
-	MaxBlockSize   uint64
-	MaxTokens      string
-	StakingMinimum string `json:",omitempty"`
-	StakingTotal   string `json:",omitempty"`
-	GasPrice       string `json:",omitempty"`
-	NamePrice      string `json:",omitempty"`
+	Chainid          InOutChainId
+	BpNumber         uint32
+	MaxBlockSize     uint64
+	MaxTokens        string
+	StakingMinimum   string `json:",omitempty"`
+	StakingTotal     string `json:",omitempty"`
+	GasPrice         string `json:",omitempty"`
+	NamePrice        string `json:",omitempty"`
+	TotalVotingPower string `json:",omitempty"`
+	VotingReward     string `json:",omitempty"`
 }
 
 func ConvChainInfoMsg(msg *types.ChainInfo) string {
@@ -54,5 +56,7 @@ func convChainInfo(msg *types.ChainInfo) *InOutChainInfo {
 
 	out.GasPrice = new(big.Int).SetBytes(msg.Gasprice).String()
 	out.NamePrice = new(big.Int).SetBytes(msg.Nameprice).String()
+	out.TotalVotingPower = new(big.Int).SetBytes(msg.Totalvotingpower).String()
+	out.VotingReward = new(big.Int).SetBytes(msg.Votingreward).String()
 	return out
 }

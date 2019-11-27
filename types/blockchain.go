@@ -116,6 +116,8 @@ const (
 	StakingMin
 	GasPrice
 	NamePrice
+	TotalVotingPower
+	VotingReward
 )
 
 /*
