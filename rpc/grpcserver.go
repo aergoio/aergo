@@ -205,6 +205,16 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 		} else {
 			return nil, err
 		}
+		if totalVotingPower, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.TotalVotingPower); totalVotingPower != nil {
+			chainInfo.Totalvotingpower = totalVotingPower.Bytes()
+		} else if err != nil {
+			return nil, err
+		}
+		if votingReward, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.VotingReward); votingReward != nil {
+			chainInfo.Votingreward = votingReward.Bytes()
+		} else {
+			return nil, err
+		}
 	}
 
 	if namePrice, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.NamePrice); namePrice != nil {
@@ -215,18 +225,6 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 
 	if gasPrice, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.GasPrice); gasPrice != nil {
 		chainInfo.Gasprice = gasPrice.Bytes()
-	} else {
-		return nil, err
-	}
-
-	if totalVotingPower, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.TotalVotingPower); totalVotingPower != nil {
-		chainInfo.Totalvotingpower = totalVotingPower.Bytes()
-	} else {
-		return nil, err
-	}
-
-	if votingReward, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.VotingReward); votingReward != nil {
-		chainInfo.Votingreward = votingReward.Bytes()
 	} else {
 		return nil, err
 	}

@@ -495,6 +495,9 @@ func (v *vpr) equals(rhs *vpr) bool {
 }
 
 func (v *vpr) getTotalPower() *big.Int {
+	if v == nil {
+		return nil
+	}
 	return new(big.Int).Set(v.totalPower)
 }
 
