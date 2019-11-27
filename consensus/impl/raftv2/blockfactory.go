@@ -511,8 +511,8 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	blockState := bf.sdb.NewBlockState(
 		bestBlock.GetHeader().GetBlocksRootHash(),
 		state.SetPrevBlockHash(bestBlock.BlockHash()),
-		state.SetGasPrice(system.GetGasPrice()),
 	)
+	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 	blockState.Receipts().SetHardFork(bf.bv, bi.No)
 
 	block, err := chain.NewBlockGenerator(bf, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
