@@ -219,6 +219,18 @@ func (rpc *AergoRPCService) getChainInfo(ctx context.Context) (*types.ChainInfo,
 		return nil, err
 	}
 
+	if totalVotingPower, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.TotalVotingPower); totalVotingPower != nil {
+		chainInfo.Totalvotingpower = totalVotingPower.Bytes()
+	} else {
+		return nil, err
+	}
+
+	if votingReward, err := rpc.actorHelper.GetChainAccessor().GetSystemValue(types.VotingReward); votingReward != nil {
+		chainInfo.Votingreward = votingReward.Bytes()
+	} else {
+		return nil, err
+	}
+
 	return chainInfo, nil
 }
 
@@ -916,7 +928,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 	ret := &types.PeerList{Peers: make([]*types.Peer, 0, len(rsp.Peers))}
 	for _, pi := range rsp.Peers {
 		blkNotice := &types.NewBlockNotice{BlockHash: pi.LastBlockHash, BlockNo: pi.LastBlockNumber}
-		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version, Certificates:pi.Certificates, AcceptedRole:pi.AcceptedRole}
+		peer := &types.Peer{Address: pi.Addr, State: int32(pi.State), Bestblock: blkNotice, LashCheck: pi.CheckTime.UnixNano(), Hidden: pi.Hidden, Selfpeer: pi.Self, Version: pi.Version, Certificates: pi.Certificates, AcceptedRole: pi.AcceptedRole}
 		ret.Peers = append(ret.Peers, peer)
 	}
 

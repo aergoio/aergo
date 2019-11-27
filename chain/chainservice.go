@@ -580,6 +580,10 @@ func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) 
 		return system.GetGasPrice(), nil
 	case types.NamePrice:
 		return system.GetNamePrice(), nil
+	case types.TotalVotingPower:
+		return system.GetTotalVotingPower(), nil
+	case types.VotingReward:
+		return system.GetVotingRewardAmount(), nil
 	}
 	return nil, fmt.Errorf("unsupported system value : %s", key)
 }
