@@ -10,6 +10,8 @@ import (
 	"math/rand"
 	"reflect"
 
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
@@ -38,6 +40,8 @@ var (
 	binSize, _       = new(big.Int).SetString("10000000000000000000000", 10) // 10000 AERGO
 
 	votingPowerRank *vpr
+
+	vprLogger = log.NewLogger("vpr")
 )
 
 type dataSetter interface {
@@ -615,15 +619,25 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 		return nil, ErrNoVotingRewardWinner
 	}
 
+	totalVp := v.getTotalPower()
 	r := new(big.Int).Rand(
 		rand.New(rand.NewSource(seed)),
-		v.getTotalPower())
+		totalVp)
 	for i := uint8(0); i < vprBucketsMax; i++ {
 		if l := v.store.buckets[i]; l != nil && l.Len() > 0 {
 			for e := l.Front(); e != nil; e = e.Next() {
 				vp := toVotingPower(e)
 				if r.Sub(r, vp.getPower()).Cmp(zeroValue) < 0 {
-					return vp.getAddr(), nil
+					winner := vp.getAddr()
+
+					if vprLogger.IsDebugEnabled() {
+						vprLogger.Debug().
+							Str("total voting power", totalVp.String()).
+							Str("addr", enc.ToString(winner)).
+							Msg("pick voting reward winner")
+					}
+
+					return winner, nil
 				}
 			}
 		}
