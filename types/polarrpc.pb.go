@@ -35,7 +35,7 @@ func (m *Paginations) Reset()         { *m = Paginations{} }
 func (m *Paginations) String() string { return proto.CompactTextString(m) }
 func (*Paginations) ProtoMessage()    {}
 func (*Paginations) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_84e04e0993106aac, []int{0}
+	return fileDescriptor_9eae49c68867e2c2, []int{0}
 }
 func (m *Paginations) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Paginations.Unmarshal(m, b)
@@ -43,8 +43,8 @@ func (m *Paginations) XXX_Unmarshal(b []byte) error {
 func (m *Paginations) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Paginations.Marshal(b, m, deterministic)
 }
-func (dst *Paginations) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Paginations.Merge(dst, src)
+func (m *Paginations) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Paginations.Merge(m, src)
 }
 func (m *Paginations) XXX_Size() int {
 	return xxx_messageInfo_Paginations.Size(m)
@@ -82,7 +82,7 @@ func (m *PolarisPeerList) Reset()         { *m = PolarisPeerList{} }
 func (m *PolarisPeerList) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeerList) ProtoMessage()    {}
 func (*PolarisPeerList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_84e04e0993106aac, []int{1}
+	return fileDescriptor_9eae49c68867e2c2, []int{1}
 }
 func (m *PolarisPeerList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeerList.Unmarshal(m, b)
@@ -90,8 +90,8 @@ func (m *PolarisPeerList) XXX_Unmarshal(b []byte) error {
 func (m *PolarisPeerList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PolarisPeerList.Marshal(b, m, deterministic)
 }
-func (dst *PolarisPeerList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PolarisPeerList.Merge(dst, src)
+func (m *PolarisPeerList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolarisPeerList.Merge(m, src)
 }
 func (m *PolarisPeerList) XXX_Size() int {
 	return xxx_messageInfo_PolarisPeerList.Size(m)
@@ -138,7 +138,7 @@ func (m *PolarisPeer) Reset()         { *m = PolarisPeer{} }
 func (m *PolarisPeer) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeer) ProtoMessage()    {}
 func (*PolarisPeer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_84e04e0993106aac, []int{2}
+	return fileDescriptor_9eae49c68867e2c2, []int{2}
 }
 func (m *PolarisPeer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeer.Unmarshal(m, b)
@@ -146,8 +146,8 @@ func (m *PolarisPeer) XXX_Unmarshal(b []byte) error {
 func (m *PolarisPeer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PolarisPeer.Marshal(b, m, deterministic)
 }
-func (dst *PolarisPeer) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PolarisPeer.Merge(dst, src)
+func (m *PolarisPeer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolarisPeer.Merge(m, src)
 }
 func (m *PolarisPeer) XXX_Size() int {
 	return xxx_messageInfo_PolarisPeer.Size(m)
@@ -198,7 +198,7 @@ func (m *BLConfEntries) Reset()         { *m = BLConfEntries{} }
 func (m *BLConfEntries) String() string { return proto.CompactTextString(m) }
 func (*BLConfEntries) ProtoMessage()    {}
 func (*BLConfEntries) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_84e04e0993106aac, []int{3}
+	return fileDescriptor_9eae49c68867e2c2, []int{3}
 }
 func (m *BLConfEntries) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BLConfEntries.Unmarshal(m, b)
@@ -206,8 +206,8 @@ func (m *BLConfEntries) XXX_Unmarshal(b []byte) error {
 func (m *BLConfEntries) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BLConfEntries.Marshal(b, m, deterministic)
 }
-func (dst *BLConfEntries) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BLConfEntries.Merge(dst, src)
+func (m *BLConfEntries) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BLConfEntries.Merge(m, src)
 }
 func (m *BLConfEntries) XXX_Size() int {
 	return xxx_messageInfo_BLConfEntries.Size(m)
@@ -245,7 +245,7 @@ func (m *AddEntryParams) Reset()         { *m = AddEntryParams{} }
 func (m *AddEntryParams) String() string { return proto.CompactTextString(m) }
 func (*AddEntryParams) ProtoMessage()    {}
 func (*AddEntryParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_84e04e0993106aac, []int{4}
+	return fileDescriptor_9eae49c68867e2c2, []int{4}
 }
 func (m *AddEntryParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddEntryParams.Unmarshal(m, b)
@@ -253,8 +253,8 @@ func (m *AddEntryParams) XXX_Unmarshal(b []byte) error {
 func (m *AddEntryParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AddEntryParams.Marshal(b, m, deterministic)
 }
-func (dst *AddEntryParams) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AddEntryParams.Merge(dst, src)
+func (m *AddEntryParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddEntryParams.Merge(m, src)
 }
 func (m *AddEntryParams) XXX_Size() int {
 	return xxx_messageInfo_AddEntryParams.Size(m)
@@ -297,7 +297,7 @@ func (m *RmEntryParams) Reset()         { *m = RmEntryParams{} }
 func (m *RmEntryParams) String() string { return proto.CompactTextString(m) }
 func (*RmEntryParams) ProtoMessage()    {}
 func (*RmEntryParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_polarrpc_84e04e0993106aac, []int{5}
+	return fileDescriptor_9eae49c68867e2c2, []int{5}
 }
 func (m *RmEntryParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RmEntryParams.Unmarshal(m, b)
@@ -305,8 +305,8 @@ func (m *RmEntryParams) XXX_Unmarshal(b []byte) error {
 func (m *RmEntryParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RmEntryParams.Marshal(b, m, deterministic)
 }
-func (dst *RmEntryParams) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RmEntryParams.Merge(dst, src)
+func (m *RmEntryParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RmEntryParams.Merge(m, src)
 }
 func (m *RmEntryParams) XXX_Size() int {
 	return xxx_messageInfo_RmEntryParams.Size(m)
@@ -640,9 +640,9 @@ var _PolarisRPCService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "polarrpc.proto",
 }
 
-func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_polarrpc_84e04e0993106aac) }
+func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_9eae49c68867e2c2) }
 
-var fileDescriptor_polarrpc_84e04e0993106aac = []byte{
+var fileDescriptor_9eae49c68867e2c2 = []byte{
 	// 535 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0xcb, 0x6a, 0xdb, 0x40,
 	0x14, 0xb5, 0xa2, 0xd8, 0x89, 0xae, 0x2d, 0xb7, 0x9d, 0xba, 0x41, 0x88, 0x2e, 0x84, 0xa0, 0xa0,

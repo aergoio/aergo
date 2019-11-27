@@ -1036,7 +1036,6 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 			err = dbErr
 		}
 	}()
-	ce.setCountHook(queryMaxInstLimit)
 	ce.call(queryMaxInstLimit, nil)
 
 	contexts[ctx.service] = nil
