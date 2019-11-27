@@ -547,6 +547,14 @@ func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 
 	v.prepare(id, addr,
 		func(lhs *big.Int) {
+			if vprLogger.IsDebugEnabled() {
+				vprLogger.Debug().
+					Str("op", "add").
+					Str("addr", enc.ToString(addr)).
+					Str("orig", lhs.String()).
+					Str("delta", power.String()).
+					Msg("prepare voting power change")
+			}
 			lhs.Add(lhs, power)
 		},
 	)
@@ -559,6 +567,14 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 
 	v.prepare(id, addr,
 		func(lhs *big.Int) {
+			if vprLogger.IsDebugEnabled() {
+				vprLogger.Debug().
+					Str("op", "sub").
+					Str("addr", enc.ToString(addr)).
+					Str("orig", lhs.String()).
+					Str("delta", power.String()).
+					Msg("prepare voting power change")
+			}
 			lhs.Sub(lhs, power)
 		},
 	)

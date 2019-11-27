@@ -65,6 +65,12 @@ type vprCmd struct {
 func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 	cmd := &vprCmd{SystemContext: ctx, voteResult: vr}
 
+	if vprLogger.IsDebugEnabled() {
+		vprLogger.Debug().
+			Int32("block version", ctx.BlockInfo.Version).
+			Msg("create new voting power table command")
+	}
+
 	if ctx.BlockInfo.Version < 2 {
 		cmd.add = func(v *types.Vote) error {
 			return cmd.voteResult.AddVote(v)
@@ -212,6 +218,13 @@ func (c *voteCmd) updateVoteResult() error {
 
 	if err := c.add(c.newVote); err != nil {
 		return err
+	}
+
+	if vprLogger.IsDebugEnabled() {
+		vprLogger.Debug().
+			Str("sub", c.Vote.GetAmountBigInt().String()).
+			Str("add", c.Vote.GetAmountBigInt().String()).
+			Msg("update vote result")
 	}
 
 	return c.voteResult.Sync()
