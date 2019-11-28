@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/rs/zerolog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -464,7 +465,7 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 				return nil, nil
 			}
 
-			logger.Debug().Uint64("startno", hashSet.StartNo).Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
+			logger.Debug().Uint64("startno", hashSet.StartNo).Array("hashes", &LogBlockHashesMarshaller{hashSet.Hashes, 10}).Str("start", enc.ToString(hashSet.Hashes[0])).Int("count", hashSet.Count).Msg("BlockFetcher got hashset")
 
 			bf.curHashSet = hashSet
 			addNewFetchTasks(hashSet)
@@ -477,6 +478,26 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 	//	Int("tasks retry", bf.retryQueue.Len()).Int("tasks pending", bf.pendingQueue.Len()).Msg("candidate fetchtask")
 
 	return newTask, nil
+}
+
+
+type LogBlockHashesMarshaller struct {
+	arr   []message.BlockHash
+	limit int
+}
+
+func (m LogBlockHashesMarshaller) MarshalZerologArray(a *zerolog.Array) {
+	size := len(m.arr)
+	if size > m.limit {
+		for i := 0; i < m.limit-1; i++ {
+			a.Str(enc.ToString(m.arr[i]))
+		}
+		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+	} else {
+		for _, element := range m.arr {
+			a.Str(enc.ToString(element))
+		}
+	}
 }
 
 func (bf *BlockFetcher) popFreePeer() (*SyncPeer, error) {
