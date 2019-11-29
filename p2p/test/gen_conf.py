@@ -1,3 +1,5 @@
+# generate config and genesis files for test
+
 import os
 import pathlib
 import string
@@ -6,9 +8,9 @@ import sys
 from builtins import len, int, dict, open, set
 
 import conf
-import conftype
+import conf_type
 
-from conftype import wrap_list_to_json, low_bool
+from conf_type import wrap_list_to_json, low_bool
 
 nodeCount = len(conf.nodes)
 # pkgen 명령 위치(path)를 적어줄 것
@@ -46,7 +48,7 @@ def generate_confs(nodes, template):
         else:
             d['polarises'] = '[]'
         d['role'] = n.role.name.lower()
-        if n.role == conftype.Role.producer:
+        if n.role == conf_type.Role.producer:
             d['agent'] = n.agent
         else:
             d['agent'] = ""
@@ -71,7 +73,7 @@ def set_toadd(i, n):
         if idx != i:
             toAdd.add(idx)
     if not n.hidden:
-        for idx in conftype.pubNodes:
+        for idx in conf_type.pubNodes:
             if idx != i:
                 toAdd.add(idx)
     return toAdd
@@ -87,7 +89,7 @@ if __name__ == '__main__':
         print("Usage: %s <startingport>" % sys.argv[0])
         sys.exit(1)
 
-    conftype.setup_nodes(conf.nodes, startingPort)
+    conf_type.setup_nodes(conf.nodes, startingPort)
 
     tmplfile = open("argconf_template.toml", 'r')
     tmplString = tmplfile.read()

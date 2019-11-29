@@ -5,7 +5,7 @@ import string
 import subprocess
 
 import conf
-import conftype
+import conf_type
 import sys
 from builtins import len, int, dict, open, set
 
@@ -26,7 +26,7 @@ def generate_genesis(conf, template):
 
     bps = list()
     for n in conf.nodes:
-        if n.role == conftype.Role.producer:
+        if n.role == conf_type.Role.producer:
             bps.append(n.peerid)
 
     gaergo_surfix = '000000000000000000'
@@ -53,8 +53,8 @@ def generate_genesis(conf, template):
 
     d = dict()
     d['magic'] = conf.gen_magic
-    d['bps'] = conftype.wrap_list_to_json(bps)
-    d['holders'] = conftype.wrap_map_to_json(holders)
+    d['bps'] = conf_type.wrap_list_to_json(bps)
+    d['holders'] = conf_type.wrap_map_to_json(holders)
 
     genesis_raw = template.substitute(d)
     genesis_formatted = json.dumps(genesis_raw, indent=4)
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         print("Usage: %s <startingPort> " % sys.argv[0])
         sys.exit(1)
 
-    conftype.setup_nodes(conf.nodes, startingPort)
+    conf_type.setup_nodes(conf.nodes, startingPort)
 
     tmplfile = open("genesis_json.template", 'r')
     tmplString = tmplfile.read()

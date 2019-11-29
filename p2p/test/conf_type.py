@@ -8,6 +8,9 @@ class Machine:
         self.os = os
         self.ip = ip
         self.connInfo = conn
+        if len(conn) > 0:
+            self.connAddr, port = conn.rsplit(":", 1)
+            self.connPort = int(port)
         self.userID = id
         self.baseDir = dirs
         self.nodes = []
@@ -17,7 +20,7 @@ class Machine:
             return False
         if self.ip != other.ip:
             return False
-        if self.connInfo != other.connPort:
+        if self.connInfo != other.connInfo:
             return False
         if self.userID != other.userID:
             return False
@@ -42,11 +45,13 @@ class Node:
         self.hidden = hidden
         self.clients = clients
 
-# don't touch below. These are filled after conftype.setup_nodes() is called
+
+# don't touch below. These are filled after conf_type.setup_nodes() is called
 bpNodes = []
 agentNodes = []
 pubNodes = []
 peerIDs = []
+
 
 def setup_nodes(nodes, starting):
     i = 0
@@ -81,7 +86,7 @@ def setup_nodes(nodes, starting):
                 p = nodes[c]
                 if p.machine != n.machine:
                     print("wrong conf.py: agent and producer is not same machine. \nagent    %s \nproducer %s " % (
-                    n.machine, p.machine), file=sys.stderr)
+                        n.machine, p.machine), file=sys.stderr)
                     sys.exit(1)
                 n.producers.append(p.peerid)
                 p.agent = n.peerid

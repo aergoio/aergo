@@ -26,4 +26,5 @@ Gopkg.lock
 /consensus/**/tmp/
 
 # python cache
+venv
 __pycache__

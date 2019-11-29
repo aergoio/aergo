@@ -7,7 +7,7 @@ import subprocess
 import sys
 from builtins import *
 
-import conftype
+import conf_type
 import conf
 
 svrCmd = "./aergosvr"
@@ -42,6 +42,6 @@ if __name__ == '__main__':
     if not gen_file.is_file():
         print ("Genesis file %s is not found" % genesis_filename)
         sys.exit(1)
-    conftype.setup_nodes(conf.nodes, startingPort)
+    conf_type.setup_nodes(conf.nodes, startingPort)
 
     init_datadir(cwd+"/data", conf.nodes)
