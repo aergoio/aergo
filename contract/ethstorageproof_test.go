@@ -3,6 +3,8 @@ package contract
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -88,7 +90,7 @@ func TestVerify(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		if verifyEthStorageProof(tt.key, tt.value, keccak256(tt.proof[0]), tt.proof) != tt.verify {
+		if verifyEthStorageProof(tt.key, rlpString(tt.value), keccak256(tt.proof[0]), tt.proof) != tt.verify {
 			t.Errorf("testcase %d: want %v, got %v\n", i, tt.verify, !tt.verify)
 		}
 	}
@@ -217,4 +219,99 @@ func proofToBytes(proof []string) [][]byte {
 		r = append(r, d)
 	}
 	return r
+}
+
+func Test_rlpEncode(t *testing.T) {
+	l := "Lorem ipsum dolor sit amet, consectetur adipisicing elit"
+	type args struct {
+		o rlpObject
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			`"dog"`,
+			args{rlpString("dog")},
+			[]byte{0x83, 'd', 'o', 'g'},
+		},
+		{
+			`["cat","dog"]`,
+			args{rlpList{rlpString("cat"), rlpString("dog")}},
+			[]byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'},
+		},
+		{
+			`""`,
+			args{rlpString("")},
+			[]byte{0x80},
+		},
+		{
+			`[]`,
+			args{rlpList{}},
+			[]byte{0xc0},
+		},
+		{
+			`\x00`,
+			args{rlpString{0x00}},
+			[]byte{0x00},
+		},
+		{
+			`\x0f`,
+			args{rlpString{0x0f}},
+			[]byte{0x0f},
+		},
+		{
+			`\x0f\x00`,
+			args{rlpString{0x04, 0x00}},
+			[]byte{0x82, 0x04, 0x00},
+		},
+		{
+			`[[],[[]],[[],[[]]]]`,
+			args{rlpList{rlpList{}, rlpList{rlpList{}}, rlpList{rlpList{}, rlpList{rlpList{}}}}},
+			[]byte{0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0},
+		},
+		{
+			fmt.Sprintf(`"%s"`, l),
+			args{rlpString(l)},
+			append([]byte{0xb8, 0x38}, []byte(l)...),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := rlpEncode(tt.args.o); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("rlpEncode() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_rlpLength(t *testing.T) {
+	type args struct {
+		dataLen int
+		offset  byte
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			"string-1024",
+			args{1024, 0x80},
+			[]byte{0xb9, 0x04, 0x00},
+		},
+		{
+			"list-1024",
+			args{1024, 0xc0},
+			[]byte{0xf9, 0x04, 0x00},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := rlpLength(tt.args.dataLen, tt.args.offset); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("rlpLength() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

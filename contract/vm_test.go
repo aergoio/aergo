@@ -4983,7 +4983,7 @@ func TestUtf(t *testing.T) {
 }
 
 func TestLuaCryptoVerifyProof(t *testing.T) {
-	bc, err := LoadDummyChain()
+	bc, err := LoadDummyChain(OnPubNet)
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -5032,6 +5032,55 @@ func TestLuaCryptoVerifyProof(t *testing.T) {
 	err = bc.Query("eth", `{"Name":"verifyProofHex"}`, "", `true`)
 	if err != nil {
 		t.Error(err)
+	}
+
+	state, err := bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	bal := state.GetBalanceBigInt().Uint64()
+	tx := NewLuaTxCall("ktlee", "eth", 0, `{"Name": "verifyProofRaw"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r := bc.GetReceipt(tx.Hash())
+	expectedFee := uint64(154137)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err = bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
+		t.Errorf(
+			"expected: %d, but got: %d",
+			bal-expectedFee,
+			state.GetBalanceBigInt().Uint64(),
+		)
+	}
+	bal = state.GetBalanceBigInt().Uint64()
+	tx = NewLuaTxCall("ktlee", "eth", 0, `{"Name": "verifyProofHex"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r = bc.GetReceipt(tx.Hash())
+	expectedFee = uint64(108404)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err = bc.GetAccountState("ktlee")
+	if err != nil {
+		t.Error(err)
+	}
+	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
+		t.Errorf(
+			"expected: %d, but got: %d",
+			bal-expectedFee,
+			state.GetBalanceBigInt().Uint64(),
+		)
 	}
 }
 
