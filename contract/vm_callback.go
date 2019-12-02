@@ -13,6 +13,15 @@ struct proof {
 	void *data;
 	size_t len;
 };
+
+#define RLP_TSTRING 0
+#define RLP_TLIST 1
+
+struct rlp_obj {
+	int rlp_obj_type;
+	void *data;
+	size_t size;
+};
 */
 import "C"
 import (
@@ -885,15 +894,30 @@ func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 	return d, isHex
 }
 
+func luaCryptoRlpToBytes(data unsafe.Pointer) rlpObject {
+	x := (*C.struct_rlp_obj)(data)
+	if x.rlp_obj_type == C.RLP_TSTRING {
+		b, _ := luaCryptoToBytes(x.data, C.int(x.size))
+		return rlpString(b)
+	}
+	var l rlpList
+	elems := (*[1 << 30]C.struct_rlp_obj)(unsafe.Pointer(x.data))[:C.int(x.size):C.int(x.size)]
+	for _, elem := range elems {
+		b, _ := luaCryptoToBytes(elem.data, C.int(elem.size))
+		l = append(l, rlpString(b))
+	}
+	return l
+}
+
 //export luaCryptoVerifyProof
 func luaCryptoVerifyProof(
 	key unsafe.Pointer, keyLen C.int,
-	value unsafe.Pointer, valueLen C.int,
+	value unsafe.Pointer,
 	hash unsafe.Pointer, hashLen C.int,
 	proof unsafe.Pointer, nProof C.int,
 ) C.int {
 	k, _ := luaCryptoToBytes(key, keyLen)
-	v, _ := luaCryptoToBytes(value, valueLen)
+	v := luaCryptoRlpToBytes(value)
 	h, _ := luaCryptoToBytes(hash, hashLen)
 	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
 	bProof := make([][]byte, int(nProof))
