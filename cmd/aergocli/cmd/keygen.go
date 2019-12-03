@@ -4,6 +4,7 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
 
 	"github.com/aergoio/aergo/account/key"
@@ -24,6 +25,7 @@ var (
 	genPubkey bool
 	genID     bool
 	genJSON   bool
+	genAddress bool
 	password  string
 )
 
@@ -32,6 +34,7 @@ func init() {
 	//keygenCmd.Flags().BoolVar(&genPubkey, "genpubkey", true, "also generate public key")
 	keygenCmd.Flags().BoolVar(&genJSON, "json", false, "output combined json object instead of generating files")
 	keygenCmd.Flags().StringVar(&password, "password", "", "password for encrypted private key in json file")
+	keygenCmd.Flags().BoolVar(&genAddress, "addr", false, "generate prefix.addr for wallet address")
 
 	rootCmd.AddCommand(keygenCmd)
 }
@@ -68,6 +71,7 @@ func generateKeyFiles(prefix string) error {
 	pkFile := prefix + ".key"
 	pubFile := prefix + ".pub"
 	idFile := prefix + ".id"
+	addrFile := prefix + ".addr"
 
 	// Write private key file
 	pkf, err := os.Create(pkFile)
@@ -103,7 +107,21 @@ func generateKeyFiles(prefix string) error {
 	idf.Write(idBytes)
 	idf.Sync()
 
-	fmt.Printf("Wrote files %s.{key,pub,id}.\n", prefix)
+	if genAddress {
+		addrf, err := os.Create(addrFile)
+		if err != nil {
+			return err
+		}
+		btPub := p2putil.ConvertPubKeyToBTCEC(pub)
+		address := key.GenerateAddress(btPub.ToECDSA())
+		addrf.WriteString(types.EncodeAddress(address))
+		addrf.Sync()
+
+		fmt.Printf("Wrote files %s.{key,pub,id,addr}.\n", prefix)
+	} else {
+		fmt.Printf("Wrote files %s.{key,pub,id}.\n", prefix)
+	}
+
 	return nil
 }
 
