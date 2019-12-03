@@ -54,7 +54,7 @@ func init() {
 	preLoadInfos[BlockFactory].replyCh = make(chan *loadedReply, 4)
 	preLoadInfos[ChainService].replyCh = make(chan *loadedReply, 4)
 
-	go preLoadWorker()
+	//go preLoadWorker()
 }
 
 func SetPreloadTx(tx *types.Tx, service int) {
@@ -119,60 +119,60 @@ func Execute(
 		bs.CodeMap.Remove(receiver.AccountID())
 	}
 
-	var ex *executor
-	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
-		replyCh := preLoadInfos[preLoadService].replyCh
-		for {
-			var preload *loadedReply
-			if HardforkConfig.IsV2Fork(bi.No) {
-				if preLoadService == BlockFactory {
-					select {
-					case preload = <-replyCh:
-					case <-bpTimeout:
-						err = &VmTimeoutError{}
-						return
-					default:
-						continue
-					}
-				} else {
-					select {
-					case preload = <-replyCh:
-					default:
-						continue
-					}
-				}
-			} else {
-				preload = <-replyCh
-			}
-			if preload.tx != tx {
-				preload.ex.close()
-				continue
-			}
-			ex = preload.ex
-			err = preload.err
-			break
-		}
-		if err != nil {
-			return
-		}
-	}
+	//var ex *executor
+	//if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
+	//	replyCh := preLoadInfos[preLoadService].replyCh
+	//	for {
+	//		var preload *loadedReply
+	//		if HardforkConfig.IsV2Fork(bi.No) {
+	//			if preLoadService == BlockFactory {
+	//				select {
+	//				case preload = <-replyCh:
+	//				case <-bpTimeout:
+	//					err = &VmTimeoutError{}
+	//					return
+	//				default:
+	//					continue
+	//				}
+	//			} else {
+	//				select {
+	//				case preload = <-replyCh:
+	//				default:
+	//					continue
+	//				}
+	//			}
+	//		} else {
+	//			preload = <-replyCh
+	//		}
+	//		if preload.tx != tx {
+	//			preload.ex.close()
+	//			continue
+	//		}
+	//		ex = preload.ex
+	//		err = preload.err
+	//		break
+	//	}
+	//	if err != nil {
+	//		return
+	//	}
+	//}
 
 	var ctrFee *big.Int
-	if ex != nil {
-		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
-	} else {
-		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
-			tx.GetHash(), bi, "", true, false, receiver.RP(),
-			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
-		if ctx.traceFile != nil {
-			defer ctx.traceFile.Close()
-		}
-		if receiver.IsDeploy() {
-			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
-		} else {
-			rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
-		}
+	//if ex != nil {
+	//	rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
+	//} else {
+	ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
+		tx.GetHash(), bi, "", true, false, receiver.RP(),
+		preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+	if ctx.traceFile != nil {
+		defer ctx.traceFile.Close()
 	}
+	if receiver.IsDeploy() {
+		rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
+	} else {
+		rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
+	}
+	//}
 
 	usedFee.Add(usedFee, ctrFee)
 
@@ -212,65 +212,65 @@ func PreLoadRequest(bs *state.BlockState, bi *types.BlockHeaderInfo, next, curre
 	loadReqCh <- &preLoadReq{preLoadService, bs, bi, next, current}
 }
 
-func preLoadWorker() {
-	for {
-		var err error
-		reqInfo := <-loadReqCh
-		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
-
-		if len(replyCh) > 2 {
-			select {
-			case preload := <-replyCh:
-				preload.ex.close()
-			default:
-			}
-		}
-
-		bs := reqInfo.bs
-		tx := reqInfo.next
-		txBody := tx.GetBody()
-		recipient := txBody.Recipient
-
-		if (txBody.Type != types.TxType_NORMAL &&
-			txBody.Type != types.TxType_TRANSFER &&
-			txBody.Type != types.TxType_CALL &&
-			txBody.Type != types.TxType_FEEDELEGATION) ||
-			len(recipient) == 0 {
-			continue
-		}
-
-		if reqInfo.current.GetBody().Type == types.TxType_REDEPLOY {
-			currentTxBody := reqInfo.current.GetBody()
-			if bytes.Equal(recipient, currentTxBody.Recipient) {
-				replyCh <- &loadedReply{tx, nil, nil}
-				continue
-			}
-		}
-
-		receiver, err := bs.GetAccountStateV(recipient)
-		if err != nil {
-			replyCh <- &loadedReply{tx, nil, err}
-			continue
-		}
-		/* When deploy and call in same block and not deployed yet*/
-		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
-			replyCh <- &loadedReply{tx, nil, nil}
-			continue
-		}
-		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
-		if err != nil {
-			replyCh <- &loadedReply{tx, nil, err}
-			continue
-		}
-		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
-			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
-			txBody.Type == types.TxType_FEEDELEGATION)
-
-		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), ctx)
-		replyCh <- &loadedReply{tx, ex, err}
-	}
-}
+//func preLoadWorker() {
+//	for {
+//		var err error
+//		reqInfo := <-loadReqCh
+//		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
+//
+//		if len(replyCh) > 2 {
+//			select {
+//			case preload := <-replyCh:
+//				preload.ex.close()
+//			default:
+//			}
+//		}
+//
+//		bs := reqInfo.bs
+//		tx := reqInfo.next
+//		txBody := tx.GetBody()
+//		recipient := txBody.Recipient
+//
+//		if (txBody.Type != types.TxType_NORMAL &&
+//			txBody.Type != types.TxType_TRANSFER &&
+//			txBody.Type != types.TxType_CALL &&
+//			txBody.Type != types.TxType_FEEDELEGATION) ||
+//			len(recipient) == 0 {
+//			continue
+//		}
+//
+//		if reqInfo.current.GetBody().Type == types.TxType_REDEPLOY {
+//			currentTxBody := reqInfo.current.GetBody()
+//			if bytes.Equal(recipient, currentTxBody.Recipient) {
+//				replyCh <- &loadedReply{tx, nil, nil}
+//				continue
+//			}
+//		}
+//
+//		receiver, err := bs.GetAccountStateV(recipient)
+//		if err != nil {
+//			replyCh <- &loadedReply{tx, nil, err}
+//			continue
+//		}
+//		/* When deploy and call in same block and not deployed yet*/
+//		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
+//			replyCh <- &loadedReply{tx, nil, nil}
+//			continue
+//		}
+//		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+//		if err != nil {
+//			replyCh <- &loadedReply{tx, nil, err}
+//			continue
+//		}
+//		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
+//			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
+//			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+//			txBody.Type == types.TxType_FEEDELEGATION)
+//
+//		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), ctx)
+//		replyCh <- &loadedReply{tx, ex, err}
+//	}
+//}
 
 func CreateContractID(account []byte, nonce uint64) []byte {
 	h := sha256.New()
