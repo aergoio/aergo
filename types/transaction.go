@@ -293,11 +293,7 @@ func _validateNameTx(tx *TxBody, ci *CallInfo) error {
 	if err := validateAllowedChar([]byte(nameParam)); err != nil {
 		return err
 	}
-	if new(big.Int).SetUint64(1000000000000000000).Cmp(tx.GetAmountBigInt()) > 0 {
-		return ErrTooSmallAmount
-	}
 	return nil
-
 }
 
 func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big.Int, version int32) error {
