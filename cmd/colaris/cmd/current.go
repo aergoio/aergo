@@ -7,10 +7,11 @@ package cmd
 
 import (
 	"context"
+	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
@@ -47,8 +48,8 @@ func execCurrentPeers(cmd *cobra.Command, args []string) {
 	}
 
 	uparams := &types.Paginations{
-		Ref:   blockHash,
-		Size:   uint32(cpSize),
+		Ref:  blockHash,
+		Size: uint32(cpSize),
 	}
 
 	msg, err := client.CurrentList(context.Background(), uparams)
@@ -57,10 +58,26 @@ func execCurrentPeers(cmd *cobra.Command, args []string) {
 		return
 	}
 	// TODO decorate other props also;e.g. uint64 timestamp to human readable time format!
-	for _, p := range msg.Peers {
-		if p.Verion == "" {
-			p.Verion = "(old)"
-		}
+	ppList := make([]JSONPolarisPeer, len(msg.Peers))
+	for i, p := range msg.Peers {
+		ppList[i] = NewJSONPolarisPeer(p)
 	}
-	cmd.Println(util.JSON(msg))
+	cmd.Println(util.B58JSON(ppList))
+}
+
+type PolarisPeerAlias types.PolarisPeer
+
+// JSONPolarisPeer is simple wrapper to print human readable json output.
+type JSONPolarisPeer struct {
+	*PolarisPeerAlias
+	Connected time.Time `json:"connected"`
+	LastCheck time.Time `json:"lastCheck"`
+}
+
+func NewJSONPolarisPeer(pp *types.PolarisPeer) JSONPolarisPeer {
+	return JSONPolarisPeer{
+		(*PolarisPeerAlias)(pp),
+		time.Unix(0, pp.Connected),
+		time.Unix(0, pp.LastCheck),
+	}
 }
