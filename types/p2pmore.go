@@ -6,6 +6,7 @@
 package types
 
 import (
+	"encoding/json"
 	"net"
 	"strconv"
 	"time"
@@ -40,4 +41,8 @@ func AddressesToStringMap(addrs []*PeerAddress) []map[string]string {
 		arr[i] = vMap
 	}
 	return arr
+}
+
+func (x PeerRole) MarshalJSON() ([]byte, error) {
+	return json.Marshal(x.String())
 }
