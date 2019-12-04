@@ -19,7 +19,6 @@ func TestMetricsManager_Stop(t *testing.T) {
 		name string
 	}{
 		{"T1"},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -50,7 +49,6 @@ func TestMetricsManager_Size(t *testing.T) {
 		{"TSameInOutRM", 999,999, true},
 		{"TLeave", 2999,999, false},
 		{"TLeaveRM", 2999,999, true},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

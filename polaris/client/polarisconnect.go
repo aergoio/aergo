@@ -128,7 +128,7 @@ func (pcs *PolarisConnectSvc) Receive(context actor.Context) {
 	case *message.MapQueryMsg:
 		pcs.Hub().Tell(message.P2PSvc, pcs.queryPeers(msg))
 	default:
-		//		pcs.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
+		//		pcs.Logger.Debug().Interface("msg", msg)
 	}
 }
 
@@ -145,7 +145,7 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 			}
 			continue
 		}
-		// FIXME delete duplicated peers
+		// duplicated peers will be filtered out by caller (more precisely, p2p actor)
 		resultPeers = append(resultPeers, addrs...)
 		succ++
 	}

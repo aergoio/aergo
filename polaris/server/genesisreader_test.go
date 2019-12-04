@@ -26,7 +26,6 @@ func Test_readGenesis(t *testing.T) {
 		{"Tsucc", args{"../../examples/genesis.json"}, sampleGenesis, false },
 		{"TNotExist", args{"../../examples/genesis.notjson"}, nil, true},
 		{"TNotGenesis", args{"../../examples/component/main.go"}, nil, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

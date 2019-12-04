@@ -185,7 +185,7 @@ func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {
 	if !p2putil.ContainsID(cm.self.ProducerIDs, pid) {
 		return
 	}
-	// check if certificate exists adn is still valid
+	// check if certificate exists and is still valid
 	var prevCert *p2pcommon.AgentCertificateV1 = nil
 	for _, cert := range cm.certs {
 		if types.IsSamePeerID(cert.BPID, pid) {
@@ -193,10 +193,9 @@ func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {
 			break
 		}
 	}
-	// then send issueCert if not.
-	// FIXME it still have inefficiency that issue
+	// then send issueCert if not
 	if prevCert == nil || prevCert.IsNeedUpdate(time.Now(), p2pcommon.DefaultExpireBufTerm) {
-		cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{pid})
+		cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{ProducerID: pid})
 	}
 }
 

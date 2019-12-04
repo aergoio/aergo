@@ -64,7 +64,6 @@ func NewV200VersionedHS(is p2pcommon.InternalService, log *log.Logger, vm p2pcom
 
 // handshakeOutboundPeer start handshake with outbound peer
 func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	// find my best block
@@ -208,7 +207,6 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 // DoForInbound is handle handshake from inbound peer
 func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send

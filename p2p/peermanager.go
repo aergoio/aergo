@@ -470,7 +470,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		if err != nil {
 			return nil
 		}
-		// TODO add self certificates if local peer is agent
+		// add self certificates if local peer is agent
 		localCerts, err := p2putil.ConvertCertsToProto(pm.cm.GetCertificates())
 		selfpi := &message.PeerInfo{
 			Addr: &addr, Certificates: localCerts, AcceptedRole:meta.Role, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}

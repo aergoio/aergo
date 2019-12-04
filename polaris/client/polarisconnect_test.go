@@ -121,7 +121,6 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 		calledStreamHandler bool
 	}{
 		{"TNot", fields{}, false},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,8 +174,6 @@ func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
 		{"TRecvFail", args{sm, ss}, nil, rErr, succR,0, true},
 		{"TOldVersion", args{sm, ss}, nil, nil, oldVerR, 0, true},
 		{"TFailResp", args{sm, ss}, nil, nil, otherR, 0, true},
-
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

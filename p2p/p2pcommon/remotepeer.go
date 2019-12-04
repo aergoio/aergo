@@ -50,7 +50,6 @@ type RemotePeer interface {
 	// updateLastNotice change estimate of the last status of remote peer
 	UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo)
 
-	// TODO
 	MF() MoFactory
 
 	// AddCertificate add to my certificate list

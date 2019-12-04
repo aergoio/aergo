@@ -321,7 +321,6 @@ func (p2ps *P2P) Receive(context actor.Context) {
 
 func (p2ps *P2P) checkAndBanInboundPeers() {
 	for _, peer := range p2ps.pm.GetPeers() {
-		// FIXME ip check should be currently connected ip address
 		ip := peer.RemoteInfo().Connection.IP
 		// TODO temporal treatment. need more works.
 		// just inbound peers will be disconnected

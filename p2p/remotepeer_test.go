@@ -145,7 +145,6 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 	}{
 		{"TSucc", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, false},
 		{"TTimeout", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		mockActorServ := new(p2pmock.MockActorService)
@@ -328,7 +327,6 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 	}{
 		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
 		{"TAllExist", sampleBlksHashes[0], sampleBlksHashes, sampleBlksHashes[1], true},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -361,7 +359,6 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 		{"TAllNew", sampleTxHashes, sampleTxHashes[:0], sampleTxHashes},
 		{"TPartial", sampleTxHashes, sampleTxHashes[2:], sampleTxHashes[:2]},
 		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]types.TxID, 0)},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
