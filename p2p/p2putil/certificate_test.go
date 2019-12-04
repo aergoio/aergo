@@ -34,7 +34,6 @@ func TestNewAgentCertV1(t *testing.T) {
 	}{
 		{"TSucc", args{pid1, pid2, pk, []string{addr0}, DAY}, false},
 		{"TMultiID", args{pid1, pid2, pk, []string{addr0, addr1, addr2}, DAY}, false},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -109,8 +108,6 @@ func TestCheckAndGetV1(t *testing.T) {
 		{"TTinyTimeErrCert", nftmpl, nil},
 		{"TFutureCert", lftmpl, p2pcommon.ErrInvalidCertField},
 		{"TExpiredCert", extmpl, p2pcommon.ErrInvalidCertField},
-
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

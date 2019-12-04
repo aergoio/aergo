@@ -25,7 +25,6 @@ type InternalService interface {
 	CertificateManager() CertificateManager
 
 	RoleManager() PeerRoleManager
-	// TODO add other methods
 }
 
 //go:generate mockgen -source=internalservice.go  -package=p2pmock -destination=../p2pmock/mock_internalservice.go

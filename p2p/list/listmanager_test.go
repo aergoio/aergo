@@ -39,7 +39,6 @@ func TestListManagerImpl_Start(t *testing.T) {
 		{"TMulti", []string{IDOnly, AddrOnly, IDAddr, AddrRange}, false},
 		{"TWrong", []string{IDOnly, ":e23dgvsdvz.32@", IDAddr}, true},
 		{"TWrong2", []string{IDOnly, "e23dgvsd!v32@:", IDAddr}, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

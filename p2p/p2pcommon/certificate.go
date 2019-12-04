@@ -47,7 +47,7 @@ func (c *AgentCertificateV1) IsValidInTime(t time.Time, errTolerance time.Durati
 
 // IsNeedUpdate check if this certificate need to be renewed.
 func (c *AgentCertificateV1) IsNeedUpdate(t time.Time, bufTerm time.Duration) bool {
-	// TODO consider the case is time error between peers
+	// bufTerm is expected to be huge with respect to time error, so that no need to consider time error.
 	return c.ExpireTime.Sub(t) < bufTerm
 }
 

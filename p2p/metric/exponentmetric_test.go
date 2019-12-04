@@ -30,7 +30,6 @@ func TestExponentMetric_Calculate(t *testing.T) {
 	}{
 		{"TConst", 15, 30, constIn },
 		{"TVarin", 5, 60, varIn},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

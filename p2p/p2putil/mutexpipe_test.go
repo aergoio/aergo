@@ -39,7 +39,6 @@ func TestMutexPipe(t *testing.T) {
 		//{"tStall", 10, 1, 2, 2},
 		//{"tmidStall", 10, 5, 6, 6},
 		//{"tfast", 10, 1000, arrSize - 10, 30},
-		// TODO: Add test cases.
 	}
 
 	for _, tt := range tests {
@@ -98,7 +97,6 @@ func TestMutexPipe_nonBlockWriteChan2(t *testing.T) {
 		expectConsec uint64
 	}{
 		{"tfast", 10, 1000, arrSize - 10, 0},
-		// TODO: Add test cases.
 	}
 
 	for _, tt := range tests {

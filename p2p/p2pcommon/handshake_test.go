@@ -55,7 +55,6 @@ func TestHSHeader_Marshal2(t *testing.T) {
 	}{
 		{"TMain033", []byte{0x047, 0x041, 0x68, 0x41, 0, 0, 3, 3}, MAGICMain, P2PVersion033},
 		{"TMain020", []byte{0x02e, 0x041, 0x54, 0x29, 0, 1, 3, 5}, MAGICTest, 0x010305},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

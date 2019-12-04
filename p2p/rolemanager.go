@@ -46,7 +46,6 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 	rm.raftMutex.Lock()
 	defer rm.raftMutex.Unlock()
 	if _, found := rm.raftBP[pid]; found {
-		// TODO check if leader or follower
 		return types.PeerRole_Producer
 	} else {
 		return types.PeerRole_Watcher

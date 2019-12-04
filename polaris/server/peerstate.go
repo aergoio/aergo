@@ -36,7 +36,7 @@ type peerState struct {
 	addr      types.PeerAddress
 	connected time.Time
 
-	// temporary means it does not affect current peerregistry. TODO refactor more pretty way
+	// temporary means it does not affect current peer registry. TODO refactor more pretty way
 	temporary bool
 
 	bestHash   []byte

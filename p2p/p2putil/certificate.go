@@ -2,6 +2,7 @@ package p2putil
 
 import (
 	"encoding/binary"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -33,7 +34,6 @@ func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificat
 	protoC.AgentAddress = make([][]byte, len(w.AgentAddress))
 	for i, addr := range w.AgentAddress {
 		protoC.AgentAddress[i] = []byte(addr)
-		// TODO check address
 	}
 
 	protoC.Signature = w.Signature.Serialize()
@@ -114,8 +114,11 @@ func CheckAndGetV1(cert *types.AgentCertificate) (*p2pcommon.AgentCertificateV1,
 	}
 	wrap.AgentAddress = make([]string, len(cert.AgentAddress))
 	for i, addr := range cert.AgentAddress {
-		wrap.AgentAddress[i] = string(addr)
-		// TODO check address
+		addrStr, err := network.CheckAddress(string(addr))
+		if err != nil {
+			return nil, err
+		}
+		wrap.AgentAddress[i] = addrStr
 	}
 	wrap.Signature, err = btcec.ParseSignature(cert.Signature, btcec.S256())
 	if err != nil {

@@ -427,7 +427,7 @@ func (pms *PeerMapService) Receive(context actor.Context) {
 	case *types.RmEntryParams:
 		context.Respond(pms.lm.RemoveEntry(int(msg.Index)))
 	default:
-		pms.Logger.Debug().Interface("msg", msg) // TODO: temporal code for resolve compile error
+		pms.Logger.Debug().Interface("msg", msg)
 	}
 }
 

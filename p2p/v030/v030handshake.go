@@ -46,7 +46,6 @@ func NewV030VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, 
 
 // handshakeOutboundPeer start handshake with outbound peer
 func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
 	if err != nil {
@@ -187,7 +186,6 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 // DoForInbound is handle handshake from inbound peer
 func (h *V030Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send

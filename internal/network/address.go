@@ -82,6 +82,7 @@ var (
 	InvalidAddress = fmt.Errorf("invalid address")
 )
 
+// CheckAddressType check type of urlStr; ip, FQDN or malformed string.
 func CheckAddressType(urlStr string) AddressType {
 	if ip := net.ParseIP(urlStr); ip != nil {
 		return AddressTypeIP
@@ -92,6 +93,7 @@ func CheckAddressType(urlStr string) AddressType {
 	}
 }
 
+// CheckAddress check if urlStr is valid address (ip or FQDN) or not.
 func CheckAddress(urlStr string) (string, error) {
 	if ip := net.ParseIP(urlStr); ip != nil {
 		return urlStr, nil

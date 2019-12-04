@@ -32,7 +32,6 @@ func TestIsContainedIP(t *testing.T) {
 		{"TMulti6Out", args{"2001:0db8:0123:4567:89ab:cde0:ab00:ac00",nets},false},
 		{"TSingle4Out", args{"192.168.2.1",nets[:1]},false},
 		{"TSingle6Out", args{"2001:0db8:0123:4567:89ab:cde0:ab00:ac00",nets[1:2]},false},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -91,7 +91,6 @@ func Test_debugLogReceiveMsg(t *testing.T) {
 		{"lazy", args{subproto.PingRequest, log.DoLazyEval(func() string {
 			return "Length is " + strconv.Itoa(len(dummyArray))
 		})}},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -233,7 +232,6 @@ func TestComparePeerID(t *testing.T) {
 		{"TP1", samplePeerID, samplePeerID2, 1},
 		{"TP2", samplePeerID, shorterPeerID, 1},
 		{"TZ", samplePeerID, samplePeerID, 0},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

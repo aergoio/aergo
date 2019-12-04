@@ -74,7 +74,6 @@ func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *typ
 	//	return
 	//}
 
-	// TODO check if evicted return value is needed.
 	ok, _ := sm.blkCache.ContainsOrAdd(hash, cachePlaceHolder)
 	if ok {
 		// Kick out duplicated notice log.

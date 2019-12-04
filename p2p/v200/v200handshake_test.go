@@ -328,7 +328,6 @@ func Test_createMessage(t *testing.T) {
 		{"TStatus", args{protocolID: p2pcommon.StatusRequest, msgBody: &types.Status{Version: "11"}}, false},
 		{"TGOAway", args{protocolID: p2pcommon.GoAway, msgBody: &types.GoAwayNotice{Message: "test"}}, false},
 		{"TNil", args{protocolID: p2pcommon.StatusRequest, msgBody: nil}, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -381,7 +380,6 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 		{"TWrongCert", args{types.PeerRole_Agent, pids, []*p2pcommon.AgentCertificateV1{&wrongCert}},  pids, certs[1:3], true},
 
 		//{"TAgentUnknownCert", args{types.PeerRole_Agent, pids[:2], certs}, nil, nil, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -482,7 +480,6 @@ func TestV200Handshaker_checkAgent(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		// success
 		{"T1",args{agentID, ipInternal, pCerts[:3]}, false},
 		// agentID mismatch

@@ -40,7 +40,6 @@ func Test_MarshalTxResp(t *testing.T) {
 		// big
 		// boundary
 		{"T50000", 50000, emptySize + txSize*50000},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -81,7 +80,6 @@ func Test_calculateFieldDesc(t *testing.T) {
 		{"TLarge", 16384, 4},
 		{"TVeryL", 10000000, 5},
 		{"TOverflow", 2000000000, 6},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

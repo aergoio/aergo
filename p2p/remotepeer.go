@@ -66,7 +66,6 @@ type remotePeerImpl struct {
 
 	handlers map[p2pcommon.SubProtocol]p2pcommon.MessageHandler
 
-	// TODO make automatic disconnect if remote peer cause too many wrong message
 	blkHashCache *lru.Cache
 	txHashCache  *lru.Cache
 	lastStatus   *types.LastBlockStatus

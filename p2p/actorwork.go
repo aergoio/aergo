@@ -97,7 +97,7 @@ func (p2ps *P2P) GetBlocksChunk(context actor.Context, msg *message.GetBlockChun
 // GetBlockHashes send request message to peer and make response message for block hashes
 func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
 	peerID := msg.ToWhom
-	// TODO
+
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
 		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, p2pcommon.GetHashesRequest.String()).Msg("Invalid peerID")
@@ -111,7 +111,7 @@ func (p2ps *P2P) GetBlockHashes(context actor.Context, msg *message.GetHashes) {
 // GetBlockHashes send request message to peer and make response message for block hashes
 func (p2ps *P2P) GetBlockHashByNo(context actor.Context, msg *message.GetHashByNo) {
 	peerID := msg.ToWhom
-	// TODO
+
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
 		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, p2pcommon.GetHashByNoRequest.String()).Msg("Invalid peerID")
@@ -147,7 +147,7 @@ func (p2ps *P2P) NotifyNewBlock(blockNotice message.NotifyNewBlock) bool {
 
 // NotifyNewBlock send notice message of new block to a peer
 func (p2ps *P2P) NotifyBlockProduced(blockNotice message.NotifyNewBlock) bool {
-	// TODO fill producerID
+	// TODO fill producerID, but actually there is no way go find producer, for now.
 	req := &types.BlockProducedNotice{ProducerID: nil, BlockNo: blockNotice.BlockNo, Block: blockNotice.Block}
 	mo := p2ps.mf.NewMsgBPBroadcastOrder(req)
 
@@ -262,8 +262,11 @@ func (p2ps *P2P) SendIssueCertMessage(context actor.Context, msg message.IssueAg
 	if !exists {
 		return
 	}
+	if remotePeer.AcceptedRole() != types.PeerRole_Producer {
+		p2ps.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Msg("to peer")
+		return
+	}
 
-	// TODO need to check remote server version.
 	body := &types.IssueCertificateRequest{}
 	remotePeer.SendMessage(p2ps.mf.NewMsgRequestOrder(true, p2pcommon.IssueCertificateRequest, body))
 }

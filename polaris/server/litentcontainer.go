@@ -96,7 +96,7 @@ func (lntc *LiteContainerService) GenesisChainID() *types.ChainID {
 func (lntc *LiteContainerService) init(cfg *config.Config) {
 	// load genesis file
 	// init from genesis file
-	// TODO code duplication. refactor to delete dupplicate with p2p.go
+
 	genesis, err := readGenesis(cfg.Polaris.GenesisFile)
 	if err != nil {
 		panic(err.Error())
