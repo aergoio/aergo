@@ -6,6 +6,8 @@
 package impl
 
 import (
+	"strings"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
@@ -17,7 +19,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/types"
-	"strings"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.

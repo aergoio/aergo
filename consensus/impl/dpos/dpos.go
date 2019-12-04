@@ -104,7 +104,17 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	}
 
 	// Initialize the voting power ranking.
-	err = InitVPR(sdb.GetStateDB())
+	if !cfg.Blockchain.VerifyOnly {
+		err = InitVPR(sdb.GetStateDB())
+	} else {
+		var block *types.Block
+		if block, err = cdb.GetBlockByNo(0); err != nil {
+			return nil, err
+		} else {
+			err = InitVprWithRoot(sdb, block.GetHeader().GetBlocksRootHash())
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -191,6 +201,10 @@ func InitVPR(sdb *state.StateDB) error {
 		return err
 	}
 	return system.InitVotingPowerRank(s)
+}
+
+func InitVprWithRoot(cSdb *state.ChainStateDB, rootHash []byte) error {
+	return InitVPR(cSdb.OpenNewStateDB(rootHash))
 }
 
 // Init initilizes the DPoS parameters.

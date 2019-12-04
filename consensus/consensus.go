@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/etcd/raft"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/aergoio/etcd/raft"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
