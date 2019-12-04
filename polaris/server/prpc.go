@@ -96,7 +96,8 @@ func (rpc *PolarisRPC) Statistics() *map[string]interface{} {
 func (rpc *PolarisRPC) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	default:
-		rpc.Warn().Msgf("unknown msg received in rpc %s", reflect.TypeOf(msg).String())
+		// maybe BaseComponent have processed this message.
+		rpc.Debug().Str("msgType",reflect.TypeOf(msg).String()).Msg("msg not directly handled by rpc received")
 	}
 }
 
