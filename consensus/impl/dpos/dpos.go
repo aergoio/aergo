@@ -148,7 +148,6 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	vaultBalance := vs.GetBalanceBigInt()
 
 	if vaultBalance.Cmp(new(big.Int).SetUint64(0)) == 0 {
-		logger.Info().Msgf("%s address has zero balance. skip voting reward", types.AergoVault)
 		return nil
 	}
 
