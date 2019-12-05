@@ -104,7 +104,7 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 			return nil, fmt.Errorf("aleady occupied %s", string(name))
 		}
 	case types.NameUpdate:
-		namePrice := system.GetNamePrice()
+		namePrice := system.GetNamePriceFromState(systemcs)
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
