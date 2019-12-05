@@ -174,6 +174,9 @@ func Execute(
 	}
 	//}
 
+	if ctrFee.Sign() < 0 {
+		return "", events, usedFee, ErrVmStart
+	}
 	usedFee.Add(usedFee, ctrFee)
 
 	if err != nil {

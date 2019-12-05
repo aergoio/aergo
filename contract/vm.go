@@ -486,10 +486,10 @@ func checkPayable(callee *types.Function, amount *big.Int) error {
 }
 
 func (ce *executor) call(instLimit C.int, target *LState) C.int {
-	defer ce.refreshGas()
 	if ce.err != nil {
 		return 0
 	}
+	defer ce.refreshGas()
 	ce.setCountHook(instLimit)
 	if ce.isView == true {
 		ce.ctx.nestedView++
@@ -655,7 +655,6 @@ func refreshGas(ctx *vmContext, L *LState) {
 		ctx.remainedGas = uint64(C.lua_gasget(L))
 	}
 }
-
 
 func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 	d := json.NewDecoder(bytes.NewReader(args))
@@ -1217,7 +1216,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
 		hexId,
-		ce.ctx.service - MaxVmService,
+		ce.ctx.service-MaxVmService,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
