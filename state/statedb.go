@@ -168,14 +168,14 @@ func (states *StateDB) GetAccountState(id types.AccountID) (*types.State, error)
 }
 
 type V struct {
-	sdb      *StateDB
-	id       []byte
-	aid      types.AccountID
-	oldV     *types.State
-	newV     *types.State
-	newOne   bool
-	deploy   int8
-	buffer   *stateBuffer
+	sdb    *StateDB
+	id     []byte
+	aid    types.AccountID
+	oldV   *types.State
+	newV   *types.State
+	newOne bool
+	deploy int8
+	buffer *stateBuffer
 }
 
 const (
@@ -225,7 +225,7 @@ func (v *V) IsNew() bool {
 }
 
 func (v *V) IsDeploy() bool {
-	return v.deploy & deployFlag != 0
+	return v.deploy&deployFlag != 0
 }
 
 func (v *V) SetRedeploy() {
@@ -233,7 +233,7 @@ func (v *V) SetRedeploy() {
 }
 
 func (v *V) IsRedeploy() bool {
-	return v.deploy & redeployFlag != 0
+	return v.deploy&redeployFlag != 0
 }
 
 func (v *V) Reset() {
@@ -299,9 +299,14 @@ func (states *StateDB) InitAccountStateV(id []byte, old *types.State, new *types
 	return &V{
 		sdb:  states,
 		id:   id,
+		aid:  types.ToAccountID(id),
 		oldV: old,
 		newV: new,
 	}
+}
+
+func (v *V) ClearAid() {
+	v.aid = emptyAccountID
 }
 
 // GetState gets state of account id from state buffer and trie.

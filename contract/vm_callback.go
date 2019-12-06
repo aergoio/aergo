@@ -1286,6 +1286,9 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	senderState := ctx.curContract.callState.curState
 	sender := ctx.bs.InitAccountStateV(curContract.contractId,
 		curContract.callState.prevState, curContract.callState.curState)
+	if sender.AccountID().String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
+		sender.ClearAid()
+	}
 	receiver := ctx.bs.InitAccountStateV([]byte(types.AergoSystem), scsState.prevState, scsState.curState)
 	txBody := types.TxBody{
 		Amount:  amountBig.Bytes(),
