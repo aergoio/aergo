@@ -103,16 +103,18 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		return nil, err
 	}
 
-	// Initialize the voting power ranking.
-	if !cfg.Blockchain.VerifyOnly {
-		err = InitVPR(sdb.GetStateDB())
-	} else {
-		var block *types.Block
-		if block, err = cdb.GetBlockByNo(0); err != nil {
-			return nil, err
-		} else {
-			err = InitVprWithRoot(sdb, block.GetHeader().GetBlocksRootHash())
+	vprInitBlockNo := func(blockNo types.BlockNo) types.BlockNo {
+		if blockNo == 0 {
+			return blockNo
 		}
+		return blockNo - 1
+	}
+
+	// Initialize the voting power ranking.
+	if block, err := cdb.GetBlockByNo(vprInitBlockNo(cfg.Blockchain.VerifyBlock)); err != nil {
+		return nil, err
+	} else {
+		err = InitVprWithRoot(sdb, block.GetHeader().GetBlocksRootHash())
 	}
 
 	if err != nil {
