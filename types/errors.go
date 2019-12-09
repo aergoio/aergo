@@ -79,3 +79,11 @@ var (
 
 	ErrNotEnoughGas = errors.New("not enough gas")
 )
+
+type InternalError struct {
+	Reason string
+}
+
+func (e *InternalError) Error() string {
+	return "internal error: " + e.Reason
+}
