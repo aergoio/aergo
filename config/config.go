@@ -59,6 +59,8 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 		DbType:         "badgerdb",
 		EnableProfile:  false,
 		ProfilePort:    6060,
+		EnableDump:     false,
+		DumpPort:       7070,
 		EnableTestmode: false,
 		Personal:       true,
 		AuthDir:        ctx.ExpandPathEnv("$HOME/auth"),
