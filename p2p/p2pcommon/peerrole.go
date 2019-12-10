@@ -10,11 +10,16 @@ import (
 )
 
 type PeerRoleManager interface {
+	Start()
+	Stop()
+
+	// UpdateBP can change role of connected peers, if peer is in toAdd or toRemove
 	UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID)
 
 	// SelfRole returns role of this peer itself
 	SelfRole() types.PeerRole
-	// GetRole returns role of remote peer
+
+	// GetRole returns role of peer based on current consensus.
 	GetRole(pid types.PeerID) types.PeerRole
 	// FilterBPNoticeReceiver selects target peers with the appropriate role and sends them a BlockProducedNotice
 	FilterBPNoticeReceiver(block *types.Block, pm PeerManager, targetZone PeerZone) []RemotePeer

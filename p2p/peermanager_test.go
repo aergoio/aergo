@@ -501,6 +501,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			}).Return(mockPeer)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
 			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
+			mockPeer.EXPECT().Meta().Return(tt.args.status.Meta).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -576,6 +577,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
+			mockPeer.EXPECT().Meta().Return(tt.args.status.Meta).AnyTimes()
 			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			if tt.wantSucc {

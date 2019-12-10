@@ -6,6 +6,7 @@
 package p2pcommon
 
 import (
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"net"
 )
@@ -20,7 +21,9 @@ type InternalService interface {
 
 	// accessors of other modules
 	GetChainAccessor() types.ChainAccessor
-	//GetConsensusAccessor() consensus.ConsensusAccessor
+	ConsensusAccessor() consensus.ConsensusAccessor
+
+	PeerManager() PeerManager
 
 	CertificateManager() CertificateManager
 

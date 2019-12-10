@@ -348,7 +348,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone",remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("claimedRole", newPeer.Meta().Role.String()).Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone",remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -444,6 +444,7 @@ func (pm *peerManager) GetPeers() []p2pcommon.RemotePeer {
 	defer pm.mutex.Unlock()
 	return pm.peerCache
 }
+
 func (pm *peerManager) GetProducerClassPeers() []p2pcommon.RemotePeer {
 	return pm.bpClassPeers
 }

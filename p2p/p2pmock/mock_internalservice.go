@@ -5,6 +5,7 @@
 package p2pmock
 
 import (
+	consensus "github.com/aergoio/aergo/consensus"
 	p2pcommon "github.com/aergoio/aergo/p2p/p2pcommon"
 	types "github.com/aergoio/aergo/types"
 	gomock "github.com/golang/mock/gomock"
@@ -88,6 +89,34 @@ func (m *MockInternalService) GetChainAccessor() types.ChainAccessor {
 func (mr *MockInternalServiceMockRecorder) GetChainAccessor() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChainAccessor", reflect.TypeOf((*MockInternalService)(nil).GetChainAccessor))
+}
+
+// ConsensusAccessor mocks base method
+func (m *MockInternalService) ConsensusAccessor() consensus.ConsensusAccessor {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConsensusAccessor")
+	ret0, _ := ret[0].(consensus.ConsensusAccessor)
+	return ret0
+}
+
+// ConsensusAccessor indicates an expected call of ConsensusAccessor
+func (mr *MockInternalServiceMockRecorder) ConsensusAccessor() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsensusAccessor", reflect.TypeOf((*MockInternalService)(nil).ConsensusAccessor))
+}
+
+// PeerManager mocks base method
+func (m *MockInternalService) PeerManager() p2pcommon.PeerManager {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PeerManager")
+	ret0, _ := ret[0].(p2pcommon.PeerManager)
+	return ret0
+}
+
+// PeerManager indicates an expected call of PeerManager
+func (mr *MockInternalServiceMockRecorder) PeerManager() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerManager", reflect.TypeOf((*MockInternalService)(nil).PeerManager))
 }
 
 // CertificateManager mocks base method
