@@ -92,6 +92,25 @@ func GetConstructor(cfg *config.Config, hub *component.ComponentHub, cdb consens
 	}
 }
 
+func getStateDB(cfg *config.Config, cdb consensus.ChainDB, sdb *state.ChainStateDB) (*state.StateDB, error) {
+	if cfg.Blockchain.VerifyOnly {
+		vprInitBlockNo := func(blockNo types.BlockNo) types.BlockNo {
+			if blockNo == 0 {
+				return blockNo
+			}
+			return blockNo - 1
+		}
+
+		// Initialize the voting power ranking.
+		if block, err := cdb.GetBlockByNo(vprInitBlockNo(cfg.Blockchain.VerifyBlock)); err != nil {
+			return nil, err
+		} else {
+			return sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash()), nil
+		}
+	}
+	return sdb.GetStateDB(), nil
+}
+
 // New returns a new DPos object
 func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 	sdb *state.ChainStateDB) (consensus.Consensus, error) {
@@ -103,21 +122,12 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainDB,
 		return nil, err
 	}
 
-	vprInitBlockNo := func(blockNo types.BlockNo) types.BlockNo {
-		if blockNo == 0 {
-			return blockNo
-		}
-		return blockNo - 1
-	}
-
-	// Initialize the voting power ranking.
-	if block, err := cdb.GetBlockByNo(vprInitBlockNo(cfg.Blockchain.VerifyBlock)); err != nil {
+	var state *state.StateDB
+	if state, err = getStateDB(cfg, cdb, sdb); err != nil {
 		return nil, err
-	} else {
-		err = InitVprWithRoot(sdb, block.GetHeader().GetBlocksRootHash())
 	}
 
-	if err != nil {
+	if err = InitVPR(state); err != nil {
 		return nil, err
 	}
 
@@ -202,10 +212,6 @@ func InitVPR(sdb *state.StateDB) error {
 		return err
 	}
 	return system.InitVotingPowerRank(s)
-}
-
-func InitVprWithRoot(cSdb *state.ChainStateDB, rootHash []byte) error {
-	return InitVPR(cSdb.OpenNewStateDB(rootHash))
 }
 
 // Init initilizes the DPoS parameters.
