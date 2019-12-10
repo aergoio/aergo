@@ -49,6 +49,7 @@ require (
 	github.com/prometheus/client_golang v1.0.0 // indirect
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/rs/zerolog v1.16.1-0.20191111091419-e709c5d91e35
+	github.com/sanity-io/litter v1.2.0
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v0.0.5

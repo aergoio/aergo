@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -15,7 +16,14 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
+	"github.com/sanity-io/litter"
 )
+
+// ********************************** WARNING **********************************
+// All the functions and the methods below must be properly synchronized by
+// acquiring the chain lock (chain.LockChain / chain.UnlockChain) when they are
+// called.
+// *****************************************************************************
 
 const (
 	vprMax = uint32(50000)
@@ -417,6 +425,23 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	}
 
 	return
+}
+
+func (tv *topVoters) dump(w io.Writer, topN int) {
+	if tv == nil {
+		fmt.Fprintf(w, "nothing to dump!")
+		return
+	}
+	for i, m := range tv.members.Values() {
+		if i >= topN {
+			break
+		}
+		if vp, ok := m.(*votingPower); ok {
+			fmt.Fprintf(w, "%s %v\n", types.EncodeAddress(vp.getAddr()), vp.getPower())
+		} else {
+			vprLogger.Error().Str("content", litter.Sdump(m)).Msg("invalid type of member")
+		}
+	}
 }
 
 func (tv *topVoters) addVotingPower(id types.AccountID, delta *deltaVP) *votingPower {

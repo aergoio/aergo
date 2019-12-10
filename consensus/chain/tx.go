@@ -83,7 +83,8 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	})
 }
 
-// LockChain aquires the chain lock in a non-blocking mode.
+// LockChain aquires the chain lock in a non-blocking mode. It returns
+// ErrBestBlock upon failure.
 func LockChain() error {
 	select {
 	case chain.InAddBlock <- struct{}{}:
