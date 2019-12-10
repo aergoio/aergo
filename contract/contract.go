@@ -90,21 +90,30 @@ func Execute(
 
 	var gasLimit uint64
 	if useGas(bi.Version) {
-		gasLimit = txBody.GetGasLimit()
-		if gasLimit == 0 {
-			balance := new(big.Int).Sub(sender.Balance(), usedFee)
+		if isFeeDelegation {
+			balance := new(big.Int).Sub(receiver.Balance(), usedFee)
 			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 			if gasLimit == 0 {
 				err = newVmError(types.ErrNotEnoughGas)
 				return
 			}
 		} else {
-			usedGas := fee.TxGas(len(txBody.GetPayload()))
-			if gasLimit <= usedGas {
-				err = newVmError(types.ErrNotEnoughGas)
-				return
+			gasLimit = txBody.GetGasLimit()
+			if gasLimit == 0 {
+				balance := new(big.Int).Sub(sender.Balance(), usedFee)
+				gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
+				if gasLimit == 0 {
+					err = newVmError(types.ErrNotEnoughGas)
+					return
+				}
+			} else {
+				usedGas := fee.TxGas(len(txBody.GetPayload()))
+				if gasLimit <= usedGas {
+					err = newVmError(types.ErrNotEnoughGas)
+					return
+				}
+				gasLimit -= usedGas
 			}
-			gasLimit -= usedGas
 		}
 	}
 
