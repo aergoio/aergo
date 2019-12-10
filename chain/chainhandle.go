@@ -865,6 +865,9 @@ func adjustRv(ret string) string {
 func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
 	account.Reset()
 	if fee != nil {
+		if account.Balance().Cmp(fee) < 0 {
+			return &types.InternalError{Reason: "fee is greater than balance"}
+		}
 		account.SubBalance(fee)
 	}
 	if nonce != nil {
@@ -990,6 +993,15 @@ func executeTx(
 		status = "ERROR"
 		rv = err.Error()
 	} else {
+		if txBody.Type != types.TxType_FEEDELEGATION {
+			if sender.Balance().Sign() < 0 {
+				return &types.InternalError{Reason: "fee is greater than balance"}
+			}
+		} else {
+			if receiver.Balance().Sign() < 0 {
+				return &types.InternalError{Reason: "fee is greater than balance"}
+			}
+		}
 		sender.SetNonce(txBody.Nonce)
 		err = sender.PutState()
 		if err != nil {
