@@ -21,6 +21,10 @@ type PeerRoleManager interface {
 
 	// GetRole returns role of peer based on current consensus.
 	GetRole(pid types.PeerID) types.PeerRole
+
+	// CheckRole determines that remotePeer can be the new role.
+	CheckRole(remoteInfo RemoteInfo, newRole types.PeerRole) bool
+
 	// FilterBPNoticeReceiver selects target peers with the appropriate role and sends them a BlockProducedNotice
 	FilterBPNoticeReceiver(block *types.Block, pm PeerManager, targetZone PeerZone) []RemotePeer
 
@@ -32,7 +36,7 @@ type PeerRoleManager interface {
 
 //go:generate mockgen -source=peerrole.go -package=p2pmock -destination=../p2pmock/mock_peerrole.go
 
-type AttrModifier struct {
+type RoleModifier struct {
 	ID   types.PeerID
 	Role types.PeerRole
 }

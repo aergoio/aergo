@@ -386,16 +386,25 @@ func (pm *peerManager) NotifyPeerAddressReceived(metas []p2pcommon.PeerMeta) {
 	pm.fillPoolChannel <- metas
 }
 
-func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
+func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.RoleModifier) {
 	pm.taskChannel <- func() {
+		changedCnt := 0
 		pm.logger.Debug().Int("size", len(changes)).Msg("changing roles of peers")
+		rm := pm.is.RoleManager()
 		for _, ch := range changes {
 			if peer, found := pm.remotePeers[ch.ID]; found {
-				pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("changing role of peer")
-				peer.ChangeRole(ch.Role)
+				if rm.CheckRole(peer.RemoteInfo(), ch.Role) {
+					changedCnt++
+					pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("changing role of peer")
+					peer.ChangeRole(ch.Role)
+				} else {
+					pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("refuse to change role of peer")
+				}
 			}
 		}
-		pm.updatePeerCache()
+		if changedCnt > 0 {
+			pm.updatePeerCache()
+		}
 	}
 }
 
