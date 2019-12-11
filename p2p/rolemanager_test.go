@@ -164,7 +164,7 @@ func TestDefaultRoleManager_updateBP(t *testing.T) {
 			var sentIds []types.PeerID = nil
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
-			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).Do(func(cs []p2pcommon.AttrModifier) {
+			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).Do(func(cs []p2pcommon.RoleModifier) {
 				for _, id := range cs {
 					sentIds = append(sentIds, id.ID)
 				}

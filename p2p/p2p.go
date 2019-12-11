@@ -458,14 +458,16 @@ func (p2ps *P2P) CreateHSHandler(outbound bool, pid types.PeerID) p2pcommon.HSHa
 }
 
 func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, rw p2pcommon.MsgReadWriter) p2pcommon.RemotePeer {
+	// local peer can refuse to accept claimed role by consensus
+	if p2ps.prm.CheckRole(remoteInfo, remoteInfo.Meta.Role) {
+		remoteInfo.AcceptedRole = remoteInfo.Meta.Role
+	} else {
+		remoteInfo.AcceptedRole = types.PeerRole_Watcher
+	}
+
 	newPeer := newRemotePeer(remoteInfo, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
 	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
-
-	// local peer can refuse to accept claimed role by consensus
-	if remoteInfo.Meta.Role == types.PeerRole_Producer {
-		newPeer.remoteInfo.AcceptedRole = p2ps.prm.GetRole(remoteInfo.Meta.ID)
-	}
 
 	// insert Handlers
 	p2ps.insertHandlers(newPeer)

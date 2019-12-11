@@ -128,7 +128,7 @@ func (mr *MockPeerManagerMockRecorder) RemovePeer(peer interface{}) *gomock.Call
 }
 
 // UpdatePeerRole mocks base method
-func (m *MockPeerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
+func (m *MockPeerManager) UpdatePeerRole(changes []p2pcommon.RoleModifier) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "UpdatePeerRole", changes)
 }

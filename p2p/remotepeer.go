@@ -530,7 +530,7 @@ func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
 	p.remoteInfo.Certificates = newCerts
 	if len(newCerts) > 0 && p.AcceptedRole() == types.PeerRole_Watcher {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("peer has certificates now. peer is promoted to Agent")
-		p.pm.UpdatePeerRole([]p2pcommon.AttrModifier{{ID: p.ID(), Role:types.PeerRole_Agent}})
+		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role:types.PeerRole_Agent}})
 	}
 }
 
@@ -547,7 +547,7 @@ func (p *remotePeerImpl) cleanupCerts() {
 	p.remoteInfo.Certificates = certs2
 	if len(certs2) == 0 && p.AcceptedRole() == types.PeerRole_Agent {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("All Certificates are expired. peer is demoted to Watcher")
-		p.pm.UpdatePeerRole([]p2pcommon.AttrModifier{{ID: p.ID(), Role:types.PeerRole_Watcher}})
+		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role:types.PeerRole_Watcher}})
 	}
 }
 

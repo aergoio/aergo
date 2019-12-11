@@ -39,15 +39,15 @@ func (rm *RaftRoleManager) Stop() {
 func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
 	rm.raftMutex.Lock()
 	defer rm.raftMutex.Unlock()
-	changes := make([]p2pcommon.AttrModifier, 0, len(toAdd)+len(toRemove))
+	changes := make([]p2pcommon.RoleModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
 		delete(rm.raftBP, pid)
-		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Watcher})
+		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Watcher})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP removed")
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
-		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Producer})
+		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Producer})
 		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
 	}
 	rm.is.PeerManager().UpdatePeerRole(changes)
@@ -64,6 +64,18 @@ func (rm *RaftRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 		return types.PeerRole_Producer
 	} else {
 		return types.PeerRole_Watcher
+	}
+}
+
+func (rm *RaftRoleManager) CheckRole(remoteInfo p2pcommon.RemoteInfo, newRole types.PeerRole) bool {
+	switch newRole {
+	case types.PeerRole_Producer:
+		return rm.GetRole(remoteInfo.Meta.ID) == types.PeerRole_Producer
+	case types.PeerRole_Agent:
+		// raft consensus does not allow agent
+		return false
+	default:
+		return true
 	}
 }
 
@@ -138,12 +150,12 @@ func (rm *DPOSRoleManager) Stop() {
 }
 
 func (rm *DPOSRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerID) {
-	changes := make([]p2pcommon.AttrModifier, 0, len(toAdd)+len(toRemove))
+	changes := make([]p2pcommon.RoleModifier, 0, len(toAdd)+len(toRemove))
 	for _, pid := range toRemove {
-		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Watcher})
+		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Watcher})
 	}
 	for _, pid := range toAdd {
-		changes = append(changes, p2pcommon.AttrModifier{pid, types.PeerRole_Producer})
+		changes = append(changes, p2pcommon.RoleModifier{pid, types.PeerRole_Producer})
 	}
 	rm.is.PeerManager().UpdatePeerRole(changes)
 }
@@ -157,6 +169,23 @@ func (rm *DPOSRoleManager) GetRole(pid types.PeerID) types.PeerRole {
 		return types.PeerRole_Producer
 	} else {
 		return types.PeerRole_Watcher
+	}
+}
+
+func (rm *DPOSRoleManager) CheckRole(remoteInfo p2pcommon.RemoteInfo, newRole types.PeerRole) bool {
+	switch newRole {
+	case types.PeerRole_Producer:
+		return rm.GetRole(remoteInfo.Meta.ID) == types.PeerRole_Producer
+	case types.PeerRole_Agent:
+		for _, cert := range remoteInfo.Certificates {
+			if rm.GetRole(cert.BPID) == types.PeerRole_Producer {
+				return true
+			}
+		}
+		// no certificate of accepted bp
+		return false
+	default:
+		return true
 	}
 }
 
