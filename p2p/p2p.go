@@ -138,7 +138,18 @@ func (p2ps *P2P) initRoleManager(useRaft bool, role types.PeerRole, cm p2pcommon
 		prm = NewRaftRoleManager(p2ps,p2ps, p2ps.Logger)
 	} else {
 		if role == types.PeerRole_Agent {
-			prm = NewDPOSAgentRoleManager(p2ps, p2ps, p2ps.Logger)
+			if len(p2ps.cfg.P2P.Producers) == 0 {
+				panic("agent must have one or more producers ")
+			}
+			var pds = make(map[types.PeerID]bool)
+			for _, pidStr := range p2ps.cfg.P2P.Producers {
+				pid, err := types.IDB58Decode(pidStr)
+				if err != nil {
+					panic("invalid producer id "+pidStr)
+				}
+				pds[pid] = true
+			}
+			prm = NewDPOSAgentRoleManager(p2ps, p2ps, p2ps.Logger, pds)
 		} else {
 			prm = NewDPOSRoleManager(p2ps, p2ps, p2ps.Logger)
 		}
