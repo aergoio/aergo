@@ -34,6 +34,9 @@ type PeerManager interface {
 	GetPeer(ID types.PeerID) (RemotePeer, bool)
 	// GetPeers return all registered(handshaked) remote peers. It is thread safe
 	GetPeers() []RemotePeer
+	GetProducerClassPeers() []RemotePeer
+	GetWatcherClassPeers() []RemotePeer
+
 	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
 
 	GetPeerBlockInfos() []types.PeerBlockInfo

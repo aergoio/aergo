@@ -180,6 +180,34 @@ func (mr *MockPeerManagerMockRecorder) GetPeers() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeers", reflect.TypeOf((*MockPeerManager)(nil).GetPeers))
 }
 
+// GetProducerClassPeers mocks base method
+func (m *MockPeerManager) GetProducerClassPeers() []p2pcommon.RemotePeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProducerClassPeers")
+	ret0, _ := ret[0].([]p2pcommon.RemotePeer)
+	return ret0
+}
+
+// GetProducerClassPeers indicates an expected call of GetProducerClassPeers
+func (mr *MockPeerManagerMockRecorder) GetProducerClassPeers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProducerClassPeers", reflect.TypeOf((*MockPeerManager)(nil).GetProducerClassPeers))
+}
+
+// GetWatcherClassPeers mocks base method
+func (m *MockPeerManager) GetWatcherClassPeers() []p2pcommon.RemotePeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWatcherClassPeers")
+	ret0, _ := ret[0].([]p2pcommon.RemotePeer)
+	return ret0
+}
+
+// GetWatcherClassPeers indicates an expected call of GetWatcherClassPeers
+func (mr *MockPeerManagerMockRecorder) GetWatcherClassPeers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWatcherClassPeers", reflect.TypeOf((*MockPeerManager)(nil).GetWatcherClassPeers))
+}
+
 // GetPeerAddresses mocks base method
 func (m *MockPeerManager) GetPeerAddresses(noHidden, showSelf bool) []*message.PeerInfo {
 	m.ctrl.T.Helper()

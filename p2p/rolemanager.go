@@ -204,7 +204,7 @@ func (rm *DPOSRoleManager) loadBPVotes() (map[types.PeerID]voteRank, []types.Pee
 	if rsp.Err != nil {
 		return nil, nil, rsp.Err
 	}
-	bps := make([]types.PeerID,bpCount)
+	bps := make([]types.PeerID, bpCount)
 	union := make(map[types.PeerID]voteRank)
 	for i, v := range rsp.Top.Votes {
 		if i >= unionCap {
@@ -223,7 +223,7 @@ func (rm *DPOSRoleManager) loadBPVotes() (map[types.PeerID]voteRank, []types.Pee
 			union[id] = Candidate
 		}
 	}
-	rm.logger.Debug().Array("bps",p2putil.NewLogPeerIdsMarshaller(bps,unionCap)).Int("unionSize",len(union)).Msg("reloaded bp list")
+	rm.logger.Debug().Array("bps", p2putil.NewLogPeerIdsMarshaller(bps, unionCap)).Int("unionSize", len(union)).Msg("reloaded bp list")
 
 	return union, bps, nil
 }
@@ -255,25 +255,35 @@ func (rm *DPOSRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p
 type DPOSAgentRoleManager struct {
 	DPOSRoleManager
 
-	inChargeSet map[types.PeerID]bool
+	pdSet map[types.PeerID]bool
 }
 
-func NewDPOSAgentRoleManager(is p2pcommon.InternalService, actor p2pcommon.ActorService, logger *log.Logger) *DPOSAgentRoleManager {
-	return &DPOSAgentRoleManager{DPOSRoleManager: *(NewDPOSRoleManager(is, actor, logger)), inChargeSet: make(map[types.PeerID]bool)}
+func NewDPOSAgentRoleManager(is p2pcommon.InternalService, actor p2pcommon.ActorService, logger *log.Logger, producers map[types.PeerID]bool) *DPOSAgentRoleManager {
+	rm := &DPOSAgentRoleManager{DPOSRoleManager: *(NewDPOSRoleManager(is, actor, logger)), pdSet: producers}
 
+	return rm
 }
 
 func (rm *DPOSAgentRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
-	// FIXME type conversion to concrete type is poor solution.
-	pmimpl := pm.(*peerManager)
+	bpPeers := pm.GetProducerClassPeers()
 
-	peers := make([]p2pcommon.RemotePeer, 0, len(pmimpl.bpClassPeers))
-	for _, peer := range pmimpl.bpClassPeers {
-		if peer.RemoteInfo().Zone == targetZone {
-			peers = append(peers, peer)
+	if targetZone == p2pcommon.ExternalZone {
+		peers := make([]p2pcommon.RemotePeer, 0, len(bpPeers))
+		for _, peer := range bpPeers {
+			if peer.RemoteInfo().Zone == targetZone {
+				peers = append(peers, peer)
+			}
 		}
+		return peers
+	} else {
+		peers := make([]p2pcommon.RemotePeer, 0, len(rm.pdSet))
+		for _, peer := range bpPeers {
+			if _, found := rm.pdSet[peer.ID()]; found {
+				peers = append(peers, peer)
+			}
+		}
+		return peers
 	}
-	return peers
 }
 
 func (rm *DPOSAgentRoleManager) FilterNewBlockNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager) []p2pcommon.RemotePeer {
