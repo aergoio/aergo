@@ -131,7 +131,10 @@ const char *vm_copy_service(lua_State *L, lua_State *main)
     int err;
     int service;
     lua_cpcall(L, cp_getLuaExecContext, &service);
-	service = getLuaExecContext(main);
+	service = luaL_service(main);
+	if (service < 0) {
+	    return "not permitted state referencing at global scope";
+    }
     luaL_set_service(L, service);
     return NULL;
 }

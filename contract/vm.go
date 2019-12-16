@@ -1186,7 +1186,13 @@ func compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 	}
 	if parent != nil {
 		var lState = (*LState)(L)
-		C.vm_copy_service(lState, parent)
+		if cErrMsg := C.vm_copy_service(lState, parent); cErrMsg != nil {
+			if C.luaL_hasuncatchablerror(lState) != C.int(0) {
+				C.luaL_setuncatchablerror(parent)
+			}
+			errMsg := C.GoString(cErrMsg)
+			return nil, errors.New(errMsg)
+		}
 		C.luaL_set_hardforkversion(lState, 2)
 		C.vm_set_timeout_hook(lState)
 	}
