@@ -4090,6 +4090,7 @@ func TestContractSend(t *testing.T) {
 	end
     function send(addr)
         contract.send(addr,1)
+		contract.call.value(1)(addr)
     end
     abi.register(send, constructor)
 	abi.payable(constructor)
@@ -4126,6 +4127,10 @@ func TestContractSend(t *testing.T) {
 	)
 	if err != nil {
 		t.Error(err)
+	}
+	state, err := bc.GetAccountState("test2")
+	if state.GetBalanceBigInt().Uint64() != 2 {
+		t.Error("balance error", state.GetBalanceBigInt())
 	}
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] newExecutor error: not found function: default`),
@@ -5780,6 +5785,77 @@ func TestBF(t *testing.T) {
 			bal-expectedFee,
 			state.GetBalanceBigInt().Uint64(),
 		)
+	}
+}
+
+func TestContractSendF(t *testing.T) {
+	bc, err := LoadDummyChain(OnPubNet)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+	function constructor()
+	end
+    function send(addr)
+        contract.send(addr,1)
+		contract.call.value(1)(addr)
+    end
+	function send2(addr)
+		contract.call.value(1)(addr)
+		contract.call.value(3)(addr)
+	end
+
+    abi.register(send, send2, constructor)
+	abi.payable(constructor)
+`
+	definition2 := `
+    function default()
+		system.print("default called")
+    end
+    abi.register(default)
+	abi.payable(default)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "test1", 50000000000000000, definition),
+		NewLuaTxDef("ktlee", "test2", 0, definition2),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	tx := NewLuaTxCall("ktlee", "test1", 0,
+		fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`,
+			types.EncodeAddress(strHash("test2"))))
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r := bc.GetReceipt(tx.Hash())
+	expectedFee := uint64(105087)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err := bc.GetAccountState("test2")
+	if state.GetBalanceBigInt().Uint64() != 2 {
+		t.Error("balance error", state.GetBalanceBigInt())
+	}
+	tx = NewLuaTxCall("ktlee", "test1", 0,
+		fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`,
+			types.EncodeAddress(strHash("test2"))))
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+	r = bc.GetReceipt(tx.Hash())
+	expectedFee = uint64(105179)
+	if r.GetGasUsed() != expectedFee {
+		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+	}
+	state, err = bc.GetAccountState("test2")
+	if state.GetBalanceBigInt().Uint64() != 6 {
+		t.Error("balance error", state.GetBalanceBigInt())
 	}
 }
 
