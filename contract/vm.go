@@ -1184,6 +1184,7 @@ func compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 	if L == nil {
 		return nil, ErrVmStart
 	}
+	defer luacUtil.CloseLState(L)
 	if parent != nil {
 		var lState = (*LState)(L)
 		if cErrMsg := C.vm_copy_service(lState, parent); cErrMsg != nil {
@@ -1196,7 +1197,6 @@ func compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 		C.luaL_set_hardforkversion(lState, 2)
 		C.vm_set_timeout_hook(lState)
 	}
-	defer luacUtil.CloseLState(L)
 	byteCodeAbi, err := luacUtil.Compile(L, code)
 	if err != nil {
 		if parent != nil && C.luaL_hasuncatchablerror((*LState)(L)) != C.int(0) {
