@@ -159,7 +159,7 @@ func Test_checkBPNoticeSender(t *testing.T) {
 		{"TLegacy", args{bpIds[3], bpIds[3], a1, rl, nil}, true},
 
 		{"TWatcher", args{bpIds[1], types.RandomPeerID(), a1, rw, nil}, false},
-		{"TWatcher2", args{bpIds[1], bpIds[1], a1, rw, nil}, false},
+		{"TWatcher2", args{bpIds[1], bpIds[1], a1, rw, nil}, true},
 		{"TDiffBP", args{bpIds[1], bpIds[2], a1, rp, nil}, false},
 		{"TDiffLegacy", args{bpIds[3], bpIds[2], a1, rl, nil}, false},
 		{"TMissingCert", args{bpIds[3], agentID, a1, ra, certs[:3]}, false},
@@ -182,4 +182,3 @@ func Test_checkBPNoticeSender(t *testing.T) {
 		})
 	}
 }
-

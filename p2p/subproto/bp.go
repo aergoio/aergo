@@ -135,6 +135,10 @@ func (h *toAgentBPNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 }
 
 func checkBPNoticeSender(bpID types.PeerID, peer p2pcommon.RemotePeer) bool {
+	// accepted role can be not synced if local block height is low, so allow notice from watcher if peer id and bpid are same.
+	if types.IsSamePeerID(peer.ID(), bpID) {
+		return true
+	}
 	// is valid agent = has certificate for bp
 	switch peer.AcceptedRole() {
 	case types.PeerRole_Agent:
@@ -144,10 +148,8 @@ func checkBPNoticeSender(bpID types.PeerID, peer p2pcommon.RemotePeer) bool {
 			}
 		}
 		return false
-	case types.PeerRole_Watcher:
-		return false
 	default:
-		return types.IsSamePeerID(peer.ID(), bpID)
+		return false
 	}
 }
 

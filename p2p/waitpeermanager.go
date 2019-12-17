@@ -215,6 +215,7 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	return remoteInfo.Meta, true
 }
 
+// createRemoteInfo create incomplete struct, field acceptedRole is not set yet
 func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound bool) p2pcommon.RemoteInfo {
 	rma := conn.RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(rma)

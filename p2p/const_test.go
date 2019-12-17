@@ -91,8 +91,6 @@ func init() {
 	dummyMeta = p2pcommon.PeerMeta{ID: dummyPeerID}
 }
 
-const hashSize = 32
-
 var sampleTxsB58 = []string{
 	"4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45",
 	"6xfk39kuyDST7NwCu8tx3wqwFZ5dwKPDjxUS14tU7NZb8",

@@ -31,7 +31,6 @@ func TestPeerMetric_OnRead(t *testing.T) {
 		{"TSameInOutRM", 999,999, true},
 		{"TLeave", 2999,999, false},
 		{"TLeaveRM", 2999,999, true},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

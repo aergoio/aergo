@@ -8,6 +8,8 @@ package p2p
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"net"
 	"testing"
 	"time"
@@ -143,7 +145,6 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 	}{
 		{"TSucc", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, false},
 		{"TTimeout", args{p2pcommon.NewMsgID(), "p1", time.Millisecond * 100}, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		mockActorServ := new(p2pmock.MockActorService)
@@ -326,7 +327,6 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 	}{
 		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
 		{"TAllExist", sampleBlksHashes[0], sampleBlksHashes, sampleBlksHashes[1], true},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -359,7 +359,6 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 		{"TAllNew", sampleTxHashes, sampleTxHashes[:0], sampleTxHashes},
 		{"TPartial", sampleTxHashes, sampleTxHashes[2:], sampleTxHashes[:2]},
 		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]types.TxID, 0)},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -569,5 +568,143 @@ func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
 		t.Errorf("remotePeerImpl.handleMsg() no error, err by panic")
 	} else {
 		t.Logf("expected error %v", err)
+	}
+}
+
+func Test_remotePeerImpl_addCert(t *testing.T) {
+	logger := log.NewLogger("p2p.test")
+	addrs := []string{"192.168.1.2"}
+	peerID := types.RandomPeerID()
+
+	bpSize := 4
+	bpKeys := make([]crypto.PrivKey, bpSize)
+	bpIds := make([]types.PeerID, bpSize)
+	bpCerts := make([]*p2pcommon.AgentCertificateV1, bpSize)
+	for i := 0; i < bpSize; i++ {
+		bpKeys[i], _, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 11)
+		bpIds[i], _ = types.IDFromPrivateKey(bpKeys[i])
+		bpCerts[i], _ = p2putil.NewAgentCertV1(bpIds[i], peerID, p2putil.ConvertPKToBTCEC(bpKeys[i]), addrs, time.Hour)
+	}
+	sampleMeta := p2pcommon.NewMetaWith1Addr(peerID, addrs[0], 7846, "v2.0.0")
+	sampleMeta.Role = types.PeerRole_Agent
+	sampleMeta.ProducerIDs = bpIds
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+
+	type fields struct {
+		prevCert []*p2pcommon.AgentCertificateV1
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   *p2pcommon.AgentCertificateV1
+		wantAdd bool
+		wantChangeRole bool
+	}{
+		{"TNew1", fields{bpCerts[:0]}, bpCerts[1], true, true},
+		{"TNew2", fields{bpCerts[:3]}, bpCerts[3], true, false},
+		{"TExist", fields{bpCerts}, bpCerts[1], false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			prevRole := types.PeerRole_Watcher
+			preAdded := make([]*p2pcommon.AgentCertificateV1,len(tt.fields.prevCert))
+			if len(tt.fields.prevCert) > 0 {
+				copy(preAdded, tt.fields.prevCert)
+				prevRole = types.PeerRole_Agent
+			}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn, Certificates:preAdded, AcceptedRole:prevRole}
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+
+			expectSize := len(sampleRemote.Certificates)
+			if tt.wantAdd {
+				expectSize++
+			}
+			if tt.wantChangeRole {
+				mockPM.EXPECT().UpdatePeerRole(gomock.Any())
+			}
+			p := &remotePeerImpl{
+				logger:              logger,
+				remoteInfo:          sampleRemote,
+				pm: mockPM,
+			}
+			p.addCert(tt.args)
+			if len(p.remoteInfo.Certificates) != expectSize {
+				t.Errorf("addCert() result size %v, want %v",len(p.remoteInfo.Certificates), expectSize)
+			}
+		})
+	}
+}
+
+func Test_remotePeerImpl_cleanupCerts(t *testing.T) {
+	logger := log.NewLogger("p2p.test")
+	addrs := []string{"192.168.1.2"}
+	peerID := types.RandomPeerID()
+
+	bpSize := 4
+	oldSize := 2
+	yesterday := time.Now().Add(-time.Hour*24)
+	bpKeys := make([]crypto.PrivKey, bpSize)
+	bpIds := make([]types.PeerID, bpSize)
+	bpCerts := make([]*p2pcommon.AgentCertificateV1, bpSize)
+	for i := 0; i < bpSize; i++ {
+		bpKeys[i], _, _ = crypto.GenerateKeyPair(crypto.Secp256k1, 11)
+		bpIds[i], _ = types.IDFromPrivateKey(bpKeys[i])
+		bpCerts[i], _ = p2putil.NewAgentCertV1(bpIds[i], peerID, p2putil.ConvertPKToBTCEC(bpKeys[i]), addrs, time.Hour)
+		if i < oldSize {
+			bpCerts[i].CreateTime = yesterday
+			bpCerts[i].ExpireTime = yesterday.Add(time.Hour)
+		}
+	}
+	sampleMeta := p2pcommon.NewMetaWith1Addr(peerID, addrs[0], 7846, "v2.0.0")
+	sampleMeta.Role = types.PeerRole_Agent
+	sampleMeta.ProducerIDs = bpIds
+	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+
+	type fields struct {
+		prevCert []*p2pcommon.AgentCertificateV1
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		wantSize int
+		wantChangeRole bool
+	}{
+		{"TNothing", fields{bpCerts[:0]}, 0, false},
+		{"TAllOld", fields{bpCerts[:2]}, 0, true},
+		{"TPartial", fields{bpCerts[:4]}, 2, false},
+		{"TAllNew", fields{bpCerts[2:]}, 2, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			prevRole := types.PeerRole_Watcher
+			preAdded := make([]*p2pcommon.AgentCertificateV1,len(tt.fields.prevCert))
+			if len(tt.fields.prevCert) > 0 {
+				copy(preAdded, tt.fields.prevCert)
+				prevRole = types.PeerRole_Agent
+			}
+			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn, Certificates:preAdded, AcceptedRole:prevRole}
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+
+			if tt.wantChangeRole {
+				mockPM.EXPECT().UpdatePeerRole(gomock.Any())
+			}
+			p := &remotePeerImpl{
+				logger:              logger,
+				remoteInfo:          sampleRemote,
+				pm: mockPM,
+			}
+			p.cleanupCerts()
+			if len(p.remoteInfo.Certificates) != tt.wantSize {
+				t.Errorf("addCert() result size %v, want %v",len(p.remoteInfo.Certificates), tt.wantSize)
+			}
+		})
 	}
 }

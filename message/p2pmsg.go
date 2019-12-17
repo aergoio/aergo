@@ -23,6 +23,7 @@ var (
 	TooManyBlocksError   = fmt.Errorf("too many blocks received that expected")
 	TooBigBlockError     = fmt.Errorf("block size limit exceeded")
 	InvalidArgumentError = fmt.Errorf("invalid argument")
+	WrongBlockHashError  = fmt.Errorf("wrong block hash")
 )
 
 // PingMsg send types.Ping to each peer.
@@ -244,7 +245,7 @@ type NotifyCertRenewed struct {
 type TossDirection bool
 
 type TossBPNotice struct {
-	Block  *types.Block
+	Block *types.Block
 	// toss notice to internal zone or not
 	TossIn bool
 	// OriginalMsg is actually p2pcommon.Message. it is declared by interface{} for ad-hoc way to avoid import cycle

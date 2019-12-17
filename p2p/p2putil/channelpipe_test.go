@@ -29,7 +29,6 @@ func TestChannelPipe(t *testing.T) {
 		{"tStall", 10, 0, 2, 18},
 		{"tmidStall", 10, 5, 7, 13},
 		{"tfast", 10, 1000, arrSize - 10, 0},
-		// TODO: Add test cases.
 	}
 
 	for _, tt := range tests {
@@ -82,7 +81,6 @@ func Test_nonBlockWriteChan2(t *testing.T) {
 		expectConsec uint64
 	}{
 		{"tfast", 10, 1000, arrSize - 10, 0},
-		// TODO: Add test cases.
 	}
 
 	for _, tt := range tests {

@@ -6,15 +6,15 @@
 package p2p
 
 import (
-	"fmt"
-	"reflect"
-	"testing"
-
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
+	"net"
+	"reflect"
+	"testing"
 )
 
 func TestRaftRoleManager_updateBP(t *testing.T) {
@@ -49,7 +49,7 @@ func TestRaftRoleManager_updateBP(t *testing.T) {
 
 			p2ps := &P2P{pm: mockPM}
 			rm := &RaftRoleManager{
-				p2ps:   p2ps,
+				is:     p2ps,
 				logger: logger,
 				raftBP: presetIDs,
 			}
@@ -92,7 +92,7 @@ func (e *EB) C() message.RaftClusterEvent {
 	return message.RaftClusterEvent{BPAdded: e.a, BPRemoved: e.r}
 }
 
-func TestRaftRoleManager_FilterBPNoticeReceiverTossOut(t *testing.T) {
+func TestRaftRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -119,7 +119,7 @@ func TestRaftRoleManager_FilterBPNoticeReceiverTossOut(t *testing.T) {
 			dummyBlock := &types.Block{}
 
 			rm := &RaftRoleManager{
-				p2ps:   nil,
+				is:     nil,
 				logger: logger,
 			}
 			mockPeers := make([]p2pcommon.RemotePeer, 0, len(tt.argPeer))
@@ -142,7 +142,7 @@ func TestRaftRoleManager_FilterBPNoticeReceiverTossOut(t *testing.T) {
 	}
 }
 
-func TestDefaultRoleManager_updateBP(t *testing.T) {
+func TestDPOSRoleManager_updateBP(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -165,15 +165,15 @@ func TestDefaultRoleManager_updateBP(t *testing.T) {
 			var sentIds []types.PeerID = nil
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
-			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).Do(func(cs []p2pcommon.AttrModifier) {
+			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).Do(func(cs []p2pcommon.RoleModifier) {
 				for _, id := range cs {
 					sentIds = append(sentIds, id.ID)
 				}
 			})
 
 			p2ps := &P2P{pm: mockPM}
-			rm := &DefaultRoleManager{
-				p2ps: p2ps,
+			rm := &DPOSRoleManager{
+				is: p2ps,
 			}
 			rm.UpdateBP(tt.args.BPAdded, tt.args.BPRemoved)
 
@@ -186,14 +186,14 @@ func TestDefaultRoleManager_updateBP(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Errorf("DefaultRoleManager.UpdateBP() not exist %v, want exist ", id)
+					t.Errorf("DPOSRoleManager.UpdateBP() not exist %v, want exist ", id)
 				}
 			}
 		})
 	}
 }
 
-func TestDefaultRoleManager_FilterBPNoticeReceiver(t *testing.T) {
+func TestDPOSRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -217,8 +217,8 @@ func TestDefaultRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 			mockPM.EXPECT().GetPeer(gomock.Any()).Return(nil, false).AnyTimes()
 			mockPM.EXPECT().UpdatePeerRole(gomock.Any()).AnyTimes()
 
-			rm := &DefaultRoleManager{
-				p2ps: nil,
+			rm := &DPOSRoleManager{
+				is: nil,
 			}
 			mockPeers := make([]p2pcommon.RemotePeer, 0, len(tt.argPeer))
 			for i, ap := range tt.argPeer {
@@ -246,7 +246,7 @@ type rs struct {
 	s types.PeerState
 }
 
-func TestDefaultRoleManager_GetRole(t *testing.T) {
+func TestDPOSRoleManager_GetRole(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	p1, p2, p3 := dummyPeerID, dummyPeerID2, dummyPeerID3
@@ -258,24 +258,26 @@ func TestDefaultRoleManager_GetRole(t *testing.T) {
 		pid       types.PeerID
 		want      types.PeerRole
 	}{
-		{"TBP", toPIDS(p1,p2), p1, types.PeerRole_Producer},
-		{"TWat", toPIDS(p1,p2), p3, types.PeerRole_Watcher},
+		{"TBP", toPIDS(p1, p2), p1, types.PeerRole_Producer},
+		{"TWat", toPIDS(p1, p2), p3, types.PeerRole_Watcher},
 	}
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bps := make([]string,0,len(tt.presetIds))
+			bps := make([]types.PeerID, 0, len(tt.presetIds))
+			union := make(map[types.PeerID]voteRank)
 			for _, id := range tt.presetIds {
-				bps = append(bps, fmt.Sprintf("{\"%d\":\"%s\"}",i,id.Pretty()))
+				bps = append(bps, id)
+				union[id] = BP
 			}
-			dummyConsensus := &types.ConsensusInfo{Bps:bps}
+
 			mockCC := p2pmock.NewMockConsensusAccessor(ctrl)
-			mockCC.EXPECT().ConsensusInfo().Return(dummyConsensus)
 			p2ps := &P2P{consacc: mockCC}
-			rm := &DefaultRoleManager{
-				p2ps: p2ps,
-			}
+			rm := NewDPOSRoleManager(p2ps, p2ps, nil)
+			rm.bps = bps
+			rm.unionSet = union
+
 			if got := rm.GetRole(tt.pid); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("DefaultRoleManager.GetRole() = %v, want %v", got, tt.want)
+				t.Errorf("DPOSRoleManager.GetRole() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -283,4 +285,243 @@ func TestDefaultRoleManager_GetRole(t *testing.T) {
 
 func toPIDS(ids ...types.PeerID) []types.PeerID {
 	return ids
+}
+
+func TestDPOSRoleManager_reloadVotes(t *testing.T) {
+	logger := log.NewLogger("p2p.test")
+	initialBPCount := 3
+	initialUnion := make(map[types.PeerID]voteRank)
+	initialBPs := make([]string, initialBPCount)
+	var pids []types.PeerID
+	for i := 0; i < 9; i++ {
+		pids = append(pids, types.RandomPeerID())
+		if i < initialBPCount {
+			initialBPs[i] = pids[i].Pretty()
+			initialUnion[pids[i]] = BP
+		} else if i < initialBPCount*2 {
+			initialUnion[pids[i]] = Candidate
+		}
+	}
+	dummyConsensus := &types.ConsensusInfo{Bps: initialBPs}
+
+	tests := []struct {
+		name string
+
+		actErr  error
+		respIds []types.PeerID
+		respErr error
+
+		wantErr  bool
+		wantSize int
+	}{
+		{"TNormal", nil, pids[:5], nil, false, 5},
+		{"TActErr", TimeoutError, pids[:6], nil, true, 5},
+		{"TChainErr", nil, pids[:6], sampleErr, true, 5},
+		{"TLess", nil, pids[:4], nil, false, 4},
+		{"TMore", nil, pids[:6], nil, false, 6},
+		{"TOver", nil, pids[:8], nil, false, 6},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			votes := &types.VoteList{}
+			for _, id := range tt.respIds {
+				vt := &types.Vote{Candidate: []byte(id), Amount: []byte{0, 0}}
+				votes.Votes = append(votes.Votes, vt)
+			}
+			aResult := &message.GetVoteRsp{Top: votes, Err: tt.respErr}
+			is := p2pmock.NewMockInternalService(ctrl)
+			actor := p2pmock.NewMockActorService(ctrl)
+			pm := p2pmock.NewMockPeerManager(ctrl)
+			cm := p2pmock.NewMockConsensusAccessor(ctrl)
+			is.EXPECT().PeerManager().Return(pm).AnyTimes()
+			is.EXPECT().ConsensusAccessor().Return(cm).AnyTimes()
+			cm.EXPECT().ConsensusInfo().Return(dummyConsensus)
+			actor.EXPECT().CallRequest(message.ChainSvc, gomock.AssignableToTypeOf(&message.GetElected{}), getVotesMessageTimeout).Return(aResult, tt.actErr)
+
+			rm := &DPOSRoleManager{
+				is:     is,
+				actor:  actor,
+				logger: logger,
+			}
+			union, _, err := rm.loadBPVotes();
+			if (err != nil) != tt.wantErr {
+				t.Errorf("loadBPVotes() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr {
+				if len(union) != tt.wantSize {
+					t.Errorf("loadBPVotes() total = %v, want size %v", union, tt.wantSize)
+				}
+			}
+		})
+	}
+}
+
+func TestDPOSRoleManager_collectAddDel(t *testing.T) {
+	logger := log.NewLogger("p2p.test")
+
+	initialBPCount := 3
+	initialUnionCnt := 5
+	initialUnion := make(map[types.PeerID]voteRank)
+	initialBPs := make([]string, initialBPCount)
+	var pids []types.PeerID
+	for i := 0; i < 9; i++ {
+		pids = append(pids, types.RandomPeerID())
+		if i < initialBPCount {
+			initialBPs[i] = pids[i].Pretty()
+			initialUnion[pids[i]] = BP
+		} else if i < initialUnionCnt {
+			initialUnion[pids[i]] = Candidate
+		}
+	}
+
+	tests := []struct {
+		name string
+
+		newBPcnt int
+		newRanks []types.PeerID
+
+		wantAdd int
+		wantDel int
+	}{
+		{"TSame", 3, pids[:5], 0, 0},
+		{"TTurned", 3, append(add(pids[2], pids[0], pids[1]), pids[3:5]...), 0, 0},
+		{"TAddedTail", 3, pids[:6], 1, 0},
+		{"TAddedHead", 3, append(add(pids[8], pids[7]), pids[:4]...), 2, 1},
+		{"TShrink", 3, pids[:4], 0, 1},
+		{"TMod", 3, pids[2:8], 3, 2},
+		{"TBPInc", 4, pids[:5], 0, 0},
+		{"TBPIncAdded", 4, pids[:8], 3, 0},
+		{"TBPdec", 2, pids[:4], 0, 1},
+		{"TBPdecAdded", 2, pids[2:6], 1, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			is := p2pmock.NewMockInternalService(ctrl)
+			actor := p2pmock.NewMockActorService(ctrl)
+			pm := p2pmock.NewMockPeerManager(ctrl)
+			cm := p2pmock.NewMockConsensusAccessor(ctrl)
+			is.EXPECT().PeerManager().Return(pm).AnyTimes()
+			is.EXPECT().ConsensusAccessor().Return(cm).AnyTimes()
+
+			rm := NewDPOSAgentRoleManager(is, actor, logger, nil)
+			rm.unionSet = initialUnion
+
+			if len(tt.newRanks) > tt.newBPcnt*2 {
+				t.Fatalf("Wrong test input %v ", tt.newRanks)
+			}
+			newUnion := make(map[types.PeerID]voteRank)
+			for i, id := range tt.newRanks {
+				if i < tt.newBPcnt {
+					newUnion[id] = BP
+				} else {
+					newUnion[id] = Candidate
+				}
+			}
+			gotAdd, gotDel := rm.collectAddDel(newUnion)
+
+			if len(gotAdd) != tt.wantAdd {
+				t.Errorf("collectAddDel() gotAdd = %v, want %v", gotAdd, tt.wantAdd)
+			}
+			if len(gotDel) != tt.wantDel {
+				t.Errorf("collectAddDel() gotDel = %v, want %v", gotDel, tt.wantDel)
+			}
+		})
+	}
+
+}
+
+func add(ids ...types.PeerID) []types.PeerID {
+	return ids
+}
+
+func TestDPOSAgentRoleManager_FilterBPNoticeReceiver(t *testing.T) {
+	logger := log.NewLogger("p2p.test")
+
+	intIp, internalNet, _ := net.ParseCIDR("192.168.1.1/24")
+	sampleSetting := p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{internalNet}}
+	sampleMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), intIp.String(), 7846, "v2.0.0")
+	//  0,1 are my producer, 2 is other internal producer,
+	//  3 is other internal agent, 4 is internal watcher,
+	//  5,6 are external bp ,
+	//  7,8 are external agent
+	//  9 is external watcher
+	p,a,w := types.PeerRole_Producer, types.PeerRole_Agent, types.PeerRole_Watcher
+	i, e := p2pcommon.InternalZone, p2pcommon.ExternalZone
+	roles := []types.PeerRole    {p,p,p,a,w,p,p,a,a,w}
+	zones := []p2pcommon.PeerZone{i,i,i,i,i,e,e,e,e,e}
+	var pids []types.PeerID
+	for i := 0; i < len(roles); i++ {
+		pids = append(pids, types.RandomPeerID())
+	}
+	myPds := make(map[types.PeerID]bool)
+	myPds[pids[0]] = true
+	myPds[pids[1]] = true
+
+	// test tointernal (to my producers only)
+	// test toexternal
+	tests := []struct {
+		name string
+
+		argZone p2pcommon.PeerZone
+
+		want []int
+	}{
+		{"TToInt", p2pcommon.InternalZone, []int{0,1}},
+		{"TToExt", p2pcommon.ExternalZone, []int{5,6,7,8}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			is := p2pmock.NewMockInternalService(ctrl)
+			actor := p2pmock.NewMockActorService(ctrl)
+			mockPM := p2pmock.NewMockPeerManager(ctrl)
+			is.EXPECT().LocalSettings().Return(sampleSetting).AnyTimes()
+			is.EXPECT().SelfMeta().Return(sampleMeta).AnyTimes()
+			is.EXPECT().PeerManager().Return(mockPM).AnyTimes()
+
+			mockPeers := make([]p2pcommon.RemotePeer, 0, len(pids))
+			mockBPs :=  make([]p2pcommon.RemotePeer, 0, len(pids))
+			mockWatches := make([]p2pcommon.RemotePeer, 0, len(pids))
+			for i, pid := range pids {
+				mPeer := p2pmock.NewMockRemotePeer(ctrl)
+				ri := p2pcommon.RemoteInfo{Meta:p2pcommon.NewMetaWith1Addr(pid, "1.1.1.1", 7846, "v2.0.0"), AcceptedRole:roles[i], Zone:zones[i]}
+				mPeer.EXPECT().ID().Return(pid).AnyTimes()
+				mPeer.EXPECT().RemoteInfo().Return(ri).AnyTimes()
+				mPeer.EXPECT().AcceptedRole().Return(roles[i]).AnyTimes()
+
+				mockPeers = append(mockPeers, mPeer)
+				if roles[i] == w {
+					mockWatches = append(mockWatches, mPeer)
+				} else {
+					mockBPs = append(mockBPs, mPeer)
+				}
+			}
+			mockPM.EXPECT().GetPeers().Return(mockPeers).AnyTimes()
+			mockPM.EXPECT().GetProducerClassPeers().Return(mockBPs).AnyTimes()
+			mockPM.EXPECT().GetWatcherClassPeers().Return(mockWatches).AnyTimes()
+
+			rm := NewDPOSAgentRoleManager(is, actor, logger, myPds)
+
+			sampleBlock := &types.Block{}
+			filtered := rm.FilterBPNoticeReceiver(sampleBlock, mockPM, tt.argZone)
+			if len(filtered) != len(tt.want) {
+				t.Fatalf("RaftRoleManager.NotifyNewBlockMsg() peers = %v, want %v", len(filtered), len(tt.want) )
+			}
+			for i, idx := range tt.want {
+				fp := filtered[i]
+				wp := mockPeers[idx]
+				if !types.IsSamePeerID(fp.ID(), wp.ID()) {
+					t.Errorf("RaftRoleManager.NotifyNewBlockMsg() peerID = %v, want %v", fp.ID(), wp.ID())
+				}
+
+			}
+		})
+	}
 }

@@ -239,7 +239,6 @@ func Test_createMessage(t *testing.T) {
 		{"TStatus", args{protocolID:p2pcommon.StatusRequest,msgBody:&types.Status{Version:"11"}}, false},
 		{"TGOAway", args{protocolID:p2pcommon.GoAway,msgBody:&types.GoAwayNotice{Message:"test"}}, false},
 		{"TNil", args{protocolID:p2pcommon.StatusRequest,msgBody:nil}, true},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

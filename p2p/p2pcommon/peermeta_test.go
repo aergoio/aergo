@@ -174,8 +174,6 @@ func TestPeerMeta_ToPeerAddress(t *testing.T) {
 		{"TAent",fields{id1, types.PeerRole_Agent, []types.PeerID{id2,id3}, []multiaddr.Multiaddr{ma1,ma2}, v1, false}},
 		{"TBP",fields{id1, types.PeerRole_Watcher, nil, []multiaddr.Multiaddr{ma1}, v1, false}},
 		{"TDiffVer",fields{id1, types.PeerRole_Producer, nil, []multiaddr.Multiaddr{ma3}, v2, false}},
-
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -59,9 +59,8 @@ func TestPeerMapService_BeforeStop(t *testing.T) {
 		name   string
 		fields fields
 	}{
-		{"Tlisten", fields{}},
+		{"TListen", fields{}},
 		{"TNot", fields{}},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

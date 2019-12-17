@@ -6,6 +6,7 @@
 package p2pcommon
 
 import (
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
 	"net"
 )
@@ -20,12 +21,13 @@ type InternalService interface {
 
 	// accessors of other modules
 	GetChainAccessor() types.ChainAccessor
-	//GetConsensusAccessor() consensus.ConsensusAccessor
+	ConsensusAccessor() consensus.ConsensusAccessor
+
+	PeerManager() PeerManager
 
 	CertificateManager() CertificateManager
 
 	RoleManager() PeerRoleManager
-	// TODO add other methods
 }
 
 //go:generate mockgen -source=internalservice.go  -package=p2pmock -destination=../p2pmock/mock_internalservice.go
