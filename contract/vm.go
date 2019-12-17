@@ -40,6 +40,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
+	jsoniter "github.com/json-iterator/go"
 )
 
 const (
@@ -1129,7 +1130,8 @@ func GetABI(contractState *state.ContractState) (*types.ABI, error) {
 		return nil, errors.New("cannot find abi")
 	}
 	abi := new(types.ABI)
-	if err = json.Unmarshal(rawAbi, abi); err != nil {
+	var jsonIter = jsoniter.ConfigCompatibleWithStandardLibrary
+	if err = jsonIter.Unmarshal(rawAbi, abi); err != nil {
 		return nil, err
 	}
 	return abi, nil
