@@ -29,5 +29,6 @@ void vm_set_timeout_count_hook(lua_State *L, int limit);
 int vm_instcount(lua_State *L);
 void vm_setinstcount(lua_State *L, int count);
 const char *vm_copy_service(lua_State *L, lua_State *main);
+const char *vm_loadcall(lua_State *L);
 
 #endif /* _VM_H */

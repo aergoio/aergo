@@ -1139,10 +1139,8 @@ func luaDeployContract(
 		ce.close()
 		moveGas(L, ctx)
 	}()
-	if ce != nil {
-		if ce.err != nil {
-			return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
-		}
+	if ce.err != nil {
+		return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
 	}
 
 	// create a sql database for the contract
