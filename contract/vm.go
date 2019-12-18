@@ -50,6 +50,7 @@ const (
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
 	maxCallDepth         = 5
 	checkFeeDelegationFn = "check_delegation"
+	constructor          = "constructor"
 )
 
 var (
@@ -119,13 +120,16 @@ type recoveryEntry struct {
 type LState = C.struct_lua_State
 
 type executor struct {
-	L       *LState
-	code    []byte
-	err     error
-	numArgs C.int
-	ctx     *vmContext
-	jsonRet string
-	isView  bool
+	L          *LState
+	code       []byte
+	err        error
+	numArgs    C.int
+	ci         *types.CallInfo
+	fname      string
+	ctx        *vmContext
+	jsonRet    string
+	isView     bool
+	isAutoload bool
 }
 
 func init() {
@@ -308,7 +312,6 @@ func newExecutor(
 	}
 
 	if isCreate {
-		const constructor = "constructor"
 		f, err := resolveFunction(ctrState, constructor, isCreate)
 		if err != nil {
 			ce.err = err
@@ -328,10 +331,8 @@ func newExecutor(
 			return ce
 		}
 		ce.isView = f.View
-		if loaded := vmAutoload(ce.L, constructor); !loaded {
-			ce.close()
-			return nil
-		}
+		ce.fname = constructor
+		ce.isAutoload = true
 		ce.numArgs = C.int(len(ci.Args))
 	} else if isDelegation {
 		_, err := resolveFunction(ctrState, checkFeeDelegationFn, false)
@@ -341,14 +342,10 @@ func newExecutor(
 			return ce
 		}
 		ce.isView = true
-		if loaded := vmAutoload(ce.L, checkFeeDelegationFn); !loaded {
-			ce.err = fmt.Errorf("not found %s function", checkFeeDelegationFn)
-			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
-			return ce
-		}
+		ce.fname = checkFeeDelegationFn
+		ce.isAutoload = true
 		ce.numArgs = C.int(len(ci.Args))
 	} else {
-		C.vm_remove_constructor(ce.L)
 		f, err := resolveFunction(ctrState, ci.Name, isCreate)
 		if err != nil {
 			ce.err = err
@@ -362,20 +359,16 @@ func newExecutor(
 			return ce
 		}
 		ce.isView = f.View
-		resolvedName := C.CString(f.Name)
-		C.vm_get_abi_function(ce.L, resolvedName)
-		C.free(unsafe.Pointer(resolvedName))
+		ce.fname = f.Name
 		ce.numArgs = C.int(len(ci.Args) + 1)
 	}
-	ce.processArgs(ci)
-	if ce.err != nil {
-		ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("invalid argument")
-	}
+	ce.ci = ci
+
 	return ce
 }
 
-func (ce *executor) processArgs(ci *types.CallInfo) {
-	for _, v := range ci.Args {
+func (ce *executor) processArgs() {
+	for _, v := range ce.ci.Args {
 		if err := pushValue(ce.L, v); err != nil {
 			ce.err = err
 			return
@@ -491,13 +484,37 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 		return 0
 	}
 	defer ce.refreshGas()
-	ce.setCountHook(instLimit)
 	if ce.isView == true {
 		ce.ctx.nestedView++
 		defer func() {
 			ce.ctx.nestedView--
 		}()
 	}
+	ce.vmLoadCall()
+	if ce.err != nil {
+		return 0
+	}
+	if ce.isAutoload {
+		if loaded := vmAutoload(ce.L, ce.fname); !loaded {
+			if ce.fname != constructor {
+				ce.err = errors.New(fmt.Sprintf("contract autoload failed %s : %s",
+					types.EncodeAddress(ce.ctx.curContract.contractId), ce.fname))
+			}
+			return 0
+		}
+	} else {
+		C.vm_remove_constructor(ce.L)
+		resolvedName := C.CString(ce.fname)
+		C.vm_get_abi_function(ce.L, resolvedName)
+		C.free(unsafe.Pointer(resolvedName))
+	}
+	ce.processArgs()
+	if ce.err != nil {
+		ctrLgr.Debug().Err(ce.err).Str("contract",
+			types.EncodeAddress(ce.ctx.curContract.contractId)).Msg("invalid argument")
+		return 0
+	}
+	ce.setCountHook(instLimit)
 	nret := C.int(0)
 	if cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
@@ -638,6 +655,10 @@ func (ce *executor) close() {
 	if ce != nil {
 		if ce.ctx != nil {
 			ce.ctx.callDepth--
+			if ce.ctx.traceFile != nil {
+				ce.ctx.traceFile.Close()
+				ce.ctx.traceFile = nil
+			}
 		}
 		freeLState(ce.L)
 	}
@@ -780,15 +801,11 @@ func PreCall(
 
 	ctx.curContract.rp = rp
 	ctx.gasLimit = gasLimit
-
-	if TraceBlockNo != 0 && TraceBlockNo == ctx.blockInfo.No {
-		ctx.traceFile = getTraceFile(ctx.blockInfo.No, ctx.txHash)
-		if ctx.traceFile != nil {
-			defer func() {
-				_ = ctx.traceFile.Close()
-			}()
-		}
+	ctx.remainedGas = gasLimit
+	if vmIsGasSystem(ctx) {
+		ce.setGas()
 	}
+
 	contexts[ctx.service] = ctx
 	ce.call(callMaxInstLimit, nil)
 	err = ce.err
@@ -861,8 +878,8 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contrac
 		ctrLgr.Debug().Str("abi", string(code)).Str("contract", types.EncodeAddress(contractAddress)).Msg("preload")
 	}
 	ce := newExecutor(contractCode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
-	return ce, nil
 
+	return ce, ce.err
 }
 
 func setContract(contractState *state.ContractState, contractAddress, payload []byte) ([]byte, []byte, error) {
@@ -928,9 +945,6 @@ func Create(
 	}
 
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
-	if ce == nil {
-		return "", nil, ctx.usedFee(), nil
-	}
 	defer ce.close()
 
 	ce.call(callMaxInstLimit, nil)
@@ -1223,6 +1237,15 @@ func (ce *executor) vmLoadCode(id []byte) {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
 		ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(id)).Msg("failed to load code")
+	}
+}
+
+func (ce *executor) vmLoadCall() {
+	if cErrMsg := C.vm_loadcall(
+		ce.L,
+	); cErrMsg != nil {
+		errMsg := C.GoString(cErrMsg)
+		ce.err = errors.New(errMsg)
 	}
 	C.luaL_set_service(ce.L, ce.ctx.service)
 }

@@ -650,19 +650,19 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		//var preLoadTx *types.Tx
-		//nCand := len(e.txs)
-		for _, tx := range e.txs {
-			//if i != nCand-1 {
-			//	preLoadTx = e.txs[i+1]
-			//	contract.PreLoadRequest(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
-			//}
+		var preLoadTx *types.Tx
+		nCand := len(e.txs)
+		for i, tx := range e.txs {
+			if i != nCand-1 {
+				preLoadTx = e.txs[i+1]
+				contract.PreLoadRequest(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
+			}
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
-			//contract.SetPreloadTx(preLoadTx, contract.ChainService)
+			contract.SetPreloadTx(preLoadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
