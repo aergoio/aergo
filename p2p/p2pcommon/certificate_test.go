@@ -22,6 +22,8 @@ func TestAgentCertificateV1_IsValidInTime(t *testing.T) {
 		{"TTinyErr", args{ct.Add(-time.Second * 59), time.Minute}, true},
 		{"TFutureCreated", args{ct.Add(-time.Minute), time.Minute}, false},
 		{"TInTime", args{ct.Add(time.Hour), time.Minute}, true},
+		{"TNeedUpdate", args{ct.Add(time.Hour * 19), time.Minute}, true},
+		{"TNearlyExpire", args{ct.Add(time.Hour * 24).Add(-time.Second), time.Minute}, true},
 		{"TExpired", args{ct.Add(time.Hour * 25), time.Minute}, false},
 	}
 	for _, tt := range tests {
@@ -31,7 +33,7 @@ func TestAgentCertificateV1_IsValidInTime(t *testing.T) {
 				ExpireTime: et,
 			}
 
-			got := c.IsValidInTime(tt.args.t, tt.args.errTolerance);
+			got := c.IsValidInTime(tt.args.t, tt.args.errTolerance)
 			if got != tt.want {
 				t.Errorf("IsValidInTime() = %v, want %v", got, tt.want)
 			}
