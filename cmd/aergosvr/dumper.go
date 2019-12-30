@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gin-gonic/gin"
@@ -50,7 +51,14 @@ func (dmp *dumper) run() {
 		return func(c *gin.Context) {
 			var buf bytes.Buffer
 
-			if err := system.DumpVotingPowerRankers(&buf, topN); err != nil {
+			dumpRankers := func() error {
+				chain.Lock()
+				defer chain.Unlock()
+
+				return system.DumpVotingPowerRankers(&buf, topN)
+			}
+
+			if err := dumpRankers(); err != nil {
 				c.JSON(400, gin.H{
 					"message": err.Error(),
 				})

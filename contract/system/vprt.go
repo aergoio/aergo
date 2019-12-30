@@ -22,8 +22,7 @@ import (
 
 // ********************************** WARNING **********************************
 // All the functions and the methods below must be properly synchronized by
-// acquiring the chain lock (chain.LockChain / chain.UnlockChain) when they are
-// called.
+// acquiring the chain lock (chain.Lock / chain.Unlock) when they are called.
 // *****************************************************************************
 
 const (
@@ -768,5 +767,6 @@ func DumpVotingPowerRankers(w io.Writer, topN int) error {
 	if votingPowerRank == nil {
 		return errors.New("not supported")
 	}
+
 	return votingPowerRank.voters.dump(w, topN)
 }
