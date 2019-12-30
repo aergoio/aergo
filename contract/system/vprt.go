@@ -765,5 +765,8 @@ func GetTotalVotingPower() *big.Int {
 }
 
 func DumpVotingPowerRankers(w io.Writer, topN int) error {
+	if votingPowerRank == nil {
+		return errors.New("not supported")
+	}
 	return votingPowerRank.voters.dump(w, topN)
 }
