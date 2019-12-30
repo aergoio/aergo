@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/sanity-io/litter"
 )
 
@@ -50,6 +51,7 @@ var (
 	votingPowerRank *vpr
 
 	vprLogger = log.NewLogger("vpr")
+	jsonIter  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
 type dataSetter interface {
@@ -160,6 +162,17 @@ func (vp *votingPower) unmarshal(b []byte) uint32 {
 	}
 
 	return 36 + uint32(sz1) + uint32(sz2)
+}
+
+func (vp *votingPower) toJSON() ([]byte, error) {
+	b, err := jsonIter.Marshal(&struct {
+		Address string
+		Power   string
+	}{types.EncodeAddress(vp.getAddr()), vp.getPower().String()})
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 type vprStore struct {
@@ -427,21 +440,44 @@ func (tv *topVoters) update(v *votingPower) (vp *votingPower) {
 	return
 }
 
-func (tv *topVoters) dump(w io.Writer, topN int) {
+func (tv *topVoters) dump(w io.Writer, topN int) error {
 	if tv == nil {
 		fmt.Fprintf(w, "nothing to dump!")
-		return
+		return nil
 	}
+
+	endingIndex := func() int {
+		size := tv.members.Size()
+
+		if topN < size && topN > 0 {
+			return topN - 1
+		}
+		return size - 1
+	}
+
+	end := endingIndex()
+
+	fmt.Fprint(w, "[\n")
 	for i, m := range tv.members.Values() {
-		if i >= topN {
+		if topN > 0 && i >= topN {
 			break
 		}
 		if vp, ok := m.(*votingPower); ok {
-			fmt.Fprintf(w, "%s %v\n", types.EncodeAddress(vp.getAddr()), vp.getPower())
+			if b, err := vp.toJSON(); err == nil {
+				fmt.Fprintf(w, "%s", string(b))
+				if i != end {
+					fmt.Fprint(w, ",\n")
+				}
+			} else {
+				return err
+			}
 		} else {
 			vprLogger.Error().Str("content", litter.Sdump(m)).Msg("invalid type of member")
 		}
 	}
+	fmt.Fprint(w, "\n]\n")
+
+	return nil
 }
 
 func (tv *topVoters) addVotingPower(id types.AccountID, delta *deltaVP) *votingPower {
@@ -726,4 +762,8 @@ func GetVotingRewardAmount() *big.Int {
 
 func GetTotalVotingPower() *big.Int {
 	return votingPowerRank.getTotalPower()
+}
+
+func DumpVotingPowerRankers(w io.Writer, topN int) error {
+	return votingPowerRank.voters.dump(w, topN)
 }

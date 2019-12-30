@@ -387,6 +387,8 @@ func TestVprTotalPower(t *testing.T) {
 	assert.NoError(t, err, "fail to update the voting power ranking")
 
 	votingPowerRank.checkValidity(t)
+	votingPowerRank.voters.dump(os.Stdout, 10)
+	votingPowerRank.voters.dump(os.Stdout, 0)
 }
 
 func TestVprSingleWinner(t *testing.T) {

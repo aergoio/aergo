@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/gin-gonic/gin"
 )
@@ -37,18 +40,38 @@ func (dmp *dumper) run() {
 	}
 
 	r := gin.Default()
-	r.GET("/debug/voting-power/rankers", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"cmd": "rankers",
-		})
-	})
 
+	///////////////////////////////////////////////////////////////////////////
+	// Dump Voting Power Rankers
+	///////////////////////////////////////////////////////////////////////////
+
+	// Dump Handler Generator
+	dumpFn := func(topN int) func(c *gin.Context) {
+		return func(c *gin.Context) {
+			var buf bytes.Buffer
+
+			if err := system.DumpVotingPowerRankers(&buf, topN); err != nil {
+				c.JSON(400, gin.H{
+					"message": err.Error(),
+				})
+				return
+			}
+
+			c.Header("Content-Type", "application/json; charset=utf-8")
+			c.String(200, string(buf.Bytes()))
+		}
+	}
+
+	// Dump all rankers.
+	r.GET("/debug/voting-power/rankers", dumpFn(0))
+
+	// Dump the top n rankers.
 	r.GET("/debug/voting-power/rankers/:topn", func(c *gin.Context) {
-		topN := c.Params.ByName("topn")
-		c.JSON(200, gin.H{
-			"cmd":  topN,
-			"topn": topN,
-		})
+		topN := 0
+		if n, err := strconv.Atoi(c.Params.ByName("topn")); err == nil && n > 0 {
+			topN = n
+		}
+		dumpFn(topN)(c)
 	})
 
 	if err := r.Run(hostPort(cfg.DumpPort)); err != nil {
