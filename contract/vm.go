@@ -130,6 +130,7 @@ type executor struct {
 	jsonRet    string
 	isView     bool
 	isAutoload bool
+	preErr     error
 }
 
 func init() {
@@ -314,7 +315,7 @@ func newExecutor(
 	if isCreate {
 		f, err := resolveFunction(ctrState, constructor, isCreate)
 		if err != nil {
-			ce.err = err
+			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
 			return ce
 		}
@@ -326,7 +327,7 @@ func newExecutor(
 		}
 		err = checkPayable(f, amount)
 		if err != nil {
-			ce.err = err
+			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("check payable function")
 			return ce
 		}
@@ -337,7 +338,7 @@ func newExecutor(
 	} else if isDelegation {
 		_, err := resolveFunction(ctrState, checkFeeDelegationFn, false)
 		if err != nil {
-			ce.err = err
+			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
 			return ce
 		}
@@ -348,13 +349,13 @@ func newExecutor(
 	} else {
 		f, err := resolveFunction(ctrState, ci.Name, isCreate)
 		if err != nil {
-			ce.err = err
+			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
 			return ce
 		}
 		err = checkPayable(f, amount)
 		if err != nil {
-			ce.err = err
+			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("check payable function")
 			return ce
 		}
@@ -492,6 +493,10 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	}
 	ce.vmLoadCall()
 	if ce.err != nil {
+		return 0
+	}
+	if ce.preErr != nil {
+		ce.err = ce.preErr
 		return 0
 	}
 	if ce.isAutoload {
