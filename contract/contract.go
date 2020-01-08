@@ -125,7 +125,7 @@ func Execute(
 		if err = checkRedeploy(sender, receiver, contractState); err != nil {
 			return
 		}
-		bs.CodeMap.Remove(receiver.AccountID())
+		bs.RemoveCache(receiver.AccountID())
 	}
 
 	var ex *executor
@@ -261,7 +261,7 @@ func preLoadWorker() {
 			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
 			txBody.Type == types.TxType_FEEDELEGATION)
 
-		ex, err := PreloadEx(bs, contractState, receiver.AccountID(), txBody.Payload, receiver.ID(), ctx)
+		ex, err := PreloadEx(bs, contractState, txBody.Payload, receiver.ID(), ctx)
 		if ex == nil && ctx.traceFile != nil {
 			ctx.traceFile.Close()
 		}

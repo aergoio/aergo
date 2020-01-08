@@ -134,7 +134,7 @@ func (bc *DummyChain) GetABI(contract string) (*types.ABI, error) {
 	if err != nil {
 		return nil, err
 	}
-	return GetABI(cState)
+	return GetABI(cState, nil)
 }
 
 func (bc *DummyChain) GetEvents(txhash []byte) []*types.Event {
@@ -290,10 +290,10 @@ type luaTxContract interface {
 }
 
 type luaTxContractCommon struct {
-	_sender      []byte
-	_contract    []byte
-	_amount      *big.Int
-	_code        []byte
+	_sender     []byte
+	_contract   []byte
+	_amount     *big.Int
+	_code       []byte
 	txId        uint64
 	feeDelegate bool
 }
@@ -339,7 +339,6 @@ var _ LuaTxTester = (*luaTxDef)(nil)
 func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
 	return NewLuaTxDefBig(sender, contract, new(big.Int).SetUint64(amount), code)
 }
-
 
 func strHash(d string) []byte {
 	// using real address
@@ -502,7 +501,7 @@ func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *lua
 			_contract: strHash(contract),
 			_amount:   amount,
 			_code:     []byte(code),
-			txId:     newTxId(),
+			txId:      newTxId(),
 		},
 	}
 }
@@ -510,10 +509,10 @@ func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *lua
 func NewLuaTxCallFeeDelegate(sender, contract string, amount uint64, code string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:      strHash(sender),
-			_contract:    strHash(contract),
-			_amount:      new(big.Int).SetUint64(amount),
-			_code:        []byte(code),
+			_sender:     strHash(sender),
+			_contract:   strHash(contract),
+			_amount:     new(big.Int).SetUint64(amount),
+			_code:       []byte(code),
 			txId:        newTxId(),
 			feeDelegate: true,
 		},

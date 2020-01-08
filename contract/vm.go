@@ -112,6 +112,7 @@ type recoveryEntry struct {
 	senderNonce   uint64
 	callState     *callState
 	onlySend      bool
+	isDeploy      bool
 	sqlSaveName   *string
 	stateRevision state.Snapshot
 	prev          *recoveryEntry
@@ -241,8 +242,8 @@ func (L *LState) close() {
 	}
 }
 
-func resolveFunction(contractState *state.ContractState, name string, constructor bool) (*types.Function, error) {
-	abi, err := GetABI(contractState)
+func resolveFunction(contractState *state.ContractState, bs *state.BlockState, name string, constructor bool) (*types.Function, error) {
+	abi, err := GetABI(contractState, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +314,7 @@ func newExecutor(
 	}
 
 	if isCreate {
-		f, err := resolveFunction(ctrState, constructor, isCreate)
+		f, err := resolveFunction(ctrState, ctx.bs, constructor, isCreate)
 		if err != nil {
 			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
@@ -336,7 +337,7 @@ func newExecutor(
 		ce.isAutoload = true
 		ce.numArgs = C.int(len(ci.Args))
 	} else if isDelegation {
-		_, err := resolveFunction(ctrState, checkFeeDelegationFn, false)
+		_, err := resolveFunction(ctrState, ctx.bs, checkFeeDelegationFn, false)
 		if err != nil {
 			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
@@ -347,7 +348,7 @@ func newExecutor(
 		ce.isAutoload = true
 		ce.numArgs = C.int(len(ci.Args))
 	} else {
-		f, err := resolveFunction(ctrState, ci.Name, isCreate)
+		f, err := resolveFunction(ctrState, ctx.bs, ci.Name, isCreate)
 		if err != nil {
 			ce.preErr = err
 			ctrLgr.Debug().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("not found function")
@@ -637,7 +638,11 @@ func (ce *executor) rollbackToSavepoint() error {
 	}
 
 	var err error
-	for _, v := range ctx.callState {
+	for id, v := range ctx.callState {
+		if v.prevState != nil && len(v.prevState.GetCodeHash()) == 0 &&
+			len(v.curState.GetCodeHash()) != 0 {
+			ctx.bs.RemoveCache(id)
+		}
 		if v.tx == nil {
 			continue
 		}
@@ -705,7 +710,7 @@ func Call(
 
 	var err error
 	var ci types.CallInfo
-	contract := getContract(contractState)
+	contract := getContract(contractState, ctx.bs)
 	if contract != nil {
 		if len(code) > 0 {
 			err = getCallInfo(&ci, code, contractAddress)
@@ -850,22 +855,13 @@ func PreCall(
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), err
 }
 
-func PreloadEx(bs *state.BlockState, contractState *state.ContractState, contractAid types.AccountID, code, contractAddress []byte,
+func PreloadEx(bs *state.BlockState, contractState *state.ContractState, code, contractAddress []byte,
 	ctx *vmContext) (*executor, error) {
 
 	var err error
 	var ci types.CallInfo
-	var contractCode []byte
 
-	if bs != nil {
-		contractCode = bs.CodeMap.Get(contractAid)
-	}
-	if contractCode == nil {
-		contractCode = getContract(contractState)
-		if contractCode != nil && bs != nil {
-			bs.CodeMap.Add(contractAid, contractCode)
-		}
-	}
+	contractCode := getContract(contractState, bs)
 
 	if contractCode != nil {
 		if len(code) > 0 {
@@ -898,7 +894,7 @@ func setContract(contractState *state.ContractState, contractAddress, payload []
 	if err != nil {
 		return nil, nil, err
 	}
-	contract := getContract(contractState)
+	contract := getContract(contractState, nil)
 	if contract == nil {
 		err = fmt.Errorf("cannot deploy contract %s", types.EncodeAddress(contractAddress))
 		ctrLgr.Warn().Str("error", "cannot load contract").Str(
@@ -1028,7 +1024,7 @@ func setQueryContext(ctx *vmContext) {
 
 func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
-	contract := getContract(contractState)
+	contract := getContract(contractState, bs)
 	if contract != nil {
 		err = getCallInfo(&ci, queryInfo, contractAddress)
 	} else {
@@ -1069,7 +1065,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	if err != nil {
 		return
 	}
-	abi, err := GetABI(contractState)
+	abi, err := GetABI(contractState, bs)
 	if err != nil {
 		return err
 	}
@@ -1087,7 +1083,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 		return fmt.Errorf("%s function is not declared of fee delegation", ci.Name)
 	}
 
-	contract := getContract(contractState)
+	contract := getContract(contractState, bs)
 	if contract == nil {
 		addr := types.EncodeAddress(contractAddress)
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", addr).Msg("checkFeeDelegation")
@@ -1127,16 +1123,39 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	return nil
 }
 
-func getContract(contractState *state.ContractState) []byte {
-	code, err := contractState.GetCode()
+func getCode(contractState *state.ContractState, bs *state.BlockState) ([]byte, error) {
+	var code []byte
+	var err error
+
+	code = bs.GetCode(contractState.GetAccountID())
+	if code != nil {
+		return code, nil
+	}
+	code, err = contractState.GetCode()
+	if err != nil {
+		return nil, err
+	}
+	bs.AddCode(contractState.GetAccountID(), code)
+
+	return code, nil
+}
+
+func getContract(contractState *state.ContractState, bs *state.BlockState) []byte {
+	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil
 	}
 	return luacUtil.LuaCode(code).ByteCode()
 }
 
-func GetABI(contractState *state.ContractState) (*types.ABI, error) {
-	code, err := contractState.GetCode()
+func GetABI(contractState *state.ContractState, bs *state.BlockState) (*types.ABI, error) {
+	var abi *types.ABI
+
+	abi = bs.GetABI(contractState.GetAccountID())
+	if abi != nil {
+		return abi, nil
+	}
+	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -1148,15 +1167,16 @@ func GetABI(contractState *state.ContractState) (*types.ABI, error) {
 	if len(rawAbi) == 0 {
 		return nil, errors.New("cannot find abi")
 	}
-	abi := new(types.ABI)
+	abi = new(types.ABI)
 	var jsonIter = jsoniter.ConfigCompatibleWithStandardLibrary
 	if err = jsonIter.Unmarshal(rawAbi, abi); err != nil {
 		return nil, err
 	}
+	bs.AddABI(contractState.GetAccountID(), abi)
 	return abi, nil
 }
 
-func (re *recoveryEntry) recovery() error {
+func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	var zero big.Int
 	cs := re.callState
 	if re.amount.Cmp(&zero) > 0 {
@@ -1181,6 +1201,13 @@ func (re *recoveryEntry) recovery() error {
 		err := cs.ctrState.Rollback(re.stateRevision)
 		if err != nil {
 			return newDbSystemError(err)
+		}
+		if re.isDeploy {
+			err := cs.ctrState.SetCode(nil)
+			if err != nil {
+				return newDbSystemError(err)
+			}
+			bs.RemoveCache(cs.ctrState.GetAccountID())
 		}
 	}
 	if cs.tx != nil {
