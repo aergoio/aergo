@@ -9,6 +9,7 @@ import (
 	"errors"
 	network2 "github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/list"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"net"
 	"testing"
 	"time"
@@ -496,6 +497,112 @@ func Test_basePeerManager_createRemoteInfoOfZone(t *testing.T) {
 			}
 			if got.Zone != tt.wantZone {
 				t.Errorf("createRemoteInfo() Zone = %v, want %v", got.Zone, tt.wantZone)
+			}
+		})
+	}
+}
+
+func Test_basePeerManager_OnWorkDone(t *testing.T) {
+	logger := log.NewLogger("p2p.test")
+	pid := types.RandomPeerID()
+	meta := p2pcommon.NewMetaWith1Addr(pid,"192.168.2.3",7846,"v2.0.0")
+	wpTmpl := p2pcommon.WaitingPeer{Meta:meta}
+	argTmpl := p2pcommon.ConnWorkResult{Meta:meta}
+	type args struct {
+		designated bool
+		inbound bool
+		succeed bool
+	}
+	tests := []struct {
+		name   string
+		args  args
+		wantRetry bool
+	}{
+		// 1. work success
+		{"TInSucc",args{false, true, true}, false},
+		{"TOutSucc",args{false, true, true},false},
+		// 2. work failed of designated peer
+		{"TInFailDesignated",args{true, true, false},true},
+		{"TOutFailDesignated",args{true, false, false},true},
+		// 3. work failed of normal peer
+		{"TInFailNormal",args{false, true, false},false},
+		{"TOutFailNormal",args{false, false, false},false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			dummyPM := createDummyPM()
+			mockLM := p2pmock.NewMockListManager(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+
+			dpm := &basePeerManager{
+				is:          mockIS,
+				pm:          dummyPM,
+				lm:          mockLM,
+				logger:      logger,
+				workingJobs: make(map[types.PeerID]ConnWork),
+			}
+			dpm.workingJobs[pid] = ConnWork{Meta:meta, PeerID:pid, StartTime:time.Now().Add(-time.Millisecond)}
+			wp := wpTmpl
+			wp.Designated = tt.args.designated
+			dummyPM.waitingPeers[pid] = &wp
+			arg := argTmpl
+			arg.Inbound = tt.args.inbound
+			if !tt.args.succeed {
+				arg.Result = sampleErr
+			}
+
+			dpm.OnWorkDone(arg)
+			if _,exist := dpm.workingJobs[pid]; exist {
+				t.Errorf("OnWorkDone() job must be deleted, but not")
+			}
+			if _,exist := dummyPM.waitingPeers[pid]; exist != tt.wantRetry {
+				t.Errorf("OnWorkDone() wantRetry %v , but not", tt.wantRetry)
+			}
+
+		})
+	}
+}
+
+func Test_dynamicWPManager_OnPeerDisconnect(t *testing.T) {
+	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
+	meta1 := p2pcommon.NewMetaWith1Addr(pid1, "127.0.0.1",7846, "v2.0")
+	meta2 := p2pcommon.NewMetaWith1Addr(pid2, "127.0.0.2",7846, "v2.0")
+
+	type args struct {
+		meta p2pcommon.PeerMeta
+	}
+	tests := []struct {
+		name   string
+		args   args
+
+		wantRetry bool
+	}{
+		{"TDesignated", args{meta1}, true},
+		{"TDesignated", args{meta2}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			dummyPM := createDummyPM()
+			dummyPM.designatedPeers = make(map[types.PeerID]p2pcommon.PeerMeta)
+			dummyPM.designatedPeers[pid1] = meta1
+
+			mockLM := p2pmock.NewMockListManager(ctrl)
+			mockIS := p2pmock.NewMockInternalService(ctrl)
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockPeer.EXPECT().ID().Return(tt.args.meta.ID).AnyTimes()
+			mockPeer.EXPECT().Meta().Return(tt.args.meta).AnyTimes()
+			mockPeer.EXPECT().Name().Return(p2putil.ShortMetaForm(tt.args.meta)).AnyTimes()
+
+			dpm := NewWaitingPeerManager(logger, mockIS, dummyPM, mockLM, 4, true)
+
+			dpm.OnPeerDisconnect(mockPeer)
+
+			if _,exist := dummyPM.waitingPeers[tt.args.meta.ID]; exist != tt.wantRetry {
+				t.Errorf("OnPeerDisconnect() wantRetry %v , but not", tt.wantRetry)
 			}
 		})
 	}

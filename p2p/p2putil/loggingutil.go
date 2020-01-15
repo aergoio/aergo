@@ -197,3 +197,12 @@ func (m LogIPNetMarshaller) MarshalZerologArray(a *zerolog.Array) {
 		}
 	}
 }
+
+type AgentCertMarshaller struct {
+	*p2pcommon.AgentCertificateV1
+}
+
+func (a AgentCertMarshaller) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("issuer",a.BPID.Pretty()).Str("agent",a.AgentID.Pretty()).Array("addrs",NewLogStringsMarshaller(a.AgentAddress,10)).
+		Time("created",a.CreateTime).Time("expire",a.ExpireTime).Uint32("version",a.Version)
+}

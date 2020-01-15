@@ -93,7 +93,7 @@ int vm_is_hardfork(lua_State *L, int version)
     return v >= version;
 }
 
-static int pcall(lua_State *L)
+const char *vm_loadcall(lua_State *L)
 {
     int err;
 
@@ -115,8 +115,11 @@ static int pcall(lua_State *L)
         luaL_disablemaxmem(L);
     }
     lua_sethook(L, NULL, 0, 0);
+    if (err != 0) {
+		return lua_tostring(L, -1);
+	}
 
-    return err;
+    return NULL;
 }
 
 static int cp_getLuaExecContext(lua_State *L)
@@ -142,7 +145,7 @@ const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id,
 	int err;
 
     luaL_set_service(L, service);
-    err = luaL_loadbuffer(L, code, sz, hex_id) || pcall(L);
+    err = luaL_loadbuffer(L, code, sz, hex_id);
     if (err != 0) {
         return lua_tostring(L, -1);
 	}
