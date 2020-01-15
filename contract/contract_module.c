@@ -98,7 +98,11 @@ static int moduleCall(lua_State *L)
 	lua_Integer gas;
 	char *amount;
 
-    lua_gasuse(L, 2000);
+	if (lua_gettop(L) == 2) {
+        lua_gasuse(L, 300);
+    } else {
+        lua_gasuse(L, 2000);
+    }
 
 	lua_getfield(L, 1, amount_str);
 	if (lua_isnil(L, -1))
@@ -114,6 +118,15 @@ static int moduleCall(lua_State *L)
 
 	lua_pop(L, 2);
 	contract = (char *)luaL_checkstring(L, 2);
+	if (lua_gettop(L) == 2) {
+	    char *errStr = luaSendAmount(L, service, contract, amount);
+	    reset_amount_info(L);
+	    if (errStr != NULL) {
+            strPushAndRelease(L, errStr);
+            luaL_throwerror(L);
+        }
+        return 0;
+	}
 	fname = (char *)luaL_checkstring(L, 3);
 	json_args = lua_util_get_json_from_stack (L, 4, lua_gettop(L), false);
 	if (json_args == NULL) {

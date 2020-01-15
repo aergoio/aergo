@@ -348,7 +348,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone",remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("claimedRole", newPeer.Meta().Role.String()).Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone",remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -386,16 +386,25 @@ func (pm *peerManager) NotifyPeerAddressReceived(metas []p2pcommon.PeerMeta) {
 	pm.fillPoolChannel <- metas
 }
 
-func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.AttrModifier) {
+func (pm *peerManager) UpdatePeerRole(changes []p2pcommon.RoleModifier) {
 	pm.taskChannel <- func() {
+		changedCnt := 0
 		pm.logger.Debug().Int("size", len(changes)).Msg("changing roles of peers")
+		rm := pm.is.RoleManager()
 		for _, ch := range changes {
 			if peer, found := pm.remotePeers[ch.ID]; found {
-				pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("changing role of peer")
-				peer.ChangeRole(ch.Role)
+				if rm.CheckRole(peer.RemoteInfo(), ch.Role) {
+					changedCnt++
+					pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("changing role of peer")
+					peer.ChangeRole(ch.Role)
+				} else {
+					pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str("from", peer.AcceptedRole().String()).Str("to", ch.Role.String()).Msg("refuse to change role of peer")
+				}
 			}
 		}
-		pm.updatePeerCache()
+		if changedCnt > 0 {
+			pm.updatePeerCache()
+		}
 	}
 }
 
@@ -444,6 +453,7 @@ func (pm *peerManager) GetPeers() []p2pcommon.RemotePeer {
 	defer pm.mutex.Unlock()
 	return pm.peerCache
 }
+
 func (pm *peerManager) GetProducerClassPeers() []p2pcommon.RemotePeer {
 	return pm.bpClassPeers
 }
@@ -470,7 +480,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		if err != nil {
 			return nil
 		}
-		// TODO add self certificates if local peer is agent
+		// add self certificates if local peer is agent
 		localCerts, err := p2putil.ConvertCertsToProto(pm.cm.GetCertificates())
 		selfpi := &message.PeerInfo{
 			Addr: &addr, Certificates: localCerts, AcceptedRole:meta.Role, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}

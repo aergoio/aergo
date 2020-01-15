@@ -26,7 +26,7 @@ type PeerManager interface {
 	AddNewPeer(meta PeerMeta)
 	// Remove peer from peer list. Peer dispose relative resources and stop itself, and then call PeerManager.RemovePeer
 	RemovePeer(peer RemotePeer)
-	UpdatePeerRole(changes []AttrModifier)
+	UpdatePeerRole(changes []RoleModifier)
 
 	NotifyPeerAddressReceived([]PeerMeta)
 
@@ -34,6 +34,9 @@ type PeerManager interface {
 	GetPeer(ID types.PeerID) (RemotePeer, bool)
 	// GetPeers return all registered(handshaked) remote peers. It is thread safe
 	GetPeers() []RemotePeer
+	GetProducerClassPeers() []RemotePeer
+	GetWatcherClassPeers() []RemotePeer
+
 	GetPeerAddresses(noHidden bool, showSelf bool) []*message.PeerInfo
 
 	GetPeerBlockInfos() []types.PeerBlockInfo

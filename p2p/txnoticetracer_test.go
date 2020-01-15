@@ -60,7 +60,6 @@ func Test_txNoticeTracer_traceTxNoticeRegister(t *testing.T) {
 	}{
 		{"TSingle", args{5, dummyHashes}, 0},
 		{"TNoPeer", args{0, dummyHashes}, len(dummyHashes)},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

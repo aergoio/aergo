@@ -64,7 +64,6 @@ func NewV200VersionedHS(is p2pcommon.InternalService, log *log.Logger, vm p2pcom
 
 // handshakeOutboundPeer start handshake with outbound peer
 func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	// find my best block
@@ -208,7 +207,6 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 // DoForInbound is handle handshake from inbound peer
 func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	// TODO need to check auth at first...
 	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
@@ -268,6 +266,8 @@ func (h *V200Handshaker) checkByRole(status *types.Status) error {
 }
 
 func (h *V200Handshaker) checkAgent(status *types.Status) error {
+	h.logger.Debug().Int("certCnt",len(status.Certificates)).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("checking peer as agent")
+
 	// Agent must have at least one block producer
 	if len(h.remoteMeta.ProducerIDs) == 0 {
 		return ErrInvalidAgentStatus
@@ -319,6 +319,7 @@ func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *ty
 
 	if h.selfMeta.Role == types.PeerRole_Agent {
 		cs := h.cm.GetCertificates()
+		h.logger.Debug().Int("certCnt",len(cs)).Msg("appending local certificates to status")
 		pcs, err := p2putil.ConvertCertsToProto(cs)
 		if err != nil {
 			h.logger.Error().Err(err).Msg("failed to convert certificates")

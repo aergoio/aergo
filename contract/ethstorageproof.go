@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"math"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -28,12 +29,12 @@ var (
 	nilBuf    = make([]byte, 8)
 )
 
-func verifyEthStorageProof(key, value, expectedHash []byte, proof [][]byte) bool {
+func verifyEthStorageProof(key []byte, value rlpObject, expectedHash []byte, proof [][]byte) bool {
 	if len(key) == 0 || value == nil || len(proof) == 0 {
 		return false
 	}
 	key = []byte(hex.EncodeToString(keccak256(key)))
-	value = rlpEncodeString55(value)
+	valueRlpEncoded := rlpEncode(value)
 	ks := keyStream{bytes.NewBuffer(key)}
 	for i, p := range proof {
 		if ((i != 0 && len(p) < 32) || !bytes.Equal(expectedHash, keccak256(p))) && !bytes.Equal(expectedHash, p) {
@@ -54,17 +55,17 @@ func verifyEthStorageProof(key, value, expectedHash []byte, proof [][]byte) bool
 				return false
 			}
 			if leaf {
-				return bytes.Equal(sharedNibbles, ks.Key(-1)) && bytes.Equal(n[1], value)
+				return bytes.Equal(sharedNibbles, ks.key(-1)) && bytes.Equal(n[1], valueRlpEncoded)
 			}
-			if !bytes.Equal(sharedNibbles, ks.Key(len(sharedNibbles))) {
+			if !bytes.Equal(sharedNibbles, ks.key(len(sharedNibbles))) {
 				return false
 			}
 			expectedHash = n[1]
 		case branchNode:
 			if ks.Len() == 0 {
-				return bytes.Equal(n[16], value)
+				return bytes.Equal(n[16], valueRlpEncoded)
 			}
-			k := ks.Index()
+			k := ks.index()
 			if k > 0x0f {
 				return false
 			}
@@ -123,7 +124,6 @@ func decodeLen(data []byte, lenLen int) (uint64, error) {
 func toList(data []byte, dataLen uint64) rlpNode {
 	var (
 		node   rlpNode
-		l      uint64
 		offset = uint64(0)
 	)
 	for {
@@ -140,8 +140,8 @@ func toList(data []byte, dataLen uint64) rlpNode {
 			return nil
 		}
 	}
-	l = uint64(len(node))
-	if l != uint64(2) && l != uint64(17) {
+	nodeLen := uint64(len(node))
+	if nodeLen != uint64(2) && nodeLen != uint64(17) {
 		return nil
 	}
 	return node
@@ -152,7 +152,7 @@ func toString(data []byte) ([]byte, uint64, error) {
 		return nil, 0, errDecode
 	}
 	switch {
-	case data[0] <= 0x7f: // character
+	case data[0] <= 0x7f: // a single byte
 		return data[0:1], 1, nil
 	case data[0] <= 0xb7: // string <= 55
 		end := 1 + data[0] - 0x80
@@ -210,7 +210,7 @@ func hexToIndex(c byte) (byte, error) {
 	return 0, errDecode
 }
 
-func (ks keyStream) Index() byte {
+func (ks keyStream) index() byte {
 	b, err := ks.ReadByte()
 	if err != nil {
 		return 0x10
@@ -222,21 +222,64 @@ func (ks keyStream) Index() byte {
 	return i
 }
 
-func (ks keyStream) Key(l int) []byte {
+func (ks keyStream) key(l int) []byte {
 	if l == -1 {
 		return ks.Buffer.Bytes()
 	}
 	return ks.Buffer.Next(l)
 }
 
-func rlpEncodeString55(b []byte) []byte {
+func rlpEncode(o rlpObject) []byte {
+	return o.rlpEncode()
+}
+
+type rlpObject interface {
+	rlpEncode() []byte
+}
+
+type rlpString []byte
+
+func (s rlpString) rlpEncode() []byte {
 	var rlpBytes []byte
-	l := len(b)
-	if l == 1 && b[0] < 0x80 {
-		rlpBytes = append(rlpBytes, b[0])
-	} else if l < 56 {
-		rlpBytes = append(rlpBytes, 0x80+byte(l))
-		rlpBytes = append(rlpBytes, b...)
+	l := len(s)
+	if l == 1 && s[0] < 0x80 {
+		rlpBytes = append(rlpBytes, s[0])
+	} else {
+		rlpBytes = append(rlpBytes, rlpLength(l, 0x80)...)
+		rlpBytes = append(rlpBytes, s...)
 	}
 	return rlpBytes
+}
+
+type rlpList []rlpObject
+
+func (l rlpList) rlpEncode() []byte {
+	var rlpBytes []byte
+	for _, item := range l {
+		rlpBytes = append(rlpBytes, item.rlpEncode()...)
+	}
+	length := rlpLength(len(rlpBytes), 0xc0)
+	return append(length, rlpBytes...)
+}
+
+func rlpLength(dataLen int, offset byte) []byte {
+	if dataLen < 56 {
+		return []byte{byte(dataLen) + offset}
+	} else if dataLen < math.MaxInt32 {
+		var output []byte
+		b := toBinary(dataLen)
+		output = append(output, byte(len(b)+int(offset)+55))
+		return append(output, b...)
+	} else {
+		return []byte{}
+	}
+}
+
+func toBinary(d int) []byte {
+	var b []byte
+	for d > 0 {
+		b = append([]byte{byte(d % 256)}, b...)
+		d /= 256
+	}
+	return b
 }

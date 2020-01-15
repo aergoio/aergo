@@ -13,6 +13,15 @@ struct proof {
 	void *data;
 	size_t len;
 };
+
+#define RLP_TSTRING 0
+#define RLP_TLIST 1
+
+struct rlp_obj {
+	int rlp_obj_type;
+	void *data;
+	size_t size;
+};
 */
 import "C"
 import (
@@ -258,7 +267,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] getAccount error: " + err.Error())
 	}
 
-	callee := getContract(cs.ctrState)
+	callee := getContract(cs.ctrState, ctx.bs)
 	if callee == nil {
 		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
 	}
@@ -292,7 +301,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 			return -1, r
 		}
 	}
-	seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false)
+	seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL Contract %v(%v) %v]\n",
 			contractAddress, aid.String(), fnameStr))
@@ -359,7 +368,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
-	contract := getContract(contractState)
+	contract := getContract(contractState, ctx.bs)
 	if contract == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
 	}
@@ -382,7 +391,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] newExecutor error: " + ce.err.Error())
 	}
 
-	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false)
+	seq, err := setRecoveryPoint(aid, ctx, nil, ctx.curContract.callState, zeroBig, false, false)
 	if err != nil {
 		return -1, C.CString("[System.LuaDelegateCallContract] database error: " + err.Error())
 	}
@@ -460,7 +469,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 		var ci types.CallInfo
 		ci.Name = "default"
-		code := getContract(cs.ctrState)
+		code := getContract(cs.ctrState, ctx.bs)
 		if code == nil {
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
@@ -480,7 +489,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 				return r
 			}
 		}
-		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false)
+		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 		if err != nil {
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
@@ -526,7 +535,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		return r
 	}
 	if ctx.lastRecoveryEntry != nil {
-		_, _ = setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true)
+		_, _ = setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
 	}
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[Send] %s(%s) : %s\n",
@@ -560,7 +569,7 @@ func luaPrint(L *LState, service C.int, args *C.char) {
 }
 
 func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.State,
-	cs *callState, amount *big.Int, isSend bool) (int, error) {
+	cs *callState, amount *big.Int, isSend, isDeploy bool) (int, error) {
 	var seq int
 	prev := ctx.lastRecoveryEntry
 	if prev != nil {
@@ -575,6 +584,7 @@ func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.St
 		senderState.GetNonce(),
 		cs,
 		isSend,
+		isDeploy,
 		nil,
 		-1,
 		prev,
@@ -607,7 +617,7 @@ func luaSetRecoveryPoint(L *LState, service C.int) (C.int, *C.char) {
 	}
 	curContract := ctx.curContract
 	seq, err := setRecoveryPoint(types.ToAccountID(curContract.contractId), ctx, nil,
-		curContract.callState, zeroBig, false)
+		curContract.callState, zeroBig, false, false)
 	if err != nil {
 		return -1, C.CString("[Contract.pcall] database error: " + err.Error())
 	}
@@ -621,7 +631,7 @@ func clearRecovery(L *LState, ctx *vmContext, start int, error bool) error {
 	item := ctx.lastRecoveryEntry
 	for {
 		if error {
-			if item.recovery() != nil {
+			if item.recovery(ctx.bs) != nil {
 				return errors.New("database error")
 			}
 		}
@@ -885,15 +895,30 @@ func luaCryptoToBytes(data unsafe.Pointer, dataLen C.int) ([]byte, bool) {
 	return d, isHex
 }
 
+func luaCryptoRlpToBytes(data unsafe.Pointer) rlpObject {
+	x := (*C.struct_rlp_obj)(data)
+	if x.rlp_obj_type == C.RLP_TSTRING {
+		b, _ := luaCryptoToBytes(x.data, C.int(x.size))
+		return rlpString(b)
+	}
+	var l rlpList
+	elems := (*[1 << 30]C.struct_rlp_obj)(unsafe.Pointer(x.data))[:C.int(x.size):C.int(x.size)]
+	for _, elem := range elems {
+		b, _ := luaCryptoToBytes(elem.data, C.int(elem.size))
+		l = append(l, rlpString(b))
+	}
+	return l
+}
+
 //export luaCryptoVerifyProof
 func luaCryptoVerifyProof(
 	key unsafe.Pointer, keyLen C.int,
-	value unsafe.Pointer, valueLen C.int,
+	value unsafe.Pointer,
 	hash unsafe.Pointer, hashLen C.int,
 	proof unsafe.Pointer, nProof C.int,
 ) C.int {
 	k, _ := luaCryptoToBytes(key, keyLen)
-	v, _ := luaCryptoToBytes(value, valueLen)
+	v := luaCryptoRlpToBytes(value)
 	h, _ := luaCryptoToBytes(hash, hashLen)
 	cProof := (*[1 << 30]C.struct_proof)(proof)[:nProof:nProof]
 	bProof := make([][]byte, int(nProof))
@@ -1082,7 +1107,7 @@ func luaDeployContract(
 		}
 	}
 
-	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false)
+	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
 	if err != nil {
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
@@ -1115,10 +1140,8 @@ func luaDeployContract(
 		ce.close()
 		moveGas(L, ctx)
 	}()
-	if ce != nil {
-		if ce.err != nil {
-			return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
-		}
+	if ce.err != nil {
+		return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
 	}
 
 	// create a sql database for the contract
@@ -1277,7 +1300,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
 	}
-	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false)
+	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
@@ -1300,7 +1323,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 
 	if ctx.lastRecoveryEntry != nil {
 		if gType == 'S' {
-			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true)
+			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
@@ -1309,7 +1332,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 					senderState.GetBalanceBigInt().String(), scsState.curState.GetBalanceBigInt().String()))
 			}
 		} else if gType == 'U' {
-			seq, _ = setRecoveryPoint(aid, ctx, scsState.curState, ctx.curContract.callState, amountBig, true)
+			seq, _ = setRecoveryPoint(aid, ctx, scsState.curState, ctx.curContract.callState, amountBig, true, false)
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[GOVERNANCE]aid(%s)\n", aid.String()))
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))

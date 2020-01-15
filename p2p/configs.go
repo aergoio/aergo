@@ -7,7 +7,7 @@ package p2p
 
 import "time"
 
-// constants for peer communicating
+// constants for peer communication
 const (
 	// peer handshake will be failed when taken more than defaultHandshakeTTL
 	defaultHandshakeTTL = time.Second * 20
@@ -17,15 +17,6 @@ const (
 	txNoticeInterval = time.Second * 1
 	// writeMsgBufferSize is queue size of message to a peer. connection will be closed when queue is exceeded.
 	writeMsgBufferSize = 40
-
-	certCleanupInterval = time.Hour
-)
-
-// constants for legacy sync algorithm. DEPRECATED newer sync logging in syncer package is used now.
-const (
-	SyncWorkTTL        = time.Second * 30
-	AddBlockCheckpoint = 100
-	AddBlockWaitTime   = time.Second * 10
 )
 
 // constants for node discovery

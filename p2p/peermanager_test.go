@@ -175,7 +175,6 @@ func TestPeerManager_init(t *testing.T) {
 		{"TDifferPort", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindPort: 12345}, localIP.String(), 7846, localIP.String(), 12345, false},
 		// bind different address and port
 		{"TBindDiffer", &cfg.P2PConfig{NetProtocolAddr: "", NetProtocolPort: 7846, NPBindAddr: "172.21.1.2", NPBindPort: 12345}, localIP.String(), 7846, "172.21.1.2", 12345, false},
-		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -216,7 +215,6 @@ func Test_peerManager_runManagePeers_MultiConnWorks(t *testing.T) {
 		conns []desc
 	}{
 		{"T10", ds},
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -503,6 +501,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			}).Return(mockPeer)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
 			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
+			mockPeer.EXPECT().Meta().Return(tt.args.status.Meta).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			mockPeer.EXPECT().UpdateBlkCache(gomock.Any(), gomock.Any()).AnyTimes()
 
@@ -578,6 +577,7 @@ func Test_peerManager_tryRegisterCollision(t *testing.T) {
 			mockPeerFactory := p2pmock.NewMockPeerFactory(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().RunPeer().MaxTimes(1)
+			mockPeer.EXPECT().Meta().Return(tt.args.status.Meta).AnyTimes()
 			mockPeer.EXPECT().AcceptedRole().Return(types.PeerRole_Producer).AnyTimes()
 			mockPeer.EXPECT().Name().Return("testPeer").AnyTimes()
 			if tt.wantSucc {

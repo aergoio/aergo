@@ -34,6 +34,30 @@ func (m *MockPeerRoleManager) EXPECT() *MockPeerRoleManagerMockRecorder {
 	return m.recorder
 }
 
+// Start mocks base method
+func (m *MockPeerRoleManager) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start
+func (mr *MockPeerRoleManagerMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockPeerRoleManager)(nil).Start))
+}
+
+// Stop mocks base method
+func (m *MockPeerRoleManager) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop
+func (mr *MockPeerRoleManagerMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockPeerRoleManager)(nil).Stop))
+}
+
 // UpdateBP mocks base method
 func (m *MockPeerRoleManager) UpdateBP(toAdd, toRemove []types.PeerID) {
 	m.ctrl.T.Helper()
@@ -74,18 +98,32 @@ func (mr *MockPeerRoleManagerMockRecorder) GetRole(pid interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRole", reflect.TypeOf((*MockPeerRoleManager)(nil).GetRole), pid)
 }
 
+// CheckRole mocks base method
+func (m *MockPeerRoleManager) CheckRole(remoteInfo p2pcommon.RemoteInfo, newRole types.PeerRole) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckRole", remoteInfo, newRole)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// CheckRole indicates an expected call of CheckRole
+func (mr *MockPeerRoleManagerMockRecorder) CheckRole(remoteInfo, newRole interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckRole", reflect.TypeOf((*MockPeerRoleManager)(nil).CheckRole), remoteInfo, newRole)
+}
+
 // FilterBPNoticeReceiver mocks base method
 func (m *MockPeerRoleManager) FilterBPNoticeReceiver(block *types.Block, pm p2pcommon.PeerManager, targetZone p2pcommon.PeerZone) []p2pcommon.RemotePeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FilterBPNoticeReceiver", block, pm)
+	ret := m.ctrl.Call(m, "FilterBPNoticeReceiver", block, pm, targetZone)
 	ret0, _ := ret[0].([]p2pcommon.RemotePeer)
 	return ret0
 }
 
 // FilterBPNoticeReceiver indicates an expected call of FilterBPNoticeReceiver
-func (mr *MockPeerRoleManagerMockRecorder) FilterBPNoticeReceiver(block, pm interface{}) *gomock.Call {
+func (mr *MockPeerRoleManagerMockRecorder) FilterBPNoticeReceiver(block, pm, targetZone interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterBPNoticeReceiver", reflect.TypeOf((*MockPeerRoleManager)(nil).FilterBPNoticeReceiver), block, pm)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilterBPNoticeReceiver", reflect.TypeOf((*MockPeerRoleManager)(nil).FilterBPNoticeReceiver), block, pm, targetZone)
 }
 
 // FilterNewBlockNoticeReceiver mocks base method

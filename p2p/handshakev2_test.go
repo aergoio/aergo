@@ -151,7 +151,7 @@ func TestInboundWireHandshker_handleInboundPeer(t *testing.T) {
 			mockVM := p2pmock.NewMockVersionedManager(ctrl)
 			mockVH := p2pmock.NewMockVersionedHandshaker(ctrl)
 
-			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
+			mockCtx := NewContextTestDouble(tt.ctxCancel)
 			wbuf := bytes.NewBuffer(nil)
 			dummyReader := &RWCWrapper{bytes.NewBuffer(tt.in), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)
@@ -231,7 +231,7 @@ func TestOutboundWireHandshaker_handleOutboundPeer(t *testing.T) {
 			mockVM := p2pmock.NewMockVersionedManager(ctrl)
 			mockVH := p2pmock.NewMockVersionedHandshaker(ctrl)
 
-			mockCtx := NewContextTestDouble(tt.ctxCancel) // TODO make mock
+			mockCtx := NewContextTestDouble(tt.ctxCancel)
 			wbuf := bytes.NewBuffer(nil)
 			dummyRWC := &RWCWrapper{bytes.NewBuffer(tt.remoteResponse), wbuf, nil}
 			dummyMsgRW := p2pmock.NewMockMsgReadWriter(ctrl)

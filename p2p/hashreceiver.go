@@ -28,14 +28,14 @@ type BlockHashesReceiver struct {
 	finished  bool
 	status      receiverStatus
 
+	reqCnt int
 	got    []message.BlockHash
-	offset int
 	senderFinished chan interface{}
 }
 
 func NewBlockHashesReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, seq uint64, req *message.GetHashes, ttl time.Duration) *BlockHashesReceiver {
 	timeout := time.Now().Add(ttl)
-	return &BlockHashesReceiver{syncerSeq:seq, actor: actor, peer: peer, prevBlock: req.PrevInfo, count: int(req.Count), timeout: timeout, got: make([]message.BlockHash, int(req.Count))}
+	return &BlockHashesReceiver{syncerSeq:seq, actor: actor, peer: peer, prevBlock: req.PrevInfo, count: int(req.Count), timeout: timeout, reqCnt:int(req.Count), got: make([]message.BlockHash, 0, int(req.Count))}
 }
 
 func (br *BlockHashesReceiver) StartGet() {
@@ -87,14 +87,17 @@ func (br *BlockHashesReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2
 	}
 
 	// add to Got
-	for _, block := range body.Hashes {
+	for _, bHash := range body.Hashes {
+		if len(bHash) != types.HashIDLength {
+			br.cancelReceiving(message.WrongBlockHashError, body.HasNext)
+			return
+		}
 		// It also error that response has more hashes than expected(=requested).
-		if br.offset >= len(br.got) {
+		if len(br.got) >= br.reqCnt {
 			br.cancelReceiving(message.TooManyBlocksError, body.HasNext)
 			return
 		}
-		br.got[br.offset] = block
-		br.offset++
+		br.got = append(br.got, bHash)
 	}
 	// remote peer hopefully sent last part
 	if !body.HasNext {

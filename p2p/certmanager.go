@@ -89,7 +89,7 @@ func (cm *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta)
 	for i, ad := range remoteMeta.Addresses {
 		addrs[i] = types.AddressFromMultiAddr(ad)
 	}
-	return p2putil.NewAgentCertV1(cm.self.ID, remoteMeta.ID, cm.key, addrs, time.Hour*24)
+	return p2putil.NewAgentCertV1(cm.self.ID, remoteMeta.ID, cm.key, addrs, p2pcommon.DefaultCertTTL)
 }
 
 type agentCertificateManager struct {
@@ -106,26 +106,34 @@ type agentCertificateManager struct {
 func (cm *agentCertificateManager) Start() {
 	go func() {
 		cm.logger.Info().Msg("Starting p2p certificate manager ")
-		cm.ticker = time.NewTicker(time.Hour)
+		cm.ticker = time.NewTicker(p2pcommon.LocalCertCheckInterval)
 		for range cm.ticker.C {
 			cm.mutex.Lock()
 			now := time.Now()
-
-			certs2 := make([]*p2pcommon.AgentCertificateV1, 0, len(cm.certs))
-			for _, cert := range cm.certs {
-				if cert.IsNeedUpdate(now, p2putil.DefaultExpireBufTerm) {
-					cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{cert.BPID})
-					if cert.IsValidInTime(now, p2putil.TimeErrorTolerance) {
-						certs2 = append(certs2, cert)
-					} else {
-						delete(cm.certMap, cert.BPID)
-					}
-				}
-			}
-			cm.certs = certs2
+			cm.checkCertificates(now)
 			cm.mutex.Unlock()
 		}
 	}()
+}
+
+func (cm *agentCertificateManager) checkCertificates(now time.Time) {
+	cm.logger.Debug().Int("certCnt",len(cm.certs)).Msg("periodic check for local certificates")
+
+	certs2 := make([]*p2pcommon.AgentCertificateV1, 0, len(cm.certs))
+	for _, cert := range cm.certs {
+		if cert.IsNeedUpdate(now, p2pcommon.DefaultExpireBufTerm) {
+			cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{cert.BPID})
+			if cert.IsValidInTime(now, p2pcommon.TimeErrorTolerance) {
+				certs2 = append(certs2, cert)
+			} else {
+				cm.logger.Debug().Int("certCnt",len(cm.certs)).Msg("removing expired certificates")
+				delete(cm.certMap, cert.BPID)
+			}
+		} else {
+			certs2 = append(certs2, cert)
+		}
+	}
+	cm.certs = certs2
 }
 
 func (cm *agentCertificateManager) Stop() {
@@ -170,7 +178,7 @@ func (cm *agentCertificateManager) AddCertificate(cert *p2pcommon.AgentCertifica
 		}
 	}
 	newCerts = append(newCerts, cert)
-	cm.logger.Info().Str("bpID", p2putil.ShortForm(cert.BPID)).Time("cTime", cert.CreateTime).Time("eTime", cert.ExpireTime).Msg("issued certificate is added to my certificate list")
+	cm.logger.Info().Object("cert", p2putil.AgentCertMarshaller{cert}).Msg("issued certificate is added to my certificate list")
 	cm.certs = newCerts
 	cm.certMap[cert.BPID] = cert
 	pCert, err := p2putil.ConvertCertToProto(cert)
@@ -185,7 +193,10 @@ func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {
 	if !p2putil.ContainsID(cm.self.ProducerIDs, pid) {
 		return
 	}
-	// check if certificate exists adn is still valid
+
+	cm.mutex.Lock()
+	defer cm.mutex.Unlock()
+	// check if certificate exists and is still valid
 	var prevCert *p2pcommon.AgentCertificateV1 = nil
 	for _, cert := range cm.certs {
 		if types.IsSamePeerID(cert.BPID, pid) {
@@ -193,10 +204,9 @@ func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {
 			break
 		}
 	}
-	// then send issueCert if not.
-	// FIXME it still have inefficiency that issue
-	if prevCert == nil || prevCert.IsNeedUpdate(time.Now(), p2putil.DefaultExpireBufTerm) {
-		cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{pid})
+	// then send issueCert if not
+	if prevCert == nil || prevCert.IsNeedUpdate(time.Now(), p2pcommon.DefaultExpireBufTerm) {
+		cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{ProducerID: pid})
 	}
 }
 

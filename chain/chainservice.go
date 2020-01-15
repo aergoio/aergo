@@ -775,7 +775,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		}
 		contractState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
 		if err == nil {
-			abi, err := contract.GetABI(contractState)
+			abi, err := contract.GetABI(contractState, nil)
 			context.Respond(message.GetABIRsp{
 				ABI: abi,
 				Err: err,

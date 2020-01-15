@@ -28,9 +28,8 @@ func newDefaultMsgSigner(privKey crypto.PrivKey, pubKey crypto.PubKey, peerID ty
 	return &defaultMsgSigner{selfPeerID: peerID, privateKey: privKey, pubKey: pubKey, pidBytes: pidBytes, pubKeyBytes: pubKeyBytes}
 }
 
-// sign an outgoing p2p message payload
+// SignMsg sign an outgoing p2p message payload and assign the signature to field of message
 func (pm *defaultMsgSigner) SignMsg(message *types.P2PMessage) error {
-	// TODO this code modify caller's parameter.
 	message.Header.PeerID = pm.pidBytes
 	message.Header.NodePubKey = pm.pubKeyBytes
 	data, err := proto.Marshal(&types.P2PMessage{Header: canonicalizeHeader(message.Header), Data: message.Data})
@@ -76,7 +75,7 @@ func (pm *defaultMsgSigner) VerifyMsg(msg *types.P2PMessage, senderID types.Peer
 	signature := msg.Header.Sign
 	checkOrigin := false
 	if checkOrigin {
-		// TODO it can be needed, and if that modify code to get peer id from caller and enable this code
+		// TODO it can be needed, and if that, modify code to get peer id from caller and enable this code
 		if err := checkPidWithPubkey(senderID, pubKey); err != nil {
 			return err
 		}

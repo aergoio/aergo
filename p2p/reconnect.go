@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const firstReconnectCoolTime = time.Minute >> 1
+
 var (
 	durations []time.Duration
 	maxTrial  = 15
@@ -39,3 +41,5 @@ func generateExpDuration(initSecs int, inc float64, count int) []time.Duration {
 	}
 	return arr
 }
+
+

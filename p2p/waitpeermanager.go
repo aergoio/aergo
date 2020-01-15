@@ -102,7 +102,8 @@ func (dpm *basePeerManager) InstantConnect(meta p2pcommon.PeerMeta) {
 		wp.TrialCnt = 0
 	} else {
 		// add to waiting peer
-		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, NextTrial: time.Now().Add(-time.Hour)}
+		_, designated := dpm.pm.designatedPeers[meta.ID]
+		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, Designated:designated, NextTrial: time.Now().Add(-time.Hour)}
 	}
 	dpm.connectWaitingPeers(1)
 }
@@ -215,6 +216,7 @@ func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s
 	return remoteInfo.Meta, true
 }
 
+// createRemoteInfo create incomplete struct, field acceptedRole is not set yet
 func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.HandshakeResult, outbound bool) p2pcommon.RemoteInfo {
 	rma := conn.RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(rma)
@@ -259,16 +261,17 @@ func (dpm *basePeerManager) OnWorkDone(result p2pcommon.ConnWorkResult) {
 	wp.LastResult = result.Result
 	// success to connect
 	if result.Result == nil {
-		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Msg("Deleting unimportant failed peer.")
+		dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Msg("Connected job succeeded, so delete it from waiting peers")
 		delete(dpm.pm.waitingPeers, meta.ID)
 	} else {
-		// leave waitingpeer if needed to reconnect
+		// leave waiting peer if needed to reconnect
 		if !setNextTrial(wp) {
-			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Time("next_time", wp.NextTrial).Msg("Failed Connection will be retried")
+			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Msg("Connected job failed, but will not retry unimportant peer.")
 			delete(dpm.pm.waitingPeers, meta.ID)
+		} else {
+			dpm.logger.Debug().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(meta)).Time("next_time", wp.NextTrial).Msg("Connected job failed, and will retry important peer")
 		}
 	}
-
 }
 
 type staticWPManager struct {
@@ -284,7 +287,7 @@ func (spm *staticWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := spm.pm.designatedPeers[peer.ID()]; ok {
 		spm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectCoolTime)}
+		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated:true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
 	}
 }
 
@@ -310,7 +313,7 @@ func (dpm *dynamicWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := dpm.pm.designatedPeers[peer.ID()]; ok {
 		dpm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), NextTrial: time.Now().Add(firstReconnectCoolTime)}
+		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated:true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
 		//dpm.pm.addAwait(peer.Meta())
 	}
 }

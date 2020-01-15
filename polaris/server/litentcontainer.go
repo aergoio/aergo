@@ -6,6 +6,7 @@
 package server
 
 import (
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/p2p/transport"
@@ -34,6 +35,14 @@ type LiteContainerService struct {
 	nt      p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
+}
+
+func (lntc *LiteContainerService) ConsensusAccessor() consensus.ConsensusAccessor {
+	panic("implement me")
+}
+
+func (lntc *LiteContainerService) PeerManager() p2pcommon.PeerManager {
+	panic("implement me")
 }
 
 func (lntc *LiteContainerService) LocalSettings() p2pcommon.LocalSettings {
@@ -96,7 +105,7 @@ func (lntc *LiteContainerService) GenesisChainID() *types.ChainID {
 func (lntc *LiteContainerService) init(cfg *config.Config) {
 	// load genesis file
 	// init from genesis file
-	// TODO code duplication. refactor to delete dupplicate with p2p.go
+
 	genesis, err := readGenesis(cfg.Polaris.GenesisFile)
 	if err != nil {
 		panic(err.Error())

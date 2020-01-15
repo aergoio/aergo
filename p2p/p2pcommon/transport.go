@@ -24,7 +24,6 @@ type NTContainer interface {
 }
 
 // NetworkTransport do manager network connection
-// TODO need refactoring. it has other role, pk management of self peer
 type NetworkTransport interface {
 	core.Host
 	Start() error
