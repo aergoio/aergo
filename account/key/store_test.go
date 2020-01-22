@@ -75,9 +75,11 @@ func TestExportImportKey(t *testing.T) {
 		if len(exported) != 48 {
 			t.Errorf("invalid exported address : length = %d", len(exported))
 		}
-		imported, err := ks.ImportKey(exported, pass, pass)
+
+		newPass := fmt.Sprintf("new%d", i)
+		imported, err := ks.ImportKey(exported, pass, newPass)
 		assert.NoError(t, err, "import")
-		assert.Equal(t, imported, addr, "import result")
+		assert.Equal(t, addr, imported, "import result")
 	}
 }
 

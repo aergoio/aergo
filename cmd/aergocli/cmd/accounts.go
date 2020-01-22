@@ -93,7 +93,7 @@ var newCmd = &cobra.Command{
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			err = ks.SaveAddress(addr)
+			// err = ks.SaveAddress(addr)
 		}
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
