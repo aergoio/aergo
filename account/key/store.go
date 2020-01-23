@@ -36,6 +36,8 @@ func NewStore(storePath string, unlockTimeout uint) *Store {
 		storage:      storage,
 	}
 }
+
+// CloseStore locks all addresses and closes the storage
 func (ks *Store) CloseStore() {
 	ks.unlocked = nil
 	ks.storage.Close()
@@ -63,7 +65,7 @@ func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Add
 	return ks.addKey(privkey, newpass)
 }
 
-//ExportKey is to export encrypted key
+// ExportKey is to export encrypted key
 func (ks *Store) ExportKey(addr Address, pass string) ([]byte, error) {
 	key, err := ks.getKey(addr, pass)
 	if key == nil {
@@ -79,7 +81,7 @@ func EncryptKey(key []byte, pass string) ([]byte, error) {
 	return encrypt(hash, rehash, key)
 }
 
-//Unlock is to unlock account for signing
+// Unlock is to unlock account for signing
 func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 	pk, err := ks.getKey(addr, pass)
 	if err != nil {
@@ -110,7 +112,7 @@ func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 	return addr, nil
 }
 
-//Lock is to lock account prevent signing
+// Lock locks an account
 func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 	_, err := ks.getKey(addr, pass)
 	if err != nil {
@@ -128,6 +130,7 @@ func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 	return addr, nil
 }
 
+// GetAddresses returns the list of stored addresses
 func (ks *Store) GetAddresses() ([]Address, error) {
 	return ks.storage.List()
 }
