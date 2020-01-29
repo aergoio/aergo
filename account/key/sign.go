@@ -9,7 +9,7 @@ import (
 )
 
 //Sign return sign with key in the store
-func (ks *Store) Sign(addr Address, pass string, hash []byte) ([]byte, error) {
+func (ks *Store) Sign(addr Identity, pass string, hash []byte) ([]byte, error) {
 	key, err := ks.getKey(addr, pass)
 	if err != nil {
 		return nil, err

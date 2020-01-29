@@ -9,8 +9,6 @@ import (
 )
 
 // Address is the raw, internally used identifier of an account
-type Address = []byte
-
 // GenerateAddress calculates the raw (not-encoded) address for a private key.
 // In Aergo, the address is synonymous with the compressed public key (33 bytes).
 func GenerateAddress(pubkey *ecdsa.PublicKey) []byte {

@@ -44,7 +44,7 @@ func (ks *Store) CloseStore() {
 }
 
 // CreateKey make new key in keystore and return it's address
-func (ks *Store) CreateKey(pass string) (Address, error) {
+func (ks *Store) CreateKey(pass string) (Identity, error) {
 	//gen new key
 	privkey, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
@@ -54,7 +54,7 @@ func (ks *Store) CreateKey(pass string) (Address, error) {
 }
 
 // ImportKey is to import encrypted key
-func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Address, error) {
+func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Identity, error) {
 	hash := hashBytes([]byte(oldpass), nil)
 	rehash := hashBytes([]byte(oldpass), hash)
 	key, err := decrypt(hash, rehash, imported)
@@ -66,7 +66,7 @@ func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Add
 }
 
 // ExportKey is to export encrypted key
-func (ks *Store) ExportKey(addr Address, pass string) ([]byte, error) {
+func (ks *Store) ExportKey(addr Identity, pass string) ([]byte, error) {
 	key, err := ks.getKey(addr, pass)
 	if key == nil {
 		return nil, err
@@ -82,7 +82,7 @@ func EncryptKey(key []byte, pass string) ([]byte, error) {
 }
 
 // Unlock is to unlock account for signing
-func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
+func (ks *Store) Unlock(addr Identity, pass string) (Identity, error) {
 	pk, err := ks.getKey(addr, pass)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 }
 
 // Lock locks an account
-func (ks *Store) Lock(addr Address, pass string) (Address, error) {
+func (ks *Store) Lock(addr Identity, pass string) (Identity, error) {
 	_, err := ks.getKey(addr, pass)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 }
 
 // GetAddresses returns the list of stored addresses
-func (ks *Store) GetAddresses() ([]Address, error) {
+func (ks *Store) GetAddresses() ([]Identity, error) {
 	return ks.storage.List()
 }
 
@@ -139,7 +139,7 @@ func (ks *Store) getKey(address []byte, pass string) (*aergokey, error) {
 	return ks.storage.Load(address, pass)
 }
 
-func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Address, error) {
+func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Identity, error) {
 	address := GenerateAddress(&key.PublicKey)
 	return ks.storage.Save(address, pass, key)
 }
