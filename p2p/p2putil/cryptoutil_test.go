@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"testing"
 )
 
@@ -31,6 +32,18 @@ func TestConvertPKToLibP2P(t *testing.T) {
 			rev := ConvertPKToBTCEC(got)
 			if !bytes.Equal(rev.Serialize(), btcPK.Serialize()) {
 				t.Errorf("ConvertPKToBTCEC() pk = %v, want %v", hex.EncodeToString(rev.Serialize()), hex.EncodeToString(btcPK.Serialize()))
+			}
+
+			marshaled, err := crypto.MarshalPrivateKey(got)
+			if err != nil {
+				t.Fatalf("Failed to create test input pk: %v",err.Error())
+			}
+			bs, err := got.Bytes()
+			if err != nil {
+				t.Fatalf("Failed to create test input pk: %v",err.Error())
+			}
+			if !bytes.Equal(marshaled, bs) {
+				t.Fatalf("libp2p crypto Marshal and Bytes() is differ!")
 			}
 		})
 	}
