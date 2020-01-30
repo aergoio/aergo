@@ -51,7 +51,6 @@ type remotePeerImpl struct {
 	mf         p2pcommon.MoFactory
 	signer     p2pcommon.MsgSigner
 	metric     *metric.PeerMetric
-	tnt        p2pcommon.TxNoticeTracer
 
 	certChan chan *p2pcommon.AgentCertificateV1
 	stopChan chan struct{}
@@ -78,6 +77,9 @@ type remotePeerImpl struct {
 	maxTxNoticeHashSize int
 
 	rw p2pcommon.MsgReadWriter
+
+	taskChannel       chan p2pcommon.PeerTask
+
 }
 
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
@@ -103,6 +105,7 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		txQueueLock:         &sync.Mutex{},
 		txNoticeQueue:       p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
+		taskChannel: make(chan p2pcommon.PeerTask, 1),
 	}
 	rPeer.dWrite = make(chan p2pcommon.MsgOrder, writeMsgBufferSize)
 
@@ -193,6 +196,9 @@ READNOPLOOP:
 			p.cleanupCerts()
 		case c := <-p.certChan:
 			p.addCert(c)
+		case task := <- p.taskChannel:
+			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Executing task for peer")
+			task(p)
 		case <-p.stopChan:
 			break READNOPLOOP
 		}
@@ -436,10 +442,6 @@ func (p *remotePeerImpl) sendTxNotices() {
 			mo := p.mf.NewMsgTxBroadcastOrder(&types.NewTransactionsNotice{TxHashes: hashes})
 			p.SendMessage(mo)
 		}
-		if len(skippedTxIDs) > 0 {
-			// if tx is in cache, the remote peer will have that tx.
-			p.tnt.ReportSend(skippedTxIDs, p.ID())
-		}
 	}
 }
 
@@ -553,4 +555,14 @@ func (p *remotePeerImpl) cleanupCerts() {
 
 func (p *remotePeerImpl) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
 	p.certChan <- cert
+}
+
+func (p *remotePeerImpl) DoTask(task p2pcommon.PeerTask) bool {
+	select {
+	case p.taskChannel <- task :
+		return true
+	default:
+		// peer is busy
+		return false
+	}
 }

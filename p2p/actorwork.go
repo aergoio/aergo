@@ -200,7 +200,7 @@ func (p2ps *P2P) NotifyNewTX(newTXs notifyNewTXs) bool {
 	skipped, sent := 0, 0
 	// send to peers
 	peers := p2ps.pm.GetPeers()
-	p2ps.tnt.RegisterTxNotice(hashes, len(peers), newTXs.alreadySent)
+	p2ps.sm.RegisterTxNotice(hashes)
 	for _, rPeer := range peers {
 		if rPeer != nil && rPeer.State() == types.RUNNING {
 			sent++
@@ -210,9 +210,6 @@ func (p2ps *P2P) NotifyNewTX(newTXs notifyNewTXs) bool {
 		}
 	}
 	//p2ps.Debug().Int("skippeer_cnt", skipped).Int("sendpeer_cnt", sent).Int("hash_cnt", len(hashes)).Msg("Notifying newTXs to peers")
-	if skipped > 0 {
-		p2ps.tnt.ReportNotSend(hashes, skipped)
-	}
 
 	return true
 }

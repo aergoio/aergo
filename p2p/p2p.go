@@ -57,8 +57,6 @@ type P2P struct {
 	prm    p2pcommon.PeerRoleManager
 	lm     p2pcommon.ListManager
 	cm     p2pcommon.CertificateManager
-	tnt    *txNoticeTracer
-
 	mutex sync.Mutex
 
 	// inited between construction and start
@@ -105,8 +103,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
-	p2ps.tnt = newTxNoticeTracer(p2ps.Logger, p2ps)
-	mf := &baseMOFactory{p2ps: p2ps, tnt: p2ps.tnt}
+	mf := &baseMOFactory{p2ps: p2ps}
 
 	// public network is always disabled white/blacklist in chain
 	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
@@ -172,7 +169,6 @@ func (p2ps *P2P) AfterStart() {
 
 	nt := p2ps.nt
 	nt.Start()
-	p2ps.tnt.Start()
 	p2ps.mutex.Unlock()
 
 	if err := p2ps.pm.Start(); err != nil {
@@ -203,7 +199,6 @@ func (p2ps *P2P) BeforeStop() {
 		p2ps.Logger.Warn().Err(err).Msg("Error on stopping peerManager")
 	}
 	p2ps.mutex.Lock()
-	p2ps.tnt.Stop()
 	nt := p2ps.nt
 	p2ps.mutex.Unlock()
 	nt.Stop()
@@ -477,7 +472,6 @@ func (p2ps *P2P) CreateRemotePeer(remoteInfo p2pcommon.RemoteInfo, seq uint32, r
 	}
 
 	newPeer := newRemotePeer(remoteInfo, seq, p2ps.pm, p2ps, p2ps.Logger, p2ps.mf, p2ps.signer, rw)
-	newPeer.tnt = p2ps.tnt
 	rw.AddIOListener(p2ps.mm.NewMetric(newPeer.ID(), newPeer.ManageNumber()))
 
 	// insert Handlers

@@ -23,8 +23,7 @@ import (
 func Test_pbRequestOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
-	factory := &baseMOFactory{tnt:mockTNT}
+	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses:[]types.Multiaddr{sampleMA}}
 	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
@@ -73,8 +72,7 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 func Test_pbMessageOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
-	factory := &baseMOFactory{tnt:mockTNT}
+	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
 	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
@@ -118,8 +116,7 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
-	factory := &baseMOFactory{tnt:mockTNT}
+	factory := &baseMOFactory{}
 
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
@@ -185,8 +182,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
-	factory := &baseMOFactory{tnt:mockTNT}
+	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
 	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
@@ -264,8 +260,7 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
-	factory := &baseMOFactory{tnt:mockTNT}
+	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
 	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
@@ -343,17 +338,15 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 		writeErr error
 		keyExist int
 		wantErr  bool
-		wantRType p2pcommon.ReportType
 	}{
-		{"TSucc", nil, 0, false, p2pcommon.Send},
-		{"TWriteFail", fmt.Errorf("writeFail"), 0, true, p2pcommon.Fail},
+		{"TSucc", nil, 0, false, },
+		{"TWriteFail", fmt.Errorf("writeFail"), 0, true,},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			mockTNT := p2pmock.NewMockTxNoticeTracer(ctrl)
-			factory := &baseMOFactory{tnt:mockTNT}
+			factory := &baseMOFactory{}
 			mockActorServ := p2pmock.NewMockActorService(ctrl)
 			mockPeerManager := p2pmock.NewMockPeerManager(ctrl)
 			mockRW := p2pmock.NewMockMsgReadWriter(ctrl)
@@ -362,11 +355,6 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(0)
 			} else {
 				mockRW.EXPECT().WriteMsg(gomock.Any()).Return(tt.writeErr).Times(1)
-			}
-			if tt.wantRType == p2pcommon.Send {
-				mockTNT.EXPECT().ReportSend(gomock.Any(), samplePeerID).Times(1)
-			} else {
-				mockTNT.EXPECT().ReportNotSend(gomock.Any(), 1).Times(1)
 			}
 
 			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)

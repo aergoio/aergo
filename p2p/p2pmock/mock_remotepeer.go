@@ -375,3 +375,17 @@ func (mr *MockRemotePeerMockRecorder) AddCertificate(cert interface{}) *gomock.C
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockRemotePeer)(nil).AddCertificate), cert)
 }
+
+// DoTask mocks base method
+func (m *MockRemotePeer) DoTask(task p2pcommon.PeerTask) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DoTask", task)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// DoTask indicates an expected call of DoTask
+func (mr *MockRemotePeerMockRecorder) DoTask(task interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DoTask", reflect.TypeOf((*MockRemotePeer)(nil).DoTask), task)
+}

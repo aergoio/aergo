@@ -115,11 +115,29 @@ func (sm *syncManager) HandleGetBlockResponse(peer p2pcommon.RemotePeer, msg p2p
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 }
 
+func (sm *syncManager) RegisterTxNotice(txIDs []types.TxID) {
+	if !sm.logger.IsDebugEnabled() {
+		cached := make([]types.TxID,0)
+		for _, hashArr := range txIDs {
+			if exist, _ := sm.txCache.ContainsOrAdd(hashArr, cachePlaceHolder); !exist {
+				cached = append(cached, hashArr)
+			}
+		}
+		if len(cached) > 0 {
+			sm.logger.Debug().Array("txIDs", types.NewLogTxIDsMarshaller(cached, 10)).Msg("syncManager caches txs")
+		}
+	} else {
+		for _, hashArr := range txIDs {
+			_ = sm.txCache.Add(hashArr, cachePlaceHolder)
+		}
+	}
+}
+
 func (sm *syncManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice) {
 	peerID := peer.ID()
 
 	// TODO it will cause problem if getTransaction failed. (i.e. remote peer was sent notice, but not response getTransaction)
-	toGet := make([]message.TXHash, 0, len(data.TxHashes))
+	toGet := make([]message.TXHash, 0, len(hashes))
 	for _, hashArr := range hashes {
 		ok, _ := sm.txCache.ContainsOrAdd(hashArr, cachePlaceHolder)
 		if ok {
