@@ -5908,6 +5908,258 @@ func TestContractSendF(t *testing.T) {
 	}
 }
 
+func TestImapKey(t *testing.T) {
+	definition := `
+	state.var{
+		counts = state.imap()
+	}
+	function setCount(key, value)
+		counts[key] = value
+	end
+	function getCount(key)
+		return counts[key]
+	end
+	function delCount(key)
+		counts:delete(key)
+	end
+	function iter()
+		local rv = {}
+		for key, v in counts:pairs() do
+			table.insert(rv, {key, v})
+		end
+		return rv
+	end
+	function iterkey()
+		local rv = {}
+		for key in counts:keys() do
+			table.insert(rv, key)
+		end
+		return rv
+	end
+	abi.register(setCount, getCount, delCount, iter, iterkey)
+`
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "a", 0, definition),
+	)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "null")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("(number expected, got string)"),
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "(number expected, got string)", "")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "10")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "30")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 0,
+			`{"Name":"setCount", "Args":[true, 40]}`,
+		).Fail(`invalid key type: 'boolean', state.map: 'counts'`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"iter", "Args":[]}`, "", "[[1,10],[1.1,30]]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"iterkey", "Args":[]}`, "", "[1,1.1]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"delCount", "Args":[1.1]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[1.1]}`, "", "null")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"getCount", "Args":[2]}`, "", "null")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"iter", "Args":[]}`, "", "[[1,10]]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("a", `{"Name":"iterkey", "Args":[]}`, "", "[1]")
+	if err != nil {
+		t.Error(err)
+	}
+	definition2 := `
+	state.var{
+		counts = state.imap(3)
+	}
+	function setTest()
+		counts[1][2][3] = 1
+		counts[2][3][4] = 2
+		counts[100][20][3] = 3
+		counts[100][20][1] = 5
+	end
+	function getTest()
+		return counts[100][20][3], counts[5][1][2]
+	end
+
+	function delCount()
+		counts[1][2]:delete(3)
+	end
+	function iter()
+		local rv = {}
+		local rv2 = {}
+		for key1, v in counts:pairs() do 
+			for key2, v2 in v:pairs() do 
+				for key3, v3 in v2:pairs() do   
+					table.insert(rv, {key1, key2, key3, v3})
+				end
+			end
+		end
+		for key1, v in counts[100]:pairs() do 
+			for key2, v2 in v:pairs() do 
+				table.insert(rv2, {key1, key2, v2})
+			end
+		end
+		return rv, rv2
+	end
+
+	function iterkeys()
+		local rv = {}
+		local rv2 = {}
+		for key1 in counts:keys() do 
+			table.insert(rv, key1)
+		end
+		for key1, v in counts[100]:keys() do 
+			table.insert(rv2, key1)
+		end
+		return rv, rv2
+	end
+
+	function removeall()
+		for key1, v in counts:pairs() do 
+			for key2, v2 in v:pairs() do 
+				for key3 in v2:keys() do 
+					counts[key1][key2]:delete(key3)
+				end
+			end
+		end
+	end
+
+	function length()
+		return #counts, counts:length(), #counts[1], #counts[2], #counts[100][20]
+	end
+	abi.register(setTest, getTest, delCount, iter, length, removeall, iterkeys)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "b", 0, definition2),
+	)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "b", 0, `{"Name":"setTest", "Args":[1, 10]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"getTest", "Args":[]}`, "", "[3,null]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"iter", "Args":[]}`, "",
+		"[[[1,2,3,1],[2,3,4,2],[100,20,3,3],[100,20,1,5]],[[20,3,3],[20,1,5]]]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"iterkeys", "Args":[]}`, "",
+		"[[1,2,100],[20]]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"length", "Args":[]}`, "", "[3,3,1,1,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "b", 0, `{"Name":"delCount"}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"iter", "Args":[]}`, "",
+		"[[[2,3,4,2],[100,20,3,3],[100,20,1,5]],[[20,3,3],[20,1,5]]]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"length", "Args":[]}`, "", "[2,2,0,1,2]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "b", 0, `{"Name":"removeall"}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"iter", "Args":[]}`, "", "[{},{}]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"length", "Args":[]}`, "", "[0,0,0,0,0]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"getTest", "Args":[]}`, "", "[null,null]")
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "b", 0, `{"Name":"delCount"}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "b", 0, `{"Name":"setTest", "Args":[1, 10]}`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("b", `{"Name":"iter", "Args":[]}`, "",
+		"[[[1,2,3,1],[2,3,4,2],[100,20,3,3],[100,20,1,5]],[[20,3,3],[20,1,5]]]")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 /*
 func TestFeeDelegationLoop(t *testing.T) {
 	definition := `

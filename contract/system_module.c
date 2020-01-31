@@ -149,6 +149,31 @@ int delItemWithPrefix(lua_State *L)
     return 0;
 }
 
+int checkKeyWithPrefix(lua_State *L)
+{
+	char *dbKey;
+	int service = getLuaExecContext(L);
+	int keylen;
+	struct luaCheckKey_return ret;
+
+	lua_gasuse(L, 100);
+
+	luaL_checkstring(L, 1);
+	luaL_checkstring(L, 2);
+	dbKey = getDbKey(L, &keylen);
+
+	ret = luaCheckKey(L, service, dbKey, keylen);
+	if (ret.r1 != NULL) {
+		strPushAndRelease(L, ret.r1);
+		luaL_throwerror(L);
+	}
+	if (ret.r0 == 0)
+	    lua_pushboolean(L, false);
+	else
+	    lua_pushboolean(L, true);
+	return 1;
+}
+
 static int getSender(lua_State *L)
 {
 	int service = getLuaExecContext(L);

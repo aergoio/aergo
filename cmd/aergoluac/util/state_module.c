@@ -38,6 +38,29 @@ static int state_map(lua_State *L)
     return 1;
 }
 
+static int state_imap(lua_State *L)
+{
+    int dimension = 1;
+
+    if (luaL_isinteger(L, 1))
+        dimension = luaL_checkint(L, 1);       /* m _type_ map dim*/
+    else if (lua_gettop(L) != 0)
+        luaL_typerror(L, 1, "integer");
+
+    if (dimension > STATE_MAX_DIMENSION) {
+        luaL_error(L, "dimension over max limit(%d): %d, state.imap",
+                   STATE_MAX_DIMENSION, dimension);
+    }
+    lua_newtable(L);
+    lua_pushstring(L, TYPE_NAME);   /* m _type_ */
+    lua_pushstring(L, "imap");       /* m _type_ map */
+    lua_rawset(L, -3);
+    lua_pushstring(L, TYPE_DIMENSION);       /* m _dimension_ */
+    lua_pushinteger(L, dimension);       /* m _type_ map dim*/
+    lua_rawset(L, -3);
+    return 1;
+}
+
 static int state_array(lua_State *L)
 {
     int32_t len = 0;
@@ -129,6 +152,7 @@ int luac_open_state(lua_State *L)
 {
     static const luaL_Reg state_lib[] = {
         {"map", state_map},
+        {"imap", state_imap},
         {"array", state_array},
         {"value", state_value},
         {"var", state_var},

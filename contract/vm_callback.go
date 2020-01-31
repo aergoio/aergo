@@ -78,6 +78,18 @@ func addUpdateSize(s *vmContext, updateSize int64) error {
 	return nil
 }
 
+//export luaCheckKey
+func luaCheckKey(L *LState, service C.int, key unsafe.Pointer, keyLen C.int) (C.int, *C.char) {
+	ctx := contexts[service]
+	if ctx == nil {
+		return -1, C.CString("[System.LuaSetDB] contract state not found")
+	}
+	if ctx.curContract.callState.ctrState.HasKey(C.GoBytes(key, keyLen)) {
+		return 1, nil
+	}
+	return 0, nil
+}
+
 //export luaSetDB
 func luaSetDB(L *LState, service C.int, key unsafe.Pointer, keyLen C.int, value *C.char) *C.char {
 	ctx := contexts[service]
