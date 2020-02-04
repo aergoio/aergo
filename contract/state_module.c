@@ -28,6 +28,7 @@ static int state_array_pairs(lua_State *L);
 typedef struct {
     char *id;
     int key_type;
+    int prev_key_type;
     int dimension;
     char *key;
 } state_map_t;
@@ -39,6 +40,7 @@ static int state_map(lua_State *L)
     state_map_t *m = lua_newuserdata(L, sizeof(state_map_t));   /* m */
     m->id = NULL;
     m->key_type = LUA_TNONE;
+    m->prev_key_type = LUA_TNONE;
     m->key = NULL;
     if (luaL_isinteger(L, 1))
         m->dimension = luaL_checkint(L, 1);
@@ -83,6 +85,9 @@ static void state_map_check_index(lua_State *L, state_map_t *m)
         }
         lua_pop(L, 1);
     }
+    if (m->prev_key_type != LUA_TNONE && m->prev_key_type != key_type) {
+        luaL_typerror(L, 2, lua_typename(L, m->prev_key_type));
+    }
     if (stored_type != LUA_TNONE && key_type != stored_type) {
         luaL_typerror(L, 2, lua_typename(L, stored_type));
     }
@@ -118,6 +123,7 @@ static int state_map_get(lua_State *L)
         subm->id = strdup(m->id);
         subm->key_type = m->key_type;
         subm->dimension = m->dimension - 1;
+        subm->prev_key_type = key_type;
 
         luaL_getmetatable(L, STATE_MAP_ID);                         /* m mt */
         lua_setmetatable(L, -2);                                    /* m */
