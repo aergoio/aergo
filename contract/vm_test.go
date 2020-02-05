@@ -5908,50 +5908,6 @@ func TestContractSendF(t *testing.T) {
 	}
 }
 
-func TestStateBug1(t *testing.T) {
-	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
-	defer bc.Release()
-
-	definition := `
-	state.var{
-		tcounts = state.map(3),
-	}
-
-	function check()
-		tcounts[1]["2"][1] = "kk"
-	end
-
-	function check2()
-		tcounts[1][1][1] = "kk"
-		tcounts[1]["2"][1] = "kk2"
-	end
-	abi.register(check, check2)
-	`
-
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDef("ktlee", "ma", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "check2", "Args":[]}`).Fail("(number expected, got string)"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "ma", 0, `{"Name": "check", "Args":[]}`).Fail("(number expected, got string)"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 /*
 func TestFeeDelegationLoop(t *testing.T) {
 	definition := `
