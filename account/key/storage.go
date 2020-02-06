@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -8,8 +13,8 @@ type Identity = []byte
 type PrivateKey = btcec.PrivateKey
 
 type Storage interface {
-	Save(identity Identity, password string, key *PrivateKey) (Identity, error)
-	Load(identity Identity, password string) (*PrivateKey, error)
+	Save(identity Identity, passphrase string, key *PrivateKey) (Identity, error)
+	Load(identity Identity, passphrase string) (*PrivateKey, error)
 	List() ([]Identity, error)
 	Close()
 }

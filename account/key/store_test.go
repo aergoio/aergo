@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -7,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/types"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,7 +61,30 @@ func TestCreateKeyLongPass(t *testing.T) {
 	}
 }
 
-func TestExportImportKey(t *testing.T) {
+func TestImportKey(t *testing.T) {
+	initTest()
+	defer deinitTest()
+	const testSize = 10
+	for i := 0; i < testSize; i++ {
+		key, err := btcec.NewPrivateKey(btcec.S256())
+		addr := GenerateAddress(&(key.PublicKey))
+		if err != nil {
+			t.Errorf("could not create key : %s", err.Error())
+		}
+		pass := fmt.Sprintf("%d", i)
+		encrypted, err := EncryptKey(key.Serialize(), pass)
+		if err != nil {
+			t.Errorf("could not encrypt key : %s", err.Error())
+		}
+
+		newPass := fmt.Sprintf("new%d", i)
+		imported, err := ks.ImportKey(encrypted, pass, newPass)
+		assert.NoError(t, err, "import")
+		assert.Equal(t, addr, imported, "import result")
+	}
+}
+
+func TestExportKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	const testSize = 10
@@ -75,11 +104,6 @@ func TestExportImportKey(t *testing.T) {
 		if len(exported) != 48 {
 			t.Errorf("invalid exported address : length = %d", len(exported))
 		}
-
-		newPass := fmt.Sprintf("new%d", i)
-		imported, err := ks.ImportKey(exported, pass, newPass)
-		assert.NoError(t, err, "import")
-		assert.Equal(t, addr, imported, "import result")
 	}
 }
 
@@ -145,7 +169,7 @@ func TestConcurrentUnlockAndLock(t *testing.T) {
 		t.Errorf("could not create key : %s", err.Error())
 	}
 
-	const testSize = 50
+	const testSize = 10
 	var wg sync.WaitGroup
 	for i := 0; i < testSize; i++ {
 		wg.Add(1)

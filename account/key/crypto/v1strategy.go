@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -11,6 +16,7 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"golang.org/x/crypto/scrypt"
 )
@@ -114,8 +120,10 @@ func (ks *v1Strategy) Encrypt(key *PrivateKey, passphrase string) ([]byte, error
 		},
 		Mac: hex.EncodeToString(mac),
 	}
+	rawAddress := GenerateAddress(&(key.ToECDSA().PublicKey))
+	encodedAddress := types.EncodeAddress(rawAddress)
 	keyFormat := v1KeyStoreFormat{
-		Address: "temp",
+		Address: encodedAddress,
 		Version: version,
 		Cipher:  cipher,
 		Kdf:     kdf,
@@ -156,7 +164,7 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 	}
 	calculatedMac := generateMac(derivedKey, cipherText)
 	if false == reflect.DeepEqual(mac, calculatedMac) {
-		return nil, errors.New("Invalid mac value")
+		return nil, types.ErrWrongAddressOrPassWord
 	}
 
 	// decrypt
@@ -171,6 +179,13 @@ func (ks *v1Strategy) Decrypt(encrypted []byte, passphrase string) (*PrivateKey,
 	}
 
 	privateKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), plaintext)
+
+	rawAddress := GenerateAddress(&(privateKey.ToECDSA().PublicKey))
+	encodedAddress := types.EncodeAddress(rawAddress)
+	if encodedAddress != keyFormat.Address {
+		return nil, errors.New("Invalid matching address")
+	}
+
 	return privateKey, nil
 }
 

@@ -1,7 +1,14 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"path"
 	"sync"
 
@@ -15,15 +22,39 @@ type BadgerStorage struct {
 	db db.DB
 }
 
+const dbName = "account"
+
 var addresses = []byte("ADDRESSES")
 
-func NewBadgerStorage(storePath string) *BadgerStorage {
-	const dbName = "account"
+func NewBadgerStorage(storePath string) (*BadgerStorage, error) {
 	dbPath := path.Join(storePath, dbName)
-	db := db.NewDB(db.LevelImpl, dbPath)
+
+	db, err := openBadgerDb(dbPath)
+	if nil != err {
+		return nil, err
+	}
+
 	return &BadgerStorage{
 		db: db,
+	}, nil
+}
+
+func LoadBadgerStorage(storePath string) (*BadgerStorage, error) {
+	dbPath := path.Join(storePath, dbName)
+
+	_, err := os.Stat(dbPath)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("Not badger storage in %s\n", dbPath)
 	}
+
+	db, err := openBadgerDb(dbPath)
+	if nil != err {
+		return nil, err
+	}
+
+	return &BadgerStorage{
+		db: db,
+	}, nil
 }
 
 func (ks *BadgerStorage) Save(identity Identity, password string, key *PrivateKey) (Identity, error) {
@@ -81,6 +112,17 @@ func (ks *BadgerStorage) List() ([]Identity, error) {
 
 func (ks *BadgerStorage) Close() {
 	ks.db.Close()
+}
+
+func openBadgerDb(path string) (opened db.DB, err error) {
+	defer func() {
+		failed := recover()
+		if nil != failed {
+			err = fmt.Errorf("%s", failed)
+		}
+	}()
+	opened = db.NewDB(db.LevelImpl, path)
+	return opened, err
 }
 
 func (ks *BadgerStorage) saveToList(identity Identity) error {

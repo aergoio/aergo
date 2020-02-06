@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -26,15 +31,24 @@ type Store struct {
 
 // NewStore make new instance of keystore
 func NewStore(storePath string, unlockTimeout uint) *Store {
-	const dbName = "account"
-	// TODO: select storage dynamically
-	storage := NewBadgerStorage(storePath)
-	return &Store{
+	store := &Store{
 		timeout:      time.Duration(unlockTimeout) * time.Second,
 		unlocked:     map[string]*keyPair{},
 		unlockedLock: &sync.Mutex{},
-		storage:      storage,
 	}
+
+	// FIXME: more elegant coding
+	if storage, err := LoadBadgerStorage(storePath); nil == err {
+		store.storage = storage
+	} else {
+		storage, err := NewAergoStorage(storePath)
+		if nil != err {
+			panic(err)
+		}
+		store.storage = storage
+	}
+
+	return store
 }
 
 // CloseStore locks all addresses and closes the storage
@@ -133,6 +147,15 @@ func (ks *Store) Lock(addr Identity, pass string) (Identity, error) {
 // GetAddresses returns the list of stored addresses
 func (ks *Store) GetAddresses() ([]Identity, error) {
 	return ks.storage.List()
+}
+
+// can open & has at least on account in it
+func hasAccount(storage Storage) bool {
+	existingIdentities, err := storage.List()
+	if nil == err && len(existingIdentities) != 0 {
+		return true
+	}
+	return false
 }
 
 func (ks *Store) getKey(address []byte, pass string) (*aergokey, error) {

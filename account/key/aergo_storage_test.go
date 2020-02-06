@@ -15,11 +15,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSaveAndLoadOnBadger(t *testing.T) {
+func TestSaveAndLoadOnAergo(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "tmp")
 	defer os.RemoveAll(dir)
 
-	storage, _ := NewBadgerStorage(dir)
+	storage, err := NewAergoStorage(dir)
+	if nil != err {
+		assert.FailNow(t, "Could not create storage", err)
+	}
 	expected, err := btcec.NewPrivateKey(btcec.S256())
 	if nil != err {
 		assert.FailNow(t, "Could not create private key", err)
@@ -41,11 +44,14 @@ func TestSaveAndLoadOnBadger(t *testing.T) {
 	assert.Equalf(t, *expected, *actual, "Wrong exported one")
 }
 
-func TestSaveAndListOnBadger(t *testing.T) {
+func TestSaveAndListOnAergo(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "tmp")
 	defer os.RemoveAll(dir)
 
-	storage, _ := NewBadgerStorage(dir)
+	storage, err := NewAergoStorage(dir)
+	if nil != err {
+		assert.FailNow(t, "Could not create storage", err)
+	}
 	expected, err := btcec.NewPrivateKey(btcec.S256())
 	if nil != err {
 		assert.FailNow(t, "Could not create private key", err)
