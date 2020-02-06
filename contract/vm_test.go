@@ -4255,9 +4255,9 @@ abi.register(oom, p, cp)`
 		t.Error(err)
 	}
 	errMsg := "string length overflow"
+	errMsg1 := "not enough memory"
 	var travis bool
 	if os.Getenv("TRAVIS") == "true" {
-		errMsg = "not enough memory"
 		travis = true
 	}
 	err = bc.ConnectBlock(
@@ -4266,11 +4266,14 @@ abi.register(oom, p, cp)`
 			"oom",
 			0,
 			`{"Name":"oom"}`,
-		).Fail(errMsg),
+		),
 	)
-	if err != nil {
+	if err == nil {
+		t.Errorf("expected: %s", errMsg)
+	} else if !strings.Contains(err.Error(), errMsg) && !strings.Contains(err.Error(), errMsg1) {
 		t.Error(err)
 	}
+
 	err = bc.ConnectBlock(
 		NewLuaTxCall(
 			"ktlee",
@@ -4279,7 +4282,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"p"}`,
 		),
 	)
-	if err != nil && (!travis || !strings.Contains(err.Error(), errMsg)) {
+	if err != nil && (!travis || !strings.Contains(err.Error(), errMsg1)) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
@@ -4290,7 +4293,7 @@ abi.register(oom, p, cp)`
 			`{"Name":"cp"}`,
 		),
 	)
-	if err != nil && (!travis || !strings.Contains(err.Error(), errMsg)) {
+	if err != nil && (!travis || !strings.Contains(err.Error(), errMsg1)) {
 		t.Error(err)
 	}
 }

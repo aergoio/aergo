@@ -3,11 +3,10 @@ module github.com/aergoio/aergo
 go 1.12
 
 require (
-	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
 	github.com/Shopify/sarama v1.22.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
-	github.com/aergoio/aergo-lib v1.0.1-0.20200128044529-ba326a49cbb4
+	github.com/aergoio/aergo-lib v1.0.1
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/apache/thrift v0.12.0 // indirect
@@ -17,7 +16,6 @@ require (
 	github.com/coreos/go-semver v0.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/derekparker/trie v0.0.0-20190322172448-1ce4922c7ad9
-	github.com/dgryski/go-farm v0.0.0-20191112170834-c2139c5d712b // indirect
 	github.com/emirpasic/gods v1.12.0
 	github.com/fsnotify/fsnotify v1.4.8-0.20180830220226-ccc981bf8038
 	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
@@ -25,7 +23,7 @@ require (
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/gogo/protobuf v1.3.0
 	github.com/golang/mock v1.3.1
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.3.3
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/improbable-eng/grpc-web v0.9.6
@@ -61,7 +59,6 @@ require (
 	github.com/willf/bitset v1.1.10 // indirect
 	github.com/willf/bloom v2.0.3+incompatible
 	golang.org/x/crypto v0.0.0-20191112222119-e1110fd1c708
-	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
-	golang.org/x/sys v0.0.0-20200124204421-9fbb57f87de9 // indirect
+	golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 	google.golang.org/grpc v1.21.1
 )
