@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/aergoio/aergo/account/key"
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -82,7 +82,7 @@ func initTest(t *testing.T) {
 			t.Fatalf("failed to init test (%s)", err)
 		}
 		//gen new address
-		accs[i] = key.GenerateAddress(&privkey.PublicKey)
+		accs[i] = crypto.GenerateAddress(&privkey.PublicKey)
 		sign[i] = privkey
 		recipient[i] = _itobU32(uint32(i))
 	}

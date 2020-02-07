@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"testing"
 
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func TestSaveAndLoadOnBadger(t *testing.T) {
 		assert.FailNow(t, "Could not create private key", err)
 	}
 
-	identity := GenerateAddress(&expected.PublicKey)
+	identity := crypto.GenerateAddress(&expected.PublicKey)
 	password := "password"
 	saved, err := storage.Save(identity, password, expected)
 	if nil != err {
@@ -51,7 +52,7 @@ func TestSaveAndListOnBadger(t *testing.T) {
 		assert.FailNow(t, "Could not create private key", err)
 	}
 
-	identity := GenerateAddress(&expected.PublicKey)
+	identity := crypto.GenerateAddress(&expected.PublicKey)
 	password := "password"
 	saved, err := storage.Save(identity, password, expected)
 	if nil != err {

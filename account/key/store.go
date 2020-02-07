@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -149,20 +150,11 @@ func (ks *Store) GetAddresses() ([]Identity, error) {
 	return ks.storage.List()
 }
 
-// can open & has at least on account in it
-func hasAccount(storage Storage) bool {
-	existingIdentities, err := storage.List()
-	if nil == err && len(existingIdentities) != 0 {
-		return true
-	}
-	return false
-}
-
 func (ks *Store) getKey(address []byte, pass string) (*aergokey, error) {
 	return ks.storage.Load(address, pass)
 }
 
 func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Identity, error) {
-	address := GenerateAddress(&key.PublicKey)
+	address := crypto.GenerateAddress(&key.PublicKey)
 	return ks.storage.Save(address, pass, key)
 }

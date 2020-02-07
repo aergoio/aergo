@@ -68,7 +68,6 @@ func (ks *AergoStorage) Save(identity Identity, passphrase string, key *PrivateK
 	fileName := fmt.Sprintf(fileNameTemplate, string(encodedIdentity))
 	absFilePath := filepath.Join(ks.storePath, fileName)
 
-	// origin badger storage permits duplication...
 	fileInfo, err := os.Stat(absFilePath)
 	if nil != fileInfo {
 		return nil, errors.New("already exists")
@@ -101,16 +100,14 @@ func (ks *AergoStorage) Load(identity Identity, passphrase string) (*PrivateKey,
 
 	encrypted, err := ioutil.ReadFile(absFilePath)
 	if nil != err {
-		// return nil, types.ErrWrongIdentityPassWord
-		return nil, err
+		return nil, types.ErrWrongAddressOrPassWord
 	}
 
 	// TODO: dispatch per keystore version
 	strategy := version2Strategy[encryptVersion]
 	privateKey, err := strategy.Decrypt(encrypted, passphrase)
 	if nil != err {
-		// return nil, types.ErrWrongIdentityPassWord
-		return nil, err
+		return nil, types.ErrWrongAddressOrPassWord
 	}
 
 	return privateKey, nil

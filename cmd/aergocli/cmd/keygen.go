@@ -4,10 +4,12 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
 
+	"github.com/aergoio/aergo/p2p/p2putil"
+
 	"github.com/aergoio/aergo/account/key"
+	keycrypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -22,11 +24,11 @@ type keyJson struct {
 }
 
 var (
-	genPubkey bool
-	genID     bool
-	genJSON   bool
+	genPubkey  bool
+	genID      bool
+	genJSON    bool
 	genAddress bool
-	password  string
+	password   string
 )
 
 func init() {
@@ -113,7 +115,7 @@ func generateKeyFiles(prefix string) error {
 			return err
 		}
 		btPub := p2putil.ConvertPubKeyToBTCEC(pub)
-		address := key.GenerateAddress(btPub.ToECDSA())
+		address := keycrypto.GenerateAddress(btPub.ToECDSA())
 		addrf.WriteString(types.EncodeAddress(address))
 		addrf.Sync()
 
@@ -141,7 +143,7 @@ func generateKeyJson() error {
 		return err
 	}
 	_, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), pkBytes)
-	address := key.GenerateAddress(pubkey.ToECDSA())
+	address := keycrypto.GenerateAddress(pubkey.ToECDSA())
 	addressEncoded := types.EncodeAddress(address)
 	jsonMarshalled, err := json.MarshalIndent(keyJson{
 		Address: addressEncoded,

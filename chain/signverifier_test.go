@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/account/key"
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func beforeTest(txCount int) error {
 			return err
 		}
 		//gen new address
-		accs[i] = key.GenerateAddress(&privkey.PublicKey)
+		accs[i] = crypto.GenerateAddress(&privkey.PublicKey)
 		sign[i] = privkey
 		recipient[i] = _itobU32(uint32(i))
 	}

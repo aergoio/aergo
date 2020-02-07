@@ -23,7 +23,7 @@ import (
 
 const (
 	// version
-	version = 1
+	version = "1"
 
 	// cipher
 	cipherAlgorithm = "aes-128-ctr"
@@ -38,7 +38,7 @@ const (
 
 type v1KeyStoreFormat struct {
 	Address string       `json:"aergo_address"`
-	Version int          `json:"ks_version"`
+	Version string       `json:"ks_version"`
 	Cipher  v1CipherJSON `json:"cipher"`
 	Kdf     v1KdfJson    `json:"kdf"`
 }

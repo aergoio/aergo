@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/aergoio/aergo/account/key"
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -56,7 +57,7 @@ var signCmd = &cobra.Command{
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			cmd.Println(types.EncodeAddress(key.GenerateAddress(pubkey.ToECDSA())))
+			cmd.Println(types.EncodeAddress(crypto.GenerateAddress(pubkey.ToECDSA())))
 			msg = tx
 		} else if cmd.Flags().Changed("path") == false {
 			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})

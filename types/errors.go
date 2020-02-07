@@ -54,8 +54,6 @@ var (
 
 	ErrShouldUnlockAccount = errors.New("should unlock account first")
 
-	ErrWrongIdentityPassWord = errors.New("identity or password is incorrect")
-
 	ErrWrongAddressOrPassWord = errors.New("address or password is incorrect")
 
 	//ErrStakeBeforeVote
