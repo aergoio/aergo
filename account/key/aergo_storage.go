@@ -27,6 +27,7 @@ var (
 
 const (
 	// EncryptVersion should be always higher version
+	keystorDirectory = "keystore"
 	encryptVersion   = "v1"
 	fileNamePostFix  = "__keystore.txt"
 	fileNamePattern  = "[a-zA-Z0-9]+" + fileNamePostFix
@@ -39,7 +40,7 @@ type AergoStorage struct {
 }
 
 func NewAergoStorage(storePath string) (*AergoStorage, error) {
-	absPath, err := filepath.Abs(storePath)
+	absPath, err := filepath.Abs(filepath.Join(storePath, keystorDirectory))
 	if err != nil {
 		return nil, err
 	}
