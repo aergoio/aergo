@@ -537,11 +537,10 @@ func (pm *peerManager) updatePeerCache() {
 }
 
 func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
-	if pm.skipHandshakeSync {
-		return
+	if !pm.skipHandshakeSync {
+		pm.logger.Debug().Uint64("target", peer.LastStatus().BlockNumber).Msg("request new syncer")
+		pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
 	}
-	pm.logger.Debug().Uint64("target", peer.LastStatus().BlockNumber).Msg("request new syncer")
-	pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
 
 	// send txs in mempool
 	peer.DoTask(func(p p2pcommon.RemotePeer) {
