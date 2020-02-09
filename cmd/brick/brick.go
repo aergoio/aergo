@@ -110,5 +110,6 @@ func main() {
 		}
 
 		exec.Execute(cmd, args)
+		os.Exit(exec.GetBatchErrorCount())
 	}
 }

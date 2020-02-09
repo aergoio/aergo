@@ -144,6 +144,7 @@ func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 		}
 
 		c.level++
+		batchErrorCount = 0
 
 		// set highest log level to turn off verbose
 		if false == verboseBatch {
@@ -196,7 +197,6 @@ func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 				fmt.Fprintf(stdOut, "\x1B[31;1mBatch is failed: Error %d\x1B[0m\n", batchErrorCount)
 			}
 			// reset params
-			batchErrorCount = 0
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
 
@@ -226,5 +226,8 @@ func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 		break
 	}
 
-	return "batch exec is finished", 0, nil, nil
+	if err == nil && batchErrorCount > 0 {
+		err = fmt.Errorf("Batch had %d errors", batchErrorCount)
+	}
+	return "batch exec is finished", 0, nil, err
 }
