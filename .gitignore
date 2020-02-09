@@ -28,3 +28,4 @@ Gopkg.lock
 # python cache
 venv
 __pycache__
+/libtool/lib64/
