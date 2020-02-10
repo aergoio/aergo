@@ -1237,8 +1237,8 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 
 //GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
 func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
-	genensis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
-	if genensis.PublicNet() {
+	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
+	if genesis.PublicNet() {
 		return nil, status.Error(codes.Unavailable, "not supported in public")
 	}
 

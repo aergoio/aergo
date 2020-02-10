@@ -2,7 +2,7 @@
 # Brick - Toy for Contract Developers
 
 This is an interactive shell program to communicate with an aergo vm for testing.
-This also provides a batch function to test and help to develop smart contrat.
+This also provides a batch function to test and help to develop smart contracts.
 
 ![brick_ex_gif](./brick_ex.gif)
 
