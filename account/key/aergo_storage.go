@@ -125,7 +125,7 @@ func (ks *AergoStorage) Load(identity Identity, passphrase string) (*PrivateKey,
 	}
 	privateKey, err := LoadKeystore(encrypted, passphrase)
 	if nil != err {
-		return nil, types.ErrWrongAddressOrPassWord
+		return nil, err
 	}
 	return privateKey, nil
 }
