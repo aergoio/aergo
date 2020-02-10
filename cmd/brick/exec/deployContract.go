@@ -93,7 +93,7 @@ func (c *deployContract) parse(args string) (string, *big.Int, string, string, s
 
 	defPath := splitArgs[3].Text
 	if _, err := c.readDefFile(defPath); err != nil {
-		return "", nil, "", "", "", fmt.Errorf("fail to read a contrat def file %s: %s", splitArgs[3].Text, err.Error())
+		return "", nil, "", "", "", fmt.Errorf("fail to read a contract def file %s: %s", splitArgs[3].Text, err.Error())
 	}
 
 	constuctorArg := "[]"

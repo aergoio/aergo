@@ -17,7 +17,6 @@ import (
 
 type baseMOFactory struct {
 	p2ps *P2P
-	tnt p2pcommon.TxNoticeTracer
 }
 
 
@@ -68,7 +67,6 @@ func (mf *baseMOFactory) NewMsgTxBroadcastOrder(message *types.NewTransactionsNo
 		for i, h := range message.TxHashes {
 			rmo.txHashes[i] = types.ToTxID(h)
 		}
-		rmo.tnt = mf.tnt
 		return rmo
 	}
 	return nil

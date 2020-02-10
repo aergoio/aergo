@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 # generate config and genesis files for test
 
 import os
