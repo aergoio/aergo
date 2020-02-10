@@ -4,12 +4,14 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/aergoio/aergo/p2p/p2putil"
+
 	"github.com/aergoio/aergo/account/key"
+	keycrypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -24,12 +26,12 @@ type keyJson struct {
 }
 
 var (
-	fromPK bool
-	genPubkey bool
-	genID     bool
-	genJSON   bool
+	fromPK     bool
+	genPubkey  bool
+	genID      bool
+	genJSON    bool
 	genAddress bool
-	password  string
+	password   string
 )
 
 func init() {
@@ -91,8 +93,8 @@ func loadPKAndGenerateKeyFiles(pkFile string) error {
 		return err
 	}
 	pkExt := filepath.Ext(pkFile)
-	if pkExt == ".pub" ||  pkExt == ".id" ||  pkExt == ".addr" {
-		return fmt.Errorf("invalid pk extension %s",pkExt)
+	if pkExt == ".pub" || pkExt == ".id" || pkExt == ".addr" {
+		return fmt.Errorf("invalid pk extension %s", pkExt)
 	}
 	prefix := strings.TrimSuffix(pkFile, pkExt)
 	return saveFilesFromKeys(priv, pub, prefix)
@@ -137,7 +139,7 @@ func saveFilesFromKeys(priv crypto.PrivKey, pub crypto.PubKey, prefix string) er
 			return err
 		}
 		_, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), pkBytes)
-		address := key.GenerateAddress(pubkey.ToECDSA())
+		address := keycrypto.GenerateAddress(pubkey.ToECDSA())
 		addrf.WriteString(types.EncodeAddress(address))
 		addrf.Sync()
 
@@ -163,7 +165,6 @@ func saveKeyFile(pkFile string, priv crypto.Key) error {
 	}
 	return pkf.Sync()
 }
-
 
 func saveBytesToFile(fileName string, bytes []byte) error {
 	pkf, err := os.Create(fileName)
@@ -191,7 +192,7 @@ func generateKeyJson(priv crypto.PrivKey, pub crypto.PubKey) error {
 	if err != nil {
 		return err
 	}
-	address := key.GenerateAddress(btcPK.PubKey().ToECDSA())
+	address := keycrypto.GenerateAddress(btcPK.PubKey().ToECDSA())
 	addressEncoded := types.EncodeAddress(address)
 	jsonMarshalled, err := json.MarshalIndent(keyJson{
 		Address: addressEncoded,

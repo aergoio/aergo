@@ -34,7 +34,7 @@ func TestAccountWithPath(t *testing.T) {
 	importFormat := strings.Split(outputExport, "\n")[0]
 
 	outputImport, err := executeCommand(rootCmd, "account", "import", "--if", importFormat, "--password", "1", "--path", testDir)
-	assert.Equalf(t, "Failed: already exist\n", outputImport, "should return duplicate = %s", outputImport)
+	assert.Equalf(t, "Failed: already exists\n", outputImport, "should return duplicate = %s", outputImport)
 
 	outputImport, err = executeCommand(rootCmd, "account", "import", "--if", importFormat, "--password", "1", "--path", testDir2)
 	assert.Equal(t, outputAddress+"\n", outputImport)

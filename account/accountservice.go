@@ -152,8 +152,6 @@ func (as *AccountService) createAccount(passphrase string) (*types.Account, erro
 
 	//append list
 	as.accountLock.Lock()
-	//TODO: performance turning here
-	as.ks.SaveAddress(address)
 	as.accounts = append(as.accounts, account)
 	as.accountLock.Unlock()
 	return account, nil
@@ -167,8 +165,6 @@ func (as *AccountService) importAccount(wif []byte, old string, new string) (*ty
 	//append list
 	account := &types.Account{Address: address}
 	as.accountLock.Lock()
-	//TODO: performance turning here
-	as.ks.SaveAddress(address)
 	as.accounts = append(as.accounts, account)
 	as.accountLock.Unlock()
 	return account, nil

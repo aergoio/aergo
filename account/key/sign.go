@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -9,12 +14,11 @@ import (
 )
 
 //Sign return sign with key in the store
-func (ks *Store) Sign(addr Address, pass string, hash []byte) ([]byte, error) {
-	k, err := ks.getKey(addr, pass)
-	if k == nil {
+func (ks *Store) Sign(addr Identity, pass string, hash []byte) ([]byte, error) {
+	key, err := ks.getKey(addr, pass)
+	if err != nil {
 		return nil, err
 	}
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), k)
 	sign, err := key.Sign(hash)
 	if err != nil {
 		return nil, err

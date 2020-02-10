@@ -1,18 +1,17 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
-	"errors"
-	"path"
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo-lib/db"
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
-	sha256 "github.com/minio/sha256-simd"
 )
 
 type aergokey = btcec.PrivateKey
@@ -28,27 +27,39 @@ type Store struct {
 	timeout      time.Duration
 	unlocked     map[string]*keyPair
 	unlockedLock *sync.Mutex
-	storage      db.DB
+	storage      Storage
 }
 
 // NewStore make new instance of keystore
 func NewStore(storePath string, unlockTimeout uint) *Store {
-	const dbName = "account"
-	dbPath := path.Join(storePath, dbName)
-	return &Store{
+	store := &Store{
 		timeout:      time.Duration(unlockTimeout) * time.Second,
 		unlocked:     map[string]*keyPair{},
 		unlockedLock: &sync.Mutex{},
-		storage:      db.NewDB(db.LevelImpl, dbPath),
 	}
+
+	// FIXME: more elegant coding
+	if storage, err := LoadBadgerStorage(storePath); nil == err {
+		store.storage = storage
+	} else {
+		storage, err := NewAergoStorage(storePath)
+		if nil != err {
+			panic(err)
+		}
+		store.storage = storage
+	}
+
+	return store
 }
+
+// CloseStore locks all addresses and closes the storage
 func (ks *Store) CloseStore() {
 	ks.unlocked = nil
 	ks.storage.Close()
 }
 
 // CreateKey make new key in keystore and return it's address
-func (ks *Store) CreateKey(pass string) (Address, error) {
+func (ks *Store) CreateKey(pass string) (Identity, error) {
 	//gen new key
 	privkey, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
@@ -57,39 +68,25 @@ func (ks *Store) CreateKey(pass string) (Address, error) {
 	return ks.addKey(privkey, pass)
 }
 
-//ImportKey is to import encrypted key
-func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Address, error) {
+// ImportKey is to import encrypted key
+func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Identity, error) {
 	hash := hashBytes([]byte(oldpass), nil)
 	rehash := hashBytes([]byte(oldpass), hash)
 	key, err := decrypt(hash, rehash, imported)
 	if err != nil {
 		return nil, err
 	}
-	privkey, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), key)
-	address := GenerateAddress(pubkey.ToECDSA())
-	addresses, err := ks.GetAddresses()
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range addresses {
-		if bytes.Equal(address, v) {
-			return nil, errors.New("already exist")
-		}
-	}
-	err = ks.SaveAddress(address)
-	if err != nil {
-		return nil, err
-	}
+	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
 	return ks.addKey(privkey, newpass)
 }
 
-//ExportKey is to export encrypted key
-func (ks *Store) ExportKey(addr Address, pass string) ([]byte, error) {
+// ExportKey is to export encrypted key
+func (ks *Store) ExportKey(addr Identity, pass string) ([]byte, error) {
 	key, err := ks.getKey(addr, pass)
 	if key == nil {
 		return nil, err
 	}
-	return EncryptKey(key, pass)
+	return EncryptKey(key.Serialize(), pass)
 }
 
 // EncryptKey encrypts a key with a given export for exporting
@@ -99,13 +96,12 @@ func EncryptKey(key []byte, pass string) ([]byte, error) {
 	return encrypt(hash, rehash, key)
 }
 
-//Unlock is to unlock account for signing
-func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
-	key, err := ks.getKey(addr, pass)
-	if key == nil {
+// Unlock is to unlock account for signing
+func (ks *Store) Unlock(addr Identity, pass string) (Identity, error) {
+	pk, err := ks.getKey(addr, pass)
+	if err != nil {
 		return nil, err
 	}
-	pk, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
 	addrKey := types.EncodeAddress(addr)
 
 	ks.unlockedLock.Lock()
@@ -131,10 +127,10 @@ func (ks *Store) Unlock(addr Address, pass string) (Address, error) {
 	return addr, nil
 }
 
-//Lock is to lock account prevent signing
-func (ks *Store) Lock(addr Address, pass string) (Address, error) {
-	key, err := ks.getKey(addr, pass)
-	if key == nil {
+// Lock locks an account
+func (ks *Store) Lock(addr Identity, pass string) (Identity, error) {
+	_, err := ks.getKey(addr, pass)
+	if err != nil {
 		return nil, err
 	}
 	b58addr := types.EncodeAddress(addr)
@@ -149,75 +145,16 @@ func (ks *Store) Lock(addr Address, pass string) (Address, error) {
 	return addr, nil
 }
 
-func (ks *Store) getKey(address []byte, pass string) ([]byte, error) {
-	encryptkey := hashBytes(address, []byte(pass))
-	key := ks.storage.Get(hashBytes(address, encryptkey))
-	if cap(key) == 0 {
-		return nil, types.ErrWrongAddressOrPassWord
-	}
-	return decrypt(address, encryptkey, key)
+// GetAddresses returns the list of stored addresses
+func (ks *Store) GetAddresses() ([]Identity, error) {
+	return ks.storage.List()
 }
 
-func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Address, error) {
-	//gen new address
-	address := GenerateAddress(&key.PublicKey)
-	//save pass/address/key
-	encryptkey := hashBytes(address, []byte(pass))
-	encrypted, err := encrypt(address, encryptkey, key.Serialize())
-	if err != nil {
-		return nil, err
-	}
-	ks.storage.Set(hashBytes(address, encryptkey), encrypted)
-	return address, nil
+func (ks *Store) getKey(address []byte, pass string) (*aergokey, error) {
+	return ks.storage.Load(address, pass)
 }
 
-func hashBytes(b1 []byte, b2 []byte) []byte {
-	h := sha256.New()
-	h.Write(b1)
-	h.Write(b2)
-	return h.Sum(nil)
-}
-
-func encrypt(base, key, data []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	// Never use more than 2^32 random nonces with a given key because of the risk of a repeat.
-	if len(base) < 16 {
-		return nil, errors.New("too short address length")
-	}
-	nonce := base[4:16]
-
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	cipherbytes := aesgcm.Seal(nil, nonce, data, nil)
-	return cipherbytes, nil
-}
-
-func decrypt(base, key, data []byte) ([]byte, error) {
-	if len(base) < 16 {
-		return nil, errors.New("too short address length")
-	}
-	nonce := base[4:16]
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	plainbytes, err := aesgcm.Open(nil, nonce, data, nil)
-
-	if err != nil {
-		return nil, err
-	}
-	return plainbytes, nil
+func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Identity, error) {
+	address := crypto.GenerateAddress(&key.PublicKey)
+	return ks.storage.Save(address, pass, key)
 }
