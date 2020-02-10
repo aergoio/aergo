@@ -1,7 +1,6 @@
 package account
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -114,7 +113,6 @@ func (as *AccountService) Receive(context actor.Context) {
 		if msg.Wif != nil {
 			account, err = as.importAccount(msg.Wif, msg.OldPass, msg.NewPass)
 		} else {
-			fmt.Printf("trying to import keystore %+v\n", msg)
 			account, err = as.importAccountFromKeystore(msg.Keystore, msg.OldPass, msg.NewPass)
 		}
 		context.Respond(&message.ImportAccountRsp{Account: account, Err: err})
