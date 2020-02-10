@@ -1,5 +1,5 @@
 # create an account and deposit coin
-inject bj 100
+inject bj 10000000000
 
 # check balance
 getstate bj
