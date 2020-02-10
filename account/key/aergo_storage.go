@@ -103,7 +103,7 @@ func LoadKeystore(keystore []byte, passphrase string) (*PrivateKey, error) {
 	strategy := version2Strategy[encryptVersion]
 	privateKey, err := strategy.Decrypt(keystore, passphrase)
 	if nil != err {
-		return nil, types.ErrWrongAddressOrPassWord
+		return nil, err
 	}
 	return privateKey, nil
 }
