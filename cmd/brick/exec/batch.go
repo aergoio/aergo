@@ -144,7 +144,6 @@ func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 		}
 
 		c.level++
-		batchErrorCount = 0
 
 		// set highest log level to turn off verbose
 		if false == verboseBatch {
@@ -226,8 +225,5 @@ func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 		break
 	}
 
-	if err == nil && batchErrorCount > 0 {
-		err = fmt.Errorf("Batch had %d errors", batchErrorCount)
-	}
-	return "batch exec is finished", 0, nil, err
+	return "batch exec is finished", 0, nil, nil
 }
