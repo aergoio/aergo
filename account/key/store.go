@@ -154,7 +154,15 @@ func (ks *Store) getKey(address []byte, pass string) (*aergokey, error) {
 	return ks.storage.Load(address, pass)
 }
 
+func (ks *Store) GetKey(address []byte, pass string) (*aergokey, error) {
+	return ks.getKey(address, pass)
+}
+
 func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Identity, error) {
 	address := crypto.GenerateAddress(&key.PublicKey)
 	return ks.storage.Save(address, pass, key)
+}
+
+func (ks *Store) AddKey(key *btcec.PrivateKey, pass string) (Identity, error) {
+	return ks.addKey(key, pass)
 }

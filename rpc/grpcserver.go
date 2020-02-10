@@ -821,8 +821,16 @@ func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportF
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
+	msg := &message.ImportAccount{OldPass: in.Oldpass, NewPass: in.Newpass}
+	if in.Wif != nil {
+		msg.Wif = in.Wif.Value
+	} else if in.Keystore != nil {
+		msg.Keystore = in.Keystore.Value
+	} else {
+		return nil, status.Errorf(codes.Internal, "require either wif or keystore contents")
+	}
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.ImportAccount{Wif: in.Wif.Value, OldPass: in.Oldpass, NewPass: in.Newpass},
+		msg,
 		defaultActorTimeout, "rpc.(*AergoRPCService).ImportAccount")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
@@ -838,12 +846,12 @@ func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportF
 	return rsp.Account, rsp.Err
 }
 
-func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+func (rpc *AergoRPCService) exportAccountWithFormat(ctx context.Context, in *types.Personal, asKeystore bool) (*types.SingleBytes, error) {
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase},
+		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase, AsKeystore: asKeystore},
 		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
@@ -857,6 +865,14 @@ func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Persona
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &types.SingleBytes{Value: rsp.Wif}, rsp.Err
+}
+
+func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+	return rpc.exportAccountWithFormat(ctx, in, false)
+}
+
+func (rpc *AergoRPCService) ExportAccountKeystore(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+	return rpc.exportAccountWithFormat(ctx, in, true)
 }
 
 // SignTX handle rpc request signtx
