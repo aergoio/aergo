@@ -3,9 +3,11 @@
 
 package types
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -72,6 +74,7 @@ func (*PeerAddress) ProtoMessage()    {}
 func (*PeerAddress) Descriptor() ([]byte, []int) {
 	return fileDescriptor_0c843d59d2d938e7, []int{0}
 }
+
 func (m *PeerAddress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerAddress.Unmarshal(m, b)
 }
@@ -161,6 +164,7 @@ func (*AgentCertificate) ProtoMessage()    {}
 func (*AgentCertificate) Descriptor() ([]byte, []int) {
 	return fileDescriptor_0c843d59d2d938e7, []int{1}
 }
+
 func (m *AgentCertificate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AgentCertificate.Unmarshal(m, b)
 }
@@ -236,9 +240,9 @@ func (m *AgentCertificate) GetSignature() []byte {
 }
 
 func init() {
+	proto.RegisterEnum("types.PeerRole", PeerRole_name, PeerRole_value)
 	proto.RegisterType((*PeerAddress)(nil), "types.PeerAddress")
 	proto.RegisterType((*AgentCertificate)(nil), "types.AgentCertificate")
-	proto.RegisterEnum("types.PeerRole", PeerRole_name, PeerRole_value)
 }
 
 func init() { proto.RegisterFile("node.proto", fileDescriptor_0c843d59d2d938e7) }

@@ -74,12 +74,10 @@ func (ks *AergoStorage) Save(identity Identity, passphrase string, key *PrivateK
 		return nil, errors.New("already exists")
 	}
 
-	strategy := version2Strategy[encryptVersion]
-	encrypted, err := strategy.Encrypt(key, passphrase)
+	encrypted, err := GetKeystore(key, passphrase)
 	if nil != err {
 		return nil, err
 	}
-
 	err = ioutil.WriteFile(absFilePath, encrypted, os.FileMode(0644))
 	if nil != err {
 		return nil, err
@@ -88,29 +86,47 @@ func (ks *AergoStorage) Save(identity Identity, passphrase string, key *PrivateK
 	return identity, nil
 }
 
+// GetKeystore encrypts a keystore file
+func GetKeystore(key *PrivateKey, passphrase string) ([]byte, error) {
+	// TODO: dispatch per keystore version
+	strategy := version2Strategy[encryptVersion]
+	encrypted, err := strategy.Encrypt(key, passphrase)
+	if nil != err {
+		return nil, err
+	}
+	return encrypted, nil
+}
+
+// LoadKeystore decrypts a keystore file
+func LoadKeystore(keystore []byte, passphrase string) (*PrivateKey, error) {
+	// TODO: dispatch per keystore version
+	strategy := version2Strategy[encryptVersion]
+	privateKey, err := strategy.Decrypt(keystore, passphrase)
+	if nil != err {
+		return nil, types.ErrWrongAddressOrPassWord
+	}
+	return privateKey, nil
+}
+
 func (ks *AergoStorage) Load(identity Identity, passphrase string) (*PrivateKey, error) {
-	// FIXME: save itself.... need to refactor store.go
+	// FIXME: save itself. need to refactor store.go
 	encodedIdentity := types.EncodeAddress(identity)
 
 	fileName := fmt.Sprintf(fileNameTemplate, string(encodedIdentity))
 	absFilePath := filepath.Join(ks.storePath, fileName)
 	_, err := os.Stat(absFilePath)
 	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("Identity %s not exists", encodedIdentity)
+		return nil, fmt.Errorf("account with address %s does not exist", encodedIdentity)
 	}
 
 	encrypted, err := ioutil.ReadFile(absFilePath)
 	if nil != err {
 		return nil, types.ErrWrongAddressOrPassWord
 	}
-
-	// TODO: dispatch per keystore version
-	strategy := version2Strategy[encryptVersion]
-	privateKey, err := strategy.Decrypt(encrypted, passphrase)
+	privateKey, err := LoadKeystore(encrypted, passphrase)
 	if nil != err {
 		return nil, types.ErrWrongAddressOrPassWord
 	}
-
 	return privateKey, nil
 }
 

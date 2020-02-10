@@ -54,8 +54,10 @@ var (
 
 	staking bool
 
-	remote       bool
-	importFormat string
+	remote           bool
+	importFormat     string
+	keystoreFilePath string
+	exportAsWif      bool
 
 	rootConfig CliConfig
 
