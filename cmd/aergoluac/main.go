@@ -7,7 +7,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/aergoio/aergo/cmd/aergoluac/util"
@@ -47,10 +46,7 @@ func init() {
 				}
 				err = util.CompileFromFile(args[0], args[1], abiFile)
 			}
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
-			}
-			return nil
+			return err
 		},
 	}
 	rootCmd.PersistentFlags().StringVarP(&abiFile, "abi", "a", "", "abi filename")
