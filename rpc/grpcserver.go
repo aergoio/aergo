@@ -339,29 +339,34 @@ func (rpc *AergoRPCService) getBlocks(ctx context.Context, in *types.ListParams)
 func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) {
 	var err error
 	rpc.blockStreamLock.RLock()
+	defer rpc.blockStreamLock.RUnlock()
 	for _, stream := range rpc.blockStream {
 		if stream != nil {
+			rpc.blockStreamLock.RUnlock()
 			err = stream.Send(block)
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to broadcast block stream")
 			}
+			rpc.blockStreamLock.RLock()
 		}
 	}
-	rpc.blockStreamLock.RUnlock()
 }
 
 func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.BlockMetadata) {
 	var err error
 	rpc.blockMetadataStreamLock.RLock()
+	defer rpc.blockMetadataStreamLock.RUnlock()
+
 	for _, stream := range rpc.blockMetadataStream {
 		if stream != nil {
+			rpc.blockMetadataStreamLock.RUnlock()
 			err = stream.Send(meta)
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to broadcast block meta stream")
 			}
+			rpc.blockMetadataStreamLock.RLock()
 		}
 	}
-	rpc.blockMetadataStreamLock.RUnlock()
 }
 
 // ListBlockStream starts a stream of new blocks
@@ -1157,6 +1162,7 @@ func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error 
 
 	for _, es := range rpc.eventStream {
 		if es != nil {
+			rpc.eventStreamLock.RUnlock()
 			argFilter, _ := es.filter.GetExArgFilter()
 			for _, event := range events {
 				if event.Filter(es.filter, argFilter) {
@@ -1167,6 +1173,7 @@ func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error 
 					}
 				}
 			}
+			rpc.eventStreamLock.RLock()
 		}
 	}
 	return nil
