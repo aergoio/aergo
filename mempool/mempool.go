@@ -570,10 +570,12 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		fallthrough
 	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL:
 		if tx.GetTx().HasNameRecipient() {
-			recipient := tx.GetBody().GetRecipient()
-			recipientAddr := mp.getAddress(recipient)
-			if recipientAddr == nil {
-				return types.ErrTxInvalidRecipient
+			if types.IsQuirkTx(tx.GetHash()) {
+				recipient := tx.GetBody().GetRecipient()
+				recipientAddr := mp.getAddress(recipient)
+				if recipientAddr == nil {
+					return types.ErrTxInvalidRecipient
+				}
 			}
 		}
 	case types.TxType_DEPLOY:

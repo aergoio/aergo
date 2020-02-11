@@ -71,6 +71,19 @@ func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) 
 //Resolve is resolve name for chain
 func Resolve(bs *state.BlockState, name []byte) []byte {
 	if len(name) == types.AddressLength ||
+		types.IsSpecialAccount(name) {
+		return name
+	}
+	scs, err := openContract(bs)
+	if err != nil {
+		return name
+	}
+	return getAddress(scs, name)
+}
+
+//Resolve is resolve name for chain
+func ResolveLegacy(bs *state.BlockState, name []byte) []byte {
+	if len(name) == types.AddressLength ||
 		strings.Contains(string(name), ".") {
 		return name
 	}
@@ -95,6 +108,15 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 
 //GetAddress is resolve name for mempool
 func GetAddress(scs *state.ContractState, name []byte) []byte {
+	if len(name) == types.AddressLength ||
+		types.IsSpecialAccount(name) {
+		return name
+	}
+	return getAddress(scs, name)
+}
+
+//GetAddressLegacy is resolve name for mempool by buggy logic, leaved for backward compatibility
+func GetAddressLegacy(scs *state.ContractState, name []byte) []byte {
 	if len(name) == types.AddressLength ||
 		strings.Contains(string(name), ".") {
 		return name

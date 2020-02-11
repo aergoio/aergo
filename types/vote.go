@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 )
@@ -13,6 +14,26 @@ const (
 
 	MaxCandidates = 30
 )
+
+// too few accounts to use map
+var specialAccounts [][]byte
+func init() {
+	specialAccounts = make([][]byte, 0, 4)
+	specialAccounts = append(specialAccounts, []byte(AergoSystem))
+	specialAccounts = append(specialAccounts, []byte(AergoName))
+	specialAccounts = append(specialAccounts, []byte(AergoEnterprise))
+	specialAccounts = append(specialAccounts, []byte(AergoVault))
+}
+
+// IsSpecialAccount check if name is the one of special account names.
+func IsSpecialAccount(name []byte) bool {
+	for _, b := range specialAccounts {
+		if bytes.Compare(name, b) == 0 {
+			return true
+		}
+	}
+	return false
+}
 
 type VotingIssue interface {
 	ID() string
