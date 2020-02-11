@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"github.com/btcsuite/btcd/btcec"
 	"io"
 	"math/big"
 	"os"
@@ -569,13 +570,21 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		}
 		fallthrough
 	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL:
-		if tx.GetTx().HasNameRecipient() {
-			if !types.IsQuirkTx(tx.GetHash()) {
-				recipient := tx.GetBody().GetRecipient()
-				recipientAddr := mp.getAddress(recipient)
-				if recipientAddr == nil {
+		// checking recipient address
+		// FIXME make more general code to classify address type; normal(b58 pubkey), special account, name or invalid
+		if !types.IsQuirkTx(tx.GetHash()) {
+			recipient := tx.GetBody().GetRecipient()
+			if tx.GetTx().HasNameRecipient() || types.IsSpecialAccount(recipient) {
+				// it will search account directly
+			} else {
+				_, err = btcec.ParsePubKey(recipient, btcec.S256())
+				if err != nil {
 					return types.ErrTxInvalidRecipient
 				}
+			}
+			recipientAddr := mp.getAddress(recipient)
+			if recipientAddr == nil {
+				return types.ErrTxInvalidRecipient
 			}
 		}
 	case types.TxType_DEPLOY:
