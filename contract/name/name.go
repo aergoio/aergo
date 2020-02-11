@@ -68,30 +68,23 @@ func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) 
 	return registerOwner(scs, name, owner, to)
 }
 
-//Resolve is resolve name for chain
-func Resolve(bs *state.BlockState, name []byte) []byte {
-	if len(name) == types.AddressLength ||
-		types.IsSpecialAccount(name) {
-		return name
+func isPredefined(name []byte, legacy bool) bool {
+	if legacy {
+		return len(name) == types.AddressLength || strings.Contains(string(name), ".")
 	}
-	scs, err := openContract(bs)
-	if err != nil {
-		return name
-	}
-	return getAddress(scs, name)
+	return len(name) == types.AddressLength || types.IsSpecialAccount(name)
 }
 
 //Resolve is resolve name for chain
-func ResolveLegacy(bs *state.BlockState, name []byte) []byte {
-	if len(name) == types.AddressLength ||
-		strings.Contains(string(name), ".") {
-		return name
+func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
+	if isPredefined(name, legacy) {
+		return name, nil
 	}
 	scs, err := openContract(bs)
 	if err != nil {
-		return name
+		return nil, err
 	}
-	return getAddress(scs, name)
+	return getAddress(scs, name), nil
 }
 
 func openContract(bs *state.BlockState) (*state.ContractState, error) {

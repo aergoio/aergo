@@ -884,21 +884,27 @@ func executeTx(
 	bi *types.BlockHeaderInfo,
 	preLoadService int,
 ) error {
-	txBody := tx.GetBody()
+	var (
+		txBody    = tx.GetBody()
+		isQuirkTx = types.IsQuirkTx(tx.GetHash())
+		account   []byte
+		recipient []byte
+		err       error
+	)
 
-	var account []byte
-	if tx.HasVerifedAccount() {
-		account = tx.GetVerifedAccount()
-		tx.RemoveVerifedAccount()
-		resolvedAccount := name.Resolve(bs, txBody.GetAccount())
-		if !bytes.Equal(account, resolvedAccount) {
-			return types.ErrSignNotMatch
-		}
-	} else {
-		account = name.Resolve(bs, txBody.GetAccount())
+	if account, err = name.Resolve(bs, txBody.GetAccount(), isQuirkTx); err != nil {
+		return err
 	}
 
-	err := tx.Validate(bi.ChainIdHash(), IsPublic())
+	if tx.HasVerifedAccount() {
+		txAcc := tx.GetVerifedAccount()
+		tx.RemoveVerifedAccount()
+		if !bytes.Equal(txAcc, account) {
+			return types.ErrSignNotMatch
+		}
+	}
+
+	err = tx.Validate(bi.ChainIdHash(), IsPublic())
 	if err != nil {
 		return err
 	}
@@ -913,7 +919,9 @@ func executeTx(
 		return err
 	}
 
-	recipient := name.Resolve(bs, txBody.Recipient)
+	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
+		return err
+	}
 	var receiver *state.V
 	status := "SUCCESS"
 	if len(recipient) > 0 {
