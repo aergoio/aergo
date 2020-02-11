@@ -10,16 +10,17 @@
 
 Official Chain Software of Aergo Protocol
 
-We are developing the most practical and powerful platform for blockchain businesses. This will be a huge challenge. There are 4 main ideologies regarding this project.
+We are developing the most practical and powerful platform for blockchain businesses.
+There are four main ideologies guiding this project:
 
 1. Developer-friendly
 2. Guaranteed performance
 3. Scalable architecture
 4. Connect with the world
 
-You can see the current public network status via aergoscan service: [aergoscan](https://aergoscan.io)
+You can see the current public network status on [Aergoscan](https://aergoscan.io).
 
-Official Documentation Link: [aergodocs](http://docs.aergo.io)
+**[Official Documentation](http://docs.aergo.io)**
 
 ## Roadmaps
 
