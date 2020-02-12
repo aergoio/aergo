@@ -57,11 +57,13 @@ func EncodeAddress(addr Address) string {
 const allowed = "abcdefghijklmnopqrstuvwxyz1234567890."
 
 func DecodeAddress(encodedAddr string) (Address, error) {
-	if len(encodedAddr) <= NameLength || strings.Contains(encodedAddr, ".") {
+	if IsSpecialAccount([]byte(encodedAddr)) {
+		return []byte(encodedAddr), nil
+	} else if len(encodedAddr) <= NameLength  { // name address
 		name := encodedAddr
 		for _, char := range string(name) {
 			if !strings.Contains(allowed, strings.ToLower(string(char))) {
-				return nil, fmt.Errorf("not allowed character in %s", string(name))
+				return nil, fmt.Errorf("not allowed character for address in %s", string(name))
 			}
 		}
 		return []byte(name), nil
@@ -74,6 +76,10 @@ func DecodeAddress(encodedAddr string) (Address, error) {
 	if err != nil {
 		return nil, err
 	}
+	return DecodeAddressBytes(decodedBytes)
+}
+
+func DecodeAddressBytes(decodedBytes []byte) (Address, error) {
 	var decoded []byte
 	version := decodedBytes[0]
 	switch version {
