@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"github.com/btcsuite/btcd/btcec"
 	"io"
 	"math/big"
 	"os"
@@ -577,8 +576,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if tx.GetTx().HasNameRecipient() || types.IsSpecialAccount(recipient) {
 				// it will search account directly
 			} else {
-				_, err = btcec.ParsePubKey(recipient, btcec.S256())
-				if err != nil {
+				if len(recipient) != types.AddressLength {
 					return types.ErrTxInvalidRecipient
 				}
 			}
