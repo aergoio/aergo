@@ -426,7 +426,10 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 	if accountLen == types.EncodedAddressLength {
 		return types.DecodeAddress(account)
 	} else if accountLen == types.NameLength {
-		cid := name.Resolve(bs, []byte(account))
+		cid, err := name.Resolve(bs, []byte(account), false)
+		if err != nil {
+			return nil, err
+		}
 		if cid == nil {
 			return nil, errors.New("name not founded :" + account)
 		}

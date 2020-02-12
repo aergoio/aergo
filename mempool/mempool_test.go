@@ -631,3 +631,45 @@ func TestRemoveTx(t *testing.T) {
 	assert.Equal(t, 4, pool.length, "length")
 	assert.Equal(t, 3, pool.orphan, "orphan")
 }
+
+func TestMemPool_GetAddress(t *testing.T) {
+	t.Skip("skip test since underlying env is not capable to test this single method")
+	initTest(t)
+	defer deinitTest()
+	pool.testConfig = false
+
+	quirkHash := types.DecodeB58(types.B23994084_001)
+	normalHash := types.NewTx().CalculateTxHash()
+	dummySender := types.NewAccount(recipient[0])
+
+
+	type args struct {
+		hash []byte
+		recp []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"TQuirkWrongRecp", args{quirkHash, []byte("111233.123")}, false},
+		{"TQuirkValidRecp", args{quirkHash, recipient[1]}, false},
+		{"TNormWrongRecp", args{normalHash, []byte("111233.123")}, true},
+		{"TNormValidRecp", args{normalHash, recipient[1]}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mp := pool
+
+			sampleTX := types.NewTx()
+			sampleTX.Body.Nonce = 1
+			sampleTX.Body.Type = types.TxType_TRANSFER
+			sampleTX.Body.Recipient = tt.args.recp
+			sampleTX.Hash = tt.args.recp
+			tx := types.NewTransaction(sampleTX)
+			if err := mp.validateTx(tx, dummySender.Address); (err != nil) != tt.wantErr {
+				t.Errorf("validateTx() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
