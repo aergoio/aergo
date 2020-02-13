@@ -17,7 +17,6 @@ import (
 func init() {
 	rootCmd.AddCommand(signCmd)
 	signCmd.Flags().StringVar(&jsonTx, "jsontx", "", "transaction json to sign")
-	signCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data/cli", "path to data directory")
 	signCmd.Flags().StringVar(&address, "address", "1", "address of account to use for signing")
 	signCmd.Flags().StringVar(&pw, "password", "", "local account password")
 	signCmd.Flags().StringVar(&privKey, "key", "", "base58 encoded key for sign")
@@ -59,36 +58,34 @@ var signCmd = &cobra.Command{
 			}
 			cmd.Println(types.EncodeAddress(crypto.GenerateAddress(pubkey.ToECDSA())))
 			msg = tx
-		} else if cmd.Flags().Changed("path") == false {
+		} else if rootConfig.KeyStorePath == "" {
 			msg, err = client.SignTX(context.Background(), &types.Tx{Body: param})
 		} else {
-			tx := &types.Tx{Body: param}
-			if tx.Body.Sign != nil {
-				tx.Body.Sign = nil
-			}
-			hash := key.CalculateHashWithoutSign(param)
-
 			if cmd.Flags().Changed("address") == false {
 				cmd.Print("Error: required flag(s) \"address\" not set")
 				return
 			}
-
-			dataEnvPath := os.ExpandEnv(dataDir)
-			ks := key.NewStore(dataEnvPath, 0)
-			defer ks.CloseStore()
 			addr, err := types.DecodeAddress(address)
 			if err != nil {
 				cmd.Printf("Failed: %s\n", err.Error())
 				return
 			}
-			tx.Body.Sign, err = ks.Sign(addr, pw, hash)
-			if err != nil {
-				cmd.Printf("Failed: %s\n", err.Error())
+			tx := &types.Tx{Body: param}
+			if tx.Body.Sign != nil {
+				tx.Body.Sign = nil
+			}
+			if pw == "" {
+				pw, err = getPasswd(cmd, false)
+				if err != nil {
+					cmd.Println("Failed get password:" + err.Error())
+					return
+				}
+			}
+			if errStr := fillSign(tx, rootConfig.KeyStorePath, pw, addr); errStr != "" {
+				cmd.Printf("Failed: %s\n", errStr)
 				return
 			}
-			tx.Hash = tx.CalculateTxHash()
 			msg = tx
-
 		}
 
 		if nil == err && msg != nil {

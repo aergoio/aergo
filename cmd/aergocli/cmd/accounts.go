@@ -25,9 +25,6 @@ func init() {
 	}
 
 	newCmd.Flags().StringVar(&pw, "password", "", "Password")
-	newCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
-
-	listCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
 
 	unlockCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	unlockCmd.MarkFlagRequired("address")
@@ -38,22 +35,21 @@ func init() {
 	lockCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	importCmd.Flags().StringVar(&importFormat, "if", "", "Base58 import format string")
-	importCmd.Flags().StringVar(&keystoreFilePath, "keystore", "", "path to keystore file")
 	importCmd.Flags().StringVar(&pw, "password", "", "Password when exporting")
 	importCmd.Flags().StringVar(&to, "newpassword", "", "Password to be reset")
-	importCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
+	importCmd.Flags().StringVar(&importFilePath, "path", "", "Path to import keystore file")
 
 	exportCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	exportCmd.MarkFlagRequired("address")
 	exportCmd.Flags().BoolVar(&exportAsWif, "wif", false, "export as encrypted string instead of keystore format")
 	exportCmd.Flags().StringVar(&pw, "password", "", "Password")
-	exportCmd.Flags().StringVar(&dataDir, "path", "$HOME/.aergo/data", "Path to data directory")
 
 	voteCmd.Flags().StringVar(&address, "address", "", "Account address of voter")
 	voteCmd.MarkFlagRequired("address")
 	voteCmd.Flags().StringVar(&to, "to", "", "Json string array which has candidates or input file path")
 	voteCmd.MarkFlagRequired("to")
 	voteCmd.Flags().StringVar(&voteId, "id", types.OpvoteBP.Cmd(), "id to vote")
+	voteCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	stakeCmd.Flags().StringVar(&address, "address", "", "Account address")
 	stakeCmd.MarkFlagRequired("address")
@@ -63,6 +59,7 @@ func init() {
 	unstakeCmd.MarkFlagRequired("address")
 	unstakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
 	unstakeCmd.MarkFlagRequired("amount")
+	unstakeCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakeCmd, unstakeCmd)
 	rootCmd.AddCommand(accountCmd)
@@ -85,13 +82,13 @@ var newCmd = &cobra.Command{
 		}
 		var msg *types.Account
 		var addr []byte
-		if cmd.Flags().Changed("path") == false {
+		if rootConfig.KeyStorePath == "" {
 			msg, err = client.CreateAccount(context.Background(), &param)
 			if msg != nil {
 				addr = msg.GetAddress()
 			}
 		} else {
-			dataEnvPath := os.ExpandEnv(dataDir)
+			dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			addr, err = ks.CreateKey(param.Passphrase)
@@ -115,10 +112,10 @@ var listCmd = &cobra.Command{
 		var err error
 		var msg *types.AccountList
 		var addrs [][]byte
-		if cmd.Flags().Changed("path") == false {
+		if rootConfig.KeyStorePath == "" {
 			msg, err = client.GetAccounts(context.Background(), &types.Empty{})
 		} else {
-			dataEnvPath := os.ExpandEnv(dataDir)
+			dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 			ks := key.NewStore(dataEnvPath, 0)
 			defer ks.CloseStore()
 			addrs, err = ks.GetAddresses()
@@ -151,6 +148,10 @@ var lockCmd = &cobra.Command{
 	Use:   "lock [flags]",
 	Short: "Lock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
+		if rootConfig.KeyStorePath != "" {
+			cmd.PrintErrf("There is no lock on the local keystore.\n")
+			return
+		}
 		param, err := parsePersonalParam(cmd)
 		if err != nil {
 			cmd.PrintErrf("Failed: %s\n", err.Error())
@@ -169,11 +170,11 @@ var unlockCmd = &cobra.Command{
 	Use:   "unlock [flags]",
 	Short: "Unlock account in the node",
 	Run: func(cmd *cobra.Command, args []string) {
-		param, err := parsePersonalParam(cmd)
-		if err != nil {
-			cmd.PrintErrf("Failed: %s\n", err.Error())
+		if rootConfig.KeyStorePath != "" {
+			cmd.PrintErrf("Local keystore do not need to be unlocked.\n")
 			return
 		}
+		param, err := parsePersonalParam(cmd)
 		msg, err := client.UnlockAccount(context.Background(), param)
 		if err != nil {
 			cmd.PrintErrf("Failed: %s\n", err.Error())
@@ -207,14 +208,14 @@ func importWif(cmd *cobra.Command) ([]byte, error) {
 		wif.Newpass = wif.Oldpass
 	}
 
-	if cmd.Flags().Changed("path") == false {
+	if rootConfig.KeyStorePath == "" {
 		msg, errRemote := client.ImportAccount(context.Background(), wif)
 		if errRemote != nil {
 			return nil, errRemote
 		}
 		address = msg.GetAddress()
 	} else {
-		dataEnvPath := os.ExpandEnv(dataDir)
+		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
 		address, err = ks.ImportKey(importBuf, wif.Oldpass, wif.Newpass)
@@ -229,7 +230,7 @@ func importWif(cmd *cobra.Command) ([]byte, error) {
 func importKeystore(cmd *cobra.Command) ([]byte, error) {
 	var err error
 	var address []byte
-	absPath, err := filepath.Abs(keystoreFilePath)
+	absPath, err := filepath.Abs(importFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -254,14 +255,14 @@ func importKeystore(cmd *cobra.Command) ([]byte, error) {
 		wif.Newpass = wif.Oldpass
 	}
 
-	if cmd.Flags().Changed("path") == false {
+	if rootConfig.KeyStorePath == "" {
 		msg, errRemote := client.ImportAccount(context.Background(), wif)
 		if errRemote != nil {
 			return nil, errRemote
 		}
 		address = msg.GetAddress()
 	} else {
-		dataEnvPath := os.ExpandEnv(dataDir)
+		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
 		privateKey, err := key.LoadKeystore(keystore, wif.Oldpass)
@@ -285,7 +286,7 @@ var importCmd = &cobra.Command{
 		var err error
 		if importFormat != "" {
 			address, err = importWif(cmd)
-		} else if keystoreFilePath != "" {
+		} else if importFilePath != "" {
 			address, err = importKeystore(cmd)
 		} else {
 			cmd.Help()
@@ -300,14 +301,14 @@ var importCmd = &cobra.Command{
 
 // export account as WIF (legacy)
 func exportWif(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
-	if cmd.Flags().Changed("path") == false {
+	if rootConfig.KeyStorePath == "" {
 		msg, err := client.ExportAccount(context.Background(), param)
 		if err != nil {
 			return nil, err
 		}
 		return msg.Value, nil
 	} else {
-		dataEnvPath := os.ExpandEnv(dataDir)
+		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
 		wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
@@ -320,14 +321,14 @@ func exportWif(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
 
 // export account as keystore
 func exportKeystore(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
-	if cmd.Flags().Changed("path") == false {
+	if rootConfig.KeyStorePath == "" {
 		msg, err := client.ExportAccountKeystore(context.Background(), param)
 		if err != nil {
 			return nil, err
 		}
 		return msg.Value, nil
 	} else {
-		dataEnvPath := os.ExpandEnv(dataDir)
+		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
 
@@ -432,6 +433,9 @@ func getPasswd(cmd *cobra.Command, isNew bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if len(password) == 0 {
+		return "", errors.New("empty password")
+	}
 	if isNew {
 		repeat, err := term.ReadPassword("Repeat password: ")
 		if err != nil {
@@ -445,7 +449,7 @@ func getPasswd(cmd *cobra.Command, isNew bool) (string, error) {
 }
 
 func preConnectAergo(cmd *cobra.Command, args []string) {
-	if cmd.Flags().Changed("path") == false {
+	if rootConfig.KeyStorePath == "" {
 		connectAergo(cmd, args)
 	} else {
 		client = nil

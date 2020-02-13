@@ -6,10 +6,8 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -65,11 +63,7 @@ func sendStake(cmd *cobra.Command, s bool) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Println(err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
 }

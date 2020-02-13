@@ -37,6 +37,7 @@ func init() {
 	newCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
 	newCmd.MarkFlagRequired("name")
 	newCmd.Flags().StringVar(&spending, "amount", "1aergo", "Spending for create name. at least 1 aergo")
+	newCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	updateCmd := &cobra.Command{
 		Use:                   "update",
@@ -98,12 +99,7 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Printf("Failed request to aergo sever\n" + err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
 }
 
@@ -152,12 +148,8 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Printf("Failed request to aergo sever\n" + err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
 }
 
