@@ -95,6 +95,30 @@ func (mr *MockSyncManagerMockRecorder) RegisterTxNotice(arg0 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTxNotice", reflect.TypeOf((*MockSyncManager)(nil).RegisterTxNotice), arg0)
 }
 
+// Start mocks base method
+func (m *MockSyncManager) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start
+func (mr *MockSyncManagerMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSyncManager)(nil).Start))
+}
+
+// Stop mocks base method
+func (m *MockSyncManager) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop
+func (mr *MockSyncManagerMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSyncManager)(nil).Stop))
+}
+
 // MockPeerAccessor is a mock of PeerAccessor interface
 type MockPeerAccessor struct {
 	ctrl     *gomock.Controller

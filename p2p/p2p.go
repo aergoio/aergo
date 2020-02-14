@@ -177,6 +177,7 @@ func (p2ps *P2P) AfterStart() {
 	p2ps.mm.Start()
 	p2ps.cm.Start()
 	p2ps.prm.Start()
+	p2ps.sm.Start()
 }
 
 func (p2ps *P2P) checkConsensus() {
