@@ -41,7 +41,6 @@ func TestSaveAndLoadOnAergo(t *testing.T) {
 	if nil != err {
 		assert.FailNow(t, "Could not load private key", err)
 	}
-
 	assert.Equalf(t, *expected, *actual, "Wrong exported one")
 }
 

@@ -33,7 +33,7 @@ func deinitTest() {
 func TestCreateKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 5
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%d", i)
 		addr, err := ks.CreateKey(pass)
@@ -49,7 +49,7 @@ func TestCreateKey(t *testing.T) {
 func TestCreateKeyLongPass(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%1024d", i)
 		addr, err := ks.CreateKey(pass)
@@ -65,7 +65,7 @@ func TestCreateKeyLongPass(t *testing.T) {
 func TestImportKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		key, err := btcec.NewPrivateKey(btcec.S256())
 		addr := crypto.GenerateAddress(&(key.PublicKey))
@@ -88,7 +88,7 @@ func TestImportKey(t *testing.T) {
 func TestExportKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%d", i)
 		addr, err := ks.CreateKey(pass)
@@ -111,7 +111,7 @@ func TestExportKey(t *testing.T) {
 func TestSignTx(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%32d", i)
 		addr, err := ks.CreateKey(pass)
@@ -142,7 +142,7 @@ func TestSignTx(t *testing.T) {
 func TestSign(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%32d", i)
 		addr, err := ks.CreateKey(pass)
@@ -170,7 +170,7 @@ func TestConcurrentUnlockAndLock(t *testing.T) {
 		t.Errorf("could not create key : %s", err.Error())
 	}
 
-	const testSize = 10
+	const testSize = 5
 	var wg sync.WaitGroup
 	for i := 0; i < testSize; i++ {
 		wg.Add(1)
