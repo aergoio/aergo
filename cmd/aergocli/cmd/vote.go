@@ -33,21 +33,24 @@ func init() {
 }
 
 var voteStatCmd = &cobra.Command{
-	Use:   "votestat",
-	Short: "show voting stat",
-	Run:   execVoteStat,
+	Use:    "votestat",
+	Short:  "show voting stat",
+	Run:    execVoteStat,
+	PreRun: connectAergo,
 }
 
 var voteCmd = &cobra.Command{
-	Use:   "vote",
-	Short: "vote to BPs",
-	Run:   execVote,
+	Use:    "vote",
+	Short:  "vote to BPs",
+	Run:    execVote,
+	PreRun: connectAergo,
 }
 
 var bpCmd = &cobra.Command{
-	Use:   "bp",
-	Short: "show BP list",
-	Run:   execBP,
+	Use:    "bp",
+	Short:  "show BP list",
+	Run:    execBP,
+	PreRun: connectAergo,
 }
 
 const PeerIDLength = 39

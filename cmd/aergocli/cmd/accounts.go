@@ -133,7 +133,7 @@ var listCmd = &cobra.Command{
 			if addresslist != nil {
 				out = out[:len(out)-2]
 			}
-		} else if addrs != nil {
+		} else if addrs != nil && len(addrs) > 0 {
 			for _, a := range addrs {
 				out = fmt.Sprintf("%s\"%s\", ", out, types.EncodeAddress(a))
 			}

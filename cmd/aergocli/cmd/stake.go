@@ -14,9 +14,10 @@ import (
 )
 
 var stakeCmd = &cobra.Command{
-	Use:   "stake",
-	Short: "Stake balance to aergo system",
-	RunE:  execStake,
+	Use:    "stake",
+	Short:  "Stake balance to aergo system",
+	RunE:   execStake,
+	PreRun: connectAergo,
 }
 
 func execStake(cmd *cobra.Command, args []string) error {
@@ -24,9 +25,10 @@ func execStake(cmd *cobra.Command, args []string) error {
 }
 
 var unstakeCmd = &cobra.Command{
-	Use:   "unstake",
-	Short: "Unstake balance from aergo system",
-	RunE:  execUnstake,
+	Use:    "unstake",
+	Short:  "Unstake balance from aergo system",
+	RunE:   execUnstake,
+	PreRun: connectAergo,
 }
 
 func execUnstake(cmd *cobra.Command, args []string) error {
