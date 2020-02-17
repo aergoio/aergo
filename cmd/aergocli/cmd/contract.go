@@ -91,9 +91,9 @@ func init() {
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
-	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
+	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with deployment, in aer")
 	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "redeploy the contract")
-	deployCmd.Flags().StringVar(&pw, "password", "", "Password")
+	deployCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	callCmd := &cobra.Command{
 		Use: `call [flags] <sender> <contract> <funcname> [args]
@@ -106,10 +106,10 @@ func init() {
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
 	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with call, in aer")
 	callCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
-	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
+	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "display json transaction instead of sending to blockchain")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
-	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "fee dellegation")
-	callCmd.Flags().StringVar(&pw, "password", "", "Password")
+	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "request fee delegation to contract")
+	callCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	stateQueryCmd := &cobra.Command{
 		Use:   "statequery [flags] contract <varname> <varindex>",
