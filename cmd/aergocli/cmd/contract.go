@@ -39,7 +39,10 @@ func init() {
 	contractCmd.PersistentFlags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
 
 	deployCmd := &cobra.Command{
-		Use:                   "deploy [flags] --payload 'payload string' creator\n  aergocli contract deploy [flags] creator bcfile abifile",
+		Use: `deploy [flags] --payload 'payload string' <creatorAddress> [args]
+  aergocli contract deploy [flags] <creatorAddress> <bcfile> <abifile> [args]
+  
+  You can pass constructor arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
 		Short:                 "Deploy a compiled contract to the server",
 		Args:                  cobra.MinimumNArgs(1),
 		Run:                   runDeployCmd,
@@ -51,13 +54,15 @@ func init() {
 	deployCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	callCmd := &cobra.Command{
-		Use:   "call [flags] sender contract funcname '[argument...]'",
+		Use: `call [flags] sender contract <funcname> [args]
+
+  You can pass function arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
 		Short: "Call a contract function",
 		Args:  cobra.MinimumNArgs(3),
 		Run:   runCallCmd,
 	}
-	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
-	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "setting amount")
+	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
+	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with call, in aer")
 	callCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
 	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "get jsontx")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
@@ -65,7 +70,7 @@ func init() {
 	callCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	stateQueryCmd := &cobra.Command{
-		Use:   "statequery [flags] contract varname varindex",
+		Use:   "statequery [flags] contract <varname> <varindex>",
 		Short: "query the state of a contract with variable name and optional index",
 		Args:  cobra.MinimumNArgs(2),
 		Run:   runQueryStateCmd,
@@ -77,13 +82,13 @@ func init() {
 		deployCmd,
 		callCmd,
 		&cobra.Command{
-			Use:   "abi [flags] contract",
+			Use:   "abi [flags] <contractAddress>",
 			Short: "Get ABI of the contract",
 			Args:  cobra.MinimumNArgs(1),
 			Run:   runGetABICmd,
 		},
 		&cobra.Command{
-			Use:   "query [flags] contract funcname '[argument...]'",
+			Use:   "query [flags] <contractAddress> <funcname> [args]",
 			Short: "Query contract by executing read-only function",
 			Args:  cobra.MinimumNArgs(2),
 			Run:   runQueryCmd,
@@ -100,7 +105,8 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 
 	creator, err := types.DecodeAddress(args[0])
 	if err != nil {
-		log.Fatal(err)
+		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
+		return
 	}
 	state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
 	if err != nil {
@@ -292,7 +298,8 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 func runGetABICmd(cmd *cobra.Command, args []string) {
 	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
-		log.Fatal(err)
+		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
+		return
 	}
 	abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
 	if err != nil {
@@ -304,7 +311,8 @@ func runGetABICmd(cmd *cobra.Command, args []string) {
 func runQueryCmd(cmd *cobra.Command, args []string) {
 	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
-		log.Fatal(err)
+		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
+		return
 	}
 	var ci types.CallInfo
 
@@ -337,7 +345,8 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 	var err error
 	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
-		log.Fatal(err)
+		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
+		return
 	}
 	if len(stateroot) != 0 {
 		root, err = base58.Decode(stateroot)
