@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
@@ -31,6 +33,46 @@ var (
 	gas           uint64
 )
 
+func intListToString(ns []int, word string) string {
+	if ns == nil || len(ns) == 0 {
+		return ""
+	}
+	if len(ns) == 1 {
+		return strconv.Itoa(ns[0])
+	}
+	slice := ns[:len(ns)-1]
+	end := strconv.Itoa(ns[len(ns)-1])
+	ret := ""
+	for idx, n := range slice {
+		ret += strconv.Itoa(n)
+		if idx < len(ns)-2 {
+			ret += ", "
+		}
+	}
+	return fmt.Sprintf("%s %s %s", ret, word, end)
+}
+
+func nArgs(ns []int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		for _, n := range ns {
+			if n == len(args) {
+				return nil
+			}
+		}
+		return fmt.Errorf("requires exactly %s args but received %d", intListToString(ns, "or"), len(args))
+	}
+}
+
+// Returns a function that runs callback and handles any errors
+func runWithError(callback func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) {
+	return func(cmd *cobra.Command, args []string) {
+		if err := callback(cmd, args); err != nil {
+			cmd.PrintErrln(err)
+			os.Exit(1)
+		}
+	}
+}
+
 func init() {
 	contractCmd := &cobra.Command{
 		Use:   "contract [flags] subcommand",
@@ -44,8 +86,8 @@ func init() {
   
   You can pass constructor arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
 		Short:                 "Deploy a compiled contract to the server",
-		Args:                  cobra.MinimumNArgs(1),
-		Run:                   runDeployCmd,
+		Args:                  nArgs([]int{1, 2, 3, 4}),
+		Run:                   runWithError(runDeployCmd),
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
@@ -54,12 +96,12 @@ func init() {
 	deployCmd.Flags().StringVar(&pw, "password", "", "Password")
 
 	callCmd := &cobra.Command{
-		Use: `call [flags] sender contract <funcname> [args]
+		Use: `call [flags] <sender> <contract> <funcname> [args]
 
   You can pass function arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
 		Short: "Call a contract function",
-		Args:  cobra.MinimumNArgs(3),
-		Run:   runCallCmd,
+		Args:  nArgs([]int{3, 4}),
+		Run:   runWithError(runCallCmd),
 	}
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
 	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with call, in aer")
@@ -98,40 +140,39 @@ func init() {
 	rootCmd.AddCommand(contractCmd)
 }
 
-func runDeployCmd(cmd *cobra.Command, args []string) {
+func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var err error
 	var code []byte
 	var deployArgs []byte
 
 	creator, err := types.DecodeAddress(args[0])
 	if err != nil {
-		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
-		return
+		return fmt.Errorf("could not decode address: %v", err.Error())
 	}
 	state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to get creator account's state: %v", err.Error())
 	}
 	var payload []byte
 	if len(data) == 0 {
 		if len(args) < 3 {
-			_, _ = fmt.Fprint(os.Stderr, "Usage: aergocli contract deploy <creator> <bcfile> <abifile> [args]")
+			cmd.Usage()
 			os.Exit(1)
 		}
 		code, err = ioutil.ReadFile(args[1])
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to read code file: %v", err.Error())
 		}
 		var abi []byte
 		abi, err = ioutil.ReadFile(args[2])
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to read abi file: %v", err.Error())
 		}
 		if len(args) == 4 {
 			var ci types.CallInfo
 			err = json.Unmarshal([]byte(args[3]), &ci.Args)
 			if err != nil {
-				log.Fatal(err)
+				return fmt.Errorf("failed to parse JSON: %v", err.Error())
 			}
 			deployArgs = []byte(args[3])
 		}
@@ -141,21 +182,19 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 			var ci types.CallInfo
 			err = json.Unmarshal([]byte(args[1]), &ci.Args)
 			if err != nil {
-				log.Fatal(err)
+				return fmt.Errorf("failed to parse JSON: %v", err.Error())
 			}
 			deployArgs = []byte(args[1])
 		}
 		code, err = luacEncoding.DecodeCode(data)
 		if err != nil {
-			_, _ = fmt.Fprint(os.Stderr, err)
-			os.Exit(1)
+			return fmt.Errorf("failed to decode code: %v", err.Error())
 		}
 		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
-		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
-		os.Exit(1)
+		return fmt.Errorf("failed to parse amount: %v", err.Error())
 	}
 	txType := types.TxType_DEPLOY
 	var contract []byte
@@ -163,7 +202,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		txType = types.TxType_REDEPLOY
 		contract, err = types.DecodeAddress(contractID)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to decode contract address: %v", err.Error())
 		}
 	}
 	tx := &types.Tx{
@@ -179,23 +218,24 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 
 	cmd.Println(sendTX(cmd, tx, creator))
+	return nil
 }
 
-func runCallCmd(cmd *cobra.Command, args []string) {
+func runCallCmd(cmd *cobra.Command, args []string) error {
 	caller, err := types.DecodeAddress(args[0])
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("could not decode sender address: %v", err.Error())
 	}
 	if nonce == 0 {
 		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: caller})
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to get creator account's state: %v", err.Error())
 		}
 		nonce = state.GetNonce() + 1
 	}
 	contract, err := types.DecodeAddress(args[1])
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("could not decode contract address: %v", err.Error())
 	}
 
 	var ci types.CallInfo
@@ -203,35 +243,27 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if len(args) > 3 {
 		err = json.Unmarshal([]byte(args[3]), &ci.Args)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to parse JSON: %v", err.Error())
 		}
 	}
 	payload, err := json.Marshal(ci)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to encode JSON: %v", err.Error())
 	}
 
 	if !toJson && !gover {
 		abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to get abi: %v", err.Error())
 		}
-		var found bool
-		for _, fn := range abi.Functions {
-			if fn.GetName() == args[2] {
-				found = true
-				break
-			}
-		}
-		if !found {
-			log.Fatal(args[2], " function not found in contract :", args[1])
+		if !abi.HasFunction(args[2]) {
+			return fmt.Errorf("function %v not found in contract at address %s", args[2], args[1])
 		}
 	}
 
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
-		_, _ = fmt.Fprint(os.Stderr, "failed to parse --amount flags")
-		os.Exit(1)
+		return fmt.Errorf("failed to parse amount: %v", err.Error())
 	}
 
 	var txType types.TxType
@@ -258,26 +290,30 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 	if chainIdHash != "" {
 		rawCidHash, err := base58.Decode(chainIdHash)
 		if err != nil {
-			_, _ = fmt.Fprint(os.Stderr, "failed to parse --chainidhash flags\n")
-			os.Exit(1)
+			return fmt.Errorf("failed to parse chainidhash: %v", err.Error())
 		}
 		tx.Body.ChainIdHash = rawCidHash
 	} else {
 		if errStr := fillChainId(tx); errStr != "" {
-			cmd.Printf(errStr)
-			return
+			return errors.New(errStr)
+		}
+	}
+
+	if pw == "" {
+		pw, err = getPasswd(cmd, false)
+		if err != nil {
+			return err
 		}
 	}
 
 	if rootConfig.KeyStorePath != "" {
 		if errStr := fillSign(tx, rootConfig.KeyStorePath, pw, caller); errStr != "" {
-			cmd.Printf(errStr)
-			return
+			return errors.New(errStr)
 		}
 	} else {
 		sign, err := client.SignTX(context.Background(), tx)
 		if err != nil || sign == nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to sign tx: %v", err)
 		}
 		tx = sign
 	}
@@ -289,10 +325,11 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		var msgs *types.CommitResultList
 		msgs, err = client.CommitTX(context.Background(), &types.TxList{Txs: txs})
 		if err != nil {
-			log.Fatal("Failed request to aergo server\n" + err.Error())
+			return fmt.Errorf("failed to commit tx: %v", err.Error())
 		}
 		cmd.Println(util.JSON(msgs))
 	}
+	return nil
 }
 
 func runGetABICmd(cmd *cobra.Command, args []string) {
