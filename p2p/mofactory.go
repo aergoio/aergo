@@ -16,7 +16,7 @@ import (
 )
 
 type baseMOFactory struct {
-	p2ps *P2P
+	is p2pcommon.InternalService
 }
 
 
@@ -83,7 +83,7 @@ func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNo
 }
 
 func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
-	rmo := &pbRaftMsgOrder{msg: raftMsg, raftAcc: mf.p2ps.consacc.RaftAccessor()}
+	rmo := &pbRaftMsgOrder{msg: raftMsg, raftAcc: mf.is.ConsensusAccessor().RaftAccessor()}
 	msgID := uuid.Must(uuid.NewV4())
 	if mf.fillUpMsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.RaftWrapperMessage, raftMsg) {
 		switch msgType {

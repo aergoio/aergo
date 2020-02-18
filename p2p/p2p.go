@@ -103,7 +103,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 	netTransport := transport.NewNetworkTransport(cfg.P2P, p2ps.Logger, p2ps)
 	signer := newDefaultMsgSigner(p2pkey.NodePrivKey(), p2pkey.NodePubKey(), p2pkey.NodeID())
 
-	mf := &baseMOFactory{p2ps: p2ps}
+	mf := &baseMOFactory{is: p2ps}
 
 	// public network is always disabled white/blacklist in chain
 	lm := list.NewListManager(cfg.Auth, cfg.AuthDir, p2ps.ca, p2ps.prm, p2ps.Logger, genesis.PublicNet())
