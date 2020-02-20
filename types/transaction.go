@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/fee"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/mr-tron/base58/base58"
 )
 
