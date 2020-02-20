@@ -35,6 +35,20 @@ func init() {
 	getblockCmd.Flags().BoolVar(&stream, "stream", false, "continiously stream new blocks as they get created")
 }
 
+func streamBlocks(cmd *cobra.Command) error {
+	bs, err := client.ListBlockStream(context.Background(), &aergorpc.Empty{})
+	if err != nil {
+		return fmt.Errorf("failed to connect stream: %v", err)
+	}
+	for {
+		b, err := bs.Recv()
+		if err != nil {
+			return fmt.Errorf("failed to receive block: %v", err)
+		}
+		cmd.Println(util.BlockConvBase58Addr(b))
+	}
+}
+
 func getSingleBlock(cmd *cobra.Command) error {
 	var blockQuery []byte
 	if hash == "" {
@@ -58,20 +72,6 @@ func getSingleBlock(cmd *cobra.Command) error {
 	}
 	cmd.Println(util.BlockConvBase58Addr(msg))
 	return nil
-}
-
-func streamBlocks(cmd *cobra.Command) error {
-	bs, err := client.ListBlockStream(context.Background(), &aergorpc.Empty{})
-	if err != nil {
-		return fmt.Errorf("failed to connect stream: %v", err)
-	}
-	for {
-		b, err := bs.Recv()
-		if err != nil {
-			return fmt.Errorf("failed to receive block: %v", err)
-		}
-		cmd.Println(util.BlockConvBase58Addr(b))
-	}
 }
 
 func execGetBlock(cmd *cobra.Command, args []string) error {
