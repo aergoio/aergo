@@ -112,7 +112,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	}
 	_, err = types.DecodeAddress(to)
 	if err != nil {
-		return fmt.Errorf("Wrong address in --from flag: %v", err.Error())
+		return fmt.Errorf("Wrong address in --to flag: %v", err.Error())
 	}
 	amount, err := util.ParseUnit(spending)
 	if err != nil {
