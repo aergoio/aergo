@@ -54,7 +54,7 @@ func BenchmarkBaseMOFactory_NewMsgTxBroadcastOrder(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				mf := &baseMOFactory{
-					p2ps: dummyP2PS,
+					is: dummyP2PS,
 				}
 				in := bm.in
 				hashes := make([][]byte, 0, len(in))
@@ -85,7 +85,7 @@ func BenchmarkBaseMOFactory_DiffFunc(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				mf := &baseMOFactory{
-					p2ps: dummyP2PS,
+					is: dummyP2PS,
 				}
 				_ = mf.diffMsgTxBroadcastOrder(bm.in)
 			}

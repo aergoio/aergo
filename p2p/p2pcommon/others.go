@@ -15,6 +15,9 @@ type PeerAccessor interface {
 }
 
 type SyncManager interface {
+	Start()
+	Stop()
+
 	// handle notice from bp
 	HandleBlockProducedNotice(peer RemotePeer, block *types.Block)
 	// handle notice from other node
