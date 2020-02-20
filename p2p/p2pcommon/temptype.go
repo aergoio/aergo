@@ -10,10 +10,11 @@ package p2pcommon
 // in aergo but outside of p2p
 //go:generate sh -c "mockgen github.com/aergoio/aergo/types ChainAccessor | sed -e 's/[Pp]ackage mock_types/package p2pmock/g' > ../p2pmock/mock_chainaccessor.go"
 
+//go:generate sh -c "mockgen github.com/aergoio/aergo/consensus ConsensusAccessor,AergoRaftAccessor | sed -e 's/^package mock_consensus/package p2pmock/g' > ../p2pmock/mock_consensus.go"
+
 // in aergoio
 //go:generate sh -c "mockgen github.com/aergoio/aergo-actor/actor Context | sed -e 's/[Pp]ackage mock_actor/package p2pmock/g' > ../p2pmock/mock_actorcontext.go"
-
-//go:generate sh -c "mockgen github.com/aergoio/aergo/consensus ConsensusAccessor,AergoRaftAccessor | sed -e 's/^package mock_consensus/package p2pmock/g' > ../p2pmock/mock_consensus.go"
+//go:generate sh -c "mockgen github.com/aergoio/aergo-actor/component ICompSyncRequester | sed -e 's/[Pp]ackage mock_actor/package p2pmock/g' > ../p2pmock/mock_actorcontext.go"
 
 // golang base
 //go:generate sh -c "mockgen io Reader,ReadCloser,Writer,WriteCloser,ReadWriteCloser | sed -e 's/^package mock_io/package p2pmock/g'  > ../p2pmock/mock_io.go"
