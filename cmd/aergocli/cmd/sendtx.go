@@ -99,7 +99,7 @@ func sendTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 		if err != nil {
 			return "Failed request to aergo server\n" + err.Error()
 		}
-		return util.JSON(msgs)
+		return util.JSON(msgs.Results[0])
 	} else {
 		msg, err := client.SendTX(context.Background(), tx)
 		if err != nil {
