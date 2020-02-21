@@ -544,24 +544,18 @@ func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
 
 	// send txs in mempool
 	peer.DoTask(func(p p2pcommon.RemotePeer) {
-		raw, err := pm.actorService.CallRequest(message.MemPoolSvc, &message.MemPoolGet{DefaultPeerTxQueueSize}, txNoticeInterval)
+		raw, err := pm.actorService.CallRequest(message.MemPoolSvc, &message.MemPoolList{DefaultPeerTxQueueSize}, txNoticeInterval)
 		if err != nil {
 			pm.logger.Debug().Err(err).Str(p2putil.LogPeerName, peer.Name()).Msg("Failed to get txs in mempool, skip notifying tx to newly connected peer")
 			return
 		}
-		resp, ok := raw.(*message.MemPoolGetRsp)
+		resp, ok := raw.(*message.MemPoolListRsp)
 		if !ok {
 			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Msg("mempool response unexpeted type, skip notifying tx to newly connected peer")
-		} else if resp.Err != nil {
-			pm.logger.Debug().Err(err).Str(p2putil.LogPeerName, peer.Name()).Msg("Failed to get txs in mempool, skip notifying tx to newly connected peer")
 		}
-		if len(resp.Txs) > 0 {
-			txIDs := make([]types.TxID,len(resp.Txs))
-			for i, tx := range resp.Txs {
-				txIDs[i] = types.ToTxID(tx.GetHash())
-			}
-			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(txIDs,10)).Msg("Sending txIds to newly connected peer")
-			peer.PushTxsNotice(txIDs)
+		if len(resp.Hashes) > 0 {
+			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(resp.Hashes,10)).Msg("Sending txIds to newly connected peer")
+			peer.PushTxsNotice(resp.Hashes)
 		}
 	})
 }

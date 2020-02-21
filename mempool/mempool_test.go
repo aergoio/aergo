@@ -70,11 +70,7 @@ func simulateBlockGen(txs ...types.Transaction) error {
 	return nil
 }
 func initTest(t *testing.T) {
-	serverCtx := config.NewServerContext("", "")
-	cfg := serverCtx.GetDefaultConfig().(*config.Config)
-	pool = NewMemPoolService(cfg, nil)
-	pool.testConfig = true
-	pool.BeforeStart()
+	pool = newTestPool()
 
 	for i := 0; i < maxAccount; i++ {
 		privkey, err := btcec.NewPrivateKey(btcec.S256())
@@ -87,6 +83,16 @@ func initTest(t *testing.T) {
 		recipient[i] = _itobU32(uint32(i))
 	}
 }
+
+func newTestPool() *MemPool {
+	serverCtx := config.NewServerContext("", "")
+	cfg := serverCtx.GetDefaultConfig().(*config.Config)
+	mp := NewMemPoolService(cfg, nil)
+	mp.testConfig = true
+	mp.BeforeStart()
+	return mp
+}
+
 func deinitTest() {
 
 }
@@ -672,4 +678,77 @@ func TestMemPool_GetAddress(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMemPool_listHash(t *testing.T) {
+	initTest(t)
+	defer deinitTest()
+
+	// generate sample txs
+	samples := []accTxs{}
+	for i:=0; i<10; i++ {
+		acc := accs[i]
+		txCnt := i
+		if i == 0 {
+			txCnt = 101
+		}
+		at := accTxs{acc, make([]types.Transaction,txCnt)}
+		for j:=0; j<txCnt; j++ {
+			tx := types.NewTx()
+			tx.Body.Nonce = uint64(j+1)
+			at.txs[j] = types.NewTransaction(tx)
+		}
+		samples = append(samples,at)
+	}
+
+	tests := []struct {
+		name   string
+		txs    []accTxs
+		args   int
+		wantSize  int
+		want1  bool
+	}{
+		{"TEmpty", nil, 15, 0, false},
+		{"TSingleAcc", samples[1:2], 15, 1, false},
+		{"TSmallMult", samples[1:5], 15, 10, false},
+		{"TFitMult", samples[1:6], 15, 15, false},
+		{"TBigMult", samples[2:], 15, 15, true},
+		{"THugeSingle", samples[:1], 15, 15, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mp := newTestPool()
+			for _, at := range tt.txs {
+				list, err := mp.acquireMemPoolList(at.acc)
+				if err != nil {
+					t.Fatalf("Test error while setting initial env: err %v",err)
+				}
+				for _, tx := range at.txs {
+					_, err := list.Put(tx)
+					if err != nil {
+						t.Fatalf("Test error while setting initial env: err %v",err)
+					}
+				}
+				mp.releaseMemPoolList(list)
+			}
+			got, got1 := mp.listHash(tt.args)
+			if len(got) != tt.wantSize {
+				t.Errorf("listHash() got = %v, want %v", got, tt.wantSize)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("listHash() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+type accTxs struct {
+	acc []byte
+	txs []types.Transaction
+}
+func ex(samples []accTxs, idxs ...int) []accTxs {
+	sli := make([]accTxs, len(idxs))
+	for i, idx := range idxs {
+		sli[i] = samples[idx]
+	}
+	return sli
 }
