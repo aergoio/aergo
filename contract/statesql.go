@@ -216,6 +216,7 @@ func readOnlyConn(dbName string) (*litetree, error) {
 
 	db, err := sql.Open(queryDriver, dataSrc(dbName)+"&_query_only=true")
 	if err != nil {
+		sqlLgr.Fatal().Err(err)
 		return nil, ErrDBOpen
 	}
 	var c *sql.Conn
@@ -241,6 +242,7 @@ func openDB(dbName string) (*litetree, error) {
 	database.OpenDbName = dbName
 	db, err := sql.Open(statesqlDriver, dataSrc(dbName))
 	if err != nil {
+		sqlLgr.Fatal().Err(err)
 		return nil, ErrDBOpen
 	}
 	c, err := db.Conn(context.Background())
