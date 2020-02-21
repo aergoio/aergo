@@ -187,7 +187,7 @@ func (sm *syncManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, hashes []typ
 		if len(toGet) == 0 {
 			return
 		}
-		sm.logger.Debug().Array("hashes", newLogTXHashesMarshaler(toGet,10)).Msg("syncManager request back unknown tx hashes")
+		sm.logger.Debug().Int("tx_cnt",len(toGet)).Array("hashes", newLogTXHashesMarshaler(toGet,10)).Msg("syncManager request back unknown tx hashes")
 		// create message data
 		sm.actor.SendRequest(message.P2PSvc, &message.GetTransactions{ToWhom: peerID, Hashes: toGet})
 	}

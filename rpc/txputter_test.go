@@ -69,6 +69,14 @@ func Test_txPutter_Commit(t *testing.T) {
 			}
 
 			if err == nil {
+				if len(stub.added) != len(tt.txs) {
+					t.Errorf("Commit() added = %v, want %v", len(stub.added), len(tt.txs))
+				}
+				for _, tx := range tt.txs {
+					if _, exists := stub.added[types.ToTxID(tx.GetHash())]; !exists {
+						t.Errorf("Commit() tx hash %v was not put, want put", types.ToTxID(tx.GetHash()))
+					}
+				}
 				for i, r := range m.rs {
 					if r == nil ||
 						// TX_ALREADY_EXISTS will be sent to when retrying

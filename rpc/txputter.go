@@ -81,6 +81,7 @@ func (m *txPutter) Commit() error {
 			m.putToNextTx()
 		}
 	}
+	m.logger.Debug().Int("txSize",m.txSize).Int("retryCnt",toRetry).Msg("putting txs complete")
 	return nil
 }
 
