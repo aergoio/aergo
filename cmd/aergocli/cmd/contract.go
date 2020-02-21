@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"os"
 	"strconv"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -148,8 +147,8 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var payload []byte
 	if len(data) == 0 {
 		if len(args) < 3 {
-			cmd.Usage()
-			os.Exit(1)
+			cmd.SilenceUsage = false
+			return errors.New("not enough arguments")
 		}
 		code, err = ioutil.ReadFile(args[1])
 		if err != nil {
