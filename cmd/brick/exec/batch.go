@@ -19,6 +19,7 @@ var (
 	verboseBatch    = false
 	letBatchKnowErr error
 	batchErrorCount = 0
+	lastBatchErrorCount = 0
 	enableWatch     = false
 	watchFileList   []string
 	watcher         *fsnotify.Watcher
@@ -29,7 +30,7 @@ func EnableVerbose() {
 }
 
 func GetBatchErrorCount() int {
-	return batchErrorCount
+	return lastBatchErrorCount
 }
 
 func EnableWatch() {
@@ -196,6 +197,7 @@ func (c *batch) Run(args string) (string, uint64, []*types.Event, error) {
 				fmt.Fprintf(stdOut, "\x1B[31;1mBatch is failed: Error %d\x1B[0m\n", batchErrorCount)
 			}
 			// reset params
+			lastBatchErrorCount = batchErrorCount
 			batchErrorCount = 0
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
