@@ -8,6 +8,7 @@ package cmd
 import (
 	"context"
 	"errors"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58"
@@ -91,19 +92,19 @@ func sendTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 			tx.GetBody().Nonce = state.GetNonce() + 1
 		}
 		if errStr := fillSign(tx, rootConfig.KeyStorePath, pw, account); errStr != "" {
-			return "Error to sign:" + errStr
+			return "Failed to sign: " + errStr
 		}
 		txs := []*types.Tx{tx}
 		var msgs *types.CommitResultList
 		msgs, err = client.CommitTX(context.Background(), &types.TxList{Txs: txs})
 		if err != nil {
-			return "Failed request to aergo server\n" + err.Error()
+			return "Failed request to aergo server: " + err.Error()
 		}
 		return util.JSON(msgs.Results[0])
 	} else {
 		msg, err := client.SendTX(context.Background(), tx)
 		if err != nil {
-			return "Failed request to aergo sever\n" + err.Error()
+			return "Failed request to aergo sever: " + err.Error()
 		}
 		return util.JSON(msg)
 	}
