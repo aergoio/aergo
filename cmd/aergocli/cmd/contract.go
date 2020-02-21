@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"os"
 	"strconv"
@@ -26,7 +25,7 @@ var (
 	client        *util.ConnClient
 	data          string
 	nonce         uint64
-	toJson        bool
+	toJSON        bool
 	gover         bool
 	feeDelegation bool
 	contractID    string
@@ -63,16 +62,6 @@ func nArgs(ns []int) cobra.PositionalArgs {
 	}
 }
 
-// Returns a function that runs callback and handles any errors
-func runWithError(callback func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) {
-	return func(cmd *cobra.Command, args []string) {
-		if err := callback(cmd, args); err != nil {
-			cmd.PrintErrln(err)
-			os.Exit(1)
-		}
-	}
-}
-
 func init() {
 	contractCmd := &cobra.Command{
 		Use:   "contract [flags] subcommand",
@@ -87,7 +76,7 @@ func init() {
   You can pass constructor arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
 		Short:                 "Deploy a compiled contract to the server",
 		Args:                  nArgs([]int{1, 2, 3, 4}),
-		Run:                   runWithError(runDeployCmd),
+		RunE:                  runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
@@ -101,21 +90,21 @@ func init() {
   You can pass function arguments by passing a JSON string as the optional final parameter, e.g. "[1, 2, 3]".`,
 		Short: "Call a contract function",
 		Args:  nArgs([]int{3, 4}),
-		Run:   runWithError(runCallCmd),
+		RunE:  runCallCmd,
 	}
 	callCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
 	callCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with call, in aer")
 	callCmd.PersistentFlags().StringVar(&chainIdHash, "chainidhash", "", "chain id hash value encoded by base58")
-	callCmd.PersistentFlags().BoolVar(&toJson, "tojson", false, "display json transaction instead of sending to blockchain")
+	callCmd.PersistentFlags().BoolVar(&toJSON, "tojson", false, "display json transaction instead of sending to blockchain")
 	callCmd.PersistentFlags().BoolVar(&gover, "governance", false, "setting type")
 	callCmd.PersistentFlags().BoolVar(&feeDelegation, "delegation", false, "request fee delegation to contract")
 	callCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	stateQueryCmd := &cobra.Command{
-		Use:   "statequery [flags] contract <varname> <varindex>",
+		Use:   "statequery [flags] <contractAddress> <varname> <varindex>",
 		Short: "query the state of a contract with variable name and optional index",
 		Args:  cobra.MinimumNArgs(2),
-		Run:   runQueryStateCmd,
+		RunE:  runQueryStateCmd,
 	}
 	stateQueryCmd.Flags().StringVar(&stateroot, "root", "", "Query the state at a specified state root")
 	stateQueryCmd.Flags().BoolVar(&compressed, "compressed", false, "Get a compressed proof for the state")
@@ -126,14 +115,14 @@ func init() {
 		&cobra.Command{
 			Use:   "abi [flags] <contractAddress>",
 			Short: "Get ABI of the contract",
-			Args:  cobra.MinimumNArgs(1),
-			Run:   runGetABICmd,
+			Args:  cobra.ExactArgs(1),
+			RunE:  runGetABICmd,
 		},
 		&cobra.Command{
 			Use:   "query [flags] <contractAddress> <funcname> [args]",
 			Short: "Query contract by executing read-only function",
 			Args:  cobra.MinimumNArgs(2),
-			Run:   runQueryCmd,
+			RunE:  runQueryCmd,
 		},
 		stateQueryCmd,
 	)
@@ -144,6 +133,8 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var err error
 	var code []byte
 	var deployArgs []byte
+
+	cmd.SilenceUsage = true
 
 	creator, err := types.DecodeAddress(args[0])
 	if err != nil {
@@ -216,12 +207,13 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			Recipient: contract,
 		},
 	}
-
 	cmd.Println(sendTX(cmd, tx, creator))
 	return nil
 }
 
 func runCallCmd(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	caller, err := types.DecodeAddress(args[0])
 	if err != nil {
 		return fmt.Errorf("could not decode sender address: %v", err.Error())
@@ -251,7 +243,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to encode JSON: %v", err.Error())
 	}
 
-	if !toJson && !gover {
+	if !toJSON && !gover {
 		abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
 		if err != nil {
 			return fmt.Errorf("failed to get abi: %v", err.Error())
@@ -318,7 +310,7 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		tx = sign
 	}
 
-	if toJson {
+	if toJSON {
 		cmd.Println(util.TxConvBase58Addr(tx))
 	} else {
 		txs := []*types.Tx{tx}
@@ -332,24 +324,27 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runGetABICmd(cmd *cobra.Command, args []string) {
+func runGetABICmd(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
-		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
-		return
+		return fmt.Errorf("failed to decode address: %v", err.Error())
 	}
 	abi, err := client.GetABI(context.Background(), &types.SingleBytes{Value: contract})
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to get abi: %v", err.Error())
 	}
 	cmd.Println(util.JSON(abi))
+	return nil
 }
 
-func runQueryCmd(cmd *cobra.Command, args []string) {
+func runQueryCmd(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
-		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
-		return
+		return fmt.Errorf("failed to decode address: %v", err.Error())
 	}
 	var ci types.CallInfo
 
@@ -357,12 +352,12 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 	if len(args) > 2 {
 		err = json.Unmarshal([]byte(args[2]), &ci.Args)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to parse JSON: %v", err.Error())
 		}
 	}
 	callinfo, err := json.Marshal(ci)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to encode JSON: %v", err.Error())
 	}
 
 	query := &types.Query{
@@ -372,24 +367,25 @@ func runQueryCmd(cmd *cobra.Command, args []string) {
 
 	ret, err := client.QueryContract(context.Background(), query)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to query contract: %v", err.Error())
 	}
 	cmd.Println(ret)
+	return nil
 }
 
-func runQueryStateCmd(cmd *cobra.Command, args []string) {
+func runQueryStateCmd(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	var root []byte
 	var err error
 	contract, err := types.DecodeAddress(args[0])
 	if err != nil {
-		cmd.PrintErrf("Could not decode address: %s\n", err.Error())
-		return
+		return fmt.Errorf("failed to decode address: %v", err.Error())
 	}
 	if len(stateroot) != 0 {
 		root, err = base58.Decode(stateroot)
 		if err != nil {
-			cmd.Printf("decode error: %s", err.Error())
-			return
+			return fmt.Errorf("failed to decode stateroot: %v", err.Error())
 		}
 	}
 	storageKeyPlain := bytes.NewBufferString("_sv_")
@@ -407,9 +403,10 @@ func runQueryStateCmd(cmd *cobra.Command, args []string) {
 	}
 	ret, err := client.QueryContractState(context.Background(), stateQuery)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to query contract state: %v", err.Error())
 	}
 	cmd.Println(ret)
+	return nil
 }
 
 func fillChainId(tx *types.Tx) string {
