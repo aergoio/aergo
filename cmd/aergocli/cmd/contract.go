@@ -101,7 +101,7 @@ func init() {
 	callCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	stateQueryCmd := &cobra.Command{
-		Use:   "statequery [flags] <contractAddress> <varname> <varindex>",
+		Use:   "statequery [flags] <contractAddress> <varname> [varindex]",
 		Short: "query the state of a contract with variable name and optional index",
 		Args:  cobra.MinimumNArgs(2),
 		RunE:  runQueryStateCmd,
@@ -144,6 +144,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get creator account's state: %v", err.Error())
 	}
+
 	var payload []byte
 	if len(data) == 0 {
 		if len(args) < 3 {
@@ -183,19 +184,22 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		}
 		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
+
 	amountBigInt, ok := new(big.Int).SetString(amount, 10)
 	if !ok {
 		return fmt.Errorf("failed to parse amount: %v", err.Error())
 	}
+
 	txType := types.TxType_DEPLOY
-	var contract []byte
+	var recipient []byte
 	if len(contractID) > 0 {
 		txType = types.TxType_REDEPLOY
-		contract, err = types.DecodeAddress(contractID)
+		recipient, err = types.DecodeAddress(contractID)
 		if err != nil {
 			return fmt.Errorf("failed to decode contract address: %v", err.Error())
 		}
 	}
+
 	tx := &types.Tx{
 		Body: &types.TxBody{
 			Nonce:     state.GetNonce() + 1,
@@ -204,7 +208,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			Amount:    amountBigInt.Bytes(),
 			GasLimit:  gas,
 			Type:      txType,
-			Recipient: contract,
+			Recipient: recipient,
 		},
 	}
 	cmd.Println(sendTX(cmd, tx, creator))
