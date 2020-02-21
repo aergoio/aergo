@@ -285,7 +285,7 @@ func runCallCmd(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal("Failed request to aergo server\n" + err.Error())
 		}
-		cmd.Println(util.JSON(msgs))
+		cmd.Println(util.JSON(msgs.Results[0]))
 	}
 }
 
