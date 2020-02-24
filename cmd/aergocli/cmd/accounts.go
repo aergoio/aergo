@@ -36,7 +36,7 @@ func init() {
 
 	importCmd.Flags().StringVar(&importFormat, "if", "", "Base58 import format string")
 	importCmd.Flags().StringVar(&pw, "password", "", "password used when exporting")
-	importCmd.Flags().StringVar(&to, "newpassword", "", "new password for storung account")
+	importCmd.Flags().StringVar(&to, "newpassword", "", "new password for storing account")
 	importCmd.Flags().StringVar(&importFilePath, "path", "", "path to import keystore file")
 
 	exportCmd.Flags().StringVar(&address, "address", "", "Address of account")
