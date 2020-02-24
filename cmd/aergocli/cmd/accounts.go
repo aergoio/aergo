@@ -26,40 +26,40 @@ func init() {
 
 	newCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
-	unlockCmd.Flags().StringVar(&address, "address", "", "Address of account")
+	unlockCmd.Flags().StringVar(&address, "address", "", "address of account")
 	unlockCmd.MarkFlagRequired("address")
 	unlockCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
-	lockCmd.Flags().StringVar(&address, "address", "", "Address of account")
+	lockCmd.Flags().StringVar(&address, "address", "", "address of account")
 	lockCmd.MarkFlagRequired("address")
 	lockCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	importCmd.Flags().StringVar(&importFormat, "if", "", "Base58 import format string")
-	importCmd.Flags().StringVar(&pw, "password", "", "Password when exporting")
-	importCmd.Flags().StringVar(&to, "newpassword", "", "Password to be reset")
-	importCmd.Flags().StringVar(&importFilePath, "path", "", "Path to import keystore file")
+	importCmd.Flags().StringVar(&pw, "password", "", "password used when exporting")
+	importCmd.Flags().StringVar(&to, "newpassword", "", "new password for storung account")
+	importCmd.Flags().StringVar(&importFilePath, "path", "", "path to import keystore file")
 
 	exportCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	exportCmd.MarkFlagRequired("address")
 	exportCmd.Flags().BoolVar(&exportAsWif, "wif", false, "export as encrypted string instead of keystore format")
 	exportCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
-	voteCmd.Flags().StringVar(&address, "address", "", "Account address of voter")
+	voteCmd.Flags().StringVar(&address, "address", "", "account address of voter")
 	voteCmd.MarkFlagRequired("address")
-	voteCmd.Flags().StringVar(&to, "to", "", "Json string array which has candidates or input file path")
+	voteCmd.Flags().StringVar(&to, "to", "", "json string array which has candidates, or input file path")
 	voteCmd.MarkFlagRequired("to")
 	voteCmd.Flags().StringVar(&voteId, "id", types.OpvoteBP.Cmd(), "id to vote")
 	voteCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
-	stakeCmd.Flags().StringVar(&address, "address", "", "Account address")
+	stakeCmd.Flags().StringVar(&address, "address", "", "account address")
 	stakeCmd.MarkFlagRequired("address")
-	stakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
+	stakeCmd.Flags().StringVar(&amount, "amount", "0", "amount to stake")
 	stakeCmd.MarkFlagRequired("amount")
 	stakeCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
-	unstakeCmd.Flags().StringVar(&address, "address", "", "Account address")
+	unstakeCmd.Flags().StringVar(&address, "address", "", "account address")
 	unstakeCmd.MarkFlagRequired("address")
-	unstakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
+	unstakeCmd.Flags().StringVar(&amount, "amount", "0", "amount to unstake")
 	unstakeCmd.MarkFlagRequired("amount")
 	unstakeCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
