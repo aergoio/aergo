@@ -48,7 +48,7 @@ func init() {
 	voteCmd.MarkFlagRequired("address")
 	voteCmd.Flags().StringVar(&to, "to", "", "json string array which has candidates, or input file path")
 	voteCmd.MarkFlagRequired("to")
-	voteCmd.Flags().StringVar(&voteId, "id", types.OpvoteBP.Cmd(), "id to vote")
+	voteCmd.Flags().StringVar(&voteId, "id", types.OpvoteBP.Cmd(), "id to vote (e.g. bpcount, stakingmin, gasprice, nameprice)")
 	voteCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	stakeCmd.Flags().StringVar(&address, "address", "", "account address")

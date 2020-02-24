@@ -26,7 +26,7 @@ var voteVersion string
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
-	voteStatCmd.Flags().StringVar(&voteStatId, "id", "bpcount", "system paramter")
+	voteStatCmd.Flags().StringVar(&voteStatId, "id", "bpcount", "id of vote (e.g. bpcount, stakingmin, gasprice, nameprice)")
 	voteStatCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 	rootCmd.AddCommand(bpCmd)
 	bpCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
@@ -160,6 +160,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	cmd.Println("no --address or --id specified")
+	cmd.Usage()
 	return
 }
 
