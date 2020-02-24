@@ -24,15 +24,15 @@ func init() {
 		PersistentPostRun: disconnectAergo,
 	}
 
-	newCmd.Flags().StringVar(&pw, "password", "", "Password")
+	newCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	unlockCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	unlockCmd.MarkFlagRequired("address")
-	unlockCmd.Flags().StringVar(&pw, "password", "", "Password")
+	unlockCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	lockCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	lockCmd.MarkFlagRequired("address")
-	lockCmd.Flags().StringVar(&pw, "password", "", "Password")
+	lockCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	importCmd.Flags().StringVar(&importFormat, "if", "", "Base58 import format string")
 	importCmd.Flags().StringVar(&pw, "password", "", "Password when exporting")
@@ -42,24 +42,26 @@ func init() {
 	exportCmd.Flags().StringVar(&address, "address", "", "Address of account")
 	exportCmd.MarkFlagRequired("address")
 	exportCmd.Flags().BoolVar(&exportAsWif, "wif", false, "export as encrypted string instead of keystore format")
-	exportCmd.Flags().StringVar(&pw, "password", "", "Password")
+	exportCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	voteCmd.Flags().StringVar(&address, "address", "", "Account address of voter")
 	voteCmd.MarkFlagRequired("address")
 	voteCmd.Flags().StringVar(&to, "to", "", "Json string array which has candidates or input file path")
 	voteCmd.MarkFlagRequired("to")
 	voteCmd.Flags().StringVar(&voteId, "id", types.OpvoteBP.Cmd(), "id to vote")
-	voteCmd.Flags().StringVar(&pw, "password", "", "Password")
+	voteCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	stakeCmd.Flags().StringVar(&address, "address", "", "Account address")
 	stakeCmd.MarkFlagRequired("address")
 	stakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
 	stakeCmd.MarkFlagRequired("amount")
+	stakeCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
+
 	unstakeCmd.Flags().StringVar(&address, "address", "", "Account address")
 	unstakeCmd.MarkFlagRequired("address")
 	unstakeCmd.Flags().StringVar(&amount, "amount", "0", "Amount of staking")
 	unstakeCmd.MarkFlagRequired("amount")
-	unstakeCmd.Flags().StringVar(&pw, "password", "", "Password")
+	unstakeCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
 
 	accountCmd.AddCommand(newCmd, listCmd, unlockCmd, lockCmd, importCmd, exportCmd, voteCmd, stakeCmd, unstakeCmd)
 	rootCmd.AddCommand(accountCmd)
@@ -211,7 +213,7 @@ func importWif(cmd *cobra.Command) ([]byte, error) {
 	if rootConfig.KeyStorePath == "" {
 		msg, errRemote := client.ImportAccount(context.Background(), wif)
 		if errRemote != nil {
-			return nil, errRemote
+			return nil, fmt.Errorf("node request returned error: %s", errRemote.Error())
 		}
 		address = msg.GetAddress()
 	} else {
@@ -304,7 +306,7 @@ func exportWif(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
 	if rootConfig.KeyStorePath == "" {
 		msg, err := client.ExportAccount(context.Background(), param)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("node request returned error: %s", err.Error())
 		}
 		return msg.Value, nil
 	} else {
@@ -324,7 +326,7 @@ func exportKeystore(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
 	if rootConfig.KeyStorePath == "" {
 		msg, err := client.ExportAccountKeystore(context.Background(), param)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("node request returned error: %s", err.Error())
 		}
 		return msg.Value, nil
 	} else {
