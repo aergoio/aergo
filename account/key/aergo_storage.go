@@ -114,19 +114,23 @@ func (ks *AergoStorage) Load(identity Identity, passphrase string) (*PrivateKey,
 
 	fileName := fmt.Sprintf(fileNameTemplate, string(encodedIdentity))
 	absFilePath := filepath.Join(ks.storePath, fileName)
-	_, err := os.Stat(absFilePath)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("account with address %s does not exist", encodedIdentity)
+	if _, err := os.Stat(absFilePath); err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("account with address %s does not exist", encodedIdentity)
+		}
+		return nil, fmt.Errorf("stat failed: %v", err)
 	}
 
 	encrypted, err := ioutil.ReadFile(absFilePath)
 	if nil != err {
-		return nil, types.ErrWrongAddressOrPassWord
+		return nil, fmt.Errorf("failed to read account %s: %v", encodedIdentity, err)
 	}
+
 	privateKey, err := LoadKeystore(encrypted, passphrase)
 	if nil != err {
 		return nil, err
 	}
+
 	return privateKey, nil
 }
 
