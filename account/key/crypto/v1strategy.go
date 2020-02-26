@@ -30,10 +30,11 @@ const (
 
 	// kdf
 	kdfAlgorithm = "scrypt"
-	scryptN      = 1 << 18
-	scryptP      = 1
-	scryptR      = 8
-	scryptDKLen  = 32
+	// Recommended values according to https://godoc.org/golang.org/x/crypto/scrypt
+	scryptN     = 1 << 15
+	scryptP     = 1
+	scryptR     = 8
+	scryptDKLen = 32
 )
 
 type v1KeyStoreFormat struct {
