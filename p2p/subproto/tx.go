@@ -36,9 +36,9 @@ type newTxNoticeHandler struct {
 var _ p2pcommon.MessageHandler = (*newTxNoticeHandler)(nil)
 
 // newTxReqHandler creates handler for GetTransactionsRequest
-func NewTxReqHandler(pm p2pcommon.PeerManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txRequestHandler {
+func NewTxReqHandler(pm p2pcommon.PeerManager, sm p2pcommon.SyncManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txRequestHandler {
 	th := &txRequestHandler{
-		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger},
 		newAsyncHelper(), message.GetHelper()}
 	return th
 }
@@ -50,13 +50,10 @@ func (th *txRequestHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBody
 func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	remotePeer := th.peer
 	body := msgBody.(*types.GetTransactionsRequest)
-	reqHashes := body.Hashes
 	p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, body)
 
-	if th.issue() {
-		go th.handleTxReq(msg, reqHashes)
-	} else {
-		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("return err for concurrent get tx request")
+	if err := th.sm.HandleGetTxReq(remotePeer, msg.ID(), body); err != nil {
+		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Err(err).Msg("return err for concurrent get tx request")
 		resp := &types.GetTransactionsResponse{
 			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
 			Hashes: nil,
@@ -161,20 +158,14 @@ func (th *txResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.MessageBod
 }
 
 func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
+	remotePeer := th.peer
 	data := msgBody.(*types.GetTransactionsResponse)
 	p2putil.DebugLogReceiveResponse(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, data)
 
-	th.peer.ConsumeRequest(msg.OriginalID())
-	go func() {
-		// TODO: Is there any better solution than passing everything to mempool service?
-		if len(data.Txs) > 0 {
-			th.logger.Debug().Int(p2putil.LogTxCount, len(data.Txs)).Msg("Request mempool to add txs")
-			//th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Txs: data.Txs})
-			for _, tx := range data.Txs {
-				th.actor.SendRequest(message.MemPoolSvc, &message.MemPoolPut{Tx: tx})
-			}
-		}
-	}()
+	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
+		th.logger.Warn().Str(p2putil.LogMsgID, msg.ID().String()).Msg("unknown getTX response")
+		remotePeer.ConsumeRequest(msg.OriginalID())
+	}
 }
 
 // newNewTxNoticeHandler creates handler for GetTransactionsResponse

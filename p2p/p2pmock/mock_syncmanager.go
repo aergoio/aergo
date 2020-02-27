@@ -59,6 +59,20 @@ func (mr *MockSyncManagerMockRecorder) HandleGetBlockResponse(arg0, arg1, arg2 i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleGetBlockResponse", reflect.TypeOf((*MockSyncManager)(nil).HandleGetBlockResponse), arg0, arg1, arg2)
 }
 
+// HandleGetTxReq mocks base method
+func (m *MockSyncManager) HandleGetTxReq(arg0 p2pcommon.RemotePeer, arg1 p2pcommon.MsgID, arg2 *types.GetTransactionsRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleGetTxReq", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// HandleGetTxReq indicates an expected call of HandleGetTxReq
+func (mr *MockSyncManagerMockRecorder) HandleGetTxReq(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleGetTxReq", reflect.TypeOf((*MockSyncManager)(nil).HandleGetTxReq), arg0, arg1, arg2)
+}
+
 // HandleNewBlockNotice mocks base method
 func (m *MockSyncManager) HandleNewBlockNotice(arg0 p2pcommon.RemotePeer, arg1 *types.NewBlockNotice) {
 	m.ctrl.T.Helper()
@@ -93,6 +107,18 @@ func (m *MockSyncManager) RegisterTxNotice(arg0 []types.TxID) {
 func (mr *MockSyncManagerMockRecorder) RegisterTxNotice(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTxNotice", reflect.TypeOf((*MockSyncManager)(nil).RegisterTxNotice), arg0)
+}
+
+// RetryGetTx mocks base method
+func (m *MockSyncManager) RetryGetTx(arg0 p2pcommon.RemotePeer, arg1 [][]byte) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RetryGetTx", arg0, arg1)
+}
+
+// RetryGetTx indicates an expected call of RetryGetTx
+func (mr *MockSyncManagerMockRecorder) RetryGetTx(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetryGetTx", reflect.TypeOf((*MockSyncManager)(nil).RetryGetTx), arg0, arg1)
 }
 
 // Start mocks base method

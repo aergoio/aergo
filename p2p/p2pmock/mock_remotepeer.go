@@ -258,6 +258,20 @@ func (mr *MockRemotePeerMockRecorder) SendMessage(msg interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockRemotePeer)(nil).SendMessage), msg)
 }
 
+// TrySendMessage mocks base method
+func (m *MockRemotePeer) TrySendMessage(msg p2pcommon.MsgOrder) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TrySendMessage", msg)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// TrySendMessage indicates an expected call of TrySendMessage
+func (mr *MockRemotePeerMockRecorder) TrySendMessage(msg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TrySendMessage", reflect.TypeOf((*MockRemotePeer)(nil).TrySendMessage), msg)
+}
+
 // SendAndWaitMessage mocks base method
 func (m *MockRemotePeer) SendAndWaitMessage(msg p2pcommon.MsgOrder, ttl time.Duration) error {
 	m.ctrl.T.Helper()
@@ -285,9 +299,10 @@ func (mr *MockRemotePeerMockRecorder) PushTxsNotice(txHashes interface{}) *gomoc
 }
 
 // ConsumeRequest mocks base method
-func (m *MockRemotePeer) ConsumeRequest(msgID p2pcommon.MsgID) {
+func (m *MockRemotePeer) ConsumeRequest(msgID p2pcommon.MsgID) p2pcommon.MsgOrder {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "ConsumeRequest", msgID)
+	return nil
 }
 
 // ConsumeRequest indicates an expected call of ConsumeRequest

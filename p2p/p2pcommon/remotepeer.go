@@ -38,12 +38,15 @@ type RemotePeer interface {
 	Stop()
 
 	SendMessage(msg MsgOrder)
+	// TrySendMessage try to send message with check. It will not send message and
+	// return false if io write buffer is full or prev tx query was not responed.
+	TrySendMessage(msg MsgOrder) bool
 	SendAndWaitMessage(msg MsgOrder, ttl time.Duration) error
 
 	PushTxsNotice(txHashes []types.TxID)
 	// utility method
 
-	ConsumeRequest(msgID MsgID)
+	ConsumeRequest(msgID MsgID) MsgOrder
 	GetReceiver(id MsgID) ResponseReceiver
 
 	// updateBlkCache add hash to block cache and return true if this hash already exists.

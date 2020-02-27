@@ -56,7 +56,8 @@ type remotePeerImpl struct {
 	stopChan chan struct{}
 
 	// direct write channel
-	dWrite     chan p2pcommon.MsgOrder
+	writeBuf   chan p2pcommon.MsgOrder
+	writeDirect chan p2pcommon.MsgOrder
 	closeWrite chan struct{}
 
 	// used to access request data from response handlers
@@ -80,6 +81,8 @@ type remotePeerImpl struct {
 
 	taskChannel       chan p2pcommon.PeerTask
 
+	// lastTxQuery indicate last message for querying tx
+	blkQuerySlot int64
 }
 
 var _ p2pcommon.RemotePeer = (*remotePeerImpl)(nil)
@@ -107,7 +110,8 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
 		taskChannel: make(chan p2pcommon.PeerTask, 1),
 	}
-	rPeer.dWrite = make(chan p2pcommon.MsgOrder, writeMsgBufferSize)
+	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, writeMsgBufferSize)
+	rPeer.writeDirect = make(chan p2pcommon.MsgOrder)
 
 	var err error
 	rPeer.blkHashCache, err = lru.New(DefaultPeerBlockCacheSize)
@@ -226,7 +230,9 @@ func (p *remotePeerImpl) runWrite() {
 WRITELOOP:
 	for {
 		select {
-		case m := <-p.dWrite:
+		case m := <-p.writeBuf:
+			p.writeToPeer(m)
+		case m := <-p.writeDirect:
 			p.writeToPeer(m)
 		case <-cleanupTicker.C:
 			p.pruneRequests()
@@ -250,7 +256,7 @@ func (p *remotePeerImpl) cleanupWrite() {
 	// 2. canceling not sent orders
 	for {
 		select {
-		case m := <-p.dWrite:
+		case m := <-p.writeBuf:
 			m.CancelSend(p)
 		default:
 			return
@@ -336,13 +342,29 @@ func (p *remotePeerImpl) SendMessage(msg p2pcommon.MsgOrder) {
 		return
 	}
 	select {
-	case p.dWrite <- msg:
+	case p.writeBuf <- msg:
 		// it's OK
 	default:
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
 			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Msg("Remote peer is busy or down")
 		// TODO find more elegant way to handled flooding queue. in lots of cases, pending for dropped tx notice or newBlock notice (not blockProduced notice) are not critical in lots of cases.
 		p.Stop()
+	}
+}
+
+
+func (p *remotePeerImpl) TrySendMessage(msg p2pcommon.MsgOrder) bool {
+	if p.State() > types.RUNNING {
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
+			Str(p2putil.LogMsgID, msg.GetMsgID().String()).Str("current_state", p.State().String()).Msg("Cancel sending message, since peer is not running state")
+		return false
+	}
+	select {
+	case p.writeBuf <- msg:
+		// succeed to send message
+		return true
+	default:
+		return false
 	}
 }
 
@@ -353,7 +375,7 @@ func (p *remotePeerImpl) SendAndWaitMessage(msg p2pcommon.MsgOrder, timeout time
 		return fmt.Errorf("not running")
 	}
 	select {
-	case p.dWrite <- msg:
+	case p.writeBuf <- msg:
 		return nil
 	case <-time.NewTimer(timeout).C:
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
@@ -377,10 +399,14 @@ func (p *remotePeerImpl) PushTxsNotice(txHashes []types.TxID) {
 }
 
 // ConsumeRequest remove request from request history.
-func (p *remotePeerImpl) ConsumeRequest(originalID p2pcommon.MsgID) {
+func (p *remotePeerImpl) ConsumeRequest(msgID p2pcommon.MsgID) p2pcommon.MsgOrder {
 	p.reqMutex.Lock()
-	delete(p.requests, originalID)
-	p.reqMutex.Unlock()
+	defer p.reqMutex.Unlock()
+	if r, ok := p.requests[msgID]; ok {
+		delete(p.requests, msgID)
+		return r.reqMO
+	}
+	return nil
 }
 
 // requestIDNotFoundReceiver is to handle response msg which the original message is not identified
