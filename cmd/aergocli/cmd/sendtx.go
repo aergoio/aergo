@@ -34,6 +34,7 @@ func init() {
 	sendtxCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
 	sendtxCmd.Flags().StringVar(&chainIdHash, "chainidhash", "", "hash value of chain id in the block")
 	sendtxCmd.Flags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
+	sendtxCmd.Flags().StringVar(&pw, "password", "", "Password")
 }
 
 func execSendTX(cmd *cobra.Command, args []string) error {
@@ -64,11 +65,47 @@ func execSendTX(cmd *cobra.Command, args []string) error {
 		}
 		tx.GetBody().ChainIdHash = cid
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Println(err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
+}
+
+func sendTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
+	if rootConfig.KeyStorePath != "" {
+		var err error
+		if pw == "" {
+			pw, err = getPasswd(cmd, false)
+			if err != nil {
+				return "Failed get password:" + err.Error()
+			}
+		}
+		if tx.GetBody().GetChainIdHash() == nil {
+			if errStr := fillChainId(tx); errStr != "" {
+				return errStr
+			}
+		}
+		if tx.GetBody().GetNonce() == 0 {
+			state, err := client.GetState(context.Background(), &types.SingleBytes{Value: account})
+			if err != nil {
+				return err.Error()
+			}
+			tx.GetBody().Nonce = state.GetNonce() + 1
+		}
+		if errStr := fillSign(tx, rootConfig.KeyStorePath, pw, account); errStr != "" {
+			return "Failed to sign: " + errStr
+		}
+		txs := []*types.Tx{tx}
+		var msgs *types.CommitResultList
+		msgs, err = client.CommitTX(context.Background(), &types.TxList{Txs: txs})
+		if err != nil {
+			return "Failed request to aergo server: " + err.Error()
+		}
+		return util.JSON(msgs.Results[0])
+	} else {
+		msg, err := client.SendTX(context.Background(), tx)
+		if err != nil {
+			return "Failed request to aergo sever: " + err.Error()
+		}
+		return util.JSON(msg)
+	}
 }

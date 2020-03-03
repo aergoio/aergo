@@ -3,9 +3,11 @@
 
 package types
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -73,6 +75,7 @@ func (*Block) ProtoMessage()    {}
 func (*Block) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{0}
 }
+
 func (m *Block) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Block.Unmarshal(m, b)
 }
@@ -136,6 +139,7 @@ func (*BlockHeader) ProtoMessage()    {}
 func (*BlockHeader) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{1}
 }
+
 func (m *BlockHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockHeader.Unmarshal(m, b)
 }
@@ -251,6 +255,7 @@ func (*BlockBody) ProtoMessage()    {}
 func (*BlockBody) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{2}
 }
+
 func (m *BlockBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockBody.Unmarshal(m, b)
 }
@@ -289,6 +294,7 @@ func (*TxList) ProtoMessage()    {}
 func (*TxList) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{3}
 }
+
 func (m *TxList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxList.Unmarshal(m, b)
 }
@@ -328,6 +334,7 @@ func (*Tx) ProtoMessage()    {}
 func (*Tx) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{4}
 }
+
 func (m *Tx) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Tx.Unmarshal(m, b)
 }
@@ -382,6 +389,7 @@ func (*TxBody) ProtoMessage()    {}
 func (*TxBody) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{5}
 }
+
 func (m *TxBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxBody.Unmarshal(m, b)
 }
@@ -485,6 +493,7 @@ func (*TxIdx) ProtoMessage()    {}
 func (*TxIdx) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{6}
 }
+
 func (m *TxIdx) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxIdx.Unmarshal(m, b)
 }
@@ -531,6 +540,7 @@ func (*TxInBlock) ProtoMessage()    {}
 func (*TxInBlock) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{7}
 }
+
 func (m *TxInBlock) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TxInBlock.Unmarshal(m, b)
 }
@@ -580,6 +590,7 @@ func (*State) ProtoMessage()    {}
 func (*State) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{8}
 }
+
 func (m *State) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_State.Unmarshal(m, b)
 }
@@ -653,6 +664,7 @@ func (*AccountProof) ProtoMessage()    {}
 func (*AccountProof) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{9}
 }
+
 func (m *AccountProof) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AccountProof.Unmarshal(m, b)
 }
@@ -747,6 +759,7 @@ func (*ContractVarProof) ProtoMessage()    {}
 func (*ContractVarProof) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{10}
 }
+
 func (m *ContractVarProof) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ContractVarProof.Unmarshal(m, b)
 }
@@ -835,6 +848,7 @@ func (*StateQueryProof) ProtoMessage()    {}
 func (*StateQueryProof) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{11}
 }
+
 func (m *StateQueryProof) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateQueryProof.Unmarshal(m, b)
 }
@@ -894,6 +908,7 @@ func (*Receipt) ProtoMessage()    {}
 func (*Receipt) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{12}
 }
+
 func (m *Receipt) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Receipt.Unmarshal(m, b)
 }
@@ -1037,6 +1052,7 @@ func (*Event) ProtoMessage()    {}
 func (*Event) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{13}
 }
+
 func (m *Event) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Event.Unmarshal(m, b)
 }
@@ -1124,6 +1140,7 @@ func (*FnArgument) ProtoMessage()    {}
 func (*FnArgument) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{14}
 }
+
 func (m *FnArgument) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FnArgument.Unmarshal(m, b)
 }
@@ -1166,6 +1183,7 @@ func (*Function) ProtoMessage()    {}
 func (*Function) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{15}
 }
+
 func (m *Function) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Function.Unmarshal(m, b)
 }
@@ -1234,6 +1252,7 @@ func (*StateVar) ProtoMessage()    {}
 func (*StateVar) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{16}
 }
+
 func (m *StateVar) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateVar.Unmarshal(m, b)
 }
@@ -1289,6 +1308,7 @@ func (*ABI) ProtoMessage()    {}
 func (*ABI) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{17}
 }
+
 func (m *ABI) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ABI.Unmarshal(m, b)
 }
@@ -1349,6 +1369,7 @@ func (*Query) ProtoMessage()    {}
 func (*Query) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{18}
 }
+
 func (m *Query) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Query.Unmarshal(m, b)
 }
@@ -1397,6 +1418,7 @@ func (*StateQuery) ProtoMessage()    {}
 func (*StateQuery) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{19}
 }
+
 func (m *StateQuery) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StateQuery.Unmarshal(m, b)
 }
@@ -1462,6 +1484,7 @@ func (*FilterInfo) ProtoMessage()    {}
 func (*FilterInfo) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{20}
 }
+
 func (m *FilterInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FilterInfo.Unmarshal(m, b)
 }
@@ -1544,6 +1567,7 @@ func (*Proposal) ProtoMessage()    {}
 func (*Proposal) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e9ac6287ce250c9a, []int{21}
 }
+
 func (m *Proposal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Proposal.Unmarshal(m, b)
 }
@@ -1584,6 +1608,7 @@ func (m *Proposal) GetMultipleChoice() uint32 {
 }
 
 func init() {
+	proto.RegisterEnum("types.TxType", TxType_name, TxType_value)
 	proto.RegisterType((*Block)(nil), "types.Block")
 	proto.RegisterType((*BlockHeader)(nil), "types.BlockHeader")
 	proto.RegisterType((*BlockBody)(nil), "types.BlockBody")
@@ -1606,7 +1631,6 @@ func init() {
 	proto.RegisterType((*StateQuery)(nil), "types.StateQuery")
 	proto.RegisterType((*FilterInfo)(nil), "types.FilterInfo")
 	proto.RegisterType((*Proposal)(nil), "types.Proposal")
-	proto.RegisterEnum("types.TxType", TxType_name, TxType_value)
 }
 
 func init() { proto.RegisterFile("blockchain.proto", fileDescriptor_e9ac6287ce250c9a) }

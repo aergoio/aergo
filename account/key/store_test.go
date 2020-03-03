@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -6,7 +11,9 @@ import (
 	"sync"
 	"testing"
 
+	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +33,7 @@ func deinitTest() {
 func TestCreateKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 5
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%d", i)
 		addr, err := ks.CreateKey(pass)
@@ -42,7 +49,7 @@ func TestCreateKey(t *testing.T) {
 func TestCreateKeyLongPass(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%1024d", i)
 		addr, err := ks.CreateKey(pass)
@@ -55,10 +62,33 @@ func TestCreateKeyLongPass(t *testing.T) {
 	}
 }
 
-func TestExportImportKey(t *testing.T) {
+func TestImportKey(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
+	for i := 0; i < testSize; i++ {
+		key, err := btcec.NewPrivateKey(btcec.S256())
+		addr := crypto.GenerateAddress(&(key.PublicKey))
+		if err != nil {
+			t.Errorf("could not create key : %s", err.Error())
+		}
+		pass := fmt.Sprintf("%d", i)
+		encrypted, err := EncryptKey(key.Serialize(), pass)
+		if err != nil {
+			t.Errorf("could not encrypt key : %s", err.Error())
+		}
+
+		newPass := fmt.Sprintf("new%d", i)
+		imported, err := ks.ImportKey(encrypted, pass, newPass)
+		assert.NoError(t, err, "import")
+		assert.Equal(t, addr, imported, "import result")
+	}
+}
+
+func TestExportKey(t *testing.T) {
+	initTest()
+	defer deinitTest()
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%d", i)
 		addr, err := ks.CreateKey(pass)
@@ -75,16 +105,13 @@ func TestExportImportKey(t *testing.T) {
 		if len(exported) != 48 {
 			t.Errorf("invalid exported address : length = %d", len(exported))
 		}
-		imported, err := ks.ImportKey(exported, pass, pass)
-		assert.NoError(t, err, "import")
-		assert.Equal(t, imported, addr, "import result")
 	}
 }
 
 func TestSignTx(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%32d", i)
 		addr, err := ks.CreateKey(pass)
@@ -115,7 +142,7 @@ func TestSignTx(t *testing.T) {
 func TestSign(t *testing.T) {
 	initTest()
 	defer deinitTest()
-	const testSize = 10
+	const testSize = 3
 	for i := 0; i < testSize; i++ {
 		pass := fmt.Sprintf("%32d", i)
 		addr, err := ks.CreateKey(pass)
@@ -143,7 +170,7 @@ func TestConcurrentUnlockAndLock(t *testing.T) {
 		t.Errorf("could not create key : %s", err.Error())
 	}
 
-	const testSize = 50
+	const testSize = 5
 	var wg sync.WaitGroup
 	for i := 0; i < testSize; i++ {
 		wg.Add(1)

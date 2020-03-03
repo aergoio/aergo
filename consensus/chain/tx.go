@@ -83,8 +83,14 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	})
 }
 
-// LockChain aquires the chain lock in a non-blocking mode.
-func LockChain() error {
+// Lock aquires the chain lock in a blocking mode.
+func Lock() {
+	chain.InAddBlock <- struct{}{}
+}
+
+// LockNonblock aquires the chain lock in a non-blocking mode. It returns
+// ErrBestBlock upon failure.
+func LockNonblock() error {
 	select {
 	case chain.InAddBlock <- struct{}{}:
 		return nil
@@ -93,8 +99,8 @@ func LockChain() error {
 	}
 }
 
-// UnlockChain release the chain lock.
-func UnlockChain() {
+// Unlock release the chain lock.
+func Unlock() {
 	<-chain.InAddBlock
 }
 
@@ -112,10 +118,10 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		logger.Debug().Msg("start gathering tx")
 	}
 
-	if err := LockChain(); err != nil {
+	if err := LockNonblock(); err != nil {
 		return nil, ErrBestBlock
 	}
-	defer UnlockChain()
+	defer Unlock()
 
 	txIn := g.fetchTXs(g.hs, g.maxBlockBodySize)
 	nCand = len(txIn)

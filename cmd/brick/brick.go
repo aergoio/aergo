@@ -97,16 +97,19 @@ func main() {
 
 		// set user-defined log level
 		if len(os.Args) > 2 {
-			if os.Args[2] == "-v" {
-				exec.EnableVerbose()
-			} else if os.Args[2] == "-w" {
-				exec.EnableWatch()
-			} else {
-				fmt.Println("Invalid Parameter. Usage: brick filename [-v|-w]\n\t-v\tverbose mode\n\t-w\twatch mode")
-				os.Exit(1)
+			for i := 2; i < len(os.Args); i++ {
+				if os.Args[i] == "-v" {
+					exec.EnableVerbose()
+				} else if os.Args[i] == "-w" {
+					exec.EnableWatch()
+				} else {
+					fmt.Println("Invalid Parameter. Usage: brick filename [-v|-w]\n\t-v\tverbose mode\n\t-w\twatch mode")
+					os.Exit(1)
+				}
 			}
 		}
 
 		exec.Execute(cmd, args)
+		os.Exit(exec.GetBatchErrorCount())
 	}
 }

@@ -122,7 +122,7 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 		if added >= maxJob {
 			break
 		}
-		if wp.NextTrial.Before(now) {
+		if !wp.NextTrial.After(now) {
 			// check if peer is currently working now
 			if _, exist := dpm.workingJobs[wp.Meta.ID]; exist {
 				continue

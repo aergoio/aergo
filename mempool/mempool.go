@@ -224,6 +224,12 @@ func (mp *MemPool) Receive(context actor.Context) {
 			Txs: txs,
 			Err: err,
 		})
+	case *message.MemPoolList:
+		txs, more := mp.listHash(msg.Limit)
+		context.Respond(&message.MemPoolListRsp{
+			Hashes:  txs,
+			HasMore: more,
+		})
 	case *message.MemPoolDel:
 		errs := mp.removeOnBlockArrival(msg.Block)
 		context.Respond(&message.MemPoolDelRsp{
@@ -351,6 +357,32 @@ func (mp *MemPool) puts(txs ...types.Transaction) []error {
 		errs[i] = mp.put(tx)
 	}
 	return errs
+}
+
+func (mp *MemPool) listHash(maxTxSize int) ([]types.TxID, bool) {
+	start := time.Now()
+	mp.RLock()
+	defer mp.RUnlock()
+	size := 0
+	hasMore := false
+	ids := make([]types.TxID, 0, maxTxSize)
+Gather:
+	for _, list := range mp.pool {
+		toGet := list.Len()
+		if toGet > (maxTxSize-size) {
+			toGet = maxTxSize - size
+		}
+		for _, tx := range list.Get() {
+			if len(ids) >= maxTxSize {
+				hasMore = true
+				break Gather
+			}
+			ids = append(ids, types.ToTxID(tx.GetHash()))
+		}
+	}
+	elapsed := time.Since(start)
+	mp.Debug().Str("elapsed", elapsed.String()).Int("len", mp.length).Int("orphan", mp.orphan).Int("count", size).Msg("tx hashes returned")
+	return ids, hasMore
 }
 
 func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {

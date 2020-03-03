@@ -3,9 +3,11 @@
 
 package types
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -88,6 +90,7 @@ func (*MemberAttr) ProtoMessage()    {}
 func (*MemberAttr) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{0}
 }
+
 func (m *MemberAttr) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MemberAttr.Unmarshal(m, b)
 }
@@ -149,6 +152,7 @@ func (*MembershipChange) ProtoMessage()    {}
 func (*MembershipChange) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{1}
 }
+
 func (m *MembershipChange) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MembershipChange.Unmarshal(m, b)
 }
@@ -201,6 +205,7 @@ func (*MembershipChangeReply) ProtoMessage()    {}
 func (*MembershipChangeReply) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{2}
 }
+
 func (m *MembershipChangeReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MembershipChangeReply.Unmarshal(m, b)
 }
@@ -240,6 +245,7 @@ func (*HardStateInfo) ProtoMessage()    {}
 func (*HardStateInfo) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{3}
 }
+
 func (m *HardStateInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HardStateInfo.Unmarshal(m, b)
 }
@@ -287,6 +293,7 @@ func (*GetClusterInfoRequest) ProtoMessage()    {}
 func (*GetClusterInfoRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{4}
 }
+
 func (m *GetClusterInfoRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetClusterInfoRequest.Unmarshal(m, b)
 }
@@ -330,6 +337,7 @@ func (*GetClusterInfoResponse) ProtoMessage()    {}
 func (*GetClusterInfoResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{5}
 }
+
 func (m *GetClusterInfoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetClusterInfoResponse.Unmarshal(m, b)
 }
@@ -405,6 +413,7 @@ func (*ConfChangeProgress) ProtoMessage()    {}
 func (*ConfChangeProgress) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{6}
 }
+
 func (m *ConfChangeProgress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConfChangeProgress.Unmarshal(m, b)
 }
@@ -459,6 +468,7 @@ func (*SnapshotResponse) ProtoMessage()    {}
 func (*SnapshotResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_b042552c306ae59b, []int{7}
 }
+
 func (m *SnapshotResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SnapshotResponse.Unmarshal(m, b)
 }
@@ -492,6 +502,8 @@ func (m *SnapshotResponse) GetMessage() string {
 }
 
 func init() {
+	proto.RegisterEnum("types.MembershipChangeType", MembershipChangeType_name, MembershipChangeType_value)
+	proto.RegisterEnum("types.ConfChangeState", ConfChangeState_name, ConfChangeState_value)
 	proto.RegisterType((*MemberAttr)(nil), "types.MemberAttr")
 	proto.RegisterType((*MembershipChange)(nil), "types.MembershipChange")
 	proto.RegisterType((*MembershipChangeReply)(nil), "types.MembershipChangeReply")
@@ -500,8 +512,6 @@ func init() {
 	proto.RegisterType((*GetClusterInfoResponse)(nil), "types.GetClusterInfoResponse")
 	proto.RegisterType((*ConfChangeProgress)(nil), "types.ConfChangeProgress")
 	proto.RegisterType((*SnapshotResponse)(nil), "types.SnapshotResponse")
-	proto.RegisterEnum("types.MembershipChangeType", MembershipChangeType_name, MembershipChangeType_value)
-	proto.RegisterEnum("types.ConfChangeState", ConfChangeState_name, ConfChangeState_value)
 }
 
 func init() { proto.RegisterFile("raft.proto", fileDescriptor_b042552c306ae59b) }

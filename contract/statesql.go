@@ -216,6 +216,7 @@ func readOnlyConn(dbName string) (*litetree, error) {
 
 	db, err := sql.Open(queryDriver, dataSrc(dbName)+"&_query_only=true")
 	if err != nil {
+		sqlLgr.Fatal().Err(err)
 		return nil, ErrDBOpen
 	}
 	var c *sql.Conn
@@ -241,6 +242,7 @@ func openDB(dbName string) (*litetree, error) {
 	database.OpenDbName = dbName
 	db, err := sql.Open(statesqlDriver, dataSrc(dbName))
 	if err != nil {
+		sqlLgr.Fatal().Err(err)
 		return nil, ErrDBOpen
 	}
 	c, err := db.Conn(context.Background())
@@ -377,6 +379,7 @@ type sqlTx interface {
 	subRelease(string) error
 	rollbackToSubSavepoint(string) error
 	getHandle() *C.sqlite3
+	close() error
 }
 
 type sqlTxCommon struct {
@@ -458,6 +461,10 @@ func (tx *writableSqlTx) rollbackToSubSavepoint(name string) error {
 	return err
 }
 
+func (tx *writableSqlTx) close() error {
+	return errors.New("assert(only read-tx allowed)")
+}
+
 type readOnlySqlTx struct {
 	sqlTxCommon
 }
@@ -505,4 +512,8 @@ func (tx *readOnlySqlTx) subRelease(name string) error {
 
 func (tx *readOnlySqlTx) rollbackToSubSavepoint(name string) error {
 	return nil
+}
+
+func (tx *readOnlySqlTx) close() error {
+	return tx.sqlTxCommon.close()
 }

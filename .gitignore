@@ -24,3 +24,9 @@ Gopkg.lock
 
 # consensus test directory
 /consensus/**/tmp/
+
+# python cache
+venv
+__pycache__
+
+.DS_Store

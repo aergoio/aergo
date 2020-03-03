@@ -108,10 +108,22 @@ func (as *AccountService) Receive(context actor.Context) {
 		account, err := as.unlockAccount(actualAddress, msg.Passphrase)
 		context.Respond(&message.AccountRsp{Account: account, Err: err})
 	case *message.ImportAccount:
-		account, err := as.importAccount(msg.Wif, msg.OldPass, msg.NewPass)
+		var account *types.Account
+		var err error
+		if msg.Wif != nil {
+			account, err = as.importAccount(msg.Wif, msg.OldPass, msg.NewPass)
+		} else {
+			account, err = as.importAccountFromKeystore(msg.Keystore, msg.OldPass, msg.NewPass)
+		}
 		context.Respond(&message.ImportAccountRsp{Account: account, Err: err})
 	case *message.ExportAccount:
-		wif, err := as.exportAccount(msg.Account.Address, msg.Pass)
+		var wif []byte
+		var err error
+		if msg.AsKeystore {
+			wif, err = as.exportAccountKeystore(msg.Account.Address, msg.Pass)
+		} else {
+			wif, err = as.exportAccount(msg.Account.Address, msg.Pass)
+		}
 		context.Respond(&message.ExportAccountRsp{Wif: wif, Err: err})
 	case *message.SignTx:
 		var err error
@@ -143,19 +155,19 @@ func (as *AccountService) getAccounts() []*types.Account {
 	return as.accounts
 }
 
+func (as *AccountService) addAccount(account *types.Account) {
+	as.accountLock.Lock()
+	defer as.accountLock.Unlock()
+	as.accounts = append(as.accounts, account)
+}
+
 func (as *AccountService) createAccount(passphrase string) (*types.Account, error) {
 	address, err := as.ks.CreateKey(passphrase)
 	if err != nil {
 		return nil, err
 	}
 	account := types.NewAccount(address)
-
-	//append list
-	as.accountLock.Lock()
-	//TODO: performance turning here
-	as.ks.SaveAddress(address)
-	as.accounts = append(as.accounts, account)
-	as.accountLock.Unlock()
+	as.addAccount(account)
 	return account, nil
 }
 
@@ -164,18 +176,39 @@ func (as *AccountService) importAccount(wif []byte, old string, new string) (*ty
 	if err != nil {
 		return nil, err
 	}
-	//append list
 	account := &types.Account{Address: address}
-	as.accountLock.Lock()
-	//TODO: performance turning here
-	as.ks.SaveAddress(address)
-	as.accounts = append(as.accounts, account)
-	as.accountLock.Unlock()
+	as.addAccount(account)
+	return account, nil
+}
+
+func (as *AccountService) importAccountFromKeystore(keystore []byte, old string, new string) (*types.Account, error) {
+	privateKey, err := key.LoadKeystore(keystore, old)
+	if err != nil {
+		return nil, err
+	}
+	address, err := as.ks.AddKey(privateKey, new)
+	if err != nil {
+		return nil, err
+	}
+	account := &types.Account{Address: address}
+	as.addAccount(account)
 	return account, nil
 }
 
 func (as *AccountService) exportAccount(address []byte, pass string) ([]byte, error) {
 	wif, err := as.ks.ExportKey(address, pass)
+	if err != nil {
+		return nil, err
+	}
+	return wif, nil
+}
+
+func (as *AccountService) exportAccountKeystore(address []byte, pass string) ([]byte, error) {
+	privateKey, err := as.ks.GetKey(address, pass)
+	if err != nil {
+		return nil, err
+	}
+	wif, err := key.GetKeystore(privateKey, pass)
 	if err != nil {
 		return nil, err
 	}

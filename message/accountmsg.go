@@ -65,9 +65,10 @@ type GetAccountsRsp struct {
 }
 
 type ImportAccount struct {
-	Wif     []byte
-	OldPass string
-	NewPass string
+	Wif      []byte
+	OldPass  string
+	NewPass  string
+	Keystore []byte
 }
 type ImportAccountRsp struct {
 	Account *types.Account
@@ -75,8 +76,9 @@ type ImportAccountRsp struct {
 }
 
 type ExportAccount struct {
-	Account *types.Account
-	Pass    string
+	Account    *types.Account
+	Pass       string
+	AsKeystore bool
 }
 
 type ExportAccountRsp struct {

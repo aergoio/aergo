@@ -25,12 +25,23 @@ type MemPoolPutRsp struct {
 // MemPoolGet is interface of MemPool service for retrieving transactions
 type MemPoolGet struct {
 	MaxBlockBodySize uint32
+	GetTxCount uint32
 }
 
 // MemPoolGetRsp defines struct of result for MemPoolGet
 type MemPoolGetRsp struct {
 	Txs []types.Transaction
 	Err error
+}
+
+// MemPoolList is  interface of MemPool service for retrieving hashes of transactions
+type MemPoolList struct {
+	Limit int
+}
+
+type MemPoolListRsp struct {
+	Hashes  []types.TxID
+	HasMore bool
 }
 
 // MemPoolExist is interface of MemPool service for retrieving transaction

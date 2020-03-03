@@ -29,7 +29,7 @@ func TestSendTxWithMock(t *testing.T) {
 		nil,
 	).MaxTimes(1)
 
-	output, err := executeCommand(rootCmd, "sendtx", "--from", "AmNL5neKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQeuuaHHF", "--amount", "1000")
+	output, err := executeCommand(rootCmd, "sendtx", "--from", "AmNL5neKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQeuuaHHF", "--amount", "1000", "--keystore", "")
 	assert.NoError(t, err, "should no error")
 	t.Log(output)
 	out := &types.CommitResult{}
@@ -38,9 +38,9 @@ func TestSendTxWithMock(t *testing.T) {
 }
 
 func TestSendTxFromToValidation(t *testing.T) {
-	_, err := executeCommand(rootCmd, "sendtx", "--from", "InvalidKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQeuuaHHF", "--amount", "1000")
+	_, err := executeCommand(rootCmd, "sendtx", "--from", "InvalidKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQeuuaHHF", "--amount", "1000", "--keystore", "")
 	assert.Error(t, err, "should error when wrong --from flag")
 
-	_, err = executeCommand(rootCmd, "sendtx", "--from", "AmNL5neKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQInvalid", "--amount", "1000")
+	_, err = executeCommand(rootCmd, "sendtx", "--from", "AmNL5neKQS2ZwRuBeqfcfHMLg3aSmGoefEh5bW8ozWxrtmxaGHZ3", "--to", "AmNfacq5A3orqn3MhgkHSncufXEP8gVJgqDy8jTgBphXQInvalid", "--amount", "1000", "--keystore", "")
 	assert.Error(t, err, "should error when wrong --to flag")
 }

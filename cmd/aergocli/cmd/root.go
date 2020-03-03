@@ -54,8 +54,11 @@ var (
 
 	staking bool
 
-	remote       bool
-	importFormat string
+	remote         bool
+	importFormat   string
+	importFilePath string
+	exportAsWif    bool
+	remoteKeystore bool
 
 	rootConfig CliConfig
 
@@ -80,6 +83,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&keyFile, "tlskey", "", "client key file for TLS ")
 	rootCmd.PersistentFlags().StringVarP(&host, "host", "H", "localhost", "Host address to aergo server")
 	rootCmd.PersistentFlags().Int32VarP(&port, "port", "p", 7845, "Port number to aergo server")
+	rootCmd.PersistentFlags().StringVar(&dataDir, "keystore", "$HOME/.aergo", "Path to keystore")
+	rootCmd.PersistentFlags().BoolVar(&remoteKeystore, "node-keystore", false, "use node keystore")
 }
 
 func initConfig() {
@@ -90,6 +95,7 @@ func initConfig() {
 	cliCtx.Vc.BindPFlag("tls.cacert", rootCmd.PersistentFlags().Lookup("tlscacert"))
 	cliCtx.Vc.BindPFlag("tls.clientcert", rootCmd.PersistentFlags().Lookup("tlscert"))
 	cliCtx.Vc.BindPFlag("tls.clientkey", rootCmd.PersistentFlags().Lookup("tlskey"))
+	cliCtx.Vc.BindPFlag("keystore", rootCmd.PersistentFlags().Lookup("keystore"))
 
 	cliCtx.BindPFlags(rootCmd.PersistentFlags())
 
@@ -97,6 +103,9 @@ func initConfig() {
 	err := cliCtx.LoadOrCreateConfig(&rootConfig)
 	if err != nil {
 		log.Fatalf("Fail to load configuration file %v: %v", cliCtx.Vc.ConfigFileUsed(), err)
+	}
+	if remoteKeystore {
+		rootConfig.KeyStorePath = ""
 	}
 }
 

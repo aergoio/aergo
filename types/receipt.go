@@ -12,7 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
-	"github.com/gogo/protobuf/jsonpb"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/minio/sha256-simd"
 	"github.com/willf/bloom"
 )

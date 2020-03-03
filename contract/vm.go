@@ -654,6 +654,26 @@ func (ce *executor) rollbackToSavepoint() error {
 	return nil
 }
 
+func (ce *executor) closeQuerySql() error {
+	ctx := ce.ctx
+
+	if ctx == nil || ctx.callState == nil {
+		return nil
+	}
+
+	var err error
+	for _, v := range ctx.callState {
+		if v.tx == nil {
+			continue
+		}
+		err = v.tx.close()
+		if err != nil {
+			return newVmError(err)
+		}
+	}
+	return nil
+}
+
 func (ce *executor) setGas() {
 	if ce == nil || ce.L == nil || ce.err != nil {
 		return
@@ -1047,7 +1067,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 	defer func() {
-		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
+		if dbErr := ce.closeQuerySql(); dbErr != nil {
 			err = dbErr
 		}
 	}()

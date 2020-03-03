@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -9,7 +14,7 @@ import (
 )
 
 func TestGenerateAddress(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		key, err := btcec.NewPrivateKey(btcec.S256())
 		assert.NoError(t, err, "could not create private key")
 

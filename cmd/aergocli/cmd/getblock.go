@@ -8,6 +8,8 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
+	"errors"
+	"fmt"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	aergorpc "github.com/aergoio/aergo/types"
@@ -18,8 +20,8 @@ import (
 var getblockCmd = &cobra.Command{
 	Use:   "getblock",
 	Short: "Get block information",
-	Args:  cobra.MinimumNArgs(0),
-	Run:   execGetBlock,
+	Args:  cobra.NoArgs,
+	RunE:  execGetBlock,
 }
 
 var stream bool
@@ -28,37 +30,26 @@ var hash string
 
 func init() {
 	rootCmd.AddCommand(getblockCmd)
-	getblockCmd.Flags().Uint64VarP(&number, "number", "n", 0, "Block height")
-	getblockCmd.Flags().StringVarP(&hash, "hash", "", "", "Block hash")
-	getblockCmd.Flags().BoolVar(&stream, "stream", false, "Get the block information by streamming")
+	getblockCmd.Flags().Uint64VarP(&number, "number", "n", 0, "block height")
+	getblockCmd.Flags().StringVarP(&hash, "hash", "", "", "block hash")
+	getblockCmd.Flags().BoolVar(&stream, "stream", false, "continiously stream new blocks as they get created")
 }
 
-func execGetBlock(cmd *cobra.Command, args []string) {
-	if stream {
-		bs, err := client.ListBlockStream(context.Background(), &aergorpc.Empty{})
-		if err != nil {
-			cmd.Printf("Failed: %s\n", err.Error())
-			return
-		}
-		if err != nil {
-			cmd.Printf("Failed: %s", err.Error())
-			return
-		}
-		for {
-			b, err := bs.Recv()
-			if err != nil {
-				cmd.Printf("Failed: %s\n", err.Error())
-				return
-			}
-			cmd.Println(util.BlockConvBase58Addr(b))
-		}
-		return
+func streamBlocks(cmd *cobra.Command) error {
+	bs, err := client.ListBlockStream(context.Background(), &aergorpc.Empty{})
+	if err != nil {
+		return fmt.Errorf("failed to connect stream: %v", err)
 	}
-	fflags := cmd.Flags()
-	if fflags.Changed("number") == false && fflags.Changed("hash") == false {
-		cmd.Println("no block --hash or --number specified")
-		return
+	for {
+		b, err := bs.Recv()
+		if err != nil {
+			return fmt.Errorf("failed to receive block: %v", err)
+		}
+		cmd.Println(util.BlockConvBase58Addr(b))
 	}
+}
+
+func getSingleBlock(cmd *cobra.Command) error {
 	var blockQuery []byte
 	if hash == "" {
 		b := make([]byte, 8)
@@ -67,20 +58,31 @@ func execGetBlock(cmd *cobra.Command, args []string) {
 	} else {
 		decoded, err := base58.Decode(hash)
 		if err != nil {
-			cmd.Printf("decode error: %s", err.Error())
-			return
+			return fmt.Errorf("failed to decode block hash: %v", err)
 		}
 		if len(decoded) == 0 {
-			cmd.Println("decode error:")
-			return
+			return fmt.Errorf("decoded block hash is empty")
 		}
 		blockQuery = decoded
 	}
 
 	msg, err := client.GetBlock(context.Background(), &aergorpc.SingleBytes{Value: blockQuery})
-	if nil == err {
-		cmd.Println(util.BlockConvBase58Addr(msg))
-	} else {
-		cmd.Printf("Failed: %s\n", err.Error())
+	if err != nil {
+		return fmt.Errorf("failed to get block: %v", err)
 	}
+	cmd.Println(util.BlockConvBase58Addr(msg))
+	return nil
+}
+
+func execGetBlock(cmd *cobra.Command, args []string) error {
+	fflags := cmd.Flags()
+	if !stream && fflags.Changed("number") == false && fflags.Changed("hash") == false {
+		return errors.New("no block --hash or --number specified")
+	}
+	cmd.SilenceUsage = true
+
+	if stream {
+		return streamBlocks(cmd)
+	}
+	return getSingleBlock(cmd)
 }

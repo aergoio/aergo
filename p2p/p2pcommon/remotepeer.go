@@ -15,6 +15,9 @@ type PeerFactory interface {
 	CreateRemotePeer(remoteInfo RemoteInfo, seq uint32, rw MsgReadWriter) RemotePeer
 }
 
+// PeerTask is function to exec in remote peer's own goroutine, and should not consume lots of time to process.
+type PeerTask func(p RemotePeer)
+
 type RemotePeer interface {
 	ID() types.PeerID
 	RemoteInfo() RemoteInfo
@@ -54,4 +57,8 @@ type RemotePeer interface {
 
 	// AddCertificate add to my certificate list
 	AddCertificate(cert *AgentCertificateV1)
+
+	// DoTask execute task in remote peer's own goroutine, it should not consume lots of time to process.
+	DoTask(task PeerTask) bool
+
 }

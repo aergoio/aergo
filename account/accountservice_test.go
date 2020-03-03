@@ -47,7 +47,7 @@ func TestNewAccountAndGet(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	var testaccounts []*types.Account
-	testsize := 10
+	testsize := 5
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
@@ -73,7 +73,7 @@ func TestNewAccountAndUnlockLock(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	var testaccounts []*types.Account
-	testsize := 10
+	testsize := 3
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)
@@ -102,7 +102,7 @@ func TestNewAccountAndUnlockFail(t *testing.T) {
 	initTest()
 	defer deinitTest()
 	var testaccounts []*types.Account
-	testsize := 10
+	testsize := 3
 	for i := 0; i < testsize; i++ {
 		passphrase := fmt.Sprintf("test%d", i)
 		account, err := as.createAccount(passphrase)

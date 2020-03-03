@@ -3,6 +3,7 @@ package chain
 import (
 	"fmt"
 	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
@@ -15,12 +16,14 @@ type ChainVerifier struct {
 	cs            *ChainService
 	IChainHandler //to use chain APIs
 	*Core
-	reader *BlockReader
-	err    error
+	reader        *BlockReader
+	err           error
+	targetBlockNo uint64
+	stage         TestStage
 }
 
-func newChainVerifier(cs *ChainService, core *Core) *ChainVerifier {
-	chainVerifier := &ChainVerifier{IChainHandler: cs, Core: core, cs: cs}
+func newChainVerifier(cs *ChainService, core *Core, targetBlockNo uint64) *ChainVerifier {
+	chainVerifier := &ChainVerifier{IChainHandler: cs, Core: core, cs: cs, targetBlockNo: targetBlockNo}
 	chainVerifier.SubComponent = NewSubComponent(chainVerifier, cs.BaseComponent, chainVerifierName, 1)
 
 	var (
@@ -96,11 +99,118 @@ func (br *BlockReader) getNext() (*types.Block, error) {
 	return block, nil
 }
 
+type TestStage int
+
+const (
+	TestPrevBlock TestStage = 0 + iota
+	TestCurBlock
+	TestBlockExecute
+	TestComplete
+)
+
+var TestStageStr = []string{
+	"Test if previous block exist",
+	"Test if target block exist",
+	"Test if block exeuction succeed",
+	"All tests completed",
+}
+
+func (cv *ChainVerifier) VerifyBlockWithReport() error {
+	var (
+		err       error
+		block     *types.Block
+		prevBlock *types.Block
+	)
+
+	logger.Info().Msg("================== [VERIFYBLOCK] start =================")
+	logger.Info().Msgf("Target block no : %d", cv.targetBlockNo)
+
+	// set sdb root with previous block
+
+	if cv.targetBlockNo <= 0 {
+		logger.Error().Msg("target block number must be greater than 0")
+	}
+
+	cv.setStage(TestPrevBlock)
+	if prevBlock, err = cv.cdb.GetBlockByNo(cv.targetBlockNo - 1); err != nil {
+		goto END
+	}
+	cv.report(prevBlock, nil, nil)
+
+	cv.Core.sdb.SetRoot(prevBlock.GetHeader().GetBlocksRootHash())
+
+	cv.setStage(TestCurBlock)
+	if block, err = cv.cdb.GetBlockByNo(cv.targetBlockNo); err != nil {
+		goto END
+	}
+	cv.report(prevBlock, block, err)
+
+	cv.setStage(TestBlockExecute)
+	if err = cv.verifyBlock(block); err != nil {
+		goto END
+	}
+	cv.report(prevBlock, block, nil)
+
+	cv.setStage(TestComplete)
+END:
+	cv.report(prevBlock, block, err)
+
+	logger.Info().Msg("================== [VERIFYBLOCK] end =================")
+
+	return err
+}
+
+func (cv *ChainVerifier) setStage(stage TestStage) {
+	cv.stage = stage
+}
+
+func (cv *ChainVerifier) report(prevBlock *types.Block, targetBlock *types.Block, err error) {
+	var (
+		report    string
+		stageName string
+	)
+
+	if cv.stage == TestComplete {
+		logger.Info().Msg(TestStageStr[TestComplete])
+		return
+	}
+
+	stageName = TestStageStr[cv.stage]
+	if err != nil {
+		report += fmt.Sprintf("%s: FAILED.", stageName)
+		report += fmt.Sprintf(" [Error] = %s", err.Error())
+		logger.Info().Msg(report)
+		return
+	}
+
+	report += fmt.Sprintf("%s: PASS. ", stageName)
+
+	switch cv.stage {
+	case TestPrevBlock:
+		report += fmt.Sprintf("[description] prev block hash=%s, prev stage root=%s", prevBlock.ID(),
+			enc.ToString(prevBlock.GetHeader().GetBlocksRootHash()))
+
+	case TestCurBlock:
+		report += fmt.Sprintf("[description] target block hash=%s", targetBlock.ID())
+
+	case TestBlockExecute:
+		report += fmt.Sprintf("[description] tx Merkle = %s", enc.ToString(targetBlock.GetHeader().GetTxsRootHash()))
+		report += fmt.Sprintf(", state Root = %s", enc.ToString(targetBlock.GetHeader().GetBlocksRootHash()))
+		report += fmt.Sprintf(", all transaction passed")
+	}
+
+	logger.Info().Msg(report)
+}
+
 func (cv *ChainVerifier) VerifyChain() error {
 	var (
 		err   error
 		block *types.Block
 	)
+
+	if cv.targetBlockNo > 0 {
+		return cv.VerifyBlockWithReport()
+	}
 
 	logger.Info().Msg("start verifychan")
 

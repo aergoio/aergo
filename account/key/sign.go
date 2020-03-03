@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package key
 
 import (
@@ -8,13 +13,12 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 )
 
-//Sign return sign with key in the store
-func (ks *Store) Sign(addr Address, pass string, hash []byte) ([]byte, error) {
-	k, err := ks.getKey(addr, pass)
-	if k == nil {
+// Sign return signature using stored key
+func (ks *Store) Sign(addr Identity, pass string, hash []byte) ([]byte, error) {
+	key, err := ks.getKey(addr, pass)
+	if err != nil {
 		return nil, err
 	}
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), k)
 	sign, err := key.Sign(hash)
 	if err != nil {
 		return nil, err
@@ -22,6 +26,7 @@ func (ks *Store) Sign(addr Address, pass string, hash []byte) ([]byte, error) {
 	return sign.Serialize(), nil
 }
 
+// SignTx return tx signature using stored key
 func SignTx(tx *types.Tx, key *aergokey) error {
 	hash := CalculateHashWithoutSign(tx.Body)
 	sign, err := key.Sign(hash)
@@ -33,7 +38,7 @@ func SignTx(tx *types.Tx, key *aergokey) error {
 	return nil
 }
 
-//SignTx return transaction which signed with unlocked key. if requester is nil, requester is assumed to tx.Account
+// SignTx return transaction which signed with unlocked key. if requester is nil, requester is assumed to tx.Account
 func (ks *Store) SignTx(tx *types.Tx, requester []byte) error {
 	addr := tx.Body.Account
 	if requester != nil {
@@ -46,7 +51,7 @@ func (ks *Store) SignTx(tx *types.Tx, requester []byte) error {
 	return SignTx(tx, keyPair.key)
 }
 
-//VerifyTx return result to varify sign
+// VerifyTx return result to verify sign
 func VerifyTx(tx *types.Tx) error {
 	return VerifyTxWithAddress(tx, tx.Body.Account)
 }
@@ -68,12 +73,12 @@ func VerifyTxWithAddress(tx *types.Tx, address []byte) error {
 	return nil
 }
 
-//VerifyTx return result to varify sign
+// VerifyTx return result to varify sign
 func (ks *Store) VerifyTx(tx *types.Tx) error {
 	return VerifyTx(tx)
 }
 
-//CalculateHashWithoutSign return hash of tx without sign field
+// CalculateHashWithoutSign return hash of tx without sign field
 func CalculateHashWithoutSign(txBody *types.TxBody) []byte {
 	h := sha256.New()
 	binary.Write(h, binary.LittleEndian, txBody.Nonce)

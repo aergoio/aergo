@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -28,15 +29,16 @@ func init() {
 	rootCmd.AddCommand(nameCmd)
 	newCmd := &cobra.Command{
 		Use:                   "new",
-		Short:                 "Create account name. It spend at least 1 aergo",
+		Short:                 "Create account name. It spend at least an amount of aergo according to nameprice",
 		RunE:                  execNameNew,
 		DisableFlagsInUseLine: true,
 	}
-	newCmd.Flags().StringVar(&from, "from", "", "Sender account address")
+	newCmd.Flags().StringVar(&from, "from", "", "sender account address")
 	newCmd.MarkFlagRequired("from")
-	newCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
+	newCmd.Flags().StringVar(&name, "name", "", "name of account to create")
 	newCmd.MarkFlagRequired("name")
-	newCmd.Flags().StringVar(&spending, "amount", "1aergo", "Spending for create name. at least 1 aergo")
+	newCmd.Flags().StringVar(&spending, "amount", "20aergo", "spending for create name. Must be set to the current nameprice")
+	newCmd.Flags().StringVar(&pw, "password", "", "password")
 
 	updateCmd := &cobra.Command{
 		Use:                   "update",
@@ -44,13 +46,14 @@ func init() {
 		RunE:                  execNameUpdate,
 		DisableFlagsInUseLine: true,
 	}
-	updateCmd.Flags().StringVar(&from, "from", "", "Sender account address")
+	updateCmd.Flags().StringVar(&from, "from", "", "sender account address")
 	updateCmd.MarkFlagRequired("from")
-	updateCmd.Flags().StringVar(&to, "to", "", "Recipient account address")
+	updateCmd.Flags().StringVar(&to, "to", "", "recipient account address")
 	updateCmd.MarkFlagRequired("to")
-	updateCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
+	updateCmd.Flags().StringVar(&name, "name", "", "name of account to create")
 	updateCmd.MarkFlagRequired("name")
-	updateCmd.Flags().StringVar(&spending, "amount", "1aergo", "Spending for create name. at least 1 aergo")
+	updateCmd.Flags().StringVar(&spending, "amount", "20aergo", "spending for update name. Must be set to the current nameprice")
+	updateCmd.Flags().StringVar(&pw, "password", "", "password")
 
 	ownerCmd := &cobra.Command{
 		Use:                   "owner",
@@ -58,7 +61,7 @@ func init() {
 		Run:                   execNameOwner,
 		DisableFlagsInUseLine: true,
 	}
-	ownerCmd.Flags().StringVar(&name, "name", "", "Name of account to create")
+	ownerCmd.Flags().StringVar(&name, "name", "", "name of account to create")
 	ownerCmd.MarkFlagRequired("name")
 	ownerCmd.Flags().Uint64VarP(&blockNo, "blockno", "n", 0, "Block height")
 
@@ -68,15 +71,15 @@ func init() {
 func execNameNew(cmd *cobra.Command, args []string) error {
 	account, err := types.DecodeAddress(from)
 	if err != nil {
-		return errors.New("Wrong address in --from flag\n" + err.Error())
+		return fmt.Errorf("wrong address in --from flag: %v", err.Error())
 	}
 
 	if len(name) != types.NameLength {
-		return errors.New("The name must be 12 alphabetic characters\n")
+		return errors.New("the name must be 12 alphabetic characters")
 	}
 	amount, err := util.ParseUnit(spending)
 	if err != nil {
-		return errors.New("Wrong value in --amount flag\n" + err.Error())
+		return fmt.Errorf("wrong value in --amount flag: %v", err.Error())
 	}
 	var ci types.CallInfo
 	ci.Name = types.NameCreate
@@ -98,27 +101,22 @@ func execNameNew(cmd *cobra.Command, args []string) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Printf("Failed request to aergo sever\n" + err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
 }
 
 func execNameUpdate(cmd *cobra.Command, args []string) error {
 	account, err := types.DecodeAddress(from)
 	if err != nil {
-		return errors.New("Wrong address in --from flag\n" + err.Error())
+		return fmt.Errorf("Wrong address in --from flag: %v", err.Error())
 	}
 	_, err = types.DecodeAddress(to)
 	if err != nil {
-		return errors.New("Wrong address in --from flag\n" + err.Error())
+		return fmt.Errorf("Wrong address in --to flag: %v", err.Error())
 	}
 	amount, err := util.ParseUnit(spending)
 	if err != nil {
-		return errors.New("Wrong value in --amount flag\n" + err.Error())
+		return fmt.Errorf("Wrong value in --amount flag: %v", err.Error())
 	}
 	var ci types.CallInfo
 	if name == types.AergoName {
@@ -131,7 +129,7 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 	} else {
 		ci.Name = types.NameUpdate
 		if len(name) != types.NameLength {
-			return errors.New("The name must be 12 alphabetic characters\n")
+			return errors.New("the name must be 12 alphabetic characters")
 		}
 		err = json.Unmarshal([]byte("[\""+name+"\",\""+to+"\"]"), &ci.Args)
 		if err != nil {
@@ -152,12 +150,8 @@ func execNameUpdate(cmd *cobra.Command, args []string) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Printf("Failed request to aergo sever\n" + err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
 }
 

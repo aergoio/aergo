@@ -16,8 +16,7 @@ import (
 )
 
 type baseMOFactory struct {
-	p2ps *P2P
-	tnt p2pcommon.TxNoticeTracer
+	is p2pcommon.InternalService
 }
 
 
@@ -68,7 +67,6 @@ func (mf *baseMOFactory) NewMsgTxBroadcastOrder(message *types.NewTransactionsNo
 		for i, h := range message.TxHashes {
 			rmo.txHashes[i] = types.ToTxID(h)
 		}
-		rmo.tnt = mf.tnt
 		return rmo
 	}
 	return nil
@@ -85,7 +83,7 @@ func (mf *baseMOFactory) NewMsgBPBroadcastOrder(noticeMsg *types.BlockProducedNo
 }
 
 func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) p2pcommon.MsgOrder {
-	rmo := &pbRaftMsgOrder{msg: raftMsg, raftAcc: mf.p2ps.consacc.RaftAccessor()}
+	rmo := &pbRaftMsgOrder{msg: raftMsg, raftAcc: mf.is.ConsensusAccessor().RaftAccessor()}
 	msgID := uuid.Must(uuid.NewV4())
 	if mf.fillUpMsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, p2pcommon.RaftWrapperMessage, raftMsg) {
 		switch msgType {

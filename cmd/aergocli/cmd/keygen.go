@@ -5,8 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	"github.com/aergoio/aergo/account/key"
+	keycrypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -21,17 +26,21 @@ type keyJson struct {
 }
 
 var (
-	genPubkey bool
-	genID     bool
-	genJSON   bool
-	password  string
+	fromPK     bool
+	genPubkey  bool
+	genID      bool
+	genJSON    bool
+	genAddress bool
+	password   string
 )
 
 func init() {
 	//keygenCmd.Flags().StringVar(&prefix, "prefix", "nodekey", "prefix name of key file")
 	//keygenCmd.Flags().BoolVar(&genPubkey, "genpubkey", true, "also generate public key")
+	keygenCmd.Flags().BoolVar(&fromPK, "fromKey", false, "generate files from existing private key file")
 	keygenCmd.Flags().BoolVar(&genJSON, "json", false, "output combined json object instead of generating files")
 	keygenCmd.Flags().StringVar(&password, "password", "", "password for encrypted private key in json file")
+	keygenCmd.Flags().BoolVar(&genAddress, "addr", false, "generate prefix.addr for wallet address")
 
 	rootCmd.AddCommand(keygenCmd)
 }
@@ -42,7 +51,19 @@ var keygenCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		if genJSON {
-			err = generateKeyJson()
+			if fromPK {
+				if len(args) < 1 {
+					fmt.Println("Failed: no keyfile")
+					return
+				}
+				priv, pub, err := p2putil.LoadKeyFile(args[0])
+				if err == nil {
+					err = generateKeyJson(priv, pub)
+				}
+			} else {
+				priv, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
+				err = generateKeyJson(priv, pub)
+			}
 		} else {
 			if len(args) < 1 {
 				fmt.Println("Failed: no prefix")
@@ -53,7 +74,11 @@ var keygenCmd = &cobra.Command{
 				fmt.Printf("Failed: invalid prefix %s\n", prefix)
 				return
 			}
-			err = generateKeyFiles(prefix)
+			if fromPK {
+				err = loadPKAndGenerateKeyFiles(prefix)
+			} else {
+				err = generateKeyFiles(prefix)
+			}
 		}
 		if err != nil {
 			fmt.Printf("Failed: %s\n", err.Error())
@@ -62,14 +87,70 @@ var keygenCmd = &cobra.Command{
 	},
 }
 
+func loadPKAndGenerateKeyFiles(pkFile string) error {
+	priv, pub, err := p2putil.LoadKeyFile(pkFile)
+	if err != nil {
+		return err
+	}
+	pkExt := filepath.Ext(pkFile)
+	if pkExt == ".pub" || pkExt == ".id" || pkExt == ".addr" {
+		return fmt.Errorf("invalid pk extension %s", pkExt)
+	}
+	prefix := strings.TrimSuffix(pkFile, pkExt)
+	return saveFilesFromKeys(priv, pub, prefix)
+}
+
 func generateKeyFiles(prefix string) error {
 	priv, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 
 	pkFile := prefix + ".key"
-	pubFile := prefix + ".pub"
-	idFile := prefix + ".id"
 
 	// Write private key file
+	err := saveKeyFile(pkFile, priv)
+	if err != nil {
+		return err
+	}
+
+	return saveFilesFromKeys(priv, pub, prefix)
+}
+
+func saveFilesFromKeys(priv crypto.PrivKey, pub crypto.PubKey, prefix string) error {
+	pubFile := prefix + ".pub"
+	idFile := prefix + ".id"
+	// Write public key file
+	err := saveKeyFile(pubFile, pub)
+	if err != nil {
+		return err
+	}
+
+	// Write id file
+	pid, _ := types.IDFromPublicKey(pub)
+	idBytes := []byte(types.IDB58Encode(pid))
+	saveBytesToFile(idFile, idBytes)
+
+	if genAddress {
+		pkBytes, err := priv.Bytes()
+		if err != nil {
+			return err
+		}
+		addrFile := prefix + ".addr"
+		addrf, err := os.Create(addrFile)
+		if err != nil {
+			return err
+		}
+		_, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), pkBytes)
+		address := keycrypto.GenerateAddress(pubkey.ToECDSA())
+		addrf.WriteString(types.EncodeAddress(address))
+		addrf.Sync()
+
+		fmt.Printf("Wrote files %s.{key,pub,id,addr}.\n", prefix)
+	} else {
+		fmt.Printf("Wrote files %s.{key,pub,id}.\n", prefix)
+	}
+	return nil
+}
+
+func saveKeyFile(pkFile string, priv crypto.Key) error {
 	pkf, err := os.Create(pkFile)
 	if err != nil {
 		return err
@@ -78,38 +159,27 @@ func generateKeyFiles(prefix string) error {
 	if err != nil {
 		return err
 	}
-	pkf.Write(pkBytes)
-	pkf.Sync()
-
-	// Write public key file
-	pubf, err := os.Create(pubFile)
+	_, err = pkf.Write(pkBytes)
 	if err != nil {
 		return err
 	}
-	pubBytes, err := pub.Bytes()
-	if err != nil {
-		return err
-	}
-	pubf.Write(pubBytes)
-	pubf.Sync()
-
-	// Write id file
-	idf, err := os.Create(idFile)
-	if err != nil {
-		return err
-	}
-	pid, _ := types.IDFromPublicKey(pub)
-	idBytes := []byte(types.IDB58Encode(pid))
-	idf.Write(idBytes)
-	idf.Sync()
-
-	fmt.Printf("Wrote files %s.{key,pub,id}.\n", prefix)
-	return nil
+	return pkf.Sync()
 }
 
-func generateKeyJson() error {
-	priv, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
-	pkBytes, err := priv.Bytes()
+func saveBytesToFile(fileName string, bytes []byte) error {
+	pkf, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	_, err = pkf.Write(bytes)
+	if err != nil {
+		return err
+	}
+	return pkf.Sync()
+}
+func generateKeyJson(priv crypto.PrivKey, pub crypto.PubKey) error {
+	btcPK := p2putil.ConvertPKToBTCEC(priv)
+	pkBytes := btcPK.Serialize()
 	pubBytes, err := pub.Bytes()
 	pid, _ := types.IDFromPublicKey(pub)
 	if err != nil {
@@ -122,8 +192,7 @@ func generateKeyJson() error {
 	if err != nil {
 		return err
 	}
-	_, pubkey := btcec.PrivKeyFromBytes(btcec.S256(), pkBytes)
-	address := key.GenerateAddress(pubkey.ToECDSA())
+	address := keycrypto.GenerateAddress(btcPK.PubKey().ToECDSA())
 	addressEncoded := types.EncodeAddress(address)
 	jsonMarshalled, err := json.MarshalIndent(keyJson{
 		Address: addressEncoded,

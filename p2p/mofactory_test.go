@@ -39,7 +39,6 @@ func init() {
 
 func BenchmarkBaseMOFactory_NewMsgTxBroadcastOrder(b *testing.B) {
 	dummyP2PS := &P2P{}
-	dummyTNT := &txNoticeTracer{}
 
 	benchmarks := []struct {
 		name string
@@ -55,8 +54,7 @@ func BenchmarkBaseMOFactory_NewMsgTxBroadcastOrder(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				mf := &baseMOFactory{
-					p2ps: dummyP2PS,
-					tnt:  dummyTNT,
+					is: dummyP2PS,
 				}
 				in := bm.in
 				hashes := make([][]byte, 0, len(in))
@@ -72,7 +70,6 @@ func BenchmarkBaseMOFactory_NewMsgTxBroadcastOrder(b *testing.B) {
 
 func BenchmarkBaseMOFactory_DiffFunc(b *testing.B) {
 	dummyP2PS := &P2P{}
-	dummyTNT := &txNoticeTracer{}
 
 	benchmarks := []struct {
 		name string
@@ -88,8 +85,7 @@ func BenchmarkBaseMOFactory_DiffFunc(b *testing.B) {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				mf := &baseMOFactory{
-					p2ps: dummyP2PS,
-					tnt:  dummyTNT,
+					is: dummyP2PS,
 				}
 				_ = mf.diffMsgTxBroadcastOrder(bm.in)
 			}
@@ -106,7 +102,6 @@ func (mf *baseMOFactory) diffMsgTxBroadcastOrder(ids []types.TxID) p2pcommon.Msg
 	}
 	message := &types.NewTransactionsNotice{TxHashes: hashes}
 	if mf.fillUpMsgOrder(&rmo.pbMessageOrder, reqID, uuid.Nil, p2pcommon.NewTxNotice, message) {
-		rmo.tnt = mf.tnt
 		rmo.txHashes = ids
 		return rmo
 	}

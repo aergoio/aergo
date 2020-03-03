@@ -50,6 +50,7 @@ func TestParseAergoVersion(t *testing.T) {
 }
 
 func TestCheckVersion(t *testing.T) {
+	t.Skip("the test is dependent of version of binary, which is related to git tagging. this test will be skipped until found more consistent way to test")
 	tests := []struct {
 		name string
 		arg string

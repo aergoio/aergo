@@ -19,7 +19,7 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/merkle"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/minio/sha256-simd"
 )
@@ -691,4 +691,14 @@ func NewBlockHeaderInfoFromPrevBlock(prev *Block, ts int64, bv BlockVersionner) 
 
 func (b *BlockHeaderInfo) ChainIdHash() []byte {
 	return common.Hasher(b.ChainId)
+}
+
+// HasFunction returns if a function with the given name exists in the ABI definition
+func (abi *ABI) HasFunction(name string) bool {
+	for _, fn := range abi.Functions {
+		if fn.GetName() == name {
+			return true
+		}
+	}
+	return false
 }

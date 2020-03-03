@@ -6,7 +6,6 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
@@ -339,29 +338,34 @@ func (rpc *AergoRPCService) getBlocks(ctx context.Context, in *types.ListParams)
 func (rpc *AergoRPCService) BroadcastToListBlockStream(block *types.Block) {
 	var err error
 	rpc.blockStreamLock.RLock()
+	defer rpc.blockStreamLock.RUnlock()
 	for _, stream := range rpc.blockStream {
 		if stream != nil {
+			rpc.blockStreamLock.RUnlock()
 			err = stream.Send(block)
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to broadcast block stream")
 			}
+			rpc.blockStreamLock.RLock()
 		}
 	}
-	rpc.blockStreamLock.RUnlock()
 }
 
 func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.BlockMetadata) {
 	var err error
 	rpc.blockMetadataStreamLock.RLock()
+	defer rpc.blockMetadataStreamLock.RUnlock()
+
 	for _, stream := range rpc.blockMetadataStream {
 		if stream != nil {
+			rpc.blockMetadataStreamLock.RUnlock()
 			err = stream.Send(meta)
 			if err != nil {
 				logger.Warn().Err(err).Msg("failed to broadcast block meta stream")
 			}
+			rpc.blockMetadataStreamLock.RLock()
 		}
 	}
-	rpc.blockMetadataStreamLock.RUnlock()
 }
 
 // ListBlockStream starts a stream of new blocks
@@ -633,49 +637,58 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 	if in.Txs == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
-	rs := make([]*types.CommitResult, len(in.Txs))
-	futures := make([]*actor.Future, len(in.Txs))
-	results := &types.CommitResultList{Results: rs}
-	//results := &types.CommitResultList{}
-	cnt := 0
-
-	for i, tx := range in.Txs {
-		hash := tx.Hash
-		var r types.CommitResult
-		r.Hash = hash
-
-		calculated := tx.CalculateTxHash()
-
-		if !bytes.Equal(hash, calculated) {
-			r.Error = types.CommitStatus_TX_INVALID_HASH
-		}
-		results.Results[i] = &r
-		cnt++
-
-		//send tx message to mempool
-		f := rpc.hub.RequestFuture(message.MemPoolSvc,
-			&message.MemPoolPut{Tx: tx},
-			defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX")
-		futures[i] = f
+	rpc.hub.Get(message.MemPoolSvc)
+	p := newPutter(ctx, in.Txs, rpc.hub)
+	err := p.Commit()
+	if err == nil {
+		results := &types.CommitResultList{Results: p.rs}
+		return results, nil
+	} else {
+		return nil, err
 	}
-	for i, future := range futures {
-		result, err := future.Result()
-		if err != nil {
-			return nil, err
-		}
-		rsp, ok := result.(*message.MemPoolPutRsp)
-		if !ok {
-			err = status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
-		} else {
-			err = rsp.Err
-		}
-		results.Results[i].Error = convertError(err)
-		if err != nil {
-			results.Results[i].Detail = err.Error()
-		}
-	}
-
-	return results, nil
+	//rs := make([]*types.CommitResult, len(in.Txs))
+	//futures := make([]*actor.Future, len(in.Txs))
+	//results := &types.CommitResultList{Results: rs}
+	////results := &types.CommitResultList{}
+	//cnt := 0
+	//
+	//for i, tx := range in.Txs {
+	//	hash := tx.Hash
+	//	var r types.CommitResult
+	//	r.Hash = hash
+	//
+	//	calculated := tx.CalculateTxHash()
+	//
+	//	if !bytes.Equal(hash, calculated) {
+	//		r.Error = types.CommitStatus_TX_INVALID_HASH
+	//	}
+	//	results.Results[i] = &r
+	//	cnt++
+	//
+	//	//send tx message to mempool
+	//	f := rpc.hub.RequestFuture(message.MemPoolSvc,
+	//		&message.MemPoolPut{Tx: tx},
+	//		defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX")
+	//	futures[i] = f
+	//}
+	//for i, future := range futures {
+	//	result, err := future.Result()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	rsp, ok := result.(*message.MemPoolPutRsp)
+	//	if !ok {
+	//		err = status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	//	} else {
+	//		err = rsp.Err
+	//	}
+	//	results.Results[i].Error = convertError(err)
+	//	if err != nil {
+	//		results.Results[i].Detail = err.Error()
+	//	}
+	//}
+	//
+	//return results, nil
 }
 
 // GetState handle rpc request getstate
@@ -821,8 +834,16 @@ func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportF
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
+	msg := &message.ImportAccount{OldPass: in.Oldpass, NewPass: in.Newpass}
+	if in.Wif != nil {
+		msg.Wif = in.Wif.Value
+	} else if in.Keystore != nil {
+		msg.Keystore = in.Keystore.Value
+	} else {
+		return nil, status.Errorf(codes.Internal, "require either wif or keystore contents")
+	}
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.ImportAccount{Wif: in.Wif.Value, OldPass: in.Oldpass, NewPass: in.Newpass},
+		msg,
 		defaultActorTimeout, "rpc.(*AergoRPCService).ImportAccount")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
@@ -838,12 +859,12 @@ func (rpc *AergoRPCService) ImportAccount(ctx context.Context, in *types.ImportF
 	return rsp.Account, rsp.Err
 }
 
-func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+func (rpc *AergoRPCService) exportAccountWithFormat(ctx context.Context, in *types.Personal, asKeystore bool) (*types.SingleBytes, error) {
 	if err := rpc.checkAuth(ctx, WriteBlockChain); err != nil {
 		return nil, err
 	}
 	result, err := rpc.hub.RequestFutureResult(message.AccountsSvc,
-		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase},
+		&message.ExportAccount{Account: in.Account, Pass: in.Passphrase, AsKeystore: asKeystore},
 		defaultActorTimeout, "rpc.(*AergoRPCService).ExportAccount")
 	if err != nil {
 		if err == component.ErrHubUnregistered {
@@ -857,6 +878,14 @@ func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Persona
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return &types.SingleBytes{Value: rsp.Wif}, rsp.Err
+}
+
+func (rpc *AergoRPCService) ExportAccount(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+	return rpc.exportAccountWithFormat(ctx, in, false)
+}
+
+func (rpc *AergoRPCService) ExportAccountKeystore(ctx context.Context, in *types.Personal) (*types.SingleBytes, error) {
+	return rpc.exportAccountWithFormat(ctx, in, true)
 }
 
 // SignTX handle rpc request signtx
@@ -1141,6 +1170,7 @@ func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error 
 
 	for _, es := range rpc.eventStream {
 		if es != nil {
+			rpc.eventStreamLock.RUnlock()
 			argFilter, _ := es.filter.GetExArgFilter()
 			for _, event := range events {
 				if event.Filter(es.filter, argFilter) {
@@ -1151,6 +1181,7 @@ func (rpc *AergoRPCService) BroadcastToEventStream(events []*types.Event) error 
 					}
 				}
 			}
+			rpc.eventStreamLock.RLock()
 		}
 	}
 	return nil
@@ -1237,8 +1268,8 @@ func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.Memb
 
 //GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
 func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
-	genensis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
-	if genensis.PublicNet() {
+	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
+	if genesis.PublicNet() {
 		return nil, status.Error(codes.Unavailable, "not supported in public")
 	}
 

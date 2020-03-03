@@ -6,19 +6,18 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )
 
 var stakeCmd = &cobra.Command{
-	Use:   "stake",
-	Short: "Stake balance to aergo system",
-	RunE:  execStake,
+	Use:    "stake",
+	Short:  "Stake balance to aergo system",
+	RunE:   execStake,
+	PreRun: connectAergo,
 }
 
 func execStake(cmd *cobra.Command, args []string) error {
@@ -26,9 +25,10 @@ func execStake(cmd *cobra.Command, args []string) error {
 }
 
 var unstakeCmd = &cobra.Command{
-	Use:   "unstake",
-	Short: "Unstake balance from aergo system",
-	RunE:  execUnstake,
+	Use:    "unstake",
+	Short:  "Unstake balance from aergo system",
+	RunE:   execUnstake,
+	PreRun: connectAergo,
 }
 
 func execUnstake(cmd *cobra.Command, args []string) error {
@@ -65,11 +65,7 @@ func sendStake(cmd *cobra.Command, s bool) error {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Println(err.Error())
-		return nil
-	}
-	cmd.Println(util.JSON(msg))
+
+	cmd.Println(sendTX(cmd, tx, account))
 	return nil
 }

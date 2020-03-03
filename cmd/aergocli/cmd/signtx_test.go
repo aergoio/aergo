@@ -38,7 +38,7 @@ func TestSignWithKey(t *testing.T) {
 func TestSignWithPath(t *testing.T) {
 	const testDir = "signwithpathtest"
 
-	addr, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--path", testDir)
+	addr, err := executeCommand(rootCmd, "account", "new", "--password", "1", "--keystore", testDir)
 	assert.NoError(t, err, "should be success")
 
 	re := regexp.MustCompile(`\r?\n`)
@@ -48,7 +48,7 @@ func TestSignWithPath(t *testing.T) {
 	assert.NoError(t, err, "should be success")
 	assert.Equalf(t, types.AddressLength, len(rawaddr), "wrong address length from %s", addr)
 
-	_, err = executeCommand(rootCmd, "signtx", "--path", testDir, "--jsontx", "{}", "--password", "1", "--address", addr)
+	_, err = executeCommand(rootCmd, "signtx", "--keystore", testDir, "--jsontx", "{}", "--password", "1", "--address", addr)
 	assert.NoError(t, err, "should be success")
 
 	os.RemoveAll(testDir)

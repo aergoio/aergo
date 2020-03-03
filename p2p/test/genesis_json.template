@@ -1,0 +1,12 @@
+{
+    "chain_id":{
+        "magic":"${magic}",
+        "public":false,
+        "mainnet":false,
+        "coinbasefee":"1000000000",
+        "consensus":"dpos"
+    },
+    "timestamp": 1573608143000000000,
+    "balance": ${holders},
+    "bps": ${bps}
+}

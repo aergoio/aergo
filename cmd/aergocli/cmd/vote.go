@@ -26,28 +26,31 @@ var voteVersion string
 func init() {
 	rootCmd.AddCommand(voteStatCmd)
 	voteStatCmd.Flags().StringVar(&address, "address", "", "address of account")
-	voteStatCmd.Flags().StringVar(&voteStatId, "id", "bpcount", "system paramter")
+	voteStatCmd.Flags().StringVar(&voteStatId, "id", "bpcount", "id of vote (e.g. bpcount, stakingmin, gasprice, nameprice)")
 	voteStatCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 	rootCmd.AddCommand(bpCmd)
 	bpCmd.Flags().Uint64Var(&number, "count", 0, "the number of elected")
 }
 
 var voteStatCmd = &cobra.Command{
-	Use:   "votestat",
-	Short: "show voting stat",
-	Run:   execVoteStat,
+	Use:    "votestat",
+	Short:  "show voting stat",
+	Run:    execVoteStat,
+	PreRun: connectAergo,
 }
 
 var voteCmd = &cobra.Command{
-	Use:   "vote",
-	Short: "vote to BPs",
-	Run:   execVote,
+	Use:    "vote",
+	Short:  "vote to BPs",
+	Run:    execVote,
+	PreRun: connectAergo,
 }
 
 var bpCmd = &cobra.Command{
-	Use:   "bp",
-	Short: "show BP list",
-	Run:   execBP,
+	Use:    "bp",
+	Short:  "show BP list",
+	Run:    execBP,
+	PreRun: connectAergo,
 }
 
 const PeerIDLength = 39
@@ -116,13 +119,8 @@ func execVote(cmd *cobra.Command, args []string) {
 			Type:      types.TxType_GOVERNANCE,
 		},
 	}
-	//TODO : support local
-	msg, err := client.SendTX(context.Background(), tx)
-	if err != nil {
-		cmd.Printf("Failed: %s\n", err.Error())
-		return
-	}
-	cmd.Println(util.JSON(msg))
+
+	cmd.Println(sendTX(cmd, tx, account))
 }
 
 func execVoteStat(cmd *cobra.Command, args []string) {
@@ -162,6 +160,7 @@ func execVoteStat(cmd *cobra.Command, args []string) {
 		return
 	}
 	cmd.Println("no --address or --id specified")
+	cmd.Usage()
 	return
 }
 

@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"math/big"
 	"strconv"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2putil"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
@@ -25,6 +26,7 @@ type InOutBlockHeader struct {
 	PubKey           string
 	Sign             string
 	CoinbaseAccount  string
+	Consensus        string
 }
 
 type InOutBlockBody struct {
@@ -61,17 +63,17 @@ type InOutPeer struct {
 
 type LongInOutPeer struct {
 	InOutPeer
-	ProducerIDs []string
+	ProducerIDs  []string
 	Certificates []*InOutCert
 }
 
 type InOutCert struct {
 	CertVersion uint32
-	ProducerID string
-	CreateTime time.Time
-	ExpireTime time.Time
-	AgentID string
-	Addresses []string
+	ProducerID  string
+	CreateTime  time.Time
+	ExpireTime  time.Time
+	AgentID     string
+	Addresses   []string
 }
 
 func FillTxBody(source *InOutTxBody, target *types.TxBody) error {
@@ -233,6 +235,10 @@ func ConvBlock(b *types.Block) *InOutBlock {
 		if b.GetHeader().GetCoinbaseAccount() != nil {
 			out.Header.CoinbaseAccount = types.EncodeAddress(b.GetHeader().GetCoinbaseAccount())
 		}
+		if consensus := b.GetHeader().GetConsensus(); consensus != nil {
+			out.Header.Consensus = types.EncodeAddress(consensus)
+		}
+
 		if b.Body != nil {
 			for _, tx := range b.Body.Txs {
 				out.Body.Txs = append(out.Body.Txs, ConvTx(tx))
@@ -263,22 +269,22 @@ func ConvPeer(p *types.Peer) *InOutPeer {
 }
 
 func ConvPeerLong(p *types.Peer) *LongInOutPeer {
-	out := &LongInOutPeer{InOutPeer:*ConvPeer(p)}
+	out := &LongInOutPeer{InOutPeer: *ConvPeer(p)}
 	out.ProducerIDs = make([]string, len(p.Address.ProducerIDs))
-	for i,pid := range p.Address.ProducerIDs {
+	for i, pid := range p.Address.ProducerIDs {
 		out.ProducerIDs[i] = base58.Encode(pid)
 	}
 	if p.Address.Role == types.PeerRole_Agent {
-		out.Certificates =  make([]*InOutCert, len(p.Certificates))
-		for i,cert := range p.Certificates {
+		out.Certificates = make([]*InOutCert, len(p.Certificates))
+		for i, cert := range p.Certificates {
 			addrs := []string{}
 			for _, ad := range cert.AgentAddress {
 				addrs = append(addrs, string(ad))
 			}
-			out.Certificates[i] = &InOutCert{CertVersion:cert.CertVersion,
-				ProducerID:base58.Encode(cert.BPID), AgentID:base58.Encode(cert.AgentID),
-				CreateTime:time.Unix(0, cert.CreateTime), ExpireTime:time.Unix(0, cert.ExpireTime),
-				Addresses:addrs	}
+			out.Certificates[i] = &InOutCert{CertVersion: cert.CertVersion,
+				ProducerID: base58.Encode(cert.BPID), AgentID: base58.Encode(cert.AgentID),
+				CreateTime: time.Unix(0, cert.CreateTime), ExpireTime: time.Unix(0, cert.ExpireTime),
+				Addresses: addrs}
 		}
 	}
 	return out
@@ -327,7 +333,7 @@ func ShortPeerListToString(p *types.PeerList) string {
 	var peers []string
 	for _, peer := range p.GetPeers() {
 		pa := peer.Address
-		peers = append(peers, fmt.Sprintf("%s;%s/%d;%s;%d",p2putil.ShortForm(types.PeerID(pa.PeerID)),pa.Address,pa.Port,peer.AcceptedRole.String(), peer.Bestblock.BlockNo))
+		peers = append(peers, fmt.Sprintf("%s;%s/%d;%s;%d", p2putil.ShortForm(types.PeerID(pa.PeerID)), pa.Address, pa.Port, peer.AcceptedRole.String(), peer.Bestblock.BlockNo))
 	}
 	return toString(peers)
 }

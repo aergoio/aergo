@@ -12,6 +12,8 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
+const defaultDumpPort = 7070
+
 type ServerContext struct {
 	config.BaseContext
 }
@@ -59,6 +61,8 @@ func (ctx *ServerContext) GetDefaultBaseConfig() BaseConfig {
 		DbType:         "badgerdb",
 		EnableProfile:  false,
 		ProfilePort:    6060,
+		EnableDump:     false,
+		DumpPort:       GetDefaultDumpPort(),
 		EnableTestmode: false,
 		Personal:       true,
 		AuthDir:        ctx.ExpandPathEnv("$HOME/auth"),
@@ -156,4 +160,9 @@ func (ctx *ServerContext) GetDefaultSQLConfig() *SQLConfig {
 	return &SQLConfig{
 		MaxDbSize: 20,
 	}
+}
+
+// GetDefaultDumpPort return the default port of the dumper.
+func GetDefaultDumpPort() int {
+	return defaultDumpPort
 }

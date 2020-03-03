@@ -537,12 +537,27 @@ func (pm *peerManager) updatePeerCache() {
 }
 
 func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
-	if pm.skipHandshakeSync {
-		return
+	if !pm.skipHandshakeSync {
+		pm.logger.Debug().Uint64("target", peer.LastStatus().BlockNumber).Msg("request new syncer")
+		pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
 	}
 
-	pm.logger.Debug().Uint64("target", peer.LastStatus().BlockNumber).Msg("request new syncer")
-	pm.actorService.SendRequest(message.SyncerSvc, &message.SyncStart{PeerID: peer.ID(), TargetNo: peer.LastStatus().BlockNumber})
+	// send txs in mempool
+	peer.DoTask(func(p p2pcommon.RemotePeer) {
+		raw, err := pm.actorService.CallRequest(message.MemPoolSvc, &message.MemPoolList{DefaultPeerTxQueueSize}, txNoticeInterval)
+		if err != nil {
+			pm.logger.Debug().Err(err).Str(p2putil.LogPeerName, peer.Name()).Msg("Failed to get txs in mempool, skip notifying tx to newly connected peer")
+			return
+		}
+		resp, ok := raw.(*message.MemPoolListRsp)
+		if !ok {
+			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Msg("mempool response unexpeted type, skip notifying tx to newly connected peer")
+		}
+		if len(resp.Hashes) > 0 {
+			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(resp.Hashes,10)).Msg("Sending txIds to newly connected peer")
+			peer.PushTxsNotice(resp.Hashes)
+		}
+	})
 }
 
 func (pm *peerManager) AddDesignatedPeer(meta p2pcommon.PeerMeta) {
