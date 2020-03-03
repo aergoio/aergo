@@ -4,9 +4,8 @@
 
 #define KEYWORD_MINSIZE 4
 #define KEYWORD_MAXSIZE 16
-static char keyword[KEYWORD_MAXSIZE+1];
 
-static int get_keyword(const char *sql)
+static int get_keyword(const char *sql, char *keyword)
 {
     int in_bc = 0;
     int in_lc = 0;
@@ -96,9 +95,9 @@ LOOP_END:
     return -1;
 }
 
-static int sqlcheck_is_permitted_pragma(const char *sql, int end_offset) {
+static int sqlcheck_is_permitted_pragma(const char *sql, int end_offset, char *keyword) {
     if (strncmp(keyword, "PRAGMA", 6) == 0) {
-        end_offset = get_keyword(sql + end_offset);
+        end_offset = get_keyword(sql + end_offset, keyword);
         if (end_offset == -1)
             return 0;
         if (strncmp(keyword, "TABLE_INFO", 10) == 0)
@@ -117,11 +116,12 @@ static int sqlcheck_is_permitted_pragma(const char *sql, int end_offset) {
 int sqlcheck_is_permitted_sql(const char *sql)
 {
     int end_offset = -1;
+    char keyword[KEYWORD_MAXSIZE+1];
 
-    end_offset = get_keyword(sql);
+    end_offset = get_keyword(sql, keyword);
     if (end_offset > -1) {
         if (strncmp(keyword, "CREATE", 6) == 0) {
-            end_offset = get_keyword(sql + end_offset);
+            end_offset = get_keyword(sql + end_offset, keyword);
             if (end_offset == -1) {
                 return 0;
             }
@@ -132,7 +132,7 @@ int sqlcheck_is_permitted_sql(const char *sql)
             }
         } else {
             int ret;
-            if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset)) >= 0)
+            if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset, keyword)) >= 0)
                 return ret;
             return PermittedCmd(keyword);
         }
@@ -144,12 +144,13 @@ int sqlcheck_is_readonly_sql(const char *sql)
 {
     int end_offset = -1;
     int ret;
+    char keyword[KEYWORD_MAXSIZE+1];
 
-    end_offset = get_keyword(sql);
+    end_offset = get_keyword(sql, keyword);
     if (end_offset > -1) {
         if (strncmp(keyword, "SELECT", 6) == 0 )
             return 1;
-        if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset)) >= 0)
+        if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset, keyword)) >= 0)
             return ret;
 
     }
