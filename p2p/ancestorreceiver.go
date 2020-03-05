@@ -34,7 +34,7 @@ func NewAncestorReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer
 func (br *AncestorReceiver) StartGet() {
 	// create message data
 	req := &types.GetAncestorRequest{Hashes: br.hashes}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetAncestorRequest, req)
+	mo := br.peer.MF().NewMsgRequestOrderWithReceiver(br.ReceiveResp, p2pcommon.GetAncestorRequest, req)
 	br.requestID = mo.GetMsgID()
 	br.peer.SendMessage(mo)
 }

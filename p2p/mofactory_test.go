@@ -14,27 +14,27 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-var sampleTxIDs []types.TxID
+var sampleInputIDs []types.TxID
 var Tx5000, Tx1000, Tx100, Tx10, Tx1 []types.TxID
 
 const hashCnt = 5000
 
 func init() {
 	buf := make([]byte, types.HashIDLength)
-	sampleTxIDs = make([]types.TxID, hashCnt)
+	sampleInputIDs = make([]types.TxID, hashCnt)
 	for i := 0; i < hashCnt; i++ {
 		rand.Read(buf)
-		sampleTxIDs[i] = types.ToTxID(buf)
+		sampleInputIDs[i] = types.ToTxID(buf)
 	}
-	Tx5000 = sampleTxIDs
+	Tx5000 = sampleInputIDs
 	Tx1000 = make([]types.TxID, 1000)
-	copy(Tx1000, sampleTxIDs)
+	copy(Tx1000, sampleInputIDs)
 	Tx100 = make([]types.TxID, 100)
-	copy(Tx100, sampleTxIDs)
+	copy(Tx100, sampleInputIDs)
 	Tx10 = make([]types.TxID, 10)
-	copy(Tx10, sampleTxIDs)
+	copy(Tx10, sampleInputIDs)
 	Tx1 = make([]types.TxID, 1)
-	copy(Tx1, sampleTxIDs)
+	copy(Tx1, sampleInputIDs)
 }
 
 func BenchmarkBaseMOFactory_NewMsgTxBroadcastOrder(b *testing.B) {

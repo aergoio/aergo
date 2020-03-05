@@ -325,8 +325,8 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 		prevLastBlk types.BlockID
 		expected    bool
 	}{
-		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
-		{"TAllExist", sampleBlksHashes[0], sampleBlksHashes, sampleBlksHashes[1], true},
+		{"TAllNew", sampleBlksIDs[0], sampleBlksIDs[2:], sampleBlksIDs[2], false},
+		{"TAllExist", sampleBlksIDs[0], sampleBlksIDs, sampleBlksIDs[1], true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -356,9 +356,9 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 		inCache  []types.TxID
 		expected []types.TxID
 	}{
-		{"TAllNew", sampleTxHashes, sampleTxHashes[:0], sampleTxHashes},
-		{"TPartial", sampleTxHashes, sampleTxHashes[2:], sampleTxHashes[:2]},
-		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]types.TxID, 0)},
+		{"TAllNew", sampleTxIDs, sampleTxIDs[:0], sampleTxIDs},
+		{"TPartial", sampleTxIDs, sampleTxIDs[2:], sampleTxIDs[:2]},
+		{"TAllExist", sampleTxIDs, sampleTxIDs, make([]types.TxID, 0)},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

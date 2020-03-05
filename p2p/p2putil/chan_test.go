@@ -31,4 +31,8 @@ func TestClosedChannel(t *testing.T) {
 			break LOOP
 		}
 	}
+
+	t.Logf("wait closed channel again")
+	<-cb
+	t.Logf("finished")
 }

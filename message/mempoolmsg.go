@@ -57,9 +57,11 @@ type MemPoolExistRsp struct {
 
 const MaxReqestHashes = 1000
 
+// MemPoolExistEx is for getting retrieving multiple transactions.
 type MemPoolExistEx struct {
 	Hashes [][]byte
 }
+// MemPoolExistExRsp can contains nil element if requested tx is missing in mempool.
 type MemPoolExistExRsp struct {
 	Txs []*types.Tx
 }

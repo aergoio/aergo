@@ -42,7 +42,7 @@ func TestStartGet(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, tt.args.peerCnt)
 			for i := 0; i < tt.args.peerCnt; i++ {
 				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
@@ -120,7 +120,7 @@ func TestClusterInfoReceiver_trySendNextPeer(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, len(tt.args.stats))
 			for _, run := range tt.args.stats {
 				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
@@ -175,7 +175,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
 
 			replyChan := make(chan *message.GetClusterRsp)
 			dummyReq := &message.GetCluster{ReplyC: replyChan}

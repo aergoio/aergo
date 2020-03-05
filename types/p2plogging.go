@@ -113,11 +113,11 @@ func (m *AddressesResponse) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetTransactionsRequest) MarshalZerologObject(e *zerolog.Event) {
-	e.Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
+	e.Int("count",len(m.Hashes)).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
 }
 
 func (m *GetTransactionsResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogRespStatus, m.Status.String()).Bool(LogHasNext, m.HasNext).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
+	e.Str(LogRespStatus, m.Status.String()).Bool(LogHasNext, m.HasNext).Int("count",len(m.Hashes)).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
 }
 
 func (m *GetBlockRequest) MarshalZerologObject(e *zerolog.Event) {
@@ -129,7 +129,7 @@ func (m *GetBlockResponse) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *NewTransactionsNotice) MarshalZerologObject(e *zerolog.Event) {
-	e.Array("hashes", NewLogB58EncMarshaller(m.TxHashes, 10))
+	e.Int("count",len(m.TxHashes)).Array("hashes", NewLogB58EncMarshaller(m.TxHashes, 10))
 }
 
 func (m *BlockProducedNotice) MarshalZerologObject(e *zerolog.Event) {

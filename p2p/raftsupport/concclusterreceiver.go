@@ -87,7 +87,7 @@ func (r *ConcurrentClusterInfoReceiver) trySendAllPeers() bool {
 	req := &types.GetClusterInfoRequest{BestBlockHash: r.req.BestBlockHash}
 	for _, peer := range r.peers {
 		if peer.State() == types.RUNNING {
-			mo := r.mf.NewMsgBlockRequestOrder(r.ReceiveResp, p2pcommon.GetClusterRequest, req)
+			mo := r.mf.NewMsgRequestOrderWithReceiver(r.ReceiveResp, p2pcommon.GetClusterRequest, req)
 			peer.SendMessage(mo)
 			r.sent[mo.GetMsgID()] = peer
 			r.sentCnt++

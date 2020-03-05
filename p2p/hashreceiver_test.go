@@ -45,7 +45,7 @@ func TestBlockHashesReceiver_StartGet(t *testing.T) {
 			//mockActor.On("TellRequest", message.SyncerSvc, mock.AnythingOfType("*types.GetBlock"))
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().MF().Return(mockMF)
 			mockPeer.EXPECT().SendMessage(mockMo).Times(1)
@@ -130,7 +130,7 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
 			mockPeer.EXPECT().MF().Return(mockMF)

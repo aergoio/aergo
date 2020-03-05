@@ -56,7 +56,7 @@ func (br *BlocksChunkReceiver) StartGet() {
 	}
 	// create message data
 	req := &types.GetBlockRequest{Hashes: hashes}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetBlocksRequest, req)
+	mo := br.peer.MF().NewMsgRequestOrderWithReceiver(br.ReceiveResp, p2pcommon.GetBlocksRequest, req)
 	br.peer.SendMessage(mo)
 	br.requestID = mo.GetMsgID()
 }

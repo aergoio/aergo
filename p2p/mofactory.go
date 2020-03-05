@@ -29,7 +29,7 @@ func (mf *baseMOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pc
 	return nil
 }
 
-func (mf *baseMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+func (mf *baseMOFactory) NewMsgRequestOrderWithReceiver(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	rmo := &pbRequestOrder{}
 	msgID := uuid.Must(uuid.NewV4())
 	if mf.fillUpMsgOrder(&rmo.pbMessageOrder, msgID, uuid.Nil, protocolID, message) {

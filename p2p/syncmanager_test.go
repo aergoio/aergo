@@ -149,7 +149,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 func TestSyncManager_HandleNewTxNotice(t *testing.T) {
 	logger := log.NewLogger("tt.p2p")
 	rawHashes := sampleTxs
-	txHashes := sampleTxHashes
+	txHashes := sampleTxIDs
 
 	// tt if new block notice comes
 	tests := []struct {

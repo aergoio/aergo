@@ -41,7 +41,7 @@ func NewBlockHashesReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemoteP
 func (br *BlockHashesReceiver) StartGet() {
 	// create message data
 	req := &types.GetHashesRequest{PrevHash: br.prevBlock.Hash, PrevNumber: br.prevBlock.No, Size: uint64(br.count)}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetHashesRequest, req)
+	mo := br.peer.MF().NewMsgRequestOrderWithReceiver(br.ReceiveResp, p2pcommon.GetHashesRequest, req)
 	br.peer.SendMessage(mo)
 	br.requestID = mo.GetMsgID()
 }

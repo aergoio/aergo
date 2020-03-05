@@ -29,7 +29,7 @@ type MsgOrder interface {
 
 type MoFactory interface {
 	NewMsgRequestOrder(expectResponse bool, protocolID SubProtocol, message MessageBody) MsgOrder
-	NewMsgBlockRequestOrder(respReceiver ResponseReceiver, protocolID SubProtocol, message MessageBody) MsgOrder
+	NewMsgRequestOrderWithReceiver(respReceiver ResponseReceiver, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgResponseOrder(reqID MsgID, protocolID SubProtocol, message MessageBody) MsgOrder
 	NewMsgBlkBroadcastOrder(noticeMsg *types.NewBlockNotice) MsgOrder
 	NewMsgTxBroadcastOrder(noticeMsg *types.NewTransactionsNotice) MsgOrder
