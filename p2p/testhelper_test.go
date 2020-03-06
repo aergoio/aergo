@@ -35,7 +35,11 @@ func (f *testDoubleMOFactory) NewMsgRequestOrder(expecteResponse bool, protocolI
 }
 
 func (f *testDoubleMOFactory) NewMsgRequestOrderWithReceiver(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
-	panic("implement me")
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	f.lastResp = message
+	return &testMo{message: &testMessage{subProtocol: protocolID}}
 }
 
 func (f *testDoubleMOFactory) NewMsgResponseOrder(reqID p2pcommon.MsgID, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {

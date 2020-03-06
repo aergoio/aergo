@@ -98,24 +98,39 @@ func (tm *syncTxManager) registerTxNotice(txIDs []types.TxID) {
 	}
 }
 
+// pre-allocated slices to reduce memory allocation. this buffers must used inside syncTXManager goroutine.
 var (
-	added = make([]types.TxID,0,DefaultPeerTxQueueSize)
-	redundent = make([]types.TxID,0,DefaultPeerTxQueueSize)
-	queued = make([]types.TxID,0,DefaultPeerTxQueueSize)
+	// for general usage
+	addBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
+	dupBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
+	queuedBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
+
+	// idsBuf is used for indivisual peer
+	idsBuf = make([][]types.TxID,0,10)
+ 	bufOffset = 0
 )
+
+// getIDsBuf return empty slice with capacity DefaultPeerTxQueueSize
+func getIDsBuf(idx int) []types.TxID {
+	for idx >= len(idsBuf) {
+		idsBuf = append(idsBuf,make([]types.TxID,0,DefaultPeerTxQueueSize))
+	}
+	return idsBuf[idx][:0]
+}
+
 func (tm *syncTxManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, txIDs []types.TxID, data *types.NewTransactionsNotice) {
 	tm.taskChannel <- func() {
 		peerID := peer.ID()
 		now := time.Now()
-		added = added[:0]
-		redundant := redundent[:0]
-		queued := queued[:0]
+		newComer := addBuf[:0]
+		duplicated := dupBuf[:0]
+		queued := queuedBuf[:0]
 
 		for _, txID := range txIDs {
 			// If you want to strict check, query tx to cahinservice. It is skipped since it's so time consuming
 			// mempool has tx already
 			if ok := tm.txCache.Contains(txID); ok {
-				redundant = append(redundant, txID)
+				duplicated = append(duplicated, txID)
 				continue
 			}
 			// check if tx is in front cache
@@ -129,9 +144,9 @@ func (tm *syncTxManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, txIDs []ty
 			info := &incomingTxNotice{hash: txID, created: now, lastSent: unsent}
 			tm.frontCache[txID] = info
 			appendPeerID(info, peerID)
-			added = append(added,txID)
+			newComer = append(newComer,txID)
 		}
-		tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("added", types.NewLogTxIDsMarshaller(added, 10)).Array("redundant", types.NewLogTxIDsMarshaller(redundant, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize",len(tm.frontCache)).Msg("push txs, to query next time")
+		tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize",len(tm.frontCache)).Msg("push txs, to query next time")
 	}
 }
 
@@ -279,9 +294,11 @@ func (tm *syncTxManager) refineFrontCache() {
 	if len(tm.frontCache) == 0 {
 		return
 	}
-	tm.logger.Debug().Int("frontCache",len(tm.frontCache)).Msg("refining front cache")
+	//tm.logger.Debug().Int("frontCache",len(tm.frontCache)).Msg("refining front cache")
 
-	var deleted []types.TxID
+	// init
+	deleted := queuedBuf[:0]
+	bufOffset = 0
 
 	now := time.Now()
 	// assume peer is all available for now
@@ -315,7 +332,7 @@ func (tm *syncTxManager) refineFrontCache() {
 			continue
 		}
 		if peer, ok := tm.pm.GetPeer(peerID); ok {
-			tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager retry to get tx to other peers")
+			tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager try to get tx to other peers")
 			// create message data
 			receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, ids, p2pcommon.DefaultActorMsgTTL)
 			receiver.StartGet()
@@ -332,7 +349,8 @@ func (tm *syncTxManager) assignTxToPeer(info *incomingTxNotice, sendMap map[type
 	for i, peerID := range info.peers {
 		list, ok := sendMap[peerID]
 		if !ok {
-			list = make([]types.TxID, 0)
+			list = getIDsBuf(bufOffset)
+			bufOffset++
 		}
 		if len(list) >= DefaultPeerTxQueueSize {
 			// reached max count in a single query

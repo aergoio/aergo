@@ -624,3 +624,115 @@ func (tcm WantErrMatcher) Matches(x interface{}) bool {
 func (tcm WantErrMatcher) String() string {
 	return fmt.Sprintf("want error = %v", tcm.wantErr)
 }
+
+func BenchmarkRefineOld(b *testing.B) {
+	ctrl := gomock.NewController(b)
+	defer ctrl.Finish()
+
+	mockPM := p2pmock.NewMockPeerManager(ctrl)
+	mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+	mockActor := p2pmock.NewMockActorService(ctrl)
+
+	mockPM.EXPECT().GetPeer(gomock.Any()).Return(mockPeer, true).AnyTimes()
+	mockPeer.EXPECT().MF().Return(&testDoubleMOFactory{}).AnyTimes()
+	mockPeer.EXPECT().SendMessage(gomock.Any()).AnyTimes()
+
+	pids := make([]types.PeerID,100)
+	infos := make(map[types.PeerID][]*incomingTxNotice)
+	for i:=0; i<100; i++ {
+		pids[i] = types.RandomPeerID()
+		list := make([]*incomingTxNotice,2000)
+		infos[pids[i]] = list
+		dummyTX := &types.Tx{Body:&types.TxBody{Account:[]byte(pids[i])}}
+		for j:=0;j<2000;j++ {
+			dummyTX.Body.Nonce = uint64(j+1)
+			hash := dummyTX.CalculateTxHash()
+			info := &incomingTxNotice{hash:types.ToTxID(hash),lastSent:unsent, peers:[]types.PeerID{pids[i]}}
+			list[j] = info
+		}
+	}
+
+	benchmarks := []struct {
+		name string
+		old bool
+		inCache map[types.TxID]*incomingTxNotice
+
+	}{
+		// 1. 10 peers, 10 in cache for each peer
+		{"BP10F10",true, combine(pids[:10],infos,10)},
+		{"NBP10F10",false, combine(pids[:10],infos,10)},
+		// 2. 10 peers, 200 in cache
+		{"BP10F200",true, combine(pids[:10],infos,200)},
+		{"NBP10F200",false, combine(pids[:10],infos,200)},
+		// 3. 10 peers, 2000 in cache
+		{"BP10F2000",true, combine(pids[:10],infos,2000)},
+		{"NBP10F2000",false, combine(pids[:10],infos,2000)},
+		// 5. 100 peers, 2000 in cache
+		{"BP100F10",true, combine(pids,infos,10)},
+		{"NBP100F10",false, combine(pids,infos,10)},
+		// 6. 100 peers, 20000 in cache
+		{"BP100F200",true, combine(pids,infos,200)},
+		{"NBP100F200",false, combine(pids,infos,200)},
+		// 7. 100 peers, 200000 in cache
+		{"BP100F2000",true, combine(pids,infos,2000)},
+		{"NBP100F2000",false, combine(pids,infos,2000)},
+		// 8. 100 peers, heavy single (5000 in a single)
+		{"BPHeavy1",true, heavy(pids,5000)},
+		{"NBPHeavy1",false, heavy(pids,5000)},
+		// 9. 100 peers, heavy single (5000, 5000, 100 overlapped peers)
+		{"BPHeavy2",true, heavy(pids,5000,5000,100)},
+		{"NBPHeavy2",false, heavy(pids,5000,5000,100)},
+
+	}
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				h := newTxSyncManager(nil, mockActor, mockPM, logger)
+				h.frontCache = bm.inCache
+				if bm.old {
+					h.refineFrontCache()
+				} else {
+					h.refineFrontCache()
+				}
+			}
+		})
+	}
+}
+
+
+func combine(pids []types.PeerID, dummies map[types.PeerID][]*incomingTxNotice, size int) map[types.TxID]*incomingTxNotice {
+	m := make(map[types.TxID]*incomingTxNotice)
+	for _, pid := range pids {
+		infos := dummies[pid]
+		for i:=0; i<size; i++ {
+			info := infos[i]
+			m[info.hash] = info
+		}
+	}
+	return m
+}
+
+func heavy(pids []types.PeerID, sizes ...int) map[types.TxID]*incomingTxNotice {
+	m := make(map[types.TxID]*incomingTxNotice)
+	max := 0
+	for _, size := range sizes {
+		if max < size {
+			max = size
+		}
+	}
+	dummyTX := &types.Tx{Body:&types.TxBody{Account:[]byte(pids[0])}}
+	tempList := make([]*incomingTxNotice,max)
+	for j:=0; j<max; j++ {
+		dummyTX.Body.Nonce = uint64(j+1)
+		hash := dummyTX.CalculateTxHash()
+		info := &incomingTxNotice{hash:types.ToTxID(hash),lastSent:unsent, peers:[]types.PeerID{}}
+		tempList[j] = info
+		m[info.hash] = info
+	}
+	for i, size := range sizes {
+		for j:=0; j<size; j++ {
+			tempList[j].peers = append(tempList[j].peers, pids[i])
+		}
+	}
+	return m
+}
