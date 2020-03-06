@@ -485,7 +485,9 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 				inHashes = append(inHashes,tx.Hash)
 				if i < test.validCallCount {
 					txs = append(txs, tx)
+				} else {
 				}
+				txs = append(txs,(*types.Tx)(nil))
 			}
 			validBigMempoolRsp.Txs = txs
 
