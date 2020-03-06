@@ -194,13 +194,16 @@ func (p2ps *P2P) GetTXs(peerID types.PeerID, txHashes []message.TXHash) bool {
 }
 
 // NotifyNewTX notice tx(s) id created
-func (p2ps *P2P) NotifyNewTX(newTXs notifyNewTXs) bool {
-	hashes := newTXs.ids
+func (p2ps *P2P) NotifyNewTX(msg *message.NotifyNewTransactions) bool {
+	hashes := make([]types.TxID, len(msg.Txs))
+	for i, tx := range msg.Txs {
+		hashes[i] = types.ToTxID(tx.Hash)
+	}
 	// create message data
 	skipped, sent := 0, 0
 	// send to peers
 	peers := p2ps.pm.GetPeers()
-	p2ps.sm.RegisterTxNotice(hashes)
+	p2ps.sm.RegisterTxNotice(msg.Txs)
 	for _, rPeer := range peers {
 		if rPeer != nil && rPeer.State() == types.RUNNING {
 			sent++

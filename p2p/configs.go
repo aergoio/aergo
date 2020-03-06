@@ -40,7 +40,7 @@ const (
 	DefaultGlobalBlockCacheSize = 300
 	DefaultPeerBlockCacheSize   = 100
 
-	DefaultGlobalTxCacheSize = 50000
+	DefaultGlobalTxCacheSize = 40000
 	DefaultPeerTxCacheSize   = 10000
 	// DefaultPeerTxQueueSize is maximum size of hashes in a single tx notice message
 	DefaultPeerTxQueueSize = 2000

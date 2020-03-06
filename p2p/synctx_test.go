@@ -217,12 +217,14 @@ func Test_txSyncManager_refineFrontCache(t *testing.T) {
 
 func Test_txSyncManager_RegisterTxNotice(t *testing.T) {
 	logger := log.NewLogger("tt.p2p")
-	digest := sha256.New()
+
+	sampleTXs := make([]*types.Tx, 10)
 	sampleIDs := make([]types.TxID, 10)
 	for i := 0; i < 10; i++ {
-		digest.Write([]byte{byte(i)})
-		b := digest.Sum(nil)
-		sampleIDs[i] = types.ToTxID(b)
+		sampleTXs[i] = types.NewTx()
+		sampleTXs[i].Body.Nonce = uint64(i)
+		sampleTXs[i].Hash = sampleTXs[i].CalculateTxHash()
+		sampleIDs[i] = types.ToTxID(sampleTXs[i].Hash)
 	}
 	peerIDs := make([]types.PeerID, 4)
 	for i := 0; i < 4; i++ {
@@ -233,14 +235,14 @@ func Test_txSyncManager_RegisterTxNotice(t *testing.T) {
 		name    string
 		frontTx []types.TxID
 
-		argIn       []types.TxID
+		argIn       []*types.Tx
 		expectFront []types.TxID
 		expectCache []types.TxID
 	}{
 		// 1. remove tx in front and add to txCache
-		{"TRmFront", sampleIDs, sampleIDs[:5], sampleIDs[5:], sampleIDs[:5]},
+		{"TRmFront", sampleIDs, sampleTXs[:5], sampleIDs[5:], sampleIDs[:5]},
 		// 2. nothing to remove, but only add to txCache
-		{"TRmFront", sampleIDs[5:], sampleIDs[:5], sampleIDs[5:], sampleIDs[:5]},
+		{"TRmFront", sampleIDs[5:], sampleTXs[:5], sampleIDs[5:], sampleIDs[:5]},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -444,12 +446,8 @@ func TestTxSyncManager_handleTxReq(t *testing.T) {
 }
 
 func TestTxRequestHandler_handleBySize(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	logger := log.NewLogger("test.subproto")
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
-	var dummyTxHash, _ = enc.ToBytes("4H4zAkAyRV253K5SNBJtBxqUgHEbZcXbWFFc6cmQHY45")
 
 	bigTxBytes := make([]byte, 2*1024*1024)
 	//dummyMO := p2pmock.NewMockMsgOrder(ctrl)
@@ -466,6 +464,9 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockMF := &testDoubleMOFactory{}
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
@@ -476,22 +477,25 @@ func TestTxRequestHandler_handleBySize(t *testing.T) {
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(test.expectedSendCount)
 
 			validBigMempoolRsp := &message.MemPoolExistExRsp{}
+			inHashes := make([][]byte, 0, test.hashCnt)
 			txs := make([]*types.Tx, 0, test.hashCnt)
 			for i := 0; i < test.hashCnt; i++ {
-				if i >= test.validCallCount {
-					break
+				tx := &types.Tx{Body: &types.TxBody{Nonce:uint64(i+1),Payload: bigTxBytes}}
+				tx.Hash = tx.CalculateTxHash()
+				inHashes = append(inHashes,tx.Hash)
+				if i < test.validCallCount {
+					txs = append(txs, tx)
 				}
-				txs = append(txs, &types.Tx{Hash: dummyTxHash, Body: &types.TxBody{Payload: bigTxBytes}})
 			}
 			validBigMempoolRsp.Txs = txs
 
 			mockActor.EXPECT().CallRequestDefaultTimeout(message.MemPoolSvc, gomock.AssignableToTypeOf(&message.MemPoolExistEx{})).Return(validBigMempoolRsp, nil)
 
-			h := newTxSyncManager(nil, mockActor, mockPM, logger)
+			tm := newTxSyncManager(nil, mockActor, mockPM, logger)
 			dummyMsg := &testMessage{subProtocol: p2pcommon.GetTXsRequest, id: p2pcommon.NewMsgID()}
-			msgBody := &types.GetTransactionsRequest{Hashes: make([][]byte, test.hashCnt)}
+			msgBody := &types.GetTransactionsRequest{Hashes: inHashes}
 			//h.Handle(dummyMsg, msgBody)
-			h.handleTxReq(mockPeer, dummyMsg.id, msgBody.Hashes)
+			tm.handleTxReq(mockPeer, dummyMsg.id, msgBody.Hashes)
 			// wait for handle finished
 		})
 	}

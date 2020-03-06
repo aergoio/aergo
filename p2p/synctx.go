@@ -89,10 +89,10 @@ func (tm *syncTxManager) Stop() {
 	close(tm.finishChannel)
 }
 
-func (tm *syncTxManager) registerTxNotice(txIDs []types.TxID) {
+func (tm *syncTxManager) registerTxNotice(txs []*types.Tx) {
 	tm.taskChannel <- func() {
-		for _, txID := range txIDs {
-			tm.moveToMPCache(txID)
+		for _, tx := range txs {
+			tm.moveToMPCache(tx)
 		}
 		// tm.logger.Debug().Array("txIDs", types.NewLogTxIDsMarshaller(txIDs, 10)).Msg("syncManager caches txs")
 	}
@@ -213,15 +213,28 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 	// find transactions from chainservice
 	idx := 0
 	status := types.ResultStatus_OK
-	var hashes []types.TxHash
-	var txInfos, txs []*types.Tx
+	var hashes, mpReqs []types.TxHash
+	var txInfos []*types.Tx
+	var reqIDs = make([]types.TxID, len(reqHashes))
+	var txs = make(map[types.TxID]*types.Tx)
 	payloadSize := subproto.EmptyGetBlockResponseSize
 	var txSize, fieldSize int
 
 	bucket := message.MaxReqestHashes
 	var futures []interface{}
 
-	for _, h := range reqHashes {
+	// 1. first check in cache
+	for i, h := range reqHashes {
+		reqIDs[i] = types.ToTxID(h)
+		tx, ok := tm.txCache.Get(reqIDs[i])
+		if ok {
+			txs[reqIDs[i]] = tx.(*types.Tx)
+		} else {
+			mpReqs = append(mpReqs,h)
+		}
+	}
+
+	for _, h := range mpReqs {
 		hashes = append(hashes, h)
 		if len(hashes) == bucket {
 			if f, err := tm.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
@@ -241,13 +254,16 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 	idx = 0
 	for _, f := range futures {
 		if tmp, err := tm.msgHelper.ExtractTxsFromResponseAndError(f, nil); err == nil {
-			txs = append(txs, tmp...)
+			for _, tx := range tmp {
+				txs[types.ToTxID(tx.Hash)] = tx
+			}
 		} else {
 			tm.logger.Debug().Err(err).Msg("ErrExtract tx in future")
 		}
 	}
-	for _, tx := range txs {
-		if tx == nil {
+	for _, tid := range reqIDs {
+		tx, ok := txs[tid]
+		if !ok {
 			continue
 		}
 		hash := tx.GetHash()
@@ -364,9 +380,10 @@ func (tm *syncTxManager) assignTxToPeer(info *incomingTxNotice, sendMap map[type
 	return false
 }
 
-func (tm *syncTxManager) moveToMPCache(txID types.TxID) {
+func (tm *syncTxManager) moveToMPCache(tx *types.Tx) {
+	txID := types.ToTxID(tx.Hash)
 	delete(tm.frontCache, txID)
-	tm.txCache.Add(txID, cachePlaceHolder)
+	tm.txCache.Add(txID, tx)
 }
 
 func appendPeerID(info *incomingTxNotice, peerID types.PeerID) {

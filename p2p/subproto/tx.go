@@ -62,7 +62,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 	}
 }
 
-// this function must called only if ticket can be retrieved.
+// Deprecated
 func (th *txRequestHandler) handleTxReq(msg p2pcommon.Message, reqHashes [][]byte) {
 	defer th.release()
 	remotePeer := th.peer

@@ -26,7 +26,7 @@ type SyncManager interface {
 	HandleGetBlockResponse(peer RemotePeer, msg Message, resp *types.GetBlockResponse)
 
 	// RegisterTxNotice caching ids of tx that was added to local node.
-	RegisterTxNotice(txIDs []types.TxID)
+	RegisterTxNotice(txs []*types.Tx)
 	// HandleNewTxNotice handle received tx from remote peer. it caches txIDs.
 	HandleNewTxNotice(peer RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice)
 	HandleGetTxReq(peer RemotePeer, msgID MsgID, data *types.GetTransactionsRequest) error

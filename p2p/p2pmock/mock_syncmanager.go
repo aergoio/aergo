@@ -98,9 +98,9 @@ func (mr *MockSyncManagerMockRecorder) HandleNewTxNotice(arg0, arg1, arg2 interf
 }
 
 // RegisterTxNotice mocks base method
-func (m *MockSyncManager) RegisterTxNotice(arg0 []types.TxID) {
+func (m *MockSyncManager) RegisterTxNotice(txs []*types.Tx) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterTxNotice", arg0)
+	m.ctrl.Call(m, "RegisterTxNotice", txs)
 }
 
 // RegisterTxNotice indicates an expected call of RegisterTxNotice

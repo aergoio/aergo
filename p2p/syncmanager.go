@@ -115,8 +115,8 @@ func (sm *syncManager) HandleGetBlockResponse(peer p2pcommon.RemotePeer, msg p2p
 	sm.actor.SendRequest(message.ChainSvc, &message.AddBlock{PeerID: peerID, Block: block, Bstate: nil})
 }
 
-func (sm *syncManager) RegisterTxNotice(txIDs []types.TxID) {
-	sm.tm.registerTxNotice(txIDs)
+func (sm *syncManager) RegisterTxNotice(txs []*types.Tx) {
+	sm.tm.registerTxNotice(txs)
 }
 
 func (sm *syncManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, hashes []types.TxID, data *types.NewTransactionsNotice) {
