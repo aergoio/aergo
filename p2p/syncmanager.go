@@ -42,11 +42,11 @@ func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logg
 }
 
 func (sm *syncManager) Start() {
-	go sm.tm.runManager()
+	sm.tm.Start()
 }
 
 func (sm *syncManager) Stop() {
-	close(sm.tm.finishChannel)
+	sm.tm.Stop()
 }
 
 func (sm *syncManager) HandleBlockProducedNotice(peer p2pcommon.RemotePeer, block *types.Block) {

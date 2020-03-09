@@ -65,6 +65,10 @@ func (tm *syncTxManager) Start() {
 	go tm.runQueryLog()
 }
 
+func (tm *syncTxManager) Stop() {
+	close(tm.finishChannel)
+}
+
 func (tm *syncTxManager) runManager() {
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
@@ -95,6 +99,8 @@ func (tm *syncTxManager) runQueryLog() {
 		}
 	}()
 	// set interval of trying to resend getTransaction
+	tm.logger.Debug().Msg("syncTXManager starting query routine")
+
 MANLOOP:
 	for {
 		select {
@@ -104,10 +110,7 @@ MANLOOP:
 			break MANLOOP
 		}
 	}
-}
-
-func (tm *syncTxManager) Stop() {
-	close(tm.finishChannel)
+	tm.logger.Debug().Msg("syncTXManager finished query routine")
 }
 
 func (tm *syncTxManager) registerTxNotice(txs []*types.Tx) {
