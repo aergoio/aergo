@@ -180,15 +180,26 @@ func (g *BlockGenerator) tteEnabled() bool {
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState, timeout time.Duration) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
-	_, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
+	r, err := hs.RequestFuture(message.ChainSvc, &message.AddBlock{PeerID: "", Block: block, Bstate: blockState},
 		timeout, "consensus/chain/info.ConnectBlock").Result()
 	if err != nil {
 		logger.Error().Err(err).Uint64("no", block.Header.BlockNo).
 			Str("hash", block.ID()).
 			Str("prev", block.PrevID()).
 			Msg("failed to connect block")
-
 		return &ErrBlockConnect{id: block.ID(), prevID: block.PrevID(), ec: err}
+	}
+
+	reply, ok := r.(*message.AddBlockRsp)
+	if !ok {
+		logger.Warn().Uint64("no", block.Header.BlockNo).
+			Str("hash", block.ID()).
+			Str("prev", block.PrevID()).
+			Msg("ignore a weird add block response from chain service")
+		return nil
+	}
+	if reply != nil && reply.Err != nil {
+		return &ErrBlockConnect{id: block.ID(), prevID: block.PrevID(), ec: reply.Err}
 	}
 
 	return nil
