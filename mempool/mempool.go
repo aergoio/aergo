@@ -61,21 +61,22 @@ type MemPool struct {
 	verifier      *actor.PID
 	orphan        int
 	//cache       map[types.TxID]types.Transaction
-	cache       sync.Map
-	length      int
-	pool        map[types.AccountID]*txList
-	dumpPath    string
-	status      int32
-	coinbasefee *big.Int
-	chainIdHash []byte
-	isPublic    bool
-	whitelist   *whitelistConf
+	cache             sync.Map
+	length            int
+	pool              map[types.AccountID]*txList
+	dumpPath          string
+	status            int32
+	coinbasefee       *big.Int
+	bestChainIdHash   []byte
+	acceptChainIdHash []byte
+	isPublic          bool
+	whitelist         *whitelistConf
 	// followings are for test
 	testConfig bool
 	deadtx     int
 
-	quit chan bool
-	wg   sync.WaitGroup // wait for internal loop
+	quit              chan bool
+	wg                sync.WaitGroup // wait for internal loop
 }
 
 // NewMemPoolService create and return new MemPool
@@ -401,6 +402,7 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 		}
 		mp.bestBlockID = newBlockID
 		mp.bestBlockInfo = types.NewBlockHeaderInfo(block)
+		mp.acceptChainIdHash = common.Hasher(types.MakeChainId(block.GetHeader().GetChainID(), mp.nextBlockVersion()))
 		stateRoot := block.GetHeader().GetBlocksRootHash()
 		if mp.stateDB == nil {
 			mp.stateDB = mp.sdb.OpenNewStateDB(stateRoot)
@@ -419,7 +421,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			}
 			mp.Debug().Str("Hash", newBlockID.String()).
 				Str("StateRoot", types.ToHashID(stateRoot).String()).
-				Str("chainidhash", enc.ToString(mp.chainIdHash)).
+				Str("chainidhash", enc.ToString(mp.bestChainIdHash)).
+				Str("next chainidhash", enc.ToString(mp.acceptChainIdHash)).
 				Msg("new StateDB opened")
 		} else if !bytes.Equal(mp.stateDB.GetRoot(), stateRoot) {
 			if err := mp.stateDB.SetRoot(stateRoot); err != nil {
@@ -428,8 +431,8 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 		}
 
 		givenId := common.Hasher(block.GetHeader().GetChainID())
-		if !bytes.Equal(mp.chainIdHash, givenId) {
-			mp.chainIdHash = givenId
+		if !bytes.Equal(mp.bestChainIdHash, givenId) {
+			mp.bestChainIdHash = givenId
 			forked = true
 		}
 	}
@@ -509,7 +512,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 
 // signiture verification
 func (mp *MemPool) verifyTx(tx types.Transaction) error {
-	err := tx.Validate(mp.chainIdHash, mp.isPublic)
+	err := tx.Validate(mp.acceptChainIdHash, mp.isPublic)
 	if err != nil {
 		return err
 	}
@@ -567,7 +570,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 }
 
 func (mp *MemPool) nextBlockVersion() int32 {
-	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No)
+	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No+1)
 }
 
 // check tx sanity
@@ -637,8 +640,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			if err != nil {
 				return err
 			}
-			if _, err := system.ValidateSystemTx(account, tx.GetBody(),
-				sender, scs, mp.bestBlockInfo); err != nil {
+			nextBlockInfo := types.BlockHeaderInfo{
+				No:            mp.bestBlockInfo.No+1,
+				Version:       mp.nextBlockVersion(),
+			}
+			if _, err := system.ValidateSystemTx(account, tx.GetBody(), sender, scs, &nextBlockInfo); err != nil {
 				return err
 			}
 		case types.AergoName:
