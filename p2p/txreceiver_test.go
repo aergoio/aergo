@@ -50,7 +50,7 @@ func TestGetTxsReceiver_StartGet(t *testing.T) {
 			mockSM := p2pmock.NewMockSyncManager(ctrl)
 
 			expire := time.Now().Add(tt.ttl)
-			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, tt.input, tt.ttl)
+			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, logger, tt.input, tt.ttl)
 
 			br.StartGet()
 
@@ -118,7 +118,7 @@ func TestGetTxsReceiver_ReceiveResp(t *testing.T) {
 			mockSM := p2pmock.NewMockSyncManager(ctrl)
 
 			//expire := time.Now().Add(test.ttl)
-			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, test.input, time.Hour>>1)
+			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, logger, test.input, time.Hour>>1)
 			br.StartGet()
 
 			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetTXsResponse, sampleMsgID)
@@ -187,7 +187,7 @@ func TestGetTxsReceiver_ReceiveRespBusyRemote(t *testing.T) {
 				mockSM.EXPECT().RetryGetTx(gomock.Any(), gomock.AssignableToTypeOf([][]byte{})).Times(1)
 			}
 			//expire := time.Now().Add(test.ttl)
-			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, inputHashes, time.Minute>>1)
+			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, logger, inputHashes, time.Minute>>1)
 			br.StartGet()
 
 			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetTXsResponse, sampleMsgID)
@@ -241,7 +241,7 @@ func TestGetTxsReceiver_ReceiveRespTimeout(t *testing.T) {
 			}
 			mockSM := p2pmock.NewMockSyncManager(ctrl)
 			//expire := time.Now().Add(test.ttl)
-			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, test.input, test.ttl)
+			br := NewGetTxsReceiver(mockActor, mockPeer, mockSM, logger, test.input, test.ttl)
 			br.StartGet()
 
 			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetTXsResponse, sampleMsgID)

@@ -454,6 +454,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	mp.Lock()
 	defer mp.Unlock()
 
+
 	check := 0
 	dirty := map[types.AccountID]bool{}
 	reorg, fork := mp.setStateDB(block)

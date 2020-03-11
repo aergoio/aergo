@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
@@ -11,7 +10,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/rs/zerolog"
 	"runtime/debug"
 	"sort"
 	"time"
@@ -118,7 +116,6 @@ func (tm *syncTxManager) registerTxNotice(txs []*types.Tx) {
 		for _, tx := range txs {
 			tm.moveToMPCache(tx)
 		}
-		// tm.logger.Debug().Array("txIDs", types.NewLogTxIDsMarshaller(txIDs, 10)).Msg("syncManager caches txs")
 	}
 }
 
@@ -176,7 +173,7 @@ func (tm *syncTxManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, txIDs []ty
 
 func (tm *syncTxManager) sendGetTxs(peer p2pcommon.RemotePeer, ids []types.TxID) {
 	tm.logger.Debug().Int("tx_cnt", len(ids)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager request back unknown tx hashes")
-	receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, ids ,p2pcommon.DefaultActorMsgTTL)
+	receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, tm.logger, ids, p2pcommon.DefaultActorMsgTTL)
 	receiver.StartGet()
 }
 
@@ -247,12 +244,14 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 	bucket := message.MaxReqestHashes
 	var futures []interface{}
 
+	var inCache,inMempool = 0,0
 	// 1. first check in cache
 	for i, h := range reqHashes {
 		reqIDs[i] = types.ToTxID(h)
 		tx, ok := tm.txCache.Get(reqIDs[i])
 		if ok {
 			txs[reqIDs[i]] = tx.(*types.Tx)
+			inCache++
 		} else {
 			mpReqs = append(mpReqs,h)
 		}
@@ -283,11 +282,13 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 					continue
 				}
 				txs[types.ToTxID(tx.Hash)] = tx
+				inMempool++
 			}
 		} else {
 			tm.logger.Debug().Err(err).Msg("ErrExtract tx in future")
 		}
 	}
+	msgCnt :=0
 	for _, tid := range reqIDs {
 		tx, ok := txs[tid]
 		if !ok {
@@ -305,11 +306,12 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 				Status: status,
 				Hashes: hashes,
 				Txs:    txInfos, HasNext: true}
-			tm.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
+			tm.logger.Trace().Int(p2putil.LogTxCount, len(hashes)).
 				Str(p2putil.LogOrgReqID, mID.String()).Msg("Sending partial response")
 
 			remotePeer.SendMessage(remotePeer.MF().
 				NewMsgResponseOrder(mID, p2pcommon.GetTXsResponse, resp))
+			msgCnt++
 			hashes, txInfos, payloadSize = nil, nil, subproto.EmptyGetBlockResponseSize
 		}
 
@@ -318,18 +320,23 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 		payloadSize += fieldSize
 		idx++
 	}
+	// generate response message
 	if 0 == idx {
+		// if no tx is found, set status tu not found
 		status = types.ResultStatus_NOT_FOUND
 	}
-	tm.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-		Str(p2putil.LogOrgReqID, mID.String()).Str(p2putil.LogRespStatus, status.String()).Msg("Sending last part response")
-	// generate response message
-
 	resp := &types.GetTransactionsResponse{
 		Status: status,
 		Hashes: hashes,
 		Txs:    txInfos, HasNext: false}
+	tm.logger.Trace().Int(p2putil.LogTxCount, len(hashes)).
+		Str(p2putil.LogOrgReqID, mID.String()).Str(p2putil.LogRespStatus, status.String()).Msg("Sending last part response")
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(mID, p2pcommon.GetTXsResponse, resp))
+	msgCnt++
+	tm.logger.Debug().Int("respMsgCnt", msgCnt).
+		Int("inCache",inCache).Int("inMempool",inMempool).
+		Str(p2putil.LogOrgReqID, mID.String()).Str(p2putil.LogRespStatus, status.String()).
+		Msg("handled getTx query")
 }
 
 //
@@ -361,7 +368,6 @@ func (tm *syncTxManager) refineFrontCache() {
 		}
 		if tm.assignTxToPeer(info, sendMap) {
 			info.lastSent = now
-
 		}
 	}
 
@@ -375,9 +381,9 @@ func (tm *syncTxManager) refineFrontCache() {
 			continue
 		}
 		if peer, ok := tm.pm.GetPeer(peerID); ok {
-			tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager try to get tx to other peers")
+			tm.logger.Trace().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager try to get tx to other peers")
 			// create message data
-			receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, ids, p2pcommon.DefaultActorMsgTTL)
+			receiver := NewGetTxsReceiver(tm.actor, peer, tm.sm, tm.logger, ids, p2pcommon.DefaultActorMsgTTL)
 			receiver.StartGet()
 		} else {
 			// peer probably disconnected.
@@ -411,35 +417,13 @@ func (tm *syncTxManager) moveToMPCache(tx *types.Tx) {
 	txID := types.ToTxID(tx.Hash)
 	delete(tm.frontCache, txID)
 	tm.txCache.Add(txID, tx)
+	tm.logger.Trace().Str("txID", txID.String()).Msg("syncManager caches tx")
 }
 
 func appendPeerID(info *incomingTxNotice, peerID types.PeerID) {
 	info.peers = append(info.peers, peerID)
 	if len(info.peers) >= inTxPeerBufSize {
 		info.peers = info.peers[1:]
-	}
-}
-
-type logTXHashesMarshaler struct {
-	arr   []message.TXHash
-	limit int
-}
-
-func newLogTXHashesMarshaler(bbarray []message.TXHash, limit int) *logTXHashesMarshaler {
-	return &logTXHashesMarshaler{arr: bbarray, limit: limit}
-}
-
-func (m logTXHashesMarshaler) MarshalZerologArray(a *zerolog.Array) {
-	size := len(m.arr)
-	if size > m.limit {
-		for i := 0; i < m.limit-1; i++ {
-			a.Str(enc.ToString(m.arr[i]))
-		}
-		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
-	} else {
-		for _, element := range m.arr {
-			a.Str(enc.ToString(element))
-		}
 	}
 }
 
