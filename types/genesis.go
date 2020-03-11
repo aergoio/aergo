@@ -63,7 +63,7 @@ func (e errCidCodec) Error() string {
 
 // ChainID represents the identity of the chain.
 type ChainID struct {
-	Version   int32  `json:"-"`
+	Version   int32  `json:"version"`
 	PublicNet bool   `json:"public"`
 	MainNet   bool   `json:"mainnet"`
 	Magic     string `json:"magic"`
