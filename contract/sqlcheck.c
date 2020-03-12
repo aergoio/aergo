@@ -125,7 +125,10 @@ int sqlcheck_is_permitted_sql(const char *sql)
             if (end_offset == -1) {
                 return 0;
             }
-            if (strncmp(keyword, "TABLE", 5) == 0 || strncmp(keyword, "INDEX", 5) == 0) {
+            if (strncmp(keyword, "TABLE", 5) == 0
+                || strncmp(keyword, "INDEX", 5) == 0
+                || strncmp(keyword, "UNIQUE", 6) == 0
+                || strncmp(keyword, "VIEW", 4) == 0) {
                 return 1;
             } else {
                 return 0;

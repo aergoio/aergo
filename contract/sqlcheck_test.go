@@ -19,10 +19,13 @@ var testCases = map[string][2]bool{
 	"-- asdfasdf\n create table t (a bigint, b text)":             {true, false},
 	"insert\n-- asdfasdf\n create table t (a bigint, b text)":     {true, false},
 	"create trigger x ...":                                        {false, false},
-	"create view v ...":                                           {false, false},
+	"create view v ...":                                           {true, false},
 	"create temp table tt ...":                                    {false, false},
 	"create index":                                                {true, false},
 	"/* blah -- blah ... */ create index":                         {true, false},
+	"/* blah -- blah ... */ create unique index":                  {true, false},
+	" create /* blah -- blah ... */unique index":                  {true, false},
+	" create /* blah -- blah ... */unique table":                  {true, false},
 }
 
 func TestIsPermittedSql(t *testing.T) {
