@@ -5911,107 +5911,6 @@ func TestContractSendF(t *testing.T) {
 	}
 }
 
-func TestSqlView(t *testing.T) {
-	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
-	defer bc.Release()
-
-	definition := `
-function constructor()
-    db.exec("create table if not exists numbers(n int)")
-	db.exec("insert into numbers values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)")
-	db.exec("create view numbers5gt as select n from numbers where n > 5")
-end
-
-function count(view)
-	local rs = nil
-	if view then
-		rs = db.query("select sum(n) from numbers5gt")
-	else
-		rs = db.query("select sum(n) from numbers")
-	end
-	if rs:next() then
-		local n = rs:get()
-		return n
-	else
-		return "error in count()"
-	end
-end
-
-abi.register_view(count)`
-
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDef("ktlee", "ddl", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.Query(
-		"ddl",
-		`{"Name": "count", "Args":[false]}`,
-		"",
-		`55`,
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.Query(
-		"ddl",
-		`{"Name": "count", "Args":[true]}`,
-		"",
-		`40`,
-	)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestSqlUniqueIndex(t *testing.T) {
-	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
-	defer bc.Release()
-
-	definition := `
-function constructor()
-    db.exec("create table if not exists numbers(n int)")
-	db.exec("insert into numbers values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)")
-	db.exec("create unique index numbers_ui on numbers(n)")
-end
-
-function insert(n)
-	db.exec("insert into numbers values (?)", n)
-end
-
-abi.register(insert)`
-
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDef("ktlee", "uidx", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "uidx", 0, `{"Name": "insert", "Args":[11]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "uidx", 0, `{"Name": "insert", "Args":[11]}`).Fail("UNIQUE constraint failed: numbers.n"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-}
 /*
 func TestFeeDelegationLoop(t *testing.T) {
 	definition := `
@@ -6068,4 +5967,39 @@ func TestFeeDelegationLoop(t *testing.T) {
 	}
 }
 */
+
+func TestSqlAutoincrement(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function init()
+    db.exec("create table if not exists auto_test (a integer primary key autoincrement, b text)")
+	local n = db.exec("insert into auto_test(b) values (?),(?)", 10000, 1)
+	assert(n == 2, "change count mismatch");
+end
+
+function get()
+	db.exec("insert into auto_test(b) values ('ss')")
+	assert(db.last_insert_rowid() == 3, "id is not valid")
+end
+
+abi.register(init, get)`
+
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "auto", 0, definition),
+		NewLuaTxCall("ktlee", "auto", 0, `{"Name":"init"}`),
+	)
+
+	tx := NewLuaTxCall("ktlee", "auto", 0, `{"Name":"get"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

@@ -582,6 +582,17 @@ static int db_open_with_snapshot(lua_State *L)
     return 1;
 }
 
+static int db_last_insert_rowid(lua_State *L)
+{
+    sqlite3 *db;
+    sqlite3_int64 id;
+    db = vm_get_db(L);
+
+    id = sqlite3_last_insert_rowid(db);
+    lua_pushinteger(L, id);
+    return 1;
+}
+
 int lua_db_release_resource(lua_State *L)
 {
     lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY);
@@ -636,6 +647,7 @@ int luaopen_db(lua_State *L)
         {"prepare", db_prepare},
         {"getsnap", db_get_snapshot},
         {"open_with_snapshot", db_open_with_snapshot},
+        {"last_insert_rowid", db_last_insert_rowid},
         {NULL, NULL}
     };
 
