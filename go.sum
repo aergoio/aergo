@@ -23,6 +23,8 @@ github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7 h1:dYRi21hTS3f
 github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7/go.mod h1:/nqZcvcM0UipJRnUm61LrQ8rC7IyBr8mfx5F00sCbvs=
 github.com/aergoio/aergo-lib v1.0.1 h1:StyKUQuXsqrydggHa9DWXSdUTcY4f6yB1snugHjyp1E=
 github.com/aergoio/aergo-lib v1.0.1/go.mod h1:hxL0B2opPLGkc1e0hdxiQNM5shqrxSrFA7cj1UJ1/m4=
+github.com/aergoio/aergo-lib v1.0.2 h1:Zp0hGS+SCdURCgAsXAjXQedq5JBSrslZWIkXXaM84sc=
+github.com/aergoio/aergo-lib v1.0.2/go.mod h1:hxL0B2opPLGkc1e0hdxiQNM5shqrxSrFA7cj1UJ1/m4=
 github.com/aergoio/badger v1.6.0-gcfix h1:VUUwHyUpjfA7WbEqNsjH69R2mgNlSqhLN3xe3UWOQmQ=
 github.com/aergoio/badger v1.6.0-gcfix/go.mod h1:GwmHJc3SDzMZotppuSPcMT1HY9+SYt7nlDP2QevCbx4=
 github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399 h1:dJSTOiNe0xJFreGUBSh4bY3KGDxjilUVxAKqjij1pcw=
