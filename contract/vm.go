@@ -44,18 +44,18 @@ import (
 )
 
 const (
-	maxContext           = 20
 	callMaxInstLimit     = C.int(5000000)
 	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
-	maxCallDepth         = 5
+	MaxCallDepth         = 5
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
 )
 
 var (
+	maxContext     int
 	ctrLgr         *log.Logger
-	contexts       [maxContext]*vmContext
+	contexts       []*vmContext
 	lastQueryIndex int
 	querySync      sync.Mutex
 )
@@ -137,6 +137,11 @@ type executor struct {
 func init() {
 	ctrLgr = log.NewLogger("contract")
 	lastQueryIndex = ChainService
+}
+
+func InitContext(numCtx int) {
+	maxContext = numCtx
+	contexts = make([]*vmContext, maxContext)
 }
 
 func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount *big.Int) *contractInfo {
@@ -276,12 +281,12 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
-	if ctx.callDepth > maxCallDepth {
+	if ctx.callDepth > MaxCallDepth {
 		ce := &executor{
 			code: contract,
 			ctx:  ctx,
 		}
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", maxCallDepth)
+		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth)
 		return ce
 	}
 	ctx.callDepth++

@@ -120,6 +120,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		ForceResetHeight: 0,
 		ZeroFee:          true, // deprecated
 		StateTrace:       0,
+		NumWorkers:       runtime.NumCPU(),
 	}
 }
 

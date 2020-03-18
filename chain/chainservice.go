@@ -244,7 +244,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.validator = NewBlockValidator(cs, cs.sdb, cs.cfg.Blockchain.VerifyBlock != 0)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
-	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
+	cs.chainWorker = newChainWorker(cs, cs.cfg.Blockchain.NumWorkers, cs.Core)
 	// TODO set VerifyOnly true if cs.cfg.Blockchain.VerifyBlock is not 0
 	if verifyMode {
 		if cs.cfg.Consensus.EnableBp {
@@ -290,8 +290,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.StartLStateFactory()
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers + 2) * (contract.MaxCallDepth + 2))
 	contract.HardforkConfig = cs.cfg.Hardfork
+	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
