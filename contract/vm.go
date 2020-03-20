@@ -653,6 +653,9 @@ func (ce *executor) rollbackToSavepoint() error {
 		}
 		err = v.tx.rollbackToSavepoint()
 		if err != nil {
+			if strings.HasPrefix(err.Error(), "no such savepoint") {
+				_ = v.tx.begin()
+			}
 			return newVmError(err)
 		}
 	}
@@ -761,7 +764,6 @@ func Call(
 	if err != nil {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Str("contract", types.EncodeAddress(contractAddress)).Msg("rollback state")
-			err = dbErr
 		}
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
@@ -858,7 +860,6 @@ func PreCall(
 				"contract",
 				types.EncodeAddress(ctx.curContract.contractId),
 			).Msg("pre-call")
-			err = dbErr
 		}
 	}
 	if ctx.traceFile != nil {
@@ -979,7 +980,6 @@ func Create(
 		ctrLgr.Debug().Msg("constructor is failed")
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Msg("rollback state")
-			err = dbErr
 		}
 
 		if ctx.traceFile != nil {

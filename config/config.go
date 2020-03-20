@@ -159,7 +159,7 @@ func (ctx *ServerContext) GetDefaultHardforkConfig() *HardforkConfig {
 
 func (ctx *ServerContext) GetDefaultSQLConfig() *SQLConfig {
 	return &SQLConfig{
-		MaxDbSize: 20,
+		MaxDbSize: 4 * 1024 * 1024,
 	}
 }
 
