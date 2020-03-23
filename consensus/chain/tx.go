@@ -206,6 +206,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	if err := bState.Update(); err != nil {
 		return nil, err
 	}
+	contract.ContractCacheClear(bState.GetContractCacheList())
 
 	return txRes, nil
 }

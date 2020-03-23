@@ -918,3 +918,11 @@ func ValidateGenesis(genesis *types.Genesis) error {
 
 	return nil
 }
+
+func (bf *BlockFactory) GetLibBlockNo() types.BlockNo {
+	b, err := bf.GetBestBlock()
+	if err != nil {
+		return types.MAXBLOCKNO
+	}
+	return b.BlockNo()
+}

@@ -157,6 +157,7 @@ type ChainConsensus interface {
 	IsConnectedBlock(block *types.Block) bool
 	IsForkEnable() bool
 	Info() string
+	GetLibBlockNo() types.BlockNo
 }
 
 type ChainConsensusCluster interface {

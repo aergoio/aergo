@@ -210,6 +210,10 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 	return events, nil
 }
 
+func (cs *ChainService) getLibBlockNo() types.BlockNo {
+	return cs.ChainConsensus.GetLibBlockNo()
+}
+
 type chainProcessor struct {
 	*ChainService
 	block       *types.Block // starting block
@@ -588,6 +592,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		bState = state.NewBlockState(
 			cs.sdb.OpenNewStateDB(cs.sdb.GetRoot()),
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
+			state.SetLibNo(cs.GetLibBlockNo()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
 		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
@@ -603,6 +608,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 	}
 	bState.SetGasPrice(system.GetGasPriceFromState(bState))
 	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
+	bState.SetLibNo(cs.getLibBlockNo())
 
 	return &blockExecutor{
 		BlockState:       bState,
@@ -683,6 +689,7 @@ func (e *blockExecutor) execute() error {
 		if err := e.Update(); err != nil {
 			return err
 		}
+		contract.ContractCacheClear(e.BlockState.GetContractCacheList())
 	}
 
 	if err := e.validatePost(); err != nil {
@@ -733,6 +740,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 		return err
 	}
 	bstate = bstate.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash())
+	bstate.SetLibNo(cs.GetLibBlockNo())
 	// TODO refactoring: receive execute function as argument (executeBlock or executeBlockReco)
 	ex, err := newBlockExecutor(cs, bstate, block, false)
 	if err != nil {

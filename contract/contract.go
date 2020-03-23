@@ -125,7 +125,8 @@ func Execute(
 		if err = checkRedeploy(sender, receiver, contractState); err != nil {
 			return
 		}
-		bs.RemoveCache(receiver.AccountID())
+		bs.AddContractCacheClear(receiver.AccountID())
+		bs.SetLibNo(0)
 	}
 
 	var ex *executor

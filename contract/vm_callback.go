@@ -36,8 +36,6 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
-
 	"github.com/aergoio/aergo/internal/common"
 
 	"github.com/aergoio/aergo/contract/name"
@@ -52,6 +50,7 @@ import (
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
 	creatorMetaKey             = []byte("Creator")
+	createBlkMetaKey           = []byte("CreatedBlock")
 )
 
 const (
@@ -267,9 +266,9 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] getAccount error: " + err.Error())
 	}
 
-	callee := getContract(cs.ctrState, ctx.bs)
-	if callee == nil {
-		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
+	callee, abi, err := GetABI(cs.ctrState, ctx.bs)
+	if err != nil {
+		return -1, C.CString("[Contract.LuaCallContract] " + err.Error() + ":" + C.GoString(contractId))
 	}
 
 	prevContractInfo := ctx.curContract
@@ -282,7 +281,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	refreshGas(ctx, L)
-	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
+	ce := newExecutor(callee, abi, cid, ctx, &ci, amountBig, false, false)
 	defer func() {
 		ce.close()
 		moveGas(L, ctx)
@@ -368,9 +367,9 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
-	contract := getContract(contractState, ctx.bs)
-	if contract == nil {
-		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
+	contract, abi, err := GetABI(contractState, ctx.bs)
+	if err != nil {
+		return -1, C.CString("[Contract.LuaDelegateCallContract] " + err.Error() + ":" + contractIdStr)
 	}
 
 	var ci types.CallInfo
@@ -381,7 +380,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	}
 
 	refreshGas(ctx, L)
-	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
+	ce := newExecutor(contract, abi, cid, ctx, &ci, zeroBig, false, false)
 	defer func() {
 		ce.close()
 		moveGas(L, ctx)
@@ -472,13 +471,13 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 		var ci types.CallInfo
 		ci.Name = "default"
-		code := getContract(cs.ctrState, ctx.bs)
-		if code == nil {
-			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
+		code, abi, err := GetABI(cs.ctrState, ctx.bs)
+		if err != nil {
+			return C.CString("[Contract.LuaSendAmount] " + err.Error() + ":" + C.GoString(contractId))
 		}
 
 		refreshGas(ctx, L)
-		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
+		ce := newExecutor(code, abi, cid, ctx, &ci, amountBig, false, false)
 		defer func() {
 			ce.close()
 			moveGas(L, ctx)
@@ -1101,8 +1100,6 @@ func luaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract] invalid args:" + err.Error())
 	}
-	runCode := util.LuaCode(code).ByteCode()
-
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if rv := sendBalance(L, senderState, cs.curState, amountBig); rv != nil {
@@ -1132,13 +1129,21 @@ func luaDeployContract(
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
+	runCode, abi, err := GetABI(contractState, nil)
+	if err != nil {
+		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
+	}
 	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
-
+	// hardfork
+	err = contractState.SetData(createBlkMetaKey, types.BlockNoToBytes(ctx.blockInfo.No))
+	if err != nil {
+		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
+	}
 	refreshGas(ctx, L)
-	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
+	ce := newExecutor(runCode, abi, newContract.ID(), ctx, &ci, amountBig, true, false)
 	defer func() {
 		ce.close()
 		moveGas(L, ctx)

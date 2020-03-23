@@ -186,6 +186,7 @@ func (s *SimpleBlockFactory) Start() {
 				blockState := s.sdb.NewBlockState(
 					prevBlock.GetHeader().GetBlocksRootHash(),
 					state.SetPrevBlockHash(prevBlock.BlockHash()),
+					state.SetLibNo(s.GetLibBlockNo()),
 				)
 				blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
@@ -266,6 +267,14 @@ func (s *SimpleBlockFactory) MakeConfChangeProposal(req *types.MembershipChange)
 
 func (s *SimpleBlockFactory) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoResponse {
 	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
+}
+
+func (s *SimpleBlockFactory) GetLibBlockNo() types.BlockNo {
+	b, err := s.GetBestBlock()
+	if err != nil {
+		return 0
+	}
+	return b.BlockNo()
 }
 
 func ValidateGenesis(genesis *types.Genesis) error {

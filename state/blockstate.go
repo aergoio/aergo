@@ -5,7 +5,6 @@ import (
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
-	"github.com/bluele/gcache"
 	"github.com/willf/bloom"
 )
 
@@ -18,16 +17,16 @@ type BlockInfo struct {
 // BlockState contains BlockInfo and statedb for block
 type BlockState struct {
 	StateDB
-	BpReward      big.Int // final bp reward, increment when tx executes
-	receipts      types.Receipts
-	CCProposal    *consensus.ConfChangePropose
-	prevBlockHash []byte
-	consensus     []byte // Consensus Header
-	GasPrice      *big.Int
+	BpReward               big.Int // final bp reward, increment when tx executes
+	receipts               types.Receipts
+	CCProposal             *consensus.ConfChangePropose
+	prevBlockHash          []byte
+	consensus              []byte // Consensus Header
+	GasPrice               *big.Int
+	LibNo                  types.BlockNo
+	contractCacheClearList []types.AccountID
 
 	timeoutTx types.Transaction
-	codeCache gcache.Cache
-	abiCache  gcache.Cache
 }
 
 // GetStateRoot return bytes of bi.StateRoot
@@ -52,12 +51,16 @@ func SetGasPrice(gasPrice *big.Int) BlockStateOptFn {
 	}
 }
 
+func SetLibNo(no types.BlockNo) BlockStateOptFn {
+	return func(s *BlockState) {
+		s.SetLibNo(no)
+	}
+}
+
 // NewBlockState create new blockState contains blockInfo, account states and undo states
 func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
 	b := &BlockState{
-		StateDB:   *states,
-		codeCache: gcache.New(100).LRU().Build(),
-		abiCache:  gcache.New(100).LRU().Build(),
+		StateDB: *states,
 	}
 	for _, opt := range options {
 		opt(b)
@@ -112,6 +115,13 @@ func (bs *BlockState) SetGasPrice(gasPrice *big.Int) *BlockState {
 	return bs
 }
 
+func (bs *BlockState) SetLibNo(no types.BlockNo) *BlockState {
+	if bs != nil {
+		bs.LibNo = no
+	}
+	return bs
+}
+
 func (bs *BlockState) TimeoutTx() types.Transaction {
 	if bs == nil {
 		return nil
@@ -127,46 +137,10 @@ func (bs *BlockState) PrevBlockHash() []byte {
 	return bs.prevBlockHash
 }
 
-func (bs *BlockState) GetCode(key types.AccountID) []byte {
-	if bs == nil {
-		return nil
-	}
-	code, err := bs.codeCache.Get(key)
-	if err != nil {
-		return nil
-	}
-	return code.([]byte)
+func (bs *BlockState) AddContractCacheClear(key types.AccountID) {
+	bs.contractCacheClearList = append(bs.contractCacheClearList, key)
 }
 
-func (bs *BlockState) AddCode(key types.AccountID, code []byte) {
-	if bs == nil {
-		return
-	}
-	bs.codeCache.Set(key, code)
-}
-
-func (bs *BlockState) GetABI(key types.AccountID) *types.ABI {
-	if bs == nil {
-		return nil
-	}
-	abi, err := bs.abiCache.Get(key)
-	if err != nil {
-		return nil
-	}
-	return abi.(*types.ABI)
-}
-
-func (bs *BlockState) AddABI(key types.AccountID, abi *types.ABI) {
-	if bs == nil {
-		return
-	}
-	bs.abiCache.Set(key, abi)
-}
-
-func (bs *BlockState) RemoveCache(key types.AccountID) {
-	if bs == nil {
-		return
-	}
-	bs.codeCache.Remove(key)
-	bs.abiCache.Remove(key)
+func (bs *BlockState) GetContractCacheList() []types.AccountID {
+	return bs.contractCacheClearList
 }

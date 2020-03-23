@@ -188,6 +188,7 @@ type IChainHandler interface {
 	setSkipMempool(val bool)
 	listEvents(filter *types.FilterInfo) ([]*types.Event, error)
 	verifyBlock(block *types.Block) error
+	getLibBlockNo() types.BlockNo
 }
 
 // ChainService manage connectivity of blocks
@@ -779,7 +780,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		}
 		contractState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
 		if err == nil {
-			abi, err := contract.GetABI(contractState, nil)
+			_, abi, err := contract.GetABI(contractState, nil)
 			context.Respond(message.GetABIRsp{
 				ABI: abi,
 				Err: err,
@@ -798,15 +799,16 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 			break
 		}
+		libBlockNo := cw.getLibBlockNo()
 		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
-			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
-			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
+			break
 		}
+		bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()), state.SetLibNo(libBlockNo))
+		ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
+		context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 	case *message.GetStateQuery:
 		var varProofs []*types.ContractVarProof
 		var contractProof *types.AccountProof
@@ -890,12 +892,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
+		libBlockNo := cw.getLibBlockNo()
 		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		} else {
-			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()), state.SetLibNo(libBlockNo))
 			err := contract.CheckFeeDelegation(msg.Contract, bs, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		}

@@ -3616,7 +3616,7 @@ abi.payable(constructor)
 		t.Error("nonce rollback failed", deployAcc.Nonce)
 	}
 	receipt = bc.GetReceipt(tx.Hash())
-	if !strings.Contains(receipt.GetRet(), "cannot find contract") {
+	if !strings.Contains(receipt.GetRet(), "not found contract") {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 }

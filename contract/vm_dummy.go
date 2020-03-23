@@ -140,7 +140,8 @@ func (bc *DummyChain) GetABI(contract string) (*types.ABI, error) {
 	if err != nil {
 		return nil, err
 	}
-	return GetABI(cState, nil)
+	_, abi, err := GetABI(cState, nil)
+	return abi, err
 }
 
 func (bc *DummyChain) GetEvents(txhash []byte) []*types.Event {

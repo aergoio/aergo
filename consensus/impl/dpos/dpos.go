@@ -470,6 +470,10 @@ func (dpos *DPoS) ClusterInfo(bestBlockHash []byte) *types.GetClusterInfoRespons
 	return &types.GetClusterInfoResponse{ChainID: nil, Error: consensus.ErrNotSupportedMethod.Error(), MbrAttrs: nil, HardStateInfo: nil}
 }
 
+func (dpos *DPoS) GetLibBlockNo() types.BlockNo {
+	return dpos.libNo()
+}
+
 func ValidateGenesis(genesis *types.Genesis) error {
 	return nil
 }
