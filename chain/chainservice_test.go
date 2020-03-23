@@ -64,6 +64,9 @@ func (stubC *StubConsensus) IsConnectedBlock(block *types.Block) bool {
 func (stubC *StubConsensus) IsForkEnable() bool {
 	return true
 }
+func (stubC *StubConsensus) GetLibBlockNo() types.BlockNo {
+	return 0
+}
 
 func (stubC *StubConsensus) MakeConfChangeProposal(req *types.MembershipChange) (*consensus.ConfChangePropose, error) {
 	return nil, consensus.ErrNotSupportedMethod
