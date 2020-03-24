@@ -922,7 +922,7 @@ func ValidateGenesis(genesis *types.Genesis) error {
 func (bf *BlockFactory) GetLibBlockNo() types.BlockNo {
 	b, err := bf.GetBestBlock()
 	if err != nil {
-		return types.MAXBLOCKNO
+		return 0
 	}
 	return b.BlockNo()
 }

@@ -6,7 +6,10 @@ package contract
 #include "vm.h"
 */
 import "C"
-import "sync"
+import (
+	"runtime"
+	"sync"
+)
 
 var getCh chan *LState
 var freeCh chan *LState
@@ -22,7 +25,9 @@ func StartLStateFactory(num int) {
 		for i := 0; i < num; i++ {
 			getCh <- newLState()
 		}
-		go statePool()
+		for i := 0; i < runtime.NumCPU()/2; i++ {
+			go statePool()
+		}
 	})
 }
 

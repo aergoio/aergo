@@ -211,7 +211,7 @@ func (cs *ChainService) listEvents(filter *types.FilterInfo) ([]*types.Event, er
 }
 
 func (cs *ChainService) getLibBlockNo() types.BlockNo {
-	return cs.ChainConsensus.GetLibBlockNo()
+	return cs.GetLibBlockNo()
 }
 
 type chainProcessor struct {
