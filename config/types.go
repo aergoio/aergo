@@ -107,6 +107,7 @@ type BlockchainConfig struct {
 	StateTrace       uint64 `mapstructure:"statetrace" description:"dump trace of setting state"`
 	VerifyBlock      uint64 `mapstructure:"verifyblock" description:"In verify only mode, server verifies given block of disk. server never modifies block chain'"`
 	NumWorkers       int    `mapstructure:"numworkers" description:"maximum worker count for chainservice"`
+	NumLStateClosers int    `mapstructure:"numclosers" description:"maximum LuaVM state closer count for chainservice"`
 }
 
 // MempoolConfig defines configurations for mempool service
@@ -233,6 +234,7 @@ maxanchorcount = "{{.Blockchain.MaxAnchorCount}}"
 verifiercount = "{{.Blockchain.VerifierCount}}"
 forceresetheight = "{{.Blockchain.ForceResetHeight}}"
 numworkers = "{{.Blockchain.NumWorkers}}"
+numclosers = "{{.Blockchain.NumLStateClosers}}"
 
 [mempool]
 showmetrics = {{.Mempool.ShowMetrics}}

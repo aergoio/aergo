@@ -6,13 +6,16 @@ package contract
 #include "vm.h"
 */
 import "C"
-import "sync"
+import (
+	"runtime"
+	"sync"
+)
 
 var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-func StartLStateFactory(num int) {
+func StartLStateFactory(num int, numClosers int) {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
@@ -22,7 +25,9 @@ func StartLStateFactory(num int) {
 		for i := 0; i < num; i++ {
 			getCh <- newLState()
 		}
-		go statePool()
+		for i := 0; i < runtime.NumCPU()/2; i++ {
+			go statePool()
+		}
 	})
 }
 

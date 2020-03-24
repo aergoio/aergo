@@ -111,6 +111,10 @@ func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 	}
 }
 
+func GetDefaultNumLStateClosers() int {
+	return runtime.NumCPU() / 2
+}
+
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 	return &BlockchainConfig{
 		MaxBlockSize:     types.DefaultMaxBlockSize,
@@ -121,6 +125,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		ZeroFee:          true, // deprecated
 		StateTrace:       0,
 		NumWorkers:       runtime.NumCPU(),
+		NumLStateClosers: GetDefaultNumLStateClosers(),
 	}
 }
 
