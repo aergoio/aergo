@@ -674,3 +674,40 @@ func Test_peerManager_updatePeerCache(t *testing.T) {
 
 	}
 }
+
+func Test_slowPush(t *testing.T) {
+	type args struct {
+	}
+	tests := []struct {
+		name string
+		args int
+		stop int
+
+		wantPush int
+	}{
+		{"TSmall",10, 0,1},
+		{"TMod",1000, 0,1},
+		{"TBig",3669, 0,4},
+		{"TBig2",4000, 0,4},
+		{"THuge",179999,0,180},
+		{"TDiscon",10000,3,3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
+			mockPeer.EXPECT().PushTxsNotice(gomock.Any()).Times(tt.wantPush)
+			if tt.stop == 0 {
+				mockPeer.EXPECT().State().Return(types.RUNNING).Times(tt.wantPush)
+			} else {
+				c1 := mockPeer.EXPECT().State().Return(types.RUNNING).Times(tt.stop)
+				mockPeer.EXPECT().State().Return(types.STOPPING).After(c1)
+			}
+
+			hashes := make([]types.TxID, tt.args)
+			slowPush(mockPeer, hashes, 0)
+		})
+	}
+}
