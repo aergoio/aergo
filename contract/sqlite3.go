@@ -163,7 +163,6 @@ import (
 	"net/url"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -953,7 +952,6 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 
 	// PRAGMA's
 	queryOnly := -1
-	mxPgNo := 0
 
 	pos := strings.IndexRune(dsn, '?')
 	if pos >= 1 {
@@ -974,19 +972,6 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 				queryOnly = 1
 			default:
 				return nil, fmt.Errorf("Invalid _query_only: %v, expecting boolean value of '0 1 false true no yes off on'", val)
-			}
-		}
-		if val := params.Get("max_db_size"); val != "" {
-			var max_db_size int64
-			max_db_size, err = strconv.ParseInt(val, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid max_db_size: %v", val)
-			}
-			pgNo := max_db_size / int64(4096)
-			if pgNo > int64(1073741823) {
-				mxPgNo = 1073741823
-			} else {
-				mxPgNo = int(pgNo)
 			}
 		}
 
@@ -1050,13 +1035,6 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	// Query Only
 	if queryOnly > -1 {
 		if err := exec(fmt.Sprintf("PRAGMA query_only = %d;", queryOnly)); err != nil {
-			C.sqlite3_close_v2(db)
-			return nil, err
-		}
-	}
-
-	if mxPgNo > 0 {
-		if err := exec(fmt.Sprintf("PRAGMA max_page_count = %d;", mxPgNo)); err != nil {
 			C.sqlite3_close_v2(db)
 			return nil, err
 		}

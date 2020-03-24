@@ -3842,7 +3842,6 @@ abi.register(inserts)
 		}
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "big20", 0, `{"Name": "inserts"}`),
 		NewLuaTxCall("ktlee", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"),
 	)
 	if err != nil {
