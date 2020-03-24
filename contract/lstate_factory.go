@@ -7,7 +7,6 @@ package contract
 */
 import "C"
 import (
-	"runtime"
 	"sync"
 )
 
@@ -25,7 +24,7 @@ func StartLStateFactory(num int, numClosers int) {
 		for i := 0; i < num; i++ {
 			getCh <- newLState()
 		}
-		for i := 0; i < runtime.NumCPU()/2; i++ {
+		for i := 0; i < numClosers; i++ {
 			go statePool()
 		}
 	})
