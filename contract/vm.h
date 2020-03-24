@@ -12,6 +12,7 @@ extern const char *construct_name;
 #define ERR_BF_TIMEOUT "contract timeout"
 
 lua_State *vm_newstate();
+void vm_closestates(lua_State* s[], int count);
 int vm_autoload(lua_State *L, char *func_name);
 void vm_remove_constructor(lua_State *L);
 const char *vm_loadbuff(lua_State *L, const char *code, size_t sz, char *hex_id, int service);

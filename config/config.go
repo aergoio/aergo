@@ -112,7 +112,18 @@ func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 }
 
 func GetDefaultNumLStateClosers() int {
-	return 1
+	const (
+		occupationFactor = 8
+		minClosers       = 1
+	)
+	if n := runtime.NumCPU() / occupationFactor; n >= minClosers {
+		return n
+	}
+	return minClosers
+}
+
+func GetDefaultCloseLimit() int {
+	return 100
 }
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
@@ -126,6 +137,7 @@ func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
 		StateTrace:       0,
 		NumWorkers:       runtime.NumCPU(),
 		NumLStateClosers: GetDefaultNumLStateClosers(),
+		CloseLimit:       GetDefaultCloseLimit(),
 	}
 }
 

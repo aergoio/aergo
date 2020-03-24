@@ -22,7 +22,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/minio/sha256-simd"
+	sha256 "github.com/minio/sha256-simd"
 )
 
 type DummyChain struct {
@@ -82,7 +82,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	loadTestDatabase(dataPath) // sql database
 	SetStateSQLMaxDBSize(1024)
-	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers())
+	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), config.GetDefaultCloseLimit())
 	InitContext(3)
 
 	HardforkConfig = config.AllEnabledHardforkConfig
