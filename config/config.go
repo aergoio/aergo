@@ -112,7 +112,7 @@ func (ctx *ServerContext) GetDefaultPolarisConfig() *PolarisConfig {
 }
 
 func GetDefaultNumLStateClosers() int {
-	return runtime.NumCPU() / 2
+	return 1
 }
 
 func (ctx *ServerContext) GetDefaultBlockchainConfig() *BlockchainConfig {
