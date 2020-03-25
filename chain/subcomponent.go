@@ -18,10 +18,6 @@ type SubComponent struct {
 	count int
 }
 
-const (
-	defaultChainWorkerCount = 5
-)
-
 func NewSubComponent(subactor actor.Actor, requester *component.BaseComponent, name string, cntWorker int) *SubComponent {
 	return &SubComponent{
 		Actor:               subactor,

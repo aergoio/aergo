@@ -73,6 +73,15 @@ lua_State *vm_newstate()
 	return L;
 }
 
+void vm_closestates(lua_State* s[], int count)
+{
+    int i;
+
+    for (i = 0; i < count; ++i)
+        if (s[i] != NULL)
+            lua_close(s[i]);
+}
+
 void initViewFunction()
 {
     lj_internal_view_start = vm_internal_view_start;

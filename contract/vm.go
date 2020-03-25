@@ -44,18 +44,18 @@ import (
 )
 
 const (
-	maxContext           = 20
 	callMaxInstLimit     = C.int(5000000)
 	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
-	maxCallDepth         = 5
+	MaxCallDepth         = 5
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
 )
 
 var (
+	maxContext     int
 	ctrLgr         *log.Logger
-	contexts       [maxContext]*vmContext
+	contexts       []*vmContext
 	lastQueryIndex int
 	querySync      sync.Mutex
 )
@@ -119,7 +119,6 @@ type recoveryEntry struct {
 }
 
 type LState = C.struct_lua_State
-
 type executor struct {
 	L          *LState
 	code       []byte
@@ -137,6 +136,11 @@ type executor struct {
 func init() {
 	ctrLgr = log.NewLogger("contract")
 	lastQueryIndex = ChainService
+}
+
+func InitContext(numCtx int) {
+	maxContext = numCtx
+	contexts = make([]*vmContext, maxContext)
 }
 
 func newContractInfo(cs *callState, sender, contractId []byte, rp uint64, amount *big.Int) *contractInfo {
@@ -242,6 +246,34 @@ func (L *LState) close() {
 	}
 }
 
+type lStatesBuffer struct {
+	s     []*LState
+	limit int
+}
+
+func newLStatesBuffer(limit int) *lStatesBuffer {
+	return &lStatesBuffer{
+		s:     make([]*LState, 0),
+		limit: limit,
+	}
+}
+
+func (Ls *lStatesBuffer) len() int {
+	return len(Ls.s)
+}
+
+func (Ls *lStatesBuffer) append(s *LState) {
+	Ls.s = append(Ls.s, s)
+	if Ls.len() == Ls.limit {
+		Ls.close()
+	}
+}
+
+func (Ls *lStatesBuffer) close() {
+	C.vm_closestates(&Ls.s[0], C.int(len(Ls.s)))
+	Ls.s = Ls.s[:0]
+}
+
 func resolveFunction(contractState *state.ContractState, bs *state.BlockState, name string, constructor bool) (*types.Function, error) {
 	abi, err := GetABI(contractState, bs)
 	if err != nil {
@@ -276,12 +308,12 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
-	if ctx.callDepth > maxCallDepth {
+	if ctx.callDepth > MaxCallDepth {
 		ce := &executor{
 			code: contract,
 			ctx:  ctx,
 		}
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", maxCallDepth)
+		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth)
 		return ce
 	}
 	ctx.callDepth++
@@ -648,6 +680,9 @@ func (ce *executor) rollbackToSavepoint() error {
 		}
 		err = v.tx.rollbackToSavepoint()
 		if err != nil {
+			if strings.HasPrefix(err.Error(), "no such savepoint") {
+				_ = v.tx.begin()
+			}
 			return newVmError(err)
 		}
 	}
@@ -756,7 +791,6 @@ func Call(
 	if err != nil {
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Str("contract", types.EncodeAddress(contractAddress)).Msg("rollback state")
-			err = dbErr
 		}
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
@@ -853,7 +887,6 @@ func PreCall(
 				"contract",
 				types.EncodeAddress(ctx.curContract.contractId),
 			).Msg("pre-call")
-			err = dbErr
 		}
 	}
 	if ctx.traceFile != nil {
@@ -974,7 +1007,6 @@ func Create(
 		ctrLgr.Debug().Msg("constructor is failed")
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Msg("rollback state")
-			err = dbErr
 		}
 
 		if ctx.traceFile != nil {

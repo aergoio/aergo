@@ -439,6 +439,7 @@ func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {
 	}
 }
 
+//
 func (p *remotePeerImpl) trySendTxNotices() {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
