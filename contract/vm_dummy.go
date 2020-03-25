@@ -82,7 +82,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	loadTestDatabase(dataPath) // sql database
 	SetStateSQLMaxDBSize(1024)
-	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), config.GetDefaultCloseLimit())
+	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
 	InitContext(3)
 
 	HardforkConfig = config.AllEnabledHardforkConfig
