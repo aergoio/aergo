@@ -8,6 +8,7 @@ package subproto
 import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/rs/zerolog"
 	"time"
 )
@@ -29,8 +30,8 @@ func (a *LogHandleTimeAdvice) PreHandle() {
 
 func (a *LogHandleTimeAdvice) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	a.logger.WithLevel(a.level).
-		Str("elapsed", time.Since(a.timestamp).String()).
-		Str("protocol", msg.Subprotocol().String()).
-		Str("msgid", msg.ID().String()).
+		Int64("elapsed", time.Since(a.timestamp).Microseconds()).
+		Str(p2putil.LogProtoID, msg.Subprotocol().String()).
+		Str(p2putil.LogMsgID, msg.ID().String()).
 		Msg("handle takes")
 }

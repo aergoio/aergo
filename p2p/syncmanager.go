@@ -14,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	lru "github.com/hashicorp/golang-lru"
+	"time"
 )
 
 const inTxPeerBufSize = 4
@@ -132,3 +133,27 @@ func (sm *syncManager) RetryGetTx(peer p2pcommon.RemotePeer, hashes [][]byte) {
 }
 
 
+func (sm *syncManager) Summary() map[string]interface{} {
+	type sizes struct {
+		fcSize, qSize int
+	}
+	var retChan = make(chan sizes,1)
+	sm.tm.taskChannel <- func() {
+		retChan<-sizes{fcSize:len(sm.tm.frontCache), qSize:sm.tm.toNoticeIdQueue.Len()}
+	}
+
+	txMap := make(map[string]interface{})
+	select {
+	case s := <- retChan:
+		txMap["queryQueue"] = s.qSize
+		txMap["frontCache"] = s.fcSize
+	case <- time.NewTimer(time.Millisecond<<4).C:
+		// timeout
+	}
+	// There can be a little error
+	sum := make(map[string]interface{})
+	sum["blocks"] = sm.blkCache.Len()
+	txMap["backCache"] = sm.tm.txCache.Len()
+	sum["transactions"] = txMap
+	return sum
+}

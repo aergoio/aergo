@@ -814,7 +814,7 @@ func (mp *MemPool) loadTxs() {
 		return
 	}
 	defer atomic.StoreInt32(&mp.status, running)
-
+	mp.Debug().Msg("staring to load mempool dump")
 	file, err := os.Open(mp.dumpPath)
 	if err != nil {
 		if !os.IsNotExist(err) {

@@ -12,7 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 )
 
 type txRequestHandler struct {
@@ -60,91 +59,6 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 			Txs:    nil, HasNext: false}
 		remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetTXsResponse, resp))
 	}
-}
-
-// Deprecated
-func (th *txRequestHandler) handleTxReq(msg p2pcommon.Message, reqHashes [][]byte) {
-	defer th.release()
-	remotePeer := th.peer
-	// TODO consider to make async if deadlock with remote peer can occurs
-	// NOTE size estimation is tied to protobuf3 it should be changed when protobuf is changed.
-	// find transactions from chainservice
-	idx := 0
-	status := types.ResultStatus_OK
-	var hashes []types.TxHash
-	var txInfos, txs []*types.Tx
-	payloadSize := EmptyGetBlockResponseSize
-	var txSize, fieldSize int
-
-	bucket := message.MaxReqestHashes
-	var futures []interface{}
-
-	for _, h := range reqHashes {
-		hashes = append(hashes, h)
-		if len(hashes) == bucket {
-			if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
-				&message.MemPoolExistEx{Hashes: hashes}); err == nil {
-				futures = append(futures, f)
-			}
-			hashes = nil
-		}
-	}
-	if hashes != nil {
-		if f, err := th.actor.CallRequestDefaultTimeout(message.MemPoolSvc,
-			&message.MemPoolExistEx{Hashes: hashes}); err == nil {
-			futures = append(futures, f)
-		}
-	}
-	hashes = nil
-	idx = 0
-	for _, f := range futures {
-		if tmp, err := th.msgHelper.ExtractTxsFromResponseAndError(f, nil); err == nil {
-			txs = append(txs, tmp...)
-		} else {
-			th.logger.Debug().Err(err).Msg("ErrExtract tx in future")
-		}
-	}
-	for _, tx := range txs {
-		if tx == nil {
-			continue
-		}
-		hash := tx.GetHash()
-		txSize = proto.Size(tx)
-
-		fieldSize = txSize + p2putil.CalculateFieldDescSize(txSize)
-		fieldSize += len(hash) + p2putil.CalculateFieldDescSize(len(hash))
-
-		if (payloadSize + fieldSize) > p2pcommon.MaxPayloadLength {
-			// send partial list
-			resp := &types.GetTransactionsResponse{
-				Status: status,
-				Hashes: hashes,
-				Txs:    txInfos, HasNext: true}
-			th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-				Str(p2putil.LogOrgReqID, msg.ID().String()).Msg("Sending partial response")
-
-			remotePeer.SendMessage(remotePeer.MF().
-				NewMsgResponseOrder(msg.ID(), p2pcommon.GetTXsResponse, resp))
-			hashes, txInfos, payloadSize = nil, nil, EmptyGetBlockResponseSize
-		}
-
-		hashes = append(hashes, hash)
-		txInfos = append(txInfos, tx)
-		payloadSize += fieldSize
-		idx++
-	}
-	if 0 == idx {
-		status = types.ResultStatus_NOT_FOUND
-	}
-	th.logger.Debug().Int(p2putil.LogTxCount, len(hashes)).
-		Str(p2putil.LogOrgReqID, msg.ID().String()).Str(p2putil.LogRespStatus, status.String()).Msg("Sending last part response")
-	// generate response message
-
-	resp := &types.GetTransactionsResponse{
-		Status: status,
-		Hashes: hashes,
-		Txs:    txInfos, HasNext: false}
-	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.GetTXsResponse, resp))
 }
 
 // newTxRespHandler creates handler for GetTransactionsResponse

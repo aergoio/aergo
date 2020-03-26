@@ -98,9 +98,9 @@ func (mr *MockSyncManagerMockRecorder) HandleNewTxNotice(arg0, arg1, arg2 interf
 }
 
 // RegisterTxNotice mocks base method
-func (m *MockSyncManager) RegisterTxNotice(txs []*types.Tx) {
+func (m *MockSyncManager) RegisterTxNotice(arg0 []*types.Tx) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterTxNotice", txs)
+	m.ctrl.Call(m, "RegisterTxNotice", arg0)
 }
 
 // RegisterTxNotice indicates an expected call of RegisterTxNotice
@@ -143,6 +143,20 @@ func (m *MockSyncManager) Stop() {
 func (mr *MockSyncManagerMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSyncManager)(nil).Stop))
+}
+
+// Summary mocks base method
+func (m *MockSyncManager) Summary() map[string]interface{} {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Summary")
+	ret0, _ := ret[0].(map[string]interface{})
+	return ret0
+}
+
+// Summary indicates an expected call of Summary
+func (mr *MockSyncManagerMockRecorder) Summary() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Summary", reflect.TypeOf((*MockSyncManager)(nil).Summary))
 }
 
 // MockPeerAccessor is a mock of PeerAccessor interface

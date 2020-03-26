@@ -18,6 +18,7 @@ type PeerAccessor interface {
 type SyncManager interface {
 	Start()
 	Stop()
+	Summary() map[string]interface{}
 
 	// handle notice from bp
 	HandleBlockProducedNotice(peer RemotePeer, block *types.Block)
