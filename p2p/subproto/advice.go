@@ -30,7 +30,7 @@ func (a *LogHandleTimeAdvice) PreHandle() {
 
 func (a *LogHandleTimeAdvice) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	a.logger.WithLevel(a.level).
-		Int64("elapsed", time.Since(a.timestamp).Microseconds()).
+		Int64("elapsed", time.Since(a.timestamp).Nanoseconds()/1000).
 		Str(p2putil.LogProtoID, msg.Subprotocol().String()).
 		Str(p2putil.LogMsgID, msg.ID().String()).
 		Msg("handle takes")
