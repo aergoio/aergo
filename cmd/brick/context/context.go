@@ -9,39 +9,54 @@
 package context
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/aergoio/aergo/contract"
 )
 
-var CurrentCtx *context
-
-var GitHash = "?"
-
-func init() {
-	Reset()
-}
+var (
+	currentCtx *context
+	GitHash    = "?"
+	privateNet bool
+)
 
 type context struct {
 	chain *contract.DummyChain
 }
 
-func Reset() {
-	chain, err := contract.LoadDummyChain(contract.OnPubNet)
+func Open(private bool) {
+	privateNet = private
+	var (
+		chain *contract.DummyChain
+		err error
+	)
+	if privateNet {
+		chain, err = contract.LoadDummyChain()
+	} else {
+		chain, err = contract.LoadDummyChain(contract.OnPubNet)
+	}
 	if err != nil {
 		panic(err)
 	}
-	CurrentCtx = &context{
+	currentCtx = &context{
 		chain: chain,
 	}
 }
 
+func Reset() {
+	Open(privateNet)
+}
+
 func LivePrefix() (string, bool) {
-	height := strconv.FormatUint(CurrentCtx.chain.BestBlockNo(), 10)
+	height := strconv.FormatUint(currentCtx.chain.BestBlockNo(), 10)
 	ret := height + "> "
 	return ret, true
 }
 
 func Get() *contract.DummyChain {
-	return CurrentCtx.chain
+	if currentCtx == nil {
+		log.Fatal("fail to open chain")
+	}
+	return currentCtx.chain
 }
