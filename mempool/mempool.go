@@ -345,13 +345,14 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	mp.orphan -= diff
 	mp.cache.Store(id, tx)
 	mp.length++
-	//mp.Debug().Str("tx_hash", enc.ToString(tx.GetHash())).Msgf("tx add-ed size(%d, %d)", len(mp.cache), mp.orphan)
+	mp.Trace().Object("tx", types.LogTx{tx.GetTx()}).Msg("tx added")
 
 	if !mp.testConfig {
 		mp.notifyNewTx(tx)
 	}
 	return nil
 }
+
 func (mp *MemPool) puts(txs ...types.Transaction) []error {
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
