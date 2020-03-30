@@ -114,7 +114,6 @@ func main() {
 		}
 		if *watch {
 			exec.EnableWatch()
-			fmt.Println("Invalid Parameter. Usage: brick filename [-v|-w]\n\t-v\tverbose mode\n\t-w\twatch mode")
 		}
 
 		exec.Execute(cmd, flag.Arg(0))
