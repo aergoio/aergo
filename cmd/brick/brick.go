@@ -93,7 +93,13 @@ func main() {
 
 	flag.Parse()
 
+	var exitCode int
+
 	context.Open(*private)
+	defer func() {
+		context.Close()
+		os.Exit(exitCode)
+	}()
 
 	if flag.NArg() == 0 {
 		// cli mode
@@ -117,6 +123,6 @@ func main() {
 		}
 
 		exec.Execute(cmd, flag.Arg(0))
-		os.Exit(exec.GetBatchErrorCount())
+		exitCode = exec.GetBatchErrorCount()
 	}
 }

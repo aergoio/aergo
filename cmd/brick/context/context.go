@@ -44,6 +44,12 @@ func Open(private bool) {
 	}
 }
 
+func Close() {
+	if currentCtx != nil {
+		currentCtx.chain.Release()
+	}
+}
+
 func Reset() {
 	Open(privateNet)
 }
