@@ -6146,4 +6146,37 @@ abi.register(stmt_exec, stmt_exec_pcall, get)`
 	}
 }
 
+func TestSqlDupCol(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function get()
+	db.query("select * from (select 1+1, 1+1, 1+1, 1+1, 1+1, 1+1)")
+	return "success"
+end
+
+abi.register(get)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "dup_col", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.Query(
+		"dup_col",
+		`{"name":"get"}`,
+		`too many duplicate column name "1+1", max: 5`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases
