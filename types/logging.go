@@ -12,3 +12,11 @@ type LogTxHash struct {
 func (t LogTxHash) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("txID",enc.ToString(t.Hash))
 }
+
+type LogTx struct {
+	*Tx
+}
+
+func (t LogTx) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("txID",enc.ToString(t.GetHash())).Str("account",enc.ToString(t.Body.Account)).Uint64("nonce",t.Body.Nonce)
+}

@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const minimumTxQueryInterval = time.Second >> 2
+const minimumTxQueryInterval = time.Second >> 1
 const txQueryTimeout = time.Second << 2
 var unsent = time.Time{}
 
@@ -38,7 +38,7 @@ type syncTxManager struct {
 	taskQueryChannel chan smTask
 	finishChannel    chan struct{}
 
-	getTicker   *time.Ticker
+	fcTicker *time.Ticker
 }
 
 type queryQueue struct {
@@ -56,8 +56,8 @@ func newTxSyncManager(sm p2pcommon.SyncManager, actor p2pcommon.ActorService, pm
 		finishChannel:    make(chan struct{}, 1),
 		taskQueryChannel: make(chan smTask, 10),
 
-		msgHelper:   message.GetHelper(),
-		getTicker:   time.NewTicker(minimumTxQueryInterval),
+		msgHelper: message.GetHelper(),
+		fcTicker:  time.NewTicker(minimumTxQueryInterval),
 	}
 	var err error
 	tm.txCache, err = lru.New(DefaultGlobalTxCacheSize)
@@ -88,12 +88,12 @@ func (tm *syncTxManager) runManager() {
 MANLOOP:
 	for {
 		select {
-		case <-tm.getTicker.C:
+		case <-tm.fcTicker.C:
 			tm.refineFrontCache()
 		case task := <-tm.taskChannel:
 			task()
 		case <-tm.finishChannel:
-			tm.getTicker.Stop()
+			tm.fcTicker.Stop()
 			break MANLOOP
 		}
 	}
@@ -134,7 +134,7 @@ var (
 	addBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
 	dupBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
 	queuedBuf = make([]types.TxID,0,DefaultPeerTxQueueSize)
-
+	cleanupCounter = 0
 	// idsBuf is used for indivisual peer
 	idsBuf = make([][]types.TxID,0,10)
  	bufOffset = 0
@@ -189,7 +189,7 @@ func (tm *syncTxManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, txIDs []ty
 			tm.toNoticeIdQueue.PushBack(&queryQueue{peerID:peerID,txIDs:toQueue})
 		}
 
-		tm.logger.Trace().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize",len(tm.frontCache)).Msg("push txs, to query next time")
+		tm.logger.Trace().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Int("newCnt",len(newComer)).Int("queCnt",len(queued)).Int("dupCnt",len(duplicated)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize",len(tm.frontCache)).Msg("push txs, to query next time")
 	}
 }
 
@@ -243,26 +243,16 @@ func (tm *syncTxManager) pushBackToFrontCache(peerID types.PeerID, txIDs []types
 }
 
 func (tm *syncTxManager) burnFailedTxFrontCache(peerID types.PeerID, txIDs []types.TxID) {
-	qMap := make(map[types.PeerID]*queryQueue)
 	for _, txID := range txIDs {
 		// only search front cache.
 		if info, ok := tm.frontCache[txID]; ok {
 			if len(info.peers) > 0 {
 				// make send gettx to other peer
 				info.lastSent = unsent
-				que,ok := qMap[info.peers[0]]
-				if !ok {
-					que = &queryQueue{peerID:info.peers[0]}
-					qMap[info.peers[0]] = que
-				}
-				que.txIDs = append(que.txIDs, info.hash)
 			} else {
 				delete(tm.frontCache,txID)
 			}
 		}
-	}
-	for _, que := range qMap {
-		tm.toNoticeIdQueue.PushFront(que)
 	}
 }
 
@@ -380,21 +370,28 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 
 //
 func (tm *syncTxManager) refineFrontCache() {
-	if tm.toNoticeIdQueue.Len() == 0 {
-		// nothing to refine
+	now := time.Now()
+	expireTime := now.Add(-txQueryTimeout)
+	if tm.toNoticeIdQueue.Len() == 0 { // nothing to resend
+		cleanupCounter++
+		if cleanupCounter%20 == 0 {
+			cleanupCounter=0
+			if len(tm.frontCache) > 0 {
+				tm.cleanupFrontCache(expireTime)
+			}
+		}
 		return
 	}
 	tm.logger.Trace().Int("noticeQueues", tm.toNoticeIdQueue.Len()).Int("frontCache",len(tm.frontCache)).Msg("refining front cache")
 
 	// init
-	deleted := dupBuf[:0]
+	expired := dupBuf[:0]
+	done := addBuf[:0]
 	bufOffset = 0
 
-	now := time.Now()
 	// assume peer is all available for now
 	sendMap := make(map[types.PeerID]*[]types.TxID)
 	// find txs that should query to peers
-	expireTime := now.Add(-txQueryTimeout*100)
 	// tx in front cache has tri-state: unsent, waitingResp, expiredWaiting
 
 	var next *list.Element
@@ -402,8 +399,8 @@ func (tm *syncTxManager) refineFrontCache() {
 		next = e.Next()
 		queAgain := queuedBuf[:0]
 		queuedIDs := e.Value.(*queryQueue)
-		ids := tm.allocIDSlice(queuedIDs.peerID, sendMap)
-		if len(*ids) >= DefaultPeerTxQueueSize {
+		toSend := tm.allocIDSlice(queuedIDs.peerID, sendMap)
+		if len(*toSend) >= DefaultPeerTxQueueSize {
 			// list is full. skip this peer
 			continue
 		}
@@ -413,7 +410,8 @@ func (tm *syncTxManager) refineFrontCache() {
 		for j:=0; j< idSize; j++ {
 			txID := queuedIDs.txIDs[j]
 			info := tm.frontCache[txID]
-			if info == nil {
+			if info == nil { // tx is done to mempool or block. this txid is safe to delete
+				done = append(done, txID)
 				continue
 			}
 			if info.lastSent.After(expireTime) {
@@ -423,14 +421,14 @@ func (tm *syncTxManager) refineFrontCache() {
 			}
 			if len(info.peers) == 0 {
 				// remove old or unsent tx that has no peer to query.
-				deleted = append(deleted, txID)
+				expired = append(expired, txID)
 				delete(tm.frontCache, txID)
 			}
 
-			if tm.addToList(info, queuedIDs.peerID, ids) {
+			if tm.addToList(info, queuedIDs.peerID, toSend) {
 				info.lastSent = now
 				toSendCnt++
-				if len(*ids) >= DefaultPeerTxQueueSize {
+				if len(*toSend) >= DefaultPeerTxQueueSize {
 					queAgain=append(queAgain, queuedIDs.txIDs[j+1:]...)
 					break
 				}
@@ -444,14 +442,16 @@ func (tm *syncTxManager) refineFrontCache() {
 			// reuse allocated slice
 			toQueue := queuedIDs.txIDs[:len(queAgain)]
 			copy(toQueue, queAgain)
+			tm.logger.Trace().Array("queAgain", types.NewLogTxIDsMarshaller(toQueue, 10)).Msg("syncManager enqueue txIDs again that waiting for response")
+
 			e.Value = &queryQueue{peerID:queuedIDs.peerID,txIDs:toQueue}
-		} else if toSendCnt > 0 {
+		} else {
 			tm.toNoticeIdQueue.Remove(e)
 		}
 	}
 
-	if len(deleted) > 0 {
-		tm.logger.Debug().Array("hashes", types.NewLogTxIDsMarshaller(deleted, 10)).Msg("syncManager deletes txs that was expired and has no additional peers to query")
+	if len(expired) > 0 {
+		tm.logger.Debug().Array("done", types.NewLogTxIDsMarshaller(done, 10)).Array("expired", types.NewLogTxIDsMarshaller(expired, 10)).Msg("syncManager deletes txIDs that are not needed anymore")
 	}
 
 	for peerID, idsP := range sendMap {
@@ -529,6 +529,25 @@ func (tm *syncTxManager) moveToMPCache(tx *types.Tx) {
 	tm.txCache.Add(txID, tx)
 	tm.logger.Trace().Str("txID", txID.String()).Msg("syncManager caches tx")
 }
+
+// cleanupFrontCache clean unnecessary frontCache items. These are txs that sent request
+func (tm *syncTxManager) cleanupFrontCache(expireTime time.Time) {
+	testCnt, expired := 0,0
+	for txID, info := range tm.frontCache {
+		if (!info.lastSent.After(expireTime)) && len(info.peers) == 0 {
+			// remove old or unsent tx that has no peer to query.
+			expired++
+			delete(tm.frontCache, txID)
+		}
+		testCnt++
+		if testCnt>=10000 {
+			break
+		}
+	}
+	tm.logger.Debug().Int("testCnt",testCnt).Int("expireCnt", expired).Msg("syncManager clean up some of expired items in frontCache")
+
+}
+
 
 func appendPeerID(info *incomingTxNotice, peerID types.PeerID) {
 	info.peers = append(info.peers, peerID)

@@ -215,6 +215,7 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 	wlSummary := p2ps.lm.Summary()
 	stmap["whitelist"] = wlSummary["whitelist"]
 	stmap["whitelist_on"] = wlSummary["whitelist_on"]
+	stmap["syncman"] = p2ps.sm.Summary()
 
 	return &stmap
 }
