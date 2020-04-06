@@ -92,7 +92,7 @@ func TestP2P_GetBlocksChunk(t *testing.T) {
 	mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 
 	dummyMo = createDummyMo(ctrl)
-	mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), p2pcommon.GetBlocksRequest, gomock.Any()).
+	mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), p2pcommon.GetBlocksRequest, gomock.Any()).
 		Return(dummyMo).Times(1)
 
 	ps = &P2P{}
@@ -136,7 +136,7 @@ func TestP2P_GetBlockHashByNo(t *testing.T) {
 	mockPeer.EXPECT().SendMessage(gomock.Any()).Times(1)
 
 	dummyMo = createDummyMo(ctrl)
-	mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), p2pcommon.GetHashByNoRequest, gomock.Any()).
+	mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), p2pcommon.GetHashByNoRequest, gomock.Any()).
 		Return(dummyMo).Times(1)
 
 	ps = &P2P{}

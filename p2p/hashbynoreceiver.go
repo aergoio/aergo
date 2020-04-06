@@ -37,7 +37,7 @@ func NewBlockHashByNoReceiver(actor p2pcommon.ActorService, peer p2pcommon.Remot
 func (br *BlockHashByNoReceiver) StartGet() {
 	// create message data
 	req := &types.GetHashByNo{BlockNo: br.blockNo}
-	mo := br.peer.MF().NewMsgBlockRequestOrder(br.ReceiveResp, p2pcommon.GetHashByNoRequest, req)
+	mo := br.peer.MF().NewMsgRequestOrderWithReceiver(br.ReceiveResp, p2pcommon.GetHashByNoRequest, req)
 	br.requestID = mo.GetMsgID()
 	br.peer.SendMessage(mo)
 }

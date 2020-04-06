@@ -46,7 +46,7 @@ func TestConcurrentClusterInfoReceiver_StartGet(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
 			mockMo := createDummyMo(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, tt.args.peerCnt)
 			for i := 0; i < tt.args.peerCnt; i++ {
 				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
@@ -116,7 +116,7 @@ func TestConcurrentClusterInfoReceiver_trySendAllPeers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockActor := p2pmock.NewMockActorService(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 				return createDummyMo(ctrl)
 			}).Times(tt.wantSentCnt)
 			peers := make([]p2pcommon.RemotePeer, 0, len(tt.args.stats))
@@ -191,7 +191,7 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 			rHeads := make([]p2pcommon.Message, 0, len(tt.args.retStats))
 			rBodies := make([]*types.GetClusterInfoResponse, 0, len(tt.args.retStats))
 
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), p2pcommon.GetClusterRequest, gomock.Any()).
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), p2pcommon.GetClusterRequest, gomock.Any()).
 				Times(len(tt.args.retStats)).Return(mockMO)
 			sentTrigger := int32(0)
 			prevCall := (*gomock.Call)(nil)

@@ -270,7 +270,7 @@ func (f *testDoubleHashesRespFactory) NewMsgRequestOrder(expecteResponse bool, p
 	panic("implement me")
 }
 
-func (f *testDoubleHashesRespFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+func (f *testDoubleHashesRespFactory) NewMsgRequestOrderWithReceiver(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 
@@ -327,7 +327,7 @@ func (f *testDoubleMOFactory) NewMsgRequestOrder(expecteResponse bool, protocolI
 	panic("implement me")
 }
 
-func (f *testDoubleMOFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+func (f *testDoubleMOFactory) NewMsgRequestOrderWithReceiver(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	panic("implement me")
 }
 

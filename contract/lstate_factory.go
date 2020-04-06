@@ -6,32 +6,38 @@ package contract
 #include "vm.h"
 */
 import "C"
-import "sync"
+import (
+	"sync"
+)
 
 var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-const lStateMaxSize = 150
+func StartLStateFactory(num, numClosers, numCloseLimit int) {
 
-func StartLStateFactory() {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
-		getCh = make(chan *LState, lStateMaxSize)
-		freeCh = make(chan *LState, lStateMaxSize)
+		getCh = make(chan *LState, num)
+		freeCh = make(chan *LState, num)
 
-		for i := 0; i < lStateMaxSize; i++ {
+		for i := 0; i < num; i++ {
 			getCh <- newLState()
 		}
-		go statePool()
+
+		for i := 0; i < numClosers; i++ {
+			go statePool(numCloseLimit)
+		}
 	})
 }
 
-func statePool() {
+func statePool(numCloseLimit int) {
+	s := newLStatesBuffer(numCloseLimit)
+
 	for {
 		state := <-freeCh
-		state.close()
+		s.append(state)
 		getCh <- newLState()
 	}
 }

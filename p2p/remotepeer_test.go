@@ -87,7 +87,7 @@ func TestRemotePeer_sendPing(t *testing.T) {
 
 			actualWrite := false
 			select {
-			case msg := <-p.dWrite:
+			case msg := <-p.writeBuf:
 				assert.Equal(t, PingRequest, msg.(msgOrder).GetProtocolID())
 				actualWrite = true
 			default:
@@ -168,7 +168,7 @@ func TestRemotePeer_sendMessage(t *testing.T) {
 					wg.Wait()
 					for {
 						select {
-						case mo := <-p.dWrite:
+						case mo := <-p.writeBuf:
 							p.logger.Info().Msgf("Got order from chan %v", mo)
 							msg := mo.(msgOrder)
 							p.logger.Info().Str(LogMsgID, msg.GetMsgID().String()).Msg("Got order")
@@ -325,8 +325,8 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 		prevLastBlk types.BlockID
 		expected    bool
 	}{
-		{"TAllNew", sampleBlksHashes[0], sampleBlksHashes[2:], sampleBlksHashes[2], false},
-		{"TAllExist", sampleBlksHashes[0], sampleBlksHashes, sampleBlksHashes[1], true},
+		{"TAllNew", sampleBlksIDs[0], sampleBlksIDs[2:], sampleBlksIDs[2], false},
+		{"TAllExist", sampleBlksIDs[0], sampleBlksIDs, sampleBlksIDs[1], true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -356,9 +356,9 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 		inCache  []types.TxID
 		expected []types.TxID
 	}{
-		{"TAllNew", sampleTxHashes, sampleTxHashes[:0], sampleTxHashes},
-		{"TPartial", sampleTxHashes, sampleTxHashes[2:], sampleTxHashes[:2]},
-		{"TAllExist", sampleTxHashes, sampleTxHashes, make([]types.TxID, 0)},
+		{"TAllNew", sampleTxIDs, sampleTxIDs[:0], sampleTxIDs},
+		{"TPartial", sampleTxIDs, sampleTxIDs[2:], sampleTxIDs[:2]},
+		{"TAllExist", sampleTxIDs, sampleTxIDs, make([]types.TxID, 0)},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -413,16 +413,21 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			mockActor := new(p2pmock.MockActorService)
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
 			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
 			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+			mockMo := p2pmock.NewMockMsgOrder(ctrl)
+			mockMo.EXPECT().GetProtocolID().Return(p2pcommon.GetBlocksRequest).AnyTimes()
 
 			p := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, add := range test.toAdd {
-				p.requests[add] = &requestInfo{receiver: recvList[add]}
+				p.requests[add] = &requestInfo{receiver: recvList[add],reqMO:mockMo}
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)

@@ -5967,4 +5967,183 @@ func TestFeeDelegationLoop(t *testing.T) {
 	}
 }
 */
+
+func TestSqlAutoincrement(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function init()
+    db.exec("create table if not exists auto_test (a integer primary key autoincrement, b text)")
+	local n = db.exec("insert into auto_test(b) values (?),(?)", 10000, 1)
+	assert(n == 2, "change count mismatch");
+end
+
+function get()
+	db.exec("insert into auto_test(b) values ('ss')")
+	assert(db.last_insert_rowid() == 3, "id is not valid")
+end
+
+abi.register(init, get)`
+
+	_ = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "auto", 0, definition),
+		NewLuaTxCall("ktlee", "auto", 0, `{"Name":"init"}`),
+	)
+
+	tx := NewLuaTxCall("ktlee", "auto", 0, `{"Name":"get"}`)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSqlOnConflict(t *testing.T) {
+	bc, err := LoadDummyChain()
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
+
+	definition := `
+function constructor()
+    db.exec("create table if not exists t (col integer primary key)")
+	db.exec("insert into t values (1)")
+end
+
+function stmt_exec(stmt)
+	db.exec(stmt)
+end
+
+function stmt_exec_pcall(stmt)
+	pcall(db.exec, stmt)
+end
+
+function get()
+	local rs = db.query("select col from t order by col")
+	local t = {}
+	while rs:next() do
+		local col = rs:get()
+		table.insert(t, col)
+	end
+	return t
+end
+
+abi.register(stmt_exec, stmt_exec_pcall, get)`
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "on_conflict", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec", "args": ["insert into t values (2)"]}`,
+		),
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec", "args": ["insert into t values (3),(2),(4)"]}`,
+		).Fail(`UNIQUE constraint failed: t.col`),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query(
+		"on_conflict",
+		`{"name":"get"}`,
+		"",
+		`[1,2]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec", "args": ["replace into t values (2)"]}`,
+		),
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec", "args": ["insert or ignore into t values (3),(2),(4)"]}`,
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query(
+		"on_conflict",
+		`{"name":"get"}`,
+		"",
+		`[1,2,3,4]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec", "args": ["insert into t values (5)"]}`,
+		),
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec", "args": ["insert or rollback into t values (5)"]}`,
+		).Fail("syntax error"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query(
+		"on_conflict",
+		`{"name":"get"}`,
+		"",
+		`[1,2,3,4,5]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"on_conflict",
+			0,
+			`{"name":"stmt_exec_pcall", "args": ["insert or fail into t values (6),(7),(5),(8),(9)"]}`,
+		),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query(
+		"on_conflict",
+		`{"name":"get"}`,
+		"",
+		`[1,2,3,4,5,6,7]`,
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // end of test-cases

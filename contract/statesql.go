@@ -110,12 +110,19 @@ func loadTestDatabase(dataDir string) error {
 }
 
 func CloseDatabase() {
+	var err error
 	for name, db := range database.DBs {
 		if db.tx != nil {
-			db.tx.rollback()
+			err = db.tx.rollback()
+			if err != nil {
+				sqlLgr.Warn().Err(err).Str("db_name", name).Msg("SQL TX close")
+			}
 			db.tx = nil
 		}
-		_ = db.close()
+		err = db.close()
+		if err != nil {
+			sqlLgr.Warn().Err(err).Str("db_name", name).Msg("SQL DB close")
+		}
 		delete(database.DBs, name)
 	}
 }
@@ -128,6 +135,7 @@ func SaveRecoveryPoint(bs *state.BlockState) error {
 			err := db.tx.commit()
 			db.tx = nil
 			if err != nil {
+				sqlLgr.Warn().Err(err).Str("db_name", id).Msg("SQL TX commit")
 				continue
 			}
 			rp := db.recoveryPoint()
@@ -207,7 +215,7 @@ func dataSrc(dbName string) string {
 		"file:%s/%s.db?branches=on&max_db_size=%d",
 		database.DataDir,
 		dbName,
-		maxSQLDBSize*1024*1024)
+		int64(maxSQLDBSize*1024*1024))
 }
 
 func readOnlyConn(dbName string) (*litetree, error) {
@@ -380,6 +388,7 @@ type sqlTx interface {
 	rollbackToSubSavepoint(string) error
 	getHandle() *C.sqlite3
 	close() error
+	begin() error
 }
 
 type sqlTxCommon struct {
@@ -394,6 +403,8 @@ type writableSqlTx struct {
 	sqlTxCommon
 	*sql.Tx
 }
+
+var _ sqlTx = (*writableSqlTx)(nil)
 
 func (tx *writableSqlTx) commit() error {
 	if sqlLgr.IsDebugEnabled() {
@@ -465,9 +476,16 @@ func (tx *writableSqlTx) close() error {
 	return errors.New("assert(only read-tx allowed)")
 }
 
+func (tx *writableSqlTx) begin() error {
+	_, err := tx.Tx.Exec("BEGIN")
+	return err
+}
+
 type readOnlySqlTx struct {
 	sqlTxCommon
 }
+
+var _ sqlTx = (*readOnlySqlTx)(nil)
 
 func newReadOnlySqlTx(db *litetree, rp uint64) (sqlTx, error) {
 	if err := db.snapshotView(rp); err != nil {
@@ -516,4 +534,8 @@ func (tx *readOnlySqlTx) rollbackToSubSavepoint(name string) error {
 
 func (tx *readOnlySqlTx) close() error {
 	return tx.sqlTxCommon.close()
+}
+
+func (tx *readOnlySqlTx) begin() error {
+	return errors.New("assert(only writable-tx allowed)")
 }

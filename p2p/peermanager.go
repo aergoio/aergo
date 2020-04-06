@@ -3,6 +3,7 @@
 package p2p
 
 import (
+	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"strconv"
 	"sync"
@@ -544,20 +545,45 @@ func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
 
 	// send txs in mempool
 	peer.DoTask(func(p p2pcommon.RemotePeer) {
-		raw, err := pm.actorService.CallRequest(message.MemPoolSvc, &message.MemPoolList{DefaultPeerTxQueueSize}, txNoticeInterval)
-		if err != nil {
-			pm.logger.Debug().Err(err).Str(p2putil.LogPeerName, peer.Name()).Msg("Failed to get txs in mempool, skip notifying tx to newly connected peer")
-			return
-		}
-		resp, ok := raw.(*message.MemPoolListRsp)
-		if !ok {
-			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Msg("mempool response unexpeted type, skip notifying tx to newly connected peer")
-		}
-		if len(resp.Hashes) > 0 {
-			pm.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(resp.Hashes,10)).Msg("Sending txIds to newly connected peer")
-			peer.PushTxsNotice(resp.Hashes)
-		}
+		future := pm.actorService.FutureRequest(message.MemPoolSvc, &message.MemPoolList{DefaultPeerTxQueueSize*100}, p2pcommon.DefaultActorMsgTTL<<1)
+		go doSlowPush(pm.logger, peer, future)
 	})
+}
+
+func doSlowPush(logger *log.Logger, peer p2pcommon.RemotePeer, future *actor.Future) {
+	raw, err := future.Result()
+	if err != nil {
+		logger.Debug().Err(err).Str(p2putil.LogPeerName, peer.Name()).Msg("Failed to get txs in mempool, skip notifying tx to newly connected peer")
+		return
+	}
+	resp, ok := raw.(*message.MemPoolListRsp)
+	if !ok {
+		logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Msg("mempool response unexpeted type, skip notifying tx to newly connected peer")
+	}
+	if len(resp.Hashes) > 0 {
+		logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(resp.Hashes,10)).Msg("Sending txIds to newly connected peer")
+		slowPush(peer, resp.Hashes, txNoticeInterval>>2)
+	}
+}
+
+func slowPush(peer p2pcommon.RemotePeer, hashes []types.TxID, pushInterval time.Duration) {
+	unitSize := DefaultPeerTxQueueSize >> 1
+	remain := len(hashes)
+	var cut []types.TxID
+	for remain>0 {
+		if peer.State() != types.RUNNING {
+			break
+		}
+		if remain > unitSize {
+			cut = hashes[:unitSize]
+		} else {
+			cut = hashes[:remain]
+		}
+		hashes = hashes[len(cut):]
+		remain=len(hashes)
+		peer.PushTxsNotice(cut)
+		time.Sleep(pushInterval)
+	}
 }
 
 func (pm *peerManager) AddDesignatedPeer(meta p2pcommon.PeerMeta) {

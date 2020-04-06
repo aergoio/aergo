@@ -638,7 +638,7 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 		return nil, status.Errorf(codes.InvalidArgument, "input tx is empty")
 	}
 	rpc.hub.Get(message.MemPoolSvc)
-	p := newPutter(ctx, in.Txs, rpc.hub)
+	p := newPutter(ctx, in.Txs, rpc.hub, defaultActorTimeout<<2)
 	err := p.Commit()
 	if err == nil {
 		results := &types.CommitResultList{Results: p.rs}
@@ -646,49 +646,6 @@ func (rpc *AergoRPCService) CommitTX(ctx context.Context, in *types.TxList) (*ty
 	} else {
 		return nil, err
 	}
-	//rs := make([]*types.CommitResult, len(in.Txs))
-	//futures := make([]*actor.Future, len(in.Txs))
-	//results := &types.CommitResultList{Results: rs}
-	////results := &types.CommitResultList{}
-	//cnt := 0
-	//
-	//for i, tx := range in.Txs {
-	//	hash := tx.Hash
-	//	var r types.CommitResult
-	//	r.Hash = hash
-	//
-	//	calculated := tx.CalculateTxHash()
-	//
-	//	if !bytes.Equal(hash, calculated) {
-	//		r.Error = types.CommitStatus_TX_INVALID_HASH
-	//	}
-	//	results.Results[i] = &r
-	//	cnt++
-	//
-	//	//send tx message to mempool
-	//	f := rpc.hub.RequestFuture(message.MemPoolSvc,
-	//		&message.MemPoolPut{Tx: tx},
-	//		defaultActorTimeout, "rpc.(*AergoRPCService).CommitTX")
-	//	futures[i] = f
-	//}
-	//for i, future := range futures {
-	//	result, err := future.Result()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	rsp, ok := result.(*message.MemPoolPutRsp)
-	//	if !ok {
-	//		err = status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
-	//	} else {
-	//		err = rsp.Err
-	//	}
-	//	results.Results[i].Error = convertError(err)
-	//	if err != nil {
-	//		results.Results[i].Detail = err.Error()
-	//	}
-	//}
-	//
-	//return results, nil
 }
 
 // GetState handle rpc request getstate

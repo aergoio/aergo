@@ -22,7 +22,7 @@ import (
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
-	"github.com/minio/sha256-simd"
+	sha256 "github.com/minio/sha256-simd"
 )
 
 type DummyChain struct {
@@ -42,6 +42,10 @@ type DummyChain struct {
 
 var addressRegexp *regexp.Regexp
 var traceState bool
+
+const (
+	lStateMaxSize = 10 * 7
+)
 
 func init() {
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
@@ -78,7 +82,9 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
 	loadTestDatabase(dataPath) // sql database
 	SetStateSQLMaxDBSize(1024)
-	StartLStateFactory()
+	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
+	InitContext(3)
+
 	HardforkConfig = config.AllEnabledHardforkConfig
 
 	// To pass the governance tests.

@@ -34,8 +34,8 @@ type txPutter struct {
 	futures []*actor.Future
 }
 
-func newPutter(ctx context.Context, txs []*types.Tx, hub component.ICompSyncRequester) *txPutter {
-	m := &txPutter{ctx:ctx, Txs: txs, hub: hub, actorTimeout:defaultActorTimeout}
+func newPutter(ctx context.Context, txs []*types.Tx, hub component.ICompSyncRequester, timeout time.Duration) *txPutter {
+	m := &txPutter{ctx:ctx, Txs: txs, hub: hub, actorTimeout:timeout}
 	m.logger = log.NewLogger("txputter")
 	txSize := len(m.Txs)
 	m.txSize = txSize
@@ -118,6 +118,7 @@ func (m *txPutter) putToNextTx() int {
 			m.q.Offer(m.offset)
 			point := m.offset
 			m.offset++
+			m.logger.Trace().Object("tx",types.LogTxHash{tx}).Msg("putting tx to mempool")
 			return point
 		}
 	}
@@ -131,4 +132,5 @@ func (m *txPutter) rePutTx(i int) {
 		m.actorTimeout, "rpc.(*AergoRPCService).CommitTX")
 	m.futures[i] = f
 	m.q.Offer(i)
+	m.logger.Trace().Object("tx",types.LogTxHash{tx}).Msg("putting tx to mempool")
 }

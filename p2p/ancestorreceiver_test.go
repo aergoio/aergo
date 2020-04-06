@@ -37,7 +37,7 @@ func TestAncestorReceiver_StartGet(t *testing.T) {
 
 			mockMo := createDummyMo(ctrl)
 			mockMF := p2pmock.NewMockMoFactory(ctrl)
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockPeer.EXPECT().MF().Return(mockMF)
 			mockPeer.EXPECT().SendMessage(mockMo).Times(1)
@@ -107,7 +107,7 @@ func TestAncestorReceiver_ReceiveResp(t *testing.T) {
 			mockMo := createDummyMo(ctrl)
 			mockPeer.EXPECT().ConsumeRequest(gomock.Any()).Times(test.consumed)
 			mockPeer.EXPECT().SendMessage(gomock.Any())
-			mockMF.EXPECT().NewMsgBlockRequestOrder(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
+			mockMF.EXPECT().NewMsgRequestOrderWithReceiver(gomock.Any(), gomock.Any(), gomock.Any()).Return(mockMo)
 
 			//expire := time.Now().Add(test.ttl)
 			br := NewAncestorReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)

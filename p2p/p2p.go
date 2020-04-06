@@ -215,6 +215,7 @@ func (p2ps *P2P) Statistics() *map[string]interface{} {
 	wlSummary := p2ps.lm.Summary()
 	stmap["whitelist"] = wlSummary["whitelist"]
 	stmap["whitelist_on"] = wlSummary["whitelist_on"]
+	stmap["syncman"] = p2ps.sm.Summary()
 
 	return &stmap
 }
@@ -264,12 +265,6 @@ func (p2ps *P2P) Receive(context actor.Context) {
 	case *message.GetTransactions:
 		p2ps.GetTXs(msg.ToWhom, msg.Hashes)
 	case *message.NotifyNewTransactions:
-		hashes := make([]types.TxID, len(msg.Txs))
-		for i, tx := range msg.Txs {
-			hashes[i] = types.ToTxID(tx.Hash)
-		}
-		p2ps.NotifyNewTX(notifyNewTXs{hashes, nil})
-	case notifyNewTXs:
 		p2ps.NotifyNewTX(msg)
 	case *message.AddBlockRsp:
 		// do nothing for now. just for prevent deadletter
@@ -429,7 +424,7 @@ func (p2ps *P2P) insertHandlers(peer p2pcommon.RemotePeer) {
 	peer.AddMessageHandler(p2pcommon.GetHashByNoResponse, subproto.NewGetHashByNoRespHandler(p2ps.pm, peer, logger, p2ps))
 
 	// TxHandlers
-	peer.AddMessageHandler(p2pcommon.GetTXsRequest, subproto.WithTimeLog(subproto.NewTxReqHandler(p2ps.pm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
+	peer.AddMessageHandler(p2pcommon.GetTXsRequest, subproto.WithTimeLog(subproto.NewTxReqHandler(p2ps.pm, p2ps.sm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
 	peer.AddMessageHandler(p2pcommon.GetTXsResponse, subproto.WithTimeLog(subproto.NewTxRespHandler(p2ps.pm, peer, logger, p2ps), p2ps.Logger, zerolog.DebugLevel))
 	peer.AddMessageHandler(p2pcommon.NewTxNotice, subproto.WithTimeLog(subproto.NewNewTxNoticeHandler(p2ps.pm, peer, logger, p2ps, p2ps.sm), p2ps.Logger, zerolog.DebugLevel))
 

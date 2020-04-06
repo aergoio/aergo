@@ -60,7 +60,7 @@ func Test_txPutter_Commit(t *testing.T) {
 			ctx := context.TODO()
 			ctx, cancelFunc := context.WithTimeout(ctx, time.Second*3)
 			defer cancelFunc()
-			m := newPutter(ctx, tt.txs, hub)
+			m := newPutter(ctx, tt.txs, hub, defaultActorTimeout)
 			m.actorTimeout = time.Second>>4
 
 			err := m.Commit()
@@ -137,7 +137,7 @@ func BenchmarkPutter(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 
 				ctx := context.TODO()
-				m := newPutter(ctx, sampleTXs, hub)
+				m := newPutter(ctx, sampleTXs, hub, defaultActorTimeout)
 				m.q = p2putil.NewPressableQueue(bm.queueSize)
 				m.actorTimeout = time.Second>>4
 				if bm.putType == single {

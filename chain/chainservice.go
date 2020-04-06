@@ -244,7 +244,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	cs.validator = NewBlockValidator(cs, cs.sdb, cs.cfg.Blockchain.VerifyBlock != 0)
 	cs.BaseComponent = component.NewBaseComponent(message.ChainSvc, cs, logger)
 	cs.chainManager = newChainManager(cs, cs.Core)
-	cs.chainWorker = newChainWorker(cs, defaultChainWorkerCount, cs.Core)
+	cs.chainWorker = newChainWorker(cs, cs.cfg.Blockchain.NumWorkers, cs.Core)
 	// TODO set VerifyOnly true if cs.cfg.Blockchain.VerifyBlock is not 0
 	if verifyMode {
 		if cs.cfg.Consensus.EnableBp {
@@ -290,8 +290,9 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.StartLStateFactory()
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(contract.MaxCallDepth+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.HardforkConfig = cs.cfg.Hardfork
+	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
@@ -497,10 +498,11 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
 	switch ConsensusName() {
 	case consensus.ConsensusName[consensus.ConsensusDPOS]:
+		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
 		if n == 0 {
-			return system.GetVoteResult(cs.sdb, []byte(id), system.GetBpCount())
+			return system.GetVoteResult(sdb, []byte(id), system.GetBpCount())
 		}
-		return system.GetVoteResult(cs.sdb, []byte(id), int(n))
+		return system.GetVoteResult(sdb, []byte(id), int(n))
 	case consensus.ConsensusName[consensus.ConsensusRAFT]:
 		//return cs.GetBPs()
 		return nil, ErrNotSupportedConsensus
@@ -514,11 +516,12 @@ func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, err
 		return nil, ErrNotSupportedConsensus
 	}
 
-	scs, err := cs.sdb.GetSystemAccountState()
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	scs, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	namescs, err := sdb.GetNameAccountState()
 	if err != nil {
 		return nil, err
 	}
@@ -535,11 +538,12 @@ func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
 		return nil, ErrNotSupportedConsensus
 	}
 
-	scs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	scs, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := cs.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+	namescs, err := sdb.GetNameAccountState()
 	if err != nil {
 		return nil, err
 	}
@@ -559,17 +563,17 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 		}
 		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
 	} else {
-		stateDB = cs.sdb.GetStateDB()
+		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
 	}
 	return name.GetNameInfo(stateDB, qname)
 }
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
-	stateDB := cs.sdb.GetStateDB()
+	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
 	if strings.ToUpper(key) != enterprise.AdminsKey {
-		return enterprise.GetConf(stateDB, key)
+		return enterprise.GetConf(sdb, key)
 	}
-	return enterprise.GetAdmin(stateDB)
+	return enterprise.GetAdmin(sdb)
 }
 
 func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
@@ -682,9 +686,9 @@ func (cm *ChainManager) Receive(context actor.Context) {
 	}
 }
 
-func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, error) {
+func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
-		scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		scs, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
 			return nil, err
@@ -695,6 +699,7 @@ func getAddressNameResolved(sdb *state.ChainStateDB, account []byte) ([]byte, er
 }
 
 func (cw *ChainWorker) Receive(context actor.Context) {
+	var sdb *state.StateDB
 	switch msg := context.Message().(type) {
 	case *message.GetBlock:
 		bid := types.ToBlockID(msg.BlockHash)
@@ -716,7 +721,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:   err,
 		})
 	case *message.GetState:
-		address, err := getAddressNameResolved(cw.sdb, msg.Account)
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.Account)
 		if err != nil {
 			context.Respond(message.GetStateRsp{
 				Account: msg.Account,
@@ -726,7 +732,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			return
 		}
 		id := types.ToAccountID(address)
-		accState, err := cw.sdb.GetStateDB().GetAccountState(id)
+		accState, err := sdb.GetAccountState(id)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
 		}
@@ -736,7 +742,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetStateAndProof:
-		address, err := getAddressNameResolved(cw.sdb, msg.Account)
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.Account)
 		if err != nil {
 			context.Respond(message.GetStateAndProofRsp{
 				StateProof: nil,
@@ -745,7 +752,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			break
 		}
 		id := types.ToAccountID(address)
-		stateProof, err := cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
+		stateProof, err := sdb.GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
 		}
@@ -768,7 +775,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Err:     err,
 		})
 	case *message.GetABI:
-		address, err := getAddressNameResolved(cw.sdb, msg.Contract)
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetABIRsp{
 				ABI: nil,
@@ -776,7 +784,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			})
 			break
 		}
-		contractState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
+		contractState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
 		if err == nil {
 			abi, err := contract.GetABI(contractState, nil)
 			context.Respond(message.GetABIRsp{
@@ -792,17 +800,18 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 	case *message.GetQuery:
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		address, err := getAddressNameResolved(cw.sdb, msg.Contract)
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.Contract)
 		if err != nil {
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 			break
 		}
-		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(address))
+		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.GetQueryRsp{Result: nil, Err: err})
 		} else {
-			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			bs := state.NewBlockState(sdb)
 			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
@@ -811,7 +820,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		var contractProof *types.AccountProof
 		var err error
 
-		address, err := getAddressNameResolved(cw.sdb, msg.ContractAddress)
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.ContractAddress)
 		if err != nil {
 			context.Respond(message.GetStateQueryRsp{
 				Result: nil,
@@ -820,13 +830,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			break
 		}
 		id := types.ToAccountID(address)
-		contractProof, err = cw.sdb.GetStateDB().GetAccountAndProof(id[:], msg.Root, msg.Compressed)
+		contractProof, err = sdb.GetAccountAndProof(id[:], msg.Root, msg.Compressed)
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
 		} else if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
 			for _, storageKey := range msg.StorageKeys {
-				varProof, err := cw.sdb.GetStateDB().GetVarAndProof(storageKey, contractTrieRoot, msg.Compressed)
+				varProof, err := sdb.GetVarAndProof(storageKey, contractTrieRoot, msg.Compressed)
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {
@@ -889,12 +899,13 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		ctrState, err := cw.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(msg.Contract))
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(msg.Contract))
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(msg.Contract)).Err(err).Msg("failed to get state for contract")
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		} else {
-			bs := state.NewBlockState(cw.sdb.OpenNewStateDB(cw.sdb.GetRoot()))
+			bs := state.NewBlockState(sdb)
 			err := contract.CheckFeeDelegation(msg.Contract, bs, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		}

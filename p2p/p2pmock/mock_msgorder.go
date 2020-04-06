@@ -168,18 +168,18 @@ func (mr *MockMoFactoryMockRecorder) NewMsgRequestOrder(expectResponse, protocol
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewMsgRequestOrder", reflect.TypeOf((*MockMoFactory)(nil).NewMsgRequestOrder), expectResponse, protocolID, message)
 }
 
-// NewMsgBlockRequestOrder mocks base method
-func (m *MockMoFactory) NewMsgBlockRequestOrder(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
+// NewMsgRequestOrderWithReceiver mocks base method
+func (m *MockMoFactory) NewMsgRequestOrderWithReceiver(respReceiver p2pcommon.ResponseReceiver, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewMsgBlockRequestOrder", respReceiver, protocolID, message)
+	ret := m.ctrl.Call(m, "NewMsgRequestOrderWithReceiver", respReceiver, protocolID, message)
 	ret0, _ := ret[0].(p2pcommon.MsgOrder)
 	return ret0
 }
 
-// NewMsgBlockRequestOrder indicates an expected call of NewMsgBlockRequestOrder
-func (mr *MockMoFactoryMockRecorder) NewMsgBlockRequestOrder(respReceiver, protocolID, message interface{}) *gomock.Call {
+// NewMsgRequestOrderWithReceiver indicates an expected call of NewMsgRequestOrderWithReceiver
+func (mr *MockMoFactoryMockRecorder) NewMsgRequestOrderWithReceiver(respReceiver, protocolID, message interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewMsgBlockRequestOrder", reflect.TypeOf((*MockMoFactory)(nil).NewMsgBlockRequestOrder), respReceiver, protocolID, message)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewMsgRequestOrderWithReceiver", reflect.TypeOf((*MockMoFactory)(nil).NewMsgRequestOrderWithReceiver), respReceiver, protocolID, message)
 }
 
 // NewMsgResponseOrder mocks base method

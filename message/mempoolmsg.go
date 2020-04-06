@@ -25,7 +25,6 @@ type MemPoolPutRsp struct {
 // MemPoolGet is interface of MemPool service for retrieving transactions
 type MemPoolGet struct {
 	MaxBlockBodySize uint32
-	GetTxCount uint32
 }
 
 // MemPoolGetRsp defines struct of result for MemPoolGet
@@ -57,9 +56,11 @@ type MemPoolExistRsp struct {
 
 const MaxReqestHashes = 1000
 
+// MemPoolExistEx is for getting retrieving multiple transactions.
 type MemPoolExistEx struct {
 	Hashes [][]byte
 }
+// MemPoolExistExRsp can contains nil element if requested tx is missing in mempool.
 type MemPoolExistExRsp struct {
 	Txs []*types.Tx
 }

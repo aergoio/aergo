@@ -467,7 +467,8 @@ static int db_exec(lua_State *L)
     }
     cmd = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(cmd)) {
-        luaL_error(L, "invalid sql command");
+    	lua_pushfstring(L, "invalid sql commond:" LUA_QS, cmd);
+        lua_error(L);
     }
     db = vm_get_db(L);
     rc = sqlite3_prepare_v2(db, cmd, -1, &s, NULL);
@@ -538,7 +539,8 @@ static int db_prepare(lua_State *L)
 
     sql = luaL_checkstring(L, 1);
     if (!sqlcheck_is_permitted_sql(sql)) {
-        luaL_error(L, "invalid sql command");
+    	lua_pushfstring(L, "invalid sql commond:" LUA_QS, sql);
+        lua_error(L);
     }
     db = vm_get_db(L);
     rc = sqlite3_prepare_v2(db, sql, -1, &s, NULL);
@@ -577,6 +579,17 @@ static int db_open_with_snapshot(lua_State *L)
         strPushAndRelease(L, errStr);
         luaL_throwerror(L);
     }
+    return 1;
+}
+
+static int db_last_insert_rowid(lua_State *L)
+{
+    sqlite3 *db;
+    sqlite3_int64 id;
+    db = vm_get_db(L);
+
+    id = sqlite3_last_insert_rowid(db);
+    lua_pushinteger(L, id);
     return 1;
 }
 
@@ -634,6 +647,7 @@ int luaopen_db(lua_State *L)
         {"prepare", db_prepare},
         {"getsnap", db_get_snapshot},
         {"open_with_snapshot", db_open_with_snapshot},
+        {"last_insert_rowid", db_last_insert_rowid},
         {NULL, NULL}
     };
 
