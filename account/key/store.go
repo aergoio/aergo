@@ -81,8 +81,14 @@ func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Ide
 }
 
 // ExportKey is to export encrypted key
-func (ks *Store) ExportKey(addr Identity, pass string) ([]byte, error) {
-	key, err := ks.getKey(addr, pass)
+func (ks *Store) ExportKey(addr Identity, pass string, wantRemove bool) ([]byte, error) {
+	var key *aergokey
+	var err error
+	if wantRemove {
+		key, err = ks.storage.Delete(addr, pass)
+	} else {
+		key, err = ks.getKey(addr, pass)
+	}
 	if key == nil {
 		return nil, err
 	}
@@ -165,4 +171,12 @@ func (ks *Store) addKey(key *btcec.PrivateKey, pass string) (Identity, error) {
 
 func (ks *Store) AddKey(key *btcec.PrivateKey, pass string) (Identity, error) {
 	return ks.addKey(key, pass)
+}
+
+func (ks *Store) DeleteKey(address Identity, passphrase string) (*aergokey, error) {
+	privKey, err := ks.storage.Delete(address, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	return privKey, nil
 }

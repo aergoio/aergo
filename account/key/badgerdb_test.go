@@ -74,3 +74,41 @@ func TestSaveAndListOnBadger(t *testing.T) {
 	}
 	assert.True(t, found, "Cound not found stored identity")
 }
+
+func TestDeleteOnBadgerDb(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "tmp")
+	defer os.RemoveAll(dir)
+
+	storage, err := NewBadgerStorage(dir)
+	if nil != err {
+		assert.FailNow(t, "Could not create storage", err)
+	}
+
+	// generate private keys and store them
+	password := "password"
+	idLen := 3
+	var idArr = make([]Identity, idLen)
+	for i := 0; i < idLen; i++ {
+		privKey, err := btcec.NewPrivateKey(btcec.S256())
+		if nil != err {
+			assert.FailNow(t, "Could not create private key", err)
+		}
+
+		idArr[i] = crypto.GenerateAddress(&privKey.PublicKey)
+		saved, err := storage.Save(idArr[i], password, privKey)
+		if nil != err {
+			assert.FailNow(t, "Could not save private key", err)
+		}
+		assert.Equalf(t, idArr[i], saved, "Returned one isn't same")
+	}
+
+	for i := 0; i < idLen; i++ {
+		list, err := storage.List()
+		if nil != err {
+			assert.FailNow(t, "Could list stored addresses", err)
+		}
+		assert.Equal(t, len(list), idLen - i)
+
+		storage.Delete(idArr[i], password)
+	}
+}

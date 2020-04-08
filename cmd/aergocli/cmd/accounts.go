@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec"
 	"io"
 	"io/ioutil"
 	"os"
@@ -43,6 +44,7 @@ func init() {
 	exportCmd.MarkFlagRequired("address")
 	exportCmd.Flags().BoolVar(&exportAsWif, "wif", false, "export as encrypted string instead of keystore format")
 	exportCmd.Flags().StringVar(&pw, "password", "", "password (optional, will be asked on the terminal if not given)")
+	exportCmd.Flags().BoolVar(&wantRemove, "remove", false, "remove the account after exporting")
 
 	voteCmd.Flags().StringVar(&address, "address", "", "account address of voter")
 	voteCmd.MarkFlagRequired("address")
@@ -308,15 +310,21 @@ func exportWif(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("node request returned error: %s", err.Error())
 		}
+		if wantRemove {
+			cmd.PrintErrln("WARNING! You cannot remove your account stored in the node.")
+			wantRemove = false
+		}
 		return msg.Value, nil
 	} else {
 		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
-		wif, err := ks.ExportKey(param.Account.Address, param.Passphrase)
+
+		wif, err := ks.ExportKey(param.Account.Address, param.Passphrase, wantRemove)
 		if err != nil {
 			return nil, err
 		}
+
 		return wif, nil
 	}
 }
@@ -328,13 +336,23 @@ func exportKeystore(cmd *cobra.Command, param *types.Personal) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("node request returned error: %s", err.Error())
 		}
+		if wantRemove {
+			cmd.PrintErrln("WARNING! You cannot remove your account stored in the node.")
+			wantRemove = false
+		}
 		return msg.Value, nil
 	} else {
 		dataEnvPath := os.ExpandEnv(rootConfig.KeyStorePath)
 		ks := key.NewStore(dataEnvPath, 0)
 		defer ks.CloseStore()
 
-		privateKey, err := ks.GetKey(param.Account.Address, param.Passphrase)
+		var privateKey *btcec.PrivateKey
+		var err error
+		if wantRemove {
+			privateKey, err = ks.DeleteKey(param.Account.Address, param.Passphrase)
+		} else {
+			privateKey, err = ks.GetKey(param.Account.Address, param.Passphrase)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -374,6 +392,8 @@ var exportCmd = &cobra.Command{
 
 		if err != nil {
 			cmd.PrintErrln(err)
+		} else if wantRemove {
+			cmd.PrintErrln("WARNING! Your account is deleted on the Aergo storage. Please store your key safely.")
 		}
 	},
 }

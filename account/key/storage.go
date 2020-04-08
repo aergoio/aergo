@@ -20,5 +20,6 @@ type Storage interface {
 	Save(identity Identity, passphrase string, key *PrivateKey) (Identity, error)
 	Load(identity Identity, passphrase string) (*PrivateKey, error)
 	List() ([]Identity, error)
+	Delete(identity Identity, passphrase string) (*PrivateKey, error)
 	Close()
 }

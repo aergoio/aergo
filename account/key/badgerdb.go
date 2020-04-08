@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -24,7 +25,7 @@ type BadgerStorage struct {
 
 const dbName = "account"
 
-var addresses = []byte("ADDRESSES")
+var Addresses = []byte("ADDRESSES")
 
 func NewBadgerStorage(storePath string) (*BadgerStorage, error) {
 	dbPath := path.Join(storePath, dbName)
@@ -102,12 +103,24 @@ func (ks *BadgerStorage) List() ([]Identity, error) {
 	ks.RWMutex.RLock()
 	defer ks.RWMutex.RUnlock()
 
-	b := ks.db.Get(addresses)
+	b := ks.db.Get(Addresses)
 	var ret []Identity
 	for i := 0; i < len(b); i += types.AddressLength {
 		ret = append(ret, b[i:i+types.AddressLength])
 	}
 	return ret, nil
+}
+
+func (ks *BadgerStorage) Delete(identity Identity, password string) (*PrivateKey, error) {
+	privKey, err := ks.Load(identity, password)
+	if err != nil {
+		return nil, err
+	}
+
+	ks.removeIdentity(identity)
+	ks.db.Delete(identity)
+
+	return privKey, nil
 }
 
 func (ks *BadgerStorage) Close() {
@@ -133,8 +146,23 @@ func (ks *BadgerStorage) saveToList(identity Identity) error {
 	ks.RWMutex.Lock()
 	defer ks.RWMutex.Unlock()
 
-	identities := ks.db.Get(addresses)
+	identities := ks.db.Get(Addresses)
 	newIdentities := append(identities, identity...)
-	ks.db.Set(addresses, newIdentities)
+	ks.db.Set(Addresses, newIdentities)
 	return nil
+}
+
+func (ks *BadgerStorage) removeIdentity(identity Identity) {
+	ks.RWMutex.Lock()
+	defer ks.RWMutex.Unlock()
+
+	b := ks.db.Get(Addresses)
+	var ids []byte
+	for i := 0; i < len(b); i += types.AddressLength {
+		id := b[i:i+types.AddressLength]
+		if !reflect.DeepEqual(id, identity) {
+			ids = append(ids, id...)
+		}
+	}
+	ks.db.Set(Addresses, ids)
 }

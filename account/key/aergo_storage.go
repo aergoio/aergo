@@ -160,3 +160,15 @@ func (ks *AergoStorage) List() ([]Identity, error) {
 func (ks *AergoStorage) Close() {
 	// do nothing
 }
+
+func (ks *AergoStorage) Delete(identity Identity, passphrase string) (*PrivateKey, error) {
+	privKey, err := ks.Load(identity, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	err = os.Remove(ks.getFilePath(identity))
+	if err != nil {
+		return nil, err
+	}
+	return privKey, nil
+}

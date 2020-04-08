@@ -59,6 +59,7 @@ var (
 	importFilePath string
 	exportAsWif    bool
 	remoteKeystore bool
+	wantRemove     bool
 
 	rootConfig CliConfig
 
