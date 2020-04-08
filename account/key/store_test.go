@@ -98,7 +98,7 @@ func TestExportKey(t *testing.T) {
 		if len(addr) != types.AddressLength {
 			t.Errorf("invalid address created : length = %d", len(addr))
 		}
-		exported, err := ks.ExportKey(addr, pass)
+		exported, err := ks.ExportKey(addr, pass, false)
 		if err != nil {
 			t.Errorf("could not export key : %s", err.Error())
 		}
