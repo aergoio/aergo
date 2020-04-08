@@ -161,6 +161,12 @@ func (ks *AergoStorage) Close() {
 	// do nothing
 }
 
+func (ks *AergoStorage) getFilePath(identity Identity) string {
+	encodedIdentity := types.EncodeAddress(identity)
+	fileName := fmt.Sprintf(fileNameTemplate, encodedIdentity)
+	return filepath.Join(ks.storePath, fileName)
+}
+
 func (ks *AergoStorage) Delete(identity Identity, passphrase string) (*PrivateKey, error) {
 	privKey, err := ks.Load(identity, passphrase)
 	if err != nil {
