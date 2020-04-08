@@ -86,6 +86,7 @@ var removeCmd = &cobra.Command{
 		reply, err := client.ChangeMembership(context.Background(), changeReq)
 		if err != nil {
 			cmd.Printf("Failed to remove member: %s\n", err.Error())
+			return
 		}
 
 		cmd.Printf("removed member from cluster: %s\n", reply.Attr.ToString())
