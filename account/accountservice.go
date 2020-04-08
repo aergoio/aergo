@@ -196,7 +196,7 @@ func (as *AccountService) importAccountFromKeystore(keystore []byte, old string,
 }
 
 func (as *AccountService) exportAccount(address []byte, pass string) ([]byte, error) {
-	wif, err := as.ks.ExportKey(address, pass)
+	wif, err := as.ks.ExportKey(address, pass, false)
 	if err != nil {
 		return nil, err
 	}
