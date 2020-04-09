@@ -3,11 +3,9 @@
 
 package types
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -35,7 +33,6 @@ var PeerRole_name = map[int32]string{
 	2: "Watcher",
 	3: "Agent",
 }
-
 var PeerRole_value = map[string]int32{
 	"LegacyVersion": 0,
 	"Producer":      1,
@@ -46,22 +43,21 @@ var PeerRole_value = map[string]int32{
 func (x PeerRole) String() string {
 	return proto.EnumName(PeerRole_name, int32(x))
 }
-
 func (PeerRole) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_0c843d59d2d938e7, []int{0}
+	return fileDescriptor_node_2c4eb40676311241, []int{0}
 }
 
 // PeerAddress contains static information of peer and addresses to connect peer
 type PeerAddress struct {
 	// @Deprecated advertised address and port will be in addresses field in aergo v2.
 	// address is string representation of ip address or domain name.
-	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Address string `protobuf:"bytes,1,opt,name=address" json:"address,omitempty"`
 	// @Deprecated
-	Port                 uint32   `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	Port                 uint32   `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
 	PeerID               []byte   `protobuf:"bytes,3,opt,name=peerID,proto3" json:"peerID,omitempty"`
-	Role                 PeerRole `protobuf:"varint,4,opt,name=role,proto3,enum=types.PeerRole" json:"role,omitempty"`
-	Version              string   `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
-	Addresses            []string `protobuf:"bytes,6,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	Role                 PeerRole `protobuf:"varint,4,opt,name=role,enum=types.PeerRole" json:"role,omitempty"`
+	Version              string   `protobuf:"bytes,5,opt,name=version" json:"version,omitempty"`
+	Addresses            []string `protobuf:"bytes,6,rep,name=addresses" json:"addresses,omitempty"`
 	ProducerIDs          [][]byte `protobuf:"bytes,7,rep,name=producerIDs,proto3" json:"producerIDs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -72,17 +68,16 @@ func (m *PeerAddress) Reset()         { *m = PeerAddress{} }
 func (m *PeerAddress) String() string { return proto.CompactTextString(m) }
 func (*PeerAddress) ProtoMessage()    {}
 func (*PeerAddress) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0c843d59d2d938e7, []int{0}
+	return fileDescriptor_node_2c4eb40676311241, []int{0}
 }
-
 func (m *PeerAddress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerAddress.Unmarshal(m, b)
 }
 func (m *PeerAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PeerAddress.Marshal(b, m, deterministic)
 }
-func (m *PeerAddress) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PeerAddress.Merge(m, src)
+func (dst *PeerAddress) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PeerAddress.Merge(dst, src)
 }
 func (m *PeerAddress) XXX_Size() int {
 	return xxx_messageInfo_PeerAddress.Size(m)
@@ -143,13 +138,13 @@ func (m *PeerAddress) GetProducerIDs() [][]byte {
 }
 
 type AgentCertificate struct {
-	CertVersion uint32 `protobuf:"varint,1,opt,name=certVersion,proto3" json:"certVersion,omitempty"`
+	CertVersion uint32 `protobuf:"varint,1,opt,name=certVersion" json:"certVersion,omitempty"`
 	BPID        []byte `protobuf:"bytes,2,opt,name=BPID,proto3" json:"BPID,omitempty"`
 	BPPubKey    []byte `protobuf:"bytes,3,opt,name=BPPubKey,proto3" json:"BPPubKey,omitempty"`
 	// CreateTime is the number of nanoseconds elapsed since January 1, 1970 UTC
-	CreateTime int64 `protobuf:"varint,4,opt,name=createTime,proto3" json:"createTime,omitempty"`
+	CreateTime int64 `protobuf:"varint,4,opt,name=createTime" json:"createTime,omitempty"`
 	// CreateTime is the number of nanoseconds elapsed since January 1, 1970 UTC
-	ExpireTime           int64    `protobuf:"varint,5,opt,name=expireTime,proto3" json:"expireTime,omitempty"`
+	ExpireTime           int64    `protobuf:"varint,5,opt,name=expireTime" json:"expireTime,omitempty"`
 	AgentID              []byte   `protobuf:"bytes,6,opt,name=agentID,proto3" json:"agentID,omitempty"`
 	AgentAddress         [][]byte `protobuf:"bytes,7,rep,name=AgentAddress,proto3" json:"AgentAddress,omitempty"`
 	Signature            []byte   `protobuf:"bytes,8,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -162,17 +157,16 @@ func (m *AgentCertificate) Reset()         { *m = AgentCertificate{} }
 func (m *AgentCertificate) String() string { return proto.CompactTextString(m) }
 func (*AgentCertificate) ProtoMessage()    {}
 func (*AgentCertificate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_0c843d59d2d938e7, []int{1}
+	return fileDescriptor_node_2c4eb40676311241, []int{1}
 }
-
 func (m *AgentCertificate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AgentCertificate.Unmarshal(m, b)
 }
 func (m *AgentCertificate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AgentCertificate.Marshal(b, m, deterministic)
 }
-func (m *AgentCertificate) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AgentCertificate.Merge(m, src)
+func (dst *AgentCertificate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AgentCertificate.Merge(dst, src)
 }
 func (m *AgentCertificate) XXX_Size() int {
 	return xxx_messageInfo_AgentCertificate.Size(m)
@@ -240,14 +234,14 @@ func (m *AgentCertificate) GetSignature() []byte {
 }
 
 func init() {
-	proto.RegisterEnum("types.PeerRole", PeerRole_name, PeerRole_value)
 	proto.RegisterType((*PeerAddress)(nil), "types.PeerAddress")
 	proto.RegisterType((*AgentCertificate)(nil), "types.AgentCertificate")
+	proto.RegisterEnum("types.PeerRole", PeerRole_name, PeerRole_value)
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor_0c843d59d2d938e7) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor_node_2c4eb40676311241) }
 
-var fileDescriptor_0c843d59d2d938e7 = []byte{
+var fileDescriptor_node_2c4eb40676311241 = []byte{
 	// 356 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x92, 0x4f, 0x4f, 0xe3, 0x30,
 	0x10, 0xc5, 0xd7, 0x4d, 0x93, 0x26, 0xd3, 0x74, 0x37, 0x3b, 0x87, 0x95, 0xb5, 0x42, 0x28, 0x2a,

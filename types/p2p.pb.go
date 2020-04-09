@@ -3,11 +3,9 @@
 
 package types
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -88,7 +86,6 @@ var ResultStatus_name = map[int32]string{
 	15: "DATA_LOSS",
 	16: "UNAUTHENTICATED",
 }
-
 var ResultStatus_value = map[string]int32{
 	"OK":                  0,
 	"CANCELED":            1,
@@ -112,22 +109,21 @@ var ResultStatus_value = map[string]int32{
 func (x ResultStatus) String() string {
 	return proto.EnumName(ResultStatus_name, int32(x))
 }
-
 func (ResultStatus) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{0}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{0}
 }
 
 // MsgHeader contains common properties of all p2p messages
 type MsgHeader struct {
 	// Deprecated client version.
-	ClientVersion string `protobuf:"bytes,1,opt,name=clientVersion,proto3" json:"clientVersion,omitempty"`
+	ClientVersion string `protobuf:"bytes,1,opt,name=clientVersion" json:"clientVersion,omitempty"`
 	// unix time
-	Timestamp int64 `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp int64 `protobuf:"varint,2,opt,name=timestamp" json:"timestamp,omitempty"`
 	// allows requesters to use request data when processing a response
-	Id string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
+	Id string `protobuf:"bytes,3,opt,name=id" json:"id,omitempty"`
 	// Gossip is flag to have receiver peer gossip the message to neighbors
 	// Deprecated whether to gossip other peers is determined by subprotocol since version 0.3.0 .
-	Gossip bool `protobuf:"varint,4,opt,name=gossip,proto3" json:"gossip,omitempty"`
+	Gossip bool `protobuf:"varint,4,opt,name=gossip" json:"gossip,omitempty"`
 	// PeerID is id of node that created the message (not the peer that may have sent it). =base58(mh(sha256(nodePubKey)))
 	PeerID []byte `protobuf:"bytes,5,opt,name=peerID,proto3" json:"peerID,omitempty"`
 	// nodePubKey Authoring node Secp256k1 public key (32bytes) - protobufs serielized
@@ -135,9 +131,9 @@ type MsgHeader struct {
 	// signature of message data + method specific data by message authoring node. format: string([]bytes)
 	Sign []byte `protobuf:"bytes,7,opt,name=sign,proto3" json:"sign,omitempty"`
 	// sub category of message. the receiving peer determines how to deserialize payload data and whether to spread messages to other peers
-	Subprotocol uint32 `protobuf:"varint,8,opt,name=subprotocol,proto3" json:"subprotocol,omitempty"`
+	Subprotocol uint32 `protobuf:"varint,8,opt,name=subprotocol" json:"subprotocol,omitempty"`
 	// size of bytes of the payload
-	Length               uint32   `protobuf:"varint,9,opt,name=length,proto3" json:"length,omitempty"`
+	Length               uint32   `protobuf:"varint,9,opt,name=length" json:"length,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -147,17 +143,16 @@ func (m *MsgHeader) Reset()         { *m = MsgHeader{} }
 func (m *MsgHeader) String() string { return proto.CompactTextString(m) }
 func (*MsgHeader) ProtoMessage()    {}
 func (*MsgHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{0}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{0}
 }
-
 func (m *MsgHeader) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MsgHeader.Unmarshal(m, b)
 }
 func (m *MsgHeader) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MsgHeader.Marshal(b, m, deterministic)
 }
-func (m *MsgHeader) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgHeader.Merge(m, src)
+func (dst *MsgHeader) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgHeader.Merge(dst, src)
 }
 func (m *MsgHeader) XXX_Size() int {
 	return xxx_messageInfo_MsgHeader.Size(m)
@@ -233,7 +228,7 @@ func (m *MsgHeader) GetLength() uint32 {
 
 // Deprecated P2PMessage is data structure for aergo v0.2 or earlier. This structure is not used anymore since v0.3.0.
 type P2PMessage struct {
-	Header               *MsgHeader `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	Header               *MsgHeader `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
 	Data                 []byte     `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
@@ -244,17 +239,16 @@ func (m *P2PMessage) Reset()         { *m = P2PMessage{} }
 func (m *P2PMessage) String() string { return proto.CompactTextString(m) }
 func (*P2PMessage) ProtoMessage()    {}
 func (*P2PMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{1}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{1}
 }
-
 func (m *P2PMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_P2PMessage.Unmarshal(m, b)
 }
 func (m *P2PMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_P2PMessage.Marshal(b, m, deterministic)
 }
-func (m *P2PMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_P2PMessage.Merge(m, src)
+func (dst *P2PMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_P2PMessage.Merge(dst, src)
 }
 func (m *P2PMessage) XXX_Size() int {
 	return xxx_messageInfo_P2PMessage.Size(m)
@@ -282,7 +276,7 @@ func (m *P2PMessage) GetData() []byte {
 // Ping request message
 type Ping struct {
 	BestBlockHash        []byte   `protobuf:"bytes,1,opt,name=best_block_hash,json=bestBlockHash,proto3" json:"best_block_hash,omitempty"`
-	BestHeight           uint64   `protobuf:"varint,2,opt,name=best_height,json=bestHeight,proto3" json:"best_height,omitempty"`
+	BestHeight           uint64   `protobuf:"varint,2,opt,name=best_height,json=bestHeight" json:"best_height,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -292,17 +286,16 @@ func (m *Ping) Reset()         { *m = Ping{} }
 func (m *Ping) String() string { return proto.CompactTextString(m) }
 func (*Ping) ProtoMessage()    {}
 func (*Ping) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{2}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{2}
 }
-
 func (m *Ping) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Ping.Unmarshal(m, b)
 }
 func (m *Ping) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Ping.Marshal(b, m, deterministic)
 }
-func (m *Ping) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Ping.Merge(m, src)
+func (dst *Ping) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Ping.Merge(dst, src)
 }
 func (m *Ping) XXX_Size() int {
 	return xxx_messageInfo_Ping.Size(m)
@@ -330,7 +323,7 @@ func (m *Ping) GetBestHeight() uint64 {
 // Ping response message
 type Pong struct {
 	BestBlockHash        []byte   `protobuf:"bytes,1,opt,name=bestBlockHash,proto3" json:"bestBlockHash,omitempty"`
-	BestHeight           uint64   `protobuf:"varint,2,opt,name=bestHeight,proto3" json:"bestHeight,omitempty"`
+	BestHeight           uint64   `protobuf:"varint,2,opt,name=bestHeight" json:"bestHeight,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -340,17 +333,16 @@ func (m *Pong) Reset()         { *m = Pong{} }
 func (m *Pong) String() string { return proto.CompactTextString(m) }
 func (*Pong) ProtoMessage()    {}
 func (*Pong) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{3}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{3}
 }
-
 func (m *Pong) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Pong.Unmarshal(m, b)
 }
 func (m *Pong) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Pong.Marshal(b, m, deterministic)
 }
-func (m *Pong) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Pong.Merge(m, src)
+func (dst *Pong) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Pong.Merge(dst, src)
 }
 func (m *Pong) XXX_Size() int {
 	return xxx_messageInfo_Pong.Size(m)
@@ -377,20 +369,20 @@ func (m *Pong) GetBestHeight() uint64 {
 
 // Status is peer status exchanged during handshake.
 type Status struct {
-	Sender        *PeerAddress `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	Sender        *PeerAddress `protobuf:"bytes,1,opt,name=sender" json:"sender,omitempty"`
 	BestBlockHash []byte       `protobuf:"bytes,2,opt,name=bestBlockHash,proto3" json:"bestBlockHash,omitempty"`
-	BestHeight    uint64       `protobuf:"varint,3,opt,name=bestHeight,proto3" json:"bestHeight,omitempty"`
+	BestHeight    uint64       `protobuf:"varint,3,opt,name=bestHeight" json:"bestHeight,omitempty"`
 	ChainID       []byte       `protobuf:"bytes,4,opt,name=chainID,proto3" json:"chainID,omitempty"`
 	// noExpose means that peer doesn't want to be known to other peers.
-	NoExpose bool `protobuf:"varint,5,opt,name=noExpose,proto3" json:"noExpose,omitempty"`
+	NoExpose bool `protobuf:"varint,5,opt,name=noExpose" json:"noExpose,omitempty"`
 	// @Deprecated version is used in PeerAddress since aergo v2.
 	// version of server binary.
-	Version string `protobuf:"bytes,6,opt,name=version,proto3" json:"version,omitempty"`
+	Version string `protobuf:"bytes,6,opt,name=version" json:"version,omitempty"`
 	// hash of genesis block
 	Genesis      []byte              `protobuf:"bytes,7,opt,name=genesis,proto3" json:"genesis,omitempty"`
-	Certificates []*AgentCertificate `protobuf:"bytes,8,rep,name=certificates,proto3" json:"certificates,omitempty"`
+	Certificates []*AgentCertificate `protobuf:"bytes,8,rep,name=certificates" json:"certificates,omitempty"`
 	// request to issue agent certificates
-	IssueCertificate     bool     `protobuf:"varint,9,opt,name=issueCertificate,proto3" json:"issueCertificate,omitempty"`
+	IssueCertificate     bool     `protobuf:"varint,9,opt,name=issueCertificate" json:"issueCertificate,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -400,17 +392,16 @@ func (m *Status) Reset()         { *m = Status{} }
 func (m *Status) String() string { return proto.CompactTextString(m) }
 func (*Status) ProtoMessage()    {}
 func (*Status) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{4}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{4}
 }
-
 func (m *Status) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Status.Unmarshal(m, b)
 }
 func (m *Status) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Status.Marshal(b, m, deterministic)
 }
-func (m *Status) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Status.Merge(m, src)
+func (dst *Status) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Status.Merge(dst, src)
 }
 func (m *Status) XXX_Size() int {
 	return xxx_messageInfo_Status.Size(m)
@@ -486,7 +477,7 @@ func (m *Status) GetIssueCertificate() bool {
 
 // GoAwayNotice is sent before host peer is closing connection to remote peer. it contains why the host closing connection.
 type GoAwayNotice struct {
-	Message              string   `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	Message              string   `protobuf:"bytes,1,opt,name=message" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -496,17 +487,16 @@ func (m *GoAwayNotice) Reset()         { *m = GoAwayNotice{} }
 func (m *GoAwayNotice) String() string { return proto.CompactTextString(m) }
 func (*GoAwayNotice) ProtoMessage()    {}
 func (*GoAwayNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{5}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{5}
 }
-
 func (m *GoAwayNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GoAwayNotice.Unmarshal(m, b)
 }
 func (m *GoAwayNotice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GoAwayNotice.Marshal(b, m, deterministic)
 }
-func (m *GoAwayNotice) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GoAwayNotice.Merge(m, src)
+func (dst *GoAwayNotice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GoAwayNotice.Merge(dst, src)
 }
 func (m *GoAwayNotice) XXX_Size() int {
 	return xxx_messageInfo_GoAwayNotice.Size(m)
@@ -525,8 +515,8 @@ func (m *GoAwayNotice) GetMessage() string {
 }
 
 type AddressesRequest struct {
-	Sender               *PeerAddress `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
-	MaxSize              uint32       `protobuf:"varint,2,opt,name=maxSize,proto3" json:"maxSize,omitempty"`
+	Sender               *PeerAddress `protobuf:"bytes,1,opt,name=sender" json:"sender,omitempty"`
+	MaxSize              uint32       `protobuf:"varint,2,opt,name=maxSize" json:"maxSize,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -536,17 +526,16 @@ func (m *AddressesRequest) Reset()         { *m = AddressesRequest{} }
 func (m *AddressesRequest) String() string { return proto.CompactTextString(m) }
 func (*AddressesRequest) ProtoMessage()    {}
 func (*AddressesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{6}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{6}
 }
-
 func (m *AddressesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddressesRequest.Unmarshal(m, b)
 }
 func (m *AddressesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AddressesRequest.Marshal(b, m, deterministic)
 }
-func (m *AddressesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AddressesRequest.Merge(m, src)
+func (dst *AddressesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddressesRequest.Merge(dst, src)
 }
 func (m *AddressesRequest) XXX_Size() int {
 	return xxx_messageInfo_AddressesRequest.Size(m)
@@ -572,8 +561,8 @@ func (m *AddressesRequest) GetMaxSize() uint32 {
 }
 
 type AddressesResponse struct {
-	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
-	Peers                []*PeerAddress `protobuf:"bytes,2,rep,name=peers,proto3" json:"peers,omitempty"`
+	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
+	Peers                []*PeerAddress `protobuf:"bytes,2,rep,name=peers" json:"peers,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -583,17 +572,16 @@ func (m *AddressesResponse) Reset()         { *m = AddressesResponse{} }
 func (m *AddressesResponse) String() string { return proto.CompactTextString(m) }
 func (*AddressesResponse) ProtoMessage()    {}
 func (*AddressesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{7}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{7}
 }
-
 func (m *AddressesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddressesResponse.Unmarshal(m, b)
 }
 func (m *AddressesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AddressesResponse.Marshal(b, m, deterministic)
 }
-func (m *AddressesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AddressesResponse.Merge(m, src)
+func (dst *AddressesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddressesResponse.Merge(dst, src)
 }
 func (m *AddressesResponse) XXX_Size() int {
 	return xxx_messageInfo_AddressesResponse.Size(m)
@@ -623,7 +611,7 @@ func (m *AddressesResponse) GetPeers() []*PeerAddress {
 // knows that block already at best effort.
 type NewBlockNotice struct {
 	BlockHash            []byte   `protobuf:"bytes,1,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
-	BlockNo              uint64   `protobuf:"varint,2,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
+	BlockNo              uint64   `protobuf:"varint,2,opt,name=blockNo" json:"blockNo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -633,17 +621,16 @@ func (m *NewBlockNotice) Reset()         { *m = NewBlockNotice{} }
 func (m *NewBlockNotice) String() string { return proto.CompactTextString(m) }
 func (*NewBlockNotice) ProtoMessage()    {}
 func (*NewBlockNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{8}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{8}
 }
-
 func (m *NewBlockNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewBlockNotice.Unmarshal(m, b)
 }
 func (m *NewBlockNotice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_NewBlockNotice.Marshal(b, m, deterministic)
 }
-func (m *NewBlockNotice) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NewBlockNotice.Merge(m, src)
+func (dst *NewBlockNotice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NewBlockNotice.Merge(dst, src)
 }
 func (m *NewBlockNotice) XXX_Size() int {
 	return xxx_messageInfo_NewBlockNotice.Size(m)
@@ -672,8 +659,8 @@ func (m *NewBlockNotice) GetBlockNo() uint64 {
 // It contains whole block information
 type BlockProducedNotice struct {
 	ProducerID           []byte   `protobuf:"bytes,1,opt,name=producerID,proto3" json:"producerID,omitempty"`
-	BlockNo              uint64   `protobuf:"varint,2,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
-	Block                *Block   `protobuf:"bytes,3,opt,name=block,proto3" json:"block,omitempty"`
+	BlockNo              uint64   `protobuf:"varint,2,opt,name=blockNo" json:"blockNo,omitempty"`
+	Block                *Block   `protobuf:"bytes,3,opt,name=block" json:"block,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -683,17 +670,16 @@ func (m *BlockProducedNotice) Reset()         { *m = BlockProducedNotice{} }
 func (m *BlockProducedNotice) String() string { return proto.CompactTextString(m) }
 func (*BlockProducedNotice) ProtoMessage()    {}
 func (*BlockProducedNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{9}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{9}
 }
-
 func (m *BlockProducedNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockProducedNotice.Unmarshal(m, b)
 }
 func (m *BlockProducedNotice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BlockProducedNotice.Marshal(b, m, deterministic)
 }
-func (m *BlockProducedNotice) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BlockProducedNotice.Merge(m, src)
+func (dst *BlockProducedNotice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BlockProducedNotice.Merge(dst, src)
 }
 func (m *BlockProducedNotice) XXX_Size() int {
 	return xxx_messageInfo_BlockProducedNotice.Size(m)
@@ -730,11 +716,11 @@ type GetBlockHeadersRequest struct {
 	// Hash indicated referenced block hash. server will return headers from this block.
 	Hash []byte `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
 	// Block height instead of hash will be used for the first returned block, if hash is nil or empty
-	Height uint64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
-	Offset uint64 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
-	Size   uint32 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	Height uint64 `protobuf:"varint,2,opt,name=height" json:"height,omitempty"`
+	Offset uint64 `protobuf:"varint,3,opt,name=offset" json:"offset,omitempty"`
+	Size   uint32 `protobuf:"varint,4,opt,name=size" json:"size,omitempty"`
 	// default is false.
-	Asc                  bool     `protobuf:"varint,5,opt,name=asc,proto3" json:"asc,omitempty"`
+	Asc                  bool     `protobuf:"varint,5,opt,name=asc" json:"asc,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -744,17 +730,16 @@ func (m *GetBlockHeadersRequest) Reset()         { *m = GetBlockHeadersRequest{}
 func (m *GetBlockHeadersRequest) String() string { return proto.CompactTextString(m) }
 func (*GetBlockHeadersRequest) ProtoMessage()    {}
 func (*GetBlockHeadersRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{10}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{10}
 }
-
 func (m *GetBlockHeadersRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockHeadersRequest.Unmarshal(m, b)
 }
 func (m *GetBlockHeadersRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetBlockHeadersRequest.Marshal(b, m, deterministic)
 }
-func (m *GetBlockHeadersRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetBlockHeadersRequest.Merge(m, src)
+func (dst *GetBlockHeadersRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetBlockHeadersRequest.Merge(dst, src)
 }
 func (m *GetBlockHeadersRequest) XXX_Size() int {
 	return xxx_messageInfo_GetBlockHeadersRequest.Size(m)
@@ -802,10 +787,10 @@ func (m *GetBlockHeadersRequest) GetAsc() bool {
 
 // GetBlockResponse contains response of GetBlockRequest.
 type GetBlockHeadersResponse struct {
-	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
+	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
 	Hashes               [][]byte       `protobuf:"bytes,2,rep,name=hashes,proto3" json:"hashes,omitempty"`
-	Headers              []*BlockHeader `protobuf:"bytes,3,rep,name=headers,proto3" json:"headers,omitempty"`
-	HasNext              bool           `protobuf:"varint,4,opt,name=hasNext,proto3" json:"hasNext,omitempty"`
+	Headers              []*BlockHeader `protobuf:"bytes,3,rep,name=headers" json:"headers,omitempty"`
+	HasNext              bool           `protobuf:"varint,4,opt,name=hasNext" json:"hasNext,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -815,17 +800,16 @@ func (m *GetBlockHeadersResponse) Reset()         { *m = GetBlockHeadersResponse
 func (m *GetBlockHeadersResponse) String() string { return proto.CompactTextString(m) }
 func (*GetBlockHeadersResponse) ProtoMessage()    {}
 func (*GetBlockHeadersResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{11}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{11}
 }
-
 func (m *GetBlockHeadersResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockHeadersResponse.Unmarshal(m, b)
 }
 func (m *GetBlockHeadersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetBlockHeadersResponse.Marshal(b, m, deterministic)
 }
-func (m *GetBlockHeadersResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetBlockHeadersResponse.Merge(m, src)
+func (dst *GetBlockHeadersResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetBlockHeadersResponse.Merge(dst, src)
 }
 func (m *GetBlockHeadersResponse) XXX_Size() int {
 	return xxx_messageInfo_GetBlockHeadersResponse.Size(m)
@@ -876,17 +860,16 @@ func (m *GetBlockRequest) Reset()         { *m = GetBlockRequest{} }
 func (m *GetBlockRequest) String() string { return proto.CompactTextString(m) }
 func (*GetBlockRequest) ProtoMessage()    {}
 func (*GetBlockRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{12}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{12}
 }
-
 func (m *GetBlockRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockRequest.Unmarshal(m, b)
 }
 func (m *GetBlockRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetBlockRequest.Marshal(b, m, deterministic)
 }
-func (m *GetBlockRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetBlockRequest.Merge(m, src)
+func (dst *GetBlockRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetBlockRequest.Merge(dst, src)
 }
 func (m *GetBlockRequest) XXX_Size() int {
 	return xxx_messageInfo_GetBlockRequest.Size(m)
@@ -906,9 +889,9 @@ func (m *GetBlockRequest) GetHashes() [][]byte {
 
 // GetBlockResponse contains response of GetBlockRequest.
 type GetBlockResponse struct {
-	Status               ResultStatus `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
-	Blocks               []*Block     `protobuf:"bytes,2,rep,name=blocks,proto3" json:"blocks,omitempty"`
-	HasNext              bool         `protobuf:"varint,3,opt,name=hasNext,proto3" json:"hasNext,omitempty"`
+	Status               ResultStatus `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
+	Blocks               []*Block     `protobuf:"bytes,2,rep,name=blocks" json:"blocks,omitempty"`
+	HasNext              bool         `protobuf:"varint,3,opt,name=hasNext" json:"hasNext,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -918,17 +901,16 @@ func (m *GetBlockResponse) Reset()         { *m = GetBlockResponse{} }
 func (m *GetBlockResponse) String() string { return proto.CompactTextString(m) }
 func (*GetBlockResponse) ProtoMessage()    {}
 func (*GetBlockResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{13}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{13}
 }
-
 func (m *GetBlockResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetBlockResponse.Unmarshal(m, b)
 }
 func (m *GetBlockResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetBlockResponse.Marshal(b, m, deterministic)
 }
-func (m *GetBlockResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetBlockResponse.Merge(m, src)
+func (dst *GetBlockResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetBlockResponse.Merge(dst, src)
 }
 func (m *GetBlockResponse) XXX_Size() int {
 	return xxx_messageInfo_GetBlockResponse.Size(m)
@@ -971,17 +953,16 @@ func (m *NewTransactionsNotice) Reset()         { *m = NewTransactionsNotice{} }
 func (m *NewTransactionsNotice) String() string { return proto.CompactTextString(m) }
 func (*NewTransactionsNotice) ProtoMessage()    {}
 func (*NewTransactionsNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{14}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{14}
 }
-
 func (m *NewTransactionsNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewTransactionsNotice.Unmarshal(m, b)
 }
 func (m *NewTransactionsNotice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_NewTransactionsNotice.Marshal(b, m, deterministic)
 }
-func (m *NewTransactionsNotice) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NewTransactionsNotice.Merge(m, src)
+func (dst *NewTransactionsNotice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NewTransactionsNotice.Merge(dst, src)
 }
 func (m *NewTransactionsNotice) XXX_Size() int {
 	return xxx_messageInfo_NewTransactionsNotice.Size(m)
@@ -1010,17 +991,16 @@ func (m *GetTransactionsRequest) Reset()         { *m = GetTransactionsRequest{}
 func (m *GetTransactionsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionsRequest) ProtoMessage()    {}
 func (*GetTransactionsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{15}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{15}
 }
-
 func (m *GetTransactionsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTransactionsRequest.Unmarshal(m, b)
 }
 func (m *GetTransactionsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetTransactionsRequest.Marshal(b, m, deterministic)
 }
-func (m *GetTransactionsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetTransactionsRequest.Merge(m, src)
+func (dst *GetTransactionsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTransactionsRequest.Merge(dst, src)
 }
 func (m *GetTransactionsRequest) XXX_Size() int {
 	return xxx_messageInfo_GetTransactionsRequest.Size(m)
@@ -1039,10 +1019,10 @@ func (m *GetTransactionsRequest) GetHashes() [][]byte {
 }
 
 type GetTransactionsResponse struct {
-	Status               ResultStatus `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
+	Status               ResultStatus `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
 	Hashes               [][]byte     `protobuf:"bytes,2,rep,name=hashes,proto3" json:"hashes,omitempty"`
-	Txs                  []*Tx        `protobuf:"bytes,3,rep,name=txs,proto3" json:"txs,omitempty"`
-	HasNext              bool         `protobuf:"varint,4,opt,name=hasNext,proto3" json:"hasNext,omitempty"`
+	Txs                  []*Tx        `protobuf:"bytes,3,rep,name=txs" json:"txs,omitempty"`
+	HasNext              bool         `protobuf:"varint,4,opt,name=hasNext" json:"hasNext,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -1052,17 +1032,16 @@ func (m *GetTransactionsResponse) Reset()         { *m = GetTransactionsResponse
 func (m *GetTransactionsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionsResponse) ProtoMessage()    {}
 func (*GetTransactionsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{16}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{16}
 }
-
 func (m *GetTransactionsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetTransactionsResponse.Unmarshal(m, b)
 }
 func (m *GetTransactionsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetTransactionsResponse.Marshal(b, m, deterministic)
 }
-func (m *GetTransactionsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetTransactionsResponse.Merge(m, src)
+func (dst *GetTransactionsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetTransactionsResponse.Merge(dst, src)
 }
 func (m *GetTransactionsResponse) XXX_Size() int {
 	return xxx_messageInfo_GetTransactionsResponse.Size(m)
@@ -1116,17 +1095,16 @@ func (m *GetMissingRequest) Reset()         { *m = GetMissingRequest{} }
 func (m *GetMissingRequest) String() string { return proto.CompactTextString(m) }
 func (*GetMissingRequest) ProtoMessage()    {}
 func (*GetMissingRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{17}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{17}
 }
-
 func (m *GetMissingRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetMissingRequest.Unmarshal(m, b)
 }
 func (m *GetMissingRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetMissingRequest.Marshal(b, m, deterministic)
 }
-func (m *GetMissingRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetMissingRequest.Merge(m, src)
+func (dst *GetMissingRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetMissingRequest.Merge(dst, src)
 }
 func (m *GetMissingRequest) XXX_Size() int {
 	return xxx_messageInfo_GetMissingRequest.Size(m)
@@ -1163,17 +1141,16 @@ func (m *GetAncestorRequest) Reset()         { *m = GetAncestorRequest{} }
 func (m *GetAncestorRequest) String() string { return proto.CompactTextString(m) }
 func (*GetAncestorRequest) ProtoMessage()    {}
 func (*GetAncestorRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{18}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{18}
 }
-
 func (m *GetAncestorRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAncestorRequest.Unmarshal(m, b)
 }
 func (m *GetAncestorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetAncestorRequest.Marshal(b, m, deterministic)
 }
-func (m *GetAncestorRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAncestorRequest.Merge(m, src)
+func (dst *GetAncestorRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetAncestorRequest.Merge(dst, src)
 }
 func (m *GetAncestorRequest) XXX_Size() int {
 	return xxx_messageInfo_GetAncestorRequest.Size(m)
@@ -1192,9 +1169,9 @@ func (m *GetAncestorRequest) GetHashes() [][]byte {
 }
 
 type GetAncestorResponse struct {
-	Status               ResultStatus `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
+	Status               ResultStatus `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
 	AncestorHash         []byte       `protobuf:"bytes,2,opt,name=ancestorHash,proto3" json:"ancestorHash,omitempty"`
-	AncestorNo           uint64       `protobuf:"varint,3,opt,name=ancestorNo,proto3" json:"ancestorNo,omitempty"`
+	AncestorNo           uint64       `protobuf:"varint,3,opt,name=ancestorNo" json:"ancestorNo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -1204,17 +1181,16 @@ func (m *GetAncestorResponse) Reset()         { *m = GetAncestorResponse{} }
 func (m *GetAncestorResponse) String() string { return proto.CompactTextString(m) }
 func (*GetAncestorResponse) ProtoMessage()    {}
 func (*GetAncestorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{19}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{19}
 }
-
 func (m *GetAncestorResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAncestorResponse.Unmarshal(m, b)
 }
 func (m *GetAncestorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetAncestorResponse.Marshal(b, m, deterministic)
 }
-func (m *GetAncestorResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAncestorResponse.Merge(m, src)
+func (dst *GetAncestorResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetAncestorResponse.Merge(dst, src)
 }
 func (m *GetAncestorResponse) XXX_Size() int {
 	return xxx_messageInfo_GetAncestorResponse.Size(m)
@@ -1247,7 +1223,7 @@ func (m *GetAncestorResponse) GetAncestorNo() uint64 {
 }
 
 type GetHashByNo struct {
-	BlockNo              uint64   `protobuf:"varint,1,opt,name=blockNo,proto3" json:"blockNo,omitempty"`
+	BlockNo              uint64   `protobuf:"varint,1,opt,name=blockNo" json:"blockNo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1257,17 +1233,16 @@ func (m *GetHashByNo) Reset()         { *m = GetHashByNo{} }
 func (m *GetHashByNo) String() string { return proto.CompactTextString(m) }
 func (*GetHashByNo) ProtoMessage()    {}
 func (*GetHashByNo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{20}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{20}
 }
-
 func (m *GetHashByNo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashByNo.Unmarshal(m, b)
 }
 func (m *GetHashByNo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetHashByNo.Marshal(b, m, deterministic)
 }
-func (m *GetHashByNo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetHashByNo.Merge(m, src)
+func (dst *GetHashByNo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetHashByNo.Merge(dst, src)
 }
 func (m *GetHashByNo) XXX_Size() int {
 	return xxx_messageInfo_GetHashByNo.Size(m)
@@ -1286,7 +1261,7 @@ func (m *GetHashByNo) GetBlockNo() uint64 {
 }
 
 type GetHashByNoResponse struct {
-	Status               ResultStatus `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
+	Status               ResultStatus `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
 	BlockHash            []byte       `protobuf:"bytes,2,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
@@ -1297,17 +1272,16 @@ func (m *GetHashByNoResponse) Reset()         { *m = GetHashByNoResponse{} }
 func (m *GetHashByNoResponse) String() string { return proto.CompactTextString(m) }
 func (*GetHashByNoResponse) ProtoMessage()    {}
 func (*GetHashByNoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{21}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{21}
 }
-
 func (m *GetHashByNoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashByNoResponse.Unmarshal(m, b)
 }
 func (m *GetHashByNoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetHashByNoResponse.Marshal(b, m, deterministic)
 }
-func (m *GetHashByNoResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetHashByNoResponse.Merge(m, src)
+func (dst *GetHashByNoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetHashByNoResponse.Merge(dst, src)
 }
 func (m *GetHashByNoResponse) XXX_Size() int {
 	return xxx_messageInfo_GetHashByNoResponse.Size(m)
@@ -1337,9 +1311,9 @@ type GetHashesRequest struct {
 	// prevHash indicated referenced block hash. server will return hashes after this block.
 	PrevHash []byte `protobuf:"bytes,1,opt,name=prevHash,proto3" json:"prevHash,omitempty"`
 	// prevNumber indicated referenced block
-	PrevNumber uint64 `protobuf:"varint,2,opt,name=prevNumber,proto3" json:"prevNumber,omitempty"`
+	PrevNumber uint64 `protobuf:"varint,2,opt,name=prevNumber" json:"prevNumber,omitempty"`
 	// maximum count of hashes that want to get
-	Size                 uint64   `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Size                 uint64   `protobuf:"varint,3,opt,name=size" json:"size,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1349,17 +1323,16 @@ func (m *GetHashesRequest) Reset()         { *m = GetHashesRequest{} }
 func (m *GetHashesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetHashesRequest) ProtoMessage()    {}
 func (*GetHashesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{22}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{22}
 }
-
 func (m *GetHashesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashesRequest.Unmarshal(m, b)
 }
 func (m *GetHashesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetHashesRequest.Marshal(b, m, deterministic)
 }
-func (m *GetHashesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetHashesRequest.Merge(m, src)
+func (dst *GetHashesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetHashesRequest.Merge(dst, src)
 }
 func (m *GetHashesRequest) XXX_Size() int {
 	return xxx_messageInfo_GetHashesRequest.Size(m)
@@ -1393,9 +1366,9 @@ func (m *GetHashesRequest) GetSize() uint64 {
 
 // GetHashesResponse contains response of GetHashesRequest.
 type GetHashesResponse struct {
-	Status               ResultStatus `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
+	Status               ResultStatus `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
 	Hashes               [][]byte     `protobuf:"bytes,2,rep,name=hashes,proto3" json:"hashes,omitempty"`
-	HasNext              bool         `protobuf:"varint,3,opt,name=hasNext,proto3" json:"hasNext,omitempty"`
+	HasNext              bool         `protobuf:"varint,3,opt,name=hasNext" json:"hasNext,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -1405,17 +1378,16 @@ func (m *GetHashesResponse) Reset()         { *m = GetHashesResponse{} }
 func (m *GetHashesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetHashesResponse) ProtoMessage()    {}
 func (*GetHashesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{23}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{23}
 }
-
 func (m *GetHashesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetHashesResponse.Unmarshal(m, b)
 }
 func (m *GetHashesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetHashesResponse.Marshal(b, m, deterministic)
 }
-func (m *GetHashesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetHashesResponse.Merge(m, src)
+func (dst *GetHashesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetHashesResponse.Merge(dst, src)
 }
 func (m *GetHashesResponse) XXX_Size() int {
 	return xxx_messageInfo_GetHashesResponse.Size(m)
@@ -1458,17 +1430,16 @@ func (m *IssueCertificateRequest) Reset()         { *m = IssueCertificateRequest
 func (m *IssueCertificateRequest) String() string { return proto.CompactTextString(m) }
 func (*IssueCertificateRequest) ProtoMessage()    {}
 func (*IssueCertificateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{24}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{24}
 }
-
 func (m *IssueCertificateRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IssueCertificateRequest.Unmarshal(m, b)
 }
 func (m *IssueCertificateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_IssueCertificateRequest.Marshal(b, m, deterministic)
 }
-func (m *IssueCertificateRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IssueCertificateRequest.Merge(m, src)
+func (dst *IssueCertificateRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IssueCertificateRequest.Merge(dst, src)
 }
 func (m *IssueCertificateRequest) XXX_Size() int {
 	return xxx_messageInfo_IssueCertificateRequest.Size(m)
@@ -1481,8 +1452,8 @@ var xxx_messageInfo_IssueCertificateRequest proto.InternalMessageInfo
 
 // IssueCertificateResp is common message during handshake
 type IssueCertificateResponse struct {
-	Status               ResultStatus      `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
-	Certificate          *AgentCertificate `protobuf:"bytes,2,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	Status               ResultStatus      `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
+	Certificate          *AgentCertificate `protobuf:"bytes,2,opt,name=certificate" json:"certificate,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -1492,17 +1463,16 @@ func (m *IssueCertificateResponse) Reset()         { *m = IssueCertificateRespon
 func (m *IssueCertificateResponse) String() string { return proto.CompactTextString(m) }
 func (*IssueCertificateResponse) ProtoMessage()    {}
 func (*IssueCertificateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{25}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{25}
 }
-
 func (m *IssueCertificateResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IssueCertificateResponse.Unmarshal(m, b)
 }
 func (m *IssueCertificateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_IssueCertificateResponse.Marshal(b, m, deterministic)
 }
-func (m *IssueCertificateResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IssueCertificateResponse.Merge(m, src)
+func (dst *IssueCertificateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IssueCertificateResponse.Merge(dst, src)
 }
 func (m *IssueCertificateResponse) XXX_Size() int {
 	return xxx_messageInfo_IssueCertificateResponse.Size(m)
@@ -1529,7 +1499,7 @@ func (m *IssueCertificateResponse) GetCertificate() *AgentCertificate {
 
 // CertificateRenewedNotice is sent when agent update hi certificate
 type CertificateRenewedNotice struct {
-	Certificate          *AgentCertificate `protobuf:"bytes,2,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	Certificate          *AgentCertificate `protobuf:"bytes,2,opt,name=certificate" json:"certificate,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -1539,17 +1509,16 @@ func (m *CertificateRenewedNotice) Reset()         { *m = CertificateRenewedNoti
 func (m *CertificateRenewedNotice) String() string { return proto.CompactTextString(m) }
 func (*CertificateRenewedNotice) ProtoMessage()    {}
 func (*CertificateRenewedNotice) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e7fdddb109e6467a, []int{26}
+	return fileDescriptor_p2p_6496de2d566cf566, []int{26}
 }
-
 func (m *CertificateRenewedNotice) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CertificateRenewedNotice.Unmarshal(m, b)
 }
 func (m *CertificateRenewedNotice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CertificateRenewedNotice.Marshal(b, m, deterministic)
 }
-func (m *CertificateRenewedNotice) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CertificateRenewedNotice.Merge(m, src)
+func (dst *CertificateRenewedNotice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CertificateRenewedNotice.Merge(dst, src)
 }
 func (m *CertificateRenewedNotice) XXX_Size() int {
 	return xxx_messageInfo_CertificateRenewedNotice.Size(m)
@@ -1568,7 +1537,6 @@ func (m *CertificateRenewedNotice) GetCertificate() *AgentCertificate {
 }
 
 func init() {
-	proto.RegisterEnum("types.ResultStatus", ResultStatus_name, ResultStatus_value)
 	proto.RegisterType((*MsgHeader)(nil), "types.MsgHeader")
 	proto.RegisterType((*P2PMessage)(nil), "types.P2PMessage")
 	proto.RegisterType((*Ping)(nil), "types.Ping")
@@ -1596,11 +1564,12 @@ func init() {
 	proto.RegisterType((*IssueCertificateRequest)(nil), "types.IssueCertificateRequest")
 	proto.RegisterType((*IssueCertificateResponse)(nil), "types.IssueCertificateResponse")
 	proto.RegisterType((*CertificateRenewedNotice)(nil), "types.CertificateRenewedNotice")
+	proto.RegisterEnum("types.ResultStatus", ResultStatus_name, ResultStatus_value)
 }
 
-func init() { proto.RegisterFile("p2p.proto", fileDescriptor_e7fdddb109e6467a) }
+func init() { proto.RegisterFile("p2p.proto", fileDescriptor_p2p_6496de2d566cf566) }
 
-var fileDescriptor_e7fdddb109e6467a = []byte{
+var fileDescriptor_p2p_6496de2d566cf566 = []byte{
 	// 1279 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xcf, 0x6e, 0xdb, 0x46,
 	0x13, 0xff, 0x28, 0xd9, 0xb2, 0x34, 0xa2, 0x6c, 0x7a, 0xfd, 0x25, 0x66, 0xdd, 0x20, 0x15, 0x88,
