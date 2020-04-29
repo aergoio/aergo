@@ -42,9 +42,10 @@ const (
 )
 
 var (
-	evictInterval  = time.Minute
-	evictPeriod    = time.Hour * types.DefaultEvictPeriod
-	metricInterval = time.Second
+	evictPeriod      = time.Hour * types.DefaultEvictPeriod
+	evictInterval    = evictPeriod >> 5
+	evictWorkTimeout = time.Millisecond << 2
+	metricInterval   = time.Second
 )
 
 // MemPool is main structure of mempool service
@@ -182,12 +183,24 @@ func (mp *MemPool) monitor() {
 
 }
 func (mp *MemPool) evictTransactions() {
+	//startTime := time.Now()
+	//expireTimer := time.NewTimer(evictWorkTimeout)
 	mp.Lock()
 	defer mp.Unlock()
 
+	eTime := time.Now().Add(-1 * evictPeriod)
+	workTO := time.NewTimer(evictWorkTimeout)
 	total := 0
+L:
 	for acc, list := range mp.pool {
-		if time.Since(list.GetLastModifiedTime()) < evictPeriod {
+		// break evictLoop not to hold locks long time
+		select {
+		case <-workTO.C:
+			break L
+		default:
+		}
+
+		if list.GetLastModifiedTime().After(eTime) {
 			continue
 		}
 		txs := list.GetAll()

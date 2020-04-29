@@ -214,7 +214,7 @@ func (tl *txList) GetAll() []types.Transaction {
 
 }
 
-func (tl *txList) len() int {
+func (tl *txList) allLen() int {
 	return len(tl.list)
 }
 
