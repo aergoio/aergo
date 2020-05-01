@@ -93,10 +93,11 @@ func NewLogPeerMetasMarshaller(metas []p2pcommon.PeerMeta, limit int) *LogPeerMe
 func (m *LogPeerMetasMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.metas)
 	if size > m.limit {
-		for i := 0; i < m.limit-1; i++ {
-			a.Str(ShortMetaForm(m.metas[i]))
+		size =  m.limit-1
+		for _, meta := range m.metas[:size] {
+			a.Str(ShortMetaForm(meta))
 		}
-		a.Str(fmt.Sprintf("(and %d more)", size-m.limit+1))
+		a.Str(fmt.Sprintf("(and %d more)", len(m.metas)-size))
 	} else {
 		for _, meta := range m.metas {
 			a.Str(ShortMetaForm(meta))

@@ -512,6 +512,9 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			mp.cache.Delete(types.ToTxID(tx.GetHash()))
 			mp.length--
 		}
+		if len(delTxs) > 0 {
+			mp.Trace().Array("txs",types.LogTrsactions{delTxs,5}).Msg("transactions were filtered by state")
+		}
 		mp.releaseMemPoolList(list)
 		check++
 	}
@@ -545,7 +548,7 @@ func (mp *MemPool) verifyTx(tx types.Transaction) error {
 			return err
 		}
 		if !tx.SetVerifedAccount(account) {
-			mp.Warn().Str("account", string(account)).Msg("could not set verifed account")
+			mp.Warn().Str("account", string(account)).Msg("could not set verified account")
 		}
 	}
 	return nil
@@ -967,5 +970,6 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 
 	mp.cache.Delete(types.ToTxID(tx.GetHash()))
 	mp.length--
+	mp.Trace().Object("tx",types.LogTx{tx}).Msg("removed tx")
 	return nil
 }
