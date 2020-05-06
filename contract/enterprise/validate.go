@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/consensus"
 	"strings"
+
+	"github.com/aergoio/aergo/consensus"
 
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -83,6 +84,12 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		context.Admins = admins
 		if context.Conf, err = setConfValues(scs, key, context.Args[1:]); err != nil {
 			return nil, err
+		}
+
+		if conf, err := getConf(scs, []byte(context.Args[0])); err == nil && conf != nil {
+			if err := conf.Validate(key, context); err != nil {
+				return nil, err
+			}
 		}
 
 	case AppendConf, RemoveConf:
