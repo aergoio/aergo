@@ -75,8 +75,8 @@ type MemPool struct {
 	testConfig bool
 	deadtx     int
 
-	quit              chan bool
-	wg                sync.WaitGroup // wait for internal loop
+	quit chan bool
+	wg   sync.WaitGroup // wait for internal loop
 }
 
 // NewMemPoolService create and return new MemPool
@@ -371,7 +371,7 @@ func (mp *MemPool) listHash(maxTxSize int) ([]types.TxID, bool) {
 Gather:
 	for _, list := range mp.pool {
 		toGet := list.Len()
-		if toGet > (maxTxSize-size) {
+		if toGet > (maxTxSize - size) {
 			toGet = maxTxSize - size
 		}
 		for _, tx := range list.Get() {
@@ -454,7 +454,6 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	start := time.Now()
 	mp.Lock()
 	defer mp.Unlock()
-
 
 	check := 0
 	dirty := map[types.AccountID]bool{}
@@ -572,7 +571,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 }
 
 func (mp *MemPool) nextBlockVersion() int32 {
-	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No+1)
+	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No + 1)
 }
 
 // check tx sanity
@@ -643,8 +642,8 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 			nextBlockInfo := types.BlockHeaderInfo{
-				No:            mp.bestBlockInfo.No+1,
-				Version:       mp.nextBlockVersion(),
+				No:      mp.bestBlockInfo.No + 1,
+				Version: mp.nextBlockVersion(),
 			}
 			if _, err := system.ValidateSystemTx(account, tx.GetBody(), sender, scs, &nextBlockInfo); err != nil {
 				return err
@@ -955,4 +954,70 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	mp.cache.Delete(types.ToTxID(tx.GetHash()))
 	mp.length--
 	return nil
+}
+
+type txIdList struct {
+	Count int      `json:"count"`
+	IDs   []string `json:"id,omitempty"`
+}
+
+type unconfirmedTxs struct {
+	Address  string   `json:"address"`
+	Pooled   txIdList `json:pooled`
+	Orphaned txIdList `json:orphaned`
+}
+
+func newUnconfirmedTxs(acc []byte, pooled, orphaned int) *unconfirmedTxs {
+	return &unconfirmedTxs{
+		Address: types.EncodeAddress(types.Address(acc)),
+		Pooled: txIdList{
+			Count: pooled,
+		},
+		Orphaned: txIdList{
+			Count: orphaned,
+		},
+	}
+}
+
+func (u *unconfirmedTxs) setPooled(txs []types.Transaction) {
+	u.Pooled.IDs = txs2ids(txs)
+}
+
+func (u *unconfirmedTxs) setOrphaned(txs []types.Transaction) {
+	u.Orphaned.IDs = txs2ids(txs)
+}
+
+func txs2ids(txs []types.Transaction) []string {
+	ids := make([]string, len(txs))
+	for i, tx := range txs {
+		ids[i] = types.ToTxID(tx.GetHash()).String()
+	}
+	return ids
+}
+
+// GetUnconfirmed returns the information of the unconfirmed transactions.
+func (mp *MemPool) GetUnconfirmed(accounts []types.Address, countOnly bool) []*unconfirmedTxs {
+	mp.RLock()
+	defer mp.RUnlock()
+
+	getTxList := func(acc types.Address) *txList {
+		if txList, err := mp.acquireMemPoolList([]byte(acc)); err == nil {
+			return txList
+		}
+		return nil
+	}
+
+	utxs := make([]*unconfirmedTxs, len(accounts))
+	for i, acc := range accounts {
+		l := getTxList(acc)
+
+		utxs[i] = newUnconfirmedTxs(acc, l.ready, len(l.list)-l.ready)
+		if countOnly {
+			continue
+		}
+		utxs[i].setPooled(l.pooled())
+		utxs[i].setOrphaned(l.orphaned())
+	}
+
+	return utxs
 }
