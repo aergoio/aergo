@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"io"
 	"math/big"
 	"os"
@@ -260,6 +261,20 @@ func (mp *MemPool) Receive(context actor.Context) {
 		mp.whitelist.SetWhitelist(msg.Accounts)
 	case *message.MemPoolEnableWhitelist:
 		mp.whitelist.Enable(msg.On)
+
+	case *message.MemPoolTxStat:
+		b, err := json.Marshal(mp.getUnconfirmed(nil, true))
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to marshal mempool transactions stats")
+		}
+		context.Respond(&message.MemPoolTxStatRsp{Data: b})
+
+	case *message.MemPoolTx:
+		b, err := json.Marshal(mp.getUnconfirmed(msg.Accounts, false))
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to marshal mempool transactions")
+		}
+		context.Respond(&message.MemPoolTxRsp{Data: b})
 
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
@@ -963,8 +978,8 @@ type txIdList struct {
 
 type unconfirmedTxs struct {
 	Address  string   `json:"address"`
-	Pooled   txIdList `json:pooled`
-	Orphaned txIdList `json:orphaned`
+	Pooled   txIdList `json:"pooled"`
+	Orphaned txIdList `json:"orphaned""`
 }
 
 func newUnconfirmedTxs(acc []byte, pooled, orphaned int) *unconfirmedTxs {
@@ -995,8 +1010,8 @@ func txs2ids(txs []types.Transaction) []string {
 	return ids
 }
 
-// GetUnconfirmed returns the information of the unconfirmed transactions.
-func (mp *MemPool) GetUnconfirmed(accounts []types.Address, countOnly bool) []*unconfirmedTxs {
+// getUnconfirmed returns the information of the unconfirmed transactions.
+func (mp *MemPool) getUnconfirmed(accounts []types.Address, countOnly bool) []*unconfirmedTxs {
 	mp.RLock()
 	defer mp.RUnlock()
 
@@ -1007,11 +1022,25 @@ func (mp *MemPool) GetUnconfirmed(accounts []types.Address, countOnly bool) []*u
 		return nil
 	}
 
-	utxs := make([]*unconfirmedTxs, len(accounts))
-	for i, acc := range accounts {
-		l := getTxList(acc)
+	getAccounts := func(accounts []types.Address) []types.Address {
+		if len(accounts) > 0 {
+			return accounts
+		}
 
-		utxs[i] = newUnconfirmedTxs(acc, l.ready, len(l.list)-l.ready)
+		accounts = make([]types.Address, 0)
+		for _, a := range mp.pool {
+			accounts = append(accounts, a.account)
+		}
+		return accounts
+	}
+
+	accounts = getAccounts(accounts)
+	utxs := make([]*unconfirmedTxs, len(accounts))
+
+	for i, addr := range accounts {
+		l := getTxList(addr)
+
+		utxs[i] = newUnconfirmedTxs(addr, l.ready, len(l.list)-l.ready)
 		if countOnly {
 			continue
 		}

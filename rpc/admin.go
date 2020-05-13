@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
+
+	"github.com/aergoio/aergo/message"
 
 	"github.com/aergoio/aergo/types"
 
@@ -15,8 +18,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 )
-
-const adminSvc = "AdminRPCService"
 
 type AdminService struct {
 	*component.ComponentHub
@@ -63,12 +64,25 @@ func (as *AdminService) Start() {
 	go as.run()
 }
 
+const requestTimeout = 10 * time.Second
+
 // MempoolTxStat returns the TX-relasted statistics of the current mempool.
 func (as *AdminService) MempoolTxStat(ctx context.Context, in *types.Empty) (*types.SingleBytes, error) {
-	return &types.SingleBytes{Value: []byte("mempool tx stat")}, nil
+	r, err := as.RequestFuture(message.MemPoolSvc, &message.MemPoolTxStat{}, requestTimeout, "rpc/MempoolTxStat").Result()
+	return &types.SingleBytes{Value: r.(*message.MemPoolTxStatRsp).Data}, err
 }
 
 // MempoolTx returns the TX-relasted statistics of the current mempool.
 func (as *AdminService) MempoolTx(ctx context.Context, in *types.AccountList) (*types.SingleBytes, error) {
-	return &types.SingleBytes{Value: []byte("mempool tx")}, nil
+	m := &message.MemPoolTx{Accounts: make([]types.Address, len(in.Accounts))}
+	for i, acc := range in.Accounts {
+		m.Accounts[i] = acc.Address
+	}
+
+	var data []byte
+	r, err := as.RequestFuture(message.MemPoolSvc, m, requestTimeout, "rpc/MempoolTxStat").Result()
+	if r != nil {
+		data = r.(*message.MemPoolTxRsp).Data
+	}
+	return &types.SingleBytes{Value: data}, err
 }
