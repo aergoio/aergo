@@ -11,6 +11,7 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 
@@ -759,7 +760,7 @@ func ex(samples []accTxs, idxs ...int) []accTxs {
 func TestMemPool_Unconfirmed(t *testing.T) {
 	req := assert.New(t)
 
-	u := newUnconfirmedTxs([]byte("abc"), 10, 1)
+	u := newUnconfirmedTxs([]byte("abc"), time.Now().Add(evictPeriod), 10, 1)
 	b, err := json.Marshal(u)
 	req.Nil(err)
 	t.Log(string(b))

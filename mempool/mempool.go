@@ -977,14 +977,16 @@ type txIdList struct {
 }
 
 type unconfirmedTxs struct {
-	Address  string   `json:"address"`
-	Pooled   txIdList `json:"pooled"`
-	Orphaned txIdList `json:"orphaned""`
+	Address  string    `json:"address"`
+	Expire   time.Time `json:"expire,omitempty"`
+	Pooled   txIdList  `json:"pooled"`
+	Orphaned txIdList  `json:"orphaned""`
 }
 
-func newUnconfirmedTxs(acc []byte, pooled, orphaned int) *unconfirmedTxs {
+func newUnconfirmedTxs(acc []byte, eTime time.Time, pooled, orphaned int) *unconfirmedTxs {
 	return &unconfirmedTxs{
 		Address: types.EncodeAddress(types.Address(acc)),
+		Expire:  eTime,
 		Pooled: txIdList{
 			Count: pooled,
 		},
@@ -1015,11 +1017,11 @@ func (mp *MemPool) getUnconfirmed(accounts []types.Address, countOnly bool) []*u
 	mp.RLock()
 	defer mp.RUnlock()
 
-	getTxList := func(acc types.Address) *txList {
+	getTxList := func(acc types.Address) (*txList, time.Time) {
 		if txList, err := mp.acquireMemPoolList([]byte(acc)); err == nil {
-			return txList
+			return txList, txList.GetLastModifiedTime().Add(evictPeriod)
 		}
-		return nil
+		return nil, time.Time{}
 	}
 
 	getAccounts := func(accounts []types.Address) []types.Address {
@@ -1038,9 +1040,9 @@ func (mp *MemPool) getUnconfirmed(accounts []types.Address, countOnly bool) []*u
 	utxs := make([]*unconfirmedTxs, len(accounts))
 
 	for i, addr := range accounts {
-		l := getTxList(addr)
+		l, eTime := getTxList(addr)
 
-		utxs[i] = newUnconfirmedTxs(addr, l.ready, len(l.list)-l.ready)
+		utxs[i] = newUnconfirmedTxs(addr, eTime, l.ready, len(l.list)-l.ready)
 		if countOnly {
 			continue
 		}
