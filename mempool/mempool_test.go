@@ -760,7 +760,8 @@ func ex(samples []accTxs, idxs ...int) []accTxs {
 func TestMemPool_Unconfirmed(t *testing.T) {
 	req := assert.New(t)
 
-	u := newUnconfirmedTxs([]byte("abc"), time.Now().Add(evictPeriod), 10, 1)
+	ti := time.Now().Add(evictPeriod)
+	u := newUnconfirmedTxs([]byte("abc"), &ti, 10, 1)
 	b, err := json.Marshal(u)
 	req.Nil(err)
 	t.Log(string(b))

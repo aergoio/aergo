@@ -102,8 +102,9 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		quit:     make(chan bool),
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
-
-	if cfg.Mempool.FadeoutPeriod > 0 {
+	if cfg.Mempool.EnableFadeout == false {
+		evictPeriod = 0
+	} else if cfg.Mempool.FadeoutPeriod > 0 {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
 	}
 	return actor
@@ -977,13 +978,13 @@ type txIdList struct {
 }
 
 type unconfirmedTxs struct {
-	Address  string    `json:"address"`
-	Expire   time.Time `json:"expire,omitempty"`
-	Pooled   txIdList  `json:"pooled"`
-	Orphaned txIdList  `json:"orphaned""`
+	Address  string     `json:"address"`
+	Expire   *time.Time `json:"expire,omitempty"`
+	Pooled   txIdList   `json:"pooled"`
+	Orphaned txIdList   `json:"orphaned""`
 }
 
-func newUnconfirmedTxs(acc []byte, eTime time.Time, pooled, orphaned int) *unconfirmedTxs {
+func newUnconfirmedTxs(acc []byte, eTime *time.Time, pooled, orphaned int) *unconfirmedTxs {
 	return &unconfirmedTxs{
 		Address: types.EncodeAddress(types.Address(acc)),
 		Expire:  eTime,
@@ -1017,11 +1018,18 @@ func (mp *MemPool) getUnconfirmed(accounts []types.Address, countOnly bool) []*u
 	mp.RLock()
 	defer mp.RUnlock()
 
-	getTxList := func(acc types.Address) (*txList, time.Time) {
-		if txList, err := mp.acquireMemPoolList([]byte(acc)); err == nil {
-			return txList, txList.GetLastModifiedTime().Add(evictPeriod)
+	getTxList := func(acc types.Address) (*txList, *time.Time) {
+		eTime := func(tl *txList) *time.Time {
+			if evictPeriod == 0 {
+				return nil
+			}
+			t := tl.GetLastModifiedTime().Add(evictPeriod)
+			return &t
 		}
-		return nil, time.Time{}
+		if tl, err := mp.acquireMemPoolList([]byte(acc)); err == nil {
+			return tl, eTime(tl)
+		}
+		return nil, nil
 	}
 
 	getAccounts := func(accounts []types.Address) []types.Address {
@@ -1038,7 +1046,6 @@ func (mp *MemPool) getUnconfirmed(accounts []types.Address, countOnly bool) []*u
 
 	accounts = getAccounts(accounts)
 	utxs := make([]*unconfirmedTxs, len(accounts))
-
 	for i, addr := range accounts {
 		l, eTime := getTxList(addr)
 
