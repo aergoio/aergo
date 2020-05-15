@@ -190,6 +190,14 @@ func (tl *txList) RemoveTx(tx *types.Tx) (int, types.Transaction) {
 	return 0, nil
 }
 
+func (tl *txList) pooled() []types.Transaction {
+	return tl.list[:tl.ready]
+}
+
+func (tl *txList) orphaned() []types.Transaction {
+	return tl.list[tl.ready:]
+}
+
 // FilterByPrice will evict transactions that needs more amount than balance
 /*
 func (tl *txList) FilterByPrice(balance uint64) error {

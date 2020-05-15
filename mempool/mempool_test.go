@@ -11,6 +11,9 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 
 	crypto "github.com/aergoio/aergo/account/key/crypto"
 	"github.com/aergoio/aergo/config"
@@ -648,7 +651,6 @@ func TestMemPool_GetAddress(t *testing.T) {
 	normalHash := types.NewTx().CalculateTxHash()
 	dummySender := types.NewAccount(recipient[0])
 
-
 	type args struct {
 		hash []byte
 		recp []byte
@@ -686,27 +688,27 @@ func TestMemPool_listHash(t *testing.T) {
 
 	// generate sample txs
 	samples := []accTxs{}
-	for i:=0; i<10; i++ {
+	for i := 0; i < 10; i++ {
 		acc := accs[i]
 		txCnt := i
 		if i == 0 {
 			txCnt = 101
 		}
-		at := accTxs{acc, make([]types.Transaction,txCnt)}
-		for j:=0; j<txCnt; j++ {
+		at := accTxs{acc, make([]types.Transaction, txCnt)}
+		for j := 0; j < txCnt; j++ {
 			tx := types.NewTx()
-			tx.Body.Nonce = uint64(j+1)
+			tx.Body.Nonce = uint64(j + 1)
 			at.txs[j] = types.NewTransaction(tx)
 		}
-		samples = append(samples,at)
+		samples = append(samples, at)
 	}
 
 	tests := []struct {
-		name   string
-		txs    []accTxs
-		args   int
-		wantSize  int
-		want1  bool
+		name     string
+		txs      []accTxs
+		args     int
+		wantSize int
+		want1    bool
 	}{
 		{"TEmpty", nil, 15, 0, false},
 		{"TSingleAcc", samples[1:2], 15, 1, false},
@@ -721,12 +723,12 @@ func TestMemPool_listHash(t *testing.T) {
 			for _, at := range tt.txs {
 				list, err := mp.acquireMemPoolList(at.acc)
 				if err != nil {
-					t.Fatalf("Test error while setting initial env: err %v",err)
+					t.Fatalf("Test error while setting initial env: err %v", err)
 				}
 				for _, tx := range at.txs {
 					_, err := list.Put(tx)
 					if err != nil {
-						t.Fatalf("Test error while setting initial env: err %v",err)
+						t.Fatalf("Test error while setting initial env: err %v", err)
 					}
 				}
 				mp.releaseMemPoolList(list)
@@ -741,14 +743,26 @@ func TestMemPool_listHash(t *testing.T) {
 		})
 	}
 }
+
 type accTxs struct {
 	acc []byte
 	txs []types.Transaction
 }
+
 func ex(samples []accTxs, idxs ...int) []accTxs {
 	sli := make([]accTxs, len(idxs))
 	for i, idx := range idxs {
 		sli[i] = samples[idx]
 	}
 	return sli
+}
+
+func TestMemPool_Unconfirmed(t *testing.T) {
+	req := assert.New(t)
+
+	ti := time.Now().Add(evictPeriod)
+	u := newUnconfirmedTxs([]byte("abc"), &ti, 10, 1)
+	b, err := json.Marshal(u)
+	req.Nil(err)
+	t.Log(string(b))
 }

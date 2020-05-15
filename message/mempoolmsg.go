@@ -60,6 +60,7 @@ const MaxReqestHashes = 1000
 type MemPoolExistEx struct {
 	Hashes [][]byte
 }
+
 // MemPoolExistExRsp can contains nil element if requested tx is missing in mempool.
 type MemPoolExistExRsp struct {
 	Txs []*types.Tx
@@ -78,6 +79,19 @@ type MemPoolEnableWhitelist struct {
 type MemPoolDel struct {
 	Block *types.Block
 }
+
+type MemPoolTxStat struct {
+}
+
+type MemPoolTxStatRsp struct {
+	Data []byte
+}
+
+type MemPoolTx struct {
+	Accounts []types.Address
+}
+
+type MemPoolTxRsp MemPoolTxStatRsp
 
 // MemPoolDelRsp defines struct of result for MemPoolDel
 type MemPoolDelRsp struct {

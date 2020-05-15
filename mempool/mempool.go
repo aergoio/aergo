@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"io"
 	"math/big"
 	"os"
@@ -75,8 +76,8 @@ type MemPool struct {
 	testConfig bool
 	deadtx     int
 
-	quit              chan bool
-	wg                sync.WaitGroup // wait for internal loop
+	quit chan bool
+	wg   sync.WaitGroup // wait for internal loop
 }
 
 // NewMemPoolService create and return new MemPool
@@ -101,8 +102,9 @@ func NewMemPoolService(cfg *cfg.Config, cs *chain.ChainService) *MemPool {
 		quit:     make(chan bool),
 	}
 	actor.BaseComponent = component.NewBaseComponent(message.MemPoolSvc, actor, log.NewLogger("mempool"))
-
-	if cfg.Mempool.FadeoutPeriod > 0 {
+	if cfg.Mempool.EnableFadeout == false {
+		evictPeriod = 0
+	} else if cfg.Mempool.FadeoutPeriod > 0 {
 		evictPeriod = time.Duration(cfg.Mempool.FadeoutPeriod) * time.Hour
 	}
 	return actor
@@ -261,6 +263,20 @@ func (mp *MemPool) Receive(context actor.Context) {
 	case *message.MemPoolEnableWhitelist:
 		mp.whitelist.Enable(msg.On)
 
+	case *message.MemPoolTxStat:
+		b, err := json.Marshal(mp.getUnconfirmed(nil, true))
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to marshal mempool transactions stats")
+		}
+		context.Respond(&message.MemPoolTxStatRsp{Data: b})
+
+	case *message.MemPoolTx:
+		b, err := json.Marshal(mp.getUnconfirmed(msg.Accounts, false))
+		if err != nil {
+			mp.Error().Err(err).Msg("failed to marshal mempool transactions")
+		}
+		context.Respond(&message.MemPoolTxRsp{Data: b})
+
 	case *actor.Started:
 		mp.loadTxs() // FIXME :work-around for actor settled
 
@@ -371,7 +387,7 @@ func (mp *MemPool) listHash(maxTxSize int) ([]types.TxID, bool) {
 Gather:
 	for _, list := range mp.pool {
 		toGet := list.Len()
-		if toGet > (maxTxSize-size) {
+		if toGet > (maxTxSize - size) {
 			toGet = maxTxSize - size
 		}
 		for _, tx := range list.Get() {
@@ -454,7 +470,6 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 	start := time.Now()
 	mp.Lock()
 	defer mp.Unlock()
-
 
 	check := 0
 	dirty := map[types.AccountID]bool{}
@@ -572,7 +587,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 }
 
 func (mp *MemPool) nextBlockVersion() int32 {
-	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No+1)
+	return mp.cfg.Hardfork.Version(mp.bestBlockInfo.No + 1)
 }
 
 // check tx sanity
@@ -643,8 +658,8 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 			nextBlockInfo := types.BlockHeaderInfo{
-				No:            mp.bestBlockInfo.No+1,
-				Version:       mp.nextBlockVersion(),
+				No:      mp.bestBlockInfo.No + 1,
+				Version: mp.nextBlockVersion(),
 			}
 			if _, err := system.ValidateSystemTx(account, tx.GetBody(), sender, scs, &nextBlockInfo); err != nil {
 				return err
@@ -955,4 +970,92 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 	mp.cache.Delete(types.ToTxID(tx.GetHash()))
 	mp.length--
 	return nil
+}
+
+type txIdList struct {
+	Count int      `json:"count"`
+	IDs   []string `json:"id,omitempty"`
+}
+
+type unconfirmedTxs struct {
+	Address  string     `json:"address"`
+	Expire   *time.Time `json:"expire,omitempty"`
+	Pooled   txIdList   `json:"pooled"`
+	Orphaned txIdList   `json:"orphaned""`
+}
+
+func newUnconfirmedTxs(acc []byte, eTime *time.Time, pooled, orphaned int) *unconfirmedTxs {
+	return &unconfirmedTxs{
+		Address: types.EncodeAddress(types.Address(acc)),
+		Expire:  eTime,
+		Pooled: txIdList{
+			Count: pooled,
+		},
+		Orphaned: txIdList{
+			Count: orphaned,
+		},
+	}
+}
+
+func (u *unconfirmedTxs) setPooled(txs []types.Transaction) {
+	u.Pooled.IDs = txs2ids(txs)
+}
+
+func (u *unconfirmedTxs) setOrphaned(txs []types.Transaction) {
+	u.Orphaned.IDs = txs2ids(txs)
+}
+
+func txs2ids(txs []types.Transaction) []string {
+	ids := make([]string, len(txs))
+	for i, tx := range txs {
+		ids[i] = types.ToTxID(tx.GetHash()).String()
+	}
+	return ids
+}
+
+// getUnconfirmed returns the information of the unconfirmed transactions.
+func (mp *MemPool) getUnconfirmed(accounts []types.Address, countOnly bool) []*unconfirmedTxs {
+	mp.RLock()
+	defer mp.RUnlock()
+
+	getTxList := func(acc types.Address) (*txList, *time.Time) {
+		eTime := func(tl *txList) *time.Time {
+			if evictPeriod == 0 {
+				return nil
+			}
+			t := tl.GetLastModifiedTime().Add(evictPeriod)
+			return &t
+		}
+		if tl, err := mp.acquireMemPoolList([]byte(acc)); err == nil {
+			return tl, eTime(tl)
+		}
+		return nil, nil
+	}
+
+	getAccounts := func(accounts []types.Address) []types.Address {
+		if len(accounts) > 0 {
+			return accounts
+		}
+
+		accounts = make([]types.Address, 0)
+		for _, a := range mp.pool {
+			accounts = append(accounts, a.account)
+		}
+		return accounts
+	}
+
+	accounts = getAccounts(accounts)
+	utxs := make([]*unconfirmedTxs, len(accounts))
+	for i, addr := range accounts {
+		l, eTime := getTxList(addr)
+
+		utxs[i] = newUnconfirmedTxs(addr, eTime, l.ready, len(l.list)-l.ready)
+		if countOnly {
+			continue
+		}
+		utxs[i].setPooled(l.pooled())
+		utxs[i].setOrphaned(l.orphaned())
+	}
+
+	return utxs
 }
