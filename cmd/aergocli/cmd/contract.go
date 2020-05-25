@@ -21,6 +21,7 @@ import (
 
 var (
 	client        *util.ConnClient
+	admClient     types.AdminRPCServiceClient
 	data          string
 	nonce         uint64
 	toJSON        bool

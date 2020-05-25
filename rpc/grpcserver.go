@@ -21,7 +21,6 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/raftv2"
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/metric"
@@ -38,8 +37,9 @@ var (
 )
 
 var (
-	ErrUninitAccessor        = errors.New("accessor is not initilized")
-	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
+	ErrUninitAccessor = errors.New("accessor is not initilized")
+
+//	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 type EventStream struct {
@@ -1198,29 +1198,6 @@ func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*ty
 		return nil, ErrUninitAccessor
 	}
 	return &types.ChainStats{Report: ca.GetChainStats()}, nil
-}
-
-func (rpc *AergoRPCService) ChangeMembership(ctx context.Context, in *types.MembershipChange) (*types.MembershipChangeReply, error) {
-	if err := rpc.checkAuth(ctx, ControlNode); err != nil {
-		return nil, err
-	}
-	if rpc.consensusAccessor == nil {
-		return nil, ErrUninitAccessor
-	}
-
-	if genesisInfo := rpc.actorHelper.GetChainAccessor().GetGenesisInfo(); genesisInfo != nil {
-		if genesisInfo.ID.Consensus != raftv2.GetName() {
-			return nil, ErrNotSupportedConsensus
-		}
-	}
-
-	member, err := rpc.consensusAccessor.ConfChange(in)
-	if err != nil {
-		return nil, err
-	}
-
-	reply := &types.MembershipChangeReply{Attr: &types.MemberAttr{ID: uint64(member.ID), Name: member.Name, Address: member.Address, PeerID: []byte(types.PeerID(member.PeerID))}}
-	return reply, nil
 }
 
 //GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.

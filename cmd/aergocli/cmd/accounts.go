@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -457,5 +458,11 @@ func preConnectAergo(cmd *cobra.Command, args []string) {
 		connectAergo(cmd, args)
 	} else {
 		client = nil
+	}
+
+	if len(sock) > 0 {
+		if admClient = newAergoAdminClient(sock); admClient == nil {
+			log.Fatal("can't create admin connection")
+		}
 	}
 }

@@ -46,6 +46,7 @@ type RPCConfig struct {
 	// RPC and REST
 	NetServiceAddr  string `mapstructure:"netserviceaddr" description:"RPC service address"`
 	NetServicePort  int    `mapstructure:"netserviceport" description:"RPC service port"`
+	NetServicePath  string `mapstructure:"netservicepath" description:"UNIX domain socket path (only for admin commands)"`
 	NetServiceTrace bool   `mapstructure:"netservicetrace" description:"Trace RPC service"`
 	// RPC API with TLS
 	NSEnableTLS bool   `mapstructure:"nstls" description:"Enable TLS on RPC or REST API"`

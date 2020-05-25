@@ -31,6 +31,7 @@ var (
 	cfgFile string
 	host    string
 	port    int32
+	sock    string
 
 	crtFile   string
 	cacrtFile string
@@ -118,6 +119,9 @@ func Execute() {
 
 // GetServerAddress return ip address and port of server
 func GetServerAddress() string {
+	if len(sock) > 0 {
+		return fmt.Sprintf("unix:%s", sock)
+	}
 	return fmt.Sprintf("%s:%d", rootConfig.Host, rootConfig.Port)
 }
 

@@ -3,11 +3,9 @@
 
 package types
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -32,7 +30,6 @@ var MembershipChangeType_name = map[int32]string{
 	0: "ADD_MEMBER",
 	1: "REMOVE_MEMBER",
 }
-
 var MembershipChangeType_value = map[string]int32{
 	"ADD_MEMBER":    0,
 	"REMOVE_MEMBER": 1,
@@ -41,9 +38,8 @@ var MembershipChangeType_value = map[string]int32{
 func (x MembershipChangeType) String() string {
 	return proto.EnumName(MembershipChangeType_name, int32(x))
 }
-
 func (MembershipChangeType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{0}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{0}
 }
 
 type ConfChangeState int32
@@ -59,7 +55,6 @@ var ConfChangeState_name = map[int32]string{
 	1: "CONF_CHANGE_STATE_SAVED",
 	2: "CONF_CHANGE_STATE_APPLIED",
 }
-
 var ConfChangeState_value = map[string]int32{
 	"CONF_CHANGE_STATE_PROPOSED": 0,
 	"CONF_CHANGE_STATE_SAVED":    1,
@@ -69,15 +64,14 @@ var ConfChangeState_value = map[string]int32{
 func (x ConfChangeState) String() string {
 	return proto.EnumName(ConfChangeState_name, int32(x))
 }
-
 func (ConfChangeState) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{1}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{1}
 }
 
 type MemberAttr struct {
-	ID                   uint64   `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Address              string   `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	ID                   uint64   `protobuf:"varint,1,opt,name=ID" json:"ID,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	Address              string   `protobuf:"bytes,3,opt,name=address" json:"address,omitempty"`
 	PeerID               []byte   `protobuf:"bytes,4,opt,name=peerID,proto3" json:"peerID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -88,17 +82,16 @@ func (m *MemberAttr) Reset()         { *m = MemberAttr{} }
 func (m *MemberAttr) String() string { return proto.CompactTextString(m) }
 func (*MemberAttr) ProtoMessage()    {}
 func (*MemberAttr) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{0}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{0}
 }
-
 func (m *MemberAttr) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MemberAttr.Unmarshal(m, b)
 }
 func (m *MemberAttr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MemberAttr.Marshal(b, m, deterministic)
 }
-func (m *MemberAttr) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MemberAttr.Merge(m, src)
+func (dst *MemberAttr) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MemberAttr.Merge(dst, src)
 }
 func (m *MemberAttr) XXX_Size() int {
 	return xxx_messageInfo_MemberAttr.Size(m)
@@ -138,9 +131,9 @@ func (m *MemberAttr) GetPeerID() []byte {
 }
 
 type MembershipChange struct {
-	Type                 MembershipChangeType `protobuf:"varint,1,opt,name=type,proto3,enum=types.MembershipChangeType" json:"type,omitempty"`
-	RequestID            uint64               `protobuf:"varint,2,opt,name=requestID,proto3" json:"requestID,omitempty"`
-	Attr                 *MemberAttr          `protobuf:"bytes,3,opt,name=attr,proto3" json:"attr,omitempty"`
+	Type                 MembershipChangeType `protobuf:"varint,1,opt,name=type,enum=types.MembershipChangeType" json:"type,omitempty"`
+	RequestID            uint64               `protobuf:"varint,2,opt,name=requestID" json:"requestID,omitempty"`
+	Attr                 *MemberAttr          `protobuf:"bytes,3,opt,name=attr" json:"attr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
 	XXX_unrecognized     []byte               `json:"-"`
 	XXX_sizecache        int32                `json:"-"`
@@ -150,17 +143,16 @@ func (m *MembershipChange) Reset()         { *m = MembershipChange{} }
 func (m *MembershipChange) String() string { return proto.CompactTextString(m) }
 func (*MembershipChange) ProtoMessage()    {}
 func (*MembershipChange) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{1}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{1}
 }
-
 func (m *MembershipChange) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MembershipChange.Unmarshal(m, b)
 }
 func (m *MembershipChange) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MembershipChange.Marshal(b, m, deterministic)
 }
-func (m *MembershipChange) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MembershipChange.Merge(m, src)
+func (dst *MembershipChange) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MembershipChange.Merge(dst, src)
 }
 func (m *MembershipChange) XXX_Size() int {
 	return xxx_messageInfo_MembershipChange.Size(m)
@@ -193,7 +185,7 @@ func (m *MembershipChange) GetAttr() *MemberAttr {
 }
 
 type MembershipChangeReply struct {
-	Attr                 *MemberAttr `protobuf:"bytes,1,opt,name=attr,proto3" json:"attr,omitempty"`
+	Attr                 *MemberAttr `protobuf:"bytes,1,opt,name=attr" json:"attr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -203,17 +195,16 @@ func (m *MembershipChangeReply) Reset()         { *m = MembershipChangeReply{} }
 func (m *MembershipChangeReply) String() string { return proto.CompactTextString(m) }
 func (*MembershipChangeReply) ProtoMessage()    {}
 func (*MembershipChangeReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{2}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{2}
 }
-
 func (m *MembershipChangeReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MembershipChangeReply.Unmarshal(m, b)
 }
 func (m *MembershipChangeReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MembershipChangeReply.Marshal(b, m, deterministic)
 }
-func (m *MembershipChangeReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MembershipChangeReply.Merge(m, src)
+func (dst *MembershipChangeReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MembershipChangeReply.Merge(dst, src)
 }
 func (m *MembershipChangeReply) XXX_Size() int {
 	return xxx_messageInfo_MembershipChangeReply.Size(m)
@@ -232,8 +223,8 @@ func (m *MembershipChangeReply) GetAttr() *MemberAttr {
 }
 
 type HardStateInfo struct {
-	Term                 uint64   `protobuf:"varint,1,opt,name=term,proto3" json:"term,omitempty"`
-	Commit               uint64   `protobuf:"varint,2,opt,name=commit,proto3" json:"commit,omitempty"`
+	Term                 uint64   `protobuf:"varint,1,opt,name=term" json:"term,omitempty"`
+	Commit               uint64   `protobuf:"varint,2,opt,name=commit" json:"commit,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -243,17 +234,16 @@ func (m *HardStateInfo) Reset()         { *m = HardStateInfo{} }
 func (m *HardStateInfo) String() string { return proto.CompactTextString(m) }
 func (*HardStateInfo) ProtoMessage()    {}
 func (*HardStateInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{3}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{3}
 }
-
 func (m *HardStateInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HardStateInfo.Unmarshal(m, b)
 }
 func (m *HardStateInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_HardStateInfo.Marshal(b, m, deterministic)
 }
-func (m *HardStateInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HardStateInfo.Merge(m, src)
+func (dst *HardStateInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HardStateInfo.Merge(dst, src)
 }
 func (m *HardStateInfo) XXX_Size() int {
 	return xxx_messageInfo_HardStateInfo.Size(m)
@@ -291,17 +281,16 @@ func (m *GetClusterInfoRequest) Reset()         { *m = GetClusterInfoRequest{} }
 func (m *GetClusterInfoRequest) String() string { return proto.CompactTextString(m) }
 func (*GetClusterInfoRequest) ProtoMessage()    {}
 func (*GetClusterInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{4}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{4}
 }
-
 func (m *GetClusterInfoRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetClusterInfoRequest.Unmarshal(m, b)
 }
 func (m *GetClusterInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetClusterInfoRequest.Marshal(b, m, deterministic)
 }
-func (m *GetClusterInfoRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetClusterInfoRequest.Merge(m, src)
+func (dst *GetClusterInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetClusterInfoRequest.Merge(dst, src)
 }
 func (m *GetClusterInfoRequest) XXX_Size() int {
 	return xxx_messageInfo_GetClusterInfoRequest.Size(m)
@@ -321,11 +310,11 @@ func (m *GetClusterInfoRequest) GetBestBlockHash() []byte {
 
 type GetClusterInfoResponse struct {
 	ChainID              []byte         `protobuf:"bytes,1,opt,name=chainID,proto3" json:"chainID,omitempty"`
-	ClusterID            uint64         `protobuf:"varint,2,opt,name=clusterID,proto3" json:"clusterID,omitempty"`
-	Error                string         `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	MbrAttrs             []*MemberAttr  `protobuf:"bytes,4,rep,name=mbrAttrs,proto3" json:"mbrAttrs,omitempty"`
-	BestBlockNo          uint64         `protobuf:"varint,5,opt,name=bestBlockNo,proto3" json:"bestBlockNo,omitempty"`
-	HardStateInfo        *HardStateInfo `protobuf:"bytes,6,opt,name=hardStateInfo,proto3" json:"hardStateInfo,omitempty"`
+	ClusterID            uint64         `protobuf:"varint,2,opt,name=clusterID" json:"clusterID,omitempty"`
+	Error                string         `protobuf:"bytes,3,opt,name=error" json:"error,omitempty"`
+	MbrAttrs             []*MemberAttr  `protobuf:"bytes,4,rep,name=mbrAttrs" json:"mbrAttrs,omitempty"`
+	BestBlockNo          uint64         `protobuf:"varint,5,opt,name=bestBlockNo" json:"bestBlockNo,omitempty"`
+	HardStateInfo        *HardStateInfo `protobuf:"bytes,6,opt,name=hardStateInfo" json:"hardStateInfo,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -335,17 +324,16 @@ func (m *GetClusterInfoResponse) Reset()         { *m = GetClusterInfoResponse{}
 func (m *GetClusterInfoResponse) String() string { return proto.CompactTextString(m) }
 func (*GetClusterInfoResponse) ProtoMessage()    {}
 func (*GetClusterInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{5}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{5}
 }
-
 func (m *GetClusterInfoResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetClusterInfoResponse.Unmarshal(m, b)
 }
 func (m *GetClusterInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetClusterInfoResponse.Marshal(b, m, deterministic)
 }
-func (m *GetClusterInfoResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetClusterInfoResponse.Merge(m, src)
+func (dst *GetClusterInfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetClusterInfoResponse.Merge(dst, src)
 }
 func (m *GetClusterInfoResponse) XXX_Size() int {
 	return xxx_messageInfo_GetClusterInfoResponse.Size(m)
@@ -399,9 +387,9 @@ func (m *GetClusterInfoResponse) GetHardStateInfo() *HardStateInfo {
 }
 
 type ConfChangeProgress struct {
-	State                ConfChangeState `protobuf:"varint,1,opt,name=State,proto3,enum=types.ConfChangeState" json:"State,omitempty"`
-	Err                  string          `protobuf:"bytes,2,opt,name=Err,proto3" json:"Err,omitempty"`
-	Members              []*MemberAttr   `protobuf:"bytes,3,rep,name=Members,proto3" json:"Members,omitempty"`
+	State                ConfChangeState `protobuf:"varint,1,opt,name=State,enum=types.ConfChangeState" json:"State,omitempty"`
+	Err                  string          `protobuf:"bytes,2,opt,name=Err" json:"Err,omitempty"`
+	Members              []*MemberAttr   `protobuf:"bytes,3,rep,name=Members" json:"Members,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -411,17 +399,16 @@ func (m *ConfChangeProgress) Reset()         { *m = ConfChangeProgress{} }
 func (m *ConfChangeProgress) String() string { return proto.CompactTextString(m) }
 func (*ConfChangeProgress) ProtoMessage()    {}
 func (*ConfChangeProgress) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{6}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{6}
 }
-
 func (m *ConfChangeProgress) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ConfChangeProgress.Unmarshal(m, b)
 }
 func (m *ConfChangeProgress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ConfChangeProgress.Marshal(b, m, deterministic)
 }
-func (m *ConfChangeProgress) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ConfChangeProgress.Merge(m, src)
+func (dst *ConfChangeProgress) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ConfChangeProgress.Merge(dst, src)
 }
 func (m *ConfChangeProgress) XXX_Size() int {
 	return xxx_messageInfo_ConfChangeProgress.Size(m)
@@ -455,8 +442,8 @@ func (m *ConfChangeProgress) GetMembers() []*MemberAttr {
 
 // SnapshotResponse is response message of receiving peer
 type SnapshotResponse struct {
-	Status               ResultStatus `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
-	Message              string       `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Status               ResultStatus `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
+	Message              string       `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -466,17 +453,16 @@ func (m *SnapshotResponse) Reset()         { *m = SnapshotResponse{} }
 func (m *SnapshotResponse) String() string { return proto.CompactTextString(m) }
 func (*SnapshotResponse) ProtoMessage()    {}
 func (*SnapshotResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_b042552c306ae59b, []int{7}
+	return fileDescriptor_raft_1576fa0cf6fb69b6, []int{7}
 }
-
 func (m *SnapshotResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SnapshotResponse.Unmarshal(m, b)
 }
 func (m *SnapshotResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SnapshotResponse.Marshal(b, m, deterministic)
 }
-func (m *SnapshotResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SnapshotResponse.Merge(m, src)
+func (dst *SnapshotResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SnapshotResponse.Merge(dst, src)
 }
 func (m *SnapshotResponse) XXX_Size() int {
 	return xxx_messageInfo_SnapshotResponse.Size(m)
@@ -502,8 +488,6 @@ func (m *SnapshotResponse) GetMessage() string {
 }
 
 func init() {
-	proto.RegisterEnum("types.MembershipChangeType", MembershipChangeType_name, MembershipChangeType_value)
-	proto.RegisterEnum("types.ConfChangeState", ConfChangeState_name, ConfChangeState_value)
 	proto.RegisterType((*MemberAttr)(nil), "types.MemberAttr")
 	proto.RegisterType((*MembershipChange)(nil), "types.MembershipChange")
 	proto.RegisterType((*MembershipChangeReply)(nil), "types.MembershipChangeReply")
@@ -512,11 +496,13 @@ func init() {
 	proto.RegisterType((*GetClusterInfoResponse)(nil), "types.GetClusterInfoResponse")
 	proto.RegisterType((*ConfChangeProgress)(nil), "types.ConfChangeProgress")
 	proto.RegisterType((*SnapshotResponse)(nil), "types.SnapshotResponse")
+	proto.RegisterEnum("types.MembershipChangeType", MembershipChangeType_name, MembershipChangeType_value)
+	proto.RegisterEnum("types.ConfChangeState", ConfChangeState_name, ConfChangeState_value)
 }
 
-func init() { proto.RegisterFile("raft.proto", fileDescriptor_b042552c306ae59b) }
+func init() { proto.RegisterFile("raft.proto", fileDescriptor_raft_1576fa0cf6fb69b6) }
 
-var fileDescriptor_b042552c306ae59b = []byte{
+var fileDescriptor_raft_1576fa0cf6fb69b6 = []byte{
 	// 577 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x54, 0x4d, 0x6f, 0xd3, 0x40,
 	0x10, 0xad, 0x13, 0x27, 0xa5, 0xd3, 0xa6, 0xb8, 0x4b, 0x5b, 0x4c, 0x0b, 0x28, 0xb2, 0x40, 0x8a,

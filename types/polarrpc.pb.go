@@ -3,12 +3,13 @@
 
 package types
 
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
+
 import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -24,7 +25,7 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type Paginations struct {
 	Ref                  []byte   `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	Size                 uint32   `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Size                 uint32   `protobuf:"varint,3,opt,name=size" json:"size,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -34,17 +35,16 @@ func (m *Paginations) Reset()         { *m = Paginations{} }
 func (m *Paginations) String() string { return proto.CompactTextString(m) }
 func (*Paginations) ProtoMessage()    {}
 func (*Paginations) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9eae49c68867e2c2, []int{0}
+	return fileDescriptor_polarrpc_1f6dae6536e3253f, []int{0}
 }
-
 func (m *Paginations) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Paginations.Unmarshal(m, b)
 }
 func (m *Paginations) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Paginations.Marshal(b, m, deterministic)
 }
-func (m *Paginations) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Paginations.Merge(m, src)
+func (dst *Paginations) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Paginations.Merge(dst, src)
 }
 func (m *Paginations) XXX_Size() int {
 	return xxx_messageInfo_Paginations.Size(m)
@@ -70,9 +70,9 @@ func (m *Paginations) GetSize() uint32 {
 }
 
 type PolarisPeerList struct {
-	Total                uint32         `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
-	HasNext              bool           `protobuf:"varint,2,opt,name=hasNext,proto3" json:"hasNext,omitempty"`
-	Peers                []*PolarisPeer `protobuf:"bytes,3,rep,name=peers,proto3" json:"peers,omitempty"`
+	Total                uint32         `protobuf:"varint,1,opt,name=total" json:"total,omitempty"`
+	HasNext              bool           `protobuf:"varint,2,opt,name=hasNext" json:"hasNext,omitempty"`
+	Peers                []*PolarisPeer `protobuf:"bytes,3,rep,name=peers" json:"peers,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -82,17 +82,16 @@ func (m *PolarisPeerList) Reset()         { *m = PolarisPeerList{} }
 func (m *PolarisPeerList) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeerList) ProtoMessage()    {}
 func (*PolarisPeerList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9eae49c68867e2c2, []int{1}
+	return fileDescriptor_polarrpc_1f6dae6536e3253f, []int{1}
 }
-
 func (m *PolarisPeerList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeerList.Unmarshal(m, b)
 }
 func (m *PolarisPeerList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PolarisPeerList.Marshal(b, m, deterministic)
 }
-func (m *PolarisPeerList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PolarisPeerList.Merge(m, src)
+func (dst *PolarisPeerList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolarisPeerList.Merge(dst, src)
 }
 func (m *PolarisPeerList) XXX_Size() int {
 	return xxx_messageInfo_PolarisPeerList.Size(m)
@@ -125,11 +124,11 @@ func (m *PolarisPeerList) GetPeers() []*PolarisPeer {
 }
 
 type PolarisPeer struct {
-	Address   *PeerAddress `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	Connected int64        `protobuf:"varint,2,opt,name=connected,proto3" json:"connected,omitempty"`
+	Address   *PeerAddress `protobuf:"bytes,1,opt,name=address" json:"address,omitempty"`
+	Connected int64        `protobuf:"varint,2,opt,name=connected" json:"connected,omitempty"`
 	// lastCheck contains unix timestamp with nanoseconds precision
-	LastCheck            int64    `protobuf:"varint,3,opt,name=lastCheck,proto3" json:"lastCheck,omitempty"`
-	Verion               string   `protobuf:"bytes,4,opt,name=verion,proto3" json:"verion,omitempty"`
+	LastCheck            int64    `protobuf:"varint,3,opt,name=lastCheck" json:"lastCheck,omitempty"`
+	Verion               string   `protobuf:"bytes,4,opt,name=verion" json:"verion,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -139,17 +138,16 @@ func (m *PolarisPeer) Reset()         { *m = PolarisPeer{} }
 func (m *PolarisPeer) String() string { return proto.CompactTextString(m) }
 func (*PolarisPeer) ProtoMessage()    {}
 func (*PolarisPeer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9eae49c68867e2c2, []int{2}
+	return fileDescriptor_polarrpc_1f6dae6536e3253f, []int{2}
 }
-
 func (m *PolarisPeer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PolarisPeer.Unmarshal(m, b)
 }
 func (m *PolarisPeer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PolarisPeer.Marshal(b, m, deterministic)
 }
-func (m *PolarisPeer) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PolarisPeer.Merge(m, src)
+func (dst *PolarisPeer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolarisPeer.Merge(dst, src)
 }
 func (m *PolarisPeer) XXX_Size() int {
 	return xxx_messageInfo_PolarisPeer.Size(m)
@@ -189,8 +187,8 @@ func (m *PolarisPeer) GetVerion() string {
 }
 
 type BLConfEntries struct {
-	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Entries              []string `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled" json:"enabled,omitempty"`
+	Entries              []string `protobuf:"bytes,2,rep,name=entries" json:"entries,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -200,17 +198,16 @@ func (m *BLConfEntries) Reset()         { *m = BLConfEntries{} }
 func (m *BLConfEntries) String() string { return proto.CompactTextString(m) }
 func (*BLConfEntries) ProtoMessage()    {}
 func (*BLConfEntries) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9eae49c68867e2c2, []int{3}
+	return fileDescriptor_polarrpc_1f6dae6536e3253f, []int{3}
 }
-
 func (m *BLConfEntries) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BLConfEntries.Unmarshal(m, b)
 }
 func (m *BLConfEntries) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BLConfEntries.Marshal(b, m, deterministic)
 }
-func (m *BLConfEntries) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BLConfEntries.Merge(m, src)
+func (dst *BLConfEntries) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BLConfEntries.Merge(dst, src)
 }
 func (m *BLConfEntries) XXX_Size() int {
 	return xxx_messageInfo_BLConfEntries.Size(m)
@@ -236,9 +233,9 @@ func (m *BLConfEntries) GetEntries() []string {
 }
 
 type AddEntryParams struct {
-	PeerID               string   `protobuf:"bytes,1,opt,name=peerID,proto3" json:"peerID,omitempty"`
-	Address              string   `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	Cidr                 string   `protobuf:"bytes,3,opt,name=cidr,proto3" json:"cidr,omitempty"`
+	PeerID               string   `protobuf:"bytes,1,opt,name=peerID" json:"peerID,omitempty"`
+	Address              string   `protobuf:"bytes,2,opt,name=address" json:"address,omitempty"`
+	Cidr                 string   `protobuf:"bytes,3,opt,name=cidr" json:"cidr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -248,17 +245,16 @@ func (m *AddEntryParams) Reset()         { *m = AddEntryParams{} }
 func (m *AddEntryParams) String() string { return proto.CompactTextString(m) }
 func (*AddEntryParams) ProtoMessage()    {}
 func (*AddEntryParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9eae49c68867e2c2, []int{4}
+	return fileDescriptor_polarrpc_1f6dae6536e3253f, []int{4}
 }
-
 func (m *AddEntryParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddEntryParams.Unmarshal(m, b)
 }
 func (m *AddEntryParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AddEntryParams.Marshal(b, m, deterministic)
 }
-func (m *AddEntryParams) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AddEntryParams.Merge(m, src)
+func (dst *AddEntryParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddEntryParams.Merge(dst, src)
 }
 func (m *AddEntryParams) XXX_Size() int {
 	return xxx_messageInfo_AddEntryParams.Size(m)
@@ -291,7 +287,7 @@ func (m *AddEntryParams) GetCidr() string {
 }
 
 type RmEntryParams struct {
-	Index                uint32   `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	Index                uint32   `protobuf:"varint,1,opt,name=index" json:"index,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -301,17 +297,16 @@ func (m *RmEntryParams) Reset()         { *m = RmEntryParams{} }
 func (m *RmEntryParams) String() string { return proto.CompactTextString(m) }
 func (*RmEntryParams) ProtoMessage()    {}
 func (*RmEntryParams) Descriptor() ([]byte, []int) {
-	return fileDescriptor_9eae49c68867e2c2, []int{5}
+	return fileDescriptor_polarrpc_1f6dae6536e3253f, []int{5}
 }
-
 func (m *RmEntryParams) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RmEntryParams.Unmarshal(m, b)
 }
 func (m *RmEntryParams) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RmEntryParams.Marshal(b, m, deterministic)
 }
-func (m *RmEntryParams) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RmEntryParams.Merge(m, src)
+func (dst *RmEntryParams) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RmEntryParams.Merge(dst, src)
 }
 func (m *RmEntryParams) XXX_Size() int {
 	return xxx_messageInfo_RmEntryParams.Size(m)
@@ -338,46 +333,6 @@ func init() {
 	proto.RegisterType((*RmEntryParams)(nil), "types.RmEntryParams")
 }
 
-func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_9eae49c68867e2c2) }
-
-var fileDescriptor_9eae49c68867e2c2 = []byte{
-	// 535 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0xcb, 0x6a, 0xdb, 0x40,
-	0x14, 0xb5, 0xa2, 0xd8, 0x89, 0xae, 0x2d, 0xb7, 0x9d, 0xba, 0x41, 0x88, 0x2e, 0x84, 0xa0, 0xa0,
-	0x45, 0x31, 0x24, 0xa1, 0x8b, 0x3e, 0x36, 0xb6, 0x9b, 0x45, 0xc1, 0x0d, 0x66, 0x0c, 0xed, 0x7a,
-	0xa2, 0xb9, 0xb1, 0x07, 0xcb, 0x23, 0x65, 0x66, 0x62, 0xe2, 0xfe, 0x44, 0xbf, 0xb0, 0xff, 0x52,
-	0x34, 0x92, 0xfc, 0xa0, 0x74, 0x93, 0xdd, 0x9c, 0x7b, 0xee, 0xb9, 0xef, 0x81, 0x7e, 0x91, 0x67,
-	0x4c, 0xa9, 0x22, 0x1d, 0x16, 0x2a, 0x37, 0x39, 0x69, 0x9b, 0x6d, 0x81, 0x3a, 0x04, 0x99, 0x73,
-	0xac, 0x4c, 0xa1, 0xb7, 0x63, 0xc3, 0xde, 0x1a, 0x8d, 0x12, 0x35, 0x8a, 0xaf, 0xa1, 0x3b, 0x63,
-	0x0b, 0x21, 0x99, 0x11, 0xb9, 0xd4, 0xe4, 0x25, 0xb8, 0x0a, 0xef, 0x03, 0x27, 0x72, 0x92, 0x1e,
-	0x2d, 0x9f, 0x84, 0xc0, 0xa9, 0x16, 0xbf, 0x30, 0x70, 0x23, 0x27, 0xf1, 0xa9, 0x7d, 0xc7, 0x2b,
-	0x78, 0x31, 0x2b, 0x53, 0x0a, 0x3d, 0x43, 0x54, 0x53, 0xa1, 0x0d, 0x19, 0x40, 0xdb, 0xe4, 0x86,
-	0x65, 0x56, 0xea, 0xd3, 0x0a, 0x90, 0x00, 0xce, 0x96, 0x4c, 0xdf, 0xe2, 0x93, 0x09, 0x4e, 0x22,
-	0x27, 0x39, 0xa7, 0x0d, 0x24, 0x09, 0xb4, 0x0b, 0x44, 0xa5, 0x03, 0x37, 0x72, 0x93, 0xee, 0x15,
-	0x19, 0xda, 0x9a, 0x87, 0x07, 0x61, 0x69, 0xe5, 0x10, 0xff, 0x76, 0xa0, 0x7b, 0x60, 0x26, 0xef,
-	0xe1, 0x8c, 0x71, 0xae, 0x50, 0x6b, 0x9b, 0xeb, 0x40, 0x8b, 0xa8, 0x46, 0x15, 0x43, 0x1b, 0x17,
-	0xf2, 0x16, 0xbc, 0x34, 0x97, 0x12, 0x53, 0x83, 0xdc, 0xd6, 0xe0, 0xd2, 0xbd, 0xa1, 0x64, 0x33,
-	0xa6, 0xcd, 0x64, 0x89, 0xe9, 0xca, 0x76, 0xe8, 0xd2, 0xbd, 0x81, 0x5c, 0x40, 0x67, 0x83, 0x4a,
-	0xe4, 0x32, 0x38, 0x8d, 0x9c, 0xc4, 0xa3, 0x35, 0x8a, 0x27, 0xe0, 0x8f, 0xa7, 0x93, 0x5c, 0xde,
-	0xdf, 0x48, 0xa3, 0x04, 0xea, 0xb2, 0x4d, 0x94, 0xec, 0x2e, 0x43, 0x6e, 0x4b, 0x3a, 0xa7, 0x0d,
-	0xac, 0x18, 0xeb, 0x14, 0x9c, 0x44, 0x6e, 0xe2, 0xd1, 0x06, 0xc6, 0x3f, 0xa0, 0x3f, 0xe2, 0xbc,
-	0x8c, 0xb0, 0x9d, 0x31, 0xc5, 0xd6, 0xba, 0x4c, 0x57, 0x76, 0xfc, 0xed, 0xab, 0x0d, 0xe2, 0xd1,
-	0x1a, 0x95, 0x31, 0x9a, 0x86, 0x4f, 0x2c, 0xb1, 0x6b, 0x8e, 0xc0, 0x69, 0x2a, 0xb8, 0xb2, 0x95,
-	0x7b, 0xd4, 0xbe, 0xe3, 0x77, 0xe0, 0xd3, 0xf5, 0x61, 0xd8, 0x01, 0xb4, 0x85, 0xe4, 0xf8, 0xd4,
-	0x6c, 0xc6, 0x82, 0xab, 0x3f, 0x2e, 0xbc, 0xaa, 0xa7, 0x4a, 0x67, 0x93, 0x39, 0xaa, 0x8d, 0x48,
-	0x91, 0x5c, 0x82, 0x77, 0x9b, 0x73, 0x9c, 0x1b, 0x66, 0x90, 0xf4, 0xeb, 0xb9, 0x96, 0x16, 0x8a,
-	0x0f, 0x61, 0x33, 0xe7, 0xb9, 0x90, 0x8b, 0x0c, 0xc7, 0x5b, 0x83, 0x3a, 0x6e, 0x91, 0x4b, 0xe8,
-	0x7c, 0xb7, 0x07, 0x45, 0xde, 0xd4, 0x7c, 0x05, 0x35, 0xc5, 0x87, 0x47, 0xd4, 0x26, 0xec, 0x1f,
-	0x9b, 0xe3, 0x16, 0xf9, 0x0c, 0xdd, 0xc9, 0xa3, 0x52, 0x28, 0x8d, 0x3d, 0x9d, 0xdd, 0xfe, 0xf6,
-	0x77, 0x18, 0x5e, 0xfc, 0x7b, 0x0f, 0xa5, 0x6f, 0xdc, 0x22, 0x1f, 0xc1, 0xfb, 0xb9, 0x14, 0x06,
-	0x9f, 0x27, 0x1d, 0x67, 0x2c, 0x5d, 0x3d, 0x43, 0xfa, 0x01, 0xfc, 0xf2, 0x35, 0x9e, 0x36, 0x2b,
-	0xef, 0xd5, 0xae, 0x37, 0xeb, 0xc2, 0x6c, 0xc3, 0x41, 0x8d, 0x8e, 0xce, 0x22, 0x6e, 0x91, 0x4f,
-	0x00, 0x23, 0xce, 0x2b, 0xd5, 0x76, 0x37, 0xa0, 0xe3, 0xbd, 0x87, 0xaf, 0x8f, 0xe6, 0x3a, 0x37,
-	0x4a, 0xc8, 0x45, 0xdc, 0x22, 0x5f, 0xc0, 0xa7, 0xb8, 0xce, 0x37, 0xd8, 0xc8, 0x9b, 0x24, 0x47,
-	0xeb, 0xfd, 0x8f, 0xfa, 0xae, 0x63, 0xbf, 0xf7, 0xf5, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf2,
-	0x5a, 0x3f, 0xbc, 0x1c, 0x04, 0x00, 0x00,
-}
-
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
 var _ grpc.ClientConn
@@ -386,9 +341,8 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// PolarisRPCServiceClient is the client API for PolarisRPCService service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+// Client API for PolarisRPCService service
+
 type PolarisRPCServiceClient interface {
 	// Returns the current state of this node
 	NodeState(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*SingleBytes, error)
@@ -412,7 +366,7 @@ func NewPolarisRPCServiceClient(cc *grpc.ClientConn) PolarisRPCServiceClient {
 
 func (c *polarisRPCServiceClient) NodeState(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*SingleBytes, error) {
 	out := new(SingleBytes)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/NodeState", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/NodeState", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +375,7 @@ func (c *polarisRPCServiceClient) NodeState(ctx context.Context, in *NodeReq, op
 
 func (c *polarisRPCServiceClient) Metric(ctx context.Context, in *MetricsRequest, opts ...grpc.CallOption) (*Metrics, error) {
 	out := new(Metrics)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/Metric", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/Metric", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -430,7 +384,7 @@ func (c *polarisRPCServiceClient) Metric(ctx context.Context, in *MetricsRequest
 
 func (c *polarisRPCServiceClient) CurrentList(ctx context.Context, in *Paginations, opts ...grpc.CallOption) (*PolarisPeerList, error) {
 	out := new(PolarisPeerList)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/CurrentList", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/CurrentList", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +393,7 @@ func (c *polarisRPCServiceClient) CurrentList(ctx context.Context, in *Paginatio
 
 func (c *polarisRPCServiceClient) WhiteList(ctx context.Context, in *Paginations, opts ...grpc.CallOption) (*PolarisPeerList, error) {
 	out := new(PolarisPeerList)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/WhiteList", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/WhiteList", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +402,7 @@ func (c *polarisRPCServiceClient) WhiteList(ctx context.Context, in *Paginations
 
 func (c *polarisRPCServiceClient) BlackList(ctx context.Context, in *Paginations, opts ...grpc.CallOption) (*PolarisPeerList, error) {
 	out := new(PolarisPeerList)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/BlackList", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/BlackList", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +411,7 @@ func (c *polarisRPCServiceClient) BlackList(ctx context.Context, in *Paginations
 
 func (c *polarisRPCServiceClient) ListBLEntries(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BLConfEntries, error) {
 	out := new(BLConfEntries)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/ListBLEntries", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/ListBLEntries", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +420,7 @@ func (c *polarisRPCServiceClient) ListBLEntries(ctx context.Context, in *Empty, 
 
 func (c *polarisRPCServiceClient) AddBLEntry(ctx context.Context, in *AddEntryParams, opts ...grpc.CallOption) (*SingleString, error) {
 	out := new(SingleString)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/AddBLEntry", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/AddBLEntry", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -475,14 +429,15 @@ func (c *polarisRPCServiceClient) AddBLEntry(ctx context.Context, in *AddEntryPa
 
 func (c *polarisRPCServiceClient) RemoveBLEntry(ctx context.Context, in *RmEntryParams, opts ...grpc.CallOption) (*SingleString, error) {
 	out := new(SingleString)
-	err := c.cc.Invoke(ctx, "/types.PolarisRPCService/RemoveBLEntry", in, out, opts...)
+	err := grpc.Invoke(ctx, "/types.PolarisRPCService/RemoveBLEntry", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// PolarisRPCServiceServer is the server API for PolarisRPCService service.
+// Server API for PolarisRPCService service
+
 type PolarisRPCServiceServer interface {
 	// Returns the current state of this node
 	NodeState(context.Context, *NodeReq) (*SingleBytes, error)
@@ -683,4 +638,44 @@ var _PolarisRPCService_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "polarrpc.proto",
+}
+
+func init() { proto.RegisterFile("polarrpc.proto", fileDescriptor_polarrpc_1f6dae6536e3253f) }
+
+var fileDescriptor_polarrpc_1f6dae6536e3253f = []byte{
+	// 535 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0xcb, 0x6a, 0xdb, 0x40,
+	0x14, 0xb5, 0xa2, 0xd8, 0x89, 0xae, 0x2d, 0xb7, 0x9d, 0xba, 0x41, 0x88, 0x2e, 0x84, 0xa0, 0xa0,
+	0x45, 0x31, 0x24, 0xa1, 0x8b, 0x3e, 0x36, 0xb6, 0x9b, 0x45, 0xc1, 0x0d, 0x66, 0x0c, 0xed, 0x7a,
+	0xa2, 0xb9, 0xb1, 0x07, 0xcb, 0x23, 0x65, 0x66, 0x62, 0xe2, 0xfe, 0x44, 0xbf, 0xb0, 0xff, 0x52,
+	0x34, 0x92, 0xfc, 0xa0, 0x74, 0x93, 0xdd, 0x9c, 0x7b, 0xee, 0xb9, 0xef, 0x81, 0x7e, 0x91, 0x67,
+	0x4c, 0xa9, 0x22, 0x1d, 0x16, 0x2a, 0x37, 0x39, 0x69, 0x9b, 0x6d, 0x81, 0x3a, 0x04, 0x99, 0x73,
+	0xac, 0x4c, 0xa1, 0xb7, 0x63, 0xc3, 0xde, 0x1a, 0x8d, 0x12, 0x35, 0x8a, 0xaf, 0xa1, 0x3b, 0x63,
+	0x0b, 0x21, 0x99, 0x11, 0xb9, 0xd4, 0xe4, 0x25, 0xb8, 0x0a, 0xef, 0x03, 0x27, 0x72, 0x92, 0x1e,
+	0x2d, 0x9f, 0x84, 0xc0, 0xa9, 0x16, 0xbf, 0x30, 0x70, 0x23, 0x27, 0xf1, 0xa9, 0x7d, 0xc7, 0x2b,
+	0x78, 0x31, 0x2b, 0x53, 0x0a, 0x3d, 0x43, 0x54, 0x53, 0xa1, 0x0d, 0x19, 0x40, 0xdb, 0xe4, 0x86,
+	0x65, 0x56, 0xea, 0xd3, 0x0a, 0x90, 0x00, 0xce, 0x96, 0x4c, 0xdf, 0xe2, 0x93, 0x09, 0x4e, 0x22,
+	0x27, 0x39, 0xa7, 0x0d, 0x24, 0x09, 0xb4, 0x0b, 0x44, 0xa5, 0x03, 0x37, 0x72, 0x93, 0xee, 0x15,
+	0x19, 0xda, 0x9a, 0x87, 0x07, 0x61, 0x69, 0xe5, 0x10, 0xff, 0x76, 0xa0, 0x7b, 0x60, 0x26, 0xef,
+	0xe1, 0x8c, 0x71, 0xae, 0x50, 0x6b, 0x9b, 0xeb, 0x40, 0x8b, 0xa8, 0x46, 0x15, 0x43, 0x1b, 0x17,
+	0xf2, 0x16, 0xbc, 0x34, 0x97, 0x12, 0x53, 0x83, 0xdc, 0xd6, 0xe0, 0xd2, 0xbd, 0xa1, 0x64, 0x33,
+	0xa6, 0xcd, 0x64, 0x89, 0xe9, 0xca, 0x76, 0xe8, 0xd2, 0xbd, 0x81, 0x5c, 0x40, 0x67, 0x83, 0x4a,
+	0xe4, 0x32, 0x38, 0x8d, 0x9c, 0xc4, 0xa3, 0x35, 0x8a, 0x27, 0xe0, 0x8f, 0xa7, 0x93, 0x5c, 0xde,
+	0xdf, 0x48, 0xa3, 0x04, 0xea, 0xb2, 0x4d, 0x94, 0xec, 0x2e, 0x43, 0x6e, 0x4b, 0x3a, 0xa7, 0x0d,
+	0xac, 0x18, 0xeb, 0x14, 0x9c, 0x44, 0x6e, 0xe2, 0xd1, 0x06, 0xc6, 0x3f, 0xa0, 0x3f, 0xe2, 0xbc,
+	0x8c, 0xb0, 0x9d, 0x31, 0xc5, 0xd6, 0xba, 0x4c, 0x57, 0x76, 0xfc, 0xed, 0xab, 0x0d, 0xe2, 0xd1,
+	0x1a, 0x95, 0x31, 0x9a, 0x86, 0x4f, 0x2c, 0xb1, 0x6b, 0x8e, 0xc0, 0x69, 0x2a, 0xb8, 0xb2, 0x95,
+	0x7b, 0xd4, 0xbe, 0xe3, 0x77, 0xe0, 0xd3, 0xf5, 0x61, 0xd8, 0x01, 0xb4, 0x85, 0xe4, 0xf8, 0xd4,
+	0x6c, 0xc6, 0x82, 0xab, 0x3f, 0x2e, 0xbc, 0xaa, 0xa7, 0x4a, 0x67, 0x93, 0x39, 0xaa, 0x8d, 0x48,
+	0x91, 0x5c, 0x82, 0x77, 0x9b, 0x73, 0x9c, 0x1b, 0x66, 0x90, 0xf4, 0xeb, 0xb9, 0x96, 0x16, 0x8a,
+	0x0f, 0x61, 0x33, 0xe7, 0xb9, 0x90, 0x8b, 0x0c, 0xc7, 0x5b, 0x83, 0x3a, 0x6e, 0x91, 0x4b, 0xe8,
+	0x7c, 0xb7, 0x07, 0x45, 0xde, 0xd4, 0x7c, 0x05, 0x35, 0xc5, 0x87, 0x47, 0xd4, 0x26, 0xec, 0x1f,
+	0x9b, 0xe3, 0x16, 0xf9, 0x0c, 0xdd, 0xc9, 0xa3, 0x52, 0x28, 0x8d, 0x3d, 0x9d, 0xdd, 0xfe, 0xf6,
+	0x77, 0x18, 0x5e, 0xfc, 0x7b, 0x0f, 0xa5, 0x6f, 0xdc, 0x22, 0x1f, 0xc1, 0xfb, 0xb9, 0x14, 0x06,
+	0x9f, 0x27, 0x1d, 0x67, 0x2c, 0x5d, 0x3d, 0x43, 0xfa, 0x01, 0xfc, 0xf2, 0x35, 0x9e, 0x36, 0x2b,
+	0xef, 0xd5, 0xae, 0x37, 0xeb, 0xc2, 0x6c, 0xc3, 0x41, 0x8d, 0x8e, 0xce, 0x22, 0x6e, 0x91, 0x4f,
+	0x00, 0x23, 0xce, 0x2b, 0xd5, 0x76, 0x37, 0xa0, 0xe3, 0xbd, 0x87, 0xaf, 0x8f, 0xe6, 0x3a, 0x37,
+	0x4a, 0xc8, 0x45, 0xdc, 0x22, 0x5f, 0xc0, 0xa7, 0xb8, 0xce, 0x37, 0xd8, 0xc8, 0x9b, 0x24, 0x47,
+	0xeb, 0xfd, 0x8f, 0xfa, 0xae, 0x63, 0xbf, 0xf7, 0xf5, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf2,
+	0x5a, 0x3f, 0xbc, 0x1c, 0x04, 0x00, 0x00,
 }
