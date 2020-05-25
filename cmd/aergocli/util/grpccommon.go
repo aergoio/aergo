@@ -20,18 +20,22 @@ type ConnClient struct {
 }
 
 func GetClient(serverAddr string, opts []grpc.DialOption) interface{} {
-	conn, err := grpc.Dial(serverAddr, opts...)
-	if err != nil || conn == nil {
-		fmt.Println(err)
-		panic("connection failed")
-	}
-
+	conn := GetConn(serverAddr, opts)
 	connClient := &ConnClient{
 		AergoRPCServiceClient: types.NewAergoRPCServiceClient(conn),
 		conn:                  conn,
 	}
 
 	return connClient
+}
+
+func GetConn(serverAddr string, opts []grpc.DialOption) *grpc.ClientConn {
+	conn, err := grpc.Dial(serverAddr, opts...)
+	if err != nil || conn == nil {
+		fmt.Println(err)
+		panic("connection failed")
+	}
+	return conn
 }
 
 func (c *ConnClient) Close() {

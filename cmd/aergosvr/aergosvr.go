@@ -157,6 +157,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	mpoolSvc := mempool.NewMemPoolService(cfg, chainSvc)
 	rpcSvc := rpc.NewRPC(cfg, chainSvc, githash)
+	admSvc := rpc.NewAdminService(cfg.RPC, compMng)
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
@@ -195,6 +196,10 @@ func rootRun(cmd *cobra.Command, args []string) {
 
 	if cfg.EnableDump {
 		dmp.Start()
+	}
+
+	if len(cfg.RPC.NetServicePath) > 0 {
+		admSvc.Start()
 	}
 
 	var interrupt = common.HandleKillSig(func() {

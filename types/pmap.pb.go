@@ -3,11 +3,9 @@
 
 package types
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -22,9 +20,9 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 // query to polaris
 type MapQuery struct {
-	Status               *Status  `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	AddMe                bool     `protobuf:"varint,2,opt,name=addMe,proto3" json:"addMe,omitempty"`
-	Size                 int32    `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	Status               *Status  `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
+	AddMe                bool     `protobuf:"varint,2,opt,name=addMe" json:"addMe,omitempty"`
+	Size                 int32    `protobuf:"varint,3,opt,name=size" json:"size,omitempty"`
 	Excludes             [][]byte `protobuf:"bytes,4,rep,name=excludes,proto3" json:"excludes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -35,17 +33,16 @@ func (m *MapQuery) Reset()         { *m = MapQuery{} }
 func (m *MapQuery) String() string { return proto.CompactTextString(m) }
 func (*MapQuery) ProtoMessage()    {}
 func (*MapQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c373235fa8835f5c, []int{0}
+	return fileDescriptor_pmap_34fd0f2e9b6a5bb5, []int{0}
 }
-
 func (m *MapQuery) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapQuery.Unmarshal(m, b)
 }
 func (m *MapQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MapQuery.Marshal(b, m, deterministic)
 }
-func (m *MapQuery) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MapQuery.Merge(m, src)
+func (dst *MapQuery) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MapQuery.Merge(dst, src)
 }
 func (m *MapQuery) XXX_Size() int {
 	return xxx_messageInfo_MapQuery.Size(m)
@@ -85,9 +82,9 @@ func (m *MapQuery) GetExcludes() [][]byte {
 }
 
 type MapResponse struct {
-	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,proto3,enum=types.ResultStatus" json:"status,omitempty"`
-	Addresses            []*PeerAddress `protobuf:"bytes,2,rep,name=addresses,proto3" json:"addresses,omitempty"`
-	Message              string         `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Status               ResultStatus   `protobuf:"varint,1,opt,name=status,enum=types.ResultStatus" json:"status,omitempty"`
+	Addresses            []*PeerAddress `protobuf:"bytes,2,rep,name=addresses" json:"addresses,omitempty"`
+	Message              string         `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -97,17 +94,16 @@ func (m *MapResponse) Reset()         { *m = MapResponse{} }
 func (m *MapResponse) String() string { return proto.CompactTextString(m) }
 func (*MapResponse) ProtoMessage()    {}
 func (*MapResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c373235fa8835f5c, []int{1}
+	return fileDescriptor_pmap_34fd0f2e9b6a5bb5, []int{1}
 }
-
 func (m *MapResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MapResponse.Unmarshal(m, b)
 }
 func (m *MapResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MapResponse.Marshal(b, m, deterministic)
 }
-func (m *MapResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MapResponse.Merge(m, src)
+func (dst *MapResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MapResponse.Merge(dst, src)
 }
 func (m *MapResponse) XXX_Size() int {
 	return xxx_messageInfo_MapResponse.Size(m)
@@ -144,9 +140,9 @@ func init() {
 	proto.RegisterType((*MapResponse)(nil), "types.MapResponse")
 }
 
-func init() { proto.RegisterFile("pmap.proto", fileDescriptor_c373235fa8835f5c) }
+func init() { proto.RegisterFile("pmap.proto", fileDescriptor_pmap_34fd0f2e9b6a5bb5) }
 
-var fileDescriptor_c373235fa8835f5c = []byte{
+var fileDescriptor_pmap_34fd0f2e9b6a5bb5 = []byte{
 	// 228 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x90, 0x51, 0x4a, 0xc4, 0x40,
 	0x10, 0x44, 0x99, 0xcd, 0x66, 0x4d, 0x3a, 0xea, 0x47, 0xeb, 0xc7, 0x90, 0xaf, 0x61, 0x41, 0x18,
