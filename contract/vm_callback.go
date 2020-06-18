@@ -1432,3 +1432,27 @@ func moveGas(L *LState, ctx *vmContext) {
 		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
 }
+
+//export luaGetStaking
+func luaGetStaking(service C.int, addr *C.char) (*C.char, *C.char){
+	var (
+		ctx *vmContext
+		scs, namescs *state.ContractState
+		err error
+		staking *types.Staking
+	)
+	ctx = contexts[service]
+	scs, err = ctx.bs.GetSystemAccountState()
+	if err != nil {
+		return nil, C.CString(err.Error())
+	}
+	namescs, err = ctx.bs.GetNameAccountState()
+	if err != nil {
+		return nil, C.CString(err.Error())
+	}
+	staking, err = system.GetStaking(scs, name.GetAddress(namescs, types.ToAddress(C.GoString(addr))))
+	if err != nil {
+		return nil, C.CString(err.Error())
+	}
+	return C.CString(staking.GetAmountBigInt().String()), nil
+}
