@@ -236,14 +236,35 @@ static int moduleBalance(lua_State *L)
 	int service = getLuaExecContext(L);
 	lua_Integer amount;
 	struct luaGetBalance_return balance;
+    int nArg;
 
     lua_gasuse(L, 300);
 
-    if (lua_gettop(L) == 0 || lua_isnil(L, 1))
+    nArg = lua_gettop(L);
+    if (nArg== 0 || lua_isnil(L, 1)) {
         contract = NULL;
+    }
     else {
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
+    if (contract != NULL && nArg == 2) {
+        const char *mode = luaL_checkstring(L, 2);
+        if (strcmp(mode, "staking") == 0) {
+            struct luaGetStaking_return ret;
+            const char *errMsg;
+            ret = luaGetStaking(service, contract);
+            if (ret.r1 != NULL) {
+                strPushAndRelease(L, ret.r1);
+                luaL_throwerror(L);
+            }
+            errMsg = lua_set_bignum(L, ret.r0);
+            free(ret.r0);
+            if (errMsg != NULL) {
+                luaL_error(L, errMsg);
+            }
+            return 1;
+        }
+    }
 
 	balance = luaGetBalance(L, service, contract);
 	if (balance.r1 != NULL) {
