@@ -200,19 +200,27 @@ func newVmContextQuery(
 	receiverId []byte,
 	contractState *state.ContractState,
 	rp uint64,
-) *vmContext {
+) (*vmContext, error) {
 	cs := &callState{ctrState: contractState, curState: contractState.State}
+	bb, err := cdb.GetBestBlock()
+	if err != nil {
+		return nil, err
+	}
 	ctx := &vmContext{
 		curContract: newContractInfo(cs, nil, receiverId, rp, big.NewInt(0)),
 		bs:          blockState,
 		cdb:         cdb,
 		confirmed:   true,
-		blockInfo:   &types.BlockHeaderInfo{Ts: time.Now().UnixNano()},
+		blockInfo: &types.BlockHeaderInfo{
+			No:            bb.BlockNo(),
+			Ts:            time.Now().UnixNano(),
+			Version:       HardforkConfig.Version(bb.BlockNo()),
+		},
 		isQuery:     true,
 	}
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[types.ToAccountID(receiverId)] = cs
-	return ctx
+	return ctx, nil
 }
 
 func (s *vmContext) usedFee() *big.Int {
@@ -327,8 +335,8 @@ func newExecutor(
 		ctrLgr.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
-	if v := HardforkConfig.Version(ctx.blockInfo.No); v >= 2 {
-		C.luaL_set_hardforkversion(ce.L, C.int(v))
+	if ctx.blockInfo.Version >= 2 {
+		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.Version))
 	}
 	if vmIsGasSystem(ctx) {
 		ce.setGas()
@@ -1090,7 +1098,11 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 		return
 	}
 
-	ctx := newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	var ctx *vmContext
+	ctx, err = newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	if err != nil {
+		return
+	}
 
 	setQueryContext(ctx)
 	if ctrLgr.IsDebugEnabled() {
@@ -1144,7 +1156,12 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	if err != nil {
 		return
 	}
-	ctx := newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+
+	var ctx *vmContext
+	ctx, err = newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	if err != nil {
+		return
+	}
 	ctx.origin = sender
 	ctx.txHash = txHash
 	ctx.curContract.amount = new(big.Int).SetBytes(amount)

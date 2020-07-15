@@ -379,7 +379,7 @@ func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	return l
 }
 
-func contractFrame(l luaTxContract, bs *state.BlockState, receiptTx db.Transaction,
+func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, receiptTx db.Transaction,
 	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
@@ -406,7 +406,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, receiptTx db.Transacti
 		if usedFee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
-		err = CheckFeeDelegation(l.contract(), bs, nil, eContractState, l.code(),
+		err = CheckFeeDelegation(l.contract(), bs, cdb, eContractState, l.code(),
 			l.Hash(), l.sender(), l.amount().Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
@@ -463,7 +463,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 	if l.cErr != nil {
 		return l.cErr
 	}
-	return contractFrame(l, bs, receiptTx,
+	return contractFrame(l, bs, bc, receiptTx,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
 			contract.State().SqlRecoveryPoint = 1
 
@@ -531,7 +531,7 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 }
 
 func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
-	err := contractFrame(l, bs, receiptTx,
+	err := contractFrame(l, bs, bc, receiptTx,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
 			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
