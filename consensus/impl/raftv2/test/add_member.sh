@@ -45,8 +45,8 @@ getAdminUnlocked $leaderport $walletFile ADMIN
 
 addJson="$(makeAddMemberJson $addnode)"
 
-echo "aergocli -p "$leaderport" contract call --governance "$ADMIN" aergo.enterprise changeCluster "$addJson
-aergocli -p $leaderport contract call --governance $ADMIN aergo.enterprise changeCluster "$addJson"
+echo "aergocli -p "$leaderport" contract call --governance "$ADMIN" aergo.enterprise changeCluster "$addJson" --keystore . --password 1234"
+aergocli -p $leaderport contract call --governance $ADMIN aergo.enterprise changeCluster "$addJson" --keystore . --password 1234
 echo "add Done" 
 
 mySvrport=${svrports[$addnode]}
