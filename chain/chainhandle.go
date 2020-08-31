@@ -966,7 +966,7 @@ func executeTx(
 		if err != nil {
 			return err
 		}
-		err = contract.CheckFeeDelegation(recipient, bs, cdb, contractState, txBody.GetPayload(),
+		err = contract.CheckFeeDelegation(recipient, bs, bi, cdb, contractState, txBody.GetPayload(),
 			tx.GetHash(), txBody.GetAccount(), txBody.GetAmount())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {

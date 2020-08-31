@@ -248,19 +248,29 @@ static int moduleBalance(lua_State *L)
 	    contract = (char *)luaL_checkstring(L, 1);
 	}
     if (contract != NULL && nArg == 2) {
-        const char *mode = luaL_checkstring(L, 2);
-        if (strcmp(mode, "staking") == 0) {
+        const char *modeArg = luaL_checkstring(L, 2);
+        int mode = -1;
+        if (strcmp(modeArg, "staking") == 0) {
+            mode = 0;
+        } else if (strcmp(modeArg, "stakingandwhen") == 0) {
+            mode = 1;
+        }
+        if (mode != -1) {
             struct luaGetStaking_return ret;
             const char *errMsg;
             ret = luaGetStaking(service, contract);
-            if (ret.r1 != NULL) {
-                strPushAndRelease(L, ret.r1);
+            if (ret.r2 != NULL) {
+                strPushAndRelease(L, ret.r2);
                 luaL_throwerror(L);
             }
             errMsg = lua_set_bignum(L, ret.r0);
             free(ret.r0);
             if (errMsg != NULL) {
                 luaL_error(L, errMsg);
+            }
+            if (mode == 1) {
+                lua_pushinteger(L, ret.r1);
+                return 2;
             }
             return 1;
         }

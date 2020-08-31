@@ -406,7 +406,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 		if usedFee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
-		err = CheckFeeDelegation(l.contract(), bs, cdb, eContractState, l.code(),
+		err = CheckFeeDelegation(l.contract(), bs, nil, cdb, eContractState, l.code(),
 			l.Hash(), l.sender(), l.amount().Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
