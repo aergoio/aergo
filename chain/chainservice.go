@@ -906,7 +906,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		} else {
 			bs := state.NewBlockState(sdb)
-			err := contract.CheckFeeDelegation(msg.Contract, bs, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
+			err := contract.CheckFeeDelegation(msg.Contract, bs, nil, cw.cdb, ctrState, msg.Payload, msg.TxHash, msg.Sender, msg.Amount)
 			context.Respond(message.CheckFeeDelegationRsp{Err: err})
 		}
 
