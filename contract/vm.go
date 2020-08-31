@@ -212,11 +212,11 @@ func newVmContextQuery(
 		cdb:         cdb,
 		confirmed:   true,
 		blockInfo: &types.BlockHeaderInfo{
-			No:            bb.BlockNo(),
-			Ts:            time.Now().UnixNano(),
-			Version:       HardforkConfig.Version(bb.BlockNo()),
+			No:      bb.BlockNo(),
+			Ts:      bb.Header.Timestamp,
+			Version: HardforkConfig.Version(bb.BlockNo()),
 		},
-		isQuery:     true,
+		isQuery: true,
 	}
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[types.ToAccountID(receiverId)] = cs
@@ -1121,7 +1121,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	return []byte(ce.jsonRet), ce.err
 }
 
-func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor,
+func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.BlockHeaderInfo, cdb ChainAccessor,
 	contractState *state.ContractState, payload, txHash, sender, amount []byte) (err error) {
 	var ci types.CallInfo
 
@@ -1166,6 +1166,9 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, cdb ChainA
 	ctx.txHash = txHash
 	ctx.curContract.amount = new(big.Int).SetBytes(amount)
 	ctx.curContract.sender = sender
+	if bi != nil {
+		ctx.blockInfo = bi
+	}
 
 	setQueryContext(ctx)
 	if ctrLgr.IsDebugEnabled() {
