@@ -28,9 +28,14 @@ func DecodeB58(sb string) []byte {
 	return buf
 }
 
+// GetMaxMessageSize returns the max message size corresponding to a specific block size (blockSize).
+func GetMaxMessageSize(blockSize uint32) uint32 {
+	return maxMetaSizeLimit + blockSize
+}
+
 // MaxMessageSize returns the limit for network message (client-server, p2p) size
 func MaxMessageSize() uint32 {
-	return maxMetaSizeLimit + blockSizeHardLimit
+	return GetMaxMessageSize(blockSizeHardLimit)
 }
 
 // BlockSizeHardLimit returns the hard limit for block size
