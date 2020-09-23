@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	"io/ioutil"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ import (
 
 const aergosystem = "aergo.system"
 
-const MaxRPCMessageSize = 1024 * 1024 * 10 // 10MB
+var MaxRPCMessageSize = int(types.MaxMessageSize())
 
 var (
 	// Used for test.

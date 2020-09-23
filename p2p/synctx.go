@@ -329,7 +329,7 @@ func (tm *syncTxManager) handleTxReq(remotePeer p2pcommon.RemotePeer, mID p2pcom
 		fieldSize = txSize + p2putil.CalculateFieldDescSize(txSize)
 		fieldSize += len(hash) + p2putil.CalculateFieldDescSize(len(hash))
 
-		if (payloadSize + fieldSize) > p2pcommon.MaxPayloadLength {
+		if uint32(payloadSize + fieldSize) > p2pcommon.MaxPayloadLength {
 			// send partial list
 			resp := &types.GetTransactionsResponse{
 				Status: status,
