@@ -22,6 +22,8 @@ import (
 
 const aergosystem = "aergo.system"
 
+const MaxRPCMessageSize = 1024 * 1024 * 10 // 10MB
+
 var (
 	// Used for test.
 	test bool
@@ -131,8 +133,9 @@ func connectAergo(cmd *cobra.Command, args []string) {
 	}
 	serverAddr := GetServerAddress()
 	opts := []grpc.DialOption{
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024 * 1024 * 256)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxRPCMessageSize), grpc.MaxCallSendMsgSize(MaxRPCMessageSize)),
 	}
+
 	if rootConfig.TLS.ClientCert != "" || rootConfig.TLS.ClientKey != "" {
 		certificate, err := tls.LoadX509KeyPair(rootConfig.TLS.ClientCert, rootConfig.TLS.ClientKey)
 		if err != nil {
