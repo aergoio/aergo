@@ -7,6 +7,7 @@ package chain
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
@@ -94,6 +95,9 @@ func MaxBlockSize() uint32 {
 }
 
 func setMaxBlockBodySize(size uint32) {
+	if size > types.BlockSizeHardLimit() {
+		panic(fmt.Errorf("too large block size (%v), hard limit = 8MiB", size))
+	}
 	maxBlockBodySize = size
 }
 
