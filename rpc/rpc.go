@@ -19,11 +19,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/contract/enterprise"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract/enterprise"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
@@ -67,9 +67,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 
 	tracer := opentracing.GlobalTracer()
 
-	opts := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(1024 * 1024 * 256),
-	}
+	opts := make([]grpc.ServerOption, 0)
 
 	if cfg.RPC.NetServiceTrace {
 		opts = append(opts, grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)))
@@ -112,7 +110,10 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 		}
 	}
 
-	grpcServer := grpc.NewServer(opts...)
+	grpcServer := network.GRPCSeverBuilder().
+		MessageSize(int(types.GetMaxMessageSize(cfg.Blockchain.MaxBlockSize))).
+		Opts(opts).
+		GetInstance()
 
 	grpcWebServer := grpcweb.WrapServer(
 		grpcServer,

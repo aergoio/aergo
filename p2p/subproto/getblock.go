@@ -95,7 +95,7 @@ func (bh *blockRequestHandler) handleBlkReq(msg p2pcommon.Message, data *types.G
 		}
 		blockSize = proto.Size(foundBlock)
 		fieldSize = blockSize + p2putil.CalculateFieldDescSize(blockSize)
-		if len(blockInfos) >= sliceCap || (payloadSize+fieldSize) > p2pcommon.MaxPayloadLength {
+		if len(blockInfos) >= sliceCap || uint32(payloadSize+fieldSize) > p2pcommon.MaxPayloadLength {
 			msgSentCount++
 			// send partial list
 			resp := &types.GetBlockResponse{

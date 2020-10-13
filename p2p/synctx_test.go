@@ -735,8 +735,8 @@ func Test_syncTxManager_handleBySize(t *testing.T) {
 	}{
 		{"TSingle", 1, 1, 1},
 		{"TNotFounds", 100, 0, 1},
-		{"TFound10", 10, 10, 4},
-		{"TFoundAll", 20, 100, 7},
+		{"TFound10", 10, 10, 3},
+		{"TFoundAll", 20, 100, 5},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

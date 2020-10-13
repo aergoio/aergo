@@ -7,6 +7,7 @@ package p2pcommon
 
 import (
 	"fmt"
+	"github.com/aergoio/aergo/types"
 	core "github.com/libp2p/go-libp2p-core"
 	"time"
 )
@@ -20,8 +21,6 @@ const (
 	MAGICRaftSnap uint32 = 0x8fae0fd4
 
 	SigLength = 16
-
-	MaxPayloadLength = 1 << 23 // 8MB
 
 	MaxBlockHeaderResponseCount = 10000
 	MaxBlockResponseCount       = 2000
@@ -58,6 +57,8 @@ const (
 var AcceptedInboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
 var AttemptingOutboundVersions = []P2PVersion{P2PVersion200, P2PVersion033, P2PVersion032, P2PVersion031}
 var ExperimentalVersions = []P2PVersion{P2PVersion200}
+
+var MaxPayloadLength = types.MaxMessageSize()
 
 // context of multiaddr, as higher type of p2p message
 const (

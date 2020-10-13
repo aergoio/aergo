@@ -19,9 +19,6 @@ import (
 )
 
 func TestBlockRequestHandler_handle(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	logger := log.NewLogger("test.subproto")
 
 	var dummyPeerID, _ = types.IDB58Decode("16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD")
@@ -42,12 +39,16 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 		{"TSingle", 1, 1, 1, true},
 		// not found return err result (ResultStatus_NOT_FOUND)
 		{"TNotFounds", 10, 0, 1, false},
-		{"TFound10", 100, 10, 4, false},
-		{"TFoundAll", 20, 100, 7, true},
+		// 4 blocks can be send in single message
+		{"TFound10", 100, 10, 3, false},
+		{"TFoundAll", 21, 100, 6, true},
 		// TODO: test cases
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockActor := p2pmock.NewMockActorService(ctrl)
