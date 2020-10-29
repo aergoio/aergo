@@ -8,6 +8,7 @@ package trie
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
 )
@@ -108,6 +109,78 @@ func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte
 		return s.get(rnode, key, batch, 2*iBatch+2, height-1)
 	}
 	return s.get(lnode, key, batch, 2*iBatch+1, height-1)
+}
+
+// WalkResult contains the key and value obtained with a Walk() operation
+type WalkResult struct {
+	Value []byte
+	Key   []byte
+}
+
+// Walk finds all the trie stored values from left to right and calls callback.
+// If callback returns true, the walk will stop, else it will continue.
+func (s *Trie) Walk(callback func(*WalkResult) bool) error {
+	walkc := make(chan *WalkResult)
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	s.atomicUpdate = false
+	close := make(chan (bool), 1)
+	stop := false
+	wg := sync.WaitGroup{}
+	go func() {
+		for {
+			select {
+			case <-close:
+				break
+			case value := <-walkc:
+				wg.Add(1)
+				if stop = callback(value); stop {
+					wg.Done()
+					break
+				}
+				wg.Done()
+			}
+		}
+	}()
+	err := s.walk(walkc, &stop, s.Root, nil, 0, s.TrieHeight)
+	close <- true
+	wg.Wait()
+	return err
+}
+
+// walk fetches the value of a key given a trie root
+func (s *Trie) walk(walkc chan (*WalkResult), stop *bool, root []byte, batch [][]byte, iiBatch, height int) error {
+	if len(root) == 0 || *stop {
+		// the trie does not contain the key or stop bool is set tu true
+		return nil
+	}
+	// Fetch the children of the node
+	nbatch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iiBatch, batch)
+	if err != nil {
+		return err
+	}
+	if isShortcut {
+		var key []byte
+		if len(rnode) <= HashLength {
+			return nil
+		}
+		if string(nbatch[0]) == string([]byte{0x01}) {
+			key = nbatch[iBatch+1][:HashLength]
+		} else {
+			key = batch[2*iiBatch+1][:HashLength]
+		}
+		walkc <- &WalkResult{Value: rnode[:HashLength], Key: key}
+		return nil
+	}
+	// Go left
+	if err := s.walk(walkc, stop, lnode, nbatch, 2*iBatch+1, height-1); err != nil {
+		return err
+	}
+	// Go Right
+	if err := s.walk(walkc, stop, rnode, nbatch, 2*iBatch+2, height-1); err != nil {
+		return err
+	}
+	return nil
 }
 
 // TrieRootExists returns true if the root exists in Database.

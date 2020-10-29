@@ -138,6 +138,99 @@ func TestTriePublicUpdateAndGet(t *testing.T) {
 	}
 }
 
+func TestTrieWalk(t *testing.T) {
+	smt := NewTrie(nil, common.Hasher, nil)
+	smt.CacheHeightLimit = 0
+	// Add data to empty trie
+	keys := getFreshData(20, 32)
+	values := getFreshData(20, 32)
+	root, _ := smt.Update(keys, values)
+
+	// Check all keys have been stored
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("trie not updated")
+		}
+	}
+	if !bytes.Equal(root, smt.Root) {
+		t.Fatal("Root not stored")
+	}
+
+	// Walk over the whole tree and compare the values
+	i := 0
+	if err := smt.Walk(func(v *WalkResult) bool {
+		if string(v.Value) != string(values[i]) {
+			t.Fatalf("walk value does not match %x != %x", v.Value, values[i])
+
+		}
+		if string(v.Key) != string(keys[i]) {
+			t.Fatalf("walk key does not match %x != %x", v.Key, keys[i])
+
+		}
+		i++
+		return false
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete two values (0 and 3)
+	if _, err := smt.Update([][]byte{keys[0], keys[3]}, [][]byte{DefaultLeaf, DefaultLeaf}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete two elements and walk again
+	i = 1
+	if err := smt.Walk(func(v *WalkResult) bool {
+		if i == 3 {
+			i++
+		}
+		if string(v.Value) != string(values[i]) {
+			t.Fatalf("walk value does not match %x == %x\n", v.Value, values[i])
+		}
+		if string(v.Key) != string(keys[i]) {
+			t.Fatalf("walk key does not match %x == %x\n", v.Key, keys[i])
+		}
+		i++
+		return false
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add one new value to preivous deleted key
+	values[3] = getFreshData(1, 32)[0]
+	if _, err := smt.Update([][]byte{keys[3]}, [][]byte{values[3]}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Walk and check again
+	i = 1
+	if err := smt.Walk(func(v *WalkResult) bool {
+		if string(v.Value) != string(values[i]) {
+			t.Fatalf("walk value does not match %x != %x\n", v.Value, values[i])
+		}
+		if string(v.Key) != string(keys[i]) {
+			t.Fatalf("walk key does not match %x != %x\n", v.Key, keys[i])
+		}
+		i++
+		return false
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Find a specific value
+	i = 0
+	if err := smt.Walk(func(v *WalkResult) bool {
+		if string(v.Value) == string(values[5]) {
+			return true
+		}
+		i++
+		return false
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTrieDelete(t *testing.T) {
 	smt := NewTrie(nil, common.Hasher, nil)
 	// Add data to empty trie
