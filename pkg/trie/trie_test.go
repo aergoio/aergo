@@ -138,8 +138,69 @@ func TestTriePublicUpdateAndGet(t *testing.T) {
 	}
 }
 
+func TestGetWalkRoot(t *testing.T) {
+	dbPath := path.Join(".aergo", "db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewTrie(nil, common.Hasher, st)
+	smt.CacheHeightLimit = 0
+	// Add data to empty trie
+	keys := getFreshData(20, 32)
+	values := getFreshData(20, 32)
+	root, _ := smt.Update(keys, values)
+
+	// Check all keys have been stored
+	for i, key := range keys {
+		value, _ := smt.Get(key)
+		if !bytes.Equal(values[i], value) {
+			t.Fatal("trie not updated")
+		}
+	}
+	if !bytes.Equal(root, smt.Root) {
+		t.Fatal("Root not stored")
+	}
+	if err := smt.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	// Delete two values (0 and 1)
+	if _, err := smt.Update([][]byte{keys[0], keys[1]}, [][]byte{DefaultLeaf, DefaultLeaf}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change one value
+	oldValue3 := make([]byte, 32)
+	copy(oldValue3, values[3])
+	values[3] = getFreshData(1, 32)[0]
+	if _, err := smt.Update([][]byte{keys[3]}, [][]byte{values[3]}); err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Equal(smt.Root, root) {
+		t.Fatal("root not updated")
+	}
+
+	v3, err := smt.GetWithRoot(keys[3], root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(v3, oldValue3) {
+		t.Fatalf("GetWithRoot did not keep the value: %x != %x", v3, oldValue3)
+	}
+	st.Close()
+	os.RemoveAll(".aergo")
+}
+
 func TestTrieWalk(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	dbPath := path.Join(".aergo", fmt.Sprintf("db-%x", getFreshData(8, 8)))
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_ = os.MkdirAll(dbPath, 0711)
+	}
+	st := db.NewDB(db.BadgerImpl, dbPath)
+
+	smt := NewTrie(nil, common.Hasher, st)
 	smt.CacheHeightLimit = 0
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
@@ -159,7 +220,7 @@ func TestTrieWalk(t *testing.T) {
 
 	// Walk over the whole tree and compare the values
 	i := 0
-	if err := smt.Walk(func(v *WalkResult) bool {
+	if err := smt.Walk(nil, func(v *WalkResult) bool {
 		if string(v.Value) != string(values[i]) {
 			t.Fatalf("walk value does not match %x != %x", v.Value, values[i])
 
@@ -181,7 +242,7 @@ func TestTrieWalk(t *testing.T) {
 
 	// Delete two elements and walk again
 	i = 1
-	if err := smt.Walk(func(v *WalkResult) bool {
+	if err := smt.Walk(nil, func(v *WalkResult) bool {
 		if i == 3 {
 			i++
 		}
@@ -205,7 +266,7 @@ func TestTrieWalk(t *testing.T) {
 
 	// Walk and check again
 	i = 1
-	if err := smt.Walk(func(v *WalkResult) bool {
+	if err := smt.Walk(nil, func(v *WalkResult) bool {
 		if string(v.Value) != string(values[i]) {
 			t.Fatalf("walk value does not match %x != %x\n", v.Value, values[i])
 		}
@@ -220,7 +281,7 @@ func TestTrieWalk(t *testing.T) {
 
 	// Find a specific value
 	i = 0
-	if err := smt.Walk(func(v *WalkResult) bool {
+	if err := smt.Walk(nil, func(v *WalkResult) bool {
 		if string(v.Value) == string(values[5]) {
 			return true
 		}
@@ -229,6 +290,8 @@ func TestTrieWalk(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	st.Close()
+	os.RemoveAll(".aergo")
 }
 
 func TestTrieDelete(t *testing.T) {

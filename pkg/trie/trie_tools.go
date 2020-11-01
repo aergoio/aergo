@@ -87,6 +87,14 @@ func (s *Trie) Get(key []byte) ([]byte, error) {
 	return s.get(s.Root, key, nil, 0, s.TrieHeight)
 }
 
+// GetWithRoot fetches the value of a key by going down for the specified root.
+func (s *Trie) GetWithRoot(key []byte, root []byte) ([]byte, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	s.atomicUpdate = false
+	return s.get(root, key, nil, 0, s.TrieHeight)
+}
+
 // get fetches the value of a key given a trie root
 func (s *Trie) get(root, key []byte, batch [][]byte, iBatch, height int) ([]byte, error) {
 	if len(root) == 0 {
@@ -119,10 +127,13 @@ type WalkResult struct {
 
 // Walk finds all the trie stored values from left to right and calls callback.
 // If callback returns true, the walk will stop, else it will continue.
-func (s *Trie) Walk(callback func(*WalkResult) bool) error {
+func (s *Trie) Walk(root []byte, callback func(*WalkResult) bool) error {
 	walkc := make(chan *WalkResult)
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+	if root == nil {
+		root = s.Root
+	}
 	s.atomicUpdate = false
 	close := make(chan (bool), 1)
 	stop := false
@@ -142,7 +153,7 @@ func (s *Trie) Walk(callback func(*WalkResult) bool) error {
 			}
 		}
 	}()
-	err := s.walk(walkc, &stop, s.Root, nil, 0, s.TrieHeight)
+	err := s.walk(walkc, &stop, root, nil, 0, s.TrieHeight)
 	close <- true
 	wg.Wait()
 	return err
