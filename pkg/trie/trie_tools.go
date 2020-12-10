@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
 )
@@ -126,8 +127,8 @@ type WalkResult struct {
 }
 
 // Walk finds all the trie stored values from left to right and calls callback.
-// If callback returns true, the walk will stop, else it will continue.
-func (s *Trie) Walk(root []byte, callback func(*WalkResult) bool) error {
+// If callback returns a number diferent from 0, the walk will stop, else it will continue.
+func (s *Trie) Walk(root []byte, callback func(*WalkResult) int32) error {
 	walkc := make(chan *WalkResult)
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -135,60 +136,58 @@ func (s *Trie) Walk(root []byte, callback func(*WalkResult) bool) error {
 		root = s.Root
 	}
 	s.atomicUpdate = false
-	close := make(chan (bool), 1)
-	stop := false
-	wg := sync.WaitGroup{}
+	finishedWalk := make(chan (bool), 1)
+	stop := int32(0)
+	wg := sync.WaitGroup{} // WaitGroup to avoid Walk() return before all callback executions are finished.
 	go func() {
 		for {
 			select {
-			case <-close:
-				break
+			case <-finishedWalk:
+				return
 			case value := <-walkc:
-				wg.Add(1)
-				if stop = callback(value); stop {
-					wg.Done()
-					break
-				}
+				stopCallback := callback(value)
 				wg.Done()
+				// In order to avoid data races we need to check the current value of stop, while at the
+				// same time we store our callback value. If our callback value is 0 means that we have
+				// override the previous non-zero value, so we need to restore it.
+				if cv := atomic.SwapInt32(&stop, stopCallback); cv != 0 || stopCallback != 0 {
+					if stopCallback == 0 {
+						atomic.StoreInt32(&stop, cv)
+					}
+					// We need to return (instead of break) in order to stop iterating if some callback returns non zero
+					return
+				}
 			}
 		}
 	}()
-	err := s.walk(walkc, &stop, root, nil, 0, s.TrieHeight)
-	close <- true
+	err := s.walk(walkc, &stop, root, nil, 0, s.TrieHeight, &wg)
+	finishedWalk <- true
 	wg.Wait()
 	return err
 }
 
 // walk fetches the value of a key given a trie root
-func (s *Trie) walk(walkc chan (*WalkResult), stop *bool, root []byte, batch [][]byte, iiBatch, height int) error {
-	if len(root) == 0 || *stop {
-		// the trie does not contain the key or stop bool is set tu true
+func (s *Trie) walk(walkc chan (*WalkResult), stop *int32, root []byte, batch [][]byte, ibatch, height int, wg *sync.WaitGroup) error {
+	if len(root) == 0 || atomic.LoadInt32(stop) != 0 {
+		// The sub tree is empty or stop walking
 		return nil
 	}
 	// Fetch the children of the node
-	nbatch, iBatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, iiBatch, batch)
+	batch, ibatch, lnode, rnode, isShortcut, err := s.loadChildren(root, height, ibatch, batch)
 	if err != nil {
 		return err
 	}
 	if isShortcut {
-		var key []byte
-		if len(rnode) <= HashLength {
-			return nil
-		}
-		if string(nbatch[0]) == string([]byte{0x01}) {
-			key = nbatch[iBatch+1][:HashLength]
-		} else {
-			key = batch[2*iiBatch+1][:HashLength]
-		}
-		walkc <- &WalkResult{Value: rnode[:HashLength], Key: key}
+		wg.Add(1)
+		walkc <- &WalkResult{Value: rnode[:HashLength], Key: lnode[:HashLength]}
 		return nil
 	}
 	// Go left
-	if err := s.walk(walkc, stop, lnode, nbatch, 2*iBatch+1, height-1); err != nil {
+	if err := s.walk(walkc, stop, lnode, batch, 2*ibatch+1, height-1, wg); err != nil {
 		return err
 	}
 	// Go Right
-	if err := s.walk(walkc, stop, rnode, nbatch, 2*iBatch+2, height-1); err != nil {
+	if err := s.walk(walkc, stop, rnode, batch, 2*ibatch+2, height-1, wg); err != nil {
 		return err
 	}
 	return nil
