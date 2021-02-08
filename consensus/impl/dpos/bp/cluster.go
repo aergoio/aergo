@@ -401,6 +401,10 @@ func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) {
 	}
 }
 
+func (sn *Snapshots) Size() uint16 {
+	return sn.cm.Size()
+}
+
 func (sn *Snapshots) reset() {
 	sn.snaps = make(map[types.BlockNo]*Snapshot)
 }

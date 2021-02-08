@@ -25,7 +25,7 @@ type Status struct {
 // NewStatus returns a newly allocated Status.
 func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateDB, resetHeight types.BlockNo) *Status {
 	s := &Status{
-		libState: newLibStatus(consensusBlockCount(c.Size())),
+		libState: newLibStatus(c.Size()),
 		bps:      bp.NewSnapshots(c, cdb, sdb),
 		sdb:      sdb,
 	}
@@ -110,6 +110,7 @@ func (s *Status) Update(block *types.Block) {
 	}
 
 	s.libState.gc()
+	s.libState.setConfirmsRequired(s.bps.Size())
 
 	s.bestBlock = block
 }

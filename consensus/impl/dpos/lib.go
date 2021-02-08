@@ -3,8 +3,9 @@ package dpos
 import (
 	"container/list"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"sort"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
@@ -48,14 +49,15 @@ type libStatus struct {
 	confirmsRequired uint16
 }
 
-func newLibStatus(confirmsRequired uint16) *libStatus {
-	return &libStatus{
-		Prpsd:            make(proposed),
-		Lib:              &blockInfo{},
-		confirms:         list.New(),
-		bpid:             p2pkey.NodeSID(),
-		confirmsRequired: confirmsRequired,
+func newLibStatus(bpCount uint16) *libStatus {
+	ls := &libStatus{
+		Prpsd:    make(proposed),
+		Lib:      &blockInfo{},
+		confirms: list.New(),
+		bpid:     p2pkey.NodeSID(),
 	}
+	ls.setConfirmsRequired(bpCount)
+	return ls
 }
 
 func (ls libStatus) lpbNo() types.BlockNo {
@@ -183,6 +185,13 @@ func (ls *libStatus) rollbackStatusTo(block *types.Block, lib *blockInfo) error 
 	ls.load(targetBlockNo)
 
 	return nil
+}
+
+func (ls *libStatus) setConfirmsRequired(bpCount uint16) {
+	consensusBlockCount := func(bpCount uint16) uint16 {
+		return bpCount*2/3 + 1
+	}
+	ls.confirmsRequired = consensusBlockCount(bpCount)
 }
 
 func (ls *libStatus) load(endBlockNo types.BlockNo) {
