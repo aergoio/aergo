@@ -60,11 +60,11 @@ func (p2ps *P2P) GetBlockHeaders(msg *message.GetBlockHeaders) bool {
 func (p2ps *P2P) GetBlocks(peerID types.PeerID, blockHashes []message.BlockHash) bool {
 	remotePeer, exists := p2ps.pm.GetPeer(peerID)
 	if !exists {
-		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, string(p2pcommon.GetBlocksRequest)).Msg("Message to Unknown peer, check if a bug")
+		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, p2pcommon.GetBlocksRequest.String()).Msg("Message to Unknown peer, check if a bug")
 		return false
 	}
 	if len(blockHashes) == 0 {
-		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, string(p2pcommon.GetBlocksRequest)).Msg("meaningless GetBlocks request with zero hash")
+		p2ps.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str(p2putil.LogProtoID, p2pcommon.GetBlocksRequest.String()).Msg("meaningless GetBlocks request with zero hash")
 		return false
 	}
 	p2ps.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Int(p2putil.LogBlkCount, len(blockHashes)).Str("first_hash", enc.ToString(blockHashes[0])).Msg("Sending Get block request")
