@@ -66,6 +66,8 @@ func (s *Status) Update(block *types.Block) {
 	// TODO: move the lib status loading to dpos.NewStatus.
 	s.load()
 
+	var bps []string
+
 	curBestID := s.bestBlock.ID()
 	if curBestID == block.PrevID() {
 		s.libState.addConfirmInfo(block)
@@ -80,7 +82,7 @@ func (s *Status) Update(block *types.Block) {
 			s.updateLIB(lib)
 		}
 
-		s.bps.AddSnapshot(block.BlockNo())
+		bps, _ = s.bps.AddSnapshot(block.BlockNo())
 	} else {
 		// Rollback resulting from a reorganization: The code below assumes
 		// that there is no block-by-block rollback; it assumes that the
@@ -97,7 +99,7 @@ func (s *Status) Update(block *types.Block) {
 		}
 
 		// Rollback BP list. -- BP list is alos affected by a fork.
-		s.bps.UpdateCluster(block.BlockNo())
+		bps = s.bps.UpdateCluster(block.BlockNo())
 
 		// Rollback Voting Powerank: the snapshot fully re-loaded from the
 		// branch block. TODO: let's find a smarter way or use parallel
@@ -109,7 +111,7 @@ func (s *Status) Update(block *types.Block) {
 		}
 	}
 
-	s.libState.gc()
+	s.libState.gc(bps)
 	s.libState.setConfirmsRequired(s.bps.Size())
 
 	s.bestBlock = block

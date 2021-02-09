@@ -39,6 +39,22 @@ func (pm proposed) set(bpID string, pl *plInfo) {
 		Msg("proposed LIB map updated")
 }
 
+func (pm proposed) gc(bps []string) {
+	if len(bps) == 0 {
+		return
+	}
+	// len(bps) must be larger than 0.
+	filter := make(map[string]struct{})
+	for _, bp := range bps {
+		filter[bp] = struct{}{}
+	}
+	for bp := range pm {
+		if _, ok := filter[bp]; !ok {
+			delete(pm, bp)
+		}
+	}
+}
+
 type libStatus struct {
 	Prpsd            proposed // BP-wise proposed LIB map
 	Lib              *blockInfo
@@ -238,7 +254,7 @@ func reset(tx db.Transaction) {
 	tx.Delete(LibStatusKey)
 }
 
-func (ls *libStatus) gc() {
+func (ls *libStatus) gc(bps []string) {
 	// GC based on the LIB no
 	if ls.Lib != nil {
 		removeIf(ls.confirms,
@@ -264,6 +280,7 @@ func (ls *libStatus) gc() {
 			Msg("number-based GC done for confirms list")
 	}
 
+	ls.Prpsd.gc(bps)
 }
 
 func (ls libStatus) gcNumLimit() int {

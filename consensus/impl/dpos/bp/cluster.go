@@ -371,7 +371,8 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 	}
 
 	if sn.NeedToRefresh(refBlockNo) {
-		sn.UpdateCluster(refBlockNo)
+		// Return bps from UpdateCluster if the cluster updated.
+		bps = sn.UpdateCluster(refBlockNo)
 	}
 
 	sn.gc(refBlockNo)
@@ -385,11 +386,8 @@ func (sn *Snapshots) gatherRankers() ([]string, error) {
 
 // UpdateCluster updates the current BP list by the ones corresponding to
 // blockNo.
-func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) {
-	var (
-		err error
-		s   []string
-	)
+func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) (s []string) {
+	var err error
 
 	if s, err = sn.getCurrentCluster(blockNo); err == nil {
 		logger.Debug().Uint64("cur block no", blockNo).Msg("get BP list snapshot")
@@ -398,7 +396,10 @@ func (sn *Snapshots) UpdateCluster(blockNo types.BlockNo) {
 
 	if err != nil {
 		logger.Debug().Err(err).Msg("skip BP member update")
+		return nil
 	}
+
+	return
 }
 
 func (sn *Snapshots) Size() uint16 {

@@ -145,7 +145,7 @@ func TestNumLimitGC(t *testing.T) {
 			})
 	}
 
-	ls.gc()
+	ls.gc(nil)
 	a.True(ls.confirms.Len() <= ls.gcNumLimit())
 }
 
@@ -167,6 +167,6 @@ func TestLibGC(t *testing.T) {
 			})
 	}
 
-	ls.gc()
+	ls.gc(nil)
 	a.True(cInfo(ls.confirms.Front()).blockInfo.BlockNo > libNo)
 }
