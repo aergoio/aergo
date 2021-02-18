@@ -3,8 +3,9 @@ package dpos
 import (
 	"container/list"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"sort"
+
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
@@ -38,6 +39,22 @@ func (pm proposed) set(bpID string, pl *plInfo) {
 		Msg("proposed LIB map updated")
 }
 
+func (pm proposed) gc(bps []string) {
+	if len(bps) == 0 {
+		return
+	}
+	// len(bps) must be larger than 0.
+	filter := make(map[string]struct{})
+	for _, bp := range bps {
+		filter[bp] = struct{}{}
+	}
+	for bp := range pm {
+		if _, ok := filter[bp]; !ok {
+			delete(pm, bp)
+		}
+	}
+}
+
 type libStatus struct {
 	Prpsd            proposed // BP-wise proposed LIB map
 	Lib              *blockInfo
@@ -48,14 +65,15 @@ type libStatus struct {
 	confirmsRequired uint16
 }
 
-func newLibStatus(confirmsRequired uint16) *libStatus {
-	return &libStatus{
-		Prpsd:            make(proposed),
-		Lib:              &blockInfo{},
-		confirms:         list.New(),
-		bpid:             p2pkey.NodeSID(),
-		confirmsRequired: confirmsRequired,
+func newLibStatus(bpCount uint16) *libStatus {
+	ls := &libStatus{
+		Prpsd:    make(proposed),
+		Lib:      &blockInfo{},
+		confirms: list.New(),
+		bpid:     p2pkey.NodeSID(),
 	}
+	ls.setConfirmsRequired(bpCount)
+	return ls
 }
 
 func (ls libStatus) lpbNo() types.BlockNo {
@@ -185,6 +203,13 @@ func (ls *libStatus) rollbackStatusTo(block *types.Block, lib *blockInfo) error 
 	return nil
 }
 
+func (ls *libStatus) setConfirmsRequired(bpCount uint16) {
+	consensusBlockCount := func(bpCount uint16) uint16 {
+		return bpCount*2/3 + 1
+	}
+	ls.confirmsRequired = consensusBlockCount(bpCount)
+}
+
 func (ls *libStatus) load(endBlockNo types.BlockNo) {
 	// Remove all the previous confirmation info.
 	if ls.confirms.Len() > 0 {
@@ -229,7 +254,7 @@ func reset(tx db.Transaction) {
 	tx.Delete(LibStatusKey)
 }
 
-func (ls *libStatus) gc() {
+func (ls *libStatus) gc(bps []string) {
 	// GC based on the LIB no
 	if ls.Lib != nil {
 		removeIf(ls.confirms,
@@ -255,6 +280,7 @@ func (ls *libStatus) gc() {
 			Msg("number-based GC done for confirms list")
 	}
 
+	ls.Prpsd.gc(bps)
 }
 
 func (ls libStatus) gcNumLimit() int {

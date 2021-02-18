@@ -132,14 +132,11 @@ func TestTestChain(t *testing.T) {
 }
 
 func TestNumLimitGC(t *testing.T) {
-	const (
-		clusterSize    = 23
-		consensusCount = clusterSize*2/3 + 1
-	)
+	const clusterSize = 23
 
 	a := assert.New(t)
 
-	ls := newLibStatus(consensusCount)
+	ls := newLibStatus(clusterSize)
 
 	for i := 1; i <= clusterSize*3; i++ {
 		ls.confirms.PushBack(
@@ -148,20 +145,19 @@ func TestNumLimitGC(t *testing.T) {
 			})
 	}
 
-	ls.gc()
+	ls.gc(nil)
 	a.True(ls.confirms.Len() <= ls.gcNumLimit())
 }
 
 func TestLibGC(t *testing.T) {
 	const (
-		clusterSize    = 23
-		consensusCount = clusterSize*2/3 + 1
-		libNo          = 3
+		clusterSize = 23
+		libNo       = 3
 	)
 
 	a := assert.New(t)
 
-	ls := newLibStatus(consensusCount)
+	ls := newLibStatus(clusterSize)
 	ls.Lib = &blockInfo{BlockNo: libNo}
 
 	for i := 1; i <= clusterSize*3; i++ {
@@ -171,6 +167,6 @@ func TestLibGC(t *testing.T) {
 			})
 	}
 
-	ls.gc()
+	ls.gc(nil)
 	a.True(cInfo(ls.confirms.Front()).blockInfo.BlockNo > libNo)
 }
