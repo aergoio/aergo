@@ -700,6 +700,22 @@ func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) 
 
 func (cw *ChainWorker) Receive(context actor.Context) {
 	var sdb *state.StateDB
+
+	getAccProof := func(sdb *state.StateDB, account, root []byte, compressed bool) (*types.AccountProof, error) {
+		address, err := getAddressNameResolved(sdb, account)
+		if err != nil {
+			return nil, err
+		}
+		id := types.ToAccountID(address)
+		proof, err := sdb.GetAccountAndProof(id[:], root, compressed)
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
+			return nil, err
+		}
+		proof.Key = address
+		return proof, err
+	}
+
 	switch msg := context.Message().(type) {
 	case *message.GetBlock:
 		bid := types.ToBlockID(msg.BlockHash)
@@ -743,20 +759,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		})
 	case *message.GetStateAndProof:
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		address, err := getAddressNameResolved(sdb, msg.Account)
-		if err != nil {
-			context.Respond(message.GetStateAndProofRsp{
-				StateProof: nil,
-				Err:        err,
-			})
-			break
-		}
-		id := types.ToAccountID(address)
-		stateProof, err := sdb.GetAccountAndProof(id[:], msg.Root, msg.Compressed)
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
-		}
-		stateProof.Key = address
+		stateProof, err := getAccProof(sdb, msg.Account, msg.Root, msg.Compressed)
 		context.Respond(message.GetStateAndProofRsp{
 			StateProof: stateProof,
 			Err:        err,
@@ -816,35 +819,29 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			context.Respond(message.GetQueryRsp{Result: ret, Err: err})
 		}
 	case *message.GetStateQuery:
-		var varProofs []*types.ContractVarProof
-		var contractProof *types.AccountProof
-		var err error
-
 		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		address, err := getAddressNameResolved(sdb, msg.ContractAddress)
+		contractProof, err := getAccProof(sdb, msg.ContractAddress, msg.Root, msg.Compressed)
 		if err != nil {
 			context.Respond(message.GetStateQueryRsp{
 				Result: nil,
 				Err:    err,
 			})
-			break
+			return
 		}
-		id := types.ToAccountID(address)
-		contractProof, err = sdb.GetAccountAndProof(id[:], msg.Root, msg.Compressed)
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for account")
-		} else if contractProof.Inclusion {
+
+		var varProofs []*types.ContractVarProof
+		if contractProof.Inclusion {
 			contractTrieRoot := contractProof.State.StorageRoot
 			for _, storageKey := range msg.StorageKeys {
 				varProof, err := sdb.GetVarAndProof(storageKey, contractTrieRoot, msg.Compressed)
 				varProof.Key = storageKey
 				varProofs = append(varProofs, varProof)
 				if err != nil {
-					logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state variable in contract")
+					logger.Error().Str("hash", enc.ToString(contractProof.Key)).Err(err).Msg("failed to get state variable in contract")
 				}
 			}
 		}
-		contractProof.Key = address
+
 		stateQuery := &types.StateQueryProof{
 			ContractProof: contractProof,
 			VarProofs:     varProofs,
