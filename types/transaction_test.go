@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -118,7 +119,7 @@ func buildVoteBPPayloadEx(count int, err int) []byte {
 		} else if err == TestInvalidString {
 			ci.Args = append(ci.Args, (i + 1))
 		} else if err == TestInvalidPeerID {
-			ci.Args = append(ci.Args, string(i+1))
+			ci.Args = append(ci.Args, strconv.Itoa(i+1))
 		} else {
 			_, pub, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 			peerid, _ := IDFromPublicKey(pub)

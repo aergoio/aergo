@@ -223,10 +223,6 @@ func Init(bpCount uint16) {
 	slot.Init(consensus.BlockIntervalSec)
 }
 
-func consensusBlockCount(bpCount uint16) uint16 {
-	return bpCount*2/3 + 1
-}
-
 // Ticker returns a time.Ticker for the main consensus loop.
 func (dpos *DPoS) Ticker() *time.Ticker {
 	return time.NewTicker(tickDuration())
