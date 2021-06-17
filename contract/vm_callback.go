@@ -1368,18 +1368,20 @@ func luaCheckView(service C.int) C.int {
 
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
-	if service < BlockFactory {
-		service = service + MaxVmService
-	}
-	if service != BlockFactory {
-		return 0
-	}
-	select {
-	case <-bpTimeout:
-		return 1
-	default:
-		return 0
-	}
+	// Temporarily disable timeout check to prevent contract timeout raised from chain service
+	// if service < BlockFactory {
+	// 	service = service + MaxVmService
+	// }
+	// if service != BlockFactory {
+	// 	return 0
+	// }
+	// select {
+	// case <-bpTimeout:
+	// 	return 1
+	// default:
+	// 	return 0
+	// }
+	return 0
 }
 
 //export luaIsFeeDelegation
@@ -1434,12 +1436,12 @@ func moveGas(L *LState, ctx *vmContext) {
 }
 
 //export luaGetStaking
-func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char){
+func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	var (
-		ctx *vmContext
+		ctx          *vmContext
 		scs, namescs *state.ContractState
-		err error
-		staking *types.Staking
+		err          error
+		staking      *types.Staking
 	)
 	ctx = contexts[service]
 	scs, err = ctx.bs.GetSystemAccountState()
