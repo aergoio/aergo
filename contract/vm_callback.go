@@ -1368,20 +1368,18 @@ func luaCheckView(service C.int) C.int {
 
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
-	// Temporarily disable timeout check to prevent contract timeout raised from chain service
-	// if service < BlockFactory {
-	// 	service = service + MaxVmService
-	// }
-	// if service != BlockFactory {
-	// 	return 0
-	// }
-	// select {
-	// case <-bpTimeout:
-	// 	return 1
-	// default:
-	// 	return 0
-	// }
-	return 0
+	if service < BlockFactory {
+		service = service + MaxVmService
+	}
+	if service != BlockFactory {
+		return 0
+	}
+	select {
+	case <-bpTimeout:
+		return 1
+	default:
+		return 0
+	}
 }
 
 //export luaIsFeeDelegation
