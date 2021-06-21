@@ -1058,7 +1058,7 @@ func Create(
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
 }
 
-func setQueryContext(ctx *vmContext) {
+func allocContextSlot(ctx *vmContext) {
 	querySync.Lock()
 	defer querySync.Unlock()
 	startIndex := lastQueryIndex
@@ -1080,6 +1080,12 @@ func setQueryContext(ctx *vmContext) {
 			querySync.Lock()
 		}
 	}
+}
+
+func freeContextSlot(ctx *vmContext) {
+	querySync.Lock()
+	defer querySync.Unlock()
+	contexts[ctx.service] = nil
 }
 
 func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
@@ -1104,7 +1110,8 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 		return
 	}
 
-	setQueryContext(ctx)
+	allocContextSlot(ctx)
+	defer freeContextSlot(ctx)
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("abi", string(queryInfo)).Str("contract", types.EncodeAddress(contractAddress)).Msg("query")
 	}
@@ -1117,7 +1124,6 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	}()
 	ce.call(queryMaxInstLimit, nil)
 
-	contexts[ctx.service] = nil
 	return []byte(ce.jsonRet), ce.err
 }
 
@@ -1170,7 +1176,8 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 		ctx.blockInfo = bi
 	}
 
-	setQueryContext(ctx)
+	allocContextSlot(ctx)
+	defer freeContextSlot(ctx)
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("abi", string(checkFeeDelegationFn)).Str("contract", types.EncodeAddress(contractAddress)).Msg("checkFeeDelegation")
 	}
@@ -1185,7 +1192,6 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	}()
 	ce.call(queryMaxInstLimit, nil)
 
-	contexts[ctx.service] = nil
 	if ce.err != nil {
 		return ce.err
 	}
