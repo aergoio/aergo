@@ -1434,12 +1434,12 @@ func moveGas(L *LState, ctx *vmContext) {
 }
 
 //export luaGetStaking
-func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char){
+func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 	var (
-		ctx *vmContext
+		ctx          *vmContext
 		scs, namescs *state.ContractState
-		err error
-		staking *types.Staking
+		err          error
+		staking      *types.Staking
 	)
 	ctx = contexts[service]
 	scs, err = ctx.bs.GetSystemAccountState()
