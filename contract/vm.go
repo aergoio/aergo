@@ -1357,11 +1357,11 @@ func (ce *executor) vmLoadCode(id []byte) {
 }
 
 func (ce *executor) vmLoadCall() {
-	C.luaL_set_service(ce.L, ce.ctx.service)
 	if cErrMsg := C.vm_loadcall(
 		ce.L,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
 	}
+	C.luaL_set_service(ce.L, ce.ctx.service)
 }
