@@ -215,7 +215,7 @@ func dataSrc(dbName string) string {
 		"file:%s/%s.db?branches=on&max_db_size=%d",
 		database.DataDir,
 		dbName,
-		int64(maxSQLDBSize*1024*1024))
+		maxSQLDBSize*1024*1024)
 }
 
 func readOnlyConn(dbName string) (*litetree, error) {
