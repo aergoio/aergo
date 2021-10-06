@@ -1348,7 +1348,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
 		hexId,
-		ce.ctx.service-MaxVmService,
+		ce.ctx.service-C.int(maxContext),
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
@@ -1357,11 +1357,11 @@ func (ce *executor) vmLoadCode(id []byte) {
 }
 
 func (ce *executor) vmLoadCall() {
-	C.luaL_set_service(ce.L, ce.ctx.service)
 	if cErrMsg := C.vm_loadcall(
 		ce.L,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
 	}
+	C.luaL_set_service(ce.L, ce.ctx.service)
 }
