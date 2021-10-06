@@ -9,7 +9,7 @@ matrix:
     os: osx
 
 go:
-  - 1.12.x
+  - 1.16.x
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then go get -t github.com/codeclimate/test-reporter; fi
