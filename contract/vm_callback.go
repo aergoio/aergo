@@ -1368,19 +1368,26 @@ func luaCheckView(service C.int) C.int {
 
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
-	// Temporarily disable timeout check to prevent contract timeout raised from chain service
-	// if service < BlockFactory {
-	// 	service = service + MaxVmService
-	// }
-	// if service != BlockFactory {
-	// 	return 0
-	// }
-	// select {
-	// case <-bpTimeout:
-	// 	return 1
-	// default:
-	// 	return 0
-	// }
+	if service < BlockFactory {
+		// Originally, MaxVmService was used instead of maxContext. service
+		// value can be 2 and decremented by MaxVmService(=2) during VM loading.
+		// That means the value of service becomes zero after the latter
+		// adjustment.
+		//
+		// This make the VM check block timeout in a unwanted situation. If that
+		// happens during the chain service is connecting block, the block chain
+		// becomes out of sync.
+		service = service + C.int(maxContext)
+	}
+	if service != BlockFactory {
+		return 0
+	}
+	select {
+	case <-bpTimeout:
+		return 1
+	default:
+		return 0
+	}
 	return 0
 }
 

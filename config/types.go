@@ -161,7 +161,7 @@ type AccountConfig struct {
 }
 
 type SQLConfig struct {
-	MaxDbSize uint32 `mapstructure:"maxdbsize" description:"maximum database size of a contract (MB)"`
+	MaxDbSize uint64 `mapstructure:"maxdbsize" description:"maximum database size of a contract (MB)"`
 }
 
 /*
