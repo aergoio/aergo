@@ -1,14 +1,19 @@
 language: go
 
-os:
-  - linux
-  - osx
+matrix:
+  include:
+  - name: "Ubuntu 20.04 (Focal Fossa)"
+    os: linux
+    dist: focal
+  - name: "MacOS X"
+    os: osx
 
 go:
   - 1.12.x
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then go get -t github.com/codeclimate/test-reporter; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install --reinstall ca-certificates; fi
 
 install:
   - make all polaris colaris
