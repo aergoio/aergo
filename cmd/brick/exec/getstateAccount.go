@@ -28,7 +28,7 @@ func (c *getStateAccount) Usage() string {
 }
 
 func (c *getStateAccount) Describe() string {
-	return "create an account with a given amount of balance"
+	return "get the current state of an account"
 }
 
 func (c *getStateAccount) Validate(args string) error {
@@ -44,7 +44,7 @@ func (c *getStateAccount) Validate(args string) error {
 func (c *getStateAccount) parse(args string) (string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
 	if len(splitArgs) < 1 {
-		return "", "", fmt.Errorf("need an arguments. usage: %s", c.Usage())
+		return "", "", fmt.Errorf("missing arguments. usage: %s", c.Usage())
 	}
 
 	expectedResult := ""
@@ -72,7 +72,7 @@ func (c *getStateAccount) Run(args string) (string, uint64, []*types.Event, erro
 		if expectedResult == strRet {
 			return "state compare successfully", 0, nil, nil
 		} else {
-			return "", 0, nil, fmt.Errorf("state compre fail. Expected: %s, Actual: %s", expectedResult, strRet)
+			return "", 0, nil, fmt.Errorf("state compare failed. Expected: %s, Actual: %s", expectedResult, strRet)
 		}
 	}
 }
