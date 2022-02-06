@@ -106,6 +106,12 @@ func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) 
 		Index(context.ExpectedErrSymbol, expectedError)
 		return "call a smart contract successfully", 0, nil, nil
 	}
-	return "call a smart contract successfully", context.Get().GetReceipt(callTx.Hash()).GasUsed, context.Get().GetEvents(callTx.Hash()), nil
+
+	receipt := context.Get().GetReceipt(callTx.Hash())
+	result := "success"
+	if len(receipt.Ret) > 0 {
+		result += ": " + receipt.Ret
+	}
+	return result, receipt.GasUsed, context.Get().GetEvents(callTx.Hash()), nil
 
 }
