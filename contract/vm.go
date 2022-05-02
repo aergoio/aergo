@@ -1348,7 +1348,7 @@ func (ce *executor) vmLoadCode(id []byte) {
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
 		hexId,
-		ce.ctx.service-C.int(maxContext),
+		ce.ctx.service-MaxVmService,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)
