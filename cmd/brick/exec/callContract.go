@@ -28,7 +28,7 @@ func (c *callContract) Syntax() string {
 }
 
 func (c *callContract) Usage() string {
-	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]` `[expected_result_str]` `[expected_error_str]`")
+	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]` `[expected_error_str]` `[expected_result_str]` ")
 }
 
 func (c *callContract) Describe() string {
@@ -67,10 +67,11 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 	expectedRes := ""
 
 	if len(splitArgs) >= 6 {
-		expectedRes = splitArgs[5].Text
+		expectedError = splitArgs[5].Text
+
 	}
 	if len(splitArgs) == 7 {
-		expectedError = splitArgs[6].Text
+		expectedRes = splitArgs[6].Text
 	} else if len(splitArgs) > 7 {
 		return "", nil, "", "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
@@ -80,14 +81,14 @@ func (c *callContract) parse(args string) (string, *big.Int, string, string, str
 		splitArgs[2].Text, //contractName
 		splitArgs[3].Text, //funcName
 		callCode, //callCode
-		expectedRes, //expectedRes
 		expectedError, //expectedError
+		expectedRes, //expectedRes
 		nil
 }
 
 func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) {
 
-	accountName, amount, contractName, funcName, callCode, expectedRes, expectedError, _ := c.parse(args)
+	accountName, amount, contractName, funcName, callCode, expectedError, expectedRes, _ := c.parse(args)
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
