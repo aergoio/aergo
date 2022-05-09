@@ -123,7 +123,7 @@ func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) 
 		if expectedRes == receipt.Ret{
 			result = "success: " + "compare successfully, expected result was archived"
 		}else{
-			result = fmt.Sprintf("success: " + "expected: %s, but got: %s", expectedRes, receipt.Ret)
+			result = fmt.Sprintf("failed: " + "expected: %s, but got: %s", expectedRes, receipt.Ret)
 		}
 
 	}
