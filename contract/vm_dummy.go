@@ -38,6 +38,7 @@ type DummyChain struct {
 	timeout       int
 	clearLState   func()
 	gasPrice      *big.Int
+	timestamp     int64
 }
 
 var addressRegexp *regexp.Regexp
@@ -115,12 +116,33 @@ func (bc *DummyChain) BestBlockNo() uint64 {
 	return bc.bestBlockNo
 }
 
+func (bc *DummyChain) SetTimestamp(is_increment bool, value int64) {
+	if is_increment {
+		if bc.timestamp == 0 {
+			bc.timestamp = time.Now().UnixNano() / 1000000000
+		}
+		bc.timestamp += value
+	} else {
+		bc.timestamp = value
+	}
+}
+
+func (bc *DummyChain) getTimestamp() int64 {
+
+	if bc.timestamp > 0 {
+		return bc.timestamp * 1000000000
+	} else {
+		return time.Now().UnixNano()
+	}
+
+}
+
 func (bc *DummyChain) newBState() *state.BlockState {
 	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
-			Timestamp:     time.Now().UnixNano(),
+			Timestamp:     bc.getTimestamp(),
 			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, HardforkConfig.Version(bc.bestBlockNo+1)),
 		},
 	}
