@@ -2,6 +2,7 @@ package context
 
 import (
 	"strings"
+	"fmt"
 )
 
 func ParseFirstWord(input string) (string, string) {
@@ -60,4 +61,31 @@ func SplitSpaceAndAccent(input string, addLastInComplete bool) []Chunk {
 	}
 
 	return ret
+}
+
+func IsCompleteCommand(line string, line_no int, isOpen bool) (bool,error) {
+
+	chunks := strings.Fields(line)
+
+	for _,chunk := range chunks {
+		if strings.HasPrefix(chunk, "`") {
+			if isOpen {
+				return false, fmt.Errorf("already open parameter at line %v", line_no)
+			}
+			if strings.Count(chunk, "`") > 1 && strings.HasSuffix(chunk, "`") {
+				// for example `keyword`
+			} else {
+				// for example `white space`
+				isOpen = true
+			}
+		} else if strings.HasSuffix(chunk, "`") {
+			if !isOpen {
+				return false, fmt.Errorf("closing not open parameter at line %v", line_no)
+			}
+			// end of statement
+			isOpen = false
+		}
+	}
+
+	return isOpen, nil
 }
