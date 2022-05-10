@@ -106,9 +106,11 @@ func (c *batch) readBatchFile(batchFilePath string) ([]string, error) {
 		line := scanner.Text()
 		line_no += 1
 		command += line
-		isOpen, err = context.IsCompleteCommand(line, line_no, isOpen)
-		if err != nil {
-			return nil, err
+		if len(line) > 0 && line[0:1] != "#" {
+			isOpen, err = context.IsCompleteCommand(line, line_no, isOpen)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if !isOpen {
 			commands = append(commands, command)
