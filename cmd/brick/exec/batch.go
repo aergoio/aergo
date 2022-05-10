@@ -97,13 +97,26 @@ func (c *batch) readBatchFile(batchFilePath string) ([]string, error) {
 	}
 	defer batchFile.Close()
 
-	var cmdLines []string
+	var commands []string
+	var command string
+	var line_no int = 0
+	var isOpen bool = false
 	scanner := bufio.NewScanner(batchFile)
 	for scanner.Scan() {
-		cmdLines = append(cmdLines, scanner.Text())
+		line := scanner.Text()
+		line_no += 1
+		command += line
+		isOpen, err = context.IsCompleteCommand(line, line_no, isOpen)
+		if err != nil {
+			return nil, err
+		}
+		if !isOpen {
+			commands = append(commands, command)
+			command = ""
+		}
 	}
 
-	return cmdLines, nil
+	return commands, nil
 }
 
 func (c *batch) parse(args string) (string, error) {
