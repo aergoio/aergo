@@ -21,7 +21,6 @@ package contract
 import "C"
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1341,13 +1340,13 @@ func vmAutoload(L *LState, funcName string) bool {
 }
 
 func (ce *executor) vmLoadCode(id []byte) {
-	hexId := C.CString(hex.EncodeToString(id))
-	defer C.free(unsafe.Pointer(hexId))
+	address := C.CString(types.EncodeAddress(id))
+	defer C.free(unsafe.Pointer(address))
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
-		hexId,
+		address,
 		ce.ctx.service-MaxVmService,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
