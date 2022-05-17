@@ -980,6 +980,11 @@ func executeTx(
 	}
 
 	if err != nil {
+		// Reset events on error
+		if contract.HardforkConfig.IsV3Fork(bi.No) {
+			events = nil
+		}
+
 		if !contract.IsRuntimeError(err) {
 			return err
 		}
