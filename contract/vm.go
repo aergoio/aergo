@@ -1340,13 +1340,13 @@ func vmAutoload(L *LState, funcName string) bool {
 }
 
 func (ce *executor) vmLoadCode(id []byte) {
-	address := C.CString("@" + types.EncodeAddress(id))
-	defer C.free(unsafe.Pointer(address))
+	chunkId := C.CString("@" + types.EncodeAddress(id))
+	defer C.free(unsafe.Pointer(chunkId))
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
-		address,
+		chunkId,
 		ce.ctx.service-MaxVmService,
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
