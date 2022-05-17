@@ -8,6 +8,7 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"runtime"
@@ -290,7 +291,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(contract.MaxCallDepth+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(math.MaxUint64))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.HardforkConfig = cs.cfg.Hardfork
 	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 

@@ -47,7 +47,8 @@ const (
 	callMaxInstLimit     = C.int(5000000)
 	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
-	MaxCallDepth         = 5
+	maxCallDepthOld      = 5
+	maxCallDepth         = 64
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
 )
@@ -131,6 +132,13 @@ type executor struct {
 	isView     bool
 	isAutoload bool
 	preErr     error
+}
+
+func MaxCallDepth(blockNo types.BlockNo) int32 {
+	if HardforkConfig.IsV3Fork(blockNo) {
+		return maxCallDepth
+	}
+	return maxCallDepthOld
 }
 
 func init() {
@@ -316,12 +324,12 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
-	if ctx.callDepth > MaxCallDepth {
+	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.No) {
 		ce := &executor{
 			code: contract,
 			ctx:  ctx,
 		}
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth)
+		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.No))
 		return ce
 	}
 	ctx.callDepth++
