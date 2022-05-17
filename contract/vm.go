@@ -1340,7 +1340,11 @@ func vmAutoload(L *LState, funcName string) bool {
 }
 
 func (ce *executor) vmLoadCode(id []byte) {
-	chunkId := C.CString("@" + types.EncodeAddress(id))
+	if HardforkConfig.IsV3Fork(ce.ctx.blockInfo.No) {
+		chunkId := C.CString("@" + types.EncodeAddress(id))
+	} else {
+		chunkId := C.CString(hex.EncodeToString(id))
+	}
 	defer C.free(unsafe.Pointer(chunkId))
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
