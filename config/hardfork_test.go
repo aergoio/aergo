@@ -72,11 +72,13 @@ v2 = "9223"
 func TestCompatibility(t *testing.T) {
 	cfg := readConfig(`
 [hardfork]
-v2 = "9223"`,
+v2 = "9223"
+v3 = "11000"`,
 	)
 	dbCfg, _ := readDbConfig(`
 {
-	"V2": 18446744073709551615
+	"V2": 18446744073709551515,
+	"V3": 18446744073709551615
 }`,
 	)
 	err := cfg.CheckCompatibility(dbCfg, 10)
@@ -142,10 +144,11 @@ v2 = "9223"`,
 	dbCfg, _ = readDbConfig(`
 {
 	"V2": 9223,
-	"VV": 10000
+	"VV": 10000,
+	"V3": 11000
 }`,
 	)
-	err = cfg.CheckCompatibility(dbCfg, 10001)
+	err = cfg.CheckCompatibility(dbCfg, 9000)
 	if err == nil {
 		t.Error(`the expected error: strconv.ParseUint: parsing "V": invalid syntax`)
 	}

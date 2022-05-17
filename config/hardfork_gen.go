@@ -12,27 +12,36 @@ import (
 var (
 	MainNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(19611555),
+		V3: types.BlockNo(104805210),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
+		V3: types.BlockNo(103330367),
 	}
 	AllEnabledHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(0),
+		V3: types.BlockNo(0),
 	}
 )
 
 const hardforkConfigTmpl = `[hardfork]
 v2 = "{{.Hardfork.V2}}"
+v3 = "{{.Hardfork.V3}}"
 `
 
 type HardforkConfig struct {
 	V2 types.BlockNo `mapstructure:"v2" description:"a block number of the hardfork version 2"`
+	V3 types.BlockNo `mapstructure:"v3" description:"a block number of the hardfork version 3"`
 }
 
 type HardforkDbConfig map[string]types.BlockNo
 
 func (c *HardforkConfig) IsV2Fork(h types.BlockNo) bool {
 	return isFork(c.V2, h)
+}
+
+func (c *HardforkConfig) IsV3Fork(h types.BlockNo) bool {
+	return isFork(c.V3, h)
 }
 
 func (c *HardforkConfig) CheckCompatibility(dbCfg HardforkDbConfig, h types.BlockNo) error {
@@ -42,7 +51,10 @@ func (c *HardforkConfig) CheckCompatibility(dbCfg HardforkDbConfig, h types.Bloc
 	if (isFork(c.V2, h) || isFork(dbCfg["V2"], h)) && c.V2 != dbCfg["V2"] {
 		return newForkError("V2", h, c.V2, dbCfg["V2"])
 	}
-	return checkOlderNode(2, h, dbCfg)
+	if (isFork(c.V3, h) || isFork(dbCfg["V3"], h)) && c.V3 != dbCfg["V3"] {
+		return newForkError("V3", h, c.V3, dbCfg["V3"])
+	}
+	return checkOlderNode(3, h, dbCfg)
 }
 
 func (c *HardforkConfig) Version(h types.BlockNo) int32 {
