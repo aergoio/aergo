@@ -1340,7 +1340,7 @@ func vmAutoload(L *LState, funcName string) bool {
 }
 
 func (ce *executor) vmLoadCode(id []byte) {
-	address := C.CString(types.EncodeAddress(id))
+	address := C.CString("@" + types.EncodeAddress(id))
 	defer C.free(unsafe.Pointer(address))
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
