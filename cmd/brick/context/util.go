@@ -68,22 +68,27 @@ func IsCompleteCommand(line string, line_no int, isOpen bool) (bool,error) {
 	chunks := strings.Fields(line)
 
 	for _,chunk := range chunks {
-		if strings.HasPrefix(chunk, "`") {
-			if isOpen {
+		if isOpen {
+			if chunk == "`" {
+				isOpen = false
+			} else if strings.HasPrefix(chunk, "`") {
 				return false, fmt.Errorf("already open parameter at line %v", line_no)
+			} else if strings.HasSuffix(chunk, "`") {
+				isOpen = false
 			}
-			if strings.Count(chunk, "`") > 1 && strings.HasSuffix(chunk, "`") {
-				// for example `keyword`
-			} else {
-				// for example `white space`
+		} else {
+			if chunk == "`" {
 				isOpen = true
-			}
-		} else if strings.HasSuffix(chunk, "`") {
-			if !isOpen {
+			} else if strings.HasPrefix(chunk, "`") {
+				if strings.HasSuffix(chunk, "`") {
+					// for example `keyword`
+				} else {
+					// for example `white space`
+					isOpen = true
+				}
+			} else if strings.HasSuffix(chunk, "`") {
 				return false, fmt.Errorf("closing not open parameter at line %v", line_no)
 			}
-			// end of statement
-			isOpen = false
 		}
 	}
 
