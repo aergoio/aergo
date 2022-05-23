@@ -85,6 +85,12 @@ func Execute(
 	}
 
 	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
+		if txBody.Type == types.TxType_CALL ||
+		   txBody.Type == types.TxType_FEEDELEGATION {
+			if HardforkConfig.IsV3Fork(bi.No) {
+				err = newVmError(fmt.Errorf("The contract does not exist"))
+			}
+		}
 		return
 	}
 
