@@ -5816,28 +5816,37 @@ func TestBF(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bal := state.GetBalanceBigInt().Uint64()
-	tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
-	err = bc.ConnectBlock(tx)
-	if err != nil {
-		t.Error(err)
+
+	feeTest := func(expectedFee uint64) {
+		bal := state.GetBalanceBigInt().Uint64()
+		tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
+		err = bc.ConnectBlock(tx)
+		if err != nil {
+			t.Error(err)
+		}
+		r := bc.GetReceipt(tx.Hash())
+		if r.GetGasUsed() != expectedFee {
+			t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
+		}
+		state, err = bc.GetAccountState("ktlee")
+		if err != nil {
+			t.Error(err)
+		}
+		if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
+			t.Errorf(
+				"expected: %d, but got: %d",
+				bal-expectedFee,
+				state.GetBalanceBigInt().Uint64(),
+			)
+		}
 	}
-	r := bc.GetReceipt(tx.Hash())
-	expectedFee := uint64(47456244)
-	if r.GetGasUsed() != expectedFee {
-		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
-	}
-	state, err = bc.GetAccountState("ktlee")
-	if err != nil {
-		t.Error(err)
-	}
-	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
-		t.Errorf(
-			"expected: %d, but got: %d",
-			bal-expectedFee,
-			state.GetBalanceBigInt().Uint64(),
-		)
-	}
+
+	feeTest(47456244)
+
+	OldV3 := HardforkConfig.V3
+	HardforkConfig.V3 = types.BlockNo(0)
+	feeTest(47456460)
+	HardforkConfig.V3 = OldV3
 }
 
 func TestContractSendF(t *testing.T) {
