@@ -86,6 +86,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	InitContext(3)
 
 	HardforkConfig = config.AllEnabledHardforkConfig
+	HardforkConfig.V3 = types.BlockNo(100)
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
