@@ -270,7 +270,7 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 				sdb:    states,
 				id:     id,
 				aid:    aid,
-				oldV:   &types.State{},
+				oldV:   &types.State{Balance: amount.Bytes()},
 				newV:   &types.State{Balance: amount.Bytes()},
 				newOne: true,
 			}, nil
