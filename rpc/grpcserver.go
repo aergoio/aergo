@@ -58,7 +58,7 @@ type AergoRPCService struct {
 	blockStreamLock         sync.RWMutex
 	blockStream             map[uint32]*ListBlockStream
 	blockMetadataStreamLock sync.RWMutex
-	blockMetadataStream     map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer
+	blockMetadataStream     map[uint32]*ListBlockMetaStream
 
 	eventStreamLock sync.RWMutex
 	eventStream     map[*EventStream]*EventStream
@@ -374,7 +374,6 @@ func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoR
 	rpc.blockStreamLock.Lock()
 	blockStream := NewListBlockStream(streamId, stream)
 	rpc.blockStream[streamId] = blockStream
-
 	// create goroutine for broadcast
 	go blockStream.StartSend()
 	rpc.blockStreamLock.Unlock()
@@ -406,20 +405,32 @@ func (rpc *AergoRPCService) finishBlockStream(blockStream *ListBlockStream) {
 func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream types.AergoRPCService_ListBlockMetadataStreamServer) error {
 	streamID := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockMetadataStreamLock.Lock()
-	rpc.blockMetadataStream[streamID] = stream
+	metadataStream := NewListBlockMetaStream(streamID, stream)
+	rpc.blockMetadataStream[streamID] = metadataStream
+	go metadataStream.StartSend()
 	rpc.blockMetadataStreamLock.Unlock()
 	logger.Debug().Uint32("id", streamID).Msg("block meta stream added")
 
+	// The stream will be terminated after returning this function
 	for {
 		select {
-		case <-stream.Context().Done():
-			rpc.blockMetadataStreamLock.Lock()
-			delete(rpc.blockMetadataStream, streamID)
-			rpc.blockMetadataStreamLock.Unlock()
+		case <-metadataStream.awayChan: // server cut connection of bad client
+			rpc.finishBlockMetadataStream(metadataStream)
+			logger.Debug().Uint32("id", streamID).Msg("block meta stream deleted by server")
+			return nil
+		case <-stream.Context().Done(): // client disconnected stream
+			rpc.finishBlockMetadataStream(metadataStream)
 			logger.Debug().Uint32("id", streamID).Msg("block meta stream deleted")
 			return nil
 		}
 	}
+}
+
+func (rpc *AergoRPCService) finishBlockMetadataStream(metadataStream *ListBlockMetaStream) {
+	rpc.blockMetadataStreamLock.Lock()
+	delete(rpc.blockMetadataStream, metadataStream.id)
+	metadataStream.finishSend <- 0
+	rpc.blockMetadataStreamLock.Unlock()
 }
 
 func extractBlockFromFuture(future *actor.Future) (*types.Block, error) {

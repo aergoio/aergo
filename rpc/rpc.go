@@ -61,7 +61,7 @@ func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version strin
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
 		blockStream:         make(map[uint32]*ListBlockStream),
-		blockMetadataStream: map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer{},
+		blockMetadataStream: make(map[uint32]*ListBlockMetaStream),
 		eventStream:         make(map[*EventStream]*EventStream),
 	}
 
