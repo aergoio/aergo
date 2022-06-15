@@ -9,6 +9,14 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+func (states *StateDB) GetMultiCallState(aid types.AccountID, st *types.State) (*ContractState) {
+	res := &ContractState{
+		State:   st,
+		account: aid,
+	}
+	return res
+}
+
 func (states *StateDB) OpenContractStateAccount(aid types.AccountID) (*ContractState, error) {
 	st, err := states.GetAccountState(aid)
 	if err != nil {
@@ -83,6 +91,11 @@ func (st *ContractState) SetCode(code []byte) error {
 	st.State.CodeHash = codeHash[:]
 	st.code = code
 	return nil
+}
+
+func (st *ContractState) SetMultiCallCode(code []byte) {
+	// no codeHash means it is not a contract
+	st.code = code
 }
 
 func (st *ContractState) GetCode() ([]byte, error) {

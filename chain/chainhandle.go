@@ -919,12 +919,21 @@ func executeTx(
 		return err
 	}
 
-	if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
-		return err
+	isMultiCall := (txBody.Type == types.TxType_MULTICALL)
+
+	if isMultiCall {
+		recipient = account
+	} else {
+		if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
+			return err
+		}
 	}
+
 	var receiver *state.V
 	status := "SUCCESS"
-	if len(recipient) > 0 {
+	if isMultiCall {
+		receiver = sender
+	} else if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
 			status = "RECREATED"
@@ -941,8 +950,9 @@ func executeTx(
 	var txFee *big.Int
 	var rv string
 	var events []*types.Event
+
 	switch txBody.Type {
-	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
+	case types.TxType_NORMAL, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_MULTICALL, types.TxType_DEPLOY, types.TxType_REDEPLOY:
 		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:

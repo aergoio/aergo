@@ -93,6 +93,7 @@ type vmContext struct {
 	isQuery           bool
 	nestedView        int32
 	isFeeDelegation   bool
+	isMultiCall       bool
 	service           C.int
 	callState         map[types.AccountID]*callState
 	lastRecoveryEntry *recoveryEntry
@@ -169,14 +170,14 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
+func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, receiver *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
-	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool, isMultiCall bool) *vmContext {
 
-	cs := &callState{ctrState: contractState, curState: reciever.State()}
+	cs := &callState{ctrState: contractState, curState: receiver.State()}
 
 	ctx := &vmContext{
-		curContract:     newContractInfo(cs, senderID, reciever.ID(), rp, amount),
+		curContract:     newContractInfo(cs, senderID, receiver.ID(), rp, amount),
 		bs:              blockState,
 		cdb:             cdb,
 		origin:          senderID,
@@ -189,10 +190,11 @@ func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, recie
 		gasLimit:        gasLimit,
 		remainedGas:     gasLimit,
 		isFeeDelegation: feeDelegation,
+		isMultiCall:     isMultiCall,
 	}
 	ctx.callState = make(map[types.AccountID]*callState)
-	ctx.callState[reciever.AccountID()] = cs
-	if sender != nil {
+	ctx.callState[receiver.AccountID()] = cs
+	if sender != nil && sender != receiver {
 		ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
 	}
 	if TraceBlockNo != 0 && TraceBlockNo == ctx.blockInfo.No {
@@ -759,6 +761,13 @@ func refreshGas(ctx *vmContext, L *LState) {
 	}
 }
 
+func getMultiCallInfo(ci *types.CallInfo, payload []byte) error {
+	payload = append([]byte{'['}, payload...)
+	payload = append(payload, ']')
+	ci.Name = "execute"
+	return getCallInfo(&ci.Args, payload, []byte("multicall"))
+}
+
 func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 	d := json.NewDecoder(bytes.NewReader(args))
 	d.UseNumber()
@@ -775,16 +784,26 @@ func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 
 func Call(
 	contractState *state.ContractState,
-	code, contractAddress []byte,
+	payload, contractAddress []byte,
 	ctx *vmContext,
 ) (string, []*types.Event, *big.Int, error) {
 
 	var err error
 	var ci types.CallInfo
-	contract := getContract(contractState, ctx.bs)
+	var contract []byte
+
+	if ctx.isMultiCall {
+		contract = getMultiCallContract(contractState)
+	} else {
+		contract = getContract(contractState, ctx.bs)
+	}
 	if contract != nil {
-		if len(code) > 0 {
-			err = getCallInfo(&ci, code, contractAddress)
+		if ctx.isMultiCall {
+			err = getMultiCallInfo(&ci, payload)
+		} else {
+			if len(payload) > 0 {
+				err = getCallInfo(&ci, payload, contractAddress)
+			}
 		}
 	} else {
 		addr := types.EncodeAddress(contractAddress)
@@ -795,7 +814,7 @@ func Call(
 		return "", nil, ctx.usedFee(), err
 	}
 	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Str("abi", string(code)).Str("contract", types.EncodeAddress(contractAddress)).Msg("call")
+		ctrLgr.Debug().Str("abi", string(payload)).Str("contract", types.EncodeAddress(contractAddress)).Msg("call")
 	}
 
 	contexts[ctx.service] = ctx
@@ -825,11 +844,13 @@ func Call(
 		}
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
+
 	err = ce.commitCalledContract()
 	if err != nil {
 		ctrLgr.Error().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("commit state")
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
+
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
@@ -845,6 +866,7 @@ func Call(
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL END] : %s(%s)\n",
 			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 	}
+
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
 }
 
@@ -1227,11 +1249,24 @@ func getCode(contractState *state.ContractState, bs *state.BlockState) ([]byte, 
 }
 
 func getContract(contractState *state.ContractState, bs *state.BlockState) []byte {
+	if len(contractState.GetCodeHash()) == 0 {
+		return nil
+	}
 	code, err := getCode(contractState, bs)
 	if err != nil {
 		return nil
 	}
 	return luacUtil.LuaCode(code).ByteCode()
+}
+
+func getMultiCallContract(contractState *state.ContractState) []byte {
+	code := luacUtil.LuaCode(multicall_payload)
+	if !code.IsValidFormat() {
+		ctrLgr.Warn().Msg("multicall_payload")
+		return nil
+	}
+	contractState.SetMultiCallCode(multicall_payload)
+	return code.ByteCode()
 }
 
 func GetABI(contractState *state.ContractState, bs *state.BlockState) (*types.ABI, error) {
