@@ -294,6 +294,7 @@ type luaTxContract interface {
 	amount() *big.Int
 	code() []byte
 	isFeeDelegate() bool
+	isMultiCall() bool
 }
 
 type luaTxContractCommon struct {
@@ -303,6 +304,7 @@ type luaTxContractCommon struct {
 	_code       []byte
 	txId        uint64
 	feeDelegate bool
+	multiCall   bool
 }
 
 func (l *luaTxContractCommon) Hash() []byte {
@@ -327,6 +329,10 @@ func (l *luaTxContractCommon) code() []byte {
 
 func (l *luaTxContractCommon) isFeeDelegate() bool {
 	return l.feeDelegate
+}
+
+func (l *luaTxContractCommon) isMultiCall() bool {
+	return l.multiCall
 }
 
 func hash(id uint64) []byte {
@@ -390,15 +396,27 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 	}
 
 	contractId := types.ToAccountID(l.contract())
-	contractState, err := bs.GetAccountStateV(l.contract())
+
+	var contractState *state.V
+	if l.isMultiCall() {
+		contractState = creatorState
+	} else {
+		contractState, err = bs.GetAccountStateV(l.contract())
+	}
 	if err != nil {
 		return err
 	}
 
-	eContractState, err := bs.OpenContractState(contractId, contractState.State())
+	var eContractState *state.ContractState
+	if l.isMultiCall() {
+		eContractState = bs.GetMultiCallState(creatorId, creatorState.State())
+	} else {
+		eContractState, err = bs.OpenContractState(contractId, contractState.State())
+	}
 	if err != nil {
 		return err
 	}
+
 	usedFee := txFee(len(l.code()), new(big.Int).SetUint64(1), 2)
 
 	if l.isFeeDelegate() {
@@ -417,9 +435,14 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 			return types.ErrNotAllowedFeeDelegation
 		}
 	}
-	creatorState.SubBalance(l.amount())
-	contractState.AddBalance(l.amount())
+
+	if contractId != creatorId {
+		creatorState.SubBalance(l.amount())
+		contractState.AddBalance(l.amount())
+	}
+
 	rv, evs, cFee, err := run(creatorState, contractState, contractId, eContractState)
+
 	if cFee != nil {
 		usedFee.Add(usedFee, cFee)
 	}
@@ -428,6 +451,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 		status = "ERROR"
 		rv = err.Error()
 	}
+
 	r := types.NewReceipt(l.contract(), status, rv)
 	r.TxHash = l.Hash()
 	r.GasUsed = usedFee.Uint64()
@@ -454,10 +478,13 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 		}
 		creatorState.SubBalance(usedFee)
 	}
-	bs.PutState(creatorId, creatorState.State())
-	bs.PutState(contractId, contractState.State())
-	return nil
 
+	bs.PutState(creatorId, creatorState.State())
+	if contractId != creatorId {
+		bs.PutState(contractId, contractState.State())
+	}
+
+	return nil
 }
 
 func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
@@ -469,7 +496,7 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 			contract.State().SqlRecoveryPoint = 1
 
 			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, false)
+				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, false, false)
 
 			if traceState {
 				ctx.traceFile, _ =
@@ -526,6 +553,19 @@ func NewLuaTxCallFeeDelegate(sender, contract string, amount uint64, code string
 	}
 }
 
+func NewLuaTxMultiCall(sender, code string) *luaTxCall {
+	return &luaTxCall{
+		luaTxContractCommon: luaTxContractCommon{
+			_sender:     strHash(sender),
+			_contract:   strHash(""),
+			_amount:     new(big.Int).SetUint64(0),
+			_code:       []byte(code),
+			txId:        newTxId(),
+			multiCall:   true,
+		},
+	}
+}
+
 func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	l.expectedErr = expectedErr
 	return l
@@ -534,21 +574,28 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
 		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+
 			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
+				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate, l.multiCall)
+
 			if traceState {
 				ctx.traceFile, _ =
 					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 				defer ctx.traceFile.Close()
 			}
+
 			rv, evs, ctrFee, err := Call(eContractState, l.code(), l.contract(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			err = bs.StageContractState(eContractState)
-			if err != nil {
-				return "", nil, ctrFee, err
+
+			if !ctx.isMultiCall {
+				err = bs.StageContractState(eContractState)
+				if err != nil {
+					return "", nil, ctrFee, err
+				}
 			}
+
 			return rv, evs, ctrFee, nil
 		},
 	)
