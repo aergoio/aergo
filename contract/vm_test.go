@@ -6155,4 +6155,1070 @@ abi.register(stmt_exec, stmt_exec_pcall, get)`
 	}
 }
 
+
+//////////////////////////////////////////////////////////////////////
+// COMPOSABLE TRANSACTIONS
+//////////////////////////////////////////////////////////////////////
+
+func multicall(t *testing.T, bc *DummyChain, params ...string) {
+  var expectedError, expectedResult string
+  account := params[0]
+  payload := params[1]
+  if len(params) > 2 {
+    expectedError = params[2]
+  }
+  if len(params) > 3 {
+    expectedResult = params[3]
+  }
+
+  tx := NewLuaTxMultiCall(account, payload).Fail(expectedError)
+
+  err := bc.ConnectBlock(tx)
+  if err != nil {
+    t.Error(err)
+  }
+
+  if expectedError == "" && expectedResult != "" {
+    receipt := bc.GetReceipt(tx.Hash())
+    if receipt.GetRet() != expectedResult {
+      t.Errorf("multicall invalid result - expected: %s  got: %s", expectedResult, receipt.GetRet())
+    }
+  }
+
+}
+
+func call(t *testing.T, bc *DummyChain,
+          account string, amount uint64,
+          contract string, function string, args string,
+          expectedError string, expectedResult string) {
+
+  callinfo := fmt.Sprintf(`{"Name":"%s", "Args":%s}`, function, args)
+
+  tx := NewLuaTxCall(account, contract, amount, callinfo).Fail(expectedError)
+
+  err := bc.ConnectBlock(tx)
+  if err != nil {
+    t.Error(err)
+  }
+
+  if expectedError == "" && expectedResult != "" {
+    receipt := bc.GetReceipt(tx.Hash())
+    if receipt.GetRet() != expectedResult {
+      t.Errorf("call invalid result - expected: %s  got: %s", expectedResult, receipt.GetRet())
+    }
+  }
+
+}
+
+func TestComposableTransactions(t *testing.T) {
+  bc, err := LoadDummyChain()
+  if err != nil {
+    t.Errorf("failed to create test database: %v", err)
+  }
+  defer bc.Release()
+
+  definition := `
+state.var {
+  name = state.value(),
+  last = state.value(),
+  dict = state.map()
+}
+
+function get_dict()
+  return {one = 1, two = 2, three = 3}
+end
+
+function get_list()
+  return {'first', 'second', 'third', 123, 12.5, true}
+end
+
+function get_table()
+  return { name = "Test", second = 'Te"st', number = 123, bool = true, array = {11,22,33} }
+end
+
+function works()
+  return 123
+end
+
+function fails()
+  assert(false, "this call should fail")
+end
+
+function hello(name)
+  return 'hello ' .. name
+end
+
+function set_name(val)
+  name:set(val)
+  assert(type(val)=='string', "must be string")
+end
+
+function get_name()
+  return name:get()
+end
+
+function set(key, value)
+  dict[key] = value
+end
+
+function add(value)
+  local key = (last:get() or 0) + 1
+  dict[tostring(key)] = value
+  last:set(key)
+end
+
+function get(key)
+  return dict[key]
+end
+
+abi.register(add, set, set_name)
+abi.register_view(get_dict, get_list, get_table, works, fails, get, get_name, hello)
+
+function call(...)
+  return contract.call(...)
+end
+
+function is_contract(address)
+  return system.isContract(address)
+end
+
+function sender()
+  return system.getSender()
+end
+
+function origin()
+  return system.getOrigin()
+end
+
+abi.register(call)
+abi.register_view(is_contract, sender, origin)
+
+function recv_aergo()
+  -- does nothing
+end
+
+abi.payable(recv_aergo)
+`
+
+  err = bc.ConnectBlock(
+    NewLuaTxAccount("ac0", 10000000000000000000),
+    NewLuaTxAccount("ac1", 10000000000000000000),
+    NewLuaTxAccount("ac2", 10000000000000000000),
+    NewLuaTxAccount("ac3", 10000000000000000000),
+    NewLuaTxAccount("ac4", 10000000000000000000),
+    NewLuaTxAccount("ac5", 10000000000000000000),
+    NewLuaTxDef("ac0", "tables", 0, definition),
+    NewLuaTxDef("ac0", "c1", 0, definition),
+    NewLuaTxDef("ac0", "c2", 0, definition),
+    NewLuaTxDef("ac0", "c3", 0, definition),
+  )
+  if err != nil {
+    t.Error(err)
+  }
+
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_dict"],
+   ["store","dict"],
+   ["set","%dict%","two",22],
+   ["set","%dict%","four",4],
+   ["set","%dict%","one",null],
+   ["get","%dict%","two"],
+   ["set","%dict%","copy","%last_result%"],
+   ["return","%dict%"]
+  ]`, ``, `{"copy":22,"four":4,"three":3,"two":22}`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_list"],
+   ["store","array"],
+   ["set","%array%",2,"2nd"],
+   ["insert","%array%",1,"zero"],
+   ["insert","%array%","last"],
+   ["return","%array%"]
+  ]`, ``, `["zero","first","2nd","third",123,12.5,true,"last"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_list"],
+   ["store","array"],
+   ["remove","%array%",3],
+   ["return","%array%"]
+  ]`, ``, `["first","second",123,12.5,true]`)
+
+
+  // create new dict or array using fromjson
+
+  multicall(t, bc, "ac1", `[
+   ["fromjson","{\"one\":1,\"two\":2}"],
+   ["set","%last_result%","three",3],
+   ["return","%last_result%"]
+  ]`, ``, `{"one":1,"three":3,"two":2}`)
+
+
+  // define dict or list using let
+
+  multicall(t, bc, "ac1", `[
+   ["let","obj",{"one":1,"two":2}],
+   ["set","%obj%","three",3],
+   ["return","%obj%"]
+  ]`, ``, `{"one":1,"three":3,"two":2}`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",["one",1,"two",2,2.5,true,false]],
+   ["set","%list%",4,"three"],
+   ["insert","%list%",1,"first"],
+   ["insert","%list%","last"],
+   ["return","%list%"]
+  ]`, ``, `["first","one",1,"two","three",2.5,true,false,"last"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",["one",22,3.3,true,false]],
+   ["get","%list%",1],
+   ["assert","%last_result%","=","one"],
+   ["get","%list%",2],
+   ["assert","%last_result%","=",22],
+   ["get","%list%",3],
+   ["assert","%last_result%","=",3.3],
+   ["get","%list%",4],
+   ["assert","%last_result%","=",true],
+   ["get","%list%",5],
+   ["assert","%last_result%","=",false],
+   ["return","%list%"]
+  ]`, ``, `["one",22,3.3,true,false]`)
+
+
+
+  // BIGNUM
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum",123],
+   ["store","a"],
+   ["tobignum",123],
+   ["store","b"],
+   ["mul","%a%","%b%"],
+   ["return","%last_result%"]
+  ]`, ``, `{"_bignum":"15129"}`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","100000"],
+   ["store","b"],
+   ["div","%a%","%b%"],
+   ["return","%last_result%"]
+  ]`, ``, `{"_bignum":"5000000000000000"}`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","100000"],
+   ["store","b"],
+   ["div","%a%","%b%"],
+   ["tostring","%last_result%"],
+   ["return","%last_result%"]
+  ]`, ``, `"5000000000000000"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+
+   ["tobignum","100000"],
+   ["div","%a%","%last_result%"],
+   ["store","a"],
+
+   ["tobignum","1000000000000000"],
+   ["sub","%a%","%last_result%"],
+   ["store","a"],
+
+   ["tobignum","1234"],
+   ["add","%a%","%last_result%"],
+   ["store","a"],
+
+   ["tobignum","2"],
+   ["pow","%a%","%last_result%"],
+   ["sqrt","%last_result%"],
+   ["store","a"],
+
+   ["tobignum","2"],
+   ["mod","%a%","10000"],
+
+   ["return","%last_result%"]
+  ]`, ``, `{"_bignum":"1234"}`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","a",25],
+   ["sqrt","%a%"],
+   ["return","%last_result%"]
+  ]`, ``, `{"_bignum":"5"}`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","a",25],
+   ["pow","%a%",0.5],
+   ["return","%last_result%"]
+  ]`, ``, `5`)
+
+
+
+  // STRINGS
+
+  multicall(t, bc, "ac1", `[
+   ["format","%s%s%s","hello"," ","world"],
+   ["return","%last_result%"]
+  ]`, ``, `"hello world"`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s","hello world"],
+   ["substr","%s%",1,4],
+   ["return","%last_result%"]
+  ]`, ``, `"hell"`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s","hello world"],
+   ["substr","%s%",-2,-1],
+   ["return","%last_result%"]
+  ]`, ``, `"ld"`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s","the amount is 12345"],
+   ["find","%s%","%d+"],
+   ["tonumber","%last_result%"],
+   ["return","%last_result%"]
+  ]`, ``, `12345`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s","rate: 55 10%"],
+   ["find","%s%","(%d+)%%"],
+   ["tonumber","%last_result%"],
+   ["return","%last_result%"]
+  ]`, ``, `10`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s","rate: 12%"],
+   ["find","%s%","%s*(%d+)%%"],
+   ["tonumber","%last_result%"],
+   ["return","%last_result%"]
+  ]`, ``, `12`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s","hello world"],
+   ["replace","%s%","hello","good bye"],
+   ["return","%last_result%"]
+  ]`, ``, `"good bye world"`)
+
+  multicall(t, bc, "ac1", `[
+   ["fromjson","{\"name\":\"ticket\",\"value\":12.5,\"amount\":10}"],
+   ["replace","name = $name, value = $value, amount = $amount","%$(%w+)","%last_result%"],
+   ["return","%last_result%"]
+  ]`, ``, `"name = ticket, value = 12.5, amount = 10"`)
+
+
+  // IF THEN ELSE
+
+  multicall(t, bc, "ac1", `[
+   ["let","s",20],
+   ["if","%s%",">=",20],
+   ["let","b","big"],
+   ["elif","%s%",">=",10],
+   ["let","b","medium"],
+   ["else"],
+   ["let","b","low"],
+   ["end"],
+   ["let","c","after"],
+   ["return","%b%","%c%"]
+  ]`, ``, `["big","after"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s",10],
+   ["if","%s%",">=",20],
+   ["let","b","big"],
+   ["elif","%s%",">=",10],
+   ["let","b","medium"],
+   ["else"],
+   ["let","b","low"],
+   ["end"],
+   ["let","c","after"],
+   ["return","%b%","%c%"]
+  ]`, ``, `["medium","after"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s",5],
+   ["if","%s%",">=",20],
+   ["let","b","big"],
+   ["elif","%s%",">=",10],
+   ["let","b","medium"],
+   ["else"],
+   ["let","b","low"],
+   ["end"],
+   ["let","c","after"],
+   ["return","%b%","%c%"]
+  ]`, ``, `["low","after"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s",20],
+   ["if","%s%",">=",20],
+   ["return","big"],
+   ["elif","%s%",">=",10],
+   ["return","medium"],
+   ["else"],
+   ["return","low"],
+   ["end"],
+   ["return","after"]
+  ]`, ``, `"big"`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s",10],
+   ["if","%s%",">=",20],
+   ["return","big"],
+   ["elif","%s%",">=",10],
+   ["return","medium"],
+   ["else"],
+   ["return","low"],
+   ["end"],
+   ["return","after"]
+  ]`, ``, `"medium"`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","s",5],
+   ["if","%s%",">=",20],
+   ["return","big"],
+   ["elif","%s%",">=",10],
+   ["return","medium"],
+   ["else"],
+   ["return","low"],
+   ["end"],
+   ["return","after"]
+  ]`, ``, `"low"`)
+
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000000"],
+   ["store","b"],
+   ["if","%a%","=","%b%"],
+   ["let","b","equal"],
+   ["else"],
+   ["let","b","diff"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"equal"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000001"],
+   ["store","b"],
+   ["if","%a%","=","%b%"],
+   ["let","b","equal"],
+   ["else"],
+   ["let","b","diff"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"diff"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000001"],
+   ["store","a"],
+   ["tobignum","500000000000000000000"],
+   ["store","b"],
+   ["if","%a%",">","%b%"],
+   ["let","b","bigger"],
+   ["else"],
+   ["let","b","lower"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"bigger"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000001"],
+   ["store","b"],
+   ["if","%a%",">","%b%"],
+   ["let","b","bigger"],
+   ["else"],
+   ["let","b","lower"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"lower"`)
+
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000001"],
+   ["store","b"],
+   ["if","%a%","<","%b%","and","1","=","0"],
+   ["let","b","wrong 1"],
+   ["elif","%a%","<","%b%","and","1","=","1"],
+   ["let","b","correct"],
+   ["else"],
+   ["let","b","wrong 2"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"correct"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000001"],
+   ["store","b"],
+   ["if","%a%","<","%b%","and",1,"=",0],
+   ["let","b","wrong 1"],
+   ["elif","%a%","<","%b%","and",1,"=",1],
+   ["let","b","correct"],
+   ["else"],
+   ["let","b","wrong 2"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"correct"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000001"],
+   ["store","b"],
+   ["tobignum","400000000000000000000"],
+   ["store","c"],
+   ["if","%a%","<","%b%","and","%a%","<","%c%"],
+   ["let","b","wrong 1"],
+   ["elif","%a%",">","%b%","and","%a%",">","%c%"],
+   ["let","b","wrong 2"],
+   ["elif","%a%","<","%b%","and","%a%",">","%c%"],
+   ["let","b","correct"],
+   ["else"],
+   ["let","b","wrong 3"],
+   ["end"],
+   ["return","%b%"]
+  ]`, ``, `"correct"`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","500000000000000000000"],
+   ["store","a"],
+   ["tobignum","500000000000000000001"],
+   ["store","b"],
+   ["tobignum","400000000000000000000"],
+   ["store","c"],
+   ["tostring",0],
+
+   ["if","%a%",">","%b%","or","%a%","<","%c%"],
+   ["format","%s%s","%last_result%","1"],
+   ["end"],
+
+   ["if","%a%","=","%b%","or","%a%","=","%c%"],
+   ["format","%s%s","%last_result%","2"],
+   ["end"],
+
+   ["if","%a%","<","%b%","or","%a%","<","%c%"],
+   ["format","%s%s","%last_result%","3"],
+   ["end"],
+
+   ["if","%a%",">","%b%","or","%a%",">","%c%"],
+   ["format","%s%s","%last_result%","4"],
+   ["end"],
+
+   ["if","%a%","<","%b%","or","%a%",">","%c%"],
+   ["format","%s%s","%last_result%","5"],
+   ["end"],
+
+   ["if","%a%","!=","%b%","or","%a%","=","%c%"],
+   ["format","%s%s","%last_result%","6"],
+   ["end"],
+
+   ["if","%a%","=","%b%","or","%a%","!=","%c%"],
+   ["format","%s%s","%last_result%","7"],
+   ["end"],
+
+
+   ["if","%a%",">=","%b%","and","%a%","<=","%c%"],
+   ["format","%s%s","%last_result%","8"],
+   ["end"],
+
+   ["if","%a%",">=","%c%","and","%a%","<=","%b%"],
+   ["format","%s%s","%last_result%","9"],
+   ["end"],
+
+   ["if","%b%",">=","%a%","and","%b%","<=","%c%"],
+   ["format","%s%s","%last_result%","A"],
+   ["end"],
+
+   ["if","%b%",">=","%c%","and","%b%","<=","%a%"],
+   ["format","%s%s","%last_result%","B"],
+   ["end"],
+
+   ["if","%c%",">=","%a%","and","%c%","<=","%b%"],
+   ["format","%s%s","%last_result%","C"],
+   ["end"],
+
+   ["if","%c%",">=","%b%","and","%c%","<=","%a%"],
+   ["format","%s%s","%last_result%","D"],
+   ["end"],
+
+
+   ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",0],
+   ["format","%s%s","%last_result%","E"],
+   ["end"],
+
+   ["if","%a%",">=","%b%","and","%a%","<=","%c%","or",1,"=",1],
+   ["format","%s%s","%last_result%","F"],
+   ["end"],
+
+   ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",0],
+   ["format","%s%s","%last_result%","G"],
+   ["end"],
+
+   ["if","%a%",">=","%b%","and","%a%","<=","%c%","and",1,"=",1],
+   ["format","%s%s","%last_result%","H"],
+   ["end"],
+
+
+   ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",0],
+   ["format","%s%s","%last_result%","I"],
+   ["end"],
+
+   ["if","%a%",">=","%c%","and","%a%","<=","%b%","or",1,"=",1],
+   ["format","%s%s","%last_result%","J"],
+   ["end"],
+
+   ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",0],
+   ["format","%s%s","%last_result%","K"],
+   ["end"],
+
+   ["if","%a%",">=","%c%","and","%a%","<=","%b%","and",1,"=",1],
+   ["format","%s%s","%last_result%","L"],
+   ["end"],
+
+
+   ["if",1,"=",0,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
+   ["format","%s%s","%last_result%","M"],
+   ["end"],
+
+   ["if",1,"=",1,"or","%a%",">=","%b%","and","%a%","<=","%c%"],
+   ["format","%s%s","%last_result%","N"],
+   ["end"],
+
+   ["if",1,"=",0,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
+   ["format","%s%s","%last_result%","O"],
+   ["end"],
+
+   ["if",1,"=",1,"or","%a%",">=","%c%","and","%a%","<=","%b%"],
+   ["format","%s%s","%last_result%","P"],
+   ["end"],
+
+
+   ["return","%last_result%"]
+  ]`, ``, `"0345679IJLNOP"`)
+
+
+
+
+  // FOR
+
+  multicall(t, bc, "ac1", `[
+   ["for","n",1,5],
+   ["loop"],
+   ["return","%n%"]
+  ]`, ``, `6`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",1,5],
+   ["add","%last_result%",1],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `5`)
+
+  multicall(t, bc, "ac1", `[
+   ["tobignum","10000000000000000001"],
+   ["store","to_add"],
+   ["tobignum","100000000000000000000"],
+
+   ["for","n",1,3],
+   ["add","%last_result%","%to_add%"],
+   ["loop"],
+
+   ["tostring","%last_result%"],
+   ["return","%last_result%"]
+  ]`, ``, `"130000000000000000003"`)
+
+
+  // FOR "BREAK"
+
+  multicall(t, bc, "ac1", `[
+   ["let","c",0],
+   ["for","n",1,10],
+   ["add","%c%",1],
+   ["store","c"],
+   ["if","%n%","=",5],
+   ["let","n",500],
+   ["end"],
+   ["loop"],
+   ["return","%c%"]
+  ]`, ``, `5`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["let","c",0],
+   ["for","n",1,10],
+   ["add","%last_result%",1],
+   ["if","%n%","=",5],
+   ["let","n",500],
+   ["end"],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `5`)
+
+
+  // FOREACH
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",[11,22,33]],
+   ["let","r",0],
+   ["foreach","item","%list%"],
+   ["add","%r%","%item%"],
+   ["store","r"],
+   ["loop"],
+   ["return","%r%"]
+  ]`, ``, `66`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",[10,21,32]],
+   ["let","r",0],
+   ["foreach","item","%list%"],
+   ["if","%item%","<",30],
+   ["add","%r%","%item%"],
+   ["store","r"],
+   ["end"],
+   ["loop"],
+   ["return","%r%"]
+  ]`, ``, `31`)
+
+
+  // RETURN before the end
+
+  multicall(t, bc, "ac1", `[
+   ["let","v",123],
+   ["if","%v%",">",100],
+   ["return"],
+   ["end"],
+   ["let","v",500],
+   ["return","%v%"]
+  ]`, ``, ``)
+
+  multicall(t, bc, "ac1", `[
+   ["let","v",123],
+   ["if","%v%",">",200],
+   ["return"],
+   ["end"],
+   ["let","v",500],
+   ["return","%v%"]
+  ]`, ``, `500`)
+
+
+
+  // CALLS
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+   ["assert","%last_result%","=",123],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+   ["return","%last_result%"]
+  ]`, ``, `123`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"]
+  ]`, `this call should fail`)
+
+
+  multicall(t, bc, "ac3", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","test"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+   ["assert","%last_result%","=","test"]
+  ]`)
+
+  multicall(t, bc, "ac3", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","wrong"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+   ["assert","%last_result%","=","wrong"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",123]
+  ]`, `must be string`)
+
+  multicall(t, bc, "ac3", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+   ["assert","%last_result%","=","test"],
+   ["return","%last_result%"]
+  ]`, ``, `"test"`)
+
+
+  multicall(t, bc, "ac3", `[
+   ["let","c","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+   ["call","%c%","set_name","test2"],
+   ["call","%c%","get_name"],
+   ["assert","%last_result%","=","test2"]
+  ]`)
+
+
+  // CALL LOOP
+
+  multicall(t, bc, "ac3", `[
+   ["let","list",["first","second","third"]],
+   ["foreach","item","%list%"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","add","%item%"],
+   ["loop"]
+  ]`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","1"],
+   ["assert","%last_result%","=","first"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","2"],
+   ["assert","%last_result%","=","second"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","3"],
+   ["assert","%last_result%","=","third"]
+  ]`)
+
+  multicall(t, bc, "ac3", `[
+   ["let","list",["1st","2nd","3rd"]],
+   ["let","n",1],
+   ["foreach","item","%list%"],
+   ["tostring","%n%"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set","%last_result%","%item%"],
+   ["add","%n%",1],
+   ["store","n"],
+   ["loop"]
+  ]`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","1"],
+   ["assert","%last_result%","=","1st"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","2"],
+   ["assert","%last_result%","=","2nd"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get","3"],
+   ["assert","%last_result%","=","3rd"]
+  ]`)
+
+
+
+  // PCALL
+
+  multicall(t, bc, "ac1", `[
+   ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","works"],
+   ["get","%last_result%",1],
+   ["assert","%last_result%","=",true],
+   ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","fails"],
+   ["get","%last_result%",1],
+   ["assert","%last_result%","=",false]
+  ]`)
+
+  multicall(t, bc, "ac3", `[
+   ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name","1st"],
+   ["get","%last_result%",1],
+   ["assert","%last_result%","=",true],
+
+   ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+   ["store","ret"],
+   ["get","%ret%",1],
+   ["assert","%last_result%","=",true],
+   ["get","%ret%",2],
+   ["assert","%last_result%","=","1st"],
+
+   ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","set_name",22],
+   ["get","%last_result%",1],
+   ["assert","%last_result%","=",false],
+
+   ["pcall","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_name"],
+   ["store","ret"],
+   ["get","%ret%",1],
+   ["assert","%last_result%","=",true],
+   ["get","%ret%",2],
+   ["assert","%last_result%","=","1st"],
+
+   ["return","%last_result%"]
+  ]`, ``, `"1st"`)
+
+
+
+  // MULTICALL ON ACCOUNT ------------------------------------------
+
+
+  //deploy ac0 0 c1 test.lua
+  //deploy ac0 0 c2 test.lua
+  //deploy ac0 0 c3 test.lua
+
+  // c1: AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9
+  // c2: Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4
+  // c3: AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK
+
+  multicall(t, bc, "ac0", `[
+   ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","set_name","testing multicall"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","set_name","contract 2"],
+   ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","set_name","third one"]
+  ]`)
+
+  multicall(t, bc, "ac0", `[
+   ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+   ["assert","%last_result%","=","testing multicall"],
+   ["store","r1"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+   ["assert","%last_result%","=","contract 2"],
+   ["store","r2"],
+   ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+   ["assert","%last_result%","=","third one"],
+   ["store","r3"],
+   ["return","%r1%","%r2%","%r3%"]
+  ]`, ``, `["testing multicall","contract 2","third one"]`)
+
+  multicall(t, bc, "ac0", `[
+   ["fromjson","{}"],
+   ["store","res"],
+   ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+   ["set","%res%","r1","%last_result%"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+   ["set","%res%","r2","%last_result%"],
+   ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+   ["set","%res%","r3","%last_result%"],
+   ["return","%res%"]
+  ]`, ``, `{"r1":"testing multicall","r2":"contract 2","r3":"third one"}`)
+
+
+  multicall(t, bc, "ac0", `[
+   ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","set_name","wohooooooo"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","set_name","it works!"],
+   ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","set_name","it really works!"]
+  ]`)
+
+  multicall(t, bc, "ac0", `[
+   ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+   ["assert","%last_result%","=","wohooooooo"],
+   ["store","r1"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+   ["assert","%last_result%","=","it works!"],
+   ["store","r2"],
+   ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+   ["assert","%last_result%","=","it really works!"],
+   ["store","r3"],
+   ["return","%r1%","%r2%","%r3%"]
+  ]`, ``, `["wohooooooo","it works!","it really works!"]`)
+
+  multicall(t, bc, "ac0", `[
+   ["fromjson","{}"],
+   ["store","res"],
+   ["call","AmhXhR3Eguhu5qjVoqcg7aCFMpw1GGZJfqDDqfy6RsTP7MrpWeJ9","get_name"],
+   ["set","%res%","r1","%last_result%"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","get_name"],
+   ["set","%res%","r2","%last_result%"],
+   ["call","AmgtL32d1M56xGENKDnDqXFzkrYJwWidzSMtay3F8fFDU1VAEdvK","get_name"],
+   ["set","%res%","r3","%last_result%"],
+   ["return","%res%"]
+  ]`, ``, `{"r1":"wohooooooo","r2":"it works!","r3":"it really works!"}`)
+
+
+
+  // aergo balance and send
+
+  multicall(t, bc, "ac5", `[
+   ["balance"],
+   ["tostring","%last_result%"],
+   ["assert","%last_result%","=","10000000000000000000"],
+   ["return","%last_result%"]
+  ]`, ``, `"10000000000000000000"`)
+
+  multicall(t, bc, "ac2", `[
+   ["balance"],
+   ["tostring","%last_result%"],
+   ["assert","%last_result%","=","10000000000000000000"],
+
+   ["balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+   ["tostring","%last_result%"],
+   ["assert","%last_result%","=","0"],
+
+   ["send","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc","3000000000000000000"],
+
+   ["balance","AmgHyfkUt5iuXJKZNTrdthtXWLLJCrKWdJ6H6Yshn6ZR285Wr2Hc"],
+   ["tostring","%last_result%"],
+   ["assert","%last_result%","=","3000000000000000000"],
+
+   ["balance"],
+   ["tostring","%last_result%"],
+   ["assert","%last_result%","=","7000000000000000000"],
+
+   ["return","%last_result%"]
+  ]`, ``, `"7000000000000000000"`)
+
+
+
+  // SECURITY CHECKS
+
+  // it should not be possible to call the code from another account
+
+  // a. from an account (via multicall, using the 'call' command)
+
+  multicall(t, bc, "ac1", `[
+   ["call","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2","execute",[["add",11,22],["return","%last_result%"]]],
+   ["return","%last_result%"]
+  ]`, `nd contract`)
+
+
+  // b. from an account (via a call tx)
+
+  call(t, bc, "ac1", 0, "ac1", "execute", `[[["add",11,22],["return","%last_result%"]]]`, `nd contract`, ``)
+
+  call(t, bc, "ac1", 0, "ac2", "execute", `[[["add",11,22],["return","%last_result%"]]]`, `nd contract`, ``)
+
+
+  // c. from a contract (calling back)
+
+  multicall(t, bc, "ac1", `[
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","call","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","execute",[["add",11,22],["return","%last_result%"]]],
+   ["return","%last_result%"]
+  ]`, `nd contract`)
+
+
+  // d. from a contract (calling another account)
+
+  multicall(t, bc, "ac1", `[
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","call","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2","execute",[["add",11,22],["return","%last_result%"]]],
+   ["return","%last_result%"]
+  ]`, `nd contract`)
+
+
+  // e. from a contract (via a call txn)
+
+  call(t, bc, "ac1", 0, "c2", "call", `["AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1","execute",[["add",11,22],["return","%last_result%"]]]`, `nd contract`, ``)
+
+  call(t, bc, "ac1", 0, "c2", "call", `["AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2","execute",[["add",11,22],["return","%last_result%"]]]`, `nd contract`, ``)
+
+
+  // system.isContract() should return false on user accounts
+
+  call(t, bc, "ac1", 0, "c2", "is_contract", `["AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"]`, ``, `false`)
+
+  call(t, bc, "ac1", 0, "c2", "is_contract", `["AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"]`, ``, `false`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","is_contract","AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"],
+   ["assert","%last_result%","=",false],
+   ["return","%last_result%"]
+  ]`, ``, `false`)
+
+  multicall(t, bc, "ac1", `[
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","is_contract","AmgeSw3M3V3orBMjf1j98kGne4WycnmQWVTJe6MYNrQ2wuVz3Li2"],
+   ["assert","%last_result%","=",false],
+   ["return","%last_result%"]
+  ]`, ``, `false`)
+
+
+  // on a contract called by multicall, the system.getSender() and system.getOrigin() must be the same
+
+  multicall(t, bc, "ac1", `[
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","sender"],
+   ["store","sender"],
+   ["call","Amh8PekqkDmLiwE6FUX6JejjWk3R54cmTaa1Tc1VHZmTRJMruWe4","origin"],
+   ["store","origin"],
+   ["assert","%sender%","=","%origin%"],
+   ["return","%sender%"]
+  ]`, ``, `"AmgMPiyZYr19kQ1kHFNiGenez1CRTBqNWqppj6gGZGEP6qszDGe1"`)
+
+
+}
+
 // end of test-cases
