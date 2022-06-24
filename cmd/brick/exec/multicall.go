@@ -22,12 +22,12 @@ func (c *multicall) Command() string {
 
 func (c *multicall) Syntax() string {
 	return fmt.Sprintf("%s %s %s %s", context.AccountSymbol,
-		context.ContractArgsSymbol,
+		context.MulticallSymbol,
 		context.ExpectedErrSymbol, context.ExpectedSymbol)
 }
 
 func (c *multicall) Usage() string {
-	return fmt.Sprintf("multicall <sender_name> `[call_json_str]` `[expected_error_str]` `[expected_result_str]`")
+	return fmt.Sprintf("multicall <sender> `[commands_json_str]` `[expected_error_str]` `[expected_result_str]`")
 }
 
 func (c *multicall) Describe() string {
