@@ -4,7 +4,7 @@
 
 vars = {}
 
-skip = {store=true,let=true,set=true,insert=true,assert=true}
+skip = {store=true,let=true,set=true,insert=true,assert=true,send=true}
 
 action = {
 
@@ -19,14 +19,14 @@ action = {
   send = function (address,amount) return contract.send(address, amount) end,
 
   -- variables
-  let = function (x,y) vars[x] = y end,
+  let = function (x,y,z) if z then y = convert_bignum(y,z) end vars[x] = y end,
   store = function (n) vars[n] = vars['last_result'] end,
 
   -- tables
   get = function (o,k) return o[k] end,
   set = function (o,k,v) o[k] = v end,
   insert = function (...) table.insert(...) end,   -- inserts at the end if no pos informed
-  remove = function (...) table.remove(...) end,
+  remove = function (...) table.remove(...) end,   -- returns the removed item
 
   -- math
   add = function (x,y) return x+y end,
@@ -55,6 +55,20 @@ action = {
 
 }
 
+function process_arg(arg)
+  if type(arg) == 'string' then
+    if #arg >= 3 and string.sub(arg, 1, 1) == '%' and string.sub(arg, -1, -1) == '%' then
+      local varname = string.sub(arg, 2, -2)
+      if vars[varname] ~= nil then
+        arg = vars[varname]
+      end
+    end
+  elseif type(arg) == 'table' then
+    for k,v in pairs(arg) do arg[k] = process_arg(v) end
+  end
+  return arg
+end
+
 function execute(calls)
 
   local if_on = true
@@ -69,16 +83,13 @@ function execute(calls)
   while cmdpos <= #calls do
     local call = calls[cmdpos]
     local args = {}  -- use a copy of the list because of loops
-    for i,v in ipairs(call) do args[i] = v end
 
-    -- process variables
-    for i,item in ipairs(args) do
-      if i > 1 and type(item) == 'string' and #item >= 3 and
-      string.sub(item, 1, 1) == '%' and string.sub(item, -1, -1) == '%' then
-        local varname = string.sub(item, 2, -2)
-        if vars[varname] ~= nil then
-          args[i] = vars[varname]
-        end
+    -- copy values and process variables
+    for i,arg in ipairs(call) do
+      if i == 1 then
+        args[i] = arg
+      else
+        args[i] = process_arg(arg)
       end
     end
 
@@ -136,6 +147,8 @@ function execute(calls)
         else
           cmdpos = for_cmdpos
         end
+      else
+        cmdpos = 0
       end
 
     -- return
@@ -191,6 +204,35 @@ function eval(...)
     end
   end
   return matches
+end
+
+function convert_bignum(x, token)
+  if type(x) ~= 'string' then
+    x = tostring(x)
+  end
+  assert(string.match(x, '[^0-9.]') == nil, "the amount contains invalid character")
+  local _, count = string.gsub(x, "%.", "")
+  assert(count <= 1, "the amount is invalid")
+  if count == 1 then
+    local num_decimals
+    if token:lower() == 'aergo' then
+      num_decimals = 18
+    else
+      num_decimals = contract.call(token, "decimals")
+    end
+    assert(num_decimals >= 0 and num_decimals <= 18, "token with invalid decimals")
+    local p1, p2 = string.match('0' .. x .. '0', '(%d+)%.(%d+)')
+    local to_add = num_decimals - #p2
+    if to_add > 0 then
+      p2 = p2 .. string.rep('0', to_add)
+    elseif to_add < 0 then
+      p2 = string.sub(p2, 1, num_decimals)
+    end
+    x = p1 .. p2
+    x = string.gsub(x, '0*', '', 1)  -- remove leading zeros
+    if #x == 0 then x = '0' end
+  end
+  return bignum.number(x)
 end
 
 abi.register(execute)
