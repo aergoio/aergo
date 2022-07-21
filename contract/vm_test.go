@@ -601,103 +601,103 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 	}
 }
 
-// func TestInfiniteLoopOnPubNet(t *testing.T) {
-// 	bc, err := LoadDummyChain(
-// 		func(d *DummyChain) {
-// 			d.timeout = 50
-// 		},
-// 		OnPubNet,
-// 	)
-// 	if err != nil {
-// 		t.Errorf("failed to create test database: %v", err)
-// 	}
-// 	defer bc.Release()
+func TestInfiniteLoopOnPubNet(t *testing.T) {
+	bc, err := LoadDummyChain(
+		func(d *DummyChain) {
+			d.timeout = 50
+		},
+		OnPubNet,
+	)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
 
-// 	definition := `
-// function infiniteLoop()
-//     local t = 0
-// 	while true do
-// 	    t = t + 1
-// 	end
-// 	return t
-// end
-// function infiniteCall()
-// 	infiniteCall()
-// end
-// function catch()
-// 	return pcall(infiniteLoop)
-// end
-// function contract_catch()
-// 	return contract.pcall(infiniteLoop)
-// end
-// abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
+	definition := `
+function infiniteLoop()
+    local t = 0
+	while true do
+	    t = t + 1
+	end
+	return t
+end
+function infiniteCall()
+	infiniteCall()
+end
+function catch()
+	return pcall(infiniteLoop)
+end
+function contract_catch()
+	return contract.pcall(infiniteLoop)
+end
+abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxAccount("ktlee", 100000000000000000),
-// 		NewLuaTxDef("ktlee", "loop", 0, definition),
-// 	)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "loop", 0, definition),
+	)
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxCall(
-// 			"ktlee",
-// 			"loop",
-// 			0,
-// 			`{"Name":"infiniteLoop"}`,
-// 		),
-// 	)
-// 	errTimeout := VmTimeoutError{}
-// 	if err == nil {
-// 		t.Errorf("expected: %v", errTimeout)
-// 	}
-// 	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
-// 		t.Error(err)
-// 	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteLoop"}`,
+		),
+	)
+	errTimeout := VmTimeoutError{}
+	if err == nil {
+		t.Errorf("expected: %v", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
+		t.Error(err)
+	}
 
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxCall(
-// 			"ktlee",
-// 			"loop",
-// 			0,
-// 			`{"Name":"catch"}`,
-// 		),
-// 	)
-// 	if err == nil {
-// 		t.Errorf("expected: %v", errTimeout)
-// 	}
-// 	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
-// 		t.Error(err)
-// 	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"catch"}`,
+		),
+	)
+	if err == nil {
+		t.Errorf("expected: %v", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
+		t.Error(err)
+	}
 
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxCall(
-// 			"ktlee",
-// 			"loop",
-// 			0,
-// 			`{"Name":"contract_catch"}`,
-// 		),
-// 	)
-// 	if err == nil {
-// 		t.Errorf("expected: %v", errTimeout)
-// 	}
-// 	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
-// 		t.Error(err)
-// 	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"contract_catch"}`,
+		),
+	)
+	if err == nil {
+		t.Errorf("expected: %v", errTimeout)
+	}
+	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
+		t.Error(err)
+	}
 
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxCall(
-// 			"ktlee",
-// 			"loop",
-// 			0,
-// 			`{"Name":"infiniteCall"}`,
-// 		).Fail("stack overflow"),
-// 	)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+	err = bc.ConnectBlock(
+		NewLuaTxCall(
+			"ktlee",
+			"loop",
+			0,
+			`{"Name":"infiniteCall"}`,
+		).Fail("stack overflow"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestUpdateSize(t *testing.T) {
 	bc, err := LoadDummyChain()
