@@ -15,7 +15,7 @@ action = {
   ["pcall-send"] = function (amount,...) return {pcall(contract.call.value(amount),...)} end,
 
   -- aergo balance and transfer
-  balance = function (address) return contract.balance(address) end,
+  balance = function (address) return bignum.number(contract.balance(address)) end,
   send = function (address,amount) return contract.send(address, amount) end,
 
   -- variables
@@ -26,7 +26,16 @@ action = {
   get = function (o,k) return o[k] end,
   set = function (o,k,v) o[k] = v end,
   insert = function (...) table.insert(...) end,   -- inserts at the end if no pos informed
-  remove = function (...) table.remove(...) end,   -- returns the removed item
+  remove = function (...) return table.remove(...) end,   -- returns the removed item
+  get_size = function (x) return #x end,
+  get_keys = function (obj)
+      local list = {}
+      for key,_ in pairs(obj) do
+        list[#list + 1] = key
+      end
+      table.sort(list)  -- for a deterministic output
+      return list
+    end,
 
   -- math
   add = function (x,y) return x+y end,
@@ -38,6 +47,7 @@ action = {
   sqrt = function (x) return bignum.sqrt(x) end,  -- use pow(0.5) for numbers
 
   -- strings
+  concat = function (...) return table.concat({...}) end,
   format = function (...) return string.format(...) end, -- for concat: ['format','%s%s','%val1%','%val2%']
   substr = function (...) return string.sub(...) end,
   find = function (...) return string.match(...) end,
@@ -75,9 +85,10 @@ function execute(calls)
   local if_done = false
 
   local for_cmdpos
-  local for_var, for_type
-  local for_list, for_pos
+  local for_var, for_var2, for_type
+  local for_obj, for_list, for_pos
   local for_last, for_increment
+  local skip_for = false
 
   local cmdpos = 1
   while cmdpos <= #calls do
@@ -118,14 +129,16 @@ function execute(calls)
     elseif cmd == "end" then
       if_on = true
 
-    -- for foreach loop
+    -- for foreach forpair break loop
     elseif cmd == "foreach" and if_on then
-      for_cmdpos = cmdpos
-      for_type = "each"
-      for_var = args[1]
+      for_var2 = "__"
+      for_obj = {}
       for_list = args[2]
-      for_pos = 1
-      vars[for_var] = for_list[for_pos]
+    elseif cmd == "forpair" and if_on then
+      for_var2 = args[2]
+      for_obj = args[3]
+      for_list = action["get_keys"](for_obj)
+      vars[for_var2] = for_obj[for_list[1]]
     elseif cmd == "for" and if_on then
       for_cmdpos = cmdpos
       for_type = "number"
@@ -133,11 +146,15 @@ function execute(calls)
       for_last = args[3]
       for_increment = args[4] or 1
       vars[for_var] = args[2]
+      skip_for = ((for_increment > 0 and vars[for_var] > for_last) or (for_increment < 0 and vars[for_var] < for_last))
+    elseif cmd == "break" and if_on then
+      skip_for = true
     elseif cmd == "loop" and if_on then
       if for_type == "each" then
         for_pos = for_pos + 1
         if for_pos <= #for_list then
           vars[for_var] = for_list[for_pos]
+          vars[for_var2] = for_obj[for_list[for_pos]]
           cmdpos = for_cmdpos
         end
       elseif for_type == "number" then
@@ -156,6 +173,23 @@ function execute(calls)
       return unpack(args)  -- or the array itself
     elseif if_on then
       assert(false, "command not found: " .. cmd)
+    end
+
+    if if_on and (cmd == "foreach" or cmd == "forpair") then
+      for_cmdpos = cmdpos
+      for_type = "each"
+      for_var = args[1]
+      for_pos = 1
+      vars[for_var] = for_list[1]
+      skip_for = (for_list[1] == nil)  -- if the list is empty or it is a dictionary
+    end
+
+    if skip_for then
+      repeat
+        cmdpos = cmdpos + 1
+        call = calls[cmdpos]
+      until call == nil or call[1] == "loop"
+      skip_for = false
     end
 
     cmdpos = cmdpos + 1
