@@ -148,7 +148,11 @@ function execute(calls)
       vars[for_var] = args[2]
       skip_for = ((for_increment > 0 and vars[for_var] > for_last) or (for_increment < 0 and vars[for_var] < for_last))
     elseif cmd == "break" and if_on then
-      skip_for = true
+      if table.remove(args, 1) == "if" then
+        skip_for = eval(unpack(args))
+      else
+        skip_for = true
+      end
     elseif cmd == "loop" and if_on then
       if for_type == "each" then
         for_pos = for_pos + 1
