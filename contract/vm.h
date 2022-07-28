@@ -4,6 +4,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <luajit.h>
+#include <stdbool.h>
 #include "sqlite3-binding.h"
 
 extern const char *construct_name;
@@ -23,7 +24,7 @@ sqlite3 *vm_get_db(lua_State *L);
 void vm_get_abi_function(lua_State *L, char *fname);
 void vm_set_count_hook(lua_State *L, int limit);
 void vm_db_release_resource(lua_State *L);
-int vm_is_hardfork(lua_State *L, int version);
+bool vm_is_hardfork(lua_State *L, int version);
 void initViewFunction();
 void vm_set_timeout_hook(lua_State *L);
 void vm_set_timeout_count_hook(lua_State *L, int limit);
