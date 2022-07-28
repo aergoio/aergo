@@ -33,6 +33,7 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+	"sort"
 
 	"github.com/aergoio/aergo-lib/log"
 	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
@@ -496,7 +497,16 @@ func toLuaArray(L *LState, arr []interface{}) error {
 func toLuaTable(L *LState, tab map[string]interface{}) error {
 	C.lua_createtable(L, C.int(0), C.int(len(tab)))
 	n := C.lua_gettop(L)
-	for k, v := range tab {
+	// get the keys and sort them
+	keys := make([]string, 0, len(tab))
+	for k := range tab {
+		keys = append(keys, k)
+	}
+	if HardforkConfig.IsV3Fork(blockNo) {
+		sort.Strings(keys)
+	}
+	for _, k := range keys {
+		v := tab[k]
 		if len(tab) == 1 && strings.EqualFold(k, "_bignum") {
 			if arg, ok := v.(string); ok {
 				C.lua_settop(L, -2)
