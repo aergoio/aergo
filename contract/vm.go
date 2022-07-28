@@ -502,7 +502,7 @@ func toLuaTable(L *LState, tab map[string]interface{}) error {
 	for k := range tab {
 		keys = append(keys, k)
 	}
-	if HardforkConfig.IsV3Fork(blockNo) {
+	if C.vm_is_hardfork(L, 3) {
 		sort.Strings(keys)
 	}
 	for _, k := range keys {

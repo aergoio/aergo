@@ -96,7 +96,7 @@ int getLuaExecContext(lua_State *L)
 	return service;
 }
 
-int vm_is_hardfork(lua_State *L, int version)
+bool vm_is_hardfork(lua_State *L, int version)
 {
     int v = luaL_hardforkversion(L);
     return v >= version;
