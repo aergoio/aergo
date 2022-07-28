@@ -5365,73 +5365,73 @@ abi.register(testall)
 	}
 }
 
-// func TestTimeoutCnt(t *testing.T) {
-// 	timeout := 500
-// 	src := `
-// function infinite_loop(n)
-// 	while true do
-// 	end
-// 	return 0
-// end
+func TestTimeoutCnt(t *testing.T) {
+	timeout := 500
+	src := `
+function infinite_loop(n)
+	while true do
+	end
+	return 0
+end
 
-// abi.register(infinite_loop)
-// `
-// 	bc, err := LoadDummyChain(
-// 		func(d *DummyChain) {
-// 			d.timeout = timeout // milliseconds
-// 		},
-// 		OnPubNet,
-// 	)
-// 	if err != nil {
-// 		t.Errorf("failed to create test database: %v", err)
-// 	}
-// 	defer bc.Release()
+abi.register(infinite_loop)
+`
+	bc, err := LoadDummyChain(
+		func(d *DummyChain) {
+			d.timeout = timeout // milliseconds
+		},
+		OnPubNet,
+	)
+	if err != nil {
+		t.Errorf("failed to create test database: %v", err)
+	}
+	defer bc.Release()
 
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxAccount("ktlee", 100000000000000000),
-// 		NewLuaTxDef("ktlee", "timeout-cnt", 0, src),
-// 	)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "infinite_loop"}`).Fail("contract timeout"),
-// 	)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	err = bc.Query("timeout-cnt", `{"Name": "infinite_loop"}`, "exceeded the maximum instruction count")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDef("ktlee", "timeout-cnt", 0, src),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "infinite_loop"}`).Fail("contract timeout"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.Query("timeout-cnt", `{"Name": "infinite_loop"}`, "exceeded the maximum instruction count")
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	src2 := `
-// function a()
-//     src = [[
-// while true do
-// end
-//     function b()
-//     end
-//     abi.register(b)
-//     ]]
-//     contract.deploy(src)
-// end
+	src2 := `
+function a()
+    src = [[
+while true do
+end
+    function b()
+    end
+    abi.register(b)
+    ]]
+    contract.deploy(src)
+end
 
-// abi.register(a)
-// `
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxDef("ktlee", "timeout-cnt2", 0, src2),
-// 	)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	err = bc.ConnectBlock(
-// 		NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract timeout"),
-// 	)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+abi.register(a)
+`
+	err = bc.ConnectBlock(
+		NewLuaTxDef("ktlee", "timeout-cnt2", 0, src2),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract timeout"),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestFeeDelegation(t *testing.T) {
 	definition := `
