@@ -65,6 +65,26 @@ func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
 	return b
 }
 
+type BlockSnapshot struct {
+	state   Snapshot
+	storage map[types.AccountID]int
+}
+
+func (bs *BlockState) Snapshot() BlockSnapshot {
+	result := BlockSnapshot{
+		state:   bs.StateDB.Snapshot(),
+		storage: bs.StateDB.cache.snapshot(),
+	}
+	return result
+}
+
+func (bs *BlockState) Rollback(bSnap BlockSnapshot) error {
+	if err := bs.StateDB.cache.rollback(bSnap.storage); err != nil {
+		return err
+	}
+	return bs.StateDB.Rollback(bSnap.state)
+}
+
 func (bs *BlockState) Consensus() []byte {
 	return bs.consensus
 }

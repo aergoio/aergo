@@ -631,12 +631,12 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.Version = %d", bi.Version)
 			return ErrInvalidBlockHeader
 		}
-		snapshot := bState.Snapshot()
+		blockSnap := bState.Snapshot()
 
 		err := executeTx(ccc, cdb, bState, tx, bi, preLoadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
-			if err2 := bState.Rollback(snapshot); err2 != nil {
+			if err2 := bState.Rollback(blockSnap); err2 != nil {
 				logger.Panic().Err(err).Msg("failed to rollback block state")
 			}
 
