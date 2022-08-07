@@ -6261,6 +6261,11 @@ function set(key, value)
   dict[key] = value
 end
 
+function inc(key)
+  dict[key] = (dict[key] or 0) + 1
+  contract.event("new_value", dict[key])
+end
+
 function add(value)
   local key = (last:get() or 0) + 1
   dict[tostring(key)] = value
@@ -6271,8 +6276,13 @@ function get(key)
   return dict[key]
 end
 
-abi.register(add, set, set_name)
-abi.register_view(get_dict, get_list, get_table, works, fails, get, get_name, hello)
+function sort(list)
+  table.sort(list)
+  return list
+end
+
+abi.register(add, set, inc, set_name)
+abi.register_view(get_dict, get_list, get_table, works, fails, get, get_name, sort, hello)
 
 function call(...)
   return contract.call(...)
@@ -6341,8 +6351,8 @@ abi.payable(recv_aergo)
    ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","get_list"],
    ["store","array"],
    ["remove","%array%",3],
-   ["return","%array%"]
-  ]`, ``, `["first","second",123,12.5,true]`)
+   ["return","%array%","%last_result%"]
+  ]`, ``, `[["first","second",123,12.5,true],"third"]`)
 
 
   // create new dict or array using fromjson
@@ -6384,6 +6394,39 @@ abi.payable(recv_aergo)
    ["assert","%last_result%","=",false],
    ["return","%list%"]
   ]`, ``, `["one",22,3.3,true,false]`)
+
+
+  // get_size
+
+  multicall(t, bc, "ac1", `[
+   ["let","str","this is a string"],
+   ["get_size","%str%"],
+   ["return","%last_result%"]
+  ]`, ``, `16`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",["one",1,"two",2,2.5,true,false]],
+   ["get_size","%list%"],
+   ["return","%last_result%"]
+  ]`, ``, `7`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","obj",{"one":1,"two":2,"three":3}],
+   ["get_size","%obj%"],
+   ["return","%last_result%"]
+  ]`, ``, `0`)
+
+
+  // get_keys
+
+  multicall(t, bc, "ac1", `[
+   ["let","obj",{"one":1,"two":2,"three":3}],
+   ["get_keys","%obj%"],
+   ["store","keys"],
+   ["get_size","%keys%"],
+   ["return","%last_result%","%keys%"]
+  ]`, ``, `[3,["one","three","two"]]`)
+
 
 
 
@@ -6841,6 +6884,181 @@ abi.payable(recv_aergo)
   ]`, ``, `"130000000000000000003"`)
 
 
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",500,10,-5],
+   ["add","%last_result%",1],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `99`)
+
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",5,1,-1],
+   ["add","%last_result%",1],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `5`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",5,1],
+   ["add","%last_result%",1],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `0`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",1,5],
+   ["add","%last_result%",1],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `5`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",1,5,-1],
+   ["add","%last_result%",1],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `0`)
+
+
+
+  // FOREACH
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",[11,22,33]],
+   ["let","r",0],
+   ["foreach","item","%list%"],
+   ["add","%r%","%item%"],
+   ["store","r"],
+   ["loop"],
+   ["return","%r%"]
+  ]`, ``, `66`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",[11,22,33]],
+   ["let","counter",0],
+   ["foreach","item","%list%"],
+   ["add","%counter%",1],
+   ["store","counter"],
+   ["loop"],
+   ["return","%counter%"]
+  ]`, ``, `3`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",[]],
+   ["let","counter",0],
+   ["foreach","item","%list%"],
+   ["add","%counter%",1],
+   ["store","counter"],
+   ["loop"],
+   ["return","%counter%"]
+  ]`, ``, `0`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",["one",1,"two",2,2.5,true,false]],
+   ["let","counter",0],
+   ["foreach","item","%list%"],
+   ["add","%counter%",1],
+   ["store","counter"],
+   ["loop"],
+   ["return","%counter%"]
+  ]`, ``, `7`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","list",[10,21,32]],
+   ["let","r",0],
+   ["foreach","item","%list%"],
+   ["if","%item%","<",30],
+   ["add","%r%","%item%"],
+   ["store","r"],
+   ["end"],
+   ["loop"],
+   ["return","%r%"]
+  ]`, ``, `31`)
+
+
+  multicall(t, bc, "ac1", `[
+   ["let","str",""],
+   ["let","obj",{"one":1,"two":2,"three":3}],
+   ["get_keys","%obj%"],
+   ["foreach","key","%last_result%"],
+   ["concat","%str%","%key%"],
+   ["store","str"],
+   ["loop"],
+   ["return","%str%"]
+  ]`, ``, `"onethreetwo"`)
+
+
+
+  // FORPAIR
+
+  multicall(t, bc, "ac1", `[
+   ["let","str",""],
+   ["let","sum",0],
+   ["let","obj",{"one":1,"two":2,"three":3}],
+   ["forpair","key","value","%obj%"],
+   ["concat","%str%","%key%"],
+   ["store","str"],
+   ["add","%sum%","%value%"],
+   ["store","sum"],
+   ["loop"],
+   ["return","%str%","%sum%"]
+  ]`, ``, `["onethreetwo",6]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","str",""],
+   ["let","sum",0],
+   ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
+   ["forpair","key","value","%obj%"],
+   ["concat","%str%","%key%"],
+   ["store","str"],
+   ["add","%sum%","%value%"],
+   ["store","sum"],
+   ["loop"],
+   ["return","%str%","%sum%"]
+  ]`, ``, `["fouronethreetwo",12]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","names",[]],
+   ["let","values",[]],
+   ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
+   ["forpair","key","value","%obj%"],
+   ["insert","%names%","%key%"],
+   ["insert","%values%","%value%"],
+   ["loop"],
+   ["return","%names%","%values%"]
+  ]`, ``, `[["four","one","three","two"],[4.5,1.5,3.5,2.5]]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","names",[]],
+   ["let","values",[]],
+   ["let","obj",{"one":1.5,"two":2.5,"three":3.5,"four":4.5}],
+   ["forpair","key","value","%obj%"],
+   ["insert","%names%","%key%"],
+   ["insert","%values%","%value%"],
+   ["loop"],
+   ["call","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA","sort","%values%"],
+   ["store","values"],
+   ["return","%names%","%values%"]
+  ]`, ``, `[["four","one","three","two"],[1.5,2.5,3.5,4.5]]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","obj",{}],
+   ["let","counter",0],
+   ["forpair","key","value","%obj%"],
+   ["add","%counter%",1],
+   ["store","counter"],
+   ["loop"],
+   ["return","%counter%"]
+  ]`, ``, `0`)
+
+
+
   // FOR "BREAK"
 
   multicall(t, bc, "ac1", `[
@@ -6857,40 +7075,114 @@ abi.payable(recv_aergo)
 
   multicall(t, bc, "ac1", `[
    ["tonumber","0"],
-   ["let","c",0],
-   ["for","n",1,10],
+   ["for","n",500,10,-5],
    ["add","%last_result%",1],
-   ["if","%n%","=",5],
-   ["let","n",500],
+   ["if","%n%","=",475],
+   ["let","n",2],
    ["end"],
    ["loop"],
    ["return","%last_result%"]
-  ]`, ``, `5`)
-
-
-  // FOREACH
+  ]`, ``, `6`)
 
   multicall(t, bc, "ac1", `[
-   ["let","list",[11,22,33]],
-   ["let","r",0],
-   ["foreach","item","%list%"],
-   ["add","%r%","%item%"],
-   ["store","r"],
-   ["loop"],
-   ["return","%r%"]
-  ]`, ``, `66`)
-
-  multicall(t, bc, "ac1", `[
-   ["let","list",[10,21,32]],
-   ["let","r",0],
-   ["foreach","item","%list%"],
-   ["if","%item%","<",30],
-   ["add","%r%","%item%"],
-   ["store","r"],
+   ["let","c",0],
+   ["for","n",1,10],
+   ["add","%c%",1],
+   ["store","c"],
+   ["if","%n%","=",5],
+   ["break"],
    ["end"],
    ["loop"],
-   ["return","%r%"]
-  ]`, ``, `31`)
+   ["return","%c%"]
+  ]`, ``, `5`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","c",0],
+   ["for","n",1,10],
+   ["add","%c%",1],
+   ["store","c"],
+   ["break","if","%n%","=",5],
+   ["loop"],
+   ["return","%c%"]
+  ]`, ``, `5`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",500,10,-5],
+   ["add","%last_result%",1],
+   ["if","%n%","=",475],
+   ["break"],
+   ["end"],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `6`)
+
+  multicall(t, bc, "ac1", `[
+   ["tonumber","0"],
+   ["for","n",500,10,-5],
+   ["add","%last_result%",1],
+   ["break","if","%n%","=",475],
+   ["loop"],
+   ["return","%last_result%"]
+  ]`, ``, `6`)
+
+  multicall(t, bc, "ac1", `[
+   ["for","n",1,5],
+   ["loop"],
+   ["return","%n%"]
+  ]`, ``, `6`)
+
+  multicall(t, bc, "ac1", `[
+   ["for","n",1,5],
+   ["break"],
+   ["loop"],
+   ["return","%n%"]
+  ]`, ``, `1`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","names",[]],
+   ["let","list",["one","two","three","four"]],
+   ["foreach","item","%list%"],
+   ["if","%item%","=","three"],
+   ["break"],
+   ["end"],
+   ["insert","%names%","%item%"],
+   ["loop"],
+   ["return","%names%"]
+  ]`, ``, `["one","two"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","names",[]],
+   ["let","list",["one","two","three","four"]],
+   ["foreach","item","%list%"],
+   ["break","if","%item%","=","three"],
+   ["insert","%names%","%item%"],
+   ["loop"],
+   ["return","%names%"]
+  ]`, ``, `["one","two"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","names",[]],
+   ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
+   ["forpair","key","value","%obj%"],
+   ["if","%value%","=",false],
+   ["break"],
+   ["end"],
+   ["insert","%names%","%key%"],
+   ["loop"],
+   ["return","%names%"]
+  ]`, ``, `["four","one"]`)
+
+  multicall(t, bc, "ac1", `[
+   ["let","names",[]],
+   ["let","obj",{"one":true,"two":false,"three":false,"four":true}],
+   ["forpair","key","value","%obj%"],
+   ["break","if","%value%","=",false],
+   ["insert","%names%","%key%"],
+   ["loop"],
+   ["return","%names%"]
+  ]`, ``, `["four","one"]`)
+
 
 
   // RETURN before the end
@@ -6912,6 +7204,21 @@ abi.payable(recv_aergo)
    ["let","v",500],
    ["return","%v%"]
   ]`, ``, `500`)
+
+
+
+  // FULL LOOPS
+
+  multicall(t, bc, "ac1", `[
+   ["let","c","AmhbUWkqenFtgKLnbDd1NXHce7hn35pcHWYRWBnq5vauLfEQXXRA"],
+   ["call","%c%","inc","n"],
+   ["call","%c%","get","n"],
+   ["if","%last_result%",">=",5],
+   ["return","%last_result%"],
+   ["end"],
+   ["loop"]
+  ]`, ``, `5`)
+
 
 
 
@@ -7113,7 +7420,7 @@ abi.payable(recv_aergo)
 
 
 
-  // aergo balance and send
+  // aergo BALANCE and SEND
 
   multicall(t, bc, "ac5", `[
    ["balance"],
