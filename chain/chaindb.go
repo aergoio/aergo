@@ -796,7 +796,7 @@ func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbCon
 	}
 	// When a new hardkfork height is added, the hardfork config from DB  (HardforkDBConfig)
 	// must be modified by using the height from HardforkConfig. Without this, aergosvr fails
-	// to start, since a value not stored on DB is unmarshaled as 0.
+	// to start, since a harfork heght value not stored on DB is evaluated as 0.
 	return c.FixDbConfig(hConfig)
 }
 

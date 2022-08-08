@@ -221,8 +221,18 @@ v3 = "10000"`,
 		t.Error("must be incompatible before fix")
 	}
 	dbConfig.FixDbConfig(*cfg)
+	if err := cfg.CheckCompatibility(dbConfig, 10000); err == nil {
+		t.Errorf("must be incompatible for existing height: %v", err)
+	}
+
+	dbConfig, _ = readDbConfig(`
+{
+	"V2": 9223
+}`,
+	)
+	dbConfig.FixDbConfig(*cfg)
 	if err := cfg.CheckCompatibility(dbConfig, 10000); err != nil {
-		t.Error("must be compatible after fix")
+		t.Errorf("must be compatible after fix for non-existing height: %v", err)
 	}
 }
 

@@ -59,8 +59,10 @@ type HardforkConfig struct {
 type HardforkDbConfig map[string]types.BlockNo
 
 func (dc HardforkDbConfig) FixDbConfig(hConfig HardforkConfig) HardforkDbConfig {
-	for k, v := range dc {
-		if v == types.BlockNo(0) {
+	v := reflect.ValueOf(hConfig)
+	for i := 0; i < v.NumField(); i++ {
+		k := v.Type().Field(i).Name
+		if _, exist := dc[k]; !exist {
 			dc[k] = hConfig.Height(k)
 		}
 	}
