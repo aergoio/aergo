@@ -205,6 +205,27 @@ v3 = "10000"`,
 	}
 }
 
+func TestFixDbConfig(t *testing.T) {
+	cfg := readConfig(`
+[hardfork]
+v2 = "9223"
+v3 = "10000"`,
+	)
+	dbConfig, _ := readDbConfig(`
+{
+	"V2": 9223,
+	"V3": 0
+}`,
+	)
+	if err := cfg.CheckCompatibility(dbConfig, 10000); err == nil {
+		t.Error("must be incompatible before fix")
+	}
+	dbConfig.FixDbConfig(*cfg)
+	if err := cfg.CheckCompatibility(dbConfig, 10000); err != nil {
+		t.Error("must be compatible after fix")
+	}
+}
+
 func readConfig(c string) *HardforkConfig {
 	v := viper.New()
 	v.SetConfigType("toml")

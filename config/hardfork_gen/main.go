@@ -57,6 +57,16 @@ type HardforkConfig struct {
 }
 
 type HardforkDbConfig map[string]types.BlockNo
+
+func (dc HardforkDbConfig) FixDbConfig(hConfig HardforkConfig) HardforkDbConfig {
+	for k, v := range dc {
+		if v == types.BlockNo(0) {
+			dc[k] = hConfig.Height(k)
+		}
+	}
+	return dc
+}
+
 {{range .Hardforks}}
 func (c *HardforkConfig) IsV{{.Version}}Fork(h types.BlockNo) bool {
 	return isFork(c.V{{.Version}}, h)
@@ -82,6 +92,12 @@ func (c *HardforkConfig) Version(h types.BlockNo) int32 {
 		}
 	}
 	return int32(0)
+}
+
+func (c *HardforkConfig) Height(verStr string) types.BlockNo {
+	v := reflect.ValueOf(c)
+    f := reflect.Indirect(v).FieldByName(verStr)
+	return types.BlockNo(f.Uint())
 }
 
 func (c *HardforkConfig) validate() error {

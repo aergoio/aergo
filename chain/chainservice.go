@@ -356,7 +356,7 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
-//GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
+// GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
 func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
 	return cs.getEnterpriseConf(key)
 }
@@ -930,7 +930,7 @@ func (cs *ChainService) checkHardfork() error {
 	} else if Genesis.IsTestNet() {
 		*config = *cfg.TestNetHardforkConfig
 	}
-	dbConfig := cs.cdb.Hardfork()
+	dbConfig := cs.cdb.Hardfork(*config)
 	if len(dbConfig) == 0 {
 		return cs.cdb.WriteHardfork(config)
 	}

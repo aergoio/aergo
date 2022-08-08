@@ -785,7 +785,7 @@ func (cdb *ChainDB) IsNew() bool {
 	return true
 }
 
-func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
+func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbConfig {
 	var c config.HardforkDbConfig
 	data := cdb.store.Get(hardforkKey)
 	if len(data) == 0 {
@@ -794,7 +794,10 @@ func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil
 	}
-	return c
+	// When a new hardkfork height is added, the hardfork config from DB  (HardforkDBConfig)
+	// must be modified by using the height from HardforkConfig. Without this, aergosvr fails
+	// to start, since a value not stored on DB is unmarshaled as 0.
+	return c.FixDbConfig(hConfig)
 }
 
 func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {
