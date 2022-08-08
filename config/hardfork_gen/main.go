@@ -22,7 +22,7 @@ package {{.Package}}
 import (
 	"fmt"
 	"reflect"
-	
+
 	"github.com/aergoio/aergo/types"
 )
 
