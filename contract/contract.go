@@ -71,6 +71,7 @@ func Execute(
 	isFeeDelegation bool,
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
+	isMultiCall := (txBody.Type == types.TxType_MULTICALL)
 
 	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.Version)
 
@@ -84,7 +85,7 @@ func Execute(
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
+	if !isMultiCall && !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
 		// Before the chain version 3, any tx with no code hash is
 		// unconditionally executed as a simple Aergo transfer. Since this
 		// causes confusion, emit error for call-type tx with a wrong address
@@ -127,10 +128,16 @@ func Execute(
 		}
 	}
 
-	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
+	var contractState *state.ContractState
+	if isMultiCall {
+		contractState = bs.GetMultiCallState(sender.AccountID(), sender.State())
+	} else {
+		contractState, err = bs.OpenContractState(receiver.AccountID(), receiver.State())
+	}
 	if err != nil {
 		return
 	}
+
 	if receiver.IsRedeploy() {
 		if err = checkRedeploy(sender, receiver, contractState); err != nil {
 			return
@@ -163,7 +170,7 @@ func Execute(
 	} else {
 		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true, false, receiver.RP(),
-			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation, isMultiCall)
 
 		if receiver.IsDeploy() {
 			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
@@ -196,9 +203,11 @@ func Execute(
 		}
 	}
 
-	err = bs.StageContractState(contractState)
-	if err != nil {
-		return "", events, usedFee, err
+	if !isMultiCall {
+		err = bs.StageContractState(contractState)
+		if err != nil {
+			return "", events, usedFee, err
+		}
 	}
 
 	return rv, events, usedFee, nil
@@ -269,7 +278,8 @@ func preLoadWorker() {
 		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
 			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
-			txBody.Type == types.TxType_FEEDELEGATION)
+			txBody.Type == types.TxType_FEEDELEGATION,
+			txBody.Type == types.TxType_MULTICALL)
 
 		ex, err := PreloadEx(bs, contractState, txBody.Payload, receiver.ID(), ctx)
 		if ex == nil && ctx.traceFile != nil {
