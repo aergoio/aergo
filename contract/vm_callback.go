@@ -257,7 +257,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] invalid contractId: " + err.Error())
 	}
 	aid := types.ToAccountID(cid)
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
@@ -444,7 +444,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 	if ctx == nil {
 		return C.CString("[Contract.LuaSendAmount] contract state not found")
 	}
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
@@ -946,7 +946,33 @@ func luaCryptoKeccak256(data unsafe.Pointer, dataLen C.int) (unsafe.Pointer, int
 	}
 }
 
-func transformAmount(amountStr string) (*big.Int, error) {
+func parseDecimalAmount(str string, digits int) string {
+	idx := strings.Index(str, ".")
+	if idx == -1 {
+		return str
+	}
+	p1 := str[0:idx]
+	p2 := str[idx+1:]
+	if strings.Index(p2, ".") != -1 {
+		return "error"
+	}
+
+	to_add := digits - len(p2)
+	if to_add > 0 {
+		p2 = p2 + strings.Repeat("0", to_add)
+	} else if to_add < 0 {
+		p2 = p2[0:digits]
+	}
+	str = p1 + p2
+
+	str = strings.TrimLeft(str, "0")
+	if str == "" {
+		str = "0"
+	}
+	return str
+}
+
+func transformAmount(amountStr string, ctx *vmContext) (*big.Int, error) {
 	var ret *big.Int
 	var prev int
 	if len(amountStr) == 0 {
@@ -957,7 +983,17 @@ func transformAmount(amountStr string) (*big.Int, error) {
 
 	res := index.FindAllIndex(r, -1)
 	for _, pair := range res {
-		amountBig, _ := new(big.Int).SetString(strings.TrimSpace(amountStr[prev:pair[0]]), 10)
+		parsedAmount := strings.TrimSpace(amountStr[prev:pair[0]])
+		if HardforkConfig.IsV3Fork(ctx.blockInfo.No) {
+			if strings.Contains(parsedAmount,".") && pair[1] - pair[0] == 5 {
+				parsedAmount = parseDecimalAmount(parsedAmount, 18)
+				if parsedAmount == "error" {
+					return nil, errors.New(amountStr[prev:])
+				}
+				pair[0] += 2 // from aergo to aer
+			}
+		}
+		amountBig, _ := new(big.Int).SetString(parsedAmount, 10)
 		if amountBig == nil {
 			return nil, errors.New("converting error for BigNum: " + amountStr[prev:])
 		}
@@ -1092,7 +1128,7 @@ func luaDeployContract(
 	cs := &callState{ctrState: contractState, prevState: &types.State{}, curState: newContract.State()}
 	ctx.callState[newContract.AccountID()] = cs
 
-	amountBig, err := transformAmount(C.GoString(amount))
+	amountBig, err := transformAmount(C.GoString(amount), ctx)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
@@ -1261,7 +1297,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	switch gType {
 	case 'S', 'U':
 		var err error
-		amountBig, err = transformAmount(C.GoString(arg))
+		amountBig, err = transformAmount(C.GoString(arg), ctx)
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] invalid amount: " + err.Error())
 		}

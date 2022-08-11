@@ -17,6 +17,43 @@ func ParseFirstWord(input string) (string, string) {
 	return strings.ToLower(splitedStr[0]), strings.Join(splitedStr[1:], " ")
 }
 
+func ParseDecimalAmount(str string, digits int) string {
+
+	idx := strings.Index(str, ".")
+
+	str = strings.ToLower(str)
+	if strings.HasSuffix(str, " aergo") {
+		str = str[:len(str)-6]
+		if idx == -1 {
+			return str + strings.Repeat("0", digits)
+		}
+	}
+
+	if idx == -1 {
+		return str
+	}
+	p1 := str[0:idx]
+	p2 := str[idx+1:]
+	if strings.Index(p2, ".") != -1 {
+		return "error"
+	}
+
+	to_add := digits - len(p2)
+	if to_add > 0 {
+		p2 = p2 + strings.Repeat("0", to_add)
+	} else if to_add < 0 {
+		//p2 = p2[0:digits]
+		return "error"
+	}
+	str = p1 + p2
+
+	str = strings.TrimLeft(str, "0")
+	if str == "" {
+		str = "0"
+	}
+	return str
+}
+
 type Chunk struct {
 	Accent bool
 	Text   string
