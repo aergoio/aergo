@@ -921,9 +921,7 @@ func executeTx(
 
 	isMultiCall := (txBody.Type == types.TxType_MULTICALL)
 
-	if isMultiCall {
-		recipient = account
-	} else {
+	if !isMultiCall {
 		if recipient, err = name.Resolve(bs, txBody.Recipient, isQuirkTx); err != nil {
 			return err
 		}
@@ -932,7 +930,7 @@ func executeTx(
 	var receiver *state.V
 	status := "SUCCESS"
 	if isMultiCall {
-		receiver = sender
+		// no receiver
 	} else if len(recipient) > 0 {
 		receiver, err = bs.GetAccountStateV(recipient)
 		if receiver != nil && txBody.Type == types.TxType_REDEPLOY {
