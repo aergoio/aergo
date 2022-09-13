@@ -684,8 +684,8 @@ func StrToAddress(name string) string {
 func OnPubNet(dc *DummyChain) {
 	flushLState := func() {
 		for i := 0; i <= lStateMaxSize; i++ {
-			s := getLState()
-			freeLState(s)
+			s := getLState(LStateDefault)
+			freeLState(s, LStateDefault)
 		}
 	}
 	PubNet = true

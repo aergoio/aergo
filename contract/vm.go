@@ -29,11 +29,11 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 	"unsafe"
-	"sort"
 
 	"github.com/aergoio/aergo-lib/log"
 	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
@@ -253,8 +253,13 @@ func (s *vmContext) usedGas() uint64 {
 	return s.gasLimit - s.remainedGas
 }
 
-func newLState() *LState {
-	return C.vm_newstate()
+func newLState(LsType int) *LState {
+	switch LsType {
+	case LStateVer3:
+		return C.vm_newstate(C.uchar(1))
+	default:
+		return C.vm_newstate(C.uchar(0))
+	}
 }
 
 func (L *LState) close() {
@@ -334,9 +339,17 @@ func newExecutor(
 		return ce
 	}
 	ctx.callDepth++
+	var lState *LState
+	if ctx.blockInfo.Version < 3 {
+		lState = getLState(LStateDefault)
+	} else {
+		// To fix intermittent consensus failure by gas consumption mismatch,
+		// use mutex to access total gas after chain version 3.
+		lState = getLState(LStateVer3)
+	}
 	ce := &executor{
 		code: contract,
-		L:    getLState(),
+		L:    lState,
 		ctx:  ctx,
 	}
 	if ce.L == nil {
@@ -347,6 +360,7 @@ func newExecutor(
 	if ctx.blockInfo.Version >= 2 {
 		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.Version))
 	}
+
 	if vmIsGasSystem(ctx) {
 		ce.setGas()
 		defer func() {
@@ -751,7 +765,12 @@ func (ce *executor) close() {
 				ce.ctx.traceFile = nil
 			}
 		}
-		freeLState(ce.L)
+
+		lsType := LStateDefault
+		if ce.ctx.blockInfo.Version >= 3 {
+			lsType = LStateVer3
+		}
+		freeLState(ce.L, lsType)
 	}
 }
 

@@ -10,20 +10,29 @@ import (
 	"sync"
 )
 
-var getCh chan *LState
-var freeCh chan *LState
+const (
+	LStateDefault = iota
+	LStateVer3
+	LStateMax
+)
+
+var getCh [LStateMax]chan *LState
+var freeCh [LStateMax]chan *LState
 var once sync.Once
 
 func StartLStateFactory(num, numClosers, numCloseLimit int) {
-
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
-		getCh = make(chan *LState, num)
-		freeCh = make(chan *LState, num)
+		for i := 0; i < LStateMax; i++ {
+			getCh[i] = make(chan *LState, num)
+			freeCh[i] = make(chan *LState, num)
+		}
 
 		for i := 0; i < num; i++ {
-			getCh <- newLState()
+			for j := 0; j < LStateMax; j++ {
+				getCh[j] <- newLState(j)
+			}
 		}
 
 		for i := 0; i < numClosers; i++ {
@@ -36,17 +45,22 @@ func statePool(numCloseLimit int) {
 	s := newLStatesBuffer(numCloseLimit)
 
 	for {
-		state := <-freeCh
-		s.append(state)
-		getCh <- newLState()
+		select {
+		case state := <-freeCh[LStateDefault]:
+			s.append(state)
+			getCh[LStateDefault] <- newLState(LStateDefault)
+		case state := <-freeCh[LStateVer3]:
+			s.append(state)
+			getCh[LStateVer3] <- newLState(LStateVer3)
+		}
 	}
 }
 
-func getLState() *LState {
-	state := <-getCh
+func getLState(LsType int) *LState {
+	state := <-getCh[LsType]
 	return state
 }
 
-func freeLState(state *LState) {
-	freeCh <- state
+func freeLState(state *LState, LsType int) {
+	freeCh[LsType] <- state
 }
