@@ -12,11 +12,11 @@ import (
 var (
 	MainNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(19611555),
-		V3: types.BlockNo(107397210),
+		V3: types.BlockNo(112740871),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
-		V3: types.BlockNo(101234799),
+		V3: types.BlockNo(109723774),
 	}
 	AllEnabledHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(0),
