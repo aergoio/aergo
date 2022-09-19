@@ -56,11 +56,13 @@ func statePool(numCloseLimit int) {
 	}
 }
 
-func getLState(LsType int) *LState {
-	state := <-getCh[LsType]
+func getLState(lsType int) *LState {
+	state := <-getCh[lsType]
+	ctrLgr.Debug().Int("type", lsType).Msg("LState acquired")
 	return state
 }
 
-func freeLState(state *LState, LsType int) {
-	freeCh[LsType] <- state
+func freeLState(state *LState, lsType int) {
+	freeCh[lsType] <- state
+	ctrLgr.Debug().Int("type", lsType).Msg("LState released")
 }

@@ -253,8 +253,9 @@ func (s *vmContext) usedGas() uint64 {
 	return s.gasLimit - s.remainedGas
 }
 
-func newLState(LsType int) *LState {
-	switch LsType {
+func newLState(lsType int) *LState {
+	ctrLgr.Debug().Int("type", lsType).Msg("LState created")
+	switch lsType {
 	case LStateVer3:
 		return C.vm_newstate(C.uchar(1))
 	default:
