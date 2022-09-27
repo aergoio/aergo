@@ -16,7 +16,7 @@ var (
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
-		V3: types.BlockNo(109723774),
+		V3: types.BlockNo(100360545),
 	}
 	AllEnabledHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(0),
