@@ -5845,7 +5845,7 @@ func TestBF(t *testing.T) {
 
 	OldV3 := HardforkConfig.V3
 	HardforkConfig.V3 = types.BlockNo(0)
-	feeTest(47513803)
+	feeTest(47513659)
 	HardforkConfig.V3 = OldV3
 }
 
