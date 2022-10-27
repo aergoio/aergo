@@ -8,6 +8,7 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"runtime"
@@ -290,8 +291,8 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(contract.MaxCallDepth+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.HardforkConfig = cs.cfg.Hardfork
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(math.MaxUint64))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
 	// For a strict governance transaction validation.
@@ -355,7 +356,7 @@ func (cs *ChainService) GetChainStats() string {
 	return cs.stat.JSON()
 }
 
-//GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
+// GetEnterpriseConfig return EnterpiseConfig. if the given key does not exist, fill EnterpriseConfig with only the key and return
 func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig, error) {
 	return cs.getEnterpriseConf(key)
 }
@@ -929,7 +930,7 @@ func (cs *ChainService) checkHardfork() error {
 	} else if Genesis.IsTestNet() {
 		*config = *cfg.TestNetHardforkConfig
 	}
-	dbConfig := cs.cdb.Hardfork()
+	dbConfig := cs.cdb.Hardfork(*config)
 	if len(dbConfig) == 0 {
 		return cs.cdb.WriteHardfork(config)
 	}

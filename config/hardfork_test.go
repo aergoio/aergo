@@ -72,11 +72,13 @@ v2 = "9223"
 func TestCompatibility(t *testing.T) {
 	cfg := readConfig(`
 [hardfork]
-v2 = "9223"`,
+v2 = "9223"
+v3 = "11000"`,
 	)
 	dbCfg, _ := readDbConfig(`
 {
-	"V2": 18446744073709551615
+	"V2": 18446744073709551515,
+	"V3": 18446744073709551615
 }`,
 	)
 	err := cfg.CheckCompatibility(dbCfg, 10)
@@ -142,10 +144,11 @@ v2 = "9223"`,
 	dbCfg, _ = readDbConfig(`
 {
 	"V2": 9223,
-	"VV": 10000
+	"VV": 10000,
+	"V3": 11000
 }`,
 	)
-	err = cfg.CheckCompatibility(dbCfg, 10001)
+	err = cfg.CheckCompatibility(dbCfg, 9000)
 	if err == nil {
 		t.Error(`the expected error: strconv.ParseUint: parsing "V": invalid syntax`)
 	}
@@ -199,6 +202,37 @@ v3 = "10000"`,
 				t.Errorf("Version() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestFixDbConfig(t *testing.T) {
+	cfg := readConfig(`
+[hardfork]
+v2 = "9223"
+v3 = "10000"`,
+	)
+	dbConfig, _ := readDbConfig(`
+{
+	"V2": 9223,
+	"V3": 0
+}`,
+	)
+	if err := cfg.CheckCompatibility(dbConfig, 10000); err == nil {
+		t.Error("must be incompatible before fix")
+	}
+	dbConfig.FixDbConfig(*cfg)
+	if err := cfg.CheckCompatibility(dbConfig, 10000); err == nil {
+		t.Errorf("must be incompatible for existing height: %v", err)
+	}
+
+	dbConfig, _ = readDbConfig(`
+{
+	"V2": 9223
+}`,
+	)
+	dbConfig.FixDbConfig(*cfg)
+	if err := cfg.CheckCompatibility(dbConfig, 10000); err != nil {
+		t.Errorf("must be compatible after fix for non-existing height: %v", err)
 	}
 }
 

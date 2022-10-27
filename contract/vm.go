@@ -29,6 +29,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -47,7 +48,8 @@ const (
 	callMaxInstLimit     = C.int(5000000)
 	queryMaxInstLimit    = callMaxInstLimit * C.int(10)
 	dbUpdateMaxLimit     = fee.StateDbMaxUpdateSize
-	MaxCallDepth         = 5
+	maxCallDepthOld      = 5
+	maxCallDepth         = 64
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
 )
@@ -131,6 +133,13 @@ type executor struct {
 	isView     bool
 	isAutoload bool
 	preErr     error
+}
+
+func MaxCallDepth(blockNo types.BlockNo) int32 {
+	if HardforkConfig.IsV3Fork(blockNo) {
+		return maxCallDepth
+	}
+	return maxCallDepthOld
 }
 
 func init() {
@@ -244,8 +253,14 @@ func (s *vmContext) usedGas() uint64 {
 	return s.gasLimit - s.remainedGas
 }
 
-func newLState() *LState {
-	return C.vm_newstate()
+func newLState(lsType int) *LState {
+	ctrLgr.Debug().Int("type", lsType).Msg("LState created")
+	switch lsType {
+	case LStateVer3:
+		return C.vm_newstate(C.uchar(1))
+	default:
+		return C.vm_newstate(C.uchar(0))
+	}
 }
 
 func (L *LState) close() {
@@ -316,18 +331,26 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
-	if ctx.callDepth > MaxCallDepth {
+	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.No) {
 		ce := &executor{
 			code: contract,
 			ctx:  ctx,
 		}
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth)
+		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.No))
 		return ce
 	}
 	ctx.callDepth++
+	var lState *LState
+	if ctx.blockInfo.Version < 3 {
+		lState = getLState(LStateDefault)
+	} else {
+		// To fix intermittent consensus failure by gas consumption mismatch,
+		// use mutex to access total gas after chain version 3.
+		lState = getLState(LStateVer3)
+	}
 	ce := &executor{
 		code: contract,
-		L:    getLState(),
+		L:    lState,
 		ctx:  ctx,
 	}
 	if ce.L == nil {
@@ -338,6 +361,7 @@ func newExecutor(
 	if ctx.blockInfo.Version >= 2 {
 		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.Version))
 	}
+
 	if vmIsGasSystem(ctx) {
 		ce.setGas()
 		defer func() {
@@ -488,7 +512,16 @@ func toLuaArray(L *LState, arr []interface{}) error {
 func toLuaTable(L *LState, tab map[string]interface{}) error {
 	C.lua_createtable(L, C.int(0), C.int(len(tab)))
 	n := C.lua_gettop(L)
-	for k, v := range tab {
+	// get the keys and sort them
+	keys := make([]string, 0, len(tab))
+	for k := range tab {
+		keys = append(keys, k)
+	}
+	if C.vm_is_hardfork(L, 3) {
+		sort.Strings(keys)
+	}
+	for _, k := range keys {
+		v := tab[k]
 		if len(tab) == 1 && strings.EqualFold(k, "_bignum") {
 			if arg, ok := v.(string); ok {
 				C.lua_settop(L, -2)
@@ -733,7 +766,12 @@ func (ce *executor) close() {
 				ce.ctx.traceFile = nil
 			}
 		}
-		freeLState(ce.L)
+
+		lsType := LStateDefault
+		if ce.ctx.blockInfo.Version >= 3 {
+			lsType = LStateVer3
+		}
+		freeLState(ce.L, lsType)
 	}
 }
 
@@ -1341,14 +1379,19 @@ func vmAutoload(L *LState, funcName string) bool {
 }
 
 func (ce *executor) vmLoadCode(id []byte) {
-	hexId := C.CString(hex.EncodeToString(id))
-	defer C.free(unsafe.Pointer(hexId))
+	var chunkId *C.char
+	if HardforkConfig.IsV3Fork(ce.ctx.blockInfo.No) {
+		chunkId = C.CString("@" + types.EncodeAddress(id))
+	} else {
+		chunkId = C.CString(hex.EncodeToString(id))
+	}
+	defer C.free(unsafe.Pointer(chunkId))
 	if cErrMsg := C.vm_loadbuff(
 		ce.L,
 		(*C.char)(unsafe.Pointer(&ce.code[0])),
 		C.size_t(len(ce.code)),
-		hexId,
-		ce.ctx.service-MaxVmService,
+		chunkId,
+		ce.ctx.service-C.int(maxContext),
 	); cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		ce.err = errors.New(errMsg)

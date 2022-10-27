@@ -12,6 +12,8 @@ package p2pcommon
 
 //go:generate sh -c "mockgen github.com/aergoio/aergo/consensus ConsensusAccessor,AergoRaftAccessor | sed -e 's/^package mock_consensus/package p2pmock/g' > ../p2pmock/mock_consensus.go"
 
+//go:generate sh -c "mockgen github.com/aergoio/aergo/types AergoRPCService_ListBlockStreamServer | sed -e 's/^package mock_types/package p2pmock/g' > ../p2pmock/mock_protobuf.go"
+
 // in aergoio
 //go:generate sh -c "mockgen github.com/aergoio/aergo-actor/actor Context | sed -e 's/[Pp]ackage mock_actor/package p2pmock/g' > ../p2pmock/mock_actorcontext.go"
 //go:generate sh -c "mockgen github.com/aergoio/aergo-actor/component ICompSyncRequester | sed -e 's/[Pp]ackage mock_actor/package p2pmock/g' > ../p2pmock/mock_actorcontext.go"
