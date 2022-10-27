@@ -26,6 +26,31 @@ func newStorageCache() *storageCache {
 	}
 }
 
+func (cache *storageCache) snapshot() map[types.AccountID]int {
+	cache.lock.RLock()
+	defer cache.lock.RUnlock()
+	result := make(map[types.AccountID]int)
+	for aid, bs := range cache.storages {
+		result[aid] = bs.buffer.snapshot()
+	}
+	return result
+}
+
+func (cache *storageCache) rollback(snap map[types.AccountID]int) error {
+	cache.lock.Lock()
+	defer cache.lock.Unlock()
+	for aid, bs := range cache.storages {
+		if rev, ok := snap[aid]; ok {
+			if err := bs.buffer.rollback(rev); err != nil {
+				return err
+			}
+		} else {
+			delete(cache.storages, aid)
+		}
+	}
+	return nil
+}
+
 func (cache *storageCache) get(key types.AccountID) *bufferedStorage {
 	cache.lock.RLock()
 	defer cache.lock.RUnlock()

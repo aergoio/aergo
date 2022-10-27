@@ -86,6 +86,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	InitContext(3)
 
 	HardforkConfig = config.AllEnabledHardforkConfig
+	HardforkConfig.V3 = types.BlockNo(100)
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -683,8 +684,8 @@ func StrToAddress(name string) string {
 func OnPubNet(dc *DummyChain) {
 	flushLState := func() {
 		for i := 0; i <= lStateMaxSize; i++ {
-			s := getLState()
-			freeLState(s)
+			s := getLState(LStateDefault)
+			freeLState(s, LStateDefault)
 		}
 	}
 	PubNet = true

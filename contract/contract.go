@@ -85,7 +85,17 @@ func Execute(
 	}
 
 	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
-		return
+		// Before the chain version 3, any tx with no code hash is
+		// unconditionally executed as a simple Aergo transfer. Since this
+		// causes confusion, emit error for call-type tx with a wrong address
+		// from the chain version 3 by not returning error but fall-through for
+		// correct gas estimation.
+		if !(HardforkConfig.IsV3Fork(bi.No) && txBody.Type == types.TxType_CALL) {
+			// Here, the condition for fee delegation TX essentially being
+			// call-type, is not necessary, because it is rejected from the
+			// mempool without code hash.
+			return
+		}
 	}
 
 	var gasLimit uint64

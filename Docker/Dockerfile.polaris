@@ -1,4 +1,3 @@
-FROM alpine:3.9
-RUN apk add libgcc
+FROM debian:stable-slim
 COPY bin/?olaris /usr/local/bin/
 CMD ["polaris"]

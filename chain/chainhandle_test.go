@@ -12,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/account/key"
+	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/common"
@@ -38,6 +39,8 @@ func initTest(t *testing.T, testmode bool) {
 	}
 	types.InitGovernance("dpos", true)
 	system.InitGovernance("dpos")
+
+	contract.HardforkConfig = config.AllEnabledHardforkConfig
 }
 
 func deinitTest() {

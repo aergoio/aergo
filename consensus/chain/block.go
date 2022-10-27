@@ -150,6 +150,7 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).
+			Int("no_receipts", len(bState.Receipts().Get())).
 			Msg("BF: tx root hash")
 	}
 

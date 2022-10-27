@@ -6,6 +6,7 @@
 #include "lauxlib.h"
 #include "lgmp.h"
 #include "math.h"
+#include "vm.h"
 
 #define lua_boxpointer(L,u) \
 	(*(void **)(lua_newuserdata(L, sizeof(void *))) = (u))
@@ -65,6 +66,9 @@ const char *lua_set_bignum(lua_State *L, char *s)
 	if (x == NULL) {
 		return mp_num_memory_error;
 	}
+	if (vm_is_hardfork(L, 3)) {
+		while (s && s[0]=='0' && s[1]!=0) s++;
+	}
 	if (mpz_init_set_str(x->mpptr, s, 0) != 0) {
 		mp_num_free(x);
 		return mp_num_invalid_number;
@@ -119,6 +123,9 @@ static mp_num Bget(lua_State *L, int i)
 			x = bn_alloc(BN_Integer);
 			if (x == NULL)
 				luaL_error(L, mp_num_memory_error);
+			if (vm_is_hardfork(L, 3)) {
+				while (s && s[0]=='0' && s[1]!=0) s++;
+			}
 			if (mpz_init_set_str(x->mpptr, s, 0) != 0) {
 				mp_num_free(x);
 				luaL_error(L, mp_num_invalid_number);

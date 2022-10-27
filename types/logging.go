@@ -1,3 +1,8 @@
+/**
+ *  @file
+ *  @copyright defined in aergo/LICENSE.txt
+ */
+
 package types
 
 import (
@@ -52,4 +57,12 @@ func marshalTrx(tr Transaction, a *zerolog.Array) {
 			a.Object(LogTx{tx})
 		}
 	}
+}
+
+type LogBase58 struct {
+	Bytes *[]byte
+}
+
+func (t LogBase58) MarshalZerologObject(e *zerolog.Event) {
+	e.Str("b58",enc.ToString(*t.Bytes))
 }

@@ -39,7 +39,7 @@ var (
 var (
 	ErrUninitAccessor = errors.New("accessor is not initilized")
 
-//	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
+	//	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
 )
 
 type EventStream struct {
@@ -56,9 +56,9 @@ type AergoRPCService struct {
 
 	streamID                uint32
 	blockStreamLock         sync.RWMutex
-	blockStream             map[uint32]types.AergoRPCService_ListBlockStreamServer
+	blockStream             map[uint32]*ListBlockStream
 	blockMetadataStreamLock sync.RWMutex
-	blockMetadataStream     map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer
+	blockMetadataStream     map[uint32]*ListBlockMetaStream
 
 	eventStreamLock sync.RWMutex
 	eventStream     map[*EventStream]*EventStream
@@ -372,40 +372,65 @@ func (rpc *AergoRPCService) BroadcastToListBlockMetadataStream(meta *types.Block
 func (rpc *AergoRPCService) ListBlockStream(in *types.Empty, stream types.AergoRPCService_ListBlockStreamServer) error {
 	streamId := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockStreamLock.Lock()
-	rpc.blockStream[streamId] = stream
+	blockStream := NewListBlockStream(streamId, stream)
+	rpc.blockStream[streamId] = blockStream
+	// create goroutine for broadcast
+	go blockStream.StartSend()
 	rpc.blockStreamLock.Unlock()
 	logger.Debug().Uint32("id", streamId).Msg("block stream added")
 
+	// The stream will be terminated after returning this function
 	for {
 		select {
-		case <-stream.Context().Done():
-			rpc.blockStreamLock.Lock()
-			delete(rpc.blockStream, streamId)
-			rpc.blockStreamLock.Unlock()
+		case <-blockStream.awayChan: // server cut connection of bad client
+			rpc.finishBlockStream(blockStream)
+			logger.Debug().Uint32("id", streamId).Msg("block stream deleted by server")
+			return nil
+		case <-stream.Context().Done(): // client disconnected stream
+			rpc.finishBlockStream(blockStream)
 			logger.Debug().Uint32("id", streamId).Msg("block stream deleted")
 			return nil
 		}
 	}
 }
 
+func (rpc *AergoRPCService) finishBlockStream(blockStream *ListBlockStream) {
+	rpc.blockStreamLock.Lock()
+	delete(rpc.blockStream, blockStream.id)
+	blockStream.finishSend <- 0
+	rpc.blockStreamLock.Unlock()
+}
+
 // ListBlockMetadataStream starts a stream of new blocks' metadata
 func (rpc *AergoRPCService) ListBlockMetadataStream(in *types.Empty, stream types.AergoRPCService_ListBlockMetadataStreamServer) error {
 	streamID := atomic.AddUint32(&rpc.streamID, 1)
 	rpc.blockMetadataStreamLock.Lock()
-	rpc.blockMetadataStream[streamID] = stream
+	metadataStream := NewListBlockMetaStream(streamID, stream)
+	rpc.blockMetadataStream[streamID] = metadataStream
+	go metadataStream.StartSend()
 	rpc.blockMetadataStreamLock.Unlock()
 	logger.Debug().Uint32("id", streamID).Msg("block meta stream added")
 
+	// The stream will be terminated after returning this function
 	for {
 		select {
-		case <-stream.Context().Done():
-			rpc.blockMetadataStreamLock.Lock()
-			delete(rpc.blockMetadataStream, streamID)
-			rpc.blockMetadataStreamLock.Unlock()
+		case <-metadataStream.awayChan: // server cut connection of bad client
+			rpc.finishBlockMetadataStream(metadataStream)
+			logger.Debug().Uint32("id", streamID).Msg("block meta stream deleted by server")
+			return nil
+		case <-stream.Context().Done(): // client disconnected stream
+			rpc.finishBlockMetadataStream(metadataStream)
 			logger.Debug().Uint32("id", streamID).Msg("block meta stream deleted")
 			return nil
 		}
 	}
+}
+
+func (rpc *AergoRPCService) finishBlockMetadataStream(metadataStream *ListBlockMetaStream) {
+	rpc.blockMetadataStreamLock.Lock()
+	delete(rpc.blockMetadataStream, metadataStream.id)
+	metadataStream.finishSend <- 0
+	rpc.blockMetadataStreamLock.Unlock()
 }
 
 func extractBlockFromFuture(future *actor.Future) (*types.Block, error) {
@@ -1260,4 +1285,12 @@ func (rpc *AergoRPCService) GetConfChangeProgress(ctx context.Context, in *types
 	}
 
 	return progress, nil
+}
+
+func (rpc *AergoRPCService) Statistics() *map[string]interface{} {
+	return &map[string]interface{}{
+		"block":     len(rpc.blockStream),
+		"blockMeta": len(rpc.blockMetadataStream),
+		"event":     len(rpc.eventStream),
+	}
 }
