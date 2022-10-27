@@ -12,7 +12,7 @@ import (
 var (
 	MainNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(19611555),
-		V3: types.BlockNo(112740871),
+		V3: types.BlockNo(111499715),
 	}
 	TestNetHardforkConfig = &HardforkConfig{
 		V2: types.BlockNo(18714241),
