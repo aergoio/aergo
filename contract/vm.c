@@ -22,6 +22,14 @@ extern void (*lj_internal_view_end)(lua_State *);
 void vm_internal_view_start(lua_State *L);
 void vm_internal_view_end(lua_State *L);
 
+int getLuaExecContext(lua_State *L)
+{
+    int service = luaL_service(L);
+    if (service < 0)
+        luaL_error(L, "not permitted state referencing at global scope");
+    return service;
+}
+
 static void preloadModules(lua_State *L)
 {
     int status;
@@ -56,10 +64,50 @@ static void preloadModules(lua_State *L)
 #endif
 }
 
+static int pcall(lua_State *L)
+{
+    /* Override pcall to drop events upon error */
+    int service = getLuaExecContext(L);
+    int status, from;
+
+    from = luaGetEventCount(L, service);
+
+    luaL_checkany(L, 1);
+    status = lua_pcall(L, lua_gettop(L) - 1, -1, 0);
+    lua_pushboolean(L, status == 0);
+    lua_insert(L, 1);
+
+    if (status != 0)
+    {
+        luaDropEvent(L, service, from);
+    }
+
+    return lua_gettop(L);
+}
+
+static const struct luaL_Reg _basefuncs[] = {
+    {"pcall", pcall},
+    {NULL, NULL}};
+
+static void override_basefuncs(lua_State *L)
+{
+    // Override Lua builtins functions.
+    lua_getglobal(L, "_G");
+    luaL_register(L, NULL, _basefuncs);
+    lua_pop(L, 1);
+}
+
 static int loadLibs(lua_State *L)
 {
     luaL_openlibs(L);
     preloadModules(L);
+    return 0;
+}
+
+static int loadLibsV3(lua_State *L)
+{
+    loadLibs(L);
+    override_basefuncs(L);
     return 0;
 }
 
@@ -73,7 +121,11 @@ lua_State *vm_newstate(uint8_t use_lock)
     int status;
     if (L == NULL)
         return NULL;
-    status = lua_cpcall(L, loadLibs, NULL);
+    if (use_lock)
+        // Overide pcall to drop events upon error.
+        status = lua_cpcall(L, loadLibsV3, NULL);
+    else
+        status = lua_cpcall(L, loadLibs, NULL);
     if (status != 0)
         return NULL;
     return L;
@@ -92,14 +144,6 @@ void initViewFunction()
 {
     lj_internal_view_start = vm_internal_view_start;
     lj_internal_view_end = vm_internal_view_end;
-}
-
-int getLuaExecContext(lua_State *L)
-{
-    int service = luaL_service(L);
-    if (service < 0)
-        luaL_error(L, "not permitted state referencing at global scope");
-    return service;
 }
 
 bool vm_is_hardfork(lua_State *L, int version)
