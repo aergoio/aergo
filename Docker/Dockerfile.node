@@ -1,4 +1,5 @@
-FROM debian:stable-slim
+FROM alpine:3.9
+RUN apk add libgcc
 COPY bin/aergosvr /usr/local/bin/
 COPY lib/* /usr/local/lib/
 COPY conf/* /aergo/
