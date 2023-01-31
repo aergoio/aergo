@@ -37,7 +37,7 @@ sleep 1
 BUILDER_TAG="aergo/builder"
 echo "Building ${BUILDER_TAG}"
 
-docker build --no-cache --build-arg GIT_TAG=$GIT_TAG --file Dockerfile.builder -t ${BUILDER_TAG} .
+docker build --network="host" --no-cache --build-arg GIT_TAG=$GIT_TAG --file Dockerfile.builder -t ${BUILDER_TAG} .
 docker create --name extract ${BUILDER_TAG}
 docker cp extract:/go/aergo/bin/ .
 docker cp extract:/go/aergo/cmd/brick/arglog.toml bin/brick-arglog.toml
@@ -54,7 +54,7 @@ do
     echo "[aergo/$name:${tags[*]}]"
     DOCKERFILE="Dockerfile.$name"
     echo docker build -q ${tagsExpanded[@]} --file $DOCKERFILE .
-    imageid=`docker build -q ${tagsExpanded[@]} --file $DOCKERFILE .`
+    imageid=`docker build --network="host" -q ${tagsExpanded[@]} --file $DOCKERFILE .`
     docker images --format "Done: \t{{.Repository}}:{{.Tag}} \t{{.ID}} ({{.Size}})" | grep "${imageid:7:12}"
 done
 
