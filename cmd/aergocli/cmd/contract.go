@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -128,6 +129,15 @@ func init() {
 	rootCmd.AddCommand(contractCmd)
 }
 
+func isHexString(s string) bool {
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
 func runDeployCmd(cmd *cobra.Command, args []string) error {
 	var err error
 	var code []byte
@@ -177,11 +187,19 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 			}
 			deployArgs = []byte(args[1])
 		}
-		code, err = luacEncoding.DecodeCode(data)
-		if err != nil {
-			return fmt.Errorf("failed to decode code: %v", err.Error())
+		// check if the data is in hex format
+		if isHexString(data) {
+			// the data is expected to be copied from aergoscan view of
+			// the transaction that deployed the contract
+			payload, err = hex.DecodeString(data[2:])
+		} else {
+			// the data is the output of aergoluac
+			code, err = luacEncoding.DecodeCode(data)
+			if err != nil {
+				return fmt.Errorf("failed to decode code: %v", err.Error())
+			}
+			payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 		}
-		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
 
 	amountBigInt, err := util.ParseUnit(amount)
