@@ -69,6 +69,7 @@ func NewCore(dbType string, dataDir string, testModeOn bool, forceResetHeight ty
 
 // Init prepares Core (chain & state DB).
 func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceResetHeight types.BlockNo) error {
+
 	// init chaindb
 	if err := core.cdb.Init(dbType, dataDir); err != nil {
 		logger.Fatal().Err(err).Msg("failed to initialize chaindb")
@@ -86,6 +87,11 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	bestBlock, err := core.cdb.GetBestBlock()
 	if err != nil {
 		return err
+	}
+
+	// light nodes use dummydb for the chain and badgerdb for the state
+	if dbType == "dummydb" {
+		dbType = "badgerdb"
 	}
 
 	if err := core.sdb.Init(dbType, dataDir, bestBlock, testModeOn); err != nil {
