@@ -7,7 +7,6 @@ require (
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
 	github.com/aergoio/aergo-lib v1.1.0
-	github.com/aergoio/badger v1.6.0-gcfix // indirect
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/apache/thrift v0.12.0 // indirect
@@ -21,7 +20,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.8-0.20180830220226-ccc981bf8038
 	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
 	github.com/funkygao/golib v0.0.0-20180314131852-90d4905c1961
-	github.com/gin-gonic/gin v1.7.4
+	github.com/gin-gonic/gin v1.7.7
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.3
