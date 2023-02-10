@@ -72,6 +72,8 @@ var initGenesis = &cobra.Command{
 
 			g := core.GetGenesisInfo()
 			fmt.Printf("genesis block[%s] is created in (%s)\n", base58.Encode(g.Block().GetHash()), cfg.DataDir)
+
+			core.Close()
 		}
 	},
 }
