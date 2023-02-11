@@ -455,7 +455,7 @@ func (cdb *ChainDB) addTxsOfBlock(dbTx *db.Transaction, txs []*types.Tx, blockHa
 	return nil
 }
 
-// stor tx info to DB
+// store tx info to DB
 func (cdb *ChainDB) addTx(dbtx *db.Transaction, tx *types.Tx, blockHash []byte, idx int) error {
 	txidx := types.TxIdx{
 		BlockHash: blockHash,
