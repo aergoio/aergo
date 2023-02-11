@@ -334,6 +334,11 @@ func (reorg *reorganizer) swapTxMapping() error {
 
 	bulk.Flush()
 
+	// if using dummydb, save it to file
+	if cdb.store.Type() == "dummydb" {
+		cdb.store.Save()
+	}
+
 	//add rollbacked Tx to mempool (except played tx in roll forward)
 	count := len(oldTxs)
 	logger.Debug().Int("tx count", count).Int("overwrapped count", overwrap).Msg("tx add to mempool")
