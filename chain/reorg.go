@@ -331,7 +331,8 @@ func (reorg *reorganizer) swapTxMapping() error {
 
 	// if using dummydb, save it to file
 	if cdb.store.Type() == "dummydb" {
-		cdb.store.Save()
+		// save the dummydb to file. the database will continue open
+		cdb.store.Close()
 	}
 
 	//add rollbacked Tx to mempool (except played tx in roll forward)

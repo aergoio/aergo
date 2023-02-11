@@ -433,8 +433,8 @@ func (cp *chainProcessor) connectToChain(block *types.Block) (types.BlockNo, err
 
 	// if using dummydb and this block has transactions
 	if cp.cdb.store.Type() == "dummydb" && len(block.GetBody().GetTxs()) > 0 {
-		// save the dummydb to file
-		cp.cdb.store.Save()
+		// save the dummydb to file. the database will continue open
+		cp.cdb.store.Close()
 	}
 
 	return oldLatest, nil
