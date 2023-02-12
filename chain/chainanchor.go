@@ -32,7 +32,10 @@ LOOP:
 	for i := 0; i < cnt; i++ {
 		blockHash, err := cs.getHashByNo(blkNo)
 		if err != nil {
-			logger.Info().Msg("assertion - hash get failed")
+			logger.Info().Uint64("block_no", blkNo).Msg("assertion - hash get failed")
+			if len(anchors) > 0 {
+				break
+			}
 			// assertion!
 			return nil, 0, err
 		}
@@ -67,7 +70,10 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 	for i := 0; i < 10; i++ {
 		blockHash, err := cs.getHashByNo(latestNo)
 		if err != nil {
-			logger.Info().Msg("assertion - hash get failed")
+			logger.Info().Uint64("no", latestNo).Msg("assertion - hash get failed")
+			if len(anchors) > 0 {
+				return anchors
+			}
 			// assertion!
 			return nil
 		}
@@ -87,6 +93,9 @@ func (cs *ChainService) getAnchorsFromHash(blockHash []byte) ChainAnchor {
 	for i := 0; i < count; i++ {
 		blockHash, err := cs.getHashByNo(latestNo)
 		if err != nil {
+			if len(anchors) > 0 {
+				break
+			}
 			// assertion!
 			return nil
 		}

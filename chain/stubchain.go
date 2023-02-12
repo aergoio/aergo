@@ -180,7 +180,10 @@ LOOP:
 	for i := 0; i < cnt; i++ {
 		blockHash, err := tchain.GetHashByNo(blkNo)
 		if err != nil {
-			logger.Info().Msg("assertion - hash get failed")
+			logger.Info().Uint64("block_no", blkNo).Msg("assertion - hash get failed")
+			if len(anchors) > 0 {
+				break
+			}
 			// assertion!
 			return nil, 0, err
 		}
