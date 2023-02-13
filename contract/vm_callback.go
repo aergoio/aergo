@@ -1246,7 +1246,7 @@ func luaDropEvent(L *LState, service C.int, from C.int) {
 	}
 	if from >= 0 {
 		ctx.events = ctx.events[:from]
-		ctx.eventCount = len(ctx.events)
+		ctx.eventCount = int32(len(ctx.events))
 	}
 }
 
