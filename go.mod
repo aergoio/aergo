@@ -7,10 +7,9 @@ require (
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
 	github.com/aergoio/aergo-lib v1.1.0
-	github.com/aergoio/badger v1.6.0-gcfix // indirect
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
-	github.com/apache/thrift v0.12.0 // indirect
+	github.com/apache/thrift v0.13.0 // indirect
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/c-bata/go-prompt v0.2.3
