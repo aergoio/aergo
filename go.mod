@@ -7,7 +7,6 @@ require (
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
 	github.com/aergoio/aergo-lib v1.1.0
-	github.com/aergoio/badger v1.6.0-gcfix // indirect
 	github.com/aergoio/etcd v0.0.0-20190429013412-e8b3f96f6399
 	github.com/anaskhan96/base58check v0.0.0-20181220122047-b05365d494c4
 	github.com/apache/thrift v0.12.0 // indirect
@@ -24,11 +23,11 @@ require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/mock v1.3.1
-	github.com/golang/protobuf v1.3.3
+	github.com/golang/protobuf v1.4.3
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/improbable-eng/grpc-web v0.9.6
-	github.com/json-iterator/go v1.1.9
+	github.com/json-iterator/go v1.1.11
 	github.com/libp2p/go-addr-util v0.0.1
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-core v0.2.3
@@ -49,7 +48,7 @@ require (
 	github.com/orcaman/concurrent-map v0.0.0-20190314100340-2693aad1ed75 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
-	github.com/prometheus/client_golang v1.0.0 // indirect
+	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/rs/zerolog v1.16.1-0.20191111091419-e709c5d91e35
 	github.com/sanity-io/litter v1.2.0
