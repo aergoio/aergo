@@ -272,7 +272,9 @@ func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
 		// moving up a shortcut, we dont record every single move
 		s.db.updatedMux.Lock()
 		delete(s.db.updatedNodes, node)
-		s.db.deletedNodes = append(s.db.deletedNodes, root)
+		if len(root) > 0 && !bytes.Equal(root, DefaultLeaf) {
+			s.db.deletedNodes = append(s.db.deletedNodes, root)
+		}
 		s.db.updatedMux.Unlock()
 	}
 	if height >= s.CacheHeightLimit {
