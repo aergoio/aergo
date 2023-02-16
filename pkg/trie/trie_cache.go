@@ -42,12 +42,12 @@ type CacheDB struct {
 func (c *CacheDB) commit(txn *DbTx) {
 	c.updatedMux.Lock()
 	defer c.updatedMux.Unlock()
+	for _, key := range c.deletedNodes {
+		(*txn).Delete(key[:HashLength])
+	}
 	for key, batch := range c.updatedNodes {
 		var node []byte
 		(*txn).Set(append(node, key[:]...), c.serializeBatch(batch))
-	}
-	for _, key := range c.deletedNodes {
-		(*txn).Delete(key[:HashLength])
 	}
 }
 
