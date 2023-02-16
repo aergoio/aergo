@@ -24,6 +24,8 @@ type CacheDB struct {
 	liveMux sync.RWMutex
 	// updatedNodes that have will be flushed to disk
 	updatedNodes map[Hash][][]byte
+	// deletedNodes will be deleted from db
+	deletedNodes [][]byte
 	// updatedMux is a lock for updatedNodes
 	updatedMux sync.RWMutex
 	// nodesToRevert will be deleted from db
@@ -43,6 +45,9 @@ func (c *CacheDB) commit(txn *DbTx) {
 	for key, batch := range c.updatedNodes {
 		var node []byte
 		(*txn).Set(append(node, key[:]...), c.serializeBatch(batch))
+	}
+	for _, key := range c.deletedNodes {
+		(*txn).Delete(key[:HashLength])
 	}
 }
 

@@ -42,6 +42,12 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	defer sdb.Unlock()
 
 	sdb.testmode = test
+
+	// light nodes use dummydb for the chain and badgerdb for the state
+	if dbType == "dummydb" {
+		dbType = "badgerdb"
+	}
+
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, stateName)
