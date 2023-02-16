@@ -154,10 +154,6 @@ func (s *Trie) update(root []byte, keys, values, batch [][]byte, iBatch, height 
 	// Check if the keys are updating the shortcut node
 	if isShortcut {
 		keys, values = s.maybeAddShortcutToKV(keys, values, lnode[:HashLength], rnode[:HashLength])
-		if iBatch == 0 {
-			// shortcut is moving so it's root will change
-			s.deleteOldNode(root, height, false)
-		}
 		// The shortcut node was added to keys and values so consider this subtree default.
 		lnode, rnode = nil, nil
 		// update in the batch (set key, value to default so the next loadChildren is correct)
