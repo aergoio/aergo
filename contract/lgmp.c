@@ -67,7 +67,12 @@ const char *lua_set_bignum(lua_State *L, char *s)
 		return mp_num_memory_error;
 	}
 	if (vm_is_hardfork(L, 3)) {
-		while (s && s[0]=='0' && s[1]!=0) s++;
+		// remove support for octal format and
+		// keep support for hex (0x) and binary (0b) formats
+		if (s && s[0]=='0' && s[1]!=0 && s[1]!='x' && s[1]!='b') {
+			// convert "0123" -> "123"
+			while (s && s[0]=='0' && s[1]!=0) s++;
+		}
 	}
 	if (mpz_init_set_str(x->mpptr, s, 0) != 0) {
 		mp_num_free(x);
@@ -124,7 +129,12 @@ static mp_num Bget(lua_State *L, int i)
 			if (x == NULL)
 				luaL_error(L, mp_num_memory_error);
 			if (vm_is_hardfork(L, 3)) {
-				while (s && s[0]=='0' && s[1]!=0) s++;
+				// remove support for octal format and
+				// keep support for hex (0x) and binary (0b) formats
+				if (s && s[0]=='0' && s[1]!=0 && s[1]!='x' && s[1]!='b') {
+					// convert "0123" -> "123"
+					while (s && s[0]=='0' && s[1]!=0) s++;
+				}
 			}
 			if (mpz_init_set_str(x->mpptr, s, 0) != 0) {
 				mp_num_free(x);
