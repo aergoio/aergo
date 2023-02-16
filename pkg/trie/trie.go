@@ -540,7 +540,7 @@ func (s *Trie) leafHash(key, value, oldRoot []byte, batch [][]byte, iBatch, heig
 
 // storeNode stores a batch and deletes the old node from cache
 func (s *Trie) storeNode(batch [][]byte, h, oldRoot []byte, height int) {
-	if !bytes.Equal(h, oldRoot) {
+	if len(oldRoot) == 0 || !bytes.Equal(h[:HashLength], oldRoot[:HashLength]) {
 		var node Hash
 		copy(node[:], h)
 		// record new node
