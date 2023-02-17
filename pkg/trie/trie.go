@@ -338,7 +338,7 @@ func (s *Trie) moveUpShortcut(shortcut, root []byte, batch [][]byte, iBatch, iSh
 		batch[2*iShortcut+1] = nil
 		batch[2*iShortcut+2] = nil
 		// cache and updatedNodes deleted by store node
-		s.storeNode(batch, newShortcut, root, height)
+		s.storeNode(batch, newShortcut, shortcut, height)
 	} else if (height-1)%4 == 0 {
 		// move up shortcut and delete old batch
 		batch[2*iBatch+1] = shortcutKey
