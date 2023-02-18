@@ -151,7 +151,7 @@ func (s *Trie) StageUpdates(txn DbTx) {
 	s.db.commit(&txn)
 
 	s.db.updatedNodes = make(map[Hash][][]byte)
-	s.db.deletedNodes = make([][]byte, 0)
+	s.db.deletedNodes = make(map[Hash]bool)
 	s.prevRoot = s.Root
 }
 
@@ -175,7 +175,7 @@ func (s *Trie) Stash(rollbackCache bool) error {
 		s.db.liveCache = make(map[Hash][][]byte)
 	}
 	s.db.updatedNodes = make(map[Hash][][]byte)
-	s.db.deletedNodes = make([][]byte, 0)
+	s.db.deletedNodes = make(map[Hash]bool)
 	// also stash past tries created by Atomic update
 	for i := len(s.pastTries) - 1; i >= 0; i-- {
 		if bytes.Equal(s.pastTries[i], s.Root) {

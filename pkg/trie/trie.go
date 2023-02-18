@@ -57,7 +57,7 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
 		updatedNodes: make(map[Hash][][]byte),
-		deletedNodes: make([][]byte, 0),
+		deletedNodes: make(map[Hash]bool),
 		Store:        store,
 	}
 	// don't store any cache by default (contracts state don't use cache)
@@ -269,7 +269,7 @@ func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
 		s.db.updatedMux.Lock()
 		delete(s.db.updatedNodes, node)
 		if len(root) > 0 && !bytes.Equal(root, DefaultLeaf) {
-			s.db.deletedNodes = append(s.db.deletedNodes, root)
+			s.db.deletedNodes[node] = true
 		}
 		s.db.updatedMux.Unlock()
 	}
