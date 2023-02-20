@@ -11,6 +11,11 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
+)
+
+var (
+	logger         *log.Logger
 )
 
 // Trie is a modified sparse Merkle tree.
@@ -49,6 +54,7 @@ type Trie struct {
 
 // NewSMT creates a new SMT given a keySize and a hash function.
 func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB, deletedNodes map[Hash]bool) *Trie {
+	logger = log.NewLogger("trie")
 	s := &Trie{
 		hash:       hash,
 		TrieHeight: len(hash([]byte("height"))) * 8, // hash any string to get output length
@@ -492,6 +498,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 	if nodeSize != 0 {
 		return s.parseBatch(dbval), nil
 	}
+	s.saveUnavailableNode(root[:HashLength])
 	return nil, fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
 }
 

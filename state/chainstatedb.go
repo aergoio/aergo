@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"encoding/hex"
+	"path/filepath"
+	"os"
+	"bufio"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
@@ -18,6 +22,7 @@ type ChainStateDB struct {
 	states     *StateDB
 	store      db.DB
 	deletedNodes map[trie.Hash]bool
+	fixedNodes map[trie.Hash]bool
 	testmode   bool
 	lightnode  bool
 }
@@ -35,6 +40,10 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	newSdb := &ChainStateDB{
 		store:  sdb.store,
 		states: sdb.GetStateDB().Clone(),
+		testmode: sdb.testmode,
+		lightnode: sdb.lightnode,
+		fixedNodes: sdb.fixedNodes,
+		deletedNodes: sdb.deletedNodes,
 	}
 	return newSdb
 }
@@ -65,11 +74,14 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 			sroot = bestBlock.GetHeader().GetBlocksRootHash()
 		}
 
-		if sdb.lightnode && sdb.deletedNodes == nil {
-			sdb.deletedNodes = make(map[trie.Hash]bool)
+		if sdb.lightnode {
+			if sdb.deletedNodes == nil {
+				sdb.deletedNodes = make(map[trie.Hash]bool)
+			}
+			sdb.loadFixedNodes(dataDir)
 		}
 
-		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode, sdb.deletedNodes)
+		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode, sdb.deletedNodes, sdb.fixedNodes)
 	}
 	return nil
 }
@@ -102,7 +114,7 @@ func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
 
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(sdb.store, root, sdb.testmode, sdb.deletedNodes)
+	return NewStateDB(sdb.store, root, sdb.testmode, sdb.deletedNodes, sdb.fixedNodes)
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {
@@ -219,4 +231,41 @@ func (sdb *ChainStateDB) IsExistState(hash []byte) bool {
 
 func (sdb *ChainStateDB) NewBlockState(root []byte, options ...BlockStateOptFn) *BlockState {
 	return NewBlockState(sdb.OpenNewStateDB(root), options...)
+}
+
+// loadFixedNodes loads fixed nodes from the TRIE_FIXED_NODES file
+// in the data directory. Each line of the file should contain a
+// single fixed node hash.
+func (sdb *ChainStateDB) loadFixedNodes(dataDir string) {
+	sdb.fixedNodes = make(map[trie.Hash]bool)
+	fixedNodesFile := filepath.Join(dataDir, "TRIE_FIXED_NODES")
+	// open the file in read mode
+	file, err := os.Open(fixedNodesFile)
+	if err != nil {
+		// the file may not exist, so just return
+		return
+	}
+	defer file.Close()
+	logger.Info().Msg("Loading trie fixed nodes")
+	// load fixed nodes from file
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+		hash, err := hex.DecodeString(line)
+		if err != nil {
+			logger.Warn().Err(err).Str("line", line).Msg("Failed to decode fixed node hash")
+			continue
+		}
+		var node trie.Hash
+		copy(node[:], hash)
+		sdb.fixedNodes[node] = true
+	}
+	if err := scanner.Err(); err != nil {
+		logger.Warn().Err(err).Msg("Failed to read TRIE_FIXED_NODES file")
+	} else {
+		logger.Info().Int("count", len(sdb.fixedNodes)).Msg("Loaded trie fixed nodes")
+	}
 }

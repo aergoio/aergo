@@ -8,6 +8,9 @@ package trie
 import (
 	"bytes"
 	"fmt"
+	"encoding/hex"
+	"os"
+	"path/filepath"
 
 	"github.com/aergoio/aergo-lib/db"
 )
@@ -38,6 +41,7 @@ func (s *Trie) loadCache(root []byte, batch [][]byte, iBatch, height int, ch cha
 		dbval := s.db.Store.Get(root[:HashLength])
 		s.db.lock.Unlock()
 		if len(dbval) == 0 {
+			s.saveUnavailableNode(root[:HashLength])
 			ch <- fmt.Errorf("the trie node %x is unavailable in the disk db, db may be corrupted", root)
 			return
 		}
@@ -184,4 +188,21 @@ func (s *Trie) Stash(rollbackCache bool) error {
 		}
 	}
 	return nil
+}
+
+// saveUnavailableNode saves the address to the node that is not available in the database.
+// the address is saved to a file named `NODE_NOT_FOUND` in the data directory.
+func (s *Trie) saveUnavailableNode(node []byte) {
+	logger.Info().Str("node", hex.EncodeToString(node)).Msg("saving unavailable node to file")
+	// get the full path to the file
+	filePath := filepath.Join(s.db.Store.Path(), "../NODE_NOT_FOUND")
+	// create the file if it doesn't exist
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to create file: " + filePath)
+		return
+	}
+	// write the node to the file, encoded in hex format
+	file.WriteString(hex.EncodeToString(node) + "\n")
+	file.Close()
 }

@@ -64,16 +64,18 @@ type StateDB struct {
 	store    db.DB
 	batchtx  db.Transaction
 	deletedNodes map[trie.Hash]bool
+	fixedNodes map[trie.Hash]bool
 	testmode bool
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore db.DB, root []byte, test bool, deletedNodes map[trie.Hash]bool) *StateDB {
+func NewStateDB(dbstore db.DB, root []byte, test bool, deletedNodes map[trie.Hash]bool, fixedNodes map[trie.Hash]bool) *StateDB {
 	sdb := StateDB{
 		buffer:   newStateBuffer(),
 		cache:    newStorageCache(),
 		trie:     trie.NewTrie(root, common.Hasher, dbstore, deletedNodes),
 		store:    dbstore,
+		fixedNodes: fixedNodes,
 		deletedNodes: deletedNodes,
 		testmode: test,
 	}
@@ -85,7 +87,7 @@ func (states *StateDB) Clone() *StateDB {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
 
-	return NewStateDB(states.store, states.GetRoot(), states.testmode, states.deletedNodes)
+	return NewStateDB(states.store, states.GetRoot(), states.testmode, states.deletedNodes, states.fixedNodes)
 }
 
 // GetRoot returns root hash of trie
@@ -524,7 +526,7 @@ func (states *StateDB) Commit() error {
     for key, deleted := range states.deletedNodes {
       var node []byte
       node = append(node, key[:]...)
-      if deleted {
+      if deleted && !states.fixedNodes[key] {
         logger.Debug().Msgf("commit - deleting: %x", node)
         bulk.Delete(node)
       } else {
