@@ -27,14 +27,14 @@ import (
 )
 
 func TestTrieEmpty(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	if len(smt.Root) != 0 {
 		t.Fatal("empty trie root hash not correct")
 	}
 }
 
 func TestTrieUpdateAndGet(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	smt.atomicUpdate = false
 
 	// Add data to empty trie
@@ -72,7 +72,7 @@ func TestTrieUpdateAndGet(t *testing.T) {
 }
 
 func TestTrieAtomicUpdate(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	smt.CacheHeightLimit = 0
 	keys := getFreshData(1, 32)
 	values := getFreshData(1, 32)
@@ -100,7 +100,7 @@ func TestTrieAtomicUpdate(t *testing.T) {
 }
 
 func TestTriePublicUpdateAndGet(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	smt.CacheHeightLimit = 0
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
@@ -139,7 +139,7 @@ func TestTriePublicUpdateAndGet(t *testing.T) {
 }
 
 func TestTrieDelete(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
 	values := getFreshData(20, 32)
@@ -164,7 +164,7 @@ func TestTrieDelete(t *testing.T) {
 		t.Fatal("Failed to delete from trie")
 	}
 	// Remove deleted key from keys and check root with a clean trie.
-	smt2 := NewTrie(nil, common.Hasher, nil)
+	smt2 := NewTrie(nil, common.Hasher, nil, nil)
 	ch = make(chan mresult, 1)
 	smt2.update(smt.Root, keys[1:], values[1:], nil, 0, smt.TrieHeight, ch)
 	result = <-ch
@@ -192,7 +192,7 @@ func TestTrieDelete(t *testing.T) {
 	}
 
 	// Test deleting an already empty key
-	smt = NewTrie(nil, common.Hasher, nil)
+	smt = NewTrie(nil, common.Hasher, nil, nil)
 	keys = getFreshData(2, 32)
 	values = getFreshData(2, 32)
 	root, _ = smt.Update(keys, values)
@@ -206,7 +206,7 @@ func TestTrieDelete(t *testing.T) {
 
 // test updating and deleting at the same time
 func TestTrieUpdateAndDelete(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	smt.CacheHeightLimit = 0
 	key0 := make([]byte, 32, 32)
 	values := getFreshData(1, 32)
@@ -241,7 +241,7 @@ func TestTrieUpdateAndDelete(t *testing.T) {
 }
 
 func TestTrieMerkleProof(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -267,7 +267,7 @@ func TestTrieMerkleProof(t *testing.T) {
 }
 
 func TestTrieMerkleProofCompressed(t *testing.T) {
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -299,7 +299,7 @@ func TestTrieCommit(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
@@ -323,7 +323,7 @@ func TestTrieStageUpdates(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
 	smt.Update(keys, values)
@@ -349,7 +349,7 @@ func TestTrieRevert(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 
 	// Edge case : Test that revert doesnt delete shortcut nodes
 	// when moved to a different position in tree
@@ -438,7 +438,7 @@ func TestTrieRaisesError(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	// Add data to empty trie
 	keys := getFreshData(10, 32)
 	values := getFreshData(10, 32)
@@ -464,7 +464,7 @@ func TestTrieRaisesError(t *testing.T) {
 	st.Close()
 	os.RemoveAll(".aergo")
 
-	smt = NewTrie(nil, common.Hasher, nil)
+	smt = NewTrie(nil, common.Hasher, nil, nil)
 	err = smt.Commit()
 	if err == nil {
 		t.Fatal("Error not created if database not connected")
@@ -488,7 +488,7 @@ func TestTrieLoadCache(t *testing.T) {
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
 
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	// Test size of cache
 	smt.CacheHeightLimit = 0
 	key0 := make([]byte, 32, 32)
@@ -525,7 +525,7 @@ func TestTrieLoadCache(t *testing.T) {
 
 func TestHeight0LeafShortcut(t *testing.T) {
 	keySize := 32
-	smt := NewTrie(nil, common.Hasher, nil)
+	smt := NewTrie(nil, common.Hasher, nil, nil)
 	// Add 2 sibling keys that will be stored at height 0
 	key0 := make([]byte, keySize, keySize)
 	key1 := make([]byte, keySize, keySize)
@@ -588,7 +588,7 @@ func TestStash(t *testing.T) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	// Add data to empty trie
 	keys := getFreshData(20, 32)
 	values := getFreshData(20, 32)
@@ -679,7 +679,7 @@ func BenchmarkCacheHeightLimit233(b *testing.B) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	smt.CacheHeightLimit = 233
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
@@ -691,7 +691,7 @@ func BenchmarkCacheHeightLimit238(b *testing.B) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	smt.CacheHeightLimit = 238
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()
@@ -703,7 +703,7 @@ func BenchmarkCacheHeightLimit245(b *testing.B) {
 		_ = os.MkdirAll(dbPath, 0711)
 	}
 	st := db.NewDB(db.BadgerImpl, dbPath)
-	smt := NewTrie(nil, common.Hasher, st)
+	smt := NewTrie(nil, common.Hasher, st, nil)
 	smt.CacheHeightLimit = 245
 	benchmark10MAccounts10Ktps(smt, b)
 	st.Close()

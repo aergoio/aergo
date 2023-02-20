@@ -9,14 +9,17 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/pkg/trie"
 )
 
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
 type ChainStateDB struct {
 	sync.RWMutex
-	states   *StateDB
-	store    db.DB
-	testmode bool
+	states     *StateDB
+	store      db.DB
+	deletedNodes map[trie.Hash]bool
+	testmode   bool
+	lightnode  bool
 }
 
 // NewChainStateDB creates instance of ChainStateDB
@@ -46,6 +49,7 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	// light nodes use dummydb for the chain and badgerdb for the state
 	if dbType == "dummydb" {
 		dbType = "badgerdb"
+		sdb.lightnode = true
 	}
 
 	// init db
@@ -61,7 +65,11 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 			sroot = bestBlock.GetHeader().GetBlocksRootHash()
 		}
 
-		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode)
+		if sdb.lightnode && sdb.deletedNodes == nil {
+			sdb.deletedNodes = make(map[trie.Hash]bool)
+		}
+
+		sdb.states = NewStateDB(sdb.store, sroot, sdb.testmode, sdb.deletedNodes)
 	}
 	return nil
 }
@@ -78,6 +86,10 @@ func (sdb *ChainStateDB) Close() error {
 	return nil
 }
 
+func (sdb *ChainStateDB) IsLightNode() bool {
+	return sdb.lightnode
+}
+
 // GetStateDB returns statedb stores account states
 func (sdb *ChainStateDB) GetStateDB() *StateDB {
 	return sdb.states
@@ -90,7 +102,7 @@ func (sdb *ChainStateDB) GetSystemAccountState() (*ContractState, error) {
 
 // OpenNewStateDB returns new instance of statedb given state root hash
 func (sdb *ChainStateDB) OpenNewStateDB(root []byte) *StateDB {
-	return NewStateDB(sdb.store, root, sdb.testmode)
+	return NewStateDB(sdb.store, root, sdb.testmode, sdb.deletedNodes)
 }
 
 func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB, *types.Genesis) error) error {

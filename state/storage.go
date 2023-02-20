@@ -46,10 +46,10 @@ type bufferedStorage struct {
 	dirty  bool
 }
 
-func newBufferedStorage(root []byte, store db.DB) *bufferedStorage {
+func newBufferedStorage(root []byte, store db.DB, deletedNodes map[trie.Hash]bool) *bufferedStorage {
 	return &bufferedStorage{
 		buffer: newStateBuffer(),
-		trie:   trie.NewTrie(root, common.Hasher, store),
+		trie:   trie.NewTrie(root, common.Hasher, store, deletedNodes),
 		dirty:  false,
 	}
 }

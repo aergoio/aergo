@@ -12,7 +12,7 @@ import (
 // }
 
 func TestStorageBasic(t *testing.T) {
-	storage := newBufferedStorage(nil, nil)
+	storage := newBufferedStorage(nil, nil, nil)
 	v1 := types.GetHashID([]byte("v1"))
 	v2 := types.GetHashID([]byte("v2"))
 
@@ -52,7 +52,7 @@ func TestStorageBasic(t *testing.T) {
 }
 
 func TestStorageDelete(t *testing.T) {
-	storage := newBufferedStorage(nil, nil)
+	storage := newBufferedStorage(nil, nil, nil)
 	v1 := types.GetHashID([]byte("v1"))
 	v2 := types.GetHashID([]byte("v2"))
 
@@ -86,7 +86,7 @@ func TestStorageDelete(t *testing.T) {
 }
 
 func TestStorageHasKey(t *testing.T) {
-	storage := newBufferedStorage(nil, nil)
+	storage := newBufferedStorage(nil, nil, nil)
 	v1 := types.GetHashID([]byte("v1"))
 
 	assert.False(t, storage.has(v1, false)) // check buffer only

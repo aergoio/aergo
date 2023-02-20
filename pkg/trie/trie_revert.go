@@ -58,7 +58,6 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	s.Root = toOldRoot
 	s.db.liveCache = make(map[Hash][][]byte)
 	s.db.updatedNodes = make(map[Hash][][]byte)
-	s.db.deletedNodes = make(map[Hash]bool)
 	if isShortcut {
 		// If toOldRoot is a shortcut batch, it is possible that
 		// revert has deleted it if the key was ever stored at height0

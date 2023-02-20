@@ -48,7 +48,7 @@ type Trie struct {
 }
 
 // NewSMT creates a new SMT given a keySize and a hash function.
-func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
+func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB, deletedNodes map[Hash]bool) *Trie {
 	s := &Trie{
 		hash:       hash,
 		TrieHeight: len(hash([]byte("height"))) * 8, // hash any string to get output length
@@ -58,7 +58,9 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB) *Trie {
 		liveCache:    make(map[Hash][][]byte),
 		updatedNodes: make(map[Hash][][]byte),
 		deletedNodes: make(map[Hash]bool),
+		deletedNodes: deletedNodes,
 		Store:        store,
+		lightnode:    deletedNodes != nil,
 	}
 	// don't store any cache by default (contracts state don't use cache)
 	s.CacheHeightLimit = s.TrieHeight + 1
@@ -268,8 +270,10 @@ func (s *Trie) deleteOldNode(root []byte, height int, movingUp bool) {
 		// moving up a shortcut, we dont record every single move
 		s.db.updatedMux.Lock()
 		delete(s.db.updatedNodes, node)
-		if len(root) > 0 && !bytes.Equal(root, DefaultLeaf) {
-			s.db.deletedNodes[node] = true
+		if s.db.lightnode {
+			if len(root) > 0 && !bytes.Equal(root, DefaultLeaf) {
+				s.db.deletedNodes[node] = true
+			}
 		}
 		s.db.updatedMux.Unlock()
 	}

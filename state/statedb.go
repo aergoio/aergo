@@ -63,16 +63,18 @@ type StateDB struct {
 	trie     *trie.Trie
 	store    db.DB
 	batchtx  db.Transaction
+	deletedNodes map[trie.Hash]bool
 	testmode bool
 }
 
 // NewStateDB craete StateDB instance
-func NewStateDB(dbstore db.DB, root []byte, test bool) *StateDB {
+func NewStateDB(dbstore db.DB, root []byte, test bool, deletedNodes map[trie.Hash]bool) *StateDB {
 	sdb := StateDB{
 		buffer:   newStateBuffer(),
 		cache:    newStorageCache(),
-		trie:     trie.NewTrie(root, common.Hasher, dbstore),
+		trie:     trie.NewTrie(root, common.Hasher, dbstore, deletedNodes),
 		store:    dbstore,
+		deletedNodes: deletedNodes,
 		testmode: test,
 	}
 	return &sdb
@@ -83,7 +85,7 @@ func (states *StateDB) Clone() *StateDB {
 	states.lock.RLock()
 	defer states.lock.RUnlock()
 
-	return NewStateDB(states.store, states.GetRoot(), states.testmode)
+	return NewStateDB(states.store, states.GetRoot(), states.testmode, states.deletedNodes)
 }
 
 // GetRoot returns root hash of trie
@@ -514,6 +516,24 @@ func (states *StateDB) Commit() error {
 		bulk.DiscardLast()
 		return err
 	}
+
+  // if this is a light node
+  if states.deletedNodes != nil {
+    logger.Debug().Msgf("commit - %d nodes on the deletion list", len(states.del
+    // delete nodes marked for deletion and clear the list
+    for key, deleted := range states.deletedNodes {
+      var node []byte
+      node = append(node, key[:]...)
+      if deleted {
+        logger.Debug().Msgf("commit - deleting: %x", node)
+        bulk.Delete(node)
+      } else {
+        logger.Debug().Msgf("commit - NOT deleting: %x", node)
+      }
+      delete(states.deletedNodes, key)
+    }
+  }
+
 	bulk.Flush()
 	return nil
 }
