@@ -26,8 +26,6 @@ type CacheDB struct {
 	updatedNodes map[Hash][][]byte
 	// nodes marked to be deleted from the database
 	deletedNodes map[Hash]bool
-	// nodes marked to be deleted from the database
-	deletedNodes map[Hash]bool
 	// updatedMux is a lock for updatedNodes
 	updatedMux sync.RWMutex
 	// nodesToRevert will be deleted from db

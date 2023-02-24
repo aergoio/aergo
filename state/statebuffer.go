@@ -172,6 +172,7 @@ func (buffer *stateBuffer) export() ([][]byte, [][]byte) {
 	return keys, vals
 }
 
+// saves the hash of the keys and values to the trie
 func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
 	keys, vals := buffer.export()
 	if len(keys) == 0 || len(vals) == 0 {
@@ -184,6 +185,7 @@ func (buffer *stateBuffer) updateTrie(tr *trie.Trie) error {
 	return nil
 }
 
+// saves the hash of the values and the values to the database
 func (buffer *stateBuffer) stage(txn trie.DbTx) error {
 	for _, v := range buffer.indexes {
 		et := buffer.entries[v.peek()]

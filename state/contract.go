@@ -20,7 +20,7 @@ func (states *StateDB) OpenContractState(aid types.AccountID, st *types.State) (
 	storage := states.cache.get(aid)
 	if storage == nil {
 		root := common.Compactz(st.StorageRoot)
-		storage = newBufferedStorage(root, states.store, states.deletedNodes)
+		storage = newBufferedStorage(root, states.store)
 	}
 	res := &ContractState{
 		State:   st,

@@ -57,7 +57,6 @@ func NewTrie(root []byte, hash func(data ...[]byte) []byte, store db.DB, deleted
 	s.db = &CacheDB{
 		liveCache:    make(map[Hash][][]byte),
 		updatedNodes: make(map[Hash][][]byte),
-		deletedNodes: make(map[Hash]bool),
 		deletedNodes: deletedNodes,
 		Store:        store,
 		lightnode:    deletedNodes != nil,
