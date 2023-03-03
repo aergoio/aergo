@@ -308,7 +308,7 @@ static int modulePcall(lua_State *L)
 	    }
 		lua_pushboolean(L, false);
 		lua_insert(L, 1);
-		if (vm_is_hardfork(L, 3)) {
+		if (vm_is_hardfork(L, 4)) {
 			luaDropEvent(L, service, num_events);
 		}
 		if (start_seq.r0 > 0) {
@@ -325,7 +325,7 @@ static int modulePcall(lua_State *L)
 	if (start_seq.r0 == 1) {
         char *errStr = luaClearRecovery(L, service, start_seq.r0, false);
 		if (errStr != NULL) {
-			if (vm_is_hardfork(L, 3)) {
+			if (vm_is_hardfork(L, 4)) {
 				luaDropEvent(L, service, num_events);
 			}
 			strPushAndRelease(L, errStr);
