@@ -35,6 +35,9 @@ func (sdb *ChainStateDB) Clone() *ChainStateDB {
 	newSdb := &ChainStateDB{
 		store:  sdb.store,
 		states: sdb.GetStateDB().Clone(),
+		testmode: sdb.testmode,
+		lightnode: sdb.lightnode,
+		deletedNodes: sdb.deletedNodes,
 	}
 	return newSdb
 }
@@ -46,9 +49,9 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 
 	sdb.testmode = test
 
-	// light nodes use dummydb for the chain and badgerdb for the state
+	// light nodes use dummydb for the chain and deldeldb for the state
 	if dbType == "dummydb" {
-		dbType = "badgerdb"
+		dbType = "deldeldb"
 		sdb.lightnode = true
 	}
 
