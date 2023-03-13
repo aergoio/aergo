@@ -519,7 +519,7 @@ func (states *StateDB) Commit() error {
 
   // if this is a light node
   if states.deletedNodes != nil {
-    logger.Debug().Msgf("commit - %d nodes on the deletion list", len(states.del
+    logger.Debug().Msgf("commit - %d nodes on the deletion list", len(states.deletedNodes))
     // delete nodes marked for deletion and clear the list
     for key, deleted := range states.deletedNodes {
       var node []byte

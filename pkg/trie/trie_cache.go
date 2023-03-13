@@ -48,12 +48,12 @@ func (c *CacheDB) commit(txn *DbTx) {
 	for key, batch := range c.updatedNodes {
 		var node []byte
 		node = append(node, key[:]...)
-		logger.Debug().Msgf("commit - saving: %x", node)
+		//logger.Debug().Msgf("commit - saving: %x", node)
 		// add the node to the database
 		(*txn).Set(node, c.serializeBatch(batch))
 		// if the node is on the list of deleted nodes, remove it
 		if c.lightnode && c.deletedNodes[key] {
-		  logger.Debug().Msgf("commit - disabling node from deletion: %x", node)
+		  //logger.Debug().Msgf("commit - disabling node from deletion: %x", node)
 		  c.deletedNodes[key] = false
 		}
 	}
