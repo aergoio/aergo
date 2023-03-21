@@ -13,6 +13,13 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 )
 
+
+var (
+	// triePrefix is the prefix for the trie keys in the db.
+	triePrefix = []byte{'s'}
+)
+
+
 // Trie is a modified sparse Merkle tree.
 // Instead of storing values at the leaves of the tree,
 // the values are stored at the highest subtree root that contains only that value.
@@ -482,7 +489,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		s.loadDbMux.Unlock()
 	}
 	s.db.lock.Lock()
-	dbval := s.db.Store.Get(root[:HashLength])
+	dbval := s.db.Store.Get(trieKey(root[:HashLength]))
 	s.db.lock.Unlock()
 	nodeSize := len(dbval)
 	if nodeSize != 0 {
@@ -582,4 +589,8 @@ func (s *Trie) updatePastTries() {
 	} else {
 		s.pastTries = append(s.pastTries, s.Root)
 	}
+}
+
+func trieKey(key []byte) []byte {
+	return append(triePrefix, key...)
 }
