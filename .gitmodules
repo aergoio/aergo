@@ -3,4 +3,4 @@
 	url = https://github.com/aergoio/luajit.git
 [submodule "aergo-protobuf"]
 	path = aergo-protobuf
-	url = https://github.com/aergoio/aergo-protobuf.git
+	url = https://github.com/shepelt/aergo-protobuf.git
