@@ -3,12 +3,13 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/p2p/p2pkey"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -349,7 +350,7 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	go newPeer.RunPeer()
 
 	pm.insertPeer(peerID, newPeer)
-	pm.logger.Info().Str("claimedRole", newPeer.Meta().Role.String()).Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone",remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
+	pm.logger.Info().Str("claimedRole", newPeer.Meta().Role.String()).Str("role", newPeer.AcceptedRole().String()).Bool("outbound", remote.Connection.Outbound).Str("zone", remote.Zone.String()).Str(p2putil.LogPeerName, newPeer.Name()).Str("addr", remote.Connection.IP.String()+":"+strconv.Itoa(int(remote.Connection.Port))).Msg("peer is added to peerService")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
@@ -484,7 +485,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		// add self certificates if local peer is agent
 		localCerts, err := p2putil.ConvertCertsToProto(pm.cm.GetCertificates())
 		selfpi := &message.PeerInfo{
-			Addr: &addr, Certificates: localCerts, AcceptedRole:meta.Role, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}
+			Addr: &addr, Certificates: localCerts, AcceptedRole: meta.Role, Version: meta.Version, Hidden: meta.Hidden, CheckTime: time.Now(), LastBlockHash: bestBlk.BlockHash(), LastBlockNumber: bestBlk.Header.BlockNo, State: types.RUNNING, Self: true}
 		peers = append(peers, selfpi)
 	}
 	for _, aPeer := range pm.peerCache {
@@ -497,7 +498,7 @@ func (pm *peerManager) GetPeerAddresses(noHidden bool, showSelf bool) []*message
 		lastStatus := aPeer.LastStatus()
 		rCerts, _ := p2putil.ConvertCertsToProto(aPeer.RemoteInfo().Certificates)
 		pi := &message.PeerInfo{
-			&addr, rCerts, aPeer.AcceptedRole(), meta.Version, ri.Hidden, lastStatus.CheckTime, lastStatus.BlockHash, lastStatus.BlockNumber, aPeer.State(), false}
+			Addr: &addr, Certificates: rCerts, AcceptedRole: aPeer.AcceptedRole(), Version: meta.Version, Hidden: ri.Hidden, CheckTime: lastStatus.CheckTime, LastBlockHash: lastStatus.BlockHash, LastBlockNumber: lastStatus.BlockNumber, State: aPeer.State(), Self: false}
 		peers = append(peers, pi)
 	}
 	return peers
@@ -545,7 +546,7 @@ func (pm *peerManager) checkSync(peer p2pcommon.RemotePeer) {
 
 	// send txs in mempool
 	peer.DoTask(func(p p2pcommon.RemotePeer) {
-		future := pm.actorService.FutureRequest(message.MemPoolSvc, &message.MemPoolList{DefaultPeerTxQueueSize*100}, p2pcommon.DefaultActorMsgTTL<<1)
+		future := pm.actorService.FutureRequest(message.MemPoolSvc, &message.MemPoolList{Limit: DefaultPeerTxQueueSize * 100}, p2pcommon.DefaultActorMsgTTL<<1)
 		go doSlowPush(pm.logger, peer, future)
 	})
 }
@@ -561,7 +562,7 @@ func doSlowPush(logger *log.Logger, peer p2pcommon.RemotePeer, future *actor.Fut
 		logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Msg("mempool response unexpeted type, skip notifying tx to newly connected peer")
 	}
 	if len(resp.Hashes) > 0 {
-		logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(resp.Hashes,10)).Msg("Sending txIds to newly connected peer")
+		logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Array("txIDs", types.NewLogTxIDsMarshaller(resp.Hashes, 10)).Msg("Sending txIds to newly connected peer")
 		slowPush(peer, resp.Hashes, txNoticeInterval>>2)
 	}
 }
@@ -570,7 +571,7 @@ func slowPush(peer p2pcommon.RemotePeer, hashes []types.TxID, pushInterval time.
 	unitSize := DefaultPeerTxQueueSize >> 1
 	remain := len(hashes)
 	var cut []types.TxID
-	for remain>0 {
+	for remain > 0 {
 		if peer.State() != types.RUNNING {
 			break
 		}
@@ -580,7 +581,7 @@ func slowPush(peer p2pcommon.RemotePeer, hashes []types.TxID, pushInterval time.
 			cut = hashes[:remain]
 		}
 		hashes = hashes[len(cut):]
-		remain=len(hashes)
+		remain = len(hashes)
 		peer.PushTxsNotice(cut)
 		time.Sleep(pushInterval)
 	}

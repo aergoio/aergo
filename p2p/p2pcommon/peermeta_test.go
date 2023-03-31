@@ -7,9 +7,10 @@ package p2pcommon
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/aergoio/aergo/internal/network"
 	"github.com/multiformats/go-multiaddr"
-	"testing"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -68,13 +69,13 @@ func TestNewMetaFromStatus(t *testing.T) {
 		name string
 		args args
 	}{
-		{"TExpose", args{"/ip4/192.168.1.2/tcp/2", "id0002", "v1.3.0",false, false}},
+		{"TExpose", args{"/ip4/192.168.1.2/tcp/2", "id0002", "v1.3.0", false, false}},
 		{"TNoExpose", args{"/ip4/0.0.0.0/tcp/2223", "id2223", "v1.3.0", true, false}},
 		{"TOutbound", args{"/ip6/2001:0db8:85a3:08d3:1319:8a2e:0370:7334/tcp/444", "id0002", "v1.3.0", false, true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sender := &types.PeerAddress{Addresses: []string{tt.args.addr}, PeerID: []byte(tt.args.id), Version:tt.args.version}
+			sender := &types.PeerAddress{Addresses: []string{tt.args.addr}, PeerID: []byte(tt.args.id), Version: tt.args.version}
 			status := &types.Status{Sender: sender, NoExpose: tt.args.noExpose}
 			ma, err := types.ParseMultiaddr(tt.args.addr)
 			if err != nil {
@@ -106,9 +107,9 @@ func TestNewMetaWith1Addr(t *testing.T) {
 	id1, id2 := types.RandomPeerID(), types.RandomPeerID()
 	v1 := "v2.0.0"
 	type fields struct {
-		addr string
-		port uint32
-		id   types.PeerID
+		addr    string
+		port    uint32
+		id      types.PeerID
 		version string
 	}
 	tests := []struct {
@@ -132,10 +133,10 @@ func TestNewMetaWith1Addr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewMetaWith1Addr(tt.args.id, tt.args.addr, tt.args.port, "v2.0.0")
 			if !tt.wantErr {
-				if !types.IsSamePeerID(got.ID,tt.args.id) {
+				if !types.IsSamePeerID(got.ID, tt.args.id) {
 					t.Errorf("NewMetaWith1Addr() ID = %v, want %v", got.ID, tt.args.id)
 				}
-				if !network.IsSameAddress(got.PrimaryAddress(),tt.args.addr) {
+				if !network.IsSameAddress(got.PrimaryAddress(), tt.args.addr) {
 					t.Errorf("NewMetaWith1Addr() addr = %v, want %v", got.PrimaryAddress(), tt.args.addr)
 				}
 				if got.PrimaryPort() != tt.args.port {
@@ -168,12 +169,11 @@ func TestPeerMeta_ToPeerAddress(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-
 	}{
-		{"TBP",fields{id1, types.PeerRole_Producer, nil, []multiaddr.Multiaddr{ma1}, v1, false}},
-		{"TAent",fields{id1, types.PeerRole_Agent, []types.PeerID{id2,id3}, []multiaddr.Multiaddr{ma1,ma2}, v1, false}},
-		{"TBP",fields{id1, types.PeerRole_Watcher, nil, []multiaddr.Multiaddr{ma1}, v1, false}},
-		{"TDiffVer",fields{id1, types.PeerRole_Producer, nil, []multiaddr.Multiaddr{ma3}, v2, false}},
+		{"TBP", fields{id1, types.PeerRole_Producer, nil, []multiaddr.Multiaddr{ma1}, v1, false}},
+		{"TAent", fields{id1, types.PeerRole_Agent, []types.PeerID{id2, id3}, []multiaddr.Multiaddr{ma1, ma2}, v1, false}},
+		{"TBP", fields{id1, types.PeerRole_Watcher, nil, []multiaddr.Multiaddr{ma1}, v1, false}},
+		{"TDiffVer", fields{id1, types.PeerRole_Producer, nil, []multiaddr.Multiaddr{ma3}, v2, false}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

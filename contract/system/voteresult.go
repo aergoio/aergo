@@ -107,7 +107,7 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 	return &voteList
 }
 
-//Sync is write vote result data to state DB. if vote result over the threshold,
+// Sync is write vote result data to state DB. if vote result over the threshold,
 func (vr *VoteResult) Sync() error {
 	votingPowerRank.apply(vr.scs)
 	resultList := vr.buildVoteList()

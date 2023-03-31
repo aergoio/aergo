@@ -6,12 +6,13 @@
 package p2p
 
 import (
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"time"
 )
 
 const (
@@ -22,10 +23,10 @@ func NewPeerFinder(logger *log.Logger, pm *peerManager, actorService p2pcommon.A
 	var pf p2pcommon.PeerFinder
 	if !useDiscover {
 		logger.Info().Msg("peer discover option is disabled, so select static peer finder.")
-		pf = &staticPeerFinder{pm:pm, logger:logger}
+		pf = &staticPeerFinder{pm: pm, logger: logger}
 	} else {
-		logger.Info().Bool("usePolaris",usePolaris).Msg("peer discover option is enabled, so select dynamic peer finder.")
-		dp := &dynamicPeerFinder{logger: logger, pm: pm, actorService: actorService, maxCap: maxCap, usePolaris:usePolaris}
+		logger.Info().Bool("usePolaris", usePolaris).Msg("peer discover option is enabled, so select dynamic peer finder.")
+		dp := &dynamicPeerFinder{logger: logger, pm: pm, actorService: actorService, maxCap: maxCap, usePolaris: usePolaris}
 		dp.qStats = make(map[types.PeerID]*queryStat)
 		pf = dp
 	}
@@ -49,7 +50,6 @@ func (dp *staticPeerFinder) OnPeerConnect(pid types.PeerID) {
 
 func (dp *staticPeerFinder) CheckAndFill() {
 }
-
 
 // dynamicPeerFinder is triggering map query to Polaris or address query to other connected peer
 // to discover peer

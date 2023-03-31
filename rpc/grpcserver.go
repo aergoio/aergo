@@ -925,7 +925,7 @@ func (rpc *AergoRPCService) GetPeers(ctx context.Context, in *types.PeersParams)
 		return nil, err
 	}
 	result, err := rpc.hub.RequestFuture(message.P2PSvc,
-		&message.GetPeers{in.NoHidden, in.ShowSelf}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
+		&message.GetPeers{NoHidden: in.NoHidden, ShowSelf: in.ShowSelf}, halfMinute, "rpc.(*AergoRPCService).GetPeers").Result()
 	if err != nil {
 		return nil, err
 	}
@@ -966,7 +966,7 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*
 	return &types.SingleBytes{Value: data}, nil
 }
 
-//GetVotes handle rpc request getvotes
+// GetVotes handle rpc request getvotes
 func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.VoteParams) (*types.VoteList, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
@@ -1001,7 +1001,7 @@ func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.Accou
 	return rsp.Info, rsp.Err
 }
 
-//GetStaking handle rpc request getstaking
+// GetStaking handle rpc request getstaking
 func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.AccountAddress) (*types.Staking, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
@@ -1225,7 +1225,7 @@ func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*ty
 	return &types.ChainStats{Report: ca.GetChainStats()}, nil
 }
 
-//GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
+// GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
 func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
 	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
 	if genesis.PublicNet() {

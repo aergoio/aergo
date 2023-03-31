@@ -16,13 +16,13 @@ import (
 )
 
 var (
-	verboseBatch    = false
-	letBatchKnowErr error
-	batchErrorCount = 0
+	verboseBatch        = false
+	letBatchKnowErr     error
+	batchErrorCount     = 0
 	lastBatchErrorCount = 0
-	enableWatch     = false
-	watchFileList   []string
-	watcher         *fsnotify.Watcher
+	enableWatch         = false
+	watchFileList       []string
+	watcher             *fsnotify.Watcher
 )
 
 func EnableVerbose() {

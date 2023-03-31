@@ -29,7 +29,7 @@ func Open(private bool) {
 	privateNet = private
 	var (
 		chain *contract.DummyChain
-		err error
+		err   error
 	)
 	if privateNet {
 		chain, err = contract.LoadDummyChain()

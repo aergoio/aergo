@@ -7,10 +7,11 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/p2p/list"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/list"
 
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/raftsupport"
@@ -57,7 +58,7 @@ type P2P struct {
 	prm    p2pcommon.PeerRoleManager
 	lm     p2pcommon.ListManager
 	cm     p2pcommon.CertificateManager
-	mutex sync.Mutex
+	mutex  sync.Mutex
 
 	// inited between construction and start
 	consacc consensus.ConsensusAccessor
@@ -132,7 +133,7 @@ func (p2ps *P2P) initP2P(chainSvc *chain.ChainService) {
 func (p2ps *P2P) initRoleManager(useRaft bool, role types.PeerRole, cm p2pcommon.CertificateManager) p2pcommon.PeerRoleManager {
 	var prm p2pcommon.PeerRoleManager
 	if useRaft {
-		prm = NewRaftRoleManager(p2ps,p2ps, p2ps.Logger)
+		prm = NewRaftRoleManager(p2ps, p2ps, p2ps.Logger)
 	} else {
 		if role == types.PeerRole_Agent {
 			if len(p2ps.cfg.P2P.Producers) == 0 {
@@ -142,7 +143,7 @@ func (p2ps *P2P) initRoleManager(useRaft bool, role types.PeerRole, cm p2pcommon
 			for _, pidStr := range p2ps.cfg.P2P.Producers {
 				pid, err := types.IDB58Decode(pidStr)
 				if err != nil {
-					panic("invalid producer id "+pidStr)
+					panic("invalid producer id " + pidStr)
 				}
 				pds[pid] = true
 			}

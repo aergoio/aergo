@@ -6,12 +6,13 @@
 package p2p
 
 import (
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/funkygao/golib/rand"
-	"testing"
-	"time"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pmock"
@@ -21,7 +22,7 @@ import (
 )
 
 func TestBlockHashesReceiver_StartGet(t *testing.T) {
-	sampleBlk := &types.BlockInfo{Hash:dummyBlockHash, No:10000}
+	sampleBlk := &types.BlockInfo{Hash: dummyBlockHash, No: 10000}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -31,10 +32,10 @@ func TestBlockHashesReceiver_StartGet(t *testing.T) {
 	}
 	tests := []struct {
 		name  string
-		input  *message.GetHashes
+		input *message.GetHashes
 		ttl   time.Duration
 	}{
-		{"TSimple", &message.GetHashes{100, dummyPeerID, sampleBlk, 100}, time.Millisecond * 10},
+		{"TSimple", &message.GetHashes{Seq: 100, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: 100}, time.Millisecond * 10},
 		// TODO: test cases
 	}
 	for _, test := range tests {
@@ -62,18 +63,18 @@ func TestBlockHashesReceiver_StartGet(t *testing.T) {
 
 func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 	//t.Skip("make check by status. and make another test to check handleInWaiting method")
-	sampleBlk := &types.BlockInfo{Hash:dummyBlockHash, No:10000}
+	sampleBlk := &types.BlockInfo{Hash: dummyBlockHash, No: 10000}
 	limit := uint64(10)
-	chain.Init(1<<20 , "", false, 1, 1 )
+	chain.Init(1<<20, "", false, 1, 1)
 
 	totalInCnt := 10
 	seqNo := uint64(8723)
 	inputHashes := make([][]byte, totalInCnt)
-	for i:= 0 ; i < totalInCnt ; i++ {
+	for i := 0; i < totalInCnt; i++ {
 		inputHashes[i] = rand.RandomByteSlice(types.HashIDLength)
 	}
-	wrongHashes := [][]byte{rand.RandomByteSlice(types.HashIDLength-3)}
-	emptyHashes := [][]byte{{},{}}
+	wrongHashes := [][]byte{rand.RandomByteSlice(types.HashIDLength - 3)}
+	emptyHashes := [][]byte{{}, {}}
 	tests := []struct {
 		name         string
 		input        *message.GetHashes
@@ -82,20 +83,20 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 		hashInput    [][][]byte
 
 		// to verify
-		instantFinish  int
-		sentResp  int
-		respError bool
+		instantFinish int
+		sentResp      int
+		respError     bool
 	}{
-		{"TSingleResp", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Minute, 0, [][][]byte{inputHashes}, 1, 1, false},
-		{"TMultiResp", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Minute, 0, [][][]byte{inputHashes[:1], inputHashes[1:3], inputHashes[3:]}, 1, 1, false},
-		{"TFewerHashes", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Minute, 0, [][][]byte{inputHashes[:3], inputHashes[3:7]}, 1, 1, false},
+		{"TSingleResp", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Minute, 0, [][][]byte{inputHashes}, 1, 1, false},
+		{"TMultiResp", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Minute, 0, [][][]byte{inputHashes[:1], inputHashes[1:3], inputHashes[3:]}, 1, 1, false},
+		{"TFewerHashes", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Minute, 0, [][][]byte{inputHashes[:3], inputHashes[3:7]}, 1, 1, false},
 		// Fail1 remote err
-		{"TWrongHash1", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Second>>1, 0, [][][]byte{emptyHashes, inputHashes[:2],inputHashes[3:7]}, 0, 1, true},
-		{"TWrongHash2", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Minute, 0, [][][]byte{inputHashes[:2],wrongHashes}, 1, 1, true},
-		{"TRemoteFail", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Minute, 0, [][][]byte{inputHashes[:0]}, 1, 1, true},
-		{"TTooManyBlks", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit-2}, time.Minute*4,0,[][][]byte{inputHashes[:1],inputHashes[1:3],inputHashes[3:]},1,1, true},
+		{"TWrongHash1", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Second >> 1, 0, [][][]byte{emptyHashes, inputHashes[:2], inputHashes[3:7]}, 0, 1, true},
+		{"TWrongHash2", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Minute, 0, [][][]byte{inputHashes[:2], wrongHashes}, 1, 1, true},
+		{"TRemoteFail", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Minute, 0, [][][]byte{inputHashes[:0]}, 1, 1, true},
+		{"TTooManyBlks", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit - 2}, time.Minute * 4, 0, [][][]byte{inputHashes[:1], inputHashes[1:3], inputHashes[3:]}, 1, 1, true},
 		// Fail4 response sent after timeout
-		{"TTimeout", &message.GetHashes{seqNo,dummyPeerID, sampleBlk, limit}, time.Millisecond * 10, time.Millisecond * 20, [][][]byte{inputHashes[:1], inputHashes[1:3], inputHashes[3:]}, 1, 0, false},
+		{"TTimeout", &message.GetHashes{Seq: seqNo, ToWhom: dummyPeerID, PrevInfo: sampleBlk, Count: limit}, time.Millisecond * 10, time.Millisecond * 20, [][][]byte{inputHashes[:1], inputHashes[1:3], inputHashes[3:]}, 1, 0, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -153,8 +154,8 @@ func TestBlockHashesReceiver_ReceiveResp(t *testing.T) {
 				//}
 			}
 			// if sender is supposed to send other partial messages, receiver will wait and cleanup those messages
-			if (br.senderFinished != nil ) != (test.instantFinish == 0) {
-				t.Fatalf("cleanup routine is %v , want %v)", (br.senderFinished != nil ), (test.instantFinish == 0))
+			if (br.senderFinished != nil) != (test.instantFinish == 0) {
+				t.Fatalf("cleanup routine is %v , want %v)", (br.senderFinished != nil), (test.instantFinish == 0))
 			}
 			if test.instantFinish == 0 {
 				time.Sleep(test.ttl * 2)

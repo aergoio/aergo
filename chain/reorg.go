@@ -128,7 +128,7 @@ func newReorganizer(cs *ChainService, topBlock *types.Block, marker *ReorgMarker
 	return reorg, nil
 }
 
-//TODO: gather delete request of played tx (1 msg)
+// TODO: gather delete request of played tx (1 msg)
 func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error {
 	logger.Info().Uint64("blockNo", topBlock.GetHeader().GetBlockNo()).Str("hash", topBlock.ID()).
 		Bool("recovery", (marker != nil)).Msg("reorg started")
@@ -224,9 +224,9 @@ func (reorg *reorganizer) newMarker() {
 }
 
 // swap oldchain to newchain oneshot (best effort)
-//  - chain height mapping
-//  - tx mapping
-//  - best block
+//   - chain height mapping
+//   - tx mapping
+//   - best block
 func (reorg *reorganizer) swapChain() error {
 	logger.Info().Msg("swap chain to new branch")
 
@@ -502,9 +502,10 @@ func (reorg *reorganizer) deleteOldReceipts() {
 }
 
 /*
-	rollforward
-		rollforwardBlock
-		add oldTxs to mempool
+rollforward
+
+	rollforwardBlock
+	add oldTxs to mempool
 */
 func (reorg *reorganizer) rollforward() error {
 	//cs := reorg.cs

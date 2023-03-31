@@ -50,7 +50,7 @@ const (
 	_ SubProtocol = 0x3100 + iota
 	GetClusterRequest
 	GetClusterResponse
-	RaftWrapperMessage  //
+	RaftWrapperMessage //
 )
 
 //go:generate stringer -type=SubProtocol

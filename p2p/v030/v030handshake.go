@@ -8,9 +8,10 @@ package v030
 import (
 	"context"
 	"fmt"
-	"github.com/aergoio/aergo/internal/network"
 	"io"
 	"time"
+
+	"github.com/aergoio/aergo/internal/network"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -26,10 +27,10 @@ type V030Handshaker struct {
 	peerID  types.PeerID
 	chainID *types.ChainID
 
-	msgRW p2pcommon.MsgReadWriter
-	remoteMeta  p2pcommon.PeerMeta
-	remoteHash  types.BlockID
-	remoteNo    types.BlockNo
+	msgRW      p2pcommon.MsgReadWriter
+	remoteMeta p2pcommon.PeerMeta
+	remoteHash types.BlockID
+	remoteNo   types.BlockNo
 }
 
 var _ p2pcommon.VersionedHandshaker = (*V030Handshaker)(nil)
@@ -72,7 +73,7 @@ func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 		return hsResult, nil
 	}
 }
@@ -212,7 +213,7 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	if err != nil {
 		return nil, err
 	}
-	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 	return hsResult, nil
 }
 

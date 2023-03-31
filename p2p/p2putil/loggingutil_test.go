@@ -8,13 +8,14 @@ package p2putil
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"strconv"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/funkygao/golib/rand"
-	"regexp"
-	"strconv"
-	"testing"
 
 	"github.com/rs/zerolog"
 )
@@ -87,10 +88,10 @@ func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 		wantSize int
 		wantMore int
 	}{
-		{"TEmpty", fields{nil, 10}, 0,0},
-		{"TOne", fields{sampleArr[:1], 10}, 1,0},
-		{"TMid", fields{sampleArr[1:6], 10}, 5,0},
-		{"TMax", fields{sampleArr[:10], 10}, 10,0},
+		{"TEmpty", fields{nil, 10}, 0, 0},
+		{"TOne", fields{sampleArr[:1], 10}, 1, 0},
+		{"TMid", fields{sampleArr[1:6], 10}, 5, 0},
+		{"TMax", fields{sampleArr[:10], 10}, 10, 0},
 		{"TOver", fields{sampleArr[0:11], 10}, 10, 2},
 		{"TOver2", fields{sampleArr, 10}, 10, 11},
 	}
@@ -113,7 +114,7 @@ func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 				//fmt.Println(buf1.String())
 			}
 			mores := reg.FindSubmatch(buf1.Bytes())
-			if tt.wantMore==0 {
+			if tt.wantMore == 0 {
 				if len(mores) != 0 {
 					t.Errorf("want simle slice, but not:\n%s", buf1.String())
 				}
@@ -121,7 +122,7 @@ func TestLogPeerMetasMarshaler_MarshalZerologArray(t *testing.T) {
 				if len(mores) != 2 {
 					t.Errorf("want %v more indicator, but not: \n%v", tt.wantMore, mores)
 				} else {
-					cnt,err := strconv.ParseInt(string(mores[1]),10,32)
+					cnt, err := strconv.ParseInt(string(mores[1]), 10, 32)
 					if err != nil {
 						t.Errorf("want %v more indicator, but not: \n%s", tt.wantMore, buf1.String())
 					} else if int(cnt) != tt.wantMore {

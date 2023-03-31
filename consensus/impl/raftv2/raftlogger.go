@@ -2,8 +2,9 @@ package raftv2
 
 import (
 	"fmt"
-	"github.com/rs/zerolog"
 	"strings"
+
+	"github.com/rs/zerolog"
 
 	"github.com/aergoio/aergo-lib/log"
 )
@@ -17,7 +18,6 @@ type RaftLogger struct {
 func NewRaftLogger(logger *log.Logger) *RaftLogger {
 	if logger == nil {
 		panic("base logger of raft is nil")
-		return nil
 	}
 
 	return &RaftLogger{logger: logger.With().CallerWithSkipFrameCount(3).Logger()}

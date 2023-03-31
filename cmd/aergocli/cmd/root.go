@@ -9,10 +9,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/aergoio/aergo/types"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/rs/zerolog"

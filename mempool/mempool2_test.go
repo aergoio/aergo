@@ -2,21 +2,22 @@ package mempool
 
 import (
 	"context"
-	"github.com/aergoio/aergo/types"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/types"
 )
 
 func TestCheckExpired(t *testing.T) {
-	for i:=-20; i<10; i++ {
+	for i := -20; i < 10; i++ {
 		now := time.Now()
-		tTime := now.Add(time.Hour*time.Duration(i))
+		tTime := now.Add(time.Hour * time.Duration(i))
 		eTime := now.Add(-1 * evictPeriod)
 		b1 := time.Since(tTime) < evictPeriod
 		b2 := tTime.After(eTime)
 		if b1 != b2 {
-			t.Errorf("CheckResult is differ for time %v :  %v and %v ",tTime,b1,b2)
+			t.Errorf("CheckResult is differ for time %v :  %v and %v ", tTime, b1, b2)
 		}
 	}
 }
@@ -25,39 +26,38 @@ func BenchmarkTimerCheck(b *testing.B) {
 	pool := make(map[types.AccountID]*txList)
 	st := types.NewState()
 	totSize := 0
-	for i:=0; i<8000 ; i++ {
+	for i := 0; i < 8000; i++ {
 		acc := types.AccountID(types.ToHashID([]byte(types.RandomPeerID())))
-		txCnt := i/2
+		txCnt := i / 2
 		totSize += txCnt
-		l := newTxList(types.HashID(acc).Bytes(),st,nil)
-		l.list = make([]types.Transaction,txCnt)
-		for j:=0; j<txCnt; j++ {
+		l := newTxList(types.HashID(acc).Bytes(), st, nil)
+		l.list = make([]types.Transaction, txCnt)
+		for j := 0; j < txCnt; j++ {
 			tx := types.NewTx()
-			tx.Body.Nonce = uint64(j+1)
+			tx.Body.Nonce = uint64(j + 1)
 			l.list[j] = types.NewTransaction(tx)
 		}
 		pool[acc] = l
 	}
 	cache := sync.Map{}
-	ttl := 4*time.Millisecond
+	ttl := 4 * time.Millisecond
 	benchmarks := []struct {
 		name string
-		fn func(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration)
+		fn   func(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration)
 	}{
-		{"BNoTO",noTimeout},
-		{"BCtx",timeoutWithCtx},
-		{"BTimer",timeoutWithTimer},
-		{"BTimer2",timeoutWithTimer2},
-		{"BNowFn",timeoutWithNow},
+		{"BNoTO", noTimeout},
+		{"BCtx", timeoutWithCtx},
+		{"BTimer", timeoutWithTimer},
+		{"BTimer2", timeoutWithTimer2},
+		{"BNowFn", timeoutWithNow},
 		{"BNowFn64", timeoutWithNow64},
-
 	}
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				tot, et := bm.fn(pool, cache, ttl)
 				if tot < totSize {
-					b.Logf("Not all tx processed proc %d, total %d, in ttl %v",tot, totSize, et)
+					b.Logf("Not all tx processed proc %d, total %d, in ttl %v", tot, totSize, et)
 				}
 			}
 		})
@@ -112,7 +112,7 @@ func timeoutWithNow64(pool map[types.AccountID]*txList, cache sync.Map, ttl time
 	cnt := 0
 	for _, list := range pool {
 		cnt++
-		if (cnt & 0x03f) == 0 && !time.Now().Before(expireT) {
+		if (cnt&0x03f) == 0 && !time.Now().Before(expireT) {
 			break
 		}
 		if time.Since(list.GetLastModifiedTime()) < evictPeriod {
@@ -137,9 +137,9 @@ func timeoutWithTimer(pool map[types.AccountID]*txList, cache sync.Map, ttl time
 L:
 	for _, list := range pool {
 		select {
-			case <-expireT.C:
-				break L
-			default:
+		case <-expireT.C:
+			break L
+		default:
 		}
 
 		if time.Since(list.GetLastModifiedTime()) < evictPeriod {
@@ -185,7 +185,7 @@ L:
 
 func timeoutWithCtx(pool map[types.AccountID]*txList, cache sync.Map, ttl time.Duration) (int, time.Duration) {
 	start := time.Now()
-	expireT,_ := context.WithTimeout(context.TODO(),ttl)
+	expireT, _ := context.WithTimeout(context.TODO(), ttl)
 	total := 0
 L:
 	for _, list := range pool {

@@ -374,7 +374,7 @@ func (mp *MemPool) put(tx types.Transaction) error {
 	mp.orphan -= diff
 	mp.cache.Store(id, tx)
 	mp.length++
-	mp.Trace().Object("tx", types.LogTx{tx.GetTx()}).Msg("tx added")
+	mp.Trace().Object("tx", types.LogTx{Tx: tx.GetTx()}).Msg("tx added")
 
 	if !mp.testConfig {
 		mp.notifyNewTx(tx)
@@ -528,7 +528,7 @@ func (mp *MemPool) removeOnBlockArrival(block *types.Block) error {
 			mp.length--
 		}
 		if len(delTxs) > 0 {
-			mp.Trace().Array("txs",types.LogTrsactions{delTxs,5}).Msg("transactions were filtered by state")
+			mp.Trace().Array("txs", types.LogTrsactions{TXs: delTxs, Limit: 5}).Msg("transactions were filtered by state")
 		}
 		mp.releaseMemPoolList(list)
 		check++
@@ -732,8 +732,8 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		}
 		txBody := tx.GetBody()
 		rsp, err := mp.RequestToFuture(message.ChainSvc,
-			&message.CheckFeeDelegation{txBody.GetPayload(), recipient,
-				txBody.GetAccount(), tx.GetHash(), txBody.GetAmount()},
+			&message.CheckFeeDelegation{Payload: txBody.GetPayload(), Contract: recipient,
+				Sender: txBody.GetAccount(), TxHash: tx.GetHash(), Amount: txBody.GetAmount()},
 			time.Second).Result()
 		if err != nil {
 			mp.Error().Err(err).Msg("failed to checkFeeDelegation")
@@ -985,7 +985,7 @@ func (mp *MemPool) removeTx(tx *types.Tx) error {
 
 	mp.cache.Delete(types.ToTxID(tx.GetHash()))
 	mp.length--
-	mp.Trace().Object("tx",types.LogTx{tx}).Msg("removed tx")
+	mp.Trace().Object("tx", types.LogTx{Tx: tx}).Msg("removed tx")
 	return nil
 }
 
@@ -998,7 +998,7 @@ type unconfirmedTxs struct {
 	Address  string     `json:"address"`
 	Expire   *time.Time `json:"expire,omitempty"`
 	Pooled   txIdList   `json:"pooled"`
-	Orphaned txIdList   `json:"orphaned""`
+	Orphaned txIdList   `json:"orphaned"`
 }
 
 func newUnconfirmedTxs(acc []byte, eTime *time.Time, pooled, orphaned int) *unconfirmedTxs {

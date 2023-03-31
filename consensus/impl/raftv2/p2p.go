@@ -2,10 +2,11 @@ package raftv2
 
 import (
 	"errors"
+	"time"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"time"
 )
 
 var (

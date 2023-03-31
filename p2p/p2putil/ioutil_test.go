@@ -22,17 +22,17 @@ func TestReadToLen(t *testing.T) {
 		args   args
 		repeat int
 
-		want    int
+		want int
 	}{
-		{"TExact",args{4},0, 4},
-		{"TBigBuf",args{8},0, 8},
-		{"TRepeat",args{4},4, 4},
+		{"TExact", args{4}, 0, 4},
+		{"TBigBuf", args{8}, 0, 8},
+		{"TRepeat", args{4}, 4, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rd := bytes.NewReader(sample)
 			bf := make([]byte, 100)
-			prev :=  make([]byte, 0, tt.args.bfLen)
+			prev := make([]byte, 0, tt.args.bfLen)
 			for i := 0; i <= tt.repeat; i++ {
 				got, _ := ReadToLen(rd, bf[:tt.args.bfLen])
 				if got != tt.want {

@@ -7,6 +7,7 @@ package rpc
 
 import (
 	"errors"
+
 	"github.com/aergoio/aergo/types"
 )
 
@@ -75,7 +76,6 @@ func (s *ListBlockStream) GoAway() {
 		logger.Warn().Uint32("streamId", s.id).Msg("goAway called twice. it looks like a bug")
 	}
 }
-
 
 // ListBlockMetaStream manages server stream of listBlock RPC
 // FIXME this class has a lot of duplication to ListBlockStream

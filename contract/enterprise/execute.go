@@ -179,7 +179,7 @@ func createSetEvent(addr []byte, name string, v []string) ([]*types.Event, error
 		return nil, err
 	}
 	return []*types.Event{
-		&types.Event{
+		{
 			ContractAddress: addr,
 			EventName:       "Set " + strings.ToUpper(name),
 			EventIdx:        0,

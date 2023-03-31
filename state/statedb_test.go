@@ -14,18 +14,18 @@ var (
 	//testRoot, _ = enc.ToBytes("5eGvHsNc5526JBqd8FhKFrtti2fT7xiCyB6rJXt9egFc")
 	testRoot   = []byte{0xde, 0xf0, 0x85, 0x93, 0x70, 0x51, 0x4d, 0x51, 0x36, 0x82, 0x9e, 0xeb, 0x4a, 0xd1, 0x6, 0x57, 0x7c, 0xd1, 0xc8, 0x52, 0xc, 0xcb, 0x74, 0xb2, 0xa6, 0x4b, 0xf0, 0x34, 0xc6, 0xf4, 0x5d, 0x80}
 	testStates = []types.State{
-		types.State{Nonce: 1, Balance: new(big.Int).SetUint64(100).Bytes()},
-		types.State{Nonce: 2, Balance: new(big.Int).SetUint64(200).Bytes()},
-		types.State{Nonce: 3, Balance: new(big.Int).SetUint64(300).Bytes()},
-		types.State{Nonce: 4, Balance: new(big.Int).SetUint64(400).Bytes()},
-		types.State{Nonce: 5, Balance: new(big.Int).SetUint64(500).Bytes()},
+		{Nonce: 1, Balance: new(big.Int).SetUint64(100).Bytes()},
+		{Nonce: 2, Balance: new(big.Int).SetUint64(200).Bytes()},
+		{Nonce: 3, Balance: new(big.Int).SetUint64(300).Bytes()},
+		{Nonce: 4, Balance: new(big.Int).SetUint64(400).Bytes()},
+		{Nonce: 5, Balance: new(big.Int).SetUint64(500).Bytes()},
 	}
 	//testSecondRoot, _ = enc.ToBytes("GGKZy5XqNPU1VWYspHPwEtm8hnZX2yhcP236ztKf6Pif")
 	testSecondRoot   = []byte{0x66, 0xf9, 0x19, 0x2, 0x91, 0xe6, 0xb5, 0x74, 0x3, 0x69, 0x1e, 0x86, 0x87, 0x22, 0x78, 0x1f, 0x4, 0xc3, 0x67, 0x5, 0xf1, 0xb6, 0xce, 0x4b, 0x63, 0x61, 0x6, 0x2c, 0x24, 0xb1, 0xe7, 0xda}
 	testSecondStates = []types.State{
-		types.State{Nonce: 6, Balance: new(big.Int).SetUint64(600).Bytes()},
-		types.State{Nonce: 7, Balance: new(big.Int).SetUint64(700).Bytes()},
-		types.State{Nonce: 8, Balance: new(big.Int).SetUint64(800).Bytes()},
+		{Nonce: 6, Balance: new(big.Int).SetUint64(600).Bytes()},
+		{Nonce: 7, Balance: new(big.Int).SetUint64(700).Bytes()},
+		{Nonce: 8, Balance: new(big.Int).SetUint64(800).Bytes()},
 	}
 )
 

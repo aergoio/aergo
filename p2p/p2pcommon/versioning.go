@@ -7,8 +7,9 @@ package p2pcommon
 
 import (
 	"errors"
-	"github.com/coreos/go-semver/semver"
 	"regexp"
+
+	"github.com/coreos/go-semver/semver"
 )
 
 // AergoVersion follows sementic versioning https://semver.org/
@@ -16,6 +17,7 @@ type AergoVersion = semver.Version
 
 // const verPattern = `v([0-9]+)\.([0-9]+)\..([0-9]+)(-(.+))?`
 const verPattern = `v[0-9].+`
+
 var checker, _ = regexp.Compile(verPattern)
 
 // ParseAergoVersion parse version string to sementic version with slightly different manner. This function allows not only standard sementic version but also version strings containing v in prefixes.
@@ -25,7 +27,7 @@ func ParseAergoVersion(verStr string) (AergoVersion, error) {
 	}
 	ver, err := semver.NewVersion(verStr)
 	if err != nil {
-		return AergoVersion{}, errors.New("invalid version "+verStr)
+		return AergoVersion{}, errors.New("invalid version " + verStr)
 	}
 	return AergoVersion(*ver), nil
 }
@@ -35,6 +37,7 @@ const (
 	MinimumAergoVersion = "v2.0.0"
 	MaximumAergoVersion = "v3.0.0"
 )
+
 var (
 	minAergoVersion AergoVersion // inclusive
 	maxAergoVersion AergoVersion // exclusive
@@ -44,14 +47,13 @@ func init() {
 	var err error
 	minAergoVersion, err = ParseAergoVersion(MinimumAergoVersion)
 	if err != nil {
-		panic("Invalid minimum version "+MinimumAergoVersion)
+		panic("Invalid minimum version " + MinimumAergoVersion)
 	}
 	maxAergoVersion, err = ParseAergoVersion(MaximumAergoVersion)
 	if err != nil {
-		panic("Invalid maximum version "+MaximumAergoVersion)
+		panic("Invalid maximum version " + MaximumAergoVersion)
 	}
 }
-
 
 func CheckVersion(version string) bool {
 	ver, err := ParseAergoVersion(version)

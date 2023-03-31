@@ -111,7 +111,7 @@ func TestParseUnit(t *testing.T) {
 	n100 := big.NewInt(100)
 	n1000 := big.NewInt(1000)
 	OneGaer := big.NewInt(1000000000)
-	OneAergo := big.NewInt(1000000000).Mul(OneGaer,OneGaer)
+	OneAergo := big.NewInt(1000000000).Mul(OneGaer, OneGaer)
 
 	tests := []struct {
 		name    string
@@ -119,23 +119,23 @@ func TestParseUnit(t *testing.T) {
 		want    *big.Int
 		wantErr bool
 	}{
-		{"TNum", "10000", big.NewInt(10000),false},
-		{"TNumDot", "1000.5", big.NewInt(0),true},
-		{"TNum20pow", "100000000000000000000", big.NewInt(1).Mul(OneAergo, n100),false},
-		{"TAer", "10000aer", big.NewInt(10000),false},
-		{"TAerDot", "1000.5aer", big.NewInt(0),true},
-		{"TAer20pow", "100000000000000000000", big.NewInt(1).Mul(OneAergo, n100),false},
-		{"TGaer", "1000gaer", big.NewInt(1).Mul(OneGaer,n1000),false},
-		{"TGaerDot", "1000.21245gaer", big.NewInt(1).Add(big.NewInt(0).Mul(OneGaer,n1000),big.NewInt(212450000)),false},
-		{"TGaerDot2", "0.21245gaer", big.NewInt(212450000),false},
-		{"TGaerDot3", ".21245gaer", big.NewInt(212450000),false},
-		{"TGaer11pow", "100000000000gaer", big.NewInt(1).Mul(OneAergo, n100),false},
-		{"TAergo", "100aergo", big.NewInt(1).Mul(OneAergo, n100),false},
-		{"TAergoDot", "1000.00000000021245aergo", big.NewInt(1).Add(big.NewInt(0).Mul(OneAergo,n1000),big.NewInt(212450000)),false},
-		{"TWrongNum", "100d0.321245", big.NewInt(1),true},
-		{"TWrongNum2", "100d0.321245aergo", big.NewInt(1),true},
-		{"TWrongUnit", "100d0.321245argo", big.NewInt(1),true},
-		{"TWrongUnit", "100d0.321245ear", big.NewInt(1),true},
+		{"TNum", "10000", big.NewInt(10000), false},
+		{"TNumDot", "1000.5", big.NewInt(0), true},
+		{"TNum20pow", "100000000000000000000", big.NewInt(1).Mul(OneAergo, n100), false},
+		{"TAer", "10000aer", big.NewInt(10000), false},
+		{"TAerDot", "1000.5aer", big.NewInt(0), true},
+		{"TAer20pow", "100000000000000000000", big.NewInt(1).Mul(OneAergo, n100), false},
+		{"TGaer", "1000gaer", big.NewInt(1).Mul(OneGaer, n1000), false},
+		{"TGaerDot", "1000.21245gaer", big.NewInt(1).Add(big.NewInt(0).Mul(OneGaer, n1000), big.NewInt(212450000)), false},
+		{"TGaerDot2", "0.21245gaer", big.NewInt(212450000), false},
+		{"TGaerDot3", ".21245gaer", big.NewInt(212450000), false},
+		{"TGaer11pow", "100000000000gaer", big.NewInt(1).Mul(OneAergo, n100), false},
+		{"TAergo", "100aergo", big.NewInt(1).Mul(OneAergo, n100), false},
+		{"TAergoDot", "1000.00000000021245aergo", big.NewInt(1).Add(big.NewInt(0).Mul(OneAergo, n1000), big.NewInt(212450000)), false},
+		{"TWrongNum", "100d0.321245", big.NewInt(1), true},
+		{"TWrongNum2", "100d0.321245aergo", big.NewInt(1), true},
+		{"TWrongUnit", "100d0.321245argo", big.NewInt(1), true},
+		{"TWrongUnit", "100d0.321245ear", big.NewInt(1), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

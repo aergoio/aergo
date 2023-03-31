@@ -2,12 +2,13 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
@@ -92,7 +93,7 @@ func TestPeerManager_GetPeers(t *testing.T) {
 	cnt := 0
 	go func() {
 		wg.Wait()
-		for _ = range target.GetPeers() {
+		for range target.GetPeers() {
 			cnt++
 		}
 		assert.True(t, cnt > (iterSize>>2))
@@ -493,7 +494,7 @@ func Test_peerManager_tryRegister(t *testing.T) {
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 
 			remote := p2pcommon.RemoteInfo{Meta: tt.args.status.Meta, Connection: p2pcommon.RemoteConn{Outbound: tt.args.outbound}, Hidden: tt.args.status.Hidden}
-			in := connPeerResult{remote: remote, msgRW: mockRW,}
+			in := connPeerResult{remote: remote, msgRW: mockRW}
 			var gotMeta p2pcommon.RemoteInfo
 
 			mockPeerFactory.EXPECT().CreateRemotePeer(gomock.AssignableToTypeOf(p2pcommon.RemoteInfo{}), gomock.Any(), mockRW).Do(func(ri p2pcommon.RemoteInfo, seq uint32, rw p2pcommon.MsgReadWriter) {
@@ -621,26 +622,26 @@ func Test_peerManager_updatePeerCache(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		arg arg
+		arg  arg
 
 		wantSize  int
 		wantBp    int
 		wantWatch int
 	}{
 		// first add watcher
-		{"TA1", arg{true, pids[0], rw}, 1, 0, 1,},
+		{"TA1", arg{true, pids[0], rw}, 1, 0, 1},
 		// add producer
-		{"TA2", arg{true, pids[1], rp}, 2, 1, 1,},
+		{"TA2", arg{true, pids[1], rp}, 2, 1, 1},
 		// add agent
-		{"TA3", arg{true, pids[2], ra}, 3, 2, 1,},
+		{"TA3", arg{true, pids[2], ra}, 3, 2, 1},
 		// add legacy version
-		{"TA4", arg{true, pids[3], rl}, 4, 2, 2,},
+		{"TA4", arg{true, pids[3], rl}, 4, 2, 2},
 		// update watcher to agent
-		{"TM1", arg{true, pids[0], ra}, 4, 3, 1,},
+		{"TM1", arg{true, pids[0], ra}, 4, 3, 1},
 		// update agent to watcher
-		{"TM2", arg{true, pids[2], rw}, 4, 2, 2,},
+		{"TM2", arg{true, pids[2], rw}, 4, 2, 2},
 		// remove watcher
-		{"TR1", arg{false, pids[2], rw}, 3, 2, 1,},
+		{"TR1", arg{false, pids[2], rw}, 3, 2, 1},
 	}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -685,12 +686,12 @@ func Test_slowPush(t *testing.T) {
 
 		wantPush int
 	}{
-		{"TSmall",10, 0,1},
-		{"TMod",1000, 0,1},
-		{"TBig",3669, 0,4},
-		{"TBig2",4000, 0,4},
-		{"THuge",179999,0,180},
-		{"TDiscon",10000,3,3},
+		{"TSmall", 10, 0, 1},
+		{"TMod", 1000, 0, 1},
+		{"TBig", 3669, 0, 4},
+		{"TBig2", 4000, 0, 4},
+		{"THuge", 179999, 0, 180},
+		{"TDiscon", 10000, 3, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

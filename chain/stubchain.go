@@ -10,7 +10,7 @@ import (
 	"github.com/aergoio/aergo/types"
 )
 
-//StubSyncer receive Syncer, P2P, Chain Service actor message
+// StubSyncer receive Syncer, P2P, Chain Service actor message
 type StubBlockChain struct {
 	Best   int
 	Hashes []([]byte)
@@ -86,7 +86,7 @@ func (tchain *StubBlockChain) GetHashes(prevInfo *types.BlockInfo, count uint64)
 }
 
 func (tchain *StubBlockChain) GetBlockInfo(no uint64) *types.BlockInfo {
-	return &types.BlockInfo{tchain.Hashes[no], no}
+	return &types.BlockInfo{Hash: tchain.Hashes[no], No: no}
 }
 
 func (tchain *StubBlockChain) GetBlockByNo(no uint64) *types.Block {
@@ -151,7 +151,6 @@ func (tchain *StubBlockChain) GetBlock(blockHash []byte) (*types.Block, error) {
 	for _, block := range tchain.Blocks {
 		if bytes.Equal(block.GetHash(), blockHash) {
 			return block, nil
-			break
 		}
 	}
 
@@ -166,7 +165,7 @@ func (tchain *StubBlockChain) GetHashByNo(blockNo types.BlockNo) ([]byte, error)
 	return tchain.Hashes[blockNo], nil
 }
 
-//TODO refactoring with getAnchorsNew()
+// TODO refactoring with getAnchorsNew()
 func (tchain *StubBlockChain) GetAnchors() (ChainAnchor, types.BlockNo, error) {
 	//from top : 8 * 32 = 256
 	anchors := make(ChainAnchor, 0)

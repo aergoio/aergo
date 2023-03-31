@@ -176,7 +176,7 @@ func (tl *txList) updateReady() {
 	}
 }
 
-//RemoveTx will remove a transaction in the list and return the number of changed orphan, removed transaction
+// RemoveTx will remove a transaction in the list and return the number of changed orphan, removed transaction
 func (tl *txList) RemoveTx(tx *types.Tx) (int, types.Transaction) {
 	oldLen := tl.Len()
 	for i, x := range tl.list {

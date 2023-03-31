@@ -6,10 +6,11 @@
 package p2p
 
 import (
+	"time"
+
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/raftsupport"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -209,12 +210,12 @@ func (pr *pbRaftMsgOrder) SendTo(pi p2pcommon.RemotePeer) error {
 
 	err := p.rw.WriteMsg(pr.message)
 	if err != nil {
-		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("fail to Send raft message")
+		p.logger.Warn().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Err(err).Object("raftMsg", raftsupport.RaftMsgMarshaller{Message: pr.msg}).Msg("fail to Send raft message")
 		pr.raftAcc.ReportUnreachable(pi.ID())
 		return err
 	}
 	if pr.trace && p.logger.IsDebugEnabled() {
-		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", raftsupport.RaftMsgMarshaller{pr.msg}).Msg("Sent raft message")
+		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogMsgID, pr.GetMsgID().String()).Object("raftMsg", raftsupport.RaftMsgMarshaller{Message: pr.msg}).Msg("Sent raft message")
 	}
 	return nil
 }
@@ -223,7 +224,6 @@ func (pr *pbRaftMsgOrder) CancelSend(pi p2pcommon.RemotePeer) {
 	// TODO test more whether to uncomment or to delete code below
 	//pr.raftAcc.ReportUnreachable(pi.ID())
 }
-
 
 type pbTossOrder struct {
 	pbMessageOrder

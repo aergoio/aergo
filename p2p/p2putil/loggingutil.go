@@ -7,13 +7,13 @@ package p2putil
 
 import (
 	"fmt"
+	"net"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/rs/zerolog"
-	"net"
 )
-
 
 // Deprecated
 func DebugLogReceiveMsg(logger *log.Logger, protocol p2pcommon.SubProtocol, msgID string, peer p2pcommon.RemotePeer, additional interface{}) {
@@ -93,7 +93,7 @@ func NewLogPeerMetasMarshaller(metas []p2pcommon.PeerMeta, limit int) *LogPeerMe
 func (m *LogPeerMetasMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	size := len(m.metas)
 	if size > m.limit {
-		size =  m.limit-1
+		size = m.limit - 1
 		for _, meta := range m.metas[:size] {
 			a.Str(ShortMetaForm(meta))
 		}
@@ -104,7 +104,6 @@ func (m *LogPeerMetasMarshaller) MarshalZerologArray(a *zerolog.Array) {
 		}
 	}
 }
-
 
 type LogPeersMarshaller struct {
 	metas []p2pcommon.RemotePeer
@@ -129,9 +128,8 @@ func (m *LogPeersMarshaller) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
-
 type LogStringsMarshaller struct {
-	strs []string
+	strs  []string
 	limit int
 }
 
@@ -152,7 +150,6 @@ func (m *LogStringsMarshaller) MarshalZerologArray(a *zerolog.Array) {
 		}
 	}
 }
-
 
 type LogPeerIdsMarshaller struct {
 	arr   []types.PeerID
@@ -176,7 +173,6 @@ func (m LogPeerIdsMarshaller) MarshalZerologArray(a *zerolog.Array) {
 		}
 	}
 }
-
 
 type LogIPNetMarshaller struct {
 	arr   []*net.IPNet
@@ -206,6 +202,6 @@ type AgentCertMarshaller struct {
 }
 
 func (a AgentCertMarshaller) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("issuer",a.BPID.Pretty()).Str("agent",a.AgentID.Pretty()).Array("addrs",NewLogStringsMarshaller(a.AgentAddress,10)).
-		Time("created",a.CreateTime).Time("expire",a.ExpireTime).Uint32("version",a.Version)
+	e.Str("issuer", a.BPID.Pretty()).Str("agent", a.AgentID.Pretty()).Array("addrs", NewLogStringsMarshaller(a.AgentAddress, 10)).
+		Time("created", a.CreateTime).Time("expire", a.ExpireTime).Uint32("version", a.Version)
 }

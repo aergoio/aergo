@@ -2,13 +2,14 @@ package chain
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
-	"reflect"
-	"time"
 )
 
 type ChainVerifier struct {

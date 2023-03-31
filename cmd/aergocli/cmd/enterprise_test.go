@@ -88,7 +88,7 @@ func TestGetConfChangeWithMock(t *testing.T) {
 	).MaxTimes(2)
 
 	// case: GetConfChangeProgress from tx hash
-	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout",  "0")
+	output, err = executeCommand(rootCmd, "enterprise", "tx", testTxHashString, "--timeout", "0")
 	assert.NoError(t, err, "should be success")
 	t.Log(output)
 

@@ -6,6 +6,9 @@
 package subproto
 
 import (
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -15,8 +18,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"testing"
-	"time"
 )
 
 func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
@@ -24,7 +25,7 @@ func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
 	agentID := types.RandomPeerID()
 	type args struct {
 		remoteID types.PeerID
-		role types.PeerRole
+		role     types.PeerRole
 	}
 	tests := []struct {
 		name string
@@ -32,9 +33,9 @@ func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
 
 		wantMine bool
 	}{
-		{"TMyAg",args{agentID, types.PeerRole_Agent},true},
-		{"TMyAgNoCert",args{agentID, types.PeerRole_Watcher},true},
-		{"TOtherAg",args{types.RandomPeerID(), types.PeerRole_Agent},false},
+		{"TMyAg", args{agentID, types.PeerRole_Agent}, true},
+		{"TMyAgNoCert", args{agentID, types.PeerRole_Watcher}, true},
+		{"TOtherAg", args{types.RandomPeerID(), types.PeerRole_Agent}, false},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
@@ -46,7 +47,7 @@ func TestNewBlockProducedNoticeHandlerOfBP(t *testing.T) {
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 			mockPeer := p2pmock.NewMockRemotePeer(ctrl)
 			mockActor := p2pmock.NewMockActorService(ctrl)
-			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{AgentID:agentID}).AnyTimes()
+			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{AgentID: agentID}).AnyTimes()
 			mockPeer.EXPECT().ID().Return(tt.args.remoteID).AnyTimes()
 			mockPeer.EXPECT().Name().Return("16..aadecf@1").AnyTimes()
 			mockPeer.EXPECT().AcceptedRole().Return(tt.args.role).AnyTimes()
@@ -87,13 +88,12 @@ func Test_blockProducedNoticeHandler_handle_FromBP(t *testing.T) {
 		syncmanagerCallCnt int
 	}{
 		// 1. normal case.
-		{"TSucc", bpID,false, dummyBlock, 1},
+		{"TSucc", bpID, false, dummyBlock, 1},
 		// 2. wrong notice (block data is missing)
-		{"TW1", bpID,false, nil, 0},
+		{"TW1", bpID, false, nil, 0},
 		// 2. wrong notice1 (invalid block data)
 		{"TW2", bpID, false, wrongBlock, 0},
 		{"TWrongBP", types.RandomPeerID(), false, dummyBlock, 0},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
