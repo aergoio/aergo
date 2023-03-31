@@ -33,12 +33,13 @@ var BanDurations = []time.Duration{
 	0,
 	0,
 	time.Minute,
-	time.Minute*3,
-	time.Minute*10,
+	time.Minute * 3,
+	time.Minute * 10,
 	time.Hour,
-	time.Hour*24,
-	time.Hour*24*30,
-	time.Hour*24*3650,
+	time.Hour * 24,
+	time.Hour * 24 * 30,
+	time.Hour * 24 * 3650,
 }
+
 const BanValidDuration = time.Minute * 30
 const BanReleaseDuration = time.Hour * 24 * 730

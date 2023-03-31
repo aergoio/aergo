@@ -6,13 +6,14 @@ package subproto
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"testing"
-	"time"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/gofrs/uuid"

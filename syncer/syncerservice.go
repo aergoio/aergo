@@ -1,9 +1,10 @@
 package syncer
 
 import (
+	"runtime/debug"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"runtime/debug"
 
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"

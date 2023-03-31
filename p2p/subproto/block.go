@@ -258,7 +258,7 @@ func (bh *getAncestorResponseHandler) ParsePayload(rawbytes []byte) (p2pcommon.M
 
 func (bh *getAncestorResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	data := msgBody.(*types.GetAncestorResponse)
-	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer,data)
+	p2putil.DebugLogReceiveResponse(bh.logger, bh.protocol, msg.ID().String(), msg.OriginalID().String(), bh.peer, data)
 
 	// locate request data and remove it if found
 	bh.peer.GetReceiver(msg.OriginalID())(msg, data)

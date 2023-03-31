@@ -6,14 +6,15 @@
 package server
 
 import (
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/transport"
 	"net"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/network"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/transport"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -30,9 +31,9 @@ type LiteContainerService struct {
 	*component.BaseComponent
 
 	dummySetting p2pcommon.LocalSettings
-	chainID *types.ChainID
-	meta    p2pcommon.PeerMeta
-	nt      p2pcommon.NetworkTransport
+	chainID      *types.ChainID
+	meta         p2pcommon.PeerMeta
+	nt           p2pcommon.NetworkTransport
 
 	mutex sync.Mutex
 }
@@ -54,7 +55,7 @@ func (lntc *LiteContainerService) RoleManager() p2pcommon.PeerRoleManager {
 }
 
 var (
-//_ ActorService     = (*LiteContainerService)(nil)
+// _ ActorService     = (*LiteContainerService)(nil)
 )
 
 // NewP2P create a new ActorService for p2p
@@ -238,7 +239,7 @@ func initMeta(peerID types.PeerID, conf *config.P2PConfig) p2pcommon.PeerMeta {
 	if protocolPort <= 0 {
 		panic("invalid NetProtocolPort " + strconv.Itoa(conf.NetProtocolPort))
 	}
-	ma,err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
+	ma, err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
 	var meta p2pcommon.PeerMeta
 	meta.ID = peerID
 	meta.Addresses = []types.Multiaddr{ma}

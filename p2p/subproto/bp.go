@@ -17,7 +17,7 @@ import (
 type blockProducedNoticeHandler struct {
 	BaseMsgHandler
 	settings p2pcommon.LocalSettings
-	myAgent bool
+	myAgent  bool
 }
 
 var _ p2pcommon.MessageHandler = (*blockProducedNoticeHandler)(nil)
@@ -123,9 +123,9 @@ func (h *toAgentBPNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 
 		switch h.isToToss(bpID, block) {
 		case tossOut:
-			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{block, bool(p2pcommon.ExternalZone), msg})
+			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{Block: block, TossIn: bool(p2pcommon.ExternalZone), OriginalMsg: msg})
 		case tossIn:
-			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{block, bool(p2pcommon.InternalZone), msg})
+			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{Block: block, TossIn: bool(p2pcommon.InternalZone), OriginalMsg: msg})
 		default:
 			// do nothing
 		}

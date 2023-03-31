@@ -37,4 +37,3 @@ type MoFactory interface {
 	NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *raftpb.Message) MsgOrder
 	NewTossMsgOrder(orgMsg Message) MsgOrder
 }
-

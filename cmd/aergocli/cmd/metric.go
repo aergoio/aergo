@@ -7,6 +7,7 @@ package cmd
 
 import (
 	"context"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
@@ -21,6 +22,7 @@ var metricCmd = &cobra.Command{
 var (
 	metricP2Pnet bool
 )
+
 func init() {
 	rootCmd.AddCommand(metricCmd)
 	metricCmd.Flags().BoolVar(&metricP2Pnet, "p2pnet", true, "Get network transfer metric")
@@ -38,6 +40,5 @@ func execMetric(cmd *cobra.Command, args []string) {
 		return
 	}
 	// address and peerid should be encoded, respectively
-	cmd.Println(util.JSON(msg) )
+	cmd.Println(util.JSON(msg))
 }
-

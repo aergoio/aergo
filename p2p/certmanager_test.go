@@ -1,6 +1,10 @@
 package p2p
 
 import (
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -10,9 +14,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-peerstore/test"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func Test_newCertificateManager(t *testing.T) {
@@ -64,8 +65,8 @@ func Test_newCertificateManagerAgent(t *testing.T) {
 		args    args
 		wantNil bool
 	}{
-		{"TSingle", args{[]types.PeerID{types.RandomPeerID()}}, false,},
-		{"TMulti", args{[]types.PeerID{types.RandomPeerID(), types.RandomPeerID(), types.RandomPeerID()}}, false,},
+		{"TSingle", args{[]types.PeerID{types.RandomPeerID()}}, false},
+		{"TMulti", args{[]types.PeerID{types.RandomPeerID(), types.RandomPeerID(), types.RandomPeerID()}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -114,8 +115,8 @@ func Test_agentCertificateManager_AddCertificate(t *testing.T) {
 
 		args args
 
-		wantNotify int
-		wantIncreased  bool
+		wantNotify    int
+		wantIncreased bool
 	}{
 		{"TAdded", bpIds, args{bpCerts[3]}, 1, true},
 		{"TReplace", bpIds, args{bpCerts[1]}, 1, false},
@@ -146,11 +147,11 @@ func Test_agentCertificateManager_AddCertificate(t *testing.T) {
 
 			cm.AddCertificate(tt.args.cert)
 			if tt.wantIncreased && prevSize == len(cm.certs) {
-				t.Errorf("AddCertificate() size = %v, want increase  %v", len(cm.certs) , tt.wantIncreased)
+				t.Errorf("AddCertificate() size = %v, want increase  %v", len(cm.certs), tt.wantIncreased)
 			}
 			if tt.wantNotify > 0 {
 				if len(cm.certMap) != len(cm.certs) {
-					t.Fatalf("AddCertificate() size of certificates and map is differ ! %v but %v",len(cm.certMap) ,len(cm.certs))
+					t.Fatalf("AddCertificate() size of certificates and map is differ ! %v but %v", len(cm.certMap), len(cm.certs))
 				}
 				for _, c := range cm.certs {
 					if _, found := cm.certMap[c.BPID]; !found {
@@ -197,7 +198,7 @@ func Test_bpCertificateManager_CreateCertificate(t *testing.T) {
 			sampleMeta := p2pcommon.NewMetaWith1Addr(selfID, "172.12.1.1", 7846, "v2.0.0")
 			sampleMeta.Role = types.PeerRole_Producer
 			mockActor := p2pmock.NewMockActorService(ctrl)
-			sampleSetting := p2pcommon.LocalSettings{AgentID: agentID,}
+			sampleSetting := p2pcommon.LocalSettings{AgentID: agentID}
 			//mockActor.EXPECT().TellRequest(message.P2PSvc, gomock.Any()).Times(tt.wantNotify)
 
 			inMeta := p2pcommon.PeerMeta{ID: tt.args.id, Addresses: tt.args.addrs, Role: types.PeerRole_Agent, ProducerIDs: tt.args.pids, Version: sampleVersion}
@@ -235,23 +236,23 @@ func Test_agentCertificateManager_checkCertificates(t *testing.T) {
 		bpIds[i], _ = types.IDFromPrivateKey(bpKeys[i])
 		bpCerts[i], _ = p2putil.NewAgentCertV1(bpIds[i], agentID, p2putil.ConvertPKToBTCEC(bpKeys[i]), addrs, time.Hour*time.Duration(i)+time.Hour*12)
 	}
-	testTime := time.Now().Add(time.Minute*2) // considering time error
+	testTime := time.Now().Add(time.Minute * 2) // considering time error
 
 	type args struct {
 		now time.Time
 	}
 	tests := []struct {
-		name   string
-		arg time.Time
+		name string
+		arg  time.Time
 
 		wantReqIssue int
-		wantDelete  int
+		wantDelete   int
 	}{
-		{"TallYoung",testTime,0,0},
-		{"TallYoung2",testTime.Add(time.Hour*5),0,0},
-		{"TUpdate1",testTime.Add(time.Hour*6),1,0},
-		{"TExpire1",testTime.Add(time.Hour*12),7,1},
-		{"TAllExpire",testTime.Add(time.Hour*24),12,12},
+		{"TallYoung", testTime, 0, 0},
+		{"TallYoung2", testTime.Add(time.Hour * 5), 0, 0},
+		{"TUpdate1", testTime.Add(time.Hour * 6), 1, 0},
+		{"TExpire1", testTime.Add(time.Hour * 12), 7, 1},
+		{"TAllExpire", testTime.Add(time.Hour * 24), 12, 12},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -261,13 +262,13 @@ func Test_agentCertificateManager_checkCertificates(t *testing.T) {
 			sampleMeta := p2pcommon.NewMetaWith1Addr(agentID, "172.12.1.1", 7846, "v2.0.0")
 			sampleMeta.Role = types.PeerRole_Agent
 			mockActor := p2pmock.NewMockActorService(ctrl)
-			sampleSetting := p2pcommon.LocalSettings{AgentID: agentID,}
+			sampleSetting := p2pcommon.LocalSettings{AgentID: agentID}
 			mockActor.EXPECT().TellRequest(message.P2PSvc, gomock.Any()).Times(tt.wantReqIssue)
 
 			cm := &agentCertificateManager{
 				baseCertManager: baseCertManager{actor: mockActor, self: sampleMeta, settings: sampleSetting, logger: logger},
-				certs: []*p2pcommon.AgentCertificateV1{},
-				certMap: make(map[types.PeerID]*p2pcommon.AgentCertificateV1),
+				certs:           []*p2pcommon.AgentCertificateV1{},
+				certMap:         make(map[types.PeerID]*p2pcommon.AgentCertificateV1),
 			}
 			for _, c := range bpCerts {
 				cm.certs = append(cm.certs, c)
@@ -277,8 +278,8 @@ func Test_agentCertificateManager_checkCertificates(t *testing.T) {
 
 			cm.checkCertificates(tt.arg)
 			size := len(cm.certs)
-			if size != (prevSize-tt.wantDelete) {
-				t.Errorf("checkCertificates() remained certSize %v , want %v",size,(prevSize-tt.wantDelete))
+			if size != (prevSize - tt.wantDelete) {
+				t.Errorf("checkCertificates() remained certSize %v , want %v", size, (prevSize - tt.wantDelete))
 			}
 		})
 	}

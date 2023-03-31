@@ -32,7 +32,7 @@ func TestAergoRaftTransport_SendSnapshot(t *testing.T) {
 	dummyPeerID := types.RandomPeerID()
 	dummyPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID}
 	dummyMemID := uint64(112345531252)
-	dummyMember := &consensus.Member{types.MemberAttr{ID: dummyMemID, PeerID: []byte(dummyPeerID)}}
+	dummyMember := &consensus.Member{MemberAttr: types.MemberAttr{ID: dummyMemID, PeerID: []byte(dummyPeerID)}}
 
 	type mockOPs struct {
 		toID      uint64
@@ -195,15 +195,15 @@ func TestAergoRaftTransport_Send(t *testing.T) {
 	dummyPeerID := types.RandomPeerID()
 	dummyPeerMeta := p2pcommon.PeerMeta{ID: dummyPeerID}
 	dummyMemID := uint64(11111)
-	dummyMember := &consensus.Member{types.MemberAttr{ID: dummyMemID, PeerID: []byte(dummyPeerID)}}
+	dummyMember := &consensus.Member{MemberAttr: types.MemberAttr{ID: dummyMemID, PeerID: []byte(dummyPeerID)}}
 	unreachableMemID := uint64(33333)
 	unreachablePeerID := types.RandomPeerID()
-	unreachableMember := &consensus.Member{types.MemberAttr{ID:unreachableMemID , PeerID: []byte(unreachablePeerID)}}
+	unreachableMember := &consensus.Member{MemberAttr: types.MemberAttr{ID: unreachableMemID, PeerID: []byte(unreachablePeerID)}}
 
-	zeroM := raftpb.Message{To:0, Type:raftpb.MsgApp}
-	notM := raftpb.Message{To:98767, Type:raftpb.MsgApp}
-	memM := raftpb.Message{To:dummyMemID, Type:raftpb.MsgApp}
-	unM := raftpb.Message{To:unreachableMemID, Type:raftpb.MsgApp}
+	zeroM := raftpb.Message{To: 0, Type: raftpb.MsgApp}
+	notM := raftpb.Message{To: 98767, Type: raftpb.MsgApp}
+	memM := raftpb.Message{To: dummyMemID, Type: raftpb.MsgApp}
+	unM := raftpb.Message{To: unreachableMemID, Type: raftpb.MsgApp}
 	type args struct {
 		toID      uint64
 		raMem     *consensus.Member
@@ -214,17 +214,17 @@ func TestAergoRaftTransport_Send(t *testing.T) {
 		name string
 		msgs []raftpb.Message
 
-		wantChkMemCnt int
+		wantChkMemCnt  int
 		wantGetPeerCnt int
-		wantSendCnt int
+		wantSendCnt    int
 		wantUnreachCnt int
-		wantResult bool
+		wantResult     bool
 	}{
-		{"TSingle", ToM(memM), 1,1,1, 0, true},
-		{"TMulti", ToM(memM,memM,memM), 3,3,3, 0, true},
-		{"TWZero", ToM(memM,zeroM,zeroM,memM), 2,2, 2,0, true},
-		{"TInvalidM", ToM(notM,notM), 2,0,0, 0,true},
-		{"TUnreachable", ToM(unM, unM, memM), 3,3,1, 2,true},
+		{"TSingle", ToM(memM), 1, 1, 1, 0, true},
+		{"TMulti", ToM(memM, memM, memM), 3, 3, 3, 0, true},
+		{"TWZero", ToM(memM, zeroM, zeroM, memM), 2, 2, 2, 0, true},
+		{"TInvalidM", ToM(notM, notM), 2, 0, 0, 0, true},
+		{"TUnreachable", ToM(unM, unM, memM), 3, 3, 1, 2, true},
 
 		//{"TWrongID", args{toID: 0, raMem: dummyMember, pmGetPeer: true}, false},
 		//{"TInvalidMemberID", args{toID: dummyMemID, raMem: nil, pmGetPeer: true}, false},
@@ -276,7 +276,6 @@ func TestAergoRaftTransport_Send(t *testing.T) {
 			mockMF.EXPECT().NewRaftMsgOrder(gomock.Any(), gomock.Any()).Return(dummyMO).Times(tt.wantSendCnt)
 			mockPeer.EXPECT().SendMessage(gomock.Any()).Times(tt.wantSendCnt)
 			mockRA.EXPECT().ReportUnreachable(unreachablePeerID).Times(tt.wantUnreachCnt)
-
 
 			target := NewAergoRaftTransport(logger, mockNT, mockPM, mockMF, mockCA, dummyCl)
 

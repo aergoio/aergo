@@ -6,10 +6,11 @@
 package p2p
 
 import (
+	"time"
+
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"time"
 
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
@@ -18,7 +19,6 @@ import (
 type baseMOFactory struct {
 	is p2pcommon.InternalService
 }
-
 
 func (mf *baseMOFactory) NewMsgRequestOrder(expectResponse bool, protocolID p2pcommon.SubProtocol, message p2pcommon.MessageBody) p2pcommon.MsgOrder {
 	rmo := &pbRequestOrder{}
@@ -98,7 +98,7 @@ func (mf *baseMOFactory) NewRaftMsgOrder(msgType raftpb.MessageType, raftMsg *ra
 }
 
 func (mf *baseMOFactory) NewTossMsgOrder(orgMsg p2pcommon.Message) p2pcommon.MsgOrder {
-	rmo := &pbTossOrder{pbMessageOrder{message:orgMsg, protocolID:orgMsg.Subprotocol(),needSign:true}}
+	rmo := &pbTossOrder{pbMessageOrder{message: orgMsg, protocolID: orgMsg.Subprotocol(), needSign: true}}
 	return rmo
 }
 

@@ -5,11 +5,12 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/rs/zerolog"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/rs/zerolog"
 
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -480,7 +481,6 @@ func (bf *BlockFetcher) searchCandidateTask() (*FetchTask, error) {
 	return newTask, nil
 }
 
-
 type LogBlockHashesMarshaller struct {
 	arr   []message.BlockHash
 	limit int
@@ -540,7 +540,7 @@ func (bf *BlockFetcher) runTask(task *FetchTask, peer *SyncPeer) {
 	bf.compRequester.TellTo(message.P2PSvc, &message.GetBlockChunks{Seq: bf.GetSeq(), GetBlockInfos: message.GetBlockInfos{ToWhom: peer.ID, Hashes: task.hashes}, TTL: DfltFetchTimeOut})
 }
 
-//TODO refactoring matchFunc
+// TODO refactoring matchFunc
 func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch bool) (*FetchTask, error) {
 	count := len(msg.Blocks)
 
@@ -662,7 +662,8 @@ func (ps *PeerSet) addNew(peerID types.PeerID) {
 /*
 func (ps *PeerSet) print() {
 
-}*/
+}
+*/
 func (ps *PeerSet) pushFree(freePeer *SyncPeer) {
 	ps.freePeers.PushBack(freePeer)
 	ps.free++

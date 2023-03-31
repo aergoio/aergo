@@ -41,5 +41,3 @@ func generateExpDuration(initSecs int, inc float64, count int) []time.Duration {
 	}
 	return arr
 }
-
-

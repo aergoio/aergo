@@ -9,11 +9,12 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"sync"
+
 	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/v030"
+	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/polaris/common"
 	"github.com/libp2p/go-libp2p-core/network"
-	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
@@ -236,7 +237,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 			if err != nil {
 				continue
 			}
-			addr.Addresses=[]string{ma.String()}
+			addr.Addresses = []string{ma.String()}
 		}
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")

@@ -7,10 +7,11 @@ package p2p
 
 import (
 	"bytes"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"time"
 
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -21,7 +22,7 @@ import (
 // syncer actor already dropped wait before.
 type GetTxsReceiver struct {
 	requestID p2pcommon.MsgID
-	logger *log.Logger
+	logger    *log.Logger
 
 	peer  p2pcommon.RemotePeer
 	actor p2pcommon.ActorService
@@ -45,11 +46,11 @@ func NewGetTxsReceiver(actor p2pcommon.ActorService, peer p2pcommon.RemotePeer, 
 	timeout := time.Now().Add(ttl)
 	ids := make([]types.TxID, len(txIDs))
 	hashes := make([][]byte, len(txIDs))
-	for i, _ := range txIDs {
+	for i := range txIDs {
 		ids[i] = txIDs[i]
 		hashes[i] = ids[i][:]
 	}
-	return &GetTxsReceiver{actor: actor, peer: peer, sm: sm, ids:ids, hashes: hashes, timeout: timeout,logger:logger}
+	return &GetTxsReceiver{actor: actor, peer: peer, sm: sm, ids: ids, hashes: hashes, timeout: timeout, logger: logger}
 }
 
 func (br *GetTxsReceiver) StartGet() {
@@ -116,8 +117,8 @@ func (br *GetTxsReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcomm
 		}
 		// missing tx
 		for !bytes.Equal(br.hashes[br.offset], tx.Hash) {
-			br.logger.Trace().Str("expect",enc.ToString(br.hashes[br.offset])).Str("received",enc.ToString(tx.Hash)).Int("offset",br.offset).Msg("expected hash was missing")
-			br.missed = append(br.missed,tx.Hash)
+			br.logger.Trace().Str("expect", enc.ToString(br.hashes[br.offset])).Str("received", enc.ToString(tx.Hash)).Int("offset", br.offset).Msg("expected hash was missing")
+			br.missed = append(br.missed, tx.Hash)
 			br.offset++
 			if br.offset >= len(br.hashes) {
 				br.cancelReceiving(message.UnexpectedBlockError, body.HasNext)
@@ -139,7 +140,7 @@ func (br *GetTxsReceiver) handleInWaiting(msg p2pcommon.Message, msgBody p2pcomm
 // not all part of response is received, it wait remaining (and useless) response. It is assumed cancelling is not frequently occur
 func (br *GetTxsReceiver) cancelReceiving(err error, hasNext bool) {
 	br.status = receiverStatusCanceled
-	br.logger.Info().Str(p2putil.LogOrgReqID,br.requestID.String()).Err(err).Msg("tx receiver canceled by error")
+	br.logger.Info().Str(p2putil.LogOrgReqID, br.requestID.String()).Err(err).Msg("tx receiver canceled by error")
 	// check time again. since negative duration of timer will not fire channel.
 	interval := br.timeout.Sub(time.Now())
 	if !hasNext || interval <= 0 {
@@ -165,7 +166,7 @@ func (br *GetTxsReceiver) cancelReceiving(err error, hasNext bool) {
 func (br *GetTxsReceiver) finishReceiver() {
 	br.status = receiverStatusFinished
 	br.peer.ConsumeRequest(br.requestID)
-	br.logger.Debug().Int("mpSent",br.sent).Int("missed",len(br.missed)).Str(p2putil.LogOrgReqID,br.requestID.String()).Msg("tx receiver finished")
+	br.logger.Debug().Int("mpSent", br.sent).Int("missed", len(br.missed)).Str(p2putil.LogOrgReqID, br.requestID.String()).Msg("tx receiver finished")
 }
 
 // ignoreMsg is silently ignore following responses, which is not useless anymore.

@@ -241,7 +241,7 @@ func (ns *RPC) Receive(context actor.Context) {
 						ns.TellTo(message.P2PSvc, msg)
 					}
 				default:
-					logger.Warn().Str("Enterprise event", eventName[0]).Str("conf",conf).Msg("unknown message in RPCPERMISSION")
+					logger.Warn().Str("Enterprise event", eventName[0]).Str("conf", conf).Msg("unknown message in RPCPERMISSION")
 				}
 			}
 		}

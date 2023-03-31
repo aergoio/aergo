@@ -1,11 +1,12 @@
 package p2putil
 
 import (
-	"github.com/aergoio/aergo/types"
 	"net"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/aergoio/aergo/types"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 )

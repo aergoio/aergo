@@ -7,6 +7,7 @@ package subproto
 
 import (
 	"context"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -59,10 +60,6 @@ func (ph *raftWrapperHandler) PostHandle(msg p2pcommon.Message, msgBody p2pcommo
 	}
 }
 
-
-
 func DebugLogRaftWrapMsg(logger *log.Logger, peer p2pcommon.RemotePeer, msgID p2pcommon.MsgID, body *raftpb.Message) {
-	logger.Debug().Str(p2putil.LogMsgID, msgID.String()).Str("from_peer", peer.Name()).Object("raftMsg", raftsupport.RaftMsgMarshaller{body}).Msg("Received raft message")
+	logger.Debug().Str(p2putil.LogMsgID, msgID.String()).Str("from_peer", peer.Name()).Object("raftMsg", raftsupport.RaftMsgMarshaller{Message: body}).Msg("Received raft message")
 }
-
-

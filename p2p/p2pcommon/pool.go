@@ -7,9 +7,10 @@ package p2pcommon
 
 import (
 	"errors"
+	"time"
+
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-core/network"
-	"time"
 )
 
 const (

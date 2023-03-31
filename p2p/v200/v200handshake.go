@@ -10,12 +10,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	v030 "github.com/aergoio/aergo/p2p/v030"
-	"io"
-	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -266,7 +267,7 @@ func (h *V200Handshaker) checkByRole(status *types.Status) error {
 }
 
 func (h *V200Handshaker) checkAgent(status *types.Status) error {
-	h.logger.Debug().Int("certCnt",len(status.Certificates)).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("checking peer as agent")
+	h.logger.Debug().Int("certCnt", len(status.Certificates)).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("checking peer as agent")
 
 	// Agent must have at least one block producer
 	if len(h.remoteMeta.ProducerIDs) == 0 {
@@ -319,7 +320,7 @@ func (h *V200Handshaker) createLocalStatus(chainID *types.ChainID, bestBlock *ty
 
 	if h.selfMeta.Role == types.PeerRole_Agent {
 		cs := h.cm.GetCertificates()
-		h.logger.Debug().Int("certCnt",len(cs)).Msg("appending local certificates to status")
+		h.logger.Debug().Int("certCnt", len(cs)).Msg("appending local certificates to status")
 		pcs, err := p2putil.ConvertCertsToProto(cs)
 		if err != nil {
 			h.logger.Error().Err(err).Msg("failed to convert certificates")

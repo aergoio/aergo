@@ -6,10 +6,11 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/list"
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo/p2p/list"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"

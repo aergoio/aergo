@@ -26,7 +26,7 @@ func ConvertPubKeyToBTCEC(pk crypto.PubKey) *btcec.PublicKey {
 }
 
 // ConvertPKToLibP2P return nil if converison is failed
-func ConvertPKToLibP2P(pk  *btcec.PrivateKey) crypto.PrivKey {
+func ConvertPKToLibP2P(pk *btcec.PrivateKey) crypto.PrivKey {
 	libp2pKey, err := crypto.UnmarshalSecp256k1PrivateKey(pk.Serialize())
 	if err != nil {
 		return nil
@@ -34,9 +34,8 @@ func ConvertPKToLibP2P(pk  *btcec.PrivateKey) crypto.PrivKey {
 	return libp2pKey
 }
 
-
 // ConvertPubToLibP2P return nil if converison is failed
-func ConvertPubToLibP2P(pk  *btcec.PublicKey) crypto.PubKey {
+func ConvertPubToLibP2P(pk *btcec.PublicKey) crypto.PubKey {
 	libp2pKey, err := crypto.UnmarshalSecp256k1PublicKey(pk.SerializeCompressed())
 	if err != nil {
 		return nil

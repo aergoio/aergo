@@ -12,13 +12,11 @@ import (
 const PolarisRPCSvc = "pRpcSvc"
 
 type MapQueryMsg struct {
-	Count int
+	Count     int
 	BestBlock *types.Block
 }
 
 type MapQueryRsp struct {
 	Peers []*types.PeerAddress
-	Err error
+	Err   error
 }
-
-

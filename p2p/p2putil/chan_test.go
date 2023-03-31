@@ -6,10 +6,11 @@
 package p2putil
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/types"
 )
 
 func TestClosedChannel(t *testing.T) {
@@ -17,17 +18,17 @@ func TestClosedChannel(t *testing.T) {
 	cb := make(chan int)
 
 	go func(size int) {
-		for i:=0; i<size; i++ {
+		for i := 0; i < size; i++ {
 			ca <- i
 		}
 	}(100)
 	close(cb)
-	LOOP:
+LOOP:
 	for {
 		select {
 		case v := <-ca:
 			t.Log("got val ", v)
-			time.Sleep(time.Millisecond<<2)
+			time.Sleep(time.Millisecond << 2)
 		case <-cb:
 			t.Log("closed")
 			break LOOP
@@ -41,23 +42,23 @@ func TestClosedChannel(t *testing.T) {
 
 func BenchmarkMapIteration(b *testing.B) {
 	b.SkipNow()
-	sizes := []int{100,1000,10000,100000}
-	ms := make([]map[types.TxID]*p2pcommon.PeerMeta,len(sizes))
+	sizes := []int{100, 1000, 10000, 100000}
+	ms := make([]map[types.TxID]*p2pcommon.PeerMeta, len(sizes))
 	for i, s := range sizes {
 		ms[i] = make(map[types.TxID]*p2pcommon.PeerMeta)
-		for j:=0; j<s; j++ {
+		for j := 0; j < s; j++ {
 			ms[i][types.ToTxID([]byte(types.RandomPeerID()))] = &p2pcommon.PeerMeta{}
 		}
 	}
 
 	benchmarks := []struct {
 		name string
-		m map[types.TxID]*p2pcommon.PeerMeta
+		m    map[types.TxID]*p2pcommon.PeerMeta
 	}{
-		{"B100",ms[0]},
-		{"B1000",ms[1]},
-		{"B10000",ms[2]},
-		{"B100000",ms[3]},
+		{"B100", ms[0]},
+		{"B1000", ms[1]},
+		{"B10000", ms[2]},
+		{"B100000", ms[3]},
 	}
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {

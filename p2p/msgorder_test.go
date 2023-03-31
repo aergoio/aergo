@@ -25,9 +25,9 @@ func Test_pbRequestOrder_SendTo(t *testing.T) {
 	defer ctrl.Finish()
 	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
-	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses:[]types.Multiaddr{sampleMA}}
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
-	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP("192.168.1.2"), Port: 7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 	tests := []struct {
 		name     string
@@ -75,8 +75,8 @@ func Test_pbMessageOrder_SendTo(t *testing.T) {
 	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
-	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP("192.168.1.2"), Port: 7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 	tests := []struct {
 		name     string
@@ -120,8 +120,8 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
-	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP("192.168.1.2"), Port: 7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 	tests := []struct {
 		name     string
@@ -150,7 +150,7 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
 			peer.lastStatus = &types.LastBlockStatus{}
 
-			target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash, BlockNo:1})
+			target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: dummyBlockHash, BlockNo: 1})
 			msgID := sampleMsgID
 			// notice broadcast is affected by cache
 			// put dummy request information in cache
@@ -173,8 +173,8 @@ func Test_pbBlkNoticeOrder_SendTo(t *testing.T) {
 
 func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 	allSendCnt := 3
-	hashes := make([][]byte,allSendCnt)
-	for i:=0 ; i<allSendCnt; i++ {
+	hashes := make([][]byte, allSendCnt)
+	for i := 0; i < allSendCnt; i++ {
 		token := make([]byte, 32)
 		rand.Read(token)
 		hashes[i] = token
@@ -185,26 +185,26 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
-	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP("192.168.1.2"), Port: 7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 	tests := []struct {
 		name         string
 		noDiff       int
 		tryCnt       int
 		sendInterval time.Duration
-		wantSentLow  int   // inclusive
-		wantSentHigh int  // exclusive
+		wantSentLow  int // inclusive
+		wantSentHigh int // exclusive
 		//wantMinSkip int
 	}{
 		// send all if remote peer is low
-		{"TAllLowPeer", -1000, 3, time.Second>>1, 3,4},
+		{"TAllLowPeer", -1000, 3, time.Second >> 1, 3, 4},
 		//// skip same or higher peer
 		//// the first notice is same and skip but seconds will be sent
-		{"TSamePeer", 0, 3, time.Second>>2, 2,3},
-		{"TPartialHigh", 900, 3, time.Second>>2, 0,1},
-		{"THighPeer", 10000, 3, time.Second>>2, 0,1},
-		{"TVeryHighPeer", 100000, 3, time.Second>>2, 0,1},
+		{"TSamePeer", 0, 3, time.Second >> 2, 2, 3},
+		{"TPartialHigh", 900, 3, time.Second >> 2, 0, 1},
+		{"THighPeer", 10000, 3, time.Second >> 2, 0, 1},
+		{"TVeryHighPeer", 100000, 3, time.Second >> 2, 0, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -218,13 +218,13 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 			}).MinTimes(tt.wantSentLow)
 
 			notiNo := uint64(99999)
-			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
+			peerBlkNo := uint64(int64(notiNo) + int64(tt.noDiff))
 			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
-			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
+			peer.lastStatus = &types.LastBlockStatus{BlockNumber: peerBlkNo}
 
 			skipMax := int32(0)
-			for i:=0; i<tt.tryCnt; i++ {
-				target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: hashes[i], BlockNo:notiNo+uint64(i)})
+			for i := 0; i < tt.tryCnt; i++ {
+				target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: hashes[i], BlockNo: notiNo + uint64(i)})
 				msgID := sampleMsgID
 				// notice broadcast is affected by cache
 				// put dummy request information in cache
@@ -238,10 +238,10 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 				}
 				time.Sleep(tt.sendInterval)
 			}
-			fmt.Printf("%v : Max skipCnt %v \n",tt.name, skipMax)
+			fmt.Printf("%v : Max skipCnt %v \n", tt.name, skipMax)
 
 			// verification
-			if !(tt.wantSentLow<=writeCnt && writeCnt<tt.wantSentHigh) {
+			if !(tt.wantSentLow <= writeCnt && writeCnt < tt.wantSentHigh) {
 				t.Errorf("Sent count %v, want %v:%v", writeCnt, tt.wantSentLow, tt.wantSentHigh)
 			}
 		})
@@ -251,8 +251,8 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByHeight(t *testing.T) {
 func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 	//t.Skip("This test is varied by machine power or load state.")
 	allSendCnt := 1000
-	hashes := make([][]byte,allSendCnt)
-	for i:=0 ; i<allSendCnt; i++ {
+	hashes := make([][]byte, allSendCnt)
+	for i := 0; i < allSendCnt; i++ {
 		token := make([]byte, 32)
 		rand.Read(token)
 		hashes[i] = token
@@ -263,8 +263,8 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 	factory := &baseMOFactory{}
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
-	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP("192.168.1.2"), Port: 7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 	tests := []struct {
 		name     string
@@ -294,13 +294,13 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 			}).Times(tt.wantSent)
 
 			notiNo := uint64(99999)
-			peerBlkNo := uint64(int64(notiNo)+int64(tt.noDiff))
+			peerBlkNo := uint64(int64(notiNo) + int64(tt.noDiff))
 			peer := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActorServ, logger, factory, &dummySigner{}, mockRW)
-			peer.lastStatus = &types.LastBlockStatus{BlockNumber:peerBlkNo}
+			peer.lastStatus = &types.LastBlockStatus{BlockNumber: peerBlkNo}
 
 			skipMax := int32(0)
-			for i:=0; i<tt.tryCnt; i++ {
-				target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: hashes[i], BlockNo:notiNo+uint64(i)})
+			for i := 0; i < tt.tryCnt; i++ {
+				target := factory.NewMsgBlkBroadcastOrder(&types.NewBlockNotice{BlockHash: hashes[i], BlockNo: notiNo + uint64(i)})
 				msgID := sampleMsgID
 				// notice broadcast is affected by cache
 				// put dummy request information in cache
@@ -312,12 +312,12 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 				if skipMax < peer.skipCnt {
 					skipMax = peer.skipCnt
 				}
-				if i&0x0ff == 0 && i>0 {
+				if i&0x0ff == 0 && i > 0 {
 					// sleep tree times
-					time.Sleep(time.Second >> 2 )
+					time.Sleep(time.Second >> 2)
 				}
 			}
-			fmt.Printf("%v : Max skipCnt %v \n",tt.name, skipMax)
+			fmt.Printf("%v : Max skipCnt %v \n", tt.name, skipMax)
 
 		})
 	}
@@ -326,8 +326,8 @@ func Test_pbBlkNoticeOrder_SendTo_SkipByTime(t *testing.T) {
 func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
 	sampleMeta := p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP("192.168.1.2"),Port:7846}
-	sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP("192.168.1.2"), Port: 7846}
+	sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 	sampleHashes := make([][]byte, 10)
 	for i := 0; i < 10; i++ {
@@ -339,8 +339,8 @@ func Test_pbTxNoticeOrder_SendTo(t *testing.T) {
 		keyExist int
 		wantErr  bool
 	}{
-		{"TSucc", nil, 0, false, },
-		{"TWriteFail", fmt.Errorf("writeFail"), 0, true,},
+		{"TSucc", nil, 0, false},
+		{"TWriteFail", fmt.Errorf("writeFail"), 0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

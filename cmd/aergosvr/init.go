@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/aergo/consensus/impl"
 	"os"
+
+	"github.com/aergoio/aergo/consensus/impl"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"

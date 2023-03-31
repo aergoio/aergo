@@ -8,9 +8,10 @@ package p2pcommon
 import (
 	"context"
 	"encoding/binary"
-	"github.com/aergoio/aergo/types"
 	"io"
 	"time"
+
+	"github.com/aergoio/aergo/types"
 )
 
 type HandshakeResult struct {
@@ -20,7 +21,7 @@ type HandshakeResult struct {
 	BestBlockHash types.BlockID
 	BestBlockNo   types.BlockNo
 	Hidden        bool
-	Certificates []*AgentCertificateV1
+	Certificates  []*AgentCertificateV1
 }
 
 // HSHandlerFactory is creator of HSHandler
@@ -48,7 +49,6 @@ type VersionedHandshaker interface {
 	DoForOutbound(ctx context.Context) (*HandshakeResult, error)
 	DoForInbound(ctx context.Context) (*HandshakeResult, error)
 	GetMsgRW() MsgReadWriter
-
 }
 
 // HSHeader is legacy type of data which peer send first to listening peer in wire handshake
