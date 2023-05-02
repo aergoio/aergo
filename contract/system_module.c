@@ -458,6 +458,29 @@ static int is_contract(lua_State *L)
     return 1;
 }
 
+static int resolve(lua_State *L)
+{
+	char *name, *ret;
+	int service = getLuaExecContext(L);
+
+	lua_gasuse(L, 100);
+
+	name = (char *)luaL_checkstring(L, 1);
+	ret = luaResolve(L, service, name);
+
+	if (ret == NULL) {
+		lua_pushnil(L);
+	} else {
+		strPushAndRelease(L, ret);
+		// if the returned string starts with `[`, it's an error
+		if (ret[0] == '[') {
+			luaL_throwerror(L);
+		}
+	}
+
+	return 1;
+}
+
 static int is_fee_delegation(lua_State *L)
 {
 	int service = getLuaExecContext(L);
@@ -493,6 +516,7 @@ static const luaL_Reg sys_lib[] = {
 	{"time", os_time},
 	{"difftime", os_difftime},
 	{"random", lua_random},
+	{"resolve", resolve},
 	{"isContract", is_contract},
 	{"isFeeDelegation", is_fee_delegation},
 	{NULL, NULL}
