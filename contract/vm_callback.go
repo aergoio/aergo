@@ -1237,7 +1237,7 @@ func luaToPubkey(L *LState, address *C.char) *C.char {
 	// decode the address in string format to bytes (public key)
 	pubkey, err := types.DecodeAddress(C.GoString(address))
 	if err != nil {
-		return C.CString("[Contract.LuaToPubkey] invalid address: " + err.Error())
+		return C.CString("[Contract.LuaToPubkey] invalid address")
 	}
 	// return the public key in hex format
 	return C.CString("0x" + hex.EncodeToString(pubkey))
