@@ -436,6 +436,54 @@ static int lua_random(lua_State *L)
     return 1;
 }
 
+static int toPubkey(lua_State *L)
+{
+	char *address, *ret;
+
+	lua_gasuse(L, 100);
+
+	// get the function argument
+	address = (char *)luaL_checkstring(L, 1);
+	// convert the address to public key
+	ret = luaToPubkey(L, address);
+
+	if (ret == NULL) {
+		lua_pushnil(L);
+	} else {
+		strPushAndRelease(L, ret);
+		// if the returned string starts with `[`, it's an error
+		if (ret[0] == '[') {
+			luaL_throwerror(L);
+		}
+	}
+
+	return 1;
+}
+
+static int toAddress(lua_State *L)
+{
+	char *pubkey, *ret;
+
+	lua_gasuse(L, 100);
+
+	// get the function argument
+	pubkey = (char *)luaL_checkstring(L, 1);
+	// convert the public key to an address
+	ret = luaToAddress(L, pubkey);
+
+	if (ret == NULL) {
+		lua_pushnil(L);
+	} else {
+		strPushAndRelease(L, ret);
+		// if the returned string starts with `[`, it's an error
+		if (ret[0] == '[') {
+			luaL_throwerror(L);
+		}
+	}
+
+	return 1;
+}
+
 static int is_contract(lua_State *L)
 {
     char *contract;
@@ -493,6 +541,8 @@ static const luaL_Reg sys_lib[] = {
 	{"time", os_time},
 	{"difftime", os_difftime},
 	{"random", lua_random},
+	{"toPubkey", toPubkey},
+	{"toAddress", toAddress},
 	{"isContract", is_contract},
 	{"isFeeDelegation", is_fee_delegation},
 	{NULL, NULL}
