@@ -13,14 +13,14 @@ const AddressLength = 33
 const NameLength = 12
 const EncodedAddressLength = 52
 
-//NewAccount alloc new account object
+// NewAccount alloc new account object
 func NewAccount(addr []byte) *Account {
 	return &Account{
 		Address: addr,
 	}
 }
 
-//ToAddress return byte array of given base58check encoded address string
+// ToAddress return byte array of given base58check encoded address string
 func ToAddress(addr string) []byte {
 	ret, err := DecodeAddress(addr)
 	if err != nil {
@@ -29,12 +29,12 @@ func ToAddress(addr string) []byte {
 	return ret
 }
 
-//ToString return base58check encoded string of address
+// ToString return base58check encoded string of address
 func (a *Account) ToString() string {
 	return EncodeAddress(a.Address)
 }
 
-//NewAccountList alloc new account list
+// NewAccountList alloc new account list
 func NewAccountList(accounts []*Account) *AccountList {
 	return &AccountList{
 		Accounts: accounts,
@@ -59,7 +59,7 @@ const allowed = "abcdefghijklmnopqrstuvwxyz1234567890."
 func DecodeAddress(encodedAddr string) (Address, error) {
 	if IsSpecialAccount([]byte(encodedAddr)) {
 		return []byte(encodedAddr), nil
-	} else if len(encodedAddr) <= NameLength  { // name address
+	} else if len(encodedAddr) <= NameLength { // name address
 		name := encodedAddr
 		for _, char := range string(name) {
 			if !strings.Contains(allowed, strings.ToLower(string(char))) {
