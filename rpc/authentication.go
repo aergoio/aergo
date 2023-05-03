@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/types"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"

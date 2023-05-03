@@ -3,9 +3,8 @@ package util
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConvTxEx(t *testing.T) {

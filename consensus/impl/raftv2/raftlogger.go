@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rs/zerolog"
-
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/rs/zerolog"
 )
 
 // Logger is a logging unit. It controls the flow of messages to a given

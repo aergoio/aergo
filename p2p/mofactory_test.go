@@ -10,9 +10,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/gofrs/uuid"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/gofrs/uuid"
 )
 
 var sampleInputIDs []types.TxID

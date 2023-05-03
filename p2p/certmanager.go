@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
@@ -10,9 +12,6 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
-
-	"sync"
-	"time"
 )
 
 var emptyIDArr []types.PeerID

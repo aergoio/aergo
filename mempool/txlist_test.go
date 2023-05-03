@@ -9,12 +9,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/config"
-
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var dummyMempool = &MemPool{

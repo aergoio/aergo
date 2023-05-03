@@ -16,9 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/types"
-
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
 	lru "github.com/hashicorp/golang-lru"
 	addrutil "github.com/libp2p/go-addr-util"

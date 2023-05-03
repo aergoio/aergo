@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/internal/network"
-
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/multiformats/go-multiaddr"

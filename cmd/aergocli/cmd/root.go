@@ -13,9 +13,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/aergoio/aergo/types"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/types"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"

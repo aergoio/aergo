@@ -11,19 +11,18 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	v030 "github.com/aergoio/aergo/p2p/v030"
-	"github.com/aergoio/aergo/polaris/common"
-	"github.com/libp2p/go-libp2p-core/network"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/network"
 )
 
 var ErrTooLowVersion = errors.New("aergosvr version is too low")

@@ -10,10 +10,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aergoio/aergo/p2p/list"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/list"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"

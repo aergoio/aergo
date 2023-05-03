@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
-
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
 )

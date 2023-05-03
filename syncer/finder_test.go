@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/chain"
-
 	"github.com/aergoio/aergo/message"
 )
 

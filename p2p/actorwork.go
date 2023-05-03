@@ -10,14 +10,13 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/etcd/raft/raftpb"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 const (

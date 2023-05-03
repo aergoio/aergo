@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/aergoio/aergo-lib/log"
 	cfg "github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
@@ -20,6 +18,7 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 

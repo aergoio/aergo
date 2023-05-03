@@ -7,16 +7,14 @@ package trie
 
 import (
 	"bytes"
-	"runtime"
-
-	"os"
-	"path"
-	"time"
-
 	"fmt"
 	"math/rand"
+	"os"
+	"path"
+	"runtime"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"

@@ -8,10 +8,9 @@ package cmd
 import (
 	"context"
 
-	"github.com/mr-tron/base58/base58"
-
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
+	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
 

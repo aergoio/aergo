@@ -11,27 +11,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/list"
-
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/raftsupport"
-	"github.com/aergoio/aergo/p2p/transport"
-	"github.com/rs/zerolog"
-
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/subproto"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/list"
+	"github.com/aergoio/aergo/p2p/metric"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/p2p/raftsupport"
+	"github.com/aergoio/aergo/p2p/subproto"
+	"github.com/aergoio/aergo/p2p/transport"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
+	"github.com/rs/zerolog"
 )
 
 // P2P is actor component for p2p

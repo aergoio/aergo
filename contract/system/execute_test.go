@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/config"
-
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"

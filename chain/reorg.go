@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/contract/system"
-
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/state"
