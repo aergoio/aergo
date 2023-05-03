@@ -6,6 +6,7 @@ const (
 	// sending aergo to wrong recipient
 	B23994084_001 = "85QfFtU62ihqj3LnoiKpZgfpKg8mixKRJ5EBMCHKVPGN"
 )
+
 func init() {
 	quirkTxMap = make(map[TxID][]byte)
 	putTxID(B23994084_001)
