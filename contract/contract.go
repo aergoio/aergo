@@ -326,5 +326,5 @@ func SetStateSQLMaxDBSize(size uint64) {
 	} else {
 		maxSQLDBSize = size
 	}
-	sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
+	sqlLgr.Debug().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
 }
