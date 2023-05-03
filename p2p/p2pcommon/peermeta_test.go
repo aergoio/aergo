@@ -10,9 +10,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo/internal/network"
-	"github.com/multiformats/go-multiaddr"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/multiformats/go-multiaddr"
 )
 
 func TestFromPeerAddressLegacy(t *testing.T) {

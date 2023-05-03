@@ -4,9 +4,8 @@ import (
 	_ "net/http/pprof"
 	"testing"
 
-	"github.com/aergoio/aergo/polaris/common"
-
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/polaris/common"
 )
 
 func Test_arrangeDefaultCfgForPolaris(t *testing.T) {

@@ -9,13 +9,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/rs/zerolog"
-
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
+	"github.com/rs/zerolog"
 )
 
 type BlockFetcher struct {

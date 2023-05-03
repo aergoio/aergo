@@ -15,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
@@ -25,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
 var (

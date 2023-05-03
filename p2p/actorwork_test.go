@@ -9,14 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
-	"github.com/aergoio/etcd/raft/raftpb"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/golang/mock/gomock"
 )
 

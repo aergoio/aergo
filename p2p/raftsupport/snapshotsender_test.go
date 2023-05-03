@@ -10,17 +10,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
+	"github.com/aergoio/etcd/snap"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/pkg/errors"
-
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
-	"github.com/aergoio/etcd/snap"
 )
 
 func Test_snapshotSender_Send(t *testing.T) {

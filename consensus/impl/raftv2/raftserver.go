@@ -29,20 +29,18 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/golang/protobuf/proto"
-
-	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
-
 	"github.com/aergoio/etcd/etcdserver/stats"
 	etcdtypes "github.com/aergoio/etcd/pkg/types"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/rafthttp"
 	"github.com/aergoio/etcd/snap"
+	"github.com/golang/protobuf/proto"
 )
 
 const (

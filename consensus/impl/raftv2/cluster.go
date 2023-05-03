@@ -13,10 +13,9 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
-
-	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	raftlib "github.com/aergoio/etcd/raft"

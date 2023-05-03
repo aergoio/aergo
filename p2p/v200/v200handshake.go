@@ -13,14 +13,13 @@ import (
 	"io"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	v030 "github.com/aergoio/aergo/p2p/v030"
-
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/types"
 )
 

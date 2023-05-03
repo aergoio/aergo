@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPeerMetric_OnRead(t *testing.T) {

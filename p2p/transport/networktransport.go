@@ -10,21 +10,19 @@ import (
 	"sync"
 	"time"
 
-	network2 "github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/types"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/network"
-
 	"github.com/aergoio/aergo-lib/log"
+	cfg "github.com/aergoio/aergo/config"
+	network2 "github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
-
-	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p"
+	core "github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/network"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
+	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	ma "github.com/multiformats/go-multiaddr"
 )
 

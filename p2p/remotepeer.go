@@ -11,16 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-
-	lru "github.com/hashicorp/golang-lru"
-
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/pkg/errors"
 )
 
 var TimeoutError = errors.New("timeout")
