@@ -1,12 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
-#include <stdint.h>
 #include "vm.h"
 #include "util.h"
 #include "_cgo_export.h"
-
-//#define STATE_DB_KEY_PREFIX "_"
 
 extern int getLuaExecContext(lua_State *L);
 
@@ -33,14 +29,14 @@ static int resolve(lua_State *L)
 	return 1;
 }
 
-static const luaL_Reg sys_lib[] = {
+static const luaL_Reg name_service_lib[] = {
 	{"resolve", resolve},
 	{NULL, NULL}
 };
 
 int luaopen_name(lua_State *L)
 {
-	luaL_register(L, "name_service", sys_lib);
+	luaL_register(L, "name_service", name_service_lib);
 	lua_pop(L, 1);
 	return 1;
 }
