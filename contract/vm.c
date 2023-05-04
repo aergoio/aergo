@@ -4,6 +4,7 @@
 #include "vm.h"
 #include "system_module.h"
 #include "contract_module.h"
+#include "name_module.h"
 #include "db_module.h"
 #include "state_module.h"
 #include "crypto_module.h"
@@ -29,6 +30,7 @@ static void preloadModules(lua_State *L)
     luaopen_system(L);
     luaopen_contract(L);
     luaopen_state(L);
+    luaopen_name(L);
     luaopen_json(L);
     luaopen_crypto(L);
     luaopen_gmp(L);
