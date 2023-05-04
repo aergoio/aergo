@@ -568,7 +568,7 @@ func sendBalance(L *LState, sender *types.State, receiver *types.State, amount *
 func luaPrint(L *LState, service C.int, args *C.char) {
 	ctx := contexts[service]
 	setInstMinusCount(ctx, L, 1000)
-	ctrLgr.Debug().Str("Contract SystemPrint", types.EncodeAddress(ctx.curContract.contractId)).Msg(C.GoString(args))
+	ctrLgr.Info().Str("Contract SystemPrint", types.EncodeAddress(ctx.curContract.contractId)).Msg(C.GoString(args))
 }
 
 func setRecoveryPoint(aid types.AccountID, ctx *vmContext, senderState *types.State,
