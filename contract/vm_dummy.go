@@ -68,7 +68,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 		}
 	}()
 
-	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
+	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
 	if err != nil {
 		return nil, err
 	}
