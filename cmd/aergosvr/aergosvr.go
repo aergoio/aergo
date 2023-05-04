@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aergoio/aergo/p2p/p2pkey"
-
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/account"
 	"github.com/aergoio/aergo/chain"
@@ -23,6 +21,7 @@ import (
 	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/mempool"
 	"github.com/aergoio/aergo/p2p"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	polarisclient "github.com/aergoio/aergo/polaris/client"
 	"github.com/aergoio/aergo/rpc"

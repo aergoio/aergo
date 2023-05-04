@@ -1,3 +1,4 @@
+//go:build measure
 // +build measure
 
 package main

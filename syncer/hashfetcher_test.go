@@ -1,10 +1,10 @@
 package syncer
 
 import (
-	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
 )
@@ -46,7 +46,7 @@ func TestHashFetcher_normal(t *testing.T) {
 	syncer.waitStop()
 }
 
-//test if hashfetcher stops successfully while waiting to send HashSet to resultCh
+// test if hashfetcher stops successfully while waiting to send HashSet to resultCh
 func TestHashFetcher_quit(t *testing.T) {
 	remoteChainLen := 100
 	localChainLen := 99

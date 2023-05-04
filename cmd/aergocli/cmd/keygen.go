@@ -8,10 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
-
 	"github.com/aergoio/aergo/account/key"
 	keycrypto "github.com/aergoio/aergo/account/key/crypto"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"

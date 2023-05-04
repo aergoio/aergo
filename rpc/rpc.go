@@ -60,8 +60,8 @@ type RPC struct {
 func NewRPC(cfg *config.Config, chainAccessor types.ChainAccessor, version string) *RPC {
 	actualServer := &AergoRPCService{
 		msgHelper:           message.GetHelper(),
-		blockStream:         map[uint32]types.AergoRPCService_ListBlockStreamServer{},
-		blockMetadataStream: map[uint32]types.AergoRPCService_ListBlockMetadataStreamServer{},
+		blockStream:         make(map[uint32]*ListBlockStream),
+		blockMetadataStream: make(map[uint32]*ListBlockMetaStream),
 		eventStream:         make(map[*EventStream]*EventStream),
 	}
 
@@ -174,6 +174,7 @@ func (ns *RPC) Statistics() *map[string]interface{} {
 	return &map[string]interface{}{
 		"config":  ns.conf.RPC,
 		"version": ns.version,
+		"streams": ns.actualServer.Statistics(),
 	}
 }
 
@@ -240,7 +241,7 @@ func (ns *RPC) Receive(context actor.Context) {
 						ns.TellTo(message.P2PSvc, msg)
 					}
 				default:
-					logger.Warn().Str("Enterprise event", eventName[0]).Msg("unknown message in RPCPERMISSION")
+					logger.Warn().Str("Enterprise event", eventName[0]).Str("conf", conf).Msg("unknown message in RPCPERMISSION")
 				}
 			}
 		}

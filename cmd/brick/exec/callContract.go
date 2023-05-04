@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/rs/zerolog"
-
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/types"
+	"github.com/rs/zerolog"
 )
 
 func init() {

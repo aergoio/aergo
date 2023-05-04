@@ -20,16 +20,16 @@ import (
 func Test_rPeerStatus_activate(t *testing.T) {
 	logger := log.NewLogger("raft.support.test")
 	id := rtypes.ID(111)
-	pid,_ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
+	pid, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 
 	tests := []struct {
-		name   string
+		name    string
 		lastAct bool
 
 		wantActive bool
 	}{
-		{"TActive",true, true},
-		{"TInactive",false, false},
+		{"TActive", true, true},
+		{"TInactive", false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,27 +50,27 @@ func Test_rPeerStatus_activate(t *testing.T) {
 			}()
 			// do activate
 			go func() {
-				for i:=0;i<100;i++ {
+				for i := 0; i < 100; i++ {
 					s.activate()
-					time.Sleep(time.Microsecond*time.Duration(rand.Intn(10)))
+					time.Sleep(time.Microsecond * time.Duration(rand.Intn(10)))
 				}
 				barrier.Done()
 			}()
 			// do deactivate
 			go func() {
-				for i:=0;i<100;i++ {
-					s.deactivate("p "+strconv.Itoa(i))
-					time.Sleep(time.Microsecond*time.Duration(rand.Intn(10)))
+				for i := 0; i < 100; i++ {
+					s.deactivate("p " + strconv.Itoa(i))
+					time.Sleep(time.Microsecond * time.Duration(rand.Intn(10)))
 				}
 				barrier.Done()
 			}()
 
-			<- allFin
+			<-allFin
 			if s.isActive() != tt.wantActive {
-				t.Errorf("rPeerStatus.isActive() = %v , want %v",s.isActive(), tt.wantActive)
+				t.Errorf("rPeerStatus.isActive() = %v , want %v", s.isActive(), tt.wantActive)
 			}
 			if s.isActive() != (s.activeSince().After(startTime)) {
-				t.Errorf("rPeerStatus.ActiveSince() = %v , want not ",s.activeSince() )
+				t.Errorf("rPeerStatus.ActiveSince() = %v , want not ", s.activeSince())
 			}
 		})
 	}

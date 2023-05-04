@@ -6,4 +6,3 @@
 package message
 
 const MapSvc = "mapSvc"
-

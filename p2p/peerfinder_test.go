@@ -6,13 +6,14 @@
 package p2p
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"reflect"
-	"testing"
 )
 
 const desigCnt = 10
@@ -151,9 +152,9 @@ func Test_dynamicPeerFinder_OnPeerConnect(t *testing.T) {
 			dp.OnPeerConnect(tt.args.inMeta.ID)
 
 			if len(dp.qStats) != tt.wantStatCount {
-				t.Errorf("count of query peers was not decreaded %v, want %v", len(dp.qStats),  tt.wantStatCount)
+				t.Errorf("count of query peers was not decreaded %v, want %v", len(dp.qStats), tt.wantStatCount)
 			} else {
-				if _, exist := dp.qStats[tt.args.inMeta.ID] ; !exist {
+				if _, exist := dp.qStats[tt.args.inMeta.ID]; !exist {
 					t.Errorf("peer query for pid %v missing, want exists", p2putil.ShortForm(tt.args.inMeta.ID))
 				}
 			}

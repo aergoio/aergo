@@ -12,8 +12,8 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/opentracing/opentracing-go"
 	"github.com/gofrs/uuid"
+	"github.com/opentracing/opentracing-go"
 )
 
 var (
@@ -133,7 +133,6 @@ func (hub *ComponentHub) Statistics(timeOutSec time.Duration, target string) (ma
 	} else {
 		components = hub.components
 	}
-
 
 	var compStatus map[string]Status
 	compStatus = make(map[string]Status)

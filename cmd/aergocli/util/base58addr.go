@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/p2p/p2putil"
-
 	"github.com/aergoio/aergo/types"
 	"github.com/mr-tron/base58/base58"
 )

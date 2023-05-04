@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -76,7 +77,10 @@ func (st *ContractState) GetBalance() *big.Int {
 
 func (st *ContractState) SetCode(code []byte) error {
 	codeHash := common.Hasher(code)
-	err := st.SetRawKV(codeHash[:], code)
+	storedCode, err := st.GetRawKV(codeHash[:])
+	if err == nil && !bytes.Equal(code, storedCode) {
+		err = st.SetRawKV(codeHash[:], code)
+	}
 	if err != nil {
 		return err
 	}

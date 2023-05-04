@@ -6,10 +6,11 @@
 package metric
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
 	"sync/atomic"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/types"
 )
 
 type PeerMetric struct {

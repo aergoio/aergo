@@ -1,5 +1,4 @@
-FROM alpine:3.9
-RUN apk add libgcc
+FROM debian:stable-slim
 WORKDIR /tools/
 COPY bin/aergocli bin/aergoluac bin/brick /usr/local/bin/
 COPY bin/brick-arglog.toml arglog.toml

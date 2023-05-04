@@ -2,10 +2,10 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/stretchr/testify/assert"
 )
@@ -91,7 +91,7 @@ func TestSyncer_sync_multiPeer(t *testing.T) {
 	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }
 
-//case : peer1 is slow (timeout)
+// case : peer1 is slow (timeout)
 func TestSyncer_sync_slowPeer(t *testing.T) {
 	remoteChainLen := 1002
 	localChainLen := 10

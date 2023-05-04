@@ -1,3 +1,4 @@
+//go:build Debug
 // +build Debug
 
 package contract

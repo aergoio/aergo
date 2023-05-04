@@ -68,7 +68,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 		}
 	}()
 
-	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
+	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
 	if err != nil {
 		return nil, err
 	}
@@ -684,8 +684,8 @@ func StrToAddress(name string) string {
 func OnPubNet(dc *DummyChain) {
 	flushLState := func() {
 		for i := 0; i <= lStateMaxSize; i++ {
-			s := getLState()
-			freeLState(s)
+			s := getLState(LStateDefault)
+			freeLState(s, LStateDefault)
 		}
 	}
 	PubNet = true

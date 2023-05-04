@@ -7,14 +7,13 @@ package subproto
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/golang/mock/gomock"
 	"testing"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -54,7 +53,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 	legacySender := &types.PeerAddress{PeerID: []byte(dummyPeerID), Port: 7845}
 	senderPeer := p2pmock.NewMockRemotePeer(ctrl)
 	senderPeer.EXPECT().ID().Return(dummyPeerID2).AnyTimes()
-	senderPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{ID:dummyPeerID2}).AnyTimes()
+	senderPeer.EXPECT().Meta().Return(p2pcommon.PeerMeta{ID: dummyPeerID2}).AnyTimes()
 
 	tests := []struct {
 		name     string
@@ -86,7 +85,7 @@ func Test_addressesRequestHandler_handle(t *testing.T) {
 			mockMF.EXPECT().NewMsgResponseOrder(gomock.Any(), p2pcommon.AddressesResponse, &addrRespSizeMatcher{tt.wantSize}).Return(dummyMo)
 
 			ph := NewAddressesReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg :=&testMessage{id:p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{id: p2pcommon.NewMsgID()}
 			msgBody := &types.AddressesRequest{Sender: legacySender, MaxSize: 50}
 			ph.Handle(dummyMsg, msgBody)
 
@@ -108,7 +107,7 @@ func (rsm addrRespSizeMatcher) Matches(x interface{}) bool {
 }
 
 func (rsm addrRespSizeMatcher) String() string {
-	return fmt.Sprintf("len(Peers) = %d",rsm.wantSize)
+	return fmt.Sprintf("len(Peers) = %d", rsm.wantSize)
 }
 
 func Test_addressesResponseHandler_checkAndAddPeerAddresses(t *testing.T) {

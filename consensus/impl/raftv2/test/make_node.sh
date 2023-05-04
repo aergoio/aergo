@@ -36,7 +36,6 @@ if [ $# != 0 ]; then
 fi
 
 
-rm -rf genesis
 rm -f genesis.json
 
 for file in BP*.toml; do
@@ -50,7 +49,7 @@ if [ "$TEST_NOWAIT_PEER" != "1" ];then
 	WaitPeerConnect 2 60
 	if [ $? -ne 1 ];then
 		echo "failed to connect peer of $file for 60 sec. "
-		exit 100
+        exit 100
 	fi
 fi
 

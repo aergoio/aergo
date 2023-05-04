@@ -7,16 +7,16 @@ package raftsupport
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 )
@@ -164,16 +164,16 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 		name string
 		args args
 
-		wantBestNo int  // count of sent to remote peers
+		wantBestNo  int  // count of sent to remote peers
 		wantErrResp bool // result with error or not
 	}{
 		{"TAllSame", args{[]retStat{10, 10, 10, 10, 10}}, 10, false},
-		{"TErrRet", args{ []retStat{ERR,ERR,ERR,ERR,ERR}}, 10,  true},
-		{"TMixed", args{ []retStat{100, ERR, 99, 98, ERR}}, 100,  false},
-		{"TMixed2", args{ []retStat{100, ERR, NOR, ERR, 100}}, 100,  true},
-		{"TTimeSucc", args{ []retStat{NOR, 99, NOR, 98, 99}}, 99,  false},
-		{"TTime1", args{ []retStat{NOR, ERR, NOR, 100, 100}}, 100,  true},
-		{"TTime2", args{ []retStat{NOR, NOR, NOR, 100, 100}}, 100,  true},
+		{"TErrRet", args{[]retStat{ERR, ERR, ERR, ERR, ERR}}, 10, true},
+		{"TMixed", args{[]retStat{100, ERR, 99, 98, ERR}}, 100, false},
+		{"TMixed2", args{[]retStat{100, ERR, NOR, ERR, 100}}, 100, true},
+		{"TTimeSucc", args{[]retStat{NOR, 99, NOR, 98, 99}}, 99, false},
+		{"TTime1", args{[]retStat{NOR, ERR, NOR, 100, 100}}, 100, true},
+		{"TTime2", args{[]retStat{NOR, NOR, NOR, 100, 100}}, 100, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -205,7 +205,8 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 				mockPeer.EXPECT().Name().Return("peer" + p2putil.ShortForm(dummyPeerID)).AnyTimes()
 				mockPeer.EXPECT().ConsumeRequest(gomock.Any()).AnyTimes()
 				mockPeer.EXPECT().SendMessage(mockMO).Do(func(arg interface{}) {
-					atomic.StoreInt32(&sentTrigger, 1)})
+					atomic.StoreInt32(&sentTrigger, 1)
+				})
 				peers[i] = mockPeer
 				sMap[msgID] = mockPeer
 
@@ -229,8 +230,8 @@ func TestConcurrentClusterInfoReceiver_ReceiveResp(t *testing.T) {
 					rBodies = append(rBodies, body)
 				}
 			}
-			ttl := time.Second>>4
-			target := NewConcClusterInfoReceiver(mockActor, mockMF, peers, ttl , dummyReq, logger)
+			ttl := time.Second >> 4
+			target := NewConcClusterInfoReceiver(mockActor, mockMF, peers, ttl, dummyReq, logger)
 			target.StartGet()
 
 			wg := sync.WaitGroup{}

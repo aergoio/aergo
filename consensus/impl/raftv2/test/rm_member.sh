@@ -36,8 +36,8 @@ getAdminUnlocked $leaderport $walletFile ADMIN
 
 rmJson="$(makeRemoveMemberJson $raftID)"
 
-echo "aergocli -p "$leaderport" contract call --governance "$ADMIN" aergo.enterprise changeCluster "$rmJson
-aergocli -p $leaderport contract call --governance $ADMIN aergo.enterprise changeCluster "$rmJson"
+echo "aergocli -p "$leaderport" contract call --governance "$ADMIN" aergo.enterprise changeCluster "$rmJson" --keystore . --password 1234"
+aergocli -p $leaderport contract call --governance $ADMIN aergo.enterprise changeCluster "$rmJson" --keystore . --password 1234
 echo "remove Done" 
 
 # check if total count is decremented

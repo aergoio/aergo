@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
-
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -150,6 +149,7 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).
+			Int("no_receipts", len(bState.Receipts().Get())).
 			Msg("BF: tx root hash")
 	}
 

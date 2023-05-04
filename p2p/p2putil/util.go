@@ -214,4 +214,3 @@ func PrintChainID(id *types.ChainID) string {
 	b.WriteString(strconv.Itoa(int(id.Version)))
 	return b.String()
 }
-

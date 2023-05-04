@@ -6,15 +6,16 @@
 package p2p
 
 import (
+	"net"
+	"reflect"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
-	"net"
-	"reflect"
-	"testing"
 )
 
 func TestRaftRoleManager_updateBP(t *testing.T) {
@@ -345,7 +346,7 @@ func TestDPOSRoleManager_reloadVotes(t *testing.T) {
 				actor:  actor,
 				logger: logger,
 			}
-			union, _, err := rm.loadBPVotes();
+			union, _, err := rm.loadBPVotes()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("loadBPVotes() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -443,17 +444,17 @@ func TestDPOSAgentRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 	logger := log.NewLogger("p2p.test")
 
 	intIp, internalNet, _ := net.ParseCIDR("192.168.1.1/24")
-	sampleSetting := p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{internalNet}}
+	sampleSetting := p2pcommon.LocalSettings{InternalZones: []*net.IPNet{internalNet}}
 	sampleMeta := p2pcommon.NewMetaWith1Addr(types.RandomPeerID(), intIp.String(), 7846, "v2.0.0")
 	//  0,1 are my producer, 2 is other internal producer,
 	//  3 is other internal agent, 4 is internal watcher,
 	//  5,6 are external bp ,
 	//  7,8 are external agent
 	//  9 is external watcher
-	p,a,w := types.PeerRole_Producer, types.PeerRole_Agent, types.PeerRole_Watcher
+	p, a, w := types.PeerRole_Producer, types.PeerRole_Agent, types.PeerRole_Watcher
 	i, e := p2pcommon.InternalZone, p2pcommon.ExternalZone
-	roles := []types.PeerRole    {p,p,p,a,w,p,p,a,a,w}
-	zones := []p2pcommon.PeerZone{i,i,i,i,i,e,e,e,e,e}
+	roles := []types.PeerRole{p, p, p, a, w, p, p, a, a, w}
+	zones := []p2pcommon.PeerZone{i, i, i, i, i, e, e, e, e, e}
 	var pids []types.PeerID
 	for i := 0; i < len(roles); i++ {
 		pids = append(pids, types.RandomPeerID())
@@ -471,8 +472,8 @@ func TestDPOSAgentRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 
 		want []int
 	}{
-		{"TToInt", p2pcommon.InternalZone, []int{0,1}},
-		{"TToExt", p2pcommon.ExternalZone, []int{5,6,7,8}},
+		{"TToInt", p2pcommon.InternalZone, []int{0, 1}},
+		{"TToExt", p2pcommon.ExternalZone, []int{5, 6, 7, 8}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -487,11 +488,11 @@ func TestDPOSAgentRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 			is.EXPECT().PeerManager().Return(mockPM).AnyTimes()
 
 			mockPeers := make([]p2pcommon.RemotePeer, 0, len(pids))
-			mockBPs :=  make([]p2pcommon.RemotePeer, 0, len(pids))
+			mockBPs := make([]p2pcommon.RemotePeer, 0, len(pids))
 			mockWatches := make([]p2pcommon.RemotePeer, 0, len(pids))
 			for i, pid := range pids {
 				mPeer := p2pmock.NewMockRemotePeer(ctrl)
-				ri := p2pcommon.RemoteInfo{Meta:p2pcommon.NewMetaWith1Addr(pid, "1.1.1.1", 7846, "v2.0.0"), AcceptedRole:roles[i], Zone:zones[i]}
+				ri := p2pcommon.RemoteInfo{Meta: p2pcommon.NewMetaWith1Addr(pid, "1.1.1.1", 7846, "v2.0.0"), AcceptedRole: roles[i], Zone: zones[i]}
 				mPeer.EXPECT().ID().Return(pid).AnyTimes()
 				mPeer.EXPECT().RemoteInfo().Return(ri).AnyTimes()
 				mPeer.EXPECT().AcceptedRole().Return(roles[i]).AnyTimes()
@@ -512,7 +513,7 @@ func TestDPOSAgentRoleManager_FilterBPNoticeReceiver(t *testing.T) {
 			sampleBlock := &types.Block{}
 			filtered := rm.FilterBPNoticeReceiver(sampleBlock, mockPM, tt.argZone)
 			if len(filtered) != len(tt.want) {
-				t.Fatalf("RaftRoleManager.NotifyNewBlockMsg() peers = %v, want %v", len(filtered), len(tt.want) )
+				t.Fatalf("RaftRoleManager.NotifyNewBlockMsg() peers = %v, want %v", len(filtered), len(tt.want))
 			}
 			for i, idx := range tt.want {
 				fp := filtered[i]

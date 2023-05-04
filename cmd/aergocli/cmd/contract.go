@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"strconv"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
@@ -185,8 +184,8 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 		payload = luac.NewLuaCodePayload(luac.LuaCode(code), deployArgs)
 	}
 
-	amountBigInt, ok := new(big.Int).SetString(amount, 10)
-	if !ok {
+	amountBigInt, err := util.ParseUnit(amount)
+	if err != nil {
 		return fmt.Errorf("failed to parse amount: %v", err.Error())
 	}
 
@@ -257,9 +256,9 @@ func runCallCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	amountBigInt, ok := new(big.Int).SetString(amount, 10)
-	if !ok {
-		return fmt.Errorf("failed to parse amount: %v", err.Error())
+	amountBigInt, err := util.ParseUnit(amount)
+	if err != nil {
+		return fmt.Errorf("failed to parse amount: %v", err)
 	}
 
 	var txType types.TxType

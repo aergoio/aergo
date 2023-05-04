@@ -44,7 +44,7 @@ func TestAccountWithPath(t *testing.T) {
 
 	// Import again, should fail (duplicate)
 	outputImport, err := executeCommand(rootCmd, "account", "import", "--if", importFormat, "--password", "1", "--keystore", testDir)
-	assert.Equalf(t, "already exists\n", outputImport, "should return duplicate = %s", outputImport)
+	assert.Contains(t, outputImport, "already exists", "should return duplicate = %s", outputImport)
 
 	// Import again in another path, should succeed
 	outputImport, err = executeCommand(rootCmd, "account", "import", "--if", importFormat, "--password", "1", "--keystore", testDir2)

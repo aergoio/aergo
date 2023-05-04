@@ -1,9 +1,11 @@
+//go:build !Debug
 // +build !Debug
 
 package contract
 
 import (
 	"math/big"
+
 	"github.com/aergoio/aergo/cmd/aergoluac/util"
 )
 

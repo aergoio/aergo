@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"

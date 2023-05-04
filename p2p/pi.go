@@ -6,15 +6,16 @@
 package p2p
 
 import (
+	"net"
+	"strconv"
+	"strings"
+
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"net"
-	"strconv"
-	"strings"
 )
 
 func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock bool) p2pcommon.PeerMeta {
@@ -42,7 +43,7 @@ func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock boo
 		ipAddress = extIP
 		protocolAddr = ipAddress.String()
 	}
-	ma,err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
+	ma, err := types.ToMultiAddr(ipAddress.String(), uint32(protocolPort))
 	var meta p2pcommon.PeerMeta
 
 	meta.ID = peerID
@@ -57,11 +58,11 @@ func SetupSelfMeta(peerID types.PeerID, conf *config.P2PConfig, produceBlock boo
 		if size == 0 {
 			panic("invalid configuration: agent peer must have at least one producerID ")
 		}
-		pids := make([]types.PeerID,len(conf.Producers))
+		pids := make([]types.PeerID, len(conf.Producers))
 		for i, str := range conf.Producers {
 			pid, err := types.IDB58Decode(str)
 			if err != nil {
-				panic("invalid producerID "+str+" : "+err.Error())
+				panic("invalid producerID " + str + " : " + err.Error())
 			}
 			pids[i] = pid
 		}

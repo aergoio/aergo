@@ -14,7 +14,7 @@ func NewSigner(s *key.Store) *Signer {
 	return &Signer{keystore: s}
 }
 
-//Receive actor message
+// Receive actor message
 func (s *Signer) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
 	case *message.SignTx:

@@ -6,14 +6,15 @@
 package p2p
 
 import (
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestAncestorReceiver_StartGet(t *testing.T) {
@@ -67,9 +68,9 @@ func TestAncestorReceiver_ReceiveResp(t *testing.T) {
 		ttl         time.Duration
 		blkInterval time.Duration
 
-		blkRsp      []byte
-		blkNo       types.BlockNo
-		rspStatus   types.ResultStatus
+		blkRsp    []byte
+		blkNo     types.BlockNo
+		rspStatus types.ResultStatus
 
 		// to verify
 		consumed int
@@ -78,9 +79,9 @@ func TestAncestorReceiver_ReceiveResp(t *testing.T) {
 	}{
 		{"TSame", sampleBlks, time.Minute, 0, blkHash, 12, types.ResultStatus_OK, 1, 1, false},
 		// Fail1 remote err
-		{"TFirst", sampleBlks, time.Minute, 0, nil, 0,types.ResultStatus_INTERNAL, 1, 1, true},
+		{"TFirst", sampleBlks, time.Minute, 0, nil, 0, types.ResultStatus_INTERNAL, 1, 1, true},
 		// Fail2 can't find block
-		{"TNotMatch", sampleBlks, time.Minute, 0, nil, 0,types.ResultStatus_NOT_FOUND, 1, 1, true},
+		{"TNotMatch", sampleBlks, time.Minute, 0, nil, 0, types.ResultStatus_NOT_FOUND, 1, 1, true},
 		// Fail4 response sent after timeout
 		{"TTimeout", sampleBlks, time.Millisecond * 10, time.Millisecond * 20, blkHash, 12, types.ResultStatus_OK, 1, 0, false},
 	}
@@ -113,7 +114,7 @@ func TestAncestorReceiver_ReceiveResp(t *testing.T) {
 			br := NewAncestorReceiver(mockActor, mockPeer, seqNo, test.input, test.ttl)
 			br.StartGet()
 
-			msg := p2pcommon.NewMessageValue(p2pcommon.GetAncestorResponse,  sampleMsgID, p2pcommon.EmptyID, time.Now().UnixNano(), nil)
+			msg := p2pcommon.NewMessageValue(p2pcommon.GetAncestorResponse, sampleMsgID, p2pcommon.EmptyID, time.Now().UnixNano(), nil)
 			body := &types.GetAncestorResponse{AncestorHash: test.blkRsp, AncestorNo: test.blkNo, Status: test.rspStatus}
 			if test.blkInterval > 0 {
 				time.Sleep(test.blkInterval)
@@ -123,4 +124,3 @@ func TestAncestorReceiver_ReceiveResp(t *testing.T) {
 		})
 	}
 }
-

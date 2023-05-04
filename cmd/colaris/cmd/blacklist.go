@@ -7,10 +7,11 @@ package cmd
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
 	"github.com/spf13/cobra"
-	"strconv"
 )
 
 var confCommand = &cobra.Command{

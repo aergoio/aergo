@@ -2,6 +2,7 @@ package p2pcommon
 
 import (
 	"fmt"
+
 	"github.com/aergoio/aergo/types"
 )
 
@@ -12,7 +13,6 @@ type PeerAccessor interface {
 
 	GetPeerBlockInfos() []types.PeerBlockInfo
 	GetPeer(ID types.PeerID) (RemotePeer, bool)
-
 }
 
 type SyncManager interface {
@@ -37,4 +37,3 @@ type SyncManager interface {
 //go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon SyncManager,PeerAccessor | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_syncmanager.go"
 
 var SyncManagerBusyError = fmt.Errorf("server is busy")
-

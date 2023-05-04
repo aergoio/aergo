@@ -2,13 +2,14 @@ package p2putil
 
 import (
 	"encoding/binary"
+	"time"
+
 	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/minio/sha256-simd"
-	"time"
 )
 
 func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificate, error) {
@@ -45,7 +46,7 @@ func ConvertCertToProto(w *p2pcommon.AgentCertificateV1) (*types.AgentCertificat
 
 func ConvertCertsToProto(cs []*p2pcommon.AgentCertificateV1) ([]*types.AgentCertificate, error) {
 	var err error
-	ret := make([]*types.AgentCertificate,len(cs))
+	ret := make([]*types.AgentCertificate, len(cs))
 	for i, c := range cs {
 		ret[i], err = ConvertCertToProto(c)
 		if err != nil {
