@@ -20,22 +20,32 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
-set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gmp-6.1.2)
-set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/gmp-6.1.2)
+# 612_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2
+# 621_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c
+set(GMP_VERSION 6.1.2)
+set(GMP_NAME gmp-${GMP_VERSION})
+set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
+set(GMP_ARCHIVE ${GMP_NAME}.tar.bz2)
+set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/${GMP_NAME})
+set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/build/${GMP_NAME})
 
 include(ExternalProject)
 
 ExternalProject_Add(libgmp
    SOURCE_DIR ${GMP_SRC_DIR}
    BINARY_DIR ${GMP_BUILD_DIR}
-   TMP_DIR ${GMP_BUILD_DIR}
-   STAMP_DIR ${GMP_BUILD_DIR}
+   #--Download step--------------
+   DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/download
+   URL          ${CMAKE_CURRENT_SOURCE_DIR}/download/${GMP_ARCHIVE}
+   URL_HASH     SHA256=${GMP_HASH}
+   TMP_DIR      ${GMP_BUILD_DIR}
+   STAMP_DIR    ${GMP_BUILD_DIR}
    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
    PREFIX ${GMP_SRC_DIR}
    BUILD_COMMAND $(MAKE) all install > make.log
    BUILD_ALWAYS 1)
 
-add_custom_target(libtool DEPENDS libluajit liblmdb libgmp)
+add_custom_target(libtool DEPENDS ${GMP_SRC_DIR}/INSTALL libluajit liblmdb libgmp)
 
 add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} ${CFLAGS} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
