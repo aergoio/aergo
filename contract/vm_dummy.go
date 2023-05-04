@@ -658,7 +658,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) 
 	if err != nil {
 		return false, "", err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), nil, cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {
