@@ -121,9 +121,12 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
-		if (!bytes.Equal(tx.Account, []byte(name))) &&
-			(!bytes.Equal(tx.Account, getOwner(scs, []byte(name), false))) {
-			return nil, fmt.Errorf("owner not matched : %s", name)
+		nameMap := getNameMap(scs, []byte(name), false)
+		if !bytes.Equal(tx.Account, nameMap.Operator) {
+			if (!bytes.Equal(tx.Account, []byte(name))) &&
+				(!bytes.Equal(tx.Account, nameMap.Owner)) {
+				return nil, fmt.Errorf("owner not matched : %s", name)
+			}
 		}
 	case types.SetNameOperator:
 		if (!bytes.Equal(tx.Account, []byte(name))) &&
