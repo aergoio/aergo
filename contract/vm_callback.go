@@ -1456,8 +1456,34 @@ func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
 	return C.CString(types.EncodeAddress(addr))
 }
 
+//export luaNameOwner
+func luaNameOwner(L *LState, service C.int, nameArg *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameOwner] contract state not found")
+	}
+	addr, err := name.Owner(ctx.bs, []byte(C.GoString(nameArg)))
+	if err != nil {
+		return C.CString("[Contract.LuaNameOwner] invalid name: " + err.Error())
+	}
+	return C.CString(types.EncodeAddress(addr))
+}
+
+//export luaNameOperator
+func luaNameOperator(L *LState, service C.int, nameArg *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameOperator] contract state not found")
+	}
+	addr, err := name.Operator(ctx.bs, []byte(C.GoString(nameArg)))
+	if err != nil {
+		return C.CString("[Contract.LuaNameOperator] invalid name: " + err.Error())
+	}
+	return C.CString(types.EncodeAddress(addr))
+}
+
 //export luaNameService
-func luaNameService(L *LState, service C.int, fType C.char, arg *C.char) *C.char {
+func luaNameService(L *LState, service C.int, fType C.char, nameArg *C.char) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaNameService] contract state not found")
@@ -1473,7 +1499,7 @@ func luaNameService(L *LState, service C.int, fType C.char, arg *C.char) *C.char
 	case 'U':
 		funcName = "v1updateName"
 	}
-	payload := []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, funcName, C.GoString(arg)))
+	payload := []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, funcName, C.GoString(nameArg)))
 
 	cid := []byte(types.AergoName)
 	aid := types.ToAccountID(cid)

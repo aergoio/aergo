@@ -146,6 +146,15 @@ func getAddress(scs *statedb.ContractState, name []byte) []byte {
 	return nil
 }
 
+//Owner returns the owner of a registered name
+func Owner(bs *state.BlockState, name []byte) ([]byte, error) {
+	scs, err := openContract(bs)
+	if err != nil {
+		return nil, err
+	}
+	return getOwner(scs, name, true), nil
+}
+
 func GetOwner(scs *statedb.ContractState, name []byte) []byte {
 	return getOwner(scs, name, true)
 }
@@ -156,6 +165,15 @@ func getOwner(scs *statedb.ContractState, name []byte, useInitial bool) []byte {
 		return nameMap.Owner
 	}
 	return nil
+}
+
+//Operator returns the owner of a registered name
+func Operator(bs *state.BlockState, name []byte) ([]byte, error) {
+	scs, err := openContract(bs)
+	if err != nil {
+		return nil, err
+	}
+	return getOperator(scs, name), nil
 }
 
 func GetOperator(scs *statedb.ContractState, name []byte) []byte {
