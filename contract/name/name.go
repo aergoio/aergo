@@ -200,7 +200,10 @@ func setNameMap(scs *statedb.ContractState, name []byte, n *NameMap) error {
 
 func serializeNameMap(n *NameMap) []byte {
 	var ret []byte
-	if n != nil {
+	if n == nil {
+		return nil
+	}
+	if n.Version == 1 {
 		// store version
 		ret = append(ret, n.Version)
 		buf := make([]byte, 8)
@@ -222,18 +225,37 @@ func serializeNameMap(n *NameMap) []byte {
 			// store the operator address
 			ret = append(ret, n.Operator...)
 		}
+	} else if n.Version == 2 {
+		// store the version
+		ret = append(ret, 2)  // n.Version)
+		// store the size of owner
+		ret = append(ret, byte(len(n.Owner)))
+		// store the owner address
+		ret = append(ret, n.Owner...)
+		// store the size of destination
+		ret = append(ret, byte(len(n.Destination)))
+		// store the destination address
+		ret = append(ret, n.Destination...)
+		// if there is an operator, store it
+		if n.Operator != nil {
+			// store the size of operator
+			ret = append(ret, byte(len(n.Operator)))
+			// store the operator address
+			ret = append(ret, n.Operator...)
+		}
 	}
 	return ret
 }
 
 func deserializeNameMap(data []byte) *NameMap {
-	if data != nil {
-		var operator []byte
+	if data == nil {
+		return nil
+	}
+	var owner, destination, operator []byte
 
-		version := data[0]
-		if version != 1 {
-			panic("could not deserializeOwner, not supported version")
-		}
+	version := data[0]
+
+	if version == 1 {
 
 		// read the size of owner
 		offset := 1
@@ -243,7 +265,7 @@ func deserializeNameMap(data []byte) *NameMap {
 		// read the owner address
 		offset = next
 		next = offset + int(sizeOfAddr)
-		owner := data[offset:next]
+		owner = data[offset:next]
 
 		// read the size of destination
 		offset = next
@@ -253,27 +275,49 @@ func deserializeNameMap(data []byte) *NameMap {
 		// read the destination address
 		offset = next
 		next = offset + int(sizeOfDest)
-		destination := data[offset:next]
+		destination = data[offset:next]
+
+	} else if version == 2 {
+
+		offset := 1
+
+		// read the size of owner
+		sizeOfAddr := int(data[offset])
+		offset += 1
+
+		// read the owner address
+		next := offset + sizeOfAddr
+		owner = data[offset:next]
+		offset = next
+
+		// read the size of destination
+		sizeOfDest := int(data[offset])
+		offset += 1
+
+		// read the destination address
+		next = offset + sizeOfDest
+		destination = data[offset:next]
+		offset = next
 
 		// if there are remaining bytes, then the operator is included
-		if (len(data) > next) {
+		if (len(data) > offset) {
 			// read the size of operator
-			offset = next
-			next = offset + 8
-			sizeOfOperator := binary.LittleEndian.Uint64(data[offset:next])
+			sizeOfOperator := int(data[offset])
+			offset += 1
 
 			// read the operator address
-			offset = next
-			next = offset + int(sizeOfOperator)
+			next = offset + sizeOfOperator
 			operator = data[offset:next]
 		}
 
-		return &NameMap{
-			Version:     version,
-			Owner:       owner,
-			Destination: destination,
-			Operator:    operator,
-		}
+	} else {
+		panic("could not deserialize name info, not supported version: " + string(version))
 	}
-	return nil
+
+	return &NameMap{
+		Version:     version,
+		Owner:       owner,
+		Destination: destination,
+		Operator:    operator,
+	}
 }
