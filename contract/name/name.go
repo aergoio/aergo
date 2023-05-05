@@ -15,6 +15,7 @@ type NameMap struct {
 	Version     byte
 	Owner       []byte
 	Destination []byte
+	Operator    []byte
 }
 
 func CreateName(scs *statedb.ContractState, tx *types.TxBody, sender, receiver *state.AccountState, name string) error {
@@ -30,13 +31,36 @@ func createName(scs *statedb.ContractState, name []byte, owner []byte) error {
 	return registerOwner(scs, name, owner, owner)
 }
 
-// UpdateName is avaliable after bid implement
+//UpdateOperator sets the operator for a given name
+func UpdateOperator(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBody,
+	sender, receiver *state.AccountState, name, operator string) error {
+	if len(getAddress(scs, []byte(name))) <= types.NameLength {
+		return fmt.Errorf("%s is not created yet", string(name))
+	}
+	var operatorAddr []byte
+	if len(operator) > 0 {
+		// convert the operator to bytes
+		operatorAddr, _ = types.DecodeAddress(operator)
+		// if it is a name, resolve it to an address
+		operatorAddr = GetAddress(scs, operatorAddr)
+	}
+	return updateOperator(scs, []byte(name), operatorAddr)
+}
+
+func updateOperator(scs *statedb.ContractState, name []byte, operator []byte) error {
+	nameMap := getNameMap(scs, name, true)
+	nameMap.Operator = operator
+	return setNameMap(scs, name, nameMap)
+}
+
+//UpdateName changes the destination and the owner
 func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBody,
 	sender, receiver *state.AccountState, name, to string) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
 	destination, _ := types.DecodeAddress(to)
+	// if it is a name, resolve it to an address
 	destination = GetAddress(scs, destination)
 
 	amount := tx.GetAmountBigInt()
@@ -61,6 +85,7 @@ func UpdateName(bs *state.BlockState, scs *statedb.ContractState, tx *types.TxBo
 	return updateName(scs, []byte(name), ownerAddr, destination)
 }
 
+//UpdateName does not save the operator (it is cleared on transfer)
 func updateName(scs *statedb.ContractState, name []byte, owner []byte, to []byte) error {
 	//return setAddress(scs, name, to)
 	return registerOwner(scs, name, owner, to)
@@ -133,6 +158,18 @@ func getOwner(scs *statedb.ContractState, name []byte, useInitial bool) []byte {
 	return nil
 }
 
+func GetOperator(scs *statedb.ContractState, name []byte) []byte {
+	return getOperator(scs, name)
+}
+
+func getOperator(scs *statedb.ContractState, name []byte) []byte {
+	nameMap := getNameMap(scs, name, true)
+	if nameMap != nil {
+		return nameMap.Operator
+	}
+	return nil
+}
+
 func getNameMap(scs *statedb.ContractState, name []byte, useInitial bool) *NameMap {
 	var err error
 	var ownerdata []byte
@@ -164,43 +201,78 @@ func setNameMap(scs *statedb.ContractState, name []byte, n *NameMap) error {
 func serializeNameMap(n *NameMap) []byte {
 	var ret []byte
 	if n != nil {
+		// store version
 		ret = append(ret, n.Version)
 		buf := make([]byte, 8)
+		// store the size of owner
 		binary.LittleEndian.PutUint64(buf, uint64(len(n.Owner)))
 		ret = append(ret, buf...)
+		// store the owner address
 		ret = append(ret, n.Owner...)
+		// store the size of destination
 		binary.LittleEndian.PutUint64(buf, uint64(len(n.Destination)))
 		ret = append(ret, buf...)
+		// store the destination address
 		ret = append(ret, n.Destination...)
+		// if there is an operator, store it
+		if n.Operator != nil {
+			// store the size of operator
+			binary.LittleEndian.PutUint64(buf, uint64(len(n.Operator)))
+			ret = append(ret, buf...)
+			// store the operator address
+			ret = append(ret, n.Operator...)
+		}
 	}
 	return ret
 }
 
 func deserializeNameMap(data []byte) *NameMap {
 	if data != nil {
+		var operator []byte
+
 		version := data[0]
 		if version != 1 {
 			panic("could not deserializeOwner, not supported version")
 		}
+
+		// read the size of owner
 		offset := 1
 		next := offset + 8
 		sizeOfAddr := binary.LittleEndian.Uint64(data[offset:next])
 
+		// read the owner address
 		offset = next
 		next = offset + int(sizeOfAddr)
 		owner := data[offset:next]
 
+		// read the size of destination
 		offset = next
 		next = offset + 8
 		sizeOfDest := binary.LittleEndian.Uint64(data[offset:next])
 
+		// read the destination address
 		offset = next
 		next = offset + int(sizeOfDest)
 		destination := data[offset:next]
+
+		// if there are remaining bytes, then the operator is included
+		if (len(data) > next) {
+			// read the size of operator
+			offset = next
+			next = offset + 8
+			sizeOfOperator := binary.LittleEndian.Uint64(data[offset:next])
+
+			// read the operator address
+			offset = next
+			next = offset + int(sizeOfOperator)
+			operator = data[offset:next]
+		}
+
 		return &NameMap{
 			Version:     version,
 			Owner:       owner,
 			Destination: destination,
+			Operator:    operator,
 		}
 	}
 	return nil
