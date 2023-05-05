@@ -277,7 +277,7 @@ func validateNameTx(tx *TxBody) error {
 		if len(operator) > 0 {
 			operatorAddr, err := DecodeAddress(operator)
 			if err != nil || len(operatorAddr) > AddressLength {
-				return fmt.Errorf("invalid operator in %s", ci)
+				return fmt.Errorf("invalid name operator in %s", ci)
 			}
 		}
 	case SetContractOwner:

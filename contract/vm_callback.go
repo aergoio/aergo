@@ -1456,6 +1456,99 @@ func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
 	return C.CString(types.EncodeAddress(addr))
 }
 
+//export luaNameService
+func luaNameService(L *LState, service C.int, fType C.char, arg *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameService] contract state not found")
+	}
+	if ctx.isQuery == true || ctx.nestedView > 0 {
+		return C.CString("[Contract.LuaNameService] name service not permitted in query")
+	}
+
+	var funcName string
+	switch fType {
+	case 'C':
+		funcName = "v1createName"
+	case 'U':
+		funcName = "v1updateName"
+	}
+	payload := []byte(fmt.Sprintf(`{"Name":"%s","Args":%s}`, funcName, C.GoString(arg)))
+
+	cid := []byte(types.AergoName)
+	aid := types.ToAccountID(cid)
+	scsState, err := getContractState(ctx, cid)
+	if err != nil {
+		return C.CString("[Contract.LuaNameService] getAccount error: " + err.Error())
+	}
+
+	var amountBig *big.Int
+	switch fType {
+	case 'C', 'U':
+		namePrice := system.GetNamePriceFromState(scsState.ctrState)
+		amountBig = namePrice
+	//case 'U':
+	//	amountBig = zeroBig
+	}
+
+	curContract := ctx.curContract
+
+	senderState := curContract.callState.accState
+	receiverState := scsState.accState
+
+	txBody := types.TxBody{
+		Account: curContract.contractId,
+		Amount:  amountBig.Bytes(),
+		Payload: payload,
+	}
+
+	// Validate name transaction
+	_, err = name.ValidateNameTx(&txBody, senderState, scsState.ctrState)
+	if err != nil {
+		return C.CString("[Contract.LuaNameService] error: " + err.Error())
+	}
+
+	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
+	if err != nil {
+		return C.CString("[Contract.LuaNameService] database error: " + err.Error())
+	}
+
+	events, err := name.ExecuteNameTx(ctx.bs, scsState.ctrState, &txBody, senderState, receiverState, ctx.blockInfo)
+	if err != nil {
+		rErr := clearRecovery(L, ctx, seq, true)
+		if rErr != nil {
+			return C.CString("[Contract.LuaNameService] recovery error: " + rErr.Error())
+		}
+		return C.CString("[Contract.LuaNameService] error: " + err.Error())
+	}
+
+	if seq == 1 {
+		err := clearRecovery(L, ctx, seq, false)
+		if err != nil {
+			return C.CString("[Contract.LuaNameService] recovery error: " + err.Error())
+		}
+	}
+
+	ctx.eventCount += int32(len(events))
+	ctx.events = append(ctx.events, events...)
+
+	if ctx.lastRecoveryEntry != nil {
+		if fType == 'C' || fType == 'U' {
+			seq, _ = setRecoveryPoint(aid, ctx, senderState, scsState, amountBig, true, false)
+			if ctx.traceFile != nil {
+				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[NAME_SERVICE]aid(%s)\n", aid.String()))
+				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
+				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("amount: %s\n", amountBig.String()))
+				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
+					senderState.Balance().String(), receiverState.Balance().String()))
+			}
+		//} else if fType == 'U' {
+		}
+	}
+
+	return nil
+}
+
 //export luaGovernance
 func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
 

@@ -6,7 +6,9 @@
 
 extern int getLuaExecContext(lua_State *L);
 
-static int resolve(lua_State *L) {
+// READ FUNCTIONS ///////////////////////////////////////////////////
+
+static int name_resolve(lua_State *L) {
 	char *name, *ret;
 	int service = getLuaExecContext(L);
 
@@ -30,8 +32,46 @@ static int resolve(lua_State *L) {
 	return 1;
 }
 
+// WRITE FUNCTIONS //////////////////////////////////////////////////
+
+static int name_service_exec(lua_State *L, char type) {
+	int service = getLuaExecContext(L);
+	char *args, *ret;
+
+	lua_gasuse(L, 500);  // ?????????
+
+	args = lua_util_get_json_from_stack(L, 1, lua_gettop(L), false);
+	if (args == NULL) {
+		luaL_throwerror(L);
+	}
+	if (strlen(args) == 0) {
+		free(args);
+		luaL_error(L, "invalid input");
+	}
+
+	ret = luaNameService(L, service, type, args);
+
+	free(args);
+
+	if (ret != NULL) {
+		strPushAndRelease(L, ret);
+		luaL_throwerror(L);
+	}
+	return 0;
+}
+
+static int name_register(lua_State *L) {
+  return name_service_exec(L, 'C');
+}
+
+static int name_transfer(lua_State *L) {
+  return name_service_exec(L, 'U');
+}
+
 static const luaL_Reg name_service_lib[] = {
-	{"resolve", resolve},
+	{"resolve", name_resolve},
+	{"register", name_register},
+	{"transfer", name_transfer},
 	{NULL, NULL}
 };
 
