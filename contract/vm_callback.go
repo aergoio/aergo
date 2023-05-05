@@ -1247,8 +1247,8 @@ func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char
 	return C.int(len(cs.curState.GetCodeHash())), nil
 }
 
-//export luaResolve
-func luaResolve(L *LState, service C.int, name *C.char) *C.char {
+//export luaNameResolve
+func luaNameResolve(L *LState, service C.int, name *C.char) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaResolve] contract state not found")
@@ -1256,6 +1256,32 @@ func luaResolve(L *LState, service C.int, name *C.char) *C.char {
 	addr, err := getAddressNameResolved(C.GoString(name), ctx.bs)
 	if err != nil {
 		return C.CString("[Contract.LuaResolve] invalid name: " + err.Error())
+	}
+	return C.CString(types.EncodeAddress(addr))
+}
+
+//export luaNameOwner
+func luaNameOwner(L *LState, service C.int, name *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameOwner] contract state not found")
+	}
+	addr, err := name.Owner(ctx.bs, []byte(C.GoString(name)))
+	if err != nil {
+		return C.CString("[Contract.LuaNameOwner] invalid name: " + err.Error())
+	}
+	return C.CString(types.EncodeAddress(addr))
+}
+
+//export luaNameOperator
+func luaNameOperator(L *LState, service C.int, name *C.char) *C.char {
+	ctx := contexts[service]
+	if ctx == nil {
+		return C.CString("[Contract.LuaNameOperator] contract state not found")
+	}
+	addr, err := name.Operator(ctx.bs, []byte(C.GoString(name)))
+	if err != nil {
+		return C.CString("[Contract.LuaNameOperator] invalid name: " + err.Error())
 	}
 	return C.CString(types.EncodeAddress(addr))
 }
