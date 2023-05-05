@@ -17,6 +17,7 @@ import (
 const SetContractOwner = "v1setOwner"
 const NameCreate = "v1createName"
 const NameUpdate = "v1updateName"
+const SetNameOperator = "v1updateOperator"
 
 const TxMaxSize = 200 * 1024
 
@@ -259,6 +260,20 @@ func validateNameTx(tx *TxBody) error {
 		}
 		if len(to) > AddressLength {
 			return fmt.Errorf("too long name %s", string(tx.GetPayload()))
+		}
+	case SetNameOperator:
+		if err := _validateNameTx(tx, &ci); err != nil {
+			return err
+		}
+		if len(ci.Args) != 2 {
+			return fmt.Errorf("invalid arguments in %s", ci)
+		}
+		operator := ci.Args[1].(string)
+		if len(operator) > 0 {
+			operatorAddr, err := DecodeAddress(operator)
+			if err != nil || len(operatorAddr) > AddressLength {
+				return fmt.Errorf("invalid operator in %s", ci)
+			}
 		}
 	case SetContractOwner:
 		owner, ok := ci.Args[0].(string)

@@ -36,6 +36,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	} else {
 		nameState = receiver
 	}
+
 	switch ci.Name {
 	case types.NameCreate:
 		if err = CreateName(scs, txBody, sender, nameState,
@@ -70,6 +71,18 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			ContractAddress: receiver.ID(),
 			EventIdx:        0,
 			EventName:       "update name",
+			JsonArgs:        jsonArgs,
+		})
+	case types.SetNameOperator:
+		if err = UpdateOperator(bs, scs, txBody, sender, nameState,
+			ci.Args[0].(string), ci.Args[1].(string)); err != nil {
+			return nil, err
+		}
+		jsonArgs := `["` + ci.Args[0].(string) + `","` + ci.Args[1].(string) + `"]`
+		events = append(events, &types.Event{
+			ContractAddress: receiver.ID(),
+			EventIdx:        0,
+			EventName:       "update name operator",
 			JsonArgs:        jsonArgs,
 		})
 	case types.SetContractOwner:
@@ -108,6 +121,11 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
+		if (!bytes.Equal(tx.Account, []byte(name))) &&
+			(!bytes.Equal(tx.Account, getOwner(scs, []byte(name), false))) {
+			return nil, fmt.Errorf("owner not matched : %s", name)
+		}
+	case types.SetNameOperator:
 		if (!bytes.Equal(tx.Account, []byte(name))) &&
 			(!bytes.Equal(tx.Account, getOwner(scs, []byte(name), false))) {
 			return nil, fmt.Errorf("owner not matched : %s", name)
