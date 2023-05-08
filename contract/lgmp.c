@@ -254,7 +254,15 @@ static int Biszero(lua_State *L)
 	return 1;
 }
 
-static int Bisneg(lua_State *L)
+static int Bispositive(lua_State *L)
+{
+	mp_num a = Bget(L, 1);
+	lua_gasuse(L, 10);
+	lua_pushboolean(L, (mpz_sgn(MPZ(a)) > 0));
+	return 1;
+}
+
+static int Bisnegative(lua_State *L)
 {
 	mp_num a = Bget(L, 1);
 	lua_gasuse(L, 10);
@@ -515,7 +523,9 @@ static const luaL_Reg R[] =
 	{ "compare",	Bcompare},
 	{ "div",	Bdiv	},
 	{ "divmod",	Bdivmod	},
-	{ "isneg",	Bisneg	},
+	{ "ispositive",	Bispositive	},
+	{ "isnegative",	Bisnegative	},
+	{ "isneg",	Bisnegative	},
 	{ "iszero",	Biszero	},
 	{ "mod",	Bmod	},
 	{ "mul",	Bmul	},
