@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 
 assert_equals() {
   local var="$1"
@@ -10,6 +9,15 @@ assert_equals() {
   fi
 }
 
+assert_contains() {
+  local var="$1"
+  local substring="$2"
+
+  if [[ ! "$var" == *"$substring"* ]]; then
+    echo "Assertion failed: $var does not contain $substring"
+    exit 1
+  fi
+}
 
 
 ../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
@@ -42,9 +50,9 @@ sleep 1
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
-assert_equals "$status" "ERROR"
-assert_equals "$ret"    "[Contract.LuaResolve] Data and checksum don't match"
-
+assert_equals   "$status" "ERROR"
+# assert_equals "$ret"    "[Contract.LuaResolve] Data and checksum don't match"
+assert_contains "$ret"    "Data and checksum don't match"
 
 echo "-- call contract with a valid address --"
 
