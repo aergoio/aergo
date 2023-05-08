@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# delete the aergo folder
+rm -r ~/.aergo/
+
 # open the aergo server in testmode to create the config file
 ../bin/aergosvr --testmode > logs 2> logs &
 pid=$!

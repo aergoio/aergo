@@ -6,7 +6,6 @@ assert_equals() {
 
   if [[ ! "$var" == "$expected" ]]; then
     echo "Assertion failed: $var != $expected"
-    echo "File: \"$0\", Line: \"$3\""
     exit 1
   fi
 }
@@ -157,6 +156,14 @@ ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
 assert_equals "$status" "SUCCESS"
 assert_equals "$ret"    "Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi"
+
+
+echo "-- query the contract --"
+
+result=$(../bin/aergocli contract query ${sc_id} resolve '["testnametest"]' \
+	| sed 's/"//g' | sed 's/\\//g' | sed 's/ //g')
+
+assert_equals "$result" "value:Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi"
 
 
 echo ""
