@@ -20,10 +20,12 @@ static int name_resolve(lua_State *L) {
 	if (ret == NULL) {
 		lua_pushnil(L);
 	} else {
-		strPushAndRelease(L, ret);
 		// if the returned string starts with `[`, it's an error
 		if (ret[0] == '[') {
+			strPushAndRelease(L, ret);
 			luaL_throwerror(L);
+		} else {
+			strPushAndRelease(L, ret);
 		}
 	}
 
@@ -42,10 +44,12 @@ static int name_owner(lua_State *L) {
 	if (ret == NULL) {
 		lua_pushnil(L);
 	} else {
-		strPushAndRelease(L, ret);
 		// if the returned string starts with `[`, it's an error
 		if (ret[0] == '[') {
+			strPushAndRelease(L, ret);
 			luaL_throwerror(L);
+		} else {
+			strPushAndRelease(L, ret);
 		}
 	}
 
@@ -64,10 +68,12 @@ static int name_operator(lua_State *L) {
 	if (ret == NULL) {
 		lua_pushnil(L);
 	} else {
-		strPushAndRelease(L, ret);
 		// if the returned string starts with `[`, it's an error
 		if (ret[0] == '[') {
+			strPushAndRelease(L, ret);
 			luaL_throwerror(L);
+		} else {
+			strPushAndRelease(L, ret);
 		}
 	}
 

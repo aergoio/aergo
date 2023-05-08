@@ -1248,40 +1248,48 @@ func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char
 }
 
 //export luaNameResolve
-func luaNameResolve(L *LState, service C.int, name *C.char) *C.char {
+func luaNameResolve(L *LState, service C.int, name_or_address *C.char) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaResolve] contract state not found")
 	}
-	addr, err := getAddressNameResolved(C.GoString(name), ctx.bs)
+	var addr []byte
+	var err error
+	account := C.GoString(name_or_address)
+	if len(account) == types.EncodedAddressLength {
+		// also checks if valid address
+		addr, err = types.DecodeAddress(account)
+	} else {
+		addr, err = name.Resolve(ctx.bs, []byte(account), false)
+	}
 	if err != nil {
-		return C.CString("[Contract.LuaResolve] invalid name: " + err.Error())
+		return C.CString("[Contract.LuaResolve] " + err.Error())
 	}
 	return C.CString(types.EncodeAddress(addr))
 }
 
 //export luaNameOwner
-func luaNameOwner(L *LState, service C.int, name *C.char) *C.char {
+func luaNameOwner(L *LState, service C.int, account_name *C.char) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaNameOwner] contract state not found")
 	}
-	addr, err := name.Owner(ctx.bs, []byte(C.GoString(name)))
+	addr, err := name.Owner(ctx.bs, []byte(C.GoString(account_name)))
 	if err != nil {
-		return C.CString("[Contract.LuaNameOwner] invalid name: " + err.Error())
+		return C.CString("[Contract.LuaNameOwner] " + err.Error())
 	}
 	return C.CString(types.EncodeAddress(addr))
 }
 
 //export luaNameOperator
-func luaNameOperator(L *LState, service C.int, name *C.char) *C.char {
+func luaNameOperator(L *LState, service C.int, account_name *C.char) *C.char {
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaNameOperator] contract state not found")
 	}
-	addr, err := name.Operator(ctx.bs, []byte(C.GoString(name)))
+	addr, err := name.Operator(ctx.bs, []byte(C.GoString(account_name)))
 	if err != nil {
-		return C.CString("[Contract.LuaNameOperator] invalid name: " + err.Error())
+		return C.CString("[Contract.LuaNameOperator] " + err.Error())
 	}
 	return C.CString(types.EncodeAddress(addr))
 }
