@@ -22,9 +22,20 @@ endif()
 
 # 612_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2
 # 621_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c
-set(GMP_VERSION 6.1.2)
+set(GMP_VERSION "6.1.2" CACHE STRING "Override libgmp version" )
+if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
+    message(STATUS "Overriding libgmp version to $ENV{GMP_VERSION} by environment variable")
+    set(GMP_VERSION "$ENV{GMP_VERSION}" )
+endif()
+message(STATUS "Using libgmp version to ${GMP_VERSION}")
+
+if( GMP_VERSION EQUAL "6.2.1" )
+    set(GMP_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c)
+else()
+    set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
+endif()
+
 set(GMP_NAME gmp-${GMP_VERSION})
-set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
 set(GMP_ARCHIVE ${GMP_NAME}.tar.bz2)
 set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/${GMP_NAME})
 set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/build/${GMP_NAME})
