@@ -79,7 +79,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
-	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
+	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
 	loadTestDatabase(dataPath) // sql database
 	SetStateSQLMaxDBSize(1024)
 	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
