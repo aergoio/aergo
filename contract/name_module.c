@@ -14,7 +14,7 @@ static int resolve(lua_State *L)
 	lua_gasuse(L, 100);
 
 	name = (char *)luaL_checkstring(L, 1);
-	ret = luaResolve(L, service, name);
+	ret = luaNameResolve(L, service, name);
 
 	if (ret == NULL) {
 		lua_pushnil(L);
