@@ -672,7 +672,7 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 		}
 	}
 
-	for i, _ := range updRows {
+	for i := range updRows {
 		if err := v.store.write(s, i); err != nil {
 			return 0, err
 		}

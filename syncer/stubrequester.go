@@ -62,7 +62,7 @@ func (compRequester *StubRequester) TellTo(targetName string, message interface{
 	compRequester.sendCh <- message
 }
 
-//act like p2p or chain or syncer
+// act like p2p or chain or syncer
 func (compRequester *StubRequester) recvMessage() interface{} {
 	select {
 	case msg := <-compRequester.sendCh:
@@ -71,7 +71,7 @@ func (compRequester *StubRequester) recvMessage() interface{} {
 	}
 }
 
-//act like p2p or chain or syncer
+// act like p2p or chain or syncer
 func (compRequester *StubRequester) sendReply(reply StubRequestResult) {
 	compRequester.recvCh <- reply
 }

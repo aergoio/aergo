@@ -6,9 +6,10 @@
 package metric
 
 import (
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"math"
 	"sync/atomic"
+
+	"github.com/aergoio/aergo/p2p/p2putil"
 )
 
 // this struct calculate roughly approximate mean value.
@@ -20,10 +21,9 @@ type exponentMetric struct {
 	average  int64
 	inqueue  *p2putil.PressableQueue
 
-	decayFactor   float64
-	loadScore int64
+	decayFactor float64
+	loadScore   int64
 }
-
 
 func NewExponentMetric5(tickInterval int) DataMetric {
 	return NewExponentMetric(tickInterval, 60*5)
@@ -31,14 +31,14 @@ func NewExponentMetric5(tickInterval int) DataMetric {
 
 // NewExponentMetric15
 func NewExponentMetric15(tickInterval int) DataMetric {
-	return NewExponentMetric(tickInterval, 15 * 60)
+	return NewExponentMetric(tickInterval, 15*60)
 }
 
 func NewExponentMetric(interval int, meanTime int) *exponentMetric {
-	decayFactor := math.Exp(-float64(interval)/float64(meanTime))
+	decayFactor := math.Exp(-float64(interval) / float64(meanTime))
 	// rounded int value
-	avr := (meanTime + interval>>1 ) / interval
-	return &exponentMetric{averageFactor: int64(avr),  inqueue:p2putil.NewPressableQueue(avr), decayFactor: decayFactor}
+	avr := (meanTime + interval>>1) / interval
+	return &exponentMetric{averageFactor: int64(avr), inqueue: p2putil.NewPressableQueue(avr), decayFactor: decayFactor}
 }
 
 func (a *exponentMetric) APS() int64 {
@@ -62,8 +62,7 @@ func (a *exponentMetric) Calculate() {
 	if out != nil {
 		a.subtotal -= out.(int64)
 	}
-	atomic.StoreInt64(&a.average, a.subtotal / int64(a.inqueue.Size()) )
+	atomic.StoreInt64(&a.average, a.subtotal/int64(a.inqueue.Size()))
 
-	atomic.StoreInt64(&a.loadScore, count + int64(float64(a.loadScore) * a.decayFactor) )
+	atomic.StoreInt64(&a.loadScore, count+int64(float64(a.loadScore)*a.decayFactor))
 }
-

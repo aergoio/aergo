@@ -55,10 +55,10 @@ func TestAgentCertificateV1_IsNeedUpdate(t *testing.T) {
 		args args
 		want bool
 	}{
-		{"TFresh", args{ct.Add(time.Second * 59), time.Hour*6}, false},
-		{"TYoung", args{et.Add(-time.Hour*6), time.Hour*6}, false},
-		{"TOld", args{et.Add(-time.Hour), time.Hour*6}, true},
-		{"TExpired", args{et.Add(time.Minute), time.Hour*6}, true},
+		{"TFresh", args{ct.Add(time.Second * 59), time.Hour * 6}, false},
+		{"TYoung", args{et.Add(-time.Hour * 6), time.Hour * 6}, false},
+		{"TOld", args{et.Add(-time.Hour), time.Hour * 6}, true},
+		{"TExpired", args{et.Add(time.Minute), time.Hour * 6}, true},
 	}
 	for _, tt := range tests {
 		c := &AgentCertificateV1{

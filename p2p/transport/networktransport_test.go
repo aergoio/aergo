@@ -154,14 +154,13 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 		{"TLoopbackDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "127.0.0.1"), "127.0.0.1", initialPort},
 		{"TCustAddr", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), "211.1.2.3", initialPort},
 		{"TCustAddrPort", ipMeta, withPort(withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), 7777), "211.1.2.3", 7777},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sl := &networkTransport{conf: tt.conf,
 				logger:   logger,
 				bindPort: uint32(initialPort),
-				selfMeta:tt.meta,
+				selfMeta: tt.meta,
 			}
 			sl.initServiceBindAddress()
 

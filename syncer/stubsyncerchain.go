@@ -2,10 +2,11 @@ package syncer
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/types"
-	"time"
 )
 
 type StubPeer struct {

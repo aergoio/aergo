@@ -1,9 +1,10 @@
 package chain
 
 import (
+	"testing"
+
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func checkExist(t *testing.T, orp *OrphanPool, blk *types.Block) {

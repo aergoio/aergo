@@ -56,13 +56,13 @@ func (br *BlockHashByNoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pc
 	// remote peer response failure
 	body := msgBody.(*types.GetHashByNoResponse)
 	if body.Status != types.ResultStatus_OK {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq:br.syncerSeq, BlockHash: nil, Err: message.RemotePeerFailError})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq: br.syncerSeq, BlockHash: nil, Err: message.RemotePeerFailError})
 		br.finished = true
 		br.peer.ConsumeRequest(br.requestID)
 		return
 	}
 	br.got = body.BlockHash
-	br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq:br.syncerSeq, BlockHash: br.got})
+	br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq: br.syncerSeq, BlockHash: br.got})
 	br.finished = true
 	br.peer.ConsumeRequest(br.requestID)
 	return

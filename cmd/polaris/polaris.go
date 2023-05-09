@@ -6,6 +6,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
@@ -15,9 +19,6 @@ import (
 	common2 "github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/polaris/server"
 	"github.com/spf13/cobra"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
 )
 
 func main() {

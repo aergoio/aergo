@@ -7,15 +7,16 @@ package list
 
 import (
 	"errors"
+	"net"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
-	"net"
-	"strings"
-	"sync"
-	"time"
 )
 
 // variables that are used internally

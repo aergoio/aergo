@@ -6,6 +6,9 @@
 package p2p
 
 import (
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
@@ -14,36 +17,34 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/mock"
-	"testing"
-	"time"
 )
 
 func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 	// only interested in max block size
-	chain.Init(1024*1024,"",false,0,0)
+	chain.Init(1024*1024, "", false, 0, 0)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	logger := log.NewLogger("test.p2p")
 	sampleBlock := &types.Block{Hash: dummyBlockHash}
-	txs := make([]*types.Tx,1)
-	txs[0] = &types.Tx{Hash:make([]byte,1024*1024*2)}
-	sampleBigBlock := &types.Block{Hash:dummyBlockHash,Body:&types.BlockBody{Txs:txs}}
+	txs := make([]*types.Tx, 1)
+	txs[0] = &types.Tx{Hash: make([]byte, 1024*1024*2)}
+	sampleBigBlock := &types.Block{Hash: dummyBlockHash, Body: &types.BlockBody{Txs: txs}}
 	var blkHash = types.ToBlockID(dummyBlockHash)
 	// test if new block notice comes
 	tests := []struct {
-		name string
-		put  *types.BlockID
+		name       string
+		put        *types.BlockID
 		addedBlock *types.Block
 
 		wantActorCall bool
 	}{
 		// 1. Succ : valid block hash and not exist in local
-		{"TSucc", nil, sampleBlock,true},
+		{"TSucc", nil, sampleBlock, true},
 		// 2. Rare case - valid block hash but already exist in local cache
 		{"TExist", &blkHash, sampleBlock, false},
-		{"TTooBigBlock", nil, sampleBigBlock,false},
+		{"TTooBigBlock", nil, sampleBigBlock, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -69,7 +70,7 @@ func TestSyncManager_HandleBlockProducedNotice(t *testing.T) {
 
 func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 	// only interested in max block size
-	chain.Init(1024*1024,"",false,0,0)
+	chain.Init(1024*1024, "", false, 0, 0)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -145,7 +146,7 @@ func TestSyncManager_HandleNewBlockNotice(t *testing.T) {
 
 func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 	// only interested in max block size
-	chain.Init(1024*1024,"",false,0,0)
+	chain.Init(1024*1024, "", false, 0, 0)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -190,12 +191,11 @@ func TestSyncManager_HandleGetBlockResponse(t *testing.T) {
 
 func Test_syncManager_Constructor(t *testing.T) {
 	tests := []struct {
-		name   string
+		name  string
 		delay time.Duration
 	}{
-		{"TNormal",time.Millisecond*10},
-		{"TInstant",0},
-
+		{"TNormal", time.Millisecond * 10},
+		{"TInstant", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

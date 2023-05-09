@@ -4,5 +4,5 @@ package contract
 
 const (
 	stateSQLMaxDBSize = 4 * 1024 * 1024 // unit: TB
-	stateSQLMinDBSize = 10         		// unit: MB
+	stateSQLMinDBSize = 10              // unit: MB
 )

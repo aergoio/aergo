@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/consensus"
-
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
