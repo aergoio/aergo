@@ -26,6 +26,10 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
+const (
+	sampleKeyFile = "../sample/sample.key"
+)
+
 var (
 	myChainID, theirChainID *types.ChainID
 	theirChainBytes         []byte
@@ -77,7 +81,6 @@ func init() {
 	theirChainID.Magic = "itsdiff2"
 	theirChainBytes, _ = theirChainID.Bytes()
 
-	sampleKeyFile := "../../test/sample.key"
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", log.NewLogger("v200.test"))
