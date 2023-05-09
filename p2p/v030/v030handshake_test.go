@@ -22,6 +22,10 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
+const (
+	sampleKeyFile = "../sample/sample.key"
+)
+
 var (
 	myChainID, newVerChainID, theirChainID          *types.ChainID
 	myChainBytes, newVerChainBytes, theirChainBytes []byte
@@ -45,7 +49,6 @@ func init() {
 	theirChainID.Magic = "itsdiff2"
 	theirChainBytes, _ = theirChainID.Bytes()
 
-	sampleKeyFile := "../../test/sample.key"
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", log.NewLogger("v030.test"))

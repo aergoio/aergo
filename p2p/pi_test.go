@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	sampleKeyFile = "../test/sample.key"
+	sampleKeyFile = "./sample/sample.key"
 )
 
 func init() {
