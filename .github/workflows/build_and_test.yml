@@ -10,6 +10,9 @@ on:
       - opened
       - reopened
       - synchronize
+  pull_request_target:
+    types:
+      - edited
   push:
     branches:
       - master
