@@ -20,8 +20,6 @@ if(NOT EXISTS ${LMDB_SRC_DIR})
     execute_process(COMMAND git clone https://github.com/lmdb/lmdb.git ${LMDB_SRC_DIR})
 endif()
 
-# 612_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2
-# 621_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c
 set(GMP_VERSION "6.1.2" CACHE STRING "Override libgmp version" )
 if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
     message(STATUS "Overriding libgmp version to $ENV{GMP_VERSION} by environment variable")
@@ -30,13 +28,16 @@ endif()
 message(STATUS "Using libgmp version to ${GMP_VERSION}")
 
 if( GMP_VERSION EQUAL "6.2.1" )
+    # hash of libgmp-6.2.1
     set(GMP_HASH eae9326beb4158c386e39a356818031bd28f3124cf915f8c5b1dc4c7a36b4d7c)
 else()
+    # hash of libgmp-6.1.2
     set(GMP_HASH 5275bb04f4863a13516b2f39392ac5e272f5e1bb8057b18aec1c9b79d73d8fb2)
 endif()
 
 set(GMP_NAME gmp-${GMP_VERSION})
 set(GMP_ARCHIVE ${GMP_NAME}.tar.bz2)
+set(GMP_PATCH_FILE ${GMP_NAME}.patch)
 set(GMP_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/${GMP_NAME})
 set(GMP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/build/${GMP_NAME})
 
@@ -49,6 +50,7 @@ ExternalProject_Add(libgmp
    DOWNLOAD_DIR ${CMAKE_CURRENT_SOURCE_DIR}/download
    URL          ${CMAKE_CURRENT_SOURCE_DIR}/download/${GMP_ARCHIVE}
    URL_HASH     SHA256=${GMP_HASH}
+   PATCH_COMMAND patch -p0 -d ${CMAKE_CURRENT_SOURCE_DIR} < ${CMAKE_CURRENT_SOURCE_DIR}/${GMP_PATCH_FILE}
    TMP_DIR      ${GMP_BUILD_DIR}
    STAMP_DIR    ${GMP_BUILD_DIR}
    CONFIGURE_COMMAND ${GMP_SRC_DIR}/configure --prefix=${LIB_DIR} --disable-static --enable-shared > /dev/null
@@ -56,7 +58,7 @@ ExternalProject_Add(libgmp
    BUILD_COMMAND $(MAKE) all install > make.log
    BUILD_ALWAYS 1)
 
-add_custom_target(libtool DEPENDS ${GMP_SRC_DIR}/INSTALL libluajit liblmdb libgmp)
+add_custom_target(libtool DEPENDS libluajit liblmdb libgmp)
 
 add_custom_target(libluajit $(MAKE) PREFIX=${LIB_DIR} ${CFLAGS} all install
 	WORKING_DIRECTORY ${LUAJIT_BUILD_DIR})
