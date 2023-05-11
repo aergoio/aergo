@@ -1231,7 +1231,7 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 //export luaToPubkey
 func luaToPubkey(L *LState, address *C.char) *C.char {
 	// check the length of address
-	if len(address) != types.EncodedAddressLength {
+	if len(C.GoString(address)) != types.EncodedAddressLength {
 		return C.CString("[Contract.LuaToPubkey] invalid address length")
 	}
 	// decode the address in string format to bytes (public key)
