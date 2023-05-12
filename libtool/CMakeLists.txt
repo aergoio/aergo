@@ -25,7 +25,7 @@ if (NOT "$ENV{GMP_VERSION}" STREQUAL "")
     message(STATUS "Overriding libgmp version to $ENV{GMP_VERSION} by environment variable")
     set(GMP_VERSION "$ENV{GMP_VERSION}" )
 endif()
-message(STATUS "Using libgmp version to ${GMP_VERSION}")
+message(STATUS "Using libgmp version ${GMP_VERSION}")
 
 if( GMP_VERSION EQUAL "6.2.1" )
     # hash of libgmp-6.2.1
