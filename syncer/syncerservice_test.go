@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -10,7 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
+}
+
 func TestSyncer_sync1000(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
@@ -36,6 +44,9 @@ func TestSyncer_sync1000(t *testing.T) {
 }
 
 func TestSyncer_sync10000(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 10002
 	localChainLen := 10000
 	targetNo := uint64(10000)
@@ -62,6 +73,9 @@ func TestSyncer_sync10000(t *testing.T) {
 }
 
 func TestSyncer_sync_multiPeer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
@@ -93,6 +107,9 @@ func TestSyncer_sync_multiPeer(t *testing.T) {
 
 // case : peer1 is slow (timeout)
 func TestSyncer_sync_slowPeer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
@@ -245,6 +262,9 @@ func TestSyncerAlreadySynched(t *testing.T) {
 }
 
 func TestSyncer_invalid_seq_getancestor(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
