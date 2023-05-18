@@ -8,12 +8,21 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/aergoio/aergo/types"
 )
+
+func TestMain(m *testing.M) {
+	if runtime.GOARCH != "amd64" {
+		fmt.Println("skip architecture dependent test")
+	} else {
+		os.Exit(m.Run())
+	}
+}
 
 func TestContractHello(t *testing.T) {
 	code := `function hello(say) return "Hello " .. say end abi.register(hello)`
@@ -4838,6 +4847,9 @@ abi.register(r)`
 	}
 }
 func TestTypeBigTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
