@@ -1,27 +1,18 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Integration Test
+name:  Short Unit Tests
 
-run-name: Integration tests and unit tests of ${{ github.ref_type }} "${{ github.ref_name }}"
+run-name: Short unit tests of ${{ github.ref_type }} "${{ github.ref_name }}" by @${{ github.actor }}
 
 on:
-  workflow_dispatch:
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-  pull_request_target:
-    types:
-      - edited
   push:
-    branches:
+    branches-ignore: # master and develop run full test by other workflow
       - master
       - develop
 
 jobs:
-  build_and_test:
+  build_and_unittest:
     runs-on: ubuntu-latest
 
     steps:
@@ -43,14 +34,5 @@ jobs:
     - name: Build
       run: make
 
-    - name: Unit Tests
-      run: go test -v ./...
-
-    - name: Integration Tests
-      run: |
-        if [ -d "tests" ]; then
-          cd tests
-          ./run_tests.sh
-        else
-          echo "The 'tests' folder does not exist."
-        fi
+    - name: Unit Tests short
+      run: go test -short -timeout 999s -v ./...

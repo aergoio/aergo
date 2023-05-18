@@ -253,6 +253,9 @@ func TestOrphanTransaction(t *testing.T) {
 }
 
 func TestBasics2(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)
