@@ -3,8 +3,6 @@
 
 name:  Short Unit Tests
 
-run-name: Short unit tests of ${{ github.ref_type }} "${{ github.ref_name }}" by @${{ github.actor }}
-
 on:
   push:
     branches-ignore: # master and develop run full test by other workflow
@@ -34,5 +32,5 @@ jobs:
     - name: Build
       run: make
 
-    - name: Unit Tests short
+    - name: Short Unit Tests
       run: go test -short -timeout 999s -v ./...
