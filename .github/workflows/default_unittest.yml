@@ -3,8 +3,6 @@
 
 name:  Unit Tests
 
-run-name: Unit tests of ${{ github.ref_type }} "${{ github.ref_name }}" by @${{ github.actor }}
-
 on:
   workflow_dispatch:
 
