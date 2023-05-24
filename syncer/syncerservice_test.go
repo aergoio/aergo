@@ -2,7 +2,6 @@ package syncer
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -10,10 +9,6 @@ import (
 	"github.com/aergoio/aergo/message"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
 
 func TestSyncer_sync1000(t *testing.T) {
 	if testing.Short() {
