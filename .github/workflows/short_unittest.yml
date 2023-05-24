@@ -11,6 +11,9 @@ on:
 
 jobs:
   build_and_unittest:
+    # this prevents the action to run on pull requests
+    if: github.event_name == 'push' && github.ref != 'refs/pull/*/merge'
+
     runs-on: ubuntu-latest
 
     steps:
