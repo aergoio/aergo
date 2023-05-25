@@ -66,7 +66,7 @@ func init() {
 }
 
 func addUpdateSize(s *vmContext, updateSize int64) error {
-	if vmIsGasSystem(s) {
+	if s.IsGasSystem() {
 		return nil
 	}
 	if s.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
@@ -212,24 +212,20 @@ func getCtrState(ctx *vmContext, aid types.AccountID) (*callState, error) {
 	return cs, err
 }
 
-func vmIsGasSystem(ctx *vmContext) bool {
-	return !ctx.isQuery && PubNet && ctx.blockInfo.Version >= 2
-}
-
 func setInstCount(ctx *vmContext, parent *LState, child *LState) {
-	if !vmIsGasSystem(ctx) {
+	if !ctx.IsGasSystem() {
 		C.vm_setinstcount(parent, C.vm_instcount(child))
 	}
 }
 
 func setInstMinusCount(ctx *vmContext, L *LState, deduc C.int) {
-	if !vmIsGasSystem(ctx) {
+	if !ctx.IsGasSystem() {
 		C.vm_setinstcount(L, minusCallCount(ctx, C.vm_instcount(L), deduc))
 	}
 }
 
 func minusCallCount(ctx *vmContext, curCount, deduc C.int) C.int {
-	if vmIsGasSystem(ctx) {
+	if ctx.IsGasSystem() {
 		return 0
 	}
 	remain := curCount - deduc
@@ -279,7 +275,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
-	refreshGas(ctx, L)
+	ctx.refreshGas(L)
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
 		ce.close()
@@ -378,7 +374,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
-	refreshGas(ctx, L)
+	ctx.refreshGas(L)
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
 		ce.close()
@@ -475,7 +471,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
-		refreshGas(ctx, L)
+		ctx.refreshGas(L)
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
 			ce.close()
@@ -1053,7 +1049,7 @@ func luaDeployContract(
 	}
 
 	if len(code) == 0 {
-		if HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
+		if ctx.Version() >= 2 {
 			code, err = compile(contractStr, L)
 		} else {
 			code, err = compile(contractStr, nil)
@@ -1135,7 +1131,7 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
-	refreshGas(ctx, L)
+	ctx.refreshGas(L)
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
 		ce.close()
@@ -1146,7 +1142,7 @@ func luaDeployContract(
 	}
 
 	// create a sql database for the contract
-	if !HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
+	if ctx.blockInfo.No < 2 {
 		if db := luaGetDbHandle(ctx.service); db == nil {
 			return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
 		}
@@ -1294,7 +1290,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		Amount:  amountBig.Bytes(),
 		Payload: payload,
 	}
-	if HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
+	if ctx.blockInfo.No >= 2 {
 		txBody.Account = curContract.contractId
 	}
 	err = types.ValidateSystemTx(&txBody)
@@ -1449,7 +1445,7 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 }
 
 func moveGas(L *LState, ctx *vmContext) {
-	if vmIsGasSystem(ctx) {
+	if ctx.IsGasSystem() {
 		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
 }

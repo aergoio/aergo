@@ -86,9 +86,6 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
 	InitContext(3)
 
-	HardforkConfig = config.AllEnabledHardforkConfig
-	HardforkConfig.V3 = types.BlockNo(100)
-
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
 	system.InitGovernance("dpos")
@@ -138,13 +135,13 @@ func (bc *DummyChain) getTimestamp() int64 {
 
 }
 
-func (bc *DummyChain) newBState() *state.BlockState {
+func (bc *DummyChain) newBState(version int32) *state.BlockState {
 	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     bc.getTimestamp(),
-			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, HardforkConfig.Version(bc.bestBlockNo+1)),
+			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, version),
 		},
 	}
 	return state.NewBlockState(
@@ -590,8 +587,8 @@ func (l *luaTxCall) okMsg() string {
 	return "SUCCESS"
 }
 
-func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
-	blockState := bc.newBState()
+func (bc *DummyChain) ConnectBlock(version int32, txs ...LuaTxTester) error {
+	blockState := bc.newBState(version)
 	tx := bc.BeginReceiptTx()
 	defer tx.Commit()
 	defer CloseDatabase()
@@ -651,7 +648,9 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	if err != nil {
 		return err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
+	version := types.NewBlockHeaderInfo(bc.bestBlock).Version
+
+	rv, err := Query(strHash(contract), bc.newBState(version), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -680,7 +679,9 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) 
 	if err != nil {
 		return false, "", err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
+	version := types.NewBlockHeaderInfo(bc.bestBlock).Version
+
+	rv, err := Query(strHash(contract), bc.newBState(version), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {

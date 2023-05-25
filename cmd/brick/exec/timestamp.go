@@ -52,7 +52,7 @@ func (c *setTimestamp) parse(args string) (string, int64, error) {
 	typed := splitArgs[0].Text
 
 	if typed[0:1] == "+" {
-		typed = typed[1:len(typed)]
+		typed = typed[1:]
 		operation = "add"
 	}
 
@@ -67,7 +67,7 @@ func (c *setTimestamp) parse(args string) (string, int64, error) {
 func (c *setTimestamp) Run(args string) (string, uint64, []*types.Event, error) {
 	operation, value, _ := c.parse(args)
 
-	context.Get().SetTimestamp(operation=="add", value)
+	context.Get().SetTimestamp(operation == "add", value)
 
 	return "timestamp set successfully", 0, nil, nil
 }

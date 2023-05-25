@@ -60,7 +60,7 @@ func (c *injectAccount) parse(args string) (string, *big.Int, error) {
 func (c *injectAccount) Run(args string) (string, uint64, []*types.Event, error) {
 	accountName, amount, _ := c.parse(args)
 
-	err := context.Get().ConnectBlock(
+	err := context.Get().ConnectBlock(2,
 		contract.NewLuaTxAccountBig(accountName, amount),
 	)
 

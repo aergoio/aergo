@@ -62,7 +62,7 @@ func (c *forward) Run(args string) (string, uint64, []*types.Event, error) {
 	amount, _ := c.parse(args)
 
 	for i := 0; i < amount; i++ {
-		if err := context.Get().ConnectBlock(); err != nil {
+		if err := context.Get().ConnectBlock(2); err != nil {
 			return "", 0, nil, err
 		}
 	}

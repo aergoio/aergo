@@ -99,7 +99,7 @@ func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) 
 		callTx.Fail(expectedError)
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
-	err := context.Get().ConnectBlock(callTx)
+	err := context.Get().ConnectBlock(2, callTx)
 
 	if expectedError != "" {
 		zerolog.SetGlobalLevel(logLevel) // restore log level

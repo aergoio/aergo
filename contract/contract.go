@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -34,13 +33,12 @@ type preLoadInfo struct {
 }
 
 var (
-	loadReqCh      chan *preLoadReq
-	preLoadInfos   [2]preLoadInfo
-	PubNet         bool
-	TraceBlockNo   uint64
-	HardforkConfig *config.HardforkConfig
-	bpTimeout      <-chan struct{}
-	maxSQLDBSize   uint64
+	loadReqCh    chan *preLoadReq
+	preLoadInfos [2]preLoadInfo
+	PubNet       bool
+	TraceBlockNo uint64
+	bpTimeout    <-chan struct{}
+	maxSQLDBSize uint64
 )
 
 const (
@@ -90,7 +88,7 @@ func Execute(
 		// causes confusion, emit error for call-type tx with a wrong address
 		// from the chain version 3 by not returning error but fall-through for
 		// correct gas estimation.
-		if !(HardforkConfig.IsV3Fork(bi.No) && txBody.Type == types.TxType_CALL) {
+		if !(bi.Version >= 3 && txBody.Type == types.TxType_CALL) {
 			// Here, the condition for fee delegation TX essentially being
 			// call-type, is not necessary, because it is rejected from the
 			// mempool without code hash.
