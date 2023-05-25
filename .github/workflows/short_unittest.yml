@@ -5,14 +5,30 @@ name:  Short Unit Tests
 
 on:
   push:
-    branches-ignore: # master and develop run full test by other workflow
+    branches-ignore: # master and develop run complete test by other workflow
       - master
       - develop
 
 jobs:
+  pre_job:
+    # continue-on-error: true # Uncomment once integration is finished
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # All of these options are optional, so you can remove them if you are happy with the defaults
+          concurrent_skipping: 'never'
+          skip_after_successful_duplicate: 'true'
+          paths_ignore: '["**/README.md", "**/docs/**", "Docker", "Dockerfile*"]'
+          do_not_skip: '["workflow_dispatch"]'
+
   build_and_unittest:
-    # this prevents the action to run on pull requests
-    if: github.event_name == 'push' && github.ref != 'refs/pull/*/merge'
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
 
     runs-on: ubuntu-latest
 
