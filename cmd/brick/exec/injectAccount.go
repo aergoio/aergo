@@ -3,6 +3,7 @@ package exec
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -20,11 +21,11 @@ func (c *injectAccount) Command() string {
 }
 
 func (c *injectAccount) Syntax() string {
-	return fmt.Sprintf("%s %s", context.AccountSymbol, context.AmountSymbol)
+	return fmt.Sprintf("%s %s %s", context.VersionSymbol, context.AccountSymbol, context.AmountSymbol)
 }
 
 func (c *injectAccount) Usage() string {
-	return fmt.Sprintf("inject <account_name> <amount>")
+	return fmt.Sprintf("inject <version> <account_name> <amount>")
 }
 
 func (c *injectAccount) Describe() string {
@@ -38,31 +39,34 @@ func (c *injectAccount) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, _, err := c.parse(args)
+	_, _, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *injectAccount) parse(args string) (string, *big.Int, error) {
+func (c *injectAccount) parse(args string) (int32, string, *big.Int, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
-	if len(splitArgs) < 2 {
-		return "", nil, fmt.Errorf("need 2 arguments. usage: %s", c.Usage())
+	if len(splitArgs) < 3 {
+		return 0, "", nil, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
 	}
 
-	amount, success := new(big.Int).SetString(splitArgs[1].Text, 10)
+	version, err := strconv.ParseInt(splitArgs[0].Text, 10, 32)
+	if err != nil {
+		return 0, "", nil, fmt.Errorf("fail to parse version %s", splitArgs[0].Text)
+	}
+
+	amount, success := new(big.Int).SetString(splitArgs[2].Text, 10)
 	if success == false {
-		return "", nil, fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
+		return 0, "", nil, fmt.Errorf("fail to parse number %s", splitArgs[2].Text)
 	}
 
-	return splitArgs[0].Text, amount, nil
+	return int32(version), splitArgs[1].Text, amount, nil
 }
 
 func (c *injectAccount) Run(args string) (string, uint64, []*types.Event, error) {
-	accountName, amount, _ := c.parse(args)
+	version, accountName, amount, _ := c.parse(args)
 
-	err := context.Get().ConnectBlock(2,
-		contract.NewLuaTxAccountBig(accountName, amount),
-	)
+	err := context.Get().ConnectBlock(version, contract.NewLuaTxAccountBig(accountName, amount))
 
 	if err != nil {
 		return "", 0, nil, err
