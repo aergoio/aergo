@@ -1049,7 +1049,7 @@ func luaDeployContract(
 	}
 
 	if len(code) == 0 {
-		if ctx.Version() >= 2 {
+		if ctx.blockInfo.Version >= 2 {
 			code, err = compile(contractStr, L)
 		} else {
 			code, err = compile(contractStr, nil)
@@ -1142,7 +1142,7 @@ func luaDeployContract(
 	}
 
 	// create a sql database for the contract
-	if ctx.blockInfo.No < 2 {
+	if ctx.blockInfo.Version < 2 {
 		if db := luaGetDbHandle(ctx.service); db == nil {
 			return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
 		}
@@ -1290,7 +1290,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		Amount:  amountBig.Bytes(),
 		Payload: payload,
 	}
-	if ctx.blockInfo.No >= 2 {
+	if ctx.blockInfo.Version >= 2 {
 		txBody.Account = curContract.contractId
 	}
 	err = types.ValidateSystemTx(&txBody)
