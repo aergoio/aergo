@@ -34,7 +34,7 @@ func Open(private bool) {
 	if privateNet {
 		chain, err = contract.LoadDummyChain()
 	} else {
-		chain, err = contract.LoadDummyChain(contract.OnPubNet)
+		chain, err = contract.LoadDummyChain(contract.SetPubNet())
 	}
 	if err != nil {
 		panic(err)

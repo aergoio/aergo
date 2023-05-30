@@ -26,19 +26,20 @@ import (
 )
 
 type DummyChain struct {
-	sdb           *state.ChainStateDB
-	bestBlock     *types.Block
-	cBlock        *types.Block
-	bestBlockNo   types.BlockNo
-	bestBlockId   types.BlockID
-	blockIds      []types.BlockID
-	blocks        []*types.Block
-	testReceiptDB db.DB
-	tmpDir        string
-	timeout       int
-	clearLState   func()
-	gasPrice      *big.Int
-	timestamp     int64
+	hardforkConfig *config.HardforkConfig
+	sdb            *state.ChainStateDB
+	bestBlock      *types.Block
+	cBlock         *types.Block
+	bestBlockNo    types.BlockNo
+	bestBlockId    types.BlockID
+	blockIds       []types.BlockID
+	blocks         []*types.Block
+	testReceiptDB  db.DB
+	tmpDir         string
+	timeout        int
+	clearLState    func()
+	gasPrice       *big.Int
+	timestamp      int64
 }
 
 var addressRegexp *regexp.Regexp
@@ -53,7 +54,42 @@ func init() {
 	//	traceState = true
 }
 
-func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
+// overwrite config for dummychain
+type DummyChainOptions func(d *DummyChain)
+
+func SetHardFork(hardforkConfig *config.HardforkConfig) DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.hardforkConfig = hardforkConfig
+	}
+}
+
+func SetTimeout(timeout int) DummyChainOptions {
+	return func(dc *DummyChain) {
+		dc.timeout = timeout
+	}
+}
+
+func SetPubNet() DummyChainOptions {
+	return func(dc *DummyChain) {
+		flushLState := func() {
+			for i := 0; i <= lStateMaxSize; i++ {
+				s := getLState(LStateDefault)
+				freeLState(s, LStateDefault)
+			}
+		}
+		PubNet = true
+		fee.DisableZeroFee()
+		flushLState()
+
+		dc.clearLState = func() {
+			PubNet = false
+			fee.EnableZeroFee()
+			flushLState()
+		}
+	}
+}
+
+func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	dataPath, err := ioutil.TempDir("", "data")
 	if err != nil {
 		return nil, err
@@ -85,6 +121,9 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	SetStateSQLMaxDBSize(1024)
 	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
 	InitContext(3)
+
+	bc.hardforkConfig = config.AllEnabledHardforkConfig
+	bc.hardforkConfig.V3 = types.BlockNo(100)
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -135,13 +174,13 @@ func (bc *DummyChain) getTimestamp() int64 {
 
 }
 
-func (bc *DummyChain) newBState(version int32) *state.BlockState {
+func (bc *DummyChain) newBState() *state.BlockState {
 	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     bc.getTimestamp(),
-			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, version),
+			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.hardforkConfig.Version(bc.bestBlockNo+1)),
 		},
 	}
 	return state.NewBlockState(
@@ -587,8 +626,8 @@ func (l *luaTxCall) okMsg() string {
 	return "SUCCESS"
 }
 
-func (bc *DummyChain) ConnectBlock(version int32, txs ...LuaTxTester) error {
-	blockState := bc.newBState(version)
+func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
+	blockState := bc.newBState()
 	tx := bc.BeginReceiptTx()
 	defer tx.Commit()
 	defer CloseDatabase()
@@ -648,9 +687,7 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	if err != nil {
 		return err
 	}
-	version := types.NewBlockHeaderInfo(bc.bestBlock).ForkVersion
-
-	rv, err := Query(strHash(contract), bc.newBState(version), bc, cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -679,9 +716,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) 
 	if err != nil {
 		return false, "", err
 	}
-	version := types.NewBlockHeaderInfo(bc.bestBlock).ForkVersion
-
-	rv, err := Query(strHash(contract), bc.newBState(version), bc, cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {
@@ -702,22 +737,4 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) 
 
 func StrToAddress(name string) string {
 	return types.EncodeAddress(strHash(name))
-}
-
-func OnPubNet(dc *DummyChain) {
-	flushLState := func() {
-		for i := 0; i <= lStateMaxSize; i++ {
-			s := getLState(LStateDefault)
-			freeLState(s, LStateDefault)
-		}
-	}
-	PubNet = true
-	fee.DisableZeroFee()
-	flushLState()
-
-	dc.clearLState = func() {
-		PubNet = false
-		fee.EnableZeroFee()
-		flushLState()
-	}
 }

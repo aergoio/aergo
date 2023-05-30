@@ -3,7 +3,6 @@ package context
 var Comment = "#"
 var (
 	PathSymbol         = "<path>"
-	VersionSymbol      = "<version>"
 	ContractSymbol     = "<contract>"
 	AccountSymbol      = "<account>"
 	AmountSymbol       = "<amount>"
@@ -20,7 +19,6 @@ var Symbols = make(map[string]string)
 
 func init() {
 	Symbols[PathSymbol] = "folder or file location"
-	Symbols[VersionSymbol] = "hardfork version"
 	Symbols[ContractSymbol] = "contract address"
 	Symbols[AccountSymbol] = "account address"
 	Symbols[ContractArgsSymbol] = "an array of argments to call a contract"

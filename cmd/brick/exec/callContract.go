@@ -3,7 +3,6 @@ package exec
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
 	"github.com/aergoio/aergo/contract"
@@ -22,15 +21,14 @@ func (c *callContract) Command() string {
 }
 
 func (c *callContract) Syntax() string {
-	return fmt.Sprintf("%s %s %s %s %s %s %s %s",
-		context.VersionSymbol, context.AccountSymbol,
+	return fmt.Sprintf("%s %s %s %s %s %s %s", context.AccountSymbol,
 		context.AmountSymbol, context.ContractSymbol,
 		context.FunctionSymbol, context.ContractArgsSymbol,
 		context.ExpectedErrSymbol, context.ExpectedSymbol)
 }
 
 func (c *callContract) Usage() string {
-	return fmt.Sprintf("call <version> <sender_name> <amount> <contract_name> <func_name> `[call_json_str]` `[expected_error_str]` `[expected_result_str]`")
+	return fmt.Sprintf("call <sender_name> <amount> <contract_name> <func_name> `[call_json_str]` `[expected_error_str]` `[expected_result_str]`")
 }
 
 func (c *callContract) Describe() string {
@@ -44,49 +42,43 @@ func (c *callContract) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, _, _, _, _, _, _, _, err := c.parse(args)
+	_, _, _, _, _, _, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *callContract) parse(args string) (int32, string, *big.Int, string, string, string, string, string, error) {
+func (c *callContract) parse(args string) (string, *big.Int, string, string, string, string, string, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
-	if len(splitArgs) < 5 {
-		return 0, "", nil, "", "", "", "", "", fmt.Errorf("need at least 5 arguments. usage: %s", c.Usage())
+	if len(splitArgs) < 4 {
+		return "", nil, "", "", "", "", "", fmt.Errorf("need at least 4 arguments. usage: %s", c.Usage())
 	}
 
-	version, err := strconv.ParseInt(splitArgs[0].Text, 10, 32)
-	if err != nil {
-		return 0, "", nil, "", "", "", "", "", fmt.Errorf("fail to parse version %s", splitArgs[0].Text)
-	}
-
-	amount, success := new(big.Int).SetString(splitArgs[2].Text, 10)
+	amount, success := new(big.Int).SetString(splitArgs[1].Text, 10)
 	if success == false {
-		return 0, "", nil, "", "", "", "", "", fmt.Errorf("fail to parse number %s", splitArgs[2].Text)
+		return "", nil, "", "", "", "", "", fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}
 
 	callCode := "[]"
-	if len(splitArgs) >= 6 {
-		callCode = splitArgs[5].Text
+	if len(splitArgs) >= 5 {
+		callCode = splitArgs[4].Text
 	}
 
 	expectedError := ""
 	expectedRes := ""
 
-	if len(splitArgs) >= 7 {
-		expectedError = splitArgs[6].Text
+	if len(splitArgs) >= 6 {
+		expectedError = splitArgs[5].Text
 	}
-	if len(splitArgs) == 8 {
-		expectedRes = splitArgs[7].Text
-	} else if len(splitArgs) > 8 {
-		return 0, "", nil, "", "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
+	if len(splitArgs) == 7 {
+		expectedRes = splitArgs[6].Text
+	} else if len(splitArgs) > 7 {
+		return "", nil, "", "", "", "", "", fmt.Errorf("too many arguments. usage: %s", c.Usage())
 	}
 
-	return int32(version), //hardforkVersion
-		splitArgs[1].Text, //accountName
+	return splitArgs[0].Text, //accountName
 		amount, //amount
-		splitArgs[3].Text, //contractName
-		splitArgs[4].Text, //funcName
+		splitArgs[2].Text, //contractName
+		splitArgs[3].Text, //funcName
 		callCode, //callCode
 		expectedError, //expectedError
 		expectedRes, //expectedRes
@@ -95,7 +87,7 @@ func (c *callContract) parse(args string) (int32, string, *big.Int, string, stri
 
 func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) {
 
-	version, accountName, amount, contractName, funcName, callCode, expectedError, expectedRes, _ := c.parse(args)
+	accountName, amount, contractName, funcName, callCode, expectedError, expectedRes, _ := c.parse(args)
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
@@ -107,7 +99,7 @@ func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) 
 		callTx.Fail(expectedError)
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel) // turn off log
 	}
-	err := context.Get().ConnectBlock(version, callTx)
+	err := context.Get().ConnectBlock(callTx)
 
 	if expectedError != "" {
 		zerolog.SetGlobalLevel(logLevel) // restore log level

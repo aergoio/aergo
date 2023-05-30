@@ -3,7 +3,6 @@ package exec
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
@@ -41,46 +40,40 @@ func (c *sendCoin) Validate(args string) error {
 		return fmt.Errorf("load chain first")
 	}
 
-	_, _, _, _, err := c.parse(args)
+	_, _, _, err := c.parse(args)
 
 	return err
 }
 
-func (c *sendCoin) parse(args string) (int32, string, string, *big.Int, error) {
+func (c *sendCoin) parse(args string) (string, string, *big.Int, error) {
 	splitArgs := context.SplitSpaceAndAccent(args, false)
-	if len(splitArgs) < 4 {
-		return 0, "", "", nil, fmt.Errorf("need 4 arguments. usage: %s", c.Usage())
+	if len(splitArgs) < 3 {
+		return "", "", nil, fmt.Errorf("need 3 arguments. usage: %s", c.Usage())
 	}
 
-	version, err := strconv.ParseInt(splitArgs[0].Text, 10, 32)
-	if err != nil {
-		return 0, "", "", nil, fmt.Errorf("fail to parse version %s", splitArgs[0].Text)
-	}
-
-	amount, success := new(big.Int).SetString(splitArgs[3].Text, 10)
+	amount, success := new(big.Int).SetString(splitArgs[2].Text, 10)
 	if success == false {
-		return 0, "", "", nil, fmt.Errorf("fail to parse number %s", splitArgs[3].Text)
+		return "", "", nil, fmt.Errorf("fail to parse number %s", splitArgs[1].Text)
 	}
 
-	return int32(version),
+	return splitArgs[0].Text,
 		splitArgs[1].Text,
-		splitArgs[2].Text,
 		amount,
 		nil
 }
 
 func (c *sendCoin) Run(args string) (string, uint64, []*types.Event, error) {
-	version, senderName, receiverName, amount, _ := c.parse(args)
+	senderName, receiverName, amount, _ := c.parse(args)
 
 	// assuming target is contract
 	var tx contract.LuaTxTester
 	tx = contract.NewLuaTxCallBig(senderName, receiverName, amount, "")
-	err := context.Get().ConnectBlock(version, tx)
+	err := context.Get().ConnectBlock(tx)
 
 	if err != nil && strings.HasPrefix(err.Error(), "not found contract") {
 		// retry to normal address
 		tx = contract.NewLuaTxSendBig(senderName, receiverName, amount)
-		err := context.Get().ConnectBlock(version, tx)
+		err := context.Get().ConnectBlock(tx)
 		if err != nil {
 			return "", 0, nil, err
 		}
