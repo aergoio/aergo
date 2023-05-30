@@ -70,7 +70,7 @@ func Execute(
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
 
-	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.Version)
+	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -88,7 +88,7 @@ func Execute(
 		// causes confusion, emit error for call-type tx with a wrong address
 		// from the chain version 3 by not returning error but fall-through for
 		// correct gas estimation.
-		if !(bi.Version >= 3 && txBody.Type == types.TxType_CALL) {
+		if !(bi.ForkVersion >= 3 && txBody.Type == types.TxType_CALL) {
 			// Here, the condition for fee delegation TX essentially being
 			// call-type, is not necessary, because it is rejected from the
 			// mempool without code hash.
@@ -97,7 +97,7 @@ func Execute(
 	}
 
 	var gasLimit uint64
-	if useGas(bi.Version) {
+	if useGas(bi.ForkVersion) {
 		if isFeeDelegation {
 			balance := new(big.Int).Sub(receiver.Balance(), usedFee)
 			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)

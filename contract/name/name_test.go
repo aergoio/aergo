@@ -149,7 +149,7 @@ func TestNameSetContractOwner(t *testing.T) {
 	scs := openContractState(t, bs)
 	//systemcs := openSystemContractState(t, bs)
 
-	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 0}
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
 	_, err := ExecuteNameTx(bs, scs, tx, sender, receiver, blockInfo)
 	assert.NoError(t, err, "execute name")
 	assert.Equal(t, big.NewInt(0), receiver.Balance(), "check remain")

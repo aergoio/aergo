@@ -626,8 +626,8 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 			logger.Error().Msg("bstate is nil in txexec")
 			return ErrGatherChain
 		}
-		if bi.Version < 0 {
-			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.Version = %d", bi.Version)
+		if bi.ForkVersion < 0 {
+			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.ForkVersion = %d", bi.ForkVersion)
 			return ErrInvalidBlockHeader
 		}
 		blockSnap := bState.Snapshot()
@@ -913,7 +913,7 @@ func executeTx(
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.Version)
+	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.ForkVersion)
 	if err != nil {
 		return err
 	}
@@ -953,7 +953,7 @@ func executeTx(
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
 		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.Version)
+		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
@@ -980,7 +980,7 @@ func executeTx(
 
 	if err != nil {
 		// Reset events on error
-		if bi.Version >= 3 {
+		if bi.ForkVersion >= 3 {
 			events = nil
 		}
 
@@ -1034,7 +1034,7 @@ func executeTx(
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.Version)
+	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.ForkVersion)
 
 	return bs.AddReceipt(receipt)
 }

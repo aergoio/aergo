@@ -648,7 +648,7 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	if err != nil {
 		return err
 	}
-	version := types.NewBlockHeaderInfo(bc.bestBlock).Version
+	version := types.NewBlockHeaderInfo(bc.bestBlock).ForkVersion
 
 	rv, err := Query(strHash(contract), bc.newBState(version), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
@@ -679,7 +679,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) 
 	if err != nil {
 		return false, "", err
 	}
-	version := types.NewBlockHeaderInfo(bc.bestBlock).Version
+	version := types.NewBlockHeaderInfo(bc.bestBlock).ForkVersion
 
 	rv, err := Query(strHash(contract), bc.newBState(version), bc, cState, []byte(queryInfo))
 

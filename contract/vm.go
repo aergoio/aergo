@@ -230,7 +230,7 @@ func newVmContextQuery(
 }
 
 func (s *vmContext) IsGasSystem() bool {
-	return !s.isQuery && PubNet && s.blockInfo.Version >= 2
+	return !s.isQuery && PubNet && s.blockInfo.ForkVersion >= 2
 }
 
 func (s *vmContext) refreshGas(L *LState) {
@@ -338,17 +338,17 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
-	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.Version) {
+	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.ForkVersion) {
 		ce := &executor{
 			code: contract,
 			ctx:  ctx,
 		}
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.Version))
+		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.ForkVersion))
 		return ce
 	}
 	ctx.callDepth++
 	var lState *LState
-	if ctx.blockInfo.Version < 3 {
+	if ctx.blockInfo.ForkVersion < 3 {
 		lState = getLState(LStateDefault)
 	} else {
 		// To fix intermittent consensus failure by gas consumption mismatch,
@@ -365,8 +365,8 @@ func newExecutor(
 		ctrLgr.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
-	if ctx.blockInfo.Version >= 2 {
-		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.Version))
+	if ctx.blockInfo.ForkVersion >= 2 {
+		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.ForkVersion))
 	}
 
 	if ctx.IsGasSystem() {
@@ -775,7 +775,7 @@ func (ce *executor) close() {
 		}
 
 		lsType := LStateDefault
-		if ce.ctx.blockInfo.Version >= 3 {
+		if ce.ctx.blockInfo.ForkVersion >= 3 {
 			lsType = LStateVer3
 		}
 		freeLState(ce.L, lsType)
@@ -1039,7 +1039,7 @@ func Create(
 	contexts[ctx.service] = ctx
 
 	// create a sql database for the contract
-	if ctx.blockInfo.Version < 2 {
+	if ctx.blockInfo.ForkVersion < 2 {
 		if db := luaGetDbHandle(ctx.service); db == nil {
 			return "", nil, ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
 		}
@@ -1381,7 +1381,7 @@ func vmAutoload(L *LState, funcName string) bool {
 
 func (ce *executor) vmLoadCode(id []byte) {
 	var chunkId *C.char
-	if ce.ctx.blockInfo.Version >= 3 {
+	if ce.ctx.blockInfo.ForkVersion >= 3 {
 		chunkId = C.CString("@" + types.EncodeAddress(id))
 	} else {
 		chunkId = C.CString(hex.EncodeToString(id))

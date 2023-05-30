@@ -43,7 +43,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			return nil, err
 		}
 		jsonArgs := ""
-		if blockInfo.Version < 2 {
+		if blockInfo.ForkVersion < 2 {
 			jsonArgs = `{"name":"` + ci.Args[0].(string) + `"}`
 		} else {
 			jsonArgs = `["` + ci.Args[0].(string) + `"]`
@@ -60,7 +60,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			return nil, err
 		}
 		jsonArgs := ""
-		if blockInfo.Version < 2 {
+		if blockInfo.ForkVersion < 2 {
 			jsonArgs = `{"name":"` + ci.Args[0].(string) +
 				`","to":"` + ci.Args[1].(string) + `"}`
 		} else {

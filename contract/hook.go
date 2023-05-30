@@ -16,7 +16,7 @@ func (ce *executor) setCountHook(limit C.int) {
 		C.vm_set_timeout_hook(ce.L)
 		return
 	}
-	if ce.ctx.blockInfo.Version >= 2 {
+	if ce.ctx.blockInfo.ForkVersion >= 2 {
 		C.vm_set_timeout_count_hook(ce.L, limit)
 	} else {
 		C.vm_set_count_hook(ce.L, limit)

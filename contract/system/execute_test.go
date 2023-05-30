@@ -514,7 +514,7 @@ func TestProposalExecute(t *testing.T) {
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	blockInfo.No++
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
@@ -608,7 +608,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	assert.Error(t, err, "the voting begins at 1")
 
 	blockInfo.No += 10
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	tooManyCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -663,7 +663,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	blockInfo.No++
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -718,7 +718,7 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, balance1, sender3.Balance(), "sender.Balance() should be 1 after staking")
 
 	blockInfo.No++
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
