@@ -78,6 +78,7 @@ func init() {
 		RunE:                  runDeployCmd,
 		DisableFlagsInUseLine: true,
 	}
+	deployCmd.PersistentFlags().Uint64Var(&nonce, "nonce", 0, "manually set a nonce (default: set nonce automatically)")
 	deployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	deployCmd.PersistentFlags().StringVar(&amount, "amount", "0", "amount of token to send with deployment, in aer")
 	deployCmd.PersistentFlags().StringVarP(&contractID, "redeploy", "r", "", "redeploy the contract")
@@ -139,9 +140,13 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not decode address: %v", err.Error())
 	}
-	state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
-	if err != nil {
-		return fmt.Errorf("failed to get creator account's state: %v", err.Error())
+
+	if nonce == 0 {
+		state, err := client.GetState(context.Background(), &types.SingleBytes{Value: creator})
+		if err != nil {
+			return fmt.Errorf("failed to get creator account's state: %v", err.Error())
+		}
+		nonce = state.GetNonce() + 1
 	}
 
 	var payload []byte
@@ -201,7 +206,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) error {
 
 	tx := &types.Tx{
 		Body: &types.TxBody{
-			Nonce:     state.GetNonce() + 1,
+			Nonce:     nonce,
 			Account:   creator,
 			Payload:   payload,
 			Amount:    amountBigInt.Bytes(),
