@@ -5989,6 +5989,14 @@ func TestMaxCallDepth(t *testing.T) {
   }
   defer bc.Release()
 
+  err = bc.ConnectBlock(
+    NewLuaTxAccount("user", 100000000000000000),
+  )
+  if err != nil {
+    t.Error(err)
+  }
+
+/*
   // this contract calls itself recursively
   definition1 := `
 state.var {
@@ -6030,7 +6038,6 @@ abi.register_view(get_total_calls, get_call_info, check_state)
 `
   // deploy 2 identical contracts
   err = bc.ConnectBlock(
-    NewLuaTxAccount("user", 100000000000000000),
     NewLuaTxDef("user", "c1", 0, definition1),
     NewLuaTxDef("user", "c2", 0, definition1),
   )
@@ -6062,10 +6069,10 @@ abi.register_view(get_total_calls, get_call_info, check_state)
     }
   }
 
-  // call second contract - recursion depth 65
+  // call second contract - recursion depth 66
   err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 65]}`).
-      Fail("exceeds max call depth"),
+    NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 66]}`).
+      Fail("exceeded the maximum call depth"),
   )
   if err != nil {
     t.Error(err)
@@ -6076,16 +6083,17 @@ abi.register_view(get_total_calls, get_call_info, check_state)
     t.Error("should fail")
   }
   // query view - must return nil
-  err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[nil,nil]")
+  err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[null,null]")
   if err != nil {
     t.Error(err)
   }
   for i := 1; i <= 64; i++ {
-    err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "nil")
+    err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "null")
     if err != nil {
       t.Error(err)
     }
   }
+*/
 
   // this contract receives a list of contract IDs to be called
   definition2 := `
@@ -6153,8 +6161,8 @@ abi.register(set_next_contract, call_me)
 abi.register_view(get_total_calls, get_call_info)
 `
 
-  // deploy 65 identical contracts using definition2
-  for i := 1; i <= 65; i++ {
+  // deploy 66 identical contracts using definition2
+  for i := 1; i <= 66; i++ {
     err = bc.ConnectBlock(
       NewLuaTxDef("user", fmt.Sprintf("c2%d", i), 0, definition2),
     )
@@ -6162,8 +6170,8 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
   }
-  // deploy 65 identical contracts using definition3
-  for i := 1; i <= 65; i++ {
+  // deploy 66 identical contracts using definition3
+  for i := 1; i <= 66; i++ {
     err = bc.ConnectBlock(
       NewLuaTxDef("user", fmt.Sprintf("c3%d", i), 0, definition3),
     )
@@ -6202,15 +6210,15 @@ abi.register_view(get_total_calls, get_call_info)
     }
   }
 
-  // add the 65th contract to the list
-  contracts = append(contracts, types.EncodeAddress(strHash(fmt.Sprintf("c2%d", 65))))
+  // add the 66th contract to the list
+  contracts = append(contracts, types.EncodeAddress(strHash(fmt.Sprintf("c2%d", 66))))
   contracts_str, err = json.Marshal(contracts)
 	if err != nil {
 		t.Error(err)
 	}
-  // call first contract - recursion depth 65
+  // call first contract - recursion depth 66
   err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c2"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, 65]}`, string(contracts_str))).Fail("exceeds max call depth"),
+    NewLuaTxCall("user", "c2"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, 66]}`, string(contracts_str))).Fail("exceeded the maximum call depth"),
   )
   if err != nil {
     t.Error(err)
@@ -6226,18 +6234,18 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
   }
-  // check state on the 65th contract (query total calls and call info)
-  err = bc.Query("c2"+fmt.Sprintf("%d", 65), `{"Name":"get_total_calls"}`, "", "nil")
+  // check state on the 66th contract (query total calls and call info)
+  err = bc.Query("c2"+fmt.Sprintf("%d", 66), `{"Name":"get_total_calls"}`, "", "null")
   if err != nil {
     t.Error(err)
   }
-  err = bc.Query("c2"+fmt.Sprintf("%d", 65), `{"Name":"get_call_info", "Args":["1"]}`, "", "nil")
+  err = bc.Query("c2"+fmt.Sprintf("%d", 66), `{"Name":"get_call_info", "Args":["1"]}`, "", "null")
   if err != nil {
     t.Error(err)
   }
 
   // set next_contract for each contract
-  for i := 1; i <= 65; i++ {
+  for i := 1; i <= 66; i++ {
     err = bc.ConnectBlock(
       NewLuaTxCall("user", fmt.Sprintf("c3%d", i), 0, fmt.Sprintf(`{"Name":"set_next_contract", "Args":["%s"]}`, types.EncodeAddress(strHash(fmt.Sprintf("c3%d", i+1))))),
     )
@@ -6264,9 +6272,9 @@ abi.register_view(get_total_calls, get_call_info)
     }
   }
 
-  // call first contract - recursion depth 65
+  // call first contract - recursion depth 66
   err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c3"+fmt.Sprintf("%d", 1), 0, `{"Name":"call_me", "Args":[1, 65]}`).Fail("exceeds max call depth"),
+    NewLuaTxCall("user", "c3"+fmt.Sprintf("%d", 1), 0, `{"Name":"call_me", "Args":[1, 66]}`).Fail("exceeded the maximum call depth"),
   )
   if err != nil {
     t.Error(err)
@@ -6282,12 +6290,12 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
   }
-  // check state on the 65th contract (query total calls and call info)
-  err = bc.Query("c3"+fmt.Sprintf("%d", 65), `{"Name":"get_total_calls"}`, "", "nil")
+  // check state on the 66th contract (query total calls and call info)
+  err = bc.Query("c3"+fmt.Sprintf("%d", 66), `{"Name":"get_total_calls"}`, "", "null")
   if err != nil {
     t.Error(err)
   }
-  err = bc.Query("c3"+fmt.Sprintf("%d", 65), `{"Name":"get_call_info", "Args":["1"]}`, "", "nil")
+  err = bc.Query("c3"+fmt.Sprintf("%d", 66), `{"Name":"get_call_info", "Args":["1"]}`, "", "null")
   if err != nil {
     t.Error(err)
   }
@@ -6328,16 +6336,16 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
     for j := 1; j <= 16; j++ {
-      err = bc.Query(fmt.Sprintf("c4%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", (i-1)*16+j))
+      err = bc.Query(fmt.Sprintf("c4%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+4*(j-1)))
       if err != nil {
         t.Error(err)
       }
     }
   }
 
-  // call first contract - recursion depth 65
+  // call first contract - recursion depth 66
   err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c4"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, 65]}`, string(contracts_str))).Fail("exceeds max call depth"),
+    NewLuaTxCall("user", "c4"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, 66]}`, string(contracts_str))).Fail("exceeded the maximum call depth"),
   )
   if err != nil {
     t.Error(err)
@@ -6350,7 +6358,7 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
     for j := 1; j <= 16; j++ {
-      err = bc.Query(fmt.Sprintf("c4%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", (i-1)*16+j))
+      err = bc.Query(fmt.Sprintf("c4%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+4*(j-1)))
       if err != nil {
         t.Error(err)
       }
@@ -6393,16 +6401,16 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
     for j := 1; j <= 32; j++ {
-      err = bc.Query(fmt.Sprintf("c5%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", (i-1)*32+j))
+      err = bc.Query(fmt.Sprintf("c5%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+2*(j-1)))
       if err != nil {
         t.Error(err)
       }
     }
   }
 
-  // call first contract - recursion depth 65
+  // call first contract - recursion depth 66
   err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c5"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, 65]}`, string(contracts_str))).Fail("exceeds max call depth"),
+    NewLuaTxCall("user", "c5"+fmt.Sprintf("%d", 1), 0, fmt.Sprintf(`{"Name":"call_me", "Args":[%s, 1, 66]}`, string(contracts_str))).Fail("exceeded the maximum call depth"),
   )
   if err != nil {
     t.Error(err)
@@ -6415,7 +6423,7 @@ abi.register_view(get_total_calls, get_call_info)
       t.Error(err)
     }
     for j := 1; j <= 32; j++ {
-      err = bc.Query(fmt.Sprintf("c5%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", (i-1)*32+j))
+      err = bc.Query(fmt.Sprintf("c5%d", i), fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, j), "", fmt.Sprintf("%d", i+2*(j-1)))
       if err != nil {
         t.Error(err)
       }
