@@ -35,13 +35,18 @@ declare -a addresses
 
 for i in {1..66}
 do
-  txhash=$(../bin/aergocli --keystore . --password bmttest \
+  txhash=$(../bin/aergocli --keystore . --password bmttest --nonce $i \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
     --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
-  sleep 1
+  txhashes[$i]=$txhash
+done
 
-  ../bin/aergocli receipt get $txhash > receipt.json
+sleep 1
+
+for i in {1..66}
+do
+  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -152,6 +157,9 @@ assert_equals "$result" "null"
 
 echo "-- deploy 66 contracts --"
 
+account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
+nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
+
 ../bin/aergoluac --payload test-max-call-depth-3.lua > payload.out
 
 declare -a txhashes
@@ -159,13 +167,18 @@ declare -a addresses
 
 for i in {1..66}
 do
-  txhash=$(../bin/aergocli --keystore . --password bmttest \
+  txhash=$(../bin/aergocli --keystore . --password bmttest --nonce $(($nonce+$i)) \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
     --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
-  sleep 1
+  txhashes[$i]=$txhash
+done
 
-  ../bin/aergocli receipt get $txhash > receipt.json
+sleep 1
+
+for i in {1..66}
+do
+  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -194,7 +207,6 @@ do
 done
 
 sleep 1
-echo "-- check result --"
 
 for i in {1..65}
 do
@@ -296,6 +308,9 @@ echo "=== Circle ==="
 
 echo "-- deploy 4 contracts --"
 
+account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
+nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
+
 ../bin/aergoluac --payload test-max-call-depth-2.lua > payload.out
 
 declare -a txhashes
@@ -303,13 +318,18 @@ declare -a addresses
 
 for i in {1..4}
 do
-  txhash=$(../bin/aergocli --keystore . --password bmttest \
+  txhash=$(../bin/aergocli --keystore . --password bmttest --nonce $(($nonce+$i)) \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
     --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
-  sleep 1
+  txhashes[$i]=$txhash
+done
 
-  ../bin/aergocli receipt get $txhash > receipt.json
+sleep 1
+
+for i in {1..4}
+do
+  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -432,6 +452,9 @@ echo "=== ZigZag ==="
 
 echo "-- deploy 2 contracts --"
 
+account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
+nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
+
 ../bin/aergoluac --payload test-max-call-depth-2.lua > payload.out
 
 declare -a txhashes
@@ -439,13 +462,18 @@ declare -a addresses
 
 for i in {1..2}
 do
-  txhash=$(../bin/aergocli --keystore . --password bmttest \
+  txhash=$(../bin/aergocli --keystore . --password bmttest --nonce $(($nonce+$i)) \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
     --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
-  sleep 1
+  txhashes[$i]=$txhash
+done
 
-  ../bin/aergocli receipt get $txhash > receipt.json
+sleep 1
+
+for i in {1..2}
+do
+  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -561,4 +589,3 @@ assert_equals "$result" "null"
 
 echo ""
 echo "OK: test-max-call-depth"
-
