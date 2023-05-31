@@ -41,8 +41,23 @@ jobs:
     - name: Build
       run: make
 
+    # run unit test with code coverage report if action is triggered by push of master branch
+    # since Code Climate only evaluate code coverages of default branch.
+    - name: Unit Tests with publishing code coverage
+      if: github.event_name == 'push' && github.ref_name == 'master' && github.ref_type == 'branch'
+      uses: paambaati/codeclimate-action@v4
+      env:
+        CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
+      with:
+        coverageCommand: go test -timeout 999s -coverprofile build/c.out  -v ./...
+        prefix: github.com/aergoio/aergo
+        coverageLocations: ${{github.workspace}}/build/c.out:gocov
+        debug: true
+
+      # run unit test only in other cases
     - name: Unit Tests
-      run: go test -v ./...
+      if: github.event_name != 'push' || github.ref_name != 'master' || github.ref_type != 'branch'
+      run: go test -timeout 999s -v ./...
 
     - name: Integration Tests
       run: |
