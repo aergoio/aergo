@@ -26,20 +26,20 @@ import (
 )
 
 type DummyChain struct {
-	hardforkConfig *config.HardforkConfig
-	sdb            *state.ChainStateDB
-	bestBlock      *types.Block
-	cBlock         *types.Block
-	bestBlockNo    types.BlockNo
-	bestBlockId    types.BlockID
-	blockIds       []types.BlockID
-	blocks         []*types.Block
-	testReceiptDB  db.DB
-	tmpDir         string
-	timeout        int
-	clearLState    func()
-	gasPrice       *big.Int
-	timestamp      int64
+	HardforkVersion int32
+	sdb             *state.ChainStateDB
+	bestBlock       *types.Block
+	cBlock          *types.Block
+	bestBlockNo     types.BlockNo
+	bestBlockId     types.BlockID
+	blockIds        []types.BlockID
+	blocks          []*types.Block
+	testReceiptDB   db.DB
+	tmpDir          string
+	timeout         int
+	clearLState     func()
+	gasPrice        *big.Int
+	timestamp       int64
 }
 
 var addressRegexp *regexp.Regexp
@@ -57,9 +57,9 @@ func init() {
 // overwrite config for dummychain
 type DummyChainOptions func(d *DummyChain)
 
-func SetHardFork(hardforkConfig *config.HardforkConfig) DummyChainOptions {
+func SetHardForkVersion(forkVersion int32) DummyChainOptions {
 	return func(dc *DummyChain) {
-		dc.hardforkConfig = hardforkConfig
+		dc.HardforkVersion = forkVersion
 	}
 }
 
@@ -122,8 +122,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
 	InitContext(3)
 
-	bc.hardforkConfig = config.AllEnabledHardforkConfig
-	bc.hardforkConfig.V3 = types.BlockNo(100)
+	bc.HardforkVersion = 2
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -180,7 +179,7 @@ func (bc *DummyChain) newBState() *state.BlockState {
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
 			Timestamp:     bc.getTimestamp(),
-			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.hardforkConfig.Version(bc.bestBlockNo+1)),
+			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, bc.HardforkVersion),
 		},
 	}
 	return state.NewBlockState(

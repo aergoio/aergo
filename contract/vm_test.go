@@ -3287,10 +3287,10 @@ func TestTypeBF(t *testing.T) {
 	}
 
 	feeTest(47456244)
-	OldV3 := bc.hardforkConfig.V3
-	bc.hardforkConfig.V3 = types.BlockNo(0)
+	OldVersion := bc.HardforkVersion
+	bc.HardforkVersion = 3
 	feeTest(47513803)
-	bc.hardforkConfig.V3 = OldV3
+	bc.HardforkVersion = OldVersion
 }
 
 func TestTypeMaxString(t *testing.T) {
