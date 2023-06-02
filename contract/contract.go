@@ -70,7 +70,7 @@ func Execute(
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
 
-	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
+	usedFee = TxFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -159,7 +159,7 @@ func Execute(
 	if ex != nil {
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
-		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
+		ctx := NewVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true, false, receiver.RP(),
 			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 
@@ -202,7 +202,7 @@ func Execute(
 	return rv, events, usedFee, nil
 }
 
-func txFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
+func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
 	if version < 2 {
 		return fee.PayloadTxFee(payloadSize)
 	}
@@ -264,7 +264,7 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
+		ctx := NewVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
 			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
 			txBody.Type == types.TxType_FEEDELEGATION)

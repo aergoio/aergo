@@ -1,15 +1,16 @@
 //go:build Debug
 // +build Debug
 
-package contract
+package vm_dummy
 
 import (
 	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/contract"
 	"math/big"
 )
 
 func getCompiledABI(code string) ([]byte, error) {
-	byteCodeAbi, err := compile(code, nil)
+	byteCodeAbi, err := contract.Compile(code, nil)
 	if err != nil {
 		return nil, err
 	}

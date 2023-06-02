@@ -1050,9 +1050,9 @@ func luaDeployContract(
 
 	if len(code) == 0 {
 		if ctx.blockInfo.ForkVersion >= 2 {
-			code, err = compile(contractStr, L)
+			code, err = Compile(contractStr, L)
 		} else {
-			code, err = compile(contractStr, nil)
+			code, err = Compile(contractStr, nil)
 		}
 		if err != nil {
 			if C.luaL_hasuncatchablerror(L) != C.int(0) &&

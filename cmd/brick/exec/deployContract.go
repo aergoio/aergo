@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/vm_dummy"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -121,7 +121,7 @@ func (c *deployContract) Run(args string) (string, uint64, []*types.Event, error
 
 	updateContractInfoInterface(contractName, defPath)
 
-	tx := contract.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg)
+	tx := vm_dummy.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg)
 	err = context.Get().ConnectBlock(tx)
 
 	if enableWatch && !strings.HasPrefix(defPath, "http") {

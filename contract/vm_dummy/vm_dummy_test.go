@@ -1,4 +1,4 @@
-package contract
+package vm_dummy
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -1623,7 +1624,7 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 			`{"Name":"infiniteLoop"}`,
 		),
 	)
-	errTimeout := VmTimeoutError{}
+	errTimeout := contract.VmTimeoutError{}
 	if err == nil {
 		t.Errorf("expected: %v", errTimeout)
 	}
@@ -4878,7 +4879,7 @@ abi.register(inserts)
 		t.Error(err)
 	}
 
-	SetStateSQLMaxDBSize(20)
+	contract.SetStateSQLMaxDBSize(20)
 
 	bigSrc = `
 function constructor()

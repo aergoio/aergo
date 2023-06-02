@@ -1,4 +1,4 @@
-package contract
+package vm_dummy
 
 // helper functions
 import (
@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
@@ -24,6 +26,20 @@ import (
 	"github.com/aergoio/aergo/types"
 	sha256 "github.com/minio/sha256-simd"
 )
+
+var (
+	logger        *log.Logger
+	addressRegexp *regexp.Regexp
+)
+
+const (
+	lStateMaxSize = 10 * 7
+)
+
+func init() {
+	logger = log.NewLogger("vm_dummy")
+	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
+}
 
 type DummyChain struct {
 	HardforkVersion int32
@@ -40,18 +56,6 @@ type DummyChain struct {
 	clearLState     func()
 	gasPrice        *big.Int
 	timestamp       int64
-}
-
-var addressRegexp *regexp.Regexp
-var traceState bool
-
-const (
-	lStateMaxSize = 10 * 7
-)
-
-func init() {
-	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
-	//	traceState = true
 }
 
 // overwrite config for dummychain
@@ -73,16 +77,16 @@ func SetPubNet() DummyChainOptions {
 	return func(dc *DummyChain) {
 		flushLState := func() {
 			for i := 0; i <= lStateMaxSize; i++ {
-				s := getLState(LStateDefault)
-				freeLState(s, LStateDefault)
+				s := contract.GetLState(contract.LStateDefault)
+				contract.FreeLState(s, contract.LStateDefault)
 			}
 		}
-		PubNet = true
+		contract.PubNet = true
 		fee.DisableZeroFee()
 		flushLState()
 
 		dc.clearLState = func() {
-			PubNet = false
+			contract.PubNet = false
 			fee.EnableZeroFee()
 			flushLState()
 		}
@@ -117,10 +121,10 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
 	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
-	loadTestDatabase(dataPath) // sql database
-	SetStateSQLMaxDBSize(1024)
-	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
-	InitContext(3)
+	contract.LoadTestDatabase(dataPath) // sql database
+	contract.SetStateSQLMaxDBSize(1024)
+	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
+	contract.InitContext(3)
 
 	bc.HardforkVersion = 2
 
@@ -193,12 +197,12 @@ func (bc *DummyChain) BeginReceiptTx() db.Transaction {
 	return bc.testReceiptDB.NewTx()
 }
 
-func (bc *DummyChain) GetABI(contract string) (*types.ABI, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
+func (bc *DummyChain) GetABI(code string) (*types.ABI, error) {
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(code)))
 	if err != nil {
 		return nil, err
 	}
-	return GetABI(cState, nil)
+	return contract.GetABI(cState, nil)
 }
 
 func (bc *DummyChain) GetEvents(txhash []byte) []*types.Event {
@@ -437,7 +441,7 @@ func (l *luaTxDef) Constructor(args string) *luaTxDef {
 	return l
 }
 
-func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, receiptTx db.Transaction,
+func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAccessor, receiptTx db.Transaction,
 	run func(s, c *state.V, id types.AccountID, cs *state.ContractState) (string, []*types.Event, *big.Int, error)) error {
 
 	creatorId := types.ToAccountID(l.sender())
@@ -456,7 +460,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 	if err != nil {
 		return err
 	}
-	usedFee := txFee(len(l.code()), new(big.Int).SetUint64(1), 2)
+	usedFee := contract.TxFee(len(l.code()), new(big.Int).SetUint64(1), 2)
 
 	if l.isFeeDelegate() {
 		balance := contractState.Balance()
@@ -464,11 +468,11 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb ChainAccessor, rec
 		if usedFee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
-		err = CheckFeeDelegation(l.contract(), bs, nil, cdb, eContractState, l.code(),
+		err = contract.CheckFeeDelegation(l.contract(), bs, nil, cdb, eContractState, l.code(),
 			l.Hash(), l.sender(), l.amount().Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
-				ctrLgr.Debug().Err(err).Str("txhash", enc.ToString(l.Hash())).Msg("checkFeeDelegation Error")
+				logger.Debug().Err(err).Str("txhash", enc.ToString(l.Hash())).Msg("checkFeeDelegation Error")
 				return err
 			}
 			return types.ErrNotAllowedFeeDelegation
@@ -522,19 +526,13 @@ func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHead
 		return l.cErr
 	}
 	return contractFrame(l, bs, bc, receiptTx,
-		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
-			contract.State().SqlRecoveryPoint = 1
+		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+			contractV.State().SqlRecoveryPoint = 1
 
-			ctx := newVmContext(bs, nil, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, false)
+			ctx := contract.NewVmContext(bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
+				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
 
-			if traceState {
-				ctx.traceFile, _ =
-					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				defer ctx.traceFile.Close()
-			}
-
-			rv, evs, ctrFee, err := Create(eContractState, l.code(), l.contract(), ctx)
+			rv, evs, ctrFee, err := contract.Create(eContractState, l.code(), l.contract(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -590,15 +588,11 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 
 func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
-		func(sender, contract *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
-			ctx := newVmContext(bs, bc, sender, contract, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contract.State().SqlRecoveryPoint, BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
-			if traceState {
-				ctx.traceFile, _ =
-					os.OpenFile("test.trace", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				defer ctx.traceFile.Close()
-			}
-			rv, evs, ctrFee, err := Call(eContractState, l.code(), l.contract(), ctx)
+		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
+			ctx := contract.NewVmContext(bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
+				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
+
+			rv, evs, ctrFee, err := contract.Call(eContractState, l.code(), l.contract(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -629,7 +623,7 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 	blockState := bc.newBState()
 	tx := bc.BeginReceiptTx()
 	defer tx.Commit()
-	defer CloseDatabase()
+	defer contract.CloseDatabase()
 
 	timeout := make(chan struct{})
 	go func() {
@@ -638,13 +632,13 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 			timeout <- struct{}{}
 		}
 	}()
-	SetBPTimeout(timeout)
+	contract.SetBPTimeout(timeout)
 	for _, x := range txs {
 		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
 			return err
 		}
 	}
-	err := SaveRecoveryPoint(blockState)
+	err := contract.SaveRecoveryPoint(blockState)
 	if err != nil {
 		return err
 	}
@@ -681,12 +675,12 @@ func (bc *DummyChain) DisConnectBlock() error {
 	return bc.sdb.SetRoot(sroot)
 }
 
-func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
+func (bc *DummyChain) Query(code, queryInfo, expectedErr string, expectedRvs ...string) error {
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(code)))
 	if err != nil {
 		return err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
+	rv, err := contract.Query(strHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -710,12 +704,12 @@ func (bc *DummyChain) Query(contract, queryInfo, expectedErr string, expectedRvs
 	return err
 }
 
-func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(contract)))
+func (bc *DummyChain) QueryOnly(code, queryInfo string, expectedErr string) (bool, string, error) {
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(code)))
 	if err != nil {
 		return false, "", err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
+	rv, err := contract.Query(strHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {

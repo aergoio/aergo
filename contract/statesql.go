@@ -97,7 +97,7 @@ func LoadDatabase(dataDir string) error {
 	return err
 }
 
-func loadTestDatabase(dataDir string) error {
+func LoadTestDatabase(dataDir string) error {
 	var err error
 	path := filepath.Join(dataDir, statesqlDriver)
 	sqlLgr.Debug().Str("path", path).Msg("loading statesql")

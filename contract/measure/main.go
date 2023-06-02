@@ -7,17 +7,17 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/vm_dummy"
 )
 
 func main() {
-	bc, err := contract.LoadDummyChain()
+	bc, err := vm_dummy.LoadDummyChain()
 	if err != nil {
 		log.Printf("failed to create test database: %v\n", err)
 	}
 
 	err = bc.ConnectBlock(
-		contract.NewLuaTxAccount("ktlee", 100),
+		vm_dummy.NewLuaTxAccount("ktlee", 100),
 	)
 	if err != nil {
 		log.Println(err)
@@ -30,14 +30,14 @@ func main() {
 		}
 
 		err = bc.ConnectBlock(
-			contract.NewLuaTxDef("ktlee", luaFileName, 0, string(src)),
+			vm_dummy.NewLuaTxDef("ktlee", luaFileName, 0, string(src)),
 		)
 		if err != nil {
 			log.Println(err)
 		}
 
 		err = bc.ConnectBlock(
-			contract.NewLuaTxCall("ktlee", luaFileName, 0, `{"Name": "`+mainFuncName+`"}`),
+			vm_dummy.NewLuaTxCall("ktlee", luaFileName, 0, `{"Name": "`+mainFuncName+`"}`),
 		)
 		if err != nil {
 			log.Println(err)

@@ -170,7 +170,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
+func NewVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
@@ -203,7 +203,7 @@ func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, recie
 	return ctx
 }
 
-func newVmContextQuery(
+func NewVmContextQuery(
 	blockState *state.BlockState,
 	cdb ChainAccessor,
 	receiverId []byte,
@@ -349,11 +349,11 @@ func newExecutor(
 	ctx.callDepth++
 	var lState *LState
 	if ctx.blockInfo.ForkVersion < 3 {
-		lState = getLState(LStateDefault)
+		lState = GetLState(LStateDefault)
 	} else {
 		// To fix intermittent consensus failure by gas consumption mismatch,
 		// use mutex to access total gas after chain version 3.
-		lState = getLState(LStateVer3)
+		lState = GetLState(LStateVer3)
 	}
 	ce := &executor{
 		code: contract,
@@ -778,7 +778,7 @@ func (ce *executor) close() {
 		if ce.ctx.blockInfo.ForkVersion >= 3 {
 			lsType = LStateVer3
 		}
-		freeLState(ce.L, lsType)
+		FreeLState(ce.L, lsType)
 	}
 }
 
@@ -1144,7 +1144,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	}
 
 	var ctx *vmContext
-	ctx, err = newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	ctx, err = NewVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
 	if err != nil {
 		return
 	}
@@ -1203,7 +1203,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	}
 
 	var ctx *vmContext
-	ctx, err = newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	ctx, err = NewVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
 	if err != nil {
 		return
 	}
@@ -1344,7 +1344,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	return nil
 }
 
-func compile(code string, parent *LState) (luacUtil.LuaCode, error) {
+func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 	L := luacUtil.NewLState()
 	if L == nil {
 		return nil, ErrVmStart

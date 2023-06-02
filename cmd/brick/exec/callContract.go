@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/vm_dummy"
 	"github.com/aergoio/aergo/types"
 	"github.com/rs/zerolog"
 )
@@ -91,7 +91,7 @@ func (c *callContract) Run(args string) (string, uint64, []*types.Event, error) 
 
 	formattedQuery := fmt.Sprintf("{\"name\":\"%s\",\"args\":%s}", funcName, callCode)
 
-	callTx := contract.NewLuaTxCallBig(accountName, contractName, amount, formattedQuery)
+	callTx := vm_dummy.NewLuaTxCallBig(accountName, contractName, amount, formattedQuery)
 
 	logLevel := zerolog.GlobalLevel()
 
