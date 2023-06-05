@@ -17,8 +17,8 @@ func NewLuaTxDefBig(sender, contractMsg string, amount *big.Int, code string) *l
 	}
 	return &luaTxDef{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:   strHash(sender),
-			_contract: strHash(contractMsg),
+			_sender:   contract.StrHash(sender),
+			_contract: contract.StrHash(contractMsg),
 			_code:     util.NewLuaCodePayload(byteCode, nil),
 			_amount:   amount,
 			txId:      newTxId(),

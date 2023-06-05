@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,8 +27,7 @@ import (
 )
 
 var (
-	logger        *log.Logger
-	addressRegexp *regexp.Regexp
+	logger *log.Logger
 )
 
 const (
@@ -38,7 +36,6 @@ const (
 
 func init() {
 	logger = log.NewLogger("vm_dummy")
-	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 }
 
 type DummyChain struct {
@@ -198,7 +195,7 @@ func (bc *DummyChain) BeginReceiptTx() db.Transaction {
 }
 
 func (bc *DummyChain) GetABI(code string) (*types.ABI, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(code)))
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +218,7 @@ func (bc *DummyChain) GetReceipt(txHash []byte) *types.Receipt {
 }
 
 func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
-	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(strHash(name)))
+	return bc.sdb.GetStateDB().GetAccountState(types.ToAccountID(contract.StrHash(name)))
 }
 
 func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
@@ -229,7 +226,7 @@ func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
 	if err != nil {
 		return nil, err
 	}
-	return system.GetStaking(scs, strHash(name))
+	return system.GetStaking(scs, contract.StrHash(name))
 }
 
 func (bc *DummyChain) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
@@ -260,7 +257,7 @@ func NewLuaTxAccount(name string, balance uint64) *luaTxAccount {
 
 func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
 	return &luaTxAccount{
-		name:    strHash(name),
+		name:    contract.StrHash(name),
 		balance: balance,
 		txId:    newTxId(),
 	}
@@ -297,8 +294,8 @@ var _ LuaTxTester = (*luaTxSend)(nil)
 
 func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
 	return &luaTxSend{
-		sender:   strHash(sender),
-		receiver: strHash(receiver),
+		sender:   contract.StrHash(sender),
+		receiver: contract.StrHash(receiver),
 		balance:  balance,
 		txId:     newTxId(),
 	}
@@ -408,20 +405,21 @@ func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef 
 	return NewLuaTxDefBig(sender, contract, new(big.Int).SetUint64(amount), code)
 }
 
-func strHash(d string) []byte {
-	// using real address
-	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
-		return types.ToAddress(d)
-	} else {
-		// using alias
-		h := sha256.New()
-		h.Write([]byte(d))
-		b := h.Sum(nil)
-		b = append([]byte{0x0C}, b...)
-		return b
+/*
+	func contract.StrHash(d string) []byte {
+		// using real address
+		if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
+			return types.ToAddress(d)
+		} else {
+			// using alias
+			h := sha256.New()
+			h.Write([]byte(d))
+			b := h.Sum(nil)
+			b = append([]byte{0x0C}, b...)
+			return b
+		}
 	}
-}
-
+*/
 var luaTxId uint64 = 0
 
 func newTxId() uint64 {
@@ -556,11 +554,11 @@ func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCal
 	return NewLuaTxCallBig(sender, contract, new(big.Int).SetUint64(amount), code)
 }
 
-func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *luaTxCall {
+func NewLuaTxCallBig(sender, contractCode string, amount *big.Int, code string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:   strHash(sender),
-			_contract: strHash(contract),
+			_sender:   contract.StrHash(sender),
+			_contract: contract.StrHash(contractCode),
 			_amount:   amount,
 			_code:     []byte(code),
 			txId:      newTxId(),
@@ -568,11 +566,11 @@ func NewLuaTxCallBig(sender, contract string, amount *big.Int, code string) *lua
 	}
 }
 
-func NewLuaTxCallFeeDelegate(sender, contract string, amount uint64, code string) *luaTxCall {
+func NewLuaTxCallFeeDelegate(sender, contractCode string, amount uint64, code string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:     strHash(sender),
-			_contract:   strHash(contract),
+			_sender:     contract.StrHash(sender),
+			_contract:   contract.StrHash(contractCode),
 			_amount:     new(big.Int).SetUint64(amount),
 			_code:       []byte(code),
 			txId:        newTxId(),
@@ -676,11 +674,11 @@ func (bc *DummyChain) DisConnectBlock() error {
 }
 
 func (bc *DummyChain) Query(code, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(code)))
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
 	if err != nil {
 		return err
 	}
-	rv, err := contract.Query(strHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
+	rv, err := contract.Query(contract.StrHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -705,11 +703,11 @@ func (bc *DummyChain) Query(code, queryInfo, expectedErr string, expectedRvs ...
 }
 
 func (bc *DummyChain) QueryOnly(code, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(strHash(code)))
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
 	if err != nil {
 		return false, "", err
 	}
-	rv, err := contract.Query(strHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
+	rv, err := contract.Query(contract.StrHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {
@@ -729,5 +727,5 @@ func (bc *DummyChain) QueryOnly(code, queryInfo string, expectedErr string) (boo
 }
 
 func StrToAddress(name string) string {
-	return types.EncodeAddress(strHash(name))
+	return types.EncodeAddress(contract.StrHash(name))
 }

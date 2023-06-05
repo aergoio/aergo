@@ -119,7 +119,7 @@ func TestContractSend(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test2")))),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test2")))),
 	)
 	if err != nil {
 		t.Error(err)
@@ -129,20 +129,20 @@ func TestContractSend(t *testing.T) {
 		t.Error("balance error", state.GetBalanceBigInt())
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test3")))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test3")))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("test4")))).Fail(`[Contract.LuaSendAmount] call err: 'default' is not payable`),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test4")))).Fail(`[Contract.LuaSendAmount] call err: 'default' is not payable`),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee")))),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("ktlee")))),
 	)
 	if err != nil {
 		t.Error(err)
@@ -188,7 +188,7 @@ func TestContractSendF(t *testing.T) {
 	}
 	tx := NewLuaTxCall("ktlee", "test1", 0,
 		fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`,
-			types.EncodeAddress(strHash("test2"))))
+			types.EncodeAddress(contract.StrHash("test2"))))
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -204,7 +204,7 @@ func TestContractSendF(t *testing.T) {
 	}
 	tx = NewLuaTxCall("ktlee", "test1", 0,
 		fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`,
-			types.EncodeAddress(strHash("test2"))))
+			types.EncodeAddress(contract.StrHash("test2"))))
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -219,7 +219,6 @@ func TestContractSendF(t *testing.T) {
 		t.Error("balance error", state.GetBalanceBigInt())
 	}
 }
-
 func TestContractQuery(t *testing.T) {
 	code := `function inc()
 a = system.getItem("key1")
@@ -340,7 +339,7 @@ func TestContractCall(t *testing.T) {
 	`
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 0, definition2).
-			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("counter")))),
 		NewLuaTxCall("ktlee", "caller", 0, `{"Name":"add", "Args":[]}`),
 	)
 	if err != nil {
@@ -423,13 +422,13 @@ func TestPingpongCall(t *testing.T) {
 	`
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "b", 0, definition2).
-			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("a")))),
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("a")))),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	tx := NewLuaTxCall("ktlee", "a", 0,
-		fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(strHash("b"))))
+		fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("b"))))
 	_ = bc.ConnectBlock(tx)
 	err = bc.Query("a", `{"Name":"get", "Args":[]}`, "", `"callback"`)
 	if err != nil {
@@ -3959,7 +3958,7 @@ func TestTypeMultiArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
-		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,2,null,10,11]")
+		types.EncodeAddress(contract.StrHash("ktlee"))), "", "[2,2,2,null,10,11]")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3970,7 +3969,7 @@ func TestTypeMultiArray(t *testing.T) {
 		t.Error(err)
 	}
 	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`,
-		types.EncodeAddress(strHash("ktlee"))), "", "[2,2,null,null,10,11]")
+		types.EncodeAddress(contract.StrHash("ktlee"))), "", "[2,2,null,null,10,11]")
 	if err != nil {
 		t.Error(err)
 	}
@@ -4646,7 +4645,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	tx := NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"test", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
+	tx := NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"test", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("ktlee"))))
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -4655,7 +4654,7 @@ abi.payable(constructor)
 	if receipt.GetRet() != `"25000000000"` {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
-	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, types.EncodeAddress(strHash("ktlee"))))
+	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("ktlee"))))
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -4677,7 +4676,7 @@ abi.payable(constructor)
 	if err != nil {
 		t.Error(err)
 	}
-	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, types.EncodeAddress(strHash("add"))), "", `"1000000000000000004"`)
+	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, types.EncodeAddress(contract.StrHash("add"))), "", `"1000000000000000004"`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -5215,25 +5214,25 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 			"owner",
 			"vote",
 			0,
-			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user10"))),
+			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("user10"))),
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
 			0,
-			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user10"))),
+			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("user10"))),
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
 			0,
-			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user11"))),
+			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("user11"))),
 		),
 		NewLuaTxCall(
 			"owner",
 			"vote",
 			0,
-			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(strHash("user1"))),
+			fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("user1"))),
 		),
 		// vote
 		NewLuaTxCall(
@@ -5511,7 +5510,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 	`
 	err = bc.ConnectBlock(
 		NewLuaTxDef("ktlee", "caller", 10, definition2).
-			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(strHash("counter")))),
+			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("counter")))),
 		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"add", "Args":[]}`),
 	)
 	if err != nil {
@@ -5536,7 +5535,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"getOrigin", "Args":[]}`)
 	_ = bc.ConnectBlock(tx)
 	receipt := bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != "\""+types.EncodeAddress(strHash("ktlee"))+"\"" {
+	if receipt.GetRet() != "\""+types.EncodeAddress(contract.StrHash("ktlee"))+"\"" {
 		t.Errorf("contract Call ret error :%s", receipt.GetRet())
 	}
 
@@ -5590,7 +5589,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 		t.Error(err)
 	}
 	tx = NewLuaTxCall("ktlee", "counter", 20,
-		fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
+		fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("bong"))))
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -5608,7 +5607,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 		t.Error("balance error")
 	}
 	tx = NewLuaTxCall("ktlee", "counter", 10,
-		fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, types.EncodeAddress(strHash("bong"))))
+		fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("bong"))))
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		t.Error(err)
@@ -5673,13 +5672,13 @@ abi.payable(pcall1, default, constructor)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "pcall", 0,
 			fmt.Sprintf(`{"Name":"pcall1", "Args":["%s", "%s"]}`,
-				types.EncodeAddress(strHash("pcall")), types.EncodeAddress(strHash("bong")))),
+				types.EncodeAddress(contract.StrHash("pcall")), types.EncodeAddress(contract.StrHash("bong")))),
 	)
 	if err != nil {
 		t.Error(err)
 	}
 	err = bc.Query("pcall", fmt.Sprintf(`{"Name":"map", "Args":["%s"]}`,
-		types.EncodeAddress(strHash("pcall"))), "", "2")
+		types.EncodeAddress(contract.StrHash("pcall"))), "", "2")
 	if err != nil {
 		t.Error(err)
 	}
@@ -5867,7 +5866,7 @@ func TestFeatureFeeDelegation(t *testing.T) {
 	tx := NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":["arg"]}`)
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "fd", 0, fmt.Sprintf(`{"Name":"reg", "Args":["%s"]}`,
-			types.EncodeAddress(strHash("user1")))),
+			types.EncodeAddress(contract.StrHash("user1")))),
 		tx,
 	)
 	if err != nil {

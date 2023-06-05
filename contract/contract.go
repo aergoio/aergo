@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"regexp"
 	"strconv"
 
 	"github.com/aergoio/aergo/fee"
@@ -33,12 +34,13 @@ type preLoadInfo struct {
 }
 
 var (
-	loadReqCh    chan *preLoadReq
-	preLoadInfos [2]preLoadInfo
-	PubNet       bool
-	TraceBlockNo uint64
-	bpTimeout    <-chan struct{}
-	maxSQLDBSize uint64
+	loadReqCh     chan *preLoadReq
+	preLoadInfos  [2]preLoadInfo
+	PubNet        bool
+	TraceBlockNo  uint64
+	bpTimeout     <-chan struct{}
+	maxSQLDBSize  uint64
+	addressRegexp *regexp.Regexp
 )
 
 const (
@@ -51,6 +53,7 @@ func init() {
 	loadReqCh = make(chan *preLoadReq, 10)
 	preLoadInfos[BlockFactory].replyCh = make(chan *loadedReply, 4)
 	preLoadInfos[ChainService].replyCh = make(chan *loadedReply, 4)
+	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 
 	go preLoadWorker()
 }
@@ -325,4 +328,18 @@ func SetStateSQLMaxDBSize(size uint64) {
 		maxSQLDBSize = size
 	}
 	sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
+}
+
+func StrHash(d string) []byte {
+	// using real address
+	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
+		return types.ToAddress(d)
+	} else {
+		// using alias
+		h := sha256.New()
+		h.Write([]byte(d))
+		b := h.Sum(nil)
+		b = append([]byte{0x0C}, b...)
+		return b
+	}
 }
