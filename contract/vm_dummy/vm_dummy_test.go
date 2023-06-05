@@ -15,6 +15,8 @@ import (
 
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -5970,6 +5972,135 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 		t.Error(err)
 	}
 }
+*/
+
+// gas test
+const (
+	DEF_TEST_CONTRACT = "testcontract"
+	DEF_TEST_ACCOUNT  = "testaccount"
+	DEF_TEST_AMOUNT   = 100000000000000000
+)
+
+func expectGas(t *testing.T, contractCode, funcName, funcArgs string, expectGas uint64, opt ...DummyChainOptions) error {
+	// append set pubnet
+	bc, err := LoadDummyChain(append(opt, SetPubNet())...)
+	if err != nil {
+		return err
+	}
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount(DEF_TEST_ACCOUNT, DEF_TEST_AMOUNT),
+		NewLuaTxDef(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, contractCode),
+	)
+	if err != nil {
+		return err
+	}
+
+	var code string
+	if len(funcArgs) == 0 {
+		code = fmt.Sprintf(`{"Name":%s}`, funcName)
+	} else {
+		code = fmt.Sprintf(`{"Name":%s, "Args":%s}`, funcName, funcArgs)
+	}
+	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, code)
+	err = bc.ConnectBlock(tx)
+	if err != nil {
+		return err
+	}
+	r := bc.GetReceipt(tx.Hash())
+	ok := assert.Equalf(t, expectGas, r.GetGasUsed(), "expected: %d, but got: %d", expectGas, r.GetGasUsed())
+	if ok != true {
+		return fmt.Errorf("failed to expect gas")
+	}
+	return nil
+}
+
+func TestGasHello(t *testing.T) {
+	var err error
+	contract := `function hello() end abi.register(hello)`
+
+	err = expectGas(t, contract, `"hello"`, ``, 100000, SetHardForkVersion(1))
+	assert.NoError(t, err)
+
+	err = expectGas(t, contract, `"hello"`, ``, 101004, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(t, contract, `"hello"`, ``, 101004, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasOP(t *testing.T) {
+	contract, err := ioutil.ReadFile("op.lua")
+	require.NoError(t, err)
+
+	err = expectGas(t, string(contract), `"main"`, ``, 100000, SetHardForkVersion(1))
+	assert.NoError(t, err)
+
+	err = expectGas(t, string(contract), `"main"`, ``, 117610, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(t, string(contract), `"main"`, ``, 120270, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasBF(t *testing.T) {
+	contract, err := ioutil.ReadFile("bf.lua")
+	require.NoError(t, err)
+
+	// err = expectGas(t, string(contract), `"main"`, ``, 100000, SetHardForkVersion(1))
+	// assert.NoError(t, err)
+
+	err = expectGas(t, string(contract), `"main"`, ``, 47456244, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(t, string(contract), `"main"`, ``, 47513803, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+/*
+// TODO
+// ascii
+err = expectGas(t, contract, `"hello"`, `[""]`, 101014+96, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"hello"`, `[""]`, 101014+96, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"hello"`, `[""]`, 101014+96, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+// unicode
+err = expectGas(t, contract, `"setItem"`, `["안"]`, 101004+93+9, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"setItem"`, `["안녕"]`, 101004+93+18, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"setItem"`, `["안녕하세요"]`, 101004+93+45, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+// number
+err = expectGas(t, contract, `"hello"`, `[0]`, 101004+189+3, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"hello"`, `[1]`, 101004+189+3, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"hello"`, `[10]`, 101004+189+6, SetHardForkVersion(2))
+assert.NoError(t, err)
+err = expectGas(t, contract, `"hello"`, `[100]`, 101004+189+9, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+err = expectGas(t, contract, `"hello"`, `["a","b","c"]`, 101004+93+3, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+err = expectGas(t, contract, `"hello"`, `["a","b","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]`, 101110+93+3, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+err = expectGas(t, contract, `"hello"`, `[1,2,3]`, 101110+189+3, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+err = expectGas(t, contract, `"hello"`, `[""]`, 101218, SetHardForkVersion(2))
+assert.NoError(t, err)
+
+v3
+err = expectGas(t, contract, `"hello"`, `["World"]`, 101218, SetHardForkVersion(3))
+assert.NoError(t, err)
 */
 
 
