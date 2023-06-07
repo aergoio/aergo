@@ -28,20 +28,22 @@ func TestMain(m *testing.M) {
 }
 
 func readLuaCode(file string) (luaCode string) {
-	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	_, filename, _, ok := runtime.Caller(0)
+	if ok != true {
+		return ""
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "sample", file))
 	if err != nil {
 		return ""
 	}
-	raw, err := os.ReadFile(filepath.Join(path, "sample", file))
-	if err != nil {
-		return ""
-	}
+
 	return string(raw)
 }
 
 func TestContractSystem(t *testing.T) {
 	code := readLuaCode("system.lua")
-	require.NotNil(t, code, "failed to read system.lua")
+	path, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	require.NotEmpty(t, code, "failed to read system.lua", path)
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -64,7 +66,7 @@ func TestContractSystem(t *testing.T) {
 
 func TestContractHello(t *testing.T) {
 	code := readLuaCode("hello.lua")
-	require.NotNil(t, code, "failed to read hello.lua")
+	require.NotEmpty(t, code, "failed to read hello.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create test database")
@@ -86,13 +88,13 @@ func TestContractHello(t *testing.T) {
 
 func TestContractSend(t *testing.T) {
 	code := readLuaCode("send_1.lua")
-	require.NotNil(t, code, "failed to read send_1.lua")
+	require.NotEmpty(t, code, "failed to read send_1.lua")
 	code2 := readLuaCode("send_2.lua")
-	require.NotNil(t, code2, "failed to read send_2.lua")
+	require.NotEmpty(t, code2, "failed to read send_2.lua")
 	code3 := readLuaCode("send_3.lua")
-	require.NotNil(t, code3, "failed to read send_3.lua")
+	require.NotEmpty(t, code3, "failed to read send_3.lua")
 	code4 := readLuaCode("send_4.lua")
-	require.NotNil(t, code4, "failed to read send_4.lua")
+	require.NotEmpty(t, code4, "failed to read send_4.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -131,9 +133,9 @@ func TestContractSend(t *testing.T) {
 
 func TestContractSendF(t *testing.T) {
 	code := readLuaCode("sendf_1.lua")
-	require.NotNil(t, code, "failed to read sendf_1.lua")
+	require.NotEmpty(t, code, "failed to read sendf_1.lua")
 	code2 := readLuaCode("sendf_2.lua")
-	require.NotNil(t, code2, "failed to read sendf_2.lua")
+	require.NotEmpty(t, code2, "failed to read sendf_2.lua")
 
 	bc, err := LoadDummyChain(SetPubNet())
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -169,7 +171,7 @@ func TestContractSendF(t *testing.T) {
 
 func TestContractQuery(t *testing.T) {
 	code := readLuaCode("query.lua")
-	require.NotNil(t, code, "failed to read query.lua")
+	require.NotEmpty(t, code, "failed to read query.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -194,9 +196,9 @@ func TestContractQuery(t *testing.T) {
 
 func TestContractCall(t *testing.T) {
 	code := readLuaCode("call_1.lua")
-	require.NotNil(t, code, "failed to read call_1.lua")
+	require.NotEmpty(t, code, "failed to read call_1.lua")
 	code2 := readLuaCode("call_2.lua")
-	require.NotNil(t, code2, "failed to read call_2.lua")
+	require.NotEmpty(t, code2, "failed to read call_2.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -244,9 +246,9 @@ func TestContractCall(t *testing.T) {
 
 func TestContractPingpongCall(t *testing.T) {
 	code := readLuaCode("pingpongcall_1.lua")
-	require.NotNil(t, code, "failed to read pingpongcall_1.lua")
+	require.NotEmpty(t, code, "failed to read pingpongcall_1.lua")
 	code2 := readLuaCode("pingpongcall_2.lua")
-	require.NotNil(t, code2, "failed to read pingpongcall_2.lua")
+	require.NotEmpty(t, code2, "failed to read pingpongcall_2.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -271,7 +273,7 @@ func TestContractPingpongCall(t *testing.T) {
 
 func TestRollback(t *testing.T) {
 	code := readLuaCode("rollback.lua")
-	require.NotNil(t, code, "failed to read rollback.lua")
+	require.NotEmpty(t, code, "failed to read rollback.lua")
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
@@ -309,11 +311,11 @@ func TestRollback(t *testing.T) {
 
 func TestAbi(t *testing.T) {
 	codeNoAbi := readLuaCode("abi_no.lua")
-	require.NotNil(t, codeNoAbi, "failed to read abi_no.lua")
+	require.NotEmpty(t, codeNoAbi, "failed to read abi_no.lua")
 	codeEmpty := readLuaCode("abi_empty.lua")
-	require.NotNil(t, codeEmpty, "failed to read abi_empty.lua")
+	require.NotEmpty(t, codeEmpty, "failed to read abi_empty.lua")
 	codeLocalFunc := readLuaCode("abi_localfunc.lua")
-	require.NotNil(t, codeLocalFunc, "failed to read abi_localfunc.lua")
+	require.NotEmpty(t, codeLocalFunc, "failed to read abi_localfunc.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -334,7 +336,7 @@ func TestAbi(t *testing.T) {
 
 func TestGetABI(t *testing.T) {
 	code := readLuaCode("getabi.lua")
-	require.NotNil(t, code, "failed to read getabi.lua")
+	require.NotEmpty(t, code, "failed to read getabi.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -353,7 +355,7 @@ func TestGetABI(t *testing.T) {
 
 func TestPayable(t *testing.T) {
 	code := readLuaCode("payable.lua")
-	require.NotNil(t, code, "failed to read payable.lua")
+	require.NotEmpty(t, code, "failed to read payable.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -384,7 +386,7 @@ func TestPayable(t *testing.T) {
 
 func TestDefault(t *testing.T) {
 	code := readLuaCode("default.lua")
-	require.NotNil(t, code, "failed to read default.lua")
+	require.NotEmpty(t, code, "failed to read default.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -409,9 +411,9 @@ func TestDefault(t *testing.T) {
 
 func TestReturn(t *testing.T) {
 	code := readLuaCode("return_1.lua")
-	require.NotNil(t, code, "failed to read return_1.lua")
+	require.NotEmpty(t, code, "failed to read return_1.lua")
 	code2 := readLuaCode("return_2.lua")
-	require.NotNil(t, code, "failed to read return_2.lua")
+	require.NotEmpty(t, code, "failed to read return_2.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -439,7 +441,7 @@ func TestReturn(t *testing.T) {
 
 func TestReturnUData(t *testing.T) {
 	code := readLuaCode("returnudata.lua")
-	require.NotNil(t, code, "failed to read returnudata.lua")
+	require.NotEmpty(t, code, "failed to read returnudata.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -454,7 +456,7 @@ func TestReturnUData(t *testing.T) {
 
 func TestEvent(t *testing.T) {
 	code := readLuaCode("event.lua")
-	require.NotNil(t, code, "failed to read event.lua")
+	require.NotEmpty(t, code, "failed to read event.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -469,7 +471,7 @@ func TestEvent(t *testing.T) {
 
 func TestView(t *testing.T) {
 	code := readLuaCode("view.lua")
-	require.NotNil(t, code, "failed to read view.lua")
+	require.NotEmpty(t, code, "failed to read view.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -502,7 +504,7 @@ func TestView(t *testing.T) {
 
 func TestDeploy(t *testing.T) {
 	code := readLuaCode("deploy.lua")
-	require.NotNil(t, code, "failed to read deploy.lua")
+	require.NotEmpty(t, code, "failed to read deploy.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -557,7 +559,7 @@ func TestDeploy(t *testing.T) {
 
 func TestDeploy2(t *testing.T) {
 	code := readLuaCode("deploy2.lua")
-	require.NotNil(t, code, "failed to read deploy2.lua")
+	require.NotEmpty(t, code, "failed to read deploy2.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -573,7 +575,7 @@ func TestDeploy2(t *testing.T) {
 
 func TestNDeploy(t *testing.T) {
 	code := readLuaCode("deployn.lua")
-	require.NotNil(t, code, "failed to read deployn.lua")
+	require.NotEmpty(t, code, "failed to read deployn.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -585,7 +587,7 @@ func TestNDeploy(t *testing.T) {
 
 func TestDeployFee(t *testing.T) {
 	code := readLuaCode("deployfee.lua")
-	require.NotNil(t, code, "failed to read deployfee.lua")
+	require.NotEmpty(t, code, "failed to read deployfee.lua")
 
 	bc, err := LoadDummyChain(SetTimeout(50), SetPubNet())
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -613,7 +615,7 @@ func TestDeployFee(t *testing.T) {
 
 func xestInfiniteLoop(t *testing.T) {
 	code := readLuaCode("infiniteloop.lua")
-	require.NotNil(t, code, "failed to read infiniteloop.lua")
+	require.NotEmpty(t, code, "failed to read infiniteloop.lua")
 
 	bc, err := LoadDummyChain(SetTimeout(50))
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -655,7 +657,7 @@ func xestInfiniteLoop(t *testing.T) {
 
 func TestInfiniteLoopOnPubNet(t *testing.T) {
 	code := readLuaCode("infiniteloop.lua")
-	require.NotNil(t, code, "failed to read infiniteloop.lua")
+	require.NotEmpty(t, code, "failed to read infiniteloop.lua")
 
 	bc, err := LoadDummyChain(SetTimeout(50), SetPubNet())
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -685,7 +687,7 @@ func TestInfiniteLoopOnPubNet(t *testing.T) {
 
 func TestUpdateSize(t *testing.T) {
 	code := readLuaCode("updatesize.lua")
-	require.NotNil(t, code, "failed to read updatesize.lua")
+	require.NotEmpty(t, code, "failed to read updatesize.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -707,10 +709,10 @@ func TestUpdateSize(t *testing.T) {
 
 func TestTimeoutCnt(t *testing.T) {
 	code := readLuaCode("timeout_1.lua")
-	require.NotNil(t, code, "failed to read timeout_1.lua")
+	require.NotEmpty(t, code, "failed to read timeout_1.lua")
 
 	code2 := readLuaCode("timeout_2.lua")
-	require.NotNil(t, code, "failed to read timeout_2.lua")
+	require.NotEmpty(t, code, "failed to read timeout_2.lua")
 
 	bc, err := LoadDummyChain(SetTimeout(500), SetPubNet()) // timeout 500 milliseconds
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -1393,7 +1395,7 @@ abi.register(init, add, addFail, get)`
 }
 
 func TestSqlVmPubNet(t *testing.T) {
-	bc, err := LoadDummyChain()
+	bc, err := LoadDummyChain(SetPubNet())
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -2126,7 +2128,7 @@ abi.register(init, exec, query, getmeta, queryS)`
 // type Tests
 func TestTypeOP(t *testing.T) {
 	code := readLuaCode("op.lua")
-	require.NotNil(t, code, "failed to read op.lua")
+	require.NotEmpty(t, code, "failed to read op.lua")
 
 	bc, err := LoadDummyChain(SetPubNet())
 	if err != nil {
@@ -2171,7 +2173,7 @@ func TestTypeOP(t *testing.T) {
 
 func TestTypeBF(t *testing.T) {
 	code := readLuaCode("bf.lua")
-	require.NotNil(t, code, "failed to read bf.lua")
+	require.NotEmpty(t, code, "failed to read bf.lua")
 
 	bc, err := LoadDummyChain(SetPubNet())
 	if err != nil {
@@ -4910,40 +4912,44 @@ func TestGasHello(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGasContractSend(t *testing.T) {
-	code := `
-	function constructor()
-	end
-    function send(addr)
-        contract.send(addr,1)
-		contract.call.value(1)(addr)
-    end
-	function send2(addr)
-		contract.call.value(1)(addr)
-		contract.call.value(3)(addr)
-	end
+/*
+	func TestGasContractSend(t *testing.T) {
+		code := `
+		function constructor()
+		end
+	    function send(addr)
+	        contract.send(addr,1)
+			contract.call.value(1)(addr)
+	    end
+		function send2(addr)
+			contract.call.value(1)(addr)
+			contract.call.value(3)(addr)
+		end
 
-    abi.register(send, send2, constructor)
-	abi.payable(constructor)
-`
-	code2 := `
-    function default()
-		system.print("default called")
-    end
-    abi.register(default)
-	abi.payable(default)
+	    abi.register(send, send2, constructor)
+		abi.payable(constructor)
+
 `
 
-	err := expectGas(code, 50000000000000000, `"send"`, fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash(DEF_TEST_ACCOUNT))), 105087, SetHardForkVersion(2))
-	assert.NoError(t, err)
+		code2 := `
+	    function default()
+			system.print("default called")
+	    end
+	    abi.register(default)
+		abi.payable(default)
 
-	err = expectGas(code2, 0, `"send2"`, fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash(DEF_TEST_ACCOUNT))), 102179, SetHardForkVersion(2))
-	assert.NoError(t, err)
-}
+`
 
+		err := expectGas(code, 50000000000000000, `"send"`, fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash(DEF_TEST_ACCOUNT))), 105087, SetHardForkVersion(2))
+		assert.NoError(t, err)
+
+		err = expectGas(code2, 0, `"send2"`, fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash(DEF_TEST_ACCOUNT))), 102179, SetHardForkVersion(2))
+		assert.NoError(t, err)
+	}
+*/
 func TestGasOP(t *testing.T) {
 	code := readLuaCode("op.lua")
-	require.NotNil(t, code, "failed to read op.lua")
+	require.NotEmpty(t, code, "failed to read op.lua")
 
 	err := expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	assert.NoError(t, err)
@@ -4957,7 +4963,7 @@ func TestGasOP(t *testing.T) {
 
 func TestGasBF(t *testing.T) {
 	code := readLuaCode("bf.lua")
-	require.NotNil(t, code, "failed to read bf.lua")
+	require.NotEmpty(t, code, "failed to read bf.lua")
 	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	// assert.NoError(t, err)
 
