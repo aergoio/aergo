@@ -121,7 +121,7 @@ func (c *deployContract) Run(args string) (string, uint64, []*types.Event, error
 
 	updateContractInfoInterface(contractName, defPath)
 
-	tx := vm_dummy.NewLuaTxDefBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg)
+	tx := vm_dummy.NewLuaTxDeployBig(accountName, contractName, amount, string(defByte)).Constructor(constuctorArg)
 	err = context.Get().ConnectBlock(tx)
 
 	if enableWatch && !strings.HasPrefix(defPath, "http") {

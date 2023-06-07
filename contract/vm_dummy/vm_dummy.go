@@ -394,15 +394,15 @@ func hash(id uint64) []byte {
 	return b
 }
 
-type luaTxDef struct {
+type luaTxDeploy struct {
 	luaTxContractCommon
 	cErr error
 }
 
-var _ LuaTxTester = (*luaTxDef)(nil)
+var _ LuaTxTester = (*luaTxDeploy)(nil)
 
-func NewLuaTxDef(sender, contract string, amount uint64, code string) *luaTxDef {
-	return NewLuaTxDefBig(sender, contract, new(big.Int).SetUint64(amount), code)
+func NewLuaTxDeploy(sender, contract string, amount uint64, code string) *luaTxDeploy {
+	return NewLuaTxDeployBig(sender, contract, new(big.Int).SetUint64(amount), code)
 }
 
 /*
@@ -427,11 +427,11 @@ func newTxId() uint64 {
 	return luaTxId
 }
 
-func (l *luaTxDef) okMsg() string {
+func (l *luaTxDeploy) okMsg() string {
 	return "CREATED"
 }
 
-func (l *luaTxDef) Constructor(args string) *luaTxDef {
+func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
 	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
 		return l
 	}
@@ -519,7 +519,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 
 }
 
-func (l *luaTxDef) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	if l.cErr != nil {
 		return l.cErr
 	}

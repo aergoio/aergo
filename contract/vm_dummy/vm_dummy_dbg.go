@@ -17,12 +17,12 @@ func getCompiledABI(code string) ([]byte, error) {
 	return byteCodeAbi.ABI(), nil
 }
 
-func NewLuaTxDefBig(sender, contractCode string, amount *big.Int, code string) *luaTxDef {
+func NewLuaTxDeployBig(sender, contractCode string, amount *big.Int, code string) *luaTxDeploy {
 	abi, err := getCompiledABI(code)
 	if err != nil {
-		return &luaTxDef{cErr: err}
+		return &luaTxDeploy{cErr: err}
 	}
-	return &luaTxDef{
+	return &luaTxDeploy{
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:   contract.StrHash(sender),
 			_contract: contract.StrHash(contractCode),
