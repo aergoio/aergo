@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -27,1508 +27,602 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func TestContractSystem(t *testing.T) {
-	code := `function testState()
-	system.setItem("key1", 999)
-	return system.getSender(), system.getTxhash(),system.getContractID(), system.getTimestamp(), system.getBlockheight(), system.getItem("key1")
-  end 
-abi.register(testState)`
-	bc, err := LoadDummyChain()
+func readLuaCode(file string) (luaCode string) {
+	path, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
+		return ""
 	}
+	raw, err := os.ReadFile(filepath.Join(path, "sample", file))
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+func TestContractSystem(t *testing.T) {
+	code := readLuaCode("system.lua")
+	require.NotNil(t, code, "failed to read system.lua")
+
+	bc, err := LoadDummyChain()
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-	)
-	_ = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "system", 0, code),
-	)
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000))
+	require.NoErrorf(t, err, "failed to new account")
+
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "system", 0, code))
+	require.NoErrorf(t, err, "failed to deploy contract")
+
 	tx := NewLuaTxCall("ktlee", "system", 0, `{"Name":"testState", "Args":[]}`)
-	_ = bc.ConnectBlock(tx)
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to call tx")
+
 	receipt := bc.GetReceipt(tx.Hash())
 	exRv := fmt.Sprintf(`["Amg6nZWXKB6YpNgBPv9atcjdm6hnFvs5wMdRgb2e9DmaF5g9muF2","6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, bc.cBlock.Header.Timestamp/1e9)
-	if receipt.GetRet() != exRv {
-		t.Errorf("expected: %s, but got: %s", exRv, receipt.GetRet())
-	}
+	assert.Equal(t, exRv, receipt.GetRet(), "receipt ret error")
 }
 
 func TestContractHello(t *testing.T) {
-	code := `function hello(say) return "Hello " .. say end abi.register(hello)`
+	code := readLuaCode("hello.lua")
+	require.NotNil(t, code, "failed to read hello.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create test database")
 	defer bc.Release()
 
-	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-	)
-	_ = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "hello", 0, code),
-	)
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000))
+	require.NoErrorf(t, err, "failed to new account")
+
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "hello", 0, code))
+	require.NoErrorf(t, err, "failed to deploy contract")
+
 	tx := NewLuaTxCall("ktlee", "hello", 0, `{"Name":"hello", "Args":["World"]}`)
-	_ = bc.ConnectBlock(tx)
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to call tx")
+
 	receipt := bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != `"Hello World"` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
+	assert.Equal(t, `"Hello World"`, receipt.GetRet(), "receipt ret error")
 }
 
 func TestContractSend(t *testing.T) {
+	code := readLuaCode("send_1.lua")
+	require.NotNil(t, code, "failed to read send_1.lua")
+	code2 := readLuaCode("send_2.lua")
+	require.NotNil(t, code2, "failed to read send_2.lua")
+	code3 := readLuaCode("send_3.lua")
+	require.NotNil(t, code3, "failed to read send_3.lua")
+	code4 := readLuaCode("send_4.lua")
+	require.NotNil(t, code4, "failed to read send_4.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-	function constructor()
-	end
-    function send(addr)
-        contract.send(addr,1)
-		contract.call.value(1)(addr)
-    end
-    abi.register(send, constructor)
-	abi.payable(constructor)
-`
-	definition2 := `
-    function default()
-		system.print("default called")
-    end
-    abi.register(default)
-	abi.payable(default)
-`
-	definition3 := `
-    function test()
-    end
-    abi.register(test)
-`
-	definition4 := `
-    function default()
-    end
-    abi.register(default)
-`
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "test1", 50, definition),
-		NewLuaTxDeploy("ktlee", "test2", 0, definition2),
-		NewLuaTxDeploy("ktlee", "test3", 0, definition3),
-		NewLuaTxDeploy("ktlee", "test4", 0, definition4),
+		NewLuaTxDeploy("ktlee", "test1", 50, code),
+		NewLuaTxDeploy("ktlee", "test2", 0, code2),
+		NewLuaTxDeploy("ktlee", "test3", 0, code3),
+		NewLuaTxDeploy("ktlee", "test4", 0, code4),
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test2")))),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoErrorf(t, err, "failed to deploy contract")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test2")))))
+	assert.NoErrorf(t, err, "failed to call tx")
+
 	state, err := bc.GetAccountState("test2")
-	if state.GetBalanceBigInt().Uint64() != 2 {
-		t.Error("balance error", state.GetBalanceBigInt())
-	}
+	assert.Equalf(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance error")
+
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test3")))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
 	)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoErrorf(t, err, "failed to connect new block")
+
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test4")))).Fail(`[Contract.LuaSendAmount] call err: 'default' is not payable`),
 	)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("ktlee")))),
 	)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoErrorf(t, err, "failed to connect new block")
 }
 
 func TestContractSendF(t *testing.T) {
+	code := readLuaCode("sendf_1.lua")
+	require.NotNil(t, code, "failed to read sendf_1.lua")
+	code2 := readLuaCode("sendf_2.lua")
+	require.NotNil(t, code2, "failed to read sendf_2.lua")
+
 	bc, err := LoadDummyChain(SetPubNet())
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-	function constructor()
-	end
-    function send(addr)
-        contract.send(addr,1)
-		contract.call.value(1)(addr)
-    end
-	function send2(addr)
-		contract.call.value(1)(addr)
-		contract.call.value(3)(addr)
-	end
-
-    abi.register(send, send2, constructor)
-	abi.payable(constructor)
-`
-	definition2 := `
-    function default()
-		system.print("default called")
-    end
-    abi.register(default)
-	abi.payable(default)
-`
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "test1", 50000000000000000, definition),
-		NewLuaTxDeploy("ktlee", "test2", 0, definition2),
+		NewLuaTxDeploy("ktlee", "test1", 50000000000000000, code),
+		NewLuaTxDeploy("ktlee", "test2", 0, code2),
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	tx := NewLuaTxCall("ktlee", "test1", 0,
-		fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`,
-			types.EncodeAddress(contract.StrHash("test2"))))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	tx := NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test2"))))
 	err = bc.ConnectBlock(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	r := bc.GetReceipt(tx.Hash())
-	expectedFee := uint64(105087)
-	if r.GetGasUsed() != expectedFee {
-		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
-	}
+	assert.Equalf(t, uint64(105087), r.GetGasUsed(), "gas used not equal")
+
 	state, err := bc.GetAccountState("test2")
-	if state.GetBalanceBigInt().Uint64() != 2 {
-		t.Error("balance error", state.GetBalanceBigInt())
-	}
-	tx = NewLuaTxCall("ktlee", "test1", 0,
-		fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`,
-			types.EncodeAddress(contract.StrHash("test2"))))
+	assert.Equalf(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance state not equal")
+
+	tx = NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("test2"))))
 	err = bc.ConnectBlock(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	r = bc.GetReceipt(tx.Hash())
-	expectedFee = uint64(105179)
-	if r.GetGasUsed() != expectedFee {
-		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
-	}
+	assert.Equalf(t, uint64(105179), r.GetGasUsed(), "gas used not equal")
+
 	state, err = bc.GetAccountState("test2")
-	if state.GetBalanceBigInt().Uint64() != 6 {
-		t.Error("balance error", state.GetBalanceBigInt())
-	}
+	assert.Equalf(t, uint64(6), state.GetBalanceBigInt().Uint64(), "balance state not equal")
 }
+
 func TestContractQuery(t *testing.T) {
-	code := `function inc()
-a = system.getItem("key1")
-if (a == nil) then
-	system.setItem("key1", 1)
-	return
-end
-system.setItem("key1", a + 1)
-end
-function query(a)
-	return system.getItem(a)
-end
-abi.register(query)
-abi.payable(inc)`
+	code := readLuaCode("query.lua")
+	require.NotNil(t, code, "failed to read query.lua")
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-	)
-	_ = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "query", 0, code),
-		NewLuaTxCall("ktlee", "query", 2, `{"Name":"inc", "Args":[]}`),
-	)
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "query", 0, code), NewLuaTxCall("ktlee", "query", 2, `{"Name":"inc", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
 
 	query, err := bc.GetAccountState("query")
-	if err != nil {
-		t.Error(err)
-	}
-	if query.GetBalanceBigInt().Uint64() != uint64(2) {
-		t.Error(query.Balance)
-	}
+	require.NoErrorf(t, err, "failed to get account state")
+	assert.Equalf(t, uint64(2), query.GetBalanceBigInt().Uint64(), "not equal balance")
 
 	err = bc.Query("query", `{"Name":"inc", "Args":[]}`, "set not permitted in query", "")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "1")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
 
 func TestContractCall(t *testing.T) {
-	definition1 := `
-	function constructor(init)
-		system.setItem("count", init)
-	end
-	function inc()
-		count = system.getItem("count")
-		system.setItem("count", count + 1)
-		return count
-	end
-
-	function get()
-		return system.getItem("count")
-	end
-
-	function set(val)
-		system.setItem("count", val)
-	end
-	abi.register(inc,get,set)
-	`
+	code := readLuaCode("call_1.lua")
+	require.NotNil(t, code, "failed to read call_1.lua")
+	code2 := readLuaCode("call_2.lua")
+	require.NotNil(t, code2, "failed to read call_2.lua")
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "counter", 0, definition1).Constructor("[1]"),
+		NewLuaTxDeploy("ktlee", "counter", 0, code).Constructor("[1]"),
 		NewLuaTxCall("ktlee", "counter", 0, `{"Name":"inc", "Args":[]}`),
 	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "2")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
-	definition2 := `
-	function constructor(addr)
-		system.setItem("count", 99)
-		system.setItem("addr", addr)
-	end
-	function add(amount)
-		return contract.call.value(amount)(system.getItem("addr"), "inc")
-	end
-	function dadd()
-		return contract.delegatecall(system.getItem("addr"), "inc")
-	end
-	function get()
-		addr = system.getItem("addr")
-		a = contract.call(addr, "get")
-		return a
-	end
-	function dget()
-		addr = system.getItem("addr")
-		a = contract.delegatecall(addr, "get")
-		return a
-	end
-	function set(val)
-		contract.call(system.getItem("addr"), "set", val)
-	end
-	function dset(val)
-		contract.delegatecall(system.getItem("addr"), "set", val)
-	end
-	abi.register(add,dadd, get, dget, set, dset)
-	`
 	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "caller", 0, definition2).
-			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("counter")))),
+		NewLuaTxDeploy("ktlee", "caller", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("counter")))),
 		NewLuaTxCall("ktlee", "caller", 0, `{"Name":"add", "Args":[]}`),
 	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
 	err = bc.Query("caller", `{"Name":"dget", "Args":[]}`, "", "99")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
 	tx := NewLuaTxCall("ktlee", "caller", 0, `{"Name":"dadd", "Args":[]}`)
-	_ = bc.ConnectBlock(tx)
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	receipt := bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != `99` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
+	assert.Equalf(t, `99`, receipt.GetRet(), "contract Call ret error")
+
 	tx = NewLuaTxCall("ktlee", "caller", 0, `{"Name":"dadd", "Args":[]}`)
-	_ = bc.ConnectBlock(tx)
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	receipt = bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != `100` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
+	assert.Equalf(t, `100`, receipt.GetRet(), "contract Call ret error")
+
 	err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
 
-func TestPingpongCall(t *testing.T) {
-	definition1 := `
-	function constructor()
-		system.setItem("key",  "empty")
-	end
-	function start(addr)
-		system.setItem("key",  "start")
-		contract.call(addr, "called")
-	end
-
-	function callback()
-		system.setItem("key",  "callback")
-	end
-
-	function get()
-		return system.getItem("key")
-	end
-
-	abi.register(start, callback, get)
-	`
+func TestContractPingpongCall(t *testing.T) {
+	code := readLuaCode("pingpongcall_1.lua")
+	require.NotNil(t, code, "failed to read pingpongcall_1.lua")
+	code2 := readLuaCode("pingpongcall_2.lua")
+	require.NotNil(t, code2, "failed to read pingpongcall_2.lua")
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "a", 0, definition1),
-	)
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "a", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	definition2 := `
-	function constructor(addr)
-		system.setItem("key",  "empty")
-		system.setItem("addr",  addr)
-	end
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "b", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("a")))))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	function called()
-		system.setItem("key",  "called")
-		contract.call(system.getItem("addr"), "callback")
-	end
+	tx := NewLuaTxCall("ktlee", "a", 0, fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("b"))))
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	function get()
-		return system.getItem("key")
-	end
-
-	abi.register(called, get)
-	`
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "b", 0, definition2).
-			Constructor(fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash("a")))),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	tx := NewLuaTxCall("ktlee", "a", 0,
-		fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, types.EncodeAddress(contract.StrHash("b"))))
-	_ = bc.ConnectBlock(tx)
 	err = bc.Query("a", `{"Name":"get", "Args":[]}`, "", `"callback"`)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
 	err = bc.Query("b", `{"Name":"get", "Args":[]}`, "", `"called"`)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
 
 func TestRollback(t *testing.T) {
-	code := `function inc()
-a = system.getItem("key1")
-if (a == nil) then
-	system.setItem("key1", 1)
-	return
-end
-system.setItem("key1", a + 1)
-end
-function query(a)
-	return system.getItem(a)
-end
-abi.register(query)
-abi.payable(inc)`
+	code := readLuaCode("rollback.lua")
+	require.NotNil(t, code, "failed to read rollback.lua")
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-	)
-	_ = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "query", 0, code),
-		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
-	)
-	_ = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
-		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
-	)
-	_ = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
-		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
-	)
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000))
+	require.NoErrorf(t, err, "failed to connect new block")
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "query", 0, code), NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`), NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`), NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "5")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.DisConnectBlock()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to disconnect block")
+
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "3")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.DisConnectBlock()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to disconnect block")
 
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "1")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
-	_ = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`),
-	)
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "query", 0, `{"Name":"inc", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.Query("query", `{"Name":"query", "Args":["key1"]}`, "", "2")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
 
 func TestAbi(t *testing.T) {
-	errMsg := "no exported functions"
-
-	noAbi := `
-	function dummy()
-		system.print("dummy")
-	end`
+	codeNoAbi := readLuaCode("abi_no.lua")
+	require.NotNil(t, codeNoAbi, "failed to read abi_no.lua")
+	codeEmpty := readLuaCode("abi_empty.lua")
+	require.NotNil(t, codeEmpty, "failed to read abi_empty.lua")
+	codeLocalFunc := readLuaCode("abi_localfunc.lua")
+	require.NotNil(t, codeLocalFunc, "failed to read abi_localfunc.lua")
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "a", 0, noAbi),
-	)
-	if err == nil {
-		t.Errorf("expected: %s, but got: nil", errMsg)
-	} else if !strings.Contains(err.Error(), "no exported functions") {
-		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
-	}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "a", 0, codeNoAbi))
+	require.Errorf(t, err, fmt.Sprintf("expected err : %s, buf got nil", "no exported functions"))
+	require.Containsf(t, err.Error(), "no exported functions", "not contains error message")
 
-	empty := `
-	function dummy()
-		system.print("dummy")
-	end
-	abi.register()`
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "a", 0, codeEmpty))
+	require.Errorf(t, err, fmt.Sprintf("expected err : %s, buf got nil", "no exported functions."))
+	require.Containsf(t, err.Error(), "no exported functions.", "not contains error message")
 
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "a", 0, empty),
-	)
-	if err == nil {
-		t.Errorf("expected: %s, but got: nil", errMsg)
-	} else if !strings.Contains(err.Error(), "no exported functions.") {
-		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
-	}
-
-	localFunc := `
-	function dummy()
-		system.print("dummy")
-	end
-	local function helper()
-		system.print("helper")
-	end
-	abi.register(helper)`
-
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "a", 0, localFunc),
-	)
-	if err == nil {
-		t.Errorf("expected: %s, but got: nil", errMsg)
-	} else if !strings.Contains(err.Error(), "global function expected") {
-		t.Errorf("expected: %s, but got: %s", errMsg, err.Error())
-	}
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "a", 0, codeLocalFunc))
+	require.Errorf(t, err, fmt.Sprintf("expected err : %s, buf got nil", "global function expected"))
+	require.Containsf(t, err.Error(), "global function expected", "not contains error message")
 }
 
 func TestGetABI(t *testing.T) {
+	code := readLuaCode("getabi.lua")
+	require.NotNil(t, code, "failed to read getabi.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	_ = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "hello", 0,
-			`state.var {
-	Say = state.value()
-}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "hello", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-function hello(say) 
-  return "Hello " .. say 
-end 
-
-abi.register(hello)`),
-	)
 	abi, err := bc.GetABI("hello")
-	if err != nil {
-		t.Error(err)
-	}
-	b, err := json.Marshal(abi)
-	if err != nil {
-		t.Error(err)
-	}
-	if string(b) != `{"version":"0.2","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}],"state_variables":[{"name":"Say","type":"value"}]}` {
-		t.Error(string(b))
-	}
+	require.NoErrorf(t, err, "failed to get abi")
+
+	jsonAbi, err := json.Marshal(abi)
+	require.NoErrorf(t, err, "failed to marshal abi")
+	require.Equalf(t, `{"version":"0.2","language":"lua","functions":[{"name":"hello","arguments":[{"name":"say"}]}],"state_variables":[{"name":"Say","type":"value"}]}`, string(jsonAbi), "not equal abi")
 }
 
 func TestPayable(t *testing.T) {
-	src := `
-state.var {
-	Data = state.value()
-}
-function save(data)
-	Data:set(data)
-end
-function load()
-	return Data:get()
-end
+	code := readLuaCode("payable.lua")
+	require.NotNil(t, code, "failed to read payable.lua")
 
-abi.register(load)
-abi.payable(save)
-`
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-	)
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "payable", 1, src),
-	)
-	if err == nil {
-		t.Error("expected: 'constructor' is not payable")
-	} else {
-		if !strings.Contains(err.Error(), "'constructor' is not payable") {
-			t.Error(err)
-		}
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("not found contract"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "payable", 0, src),
-		NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "payable", 1, code))
+	require.Errorf(t, err, "expected: 'constructor' is not payable")
+	require.Containsf(t, err.Error(), "'constructor' is not payable", "not contains error message")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`).Fail("not found contract"))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "payable", 0, code), NewLuaTxCall("ktlee", "payable", 0, `{"Name":"save", "Args": ["blahblah"]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	err = bc.Query("payable", `{"Name":"load"}`, "", `"blahblah"`)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "payable", 1, `{"Name":"save", "Args": ["payed"]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "payable", 1, `{"Name":"save", "Args": ["payed"]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	err = bc.Query("payable", `{"Name":"load"}`, "", `"payed"`)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
 
 func TestDefault(t *testing.T) {
-	src := `
-function default()
-	return "default"
-end
-abi.register(default)
-`
+	code := readLuaCode("default.lua")
+	require.NotNil(t, code, "failed to read default.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "default", 0, src),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "default", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	tx := NewLuaTxCall("ktlee", "default", 0, "")
 	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	receipt := bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != `"default"` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "default", 1, "").Fail(`'default' is not payable`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.Equalf(t, `"default"`, receipt.GetRet(), "contract Call ret error")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "default", 1, "").Fail(`'default' is not payable`))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	err = bc.Query("default", `{"Name":"a"}`, "not found function: a", "")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
 
 func TestReturn(t *testing.T) {
+	code := readLuaCode("return_1.lua")
+	require.NotNil(t, code, "failed to read return_1.lua")
+	code2 := readLuaCode("return_2.lua")
+	require.NotNil(t, code, "failed to read return_2.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "return_num", 0, "function return_num() return 10 end abi.register(return_num)"),
+		NewLuaTxDeploy("ktlee", "return_num", 0, code),
 		NewLuaTxCall("ktlee", "return_num", 0, `{"Name":"return_num", "Args":[]}`),
 	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.Query("return_num", `{"Name":"return_num", "Args":[]}`, "", "10")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
-	foo := `function foo()
-	return {1,2,3}
-end
-function foo2(bar)
-	return bar
-	end
-abi.register(foo,foo2)`
-
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "foo", 0, foo),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "foo", 0, code2))
+	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.Query("foo", `{"Name":"foo", "Args":[]}`, "", "[1,2,3]")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
 	err = bc.Query("foo", `{"Name":"foo2", "Args":["foo314"]}`, "", `"foo314"`)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 }
+
 func TestReturnUData(t *testing.T) {
+	code := readLuaCode("returnudata.lua")
+	require.NotNil(t, code, "failed to read returnudata.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-	function test_die()
-	return contract.call(system.getContractID(), "return_object")
-	end
-	function return_object()
-	return db.query("select 1")
-	end
-	abi.register(test_die, return_object)`
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "rs-return", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "rs-return", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "rs-return", 0, `{"Name": "test_die", "Args":[]}`).Fail(`unsupport type: userdata`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "rs-return", 0, `{"Name": "test_die", "Args":[]}`).Fail(`unsupport type: userdata`))
+	require.NoErrorf(t, err, "failed to connect new block")
 }
 
 func TestEvent(t *testing.T) {
+	code := readLuaCode("event.lua")
+	require.NotNil(t, code, "failed to read event.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-    function test_ev()
-        contract.event("ev1", 1,"local", 2, "form")
-        contract.event("ev1", 3,"local", 4, "form")
-    end
-    abi.register(test_ev)`
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "event", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "event", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
 }
 
 func TestView(t *testing.T) {
+	code := readLuaCode("view.lua")
+	require.NotNil(t, code, "failed to read view.lua")
+
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-    function test_view(a)
-      contract.event("ev1", 1,"local", 2, "form")
-      contract.event("ev1", 3,"local", 4, "form")
-    end
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "view", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	function k(a)
-		return a
-	end
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "test_view", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	function tx_in_view_function()
-		k2()
-	end
-
-	function k2()
-		test_view()
-	end
-
-	function k3()
-		ret = contract.pcall(test_view)
-		assert (ret == false)
-		contract.event("ev2", 4, "global")
-	end
-	function tx_after_view_function()
-		assert(k(1) == 1)
-        contract.event("ev1", 1,"local", 2, "form")
-	end
-	function sqltest()
-  		db.exec([[create table if not exists book (
-			page number,
-			contents text
-		)]])
-	end
-    abi.register(test_view, tx_after_view_function, k2, k3)
-    abi.register_view(test_view, k, tx_in_view_function, sqltest)
-`
-
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "view", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "view", 0, `{"Name": "test_view", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
 	err = bc.Query("view", `{"Name":"k", "Args":[10]}`, "", "10")
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_in_view_function", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_after_view_function", "Args":[]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "view", 0, `{"Name": "k2", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "view", 0, `{"Name": "k3", "Args":[]}`),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "view", 0, `{"Name": "sqltest", "Args":[]}`).Fail("not permitted in view function"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_in_view_function", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "tx_after_view_function", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "k2", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "k3", "Args":[]}`))
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "sqltest", "Args":[]}`).Fail("not permitted in view function"))
+	require.NoErrorf(t, err, "failed to connect new block")
 }
 
 func TestDeploy(t *testing.T) {
-	deploy := `
-function hello()
-	hello = [[
-function hello(say)
-	return "Hello " .. say 
-end
+	code := readLuaCode("deploy.lua")
+	require.NotNil(t, code, "failed to read deploy.lua")
 
-local type_check = {}
-function type_check.isValidAddress(address)
-    -- check existence of invalid alphabets
-    if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
-        return false
-    end
-    -- check lenght is in range
-    if 52 ~= string.len(address) then
-        return false
-    end
-    -- TODO add checksum verification?
-    return true
-end
-function type_check.isValidNumber(value)
-    if nil ~= string.match(value, '[^0123456789]') then
-        return false
-    end
-    return true
-end
-
--- The a bridge token is a mintable and burnable token controlled by
--- the bridge contract. It represents all tokens locked on the other side of the 
--- bridge with a 1:1 ratio.
--- This contract is depoyed by the merkle bridge when a new type of token 
--- is transfered
-state.var {
-    Symbol = state.value(),
-    Name = state.value(),
-    Decimals = state.value(),
-    TotalSupply = state.value(),
-    Balances = state.map(),
-    Nonces = state.map(),
-    -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
-    -- This is neeeded for replay protection of signed transfer, because users might have the same private key
-    -- on different sidechains
-    ContractID = state.value(),
-    Owner = state.value(),
-}
-
-function constructor() 
-    Symbol:set("TOKEN")
-    Name:set("Standard Token on Aergo")
-    Decimals:set(18)
-    TotalSupply:set(bignum.number(0))
-    Owner:set(system.getSender())
-    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    -- take the first 16 bytes to save size of signed message
-    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
-    id = string.sub(id, 3, 32)
-    ContractID:set(id)
-    return true
-end
-
----------------------------------------
--- Transfer sender's token to target 'to'
--- @type        call
--- @param to    a target address
--- @param value string amount of tokens to send
--- @return      success
----------------------------------------
-function transfer(to, value) 
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    local from = system.getSender()
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(bvalue > b0, "invalid value")
-    assert(to ~= from, "same sender and receiver")
-    assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
-    Balances[from] = Balances[from] - bvalue
-    Nonces[from] = (Nonces[from] or 0) + 1
-    Balances[to] = (Balances[to] or b0) + bvalue
-    -- TODO event notification
-    return true
-end
-
----------------------------------------
--- Transfer tokens according to signed data from the owner
--- @type  call
--- @param from      sender's address
--- @param to        receiver's address
--- @param value     string amount of token to send in aer
--- @param nonce     nonce of the sender to prevent replay
--- @param fee       string fee given to the tx broadcaster
--- @param deadline  block number before which the tx can be executed
--- @param signature signature proving sender's consent
--- @return          success
----------------------------------------
-function signed_transfer(from, to, value, nonce, signature, fee, deadline)
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
-    local bfee = bignum.number(fee)
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    -- check addresses
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
-    assert(to ~= from, "same sender and receiver")
-    -- check amounts, fee
-    assert(bfee >= b0, "fee must be positive")
-    assert(bvalue >= b0, "value must be positive")
-    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
-    -- check deadline
-    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
-    -- check nonce
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
-    -- construct signed transfer and verifiy signature
-    data = crypto.sha256(to..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
-    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
-    -- execute transfer
-    Balances[from] = Balances[from] - bvalue - bfee
-    Balances[to] = (Balances[to] or b0) + bvalue
-    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
-    Nonces[from] = Nonces[from] + 1
-    -- TODO event notification
-    return true
-end
-
-
----------------------------------------
--- mint, burn and signed_burn are specific to the token contract controlled by
--- the merkle bridge contract and representing transfered assets.
----------------------------------------
-
----------------------------------------
--- Mint tokens to 'to'
--- @type        call
--- @param to    a target address
--- @param value string amount of token to mint
--- @return      success
----------------------------------------
-function mint(to, value)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    local new_total = TotalSupply:get() + bvalue
-    TotalSupply:set(new_total)
-    Balances[to] = (Balances[to] or b0) + bvalue;
-    -- TODO event notification
-    return true
-end
-
----------------------------------------
--- burn the tokens of 'from'
--- @type        call
--- @param from  a target address
--- @param value an amount of token to send
--- @return      success
----------------------------------------
-function burn(from, value)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(type_check.isValidAddress(from), "invalid address format: " ..from)
-    assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
-    new_total = TotalSupply:get() - bvalue
-    TotalSupply:set(new_total)
-    Balances[from] = Balances[from] - bvalue
-    -- TODO event notification
-    return true
-end
-
----------------------------------------
--- signed_burn the tokens of 'from' according to signed data from the owner
--- @type            call
--- @param from      a target address
--- @param value     an amount of token to send
--- @param nonce     nonce of the sender to prevent replay
--- @param fee       string fee given to the tx broadcaster
--- @param deadline  block number before which the tx can be executed
--- @param signature signature proving sender's consent
--- @return          success
----------------------------------------
-function signed_burn(from, value, nonce, signature, fee, deadline)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
-    local bfee = bignum.number(fee)
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    -- check addresses
-    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
-    -- check amounts, fee
-    assert(bfee >= b0, "fee must be positive")
-    assert(bvalue >= b0, "value must be positive")
-    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
-    -- check deadline
-    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
-    -- check nonce
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
-    -- construct signed transfer and verifiy signature
-    data = crypto.sha256(system.getSender()..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
-    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
-    -- execute burn
-    new_total = TotalSupply:get() - bvalue
-    TotalSupply:set(new_total)
-    Balances[from] = Balances[from] - bvalue - bfee
-    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
-    Nonces[from] = Nonces[from] + 1
-    -- TODO event notification
-    return true
-end
-
-
--- register functions to abi
-abi.register(transfer, signed_transfer, mint, burn, signed_burn, hello)
-	]]
-	addr = contract.deploy(hello)
-	ret = contract.call(addr, "hello", "world")
-	return addr, ret
-end
-
-function helloQuery(addr)
-	return contract.call(addr, "hello", "world")
-end
-
-function testConst()
-	src = [[
-		function hello(say, key) 
-			return "Hello " .. say .. system.getItem(key) 
-		end 
-		function constructor(key, item) 
-			system.setItem(key, item)
-			return key, item
-		end 
-		abi.register(hello) 
-		abi.payable(constructor)
-	]]
-	addr, key, item = contract.deploy.value(100)(src, "key", 2)
-	ret = contract.call(addr, "hello", "world", "key")
-	return addr, ret
-end
-
-function testFail()
-	src = [[
-		function hello(say, key) 
-			return "Hello " .. say .. system.getItem(key) 
-		end 
-		function constructor()
-		end 
-		abi.register(hello) 
-	]]
-	addr = contract.deploy.value(100)(src)
-	return addr
-end
- 
-paddr = nil
-function deploy()
-	src = [[
-		function hello(say, key) 
-			return "Hello " .. say .. system.getItem(key) 
-		end 
-		function getcre()
-			return system.getCreator()
-		end
-		function constructor()
-		end 
-		abi.register(hello, getcre) 
-	]]
-	paddr = contract.deploy(src)
-	system.print("addr :", paddr)
-	ret = contract.call(paddr, "hello", "world", "key")
-end
-
-function testPcall()
-	ret = contract.pcall(deploy)
-	return contract.call(paddr, "getcre")
-end
-function constructor()
-end
-
-abi.register(hello, helloQuery, testConst, testFail, testPcall)
-abi.payable(constructor)
-`
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "deploy", 50000000000, deploy),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 50000000000, code))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`)
 	err = bc.ConnectBlock(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	receipt := bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != `["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf","Hello world"]` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
+	assert.Equalf(t, `["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf","Hello world"]`, receipt.GetRet(), "contract Call ret error")
+
 	err = bc.Query("deploy", `{"Name":"helloQuery", "Args":["AmgKtCaGjH4XkXwny2Jb1YH5gdsJGJh78ibWEgLmRWBS5LMfQuTf"]}`, "", `"Hello world"`)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
+
 	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testConst"}`)
 	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	receipt = bc.GetReceipt(tx.Hash())
-	if receipt.GetRet() != `["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","Hello world2"]` {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
+	assert.Equalf(t, `["Amhmj6kKZz7mPstBAPJWRe1e8RHP7bZ5pV35XatqTHMWeAVSyMkc","Hello world2"]`, receipt.GetRet(), "contract Call ret error")
+
 	deployAcc, err := bc.GetAccountState("deploy")
-	if err != nil {
-		t.Error(err)
-	}
-	if deployAcc.GetBalanceBigInt().Uint64() != uint64(49999999900) {
-		t.Error(deployAcc.GetBalanceBigInt().Uint64())
-	}
-	deployAcc, _ = bc.GetAccountState("deploy")
+	require.NoErrorf(t, err, "failed to get account state")
+	assert.Equalf(t, uint64(49999999900), deployAcc.GetBalanceBigInt().Uint64(), "not same balance")
+
+	deployAcc, err = bc.GetAccountState("deploy")
+	require.NoErrorf(t, err, "failed to get account state")
+
 	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testFail"}`)
 	err = bc.ConnectBlock(tx)
-	deployAcc, _ = bc.GetAccountState("deploy")
-	if deployAcc.Nonce != 2 {
-		t.Error("nonce rollback failed", deployAcc.Nonce)
-	}
+	require.Errorf(t, err, "expect err : `constructor` is not payable")
+
+	deployAcc, err = bc.GetAccountState("deploy")
+	require.NoErrorf(t, err, "failed to get account state")
+	assert.Equalf(t, uint64(2), deployAcc.Nonce, "not same nonce")
+
 	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testPcall"}`)
 	err = bc.ConnectBlock(tx)
-	deployAcc, _ = bc.GetAccountState("deploy")
-	if deployAcc.Nonce != 2 {
-		t.Error("nonce rollback failed", deployAcc.Nonce)
-	}
+	require.Errorf(t, err, "expect err : cannot find contract Amhs9v8EeAAWrrvEFrvMng4UksHRsR7wN1iLqKkXw5bqMV18JP3h")
+
+	deployAcc, err = bc.GetAccountState("deploy")
+	require.NoErrorf(t, err, "failed to get account state")
+	assert.Equalf(t, uint64(2), deployAcc.Nonce, "nonce rollback failed")
+
 	receipt = bc.GetReceipt(tx.Hash())
-	if !strings.Contains(receipt.GetRet(), "cannot find contract") {
-		t.Errorf("contract Call ret error :%s", receipt.GetRet())
-	}
+	assert.Containsf(t, receipt.GetRet(), "cannot find contract", "contract Call ret error")
 }
 
 func TestDeploy2(t *testing.T) {
-	deploy := `
-function hello()
-	src = [[
-state.var{
-  counts = state.array(10)
-}
+	code := readLuaCode("deploy2.lua")
+	require.NotNil(t, code, "failed to read deploy2.lua")
 
-counts[1] = 10
-function inc(key)
-  if counts[key] == nil then
-    counts[key] = 0
-  end
-  counts[key] = counts[key] + 1
-end
-
-function get(key)
-  return counts[key]
-end
-
-function set(key,val)
-  counts[key] = val
-end
-
-function len()
-  return counts:length()
-end
-
-function iter()
-  local rv = {}
-  for i, v in counts:ipairs() do
-    if v == nil then
-      rv[i] = "nil"
-    else
-      rv[i] = v
-    end
-  end
-  return rv
-end
-
-abi.register(inc,get,set,len,iter)
-	]]
-	paddr = contract.deploy(src)
-	system.print("addr :", paddr)
-	ret = contract.call(paddr, "hello", "world", "key")
-end
-
-function constructor()
-end
-
-abi.register(hello)
-abi.payable(constructor)
-`
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "deploy", 50000000000, deploy),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 50000000000, code))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`not permitted state referencing at global scope`)
 	err = bc.ConnectBlock(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
 }
 
 func TestNDeploy(t *testing.T) {
+	code := readLuaCode("deployn.lua")
+	require.NotNil(t, code, "failed to read deployn.lua")
 
 	bc, err := LoadDummyChain()
-
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-function constructor()
-  testall()
-end
-
-function testall()
-  deploytest()
-  sendtest()
-end
-
-function deploytest()
-  src = [[
-  function default()
-    contract.send(system.getSender(), system.getAmount())
-  end
-
-  function getargs(...)
-    tb = {...}
-  end
-
-  abi.payable(default)
-  abi.register(getargs)
-  ]]
-
-  addr = contract.deploy(src)
-  id = 'deploy_src'; system.setItem(id, addr)
-  system.print(id, system.getItem(id))
-
-  korean_char_src = [[
-  function 함수()
-    변수 = 1
-    결과 = 변수 + 3
-    system.print('결과', 결과)
-  end
-
-  abi.register(함수)
-  ]]
-
-  
-  korean_char_src222 = [[
-    function default()
-      contract.send(system.getSender(), system.getAmount())
-    end
-  
-    function getargs(...)
-      tb = {...}
-    end
-  
-    function x()
-    end
-
-    abi.payable(default)
-    abi.register(getargs)
-  ]]
-
-  korean_addr =  contract.deploy(korean_char_src)
-  id = 'korean_char_src'; system.setItem(id, korean_addr)
-  system.print(id, system.getItem(id))
-end
-
-function sendtest()
-  addr = system.getItem("deploy_src")
-  system.print('ADDRESS', addr, system.getAmount())
-  
-  id = 's01'; system.setItem(id,{pcall(function() contract.send(addr, system.getAmount()) end)})
-  system.print(id, system.getItem(id))
-end
-
-function default()
-  -- do nothing
-end
-
-abi.payable(constructor, default)
-abi.register(testall)
-`
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "n-deploy", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "n-deploy", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 }
 
 func TestDeployFee(t *testing.T) {
-	src := `
-	paddr = nil
-	function deploy()
-	src = [[
-		function hello(say, key)
-	return "Hello " .. say .. key
-	end
-	function getcre()
-	return system.getCreator()
-	end
-	function constructor()
-	end
-	abi.register(hello, getcre)
-]]
-	paddr = contract.deploy(src)
-	system.print("addr :", paddr)
-	ret = contract.call(paddr, "hello", "world", "key")
-	end
-	function testPcall()
-		ret = contract.pcall(deploy)
-		return contract.call(paddr, "getcre")
-	end
+	code := readLuaCode("deployfee.lua")
+	require.NotNil(t, code, "failed to read deployfee.lua")
 
-	abi.register(testPcall)`
-
-	bc, err := LoadDummyChain(
-		SetTimeout(50),
-		SetPubNet(),
-	)
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	bc, err := LoadDummyChain(SetTimeout(50), SetPubNet())
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "deploy", 0, src),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	state, err := bc.GetAccountState("ktlee")
-	if err != nil {
-		t.Error(err)
-	}
-	bal := state.GetBalanceBigInt().Uint64()
+	require.NoErrorf(t, err, "failed to get account state")
+	before := state.GetBalanceBigInt().Uint64()
+
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name": "testPcall"}`)
 	err = bc.ConnectBlock(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	r := bc.GetReceipt(tx.Hash())
-	expectedFee := uint64(117861)
-	if r.GetGasUsed() != expectedFee {
-		t.Errorf("expected: %d, but got: %d", expectedFee, r.GetGasUsed())
-	}
+	assert.Equalf(t, uint64(117861), r.GetGasUsed(), "not same gas used")
+
 	state, err = bc.GetAccountState("ktlee")
-	if err != nil {
-		t.Error(err)
-	}
-	if bal-expectedFee != state.GetBalanceBigInt().Uint64() {
-		t.Errorf(
-			"expected: %d, but got: %d",
-			bal-expectedFee,
-			state.GetBalanceBigInt().Uint64(),
-		)
-	}
+	require.NoErrorf(t, err, "failed to get account state")
+	after := state.GetBalanceBigInt().Uint64()
+	assert.Equalf(t, before-uint64(117861), after, "not same balance")
 }
 
 func xestInfiniteLoop(t *testing.T) {
-	bc, err := LoadDummyChain(
-		SetTimeout(50),
-	)
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	code := readLuaCode("infiniteloop.lua")
+	require.NotNil(t, code, "failed to read infiniteloop.lua")
+
+	bc, err := LoadDummyChain(SetTimeout(50))
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-function infiniteLoop()
-    local t = 0
-	while true do
-	    t = t + 1
-	end
-	return t
-end
-function infiniteCall()
-	infiniteCall()
-end
-function catch()
-	return pcall(infiniteLoop)
-end
-function contract_catch()
-	return contract.pcall(infiniteLoop)
-end
-abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "loop", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "loop", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"infiniteLoop"}`,
-		),
-	)
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"infiniteLoop"}`))
 	errTimeout := "exceeded the maximum instruction count"
 	if err == nil {
 		t.Errorf("expected: %s", errTimeout)
@@ -1537,14 +631,7 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 		t.Error(err)
 	}
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"catch"}`,
-		),
-	)
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"catch"}`))
 	if err == nil {
 		t.Errorf("expected: %s", errTimeout)
 	}
@@ -1552,14 +639,7 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 		t.Error(err)
 	}
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"contract_catch"}`,
-		),
-	)
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"contract_catch"}`))
 	if err == nil {
 		t.Errorf("expected: %s", errTimeout)
 	}
@@ -1567,139 +647,54 @@ abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
 		t.Error(err)
 	}
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"infiniteCall"}`,
-		).Fail("stack overflow"),
-	)
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"infiniteCall"}`).Fail("stack overflow"))
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestInfiniteLoopOnPubNet(t *testing.T) {
-	bc, err := LoadDummyChain(
-		SetTimeout(50),
-		SetPubNet(),
-	)
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	code := readLuaCode("infiniteloop.lua")
+	require.NotNil(t, code, "failed to read infiniteloop.lua")
+
+	bc, err := LoadDummyChain(SetTimeout(50), SetPubNet())
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	definition := `
-function infiniteLoop()
-    local t = 0
-	while true do
-	    t = t + 1
-	end
-	return t
-end
-function infiniteCall()
-	infiniteCall()
-end
-function catch()
-	return pcall(infiniteLoop)
-end
-function contract_catch()
-	return contract.pcall(infiniteLoop)
-end
-abi.register(infiniteLoop, infiniteCall, catch, contract_catch)`
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "loop", 0, code))
+	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "loop", 0, definition),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"infiniteLoop"}`,
-		),
-	)
 	errTimeout := contract.VmTimeoutError{}
-	if err == nil {
-		t.Errorf("expected: %v", errTimeout)
-	}
-	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
-		t.Error(err)
-	}
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"catch"}`,
-		),
-	)
-	if err == nil {
-		t.Errorf("expected: %v", errTimeout)
-	}
-	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"infiniteLoop"}`))
+	require.Errorf(t, err, "expected: %v", errTimeout)
+	require.Containsf(t, err.Error(), errTimeout.Error(), "not contain timeout error")
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"contract_catch"}`,
-		),
-	)
-	if err == nil {
-		t.Errorf("expected: %v", errTimeout)
-	}
-	if err != nil && !strings.Contains(err.Error(), errTimeout.Error()) {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"catch"}`))
+	require.Errorf(t, err, "expected: %v", errTimeout)
+	require.Containsf(t, err.Error(), errTimeout.Error(), "not contain timeout error")
 
-	err = bc.ConnectBlock(
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"infiniteCall"}`,
-		).Fail("stack overflow"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"contract_catch"}`))
+	require.Errorf(t, err, "expected: %v", errTimeout)
+	require.Containsf(t, err.Error(), errTimeout.Error(), "not contain timeout error")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "loop", 0, `{"Name":"infiniteCall"}`).Fail("stack overflow"))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 }
 
 func TestUpdateSize(t *testing.T) {
-	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
-	defer bc.Release()
+	code := readLuaCode("updatesize.lua")
+	require.NotNil(t, code, "failed to read updatesize.lua")
 
-	definition := `
-function infiniteLoop()
-	for i = 1, 100000000000000 do
-		system.setItem("key_"..i, "value_"..i)
-	end
-end
-abi.register(infiniteLoop)`
+	bc, err := LoadDummyChain()
+	require.NoErrorf(t, err, "failed to create dummy chain")
+	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "loop", 0, definition),
-		NewLuaTxCall(
-			"ktlee",
-			"loop",
-			0,
-			`{"Name":"infiniteLoop"}`,
-		),
+		NewLuaTxDeploy("ktlee", "loop", 0, code),
+		NewLuaTxCall("ktlee", "loop", 0, `{"Name":"infiniteLoop"}`),
 	)
 	errMsg := "exceeded size of updates in the state database"
 	if err == nil {
@@ -1709,77 +704,41 @@ abi.register(infiniteLoop)`
 		t.Error(err)
 	}
 }
-func TestTimeoutCnt(t *testing.T) {
-	timeout := 500
-	src := `
-function infinite_loop(n)
-	while true do
-	end
-	return 0
-end
 
-abi.register(infinite_loop)
-`
-	bc, err := LoadDummyChain(
-		SetTimeout(timeout), // milliseconds
-		SetPubNet(),
-	)
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+func TestTimeoutCnt(t *testing.T) {
+	code := readLuaCode("timeout_1.lua")
+	require.NotNil(t, code, "failed to read timeout_1.lua")
+
+	code2 := readLuaCode("timeout_2.lua")
+	require.NotNil(t, code, "failed to read timeout_2.lua")
+
+	bc, err := LoadDummyChain(SetTimeout(500), SetPubNet()) // timeout 500 milliseconds
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "timeout-cnt", 0, src),
+		NewLuaTxDeploy("ktlee", "timeout-cnt", 0, code),
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "infinite_loop"}`).Fail("contract timeout"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to connect new block")
+
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "timeout-cnt", 0, `{"Name": "infinite_loop"}`).Fail("contract timeout"))
+	require.NoErrorf(t, err, "failed to connect new block")
+
 	err = bc.Query("timeout-cnt", `{"Name": "infinite_loop"}`, "exceeded the maximum instruction count")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoErrorf(t, err, "failed to query")
 
-	src2 := `
-function a()
-    src = [[
-while true do
-end
-    function b()
-    end
-    abi.register(b)
-    ]]
-    contract.deploy(src)
-end
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "timeout-cnt2", 0, code2))
+	require.NoErrorf(t, err, "failed to deploy new tx")
 
-abi.register(a)
-`
-	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "timeout-cnt2", 0, src2),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract timeout"),
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "timeout-cnt2", 0, `{"Name": "a"}`).Fail("contract timeout"))
+	require.NoErrorf(t, err, "failed to call tx")
+
 }
 
 func TestSnapshot(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -1886,9 +845,7 @@ func TestKvstore(t *testing.T) {
 	abi.register(inc,get,set,setname,getname)`
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -1949,9 +906,7 @@ func TestKvstore(t *testing.T) {
 // sql tests
 func TestSqlConstrains(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2043,9 +998,7 @@ abi.register(init, pkFail, checkFail, fkFail, notNullFail, uniqueFail)`
 
 func TestSqlAutoincrement(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2077,9 +1030,7 @@ abi.register(init, get)`
 
 func TestSqlOnConflict(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2221,9 +1172,7 @@ abi.register(stmt_exec, stmt_exec_pcall, get)`
 
 func TestSqlDupCol(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2254,9 +1203,7 @@ abi.register(get)`
 
 func TestSqlVmSimple(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2381,9 +1328,7 @@ abi.register(createAndInsert, insertRollbackData, query, count, all)`
 
 func TestSqlVmFail(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2448,7 +1393,7 @@ abi.register(init, add, addFail, get)`
 }
 
 func TestSqlVmPubNet(t *testing.T) {
-	bc, err := LoadDummyChain(SetPubNet())
+	bc, err := LoadDummyChain()
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
 	}
@@ -2481,9 +1426,7 @@ abi.register(createAndInsert)`
 
 func TestSqlVmDateTime(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2539,9 +1482,7 @@ abi.register(init, nowNull, localtimeNull, get)`
 
 func TestSqlVmCustomer(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2676,9 +1617,7 @@ abi.register(createTable, query, insert, update, delete, count)`
 
 func TestSqlVmDataType(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2799,9 +1738,7 @@ abi.register(createDataTypeTable, dropDataTypeTable, insertDataTypeTable, queryO
 
 func TestSqlVmFunction(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2877,9 +1814,7 @@ abi.register(sql_func, abs_func, typeof_func)`
 
 func TestSqlVmBook(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -2990,9 +1925,7 @@ abi.register(createTable, makeBook, copyBook, viewCopyBook, viewJoinBook)`
 
 func TestSqlVmDateformat(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -3048,9 +1981,7 @@ abi.register(init, get)`
 
 func TestSqlVmRecursiveData(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -3078,9 +2009,7 @@ abi.register(r)`
 
 func TestSqlJdbc(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -3196,10 +2125,9 @@ abi.register(init, exec, query, getmeta, queryS)`
 
 // type Tests
 func TestTypeOP(t *testing.T) {
-	src, err := ioutil.ReadFile("op.lua")
-	if err != nil {
-		t.Error(err)
-	}
+	code := readLuaCode("op.lua")
+	require.NotNil(t, code, "failed to read op.lua")
+
 	bc, err := LoadDummyChain(SetPubNet())
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -3208,7 +2136,7 @@ func TestTypeOP(t *testing.T) {
 	balance, _ := new(big.Int).SetString("10000000000000000", 10)
 	err = bc.ConnectBlock(
 		NewLuaTxAccountBig("ktlee", balance),
-		NewLuaTxDeploy("ktlee", "op", 0, string(src)),
+		NewLuaTxDeploy("ktlee", "op", 0, string(code)),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3242,10 +2170,9 @@ func TestTypeOP(t *testing.T) {
 }
 
 func TestTypeBF(t *testing.T) {
-	src, err := ioutil.ReadFile("bf.lua")
-	if err != nil {
-		t.Error(err)
-	}
+	code := readLuaCode("bf.lua")
+	require.NotNil(t, code, "failed to read bf.lua")
+
 	bc, err := LoadDummyChain(SetPubNet())
 	if err != nil {
 		t.Errorf("failed to create test database: %v", err)
@@ -3254,7 +2181,7 @@ func TestTypeBF(t *testing.T) {
 	balance, _ := new(big.Int).SetString("10000000000000000", 10)
 	err = bc.ConnectBlock(
 		NewLuaTxAccountBig("ktlee", balance),
-		NewLuaTxDeploy("ktlee", "op", 0, string(src)),
+		NewLuaTxDeploy("ktlee", "op", 0, string(code)),
 	)
 	if err != nil {
 		t.Error(err)
@@ -3297,9 +2224,7 @@ func TestTypeBF(t *testing.T) {
 
 func TestTypeMaxString(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -3441,9 +2366,7 @@ abi.register(oom, p, cp)`
 
 func TestTypeNsec(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -3466,9 +2389,7 @@ func TestTypeNsec(t *testing.T) {
 
 func TestTypeUtf(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -3553,9 +2474,7 @@ state.var{
 abi.register(GetVar1)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -3645,9 +2564,7 @@ end
 abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval, key_nil)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -3741,9 +2658,7 @@ end
 abi.register(get, getcre)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -3803,9 +2718,7 @@ func TestTypeArray(t *testing.T) {
 	abi.register(inc,get,set,len,iter)`
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -3875,9 +2788,7 @@ func TestTypeArray(t *testing.T) {
 
 func TestTypeMultiArray(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -4084,9 +2995,7 @@ func TestTypeArrayArg(t *testing.T) {
 	`
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -4158,9 +3067,7 @@ func TestTypeMapKey(t *testing.T) {
 	abi.register(setCount, getCount, delCount)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
@@ -4264,9 +3171,7 @@ end
 abi.register(InvalidUpdateAge, ValidUpdateAge, GetPerson)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -4334,9 +3239,7 @@ end
 abi.register(CreateDate, Extract, Difftime)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -4385,9 +3288,7 @@ end
 abi.register(Length)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	_ = bc.ConnectBlock(
@@ -4500,9 +3401,7 @@ end
 abi.register(get, checkEther, checkAergo, keccak256)
 `
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -4634,9 +3533,7 @@ abi.payable(constructor)
 	abi.register(add)
 	`
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -4710,9 +3607,7 @@ func checkRandomIntValue(v string, min, max int) error {
 
 func TestTypeRandom(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	random := `
@@ -4787,9 +3682,7 @@ abi.register(random)`
 
 func TestTypeSparseTable(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -4844,9 +3737,7 @@ func TestTypeBigTable(t *testing.T) {
 		t.Skip()
 	}
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	bigSrc := `
@@ -4952,9 +3843,7 @@ func TestTypeJson(t *testing.T) {
 	abi.payable(getAmount)`
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -5055,9 +3944,7 @@ func TestTypeJson(t *testing.T) {
 // feature tests
 func TestFeatureVote(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -5307,9 +4194,7 @@ abi.register(addCandidate, getCandidates, registerVoter, vote)`
 
 func TestFeatureGovernance(t *testing.T) {
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	definition := `
@@ -5446,9 +4331,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 	`
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -5658,9 +4541,7 @@ abi.payable(pcall1, default, constructor)
 	`
 
 	bc, err := LoadDummyChain()
-	if err != nil {
-		t.Errorf("failed to create test database: %v", err)
-	}
+	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
@@ -5981,7 +4862,7 @@ const (
 	DEF_TEST_AMOUNT   = 100000000000000000
 )
 
-func expectGas(t *testing.T, contractCode, funcName, funcArgs string, expectGas uint64, opt ...DummyChainOptions) error {
+func expectGas(contractCode string, amount uint64, funcName, funcArgs string, expectGas uint64, opt ...DummyChainOptions) error {
 	// append set pubnet
 	bc, err := LoadDummyChain(append(opt, SetPubNet())...)
 	if err != nil {
@@ -6003,15 +4884,14 @@ func expectGas(t *testing.T, contractCode, funcName, funcArgs string, expectGas 
 	} else {
 		code = fmt.Sprintf(`{"Name":%s, "Args":%s}`, funcName, funcArgs)
 	}
-	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, code)
+	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, amount, code)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		return err
 	}
 	r := bc.GetReceipt(tx.Hash())
-	ok := assert.Equalf(t, expectGas, r.GetGasUsed(), "expected: %d, but got: %d", expectGas, r.GetGasUsed())
-	if ok != true {
-		return fmt.Errorf("failed to expect gas")
+	if expectGas != r.GetGasUsed() {
+		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, r.GetGasUsed())
 	}
 	return nil
 }
@@ -6020,41 +4900,71 @@ func TestGasHello(t *testing.T) {
 	var err error
 	contract := `function hello() end abi.register(hello)`
 
-	err = expectGas(t, contract, `"hello"`, ``, 100000, SetHardForkVersion(1))
+	err = expectGas(contract, 0, `"hello"`, ``, 100000, SetHardForkVersion(1))
 	assert.NoError(t, err)
 
-	err = expectGas(t, contract, `"hello"`, ``, 101004, SetHardForkVersion(2))
+	err = expectGas(contract, 0, `"hello"`, ``, 101004, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(t, contract, `"hello"`, ``, 101004, SetHardForkVersion(3))
+	err = expectGas(contract, 0, `"hello"`, ``, 101004, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasContractSend(t *testing.T) {
+	code := `
+	function constructor()
+	end
+    function send(addr)
+        contract.send(addr,1)
+		contract.call.value(1)(addr)
+    end
+	function send2(addr)
+		contract.call.value(1)(addr)
+		contract.call.value(3)(addr)
+	end
+
+    abi.register(send, send2, constructor)
+	abi.payable(constructor)
+`
+	code2 := `
+    function default()
+		system.print("default called")
+    end
+    abi.register(default)
+	abi.payable(default)
+`
+
+	err := expectGas(code, 50000000000000000, `"send"`, fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash(DEF_TEST_ACCOUNT))), 105087, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(code2, 0, `"send2"`, fmt.Sprintf(`["%s"]`, types.EncodeAddress(contract.StrHash(DEF_TEST_ACCOUNT))), 102179, SetHardForkVersion(2))
 	assert.NoError(t, err)
 }
 
 func TestGasOP(t *testing.T) {
-	contract, err := ioutil.ReadFile("op.lua")
-	require.NoError(t, err)
+	code := readLuaCode("op.lua")
+	require.NotNil(t, code, "failed to read op.lua")
 
-	err = expectGas(t, string(contract), `"main"`, ``, 100000, SetHardForkVersion(1))
+	err := expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	assert.NoError(t, err)
 
-	err = expectGas(t, string(contract), `"main"`, ``, 117610, SetHardForkVersion(2))
+	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(t, string(contract), `"main"`, ``, 120270, SetHardForkVersion(3))
+	err = expectGas(string(code), 0, `"main"`, ``, 120270, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
 func TestGasBF(t *testing.T) {
-	contract, err := ioutil.ReadFile("bf.lua")
-	require.NoError(t, err)
-
-	// err = expectGas(t, string(contract), `"main"`, ``, 100000, SetHardForkVersion(1))
+	code := readLuaCode("bf.lua")
+	require.NotNil(t, code, "failed to read bf.lua")
+	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	// assert.NoError(t, err)
 
-	err = expectGas(t, string(contract), `"main"`, ``, 47456244, SetHardForkVersion(2))
+	err := expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(t, string(contract), `"main"`, ``, 47513803, SetHardForkVersion(3))
+	err = expectGas(string(code), 0, `"main"`, ``, 47513803, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
