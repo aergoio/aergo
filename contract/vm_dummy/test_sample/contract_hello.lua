@@ -1,4 +1,4 @@
 function hello(say)
     return "Hello " .. say
-  end
+end
 abi.register(hello)

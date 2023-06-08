@@ -31,7 +31,7 @@ func readLuaCode(file string) (luaCode string) {
 	if ok != true {
 		return ""
 	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "sample", file))
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "test_sample", file))
 	if err != nil {
 		return ""
 	}
@@ -41,8 +41,7 @@ func readLuaCode(file string) (luaCode string) {
 
 func TestContractSystem(t *testing.T) {
 	code := readLuaCode("contract_system.lua")
-	path, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	require.NotEmpty(t, code, "failed to read contract_system.lua", path)
+	require.NotEmpty(t, code, "failed to read contract_system.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
