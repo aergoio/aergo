@@ -25,8 +25,8 @@ function del()
 end
 function iter(a)
     local rv = {}
-    for i, x in array:ipairs() do 
-        for j, y in x:ipairs() do 
+    for i, x in array:ipairs() do
+        for j, y in x:ipairs() do
             if y ~= nil then
                 rv[i..","..j] =  y
             end

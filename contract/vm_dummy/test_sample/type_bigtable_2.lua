@@ -6,7 +6,7 @@ function constructor()
 end
 
 function inserts()
-	db.exec("insert into aergojdbc001 select * from aergojdbc001")
+    db.exec("insert into aergojdbc001 select * from aergojdbc001")
 end
 
 abi.register(inserts)

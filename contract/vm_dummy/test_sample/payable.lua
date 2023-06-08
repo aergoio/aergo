@@ -1,11 +1,11 @@
 state.var {
-	Data = state.value()
+    Data = state.value()
 }
 function save(data)
-	Data:set(data)
+    Data:set(data)
 end
 function load()
-	return Data:get()
+    return Data:get()
 end
 
 abi.register(load)

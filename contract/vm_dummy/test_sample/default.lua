@@ -1,4 +1,4 @@
 function default()
-	return "default"
+    return "default"
 end
 abi.register(default)

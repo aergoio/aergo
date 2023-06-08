@@ -23,7 +23,7 @@ end
 
 function iter()
     local rv = {}
-    for i, v in counts:ipairs() do 
+    for i, v in counts:ipairs() do
         if v == nil then
             rv[i] = "nil"
         else

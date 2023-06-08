@@ -7,10 +7,10 @@ function oom()
 end
 
 function p()
-   pcall(oom)
+    pcall(oom)
 end
 
 function cp()
-   contract.pcall(oom)
+    contract.pcall(oom)
 end
 abi.register(oom, p, cp)

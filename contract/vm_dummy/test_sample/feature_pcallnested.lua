@@ -1,5 +1,5 @@
 state.var {
-    Map = state.map(),
+  Map = state.map(),
 }
 function map(a)
   return Map[a]

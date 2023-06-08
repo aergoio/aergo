@@ -11,6 +11,6 @@ end
 function test_pcall()
     return contract.pcall(error_case)
 end
-    
+
 abi.register(test_gov, test_pcall, error_case)
 abi.payable(test_gov, test_pcall)

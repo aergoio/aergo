@@ -16,60 +16,60 @@ end
 
 function query(sql, ...)
     local stmt = db.prepare(sql)
-	local rs = stmt:query(...)
+    local rs = stmt:query(...)
     local r = {}
     local colcnt = rs:colcnt()
-	local colmetas
+    local colmetas
     while rs:next() do
-		if colmetas == nil then
-			colmetas = stmt:column_info()
-		end
+        if colmetas == nil then
+            colmetas = stmt:column_info()
+        end
 
-		local k = {rs:get()}
-		for i = 1, colcnt do
-			if k[i] == nil then
-				k[i] = {}
-			end
+        local k = {rs:get()}
+        for i = 1, colcnt do
+            if k[i] == nil then
+                k[i] = {}
+            end
         end
         table.insert(r, k)
     end
---  if (#r == 0) then
---      return {"colcnt":0, "rowcnt":0}
---  end
+    --  if (#r == 0) then
+    --      return {"colcnt":0, "rowcnt":0}
+    --  end
 
     return {snap=db.getsnap(), colcnt=colcnt, rowcnt=#r, data=r, colmetas=colmetas}
 end
 
 function queryS(snap, sql, ...)
-	db.open_with_snapshot(snap)
+    db.open_with_snapshot(snap)
 
     local stmt = db.prepare(sql)
-	local rs = stmt:query(...)
+    local rs = stmt:query(...)
     local r = {}
     local colcnt = rs:colcnt()
-	local colmetas
+    local colmetas
     while rs:next() do
-		if colmetas == nil then
-			colmetas = stmt:column_info()
-		end
+        if colmetas == nil then
+            colmetas = stmt:column_info()
+        end
 
-		local k = {rs:get()}
-		for i = 1, colcnt do
-			if k[i] == nil then
-				k[i] = {}
-			end
+        local k = {rs:get()}
+        for i = 1, colcnt do
+            if k[i] == nil then
+                k[i] = {}
+            end
         end
         table.insert(r, k)
     end
---  if (#r == 0) then
---      return {"colcnt":0, "rowcnt":0}
---  end
+    --  if (#r == 0) then
+    --      return {"colcnt":0, "rowcnt":0}
+    --  end
 
     return {snap=db.getsnap(), colcnt=colcnt, rowcnt=#r, data=r, colmetas=colmetas}
 end
 function getmeta(sql)
     local stmt = db.prepare(sql)
 
-	return stmt:column_info(), stmt:bind_param_cnt()
+    return stmt:column_info(), stmt:bind_param_cnt()
 end
 abi.register(init, exec, query, getmeta, queryS)

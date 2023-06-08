@@ -1,12 +1,12 @@
 function createAndInsert()
     db.exec("create table if not exists dual(dummy char(1))")
-	db.exec("insert into dual values ('X')")
+    db.exec("insert into dual values ('X')")
     local insertYZ = db.prepare("insert into dual values (?),(?)")
     insertYZ:exec("Y", "Z")
 end
 
 function insertRollbackData()
-	db.exec("insert into dual values ('A'),('B'),('C')")
+    db.exec("insert into dual values ('A'),('B'),('C')")
 end
 
 function query()
@@ -23,14 +23,14 @@ function query()
 end
 
 function count()
-	local rs = db.query("select count(*) from dual")
-	if rs:next() then
-		local n = rs:get()
-		--rs:next()
-		return n
-	else
-		return "error in count()"
-	end
+    local rs = db.query("select count(*) from dual")
+    if rs:next() then
+        local n = rs:get()
+        --rs:next()
+        return n
+    else
+        return "error in count()"
+    end
 end
 
 function all()

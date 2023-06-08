@@ -1,7 +1,7 @@
 function a()
     src = [[
-while true do
-end
+    while true do
+    end
     function b()
     end
     abi.register(b)

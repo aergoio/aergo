@@ -4,11 +4,11 @@ end
 
 function init()
     db.exec([[create table if not exists r (
-  id integer primary key
-, n integer check(n >= 10)
-, nonull text not null
-, only integer unique)
-]])
+    id integer primary key
+    , n integer check(n >= 10)
+    , nonull text not null
+    , only integer unique)
+    ]])
     db.exec("insert into r values (1, 11, 'text', 1)")
 end
 
