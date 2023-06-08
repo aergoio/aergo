@@ -1,0 +1,7 @@
+level = "info"  # default log level
+formatter = "console_no_color"  # format: console, console_no_color, json
+caller = true  # enabling source file and line printer
+timefieldformat = "Jan _2 15:04:05"
+
+[syncer]
+level = "warn"

@@ -8,9 +8,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/minio/sha256-simd"
-
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/minio/sha256-simd"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -6,9 +6,10 @@
 package common
 
 import (
+	"time"
+
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	core "github.com/libp2p/go-libp2p-core"
-	"time"
 )
 
 const (
@@ -34,4 +35,3 @@ const PolarisConnectionTTL = time.Second * 30
 const (
 	TooOldVersionMsg = "too old version"
 )
-

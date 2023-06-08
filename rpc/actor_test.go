@@ -2,12 +2,13 @@ package rpc
 
 import (
 	"errors"
-	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/pkg/component"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/pkg/component"
 )
 
 func TestActorTimeout(t *testing.T) {
@@ -28,7 +29,7 @@ func TestActorTimeout(t *testing.T) {
 	} else {
 		resp, ok := r.(TimedMsgRsp)
 		if !ok {
-			t.Errorf("want result type %v, but %v",reflect.TypeOf(TimedMsgRsp{}), reflect.TypeOf(resp))
+			t.Errorf("want result type %v, but %v", reflect.TypeOf(TimedMsgRsp{}), reflect.TypeOf(resp))
 		} else {
 			if resp.Err != nil {
 				t.Errorf("want succ, but not %s", resp.Err.Error())
@@ -37,7 +38,7 @@ func TestActorTimeout(t *testing.T) {
 	}
 
 	// panic
-	f = compMng.RequestFuture("a", TimedMsg{p:true}, time.Second>>2, "nop")
+	f = compMng.RequestFuture("a", TimedMsg{p: true}, time.Second>>2, "nop")
 	if r, err := f.Result(); err == nil {
 		t.Errorf("want timeout, but not. result is %v", reflect.TypeOf(r))
 		rErr := r.(error)
@@ -47,13 +48,13 @@ func TestActorTimeout(t *testing.T) {
 	}
 
 	// failure
-	f = compMng.RequestFuture("a", TimedMsg{e:true}, time.Second>>2, "nop")
+	f = compMng.RequestFuture("a", TimedMsg{e: true}, time.Second>>2, "nop")
 	if r, err := f.Result(); err != nil {
 		t.Errorf("want no error, but not. result is %v", err.Error())
 	} else {
 		resp, ok := r.(TimedMsgRsp)
 		if !ok {
-			t.Errorf("want result type %v, but %v",reflect.TypeOf(TimedMsgRsp{}), reflect.TypeOf(resp))
+			t.Errorf("want result type %v, but %v", reflect.TypeOf(TimedMsgRsp{}), reflect.TypeOf(resp))
 		} else {
 			if resp.Err == nil {
 				t.Errorf("want failed, but not %s", resp.Err.Error())
@@ -63,7 +64,7 @@ func TestActorTimeout(t *testing.T) {
 	// timeout
 	f = compMng.RequestFuture("a", TimedMsg{wt: time.Minute}, time.Second>>2, "nop")
 	f2 := compMng.RequestFuture("a", TimedMsg{wt: 0}, time.Second>>2, "nop")
-	f3 := compMng.RequestFuture("a", TimedMsg{wt: time.Second>>3}, time.Second>>2, "nop")
+	f3 := compMng.RequestFuture("a", TimedMsg{wt: time.Second >> 3}, time.Second>>2, "nop")
 	if r, err := f.Result(); err == nil {
 		t.Errorf("want timeout, but not. result is %v", reflect.TypeOf(r))
 		rErr := r.(error)
@@ -74,15 +75,15 @@ func TestActorTimeout(t *testing.T) {
 		t.Logf("Err type %v, err msg %s", reflect.TypeOf(err), err.Error())
 	}
 	r, err := f2.Result()
-	t.Logf("pended first future is : %v, err %v", r,err)
+	t.Logf("pended first future is : %v, err %v", r, err)
 	r, err = f3.Result()
-	t.Logf("pended second future is : %v, err %v", r,err)
+	t.Logf("pended second future is : %v, err %v", r, err)
 }
 
 type TimedMsg struct {
 	wt time.Duration
-	e bool
-	p bool
+	e  bool
+	p  bool
 }
 type TimedMsgRsp struct {
 	Err error
@@ -105,14 +106,14 @@ func (a *AActor) Receive(context actor.Context) {
 		if msg.e {
 			err = errors.New("error while executing actor message")
 		}
-		context.Respond(TimedMsgRsp{Err:err})
+		context.Respond(TimedMsgRsp{Err: err})
 	}
 }
-func (a *AActor)  BeforeStart() {}
-func (a *AActor)  AfterStart() {}
-func (a *AActor)  BeforeStop() {}
+func (a *AActor) BeforeStart() {}
+func (a *AActor) AfterStart()  {}
+func (a *AActor) BeforeStop()  {}
 
-func (a *AActor)  Statistics() *map[string]interface{} {
+func (a *AActor) Statistics() *map[string]interface{} {
 	stat := make(map[string]interface{})
 	return &stat
 }

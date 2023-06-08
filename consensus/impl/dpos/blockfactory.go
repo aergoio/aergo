@@ -12,8 +12,6 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pkey"
-
 	"github.com/aergoio/aergo-lib/log"
 	bc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus/chain"
@@ -21,6 +19,7 @@ import (
 	"github.com/aergoio/aergo/contract"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"

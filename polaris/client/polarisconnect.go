@@ -9,10 +9,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/v030"
-	"github.com/aergoio/aergo/polaris/common"
-	"github.com/libp2p/go-libp2p-core/network"
 	"sync"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -20,9 +16,13 @@ import (
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/message"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/p2p/v030"
 	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/polaris/common"
 	"github.com/aergoio/aergo/types"
+	"github.com/libp2p/go-libp2p-core/network"
 )
 
 var ErrTooLowVersion = errors.New("aergosvr version is too low")
@@ -236,7 +236,7 @@ func (pcs *PolarisConnectSvc) readResponse(mapServerMeta p2pcommon.PeerMeta, rd 
 			if err != nil {
 				continue
 			}
-			addr.Addresses=[]string{ma.String()}
+			addr.Addresses = []string{ma.String()}
 		}
 	}
 	pcs.Logger.Debug().Str(p2putil.LogPeerID, mapServerMeta.ID.String()).Int("peer_cnt", len(queryResp.Addresses)).Msg("Received map query response")

@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	EnvironmentPrefix             = "AG"
-	defaultColarisHomePath          = ".polaris"
+	EnvironmentPrefix            = "AG"
+	defaultColarisHomePath       = ".polaris"
 	defaultColarisConfigFileName = "colaris.toml"
 )
 

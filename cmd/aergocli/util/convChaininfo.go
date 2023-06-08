@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/consensus"
-
 	"github.com/aergoio/aergo/types"
 )
 

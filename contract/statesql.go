@@ -14,9 +14,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/aergoio/aergo/internal/enc"
-
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )

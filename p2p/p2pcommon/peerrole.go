@@ -40,4 +40,3 @@ type RoleModifier struct {
 	ID   types.PeerID
 	Role types.PeerRole
 }
-

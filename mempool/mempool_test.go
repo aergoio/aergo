@@ -13,9 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-
 	crypto "github.com/aergoio/aergo/account/key/crypto"
+	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -254,6 +253,9 @@ func TestOrphanTransaction(t *testing.T) {
 }
 
 func TestBasics2(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	initTest(t)
 	defer deinitTest()
 	txs := make([]*types.Tx, 0)

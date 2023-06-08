@@ -5,11 +5,12 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
 	"os"
 	"runtime"
 	"runtime/debug"
+
+	"github.com/aergoio/aergo/internal/enc"
+	"github.com/aergoio/aergo/types"
 )
 
 var (
@@ -25,10 +26,10 @@ func RecoverExit() {
 }
 
 // Recover has 2 situation
-// 1. normal recovery
-//    normal recovery recovers error that has occures while adding single block
-// 2. reorg recovery
-//    reorg recovery recovers error that has occures while executing reorg
+//  1. normal recovery
+//     normal recovery recovers error that has occures while adding single block
+//  2. reorg recovery
+//     reorg recovery recovers error that has occures while executing reorg
 func (cs *ChainService) Recover() error {
 	defer RecoverExit()
 

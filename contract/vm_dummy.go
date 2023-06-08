@@ -38,6 +38,7 @@ type DummyChain struct {
 	timeout       int
 	clearLState   func()
 	gasPrice      *big.Int
+	timestamp     int64
 }
 
 var addressRegexp *regexp.Regexp
@@ -68,7 +69,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 		}
 	}()
 
-	err = bc.sdb.Init(string(db.BadgerImpl), dataPath, nil, false)
+	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func LoadDummyChain(opts ...func(d *DummyChain)) (*DummyChain, error) {
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
-	bc.testReceiptDB = db.NewDB(db.BadgerImpl, path.Join(dataPath, "receiptDB"))
+	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
 	loadTestDatabase(dataPath) // sql database
 	SetStateSQLMaxDBSize(1024)
 	StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
@@ -116,12 +117,33 @@ func (bc *DummyChain) BestBlockNo() uint64 {
 	return bc.bestBlockNo
 }
 
+func (bc *DummyChain) SetTimestamp(is_increment bool, value int64) {
+	if is_increment {
+		if bc.timestamp == 0 {
+			bc.timestamp = time.Now().UnixNano() / 1000000000
+		}
+		bc.timestamp += value
+	} else {
+		bc.timestamp = value
+	}
+}
+
+func (bc *DummyChain) getTimestamp() int64 {
+
+	if bc.timestamp > 0 {
+		return bc.timestamp * 1000000000
+	} else {
+		return time.Now().UnixNano()
+	}
+
+}
+
 func (bc *DummyChain) newBState() *state.BlockState {
 	bc.cBlock = &types.Block{
 		Header: &types.BlockHeader{
 			PrevBlockHash: bc.bestBlockId[:],
 			BlockNo:       bc.bestBlockNo + 1,
-			Timestamp:     time.Now().UnixNano(),
+			Timestamp:     bc.getTimestamp(),
 			ChainID:       types.MakeChainId(bc.bestBlock.GetHeader().ChainID, HardforkConfig.Version(bc.bestBlockNo+1)),
 		},
 	}
@@ -658,7 +680,7 @@ func (bc *DummyChain) QueryOnly(contract, queryInfo string, expectedErr string) 
 	if err != nil {
 		return false, "", err
 	}
-	rv, err := Query(strHash(contract), bc.newBState(), nil, cState, []byte(queryInfo))
+	rv, err := Query(strHash(contract), bc.newBState(), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {

@@ -3,12 +3,12 @@ package syncer
 import (
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"sort"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 )

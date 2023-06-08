@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo/pkg/component"
@@ -41,7 +42,7 @@ func (sub *SubComponent) Stop() {
 	logger.Info().Msg(msg)
 }
 
-//send message to this subcomponent and reply to actor with pid respondTo
+// send message to this subcomponent and reply to actor with pid respondTo
 func (sub *SubComponent) Request(message interface{}, respondTo *actor.PID) {
 	sub.pid.Request(message, respondTo)
 }

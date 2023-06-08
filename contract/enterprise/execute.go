@@ -9,7 +9,6 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
-
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
 )
@@ -179,7 +178,7 @@ func createSetEvent(addr []byte, name string, v []string) ([]*types.Event, error
 		return nil, err
 	}
 	return []*types.Event{
-		&types.Event{
+		{
 			ContractAddress: addr,
 			EventName:       "Set " + strings.ToUpper(name),
 			EventIdx:        0,

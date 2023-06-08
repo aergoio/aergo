@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/types"
-
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus"
+	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pkey"
+	"github.com/aergoio/aergo/types"
 )
 
 var (

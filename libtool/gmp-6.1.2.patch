@@ -1,0 +1,24 @@
+diff --color -ru src/gmp-6.1.2_old/Makefile.am src/gmp-6.1.2/Makefile.am
+--- src/gmp-6.1.2_old/Makefile.am	2016-12-17 00:45:27.000000000 +0900
++++ src/gmp-6.1.2/Makefile.am	2023-05-10 19:09:51.385664804 +0900
+@@ -110,7 +110,7 @@
+ LIBGMPXX_LT_AGE      = 5
+ 
+ 
+-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
++SUBDIRS = mpn mpz cxx #mpq mpf printf scanf rand cxx 
+ 
+ EXTRA_DIST = configfsf.guess configfsf.sub .gdbinit INSTALL.autoconf \
+ 	     COPYING.LESSERv3 COPYINGv2 COPYINGv3
+diff --color -ru src/gmp-6.1.2_old/Makefile.in src/gmp-6.1.2/Makefile.in
+--- src/gmp-6.1.2_old/Makefile.in	2016-12-17 00:45:34.000000000 +0900
++++ src/gmp-6.1.2/Makefile.in	2023-05-10 19:09:51.389664756 +0900
+@@ -566,7 +566,7 @@
+ LIBGMPXX_LT_CURRENT = 9
+ LIBGMPXX_LT_REVISION = 2
+ LIBGMPXX_LT_AGE = 5
+-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
++SUBDIRS = mpn mpz cxx #mpq mpf printf scanf rand cxx
+ 
+ # The "test -f" support for srcdir!=builddir is similar to the automake .c.o
+ # etc rules, but with each foo.c explicitly, since $< is not portable

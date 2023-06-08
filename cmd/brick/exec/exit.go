@@ -1,7 +1,7 @@
 package exec
 
 import (
-	"os"
+	"runtime"
 
 	"github.com/aergoio/aergo/types"
 )
@@ -33,7 +33,6 @@ func (c *exit) Validate(args string) error {
 }
 
 func (c *exit) Run(args string) (string, uint64, []*types.Event, error) {
-
-	os.Exit(0) // exit program
+	runtime.Goexit()
 	return "", 0, nil, nil
 }
