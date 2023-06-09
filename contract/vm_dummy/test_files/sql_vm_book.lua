@@ -13,7 +13,7 @@ end
 function makeBook()
     local stmt = db.prepare("insert into book values (?,?)")
     for i = 1, 100 do
-        stmt:exec(i, "value=" .. i*i)
+        stmt:exec(i, "value=" .. i * i)
     end
 end
 
@@ -25,7 +25,6 @@ function copyBook()
         stmt_t:exec(col1, col2)
     end
 end
-
 
 function viewCopyBook()
     local rt = {}

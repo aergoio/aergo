@@ -1,4 +1,4 @@
-state.var{
+state.var {
     counts = state.array(10)
 }
 
@@ -13,7 +13,7 @@ function get(key)
     return counts[key]
 end
 
-function set(key,val)
+function set(key, val)
     counts[key] = val
 end
 
@@ -33,4 +33,4 @@ function iter()
     return rv
 end
 
-abi.register(inc,get,set,len,iter)
+abi.register(inc, get, set, len, iter)

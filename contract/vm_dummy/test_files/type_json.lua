@@ -1,4 +1,4 @@
-state.var{
+state.var {
     table = state.value()
 }
 

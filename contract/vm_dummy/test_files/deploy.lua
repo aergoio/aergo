@@ -277,6 +277,7 @@ function testPcall()
     ret = contract.pcall(deploy)
     return contract.call(paddr, "getcre")
 end
+
 function constructor()
 end
 

@@ -13,4 +13,5 @@ end
 function cp()
     contract.pcall(oom)
 end
+
 abi.register(oom, p, cp)

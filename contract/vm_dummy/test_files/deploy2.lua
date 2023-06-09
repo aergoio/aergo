@@ -1,5 +1,5 @@
 function hello()
-	src = [[
+    src = [[
 	state.var{
 			counts = state.array(10)
 	}
@@ -38,9 +38,9 @@ function hello()
 
 	abi.register(inc,get,set,len,iter)
 	]]
-	paddr = contract.deploy(src)
-	system.print("addr :", paddr)
-	ret = contract.call(paddr, "hello", "world", "key")
+    paddr = contract.deploy(src)
+    system.print("addr :", paddr)
+    ret = contract.call(paddr, "hello", "world", "key")
 end
 
 function constructor()

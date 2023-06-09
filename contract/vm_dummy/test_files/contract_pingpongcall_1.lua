@@ -1,13 +1,14 @@
 function constructor()
-    system.setItem("key",  "empty")
+    system.setItem("key", "empty")
 end
+
 function start(addr)
-    system.setItem("key",  "start")
+    system.setItem("key", "start")
     contract.call(addr, "called")
 end
 
 function callback()
-    system.setItem("key",  "callback")
+    system.setItem("key", "callback")
 end
 
 function get()

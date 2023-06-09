@@ -4,4 +4,5 @@ function createAndInsert()
     local insertYZ = db.prepare("insert into dual values (?),(?)")
     insertYZ:exec("Y", "Z")
 end
+
 abi.register(createAndInsert)

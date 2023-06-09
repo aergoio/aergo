@@ -49,5 +49,6 @@ end
 function set(val)
     system.setItem("count", val)
 end
-abi.register(inc,get,set, init, pkins1, pkins2, pkget, getOrigin)
+
+abi.register(inc, get, set, init, pkins1, pkins2, pkget, getOrigin)
 abi.payable(constructor, inc)

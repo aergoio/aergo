@@ -4,4 +4,5 @@ function r()
     t["self"] = t
     return t
 end
+
 abi.register(r)

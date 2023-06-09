@@ -1,4 +1,5 @@
 function random(...)
-	return system.random(...)
+    return system.random(...)
 end
+
 abi.register(random)

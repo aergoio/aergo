@@ -19,4 +19,5 @@ function get()
     n = rs:get()
     return n
 end
+
 abi.register(init, add, addFail, get)

@@ -3,19 +3,19 @@ state.var {
 }
 
 function Append(val)
-	dArr:append(val)
+    dArr:append(val)
 end
 
 function Get(idx)
-	return dArr[idx]
+    return dArr[idx]
 end
 
 function Set(idx, val)
-	dArr[idx] = val
+    dArr[idx] = val
 end
 
 function Length()
-	return dArr:length()
+    return dArr:length()
 end
 
 abi.register(Append, Get, Set, Length)

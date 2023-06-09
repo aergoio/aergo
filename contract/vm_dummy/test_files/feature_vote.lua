@@ -45,7 +45,7 @@ function getCandidates()
         if count == nil then
             count = 0
         end
-        table.insert(candidates, {id = i, name = candidate, count = count});
+        table.insert(candidates, { id = i, name = candidate, count = count });
         i = i + 1;
     end
     return candidates;

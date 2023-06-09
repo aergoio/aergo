@@ -1,4 +1,4 @@
-state.var{
+state.var {
     counts = state.array(1000000000000)
 }
 

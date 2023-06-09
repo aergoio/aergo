@@ -3,7 +3,7 @@ state.var {
 }
 
 function Length()
-	return fixedArray:length()
+    return fixedArray:length()
 end
 
 abi.register(Length)

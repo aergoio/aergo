@@ -1,9 +1,12 @@
-LLINE = "long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-LLINE1 = "long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+LLINE =
+"long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+LLINE1 =
+"long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 function comp_ops()
     A = 2
-    D = 1 if A < D then
+    D = 1
+    if A < D then
     end
     if A <= D then
     end
@@ -37,11 +40,11 @@ function comp_ops()
     end
 end
 
-local istc = function (b)
+local istc = function(b)
     return b and 1
 end
 
-local isfc = function (b)
+local isfc = function(b)
     return b or 1
 end
 
@@ -120,7 +123,9 @@ end
 
 function upvalue_n_func_ops()
     local U = "kslee"
-    F = function() U = U .. "1981"; return U end
+    F = function()
+        U = U .. "1981"; return U
+    end
     F()
     F = function() U = "1981" end
     F()
@@ -189,7 +194,7 @@ function range_iter(n, i)
     if i >= n then
         return nil, nil
     end
-    return i+1, i+1
+    return i + 1, i + 1
 end
 
 function range(n)
@@ -200,7 +205,7 @@ function loop_n_branche_ops()
     -- IFORL(80), IITERL(83)
     local T = 0
     for i = 1, 100 do
-        T = T + i    
+        T = T + i
     end
     for n in range(100) do
         T = T + n
@@ -208,9 +213,9 @@ function loop_n_branche_ops()
     local i = 0
     while true do
         i = i + 1
-      if i == 100 then
-          break
-      end
+        if i == 100 then
+            break
+        end
     end
 end
 

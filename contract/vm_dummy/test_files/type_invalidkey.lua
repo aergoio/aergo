@@ -30,13 +30,13 @@ end
 function key_upval(key)
     local k = {}
     local f = function()
-    t[k] = "upval"
-end
-f()
+        t[k] = "upval"
+    end
+    f()
 end
 
 function key_nil(key)
-h[nil] = "nil"
+    h[nil] = "nil"
 end
 
 abi.register(key_table, key_func, key_statemap, key_statearray, key_statevalue, key_upval, key_nil)

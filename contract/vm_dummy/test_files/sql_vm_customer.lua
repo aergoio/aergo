@@ -25,12 +25,12 @@ function query(id)
     return rt
 end
 
-function insert(id , passwd, name, birth, mobile)
+function insert(id, passwd, name, birth, mobile)
     local n = db.exec("insert into customer values (?,?,?,?,?)", id, passwd, name, birth, mobile)
     assert(n == 1, "insert count mismatch")
 end
 
-function update(id , passwd)
+function update(id, passwd)
     local n = db.exec("update customer set passwd =? where id =?", passwd, id)
     assert(n == 1, "update count mismatch")
 end

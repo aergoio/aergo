@@ -16,6 +16,7 @@ function insertDataTypeTable()
     local stmt = db.prepare("insert into datatype_table values ('ABCD','fgh',1,3.14,?)")
     stmt:exec(system.getBlockheight())
 end
+
 function queryOrderByDesc()
     local rt = {}
     local rs = db.query("select * from datatype_table order by blockheight1 desc")
@@ -35,14 +36,15 @@ end
 
 function queryGroupByBlockheight1()
     local rt = {}
-    local rs = db.query("select blockheight1, count(*), sum(int1), avg(float1) from datatype_table group by blockheight1")
+    local rs = db.query(
+        "select blockheight1, count(*), sum(int1), avg(float1) from datatype_table group by blockheight1")
     while rs:next() do
         local col1, col2, col3, col4 = rs:get()
         item = {
             blockheight1 = col1,
             count1 = col2,
             sum_int1 = col3,
-            avg_float1 =col4
+            avg_float1 = col4
         }
         table.insert(rt, item)
     end

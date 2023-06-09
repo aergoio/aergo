@@ -1,4 +1,4 @@
-state.var{
+state.var {
     whitelist = state.map(),
 }
 
@@ -12,10 +12,12 @@ end
 
 function query()
     whitelist[system.getSender()] = false
-    return 1,2,3,4,5
+    return 1, 2, 3, 4, 5
 end
+
 function default()
 end
+
 abi.register(reg, query)
 abi.payable(default)
 abi.fee_delegation(query)

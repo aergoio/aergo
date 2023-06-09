@@ -4,6 +4,7 @@ state.var {
 function save(data)
     Data:set(data)
 end
+
 function load()
     return Data:get()
 end

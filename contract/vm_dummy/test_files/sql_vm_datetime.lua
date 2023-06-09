@@ -17,8 +17,9 @@ function get()
     local r = {}
     while rs:next() do
         local d, b = rs:get()
-        table.insert(r, { date= d, bool= b })
+        table.insert(r, { date = d, bool = b })
     end
     return r
 end
+
 abi.register(init, nowNull, localtimeNull, get)

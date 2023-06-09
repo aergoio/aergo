@@ -15,6 +15,7 @@ function deploy()
     system.print("addr :", paddr)
     ret = contract.call(paddr, "hello", "world", "key")
 end
+
 function testPcall()
     ret = contract.pcall(deploy)
     return contract.call(paddr, "getcre")

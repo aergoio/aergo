@@ -25,7 +25,7 @@ function query(sql, ...)
             colmetas = stmt:column_info()
         end
 
-        local k = {rs:get()}
+        local k = { rs:get() }
         for i = 1, colcnt do
             if k[i] == nil then
                 k[i] = {}
@@ -37,7 +37,7 @@ function query(sql, ...)
     --      return {"colcnt":0, "rowcnt":0}
     --  end
 
-    return {snap=db.getsnap(), colcnt=colcnt, rowcnt=#r, data=r, colmetas=colmetas}
+    return { snap = db.getsnap(), colcnt = colcnt, rowcnt = #r, data = r, colmetas = colmetas }
 end
 
 function queryS(snap, sql, ...)
@@ -53,7 +53,7 @@ function queryS(snap, sql, ...)
             colmetas = stmt:column_info()
         end
 
-        local k = {rs:get()}
+        local k = { rs:get() }
         for i = 1, colcnt do
             if k[i] == nil then
                 k[i] = {}
@@ -65,11 +65,13 @@ function queryS(snap, sql, ...)
     --      return {"colcnt":0, "rowcnt":0}
     --  end
 
-    return {snap=db.getsnap(), colcnt=colcnt, rowcnt=#r, data=r, colmetas=colmetas}
+    return { snap = db.getsnap(), colcnt = colcnt, rowcnt = #r, data = r, colmetas = colmetas }
 end
+
 function getmeta(sql)
     local stmt = db.prepare(sql)
 
     return stmt:column_info(), stmt:bind_param_cnt()
 end
+
 abi.register(init, exec, query, getmeta, queryS)

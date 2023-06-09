@@ -1,4 +1,4 @@
-state.var{
+state.var {
     counts = state.map(),
     name = state.value()
 }
@@ -14,7 +14,7 @@ function get(key)
     return counts[key]
 end
 
-function set(key,val)
+function set(key, val)
     counts[key] = val
 end
 
@@ -26,4 +26,4 @@ function getname()
     return name:get()
 end
 
-abi.register(inc,get,set,setname,getname)
+abi.register(inc, get, set, setname, getname)

@@ -9,14 +9,17 @@ function constructor()
 end
 
 function fromhex(str)
-    return (str:gsub('..', function (cc)
+    return (str:gsub('..', function(cc)
         return string.char(tonumber(cc, 16))
     end))
 end
+
 function get()
-	return c[fromhex('00')], system.getItem(fromhex('00')), system.getItem(fromhex('0000'))
+    return c[fromhex('00')], system.getItem(fromhex('00')), system.getItem(fromhex('0000'))
 end
+
 function getcre()
-	return system.getCreator()
+    return system.getCreator()
 end
+
 abi.register(get, getcre)
