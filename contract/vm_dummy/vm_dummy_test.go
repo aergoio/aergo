@@ -94,24 +94,26 @@ func TestContractSend(t *testing.T) {
 	)
 	assert.NoErrorf(t, err, "failed to deploy contract")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress(("test2")))))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test2"))),
+	)
 	assert.NoErrorf(t, err, "failed to call tx")
 
 	state, err := bc.GetAccountState("test2")
 	assert.Equalf(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance error")
 
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress(("test3")))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
 	)
 	assert.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress(("test4")))).Fail(`[Contract.LuaSendAmount] call err: 'default' is not payable`),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test4"))).Fail(`[Contract.LuaSendAmount] call err: 'default' is not payable`),
 	)
 	assert.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress(("ktlee")))),
+		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("ktlee"))),
 	)
 	assert.NoErrorf(t, err, "failed to connect new block")
 }
@@ -133,7 +135,7 @@ func TestContractSendF(t *testing.T) {
 	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
-	tx := NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress(("test2"))))
+	tx := NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test2")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to connect new block")
 
@@ -143,7 +145,7 @@ func TestContractSendF(t *testing.T) {
 	state, err := bc.GetAccountState("test2")
 	assert.Equalf(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance state not equal")
 
-	tx = NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, nameToAddress(("test2"))))
+	tx = NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, nameToAddress("test2")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to connect new block")
 
@@ -165,7 +167,10 @@ func TestContractQuery(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000))
 	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "query", 0, code), NewLuaTxCall("ktlee", "query", 2, `{"Name":"inc", "Args":[]}`))
+	err = bc.ConnectBlock(
+		NewLuaTxDeploy("ktlee", "query", 0, code),
+		NewLuaTxCall("ktlee", "query", 2, `{"Name":"inc", "Args":[]}`),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	query, err := bc.GetAccountState("query")
@@ -200,7 +205,7 @@ func TestContractCall(t *testing.T) {
 	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.ConnectBlock(
-		NewLuaTxDeploy("ktlee", "caller", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress(("counter")))),
+		NewLuaTxDeploy("ktlee", "caller", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("counter"))),
 		NewLuaTxCall("ktlee", "caller", 0, `{"Name":"add", "Args":[]}`),
 	)
 	require.NoErrorf(t, err, "failed to connect new block")
@@ -239,13 +244,15 @@ func TestContractPingpongCall(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "a", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "a", 0, code))
 	require.NoErrorf(t, err, "failed to connect new block")
 
-	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "b", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress(("a")))))
+	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "b", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("a"))))
 	require.NoErrorf(t, err, "failed to connect new block")
 
-	tx := NewLuaTxCall("ktlee", "a", 0, fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, nameToAddress(("b"))))
+	tx := NewLuaTxCall("ktlee", "a", 0, fmt.Sprintf(`{"Name":"start", "Args":["%s"]}`, nameToAddress("b")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to connect new block")
 
@@ -377,7 +384,10 @@ func TestDefault(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "default", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "default", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	tx := NewLuaTxCall("ktlee", "default", 0, "")
@@ -432,7 +442,10 @@ func TestReturnUData(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "rs-return", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "rs-return", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "rs-return", 0, `{"Name": "test_die", "Args":[]}`).Fail(`unsupport type: userdata`))
@@ -447,7 +460,10 @@ func TestEvent(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "event", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "event", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "event", 0, `{"Name": "test_ev", "Args":[]}`))
@@ -462,7 +478,10 @@ func TestView(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "view", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "view", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "view", 0, `{"Name": "test_view", "Args":[]}`).Fail("[Contract.Event] event not permitted in query"))
@@ -495,7 +514,10 @@ func TestDeploy(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 50000000000, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "deploy", 50000000000, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`)
@@ -550,7 +572,10 @@ func TestDeploy2(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 50000000000, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "deploy", 50000000000, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"hello"}`).Fail(`not permitted state referencing at global scope`)
@@ -609,7 +634,10 @@ func xestInfiniteLoop(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "loop", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "loop", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	errTimeout := "exceeded the maximum instruction count"
@@ -638,7 +666,10 @@ func TestInfiniteLoopOnPubNet(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "loop", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "loop", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	errTimeout := contract.VmTimeoutError{}
@@ -792,14 +823,16 @@ func TestSqlConstrains(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "constraint", 0, code),
 		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"init"}`),
 		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"pkFail"}`).Fail("UNIQUE constraint failed: r.id"),
 		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"checkFail"}`).Fail("CHECK constraint failed: r"),
 		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"fkFail"}`).Fail("FOREIGN KEY constraint failed"),
 		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"notNullFail"}`).Fail("NOT NULL constraint failed: r.nonull"),
-		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"uniqueFail"}`).Fail("UNIQUE constraint failed: r.only"))
+		NewLuaTxCall("ktlee", "constraint", 0, `{"Name":"uniqueFail"}`).Fail("UNIQUE constraint failed: r.only"),
+	)
 	require.NoErrorf(t, err, "failed to call contract")
 }
 
@@ -831,18 +864,25 @@ func TestSqlOnConflict(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "on_conflict", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "on_conflict", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (2)"]}`),
-		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (3),(2),(4)"]}`).Fail(`UNIQUE constraint failed: t.col`))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (2)"]}`),
+		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (3),(2),(4)"]}`).Fail(`UNIQUE constraint failed: t.col`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2]`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["replace into t values (2)"]}`),
-		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or ignore into t values (3),(2),(4)"]}`))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["replace into t values (2)"]}`),
+		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or ignore into t values (3),(2),(4)"]}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4]`)
@@ -938,9 +978,11 @@ func TestSqlVmFail(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[1]}`))
 	require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[2]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[2]}`),
 		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"addFail", "Args":[3]}`).Fail(`near "set": syntax error`),
-		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[4]}`))
+		NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[4]}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "fail", 0, `{"Name":"add", "Args":[5]}`))
@@ -980,9 +1022,11 @@ func TestSqlVmDateTime(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "datetime", 0, code),
-		NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"init"}`))
+		NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"init"}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "datetime", 0, `{"Name":"nowNull"}`))
@@ -1003,9 +1047,11 @@ func TestSqlVmCustomer(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "customer", 0, code),
-		NewLuaTxCall("ktlee", "customer", 0, `{"Name":"createTable"}`))
+		NewLuaTxCall("ktlee", "customer", 0, `{"Name":"createTable"}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "customer", 0, `{"Name":"insert", "Args":["id1","passwd1","name1","20180524","010-1234-5678"]}`))
@@ -1041,14 +1087,18 @@ func TestSqlVmDataType(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "datatype", 0, code),
-		NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"createDataTypeTable"}`))
+		NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"createDataTypeTable"}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"insertDataTypeTable"}`),
+	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"insertDataTypeTable"}`),
-		NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"insertDataTypeTable"}`))
+		NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"insertDataTypeTable"}`),
+		NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"insertDataTypeTable"}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "datatype", 0, `{"Name":"insertDataTypeTable"}`))
@@ -1090,9 +1140,11 @@ func TestSqlVmBook(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "book", 0, code),
-		NewLuaTxCall("ktlee", "book", 0, `{"Name":"createTable"}`))
+		NewLuaTxCall("ktlee", "book", 0, `{"Name":"createTable"}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "book", 0, `{"Name":"makeBook"}`))
@@ -1113,9 +1165,11 @@ func TestSqlVmDateformat(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "data_format", 0, code),
-		NewLuaTxCall("ktlee", "data_format", 0, `{"Name":"init"}`))
+		NewLuaTxCall("ktlee", "data_format", 0, `{"Name":"init"}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.Query("data_format", `{"Name":"get"}`, "", `[["2004-10-24","2004-10-24 11:11:11","20041024111111"],["2018-05-28","2018-05-28 10:45:38","20180528104538"]]`)
@@ -1423,7 +1477,8 @@ func TestTypeArray(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "array", 0, code))
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[0]}`).Fail("index out of range"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1]}`),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[1.00000001]}`).Fail("integer expected, got number"),
@@ -1433,7 +1488,8 @@ func TestTypeArray(t *testing.T) {
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[null]}`).Fail("integer expected, got nil)"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[{}]}`).Fail("integer expected, got table)"),
 		NewLuaTxCall("ktlee", "array", 0, `{"Name":"inc", "Args":[""]}`).Fail("integer expected, got string)"),
-		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`))
+		NewLuaTxCall("ktlee", "array", 0, `{"Name":"set", "Args":[2,"ktlee"]}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.Query("array", `{"Name":"get", "Args":[11]}`, "index out of range", "")
@@ -1477,13 +1533,13 @@ func TestTypeMultiArray(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "ma", 0, `{"Name": "inc", "Args":[]}`))
 	require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`, nameToAddress(("ktlee"))), "", "[2,2,2,null,10,11]")
+	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`, nameToAddress("ktlee")), "", "[2,2,2,null,10,11]")
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "ma", 0, `{"Name": "del", "Args":[]}`))
 	require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`, nameToAddress(("ktlee"))), "", "[2,2,null,null,10,11]")
+	err = bc.Query("ma", fmt.Sprintf(`{"Name":"query", "Args":["%s"]}`, nameToAddress("ktlee")), "", "[2,2,null,null,10,11]")
 	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.Query("ma", `{"Name":"iter"}`, "", `{"1,10":"k","10,5":"l"}`)
@@ -1563,9 +1619,11 @@ func TestTypeMapKey(t *testing.T) {
 	err = bc.Query("a", `{"Name":"getCount", "Args":[1]}`, "", "null")
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1, 10]}`),
 		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":["1", 20]}`).Fail("(number expected, got string)"),
-		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`))
+		NewLuaTxCall("ktlee", "a", 0, `{"Name":"setCount", "Args":[1.1, 30]}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.Query("a", `{"Name":"getCount", "Args":["1"]}`, "(number expected, got string)", "")
@@ -1757,19 +1815,21 @@ func TestTypeBignum(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "bigNum", 50000000000, bignum),
-		NewLuaTxDeploy("ktlee", "add", 0, callee))
+		NewLuaTxDeploy("ktlee", "add", 0, callee),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	tx := NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"test", "Args":["%s"]}`, nameToAddress(("ktlee"))))
+	tx := NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"test", "Args":["%s"]}`, nameToAddress("ktlee")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	receipt := bc.GetReceipt(tx.Hash())
 	assert.Equalf(t, `"25000000000"`, receipt.GetRet(), "contract Call ret error")
 
-	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, nameToAddress(("ktlee"))))
+	tx = NewLuaTxCall("ktlee", "bigNum", 0, fmt.Sprintf(`{"Name":"sendS", "Args":["%s"]}`, nameToAddress("ktlee")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to call tx")
 
@@ -1786,7 +1846,7 @@ func TestTypeBignum(t *testing.T) {
 	err = bc.Query("bigNum", `{"Name":"argBignum", "Args":[{"_bignum":"99999999999999999999999999"}]}`, "", `"100000000000000000000000000"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, nameToAddress(("add"))), "", `"1000000000000000004"`)
+	err = bc.Query("bigNum", fmt.Sprintf(`{"Name":"calladdBignum", "Args":["%s", {"_bignum":"999999999999999999"}]}`, nameToAddress("add")), "", `"1000000000000000004"`)
 	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.Query("bigNum", `{"Name":"checkBignum"}`, "", `[false,true,false]`)
@@ -1979,16 +2039,20 @@ func TestFeatureVote(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("owner", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("owner", 100000000000000000),
 		NewLuaTxDeploy("owner", "vote", 0, code),
 		NewLuaTxAccount("user1", 100000000000000000),
 		NewLuaTxAccount("user10", 100000000000000000),
-		NewLuaTxAccount("user11", 100000000000000000))
+		NewLuaTxAccount("user11", 100000000000000000),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCall("owner", "vote", 0, `{"Name":"addCandidate", "Args":["candidate1"]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("owner", "vote", 0, `{"Name":"addCandidate", "Args":["candidate1"]}`),
 		NewLuaTxCall("owner", "vote", 0, `{"Name":"addCandidate", "Args":["candidate2"]}`),
-		NewLuaTxCall("owner", "vote", 0, `{"Name":"addCandidate", "Args":["candidate3"]}`))
+		NewLuaTxCall("owner", "vote", 0, `{"Name":"addCandidate", "Args":["candidate3"]}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.Query("vote", `{"Name":"getCandidates"}`, "", `[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`)
@@ -2002,10 +2066,10 @@ func TestFeatureVote(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		// register voter
-		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress(("user10")))),
-		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress(("user10")))),
-		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress(("user11")))),
-		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress(("user1")))),
+		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress("user10"))),
+		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress("user10"))),
+		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress("user11"))),
+		NewLuaTxCall("owner", "vote", 0, fmt.Sprintf(`{"Name":"registerVoter", "Args":["%s"]}`, nameToAddress("user1"))),
 		// vote
 		NewLuaTxCall("user1", "vote", 0, `{"Name":"vote", "Args":["user1"]}`),
 		NewLuaTxCall("user1", "vote", 0, `{"Name":"vote", "Args":["user1"]}`),
@@ -2018,8 +2082,10 @@ func TestFeatureVote(t *testing.T) {
 	err = bc.Query("vote", `{"Name":"getCandidates"}`, "", `[{"count":"0","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user11", "vote", 0, `{"Name":"vote", "Args":["candidate1"]}`),
-		NewLuaTxCall("user10", "vote", 0, `{"Name":"vote", "Args":["candidate1"]}`))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("user11", "vote", 0, `{"Name":"vote", "Args":["candidate1"]}`),
+		NewLuaTxCall("user10", "vote", 0, `{"Name":"vote", "Args":["candidate1"]}`),
+	)
 	require.NoErrorf(t, err, "failed to call tx | vote error")
 
 	err = bc.Query("vote", `{"Name":"getCandidates"}`, "", `[{"count":"2","id":0,"name":"candidate1"},{"count":"0","id":1,"name":"candidate2"},{"count":"0","id":2,"name":"candidate3"}]`)
@@ -2085,16 +2151,20 @@ func TestFeaturePcallRollback(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxDeploy("ktlee", "counter", 10, code).Constructor("[0]"),
-		NewLuaTxCall("ktlee", "counter", 15, `{"Name":"inc", "Args":[]}`))
+		NewLuaTxCall("ktlee", "counter", 15, `{"Name":"inc", "Args":[]}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "1")
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "caller", 10, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress(("counter")))),
-		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"add", "Args":[]}`))
+	err = bc.ConnectBlock(
+		NewLuaTxDeploy("ktlee", "caller", 10, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("counter"))),
+		NewLuaTxCall("ktlee", "caller", 15, `{"Name":"add", "Args":[]}`),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "caller", 0, `{"Name":"sql", "Args":[]}`))
@@ -2111,18 +2181,20 @@ func TestFeaturePcallRollback(t *testing.T) {
 	require.NoErrorf(t, err, "failed to call tx")
 
 	receipt := bc.GetReceipt(tx.Hash())
-	require.Equalf(t, "\""+nameToAddress(("ktlee"))+"\"", receipt.GetRet(), "contract Call ret error")
+	require.Equalf(t, "\""+nameToAddress("ktlee")+"\"", receipt.GetRet(), "contract Call ret error")
 
 	bc, err = LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxAccount("bong", 0),
-		NewLuaTxDeploy("ktlee", "counter", 0, code3))
+		NewLuaTxDeploy("ktlee", "counter", 0, code3),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	tx = NewLuaTxCall("ktlee", "counter", 20, fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, nameToAddress(("bong"))))
+	tx = NewLuaTxCall("ktlee", "counter", 20, fmt.Sprintf(`{"Name":"set", "Args":["%s"]}`, nameToAddress("bong")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to call tx")
 
@@ -2136,7 +2208,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 	require.NoErrorf(t, err, "failed to get account state")
 	assert.Equal(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance error")
 
-	tx = NewLuaTxCall("ktlee", "counter", 10, fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, nameToAddress(("bong"))))
+	tx = NewLuaTxCall("ktlee", "counter", 10, fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, nameToAddress("bong")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to call tx")
 
@@ -2156,16 +2228,20 @@ func TestFeaturePcallNested(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
 		NewLuaTxAccount("bong", 0),
-		NewLuaTxDeploy("ktlee", "pcall", 10000000000000000000, code))
+		NewLuaTxDeploy("ktlee", "pcall", 10000000000000000000, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "pcall", 0, fmt.Sprintf(`{"Name":"pcall1", "Args":["%s", "%s"]}`,
-		nameToAddress(("pcall")), nameToAddress(("bong")))))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "pcall", 0, fmt.Sprintf(`{"Name":"pcall1", "Args":["%s", "%s"]}`,
+			nameToAddress("pcall"), nameToAddress("bong"))),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.Query("pcall", fmt.Sprintf(`{"Name":"map", "Args":["%s"]}`, nameToAddress(("pcall"))), "", "2")
+	err = bc.Query("pcall", fmt.Sprintf(`{"Name":"map", "Args":["%s"]}`, nameToAddress("pcall")), "", "2")
 	require.NoErrorf(t, err, "failed to query")
 
 	state, err := bc.GetAccountState("bong")
@@ -2237,22 +2313,21 @@ func TestFeatureFeeDelegation(t *testing.T) {
 	balance, _ := new(big.Int).SetString("1000000000000000000000", 10)
 	send, _ := new(big.Int).SetString("500000000000000000000", 10)
 
-	err = bc.ConnectBlock(NewLuaTxAccountBig("ktlee", balance),
+	err = bc.ConnectBlock(
+		NewLuaTxAccountBig("ktlee", balance),
 		NewLuaTxAccount("user1", 0),
 		NewLuaTxDeploy("ktlee", "fd", 0, code),
-		NewLuaTxSendBig("ktlee", "fd", send))
+		NewLuaTxSendBig("ktlee", "fd", send),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "check_delegation", "Args":[]}`).
-		Fail("check_delegation function is not declared of fee delegation"))
+	err = bc.ConnectBlock(NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "check_delegation", "Args":[]}`).Fail("check_delegation function is not declared of fee delegation"))
 	require.NoErrorf(t, err, "failed to call check_delegation")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "fd", 0, `{"Name": "query", "Args":[]}`).
-		Fail("not enough balance"))
+	err = bc.ConnectBlock(NewLuaTxCall("user1", "fd", 0, `{"Name": "query", "Args":[]}`).Fail("not enough balance"))
 	require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":[]}`).
-		Fail("fee delegation is not allowed"))
+	err = bc.ConnectBlock(NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":[]}`).Fail("fee delegation is not allowed"))
 	require.NoErrorf(t, err, "failed to call tx")
 
 	contract1, err := bc.GetAccountState("fd")
@@ -2260,7 +2335,7 @@ func TestFeatureFeeDelegation(t *testing.T) {
 
 	tx := NewLuaTxCallFeeDelegate("user1", "fd", 0, `{"Name": "query", "Args":["arg"]}`)
 	err = bc.ConnectBlock(
-		NewLuaTxCall("ktlee", "fd", 0, fmt.Sprintf(`{"Name":"reg", "Args":["%s"]}`, nameToAddress(("user1")))),
+		NewLuaTxCall("ktlee", "fd", 0, fmt.Sprintf(`{"Name":"reg", "Args":["%s"]}`, nameToAddress("user1"))),
 		tx,
 	)
 	require.NoErrorf(t, err, "failed to call tx")
@@ -2336,53 +2411,27 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 
 func TestGasHello(t *testing.T) {
 	var err error
-	contract := `function hello() end abi.register(hello)`
+	code := readLuaCode("contract_hello.lua")
+	require.NotEmpty(t, code, "failed to read hello.lua")
 
-	err = expectGas(contract, 0, `"hello"`, ``, 100000, SetHardForkVersion(1))
+	err = expectGas(code, 0, `"hello"`, `["world"]`, 100000, SetHardForkVersion(1))
 	assert.NoError(t, err)
 
-	err = expectGas(contract, 0, `"hello"`, ``, 101004, SetHardForkVersion(2))
+	err = expectGas(code, 0, `"hello"`, `["w"]`, 101203+3*1, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["wo"]`, 101203+3*2, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["wor"]`, 101203+3*3, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["worl"]`, 101203+3*4, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(contract, 0, `"hello"`, ``, 101004, SetHardForkVersion(3))
+	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
-/*
-	func TestGasContractSend(t *testing.T) {
-		code := `
-		function constructor()
-		end
-		function send(addr)
-			contract.send(addr,1)
-			contract.call.value(1)(addr)
-		end
-		function send2(addr)
-			contract.call.value(1)(addr)
-			contract.call.value(3)(addr)
-		end
-
-		abi.register(send, send2, constructor)
-		abi.payable(constructor)
-
-`
-
-	code2 := `
-	function default()
-		system.print("default called")
-	end
-	abi.register(default)
-	abi.payable(default)
-
-`
-
-		err := expectGas(code, 50000000000000000, `"send"`, fmt.Sprintf(`["%s"]`, nameToAddress((DEF_TEST_ACCOUNT))), 105087, SetHardForkVersion(2))
-		assert.NoError(t, err)
-
-		err = expectGas(code2, 0, `"send2"`, fmt.Sprintf(`["%s"]`, nameToAddress((DEF_TEST_ACCOUNT))), 102179, SetHardForkVersion(2))
-		assert.NoError(t, err)
-	}
-*/
 func TestGasOP(t *testing.T) {
 	code := readLuaCode("op.lua")
 	require.NotEmpty(t, code, "failed to read op.lua")
@@ -2938,8 +2987,10 @@ func expectGas(contractCode string, amount uint64, funcName, funcArgs string, ex
 	}
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount(DEF_TEST_ACCOUNT, DEF_TEST_AMOUNT),
-		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, contractCode))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount(DEF_TEST_ACCOUNT, DEF_TEST_AMOUNT),
+		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, contractCode),
+	)
 	if err != nil {
 		return err
 	}
