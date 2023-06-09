@@ -4,7 +4,6 @@ package vm_dummy
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/big"
 	"os"
@@ -91,7 +90,7 @@ func SetPubNet() DummyChainOptions {
 }
 
 func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
-	dataPath, err := ioutil.TempDir("", "data")
+	dataPath, err := os.MkdirTemp("", "data")
 	if err != nil {
 		return nil, err
 	}

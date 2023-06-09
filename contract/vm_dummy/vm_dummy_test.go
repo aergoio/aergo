@@ -100,7 +100,7 @@ func TestContractSend(t *testing.T) {
 	assert.NoErrorf(t, err, "failed to call tx")
 
 	state, err := bc.GetAccountState("test2")
-	assert.Equalf(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance error")
+	assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance error")
 
 	err = bc.ConnectBlock(
 		NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test3"))).Fail(`[Contract.LuaSendAmount] call err: not found function: default`),
@@ -140,20 +140,20 @@ func TestContractSendF(t *testing.T) {
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	r := bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, uint64(105087), r.GetGasUsed(), "gas used not equal")
+	assert.Equalf(t, int64(105087), int64(r.GetGasUsed()), "gas used not equal")
 
 	state, err := bc.GetAccountState("test2")
-	assert.Equalf(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance state not equal")
+	assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance state not equal")
 
 	tx = NewLuaTxCall("ktlee", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, nameToAddress("test2")))
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	r = bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, uint64(105179), r.GetGasUsed(), "gas used not equal")
+	assert.Equalf(t, int64(105179), int64(r.GetGasUsed()), "gas used not equal")
 
 	state, err = bc.GetAccountState("test2")
-	assert.Equalf(t, uint64(6), state.GetBalanceBigInt().Uint64(), "balance state not equal")
+	assert.Equalf(t, int64(6), state.GetBalanceBigInt().Int64(), "balance state not equal")
 }
 
 func TestContractQuery(t *testing.T) {
@@ -175,7 +175,7 @@ func TestContractQuery(t *testing.T) {
 
 	query, err := bc.GetAccountState("query")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equalf(t, uint64(2), query.GetBalanceBigInt().Uint64(), "not equal balance")
+	assert.Equalf(t, int64(2), query.GetBalanceBigInt().Int64(), "not equal balance")
 
 	err = bc.Query("query", `{"Name":"inc", "Args":[]}`, "set not permitted in query", "")
 	require.NoErrorf(t, err, "failed to query")
@@ -539,7 +539,7 @@ func TestDeploy(t *testing.T) {
 
 	deployAcc, err := bc.GetAccountState("deploy")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equalf(t, uint64(49999999900), deployAcc.GetBalanceBigInt().Uint64(), "not same balance")
+	assert.Equalf(t, int64(49999999900), deployAcc.GetBalanceBigInt().Int64(), "not same balance")
 
 	deployAcc, err = bc.GetAccountState("deploy")
 	require.NoErrorf(t, err, "failed to get account state")
@@ -550,7 +550,7 @@ func TestDeploy(t *testing.T) {
 
 	deployAcc, err = bc.GetAccountState("deploy")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equalf(t, uint64(2), deployAcc.Nonce, "not same nonce")
+	assert.Equalf(t, int64(2), int64(deployAcc.Nonce), "not same nonce")
 
 	tx = NewLuaTxCall("ktlee", "deploy", 0, `{"Name":"testPcall"}`)
 	err = bc.ConnectBlock(tx)
@@ -558,7 +558,7 @@ func TestDeploy(t *testing.T) {
 
 	deployAcc, err = bc.GetAccountState("deploy")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equalf(t, uint64(2), deployAcc.Nonce, "nonce rollback failed")
+	assert.Equalf(t, int64(2), int64(deployAcc.Nonce), "nonce rollback failed")
 
 	receipt = bc.GetReceipt(tx.Hash())
 	assert.Containsf(t, receipt.GetRet(), "cannot find contract", "contract Call ret error")
@@ -606,12 +606,12 @@ func TestDeployFee(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 0, code))
 	require.NoErrorf(t, err, "failed to connect new block")
 
-	var before, use, after uint64
+	var before, use, after int64
 	use = 117861
 
 	state, err := bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
-	before = state.GetBalanceBigInt().Uint64()
+	before = state.GetBalanceBigInt().Int64()
 
 	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name": "testPcall"}`)
 	err = bc.ConnectBlock(tx)
@@ -619,10 +619,10 @@ func TestDeployFee(t *testing.T) {
 
 	state, err = bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Uint64()
+	after = state.GetBalanceBigInt().Int64()
 
 	r := bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, use, r.GetGasUsed(), "not same gas used")
+	assert.Equalf(t, use, int64(r.GetGasUsed()), "not same gas used")
 	assert.Equalf(t, before-use, after, "not same after balance")
 }
 
@@ -1241,9 +1241,9 @@ func TestTypeOP(t *testing.T) {
 	state, err := bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
 
-	var before, use, after uint64
+	var before, use, after int64
 
-	before = state.GetBalanceBigInt().Uint64()
+	before = state.GetBalanceBigInt().Int64()
 	tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to call tx")
@@ -1251,10 +1251,10 @@ func TestTypeOP(t *testing.T) {
 	r := bc.GetReceipt(tx.Hash())
 	state, err = bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Uint64()
+	after = state.GetBalanceBigInt().Int64()
 
 	use = 117610
-	require.Equalf(t, use, r.GetGasUsed(), "used gas not equal")
+	require.Equalf(t, use, int64(r.GetGasUsed()), "used gas not equal")
 	require.Equalf(t, before-use, after, "balance not equal")
 }
 
@@ -1273,10 +1273,10 @@ func TestTypeBF(t *testing.T) {
 	state, err := bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
 
-	feeTest := func(expectedFee uint64) {
-		var before, after uint64
+	feeTest := func(expectedFee int64) {
+		var before, after int64
 
-		before = state.GetBalanceBigInt().Uint64()
+		before = state.GetBalanceBigInt().Int64()
 		tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to call tx")
@@ -1284,9 +1284,9 @@ func TestTypeBF(t *testing.T) {
 		r := bc.GetReceipt(tx.Hash())
 		state, err = bc.GetAccountState("ktlee")
 		require.NoErrorf(t, err, "failed to get account state")
-		after = state.GetBalanceBigInt().Uint64()
+		after = state.GetBalanceBigInt().Int64()
 
-		require.Equalf(t, expectedFee, r.GetGasUsed(), "used gas not equal")
+		require.Equalf(t, expectedFee, int64(r.GetGasUsed()), "used gas not equal")
 		require.Equalf(t, before-expectedFee, after, "balance not equal")
 	}
 
@@ -2206,7 +2206,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 
 	state, err := bc.GetAccountState("bong")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equal(t, uint64(2), state.GetBalanceBigInt().Uint64(), "balance error")
+	assert.Equal(t, int64(2), state.GetBalanceBigInt().Int64(), "balance error")
 
 	tx = NewLuaTxCall("ktlee", "counter", 10, fmt.Sprintf(`{"Name":"set2", "Args":["%s"]}`, nameToAddress("bong")))
 	err = bc.ConnectBlock(tx)
@@ -2217,7 +2217,7 @@ func TestFeaturePcallRollback(t *testing.T) {
 
 	state, err = bc.GetAccountState("bong")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equal(t, uint64(3), state.GetBalanceBigInt().Uint64(), "balance error")
+	assert.Equal(t, int64(3), state.GetBalanceBigInt().Int64(), "balance error")
 }
 
 func TestFeaturePcallNested(t *testing.T) {
@@ -2246,7 +2246,7 @@ func TestFeaturePcallNested(t *testing.T) {
 
 	state, err := bc.GetAccountState("bong")
 	require.NoErrorf(t, err, "failed to get account state")
-	assert.Equal(t, uint64(1000000000000000000), state.GetBalanceBigInt().Uint64(), "balance error")
+	assert.Equal(t, int64(1000000000000000000), state.GetBalanceBigInt().Int64(), "balance error")
 }
 
 func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
@@ -2269,20 +2269,20 @@ func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
 	state, err := bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
 
-	var before, use, after uint64
+	var before, use, after int64
 
 	// verify proof raw
-	before = state.GetBalanceBigInt().Uint64()
+	before = state.GetBalanceBigInt().Int64()
 	tx := NewLuaTxCall("ktlee", "eth", 0, `{"Name": "verifyProofRaw"}`)
 	err = bc.ConnectBlock(tx)
 	require.NoErrorf(t, err, "failed to call tx")
 	r := bc.GetReceipt(tx.Hash())
 	state, err = bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Uint64()
+	after = state.GetBalanceBigInt().Int64()
 
 	use = 154137
-	require.Equalf(t, use, r.GetGasUsed(), "not equal gas used")
+	require.Equalf(t, use, int64(r.GetGasUsed()), "not equal gas used")
 	require.Equalf(t, before-use, after, "not equal balance")
 
 	// verify proof hex
@@ -2293,10 +2293,10 @@ func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
 	r = bc.GetReceipt(tx.Hash())
 	state, err = bc.GetAccountState("ktlee")
 	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Uint64()
+	after = state.GetBalanceBigInt().Int64()
 
 	use = 108404
-	require.Equalf(t, use, r.GetGasUsed(), "not equal gas used")
+	require.Equalf(t, use, int64(r.GetGasUsed()), "not equal gas used")
 	require.Equalf(t, before-use, after, "not equal balance")
 }
 
@@ -2342,7 +2342,7 @@ func TestFeatureFeeDelegation(t *testing.T) {
 
 	contract2, err := bc.GetAccountState("fd")
 	require.NoErrorf(t, err, "failed to get contract")
-	require.NotEqualf(t, contract1.GetBalanceBigInt().Uint64(), contract2.GetBalanceBigInt().Uint64(), "balance is not changed")
+	require.NotEqualf(t, contract1.GetBalanceBigInt().Int64(), contract2.GetBalanceBigInt().Int64(), "balance is not changed")
 
 	err = bc.ConnectBlock(tx.Fail("fee delegation is not allowed"))
 	require.NoErrorf(t, err, "failed to call tx")
@@ -2410,6 +2410,10 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 */
 
 func TestMaxCallDepth(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	code := readLuaCode("maxcalldepth_1.lua")
 	require.NotEmpty(t, code, "failed to read maxcalldepth_1.lua")
 
@@ -2432,65 +2436,65 @@ func TestMaxCallDepth(t *testing.T) {
 		t.Error(err)
 	}
 
-/*
-  // deploy 2 identical contracts
-  err = bc.ConnectBlock(
-    NewLuaTxDeploy("user", "c1", 0, definition1),
-    NewLuaTxDeploy("user", "c2", 0, definition1),
-  )
-  if err != nil {
-    t.Error(err)
-  }
+	/*
+	   // deploy 2 identical contracts
+	   err = bc.ConnectBlock(
+	     NewLuaTxDeploy("user", "c1", 0, definition1),
+	     NewLuaTxDeploy("user", "c2", 0, definition1),
+	   )
+	   if err != nil {
+	     t.Error(err)
+	   }
 
-  // call first contract - recursion depth 64
-  err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c1", 0, `{"Name":"call_me", "Args":[1, 64]}`),
-  )
-  if err != nil {
-    t.Error(err)
-  }
-  // check state
-  err = bc.Query("c1", `{"Name":"check_state"}`, "", "true")
-  if err != nil {
-    t.Error(err)
-  }
-  // query view
-  err = bc.Query("c1", `{"Name":"get_total_calls"}`, "", "[64,64]")
-  if err != nil {
-    t.Error(err)
-  }
-  for i := 1; i <= 64; i++ {
-    err = bc.Query("c1", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", fmt.Sprintf("%d", i))
-    if err != nil {
-      t.Error(err)
-    }
-  }
+	   // call first contract - recursion depth 64
+	   err = bc.ConnectBlock(
+	     NewLuaTxCall("user", "c1", 0, `{"Name":"call_me", "Args":[1, 64]}`),
+	   )
+	   if err != nil {
+	     t.Error(err)
+	   }
+	   // check state
+	   err = bc.Query("c1", `{"Name":"check_state"}`, "", "true")
+	   if err != nil {
+	     t.Error(err)
+	   }
+	   // query view
+	   err = bc.Query("c1", `{"Name":"get_total_calls"}`, "", "[64,64]")
+	   if err != nil {
+	     t.Error(err)
+	   }
+	   for i := 1; i <= 64; i++ {
+	     err = bc.Query("c1", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", fmt.Sprintf("%d", i))
+	     if err != nil {
+	       t.Error(err)
+	     }
+	   }
 
-  // call second contract - recursion depth 66
-  err = bc.ConnectBlock(
-    NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 66]}`).
-      Fail("exceeded the maximum call depth"),
-  )
-  if err != nil {
-    t.Error(err)
-  }
-  // check state - should fail
-  err = bc.Query("c2", `{"Name":"check_state"}`, "", "")
-  if err == nil {
-    t.Error("should fail")
-  }
-  // query view - must return nil
-  err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[null,null]")
-  if err != nil {
-    t.Error(err)
-  }
-  for i := 1; i <= 64; i++ {
-    err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "null")
-    if err != nil {
-      t.Error(err)
-    }
-  }
-*/
+	   // call second contract - recursion depth 66
+	   err = bc.ConnectBlock(
+	     NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 66]}`).
+	       Fail("exceeded the maximum call depth"),
+	   )
+	   if err != nil {
+	     t.Error(err)
+	   }
+	   // check state - should fail
+	   err = bc.Query("c2", `{"Name":"check_state"}`, "", "")
+	   if err == nil {
+	     t.Error("should fail")
+	   }
+	   // query view - must return nil
+	   err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[null,null]")
+	   if err != nil {
+	     t.Error(err)
+	   }
+	   for i := 1; i <= 64; i++ {
+	     err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "null")
+	     if err != nil {
+	       t.Error(err)
+	     }
+	   }
+	*/
 
 	// deploy 66 identical contracts using definition2
 	for i := 1; i <= 66; i++ {
@@ -2879,7 +2883,7 @@ func nameToAddress(name string) (address string) {
 	return types.EncodeAddress(contract.StrHash(name))
 }
 
-func expectGas(contractCode string, amount uint64, funcName, funcArgs string, expectGas uint64, opt ...DummyChainOptions) error {
+func expectGas(contractCode string, amount int64, funcName, funcArgs string, expectGas int64, opt ...DummyChainOptions) error {
 	// append set pubnet
 	bc, err := LoadDummyChain(append(opt, SetPubNet())...)
 	if err != nil {
@@ -2901,13 +2905,13 @@ func expectGas(contractCode string, amount uint64, funcName, funcArgs string, ex
 	} else {
 		code = fmt.Sprintf(`{"Name":%s, "Args":%s}`, funcName, funcArgs)
 	}
-	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, amount, code)
+	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), code)
 	err = bc.ConnectBlock(tx)
 	if err != nil {
 		return err
 	}
 	r := bc.GetReceipt(tx.Hash())
-	if expectGas != r.GetGasUsed() {
+	if expectGas != int64(r.GetGasUsed()) {
 		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, r.GetGasUsed())
 	}
 	return nil
