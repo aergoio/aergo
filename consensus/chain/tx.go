@@ -83,12 +83,12 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	})
 }
 
-// Lock aquires the chain lock in a blocking mode.
+// Lock acquires the chain lock in a blocking mode.
 func Lock() {
 	chain.InAddBlock <- struct{}{}
 }
 
-// LockNonblock aquires the chain lock in a non-blocking mode. It returns
+// LockNonblock acquires the chain lock in a non-blocking mode. It returns
 // ErrBestBlock upon failure.
 func LockNonblock() error {
 	select {

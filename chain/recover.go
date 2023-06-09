@@ -27,9 +27,9 @@ func RecoverExit() {
 
 // Recover has 2 situation
 //  1. normal recovery
-//     normal recovery recovers error that has occures while adding single block
+//     normal recovery recovers error that has occurs while adding single block
 //  2. reorg recovery
-//     reorg recovery recovers error that has occures while executing reorg
+//     reorg recovery recovers error that has occurs while executing reorg
 func (cs *ChainService) Recover() error {
 	defer RecoverExit()
 
@@ -74,8 +74,8 @@ func (cs *ChainService) Recover() error {
 }
 
 // recover from normal
-// set stateroot for bestblock
-// when panic occured, memory state of server may not be consistent.
+// set stateRoot for bestBlock
+// when panic occurred, memory state of server may not be consistent.
 // so restart server when panic in chainservice
 func (cs *ChainService) recoverNormal() error {
 	best, err := cs.GetBestBlock()
@@ -103,7 +103,7 @@ func (cs *ChainService) recoverNormal() error {
 // 1. delete receipts of rollbacked blocks
 // 2. swap tx mapping
 func (cs *ChainService) recoverReorg(marker *ReorgMarker) error {
-	// build reorgnizer from reorg marker
+	// build reorganizer from reorg marker
 	topBlock, err := cs.GetBlock(marker.BrTopHash)
 	if err != nil {
 		return err
