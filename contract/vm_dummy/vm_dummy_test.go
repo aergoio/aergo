@@ -2968,7 +2968,7 @@ func readLuaCode(file string) (luaCode string) {
 	if ok != true {
 		return ""
 	}
-	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "test_sample", file))
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(filename), "test_files", file))
 	if err != nil {
 		return ""
 	}
