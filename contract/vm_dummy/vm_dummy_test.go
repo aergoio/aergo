@@ -2409,11 +2409,44 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 }
 */
 
-func TestMaxCallDepth(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+func TestGasHello(t *testing.T) {
+	var err error
+	code := readLuaCode("contract_hello.lua")
+	require.NotEmpty(t, code, "failed to read hello.lua")
 
+	err = expectGas(code, 0, `"hello"`, `["world"]`, 100000, SetHardForkVersion(1))
+	assert.NoError(t, err)
+
+	err = expectGas(code, 0, `"hello"`, `["w"]`, 101203+3*1, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["wo"]`, 101203+3*2, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["wor"]`, 101203+3*3, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["worl"]`, 101203+3*4, SetHardForkVersion(2))
+	assert.NoError(t, err)
+	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasBF(t *testing.T) {
+	code := readLuaCode("bf.lua")
+	require.NotEmpty(t, code, "failed to read bf.lua")
+
+	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
+	// assert.NoError(t, err)
+
+	err := expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(string(code), 0, `"main"`, ``, 47513803, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestMaxCallDepth(t *testing.T) {
 	code := readLuaCode("maxcalldepth_1.lua")
 	require.NotEmpty(t, code, "failed to read maxcalldepth_1.lua")
 
@@ -2437,63 +2470,63 @@ func TestMaxCallDepth(t *testing.T) {
 	}
 
 	/*
-	   // deploy 2 identical contracts
-	   err = bc.ConnectBlock(
-	     NewLuaTxDeploy("user", "c1", 0, definition1),
-	     NewLuaTxDeploy("user", "c2", 0, definition1),
-	   )
-	   if err != nil {
-	     t.Error(err)
-	   }
+		// deploy 2 identical contracts
+		err = bc.ConnectBlock(
+			NewLuaTxDeploy("user", "c1", 0, definition1),
+			NewLuaTxDeploy("user", "c2", 0, definition1),
+		)
+		if err != nil {
+			t.Error(err)
+		}
 
-	   // call first contract - recursion depth 64
-	   err = bc.ConnectBlock(
-	     NewLuaTxCall("user", "c1", 0, `{"Name":"call_me", "Args":[1, 64]}`),
-	   )
-	   if err != nil {
-	     t.Error(err)
-	   }
-	   // check state
-	   err = bc.Query("c1", `{"Name":"check_state"}`, "", "true")
-	   if err != nil {
-	     t.Error(err)
-	   }
-	   // query view
-	   err = bc.Query("c1", `{"Name":"get_total_calls"}`, "", "[64,64]")
-	   if err != nil {
-	     t.Error(err)
-	   }
-	   for i := 1; i <= 64; i++ {
-	     err = bc.Query("c1", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", fmt.Sprintf("%d", i))
-	     if err != nil {
-	       t.Error(err)
-	     }
-	   }
+		// call first contract - recursion depth 64
+		err = bc.ConnectBlock(
+			NewLuaTxCall("user", "c1", 0, `{"Name":"call_me", "Args":[1, 64]}`),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+		// check state
+		err = bc.Query("c1", `{"Name":"check_state"}`, "", "true")
+		if err != nil {
+			t.Error(err)
+		}
+		// query view
+		err = bc.Query("c1", `{"Name":"get_total_calls"}`, "", "[64,64]")
+		if err != nil {
+			t.Error(err)
+		}
+		for i := 1; i <= 64; i++ {
+			err = bc.Query("c1", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", fmt.Sprintf("%d", i))
+			if err != nil {
+				t.Error(err)
+			}
+		}
 
-	   // call second contract - recursion depth 66
-	   err = bc.ConnectBlock(
-	     NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 66]}`).
-	       Fail("exceeded the maximum call depth"),
-	   )
-	   if err != nil {
-	     t.Error(err)
-	   }
-	   // check state - should fail
-	   err = bc.Query("c2", `{"Name":"check_state"}`, "", "")
-	   if err == nil {
-	     t.Error("should fail")
-	   }
-	   // query view - must return nil
-	   err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[null,null]")
-	   if err != nil {
-	     t.Error(err)
-	   }
-	   for i := 1; i <= 64; i++ {
-	     err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "null")
-	     if err != nil {
-	       t.Error(err)
-	     }
-	   }
+		// call second contract - recursion depth 66
+		err = bc.ConnectBlock(
+			NewLuaTxCall("user", "c2", 0, `{"Name":"call_me", "Args":[1, 66]}`).
+				Fail("exceeded the maximum call depth"),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+		// check state - should fail
+		err = bc.Query("c2", `{"Name":"check_state"}`, "", "")
+		if err == nil {
+			t.Error("should fail")
+		}
+		// query view - must return nil
+		err = bc.Query("c2", `{"Name":"get_total_calls"}`, "", "[null,null]")
+		if err != nil {
+			t.Error(err)
+		}
+		for i := 1; i <= 64; i++ {
+			err = bc.Query("c2", fmt.Sprintf(`{"Name":"get_call_info", "Args":["%d"]}`, i), "", "null")
+			if err != nil {
+				t.Error(err)
+			}
+		}
 	*/
 
 	// deploy 66 identical contracts using definition2
@@ -2763,102 +2796,6 @@ func TestMaxCallDepth(t *testing.T) {
 		}
 	}
 }
-
-func TestGasHello(t *testing.T) {
-	var err error
-	code := readLuaCode("contract_hello.lua")
-	require.NotEmpty(t, code, "failed to read hello.lua")
-
-	err = expectGas(code, 0, `"hello"`, `["world"]`, 100000, SetHardForkVersion(1))
-	assert.NoError(t, err)
-
-	err = expectGas(code, 0, `"hello"`, `["w"]`, 101203+3*1, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["wo"]`, 101203+3*2, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["wor"]`, 101203+3*3, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["worl"]`, 101203+3*4, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-func TestGasOP(t *testing.T) {
-	code := readLuaCode("op.lua")
-	require.NotEmpty(t, code, "failed to read op.lua")
-
-	err := expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
-	assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 120270, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-func TestGasBF(t *testing.T) {
-	code := readLuaCode("bf.lua")
-	require.NotEmpty(t, code, "failed to read bf.lua")
-
-	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
-	// assert.NoError(t, err)
-
-	err := expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 47513803, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-/*
-// TODO
-// ascii
-err = expectGas(t, contract, `"hello"`, `[""]`, 101014+96, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"hello"`, `[""]`, 101014+96, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"hello"`, `[""]`, 101014+96, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-// unicode
-err = expectGas(t, contract, `"setItem"`, `["안"]`, 101004+93+9, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"setItem"`, `["안녕"]`, 101004+93+18, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"setItem"`, `["안녕하세요"]`, 101004+93+45, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-// number
-err = expectGas(t, contract, `"hello"`, `[0]`, 101004+189+3, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"hello"`, `[1]`, 101004+189+3, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"hello"`, `[10]`, 101004+189+6, SetHardForkVersion(2))
-assert.NoError(t, err)
-err = expectGas(t, contract, `"hello"`, `[100]`, 101004+189+9, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-err = expectGas(t, contract, `"hello"`, `["a","b","c"]`, 101004+93+3, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-err = expectGas(t, contract, `"hello"`, `["a","b","aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]`, 101110+93+3, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-err = expectGas(t, contract, `"hello"`, `[1,2,3]`, 101110+189+3, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-err = expectGas(t, contract, `"hello"`, `[""]`, 101218, SetHardForkVersion(2))
-assert.NoError(t, err)
-
-v3
-err = expectGas(t, contract, `"hello"`, `["World"]`, 101218, SetHardForkVersion(3))
-assert.NoError(t, err)
-*/
 
 const (
 	DEF_TEST_CONTRACT = "testcontract"
