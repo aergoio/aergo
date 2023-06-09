@@ -260,7 +260,7 @@ func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainSer
 					return err
 				}
 
-				// Remove a block depnding on blk from the orphan cache.
+				// Remove a block depending on blk from the orphan cache.
 				if blk, err = cp.resolveOrphan(blk); err != nil {
 					return err
 				}
@@ -405,7 +405,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	}
 
 	// The newly produced block becomes stale because the more block(s) are
-	// connected to the blockchain so that the best block is changed. In this
+	// connected to the blockchain so that the best block is cha/nged. In this
 	// case, newBlock is rejected because it is unlikely that newBlock belongs
 	// to the main branch. Warning: the condition 'usedBstate != nil' is used
 	// to check whether newBlock is produced by the current node itself. Later,
@@ -468,6 +468,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		return err, false
 	}
 
+	// try to acquire lock
 	select {
 	case InAddBlock <- struct{}{}:
 	}
