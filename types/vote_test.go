@@ -11,7 +11,7 @@ func TestIsSpecialAccount(t *testing.T) {
 		{"TAergoName", []byte("aergo.name"), true},
 		{"TAergoEnterprise", []byte("aergo.enterprise"), true},
 		{"TAergoVault", []byte("aergo.vault"), true},
-		{"TNormal", []byte("kslee0000007"), false},
+		{"TNormal", []byte("user0000007"), false},
 		{"TInvalid", []byte("ks.lee"), false},
 	}
 	for _, tt := range tests {

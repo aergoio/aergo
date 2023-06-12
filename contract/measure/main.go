@@ -17,7 +17,7 @@ func main() {
 	}
 
 	err = bc.ConnectBlock(
-		vm_dummy.NewLuaTxAccount("ktlee", 100),
+		vm_dummy.NewLuaTxAccount("user1", 100),
 	)
 	if err != nil {
 		log.Println(err)
@@ -30,14 +30,14 @@ func main() {
 		}
 
 		err = bc.ConnectBlock(
-			vm_dummy.NewLuaTxDef("ktlee", luaFileName, 0, string(src)),
+			vm_dummy.NewLuaTxDeploy("user1", luaFileName, 0, string(src)),
 		)
 		if err != nil {
 			log.Println(err)
 		}
 
 		err = bc.ConnectBlock(
-			vm_dummy.NewLuaTxCall("ktlee", luaFileName, 0, `{"Name": "`+mainFuncName+`"}`),
+			vm_dummy.NewLuaTxCall("user1", luaFileName, 0, `{"Name": "`+mainFuncName+`"}`),
 		)
 		if err != nil {
 			log.Println(err)

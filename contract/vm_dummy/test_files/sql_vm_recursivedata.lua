@@ -1,6 +1,6 @@
 function r()
     local t = {}
-    t["name"] = "ktlee"
+    t["name"] = "user1"
     t["self"] = t
     return t
 end

@@ -3,7 +3,7 @@ state.var {
 }
 
 function constructor()
-    Person:set({ name = "kslee", age = 38, address = "blahblah..." })
+    Person:set({ name = "user2", age = 38, address = "blahblah..." })
 end
 
 function InvalidUpdateAge(age)
