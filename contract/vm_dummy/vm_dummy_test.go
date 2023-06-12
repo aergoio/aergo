@@ -246,7 +246,8 @@ func TestContractPingpongCall(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "a", 0, code))
+		NewLuaTxDeploy("ktlee", "a", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(NewLuaTxDeploy("ktlee", "b", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("a"))))
@@ -767,9 +768,11 @@ func TestKvstore(t *testing.T) {
 	err = bc.Query("map", `{"Name":"get", "Args":["htwo"]}`, "", "null")
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["ktlee"]}`),
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["ktlee"]}`),
 		NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["htwo"]}`),
-		NewLuaTxCall("ktlee", "map", 0, `{"Name":"set", "Args":["wook", 100]}`))
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"set", "Args":["wook", 100]}`),
+	)
 	require.NoErrorf(t, err, "failed to call contract")
 
 	err = bc.Query("map", `{"Name":"get", "Args":["ktlee"]}`, "", "2")
@@ -859,8 +862,10 @@ func TestSqlOnConflict(t *testing.T) {
 	err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4]`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (5)"]}`),
-		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or rollback into t values (5)"]}`).Fail("syntax error"))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert into t values (5)"]}`),
+		NewLuaTxCall("ktlee", "on_conflict", 0, `{"name":"stmt_exec", "args": ["insert or rollback into t values (5)"]}`).Fail("syntax error"),
+	)
 	require.NoErrorf(t, err, "failed to call tx")
 
 	err = bc.Query("on_conflict", `{"name":"get"}`, "", `[1,2,3,4,5]`)
@@ -977,7 +982,10 @@ func TestSqlVmPubNet(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "simple-query", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("ktlee", 100000000000000000),
+		NewLuaTxDeploy("ktlee", "simple-query", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`).Fail(`attempt to index global 'db'`))
@@ -2760,12 +2768,12 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 		code = fmt.Sprintf(`{"Name":%s, "Args":[%s]}`, funcName, funcArgs)
 	}
 
-	var before, after int64
+	var balanceBefore, balanceAfter int64
 	// get before balance
 	if state, err := bc.GetAccountState(DEF_TEST_ACCOUNT); err != nil {
 		return fmt.Errorf("failed to get account state: %s", err)
 	} else {
-		before = state.GetBalanceBigInt().Int64()
+		balanceBefore = state.GetBalanceBigInt().Int64()
 	}
 	// execute tx in block
 	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), code)
@@ -2776,15 +2784,15 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 	if state, err := bc.GetAccountState(DEF_TEST_ACCOUNT); err != nil {
 		return fmt.Errorf("failed to get account state: %s", err)
 	} else {
-		after = state.GetBalanceBigInt().Int64()
+		balanceAfter = state.GetBalanceBigInt().Int64()
 	}
 
-	use := bc.GetReceipt(tx.Hash()).GetGasUsed()
-	if expectGas != int64(bc.GetReceipt(tx.Hash()).GetGasUsed()) {
-		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, use)
+	usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
+	if expectGas != int64(usedGas) {
+		return fmt.Errorf("wrong used gas, expected: %d, but got: %d", expectGas, usedGas)
 	}
-	if before-expectGas != after {
-		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, before-after)
+	if balanceBefore-expectGas != balanceAfter {
+		return fmt.Errorf("wrong balance status, expected: %d, but got: %d", expectGas, balanceBefore-balanceAfter)
 	}
 
 	return nil
