@@ -595,37 +595,6 @@ func TestNDeploy(t *testing.T) {
 	require.NoErrorf(t, err, "failed to connect new block")
 }
 
-func TestDeployFee(t *testing.T) {
-	code := readLuaCode("deployfee.lua")
-	require.NotEmpty(t, code, "failed to read deployfee.lua")
-
-	bc, err := LoadDummyChain(SetTimeout(50), SetPubNet())
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
-
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "deploy", 0, code))
-	require.NoErrorf(t, err, "failed to connect new block")
-
-	var before, use, after int64
-	use = 117861
-
-	state, err := bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-	before = state.GetBalanceBigInt().Int64()
-
-	tx := NewLuaTxCall("ktlee", "deploy", 0, `{"Name": "testPcall"}`)
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to connect new block")
-
-	state, err = bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Int64()
-
-	r := bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, use, int64(r.GetGasUsed()), "not same gas used")
-	assert.Equalf(t, before-use, after, "not same after balance")
-}
-
 func xestInfiniteLoop(t *testing.T) {
 	code := readLuaCode("infiniteloop.lua")
 	require.NotEmpty(t, code, "failed to read infiniteloop.lua")
@@ -783,8 +752,10 @@ func TestKvstore(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "map", 0, code))
 	require.NoErrorf(t, err, "failed to deploy contract")
 
-	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["ktlee"]}`),
-		NewLuaTxCall("ktlee", "map", 0, `{"Name":"setname", "Args":["eve2adam"]}`))
+	err = bc.ConnectBlock(
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"inc", "Args":["ktlee"]}`),
+		NewLuaTxCall("ktlee", "map", 0, `{"Name":"setname", "Args":["eve2adam"]}`),
+	)
 	require.NoErrorf(t, err, "failed to call contract")
 
 	err = bc.ConnectBlock()
@@ -1006,8 +977,7 @@ func TestSqlVmPubNet(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000),
-		NewLuaTxDeploy("ktlee", "simple-query", 0, code))
+	err = bc.ConnectBlock(NewLuaTxAccount("ktlee", 100000000000000000), NewLuaTxDeploy("ktlee", "simple-query", 0, code))
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("ktlee", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`).Fail(`attempt to index global 'db'`))
@@ -1223,78 +1193,6 @@ func TestSqlJdbc(t *testing.T) {
 	err = bc.Query("jdbc", `{"Name":"queryS", "Args":["2", "select a,b,c from total"]}`, "",
 		`{"colcnt":3,"colmetas":{"colcnt":3,"decltypes":["int","int","text"],"names":["a","b","c"]},"data":[[1,{},"2"],[2,2,"3"],[3,2,"3"],[4,2,"3"],[5,2,"3"],[6,2,"3"],[7,2,"3"]],"rowcnt":7,"snap":"3"}`)
 	require.NoErrorf(t, err, "failed to query")
-}
-
-// type Tests
-func TestTypeOP(t *testing.T) {
-	code := readLuaCode("op.lua")
-	require.NotEmpty(t, code, "failed to read op.lua")
-
-	bc, err := LoadDummyChain(SetPubNet())
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
-
-	balance, _ := new(big.Int).SetString("10000000000000000", 10)
-	err = bc.ConnectBlock(NewLuaTxAccountBig("ktlee", balance), NewLuaTxDeploy("ktlee", "op", 0, string(code)))
-	require.NoErrorf(t, err, "failed to deploy")
-
-	state, err := bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-
-	var before, use, after int64
-
-	before = state.GetBalanceBigInt().Int64()
-	tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to call tx")
-
-	r := bc.GetReceipt(tx.Hash())
-	state, err = bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Int64()
-
-	use = 117610
-	require.Equalf(t, use, int64(r.GetGasUsed()), "used gas not equal")
-	require.Equalf(t, before-use, after, "balance not equal")
-}
-
-func TestTypeBF(t *testing.T) {
-	code := readLuaCode("bf.lua")
-	require.NotEmpty(t, code, "failed to read bf.lua")
-
-	bc, err := LoadDummyChain(SetPubNet())
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
-
-	balance, _ := new(big.Int).SetString("10000000000000000", 10)
-	err = bc.ConnectBlock(NewLuaTxAccountBig("ktlee", balance), NewLuaTxDeploy("ktlee", "op", 0, string(code)))
-	require.NoErrorf(t, err, "failed to deploy")
-
-	state, err := bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-
-	feeTest := func(expectedFee int64) {
-		var before, after int64
-
-		before = state.GetBalanceBigInt().Int64()
-		tx := NewLuaTxCall("ktlee", "op", 0, `{"Name": "main"}`)
-		err = bc.ConnectBlock(tx)
-		require.NoErrorf(t, err, "failed to call tx")
-
-		r := bc.GetReceipt(tx.Hash())
-		state, err = bc.GetAccountState("ktlee")
-		require.NoErrorf(t, err, "failed to get account state")
-		after = state.GetBalanceBigInt().Int64()
-
-		require.Equalf(t, expectedFee, int64(r.GetGasUsed()), "used gas not equal")
-		require.Equalf(t, before-expectedFee, after, "balance not equal")
-	}
-
-	feeTest(47456244)
-	OldVersion := bc.HardforkVersion
-	bc.HardforkVersion = 3
-	feeTest(47513803)
-	bc.HardforkVersion = OldVersion
 }
 
 func TestTypeMaxString(t *testing.T) {
@@ -2266,38 +2164,6 @@ func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
 	err = bc.Query("eth", `{"Name":"verifyProofHex"}`, "", `true`)
 	require.NoErrorf(t, err, "failed to query")
 
-	state, err := bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-
-	var before, use, after int64
-
-	// verify proof raw
-	before = state.GetBalanceBigInt().Int64()
-	tx := NewLuaTxCall("ktlee", "eth", 0, `{"Name": "verifyProofRaw"}`)
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to call tx")
-	r := bc.GetReceipt(tx.Hash())
-	state, err = bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Int64()
-
-	use = 154137
-	require.Equalf(t, use, int64(r.GetGasUsed()), "not equal gas used")
-	require.Equalf(t, before-use, after, "not equal balance")
-
-	// verify proof hex
-	before = after
-	tx = NewLuaTxCall("ktlee", "eth", 0, `{"Name": "verifyProofHex"}`)
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to call tx")
-	r = bc.GetReceipt(tx.Hash())
-	state, err = bc.GetAccountState("ktlee")
-	require.NoErrorf(t, err, "failed to get account state")
-	after = state.GetBalanceBigInt().Int64()
-
-	use = 108404
-	require.Equalf(t, use, int64(r.GetGasUsed()), "not equal gas used")
-	require.Equalf(t, before-use, after, "not equal balance")
 }
 
 func TestFeatureFeeDelegation(t *testing.T) {
@@ -2414,35 +2280,87 @@ func TestGasHello(t *testing.T) {
 	code := readLuaCode("contract_hello.lua")
 	require.NotEmpty(t, code, "failed to read hello.lua")
 
-	err = expectGas(code, 0, `"hello"`, `["world"]`, 100000, SetHardForkVersion(1))
+	err = expectGas(code, 0, `"hello"`, `"world"`, 100000, SetHardForkVersion(1))
 	assert.NoError(t, err)
 
-	err = expectGas(code, 0, `"hello"`, `["w"]`, 101203+3*1, SetHardForkVersion(2))
+	err = expectGas(code, 0, `"hello"`, `"w"`, 101203+3*1, SetHardForkVersion(2))
 	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["wo"]`, 101203+3*2, SetHardForkVersion(2))
+	err = expectGas(code, 0, `"hello"`, `"wo"`, 101203+3*2, SetHardForkVersion(2))
 	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["wor"]`, 101203+3*3, SetHardForkVersion(2))
+	err = expectGas(code, 0, `"hello"`, `"wor"`, 101203+3*3, SetHardForkVersion(2))
 	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["worl"]`, 101203+3*4, SetHardForkVersion(2))
+	err = expectGas(code, 0, `"hello"`, `"worl"`, 101203+3*4, SetHardForkVersion(2))
 	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(2))
+	err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(code, 0, `"hello"`, `["world"]`, 101203+3*5, SetHardForkVersion(3))
+	err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasDeploy(t *testing.T) {
+	var err error
+	code := readLuaCode("gas_deploy.lua")
+	require.NotEmpty(t, code, "failed to read deployfee.lua")
+
+	// err = expectGas(code, 0, `"testPcall"`, ``, 0, SetHardForkVersion(0))
+	// assert.NoError(t, err)
+
+	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasOp(t *testing.T) {
+	var err error
+	code := readLuaCode("gas_op.lua")
+	require.NotEmpty(t, code, "failed to read op.lua")
+
+	err = expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(0))
+	assert.NoError(t, err)
+
+	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	err = expectGas(string(code), 0, `"main"`, ``, 120270, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
 func TestGasBF(t *testing.T) {
-	code := readLuaCode("bf.lua")
+	var err error
+	code := readLuaCode("gas_bf.lua")
 	require.NotEmpty(t, code, "failed to read bf.lua")
 
 	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	// assert.NoError(t, err)
 
-	err := expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
+	err = expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
 	err = expectGas(string(code), 0, `"main"`, ``, 47513803, SetHardForkVersion(3))
+	assert.NoError(t, err)
+}
+
+func TestGasLuaCryptoVerifyProof(t *testing.T) {
+	code := readLuaCode("feature_luacryptoverifyproof.lua")
+	require.NotEmpty(t, code, "failed to read feature_luacryptoverifyproof.lua")
+
+	// v2 raw
+	err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	// v2 hex
+	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(2))
+	assert.NoError(t, err)
+
+	// v3 raw
+	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154347, SetHardForkVersion(3))
+	assert.NoError(t, err)
+
+	// v3 hex
+	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
@@ -2828,11 +2746,10 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 	}
 	defer bc.Release()
 
-	err = bc.ConnectBlock(
+	if err = bc.ConnectBlock(
 		NewLuaTxAccount(DEF_TEST_ACCOUNT, DEF_TEST_AMOUNT),
 		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, contractCode),
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
 
@@ -2840,16 +2757,35 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 	if len(funcArgs) == 0 {
 		code = fmt.Sprintf(`{"Name":%s}`, funcName)
 	} else {
-		code = fmt.Sprintf(`{"Name":%s, "Args":%s}`, funcName, funcArgs)
+		code = fmt.Sprintf(`{"Name":%s, "Args":[%s]}`, funcName, funcArgs)
 	}
+
+	var before, after int64
+	// get before balance
+	if state, err := bc.GetAccountState(DEF_TEST_ACCOUNT); err != nil {
+		return fmt.Errorf("failed to get account state: %s", err)
+	} else {
+		before = state.GetBalanceBigInt().Int64()
+	}
+	// execute tx in block
 	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), code)
-	err = bc.ConnectBlock(tx)
-	if err != nil {
+	if err = bc.ConnectBlock(tx); err != nil {
 		return err
 	}
-	r := bc.GetReceipt(tx.Hash())
-	if expectGas != int64(r.GetGasUsed()) {
-		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, r.GetGasUsed())
+	// get after balance
+	if state, err := bc.GetAccountState(DEF_TEST_ACCOUNT); err != nil {
+		return fmt.Errorf("failed to get account state: %s", err)
+	} else {
+		after = state.GetBalanceBigInt().Int64()
 	}
+
+	use := bc.GetReceipt(tx.Hash()).GetGasUsed()
+	if expectGas != int64(bc.GetReceipt(tx.Hash()).GetGasUsed()) {
+		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, use)
+	}
+	if before-expectGas != after {
+		return fmt.Errorf("failed to expect gas, expected: %d, but got: %d", expectGas, before-after)
+	}
+
 	return nil
 }
