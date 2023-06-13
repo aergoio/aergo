@@ -94,7 +94,8 @@ const char *vm_loadfile(lua_State *L, const char *code)
 
 const char *vm_loadstring(lua_State *L, const char *code)
 {
-	if (luaL_loadstring(L, code) != 0) {
+	// use loadbufferx with mode="t" to limit input to text (no bytecode)
+	if (luaL_loadbufferx(L, code, strlen(code), "code", "t") != 0) {
 		return lua_tostring(L, -1);
 	}
 	return NULL;
