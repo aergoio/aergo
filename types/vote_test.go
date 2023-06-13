@@ -1,6 +1,8 @@
 package types
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestIsSpecialAccount(t *testing.T) {
 	tests := []struct {
@@ -11,8 +13,8 @@ func TestIsSpecialAccount(t *testing.T) {
 		{"TAergoName", []byte("aergo.name"), true},
 		{"TAergoEnterprise", []byte("aergo.enterprise"), true},
 		{"TAergoVault", []byte("aergo.vault"), true},
-		{"TNormal", []byte("user0000007"), false},
-		{"TInvalid", []byte("ks.lee"), false},
+		{"TNormal", []byte("user10000007"), false},
+		{"TInvalid", []byte("user.2"), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
