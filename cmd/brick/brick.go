@@ -87,7 +87,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p] [-v] [-w] <filename>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
-	verbose := flag.Bool("v", false, "verbose output (only batch)")
+	verbose := flag.Bool("b", false, "verbose output (only batch)")
 	watch := flag.Bool("w", false, "enable watch (only batch)")
 	private := flag.Bool("p", false, "enable private features")
 
