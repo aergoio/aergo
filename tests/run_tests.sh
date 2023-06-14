@@ -1,4 +1,7 @@
 
+# run the brick test
+./test-brick.sh
+
 # delete the aergo folder
 rm -rf ~/.aergo/
 
