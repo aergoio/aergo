@@ -48,7 +48,7 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		}
 		context.Staked = staked
 	case types.OpvoteDAO:
-		if blockInfo.Version < 2 {
+		if blockInfo.ForkVersion < 2 {
 			return nil, fmt.Errorf("not supported operation")
 		}
 		id, err := parseIDForProposal(&ci)

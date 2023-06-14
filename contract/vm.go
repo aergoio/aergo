@@ -6,17 +6,17 @@
 package contract
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1 -I${SRCDIR}/../libtool/include
-#cgo !windows CFLAGS: -DLJ_TARGET_POSIX
-#cgo darwin LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/lib/libgmp.dylib -lm
-#cgo windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/bin/libgmp-10.dll -lm
-#cgo !darwin,!windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -L${SRCDIR}/../libtool/lib64 -L${SRCDIR}/../libtool/lib -lgmp -lm
+ #cgo CFLAGS: -I${SRCDIR}/../libtool/include/luajit-2.1 -I${SRCDIR}/../libtool/include
+ #cgo !windows CFLAGS: -DLJ_TARGET_POSIX
+ #cgo darwin LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/lib/libgmp.dylib -lm
+ #cgo windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a ${SRCDIR}/../libtool/bin/libgmp-10.dll -lm
+ #cgo !darwin,!windows LDFLAGS: ${SRCDIR}/../libtool/lib/libluajit-5.1.a -L${SRCDIR}/../libtool/lib64 -L${SRCDIR}/../libtool/lib -lgmp -lm
 
 
-#include <stdlib.h>
-#include <string.h>
-#include "vm.h"
-#include "lgmp.h"
+ #include <stdlib.h>
+ #include <string.h>
+ #include "vm.h"
+ #include "lgmp.h"
 */
 import "C"
 import (
@@ -135,8 +135,8 @@ type executor struct {
 	preErr     error
 }
 
-func MaxCallDepth(blockNo types.BlockNo) int32 {
-	if HardforkConfig.IsV3Fork(blockNo) {
+func MaxCallDepth(version int32) int32 {
+	if version >= 3 {
 		return maxCallDepth
 	}
 	return maxCallDepthOld
@@ -170,7 +170,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
+func NewVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
 	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
 	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
@@ -203,7 +203,7 @@ func newVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, recie
 	return ctx
 }
 
-func newVmContextQuery(
+func NewVmContextQuery(
 	blockState *state.BlockState,
 	cdb ChainAccessor,
 	receiverId []byte,
@@ -220,23 +220,30 @@ func newVmContextQuery(
 		bs:          blockState,
 		cdb:         cdb,
 		confirmed:   true,
-		blockInfo: &types.BlockHeaderInfo{
-			No:      bb.BlockNo(),
-			Ts:      bb.Header.Timestamp,
-			Version: HardforkConfig.Version(bb.BlockNo()),
-		},
-		isQuery: true,
+		blockInfo:   types.NewBlockHeaderInfo(bb),
+		isQuery:     true,
 	}
+
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[types.ToAccountID(receiverId)] = cs
 	return ctx, nil
+}
+
+func (s *vmContext) IsGasSystem() bool {
+	return !s.isQuery && PubNet && s.blockInfo.ForkVersion >= 2
+}
+
+func (s *vmContext) refreshGas(L *LState) {
+	if s.IsGasSystem() {
+		s.remainedGas = uint64(C.lua_gasget(L))
+	}
 }
 
 func (s *vmContext) usedFee() *big.Int {
 	if fee.IsZeroFee() {
 		return fee.NewZeroFee()
 	}
-	if vmIsGasSystem(s) {
+	if s.IsGasSystem() {
 		usedGas := s.usedGas()
 		if ctrLgr.IsDebugEnabled() {
 			ctrLgr.Debug().Uint64("gas used", usedGas).Str("lua vm", "executed").Msg("gas information")
@@ -247,7 +254,7 @@ func (s *vmContext) usedFee() *big.Int {
 }
 
 func (s *vmContext) usedGas() uint64 {
-	if fee.IsZeroFee() || !vmIsGasSystem(s) {
+	if fee.IsZeroFee() || !s.IsGasSystem() {
 		return 0
 	}
 	return s.gasLimit - s.remainedGas
@@ -331,22 +338,22 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
-	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.No) {
+	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.ForkVersion) {
 		ce := &executor{
 			code: contract,
 			ctx:  ctx,
 		}
-		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.No))
+		ce.err = fmt.Errorf("exceeded the maximum call depth(%d)", MaxCallDepth(ctx.blockInfo.ForkVersion))
 		return ce
 	}
 	ctx.callDepth++
 	var lState *LState
-	if ctx.blockInfo.Version < 3 {
-		lState = getLState(LStateDefault)
+	if ctx.blockInfo.ForkVersion < 3 {
+		lState = GetLState(LStateDefault)
 	} else {
 		// To fix intermittent consensus failure by gas consumption mismatch,
 		// use mutex to access total gas after chain version 3.
-		lState = getLState(LStateVer3)
+		lState = GetLState(LStateVer3)
 	}
 	ce := &executor{
 		code: contract,
@@ -358,11 +365,11 @@ func newExecutor(
 		ctrLgr.Error().Err(ce.err).Str("contract", types.EncodeAddress(contractId)).Msg("new AergoLua executor")
 		return ce
 	}
-	if ctx.blockInfo.Version >= 2 {
-		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.Version))
+	if ctx.blockInfo.ForkVersion >= 2 {
+		C.luaL_set_hardforkversion(ce.L, C.int(ctx.blockInfo.ForkVersion))
 	}
 
-	if vmIsGasSystem(ctx) {
+	if ctx.IsGasSystem() {
 		ce.setGas()
 		defer func() {
 			ce.refreshGas()
@@ -768,25 +775,19 @@ func (ce *executor) close() {
 		}
 
 		lsType := LStateDefault
-		if ce.ctx.blockInfo.Version >= 3 {
+		if ce.ctx.blockInfo.ForkVersion >= 3 {
 			lsType = LStateVer3
 		}
-		freeLState(ce.L, lsType)
+		FreeLState(ce.L, lsType)
 	}
 }
 
 func (ce *executor) refreshGas() {
-	refreshGas(ce.ctx, ce.L)
+	ce.ctx.refreshGas(ce.L)
 }
 
 func (ce *executor) gas() uint64 {
 	return uint64(C.lua_gasget(ce.L))
-}
-
-func refreshGas(ctx *vmContext, L *LState) {
-	if vmIsGasSystem(ctx) {
-		ctx.remainedGas = uint64(C.lua_gasget(L))
-	}
 }
 
 func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
@@ -912,7 +913,7 @@ func PreCall(
 	ctx.curContract.rp = rp
 	ctx.gasLimit = gasLimit
 	ctx.remainedGas = gasLimit
-	if vmIsGasSystem(ctx) {
+	if ctx.IsGasSystem() {
 		ce.setGas()
 	}
 
@@ -1038,7 +1039,7 @@ func Create(
 	contexts[ctx.service] = ctx
 
 	// create a sql database for the contract
-	if !HardforkConfig.IsV2Fork(ctx.blockInfo.No) {
+	if ctx.blockInfo.ForkVersion < 2 {
 		if db := luaGetDbHandle(ctx.service); db == nil {
 			return "", nil, ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
 		}
@@ -1143,7 +1144,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 	}
 
 	var ctx *vmContext
-	ctx, err = newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	ctx, err = NewVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
 	if err != nil {
 		return
 	}
@@ -1202,7 +1203,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	}
 
 	var ctx *vmContext
-	ctx, err = newVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
+	ctx, err = NewVmContextQuery(bs, cdb, contractAddress, contractState, contractState.SqlRecoveryPoint)
 	if err != nil {
 		return
 	}
@@ -1343,7 +1344,7 @@ func (re *recoveryEntry) recovery(bs *state.BlockState) error {
 	return nil
 }
 
-func compile(code string, parent *LState) (luacUtil.LuaCode, error) {
+func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 	L := luacUtil.NewLState()
 	if L == nil {
 		return nil, ErrVmStart
@@ -1380,7 +1381,7 @@ func vmAutoload(L *LState, funcName string) bool {
 
 func (ce *executor) vmLoadCode(id []byte) {
 	var chunkId *C.char
-	if HardforkConfig.IsV3Fork(ce.ctx.blockInfo.No) {
+	if ce.ctx.blockInfo.ForkVersion >= 3 {
 		chunkId = C.CString("@" + types.EncodeAddress(id))
 	} else {
 		chunkId = C.CString(hex.EncodeToString(id))

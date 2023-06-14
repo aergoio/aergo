@@ -674,8 +674,8 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 			nextBlockInfo := types.BlockHeaderInfo{
-				No:      mp.bestBlockInfo.No + 1,
-				Version: mp.nextBlockVersion(),
+				No:          mp.bestBlockInfo.No + 1,
+				ForkVersion: mp.nextBlockVersion(),
 			}
 			if _, err := system.ValidateSystemTx(account, tx.GetBody(), sender, scs, &nextBlockInfo); err != nil {
 				return err

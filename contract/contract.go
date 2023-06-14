@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"regexp"
 	"strconv"
 
-	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -34,13 +34,13 @@ type preLoadInfo struct {
 }
 
 var (
-	loadReqCh      chan *preLoadReq
-	preLoadInfos   [2]preLoadInfo
-	PubNet         bool
-	TraceBlockNo   uint64
-	HardforkConfig *config.HardforkConfig
-	bpTimeout      <-chan struct{}
-	maxSQLDBSize   uint64
+	loadReqCh     chan *preLoadReq
+	preLoadInfos  [2]preLoadInfo
+	PubNet        bool
+	TraceBlockNo  uint64
+	bpTimeout     <-chan struct{}
+	maxSQLDBSize  uint64
+	addressRegexp *regexp.Regexp
 )
 
 const (
@@ -53,6 +53,7 @@ func init() {
 	loadReqCh = make(chan *preLoadReq, 10)
 	preLoadInfos[BlockFactory].replyCh = make(chan *loadedReply, 4)
 	preLoadInfos[ChainService].replyCh = make(chan *loadedReply, 4)
+	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 
 	go preLoadWorker()
 }
@@ -72,7 +73,7 @@ func Execute(
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 	txBody := tx.GetBody()
 
-	usedFee = txFee(len(txBody.GetPayload()), bs.GasPrice, bi.Version)
+	usedFee = TxFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
 
 	// Transfer balance
 	if sender.AccountID() != receiver.AccountID() {
@@ -90,7 +91,7 @@ func Execute(
 		// causes confusion, emit error for call-type tx with a wrong address
 		// from the chain version 3 by not returning error but fall-through for
 		// correct gas estimation.
-		if !(HardforkConfig.IsV3Fork(bi.No) && txBody.Type == types.TxType_CALL) {
+		if !(bi.ForkVersion >= 3 && txBody.Type == types.TxType_CALL) {
 			// Here, the condition for fee delegation TX essentially being
 			// call-type, is not necessary, because it is rejected from the
 			// mempool without code hash.
@@ -99,7 +100,7 @@ func Execute(
 	}
 
 	var gasLimit uint64
-	if useGas(bi.Version) {
+	if useGas(bi.ForkVersion) {
 		if isFeeDelegation {
 			balance := new(big.Int).Sub(receiver.Balance(), usedFee)
 			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
@@ -161,7 +162,7 @@ func Execute(
 	if ex != nil {
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
-		ctx := newVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
+		ctx := NewVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true, false, receiver.RP(),
 			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 
@@ -204,7 +205,7 @@ func Execute(
 	return rv, events, usedFee, nil
 }
 
-func txFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
+func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
 	if version < 2 {
 		return fee.PayloadTxFee(payloadSize)
 	}
@@ -266,7 +267,7 @@ func preLoadWorker() {
 			replyCh <- &loadedReply{tx, nil, err}
 			continue
 		}
-		ctx := newVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
+		ctx := NewVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
 			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
 			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
 			txBody.Type == types.TxType_FEEDELEGATION)
@@ -327,4 +328,18 @@ func SetStateSQLMaxDBSize(size uint64) {
 		maxSQLDBSize = size
 	}
 	sqlLgr.Info().Uint64("size", maxSQLDBSize).Msg("set max database size(MB)")
+}
+
+func StrHash(d string) []byte {
+	// using real address
+	if len(d) == types.EncodedAddressLength && addressRegexp.MatchString(d) {
+		return types.ToAddress(d)
+	} else {
+		// using alias
+		h := sha256.New()
+		h.Write([]byte(d))
+		b := h.Sum(nil)
+		b = append([]byte{0x0C}, b...)
+		return b
+	}
 }

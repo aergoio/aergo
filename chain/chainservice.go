@@ -291,8 +291,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.HardforkConfig = cs.cfg.Hardfork
-	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(math.MaxUint64))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(cfg.Hardfork.Version(math.MaxUint64)))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
 	// For a strict governance transaction validation.

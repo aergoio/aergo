@@ -648,7 +648,7 @@ type BlockHeaderInfo struct {
 	Ts            int64
 	PrevBlockHash []byte
 	ChainId       []byte
-	Version       int32
+	ForkVersion   int32
 }
 
 var EmptyBlockHeaderInfo = &BlockHeaderInfo{}

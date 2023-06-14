@@ -1,8 +1,8 @@
 package context
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
 
 func ParseFirstWord(input string) (string, string) {
@@ -63,11 +63,11 @@ func SplitSpaceAndAccent(input string, addLastInComplete bool) []Chunk {
 	return ret
 }
 
-func IsCompleteCommand(line string, line_no int, isOpen bool) (bool,error) {
+func IsCompleteCommand(line string, line_no int, isOpen bool) (bool, error) {
 
 	chunks := strings.Fields(line)
 
-	for _,chunk := range chunks {
+	for _, chunk := range chunks {
 		if isOpen {
 			if chunk == "`" {
 				isOpen = false
