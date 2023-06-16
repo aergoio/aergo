@@ -60,9 +60,9 @@ const (
 )
 
 func init() {
-	mulAergo, _ = new(big.Int).SetString("1000000000000000000", 10)
-	mulGaer, _ = new(big.Int).SetString("1000000000", 10)
-	zeroBig = big.NewInt(0)
+	mulAergo = types.NewAergo(1)
+	mulGaer = types.NewGaer(1)
+	zeroBig = types.NewZero()
 }
 
 func addUpdateSize(s *vmContext, updateSize int64) error {
