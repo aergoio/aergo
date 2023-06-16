@@ -813,9 +813,12 @@ func Call(
 
 	var err error
 	var ci types.CallInfo
+
+	// get contract
 	contract := getContract(contractState, ctx.bs)
 	if contract != nil {
 		if len(payload) > 0 {
+			// get call arguments
 			err = getCallInfo(&ci, payload, contractAddress)
 		}
 	} else {
@@ -831,17 +834,22 @@ func Call(
 		ctrLgr.Debug().Str("abi", string(payload)).Str("contract", types.EncodeAddress(contractAddress)).Msg("call")
 	}
 
+	// create a new executor
 	contexts[ctx.service] = ctx
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 
+	// execute the contract call
 	ce.call(callMaxInstLimit, nil)
 
+	// check if there is an error
 	err = ce.err
 	if err != nil {
+		// rollback the state of the contract
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Str("contract", types.EncodeAddress(contractAddress)).Msg("rollback state")
 		}
+		// log the error
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
@@ -857,16 +865,18 @@ func Call(
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL END] : %s(%s)\n",
 				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 		}
-
+		// return the error
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
 
+	// save the state of the contract
 	err = ce.commitCalledContract()
 	if err != nil {
 		ctrLgr.Error().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("commit state")
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
 
+	// log the result
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
@@ -883,6 +893,7 @@ func Call(
 			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 	}
 
+	// return the result
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
 }
 
@@ -918,6 +929,7 @@ func PreCall(
 	ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
 
 	ctx.curContract.rp = rp
+
 	ctx.gasLimit = gasLimit
 	ctx.remainedGas = gasLimit
 	if ctx.IsGasSystem() {
@@ -925,9 +937,13 @@ func PreCall(
 	}
 
 	contexts[ctx.service] = ctx
+
+	// execute the contract call
 	ce.call(callMaxInstLimit, nil)
+
 	err = ce.err
 	if err == nil {
+		// save the state of the contract
 		err = ce.commitCalledContract()
 		if err != nil {
 			ctrLgr.Error().Err(err).Str(
@@ -936,6 +952,7 @@ func PreCall(
 			).Msg("pre-call")
 		}
 	} else {
+		// rollback the state of the contract
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Str(
 				"contract",
@@ -1129,6 +1146,7 @@ func Create(
 			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 	}
 
+	// return the result
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
 }
 
