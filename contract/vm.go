@@ -857,8 +857,8 @@ func Call(
 			if events != nil {
 				_, _ = ctx.traceFile.WriteString("[Event]\n")
 				for _, event := range events {
-					event_json, _ := event.MarshalJSON()
-					_, _ = ctx.traceFile.Write(event_json)
+					eventJson, _ := event.MarshalJSON()
+					_, _ = ctx.traceFile.Write(eventJson)
 					_, _ = ctx.traceFile.WriteString("\n")
 				}
 			}
@@ -884,8 +884,8 @@ func Call(
 		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
 			for _, event := range events {
-				event_json, _ := event.MarshalJSON()
-				_, _ = ctx.traceFile.Write(event_json)
+				eventJson, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(eventJson)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
@@ -969,8 +969,8 @@ func PreCall(
 		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
 			for _, event := range events {
-				event_json, _ := event.MarshalJSON()
-				_, _ = ctx.traceFile.Write(event_json)
+				eventJson, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(eventJson)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
@@ -1109,8 +1109,8 @@ func Create(
 			if events != nil {
 				_, _ = ctx.traceFile.WriteString("[Event]\n")
 				for _, event := range events {
-					event_json, _ := event.MarshalJSON()
-					_, _ = ctx.traceFile.Write(event_json)
+					eventJson, _ := event.MarshalJSON()
+					_, _ = ctx.traceFile.Write(eventJson)
 					_, _ = ctx.traceFile.WriteString("\n")
 				}
 			}
@@ -1137,8 +1137,8 @@ func Create(
 		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
 			for _, event := range events {
-				event_json, _ := event.MarshalJSON()
-				_, _ = ctx.traceFile.Write(event_json)
+				eventJson, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(eventJson)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
