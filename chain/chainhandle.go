@@ -663,7 +663,7 @@ func (e *blockExecutor) execute() error {
 				// all txs have executed successfully in BP node
 				return err
 			}
-			// ??
+			// mark the next preload tx to be executed
 			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
