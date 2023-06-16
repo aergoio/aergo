@@ -290,7 +290,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		// close the executor, closes also the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
-		setRemainingGas(L, ctx)
+		ctx.setRemainingGas(L)
 	}()
 
 	if ce.err != nil {
@@ -409,7 +409,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		// close the executor, closes also the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
-		setRemainingGas(L, ctx)
+		ctx.setRemainingGas(L)
 	}()
 
 	if ce.err != nil {
@@ -532,7 +532,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 			// close the executor, closes also the child LState
 			ce.close()
 			// set the remaining gas on the parent LState
-			setRemainingGas(L, ctx)
+			ctx.setRemainingGas(L)
 		}()
 
 		if ce.err != nil {
@@ -1240,7 +1240,7 @@ func luaDeployContract(
 		// close the executor, which will close the child LState
 		ce.close()
 		// set the remaining gas on the parent LState
-		setRemainingGas(L, ctx)
+		ctx.setRemainingGas(L)
 	}()
 
 	if ce.err != nil {
@@ -1584,7 +1584,8 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 	return C.CString(strconv.FormatUint(curContract.rp, 10))
 }
 
-func setRemainingGas(L *LState, ctx *vmContext) {
+// set the remaining gas on the given LState
+func (ctx *vmContext) setRemainingGas(L *LState) {
 	if ctx.IsGasSystem() {
 		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
