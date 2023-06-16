@@ -14,18 +14,10 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-type preloadServiceType int
-
-const (
-	BlockFactory preloadServiceType = iota
-	ChainService
-	MaxVmService
-)
-
 /* The preloadWorker optimizes the execution time by preloading the next transaction while executing the current transaction */
 
 type preloadRequest struct {
-	preloadService preloadServiceType
+	preloadService int
 	bs             *state.BlockState
 	bi             *types.BlockHeaderInfo
 	current        *types.Tx // the tx currently being executed
@@ -39,7 +31,7 @@ type preloadReply struct {
 }
 
 type preloader struct {
-	requestedTx *types.Tx  // the next preload tx to be executed
+	requestedTx *types.Tx
 	replyCh     chan *preloadReply
 }
 
@@ -51,6 +43,12 @@ var (
 	bpTimeout     <-chan struct{}
 	maxSQLDBSize  uint64
 	addressRegexp *regexp.Regexp
+)
+
+const (
+	BlockFactory = iota
+	ChainService
+	MaxVmService
 )
 
 func init() {
@@ -72,7 +70,7 @@ func Execute(
 	tx *types.Tx,
 	sender, receiver *state.V,
 	bi *types.BlockHeaderInfo,
-	preloadService preloadServiceType,
+	preloadService int,
 	isFeeDelegation bool,
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
@@ -254,7 +252,7 @@ func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
 }
 
 // send a request to preload an executor for the next tx
-func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService preloadServiceType) {
+func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int) {
 	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current}
 }
 
