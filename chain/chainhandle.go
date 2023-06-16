@@ -651,17 +651,20 @@ func (e *blockExecutor) execute() error {
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
 		var preloadTx *types.Tx
-		nCand := len(e.txs)
+		numTxs := len(e.txs)
 		for i, tx := range e.txs {
-			if i != nCand-1 {
+			// if tx is not the last one, preload the next tx
+			if i != numTxs-1 {
 				preloadTx = e.txs[i+1]
 				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
 			}
+			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
+			// ??
 			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
