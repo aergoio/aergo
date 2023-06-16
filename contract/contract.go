@@ -14,29 +14,30 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-type loadedReply struct {
+/* The preloadWorker optimizes the execution time by preloading the next transaction while executing the current transaction */
+
+type preloadRequest struct {
+	preloadService int
+	bs             *state.BlockState
+	bi             *types.BlockHeaderInfo
+	current        *types.Tx // the tx currently being executed
+	next           *types.Tx // the tx to preload the executor for, the next to be executed
+}
+
+type preloadReply struct {
 	tx  *types.Tx
 	ex  *executor
 	err error
 }
 
-/* The preLoadWorker has 'current' and 'next' transactions to optimize the execution time by preloading the next transaction while executing the current transaction */
-type preLoadReq struct {
-	preLoadService int
-	bs             *state.BlockState
-	bi             *types.BlockHeaderInfo
-	next           *types.Tx
-	current        *types.Tx
-}
-
-type preLoadInfo struct {
+type preloader struct {
 	requestedTx *types.Tx
-	replyCh     chan *loadedReply
+	replyCh     chan *preloadReply
 }
 
 var (
-	loadReqCh     chan *preLoadReq
-	preLoadInfos  [2]preLoadInfo
+	loadReqCh     chan *preloadRequest
+	preloaders    [2]preloader
 	PubNet        bool
 	TraceBlockNo  uint64
 	bpTimeout     <-chan struct{}
@@ -51,16 +52,16 @@ const (
 )
 
 func init() {
-	loadReqCh = make(chan *preLoadReq, 10)
-	preLoadInfos[BlockFactory].replyCh = make(chan *loadedReply, 4)
-	preLoadInfos[ChainService].replyCh = make(chan *loadedReply, 4)
+	loadReqCh = make(chan *preloadRequest, 10)
+	preloaders[BlockFactory].replyCh = make(chan *preloadReply, 4)
+	preloaders[ChainService].replyCh = make(chan *preloadReply, 4)
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 
-	go preLoadWorker()
+	go preloadWorker()
 }
 
 func SetPreloadTx(tx *types.Tx, service int) {
-	preLoadInfos[service].requestedTx = tx
+	preloaders[service].requestedTx = tx
 }
 
 func Execute(
@@ -69,7 +70,7 @@ func Execute(
 	tx *types.Tx,
 	sender, receiver *state.V,
 	bi *types.BlockHeaderInfo,
-	preLoadService int,
+	preloadService int,
 	isFeeDelegation bool,
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
@@ -149,9 +150,9 @@ func Execute(
 	var ex *executor
 
 	// is there a request to preload an executor for this tx?
-	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
+	if !receiver.IsDeploy() && preloaders[preloadService].requestedTx == tx {
 		// get the reply channel
-		replyCh := preLoadInfos[preLoadService].replyCh
+		replyCh := preloaders[preloadService].replyCh
 		// wait for the reply
 		for {
 			preload := <-replyCh
@@ -179,7 +180,7 @@ func Execute(
 		// create a new context
 		ctx := NewVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true, false, receiver.RP(),
-			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+			preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 
 		// execute the transaction
 		if receiver.IsDeploy() {
@@ -239,16 +240,20 @@ func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
 }
 
 // send a request to preload an executor for the next tx
-func RequestPreLoad(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preLoadService int) {
-	loadReqCh <- &preLoadReq{preLoadService, bs, bi, next, current}
+func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int) {
+	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current}
 }
 
-// the preLoadWorker preloads executors for the next tx
-func preLoadWorker() {
+// the preloadWorker preloads an executor for the next tx
+func preloadWorker() {
+	// infinite loop
 	for {
 		var err error
-		reqInfo := <-loadReqCh
-		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
+
+		// wait for a preload request
+		request := <-loadReqCh
+		// get the reply channel for this request
+		replyCh := preloaders[request.preloadService].replyCh
 
 		// if there are more than 2 requests waiting for a reply, close the oldest one
 		if len(replyCh) > 2 {
@@ -259,11 +264,12 @@ func preLoadWorker() {
 			}
 		}
 
-		bs := reqInfo.bs
-		tx := reqInfo.next  // next tx to be executed
+		bs := request.bs
+		tx := request.next  // the tx to preload the executor for
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
+		// only preload an executor for a normal, transfer, call or fee delegation tx
 		if (txBody.Type != types.TxType_NORMAL &&
 			txBody.Type != types.TxType_TRANSFER &&
 			txBody.Type != types.TxType_CALL &&
@@ -273,12 +279,12 @@ func preLoadWorker() {
 		}
 
 		// if the tx currently being executed is a redeploy
-		if reqInfo.current.GetBody().Type == types.TxType_REDEPLOY {
+		if request.current.GetBody().Type == types.TxType_REDEPLOY {
 			// if the next tx is a call to the redeployed contract
-			currentTxBody := reqInfo.current.GetBody()
+			currentTxBody := request.current.GetBody()
 			if bytes.Equal(recipient, currentTxBody.Recipient) {
 				// do not preload an executor for a contract that is being redeployed
-				replyCh <- &loadedReply{tx, nil, nil}
+				replyCh <- &preloadReply{tx, nil, nil}
 				continue
 			}
 		}
@@ -286,38 +292,38 @@ func preLoadWorker() {
 		// get the state of the recipient
 		receiver, err := bs.GetAccountStateV(recipient)
 		if err != nil {
-			replyCh <- &loadedReply{tx, nil, err}
+			replyCh <- &preloadReply{tx, nil, err}
 			continue
 		}
 
 		// when deploy and call in same block and not deployed yet
 		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
 			// do not preload an executor for a contract that is not deployed yet
-			replyCh <- &loadedReply{tx, nil, nil}
+			replyCh <- &preloadReply{tx, nil, nil}
 			continue
 		}
 
 		// open the contract state
 		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
-			replyCh <- &loadedReply{tx, nil, err}
+			replyCh <- &preloadReply{tx, nil, err}
 			continue
 		}
 
 		// create a new context
 		ctx := NewVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
-			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+			tx.GetHash(), request.bi, "", false, false, receiver.RP(),
+			request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
 			txBody.Type == types.TxType_FEEDELEGATION)
 
 		// load a new executor
-		ex, err := PreloadEx(bs, contractState, txBody.Payload, receiver.ID(), ctx)
+		ex, err := PreloadExecutor(bs, contractState, txBody.Payload, receiver.ID(), ctx)
 		if ex == nil && ctx.traceFile != nil {
 			ctx.traceFile.Close()
 		}
 
 		// send reply with executor
-		replyCh <- &loadedReply{tx, ex, err}
+		replyCh <- &preloadReply{tx, ex, err}
 	}
 }
 

@@ -139,15 +139,15 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	if nCand > 0 {
 		op := NewCompTxOp(g.txOp)
 
-		var preLoadTx *types.Tx
+		var preloadTx *types.Tx
 		for i, tx := range txIn {
 			if i != nCand-1 {
-				preLoadTx = txIn[i+1].GetTx()
-				contract.RequestPreLoad(bState, g.bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
+				preloadTx = txIn[i+1].GetTx()
+				contract.RequestPreload(bState, g.bi, preloadTx, tx.GetTx(), contract.BlockFactory)
 			}
 
 			err := op.Apply(bState, tx)
-			contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
+			contract.SetPreloadTx(preloadTx, contract.BlockFactory)
 
 			//don't include tx that error is occurred
 			if e, ok := err.(ErrTimeout); ok {

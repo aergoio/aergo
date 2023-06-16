@@ -964,7 +964,8 @@ func PreCall(
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), err
 }
 
-func PreloadEx(bs *state.BlockState, contractState *state.ContractState, payload, contractAddress []byte,
+// loads a contract and prepares it for execution
+func PreloadExecutor(bs *state.BlockState, contractState *state.ContractState, payload, contractAddress []byte,
 	ctx *vmContext) (*executor, error) {
 
 	var err error
