@@ -143,7 +143,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		for i, tx := range txIn {
 			if i != nCand-1 {
 				preLoadTx = txIn[i+1].GetTx()
-				contract.PreLoadRequest(bState, g.bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
+				contract.RequestPreLoad(bState, g.bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
 			}
 
 			err := op.Apply(bState, tx)
