@@ -31,7 +31,7 @@ type preloadReply struct {
 }
 
 type preloader struct {
-	requestedTx *types.Tx
+	requestedTx *types.Tx  // the next preload tx to be executed
 	replyCh     chan *preloadReply
 }
 
@@ -60,6 +60,7 @@ func init() {
 	go preloadWorker()
 }
 
+// mark the next preload tx to be executed
 func SetPreloadTx(tx *types.Tx, service int) {
 	preloaders[service].requestedTx = tx
 }

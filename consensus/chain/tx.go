@@ -148,7 +148,7 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 			}
 			// process the transaction
 			err := op.Apply(bState, tx)
-			// ??
+			// mark the next preload tx to be executed
 			contract.SetPreloadTx(preloadTx, contract.BlockFactory)
 
 			//don't include tx that error is occurred
