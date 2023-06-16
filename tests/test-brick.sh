@@ -1,1 +1,1 @@
-../bin/brick test.brick
+../bin/brick -V test.brick
