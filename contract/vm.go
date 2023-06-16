@@ -970,8 +970,10 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, payload
 	var err error
 	var ci types.CallInfo
 
+	// read contract code
 	contractCode := getContract(contractState, bs)
 
+	// get the arguments for the call
 	if contractCode != nil {
 		if len(payload) > 0 {
 			err = getCallInfo(&ci, payload, contractAddress)
@@ -985,12 +987,15 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, payload
 		return nil, err
 	}
 
+	// log some information
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("abi", string(payload)).Str("contract", types.EncodeAddress(contractAddress)).Msg("preload")
 	}
 
+	// create a new executor for the call
 	ce := newExecutor(contractCode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 
+	// return the executor
 	return ce, ce.err
 }
 
