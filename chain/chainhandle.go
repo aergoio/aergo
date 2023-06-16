@@ -621,7 +621,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService preloadServiceType) TxExecFn {
+func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -664,7 +664,7 @@ func (e *blockExecutor) execute() error {
 				// all txs have executed successfully in BP node
 				return err
 			}
-			// mark the next preload tx to be executed
+			// ??
 			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
@@ -885,7 +885,7 @@ func executeTx(
 	bs *state.BlockState,
 	tx types.Transaction,
 	bi *types.BlockHeaderInfo,
-	preloadService preloadServiceType,
+	preloadService int,
 ) error {
 	var (
 		txBody    = tx.GetBody()
