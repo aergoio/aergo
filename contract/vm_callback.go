@@ -245,22 +245,28 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaCallContract] contract state not found")
 	}
+
+	// get the contract address
 	contractAddress := C.GoString(contractId)
 	cid, err := getAddressNameResolved(contractAddress, ctx.bs)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid contractId: " + err.Error())
 	}
 	aid := types.ToAccountID(cid)
+
+	// read the amount for the contract call
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] invalid amount: " + err.Error())
 	}
 
+	// get the contract state
 	cs, err := getCtrState(ctx, aid)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] getAccount error: " + err.Error())
 	}
 
+	// check if the contract exists
 	callee := getContract(cs.ctrState, ctx.bs)
 	if callee == nil {
 		return -1, C.CString("[Contract.LuaCallContract] cannot find contract " + C.GoString(contractId))
@@ -268,6 +274,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 
 	prevContractInfo := ctx.curContract
 
+	// read the arguments for the contract call
 	var ci types.CallInfo
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
@@ -275,17 +282,22 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		return -1, C.CString("[Contract.LuaCallContract] invalid arguments: " + err.Error())
 	}
 
-	ctx.refreshGas(L)
+	// get the remaining gas from the parent LState
+	ctx.getRemainingGas(L)
+	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
+		// close the executor, closes also the child LState
 		ce.close()
-		moveGas(L, ctx)
+		// set the remaining gas on the parent LState
+		setRemainingGas(L, ctx)
 	}()
 
 	if ce.err != nil {
 		return -1, C.CString("[Contract.LuaCallContract] newExecutor error: " + ce.err.Error())
 	}
 
+	// send the amount to the contract
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if ctx.isQuery == true || ctx.nestedView > 0 {
@@ -295,6 +307,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 			return -1, r
 		}
 	}
+
 	seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL Contract %v(%v) %v]\n",
@@ -307,14 +320,19 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	if err != nil {
 		return -1, C.CString("[System.LuaCallContract] database error: " + err.Error())
 	}
+
+	// set the current contract info
 	ctx.curContract = newContractInfo(cs, prevContractInfo.contractId, cid,
 		cs.curState.SqlRecoveryPoint, amountBig)
 	defer func() {
 		ctx.curContract = prevContractInfo
 	}()
-	defer setInstCount(ctx, L, ce.L)
 
+	// execute the contract call
+	defer setInstCount(ctx, L, ce.L)
 	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+
+	// check if the contract call failed
 	if ce.err != nil {
 		err := clearRecovery(L, ctx, seq, true)
 		if err != nil {
@@ -325,12 +343,14 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		}
 		return -1, C.CString("[Contract.LuaCallContract] call err: " + ce.err.Error())
 	}
+
 	if seq == 1 {
 		err := clearRecovery(L, ctx, seq, false)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaCallContract] recovery err: " + err.Error())
 		}
 	}
+
 	return ret, nil
 }
 
@@ -353,20 +373,27 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] contract state not found")
 	}
+
+	// get the contract address
 	cid, err := getAddressNameResolved(contractIdStr, ctx.bs)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid contractId: " + err.Error())
 	}
 	aid := types.ToAccountID(cid)
+
+	// get the contract state
 	contractState, err := getOnlyContractState(ctx, aid)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract]getContractState error" + err.Error())
 	}
+
+	// check if the contract exists
 	contract := getContract(contractState, ctx.bs)
 	if contract == nil {
 		return -1, C.CString("[Contract.LuaDelegateCallContract] cannot find contract " + contractIdStr)
 	}
 
+	// read the arguments for the contract call
 	var ci types.CallInfo
 	ci.Name = fnameStr
 	err = getCallInfo(&ci.Args, []byte(argsStr), cid)
@@ -374,11 +401,15 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		return -1, C.CString("[Contract.LuaDelegateCallContract] invalid arguments: " + err.Error())
 	}
 
-	ctx.refreshGas(L)
+	// get the remaining gas from the parent LState
+	ctx.getRemainingGas(L)
+	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
+		// close the executor, closes also the child LState
 		ce.close()
-		moveGas(L, ctx)
+		// set the remaining gas on the parent LState
+		setRemainingGas(L, ctx)
 	}()
 
 	if ce.err != nil {
@@ -393,9 +424,12 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[DELEGATECALL Contract %v %v]\n", contractIdStr, fnameStr))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
 	}
-	defer setInstCount(ctx, L, ce.L)
 
+	// execute the contract call
+	defer setInstCount(ctx, L, ce.L)
 	ret := ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+
+	// check if the contract call failed
 	if ce.err != nil {
 		err := clearRecovery(L, ctx, seq, true)
 		if err != nil {
@@ -406,12 +440,14 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 		}
 		return -1, C.CString("[Contract.LuaDelegateCallContract] call error: " + ce.err.Error())
 	}
+
 	if seq == 1 {
 		err := clearRecovery(L, ctx, seq, false)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDelegateCallContract] recovery error: " + err.Error())
 		}
 	}
+
 	return ret, nil
 }
 
@@ -434,62 +470,89 @@ func getAddressNameResolved(account string, bs *state.BlockState) ([]byte, error
 
 //export luaSendAmount
 func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char) *C.char {
+
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaSendAmount] contract state not found")
 	}
+
+	// read the amount to be sent
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid amount: " + err.Error())
 	}
+
+	// cannot send amount in query
 	if (ctx.isQuery == true || ctx.nestedView > 0) && amountBig.Cmp(zeroBig) > 0 {
 		return C.CString("[Contract.LuaSendAmount] send not permitted in query")
 	}
+
+	// get the receiver account
 	cid, err := getAddressNameResolved(C.GoString(contractId), ctx.bs)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] invalid contractId: " + err.Error())
 	}
 
+	// get the receiver state
 	aid := types.ToAccountID(cid)
 	cs, err := getCallState(ctx, aid)
 	if err != nil {
 		return C.CString("[Contract.LuaSendAmount] getAccount error: " + err.Error())
 	}
 
+	// get the sender state
 	senderState := ctx.curContract.callState.curState
+
+	// check if the receiver is a contract
 	if len(cs.curState.GetCodeHash()) > 0 {
+
+		// get the contract state
 		if cs.ctrState == nil {
 			cs.ctrState, err = ctx.bs.OpenContractState(aid, cs.curState)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] getContractState error: " + err.Error())
 			}
 		}
+
+		// set the function to be called
 		var ci types.CallInfo
 		ci.Name = "default"
+
+		// get the contract code
 		code := getContract(cs.ctrState, ctx.bs)
 		if code == nil {
 			return C.CString("[Contract.LuaSendAmount] cannot find contract:" + C.GoString(contractId))
 		}
 
-		ctx.refreshGas(L)
+		// get the remaining gas from the parent LState
+		ctx.getRemainingGas(L)
+		// create a new executor with the remaining gas on the child LState
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
+			// close the executor, closes also the child LState
 			ce.close()
-			moveGas(L, ctx)
+			// set the remaining gas on the parent LState
+			setRemainingGas(L, ctx)
 		}()
+
 		if ce.err != nil {
 			return C.CString("[Contract.LuaSendAmount] newExecutor error: " + ce.err.Error())
 		}
 
+		// send the amount to the contract
 		if amountBig.Cmp(zeroBig) > 0 {
 			if r := sendBalance(L, senderState, cs.curState, amountBig); r != nil {
 				return r
 			}
 		}
+
+		// create a recovery point
 		seq, err := setRecoveryPoint(aid, ctx, senderState, cs, amountBig, false, false)
 		if err != nil {
 			return C.CString("[System.LuaSendAmount] database error: " + err.Error())
 		}
+
+		// log some info
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(
 				fmt.Sprintf("[Send Call default] %s(%s) : %s\n", types.EncodeAddress(cid), aid.String(), amountBig.String()))
@@ -497,49 +560,70 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 				senderState.GetBalanceBigInt().String(), cs.curState.GetBalanceBigInt().String()))
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("snapshot set %d\n", seq))
 		}
+
+		// set the current contract info
 		prevContractInfo := ctx.curContract
 		ctx.curContract = newContractInfo(cs, prevContractInfo.contractId, cid,
 			cs.curState.SqlRecoveryPoint, amountBig)
 		defer func() {
 			ctx.curContract = prevContractInfo
 		}()
-		defer setInstCount(ctx, L, ce.L)
 
+		// execute the contract call
+		defer setInstCount(ctx, L, ce.L)
 		ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+
+		// check if the contract call failed
 		if ce.err != nil {
+			// recover to the previous state
 			err := clearRecovery(L, ctx, seq, true)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
 			}
+			// log some info
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 			}
+			// return the error message
 			return C.CString("[Contract.LuaSendAmount] call err: " + ce.err.Error())
 		}
+
 		if seq == 1 {
 			err := clearRecovery(L, ctx, seq, false)
 			if err != nil {
 				return C.CString("[Contract.LuaSendAmount] recovery err: " + err.Error())
 			}
 		}
+
+		// the transfer and contract call succeeded
 		return nil
 	}
+
+	// the receiver is not a contract, just send the amount
+
+	// if amount is zero, do nothing
 	if amountBig.Cmp(zeroBig) == 0 {
 		return nil
 	}
 
+	// send the amount to the receiver
 	if r := sendBalance(L, senderState, cs.curState, amountBig); r != nil {
 		return r
 	}
+
+	// update the recovery point
 	if ctx.lastRecoveryEntry != nil {
 		_, _ = setRecoveryPoint(aid, ctx, senderState, cs, amountBig, true, false)
 	}
+
+	// log some info
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[Send] %s(%s) : %s\n",
 			types.EncodeAddress(cid), aid.String(), amountBig.String()))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
 			senderState.GetBalanceBigInt().String(), cs.curState.GetBalanceBigInt().String()))
 	}
+
 	return nil
 }
 
@@ -1030,16 +1114,19 @@ func luaDeployContract(
 	}
 	bs := ctx.bs
 
-	// get code
+	// contract code
 	var code []byte
 
+	// check if contract name or address is given
 	cid, err := getAddressNameResolved(contractStr, bs)
 	if err == nil {
 		aid := types.ToAccountID(cid)
+		// check if contract exists
 		contractState, err := getOnlyContractState(ctx, aid)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
 		}
+		// read the contract code
 		code, err = contractState.GetCode()
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract]" + err.Error())
@@ -1048,6 +1135,7 @@ func luaDeployContract(
 		}
 	}
 
+	// compile contract code if not found
 	if len(code) == 0 {
 		if ctx.blockInfo.ForkVersion >= 2 {
 			code, err = Compile(contractStr, L)
@@ -1071,7 +1159,7 @@ func luaDeployContract(
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
-	// create account
+	// create account for the contract
 	prevContractInfo := ctx.curContract
 	creator := prevContractInfo.callState.curState
 	newContract, err := bs.CreateAccountStateV(CreateContractID(prevContractInfo.contractId, creator.GetNonce()))
@@ -1086,17 +1174,20 @@ func luaDeployContract(
 	cs := &callState{ctrState: contractState, prevState: &types.State{}, curState: newContract.State()}
 	ctx.callState[newContract.AccountID()] = cs
 
+	// read the amount transferred to the contract
 	amountBig, err := transformAmount(C.GoString(amount))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]value not proper format:" + err.Error())
 	}
+
+	// read the arguments for the constructor call
 	var ci types.CallInfo
 	err = getCallInfo(&ci.Args, []byte(argsStr), newContract.ID())
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract] invalid args:" + err.Error())
 	}
-	runCode := util.LuaCode(code).ByteCode()
 
+	// send the amount to the contract
 	senderState := prevContractInfo.callState.curState
 	if amountBig.Cmp(zeroBig) > 0 {
 		if rv := sendBalance(L, senderState, cs.curState, amountBig); rv != nil {
@@ -1104,10 +1195,13 @@ func luaDeployContract(
 		}
 	}
 
+	// create a recovery point
 	seq, err := setRecoveryPoint(newContract.AccountID(), ctx, senderState, cs, amountBig, false, true)
 	if err != nil {
 		return -1, C.CString("[System.LuaDeployContract] DB err:" + err.Error())
 	}
+
+	// log some info
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[DEPLOY] %s(%s)\n",
 			types.EncodeAddress(newContract.ID()), newContract.AccountID().String()))
@@ -1116,63 +1210,84 @@ func luaDeployContract(
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("After sender: %s receiver: %s\n",
 			senderState.GetBalanceBigInt().String(), cs.curState.GetBalanceBigInt().String()))
 	}
+
+	// set the contract info
 	ctx.curContract = newContractInfo(cs, prevContractInfo.contractId, newContract.ID(),
 		cs.curState.SqlRecoveryPoint, amountBig)
 	defer func() {
 		ctx.curContract = prevContractInfo
 	}()
 
+	runCode := util.LuaCode(code).ByteCode()
+
+	// save the contract code
 	err = contractState.SetCode(code)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
+
+	// save the contract creator
 	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
-	ctx.refreshGas(L)
+	// get the remaining gas from the parent LState
+	ctx.getRemainingGas(L)
+	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
+		// close the executor, which will close the child LState
 		ce.close()
-		moveGas(L, ctx)
+		// set the remaining gas on the parent LState
+		setRemainingGas(L, ctx)
 	}()
+
 	if ce.err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]newExecutor Error :" + ce.err.Error())
 	}
 
-	// create a sql database for the contract
 	if ctx.blockInfo.ForkVersion < 2 {
+		// create a sql database for the contract
 		if db := luaGetDbHandle(ctx.service); db == nil {
 			return -1, C.CString("[System.LuaDeployContract] DB err: cannot open a database")
 		}
 	}
 
+	// increment the nonce of the creator
 	senderState.Nonce += 1
 
 	addr := C.CString(types.EncodeAddress(newContract.ID()))
 	ret := C.int(1)
-	if ce != nil {
-		defer setInstCount(ce.ctx, L, ce.L)
 
+	if ce != nil {
+		// run the constructor
+		defer setInstCount(ce.ctx, L, ce.L)
 		ret += ce.call(minusCallCount(ctx, C.vm_instcount(L), luaCallCountDeduc), L)
+
+		// check if the execution was successful
 		if ce.err != nil {
+			// rollback the recovery point
 			err := clearRecovery(L, ctx, seq, true)
 			if err != nil {
 				return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
 			}
+			// log some info
 			if ctx.traceFile != nil {
 				_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 			}
+			// return the error message
 			return -1, C.CString("[Contract.LuaDeployContract] call err:" + ce.err.Error())
 		}
 	}
+
 	if seq == 1 {
 		err := clearRecovery(L, ctx, seq, false)
 		if err != nil {
 			return -1, C.CString("[Contract.LuaDeployContract] recovery error: " + err.Error())
 		}
 	}
+
 	return ret, addr
 }
 
@@ -1444,7 +1559,7 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 	return C.CString(strconv.FormatUint(curContract.rp, 10))
 }
 
-func moveGas(L *LState, ctx *vmContext) {
+func setRemainingGas(L *LState, ctx *vmContext) {
 	if ctx.IsGasSystem() {
 		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
