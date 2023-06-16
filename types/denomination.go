@@ -13,14 +13,14 @@ func NewZero() *big.Int {
 	return new(big.Int)
 }
 
-func NewAer(n int64) *big.Int {
-	return new(big.Int).Mul(big.NewInt(Aer), big.NewInt(n))
+func NewAer(n uint64) *big.Int {
+	return new(big.Int).Mul(big.NewInt(Aer), new(big.Int).SetUint64(n))
 }
 
-func NewGaer(n int64) *big.Int {
-	return new(big.Int).Mul(big.NewInt(Gaer), big.NewInt(n))
+func NewGaer(n uint64) *big.Int {
+	return new(big.Int).Mul(big.NewInt(Gaer), new(big.Int).SetUint64(n))
 }
 
-func NewAergo(n int64) *big.Int {
-	return new(big.Int).Mul(big.NewInt(Aergo), big.NewInt(n))
+func NewAergo(n uint64) *big.Int {
+	return new(big.Int).Mul(big.NewInt(Aergo), new(big.Int).SetUint64(n))
 }
