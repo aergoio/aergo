@@ -845,12 +845,12 @@ func Call(
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-			evs := ce.getEvents()
-			if evs != nil {
+			events := ce.getEvents()
+			if events != nil {
 				_, _ = ctx.traceFile.WriteString("[Event]\n")
-				for _, ev := range evs {
-					eb, _ := ev.MarshalJSON()
-					_, _ = ctx.traceFile.Write(eb)
+				for _, event := range events {
+					event_json, _ := event.MarshalJSON()
+					_, _ = ctx.traceFile.Write(event_json)
 					_, _ = ctx.traceFile.WriteString("\n")
 				}
 			}
@@ -870,12 +870,12 @@ func Call(
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		evs := ce.getEvents()
-		if evs != nil {
+		events := ce.getEvents()
+		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, ev := range evs {
-				eb, _ := ev.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eb)
+			for _, event := range events {
+				event_json, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(event_json)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
@@ -948,12 +948,12 @@ func PreCall(
 		contractId := ctx.curContract.contractId
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		evs := ce.getEvents()
-		if evs != nil {
+		events := ce.getEvents()
+		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, ev := range evs {
-				eb, _ := ev.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eb)
+			for _, event := range events {
+				event_json, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(event_json)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
@@ -1088,12 +1088,12 @@ func Create(
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-			evs := ce.getEvents()
-			if evs != nil {
+			events := ce.getEvents()
+			if events != nil {
 				_, _ = ctx.traceFile.WriteString("[Event]\n")
-				for _, ev := range evs {
-					eb, _ := ev.MarshalJSON()
-					_, _ = ctx.traceFile.Write(eb)
+				for _, event := range events {
+					event_json, _ := event.MarshalJSON()
+					_, _ = ctx.traceFile.Write(event_json)
 					_, _ = ctx.traceFile.WriteString("\n")
 				}
 			}
@@ -1116,12 +1116,12 @@ func Create(
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		evs := ce.getEvents()
-		if evs != nil {
+		events := ce.getEvents()
+		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, ev := range evs {
-				eb, _ := ev.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eb)
+			for _, event := range events {
+				event_json, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(event_json)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}

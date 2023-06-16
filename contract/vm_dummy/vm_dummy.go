@@ -477,7 +477,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	}
 	creatorState.SubBalance(l.amount())
 	contractState.AddBalance(l.amount())
-	rv, evs, cFee, err := run(creatorState, contractState, contractId, eContractState)
+	rv, events, cFee, err := run(creatorState, contractState, contractId, eContractState)
 	if cFee != nil {
 		usedFee.Add(usedFee, cFee)
 	}
@@ -489,11 +489,11 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	r := types.NewReceipt(l.contract(), status, rv)
 	r.TxHash = l.Hash()
 	r.GasUsed = usedFee.Uint64()
-	r.Events = evs
+	r.Events = events
 	blockHash := make([]byte, 32)
-	for _, ev := range evs {
-		ev.TxHash = r.TxHash
-		ev.BlockHash = blockHash
+	for _, event := range events {
+		event.TxHash = r.TxHash
+		event.BlockHash = blockHash
 	}
 	b, _ := r.MarshalBinaryTest()
 	receiptTx.Set(l.Hash(), b)
@@ -529,7 +529,7 @@ func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockH
 			ctx := contract.NewVmContext(bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
 
-			rv, evs, ctrFee, err := contract.Create(eContractState, l.code(), l.contract(), ctx)
+			rv, events, ctrFee, err := contract.Create(eContractState, l.code(), l.contract(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -537,7 +537,7 @@ func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockH
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			return rv, evs, ctrFee, nil
+			return rv, events, ctrFee, nil
 		},
 	)
 }
@@ -589,7 +589,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			ctx := contract.NewVmContext(bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
 
-			rv, evs, ctrFee, err := contract.Call(eContractState, l.code(), l.contract(), ctx)
+			rv, events, ctrFee, err := contract.Call(eContractState, l.code(), l.contract(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -597,7 +597,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
-			return rv, evs, ctrFee, nil
+			return rv, events, ctrFee, nil
 		},
 	)
 	if l.expectedErr != "" {

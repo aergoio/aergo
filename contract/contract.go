@@ -109,6 +109,7 @@ func Execute(
 	var gasLimit uint64
 	if useGas(bi.ForkVersion) {
 		if isFeeDelegation {
+			// check if the contract has enough balance for fee
 			balance := new(big.Int).Sub(receiver.Balance(), usedFee)
 			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 			if gasLimit == 0 {
@@ -116,8 +117,10 @@ func Execute(
 				return
 			}
 		} else {
+			// read the gas limit from the tx
 			gasLimit = txBody.GetGasLimit()
 			if gasLimit == 0 {
+				// no gas limit specified, the limit is the sender's balance
 				balance := new(big.Int).Sub(sender.Balance(), usedFee)
 				gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 				if gasLimit == 0 {
@@ -125,25 +128,31 @@ func Execute(
 					return
 				}
 			} else {
+				// check if the sender has enough balance for gas
 				usedGas := fee.TxGas(len(txBody.GetPayload()))
 				if gasLimit <= usedGas {
 					err = newVmError(types.ErrNotEnoughGas)
 					return
 				}
+				// subtract the used gas from the gas limit
 				gasLimit -= usedGas
 			}
 		}
 	}
 
+	// open the contract state
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return
 	}
 
+	// check if this is a contract redeploy
 	if receiver.IsRedeploy() {
+		// check if the redeploy is valid
 		if err = checkRedeploy(sender, receiver, contractState); err != nil {
 			return
 		}
+		// remove the contract from the cache
 		bs.RemoveCache(receiver.AccountID())
 	}
 
@@ -231,11 +240,14 @@ func Execute(
 	return rv, events, usedFee, nil
 }
 
+// compute the base fee for a transaction
 func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
 	if version < 2 {
 		return fee.PayloadTxFee(payloadSize)
 	}
+	// get the amount of gas needed for the payload
 	txGas := fee.TxGas(payloadSize)
+	// multiply the amount of gas with the gas price
 	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
 }
 
@@ -336,18 +348,22 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 }
 
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+	// check if the contract exists
 	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
+	// get the contract creator
 	creator, err := contractState.GetData(creatorMetaKey)
 	if err != nil {
 		return err
 	}
+	// check if the sender is the creator
 	if !bytes.Equal(creator, []byte(types.EncodeAddress(sender.ID()))) {
 		return newVmError(types.ErrCreatorNotMatch)
 	}
+	// no problem found
 	return nil
 }
 

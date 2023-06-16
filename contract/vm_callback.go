@@ -1339,10 +1339,12 @@ func luaEvent(L *LState, service C.int, eventName *C.char, args *C.char) *C.char
 
 //export luaIsContract
 func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char) {
+
 	ctx := contexts[service]
 	if ctx == nil {
 		return -1, C.CString("[Contract.LuaIsContract] contract state not found")
 	}
+
 	cid, err := getAddressNameResolved(C.GoString(contractId), ctx.bs)
 	if err != nil {
 		return -1, C.CString("[Contract.LuaIsContract] invalid contractId: " + err.Error())
@@ -1353,20 +1355,25 @@ func luaIsContract(L *LState, service C.int, contractId *C.char) (C.int, *C.char
 	if err != nil {
 		return -1, C.CString("[Contract.LuaIsContract] getAccount error: " + err.Error())
 	}
+
 	return C.int(len(cs.curState.GetCodeHash())), nil
 }
 
 //export luaGovernance
 func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char {
+
 	ctx := contexts[service]
 	if ctx == nil {
 		return C.CString("[Contract.LuaGovernance] contract state not found")
 	}
+
 	if ctx.isQuery == true || ctx.nestedView > 0 {
 		return C.CString("[Contract.LuaGovernance] governance not permitted in query")
 	}
+
 	var amountBig *big.Int
 	var payload []byte
+
 	switch gType {
 	case 'S', 'U':
 		var err error
@@ -1392,15 +1399,19 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] getAccount error: " + err.Error())
 	}
+
 	curContract := ctx.curContract
 
-	senderState := ctx.curContract.callState.curState
+	senderState := curContract.callState.curState
 	sender := ctx.bs.InitAccountStateV(curContract.contractId,
 		curContract.callState.prevState, curContract.callState.curState)
+	receiver := ctx.bs.InitAccountStateV([]byte(types.AergoSystem),
+		scsState.prevState, scsState.curState)
+
 	if sender.AccountID().String() == "A9zXKkooeGYAZC5ReCcgeg4ddsvMHAy2ivUafXhrnzpj" {
 		sender.ClearAid()
 	}
-	receiver := ctx.bs.InitAccountStateV([]byte(types.AergoSystem), scsState.prevState, scsState.curState)
+
 	txBody := types.TxBody{
 		Amount:  amountBig.Bytes(),
 		Payload: payload,
@@ -1408,15 +1419,18 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 	if ctx.blockInfo.ForkVersion >= 2 {
 		txBody.Account = curContract.contractId
 	}
+
 	err = types.ValidateSystemTx(&txBody)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
 	}
+
 	seq, err := setRecoveryPoint(aid, ctx, senderState, scsState, zeroBig, false, false)
 	if err != nil {
 		return C.CString("[Contract.LuaGovernance] database error: " + err.Error())
 	}
-	evs, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, ctx.blockInfo)
+
+	events, err := system.ExecuteSystemTx(scsState.ctrState, &txBody, sender, receiver, ctx.blockInfo)
 	if err != nil {
 		rErr := clearRecovery(L, ctx, seq, true)
 		if rErr != nil {
@@ -1424,14 +1438,16 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 		}
 		return C.CString("[Contract.LuaGovernance] error: " + err.Error())
 	}
+
 	if seq == 1 {
 		err := clearRecovery(L, ctx, seq, false)
 		if err != nil {
 			return C.CString("[Contract.LuaGovernance] recovery error: " + err.Error())
 		}
 	}
-	ctx.eventCount += int32(len(evs))
-	ctx.events = append(ctx.events, evs...)
+
+	ctx.eventCount += int32(len(events))
+	ctx.events = append(ctx.events, events...)
 
 	if ctx.lastRecoveryEntry != nil {
 		if gType == 'S' {
@@ -1454,6 +1470,7 @@ func luaGovernance(L *LState, service C.int, gType C.char, arg *C.char) *C.char 
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -1477,6 +1494,7 @@ func luaCheckView(service C.int) C.int {
 
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
+
 	if service < BlockFactory {
 		// Originally, MaxVmService was used instead of maxContext. service
 		// value can be 2 and decremented by MaxVmService(=2) during VM loading.
@@ -1488,9 +1506,11 @@ func luaCheckTimeout(service C.int) C.int {
 		// becomes out of sync.
 		service = service + C.int(maxContext)
 	}
+
 	if service != BlockFactory {
 		return 0
 	}
+
 	select {
 	case <-bpTimeout:
 		return 1
@@ -1528,6 +1548,7 @@ func luaIsFeeDelegation(L *LState, service C.int) (C.int, *C.char) {
 
 //export LuaGetDbHandleSnap
 func LuaGetDbHandleSnap(service C.int, snap *C.char) *C.char {
+
 	stateSet := contexts[service]
 	curContract := stateSet.curContract
 	callState := curContract.callState
@@ -1535,18 +1556,22 @@ func LuaGetDbHandleSnap(service C.int, snap *C.char) *C.char {
 	if stateSet.isQuery != true {
 		return C.CString("[Contract.LuaSetDbSnap] not permitted in transaction")
 	}
+
 	if callState.tx != nil {
 		return C.CString("[Contract.LuaSetDbSnap] transaction already started")
 	}
+
 	rp, err := strconv.ParseUint(C.GoString(snap), 10, 64)
 	if err != nil {
 		return C.CString("[Contract.LuaSetDbSnap] snapshot is not valid" + C.GoString(snap))
 	}
+
 	aid := types.ToAccountID(curContract.contractId)
 	tx, err := beginReadOnly(aid.String(), rp)
 	if err != nil {
 		return C.CString("Error Begin SQL Transaction")
 	}
+
 	callState.tx = tx
 	return nil
 }
@@ -1567,24 +1592,29 @@ func setRemainingGas(L *LState, ctx *vmContext) {
 
 //export luaGetStaking
 func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
+
 	var (
 		ctx          *vmContext
 		scs, namescs *state.ContractState
 		err          error
 		staking      *types.Staking
 	)
+
 	ctx = contexts[service]
 	scs, err = ctx.bs.GetSystemAccountState()
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
+
 	namescs, err = ctx.bs.GetNameAccountState()
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
+
 	staking, err = system.GetStaking(scs, name.GetAddress(namescs, types.ToAddress(C.GoString(addr))))
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}
+
 	return C.CString(staking.GetAmountBigInt().String()), C.lua_Integer(staking.When), nil
 }
