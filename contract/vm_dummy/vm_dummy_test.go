@@ -396,7 +396,7 @@ func TestContractSystem(t *testing.T) {
 	require.NoErrorf(t, err, "failed to call tx")
 
 	receipt := bc.GetReceipt(tx.Hash())
-	exRv := fmt.Sprintf(`["%s","6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, StrToAddress("user1"), bc.cBlock.Header.Timestamp/1e9)
+	exRv := fmt.Sprintf(`["%s","22YigSYgVDLtsDAD4NGxR8Yj81UmY18SytoPuKXtuWSj","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, StrToAddress("user1"), bc.cBlock.Header.Timestamp/1e9)
 	assert.Equal(t, exRv, receipt.GetRet(), "receipt ret error")
 }
 
@@ -2683,7 +2683,7 @@ func TestGasOp(t *testing.T) {
 	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 120270, SetHardForkVersion(3))
+	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
@@ -2698,7 +2698,7 @@ func TestGasBF(t *testing.T) {
 	err = expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 47513803, SetHardForkVersion(3))
+	err = expectGas(string(code), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
@@ -2715,7 +2715,7 @@ func TestGasLuaCryptoVerifyProof(t *testing.T) {
 	assert.NoError(t, err)
 
 	// v3 raw
-	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154347, SetHardForkVersion(3))
+	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(3))
 	assert.NoError(t, err)
 
 	// v3 hex

@@ -71,6 +71,11 @@ func SetTimeout(timeout int) DummyChainOptions {
 
 func SetPubNet() DummyChainOptions {
 	return func(dc *DummyChain) {
+
+		// public and private chains have different features.
+		// private chains have the db module and public ones don't.
+		// this is why we need to flush all Lua states and recreate
+		// them when moving to and from public chain.
 		flushLState := func() {
 			for i := 0; i <= lStateMaxSize; i++ {
 				s := contract.GetLState(contract.LStateDefault)
