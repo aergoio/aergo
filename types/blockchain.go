@@ -225,7 +225,7 @@ func (v DummyBlockVersionner) Version(BlockNo) int32 {
 }
 
 func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
-	return true
+	return (v >= 2)
 }
 
 // NewBlock represents to create a block to store transactions.

@@ -75,8 +75,11 @@ func SetPubNet() DummyChainOptions {
 			for i := 0; i <= lStateMaxSize; i++ {
 				s := contract.GetLState(contract.LStateDefault)
 				contract.FreeLState(s, contract.LStateDefault)
+				s = contract.GetLState(contract.LStateVer3)
+				contract.FreeLState(s, contract.LStateVer3)
 			}
 		}
+
 		contract.PubNet = true
 		fee.DisableZeroFee()
 		flushLState()
