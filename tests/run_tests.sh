@@ -1,3 +1,4 @@
+set -e
 
 # run the brick test
 ./test-brick.sh
@@ -22,9 +23,24 @@ echo "restarting the aergo server..."
 pid=$!
 sleep 3
 
+function check() {
+    name=$(basename -s .sh $1)
+    echo ""
+    echo "RUN: $name"
+    $@
+    local status=$?
+    if [ $status -ne 0 ]; then
+        echo "FAIL: $name"
+    else
+        echo "OK: $name"
+    fi
+    #return $status
+}
+
 # run the integration tests
-./test-max-call-depth.sh
+check ./test-max-call-depth.sh
 
 # terminate the server process
+echo ""
 echo "closing the aergo server"
 kill $pid

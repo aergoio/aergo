@@ -1,3 +1,4 @@
+set -e
 
 assert_equals() {
   local var="$1"
@@ -585,7 +586,3 @@ assert_equals "$result" "null"
 ../bin/aergocli contract query ${addresses[66]} get_call_info '[1]' > receipt.json
 result=$(cat receipt.json | sed 's/"//g' | sed 's/\\//g' | sed 's/ //g' | sed 's/value://g')
 assert_equals "$result" "null"
-
-
-echo ""
-echo "OK: test-max-call-depth"
