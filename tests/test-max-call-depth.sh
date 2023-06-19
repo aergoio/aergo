@@ -24,11 +24,9 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1.2
-
 for i in {1..66}
 do
-  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
+  get_receipt ${txhashes[$i]}
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -152,11 +150,9 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1.2
-
 for i in {1..66}
 do
-  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
+  get_receipt ${txhashes[$i]}
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -184,11 +180,9 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1.2
-
 for i in {1..65}
 do
-  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
+  get_receipt ${txhashes[$i]}
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
 
@@ -299,11 +293,9 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1.2
-
 for i in {1..4}
 do
-  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
+  get_receipt ${txhashes[$i]}
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
@@ -439,11 +431,9 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1.2
-
 for i in {1..2}
 do
-  ../bin/aergocli receipt get ${txhashes[$i]} > receipt.json
+  get_receipt ${txhashes[$i]}
 
   status=$(cat receipt.json | jq .status | sed 's/"//g')
   address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
