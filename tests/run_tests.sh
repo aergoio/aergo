@@ -39,6 +39,7 @@ function check() {
 
 # run the integration tests
 check ./test-max-call-depth.sh
+check ./test-gas-op.sh
 
 # terminate the server process
 echo ""
