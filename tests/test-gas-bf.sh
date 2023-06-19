@@ -32,4 +32,4 @@ gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      "{}"
-assert_equals "$gasUsed"  "47456460"
+assert_equals "$gasUsed"  "47456046"

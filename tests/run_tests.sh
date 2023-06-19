@@ -1,4 +1,5 @@
-#set -e
+# stop on errors
+set -e
 
 # run the brick test
 ./test-brick.sh
@@ -23,6 +24,11 @@ echo "restarting the aergo server..."
 pid=$!
 sleep 3
 
+# do not stop on errors
+set +e
+
+num_failed_tests=0
+
 function check() {
     name=$(basename -s .sh $1)
     echo ""
@@ -30,11 +36,11 @@ function check() {
     $@
     local status=$?
     if [ $status -ne 0 ]; then
+        num_failed_tests=$((num_failed_tests+1))
         echo "FAIL: $name"
     else
         echo "OK: $name"
     fi
-    #return $status
 }
 
 # run the integration tests
@@ -45,4 +51,12 @@ check ./test-gas-bf.sh
 # terminate the server process
 echo ""
 echo "closing the aergo server"
+echo ""
 kill $pid
+
+if [ $num_failed_tests -gt 0 ]; then
+  echo "$num_failed_tests failed tests"
+  exit 1
+else
+  echo "All tests pass!"
+fi
