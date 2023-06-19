@@ -1,24 +1,5 @@
 set -e
-
-assert_equals() {
-  local var="$1"
-  local expected="$2"
-
-  if [[ ! "$var" == "$expected" ]]; then
-    echo "Assertion failed: $var != $expected"
-    exit 1
-  fi
-}
-
-assert_contains() {
-  local var="$1"
-  local substring="$2"
-
-  if [[ ! "$var" == *"$substring"* ]]; then
-    echo "Assertion failed: $var does not contain $substring"
-    exit 1
-  fi
-}
+source common.sh
 
 
 ../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
@@ -43,7 +24,7 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1
+sleep 1.2
 
 for i in {1..66}
 do
@@ -81,9 +62,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[$json,1,64]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -114,9 +93,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[$json,1,66]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -175,7 +152,7 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1
+sleep 1.2
 
 for i in {1..66}
 do
@@ -207,7 +184,7 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1
+sleep 1.2
 
 for i in {1..65}
 do
@@ -228,9 +205,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[1,64]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -262,9 +237,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[1,66]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -326,7 +299,7 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1
+sleep 1.2
 
 for i in {1..4}
 do
@@ -364,9 +337,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[$json,1,64]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -402,9 +373,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[$json,1,66]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -470,7 +439,7 @@ do
   txhashes[$i]=$txhash
 done
 
-sleep 1
+sleep 1.2
 
 for i in {1..2}
 do
@@ -508,9 +477,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[$json,1,64]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -546,9 +513,7 @@ txhash=$(../bin/aergocli --keystore . --password bmttest \
   contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
   ${addresses[1]} call_me "[$json,1,66]" | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')

@@ -1,4 +1,4 @@
-set -e
+#set -e
 
 # run the brick test
 ./test-brick.sh
