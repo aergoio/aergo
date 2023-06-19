@@ -36,16 +36,14 @@ var (
 	ErrNoVotingRewardWinner = errors.New("voting reward: no winner")
 	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
 
-	zeroValue = &big.Int{}
-
-	vprKeyPrefix     = []byte("VotingPowerBucket/")
-	million          = new(big.Int).Exp(ten, new(big.Int).SetUint64(6), nil)
-	annualRewardM, _ = new(big.Int).SetString("5045760000000000000", 10)
-	annualReward     = new(big.Int).Mul(annualRewardM, million)
-	ten              = new(big.Int).SetUint64(10)
-	oneYIS           = new(big.Int).SetUint64(365 * 24 * 60 * 60)
-	defaultReward    = new(big.Int).Div(annualReward, oneYIS)                // 0.16 AERGO per sec
-	binSize, _       = new(big.Int).SetString("10000000000000000000000", 10) // 10000 AERGO
+	zeroValue     = types.NewZero()
+	vprKeyPrefix  = []byte("VotingPowerBucket/")
+	million       = types.NewAer(1e6)                        // 1,000,000 Aer
+	annualRewardM = types.NewGaer(5045760000)                // 5,045,760,000 Gaer
+	annualReward  = new(big.Int).Mul(annualRewardM, million) // 5,045,760 AERGO
+	oneYIS        = new(big.Int).SetUint64(365 * 24 * 60 * 60)
+	defaultReward = new(big.Int).Div(annualReward, oneYIS) // 0.16 AERGO per sec
+	binSize       = types.NewAergo(1e4)                    // 10,000 AERGO
 
 	votingPowerRank *vpr
 

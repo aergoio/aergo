@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInitValue(t *testing.T) {
+func TestValidateInitValue(t *testing.T) {
 	// Max Aergo value ( 500,000,000 aergo )
 	assert.Equalf(t, "500000000000000000000000000", MaxAER.String(), "MaxAER is not valid. check types/blockchain.go")
-	// Staking minimum amount ( 1,000 aergo )
+	// Staking minimum amount ( 10,000 aergo )
 	assert.Equalf(t, "10000000000000000000000", StakingMinimum.String(), "StakingMinimum is not valid. check types/blockchain.go")
 	// Proposal price ( 0 aergo )
 	assert.Equalf(t, "0", ProposalPrice.String(), "ProposalPrice is not valid. check types/blockchain.go")
