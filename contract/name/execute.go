@@ -20,6 +20,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	if err != nil {
 		return nil, err
 	}
+
 	var events []*types.Event
 
 	var nameState *state.V
@@ -36,6 +37,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	} else {
 		nameState = receiver
 	}
+
 	switch ci.Name {
 	case types.NameCreate:
 		if err = CreateName(scs, txBody, sender, nameState,
@@ -79,20 +81,26 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 		}
 		ownerState.PutState()
 	}
+
 	nameState.PutState()
+
 	return events, nil
 }
 
 func ValidateNameTx(tx *types.TxBody, sender *state.V,
 	scs, systemcs *state.ContractState) (*types.CallInfo, error) {
+
 	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
 		return nil, types.ErrInsufficientBalance
 	}
+
 	var ci types.CallInfo
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return nil, err
 	}
+
 	name := ci.Args[0].(string)
+
 	switch ci.Name {
 	case types.NameCreate:
 		namePrice := system.GetNamePriceFromState(systemcs)
@@ -120,24 +128,31 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 	default:
 		return nil, errors.New("could not execute unknown cmd")
 	}
+
 	return &ci, nil
 }
 
 func SetContractOwner(bs *state.BlockState, scs *state.ContractState,
 	address string, nameState *state.V) (*state.V, error) {
+
 	name := []byte(types.AergoName)
+
 	rawaddr, err := types.DecodeAddress(address)
 	if err != nil {
 		return nil, err
 	}
+
 	ownerState, err := bs.GetAccountStateV(rawaddr)
 	if err != nil {
 		return nil, err
 	}
+
 	ownerState.AddBalance(nameState.Balance())
 	nameState.SubBalance(nameState.Balance())
+
 	if err = registerOwner(scs, name, rawaddr, name); err != nil {
 		return nil, err
 	}
+
 	return ownerState, nil
 }

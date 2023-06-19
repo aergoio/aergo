@@ -336,7 +336,7 @@ func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 
 			// genesis.ID is overwritten by the genesis block's chain
 			// id. Prefer the latter since it is sort of protected the block
-			// chain system (all the chaild blocks connected to the genesis
+			// chain system (all the child blocks connected to the genesis
 			// block).
 			rawCid := genesis.Block().GetHeader().GetChainID()
 			if len(rawCid) > 0 {
@@ -580,7 +580,7 @@ func (cdb *ChainDB) getBestBlockNo() (latestNo types.BlockNo) {
 	return latestNo
 }
 
-// GetBlockByNo returns the block with its block number as blockNo.
+// GetBlockByNo returns the block of which number is blockNo.
 func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	blockHash, err := cdb.getHashByNo(blockNo)
 	if err != nil {

@@ -14,28 +14,30 @@ import (
 	"github.com/minio/sha256-simd"
 )
 
-type loadedReply struct {
+/* The preloadWorker optimizes the execution time by preloading the next transaction while executing the current transaction */
+
+type preloadRequest struct {
+	preloadService int
+	bs             *state.BlockState
+	bi             *types.BlockHeaderInfo
+	current        *types.Tx // the tx currently being executed
+	next           *types.Tx // the tx to preload the executor for, the next to be executed
+}
+
+type preloadReply struct {
 	tx  *types.Tx
 	ex  *executor
 	err error
 }
 
-type preLoadReq struct {
-	preLoadService int
-	bs             *state.BlockState
-	bi             *types.BlockHeaderInfo
-	next           *types.Tx
-	current        *types.Tx
-}
-
-type preLoadInfo struct {
-	requestedTx *types.Tx
-	replyCh     chan *loadedReply
+type preloader struct {
+	requestedTx *types.Tx  // the next preload tx to be executed
+	replyCh     chan *preloadReply
 }
 
 var (
-	loadReqCh     chan *preLoadReq
-	preLoadInfos  [2]preLoadInfo
+	loadReqCh     chan *preloadRequest
+	preloaders    [2]preloader
 	PubNet        bool
 	TraceBlockNo  uint64
 	bpTimeout     <-chan struct{}
@@ -50,16 +52,17 @@ const (
 )
 
 func init() {
-	loadReqCh = make(chan *preLoadReq, 10)
-	preLoadInfos[BlockFactory].replyCh = make(chan *loadedReply, 4)
-	preLoadInfos[ChainService].replyCh = make(chan *loadedReply, 4)
+	loadReqCh = make(chan *preloadRequest, 10)
+	preloaders[BlockFactory].replyCh = make(chan *preloadReply, 4)
+	preloaders[ChainService].replyCh = make(chan *preloadReply, 4)
 	addressRegexp, _ = regexp.Compile("^[a-zA-Z0-9]+$")
 
-	go preLoadWorker()
+	go preloadWorker()
 }
 
+// mark the next preload tx to be executed
 func SetPreloadTx(tx *types.Tx, service int) {
-	preLoadInfos[service].requestedTx = tx
+	preloaders[service].requestedTx = tx
 }
 
 func Execute(
@@ -68,23 +71,28 @@ func Execute(
 	tx *types.Tx,
 	sender, receiver *state.V,
 	bi *types.BlockHeaderInfo,
-	preLoadService int,
+	preloadService int,
 	isFeeDelegation bool,
 ) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+
 	txBody := tx.GetBody()
 
+	// compute the base fee
 	usedFee = TxFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
 
-	// Transfer balance
+	// check if sender and receiver are not the same
 	if sender.AccountID() != receiver.AccountID() {
+		// check if sender has enough balance
 		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
 			err = types.ErrInsufficientBalance
 			return
 		}
+		// transfer the amount from the sender to the receiver
 		sender.SubBalance(txBody.GetAmountBigInt())
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
+	// check if the receiver is a not contract
 	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
 		// Before the chain version 3, any tx with no code hash is
 		// unconditionally executed as a simple Aergo transfer. Since this
@@ -102,6 +110,7 @@ func Execute(
 	var gasLimit uint64
 	if useGas(bi.ForkVersion) {
 		if isFeeDelegation {
+			// check if the contract has enough balance for fee
 			balance := new(big.Int).Sub(receiver.Balance(), usedFee)
 			gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 			if gasLimit == 0 {
@@ -109,8 +118,10 @@ func Execute(
 				return
 			}
 		} else {
+			// read the gas limit from the tx
 			gasLimit = txBody.GetGasLimit()
 			if gasLimit == 0 {
+				// no gas limit specified, the limit is the sender's balance
 				balance := new(big.Int).Sub(sender.Balance(), usedFee)
 				gasLimit = fee.MaxGasLimit(balance, bs.GasPrice)
 				if gasLimit == 0 {
@@ -118,37 +129,48 @@ func Execute(
 					return
 				}
 			} else {
+				// check if the sender has enough balance for gas
 				usedGas := fee.TxGas(len(txBody.GetPayload()))
 				if gasLimit <= usedGas {
 					err = newVmError(types.ErrNotEnoughGas)
 					return
 				}
+				// subtract the used gas from the gas limit
 				gasLimit -= usedGas
 			}
 		}
 	}
 
+	// open the contract state
 	contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 	if err != nil {
 		return
 	}
+
+	// check if this is a contract redeploy
 	if receiver.IsRedeploy() {
+		// check if the redeploy is valid
 		if err = checkRedeploy(sender, receiver, contractState); err != nil {
 			return
 		}
+		// remove the contract from the cache
 		bs.RemoveCache(receiver.AccountID())
 	}
 
 	var ex *executor
 
-	if !receiver.IsDeploy() && preLoadInfos[preLoadService].requestedTx == tx {
-		replyCh := preLoadInfos[preLoadService].replyCh
+	// is there a request to preload an executor for this tx?
+	if !receiver.IsDeploy() && preloaders[preloadService].requestedTx == tx {
+		// get the reply channel
+		replyCh := preloaders[preloadService].replyCh
+		// wait for the reply
 		for {
 			preload := <-replyCh
 			if preload.tx != tx {
 				preload.ex.close()
 				continue
 			}
+			// get the executor and error from the reply
 			ex = preload.ex
 			err = preload.err
 			break
@@ -159,34 +181,46 @@ func Execute(
 	}
 
 	var ctrFee *big.Int
+
+	// is there a preloaded executor?
 	if ex != nil {
+		// execute the transaction
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
+		// create a new context
 		ctx := NewVmContext(bs, cdb, sender, receiver, contractState, sender.ID(),
 			tx.GetHash(), bi, "", true, false, receiver.RP(),
-			preLoadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+			preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 
+		// execute the transaction
 		if receiver.IsDeploy() {
 			rv, events, ctrFee, err = Create(contractState, txBody.Payload, receiver.ID(), ctx)
 		} else {
 			rv, events, ctrFee, err = Call(contractState, txBody.Payload, receiver.ID(), ctx)
 		}
+
+		// close the trace file
 		if ctx.traceFile != nil {
 			defer ctx.traceFile.Close()
 		}
 	}
 
+	// check if the execution fee is negative
 	if ctrFee != nil && ctrFee.Sign() < 0 {
 		return "", events, usedFee, ErrVmStart
 	}
+	// add the execution fee to the total fee
 	usedFee.Add(usedFee, ctrFee)
 
+	// check if the execution failed
 	if err != nil {
 		if isSystemError(err) {
 			return "", events, usedFee, err
 		}
 		return "", events, usedFee, newVmError(err)
 	}
+
+	// check for sufficient balance for fee
 	if isFeeDelegation {
 		if receiver.Balance().Cmp(usedFee) < 0 {
 			return "", events, usedFee, newVmError(types.ErrInsufficientBalance)
@@ -197,32 +231,44 @@ func Execute(
 		}
 	}
 
+	// save the contract state
 	err = bs.StageContractState(contractState)
 	if err != nil {
 		return "", events, usedFee, err
 	}
 
+	// return the result
 	return rv, events, usedFee, nil
 }
 
+// compute the base fee for a transaction
 func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
 	if version < 2 {
 		return fee.PayloadTxFee(payloadSize)
 	}
+	// get the amount of gas needed for the payload
 	txGas := fee.TxGas(payloadSize)
+	// multiply the amount of gas with the gas price
 	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
 }
 
-func PreLoadRequest(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preLoadService int) {
-	loadReqCh <- &preLoadReq{preLoadService, bs, bi, next, current}
+// send a request to preload an executor for the next tx
+func RequestPreload(bs *state.BlockState, bi *types.BlockHeaderInfo, next, current *types.Tx, preloadService int) {
+	loadReqCh <- &preloadRequest{preloadService, bs, bi, next, current}
 }
 
-func preLoadWorker() {
+// the preloadWorker preloads an executor for the next tx
+func preloadWorker() {
+	// infinite loop
 	for {
 		var err error
-		reqInfo := <-loadReqCh
-		replyCh := preLoadInfos[reqInfo.preLoadService].replyCh
 
+		// wait for a preload request
+		request := <-loadReqCh
+		// get the reply channel for this request
+		replyCh := preloaders[request.preloadService].replyCh
+
+		// if there are more than 2 requests waiting for a reply, close the oldest one
 		if len(replyCh) > 2 {
 			select {
 			case preload := <-replyCh:
@@ -231,11 +277,12 @@ func preLoadWorker() {
 			}
 		}
 
-		bs := reqInfo.bs
-		tx := reqInfo.next
+		bs := request.bs
+		tx := request.next  // the tx to preload the executor for
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
+		// only preload an executor for a normal, transfer, call or fee delegation tx
 		if (txBody.Type != types.TxType_NORMAL &&
 			txBody.Type != types.TxType_TRANSFER &&
 			txBody.Type != types.TxType_CALL &&
@@ -244,39 +291,52 @@ func preLoadWorker() {
 			continue
 		}
 
-		if reqInfo.current.GetBody().Type == types.TxType_REDEPLOY {
-			currentTxBody := reqInfo.current.GetBody()
+		// if the tx currently being executed is a redeploy
+		if request.current.GetBody().Type == types.TxType_REDEPLOY {
+			// if the next tx is a call to the redeployed contract
+			currentTxBody := request.current.GetBody()
 			if bytes.Equal(recipient, currentTxBody.Recipient) {
-				replyCh <- &loadedReply{tx, nil, nil}
+				// do not preload an executor for a contract that is being redeployed
+				replyCh <- &preloadReply{tx, nil, nil}
 				continue
 			}
 		}
 
+		// get the state of the recipient
 		receiver, err := bs.GetAccountStateV(recipient)
 		if err != nil {
-			replyCh <- &loadedReply{tx, nil, err}
+			replyCh <- &preloadReply{tx, nil, err}
 			continue
 		}
-		/* When deploy and call in same block and not deployed yet*/
+
+		// when deploy and call in same block and not deployed yet
 		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
-			replyCh <- &loadedReply{tx, nil, nil}
+			// do not preload an executor for a contract that is not deployed yet
+			replyCh <- &preloadReply{tx, nil, nil}
 			continue
 		}
+
+		// open the contract state
 		contractState, err := bs.OpenContractState(receiver.AccountID(), receiver.State())
 		if err != nil {
-			replyCh <- &loadedReply{tx, nil, err}
+			replyCh <- &preloadReply{tx, nil, err}
 			continue
 		}
+
+		// create a new context
 		ctx := NewVmContext(bs, nil, nil, receiver, contractState, txBody.GetAccount(),
-			tx.GetHash(), reqInfo.bi, "", false, false, receiver.RP(),
-			reqInfo.preLoadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
+			tx.GetHash(), request.bi, "", false, false, receiver.RP(),
+			request.preloadService, txBody.GetAmountBigInt(), txBody.GetGasLimit(),
 			txBody.Type == types.TxType_FEEDELEGATION)
 
-		ex, err := PreloadEx(bs, contractState, txBody.Payload, receiver.ID(), ctx)
+		// load a new executor
+		ex, err := PreloadExecutor(bs, contractState, txBody.Payload, receiver.ID(), ctx)
 		if ex == nil && ctx.traceFile != nil {
 			ctx.traceFile.Close()
 		}
-		replyCh <- &loadedReply{tx, ex, err}
+
+		// send reply with executor
+		replyCh <- &preloadReply{tx, ex, err}
 	}
 }
 
@@ -289,18 +349,22 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 }
 
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+	// check if the contract exists
 	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
+	// get the contract creator
 	creator, err := contractState.GetData(creatorMetaKey)
 	if err != nil {
 		return err
 	}
+	// check if the sender is the creator
 	if !bytes.Equal(creator, []byte(types.EncodeAddress(sender.ID()))) {
 		return newVmError(types.ErrCreatorNotMatch)
 	}
+	// no problem found
 	return nil
 }
 
