@@ -4,25 +4,18 @@ set -e
 # run the brick test
 ./test-brick.sh
 
-# delete the aergo folder
-rm -rf ~/.aergo/
+# delete and recreate the aergo folder
+rm -rf ./aergo-files
+mkdir aergo-files
+# copy the config file
+cp config.toml ./aergo-files/
 
 # open the aergo server in testmode to create the config file
 echo "starting the aergo server..."
-../bin/aergosvr --testmode > logs 2> logs &
+../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
 pid=$!
-# wait it create the config file
-sleep 3
-# terminate the server process
-kill $pid
-# enable the block production on the config file
-echo "updating the config file..."
-sed -i 's/^enablebp = false$/enablebp = true/' ~/.aergo/config.toml
-# restart the aergo server in testmode
-echo "restarting the aergo server..."
-../bin/aergosvr --testmode > logs 2> logs &
-pid=$!
-sleep 3
+# wait it to be ready
+sleep 2
 
 # do not stop on errors
 set +e
