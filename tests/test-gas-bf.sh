@@ -1,6 +1,8 @@
 set -e
 source common.sh
 
+fork_version=$1
+
 
 echo "-- deploy --"
 
@@ -32,4 +34,9 @@ gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      "{}"
-assert_equals "$gasUsed"  "47456046"
+
+if [ "$fork_version" -eq "3" ]; then
+  assert_equals "$gasUsed"  "47456046"
+else
+  assert_equals "$gasUsed"  "47456244"
+fi

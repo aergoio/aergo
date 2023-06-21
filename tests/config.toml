@@ -80,4 +80,4 @@ enablelocalconf = "false"
 
 [hardfork]
 v2 = "0"
-v3 = "0"
+v3 = "10000"
