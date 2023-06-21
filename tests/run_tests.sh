@@ -45,6 +45,7 @@ function check() {
 
 # run the integration tests
 check ./test-max-call-depth.sh
+check ./test-gas-deploy.sh
 check ./test-gas-op.sh
 check ./test-gas-bf.sh
 check ./test-gas-verify-proof.sh
