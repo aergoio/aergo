@@ -47,6 +47,7 @@ function check() {
 check ./test-max-call-depth.sh
 check ./test-gas-op.sh
 check ./test-gas-bf.sh
+check ./test-gas-verify-proof.sh
 
 # terminate the server process
 echo ""
