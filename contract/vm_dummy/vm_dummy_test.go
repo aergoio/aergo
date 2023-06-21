@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -2009,7 +2008,7 @@ func TestFeatureGovernance(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("user1", types.Aergo), NewLuaTxDeploy("user1", "gov", 0, code))
 	require.NoErrorf(t, err, "failed to deploy")
 
-	amount, _ := new(big.Int).SetString("40000000000000000000000", 10)
+	amount := types.NewAergo(40000) // 40,000 aergo
 	err = bc.ConnectBlock(NewLuaTxCallBig("user1", "gov", amount, `{"Name": "test_gov", "Args":[]}`))
 	require.NoErrorf(t, err, "failed to call tx")
 
