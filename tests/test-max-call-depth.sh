@@ -2,22 +2,22 @@ set -e
 source common.sh
 
 
-../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
-
-
 # deploy 66 identical contracts using test-max-call-depth-2.lua
 # and store the returned addresses in an array
 
 echo "-- deploy 66 contracts --"
 
-../bin/aergoluac --payload test-max-call-depth-2.lua > payload.out
-
 declare -a txhashes
 declare -a addresses
 
+account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
+nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
+
+../bin/aergoluac --payload test-max-call-depth-2.lua > payload.out
+
 for i in {1..66}
 do
-  txhash=$(../bin/aergocli --keystore . --password bmttest --nonce $i \
+  txhash=$(../bin/aergocli --keystore . --password bmttest --nonce $(($nonce+$i)) \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
     --payload `cat payload.out` | jq .hash | sed 's/"//g')
 

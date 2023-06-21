@@ -11,6 +11,7 @@ mkdir aergo-files
 cp config.toml ./aergo-files/
 
 # open the aergo server in testmode to create the config file
+echo ""
 echo "starting the aergo server..."
 ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
 pid=$!
@@ -24,7 +25,8 @@ function set_version() {
   set -e
   version=$1
   echo ""
-  echo "--- now tests using version $version ---"
+  echo "---------------------------------"
+  echo "now test hardfork version $version"
   # get the current block number / height
   block_no=$(../bin/aergocli blockchain | jq .Height | sed 's/"//g')
   # increment 2 numbers
@@ -74,6 +76,10 @@ function check() {
         echo "OK: $name"
     fi
 }
+
+# create the account used on tests
+echo "creating user account..."
+../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
 
 # run the integration tests - version 2
 check ./test-gas-deploy.sh
