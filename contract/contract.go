@@ -20,8 +20,8 @@ type preloadRequest struct {
 	preloadService int
 	bs             *state.BlockState
 	bi             *types.BlockHeaderInfo
-	current        *types.Tx // the tx currently being executed
 	next           *types.Tx // the tx to preload the executor for, the next to be executed
+	current        *types.Tx // the tx currently being executed
 }
 
 type preloadReply struct {
