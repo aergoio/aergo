@@ -1,4 +1,4 @@
-loop_cnt = 1000
+loop_cnt = 100
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
 tbl = { name= "user2", year= 1981, age= 41,
  name1= "user2", year1= 1981, age1= 41,
