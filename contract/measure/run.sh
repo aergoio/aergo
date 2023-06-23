@@ -14,4 +14,4 @@ echo ""
 make -C../.. libluajit-clean
 make -C../.. libluajit
 echo "---------------------------------------------"
-go run -tags measure main.go | jq -r .message | tr -d \"
+go run -tags measure main.go 2>&1 | jq -r .message | tr -d \"
