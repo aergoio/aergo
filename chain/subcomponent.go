@@ -12,7 +12,7 @@ import (
 // To use SubComponent, only need to implement Actor interface
 type SubComponent struct {
 	actor.Actor
-	component.IComponentRequester // use basecomponent to request to other actors
+	component.IComponentRequester // use baseComponent to request to other actors
 
 	name  string
 	pid   *actor.PID

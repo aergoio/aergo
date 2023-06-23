@@ -70,7 +70,7 @@ type bpInfo struct {
 	slot      *slot.Slot
 }
 
-func (bi *bpInfo) updateBestBLock() *types.Block {
+func (bi *bpInfo) updateBestBlock() *types.Block {
 	block, _ := bi.GetBestBlock()
 	if block != nil {
 		bi.bestBlock = block
@@ -214,7 +214,7 @@ func InitVPR(sdb *state.StateDB) error {
 	return system.InitVotingPowerRank(s)
 }
 
-// Init initilizes the DPoS parameters.
+// Init initializes the DPoS parameters.
 func Init(bpCount uint16) {
 	blockProducers = bpCount
 	majorityCount = blockProducers*2/3 + 1

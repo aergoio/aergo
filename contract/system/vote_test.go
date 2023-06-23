@@ -192,7 +192,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, []byte{}, result2.GetVotes()[0].Amount, "invalid candidate in voting result")
 
 	blockInfo.No += StakingDelay
-	blockInfo.Version = 2
+	blockInfo.ForkVersion = 2
 	tx.Body.Payload = buildStakingPayload(true)
 	stake, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")

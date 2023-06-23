@@ -12,7 +12,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/vm_dummy"
 )
 
 var (
@@ -22,19 +22,19 @@ var (
 )
 
 type context struct {
-	chain *contract.DummyChain
+	chain *vm_dummy.DummyChain
 }
 
 func Open(private bool) {
 	privateNet = private
 	var (
-		chain *contract.DummyChain
+		chain *vm_dummy.DummyChain
 		err   error
 	)
 	if privateNet {
-		chain, err = contract.LoadDummyChain()
+		chain, err = vm_dummy.LoadDummyChain()
 	} else {
-		chain, err = contract.LoadDummyChain(contract.OnPubNet)
+		chain, err = vm_dummy.LoadDummyChain(vm_dummy.SetPubNet())
 	}
 	if err != nil {
 		panic(err)
@@ -60,7 +60,7 @@ func LivePrefix() (string, bool) {
 	return ret, true
 }
 
-func Get() *contract.DummyChain {
+func Get() *vm_dummy.DummyChain {
 	if currentCtx == nil {
 		log.Fatal("fail to open chain")
 	}

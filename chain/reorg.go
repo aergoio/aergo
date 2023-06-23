@@ -136,7 +136,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 
 	reorg, err := newReorganizer(cs, topBlock, marker)
 	if err != nil {
-		logger.Error().Err(err).Msg("new reorganazier failed")
+		logger.Error().Err(err).Msg("new reorganizer failed")
 		return err
 	}
 
@@ -361,7 +361,7 @@ func (reorg *reorganizer) dumpOldBlocks() {
 	}
 }
 
-// Find branch root and gather rollforard/rollback target blocks
+// Find branch root and gather rollforward/rollback target blocks
 func (reorg *reorganizer) gather() error {
 	//find branch root block , gather rollforward Target block
 	var err error

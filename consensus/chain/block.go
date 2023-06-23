@@ -176,7 +176,8 @@ func (g *BlockGenerator) tteEnabled() bool {
 	return !g.noTTE
 }
 
-// ConnectBlock send an AddBlock request to the chain service.
+// ConnectBlock send an AddBlock request to the chain service. This method is called only when this node
+// produced a block.
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState, timeout time.Duration) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.

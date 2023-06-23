@@ -1,9 +1,11 @@
 loop_cnt = 1000
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
-tbl = { name= "kslee", year= 1981, age= 41 }
-long_str = [[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as well.
+tbl = { name = "user2", year = 1981, age = 41 }
+long_str =
+[[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as well.
 ]]
-long_str1 = [[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as werr.
+long_str1 =
+[[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as werr.
 ]]
 
 function copy_arr(arr)
@@ -20,7 +22,6 @@ function m1k(fn, ...)
     end
 end
 
-
 function basic_fns()
     m1k(assert, true, 'true')
     m1k(assert, 1 == 1, 'true')
@@ -28,12 +29,12 @@ function basic_fns()
     m1k(assert, long_str == long_str, 'true')
     m1k(assert, long_str ~= long_str1, 'true')
     m1k(getfenv, basic_fns)
-    local x = {value = 5} 
+    local x = { value = 5 }
     local mt = {
-        __add = function (lhs, rhs) 
+        __add = function(lhs, rhs)
             return { value = lhs.value + rhs.value }
         end,
-        __tostring = function (self)
+        __tostring = function(self)
             return "Hello Aergo"
         end
     }
@@ -87,9 +88,9 @@ function basic_fns()
     m1k(type, 112134)
     m1k(type, {})
     m1k(type, type)
-    m1k(unpack, {1, 2, 3, 4, 5}, 2, 4)
+    m1k(unpack, { 1, 2, 3, 4, 5 }, 2, 4)
     m1k(unpack, arr, 2, 4)
-    m1k(unpack, {1, 2, 3, 4, 5})
+    m1k(unpack, { 1, 2, 3, 4, 5 })
     m1k(unpack, arr)
     local a = {}
     for i = 1, 100 do
@@ -121,7 +122,7 @@ function string_fns()
     m1k(string.format, "string.format %d, %.9f, %e", 1, 1.999999999, 10e9)
     s = "hello world from Lua"
     m1k(string.gmatch, s, "%a+")
-    m1k(function() 
+    m1k(function()
         for w in string.gmatch(s, "%a+") do
         end
     end)
@@ -162,7 +163,7 @@ function table_fns1()
     m1k(table.concat, a, ',', 3, 7)
     m1k(table.concat, a100, ',')
     m1k(table.concat, a100, ',', 3, 7)
-    m1k(table.concat, a100, ',', 3, 32) 
+    m1k(table.concat, a100, ',', 3, 32)
     local as10 = {}
     for i = 1, 10 do
         as10[i] = "hello"
@@ -175,7 +176,7 @@ function table_fns1()
     m1k(table.concat, as10, ',', 3, 7)
     m1k(table.concat, as100, ',')
     m1k(table.concat, as100, ',', 3, 7)
-    m1k(table.concat, as100, ',', 3, 32) 
+    m1k(table.concat, as100, ',', 3, 32)
     for i = 1, 10 do
         as10[i] = "h"
     end
@@ -186,7 +187,7 @@ function table_fns1()
     m1k(table.concat, as10, ',', 3, 7)
     m1k(table.concat, as100, ',')
     m1k(table.concat, as100, ',', 3, 7)
-    m1k(table.concat, as100, ',', 3, 32) 
+    m1k(table.concat, as100, ',', 3, 32)
 end
 
 function table_fns2()
@@ -249,9 +250,9 @@ function table_fns4()
         a100[i] = i * i
     end
     m1k(table.sort, a)
-    m1k(table.sort, a, function(x,y) return x > y end)
+    m1k(table.sort, a, function(x, y) return x > y end)
     m1k(table.sort, a100)
-    m1k(table.sort, a100, function(x,y) return x > y end)
+    m1k(table.sort, a100, function(x, y) return x > y end)
 end
 
 function math_fns()
@@ -272,7 +273,7 @@ function math_fns()
     for i = 1, loop_cnt do
         f[i] = -1 + i * 0.002
     end
-    local md = function (fn, d, ...)
+    local md = function(fn, d, ...)
         for i, v in ipairs(d) do
             fn(v, ...)
         end
@@ -286,7 +287,7 @@ function math_fns()
         r = {}
         for i, v in ipairs(l) do
             if cond(v) then
-                table.insert(r, v) 
+                table.insert(r, v)
             end
         end
         return r
@@ -314,7 +315,7 @@ end
 function bit_fns()
     m1k(bit.tobit, 0xffffffff)
     m1k(bit.tobit, 0xffffffff + 1)
-    m1k(bit.tobit, 2^40 + 1234)
+    m1k(bit.tobit, 2 ^ 40 + 1234)
     m1k(bit.tohex, 1)
     m1k(bit.tohex, -1)
     m1k(bit.tohex, -1, -8)

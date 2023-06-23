@@ -1,9 +1,12 @@
-LLINE = "long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-LLINE1 = "long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+LLINE =
+"long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+LLINE1 =
+"long line aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 function comp_ops()
     A = 2
-    D = 1 if A < D then
+    D = 1
+    if A < D then
     end
     if A <= D then
     end
@@ -15,8 +18,8 @@ function comp_ops()
     end
     if not (A == D) then
     end
-    V = "kslee"
-    if V == "kslee" then
+    V = "user2"
+    if V == "user2" then
     end
     if V ~= "a very long long long line" then
     end
@@ -37,11 +40,11 @@ function comp_ops()
     end
 end
 
-local istc = function (b)
+local istc = function(b)
     return b and 1
 end
 
-local isfc = function (b)
+local isfc = function(b)
     return b or 1
 end
 
@@ -49,7 +52,7 @@ function unarytest_n_copy_ops()
     -- 16, 17
     NONE = nil
     B = false
-    S = "kslee"
+    S = "user2"
     istc(true)
     isfc(true)
     if S and B then
@@ -111,7 +114,7 @@ function binary_ops()
     A = B / C
     A = B % C
     A = B ^ C
-    S = "kslee" .. "1981" .. LLINE
+    S = "user2" .. "1981" .. LLINE
 end
 
 function constant_ops()
@@ -119,8 +122,10 @@ function constant_ops()
 end
 
 function upvalue_n_func_ops()
-    local U = "kslee"
-    F = function() U = U .. "1981"; return U end
+    local U = "user2"
+    F = function()
+        U = U .. "1981"; return U
+    end
     F()
     F = function() U = "1981" end
     F()
@@ -139,14 +144,14 @@ end
 function table_ops()
     -- deprecated(op code not found): TGETR(59), TSETR(64)
     E = {}
-    T = { name = "kslee", age = 40, 1, 2, 3 }
+    T = { name = "user2", age = 40, 1, 2, 3 }
     K = "name"
     NAME = T[K]
     AGE = T.age
     ONE = T[1]
     I = 1
     ONE = T[I]
-    T[K] = "kslee"
+    T[K] = "user2"
     T.age = 41
     T[4] = I
     return { 1, 2, 3, f() }
@@ -161,20 +166,20 @@ function fixed_varg(a, b, c, ...)
 end
 
 function call_n_vararg_ops()
-    varg("kslee", "1981", 41)
+    varg("user2", "1981", 41)
     T = 0
     ARR = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
     for i, v in ipairs(ARR) do
         T = T + v
     end
-    ARR.name = "kslee"
+    ARR.name = "user2"
     for k, v in pairs(ARR) do
         if type(k) == 'number' then
             T = T + v
         end
     end
-    local x, y, z = fixed_varg(1, 2, 3, varg("kslee", "1981", 41))
-    return fixed_varg(1, 2, 3, varg("kslee", "1981", 41))
+    local x, y, z = fixed_varg(1, 2, 3, varg("user2", "1981", 41))
+    return fixed_varg(1, 2, 3, varg("user2", "1981", 41))
 end
 
 function swap(x, y)
@@ -189,7 +194,7 @@ function range_iter(n, i)
     if i >= n then
         return nil, nil
     end
-    return i+1, i+1
+    return i + 1, i + 1
 end
 
 function range(n)
@@ -200,7 +205,7 @@ function loop_n_branche_ops()
     -- IFORL(80), IITERL(83)
     local T = 0
     for i = 1, 100 do
-        T = T + i    
+        T = T + i
     end
     for n in range(100) do
         T = T + n
@@ -208,9 +213,9 @@ function loop_n_branche_ops()
     local i = 0
     while true do
         i = i + 1
-      if i == 100 then
-          break
-      end
+        if i == 100 then
+            break
+        end
     end
 end
 

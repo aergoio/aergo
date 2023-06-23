@@ -72,7 +72,7 @@ func TestBasicStakingUnstakingV2(t *testing.T) {
 	minplusmin := new(big.Int).Add(types.StakingMinimum, types.StakingMinimum)
 	sender.AddBalance(minplusmin)
 
-	blockInfo := &types.BlockHeaderInfo{No: uint64(0), Version: 2}
+	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 2}
 	staking, err := newSysCmd(sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	event, err := staking.run()
 	assert.NoError(t, err, "staking failed")

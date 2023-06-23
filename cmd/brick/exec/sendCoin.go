@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/contract/vm_dummy"
 	"github.com/aergoio/aergo/types"
 )
 
@@ -66,13 +66,13 @@ func (c *sendCoin) Run(args string) (string, uint64, []*types.Event, error) {
 	senderName, receiverName, amount, _ := c.parse(args)
 
 	// assuming target is contract
-	var tx contract.LuaTxTester
-	tx = contract.NewLuaTxCallBig(senderName, receiverName, amount, "")
+	var tx vm_dummy.LuaTxTester
+	tx = vm_dummy.NewLuaTxCallBig(senderName, receiverName, amount, "")
 	err := context.Get().ConnectBlock(tx)
 
 	if err != nil && strings.HasPrefix(err.Error(), "not found contract") {
 		// retry to normal address
-		tx = contract.NewLuaTxSendBig(senderName, receiverName, amount)
+		tx = vm_dummy.NewLuaTxSendBig(senderName, receiverName, amount)
 		err := context.Get().ConnectBlock(tx)
 		if err != nil {
 			return "", 0, nil, err
