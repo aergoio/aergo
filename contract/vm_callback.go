@@ -60,9 +60,9 @@ const (
 )
 
 func init() {
-	mulAergo = types.NewAergo(1)
-	mulGaer = types.NewGaer(1)
-	zeroBig = types.NewZero()
+	mulAergo = types.NewAmount(1, types.Aergo)
+	mulGaer = types.NewAmount(1, types.Gaer)
+	zeroBig = types.NewZeroAmount()
 }
 
 func addUpdateSize(s *vmContext, updateSize int64) error {

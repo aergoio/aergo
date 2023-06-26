@@ -14,7 +14,7 @@ func TestExcuteNameTx(t *testing.T) {
 	txBody := &types.TxBody{}
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
 	txBody.Recipient = []byte(types.AergoName)
-	txBody.Amount = types.NewAergo(1).Bytes() //default value of name price, 1 Aergo
+	txBody.Amount = types.NewAmount(1, types.Aergo).Bytes() //default value of name price, 1 Aergo
 
 	name := "AB1234567890"
 	txBody.Payload = buildNamePayload(name, types.NameCreate, "")

@@ -57,9 +57,9 @@ var (
 )
 
 func init() {
-	MaxAER = NewAergo(5 * 1e8)     // 500,000,000 aergo
-	StakingMinimum = NewAergo(1e4) // 10,000 aergo
-	ProposalPrice = NewZero()      // 0 aergo
+	MaxAER = NewAmount(5*1e8, Aergo)       // 500,000,000 aergo
+	StakingMinimum = NewAmount(1e4, Aergo) // 10,000 aergo
+	ProposalPrice = NewZeroAmount()        // 0 aergo
 	lastIndexOfBH = getLastIndexOfBH()
 }
 

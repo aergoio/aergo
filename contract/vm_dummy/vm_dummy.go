@@ -97,7 +97,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	bc := &DummyChain{
 		sdb:      state.NewChainStateDB(),
 		tmpDir:   dataPath,
-		gasPrice: types.NewAer(1),
+		gasPrice: types.NewAmount(1, types.Aer),
 	}
 	defer func() {
 		if err != nil {
@@ -250,8 +250,8 @@ type luaTxAccount struct {
 
 var _ LuaTxTester = (*luaTxAccount)(nil)
 
-func NewLuaTxAccount(name string, balance uint64) *luaTxAccount {
-	return NewLuaTxAccountBig(name, types.NewAer(balance))
+func NewLuaTxAccount(name string, balance uint64, unit types.TokenUnit) *luaTxAccount {
+	return NewLuaTxAccountBig(name, types.NewAmount(balance, unit))
 }
 
 func NewLuaTxAccountBig(name string, balance *big.Int) *luaTxAccount {
@@ -401,7 +401,7 @@ type luaTxDeploy struct {
 var _ LuaTxTester = (*luaTxDeploy)(nil)
 
 func NewLuaTxDeploy(sender, contract string, amount uint64, code string) *luaTxDeploy {
-	return NewLuaTxDeployBig(sender, contract, types.NewAer(amount), code)
+	return NewLuaTxDeployBig(sender, contract, types.NewAmount(amount, types.Aer), code)
 }
 
 /*
@@ -457,7 +457,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	if err != nil {
 		return err
 	}
-	usedFee := contract.TxFee(len(l.code()), types.NewAer(1), 2)
+	usedFee := contract.TxFee(len(l.code()), types.NewAmount(1, types.Aer), 2)
 
 	if l.isFeeDelegate() {
 		balance := contractState.Balance()
@@ -550,7 +550,7 @@ type luaTxCall struct {
 var _ LuaTxTester = (*luaTxCall)(nil)
 
 func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCall {
-	return NewLuaTxCallBig(sender, contract, types.NewAer(amount), code)
+	return NewLuaTxCallBig(sender, contract, types.NewAmount(amount, types.Aer), code)
 }
 
 func NewLuaTxCallBig(sender, contractCode string, amount *big.Int, code string) *luaTxCall {
@@ -570,7 +570,7 @@ func NewLuaTxCallFeeDelegate(sender, contractCode string, amount uint64, code st
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:     contract.StrHash(sender),
 			_contract:   contract.StrHash(contractCode),
-			_amount:     types.NewAer(amount),
+			_amount:     types.NewAmount(amount, types.Aer),
 			_code:       []byte(code),
 			txId:        newTxId(),
 			feeDelegate: true,

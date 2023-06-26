@@ -11,53 +11,53 @@ import (
 func TestPasreUnit(t *testing.T) {
 	amount, err := ParseUnit("1 aergo")
 	assert.NoError(t, err, "parsing aergo")
-	assert.Equalf(t, types.NewAergo(1).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(1, types.Aergo).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("101 Aergo")
 	assert.NoError(t, err, "parsing Aergo")
-	assert.Equalf(t, types.NewAergo(101).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(101, types.Aergo).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("123 aer")
 	assert.NoError(t, err, "parsing aer")
-	assert.Equalf(t, types.NewAer(123).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(123, types.Aer).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("4567 aer")
 	assert.NoError(t, err, "parsing aer")
-	assert.Equalf(t, types.NewAer(4567).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(4567, types.Aer).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("4567 Aer")
 	assert.NoError(t, err, "parsing aer")
-	assert.Equalf(t, types.NewAer(4567).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(4567, types.Aer).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("101 AER")
 	assert.NoError(t, err, "parsing aer")
-	assert.Equalf(t, types.NewAer(101).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(101, types.Aer).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("1 gaer")
 	assert.NoError(t, err, "parsing gaer")
-	assert.Equalf(t, types.NewGaer(1).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(1, types.Gaer).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("1010")
 	assert.NoError(t, err, "parsing implicit unit")
-	assert.Equalf(t, types.NewAer(1010).String(), amount.String(), "parse is failed")
+	assert.Equalf(t, types.NewAmount(1010, types.Aer).String(), amount.String(), "parse is failed")
 }
 
 func TestPasreDecimalUnit(t *testing.T) {
 	amount, err := ParseUnit("1.01 aergo")
 	assert.NoError(t, err, "parsing point aergo")
-	assert.Equal(t, types.NewAer(1010000000000000000), amount, "converting result")
+	assert.Equal(t, types.NewAmount(1010000000000000000, types.Aer), amount, "converting result")
 
 	amount, err = ParseUnit("1.01 gaer")
 	assert.NoError(t, err, "parsing point gaer")
-	assert.Equalf(t, types.NewAer(1010000000), amount, "converting result")
+	assert.Equalf(t, types.NewAmount(1010000000, types.Aer), amount, "converting result")
 
 	amount, err = ParseUnit("0.123456789012345678 aergo")
 	assert.NoError(t, err, "parsing point")
-	assert.Equalf(t, types.NewAer(123456789012345678), amount, "converting result")
+	assert.Equalf(t, types.NewAmount(123456789012345678, types.Aer), amount, "converting result")
 
 	amount, err = ParseUnit("0.100000000000000001 aergo")
 	assert.NoError(t, err, "parsing point max length of decimal")
-	assert.Equalf(t, types.NewAer(100000000000000001), amount, "converting result")
+	assert.Equalf(t, types.NewAmount(100000000000000001, types.Aer), amount, "converting result")
 
 	amount, err = ParseUnit("499999999.100000000000000001 aergo")
 	assert.NoError(t, err, "parsing point max length of decimal")
@@ -119,10 +119,10 @@ func TestConvertUnit(t *testing.T) {
 }
 
 func TestParseUnit(t *testing.T) {
-	n100 := types.NewAer(100)
-	n1000 := types.NewAer(1000)
-	OneGaer := types.NewGaer(1)
-	OneAergo := types.NewAergo(1)
+	n100 := types.NewAmount(100, types.Aer)
+	n1000 := types.NewAmount(1000, types.Aer)
+	OneGaer := types.NewAmount(1, types.Gaer)
+	OneAergo := types.NewAmount(1, types.Aergo)
 
 	tests := []struct {
 		name    string
