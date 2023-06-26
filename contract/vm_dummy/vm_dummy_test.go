@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -572,9 +573,12 @@ func TestDeploy2(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
+	oneAergo := types.NewAmount(1, types.Aergo)
+	halfAergo := new(big.Int).Div(oneAergo, big.NewInt(2))
+
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("user1", 1, types.Aergo),
-		NewLuaTxDeploy("user1", "deploy", uint64(types.Aergo/2), code),
+		NewLuaTxAccountBig("user1", oneAergo),
+		NewLuaTxDeployBig("user1", "deploy", halfAergo, code),
 	)
 	require.NoErrorf(t, err, "failed to connect new block")
 

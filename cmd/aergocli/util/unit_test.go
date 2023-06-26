@@ -8,13 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPasreUnit(t *testing.T) {
+func TestParseTrimUnit(t *testing.T) {
 	amount, err := ParseUnit("1 aergo")
 	assert.NoError(t, err, "parsing aergo")
 	assert.Equalf(t, types.NewAmount(1, types.Aergo).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("101 Aergo")
 	assert.NoError(t, err, "parsing Aergo")
+	assert.Equalf(t, types.NewAmount(101, types.Aergo).String(), amount.String(), "parse is failed")
+
+	amount, err = ParseUnit("101 AERGO")
+	assert.NoError(t, err, "parsing AERGO")
 	assert.Equalf(t, types.NewAmount(101, types.Aergo).String(), amount.String(), "parse is failed")
 
 	amount, err = ParseUnit("123 aer")
@@ -42,7 +46,7 @@ func TestPasreUnit(t *testing.T) {
 	assert.Equalf(t, types.NewAmount(1010, types.Aer).String(), amount.String(), "parse is failed")
 }
 
-func TestPasreDecimalUnit(t *testing.T) {
+func TestParseDecimalUnit(t *testing.T) {
 	amount, err := ParseUnit("1.01 aergo")
 	assert.NoError(t, err, "parsing point aergo")
 	assert.Equal(t, types.NewAmount(1010000000000000000, types.Aer), amount, "converting result")
@@ -61,12 +65,14 @@ func TestPasreDecimalUnit(t *testing.T) {
 
 	amount, err = ParseUnit("499999999.100000000000000001 aergo")
 	assert.NoError(t, err, "parsing point max length of decimal")
-	t.Log(amount)
+	assert.Equalf(t, new(big.Int).Add(types.NewAmount(499999999, types.Aergo), types.NewAmount(100000000000000001, types.Aer)), amount, "converting result")
+
 	amount, err = ParseUnit("499999999100000000000000001 aer")
 	assert.NoError(t, err, "parsing point max length of decimal")
-	t.Log(amount)
+	assert.Equalf(t, new(big.Int).Add(types.NewAmount(499999999, types.Aergo), types.NewAmount(100000000000000001, types.Aer)), amount, "converting result")
 }
-func TestFailPasreUnit(t *testing.T) {
+
+func TestFailParseUnit(t *testing.T) {
 	amount, err := ParseUnit("0.0000000000000000001 aergo")
 	assert.Error(t, err, "exceed max length of decimal")
 	t.Log(amount)
@@ -91,31 +97,35 @@ func TestFailPasreUnit(t *testing.T) {
 func TestConvertUnit(t *testing.T) {
 	result, err := ConvertUnit(new(big.Int).SetUint64(1000000000000000000), "aergo")
 	assert.NoError(t, err, "convert 1 aergo")
-	t.Log(result)
+	assert.Equalf(t, "1 aergo", result, "converting result")
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(1020300000000000000), "aergo")
 	assert.NoError(t, err, "convert 1.0203 aergo")
-	t.Log(result)
+	assert.Equalf(t, "1.0203 aergo", result, "converting result")
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(1000000000), "gaer")
 	assert.NoError(t, err, "convert 1 gaer")
-	t.Log(result)
+	assert.Equal(t, "1 gaer", result)
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(1), "gaer")
 	assert.NoError(t, err, "convert 0.000000001 gaer")
 	assert.Equal(t, "0.000000001 gaer", result)
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(10), "gaer")
 	assert.NoError(t, err, "convert 0.00000001 gaer")
 	assert.Equal(t, "0.00000001 gaer", result)
-	t.Log(result)
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(0), "gaer")
 	assert.NoError(t, err, "convert 0 gaer")
 	assert.Equal(t, "0 gaer", result)
-	t.Log(result)
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(1), "aer")
 	assert.NoError(t, err, "convert 1 aer")
 	assert.Equal(t, "1 aer", result)
-	t.Log(result)
+
 	result, err = ConvertUnit(new(big.Int).SetUint64(1000000000000000000), "gaer")
 	assert.NoError(t, err, "convert 1000000000 gaer")
-	t.Log(result)
+	assert.Equal(t, "1000000000 gaer", result)
 }
 
 func TestParseUnit(t *testing.T) {
