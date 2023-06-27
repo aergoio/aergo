@@ -5,6 +5,7 @@
 #include <lauxlib.h>
 #include <luajit.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include "sqlite3-binding.h"
 
 extern const char *construct_name;
