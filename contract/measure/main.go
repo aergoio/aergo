@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"github.com/aergoio/aergo/contract/vm_dummy"
+	"github.com/aergoio/aergo/types"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 	}
 
 	err = bc.ConnectBlock(
-		vm_dummy.NewLuaTxAccount("user1", 100),
+		vm_dummy.NewLuaTxAccount("user1", 100, types.Aergo),
 	)
 	if err != nil {
 		log.Println(err)
