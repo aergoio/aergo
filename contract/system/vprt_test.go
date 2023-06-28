@@ -206,6 +206,14 @@ func commit() error {
 	return vprStateDB.Commit()
 }
 
+func TestValidateInitVprt(t *testing.T) {
+	assert.Equal(t, "1000000", million.String(), "million is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "5045760000000000000", annualRewardM.String(), "annualRewardM is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "5045760000000000000000000", annualReward.String(), "annualReward is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "160000000000000000", defaultReward.String(), "defaultReward is not valid. check contract/system/vprt.go")
+	assert.Equal(t, "10000000000000000000000", binSize.String(), "binSize is not valid. check contract/system/vprt.go")
+}
+
 func TestVprOp(t *testing.T) {
 	initVprtTest(t, func() { initRankTable(testVprMax) })
 	defer finalizeVprtTest()
