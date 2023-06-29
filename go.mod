@@ -29,7 +29,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.2.3
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/magiconair/properties v1.8.1
-	github.com/mattn/go-colorable v0.1.4
+	github.com/mattn/go-colorable v0.1.12
 	github.com/minio/sha256-simd v0.1.1
 	github.com/mr-tron/base58 v1.1.2
 	github.com/multiformats/go-multiaddr v0.1.1
@@ -37,12 +37,12 @@ require (
 	github.com/opentracing/opentracing-go v1.0.2
 	github.com/openzipkin-contrib/zipkin-go-opentracing v0.3.5
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.16.1-0.20191111091419-e709c5d91e35
-	github.com/sanity-io/litter v1.2.0
+	github.com/rs/zerolog v1.29.1
+	github.com/sanity-io/litter v1.5.5
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.5.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.4
 	github.com/willf/bloom v2.0.3+incompatible
 	golang.org/x/crypto v0.10.0
 	golang.org/x/net v0.11.0
@@ -118,7 +118,7 @@ require (
 	github.com/libp2p/go-ws-transport v0.1.2 // indirect
 	github.com/libp2p/go-yamux v1.2.3 // indirect
 	github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mattn/go-tty v0.0.0-20190424173100-523744f04859 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
@@ -153,7 +153,7 @@ require (
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.2.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
@@ -172,7 +172,7 @@ require (
 	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/genproto v0.0.0-20190425155659-357c62f0e4bb // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
