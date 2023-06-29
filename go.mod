@@ -16,7 +16,6 @@ require (
 	github.com/emirpasic/gods v1.12.0
 	github.com/fsnotify/fsnotify v1.4.8-0.20180830220226-ccc981bf8038
 	github.com/funkygao/golib v0.0.0-20180314131852-90d4905c1961
-	github.com/gin-gonic/gin v1.7.4
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.3
@@ -66,11 +65,7 @@ require (
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
-	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
-	github.com/go-playground/locales v0.13.0 // indirect
-	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/go-playground/validator/v10 v10.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
@@ -91,7 +86,6 @@ require (
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/koron/go-ssdp v0.0.0-20180514024734-4a0ed625a78b // indirect
 	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
-	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
 	github.com/libp2p/go-conn-security-multistream v0.1.0 // indirect
 	github.com/libp2p/go-eventbus v0.1.0 // indirect
@@ -156,7 +150,6 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc // indirect
 	github.com/whyrusleeping/go-notifier v0.0.0-20170827234753-097c5d47330f // indirect
 	github.com/whyrusleeping/mafmt v1.2.8 // indirect
