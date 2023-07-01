@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "vm.h"
 #include "util.h"
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "_cgo_export.h"
 
 extern int getLuaExecContext(lua_State *L);

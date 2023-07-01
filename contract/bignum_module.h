@@ -5,8 +5,7 @@
 
 typedef struct bn_struct *mp_num;
 
-typedef struct bn_struct
-{
+typedef struct bn_struct {
 	int type;
 	void *mpptr;
 } bn_struct;

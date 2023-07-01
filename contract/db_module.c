@@ -5,7 +5,7 @@
 #include <sqlite3-binding.h>
 #include "vm.h"
 #include "sqlcheck.h"
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "util.h"
 #include "_cgo_export.h"
 

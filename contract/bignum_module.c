@@ -4,7 +4,7 @@
 
 #include "lua.h"
 #include "lauxlib.h"
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "math.h"
 #include "vm.h"
 

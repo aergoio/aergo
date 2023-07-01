@@ -8,7 +8,7 @@
 #include "state_module.h"
 #include "crypto_module.h"
 #include "util.h"
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "_cgo_export.h"
 
 const char *luaExecContext = "__exec_context__";

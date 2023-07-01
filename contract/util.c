@@ -6,7 +6,7 @@
 #include "util.h"
 #include "vm.h"
 #include "math.h"
-#include "lgmp.h"
+#include "bignum_module.h"
 
 typedef struct sbuff {
 	char *buf;
