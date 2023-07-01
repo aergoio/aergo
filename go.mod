@@ -36,7 +36,6 @@ require (
 	github.com/multiformats/go-multiaddr v0.1.1
 	github.com/multiformats/go-multiaddr-net v0.1.0
 	github.com/opentracing/opentracing-go v1.0.2
-	github.com/openzipkin-contrib/zipkin-go-opentracing v0.3.5
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.22.0
 	github.com/sanity-io/litter v1.2.0
@@ -51,11 +50,8 @@ require (
 )
 
 require (
-	github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798 // indirect
-	github.com/Shopify/sarama v1.22.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.50 // indirect
 	github.com/aergoio/hashtabledb v0.0.0-20261015074020-d2baa6fe0019 // indirect
-	github.com/apache/thrift v0.12.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -65,12 +61,8 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2104.3 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
-	github.com/eapache/go-resiliency v1.1.0 // indirect
-	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
-	github.com/eapache/queue v1.1.0 // indirect
 	github.com/funkygao/assert v0.0.0-20160929004900-4a267e33bc79 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
@@ -93,7 +85,6 @@ require (
 	github.com/jbenet/goprocess v0.1.3 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/koron/go-ssdp v0.0.0-20180514024734-4a0ed625a78b // indirect
-	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
 	github.com/libp2p/go-conn-security-multistream v0.1.0 // indirect
@@ -136,17 +127,14 @@ require (
 	github.com/multiformats/go-multihash v0.0.8 // indirect
 	github.com/multiformats/go-multistream v0.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492 // indirect
 	github.com/orcaman/concurrent-map v0.0.0-20190314100340-2693aad1ed75 // indirect
 	github.com/pelletier/go-toml v1.2.1-0.20180930205832-81a861c69d25 // indirect
-	github.com/pierrec/lz4 v0.0.0-20190327172049-315a67e90e41 // indirect
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
-	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a // indirect
 	github.com/rs/cors v1.6.0 // indirect
 	github.com/serialx/hashring v0.0.0-20190515033939-7706f26af194 // indirect
 	github.com/smola/gocompat v0.2.0 // indirect

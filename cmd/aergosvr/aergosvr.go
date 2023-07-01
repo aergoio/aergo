@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"strconv"
-	"strings"
 	"time"
 
 	"os"
@@ -29,8 +27,6 @@ import (
 	polarisclient "github.com/aergoio/aergo/v2/polaris/client"
 	"github.com/aergoio/aergo/v2/rpc"
 	"github.com/aergoio/aergo/v2/syncer"
-	"github.com/opentracing/opentracing-go"
-	zipkin "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/spf13/cobra"
 )
 
@@ -80,7 +76,6 @@ func init() {
 	fs.StringVar(&homePath, "home", "", "path of aergo home")
 	fs.StringVar(&configFilePath, "config", "", "path of configuration file")
 	fs.BoolVarP(&verbose, "verbose", "v", false, "verbose mode")
-
 }
 
 func initConfig() {
@@ -103,43 +98,11 @@ func initConfig() {
 	}
 }
 
-func configureZipkin() {
-	protocol := cfg.Monitor.ServerProtocol
-	endpoint := cfg.Monitor.ServerEndpoint
-	var collector zipkin.Collector
-	var err error
-	if "http" == protocol || "https" == protocol {
-		zipkinURL := fmt.Sprintf("%s://%s/api/v1/spans", protocol, endpoint)
-		collector, err = zipkin.NewHTTPCollector(zipkinURL)
-		if err != nil {
-			panic("Error connecting to zipkin server at " + zipkinURL + ". Error: " + err.Error())
-		}
-	} else if "kafka" == protocol {
-		endpoints := strings.Split(endpoint, ",")
-		collector, err = zipkin.NewKafkaCollector(endpoints)
-		if err != nil {
-			panic("Error connecting to kafka endpoints at " + endpoint + ". Error: " + err.Error())
-		}
-	}
-
-	if nil != collector {
-		myEndpoint := cfg.RPC.NetServiceAddr + ":" + strconv.Itoa(cfg.RPC.NetServicePort)
-		tracer, err := zipkin.NewTracer(zipkin.NewRecorder(collector, false, myEndpoint, "aergosvr"))
-		if err != nil {
-			panic("Error starting new zipkin tracer. Error: " + err.Error())
-		}
-		opentracing.InitGlobalTracer(tracer)
-	}
-}
-
 func rootRun(cmd *cobra.Command, args []string) {
 	// Set caller info to relative file path
 	log.SetRelativeLogPathForProject()
-
 	svrlog = log.NewLogger("asvr")
 	svrlog.Info().Str("revision", gitRevision).Str("branch", gitBranch).Msg("AERGO SVR STARTED")
-
-	configureZipkin()
 
 	if cfg.EnableProfile {
 		svrlog.Info().Msgf("Enable Profiling on localhost: %d", cfg.ProfilePort)
