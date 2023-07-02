@@ -107,8 +107,9 @@ static callinfo_t *callinfo_new() {
 }
 
 static void callinfo_del(callinfo_t *callinfo) {
-	if (callinfo == NULL)
+	if (callinfo == NULL) {
 		return;
+	}
 	free(callinfo->ptrs);
 	free(callinfo);
 }
@@ -117,8 +118,9 @@ static bool register_tcall(callinfo_t *callinfo, void *ptr) {
 	int i;
 
 	for(i = 0; i < callinfo->curidx; i++) {
-		if (callinfo->ptrs[i] == ptr)
+		if (callinfo->ptrs[i] == ptr) {
 			return false;
+		}
 	}
 	if (callinfo->curidx == callinfo->size) {
 		callinfo->size *= 2;
@@ -140,8 +142,9 @@ static int sort_key_compare(const void *first, const void*second) {
 	else {
 		int comp_len = (key1->key_len > key2->key_len ? key2->key_len : key1->key_len);
 		int ret = strncmp(key1->elem, key2->elem, comp_len);
-		if (ret == 0)
+		if (ret == 0) {
 			return (key1->key_len > key2->key_len ? 1 : -1);
+		}
 		return ret;
 	}
 }
@@ -224,8 +227,9 @@ static bool lua_util_dump_json(lua_State *L, int idx, sbuff_t *sbuf, bool json_f
 			return false;
 		}
 
-		if (table_idx < 0)
+		if (table_idx < 0) {
 			table_idx = lua_gettop(L) + idx + 1;
+		}
 		tbl_len = lua_objlen(L, table_idx);
 		if ((json_form || vm_is_hardfork(L, 2)) && tbl_len > 0) {
 			double number;
@@ -304,8 +308,9 @@ static bool lua_util_dump_json(lua_State *L, int idx, sbuff_t *sbuf, bool json_f
 
 			}
 			if (idx > 0) {
-				for (i = 0; i < idx; ++i)
+				for (i = 0; i < idx; ++i) {
 					sort_keys[i].elem = sort_buf.buf + sort_keys[i].start_idx;
+				}
 				qsort(sort_keys, idx, sizeof(sort_key_t), sort_key_compare);
 				for (i = 0; i < idx; ++i) {
 					copy_to_buffer(sort_keys[i].elem, strlen(sort_keys[i].elem), sbuf);
@@ -314,8 +319,9 @@ static bool lua_util_dump_json(lua_State *L, int idx, sbuff_t *sbuf, bool json_f
 			}
 			free(sort_keys);
 			free(sort_buf.buf);
-			if (orig_bidx != sbuf->idx)
+			if (orig_bidx != sbuf->idx) {
 				--(sbuf->idx);
+			}
 			src_val = "},";
 		}
 		unregister_tcall(callinfo);
@@ -354,12 +360,14 @@ static int json_array_to_lua_table(lua_State *L, char **start, bool check) {
 	lua_newtable(L);
 	while(*json != ']') {
 		lua_pushnumber(L, index++);
-		if (json_to_lua(L, &json, check, false) != 0)
+		if (json_to_lua(L, &json, check, false) != 0) {
 			return -1;
-		if (*json == ',')
+		}
+		if (*json == ',') {
 			++json;
-		else if(*json != ']')
+		} else if(*json != ']') {
 			return -1;
+		}
 		lua_rawset(L, -3);
 	}
 	*start = json + 1;
@@ -375,8 +383,9 @@ static int json_to_lua_table(lua_State *L, char **start, bool check) {
 	lua_newtable(L);
 	while(*json != '}') {
 		lua_pushnumber(L, index++);
-		if (json_to_lua(L, &json, check, false) != 0)
+		if (json_to_lua(L, &json, check, false) != 0) {
 			return -1;
+		}
 		if (*json == ':') {
 			lua_remove(L, -2);
 			--index;
@@ -388,25 +397,28 @@ static int json_to_lua_table(lua_State *L, char **start, bool check) {
 				is_bignum = true;
 			}
 			++json;
-			if (json_to_lua(L, &json, check, is_bignum) != 0)
+			if (json_to_lua(L, &json, check, is_bignum) != 0) {
 				return -1;
+			}
 		}
 		if (*json == ',') {
-			if (is_bignum)
+			if (is_bignum) {
 				return -1;
+			}
 			++json;
-		}
-		else if (*json != '}')
+		} else if (*json != '}') {
 			return -1;
+		}
 
 		if (is_bignum) {
-			if (!lua_isbignumber(L, -1))
+			if (!lua_isbignumber(L, -1)) {
 				return -1;
+			}
 			lua_replace(L, -3);
 			lua_pop(L, 1);
-		}
-		else
+		} else {
 			lua_rawset(L, -3);
+		}
 	}
 	*start = json + 1;
 	return 0;
@@ -434,8 +446,9 @@ int lua_util_utf8_encode(char *s, unsigned ch) {
 		unsigned mfb = 0x3F;
 		int n = 1;
 		do {
-			if (n > 6)
+			if (n > 6) {
 				return -1;
+			}
 			buff[UTF8_MAX - (n++)] = 0x80 | (ch&0x3F);
 			ch >>= 6;
 			mfb >>= 1;
@@ -462,15 +475,16 @@ static int json_to_lua(lua_State *L, char **start, bool check, bool is_bignum) {
 				lua_set_bignum(L, json + 1);
 				*end = '"';
 				json = end + 1;
-			}
-			else
+			} else {
 				return -1;
+			}
 		} else {
 			char *end = json + 1;
 			char *target = end;
 			while ((*end) != '"') {
-				if (*end == '\0')
+				if (*end == '\0') {
 					return -1;
+				}
 				if ((*end) == '\\') {
 					end++;
 					switch(*end) {
@@ -494,14 +508,16 @@ static int json_to_lua(lua_State *L, char **start, bool check, bool is_bignum) {
 						unsigned ch;
 						int out;
 						for (i = 1; i < 5; ++i) {
-							if (!isxdigit(*(end + i)))
+							if (!isxdigit(*(end + i))) {
 								return -1;
+							}
 						}
 						memcpy(special, end+1, 4);
 						ch = strtol(special, NULL, 16);
 						out = lua_util_utf8_encode(target, ch);
-						if (out < 0)
+						if (out < 0) {
 							return -1;
+						}
 						target = target + out - 1;
 						end += 4;
 						break;
@@ -509,9 +525,9 @@ static int json_to_lua(lua_State *L, char **start, bool check, bool is_bignum) {
 					default:
 						*target = *end;
 					}
-				}
-				else if (end != target)
+				} else if (end != target) {
 					*target = *end;
+				}
 				end++;
 				target++;
 			}
@@ -523,8 +539,9 @@ static int json_to_lua(lua_State *L, char **start, bool check, bool is_bignum) {
 		double d;
 		char *end = json + 1;
 
-		if (is_bignum)
+		if (is_bignum) {
 			return -1;
+		}
 		while(*end != '\0') {
 			if (!isdigit(*end) && *end != '-' && *end != '.' &&
 			    *end != 'e' && *end != 'E' && *end != '+') {
@@ -540,11 +557,13 @@ static int json_to_lua(lua_State *L, char **start, bool check, bool is_bignum) {
 		}
 		json = end;
 	} else if (*json == '{') {
-		if (json_to_lua_table(L, &json, check) != 0)
+		if (json_to_lua_table(L, &json, check) != 0) {
 			return -1;
+		}
 	} else if (*json == '[') {
-		if (json_array_to_lua_table(L, &json, check) != 0)
+		if (json_array_to_lua_table(L, &json, check) != 0) {
 			return -1;
+		}
 	} else if (strncasecmp(json, "true", 4) == 0) {
 		lua_pushboolean(L, 1);
 		json = json + 4;
@@ -566,17 +585,20 @@ void minus_inst_count(lua_State *L, int count) {
 	if (!lua_usegas(L)) {
 		int cnt = vm_instcount(L);
 		cnt -= count;
-		if (cnt <= 0)
+		if (cnt <= 0) {
 			cnt = 1;
+		}
 		vm_setinstcount(L, cnt);
 	}
 }
 
 int lua_util_json_to_lua(lua_State *L, char *json, bool check) {
-	if (json_to_lua(L, &json, check, false) != 0)
+	if (json_to_lua(L, &json, check, false) != 0) {
 		return -1;
-	if (check && *json != '\0')
+	}
+	if (check && *json != '\0') {
 		return -1;
+	}
 	return 0;
 }
 
@@ -587,8 +609,9 @@ char *lua_util_get_json_from_stack(lua_State *L, int start, int end, bool json_f
 	callinfo_t *callinfo = NULL;
 	lua_util_sbuf_init(&sbuf, 64);
 
-	if (!json_form || start < end)
+	if (!json_form || start < end) {
 		copy_to_buffer("[", 1, &sbuf);
+	}
 	start_idx = sbuf.idx;
 	for (i = start; i <= end; ++i) {
 		if (!lua_util_dump_json(L, i, &sbuf, json_form, false, &callinfo)) {
@@ -598,8 +621,9 @@ char *lua_util_get_json_from_stack(lua_State *L, int start, int end, bool json_f
 		}
 	}
 	callinfo_del(callinfo);
-	if (sbuf.idx != start_idx)
+	if (sbuf.idx != start_idx) {
 		sbuf.idx--;
+	}
 	if (!json_form || start < end) {
 		copy_to_buffer("]", 2, &sbuf);
 	} else {
@@ -627,8 +651,9 @@ char *lua_util_get_json_array_from_stack(lua_State *L, int start, int end, bool 
 		}
 	}
 	callinfo_del(callinfo);
-	if (sbuf.idx != start_idx)
+	if (sbuf.idx != start_idx) {
 		sbuf.idx--;
+	}
 	copy_to_buffer("]", 2, &sbuf);
 
 	minus_inst_count(L, strlen(sbuf.buf));
@@ -647,8 +672,9 @@ char *lua_util_get_json(lua_State *L, int idx, bool json_form) {
 	}
 	callinfo_del(callinfo);
 
-	if (sbuf.idx != 0)
+	if (sbuf.idx != 0) {
 		sbuf.buf[sbuf.idx - 1] = '\0';
+	}
 
 	minus_inst_count(L, strlen(sbuf.buf));
 	return sbuf.buf;
@@ -659,8 +685,9 @@ static int lua_json_encode(lua_State *L) {
 
 	lua_gasuse(L, 50);
 	json = lua_util_get_json(L, -1, true);
-	if (json == NULL)
+	if (json == NULL) {
 		luaL_throwerror(L);
+	}
 	lua_pushstring(L, json);
 	free(json);
 	return 1;

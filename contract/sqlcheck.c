@@ -133,8 +133,9 @@ int sqlcheck_is_permitted_sql(const char *sql) {
             }
         } else {
             int ret;
-            if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset, keyword)) >= 0)
+            if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset, keyword)) >= 0) {
                 return ret;
+            }
             return PermittedCmd(keyword);
         }
     }
@@ -148,10 +149,12 @@ int sqlcheck_is_readonly_sql(const char *sql) {
 
     end_offset = get_keyword(sql, keyword);
     if (end_offset > -1) {
-        if (strncmp(keyword, "SELECT", 6) == 0 )
+        if (strncmp(keyword, "SELECT", 6) == 0 ) {
             return 1;
-        if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset, keyword)) >= 0)
+        }
+        if ((ret = sqlcheck_is_permitted_pragma(sql, end_offset, keyword)) >= 0) {
             return ret;
+        }
 
     }
     return 0;

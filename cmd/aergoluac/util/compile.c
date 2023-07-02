@@ -18,8 +18,9 @@ lua_State *luac_vm_newstate() {
 }
 
 void luac_vm_close(lua_State *L) {
-	if (L != NULL)
+	if (L != NULL) {
 		lua_close(L);
+	}
 }
 
 static int kpt_lua_Writer(struct lua_State *L, const void *p, size_t sz, void *u) {

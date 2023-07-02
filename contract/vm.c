@@ -90,8 +90,9 @@ void initViewFunction() {
 
 int getLuaExecContext(lua_State *L) {
 	int service = luaL_service(L);
-	if (service < 0)
+	if (service < 0) {
 		luaL_error(L, "not permitted state referencing at global scope");
+	}
 	return service;
 }
 

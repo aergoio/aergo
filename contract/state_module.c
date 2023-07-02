@@ -597,22 +597,25 @@ static int state_get_snap(lua_State *L) {
 
 	m = luaL_testudata(L, 1, STATE_MAP_ID);
 	if (m != NULL) {
-		if (lua_gettop(L) != 3)
+		if (lua_gettop(L) != 3) {
 			luaL_error(L, "invalid argument at getsnap, need (state.map, key, blockheight)");
+		}
 		return state_map_get(L);
 	}
 
 	arr = luaL_testudata(L, 1, STATE_ARRAY_ID);
 	if (arr != NULL) {
-		if (lua_gettop(L) != 3)
+		if (lua_gettop(L) != 3) {
 			luaL_error(L, "invalid argument at getsnap, need (state.array, index, blockheight)");
+		}
 		return state_array_get(L);
 	}
 
 	v = luaL_testudata(L, 1, STATE_VALUE_ID);
 	if (v != NULL) {
-		if (lua_gettop(L) != 2)
+		if (lua_gettop(L) != 2) {
 			luaL_error(L, "invalid argument at getsnap, need (state.value, blockheight)");
+		}
 		return state_value_snapget(L);
 	}
 

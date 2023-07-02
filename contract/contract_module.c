@@ -98,16 +98,18 @@ static int moduleCall(lua_State *L) {
 	}
 
 	lua_getfield(L, 1, amount_str);
-	if (lua_isnil(L, -1))
+	if (lua_isnil(L, -1)) {
 		amount = NULL;
-	else
+	} else {
 		amount = (char *)luaL_checkstring(L, -1);
+	}
 
 	lua_getfield(L, 1, fee_str);
-	if (lua_isnil(L, -1))
+	if (lua_isnil(L, -1)) {
 		gas = 0;
-	else
+	} else {
 		gas = luaL_checkinteger(L, -1);
+	}
 
 	lua_pop(L, 2);
 	contract = (char *)luaL_checkstring(L, 2);
@@ -154,10 +156,11 @@ static int moduleDelegateCall(lua_State *L) {
 	lua_gasuse(L, 2000);
 
 	lua_getfield(L, 1, fee_str);
-	if (lua_isnil(L, -1))
+	if (lua_isnil(L, -1)) {
 		gas = 0;
-	else
+	} else {
 		gas = luaL_checkinteger(L, -1);
+	}
 
 	lua_pop(L, 1);
 	contract = (char *) luaL_checkstring(L, 2);
@@ -190,8 +193,9 @@ static int moduleSend(lua_State *L) {
 	lua_gasuse(L, 300);
 
 	contract = (char *) luaL_checkstring(L, 1);
-	if (lua_isnil(L, 2))
+	if (lua_isnil(L, 2)) {
 		return 0;
+	}
 
 	switch(lua_type(L, 2)) {
 	case LUA_TNUMBER:
@@ -333,10 +337,11 @@ static int moduleDeploy(lua_State *L) {
 	lua_gasuse(L, 5000);
 
 	lua_getfield(L, 1, amount_str);
-	if (lua_isnil(L, -1))
+	if (lua_isnil(L, -1)) {
 		amount = NULL;
-	else
+	} else {
 		amount = (char *) luaL_checkstring(L, -1);
+	}
 	lua_pop(L, 1);
 	contract = (char *) luaL_checkstring(L, 2);
 	json_args = lua_util_get_json_from_stack(L, 3, lua_gettop(L), false);

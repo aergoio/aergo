@@ -26,14 +26,16 @@ static const char *mp_min_bignum = "-1157920892373161954235709850086879078532699
 mp_num _max_;
 mp_num _min_;
 
-static mp_num bn_alloc (int type) {
+static mp_num bn_alloc(int type) {
 	mp_num new = malloc(sizeof(bn_struct));
-	if (new == NULL)
+	if (new == NULL) {
 		return NULL;
+	}
 	new->type = type;
 	mpz_ptr pz = malloc(sizeof(mpz_t));
-	if (pz == NULL)
+	if (pz == NULL) {
 		return NULL;
+	}
 	mpz_init(pz);
 	new->mpptr = pz;
 	return new;
@@ -81,8 +83,9 @@ mp_num Bgetbnum(lua_State *L, int i) {
 }
 
 int lua_isbignumber(lua_State *L, int i) {
-	if (luaL_testudata(L, i, MYTYPE) != NULL)
+	if (luaL_testudata(L, i, MYTYPE) != NULL) {
 		return 1;
+	}
 	return 0;
 }
 
@@ -98,8 +101,9 @@ static mp_num Bget(lua_State *L, int i) {
 		mp_num x;
 		double d = lua_tonumber(L, i);
 		x = bn_alloc(BN_Integer);
-		if (x == NULL)
+		if (x == NULL) {
 			luaL_error(L, mp_num_memory_error);
+		}
 		if (isnan(d) || isinf(d)) {
 			luaL_error(L, "can't convert nan or infinity");
 		}
@@ -112,8 +116,9 @@ static mp_num Bget(lua_State *L, int i) {
 		mp_num x;
 		const char *s = lua_tostring(L, i);
 		x = bn_alloc(BN_Integer);
-		if (x == NULL)
+		if (x == NULL) {
 			luaL_error(L, mp_num_memory_error);
+		}
 		if (vm_is_hardfork(L, 3)) {
 			while (s && s[0]=='0' && s[1]!=0) s++;
 		}
@@ -142,12 +147,14 @@ static int Bdo1(lua_State *L, void (*f)(mpz_ptr a, mpz_srcptr b, mpz_srcptr c), 
 	mp_num b = Bget(L, 2);
 	mp_num c;
 
-	if (is_div == 1 && mpz_sgn(MPZ(b)) == 0)
+	if (is_div == 1 && mpz_sgn(MPZ(b)) == 0) {
 		luaL_error(L, mp_num_divide_zero);
+	}
 
 	c = bn_alloc(a->type);
-	if (c == NULL)
+	if (c == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 
 	f(MPZ(c), MPZ(a), MPZ(b));
 	Bnew(L, c);
@@ -159,8 +166,9 @@ char *lua_get_bignum_str(lua_State *L, int idx) {
 	mp_num a = Bget(L, idx);
 
 	char *str = malloc(mpz_sizeinbase (a->mpptr, MPZ_BASE) + 2);
-	if (str == NULL)
+	if (str == NULL) {
 		return NULL;
+	}
 
 	res = mpz_get_str(str, MPZ_BASE, a->mpptr);
 	return res;
@@ -168,8 +176,9 @@ char *lua_get_bignum_str(lua_State *L, int idx) {
 
 long int lua_get_bignum_si(lua_State *L, int idx) {
 	mp_num a = Bget(L, idx);
-	if (mpz_fits_slong_p(MPZ(a)) == 0)
+	if (mpz_fits_slong_p(MPZ(a)) == 0) {
 		return 0;
+	}
 	return mpz_get_si(MPZ(a));
 }
 
@@ -181,8 +190,9 @@ int lua_bignum_is_zero(lua_State *L, int idx) {
 static int Btostring(lua_State *L) {
 	char *res = lua_get_bignum_str(L, 1);
 	lua_gasuse(L, 50);
-	if (res == NULL)
+	if (res == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 	lua_pushstring(L, res);
 	free(res);
 	return 1;
@@ -202,8 +212,9 @@ static int Btobyte(lua_State *L) {
 	lua_gasuse(L, 50);
 
 	mp_num a = Bget(L, 1);
-	if (mpz_sgn(MPZ(a)) < 0)
+	if (mpz_sgn(MPZ(a)) < 0) {
 		luaL_error(L, mp_num_is_negative);
+	}
 
 	bn = mpz_export(NULL, &size, 1, 1, 1, 0, a->mpptr);
 	if (bn == NULL) {
@@ -296,14 +307,16 @@ static int Bpow(lua_State *L) {                 /** pow(x,y) */
 	mp_num c;
 	uint32_t remainder;
 
-	if (mpz_sgn(MPZ(b)) < 0)
+	if (mpz_sgn(MPZ(b)) < 0) {
 		luaL_error(L, mp_num_is_negative);
+	}
 
 	lua_gasuse(L, 500);
 
 	c = bn_alloc(a->type);
-	if (c == NULL)
+	if (c == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 
 	mpz_set_si(MPZ(c), 1);
 
@@ -336,8 +349,9 @@ static int Bpow(lua_State *L) {                 /** pow(x,y) */
 				luaL_error(L, mp_num_limited_max);
 			}
 		}
-		if (mpz_sgn(MPZ(b)) == 0)
+		if (mpz_sgn(MPZ(b)) == 0) {
 			break;
+		}
 
 		mpz_mul(a->mpptr, a->mpptr, a->mpptr);
 		if (mpz_cmp(a->mpptr, _max_->mpptr) > 0 || mpz_cmp(a->mpptr, _min_->mpptr) < 0) {
@@ -371,13 +385,15 @@ static int Bdivmod(lua_State *L) {              /** divmod(x,y) */
 
 	lua_gasuse(L, 500);
 
-	if (mpz_sgn(MPZ(b)) == 0)
+	if (mpz_sgn(MPZ(b)) == 0) {
 		luaL_error(L, mp_num_divide_zero);
+	}
 
 	q = bn_alloc(a->type);
 	r = bn_alloc(a->type);
-	if (q == NULL || r == NULL)
+	if (q == NULL || r == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 
 	mpz_tdiv_qr(q->mpptr, r->mpptr, a->mpptr, b->mpptr);
 	Bnew(L, q);
@@ -387,8 +403,9 @@ static int Bdivmod(lua_State *L) {              /** divmod(x,y) */
 
 static int Bgc(lua_State *L) {
 	mp_num x=Bget(L,1);
-	if (x != _min_ && x != _max_)
+	if (x != _min_ && x != _max_) {
 		mp_num_free(x);
+	}
 	lua_pushnil(L);
 	lua_setmetatable(L,1);
 	return 0;
@@ -401,8 +418,9 @@ static int Bneg(lua_State *L) {                 /** neg(x) */
 	lua_gasuse(L, 100);
 
 	res = bn_alloc(a->type);
-	if (res == NULL)
+	if (res == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 
 	mpz_neg (res->mpptr, a->mpptr);
 	Bnew(L, res);
@@ -415,17 +433,20 @@ static int Bpowmod(lua_State *L) {              /** powmod(x,y,m) */
 	mp_num m=Bget(L,3);
 	mp_num r;
 
-	if (mpz_sgn(MPZ(k)) < 0)
+	if (mpz_sgn(MPZ(k)) < 0) {
 		luaL_error(L, mp_num_is_negative);
+	}
 
 	lua_gasuse(L, 500);
 
-	if (mpz_sgn(MPZ(m)) == 0)
+	if (mpz_sgn(MPZ(m)) == 0) {
 		luaL_error(L, mp_num_divide_zero);
+	}
 
 	r = bn_alloc(a->type);
-	if (r == NULL)
+	if (r == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 
 	mpz_powm(r->mpptr, a->mpptr, k->mpptr, m->mpptr);
 	Bnew(L, r);
@@ -436,14 +457,16 @@ static int Bsqrt(lua_State *L) {                /** sqrt(x) */
 	mp_num a=Bget(L,1);
 	mp_num res;
 
-	if (mpz_sgn(MPZ(a)) < 0)
+	if (mpz_sgn(MPZ(a)) < 0) {
 		luaL_error(L, mp_num_is_negative);
+	}
 
 	lua_gasuse(L, 300);
 
 	res = bn_alloc(a->type);
-	if (res == NULL)
+	if (res == NULL) {
 		luaL_error(L, mp_num_memory_error);
+	}
 
 	mpz_sqrt (res->mpptr, a->mpptr);
 	Bnew(L, res);
@@ -451,6 +474,8 @@ static int Bsqrt(lua_State *L) {                /** sqrt(x) */
 }
 
 const char *init_bignum() {
+
+	// set the maximum bignum
 	_max_ = bn_alloc(BN_Integer);
 	if (_max_ == NULL) {
 		return mp_num_memory_error;
@@ -459,6 +484,8 @@ const char *init_bignum() {
 		mp_num_free(_max_);
 		return mp_num_invalid_number;
 	}
+
+	// set the minimum bignum
 	_min_ = bn_alloc(BN_Integer);
 	if (_min_ == NULL) {
 		return mp_num_memory_error;
@@ -467,6 +494,7 @@ const char *init_bignum() {
 		mp_num_free(_min_);
 		return mp_num_invalid_number;
 	}
+
 	return NULL;
 }
 

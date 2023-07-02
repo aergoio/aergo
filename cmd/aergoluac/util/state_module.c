@@ -18,10 +18,11 @@
 static int state_map(lua_State *L) {
     int dimension = 1;
 
-    if (luaL_isinteger(L, 1))
+    if (luaL_isinteger(L, 1)) {
         dimension = luaL_checkint(L, 1);       /* m _type_ map dim*/
-    else if (lua_gettop(L) != 0)
+    } else if (lua_gettop(L) != 0) {
         luaL_typerror(L, 1, "integer");
+    }
 
     if (dimension > STATE_MAX_DIMENSION) {
         luaL_error(L, "dimension over max limit(%d): %d, state.map",

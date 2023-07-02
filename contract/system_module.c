@@ -90,8 +90,9 @@ int getItemWithPrefix(lua_State *L) {
 	else if (lua_gettop(L) == 3) {
 		if (!lua_isnil(L, 2)) {
 			int type = lua_type(L,2);
-			if (type != LUA_TNUMBER && type != LUA_TSTRING)
+			if (type != LUA_TNUMBER && type != LUA_TSTRING) {
 				luaL_error(L, "snap height permitted number or string type");
+			}
 			blkno = (char *)lua_tostring(L, 2);
 		}
 		luaL_checkstring(L, 3);
@@ -103,8 +104,9 @@ int getItemWithPrefix(lua_State *L) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
-	if (ret.r0 == NULL)
+	if (ret.r0 == NULL) {
 		return 0;
+	}
 
 	minus_inst_count(L, strlen(ret.r0));
 	if (lua_util_json_to_lua(L, ret.r0, false) != 0) {
@@ -118,8 +120,9 @@ int getItem(lua_State *L) {
 	luaL_checkstring(L, 1);
 	lua_pushstring(L, STATE_DB_KEY_PREFIX);
 	if (lua_gettop(L) == 3) {
-		if (!lua_isnil(L, 2))
+		if (!lua_isnil(L, 2)) {
 			luaL_checknumber(L, 2);
+		}
 	}
 	return getItemWithPrefix(L);
 }
@@ -207,8 +210,9 @@ static int getCreator(lua_State *L) {
 		strPushAndRelease(L, ret.r1);
 		luaL_throwerror(L);
 	}
-	if (ret.r0 == NULL)
+	if (ret.r0 == NULL) {
 		return 0;
+	}
 	strPushAndRelease(L, ret.r0);
 	return 1;
 }
@@ -273,8 +277,9 @@ static int getfield(lua_State *L, const char *key, int d) {
 	if (lua_isnumber(L, -1)) {
 		res = (int)lua_tointeger(L, -1);
 	} else {
-		if (d < 0)
+		if (d < 0) {
 			luaL_error(L, "field " LUA_QS " missing in date table", key);
+		}
 		res = d;
 	}
 	lua_pop(L, 1);

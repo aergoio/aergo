@@ -96,8 +96,9 @@ static char *dup_decltype(const char *decltype) {
 static void free_decltypes(db_rs_t *rs) {
 	int i;
 	for (i = 0; i < rs->nc; i++) {
-		if (rs->decltypes[i] != NULL)
+		if (rs->decltypes[i] != NULL) {
 			free(rs->decltypes[i]);
+		}
 	}
 	free(rs->decltypes);
 	rs->decltypes = NULL;
@@ -377,21 +378,25 @@ static void get_column_meta(lua_State *L, sqlite3_stmt* stmt) {
 		lua_pushnil(L);
 		lua_pushnil(L);
 	}
+
 	for (i = 0; i < colcnt; i++) {
 		name = sqlite3_column_name(stmt, i);
-		if (name == NULL)
+		if (name == NULL) {
 			lua_pushstring(L, "");
-		else
+		} else {
 			lua_pushstring(L, name);
+		}
 		lua_rawseti(L, -3, i+1);
 
 		decltype = sqlite3_column_decltype(stmt, i);
-		if (decltype == NULL)
+		if (decltype == NULL) {
 			lua_pushstring(L, "");
-		else
+		} else {
 			lua_pushstring(L, decltype);
+		}
 		lua_rawseti(L, -2, i+1);
 	}
+
 	lua_setfield(L, -3, "decltypes");
 	lua_setfield(L, -2, "names");
 }
@@ -415,8 +420,9 @@ static int db_pstmt_bind_param_cnt(lua_State *L) {
 }
 
 static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove) {
-	if (pstmt->closed)
+	if (pstmt->closed) {
 		return;
+	}
 	pstmt->closed = 1;
 	sqlite3_finalize(pstmt->s);
 	if (remove) {
@@ -572,8 +578,9 @@ int lua_db_release_resource(lua_State *L) {
 		/* T */
 		lua_pushnil(L); /* T nil(key) */
 		while (lua_next(L, -2)) {
-			if (lua_islightuserdata(L, -1))
+			if (lua_islightuserdata(L, -1)) {
 				db_rs_close(L, (db_rs_t *) lua_topointer(L, -1), 0);
+			}
 			lua_pop(L, 1);
 		}
 		lua_pop(L, 1);
@@ -583,8 +590,9 @@ int lua_db_release_resource(lua_State *L) {
 		/* T */
 		lua_pushnil(L); /* T nil(key) */
 		while (lua_next(L, -2)) {
-			if (lua_islightuserdata(L, -1))
+			if (lua_islightuserdata(L, -1)) {
 				db_pstmt_close(L, (db_pstmt_t *) lua_topointer(L, -1), 0);
+			}
 			lua_pop(L, 1);
 		}
 		lua_pop(L, 1);
