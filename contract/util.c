@@ -26,15 +26,13 @@ typedef struct sort_key {
 	int key_len;
 } sort_key_t;
 
-static void lua_util_sbuf_init(sbuff_t *sbuf, int len)
-{
+static void lua_util_sbuf_init(sbuff_t *sbuf, int len) {
 	sbuf->idx = 0;
 	sbuf->buf_len = len;
 	sbuf->buf = malloc(len);
 }
 
-static void copy_to_buffer(char *src, int len, sbuff_t *sbuf)
-{
+static void copy_to_buffer(char *src, int len, sbuff_t *sbuf) {
 	int orig_buf_len = sbuf->buf_len;
 	while (len + sbuf->idx >= sbuf->buf_len) {
 		sbuf->buf_len *= 2;
@@ -46,8 +44,7 @@ static void copy_to_buffer(char *src, int len, sbuff_t *sbuf)
 	sbuf->idx += len;
 }
 
-static void add_escape(sbuff_t *sbuf, char ch)
-{
+static void add_escape(sbuff_t *sbuf, char ch) {
 	if (sbuf->idx + 2 >= sbuf->buf_len) {
 		sbuf->buf_len *= 2;
 		sbuf->buf = realloc(sbuf->buf, sbuf->buf_len);
@@ -56,8 +53,7 @@ static void add_escape(sbuff_t *sbuf, char ch)
 	sbuf->buf[sbuf->idx++] = ch;
 }
 
-static void copy_str_to_buffer(char *src, int len, sbuff_t *sbuf)
-{
+static void copy_str_to_buffer(char *src, int len, sbuff_t *sbuf) {
 	int i;
 
 	char *end = src + len;
@@ -101,8 +97,7 @@ static void copy_str_to_buffer(char *src, int len, sbuff_t *sbuf)
 		}
 	}
 }
-static callinfo_t *callinfo_new()
-{
+static callinfo_t *callinfo_new() {
 	callinfo_t *callinfo = malloc(sizeof(callinfo_t));
 	callinfo->size = 4;
 	callinfo->ptrs = malloc(sizeof(void *) * callinfo->size);
@@ -111,16 +106,14 @@ static callinfo_t *callinfo_new()
 	return callinfo;
 }
 
-static void callinfo_del(callinfo_t *callinfo)
-{
+static void callinfo_del(callinfo_t *callinfo) {
 	if (callinfo == NULL)
 		return;
 	free(callinfo->ptrs);
 	free(callinfo);
 }
 
-static bool register_tcall(callinfo_t *callinfo, void *ptr)
-{
+static bool register_tcall(callinfo_t *callinfo, void *ptr) {
 	int i;
 
 	for(i = 0; i < callinfo->curidx; i++) {
@@ -135,13 +128,11 @@ static bool register_tcall(callinfo_t *callinfo, void *ptr)
 	return true;
 }
 
-static void unregister_tcall(callinfo_t *callinfo)
-{
+static void unregister_tcall(callinfo_t *callinfo) {
 	callinfo->curidx--;
 }
 
-static int sort_key_compare(const void *first, const void*second)
-{
+static int sort_key_compare(const void *first, const void*second) {
 	sort_key_t *key1 = (sort_key_t *)first, *key2 = (sort_key_t *)second;
 	if (key1->key_len == key2->key_len) {
 		return strcmp(key1->elem, key2->elem);
@@ -158,8 +149,7 @@ static int sort_key_compare(const void *first, const void*second)
 char *bignum_str = "{\"_bignum\":\"";
 
 static bool lua_util_dump_json(lua_State *L, int idx, sbuff_t *sbuf, bool json_form, bool iskey,
-                               callinfo_t **pcallinfo)
-{
+                               callinfo_t **pcallinfo) {
 	int len;
 	char *src_val;
 	char tmp[128];
@@ -582,8 +572,7 @@ void minus_inst_count(lua_State *L, int count) {
 	}
 }
 
-int lua_util_json_to_lua(lua_State *L, char *json, bool check)
-{
+int lua_util_json_to_lua(lua_State *L, char *json, bool check) {
 	if (json_to_lua(L, &json, check, false) != 0)
 		return -1;
 	if (check && *json != '\0')
@@ -591,8 +580,7 @@ int lua_util_json_to_lua(lua_State *L, char *json, bool check)
 	return 0;
 }
 
-char *lua_util_get_json_from_stack(lua_State *L, int start, int end, bool json_form)
-{
+char *lua_util_get_json_from_stack(lua_State *L, int start, int end, bool json_form) {
 	int i;
 	sbuff_t sbuf;
 	int start_idx;
@@ -622,8 +610,7 @@ char *lua_util_get_json_from_stack(lua_State *L, int start, int end, bool json_f
 	return sbuf.buf;
 }
 
-char *lua_util_get_json_array_from_stack(lua_State *L, int start, int end, bool json_form)
-{
+char *lua_util_get_json_array_from_stack(lua_State *L, int start, int end, bool json_form) {
 	int i;
 	sbuff_t sbuf;
 	int start_idx;
@@ -648,8 +635,7 @@ char *lua_util_get_json_array_from_stack(lua_State *L, int start, int end, bool 
 	return sbuf.buf;
 }
 
-char *lua_util_get_json(lua_State *L, int idx, bool json_form)
-{
+char *lua_util_get_json(lua_State *L, int idx, bool json_form) {
 	sbuff_t sbuf;
 	callinfo_t *callinfo = NULL;
 	lua_util_sbuf_init(&sbuf, 64);
@@ -668,8 +654,7 @@ char *lua_util_get_json(lua_State *L, int idx, bool json_form)
 	return sbuf.buf;
 }
 
-static int lua_json_encode(lua_State *L)
-{
+static int lua_json_encode(lua_State *L) {
 	char *json;
 
 	lua_gasuse(L, 50);
@@ -681,8 +666,7 @@ static int lua_json_encode(lua_State *L)
 	return 1;
 }
 
-static int lua_json_decode(lua_State *L)
-{
+static int lua_json_decode(lua_State *L) {
 	char *org = (char *)luaL_checkstring(L, -1);
 	char *json = strdup(org);
 
@@ -702,8 +686,7 @@ static const luaL_Reg json_lib[] = {
 	{NULL, NULL}
 };
 
-int luaopen_json(lua_State *L)
-{
+int luaopen_json(lua_State *L) {
 	luaL_register(L, "json", json_lib);
 	lua_pop(L, 1);
 	return 1;

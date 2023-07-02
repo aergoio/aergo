@@ -5,8 +5,7 @@
 #define KEYWORD_MINSIZE 4
 #define KEYWORD_MAXSIZE 16
 
-static int get_keyword(const char *sql, char *keyword)
-{
+static int get_keyword(const char *sql, char *keyword) {
     int in_bc = 0;
     int in_lc = 0;
     int spos = -1;
@@ -113,8 +112,7 @@ static int sqlcheck_is_permitted_pragma(const char *sql, int end_offset, char *k
     return -1;
 }
 
-int sqlcheck_is_permitted_sql(const char *sql)
-{
+int sqlcheck_is_permitted_sql(const char *sql) {
     int end_offset = -1;
     char keyword[KEYWORD_MAXSIZE+1];
 
@@ -143,8 +141,7 @@ int sqlcheck_is_permitted_sql(const char *sql)
     return 0;
 }
 
-int sqlcheck_is_readonly_sql(const char *sql)
-{
+int sqlcheck_is_readonly_sql(const char *sql) {
     int end_offset = -1;
     int ret;
     char keyword[KEYWORD_MAXSIZE+1];

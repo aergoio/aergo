@@ -32,8 +32,7 @@ typedef struct {
 	char *key;
 } state_map_t;
 
-static int state_map(lua_State *L)
-{
+static int state_map(lua_State *L) {
 	int argn = lua_gettop(L);
 
 	state_map_t *m = lua_newuserdata(L, sizeof(state_map_t)); /* m */
@@ -58,8 +57,7 @@ static int state_map(lua_State *L)
 	return 1;
 }
 
-static void state_map_check_index(lua_State *L, state_map_t *m)
-{
+static void state_map_check_index(lua_State *L, state_map_t *m) {
 	/* m key */
 	int key_type = lua_type(L, 2);
 	int stored_type = m->key_type;
@@ -90,16 +88,14 @@ static void state_map_check_index(lua_State *L, state_map_t *m)
 	}
 }
 
-static void state_map_push_key(lua_State *L, state_map_t *m)
-{
+static void state_map_push_key(lua_State *L, state_map_t *m) {
 	lua_pushstring(L, m->id);                   /* m key value f id */
 	lua_pushstring(L, "-");
 	lua_pushvalue(L, 2);                        /* m key value f id '-' key */
 	lua_concat(L, 3);                           /* m key value f id-key */
 }
 
-static int state_map_get(lua_State *L)
-{
+static int state_map_get(lua_State *L) {
 	int key_type = LUA_TNONE;
 	int arg = lua_gettop(L);
 	state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID); /* m key */
@@ -155,8 +151,7 @@ static int state_map_get(lua_State *L)
 	return 1;
 }
 
-static int state_map_set(lua_State *L)
-{
+static int state_map_set(lua_State *L) {
 	/* m key value */
 	int key_type = LUA_TNONE;
 	state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
@@ -202,8 +197,7 @@ static int state_map_set(lua_State *L)
 	return 0;
 }
 
-static int state_map_delete(lua_State *L)
-{
+static int state_map_delete(lua_State *L) {
 	/* m key */
 	state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
 
@@ -227,8 +221,7 @@ static int state_map_delete(lua_State *L)
 	return 0;
 }
 
-static int state_map_gc(lua_State *L)
-{
+static int state_map_gc(lua_State *L) {
 	state_map_t *m = luaL_checkudata(L, 1, STATE_MAP_ID);
 	if (m->id) {
 		free(m->id);
@@ -251,8 +244,7 @@ typedef struct {
 	char *key;
 } state_array_t;
 
-static int state_array(lua_State *L)
-{
+static int state_array(lua_State *L) {
 	int is_fixed;
 	state_array_t *arr;
 	int dimension = lua_gettop(L);
@@ -288,8 +280,7 @@ static int state_array(lua_State *L)
 	return 1;
 }
 
-static int state_array_len(lua_State *L)
-{
+static int state_array_len(lua_State *L) {
 	state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
 	if (arr->lens == NULL)
 		lua_pushinteger(L, 0);
@@ -298,8 +289,7 @@ static int state_array_len(lua_State *L)
 	return 1;
 }
 
-static void state_array_load_len(lua_State *L, state_array_t *arr)
-{
+static void state_array_load_len(lua_State *L, state_array_t *arr) {
 	if (!arr->is_fixed && arr->lens == NULL) {
 		lua_pushcfunction(L, getItemWithPrefix); /* a i f */
 		lua_pushstring(L, arr->id);         /* a i f id */
@@ -311,8 +301,7 @@ static void state_array_load_len(lua_State *L, state_array_t *arr)
 	}
 }
 
-static void state_array_checkarg(lua_State *L, state_array_t *arr)
-{
+static void state_array_checkarg(lua_State *L, state_array_t *arr) {
 	int idx;
 	if (!luaL_isinteger(L, 2)) {
 		luaL_typerror(L, 2, "integer");
@@ -321,16 +310,14 @@ static void state_array_checkarg(lua_State *L, state_array_t *arr)
 	luaL_argcheck(L, idx >= 1 && idx <= arr->lens[0], 2, "index out of range");
 }
 
-static void state_array_push_key(lua_State *L, const char *id)
-{
+static void state_array_push_key(lua_State *L, const char *id) {
 	lua_pushstring(L, id);  /* a key value f id */
 	lua_pushstring(L, "-"); /* a key value f id '-' */
 	lua_pushvalue(L, 2);    /* m key value f id '-' key */
 	lua_concat(L, 3);       /* m key value f id-key */
 }
 
-static int state_array_get(lua_State *L)
-{
+static int state_array_get(lua_State *L) {
 	state_array_t *arr;
 	int arg = lua_gettop(L);
 	int key_type = LUA_TNONE;
@@ -396,8 +383,7 @@ static int state_array_get(lua_State *L)
 	return 1;
 }
 
-static int state_array_set(lua_State *L)
-{
+static int state_array_set(lua_State *L) {
 	state_array_t *arr;
 
 	arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
@@ -423,8 +409,7 @@ static int state_array_set(lua_State *L)
 	return 0;
 }
 
-static int state_array_append(lua_State *L)
-{
+static int state_array_append(lua_State *L) {
 	state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
 	luaL_checkany(L, 2);
 	if (arr->is_fixed) {
@@ -447,8 +432,7 @@ static int state_array_append(lua_State *L)
 	return 0;
 }
 
-static int state_array_gc(lua_State *L)
-{
+static int state_array_gc(lua_State *L) {
 	state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
 	if (arr->id) {
 		free(arr->id);
@@ -465,8 +449,7 @@ static int state_array_gc(lua_State *L)
 	return 0;
 }
 
-static int state_array_iter(lua_State *L)
-{
+static int state_array_iter(lua_State *L) {
 	state_array_t *arr = luaL_checkudata(L, 1, STATE_ARRAY_ID);
 	int i = luaL_checkint(L, 2);
 	i = i + 1;
@@ -481,8 +464,7 @@ static int state_array_iter(lua_State *L)
 	return 0;
 }
 
-static int state_array_pairs(lua_State *L)
-{
+static int state_array_pairs(lua_State *L) {
 	luaL_checkudata(L, 1, STATE_ARRAY_ID);
 	lua_pushcfunction(L, state_array_iter);
 	lua_pushvalue(L, 1);
@@ -496,8 +478,7 @@ typedef struct {
 	char *id;
 } state_value_t;
 
-static int state_value(lua_State *L)
-{
+static int state_value(lua_State *L) {
 	state_value_t *v = lua_newuserdata(L, sizeof(state_value_t)); /* v */
 	v->id = NULL;
 	luaL_getmetatable(L, STATE_VALUE_ID);                       /* v mt */
@@ -505,8 +486,7 @@ static int state_value(lua_State *L)
 	return 1;
 }
 
-static int state_value_get(lua_State *L)
-{
+static int state_value_get(lua_State *L) {
 	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);
 	lua_pushcfunction(L, getItemWithPrefix);    /* v f */
 	lua_pushstring(L, v->id);                   /* v f id */
@@ -515,8 +495,7 @@ static int state_value_get(lua_State *L)
 	return 1;
 }
 
-static int state_value_snapget(lua_State *L)
-{
+static int state_value_snapget(lua_State *L) {
 	int arg = lua_gettop(L);
 	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID); /* v */
 	lua_pushcfunction(L, getItemWithPrefix);                /* v f */
@@ -529,8 +508,7 @@ static int state_value_snapget(lua_State *L)
 	return 1;
 }
 
-static int state_value_set(lua_State *L)
-{
+static int state_value_set(lua_State *L) {
 	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID); /* v */
 	luaL_checkany(L, 2);
 	lua_pushcfunction(L, setItemWithPrefix);    /* t f */
@@ -544,8 +522,7 @@ static int state_value_set(lua_State *L)
 	return 0;
 }
 
-static int state_value_gc(lua_State *L)
-{
+static int state_value_gc(lua_State *L) {
 	state_value_t *v = luaL_checkudata(L, 1, STATE_VALUE_ID);
 	if (v->id) {
 		free(v->id);
@@ -556,8 +533,7 @@ static int state_value_gc(lua_State *L)
 
 /* global variable */
 
-static void insert_var(lua_State *L, const char *var_name)
-{
+static void insert_var(lua_State *L, const char *var_name) {
 	lua_getglobal(L, "abi");                    /* "type_name" m */
 	lua_getfield(L, -1, "register_var");        /* "type_name" m f */
 	lua_pushstring(L, var_name);                /* "type_name" m f var_name */
@@ -566,8 +542,7 @@ static void insert_var(lua_State *L, const char *var_name)
 	lua_pop(L, 2);
 }
 
-static int state_var(lua_State *L)
-{
+static int state_var(lua_State *L) {
 	const char *var_name;
 	state_map_t *m = NULL;
 	state_array_t *arr = NULL;
@@ -611,8 +586,7 @@ found:
 	return 0;
 }
 
-static int state_get_snap(lua_State *L)
-{
+static int state_get_snap(lua_State *L) {
 	state_map_t *m = NULL;
 	state_array_t *arr = NULL;
 	state_value_t *v = NULL;
@@ -646,8 +620,7 @@ static int state_get_snap(lua_State *L)
 	return 0;
 }
 
-int luaopen_state(lua_State *L)
-{
+int luaopen_state(lua_State *L) {
 	static const luaL_Reg state_map_metas[] = {
 		{"__index",  state_map_get},
 		{"__newindex", state_map_set},

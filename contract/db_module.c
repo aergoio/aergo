@@ -22,8 +22,7 @@
 extern int getLuaExecContext(lua_State *L);
 static void get_column_meta(lua_State *L, sqlite3_stmt* stmt);
 
-static int append_resource(lua_State *L, const char *key, void *data)
-{
+static int append_resource(lua_State *L, const char *key, void *data) {
 	int refno;
 	if (luaL_findtable(L, LUA_REGISTRYINDEX, key, 0) != NULL) {
 		luaL_error(L, "cannot find the environment of the db module");
@@ -56,8 +55,7 @@ typedef struct {
 	int refno;
 } db_rs_t;
 
-static db_rs_t *get_db_rs(lua_State *L, int pos)
-{
+static db_rs_t *get_db_rs(lua_State *L, int pos) {
 	db_rs_t *rs = luaL_checkudata(L, pos, DB_RS_ID);
 	if (rs->closed) {
 		luaL_error(L, "resultset is closed");
@@ -65,8 +63,7 @@ static db_rs_t *get_db_rs(lua_State *L, int pos)
 	return rs;
 }
 
-static int db_rs_tostr(lua_State *L)
-{
+static int db_rs_tostr(lua_State *L) {
 	db_rs_t *rs = luaL_checkudata(L, 1, DB_RS_ID);
 	if (rs->closed) {
 		lua_pushfstring(L, "resultset is closed");
@@ -76,8 +73,7 @@ static int db_rs_tostr(lua_State *L)
 	return 1;
 }
 
-static char *dup_decltype(const char *decltype)
-{
+static char *dup_decltype(const char *decltype) {
 	int n;
 	char *p;
 	char *c;
@@ -97,8 +93,7 @@ static char *dup_decltype(const char *decltype)
 	return NULL;
 }
 
-static void free_decltypes(db_rs_t *rs)
-{
+static void free_decltypes(db_rs_t *rs) {
 	int i;
 	for (i = 0; i < rs->nc; i++) {
 		if (rs->decltypes[i] != NULL)
@@ -108,8 +103,7 @@ static void free_decltypes(db_rs_t *rs)
 	rs->decltypes = NULL;
 }
 
-static int db_rs_get(lua_State *L)
-{
+static int db_rs_get(lua_State *L) {
 	db_rs_t *rs = get_db_rs(L, 1);
 	int i;
 	sqlite3_int64 d;
@@ -156,16 +150,14 @@ static int db_rs_get(lua_State *L)
 	return rs->nc;
 }
 
-static int db_rs_colcnt(lua_State *L)
-{
+static int db_rs_colcnt(lua_State *L) {
 	db_rs_t *rs = get_db_rs(L, 1);
 
 	lua_pushinteger(L, rs->nc);
 	return 1;
 }
 
-static void db_rs_close(lua_State *L, db_rs_t *rs, int remove)
-{
+static void db_rs_close(lua_State *L, db_rs_t *rs, int remove) {
 	if (rs->closed) {
 		return;
 	}
@@ -185,8 +177,7 @@ static void db_rs_close(lua_State *L, db_rs_t *rs, int remove)
 	}
 }
 
-static int db_rs_next(lua_State *L)
-{
+static int db_rs_next(lua_State *L) {
 	db_rs_t *rs = get_db_rs(L, 1);
 	int rc;
 
@@ -212,14 +203,12 @@ static int db_rs_next(lua_State *L)
 	return 1;
 }
 
-static int db_rs_gc(lua_State *L)
-{
+static int db_rs_gc(lua_State *L) {
 	db_rs_close(L, luaL_checkudata(L, 1, DB_RS_ID), 1);
 	return 0;
 }
 
-static db_pstmt_t *get_db_pstmt(lua_State *L, int pos)
-{
+static db_pstmt_t *get_db_pstmt(lua_State *L, int pos) {
 	db_pstmt_t *pstmt = luaL_checkudata(L, pos, DB_PSTMT_ID);
 	if (pstmt->closed) {
 		luaL_error(L, "prepared statement is closed");
@@ -227,8 +216,7 @@ static db_pstmt_t *get_db_pstmt(lua_State *L, int pos)
 	return pstmt;
 }
 
-static int db_pstmt_tostr(lua_State *L)
-{
+static int db_pstmt_tostr(lua_State *L) {
 	db_pstmt_t *pstmt = luaL_checkudata(L, 1, DB_PSTMT_ID);
 	if (pstmt->closed) {
 		lua_pushfstring(L, "prepared statement is closed");
@@ -238,8 +226,7 @@ static int db_pstmt_tostr(lua_State *L)
 	return 1;
 }
 
-static int bind(lua_State *L, sqlite3 *db, sqlite3_stmt *pstmt)
-{
+static int bind(lua_State *L, sqlite3 *db, sqlite3_stmt *pstmt) {
 	int rc, i;
 	int argc = lua_gettop(L) - 1;
 	int param_count;
@@ -319,8 +306,7 @@ static int bind(lua_State *L, sqlite3 *db, sqlite3_stmt *pstmt)
 	return 0;
 }
 
-static int db_pstmt_exec(lua_State *L)
-{
+static int db_pstmt_exec(lua_State *L) {
 	int rc, n;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 
@@ -345,8 +331,7 @@ static int db_pstmt_exec(lua_State *L)
 	return 1;
 }
 
-static int db_pstmt_query(lua_State *L)
-{
+static int db_pstmt_query(lua_State *L) {
 	int rc;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 	db_rs_t *rs;
@@ -376,8 +361,7 @@ static int db_pstmt_query(lua_State *L)
 	return 1;
 }
 
-static void get_column_meta(lua_State *L, sqlite3_stmt* stmt)
-{
+static void get_column_meta(lua_State *L, sqlite3_stmt* stmt) {
 	const char *name, *decltype;
 	int type;
 	int colcnt = sqlite3_column_count(stmt);
@@ -412,8 +396,7 @@ static void get_column_meta(lua_State *L, sqlite3_stmt* stmt)
 	lua_setfield(L, -2, "names");
 }
 
-static int db_pstmt_column_info(lua_State *L)
-{
+static int db_pstmt_column_info(lua_State *L) {
 	int colcnt;
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 	getLuaExecContext(L);
@@ -422,8 +405,7 @@ static int db_pstmt_column_info(lua_State *L)
 	return 1;
 }
 
-static int db_pstmt_bind_param_cnt(lua_State *L)
-{
+static int db_pstmt_bind_param_cnt(lua_State *L) {
 	db_pstmt_t *pstmt = get_db_pstmt(L, 1);
 	getLuaExecContext(L);
 
@@ -432,8 +414,7 @@ static int db_pstmt_bind_param_cnt(lua_State *L)
 	return 1;
 }
 
-static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove)
-{
+static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove) {
 	if (pstmt->closed)
 		return;
 	pstmt->closed = 1;
@@ -447,14 +428,12 @@ static void db_pstmt_close(lua_State *L, db_pstmt_t *pstmt, int remove)
 	}
 }
 
-static int db_pstmt_gc(lua_State *L)
-{
+static int db_pstmt_gc(lua_State *L) {
 	db_pstmt_close(L, luaL_checkudata(L, 1, DB_PSTMT_ID), 1);
 	return 0;
 }
 
-static int db_exec(lua_State *L)
-{
+static int db_exec(lua_State *L) {
 	const char *cmd;
 	sqlite3 *db;
 	sqlite3_stmt *s;
@@ -490,8 +469,7 @@ static int db_exec(lua_State *L)
 	return 1;
 }
 
-static int db_query(lua_State *L)
-{
+static int db_query(lua_State *L) {
 	const char *query;
 	int rc;
 	sqlite3 *db;
@@ -527,8 +505,7 @@ static int db_query(lua_State *L)
 	return 1;
 }
 
-static int db_prepare(lua_State *L)
-{
+static int db_prepare(lua_State *L) {
 	const char *sql;
 	int rc;
 	int ref;
@@ -556,8 +533,7 @@ static int db_prepare(lua_State *L)
 	return 1;
 }
 
-static int db_get_snapshot(lua_State *L)
-{
+static int db_get_snapshot(lua_State *L) {
 	char *snapshot;
 	int service = getLuaExecContext(L);
 
@@ -567,8 +543,7 @@ static int db_get_snapshot(lua_State *L)
 	return 1;
 }
 
-static int db_open_with_snapshot(lua_State *L)
-{
+static int db_open_with_snapshot(lua_State *L) {
 	char *snapshot = (char *) luaL_checkstring(L, 1);
 	char *errStr;
 	int service = getLuaExecContext(L);
@@ -581,8 +556,7 @@ static int db_open_with_snapshot(lua_State *L)
 	return 1;
 }
 
-static int db_last_insert_rowid(lua_State *L)
-{
+static int db_last_insert_rowid(lua_State *L) {
 	sqlite3 *db;
 	sqlite3_int64 id;
 	db = vm_get_db(L);
@@ -592,8 +566,7 @@ static int db_last_insert_rowid(lua_State *L)
 	return 1;
 }
 
-int lua_db_release_resource(lua_State *L)
-{
+int lua_db_release_resource(lua_State *L) {
 	lua_getfield(L, LUA_REGISTRYINDEX, RESOURCE_RS_KEY);
 	if (lua_istable(L, -1)) {
 		/* T */

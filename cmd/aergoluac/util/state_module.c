@@ -15,8 +15,7 @@
 
 #define STATE_MAX_DIMENSION 5
 
-static int state_map(lua_State *L)
-{
+static int state_map(lua_State *L) {
     int dimension = 1;
 
     if (luaL_isinteger(L, 1))
@@ -38,8 +37,7 @@ static int state_map(lua_State *L)
     return 1;
 }
 
-static int state_array(lua_State *L)
-{
+static int state_array(lua_State *L) {
     int32_t len = 0;
     int argn = lua_gettop(L);
 
@@ -82,8 +80,7 @@ static int state_array(lua_State *L)
     return 1;
 }
 
-static int state_value(lua_State *L)
-{
+static int state_value(lua_State *L) {
     lua_newtable(L);
     lua_pushstring(L, TYPE_NAME);   /* m _type_ */
     lua_pushstring(L, "value");     /* m _type_ value */
@@ -91,8 +88,7 @@ static int state_value(lua_State *L)
     return 1;
 }
 
-static int state_var(lua_State *L)
-{
+static int state_var(lua_State *L) {
     const char *var_name;
     int t;
 
@@ -125,8 +121,7 @@ static int state_var(lua_State *L)
     return 0;
 }
 
-int luac_open_state(lua_State *L)
-{
+int luac_open_state(lua_State *L) {
     static const luaL_Reg state_lib[] = {
         {"map", state_map},
         {"array", state_array},

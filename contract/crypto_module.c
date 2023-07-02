@@ -3,8 +3,7 @@
 
 extern int getLuaExecContext(lua_State *L);
 
-static int crypto_sha256(lua_State *L)
-{
+static int crypto_sha256(lua_State *L) {
 	size_t len;
 	char *arg;
 	struct luaCryptoSha256_return ret;
@@ -23,8 +22,7 @@ static int crypto_sha256(lua_State *L)
 	return 1;
 }
 
-static int crypto_ecverify(lua_State *L)
-{
+static int crypto_ecverify(lua_State *L) {
 	char *msg, *sig, *addr;
 	struct luaECVerify_return ret;
 	int service = getLuaExecContext(L);
@@ -49,23 +47,20 @@ static int crypto_ecverify(lua_State *L)
 	return 1;
 }
 
-static void set_rlp_obj(struct rlp_obj *n, int type, void *data, size_t size)
-{
+static void set_rlp_obj(struct rlp_obj *n, int type, void *data, size_t size) {
 	n->rlp_obj_type = type;
 	n->data = data;
 	n->size = size;
 }
 
-static void set_str_rlp_obj(lua_State *L, int n, struct rlp_obj *o)
-{
+static void set_str_rlp_obj(lua_State *L, int n, struct rlp_obj *o) {
 	char *data;
 	size_t size;
 	data = (char *) lua_tolstring(L, n, &size);
 	set_rlp_obj(o, RLP_TSTRING, (void *)data, size);
 }
 
-static struct rlp_obj *makeValue(lua_State *L, int n)
-{
+static struct rlp_obj *makeValue(lua_State *L, int n) {
 	struct rlp_obj *o = (struct rlp_obj *) malloc(sizeof(struct rlp_obj));
 
 	set_rlp_obj(o, RLP_TSTRING, NULL, 0);
@@ -100,8 +95,7 @@ static struct rlp_obj *makeValue(lua_State *L, int n)
 	return o;
 }
 
-static int crypto_verifyProof(lua_State *L)
-{
+static int crypto_verifyProof(lua_State *L) {
 	int argc = lua_gettop(L);
 	char *k, *h;
 	struct rlp_obj *v;
@@ -143,8 +137,7 @@ static int crypto_verifyProof(lua_State *L)
 	return 1;
 }
 
-static int crypto_keccak256(lua_State *L)
-{
+static int crypto_keccak256(lua_State *L) {
 	size_t len;
 	char *arg;
 	struct luaCryptoKeccak256_return ret;
@@ -168,8 +161,7 @@ static const luaL_Reg crypto_lib[] = {
 	{NULL, NULL}
 };
 
-int luaopen_crypto(lua_State *L)
-{
+int luaopen_crypto(lua_State *L) {
 	luaL_register(L, "crypto", crypto_lib);
 	lua_pop(L, 1);
 	return 1;

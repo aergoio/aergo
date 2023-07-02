@@ -10,8 +10,7 @@
 
 extern int getLuaExecContext(lua_State *L);
 
-static int systemPrint(lua_State *L)
-{
+static int systemPrint(lua_State *L) {
 	char *jsonValue;
 	int service = getLuaExecContext(L);
 
@@ -25,8 +24,7 @@ static int systemPrint(lua_State *L)
 	return 0;
 }
 
-static char *getDbKey(lua_State *L, int *len)
-{
+static char *getDbKey(lua_State *L, int *len) {
 	size_t size;
 	char *key;
 
@@ -37,8 +35,7 @@ static char *getDbKey(lua_State *L, int *len)
 	return key;
 }
 
-int setItemWithPrefix(lua_State *L)
-{
+int setItemWithPrefix(lua_State *L) {
 	char *dbKey;
 	char *jsonValue;
 	int service = getLuaExecContext(L);
@@ -69,16 +66,14 @@ int setItemWithPrefix(lua_State *L)
 	return 0;
 }
 
-int setItem(lua_State *L)
-{
+int setItem(lua_State *L) {
 	luaL_checkstring(L, 1);
 	luaL_checkany(L, 2);
 	lua_pushstring(L, STATE_DB_KEY_PREFIX);
 	return setItemWithPrefix(L);
 }
 
-int getItemWithPrefix(lua_State *L)
-{
+int getItemWithPrefix(lua_State *L) {
 	char *dbKey;
 	int service = getLuaExecContext(L);
 	char *jsonValue;
@@ -119,8 +114,7 @@ int getItemWithPrefix(lua_State *L)
 	return 1;
 }
 
-int getItem(lua_State *L)
-{
+int getItem(lua_State *L) {
 	luaL_checkstring(L, 1);
 	lua_pushstring(L, STATE_DB_KEY_PREFIX);
 	if (lua_gettop(L) == 3) {
@@ -130,8 +124,7 @@ int getItem(lua_State *L)
 	return getItemWithPrefix(L);
 }
 
-int delItemWithPrefix(lua_State *L)
-{
+int delItemWithPrefix(lua_State *L) {
 	char *dbKey;
 	int service = getLuaExecContext(L);
 	char *jsonValue;
@@ -151,8 +144,7 @@ int delItemWithPrefix(lua_State *L)
 	return 0;
 }
 
-static int getSender(lua_State *L)
-{
+static int getSender(lua_State *L) {
 	int service = getLuaExecContext(L);
 	char *sender;
 
@@ -163,8 +155,7 @@ static int getSender(lua_State *L)
 	return 1;
 }
 
-static int getTxhash(lua_State *L)
-{
+static int getTxhash(lua_State *L) {
 	int service = getLuaExecContext(L);
 	char *hash;
 
@@ -175,8 +166,7 @@ static int getTxhash(lua_State *L)
 	return 1;
 }
 
-static int getBlockHeight(lua_State *L)
-{
+static int getBlockHeight(lua_State *L) {
 	int service = getLuaExecContext(L);
 
 	lua_gasuse(L, 300);
@@ -185,8 +175,7 @@ static int getBlockHeight(lua_State *L)
 	return 1;
 }
 
-static int getTimestamp(lua_State *L)
-{
+static int getTimestamp(lua_State *L) {
 	int service = getLuaExecContext(L);
 
 	lua_gasuse(L, 300);
@@ -195,8 +184,7 @@ static int getTimestamp(lua_State *L)
 	return 1;
 }
 
-static int getContractID(lua_State *L)
-{
+static int getContractID(lua_State *L) {
 	int service = getLuaExecContext(L);
 	char *id;
 
@@ -207,8 +195,7 @@ static int getContractID(lua_State *L)
 	return 1;
 }
 
-static int getCreator(lua_State *L)
-{
+static int getCreator(lua_State *L) {
 	int service = getLuaExecContext(L);
 	struct luaGetDB_return ret;
 	int keylen = 7;
@@ -226,8 +213,7 @@ static int getCreator(lua_State *L)
 	return 1;
 }
 
-static int getAmount(lua_State *L)
-{
+static int getAmount(lua_State *L) {
 	int service = getLuaExecContext(L);
 	char *amount;
 
@@ -238,8 +224,7 @@ static int getAmount(lua_State *L)
 	return 1;
 }
 
-static int getOrigin(lua_State *L)
-{
+static int getOrigin(lua_State *L) {
 	int service = getLuaExecContext(L);
 	char *origin;
 
@@ -250,8 +235,7 @@ static int getOrigin(lua_State *L)
 	return 1;
 }
 
-static int getPrevBlockHash(lua_State *L)
-{
+static int getPrevBlockHash(lua_State *L) {
 	int service = getLuaExecContext(L);
 	char *hash;
 
@@ -263,22 +247,19 @@ static int getPrevBlockHash(lua_State *L)
 }
 /* datetime-related functions from lib_os.c. time(NULL) is replaced by blocktime(L) */
 
-static void setfield(lua_State *L, const char *key, int value)
-{
+static void setfield(lua_State *L, const char *key, int value) {
 	lua_pushinteger(L, value);
 	lua_setfield(L, -2, key);
 }
 
-static void setboolfield(lua_State *L, const char *key, int value)
-{
+static void setboolfield(lua_State *L, const char *key, int value) {
 	if (value < 0) /* undefined? */
 		return; /* does not set field */
 	lua_pushboolean(L, value);
 	lua_setfield(L, -2, key);
 }
 
-static int getboolfield(lua_State *L, const char *key)
-{
+static int getboolfield(lua_State *L, const char *key) {
 	int res;
 	lua_getfield(L, -1, key);
 	res = lua_isnil(L, -1) ? -1 : lua_toboolean(L, -1);
@@ -286,8 +267,7 @@ static int getboolfield(lua_State *L, const char *key)
 	return res;
 }
 
-static int getfield(lua_State *L, const char *key, int d)
-{
+static int getfield(lua_State *L, const char *key, int d) {
 	int res;
 	lua_getfield(L, -1, key);
 	if (lua_isnumber(L, -1)) {
@@ -301,8 +281,7 @@ static int getfield(lua_State *L, const char *key, int d)
 	return res;
 }
 
-static time_t blocktime(lua_State *L)
-{
+static time_t blocktime(lua_State *L) {
 	time_t t;
 	getTimestamp(L);
 	t = (time_t)lua_tointeger(L, -1);
@@ -310,8 +289,7 @@ static time_t blocktime(lua_State *L)
 	return t;
 }
 
-static int os_date(lua_State *L)
-{
+static int os_date(lua_State *L) {
 	const char *s = luaL_optstring(L, 1, "%c");
 	time_t t = luaL_opt(L, (time_t)luaL_checknumber, 2, blocktime(L));
 	struct tm *stm;
@@ -365,8 +343,7 @@ static int os_date(lua_State *L)
 	return 1;
 }
 
-static int os_time(lua_State *L)
-{
+static int os_time(lua_State *L) {
 	time_t t;
 	lua_gasuse(L, 100);
 	if (lua_isnoneornil(L, 1)) {
@@ -395,8 +372,7 @@ static int os_time(lua_State *L)
 	return 1;
 }
 
-static int os_difftime(lua_State *L)
-{
+static int os_difftime(lua_State *L) {
 	lua_gasuse(L, 100);
 	lua_pushnumber(L, difftime((time_t)(luaL_checknumber(L, 1)),
 	                           (time_t)(luaL_optnumber(L, 2, (lua_Number)0))));
@@ -405,8 +381,7 @@ static int os_difftime(lua_State *L)
 
 /* end of datetime functions */
 
-static int lua_random(lua_State *L)
-{
+static int lua_random(lua_State *L) {
 	int service = getLuaExecContext(L);
 	int min, max;
 
@@ -438,8 +413,7 @@ static int lua_random(lua_State *L)
 	return 1;
 }
 
-static int is_contract(lua_State *L)
-{
+static int is_contract(lua_State *L) {
 	char *contract;
 	int service = getLuaExecContext(L);
 	struct luaIsContract_return ret;
@@ -460,8 +434,7 @@ static int is_contract(lua_State *L)
 	return 1;
 }
 
-static int is_fee_delegation(lua_State *L)
-{
+static int is_fee_delegation(lua_State *L) {
 	int service = getLuaExecContext(L);
 	struct luaIsFeeDelegation_return ret;
 
@@ -500,8 +473,7 @@ static const luaL_Reg sys_lib[] = {
 	{NULL, NULL}
 };
 
-int luaopen_system(lua_State *L)
-{
+int luaopen_system(lua_State *L) {
 	luaL_register(L, "system", sys_lib);
 	lua_pop(L, 1);
 	return 1;
