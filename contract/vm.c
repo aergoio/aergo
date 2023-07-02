@@ -31,7 +31,7 @@ static void preloadModules(lua_State *L) {
 	luaopen_state(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
-	luaopen_gmp(L);
+	luaopen_bignum(L);
 	luaopen_utf8(L);
 
 	if (!isPublic()) {

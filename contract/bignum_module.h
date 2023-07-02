@@ -21,7 +21,7 @@ enum bn_type {
 	BN_Float
 };
 
-int luaopen_gmp(lua_State *L);
+int luaopen_bignum(lua_State *L);
 const char *lua_set_bignum(lua_State *L, char *s);
 mp_num Bgetbnum(lua_State *L, int i);
 int lua_isbignumber(lua_State *L, int i);

@@ -515,7 +515,7 @@ static const luaL_Reg R[] =
 	{ NULL,         NULL    }
 };
 
-LUALIB_API int luaopen_gmp(lua_State *L) {
+LUALIB_API int luaopen_bignum(lua_State *L) {
 	luaL_newmetatable(L,MYTYPE);
 	lua_setglobal(L,MYNAME);
 	luaL_register(L,MYNAME,R);
