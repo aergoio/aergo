@@ -17,7 +17,7 @@ static int get_keyword(const char *sql, char *keyword) {
 		char c = sql[i];
 		switch (c) {
 		case ' ':
-			/* fallthrough */
+		/* fallthrough */
 		case '\t':
 			if (spos > -1) {
 				epos = i;
@@ -125,9 +125,9 @@ int sqlcheck_is_permitted_sql(const char *sql) {
 				return 0;
 			}
 			if (strncmp(keyword, "TABLE", 5) == 0
-				|| strncmp(keyword, "INDEX", 5) == 0
-				|| strncmp(keyword, "UNIQUE", 6) == 0
-				|| strncmp(keyword, "VIEW", 4) == 0) {
+			    || strncmp(keyword, "INDEX", 5) == 0
+			    || strncmp(keyword, "UNIQUE", 6) == 0
+			    || strncmp(keyword, "VIEW", 4) == 0) {
 				return 1;
 			} else {
 				return 0;
