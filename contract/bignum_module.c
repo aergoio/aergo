@@ -275,26 +275,22 @@ static int Blt(lua_State *L) {
 	return 1;
 }
 
-static int Badd(lua_State *L)                   /** add(x,y) */
-{
+static int Badd(lua_State *L) {                 /** add(x,y) */
 	lua_gasuse(L, 100);
 	return Bdo1(L, mpz_add, 0);
 }
 
-static int Bsub(lua_State *L)                   /** sub(x,y) */
-{
+static int Bsub(lua_State *L) {                 /** sub(x,y) */
 	lua_gasuse(L, 100);
 	return Bdo1(L, mpz_sub, 0);
 }
 
-static int Bmul(lua_State *L)                   /** mul(x,y) */
-{
+static int Bmul(lua_State *L) {                 /** mul(x,y) */
 	lua_gasuse(L, 300);
 	return Bdo1(L, mpz_mul, 0);
 }
 
-static int Bpow(lua_State *L)                   /** pow(x,y) */
-{
+static int Bpow(lua_State *L) {                 /** pow(x,y) */
 	mp_num a = Bget(L, 1);
 	mp_num b = Bget(L, 2);
 	mp_num c;
@@ -357,20 +353,17 @@ static int Bpow(lua_State *L)                   /** pow(x,y) */
 	return 1;
 }
 
-static int Bdiv(lua_State *L)                   /** div(x,y) */
-{
+static int Bdiv(lua_State *L) {                 /** div(x,y) */
 	lua_gasuse(L, 300);
 	return Bdo1(L, mpz_tdiv_q, 1);
 }
 
-static int Bmod(lua_State *L)                   /** mod(x,y) */
-{
+static int Bmod(lua_State *L) {                 /** mod(x,y) */
 	lua_gasuse(L, 300);
 	return Bdo1(L, mpz_tdiv_r, 1);
 }
 
-static int Bdivmod(lua_State *L)                /** divmod(x,y) */
-{
+static int Bdivmod(lua_State *L) {              /** divmod(x,y) */
 	mp_num a=Bget(L,1);
 	mp_num b=Bget(L,2);
 	mp_num q;
@@ -401,8 +394,7 @@ static int Bgc(lua_State *L) {
 	return 0;
 }
 
-static int Bneg(lua_State *L)                   /** neg(x) */
-{
+static int Bneg(lua_State *L) {                 /** neg(x) */
 	mp_num a=Bget(L,1);
 	mp_num res;
 
@@ -417,8 +409,7 @@ static int Bneg(lua_State *L)                   /** neg(x) */
 	return 1;
 }
 
-static int Bpowmod(lua_State *L)                /** powmod(x,y,m) */
-{
+static int Bpowmod(lua_State *L) {              /** powmod(x,y,m) */
 	mp_num a=Bget(L,1);
 	mp_num k=Bget(L,2);
 	mp_num m=Bget(L,3);
@@ -441,8 +432,7 @@ static int Bpowmod(lua_State *L)                /** powmod(x,y,m) */
 	return 1;
 }
 
-static int Bsqrt(lua_State *L)                  /** sqrt(x) */
-{
+static int Bsqrt(lua_State *L) {                /** sqrt(x) */
 	mp_num a=Bget(L,1);
 	mp_num res;
 
@@ -480,8 +470,7 @@ const char *init_bignum() {
 	return NULL;
 }
 
-static const luaL_Reg R[] =
-{
+static const luaL_Reg R[] = {
 	{ "__add",      Badd    },              /** __add(x,y) */
 	{ "__div",      Bdiv    },              /** __div(x,y) */
 	{ "__eq",       Beq     },              /** __eq(x,y) */
