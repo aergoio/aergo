@@ -8,6 +8,7 @@ package chain
 import (
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"math"
 	"math/big"
 	"reflect"
@@ -638,7 +639,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 		block := msg.Block
 		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
-			Uint64("no", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+			Uint64("no", block.GetHeader().GetBlockNo()).Str("peer", p2putil.ShortForm(msg.PeerID)).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
 		if msg.Bstate != nil {

@@ -142,7 +142,7 @@ func (bf *BlockFactory) controller() {
 	notifyBpTimeout := func(bpi *bpInfo) {
 		timeout := bpi.slot.GetBpTimeout()
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
-		// TODO: skip when the triggered block has already been genearted!
+		// TODO: skip when the triggered block has already been generated!
 		bf.bpTimeoutC <- struct{}{}
 		logger.Debug().Int64("timeout", timeout).Msg("block production timeout signaled")
 	}
@@ -191,13 +191,13 @@ func (bf *BlockFactory) worker() {
 
 			if err == chain.ErrBestBlock {
 				time.Sleep(tickDuration())
-				// This means the best block is beging changed by the chain
+				// This means the best block is being changed by the chain
 				// service. If the chain service quickly executes the
 				// block, there may be still some remaining time to produce
 				// block in the current slot, though. Thus retry block
 				// production.
 				logger.Info().Err(err).Msg("retry block production")
-				bpi.updateBestBLock()
+				bpi.updateBestBlock()
 				goto retry
 			} else if err != nil {
 				logger.Info().Err(err).Msg("failed to produce block")
@@ -278,11 +278,13 @@ func (bf *BlockFactory) unsetRejected() {
 	bf.recentRejectedTx = nil
 }
 
+// handleRejected is checkAndHandle, actually. It checks if generation is successful or not and do post process along
+// with the result.
 func (bf *BlockFactory) handleRejected(bGen *chain.BlockGenerator, block *types.Block, et time.Duration) {
 
 	var (
 		cutoff = slot.BpMaxTime() * 2 / 3
-		bfRej  = bf.rejected()
+		bfRej  = bf.rejected() // recently rejected transaction
 		rej    = bGen.Rejected()
 		txs    = block.GetBody().GetTxs()
 	)

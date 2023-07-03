@@ -81,8 +81,8 @@ func execListEvent(cmd *cobra.Command, args []string) {
 		cmd.Printf("Failed: %s\n", err.Error())
 		return
 	}
-	for _, ev := range events.GetEvents() {
-		cmd.Println(util.JSON(ev))
+	for _, event := range events.GetEvents() {
+		cmd.Println(util.JSON(event))
 	}
 }
 
@@ -103,11 +103,11 @@ func execStreamEvent(cmd *cobra.Command, args []string) {
 		return
 	}
 	for {
-		ev, err := stream.Recv()
+		event, err := stream.Recv()
 		if err != nil {
 			cmd.Printf("Failed: %s\n", err.Error())
 			return
 		}
-		cmd.Println(util.JSON(ev))
+		cmd.Println(util.JSON(event))
 	}
 }

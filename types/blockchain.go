@@ -57,9 +57,9 @@ var (
 )
 
 func init() {
-	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
-	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
-	ProposalPrice, _ = new(big.Int).SetString("0", 10)
+	MaxAER = NewAmount(5*1e8, Aergo)       // 500,000,000 aergo
+	StakingMinimum = NewAmount(1e4, Aergo) // 10,000 aergo
+	ProposalPrice = NewZeroAmount()        // 0 aergo
 	lastIndexOfBH = getLastIndexOfBH()
 }
 

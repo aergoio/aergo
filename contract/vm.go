@@ -233,7 +233,7 @@ func (s *vmContext) IsGasSystem() bool {
 	return !s.isQuery && PubNet && s.blockInfo.ForkVersion >= 2
 }
 
-func (s *vmContext) refreshGas(L *LState) {
+func (s *vmContext) getRemainingGas(L *LState) {
 	if s.IsGasSystem() {
 		s.remainedGas = uint64(C.lua_gasget(L))
 	}
@@ -347,6 +347,7 @@ func newExecutor(
 		return ce
 	}
 	ctx.callDepth++
+
 	var lState *LState
 	if ctx.blockInfo.ForkVersion < 3 {
 		lState = GetLState(LStateDefault)
@@ -372,7 +373,7 @@ func newExecutor(
 	if ctx.IsGasSystem() {
 		ce.setGas()
 		defer func() {
-			ce.refreshGas()
+			ce.getRemainingGas()
 			if ctrLgr.IsDebugEnabled() {
 				ctrLgr.Debug().Uint64("gas used", ce.ctx.usedGas()).Str("lua vm", "loaded").Msg("gas information")
 			}
@@ -565,7 +566,7 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
-	defer ce.refreshGas()
+	defer ce.getRemainingGas()
 	if ce.isView == true {
 		ce.ctx.nestedView++
 		defer func() {
@@ -783,8 +784,8 @@ func (ce *executor) close() {
 	}
 }
 
-func (ce *executor) refreshGas() {
-	ce.ctx.refreshGas(ce.L)
+func (ce *executor) getRemainingGas() {
+	ce.ctx.getRemainingGas(ce.L)
 }
 
 func (ce *executor) gas() uint64 {
@@ -807,16 +808,19 @@ func getCallInfo(ci interface{}, args []byte, contractAddress []byte) error {
 
 func Call(
 	contractState *state.ContractState,
-	code, contractAddress []byte,
+	payload, contractAddress []byte,
 	ctx *vmContext,
 ) (string, []*types.Event, *big.Int, error) {
 
 	var err error
 	var ci types.CallInfo
+
+	// get contract
 	contract := getContract(contractState, ctx.bs)
 	if contract != nil {
-		if len(code) > 0 {
-			err = getCallInfo(&ci, code, contractAddress)
+		if len(payload) > 0 {
+			// get call arguments
+			err = getCallInfo(&ci, payload, contractAddress)
 		}
 	} else {
 		addr := types.EncodeAddress(contractAddress)
@@ -826,57 +830,71 @@ func Call(
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
+
 	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Str("abi", string(code)).Str("contract", types.EncodeAddress(contractAddress)).Msg("call")
+		ctrLgr.Debug().Str("abi", string(payload)).Str("contract", types.EncodeAddress(contractAddress)).Msg("call")
 	}
 
+	// create a new executor
 	contexts[ctx.service] = ctx
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 
+	// execute the contract call
 	ce.call(callMaxInstLimit, nil)
+
+	// check if there is an error
 	err = ce.err
 	if err != nil {
+		// rollback the state of the contract
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Str("contract", types.EncodeAddress(contractAddress)).Msg("rollback state")
 		}
+		// log the error
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-			evs := ce.getEvents()
-			if evs != nil {
+			events := ce.getEvents()
+			if events != nil {
 				_, _ = ctx.traceFile.WriteString("[Event]\n")
-				for _, ev := range evs {
-					eb, _ := ev.MarshalJSON()
-					_, _ = ctx.traceFile.Write(eb)
+				for _, event := range events {
+					eventJson, _ := event.MarshalJSON()
+					_, _ = ctx.traceFile.Write(eventJson)
 					_, _ = ctx.traceFile.WriteString("\n")
 				}
 			}
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL END] : %s(%s)\n",
 				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 		}
+		// return the error
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
+
+	// save the state of the contract
 	err = ce.commitCalledContract()
 	if err != nil {
 		ctrLgr.Error().Err(err).Str("contract", types.EncodeAddress(contractAddress)).Msg("commit state")
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
+
+	// log the result
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		evs := ce.getEvents()
-		if evs != nil {
+		events := ce.getEvents()
+		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, ev := range evs {
-				eb, _ := ev.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eb)
+			for _, event := range events {
+				eventJson, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(eventJson)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CALL END] : %s(%s)\n",
 			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 	}
+
+	// return the result
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
 }
 
@@ -912,6 +930,7 @@ func PreCall(
 	ctx.callState[sender.AccountID()] = &callState{curState: sender.State()}
 
 	ctx.curContract.rp = rp
+
 	ctx.gasLimit = gasLimit
 	ctx.remainedGas = gasLimit
 	if ctx.IsGasSystem() {
@@ -919,9 +938,13 @@ func PreCall(
 	}
 
 	contexts[ctx.service] = ctx
+
+	// execute the contract call
 	ce.call(callMaxInstLimit, nil)
+
 	err = ce.err
 	if err == nil {
+		// save the state of the contract
 		err = ce.commitCalledContract()
 		if err != nil {
 			ctrLgr.Error().Err(err).Str(
@@ -930,6 +953,7 @@ func PreCall(
 			).Msg("pre-call")
 		}
 	} else {
+		// rollback the state of the contract
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Str(
 				"contract",
@@ -937,36 +961,41 @@ func PreCall(
 			).Msg("pre-call")
 		}
 	}
+
 	if ctx.traceFile != nil {
 		contractId := ctx.curContract.contractId
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		evs := ce.getEvents()
-		if evs != nil {
+		events := ce.getEvents()
+		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, ev := range evs {
-				eb, _ := ev.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eb)
+			for _, event := range events {
+				eventJson, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(eventJson)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[PRECALL END] : %s(%s)\n",
 			types.EncodeAddress(contractId), types.ToAccountID(contractId)))
 	}
+
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), err
 }
 
-func PreloadEx(bs *state.BlockState, contractState *state.ContractState, code, contractAddress []byte,
+// loads a contract and prepares it for execution
+func PreloadExecutor(bs *state.BlockState, contractState *state.ContractState, payload, contractAddress []byte,
 	ctx *vmContext) (*executor, error) {
 
 	var err error
 	var ci types.CallInfo
 
+	// read contract code
 	contractCode := getContract(contractState, bs)
 
+	// get the arguments for the call
 	if contractCode != nil {
-		if len(code) > 0 {
-			err = getCallInfo(&ci, code, contractAddress)
+		if len(payload) > 0 {
+			err = getCallInfo(&ci, payload, contractAddress)
 		}
 	} else {
 		addr := types.EncodeAddress(contractAddress)
@@ -976,11 +1005,16 @@ func PreloadEx(bs *state.BlockState, contractState *state.ContractState, code, c
 	if err != nil {
 		return nil, err
 	}
+
+	// log some information
 	if ctrLgr.IsDebugEnabled() {
-		ctrLgr.Debug().Str("abi", string(code)).Str("contract", types.EncodeAddress(contractAddress)).Msg("preload")
+		ctrLgr.Debug().Str("abi", string(payload)).Str("contract", types.EncodeAddress(contractAddress)).Msg("preload")
 	}
+
+	// create a new executor for the call
 	ce := newExecutor(contractCode, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 
+	// return the executor
 	return ce, ce.err
 }
 
@@ -1013,6 +1047,7 @@ func Create(
 	code, contractAddress []byte,
 	ctx *vmContext,
 ) (string, []*types.Event, *big.Int, error) {
+
 	if len(code) == 0 {
 		return "", nil, ctx.usedFee(), errors.New("contract code is required")
 	}
@@ -1020,14 +1055,20 @@ func Create(
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("contract", types.EncodeAddress(contractAddress)).Msg("deploy")
 	}
+
+	// save the contract code
 	contract, args, err := setContract(contractState, contractAddress, code)
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
+
+	// set the creator
 	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(ctx.curContract.sender)))
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
+
+	// get the arguments for the constructor
 	var ci types.CallInfo
 	if len(args) > 0 {
 		err = getCallInfo(&ci.Args, args, contractAddress)
@@ -1039,62 +1080,74 @@ func Create(
 
 	contexts[ctx.service] = ctx
 
-	// create a sql database for the contract
 	if ctx.blockInfo.ForkVersion < 2 {
+		// create a sql database for the contract
 		if db := luaGetDbHandle(ctx.service); db == nil {
 			return "", nil, ctx.usedFee(), newVmError(errors.New("can't open a database connection"))
 		}
 	}
 
+	// create a new executor for the constructor
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, true, false, contractState)
 	defer ce.close()
 
+	// call the constructor
 	ce.call(callMaxInstLimit, nil)
+
+	// check if the call failed
 	err = ce.err
 	if err != nil {
 		ctrLgr.Debug().Msg("constructor is failed")
+		// rollback the state
 		if dbErr := ce.rollbackToSavepoint(); dbErr != nil {
 			ctrLgr.Error().Err(dbErr).Msg("rollback state")
 		}
-
+		// write the trace
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[error] : %s\n", err))
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-			evs := ce.getEvents()
-			if evs != nil {
+			events := ce.getEvents()
+			if events != nil {
 				_, _ = ctx.traceFile.WriteString("[Event]\n")
-				for _, ev := range evs {
-					eb, _ := ev.MarshalJSON()
-					_, _ = ctx.traceFile.Write(eb)
+				for _, event := range events {
+					eventJson, _ := event.MarshalJSON()
+					_, _ = ctx.traceFile.Write(eventJson)
 					_, _ = ctx.traceFile.WriteString("\n")
 				}
 			}
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CREATE END] : %s(%s)\n",
 				types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 		}
+		// return the error
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
+
+	// commit the state
 	err = ce.commitCalledContract()
 	if err != nil {
 		ctrLgr.Debug().Msg("constructor is failed")
 		ctrLgr.Error().Err(err).Msg("commit state")
 		return "", ce.getEvents(), ctx.usedFee(), err
 	}
+
+	// write the trace
 	if ctx.traceFile != nil {
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[ret] : %s\n", ce.jsonRet))
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[usedFee] : %s\n", ctx.usedFee().String()))
-		evs := ce.getEvents()
-		if evs != nil {
+		events := ce.getEvents()
+		if events != nil {
 			_, _ = ctx.traceFile.WriteString("[Event]\n")
-			for _, ev := range evs {
-				eb, _ := ev.MarshalJSON()
-				_, _ = ctx.traceFile.Write(eb)
+			for _, event := range events {
+				eventJson, _ := event.MarshalJSON()
+				_, _ = ctx.traceFile.Write(eventJson)
 				_, _ = ctx.traceFile.WriteString("\n")
 			}
 		}
 		_, _ = ctx.traceFile.WriteString(fmt.Sprintf("[CREATE END] : %s(%s)\n",
 			types.EncodeAddress(contractAddress), types.ToAccountID(contractAddress)))
 	}
+
+	// return the result
 	return ce.jsonRet, ce.getEvents(), ctx.usedFee(), nil
 }
 
@@ -1130,6 +1183,7 @@ func freeContextSlot(ctx *vmContext) {
 
 func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, contractState *state.ContractState, queryInfo []byte) (res []byte, err error) {
 	var ci types.CallInfo
+
 	contract := getContract(contractState, bs)
 	if contract != nil {
 		err = getCallInfo(&ci, queryInfo, contractAddress)
@@ -1152,9 +1206,11 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 
 	allocContextSlot(ctx)
 	defer freeContextSlot(ctx)
+
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("abi", string(queryInfo)).Str("contract", types.EncodeAddress(contractAddress)).Msg("query")
 	}
+
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 	defer func() {
@@ -1162,6 +1218,7 @@ func Query(contractAddress []byte, bs *state.BlockState, cdb ChainAccessor, cont
 			err = dbErr
 		}
 	}()
+
 	ce.call(queryMaxInstLimit, nil)
 
 	return []byte(ce.jsonRet), ce.err
@@ -1175,10 +1232,12 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 	if err != nil {
 		return
 	}
+
 	abi, err := GetABI(contractState, bs)
 	if err != nil {
 		return err
 	}
+
 	var found *types.Function
 	for _, f := range abi.Functions {
 		if f.Name == ci.Name {
@@ -1218,11 +1277,14 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 
 	allocContextSlot(ctx)
 	defer freeContextSlot(ctx)
+
 	if ctrLgr.IsDebugEnabled() {
 		ctrLgr.Debug().Str("abi", string(checkFeeDelegationFn)).Str("contract", types.EncodeAddress(contractAddress)).Msg("checkFeeDelegation")
 	}
+
 	ci.Args = append([]interface{}{ci.Name}, ci.Args...)
 	ci.Name = checkFeeDelegationFn
+
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, true, contractState)
 	defer ce.close()
 	defer func() {
@@ -1230,6 +1292,7 @@ func CheckFeeDelegation(contractAddress []byte, bs *state.BlockState, bi *types.
 			err = dbErr
 		}
 	}()
+
 	ce.call(queryMaxInstLimit, nil)
 
 	if ce.err != nil {
@@ -1360,7 +1423,7 @@ func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 			errMsg := C.GoString(cErrMsg)
 			return nil, errors.New(errMsg)
 		}
-		C.luaL_set_hardforkversion(lState, 2)
+		C.luaL_set_hardforkversion(lState, C.luaL_hardforkversion(parent))
 		C.vm_set_timeout_hook(lState)
 	}
 	byteCodeAbi, err := luacUtil.Compile(L, code)

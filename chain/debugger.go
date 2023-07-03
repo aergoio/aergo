@@ -71,7 +71,7 @@ func newDebugger() *Debugger {
 		if len(envStr) > 0 {
 			val, err := strconv.Atoi(envStr)
 			if err != nil {
-				logger.Error().Err(err).Msgf("%s environment varialble must be integer", envName)
+				logger.Error().Err(err).Msgf("environment variable %s must be integer", envName)
 				return
 			}
 			logger.Debug().Int("value", val).Msgf("env variable[%s] is set", envName)
@@ -112,7 +112,7 @@ func (debug *Debugger) Unset(cond StopCond) {
 	debug.Lock()
 	defer debug.Unlock()
 
-	logger.Debug().Str("cond", cond.String()).Msg("deubugger condition is unset")
+	logger.Debug().Str("cond", cond.String()).Msg("debugger condition is unset")
 	delete(debug.condMap, cond)
 }
 
