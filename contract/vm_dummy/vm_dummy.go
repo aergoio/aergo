@@ -71,12 +71,20 @@ func SetTimeout(timeout int) DummyChainOptions {
 
 func SetPubNet() DummyChainOptions {
 	return func(dc *DummyChain) {
+
+		// public and private chains have different features.
+		// private chains have the db module and public ones don't.
+		// this is why we need to flush all Lua states and recreate
+		// them when moving to and from public chain.
 		flushLState := func() {
 			for i := 0; i <= lStateMaxSize; i++ {
 				s := contract.GetLState(contract.LStateDefault)
 				contract.FreeLState(s, contract.LStateDefault)
+				s = contract.GetLState(contract.LStateVer3)
+				contract.FreeLState(s, contract.LStateVer3)
 			}
 		}
+
 		contract.PubNet = true
 		fee.DisableZeroFee()
 		flushLState()
@@ -104,6 +112,9 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 			bc.Release()
 		}
 	}()
+
+	// reset the transaction id counter
+	luaTxId = 0
 
 	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
 	if err != nil {
@@ -419,6 +430,7 @@ func NewLuaTxDeploy(sender, contract string, amount uint64, code string) *luaTxD
 		}
 	}
 */
+
 var luaTxId uint64 = 0
 
 func newTxId() uint64 {

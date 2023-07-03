@@ -16,7 +16,7 @@ package contract
  #include <stdlib.h>
  #include <string.h>
  #include "vm.h"
- #include "lgmp.h"
+ #include "bignum_module.h"
 */
 import "C"
 import (
@@ -774,12 +774,13 @@ func (ce *executor) close() {
 				ce.ctx.traceFile = nil
 			}
 		}
-
-		lsType := LStateDefault
-		if ce.ctx.blockInfo.ForkVersion >= 3 {
-			lsType = LStateVer3
+		if ce.L != nil {
+			lsType := LStateDefault
+			if ce.ctx.blockInfo.ForkVersion >= 3 {
+				lsType = LStateVer3
+			}
+			FreeLState(ce.L, lsType)
 		}
-		FreeLState(ce.L, lsType)
 	}
 }
 
@@ -1422,7 +1423,7 @@ func Compile(code string, parent *LState) (luacUtil.LuaCode, error) {
 			errMsg := C.GoString(cErrMsg)
 			return nil, errors.New(errMsg)
 		}
-		C.luaL_set_hardforkversion(lState, 2)
+		C.luaL_set_hardforkversion(lState, C.luaL_hardforkversion(parent))
 		C.vm_set_timeout_hook(lState)
 	}
 	byteCodeAbi, err := luacUtil.Compile(L, code)
