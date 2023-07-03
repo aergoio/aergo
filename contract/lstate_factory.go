@@ -63,6 +63,8 @@ func GetLState(lsType int) *LState {
 }
 
 func FreeLState(state *LState, lsType int) {
-	freeCh[lsType] <- state
-	ctrLgr.Debug().Int("type", lsType).Msg("LState released")
+	if state != nil {
+		freeCh[lsType] <- state
+		ctrLgr.Debug().Int("type", lsType).Msg("LState released")
+	}
 }

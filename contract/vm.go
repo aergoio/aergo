@@ -774,12 +774,13 @@ func (ce *executor) close() {
 				ce.ctx.traceFile = nil
 			}
 		}
-
-		lsType := LStateDefault
-		if ce.ctx.blockInfo.ForkVersion >= 3 {
-			lsType = LStateVer3
+		if ce.L != nil {
+			lsType := LStateDefault
+			if ce.ctx.blockInfo.ForkVersion >= 3 {
+				lsType = LStateVer3
+			}
+			FreeLState(ce.L, lsType)
 		}
-		FreeLState(ce.L, lsType)
 	}
 }
 
