@@ -1,3 +1,8 @@
+state.var {
+  values = state.map(),
+  _value1 = state.value(),
+  _value2 = state.value(),
+}
 
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
 
@@ -1132,6 +1137,28 @@ funcs = {
     crypto.ecverify("11e96f2b58622a0ce815b81f94da04ae7a17ba17602feb1fd5afa4b9f2467960", "304402202e6d5664a87c2e29856bf8ff8b47caf44169a2a4a135edd459640be5b1b6ef8102200d8ea1f6f9ecdb7b520cdb3cc6816d773df47a1820d43adb4b74fb879fb27402", "AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
   end,
 
+  -- state module --
+
+  ["state.set"] = function()
+    values["key1"] = "value1"
+    values["key2"] = "value2"
+    _value1:set("hello")
+    _value2:set("world")
+  end,
+  ["state.get"] = function()
+    v1 = values["key1"]
+    v2 = values["key2"]
+    v3 = _value1:get()
+    v4 = _value2:get()
+    return v1 .. " " .. v2 .. " " .. v3 .. " " .. v4
+  end,
+  ["state.delete"] = function()
+    values["key1"] = nil
+    values:delete("key2")
+    _value1:set(nil)
+    _value2:set(nil)
+  end,
+
   -- system module --
 
   ["system.getSender"] = function(...)
@@ -1169,6 +1196,82 @@ funcs = {
     return system.getPrevBlockHash()
   end,
 
+  -- contract module --
+
+  -- send
+  ["contract.send"] = function()
+    contract.send("AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i", 10000000000)
+    contract.send("Amh4S9pZgoJpxdCoMGg6SXEpAstTaTQNfQdZFsE26NpkqPwmaWod", "1 aergo 10 gaer")
+    contract.send("Amg3EzRrAhyWmWUMHai5ZDZufbTXrorGutbwuHv6khQc8Cs2KWgA", bignum.number("999999999999999"))
+  end,
+  -- balance
+  ["contract.balance"] = function()
+    local b1 = contract.balance("AmPbWrQbtQrCaJqLWdMtfk2KiN83m2HFpBbQQSTxqqchVv58o82i")
+    local b2 = contract.balance("Amh4S9pZgoJpxdCoMGg6SXEpAstTaTQNfQdZFsE26NpkqPwmaWod")
+    local b3 = contract.balance("Amg3EzRrAhyWmWUMHai5ZDZufbTXrorGutbwuHv6khQc8Cs2KWgA")
+  end,
+  -- deploy
+  ["contract.deploy"] = function()
+    src = [[
+      function hello(say)
+          return "Hello " .. say .. " " .. system.getItem("name")
+      end
+      function emit(name, ...)
+        contract.event(name, ...)
+      end
+      function constructor(creator)
+          system.setItem("name", creator)
+      end
+      abi.register(hello, emit)
+      abi.payable(constructor)
+    ]]
+    address1 = contract.deploy(src, "first")
+    address2 = contract.deploy.value("1 aergo")(src, "second")
+    address3 = contract.deploy.value(bignum.number("999999999999999"))(src, "third")
+    system.setItem("address1", address1)
+    system.setItem("address2", address2)
+    system.setItem("address3", address3)
+  end,
+  -- call
+  ["contract.call"] = function()
+    address1 = system.getItem("address1")
+    address2 = system.getItem("address2")
+    address3 = system.getItem("address3")
+    contract.call(address1, "hello", "world")
+    contract.call(address2, "hello", "world")
+    contract.call(address3, "hello", "world")
+  end,
+  -- pcall
+  ["contract.pcall"] = function()
+    address1 = system.getItem("address1")
+    address2 = system.getItem("address2")
+    address3 = system.getItem("address3")
+    contract.pcall(contract.call, address1, "hello", "world")
+    contract.pcall(contract.call, address2, "hello", "world")
+    contract.pcall(contract.call, address3, "hello", "world")
+  end,
+  -- delegatecall
+  ["contract.delegatecall"] = function()
+    src = [[
+      function update(key, value)
+        system.setItem(key, value)
+      end
+      abi.register(update)
+    ]]
+    address = contract.deploy(src)
+    contract.delegatecall(address, "update", "key1", "modified")
+    assert(system.getItem("key1") == "modified")
+  end,
+  -- event
+  ["contract.event"] = function()
+    address1 = system.getItem("address1")
+    address2 = system.getItem("address2")
+    address3 = system.getItem("address3")
+    contract.call(address1, "emit", "event1", "arg1", "arg2")
+    contract.call(address2, "emit", "event2", "arg1", "arg2")
+    contract.call(address3, "emit", "event3", "arg1", "arg2")
+  end,
+
 }
 
 function run_test(function_name, ...)
@@ -1183,4 +1286,9 @@ function run_test(function_name, ...)
 
 end
 
+function deposit()
+  -- do nothing, only receive native aergo tokens
+end
+
 abi.register(run_test)
+abi.payable(deposit)

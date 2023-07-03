@@ -2535,16 +2535,22 @@ func TestGasPerFunction(t *testing.T) {
 	code := readLuaCode("gas_per_function.lua")
 	require.NotEmpty(t, code, "failed to read gas_per_function.lua")
 
-	// deploy the contract
 	bc, err := LoadDummyChain(SetPubNet())
 	assert.NoError(t, err)
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount(DEF_TEST_ACCOUNT, DEF_TEST_AMOUNT),
+		// add funds to account
+		NewLuaTxAccount(DEF_TEST_ACCOUNT, 100, types.Aergo),
+		// deploy the contract
 		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, code),
 	)
 	assert.NoError(t, err)
+
+  // transfer funds to the contract
+  tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(10e18), `{"Name":"deposit"}`)
+  err = bc.ConnectBlock(tx)
+  assert.NoError(t, err, "sending funds to contract")
 
 	// set the hard fork version
 	bc.HardforkVersion = 2
@@ -2555,110 +2561,123 @@ func TestGasPerFunction(t *testing.T) {
 		amount     int64
 		expectedGas int64
 	}{
-		{ "comp_ops", "", 0, 130648 },
-		{ "unarytest_n_copy_ops", "", 0, 130561 },
-		{ "unary_ops", "", 0, 130996 },
-		{ "binary_ops", "", 0, 132519 },
-		{ "constant_ops", "", 0, 130476 },
-		{ "upvalue_n_func_ops", "", 0, 131791 },
-		{ "table_ops", "", 0, 131782 },
-		{ "call_n_vararg_ops", "", 0, 132445 },
-		{ "return_ops", "", 0, 130481 },
-		{ "loop_n_branche_ops", "", 0, 133816 },
-		{ "function_header_ops", "", 0, 130460 },
-		{ "assert", "", 0, 130590 },
-		{ "getfenv", "", 0, 130485 },
-		{ "metatable", "", 0, 131432 },
-		{ "ipairs", "", 0, 130483 },
-		{ "pairs", "", 0, 130483 },
-		{ "next", "", 0, 130531 },
-		{ "rawequal", "", 0, 130660 },
-		{ "rawget", "", 0, 130531 },
-		{ "rawset", "", 0, 131385 },
-		{ "select", "", 0, 130610 },
-		{ "setfenv", "", 0, 130520 },
-		{ "tonumber", "", 0, 130630 },
-		{ "tostring", "", 0, 130901 },
-		{ "type", "", 0, 130729 },
-		{ "unpack", "", 0, 138189 },
-		{ "pcall", "", 0, 134218 },
-		{ "xpcall", "", 0, 134490 },
+		{ "comp_ops", "", 0, 134635 },
+		{ "unarytest_n_copy_ops", "", 0, 134548 },
+		{ "unary_ops", "", 0, 134947 },
+		{ "binary_ops", "", 0, 136470 },
+		{ "constant_ops", "", 0, 134463 },
+		{ "upvalue_n_func_ops", "", 0, 135742 },
+		{ "table_ops", "", 0, 135733 },
+		{ "call_n_vararg_ops", "", 0, 136396 },
+		{ "return_ops", "", 0, 134468 },
+		{ "loop_n_branche_ops", "", 0, 137803 },
+		{ "function_header_ops", "", 0, 134447 },
 
-		{ "string.byte", "", 0, 144484 },
-		{ "string.char", "", 0, 147841 },
-		{ "string.dump", "", 0, 134349 },
-		{ "string.find", "", 0, 135252 },
-		{ "string.format", "", 0, 131208 },
-		{ "string.gmatch", "", 0, 131243 },
-		{ "string.gsub", "", 0, 132387 },
-		{ "string.len", "", 0, 130541 },
-		{ "string.lower", "", 0, 135795 },
-		{ "string.match", "", 0, 130757 },
-		{ "string.rep", "", 0, 209372 },
-		{ "string.reverse", "", 0, 135795 },
-		{ "string.sub", "", 0, 132649 },
-		{ "string.upper", "", 0, 135795 },
+		{ "assert", "", 0, 134577 },
+		{ "getfenv", "", 0, 134472 },
+		{ "metatable", "", 0, 135383 },
+		{ "ipairs", "", 0, 134470 },
+		{ "pairs", "", 0, 134470 },
+		{ "next", "", 0, 134518 },
+		{ "rawequal", "", 0, 134647 },
+		{ "rawget", "", 0, 134518 },
+		{ "rawset", "", 0, 135336 },
+		{ "select", "", 0, 134597 },
+		{ "setfenv", "", 0, 134507 },
+		{ "tonumber", "", 0, 134581 },
+		{ "tostring", "", 0, 134852 },
+		{ "type", "", 0, 134680 },
+		{ "unpack", "", 0, 142140 },
+		{ "pcall", "", 0, 138169 },
+		{ "xpcall", "", 0, 138441 },
 
-		{ "table.concat", "", 0, 151312 },
-		{ "table.insert", "", 0, 284698 },
-		{ "table.remove", "", 0, 144108 },
-		{ "table.maxn", "", 0, 135406 },
-		{ "table.sort", "", 0, 147310 },
+		{ "string.byte", "", 0, 148435 },
+		{ "string.char", "", 0, 151792 },
+		{ "string.dump", "", 0, 138300 },
+		{ "string.find", "", 0, 139239 },
+		{ "string.format", "", 0, 135159 },
+		{ "string.gmatch", "", 0, 135194 },
+		{ "string.gsub", "", 0, 136338 },
+		{ "string.len", "", 0, 134528 },
+		{ "string.lower", "", 0, 139746 },
+		{ "string.match", "", 0, 134708 },
+		{ "string.rep", "", 0, 213323 },
+		{ "string.reverse", "", 0, 139746 },
+		{ "string.sub", "", 0, 136600 },
+		{ "string.upper", "", 0, 139746 },
 
-		{ "math.abs", "", 0, 130628 },
-		{ "math.ceil", "", 0, 130628 },
-		{ "math.floor", "", 0, 130628 },
-		{ "math.max", "", 0, 131000 },
-		{ "math.min", "", 0, 131000 },
-		{ "math.pow", "", 0, 130988 },
+		{ "table.concat", "", 0, 155263 },
+		{ "table.insert", "", 0, 288649 },
+		{ "table.remove", "", 0, 148059 },
+		{ "table.maxn", "", 0, 139357 },
+		{ "table.sort", "", 0, 151261 },
 
-		{ "bit.tobit", "", 0, 130523 },
-		{ "bit.tohex", "", 0, 131034 },
-		{ "bit.bnot", "", 0, 130500 },
-		{ "bit.bor", "", 0, 130574 },
-		{ "bit.band", "", 0, 130550 },
-		{ "bit.xor", "", 0, 130550 },
-		{ "bit.lshift", "", 0, 130523 },
-		{ "bit.rshift", "", 0, 130523 },
-		{ "bit.ashift", "", 0, 130523 },
-		{ "bit.rol", "", 0, 130523 },
-		{ "bit.ror", "", 0, 130523 },
-		{ "bit.bswap", "", 0, 130480 },
+		{ "math.abs", "", 0, 134615 },
+		{ "math.ceil", "", 0, 134615 },
+		{ "math.floor", "", 0, 134615 },
+		{ "math.max", "", 0, 134987 },
+		{ "math.min", "", 0, 134987 },
+		{ "math.pow", "", 0, 134975 },
 
-		{ "bignum.number", "", 0, 132356 },
-		{ "bignum.isneg", "", 0, 132588 },
-		{ "bignum.iszero", "", 0, 132588 },
-		{ "bignum.tonumber", "", 0, 132908 },
-		{ "bignum.tostring", "", 0, 133199 },
-		{ "bignum.neg", "", 0, 134652 },
-		{ "bignum.sqrt", "", 0, 135528 },
-		{ "bignum.compare", "", 0, 132853 },
-		{ "bignum.add", "", 0, 134194 },
-		{ "bignum.sub", "", 0, 134139 },
-		{ "bignum.mul", "", 0, 136517 },
-		{ "bignum.div", "", 0, 136007 },
-		{ "bignum.mod", "", 0, 137942 },
-		{ "bignum.pow", "", 0, 136936 },
-		{ "bignum.divmod", "", 0, 142242 },
-		{ "bignum.powmod", "", 0, 141608 },
-		{ "bignum.operators", "", 0, 134860 },
+		{ "bit.tobit", "", 0, 134510 },
+		{ "bit.tohex", "", 0, 134985 },
+		{ "bit.bnot", "", 0, 134487 },
+		{ "bit.bor", "", 0, 134561 },
+		{ "bit.band", "", 0, 134537 },
+		{ "bit.xor", "", 0, 134537 },
+		{ "bit.lshift", "", 0, 134510 },
+		{ "bit.rshift", "", 0, 134510 },
+		{ "bit.ashift", "", 0, 134510 },
+		{ "bit.rol", "", 0, 134510 },
+		{ "bit.ror", "", 0, 134510 },
+		{ "bit.bswap", "", 0, 134467 },
 
-		{ "json", "", 0, 138369 },
+		{ "bignum.number", "", 0, 136307 },
+		{ "bignum.isneg", "", 0, 136539 },
+		{ "bignum.iszero", "", 0, 136539 },
+		{ "bignum.tonumber", "", 0, 136859 },
+		{ "bignum.tostring", "", 0, 137150 },
+		{ "bignum.neg", "", 0, 138603 },
+		{ "bignum.sqrt", "", 0, 139479 },
+		{ "bignum.compare", "", 0, 136804 },
+		{ "bignum.add", "", 0, 138145 },
+		{ "bignum.sub", "", 0, 138090 },
+		{ "bignum.mul", "", 0, 140468 },
+		{ "bignum.div", "", 0, 139958 },
+		{ "bignum.mod", "", 0, 141893 },
+		{ "bignum.pow", "", 0, 140887 },
+		{ "bignum.divmod", "", 0, 146193 },
+		{ "bignum.powmod", "", 0, 145559 },
+		{ "bignum.operators", "", 0, 138811 },
 
-		{ "crypto.sha256", "", 0, 133627 },
-		{ "crypto.ecverify", "", 0, 135480 },
+		{ "json", "", 0, 142320 },
 
-		{ "system.getSender", "", 0, 131705 },
-		{ "system.getBlockheight", "", 0, 130774 },
-		{ "system.getTxhash", "", 0, 131181 },
-		{ "system.getTimestamp", "", 0, 130774 },
-		{ "system.getContractID", "", 0, 131705 },
-		{ "system.setItem", "", 0, 131638 },
-		{ "system.getItem", "", 0, 131947 },
-		{ "system.getAmount", "", 0, 130852 },
-		{ "system.getCreator", "", 0, 131205 },
-		{ "system.getOrigin", "", 0, 131705 },
-		{ "system.getPrevBlockHash", "", 0, 131181 },
+		{ "crypto.sha256", "", 0, 137578 },
+		{ "crypto.ecverify", "", 0, 139467 },
+
+		{ "state.set", "", 0, 137310 },
+		{ "state.get", "", 0, 137115 },
+		{ "state.delete", "", 0, 137122 },
+
+		{ "system.getSender", "", 0, 135656 },
+		{ "system.getBlockheight", "", 0, 134761 },
+		{ "system.getTxhash", "", 0, 135132 },
+		{ "system.getTimestamp", "", 0, 134761 },
+		{ "system.getContractID", "", 0, 135656 },
+		{ "system.setItem", "", 0, 135589 },
+		{ "system.getItem", "", 0, 135898 },
+		{ "system.getAmount", "", 0, 134803 },
+		{ "system.getCreator", "", 0, 135156 },
+		{ "system.getOrigin", "", 0, 135656 },
+		{ "system.getPrevBlockHash", "", 0, 135132 },
+
+		{ "contract.send", "", 0, 135716 },
+		{ "contract.balance", "", 0, 135605 },
+		{ "contract.deploy", "", 0, 158752 },
+		{ "contract.call", "", 0, 149642 },
+		{ "contract.pcall", "", 0, 150563 },
+		{ "contract.delegatecall", "", 0, 144902 },
+		{ "contract.event", "", 0, 153263 },
 	}
 
 	// iterate over the tests
@@ -2674,15 +2693,15 @@ func TestGasPerFunction(t *testing.T) {
 		} else {
 			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s",%s]}`, funcName, funcArgs)
 		}
-		tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
+		tx = NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
 		err = bc.ConnectBlock(tx)
-		assert.NoError(t, err)
+		assert.NoError(t, err, "while executing %s", funcName)
 
 		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
 		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
 
 		// print the function name and the used gas
-		//fmt.Printf("{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+		//fmt.Printf("		{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
 	}
 
 }
