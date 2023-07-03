@@ -113,6 +113,9 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 		}
 	}()
 
+	// reset the transaction id counter
+	luaTxId = 0
+
 	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
 	if err != nil {
 		return nil, err
@@ -427,6 +430,7 @@ func NewLuaTxDeploy(sender, contract string, amount uint64, code string) *luaTxD
 		}
 	}
 */
+
 var luaTxId uint64 = 0
 
 func newTxId() uint64 {
