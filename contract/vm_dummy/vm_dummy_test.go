@@ -2530,6 +2530,163 @@ func TestFeaturePcallNested(t *testing.T) {
 	assert.Equal(t, int64(types.Aergo), state.GetBalanceBigInt().Int64(), "balance error")
 }
 
+func TestGasPerFunction(t *testing.T) {
+	var err error
+	code := readLuaCode("gas_per_function.lua")
+	require.NotEmpty(t, code, "failed to read gas_per_function.lua")
+
+	// deploy the contract
+	bc, err := LoadDummyChain(SetPubNet())
+	assert.NoError(t, err)
+	defer bc.Release()
+
+	err = bc.ConnectBlock(
+		NewLuaTxAccount(DEF_TEST_ACCOUNT, DEF_TEST_AMOUNT),
+		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, code),
+	)
+	assert.NoError(t, err)
+
+	// set the hard fork version
+	bc.HardforkVersion = 2
+
+	tests_v2 := []struct {
+		funcName   string
+		funcArgs   string
+		amount     int64
+		expectedGas int64
+	}{
+		{ "comp_ops", "", 0, 130648 },
+		{ "unarytest_n_copy_ops", "", 0, 130561 },
+		{ "unary_ops", "", 0, 130996 },
+		{ "binary_ops", "", 0, 132519 },
+		{ "constant_ops", "", 0, 130476 },
+		{ "upvalue_n_func_ops", "", 0, 131791 },
+		{ "table_ops", "", 0, 131782 },
+		{ "call_n_vararg_ops", "", 0, 132445 },
+		{ "return_ops", "", 0, 130481 },
+		{ "loop_n_branche_ops", "", 0, 133816 },
+		{ "function_header_ops", "", 0, 130460 },
+		{ "assert", "", 0, 130590 },
+		{ "getfenv", "", 0, 130485 },
+		{ "metatable", "", 0, 131432 },
+		{ "ipairs", "", 0, 130483 },
+		{ "pairs", "", 0, 130483 },
+		{ "next", "", 0, 130531 },
+		{ "rawequal", "", 0, 130660 },
+		{ "rawget", "", 0, 130531 },
+		{ "rawset", "", 0, 131385 },
+		{ "select", "", 0, 130610 },
+		{ "setfenv", "", 0, 130520 },
+		{ "tonumber", "", 0, 130630 },
+		{ "tostring", "", 0, 130901 },
+		{ "type", "", 0, 130729 },
+		{ "unpack", "", 0, 138189 },
+		{ "pcall", "", 0, 134218 },
+		{ "xpcall", "", 0, 134490 },
+
+		{ "string.byte", "", 0, 144484 },
+		{ "string.char", "", 0, 147841 },
+		{ "string.dump", "", 0, 134349 },
+		{ "string.find", "", 0, 135252 },
+		{ "string.format", "", 0, 131208 },
+		{ "string.gmatch", "", 0, 131243 },
+		{ "string.gsub", "", 0, 132387 },
+		{ "string.len", "", 0, 130541 },
+		{ "string.lower", "", 0, 135795 },
+		{ "string.match", "", 0, 130757 },
+		{ "string.rep", "", 0, 209372 },
+		{ "string.reverse", "", 0, 135795 },
+		{ "string.sub", "", 0, 132649 },
+		{ "string.upper", "", 0, 135795 },
+
+		{ "table.concat", "", 0, 151312 },
+		{ "table.insert", "", 0, 284698 },
+		{ "table.remove", "", 0, 144108 },
+		{ "table.maxn", "", 0, 135406 },
+		{ "table.sort", "", 0, 147310 },
+
+		{ "math.abs", "", 0, 130628 },
+		{ "math.ceil", "", 0, 130628 },
+		{ "math.floor", "", 0, 130628 },
+		{ "math.max", "", 0, 131000 },
+		{ "math.min", "", 0, 131000 },
+		{ "math.pow", "", 0, 130988 },
+
+		{ "bit.tobit", "", 0, 130523 },
+		{ "bit.tohex", "", 0, 131034 },
+		{ "bit.bnot", "", 0, 130500 },
+		{ "bit.bor", "", 0, 130574 },
+		{ "bit.band", "", 0, 130550 },
+		{ "bit.xor", "", 0, 130550 },
+		{ "bit.lshift", "", 0, 130523 },
+		{ "bit.rshift", "", 0, 130523 },
+		{ "bit.ashift", "", 0, 130523 },
+		{ "bit.rol", "", 0, 130523 },
+		{ "bit.ror", "", 0, 130523 },
+		{ "bit.bswap", "", 0, 130480 },
+
+		{ "bignum.number", "", 0, 132356 },
+		{ "bignum.isneg", "", 0, 132588 },
+		{ "bignum.iszero", "", 0, 132588 },
+		{ "bignum.tonumber", "", 0, 132908 },
+		{ "bignum.tostring", "", 0, 133199 },
+		{ "bignum.neg", "", 0, 134652 },
+		{ "bignum.sqrt", "", 0, 135528 },
+		{ "bignum.compare", "", 0, 132853 },
+		{ "bignum.add", "", 0, 134194 },
+		{ "bignum.sub", "", 0, 134139 },
+		{ "bignum.mul", "", 0, 136517 },
+		{ "bignum.div", "", 0, 136007 },
+		{ "bignum.mod", "", 0, 137942 },
+		{ "bignum.pow", "", 0, 136936 },
+		{ "bignum.divmod", "", 0, 142242 },
+		{ "bignum.powmod", "", 0, 141608 },
+		{ "bignum.operators", "", 0, 134860 },
+
+		{ "json", "", 0, 138369 },
+
+		{ "crypto.sha256", "", 0, 133627 },
+		{ "crypto.ecverify", "", 0, 135480 },
+
+		{ "system.getSender", "", 0, 131705 },
+		{ "system.getBlockheight", "", 0, 130774 },
+		{ "system.getTxhash", "", 0, 131181 },
+		{ "system.getTimestamp", "", 0, 130774 },
+		{ "system.getContractID", "", 0, 131705 },
+		{ "system.setItem", "", 0, 131638 },
+		{ "system.getItem", "", 0, 131947 },
+		{ "system.getAmount", "", 0, 130852 },
+		{ "system.getCreator", "", 0, 131205 },
+		{ "system.getOrigin", "", 0, 131705 },
+		{ "system.getPrevBlockHash", "", 0, 131181 },
+	}
+
+	// iterate over the tests
+	for _, test := range tests_v2 {
+		funcName := test.funcName
+		funcArgs := test.funcArgs
+		amount := test.amount
+		expectedGas := test.expectedGas
+
+		var payload string
+		if len(funcArgs) == 0 {
+			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s"]}`, funcName)
+		} else {
+			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s",%s]}`, funcName, funcArgs)
+		}
+		tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
+		err = bc.ConnectBlock(tx)
+		assert.NoError(t, err)
+
+		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
+		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
+
+		// print the function name and the used gas
+		//fmt.Printf("{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+	}
+
+}
+
 func TestFeatureLuaCryptoVerifyProof(t *testing.T) {
 	code := readLuaCode("feature_luacryptoverifyproof.lua")
 	require.NotEmpty(t, code, "failed to read feature_luacryptoverifyproof.lua")
