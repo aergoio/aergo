@@ -15,7 +15,6 @@ import (
 )
 
 /* The preloadWorker optimizes the execution time by preloading the next transaction while executing the current transaction */
-
 type preloadRequest struct {
 	preloadService int
 	bs             *state.BlockState
@@ -31,7 +30,7 @@ type preloadReply struct {
 }
 
 type preloader struct {
-	requestedTx *types.Tx  // the next preload tx to be executed
+	requestedTx *types.Tx // the next preload tx to be executed
 	replyCh     chan *preloadReply
 }
 
@@ -278,7 +277,7 @@ func preloadWorker() {
 		}
 
 		bs := request.bs
-		tx := request.next  // the tx to preload the executor for
+		tx := request.next // the tx to preload the executor for
 		txBody := tx.GetBody()
 		recipient := txBody.Recipient
 
