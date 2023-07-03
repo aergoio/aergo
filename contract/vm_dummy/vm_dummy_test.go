@@ -2552,9 +2552,6 @@ func TestGasPerFunction(t *testing.T) {
   err = bc.ConnectBlock(tx)
   assert.NoError(t, err, "sending funds to contract")
 
-	// set the hard fork version
-	bc.HardforkVersion = 2
-
 	tests_v2 := []struct {
 		funcName   string
 		funcArgs   string
@@ -2680,8 +2677,163 @@ func TestGasPerFunction(t *testing.T) {
 		{ "contract.event", "", 0, 153263 },
 	}
 
+	tests_v3 := []struct {
+		funcName   string
+		funcArgs   string
+		amount     int64
+		expectedGas int64
+	}{
+		{ "comp_ops", "", 0, 134740 },
+		{ "unarytest_n_copy_ops", "", 0, 134653 },
+		{ "unary_ops", "", 0, 139660 },
+		{ "binary_ops", "", 0, 136575 },
+		{ "constant_ops", "", 0, 134568 },
+		{ "upvalue_n_func_ops", "", 0, 135847 },
+		{ "table_ops", "", 0, 139894 },
+		{ "call_n_vararg_ops", "", 0, 136501 },
+		{ "return_ops", "", 0, 134573 },
+		{ "loop_n_branche_ops", "", 0, 137908 },
+		{ "function_header_ops", "", 0, 134552 },
+
+		{ "assert", "", 0, 134682 },
+		{ "getfenv", "", 0, 134577 },
+		{ "metatable", "", 0, 135488 },
+		{ "ipairs", "", 0, 134575 },
+		{ "pairs", "", 0, 134575 },
+		{ "next", "", 0, 134623 },
+		{ "rawequal", "", 0, 134752 },
+		{ "rawget", "", 0, 134623 },
+		{ "rawset", "", 0, 135441 },
+		{ "select", "", 0, 134702 },
+		{ "setfenv", "", 0, 134612 },
+		{ "tonumber", "", 0, 134686 },
+		{ "tostring", "", 0, 134957 },
+		{ "type", "", 0, 134785 },
+		{ "unpack", "", 0, 142245 },
+		{ "pcall", "", 0, 137665 },
+		{ "xpcall", "", 0, 137937 },
+
+		{ "string.byte", "", 0, 148540 },
+		{ "string.char", "", 0, 151897 },
+		{ "string.dump", "", 0, 138366 },
+		{ "string.find", "", 0, 139344 },
+		{ "string.format", "", 0, 135264 },
+		{ "string.gmatch", "", 0, 135299 },
+		{ "string.gsub", "", 0, 136443 },
+		{ "string.len", "", 0, 134633 },
+		{ "string.lower", "", 0, 139851 },
+		{ "string.match", "", 0, 134813 },
+		{ "string.rep", "", 0, 213428 },
+		{ "string.reverse", "", 0, 139851 },
+		{ "string.sub", "", 0, 136705 },
+		{ "string.upper", "", 0, 139851 },
+
+		{ "table.concat", "", 0, 155368 },
+		{ "table.insert", "", 0, 288754 },
+		{ "table.remove", "", 0, 148164 },
+		{ "table.maxn", "", 0, 139462 },
+		{ "table.sort", "", 0, 151366 },
+
+		{ "math.abs", "", 0, 134720 },
+		{ "math.ceil", "", 0, 134720 },
+		{ "math.floor", "", 0, 134720 },
+		{ "math.max", "", 0, 135092 },
+		{ "math.min", "", 0, 135092 },
+		{ "math.pow", "", 0, 135080 },
+
+		{ "bit.tobit", "", 0, 134615 },
+		{ "bit.tohex", "", 0, 135090 },
+		{ "bit.bnot", "", 0, 134592 },
+		{ "bit.bor", "", 0, 134666 },
+		{ "bit.band", "", 0, 134642 },
+		{ "bit.xor", "", 0, 134642 },
+		{ "bit.lshift", "", 0, 134510 },
+		{ "bit.rshift", "", 0, 134510 },
+		{ "bit.ashift", "", 0, 134510 },
+		{ "bit.rol", "", 0, 134510 },
+		{ "bit.ror", "", 0, 134510 },
+		{ "bit.bswap", "", 0, 134467 },
+
+		{ "bignum.number", "", 0, 136307 },
+		{ "bignum.isneg", "", 0, 136539 },
+		{ "bignum.iszero", "", 0, 136539 },
+		{ "bignum.tonumber", "", 0, 136859 },
+		{ "bignum.tostring", "", 0, 137150 },
+		{ "bignum.neg", "", 0, 138603 },
+		{ "bignum.sqrt", "", 0, 139479 },
+		{ "bignum.compare", "", 0, 136804 },
+		{ "bignum.add", "", 0, 138145 },
+		{ "bignum.sub", "", 0, 138090 },
+		{ "bignum.mul", "", 0, 140468 },
+		{ "bignum.div", "", 0, 139958 },
+		{ "bignum.mod", "", 0, 141893 },
+		{ "bignum.pow", "", 0, 140887 },
+		{ "bignum.divmod", "", 0, 146193 },
+		{ "bignum.powmod", "", 0, 145559 },
+		{ "bignum.operators", "", 0, 138811 },
+
+		{ "json", "", 0, 142320 },
+
+		{ "crypto.sha256", "", 0, 137578 },
+		{ "crypto.ecverify", "", 0, 139467 },
+
+		{ "state.set", "", 0, 137059 },
+		{ "state.get", "", 0, 137115 },
+		{ "state.delete", "", 0, 137122 },
+
+		{ "system.getSender", "", 0, 135656 },
+		{ "system.getBlockheight", "", 0, 134761 },
+		{ "system.getTxhash", "", 0, 135132 },
+		{ "system.getTimestamp", "", 0, 134761 },
+		{ "system.getContractID", "", 0, 135656 },
+		{ "system.setItem", "", 0, 135589 },
+		{ "system.getItem", "", 0, 135898 },
+		{ "system.getAmount", "", 0, 134803 },
+		{ "system.getCreator", "", 0, 135156 },
+		{ "system.getOrigin", "", 0, 135656 },
+		{ "system.getPrevBlockHash", "", 0, 135132 },
+
+		{ "contract.send", "", 0, 135716 },
+		{ "contract.balance", "", 0, 135728 },
+		{ "contract.deploy", "", 0, 158752 },
+		{ "contract.call", "", 0, 149642 },
+		{ "contract.pcall", "", 0, 150563 },
+		{ "contract.delegatecall", "", 0, 144902 },
+		{ "contract.event", "", 0, 153263 },
+	}
+
+	// set the hard fork version
+	bc.HardforkVersion = 2
+
 	// iterate over the tests
 	for _, test := range tests_v2 {
+		funcName := test.funcName
+		funcArgs := test.funcArgs
+		amount := test.amount
+		expectedGas := test.expectedGas
+
+		var payload string
+		if len(funcArgs) == 0 {
+			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s"]}`, funcName)
+		} else {
+			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s",%s]}`, funcName, funcArgs)
+		}
+		tx = NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
+		err = bc.ConnectBlock(tx)
+		assert.NoError(t, err, "while executing %s", funcName)
+
+		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
+		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
+
+		// print the function name and the used gas
+		//fmt.Printf("		{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+	}
+
+	// set the hard fork version
+	bc.HardforkVersion = 3
+
+	// iterate over the tests
+	for _, test := range tests_v3 {
 		funcName := test.funcName
 		funcArgs := test.funcArgs
 		amount := test.amount
