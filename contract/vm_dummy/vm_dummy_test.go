@@ -437,7 +437,7 @@ func TestContractSend(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("user1", 100000000000000000),
+		NewLuaTxAccount("user1", 1, types.Aergo),
 		NewLuaTxDeploy("user1", "test1", 50, code),
 		NewLuaTxDeploy("user1", "test2", 0, code2),
 		NewLuaTxDeploy("user1", "test3", 0, code3),
@@ -480,7 +480,7 @@ func TestContractSendF(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("user1", 100000000000000000),
+		NewLuaTxAccount("user1", 1, types.Aergo),
 		NewLuaTxDeploy("user1", "test1", 50000000000000000, code),
 		NewLuaTxDeploy("user1", "test2", 0, code2),
 	)
@@ -515,7 +515,7 @@ func TestContractQuery(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 100000000000000000))
+	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo))
 	require.NoErrorf(t, err, "failed to connect new block")
 
 	err = bc.ConnectBlock(
@@ -546,7 +546,7 @@ func TestContractCall(t *testing.T) {
 	defer bc.Release()
 
 	err = bc.ConnectBlock(
-		NewLuaTxAccount("user1", 100000000000000000),
+		NewLuaTxAccount("user1", 1, types.Aergo),
 		NewLuaTxDeploy("user1", "counter", 0, code).Constructor("[1]"),
 		NewLuaTxCall("user1", "counter", 0, `{"Name":"inc", "Args":[]}`),
 	)
@@ -946,7 +946,10 @@ func TestNDeploy(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "n-deploy", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "n-deploy", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to connect new block")
 }
 
@@ -1071,7 +1074,10 @@ func TestSnapshot(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "snap", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "snap", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy contract")
 
 	err = bc.ConnectBlock(NewLuaTxCall("user1", "snap", 0, `{"Name": "inc", "Args":[]}`))
@@ -1104,7 +1110,10 @@ func TestKvstore(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "map", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "map", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy contract")
 
 	err = bc.ConnectBlock(
@@ -1240,7 +1249,10 @@ func TestSqlDupCol(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "dup_col", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "dup_col", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.Query("dup_col", `{"name":"get"}`, `too many duplicate column name "1+1", max: 5`)
@@ -1255,7 +1267,10 @@ func TestSqlVmSimple(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "simple-query", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "simple-query", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("user1", "simple-query", 0, `{"Name": "createAndInsert", "Args":[]}`))
@@ -1451,7 +1466,10 @@ func TestSqlVmFunction(t *testing.T) {
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "fns", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "fns", 0, code),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.Query("fns", `{"Name":"sql_func"}`, "", `[3,1,6]`)
@@ -1517,7 +1535,11 @@ func TestSqlVmRecursiveData(t *testing.T) {
 	defer bc.Release()
 
 	tx := NewLuaTxCall("user1", "r", 0, `{"Name":"r"}`)
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "r", 0, code), tx)
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "r", 0, code),
+		tx,
+	)
 	require.Errorf(t, err, "expect err")
 	require.Equalf(t, "nested table error", err.Error(), "expect err")
 }
@@ -2608,7 +2630,7 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccountBig("user1", balance),
-		NewLuaTxAccount("user1", 0),
+		NewLuaTxAccount("user1", 0, types.Aer),
 		NewLuaTxDeploy("user1", "fd", 0, definition),
 		NewLuaTxSendBig("user1", "fd", send),
 	)
