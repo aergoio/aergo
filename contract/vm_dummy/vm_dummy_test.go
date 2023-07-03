@@ -396,7 +396,7 @@ func TestContractSystem(t *testing.T) {
 	require.NoErrorf(t, err, "failed to call tx")
 
 	receipt := bc.GetReceipt(tx.Hash())
-	exRv := fmt.Sprintf(`["%s","22YigSYgVDLtsDAD4NGxR8Yj81UmY18SytoPuKXtuWSj","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, StrToAddress("user1"), bc.cBlock.Header.Timestamp/1e9)
+	exRv := fmt.Sprintf(`["%s","6FbDRScGruVdATaNWzD51xJkTfYCVwxSZDb7gzqCLzwf","AmhNNBNY7XFk4p5ym4CJf8nTcRTEHjWzAeXJfhP71244CjBCAQU3",%d,3,999]`, StrToAddress("user1"), bc.cBlock.Header.Timestamp/1e9)
 	assert.Equal(t, exRv, receipt.GetRet(), "receipt ret error")
 }
 
