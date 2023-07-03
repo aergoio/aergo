@@ -2,7 +2,7 @@ package contract
 
 /*
 #include <lualib.h>
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "vm.h"
 */
 import "C"

@@ -7,7 +7,7 @@ package contract
 #include <stdlib.h>
 #include <string.h>
 #include "vm.h"
-#include "lgmp.h"
+#include "bignum_module.h"
 
 struct proof {
 	void *data;
