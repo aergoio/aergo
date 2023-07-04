@@ -143,18 +143,21 @@ add_test "system.getItem" 135898
 add_test "system.getAmount" 134803
 add_test "system.getCreator" 135156
 add_test "system.getOrigin" 135656
-# as the returned value differs in length (43 or 44)
-# due to base58, the computed gas is different.
-#add_test "system.getPrevBlockHash" 135132
 
 add_test "contract.send" 135716
-add_test "contract.balance" 135728
+add_test "contract.balance" 135797
 add_test "contract.deploy" 158752
 add_test "contract.call" 149642
 add_test "contract.pcall" 150563
 add_test "contract.delegatecall" 144902
 add_test "contract.event" 153263
 
+# as the returned value differs in length (43 or 44)
+# due to base58, the computed gas is different.
+#add_test "system.getPrevBlockHash" 135132
+
+# contract.balance() also use diff gas
+# according to the returned string size
 
 declare -A txhashes
 i=0
