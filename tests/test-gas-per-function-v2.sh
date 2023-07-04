@@ -143,7 +143,9 @@ add_test "system.getItem" 135898
 add_test "system.getAmount" 134803
 add_test "system.getCreator" 135156
 add_test "system.getOrigin" 135656
-add_test "system.getPrevBlockHash" 135132
+# as the returned value differs in length (43 or 44)
+# due to base58, the computed gas is different.
+#add_test "system.getPrevBlockHash" 135132
 
 add_test "contract.send" 135716
 add_test "contract.balance" 135605

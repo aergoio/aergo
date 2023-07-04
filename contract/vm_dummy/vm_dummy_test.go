@@ -2666,7 +2666,9 @@ func TestGasPerFunction(t *testing.T) {
 		{ "system.getAmount", "", 0, 134803 },
 		{ "system.getCreator", "", 0, 135156 },
 		{ "system.getOrigin", "", 0, 135656 },
-		{ "system.getPrevBlockHash", "", 0, 135132 },
+		// as the returned value differs in length (43 or 44)
+		// due to base58, the computed gas is different.
+		//{ "system.getPrevBlockHash", "", 0, 135132 },
 
 		{ "contract.send", "", 0, 135716 },
 		{ "contract.balance", "", 0, 135605 },
@@ -2791,7 +2793,9 @@ func TestGasPerFunction(t *testing.T) {
 		{ "system.getAmount", "", 0, 134803 },
 		{ "system.getCreator", "", 0, 135156 },
 		{ "system.getOrigin", "", 0, 135656 },
-		{ "system.getPrevBlockHash", "", 0, 135132 },
+		// as the returned value differs in length (43 or 44)
+		// due to base58, the computed gas is different.
+		//{ "system.getPrevBlockHash", "", 0, 135132 },
 
 		{ "contract.send", "", 0, 135716 },
 		{ "contract.balance", "", 0, 135728 },
