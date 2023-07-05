@@ -2830,7 +2830,10 @@ func TestGasPerFunction(t *testing.T) {
 		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
 
 		// print the function name and the used gas
+		// for this test:
 		//fmt.Printf("		{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+		// for integration tests (tests/test-gas-per-function-v2.sh):
+		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
 
 	// set the hard fork version
@@ -2857,7 +2860,10 @@ func TestGasPerFunction(t *testing.T) {
 		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
 
 		// print the function name and the used gas
+		// for this test:
 		//fmt.Printf("		{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+		// for integration tests (tests/test-gas-per-function-v3.sh):
+		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
 
 }
