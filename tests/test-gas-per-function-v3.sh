@@ -129,7 +129,7 @@ add_test "json" 142320
 add_test "crypto.sha256" 137578
 add_test "crypto.ecverify" 139467
 
-add_test "state.set" 137059
+add_test "state.set" 137310
 add_test "state.get" 137115
 add_test "state.delete" 137122
 

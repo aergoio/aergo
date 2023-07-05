@@ -2541,16 +2541,19 @@ func TestGasPerFunction(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		// add funds to account
-		NewLuaTxAccount(DEF_TEST_ACCOUNT, 100, types.Aergo),
-		// deploy the contract
-		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, code),
+		NewLuaTxAccount("user", 100, types.Aergo),
+		// deploy 2 copies of the contract
+		NewLuaTxDeploy("user", "contract_v2", 0, code),
+		NewLuaTxDeploy("user", "contract_v3", 0, code),
 	)
 	assert.NoError(t, err)
 
-  // transfer funds to the contract
-  tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(10e18), `{"Name":"deposit"}`)
-  err = bc.ConnectBlock(tx)
-  assert.NoError(t, err, "sending funds to contract")
+	// transfer funds to the contracts
+	err = bc.ConnectBlock(
+		NewLuaTxCall("user", "contract_v2", uint64(10e18), `{"Name":"deposit"}`),
+		NewLuaTxCall("user", "contract_v3", uint64(10e18), `{"Name":"deposit"}`),
+	)
+	assert.NoError(t, err, "sending funds to contracts")
 
 	tests_v2 := []struct {
 		funcName   string
@@ -2779,7 +2782,7 @@ func TestGasPerFunction(t *testing.T) {
 		{ "crypto.sha256", "", 0, 137578 },
 		{ "crypto.ecverify", "", 0, 139467 },
 
-		{ "state.set", "", 0, 137059 },
+		{ "state.set", "", 0, 137310 },
 		{ "state.get", "", 0, 137115 },
 		{ "state.delete", "", 0, 137122 },
 
@@ -2822,7 +2825,7 @@ func TestGasPerFunction(t *testing.T) {
 		} else {
 			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s",%s]}`, funcName, funcArgs)
 		}
-		tx = NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
+		tx := NewLuaTxCall("user", "contract_v2", uint64(amount), payload)
 		err = bc.ConnectBlock(tx)
 		assert.NoError(t, err, "while executing %s", funcName)
 
@@ -2852,7 +2855,7 @@ func TestGasPerFunction(t *testing.T) {
 		} else {
 			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s",%s]}`, funcName, funcArgs)
 		}
-		tx = NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), payload)
+		tx := NewLuaTxCall("user", "contract_v3", uint64(amount), payload)
 		err = bc.ConnectBlock(tx)
 		assert.NoError(t, err, "while executing %s", funcName)
 
