@@ -84,7 +84,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Usage:")
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p]\n", os.Args[0])
-		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p] [-v] [-w] <filename>\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p] [-V] [-w] <filename>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	verbose := flag.Bool("V", false, "verbose output (only batch)")
