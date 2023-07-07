@@ -53,7 +53,7 @@ func (e *VmSystemError) System() bool {
 type VmTimeoutError struct{}
 
 func (e *VmTimeoutError) Error() string {
-	return "contract timeout"
+	return "contract timeout of VmTimeoutError"
 }
 
 func (e *VmTimeoutError) System() bool {

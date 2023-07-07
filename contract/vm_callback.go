@@ -29,6 +29,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/aergoio/aergo-lib/log"
 	"index/suffixarray"
 	"math/big"
 	"regexp"
@@ -50,6 +51,7 @@ import (
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
 	creatorMetaKey             = []byte("Creator")
+	vmLogger                   = log.NewLogger("contract.vm")
 )
 
 const (
@@ -1492,6 +1494,10 @@ func luaCheckView(service C.int) C.int {
 	return C.int(ctx.nestedView)
 }
 
+// luaCheckTimeout checks two types of timeouts;
+// One is whether the block creation timeout is exceeded, and the other is whether
+// the transaction execution timeout is exceeded.
+//
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
 

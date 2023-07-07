@@ -60,10 +60,12 @@ func marshalTrx(tr Transaction, a *zerolog.Array) {
 	}
 }
 
-type LogBase58 struct {
-	Bytes *[]byte
+type LogBase58 []byte
+
+func (t LogBase58) String() string {
+	return enc.ToString(t)
 }
 
 func (t LogBase58) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("b58", enc.ToString(*t.Bytes))
+	e.Str("b58", enc.ToString(t))
 }

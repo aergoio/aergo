@@ -26,12 +26,12 @@ import (
 
 var (
 	ErrorNoAncestor      = errors.New("not found ancestor")
-	ErrBlockOrphan       = errors.New("block is ohphan, so not connected in chain")
+	ErrBlockOrphan       = errors.New("block is orphan, so not connected in chain")
 	ErrBlockCachedErrLRU = errors.New("block is in errored blocks cache")
 	ErrStateNoMarker     = errors.New("statedb marker of block is not exists")
 
 	errBlockStale       = errors.New("produced block becomes stale")
-	errBlockInvalidFork = errors.New("invalid fork occured")
+	errBlockInvalidFork = errors.New("invalid fork occurred")
 	errBlockTimestamp   = errors.New("invalid timestamp")
 
 	InAddBlock      = make(chan struct{}, 1)
@@ -384,7 +384,7 @@ func (cp *chainProcessor) reorganize() error {
 	return nil
 }
 
-func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) (err error, cache bool) {
+func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBState *state.BlockState, peerID types.PeerID) (err error, cache bool) {
 	if !cs.VerifyTimestamp(newBlock) {
 		return &ErrBlock{
 			err: errBlockTimestamp,
@@ -405,12 +405,12 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	}
 
 	// The newly produced block becomes stale because the more block(s) are
-	// connected to the blockchain so that the best block is cha/nged. In this
+	// connected to the blockchain so that the best block is changed. In this
 	// case, newBlock is rejected because it is unlikely that newBlock belongs
-	// to the main branch. Warning: the condition 'usedBstate != nil' is used
+	// to the main branch. Warning: the condition 'usedBState != nil' is used
 	// to check whether newBlock is produced by the current node itself. Later,
 	// more explicit condition may be needed instead of this.
-	if usedBstate != nil && newBlock.PrevID() != bestBlock.ID() {
+	if usedBState != nil && newBlock.PrevID() != bestBlock.ID() {
 		return &ErrBlock{
 			err: errBlockStale,
 			block: &types.BlockInfo{
@@ -425,7 +425,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		if cs.IsForkEnable() {
 			return nil
 		}
-		if usedBstate != nil {
+		if usedBState != nil {
 			return nil
 		}
 
@@ -457,7 +457,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 
 	// handle orphan
 	if cs.isOrphan(newBlock) {
-		if usedBstate != nil {
+		if usedBState != nil {
 			return fmt.Errorf("block received from BP can not be orphan"), false
 		}
 		err := cs.handleOrphan(newBlock, bestBlock, peerID)
@@ -476,7 +476,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		<-InAddBlock
 	}()
 
-	cp, err := newChainProcessor(newBlock, usedBstate, cs)
+	cp, err := newChainProcessor(newBlock, usedBState, cs)
 	if err != nil {
 		return err, true
 	}
@@ -496,7 +496,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	return nil, true
 }
 
-func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockState, peerID types.PeerID) error {
+func (cs *ChainService) addBlock(newBlock *types.Block, usedBState *state.BlockState, peerID types.PeerID) error {
 	hashID := types.ToHashID(newBlock.BlockHash())
 
 	if cs.errBlocks.Contains(hashID) {
@@ -511,7 +511,7 @@ func (cs *ChainService) addBlock(newBlock *types.Block, usedBstate *state.BlockS
 	}
 
 	var needCache bool
-	err, needCache = cs.addBlockInternal(newBlock, usedBstate, peerID)
+	err, needCache = cs.addBlockInternal(newBlock, usedBState, peerID)
 	if err != nil {
 		if needCache {
 			evicted := cs.errBlocks.Add(hashID, newBlock)
@@ -562,7 +562,7 @@ type blockExecutor struct {
 	execTx           TxExecFn
 	txs              []*types.Tx
 	validatePost     ValidatePostFn
-	coinbaseAcccount []byte
+	coinbaseAccount  []byte
 	commitOnly       bool
 	verifyOnly       bool
 	validateSignWait ValidateSignWaitFn
@@ -577,9 +577,9 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 	commitOnly := false
 
 	// The DPoS block factory executes transactions during block generation. In
-	// such a case it send block with block state so that bState != nil. On the
+	// such a case it sends block with block state so that bState != nil. On the
 	// contrary, the block propagated from the network is not half-executed.
-	// Hence we need a new block state and tx executor (execTx).
+	// Hence, we need a new block state and tx executor (execTx).
 	if bState == nil {
 		if err := cs.validator.ValidateBlock(block); err != nil {
 			return nil, err
@@ -605,11 +605,11 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
 
 	return &blockExecutor{
-		BlockState:       bState,
-		sdb:              cs.sdb,
-		execTx:           exec,
-		txs:              block.GetBody().GetTxs(),
-		coinbaseAcccount: block.GetHeader().GetCoinbaseAccount(),
+		BlockState:      bState,
+		sdb:             cs.sdb,
+		execTx:          exec,
+		txs:             block.GetBody().GetTxs(),
+		coinbaseAccount: block.GetHeader().GetCoinbaseAccount(),
 		validatePost: func() error {
 			return cs.validator.ValidatePost(bState.GetRoot(), bState.Receipts(), block)
 		},
@@ -674,8 +674,8 @@ func (e *blockExecutor) execute() error {
 			}
 		}
 
-		//TODO check result of verifing txs
-		if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
+		//TODO check result of verifying txs
+		if err := SendBlockReward(e.BlockState, e.coinbaseAccount); err != nil {
 			return err
 		}
 

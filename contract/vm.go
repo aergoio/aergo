@@ -52,6 +52,8 @@ const (
 	maxCallDepth         = 64
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
+
+	vmTimeoutErrMsg = "[Contract.LuaCallContract] call err: contract timeout"
 )
 
 var (
@@ -606,13 +608,17 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	}
 	ce.setCountHook(instLimit)
 	nret := C.int(0)
-	if cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret); cErrMsg != nil {
+	startTime := time.Now()
+	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret)
+	vmExecTime := time.Now().Sub(startTime).Milliseconds()
+n	vmLogger.Trace().Int64("execMs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
+	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		if C.luaL_hassyserror(ce.L) != C.int(0) {
 			ce.err = newVmSystemError(errors.New(errMsg))
 		} else {
-			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) &&
-				C.ERR_BF_TIMEOUT == errMsg {
+			isUncatchable := C.luaL_hasuncatchablerror(ce.L) != C.int(0)
+			if isUncatchable && (C.ERR_BF_TIMEOUT == errMsg || vmTimeoutErrMsg == errMsg) {
 				ce.err = &VmTimeoutError{}
 			} else {
 				ce.err = errors.New(errMsg)
@@ -641,8 +647,8 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 			ce.jsonRet = retMsg
 		}
 	} else {
-		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
-			errMsg := C.GoString(cErrMsg)
+		if c2ErrMsg := C.vm_copy_result(ce.L, target, nret); c2ErrMsg != nil {
+			errMsg := C.GoString(c2ErrMsg)
 			ce.err = errors.New(errMsg)
 			ctrLgr.Debug().Err(ce.err).Str(
 				"contract",
