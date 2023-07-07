@@ -183,6 +183,7 @@ func LoadDummyChainEx(chainType ChainType, opts ...DummyChainOptions) (*DummyCha
 		fee.EnableZeroFee()
 	} else {
 		bc.HardforkVersion = 1
+		contract.PubNet = true
 	}
 
 	for _, opt := range opts {
@@ -348,17 +349,17 @@ func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.Block
 type luaTxSend struct {
 	sender   []byte
 	receiver []byte
-	balance  *big.Int
+	amount   *big.Int
 	txId     uint64
 }
 
 var _ LuaTxTester = (*luaTxSend)(nil)
 
-func NewLuaTxSendBig(sender, receiver string, balance *big.Int) *luaTxSend {
+func NewLuaTxSendBig(sender, receiver string, amount *big.Int) *luaTxSend {
 	return &luaTxSend{
 		sender:   contract.StrHash(sender),
 		receiver: contract.StrHash(receiver),
-		balance:  balance,
+		amount:   amount,
 		txId:     newTxId(),
 	}
 }
@@ -382,7 +383,7 @@ func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 	senderState, err := bs.GetAccountState(senderID)
 	if err != nil {
 		return err
-	} else if senderState.GetBalanceBigInt().Cmp(l.balance) < 0 {
+	} else if senderState.GetBalanceBigInt().Cmp(l.amount) < 0 {
 		return fmt.Errorf("insufficient balance to sender")
 	}
 	receiverState, err := bs.GetAccountState(receiverID)
@@ -391,11 +392,11 @@ func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 	}
 
 	updatedSenderState := types.State(*senderState)
-	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.balance).Bytes()
+	updatedSenderState.Balance = new(big.Int).Sub(updatedSenderState.GetBalanceBigInt(), l.amount).Bytes()
 	bs.PutState(senderID, &updatedSenderState)
 
 	updatedReceiverState := types.State(*receiverState)
-	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.balance).Bytes()
+	updatedReceiverState.Balance = new(big.Int).Add(updatedReceiverState.GetBalanceBigInt(), l.amount).Bytes()
 	bs.PutState(receiverID, &updatedReceiverState)
 
 	r := types.NewReceipt(l.receiver, l.okMsg(), "")
@@ -410,17 +411,17 @@ func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 type luaTxContract interface {
 	LuaTxTester
 	sender() []byte
-	contract() []byte
+	recipient() []byte
 	amount() *big.Int
-	code() []byte
+	payload() []byte
 	isFeeDelegate() bool
 }
 
 type luaTxContractCommon struct {
 	_sender     []byte
-	_contract   []byte
+	_recipient  []byte
 	_amount     *big.Int
-	_code       []byte
+	_payload    []byte
 	txId        uint64
 	feeDelegate bool
 }
@@ -433,16 +434,16 @@ func (l *luaTxContractCommon) sender() []byte {
 	return l._sender
 }
 
-func (l *luaTxContractCommon) contract() []byte {
-	return l._contract
+func (l *luaTxContractCommon) recipient() []byte {
+	return l._recipient
 }
 
 func (l *luaTxContractCommon) amount() *big.Int {
 	return l._amount
 }
 
-func (l *luaTxContractCommon) code() []byte {
-	return l._code
+func (l *luaTxContractCommon) payload() []byte {
+	return l._payload
 }
 
 func (l *luaTxContractCommon) isFeeDelegate() bool {
@@ -463,8 +464,8 @@ type luaTxDeploy struct {
 
 var _ LuaTxTester = (*luaTxDeploy)(nil)
 
-func NewLuaTxDeploy(sender, contract string, amount uint64, code string) *luaTxDeploy {
-	return NewLuaTxDeployBig(sender, contract, types.NewAmount(amount, types.Aer), code)
+func NewLuaTxDeploy(sender, recipient string, amount uint64, code string) *luaTxDeploy {
+	return NewLuaTxDeployBig(sender, recipient, types.NewAmount(amount, types.Aer), code)
 }
 
 /*
@@ -498,7 +499,7 @@ func (l *luaTxDeploy) Constructor(args string) *luaTxDeploy {
 	if len(args) == 0 || strings.Compare(args, "[]") == 0 || l.cErr != nil {
 		return l
 	}
-	l._code = util.NewLuaCodePayload(util.LuaCodePayload(l._code).Code(), []byte(args))
+	l._payload = util.NewLuaCodePayload(util.LuaCodePayload(l._payload).Code(), []byte(args))
 	return l
 }
 
@@ -511,8 +512,8 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		return err
 	}
 
-	contractId := types.ToAccountID(l.contract())
-	contractState, err := bs.GetAccountStateV(l.contract())
+	contractId := types.ToAccountID(l.recipient())
+	contractState, err := bs.GetAccountStateV(l.recipient())
 	if err != nil {
 		return err
 	}
@@ -521,7 +522,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 	if err != nil {
 		return err
 	}
-	usedFee := contract.TxFee(len(l.code()), types.NewAmount(1, types.Aer), 2)
+	usedFee := contract.TxFee(len(l.payload()), types.NewAmount(1, types.Aer), 2)
 
 	if l.isFeeDelegate() {
 		balance := contractState.Balance()
@@ -529,7 +530,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		if usedFee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
-		err = contract.CheckFeeDelegation(l.contract(), bs, nil, cdb, eContractState, l.code(),
+		err = contract.CheckFeeDelegation(l.recipient(), bs, nil, cdb, eContractState, l.payload(),
 			l.Hash(), l.sender(), l.amount().Bytes())
 		if err != nil {
 			if err != types.ErrNotAllowedFeeDelegation {
@@ -550,7 +551,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 		status = "ERROR"
 		rv = err.Error()
 	}
-	r := types.NewReceipt(l.contract(), status, rv)
+	r := types.NewReceipt(l.recipient(), status, rv)
 	r.TxHash = l.Hash()
 	r.GasUsed = usedFee.Uint64()
 	r.Events = events
@@ -593,7 +594,7 @@ func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockH
 			ctx := contract.NewVmContext(bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
 
-			rv, events, ctrFee, err := contract.Create(eContractState, l.code(), l.contract(), ctx)
+			rv, events, ctrFee, err := contract.Create(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -613,29 +614,29 @@ type luaTxCall struct {
 
 var _ LuaTxTester = (*luaTxCall)(nil)
 
-func NewLuaTxCall(sender, contract string, amount uint64, code string) *luaTxCall {
-	return NewLuaTxCallBig(sender, contract, types.NewAmount(amount, types.Aer), code)
+func NewLuaTxCall(sender, recipient string, amount uint64, payload string) *luaTxCall {
+	return NewLuaTxCallBig(sender, recipient, types.NewAmount(amount, types.Aer), payload)
 }
 
-func NewLuaTxCallBig(sender, contractCode string, amount *big.Int, code string) *luaTxCall {
+func NewLuaTxCallBig(sender, recipient string, amount *big.Int, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:   contract.StrHash(sender),
-			_contract: contract.StrHash(contractCode),
+			_recipient: contract.StrHash(recipient),
 			_amount:   amount,
-			_code:     []byte(code),
+			_payload:  []byte(payload),
 			txId:      newTxId(),
 		},
 	}
 }
 
-func NewLuaTxCallFeeDelegate(sender, contractCode string, amount uint64, code string) *luaTxCall {
+func NewLuaTxCallFeeDelegate(sender, recipient string, amount uint64, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:     contract.StrHash(sender),
-			_contract:   contract.StrHash(contractCode),
+			_recipient:   contract.StrHash(recipient),
 			_amount:     types.NewAmount(amount, types.Aer),
-			_code:       []byte(code),
+			_payload:    []byte(payload),
 			txId:        newTxId(),
 			feeDelegate: true,
 		},
@@ -653,7 +654,7 @@ func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHea
 			ctx := contract.NewVmContext(bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
 				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
 
-			rv, events, ctrFee, err := contract.Call(eContractState, l.code(), l.contract(), ctx)
+			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
 				return "", nil, ctrFee, err
 			}
@@ -736,12 +737,12 @@ func (bc *DummyChain) DisConnectBlock() error {
 	return bc.sdb.SetRoot(sroot)
 }
 
-func (bc *DummyChain) Query(code, queryInfo, expectedErr string, expectedRvs ...string) error {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
+func (bc *DummyChain) Query(contract_name, queryInfo, expectedErr string, expectedRvs ...string) error {
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)))
 	if err != nil {
 		return err
 	}
-	rv, err := contract.Query(contract.StrHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
+	rv, err := contract.Query(contract.StrHash(contract_name), bc.newBState(), bc, cState, []byte(queryInfo))
 	if expectedErr != "" {
 		if err == nil {
 			return fmt.Errorf("no error, expected: %s", expectedErr)
@@ -765,12 +766,12 @@ func (bc *DummyChain) Query(code, queryInfo, expectedErr string, expectedRvs ...
 	return err
 }
 
-func (bc *DummyChain) QueryOnly(code, queryInfo string, expectedErr string) (bool, string, error) {
-	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(code)))
+func (bc *DummyChain) QueryOnly(contract_name, queryInfo string, expectedErr string) (bool, string, error) {
+	cState, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID(contract.StrHash(contract_name)))
 	if err != nil {
 		return false, "", err
 	}
-	rv, err := contract.Query(contract.StrHash(code), bc.newBState(), bc, cState, []byte(queryInfo))
+	rv, err := contract.Query(contract.StrHash(contract_name), bc.newBState(), bc, cState, []byte(queryInfo))
 
 	if expectedErr != "" {
 		if err == nil {
