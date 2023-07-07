@@ -25,12 +25,20 @@ import (
 	sha256 "github.com/minio/sha256-simd"
 )
 
-var (
-	logger *log.Logger
+type ChainType int
+
+const (
+  ChainTypeMainNet ChainType = iota
+  ChainTypeTestNet
+  ChainTypeUnitTest
 )
 
 const (
 	lStateMaxSize = 10 * 7
+)
+
+var (
+	logger *log.Logger
 )
 
 func init() {
@@ -97,7 +105,19 @@ func SetPubNet() DummyChainOptions {
 	}
 }
 
-func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
+func LoadDummyChainEx(chainType ChainType, opts ...DummyChainOptions) (*DummyChain, error) {
+
+	var gasPrice *big.Int
+
+	switch chainType {
+	case ChainTypeMainNet:
+		gasPrice = types.NewAmount(50, types.Gaer)
+	case ChainTypeTestNet:
+		gasPrice = types.NewAmount(50, types.Gaer)
+	case ChainTypeUnitTest:
+		gasPrice = types.NewAmount(1, types.Aer)
+	}
+
 	dataPath, err := os.MkdirTemp("", "data")
 	if err != nil {
 		return nil, err
@@ -105,7 +125,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	bc := &DummyChain{
 		sdb:      state.NewChainStateDB(),
 		tmpDir:   dataPath,
-		gasPrice: types.NewAmount(1, types.Aer),
+		gasPrice: gasPrice,
 	}
 	defer func() {
 		if err != nil {
@@ -116,24 +136,39 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	// reset the transaction id counter
 	luaTxId = 0
 
-	err = bc.sdb.Init(string(db.MemoryImpl), dataPath, nil, false)
+	// mainnet and testnet use badger db. the dummy tests use memory db.
+	dbImpl := db.BadgerImpl
+	if chainType == ChainTypeUnitTest {
+		dbImpl = db.MemoryImpl
+	}
+
+	err = bc.sdb.Init(string(dbImpl), dataPath, nil, false)
 	if err != nil {
 		return nil, err
 	}
-	genesis := types.GetTestGenesis()
+
+	var genesis *types.Genesis
+
+	switch chainType {
+	case ChainTypeMainNet:
+		genesis = types.GetMainNetGenesis()
+	case ChainTypeTestNet:
+		genesis = types.GetTestNetGenesis()
+	case ChainTypeUnitTest:
+		genesis = types.GetTestGenesis()
+	}
+
 	bc.sdb.SetGenesis(genesis, nil)
 	bc.bestBlock = genesis.Block()
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 	bc.blockIds = append(bc.blockIds, bc.bestBlockId)
 	bc.blocks = append(bc.blocks, genesis.Block())
-	bc.testReceiptDB = db.NewDB(db.MemoryImpl, path.Join(dataPath, "receiptDB"))
+	bc.testReceiptDB = db.NewDB(dbImpl, path.Join(dataPath, "receiptDB"))
 	contract.LoadTestDatabase(dataPath) // sql database
 	contract.SetStateSQLMaxDBSize(1024)
 	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
 	contract.InitContext(3)
-
-	bc.HardforkVersion = 2
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
@@ -143,12 +178,21 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	system.InitSystemParams(scs, 3)
 
-	fee.EnableZeroFee()
+	if chainType == ChainTypeUnitTest {
+		bc.HardforkVersion = 2
+		fee.EnableZeroFee()
+	} else {
+		bc.HardforkVersion = 1
+	}
 
 	for _, opt := range opts {
 		opt(bc)
 	}
 	return bc, nil
+}
+
+func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
+  return LoadDummyChainEx(ChainTypeUnitTest, opts...)
 }
 
 func (bc *DummyChain) Release() {
@@ -157,6 +201,14 @@ func (bc *DummyChain) Release() {
 		bc.clearLState()
 	}
 	_ = os.RemoveAll(bc.tmpDir)
+}
+
+func (bc *DummyChain) SetBestBlockId(value []byte) {
+	bc.bestBlockId = types.ToBlockID(value)
+}
+
+func (bc *DummyChain) SetBestBlockNo(value uint64) {
+	bc.bestBlockNo = value
 }
 
 func (bc *DummyChain) BestBlockNo() uint64 {
