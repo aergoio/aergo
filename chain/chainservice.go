@@ -26,6 +26,7 @@ import (
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -291,8 +292,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.PubNet = pubNet
 	contract.TraceBlockNo = cfg.Blockchain.StateTrace
 	contract.SetStateSQLMaxDBSize(cfg.SQL.MaxDbSize)
-	contract.HardforkConfig = cs.cfg.Hardfork
-	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(math.MaxUint64))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
+	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(cfg.Hardfork.Version(math.MaxUint64)))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
 	// For a strict governance transaction validation.
@@ -639,7 +639,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 		block := msg.Block
 		logger.Debug().Str("hash", block.ID()).Str("prev", block.PrevID()).Uint64("bestno", cm.cdb.getBestBlockNo()).
-			Uint64("no", block.GetHeader().GetBlockNo()).Bool("syncer", msg.IsSync).Msg("add block chainservice")
+			Uint64("no", block.GetHeader().GetBlockNo()).Str("peer", p2putil.ShortForm(msg.PeerID)).Bool("syncer", msg.IsSync).Msg("add block chainservice")
 
 		var bstate *state.BlockState
 		if msg.Bstate != nil {

@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
 	"github.com/aergoio/aergo/pkg/component"
@@ -11,7 +12,7 @@ import (
 // To use SubComponent, only need to implement Actor interface
 type SubComponent struct {
 	actor.Actor
-	component.IComponentRequester // use basecomponent to request to other actors
+	component.IComponentRequester // use baseComponent to request to other actors
 
 	name  string
 	pid   *actor.PID
@@ -41,7 +42,7 @@ func (sub *SubComponent) Stop() {
 	logger.Info().Msg(msg)
 }
 
-//send message to this subcomponent and reply to actor with pid respondTo
+// send message to this subcomponent and reply to actor with pid respondTo
 func (sub *SubComponent) Request(message interface{}, respondTo *actor.PID) {
 	sub.pid.Request(message, respondTo)
 }

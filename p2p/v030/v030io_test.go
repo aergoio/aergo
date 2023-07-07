@@ -9,11 +9,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
 	"io/ioutil"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/gofrs/uuid"
@@ -121,7 +121,7 @@ func Test_ReadWrite(t *testing.T) {
 }
 
 type ioSum struct {
-	readN int
+	readN  int
 	writeN int
 }
 
@@ -171,9 +171,9 @@ func BenchmarkV030Writer_WriteMsg(b *testing.B) {
 		repeatCount int
 	}{
 		// write small
-		{"BWSmall", NewV030ReadWriter(nil,ioutil.Discard, nil), smallMsg, 100},
+		{"BWSmall", NewV030ReadWriter(nil, ioutil.Discard, nil), smallMsg, 100},
 		// write big
-		{"BWBig", NewV030ReadWriter(nil, ioutil.Discard,nil), bigMsg, 100},
+		{"BWBig", NewV030ReadWriter(nil, ioutil.Discard, nil), bigMsg, 100},
 		////write small with rw
 		//{"BWSmallRW", NewV030ReadWriter(nil, ioutil.Discard, nil), smallMsg, 100},
 		//// write big with rw
@@ -233,7 +233,7 @@ func BenchmarkV030Reader_ReadMsg(b *testing.B) {
 				for j := 0; j < bm.repeatCount; j++ {
 					actual, err := target.ReadMsg()
 					if err != nil {
-						b.Fatal("err while reading on lap",j, err.Error())
+						b.Fatal("err while reading on lap", j, err.Error())
 					} else if actual.ID() != sampleID {
 						b.Fatal()
 					}
@@ -257,12 +257,12 @@ func getMarshaledV030(m *p2pcommon.MessageValue, repeat int) []byte {
 
 type RepeatedBuffer struct {
 	offset, size int
-	buf []byte
+	buf          []byte
 }
 
 func (r *RepeatedBuffer) Read(p []byte) (n int, err error) {
 	copied := copy(p, r.buf[r.offset:])
-	r.offset+=copied
+	r.offset += copied
 	if r.offset >= r.size {
 		r.offset = 0
 	}
@@ -270,5 +270,5 @@ func (r *RepeatedBuffer) Read(p []byte) (n int, err error) {
 }
 
 func NewRepeatedBuffer(buf []byte) *RepeatedBuffer {
-	return &RepeatedBuffer{buf: buf, size:len(buf)}
+	return &RepeatedBuffer{buf: buf, size: len(buf)}
 }

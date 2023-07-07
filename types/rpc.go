@@ -65,4 +65,3 @@ func (s *Staking) Sub(amount *big.Int) *big.Int {
 func (s *Staking) SetWhen(blockNo BlockNo) {
 	s.When = uint64(blockNo)
 }
-

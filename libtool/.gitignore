@@ -2,3 +2,7 @@ bin/
 include/
 lib/
 share/
+src/gmp-*
+/CMakeFiles
+/Makefile
+/cmake_install.cmake

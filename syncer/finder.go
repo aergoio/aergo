@@ -2,13 +2,13 @@ package syncer
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/pkg/errors"
@@ -59,7 +59,7 @@ func newFinder(ctx *types.SyncContext, compRequester component.IComponentRequest
 	return finder
 }
 
-//TODO refactoring: move logic to SyncContext (sync Object)
+// TODO refactoring: move logic to SyncContext (sync Object)
 func (finder *Finder) start() {
 	finder.waitGroup = &sync.WaitGroup{}
 	finder.waitGroup.Add(1)
@@ -153,7 +153,7 @@ func (finder *Finder) lightscan() (*types.BlockInfo, error) {
 }
 
 func (finder *Finder) getAnchors() ([][]byte, error) {
-	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{finder.GetSeq()}, finder.dfltTimeout, "Finder/getAnchors")
+	result, err := finder.compRequester.RequestToFutureResult(message.ChainSvc, &message.GetAnchors{Seq: finder.GetSeq()}, finder.dfltTimeout, "Finder/getAnchors")
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to get anchors")
 		return nil, err
@@ -192,7 +192,7 @@ func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	}
 }
 
-//TODO binary search scan
+// TODO binary search scan
 func (finder *Finder) fullscan() (*types.BlockInfo, error) {
 	logger.Debug().Msg("finder fullscan")
 

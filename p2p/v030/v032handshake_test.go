@@ -36,12 +36,12 @@ func TestV032VersionedHS_DoForOutbound(t *testing.T) {
 	mockCA.EXPECT().GetBestBlock().Return(dummyBlock, nil).AnyTimes()
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenesis := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
-	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenesis, Version:dummyAddr.Version}
-	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version:dummyAddr.Version}
-	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version:dummyAddr.Version}
-	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenesis, Version: dummyAddr.Version}
+	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version: dummyAddr.Version}
+	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version: dummyAddr.Version}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
 	tests := []struct {
 		name       string
 		readReturn *types.Status
@@ -117,12 +117,12 @@ func TestV032VersionedHS_DoForInbound(t *testing.T) {
 
 	dummyGenHash := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	diffGenHash := []byte{0xff, 0xfe, 0xfd, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	dummyStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
 	succResult := &p2pcommon.HandshakeResult{Meta: dummyMeta}
-	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash, Version:dummyAddr.Version}
-	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version:dummyAddr.Version}
-	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version:dummyAddr.Version}
-	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version:dummyAddr.Version}
+	diffGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: diffGenHash, Version: dummyAddr.Version}
+	nilGenesisStatusMsg := &types.Status{ChainID: myChainBytes, Sender: &dummyAddr, Genesis: nil, Version: dummyAddr.Version}
+	nilSenderStatusMsg := &types.Status{ChainID: myChainBytes, Sender: nil, Genesis: dummyGenHash, Version: dummyAddr.Version}
+	diffStatusMsg := &types.Status{ChainID: theirChainBytes, Sender: &dummyAddr, Genesis: dummyGenHash, Version: dummyAddr.Version}
 	tests := []struct {
 		name       string
 		readReturn *types.Status

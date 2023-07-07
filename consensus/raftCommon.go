@@ -9,11 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"io"
 )
 
 type EntryType int8
@@ -62,7 +63,6 @@ func (we *WalEntry) ToBytes() ([]byte, error) {
 	encoder := gob.NewEncoder(&val)
 	if err := encoder.Encode(we); err != nil {
 		panic("raft entry to bytes error")
-		return nil, err
 	}
 
 	return val.Bytes(), nil

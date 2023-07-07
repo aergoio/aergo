@@ -148,7 +148,7 @@ func TestClusterInfoReceiver_trySendNextPeer(t *testing.T) {
 
 func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 	sampleChainID := []byte("testChain")
-	members := make([]*types.MemberAttr,4)
+	members := make([]*types.MemberAttr, 4)
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -163,7 +163,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 		wantTimeout bool // whether receiver returns result or not (=timeout)
 		wantErrResp bool // result with error or not
 	}{
-		{"TAllRet", args{[]int{1, 1, 1, 1, 1}}, 1, false,false},
+		{"TAllRet", args{[]int{1, 1, 1, 1, 1}}, 1, false, false},
 		{"TErrRet", args{[]int{0, 0, 0, 0, 0}}, 5, false, true},
 		{"TMixed", args{[]int{0, 0, 1, 1, 1}}, 3, false, false},
 		{"TTimeout", args{[]int{0, 0}}, 3, true, true},
@@ -182,7 +182,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 			target := NewClusterInfoReceiver(mockActor, mockMF, peers, time.Second, dummyReq)
 
 			seq := int32(0)
-			for i:=0; i<5; i++ {
+			for i := 0; i < 5; i++ {
 				dummyPeerID, _ := types.IDB58Decode("16Uiu2HAmFqptXPfcdaCdwipB2fhHATgKGVFVPehDAPZsDKSU7jRm")
 				stat := types.RUNNING
 				mockPeer := p2pmock.NewMockRemotePeer(ctrl)
@@ -190,7 +190,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 				mockPeer.EXPECT().ID().Return(dummyPeerID).AnyTimes()
 				mockPeer.EXPECT().ConsumeRequest(gomock.Any()).AnyTimes()
 				mockPeer.EXPECT().SendMessage(gomock.Any()).Do(func(mo p2pcommon.MsgOrder) {
-					time.Sleep(time.Millisecond*5)
+					time.Sleep(time.Millisecond * 5)
 					callSeq := atomic.LoadInt32(&seq)
 					msg := p2pmock.NewMockMessage(ctrl)
 					msg.EXPECT().ID().Return(p2pcommon.NewMsgID()).AnyTimes()
@@ -202,7 +202,7 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 						if tt.args.stats[callSeq] == 0 {
 							err = "getCluster failed"
 						}
-						body := &types.GetClusterInfoResponse{ChainID:sampleChainID, MbrAttrs:members, Error:err}
+						body := &types.GetClusterInfoResponse{ChainID: sampleChainID, MbrAttrs: members, Error: err}
 						atomic.AddInt32(&seq, 1)
 						go target.ReceiveResp(msg, body)
 					} else {
@@ -226,10 +226,10 @@ func TestClusterInfoReceiver_ReceiveResp(t *testing.T) {
 					// receiver return valid result
 					if !tt.wantErrResp {
 						if !bytes.Equal(resp.ChainID, sampleChainID) {
-							t.Errorf("resp chainid %v, want %v ",resp.ChainID, sampleChainID)
+							t.Errorf("resp chainid %v, want %v ", resp.ChainID, sampleChainID)
 						}
 						if len(resp.Members) != len(members) {
-							t.Errorf("resp members %v, want %v ",resp.Members, len(members))
+							t.Errorf("resp members %v, want %v ", resp.Members, len(members))
 						}
 					}
 				case <-timer.C:

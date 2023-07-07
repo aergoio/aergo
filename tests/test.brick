@@ -1,0 +1,10 @@
+inject me 10000000000
+deploy me 0 ct1 ./basic.lua
+
+call me 0 ct1 set_value `[1,"first"]` ``
+call me 0 ct1 set_value `[2,"second"]` ``
+call me 0 ct1 xet_value `[3,"invalid"]` `not found function: xet_value`
+
+query ct1 get_value `[1]` `"first"`
+query ct1 get_value `[2]` `"second"`
+query ct1 get_value `[3]` `null`

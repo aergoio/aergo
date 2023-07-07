@@ -37,7 +37,7 @@ var _ p2pcommon.MessageHandler = (*newTxNoticeHandler)(nil)
 // newTxReqHandler creates handler for GetTransactionsRequest
 func NewTxReqHandler(pm p2pcommon.PeerManager, sm p2pcommon.SyncManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *txRequestHandler {
 	th := &txRequestHandler{
-		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, sm:sm, peer: peer, actor: actor, logger: logger},
+		BaseMsgHandler{protocol: p2pcommon.GetTXsRequest, pm: pm, sm: sm, peer: peer, actor: actor, logger: logger},
 		newAsyncHelper(), message.GetHelper()}
 	return th
 }

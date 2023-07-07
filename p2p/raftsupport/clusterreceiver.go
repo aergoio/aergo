@@ -7,7 +7,6 @@ package raftsupport
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"sync"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 // ClusterInfoReceiver is send p2p getClusterInfo to connected peers and Receive p2p responses one of peers return successful response

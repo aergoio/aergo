@@ -24,7 +24,7 @@ func TestCommitTxWithMock(t *testing.T) {
 		gomock.Any(), // expect any value for second parameter
 	).Return(
 		&types.CommitResultList{Results: []*types.CommitResult{
-			&types.CommitResult{
+			{
 				Hash:   nil,
 				Error:  types.CommitStatus_TX_INVALID_FORMAT,
 				Detail: "tx invalid format",
@@ -44,7 +44,7 @@ func TestCommitTxWithMock(t *testing.T) {
 		gomock.Any(), // expect any value for second parameter
 	).Return(
 		&types.CommitResultList{Results: []*types.CommitResult{
-			&types.CommitResult{
+			{
 				Hash:   testTxHash,
 				Error:  types.CommitStatus_TX_OK,
 				Detail: "",

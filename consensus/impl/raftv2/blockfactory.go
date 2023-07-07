@@ -462,7 +462,8 @@ func (bf *BlockFactory) worker() {
 }
 
 // @ReadyMarker: leader can make new block after receiving empty commit entry. It is ready marker.
-//               Receiving a marker ensures that all the blocks of previous term has been connected in chain
+//
+//	Receiving a marker ensures that all the blocks of previous term has been connected in chain
 func (bf *BlockFactory) handleReadyMarker(ce *commitEntry) {
 	logger.Debug().Uint64("index", ce.index).Uint64("term", ce.term).Msg("set raft marker(empty block)")
 

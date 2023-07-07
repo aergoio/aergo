@@ -67,11 +67,11 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 
 	if vprLogger.IsDebugEnabled() {
 		vprLogger.Debug().
-			Int32("block version", ctx.BlockInfo.Version).
+			Int32("block version", ctx.BlockInfo.ForkVersion).
 			Msg("create new voting power table command")
 	}
 
-	if ctx.BlockInfo.Version < 2 {
+	if ctx.BlockInfo.ForkVersion < 2 {
 		cmd.add = func(v *types.Vote) error {
 			return cmd.voteResult.AddVote(v)
 		}
@@ -184,7 +184,7 @@ func (c *voteCmd) run() (*types.Event, error) {
 	if err := c.updateVoteResult(); err != nil {
 		return nil, err
 	}
-	if c.SystemContext.BlockInfo.Version < 2 {
+	if c.SystemContext.BlockInfo.ForkVersion < 2 {
 		return &types.Event{
 			ContractAddress: c.Receiver.ID(),
 			EventIdx:        0,

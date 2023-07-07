@@ -9,12 +9,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"io"
-	"time"
 )
 
 // baseWireHandshaker works to handshake to just connected peer, it detect chain networks
@@ -72,7 +73,7 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rwc io.Re
 		return h.writeErrAndReturn(fmt.Errorf("no matched p2p version for %v", hsReq.Versions), p2pcommon.HSCodeNoMatchedVersion, rwc)
 	} else {
 		h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("version", bestVer.String()).Msg("Responding best p2p version")
-		resp := p2pcommon.HSHeadResp{hsReq.Magic, bestVer.Uint32()}
+		resp := p2pcommon.HSHeadResp{Magic: hsReq.Magic, RespCode: bestVer.Uint32()}
 		err = h.writeWireHSResponse(resp, rwc)
 		select {
 		case <-ctx.Done():
@@ -211,7 +212,7 @@ func (h *baseWireHandshaker) writeWireHSResponse(hsHeader p2pcommon.HSHeadResp, 
 }
 
 func (h *baseWireHandshaker) writeErrAndReturn(err error, errCode uint32, wr io.Writer) (*p2pcommon.HandshakeResult, error) {
-	errResp := p2pcommon.HSHeadResp{p2pcommon.HSError, errCode}
+	errResp := p2pcommon.HSHeadResp{Magic: p2pcommon.HSError, RespCode: errCode}
 	_ = h.writeWireHSResponse(errResp, wr)
 	return nil, err
 }

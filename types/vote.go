@@ -17,6 +17,7 @@ const (
 
 // too few accounts to use map
 var specialAccounts [][]byte
+
 func init() {
 	specialAccounts = make([][]byte, 0, 4)
 	specialAccounts = append(specialAccounts, []byte(AergoSystem))
@@ -40,8 +41,9 @@ type VotingIssue interface {
 	Key() []byte
 }
 
-//go:generate stringer -type=OpSysTx
 // OpSysTx represents a kind of a system transaction.
+//
+//go:generate stringer -type=OpSysTx
 type OpSysTx int
 
 const (

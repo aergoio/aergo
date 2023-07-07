@@ -6,11 +6,11 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -69,30 +69,30 @@ func TestGetTxsReceiver_ReceiveResp(t *testing.T) {
 	}
 	inSize := len(inTXs)
 	tests := []struct {
-		name        string
-		input       []types.TxID
-		blkInput    [][]*types.Tx
+		name     string
+		input    []types.TxID
+		blkInput [][]*types.Tx
 
 		// to verify
-		putCnt   int
-		wantMiss int
-		wantErr  bool
+		putCnt      int
+		wantMiss    int
+		wantErr     bool
 		wantConsume bool
 	}{
-		{"TSingleResp", inputHashes,  [][]*types.Tx{inTXs}, inSize,0,  false,true},
-		{"TMultiResp", inputHashes, [][]*types.Tx{inTXs[:1], inTXs[1:3], inTXs[3:]}, inSize,0,  false,true},
+		{"TSingleResp", inputHashes, [][]*types.Tx{inTXs}, inSize, 0, false, true},
+		{"TMultiResp", inputHashes, [][]*types.Tx{inTXs[:1], inTXs[1:3], inTXs[3:]}, inSize, 0, false, true},
 		// Fail1 remote err
-		{"TRemoteFail", inputHashes, [][]*types.Tx{inTXs[:0]}, 0,  0,true,true},
+		{"TRemoteFail", inputHashes, [][]*types.Tx{inTXs[:0]}, 0, 0, true, true},
 		// server didn't sent last parts. and it is very similar to timeout
 		//{"TNotComplete", inputHashes, time.Minute,0,[][]*types.Block{inTXs[:2]},1,0, false},
 		// Fail2 missing some blocks in the middle
-		{"TMissingBlk", inputHashes, [][]*types.Tx{inTXs[:1], inTXs[2:3], inTXs[3:]},inSize-1, 1,false,true},
+		{"TMissingBlk", inputHashes, [][]*types.Tx{inTXs[:1], inTXs[2:3], inTXs[3:]}, inSize - 1, 1, false, true},
 		// Fail2-1 missing some blocks in last
-		{"TMissingBlkLast", inputHashes, [][]*types.Tx{inTXs[:1], inTXs[1:2], inTXs[3:]},inSize-1, 1,false,true},
+		{"TMissingBlkLast", inputHashes, [][]*types.Tx{inTXs[:1], inTXs[1:2], inTXs[3:]}, inSize - 1, 1, false, true},
 		// Fail3 unexpected block
-		{"TDupBlock", inputHashes, [][]*types.Tx{inTXs[:2], inTXs[1:3], inTXs[3:]},2, 0,true, false},
-		{"TTooManyBlks", inputHashes[:4], [][]*types.Tx{inTXs[:1], inTXs[1:3], inTXs[3:]},4, 0,true,true},
-		{"TTooManyBlksMiddle", inputHashes[:2], [][]*types.Tx{inTXs[:1], inTXs[1:3], inTXs[3:]},2,0, true,false},
+		{"TDupBlock", inputHashes, [][]*types.Tx{inTXs[:2], inTXs[1:3], inTXs[3:]}, 2, 0, true, false},
+		{"TTooManyBlks", inputHashes[:4], [][]*types.Tx{inTXs[:1], inTXs[1:3], inTXs[3:]}, 4, 0, true, true},
+		{"TTooManyBlksMiddle", inputHashes[:2], [][]*types.Tx{inTXs[:1], inTXs[1:3], inTXs[3:]}, 2, 0, true, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -123,11 +123,11 @@ func TestGetTxsReceiver_ReceiveResp(t *testing.T) {
 
 			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetTXsResponse, sampleMsgID)
 			for i, txs := range test.blkInput {
-				hashes := make([][]byte,len(txs))
-				for i,b := range txs {
+				hashes := make([][]byte, len(txs))
+				for i, b := range txs {
 					hashes[i] = b.Hash
 				}
-				body := &types.GetTransactionsResponse{Hashes:hashes, Txs: txs, HasNext: i < len(test.blkInput)-1}
+				body := &types.GetTransactionsResponse{Hashes: hashes, Txs: txs, HasNext: i < len(test.blkInput)-1}
 				br.ReceiveResp(msg, body)
 				if br.status == receiverStatusFinished {
 					break
@@ -135,12 +135,11 @@ func TestGetTxsReceiver_ReceiveResp(t *testing.T) {
 			}
 
 			if !test.wantErr && len(br.missed) != test.wantMiss {
-				t.Errorf("wantMiss tx cnt %v, wnat %v ",len(br.missed), test.wantMiss)
+				t.Errorf("wantMiss tx cnt %v, wnat %v ", len(br.missed), test.wantMiss)
 			}
 		})
 	}
 }
-
 
 func TestGetTxsReceiver_ReceiveRespBusyRemote(t *testing.T) {
 	inputHashes := make([]types.TxID, len(sampleBlks))
@@ -150,17 +149,16 @@ func TestGetTxsReceiver_ReceiveRespBusyRemote(t *testing.T) {
 		inTXs[i] = &types.Tx{Hash: hash, Body: &types.TxBody{}}
 	}
 	tests := []struct {
-		name        string
-		stCode       types.ResultStatus
+		name   string
+		stCode types.ResultStatus
 
 		// to verify
-		wantReGet bool
-		wantErr  bool
+		wantReGet   bool
+		wantErr     bool
 		wantConsume bool
 	}{
-		{"TRemoteBusy", types.ResultStatus_RESOURCE_EXHAUSTED,  true,  true,true},
-		{"TNotFound", types.ResultStatus_NOT_FOUND,  false,  true,true},
-
+		{"TRemoteBusy", types.ResultStatus_RESOURCE_EXHAUSTED, true, true, true},
+		{"TNotFound", types.ResultStatus_NOT_FOUND, false, true, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -191,13 +189,12 @@ func TestGetTxsReceiver_ReceiveRespBusyRemote(t *testing.T) {
 			br.StartGet()
 
 			msg := p2pcommon.NewSimpleMsgVal(p2pcommon.GetTXsResponse, sampleMsgID)
-			body := &types.GetTransactionsResponse{Hashes:nil, Txs: nil, HasNext: false, Status:test.stCode}
+			body := &types.GetTransactionsResponse{Hashes: nil, Txs: nil, HasNext: false, Status: test.stCode}
 			br.ReceiveResp(msg, body)
 
 		})
 	}
 }
-
 
 func TestGetTxsReceiver_ReceiveRespTimeout(t *testing.T) {
 	inputHashes := make([]types.TxID, len(sampleBlks))
@@ -215,8 +212,8 @@ func TestGetTxsReceiver_ReceiveRespTimeout(t *testing.T) {
 		blkInput    [][]*types.Tx
 
 		// to verify
-		consumed  int
-		sentResp  int
+		consumed int
+		sentResp int
 	}{
 		// Fail4 response sent after timeout
 		{"TBefore", inputHashes, time.Millisecond * 40, time.Millisecond * 100, [][]*types.Tx{inputTXs[:1], inputTXs[1:3], inputTXs[3:]}, 1, 0},
