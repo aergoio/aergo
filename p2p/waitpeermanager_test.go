@@ -7,16 +7,16 @@ package p2p
 
 import (
 	"errors"
-	network2 "github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/list"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	network2 "github.com/aergoio/aergo/internal/network"
+	"github.com/aergoio/aergo/p2p/list"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -429,11 +429,11 @@ func Test_basePeerManager_createRemoteInfo(t *testing.T) {
 			ma, _ := types.ToMultiAddr(tt.ip, tt.port)
 			conn.EXPECT().RemoteMultiaddr().Return(ma).AnyTimes()
 			mockIS := p2pmock.NewMockInternalService(ctrl)
-			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{n4}}).AnyTimes()
+			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{InternalZones: []*net.IPNet{n4}}).AnyTimes()
 
 			dpm := &basePeerManager{
 				logger: logger,
-				is: mockIS,
+				is:     mockIS,
 			}
 			got := dpm.createRemoteInfo(conn, tt.args.status, tt.args.outbound)
 			if !types.IsSamePeerID(got.Meta.ID, types.PeerID(pid1)) {
@@ -461,16 +461,16 @@ func Test_basePeerManager_createRemoteInfoOfZone(t *testing.T) {
 	pid1 := types.RandomPeerID()
 	sampleMeta := p2pcommon.PeerMeta{ID: pid1}
 	type args struct {
-		status   p2pcommon.HandshakeResult
+		status p2pcommon.HandshakeResult
 	}
 	tests := []struct {
-		name       string
-		args       args
-		ip         string
-		wantZone   p2pcommon.PeerZone
+		name     string
+		args     args
+		ip       string
+		wantZone p2pcommon.PeerZone
 	}{
-		{"TInternal1", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false} },
-			innerIP,  p2pcommon.InternalZone},
+		{"TInternal1", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false}},
+			innerIP, p2pcommon.InternalZone},
 		{"TInternal2", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false}},
 			innerIP2, p2pcommon.InternalZone},
 		{"TExternal", args{p2pcommon.HandshakeResult{Meta: sampleMeta, Hidden: false}},
@@ -485,11 +485,11 @@ func Test_basePeerManager_createRemoteInfoOfZone(t *testing.T) {
 			ma, _ := types.ToMultiAddr(tt.ip, 7846)
 			conn.EXPECT().RemoteMultiaddr().Return(ma).AnyTimes()
 			mockIS := p2pmock.NewMockInternalService(ctrl)
-			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{n4}}).AnyTimes()
+			mockIS.EXPECT().LocalSettings().Return(p2pcommon.LocalSettings{InternalZones: []*net.IPNet{n4}}).AnyTimes()
 
 			dpm := &basePeerManager{
 				logger: logger,
-				is: mockIS,
+				is:     mockIS,
 			}
 			got := dpm.createRemoteInfo(conn, tt.args.status, false)
 			if !types.IsSamePeerID(got.Meta.ID, types.PeerID(pid1)) {
@@ -505,28 +505,28 @@ func Test_basePeerManager_createRemoteInfoOfZone(t *testing.T) {
 func Test_basePeerManager_OnWorkDone(t *testing.T) {
 	logger := log.NewLogger("p2p.test")
 	pid := types.RandomPeerID()
-	meta := p2pcommon.NewMetaWith1Addr(pid,"192.168.2.3",7846,"v2.0.0")
-	wpTmpl := p2pcommon.WaitingPeer{Meta:meta}
-	argTmpl := p2pcommon.ConnWorkResult{Meta:meta}
+	meta := p2pcommon.NewMetaWith1Addr(pid, "192.168.2.3", 7846, "v2.0.0")
+	wpTmpl := p2pcommon.WaitingPeer{Meta: meta}
+	argTmpl := p2pcommon.ConnWorkResult{Meta: meta}
 	type args struct {
 		designated bool
-		inbound bool
-		succeed bool
+		inbound    bool
+		succeed    bool
 	}
 	tests := []struct {
-		name   string
-		args  args
+		name      string
+		args      args
 		wantRetry bool
 	}{
 		// 1. work success
-		{"TInSucc",args{false, true, true}, false},
-		{"TOutSucc",args{false, true, true},false},
+		{"TInSucc", args{false, true, true}, false},
+		{"TOutSucc", args{false, true, true}, false},
 		// 2. work failed of designated peer
-		{"TInFailDesignated",args{true, true, false},true},
-		{"TOutFailDesignated",args{true, false, false},true},
+		{"TInFailDesignated", args{true, true, false}, true},
+		{"TOutFailDesignated", args{true, false, false}, true},
 		// 3. work failed of normal peer
-		{"TInFailNormal",args{false, true, false},false},
-		{"TOutFailNormal",args{false, false, false},false},
+		{"TInFailNormal", args{false, true, false}, false},
+		{"TOutFailNormal", args{false, false, false}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -543,7 +543,7 @@ func Test_basePeerManager_OnWorkDone(t *testing.T) {
 				logger:      logger,
 				workingJobs: make(map[types.PeerID]ConnWork),
 			}
-			dpm.workingJobs[pid] = ConnWork{Meta:meta, PeerID:pid, StartTime:time.Now().Add(-time.Millisecond)}
+			dpm.workingJobs[pid] = ConnWork{Meta: meta, PeerID: pid, StartTime: time.Now().Add(-time.Millisecond)}
 			wp := wpTmpl
 			wp.Designated = tt.args.designated
 			dummyPM.waitingPeers[pid] = &wp
@@ -554,10 +554,10 @@ func Test_basePeerManager_OnWorkDone(t *testing.T) {
 			}
 
 			dpm.OnWorkDone(arg)
-			if _,exist := dpm.workingJobs[pid]; exist {
+			if _, exist := dpm.workingJobs[pid]; exist {
 				t.Errorf("OnWorkDone() job must be deleted, but not")
 			}
-			if _,exist := dummyPM.waitingPeers[pid]; exist != tt.wantRetry {
+			if _, exist := dummyPM.waitingPeers[pid]; exist != tt.wantRetry {
 				t.Errorf("OnWorkDone() wantRetry %v , but not", tt.wantRetry)
 			}
 
@@ -567,15 +567,15 @@ func Test_basePeerManager_OnWorkDone(t *testing.T) {
 
 func Test_dynamicWPManager_OnPeerDisconnect(t *testing.T) {
 	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
-	meta1 := p2pcommon.NewMetaWith1Addr(pid1, "127.0.0.1",7846, "v2.0")
-	meta2 := p2pcommon.NewMetaWith1Addr(pid2, "127.0.0.2",7846, "v2.0")
+	meta1 := p2pcommon.NewMetaWith1Addr(pid1, "127.0.0.1", 7846, "v2.0")
+	meta2 := p2pcommon.NewMetaWith1Addr(pid2, "127.0.0.2", 7846, "v2.0")
 
 	type args struct {
 		meta p2pcommon.PeerMeta
 	}
 	tests := []struct {
-		name   string
-		args   args
+		name string
+		args args
 
 		wantRetry bool
 	}{
@@ -601,7 +601,7 @@ func Test_dynamicWPManager_OnPeerDisconnect(t *testing.T) {
 
 			dpm.OnPeerDisconnect(mockPeer)
 
-			if _,exist := dummyPM.waitingPeers[tt.args.meta.ID]; exist != tt.wantRetry {
+			if _, exist := dummyPM.waitingPeers[tt.args.meta.ID]; exist != tt.wantRetry {
 				t.Errorf("OnPeerDisconnect() wantRetry %v , but not", tt.wantRetry)
 			}
 		})

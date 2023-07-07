@@ -7,8 +7,9 @@ package cmd
 
 import (
 	"context"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"time"
+
+	"github.com/aergoio/aergo/cmd/aergocli/util"
 
 	"github.com/mr-tron/base58/base58"
 

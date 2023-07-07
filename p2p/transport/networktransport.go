@@ -7,23 +7,22 @@ package transport
 
 import (
 	"context"
-	network2 "github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/types"
-	core "github.com/libp2p/go-libp2p-core"
-	"github.com/libp2p/go-libp2p-core/network"
 	"sync"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
+	cfg "github.com/aergoio/aergo/config"
+	network2 "github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
-
-	cfg "github.com/aergoio/aergo/config"
+	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p"
+	core "github.com/libp2p/go-libp2p-core"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/network"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
+	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	ma "github.com/multiformats/go-multiaddr"
 )
 
@@ -118,7 +117,7 @@ func (sl *networkTransport) AddStreamHandler(pid core.ProtocolID, handler networ
 func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, ttl time.Duration, protocolIDs ...core.ProtocolID) (core.Stream, error) {
 	var peerAddr = meta.Addresses[0]
 	var peerID = meta.ID
-	sl.logger.Debug().Str("peerAddr",peerAddr.String()).Str(p2putil.LogPeerID,p2putil.ShortForm(peerID)).Msg("connecting to peer")
+	sl.logger.Debug().Str("peerAddr", peerAddr.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("connecting to peer")
 	sl.Peerstore().AddAddr(peerID, peerAddr, ttl)
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, peerID, protocolIDs...)
@@ -171,7 +170,7 @@ func (sl *networkTransport) startListener() {
 	}
 	listens = append(listens, listen)
 
-	peerStore := pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewProtoBook(),pstoremem.NewPeerMetadata())
+	peerStore := pstore.NewPeerstore(pstoremem.NewKeyBook(), pstoremem.NewAddrBook(), pstoremem.NewProtoBook(), pstoremem.NewPeerMetadata())
 
 	newHost, err := libp2p.New(context.Background(), libp2p.Identity(sl.privateKey), libp2p.Peerstore(peerStore), libp2p.ListenAddrs(listens...))
 	if err != nil {

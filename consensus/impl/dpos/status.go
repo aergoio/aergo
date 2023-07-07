@@ -12,7 +12,7 @@ import (
 
 var bsLoader *bootLoader
 
-// Status manages DPoS-related infomations like LIB.
+// Status manages DPoS-related information like LIB.
 type Status struct {
 	sync.RWMutex
 	done      bool
@@ -34,7 +34,7 @@ func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 	return s
 }
 
-// load restores the last LIB status by using the informations loaded from the
+// load restores the last LIB status by using the information loaded from the
 // DB.
 func (s *Status) load() {
 	if s.done {
@@ -101,7 +101,7 @@ func (s *Status) Update(block *types.Block) {
 		// Rollback BP list. -- BP list is alos affected by a fork.
 		bps = s.bps.UpdateCluster(block.BlockNo())
 
-		// Rollback Voting Powerank: the snapshot fully re-loaded from the
+		// Rollback Voting Power Rank: the snapshot fully re-loaded from the
 		// branch block. TODO: let's find a smarter way or use parallel
 		// loading.
 		if err := InitVPR(s.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())); err != nil {

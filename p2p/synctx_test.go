@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -13,8 +16,6 @@ import (
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func Test_syncTxManager_HandleNewTxNotice(t *testing.T) {
@@ -145,10 +146,12 @@ func equalTXIDs(a []types.TxID, b []types.TxID) bool {
 var txSample []*types.Tx
 var txIDSample []types.TxID
 var pidSample []types.PeerID
+
 const idSampleSize = 20
 const pidSampleSize = 5
+
 func init() {
-	txSample = make([]*types.Tx,idSampleSize)
+	txSample = make([]*types.Tx, idSampleSize)
 	txIDSample = make([]types.TxID, idSampleSize)
 	for i := 0; i < idSampleSize; i++ {
 		txSample[i] = types.NewTx()
@@ -164,15 +167,15 @@ func init() {
 
 // mq make list of queyrQueue. the params must be pair. (i.e first is peerid, second is list of txID, and so on.
 func mq(arg ...interface{}) []*queryQueue {
-	size := len(arg)/2
-	var qs = make([]*queryQueue,0,size)
-	for i:=0; i<size; i++ {
+	size := len(arg) / 2
+	var qs = make([]*queryQueue, 0, size)
+	for i := 0; i < size; i++ {
 		pid := pidSample[arg[i*2].(int)]
 		org := arg[i*2+1].([]types.TxID)
-		ids := make([]types.TxID,len(org))
-		copy(ids,org)
-		q := &queryQueue{peerID:pid, txIDs:ids}
-		qs = append(qs,q)
+		ids := make([]types.TxID, len(org))
+		copy(ids, org)
+		q := &queryQueue{peerID: pid, txIDs: ids}
+		qs = append(qs, q)
 	}
 	return qs
 }
@@ -195,7 +198,7 @@ func Test_txSyncManager_refineFrontCacheConsumption(t *testing.T) {
 
 	sampleSize := 6000
 	logger := log.NewLogger("tt.p2p")
-	txs := make([]*types.Tx,sampleSize)
+	txs := make([]*types.Tx, sampleSize)
 	tids := make([]types.TxID, sampleSize)
 	for i := 0; i < sampleSize; i++ {
 		txs[i] = types.NewTx()
@@ -203,30 +206,30 @@ func Test_txSyncManager_refineFrontCacheConsumption(t *testing.T) {
 		txs[i].Hash = txs[i].CalculateTxHash()
 		tids[i] = types.ToTxID(txs[i].Hash)
 		if i%100 < 2 {
-			t.Logf("tid %04d : %v",i, tids[i])
+			t.Logf("tid %04d : %v", i, tids[i])
 		}
 	}
 	ps := pidSample
 
 	tests := []struct {
-		name     string
-		ques     []*queryQueue
+		name string
+		ques []*queryQueue
 
 		wantSend   []*queryQueue
 		wantRemain []*queryQueue
 	}{
 		// 0. assumption: every txids is in front cache also
 		// 1. small different notces from multiple peers. all notices should be consumed
-		{"TMultiSmall", mq(0, tids[:2],1,tids[2:3],2,tids[3:6],3,tids[10:20]),mq(0, tids[:2],1,tids[2:3],2,tids[3:6],3,tids[10:20]), nil},
+		{"TMultiSmall", mq(0, tids[:2], 1, tids[2:3], 2, tids[3:6], 3, tids[10:20]), mq(0, tids[:2], 1, tids[2:3], 2, tids[3:6], 3, tids[10:20]), nil},
 		// 2. small duplcated notices (=sent to other peer already) from multiple peers. duplicated notices will remain
-		{"TDupWhole", mq(0, tids[:3],1,tids[:3],2,tids[:3],3,tids[3:6]),mq(0,tids[:3],3,tids[3:6]), mq(1,tids[:3],2,tids[:3])},
+		{"TDupWhole", mq(0, tids[:3], 1, tids[:3], 2, tids[:3], 3, tids[3:6]), mq(0, tids[:3], 3, tids[3:6]), mq(1, tids[:3], 2, tids[:3])},
 		// 3. part of tx ids are dup
-		{"TDupPart", mq(0, tids[:3],1,tids[2:5],2,tids[3:6],3,tids[4:8]),mq(0, tids[:3],1,tids[3:5],2,tids[5:6],3,tids[6:8]), mq(1,tids[2:3],2,tids[3:5],3,tids[4:6])},
+		{"TDupPart", mq(0, tids[:3], 1, tids[2:5], 2, tids[3:6], 3, tids[4:8]), mq(0, tids[:3], 1, tids[3:5], 2, tids[5:6], 3, tids[6:8]), mq(1, tids[2:3], 2, tids[3:5], 3, tids[4:6])},
 		// 4. same peer sends lots of notices
-		{"TFreq", mq(0, tids[:3],0,tids[3:10],0,tids[10:20],0,tids[20:100],0,tids[200:400]),mq(0, ct(tids[:100],tids[200:400])), nil },
-		{"TBig", mq(0, tids[:1500],0,tids[1500:3000],0,tids[3000:4500],0,tids[4500:6000]),mq(0, tids[:2000]), mq(0,tids[2000:3000],0,tids[3000:4500],0,tids[4500:6000]) },
-		{"TMultiBig", mq(0, tids[:1500],1,tids[3000:4500],0,tids[1500:3000],1,tids[4500:6000]),mq(0, tids[:2000],1,tids[3000:5000]), mq(0, tids[2000:3000],1,tids[5000:6000]) },
-		{"TMultiNew", mq(0, tids[:1500],1,tids[1500:3000],2,tids[3000:4500],3,tids[4500:6000]),mq(0, tids[:1500],1,tids[1500:3000],2,tids[3000:4500],3,tids[4500:6000]), nil },
+		{"TFreq", mq(0, tids[:3], 0, tids[3:10], 0, tids[10:20], 0, tids[20:100], 0, tids[200:400]), mq(0, ct(tids[:100], tids[200:400])), nil},
+		{"TBig", mq(0, tids[:1500], 0, tids[1500:3000], 0, tids[3000:4500], 0, tids[4500:6000]), mq(0, tids[:2000]), mq(0, tids[2000:3000], 0, tids[3000:4500], 0, tids[4500:6000])},
+		{"TMultiBig", mq(0, tids[:1500], 1, tids[3000:4500], 0, tids[1500:3000], 1, tids[4500:6000]), mq(0, tids[:2000], 1, tids[3000:5000]), mq(0, tids[2000:3000], 1, tids[5000:6000])},
+		{"TMultiNew", mq(0, tids[:1500], 1, tids[1500:3000], 2, tids[3000:4500], 3, tids[4500:6000]), mq(0, tids[:1500], 1, tids[1500:3000], 2, tids[3000:4500], 3, tids[4500:6000]), nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -291,26 +294,26 @@ func Test_txSyncManager_refineFrontCacheConsumption(t *testing.T) {
 				for j, hash := range hashes {
 					tid := types.ToTxID(hash)
 					if !types.HashID(tid).Equal(types.HashID(wTids[j])) {
-						t.Fatalf("idx %d:%d, sent txID %v, want %v",i,j,tid, wTids[j])
+						t.Fatalf("idx %d:%d, sent txID %v, want %v", i, j, tid, wTids[j])
 					}
 				}
 			}
 			if tm.toNoticeIdQueue.Len() != len(tt.wantRemain) {
 				t.Fatalf("remained queue len %v, want %v", tm.toNoticeIdQueue.Len(), len(tt.wantRemain))
 			} else {
-				idx:=0
-				for e := tm.toNoticeIdQueue.Front(); e!=nil; e = e.Next(){
+				idx := 0
+				for e := tm.toNoticeIdQueue.Front(); e != nil; e = e.Next() {
 					v := e.Value.(*queryQueue)
 					w := tt.wantRemain[idx]
 					if !types.IsSamePeerID(v.peerID, w.peerID) {
-						t.Fatalf("idx %d, remained peerID %v, want %v",idx,v.peerID, tt.wantRemain[idx])
+						t.Fatalf("idx %d, remained peerID %v, want %v", idx, v.peerID, tt.wantRemain[idx])
 					}
 					if len(v.txIDs) != len(w.txIDs) {
 						t.Fatalf("remained queue len %v, want %v", tm.toNoticeIdQueue.Len(), len(tt.wantRemain))
 					}
 					for i, tid := range v.txIDs {
 						if !types.HashID(tid).Equal(types.HashID(w.txIDs[i])) {
-							t.Fatalf("idx %d, tid in queue %v, want %v",idx,tid, w.txIDs[i])
+							t.Fatalf("idx %d, tid in queue %v, want %v", idx, tid, w.txIDs[i])
 						}
 					}
 					idx++
@@ -458,7 +461,7 @@ func Test_syncTxManager_pushBackToFrontCache(t *testing.T) {
 		// 1. All are in front cache
 		{"TAll", txIds, txIds, true},
 		// 2. removed from front cache (maybe containd in block)
-		{"TRemoved", txIds[3:], txIds[:3], false },
+		{"TRemoved", txIds[3:], txIds[:3], false},
 		{"TPartial", txIds[3:], txIds[:5], true},
 	}
 	for _, tt := range tests {
@@ -484,8 +487,8 @@ func Test_syncTxManager_pushBackToFrontCache(t *testing.T) {
 			}
 			tm.pushBackToFrontCache(dummyPeerID, tt.arg)
 
-			if (tm.toNoticeIdQueue.Len()>0) != tt.wantBack {
-				t.Fatalf("txs added %v, want %v", (tm.toNoticeIdQueue.Len()>0), tt.wantBack)
+			if (tm.toNoticeIdQueue.Len() > 0) != tt.wantBack {
+				t.Fatalf("txs added %v, want %v", (tm.toNoticeIdQueue.Len() > 0), tt.wantBack)
 			}
 			if tt.wantBack {
 				if !equalTXIDs(tm.toNoticeIdQueue.Front().Value.(*queryQueue).txIDs, tt.arg) {

@@ -134,7 +134,7 @@ func (sv *SignVerifier) verifyTx(comm component.IComponentRequester, tx *types.T
 	if tx.NeedNameVerify() {
 		cs, err := sv.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
 		if err != nil {
-			logger.Error().Err(err).Msg("failed to get verify because of openning contract error")
+			logger.Error().Err(err).Msg("failed to get verify because of opening contract error")
 			return false, err
 		}
 		address := name.GetOwner(cs, tx.Body.Account)

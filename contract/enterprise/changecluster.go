@@ -2,9 +2,10 @@ package enterprise
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/types"
 	"reflect"
 	"strconv"
+
+	"github.com/aergoio/aergo/types"
 )
 
 type CcArgument map[string]interface{}

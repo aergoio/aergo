@@ -1,3 +1,4 @@
+//go:build Debug
 // +build Debug
 
 package contract
@@ -65,8 +66,7 @@ func HexAddrOrPlainStrToHexAddr(d string) string {
 }
 
 func PlainStrToHexAddr(d string) string {
-
-	return hex.EncodeToString(strHash(d))
+	return hex.EncodeToString(StrHash(d))
 }
 
 func SetBreakPoint(contract_id_hex string, line uint64) error {

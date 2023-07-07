@@ -1,8 +1,8 @@
 loop_cnt = 1000
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
-tbl = { name= "kslee", year= 1981, age= 41,
- name1= "kslee", year1= 1981, age1= 41,
- name2= "kslee", year2= 1981, age2= 41,
+tbl = { name= "user2", year= 1981, age= 41,
+ name1= "user2", year1= 1981, age1= 41,
+ name2= "user2", year2= 1981, age2= 41,
  xxx= true}
 
 local print = function(...)

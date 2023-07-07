@@ -51,7 +51,7 @@ func (bh *blockRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.M
 	if bh.issue() {
 		go bh.handleBlkReq(msg, data)
 	} else {
-		bh.logger.Info().Str(p2putil.LogProtoID,bh.protocol.String()).Str(p2putil.LogMsgID,msg.ID().String()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("return error for busy")
+		bh.logger.Info().Str(p2putil.LogProtoID, bh.protocol.String()).Str(p2putil.LogMsgID, msg.ID().String()).Str(p2putil.LogPeerName, remotePeer.Name()).Msg("return error for busy")
 		resp := &types.GetBlockResponse{
 			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
 			Blocks: nil, HasNext: false}

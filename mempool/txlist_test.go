@@ -9,12 +9,10 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/aergoio/aergo/config"
-
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/types"
+	"github.com/stretchr/testify/assert"
 )
 
 var dummyMempool = &MemPool{
@@ -228,7 +226,7 @@ func TestListRemoveTx(t *testing.T) {
 	}
 
 	changedOrphan, tx := mpl.RemoveTx(four.GetTx())
-	assert.Equal(t, 5, mpl.len(), "list length")
+	assert.Equal(t, 5, mpl.allLen(), "list length")
 	assert.Equal(t, 2, changedOrphan, "new orphan count")
 	assert.Equal(t, four.GetTx().GetHash(), tx.GetHash(), "removed tx")
 	mpl.Put(four)

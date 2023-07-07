@@ -2,15 +2,14 @@ package merkle
 
 import (
 	"bytes"
-
-	"github.com/minio/sha256-simd"
-	"github.com/mr-tron/base58/base58"
-	"github.com/stretchr/testify/assert"
-
 	"encoding/base64"
 	"encoding/binary"
 	"hash"
 	"testing"
+
+	"github.com/minio/sha256-simd"
+	"github.com/mr-tron/base58/base58"
+	"github.com/stretchr/testify/assert"
 )
 
 var (

@@ -83,12 +83,12 @@ func newBlockLimitOp(maxBlockBodySize uint32) TxOpFn {
 	})
 }
 
-// Lock aquires the chain lock in a blocking mode.
+// Lock acquires the chain lock in a blocking mode.
 func Lock() {
 	chain.InAddBlock <- struct{}{}
 }
 
-// LockNonblock aquires the chain lock in a non-blocking mode. It returns
+// LockNonblock acquires the chain lock in a non-blocking mode. It returns
 // ErrBestBlock upon failure.
 func LockNonblock() error {
 	select {
@@ -139,15 +139,17 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 	if nCand > 0 {
 		op := NewCompTxOp(g.txOp)
 
-		var preLoadTx *types.Tx
+		var preloadTx *types.Tx
 		for i, tx := range txIn {
+			// if not last tx, preload next tx
 			if i != nCand-1 {
-				preLoadTx = txIn[i+1].GetTx()
-				contract.PreLoadRequest(bState, g.bi, preLoadTx, tx.GetTx(), contract.BlockFactory)
+				preloadTx = txIn[i+1].GetTx()
+				contract.RequestPreload(bState, g.bi, preloadTx, tx.GetTx(), contract.BlockFactory)
 			}
-
+			// process the transaction
 			err := op.Apply(bState, tx)
-			contract.SetPreloadTx(preLoadTx, contract.BlockFactory)
+			// mark the next preload tx to be executed
+			contract.SetPreloadTx(preloadTx, contract.BlockFactory)
 
 			//don't include tx that error is occurred
 			if e, ok := err.(ErrTimeout); ok {
