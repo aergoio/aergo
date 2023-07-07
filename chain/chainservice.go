@@ -8,7 +8,6 @@ package chain
 import (
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/p2p/p2putil"
 	"math"
 	"math/big"
 	"reflect"
@@ -27,6 +26,7 @@ import (
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
