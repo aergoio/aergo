@@ -11,6 +11,7 @@ var (
 	ExpectedErrSymbol  = "<expected_err>"
 	FunctionSymbol     = "<function>"
 	TimestampSymbol    = "<value_or_increment>"
+	HardforkSymbol     = "<version>"
 	CommandSymbol      = "[command]"
 )
 
@@ -27,4 +28,5 @@ func init() {
 	Symbols[ExpectedErrSymbol] = "expected error"
 	Symbols[FunctionSymbol] = "smart contract function name"
 	Symbols[TimestampSymbol] = "timestamp value or +increment"
+	Symbols[HardforkSymbol] = "hardfork version"
 }
