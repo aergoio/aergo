@@ -342,7 +342,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big
 	return nil
 }
 
-//TODO : refoctor after ContractState move to types
+// TODO : refoctor after ContractState move to types
 func (tx *Tx) ValidateWithContractState(contractState *State) error {
 	//in system.ValidateSystemTx
 	//in name.ValidateNameTx

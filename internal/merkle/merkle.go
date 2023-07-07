@@ -1,8 +1,9 @@
 package merkle
 
 import (
-	"github.com/minio/sha256-simd"
 	"hash"
+
+	"github.com/minio/sha256-simd"
 )
 
 type MerkleEntry interface {

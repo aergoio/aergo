@@ -2,9 +2,10 @@ package p2putil
 
 import (
 	"encoding/hex"
+	"testing"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"testing"
 )
 
 func Test(t *testing.T) {
@@ -53,7 +54,6 @@ func TestLibs(t *testing.T) {
 	PrintLibP2PKey(libp2pKey, marshaled, t)
 	PrintLibP2PKey(pubKey, marshaled, t)
 }
-
 
 func TestLibs2(t *testing.T) {
 	btcKey, err := btcec.NewPrivateKey(btcec.S256())

@@ -2,7 +2,7 @@ package contract
 
 /*
 #include <lualib.h>
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "vm.h"
 */
 import "C"
@@ -56,13 +56,15 @@ func statePool(numCloseLimit int) {
 	}
 }
 
-func getLState(lsType int) *LState {
+func GetLState(lsType int) *LState {
 	state := <-getCh[lsType]
 	ctrLgr.Debug().Int("type", lsType).Msg("LState acquired")
 	return state
 }
 
-func freeLState(state *LState, lsType int) {
-	freeCh[lsType] <- state
-	ctrLgr.Debug().Int("type", lsType).Msg("LState released")
+func FreeLState(state *LState, lsType int) {
+	if state != nil {
+		freeCh[lsType] <- state
+		ctrLgr.Debug().Int("type", lsType).Msg("LState released")
+	}
 }

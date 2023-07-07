@@ -1,54 +1,34 @@
-
-assert_equals() {
-  local var="$1"
-  local expected="$2"
-
-  if [[ ! "$var" == "$expected" ]]; then
-    echo "Assertion failed: $var != $expected"
-    exit 1
-  fi
-}
-
-assert_contains() {
-  local var="$1"
-  local substring="$2"
-
-  if [[ ! "$var" == *"$substring"* ]]; then
-    echo "Assertion failed: $var does not contain $substring"
-    exit 1
-  fi
-}
-
-
-../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
+set -e
+source common.sh
 
 
 echo "-- deploy contract --"
 
-../bin/aergoluac --payload test-name-service.lua > test.out
+../bin/aergoluac --payload test-name-service.lua > payload.out
 
-txhash=$(../bin/aergocli --keystore . \
-        contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-  --payload `cat test.out` --password bmttest | jq .hash | sed 's/"//g')
+txhash=$(../bin/aergocli --keystore . --password bmttest \
+  contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
+  --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
-sleep 1
+get_receipt $txhash
 
-sc_id=`../bin/aergocli receipt get $txhash | jq '.contractAddress' | sed 's/"//g'`
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+address=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
 
+assert_equals "$status" "CREATED"
 
 
 echo "-- call contract with an invalid address --"
 
 txhash=$(../bin/aergocli --keystore . contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-	${sc_id} resolve '["AmgExqUu6J4Za8VjyWMJANxoRaUvwgngGQJgemHgwWvuRSEd3wnX"]' \
+	${address} resolve '["AmgExqUu6J4Za8VjyWMJANxoRaUvwgngGQJgemHgwWvuRSEd3wnX"]' \
 	--password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals   "$status" "ERROR"
 # assert_equals "$ret"    "[Contract.LuaResolve] Data and checksum don't match"
@@ -57,12 +37,10 @@ assert_contains "$ret"    "Data and checksum don't match"
 echo "-- call contract with a valid address --"
 
 txhash=$(../bin/aergocli --keystore . contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-	${sc_id} resolve '["AmgExqUu6J4Za8VjyWMJANxoRaUvwgngGQJgemHgwWvuRSEd3wnE"]' \
+	${address} resolve '["AmgExqUu6J4Za8VjyWMJANxoRaUvwgngGQJgemHgwWvuRSEd3wnE"]' \
 	--password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -74,12 +52,10 @@ assert_equals "$ret"    "AmgExqUu6J4Za8VjyWMJANxoRaUvwgngGQJgemHgwWvuRSEd3wnE"
 echo "-- call contract with invalid name --"
 
 txhash=$(../bin/aergocli --keystore . contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-	${sc_id} resolve '["long_name-with-invalid.chars"]' \
+	${address} resolve '["long_name-with-invalid.chars"]' \
 	--password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -91,11 +67,9 @@ assert_equals "$ret"    ""
 echo "-- call contract with valid but not set name --"
 
 txhash=$(../bin/aergocli --keystore . contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-	${sc_id} resolve '["testnametest"]'   --password bmttest | jq .hash | sed 's/"//g')
+	${address} resolve '["testnametest"]'   --password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -110,9 +84,7 @@ txhash=$(../bin/aergocli --keystore . name new --name="testnametest" \
 	--from AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
 	--password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 
@@ -122,11 +94,9 @@ assert_equals "$status" "SUCCESS"
 echo "-- call contract --"
 
 txhash=$(../bin/aergocli --keystore . contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-	${sc_id} resolve '["testnametest"]'   --password bmttest | jq .hash | sed 's/"//g')
+	${address} resolve '["testnametest"]'   --password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
@@ -142,9 +112,7 @@ txhash=$(../bin/aergocli --keystore . name update --name="testnametest" \
 	--to Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi \
 	--password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
-
-../bin/aergocli receipt get $txhash > receipt.json
+get_receipt $txhash
 
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 
@@ -154,11 +122,10 @@ assert_equals "$status" "SUCCESS"
 echo "-- call contract --"
 
 txhash=$(../bin/aergocli --keystore . contract call AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-	${sc_id} resolve '["testnametest"]'   --password bmttest | jq .hash | sed 's/"//g')
+	${address} resolve '["testnametest"]'   --password bmttest | jq .hash | sed 's/"//g')
 
-sleep 1
+get_receipt $txhash
 
-../bin/aergocli receipt get $txhash > receipt.json
 status=$(cat receipt.json | jq .status | sed 's/"//g')
 ret=$(cat receipt.json | jq .ret | sed 's/"//g')
 
@@ -168,11 +135,7 @@ assert_equals "$ret"    "Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi"
 
 echo "-- query the contract --"
 
-result=$(../bin/aergocli contract query ${sc_id} resolve '["testnametest"]' \
+result=$(../bin/aergocli contract query ${address} resolve '["testnametest"]' \
 	| sed 's/"//g' | sed 's/\\//g' | sed 's/ //g')
 
 assert_equals "$result" "value:Amh9vfP5My5DpSafe3gcZ1u8DiZNuqHSN2oAWehZW1kgB3XP4kPi"
-
-
-echo ""
-echo "All tests pass"

@@ -6,9 +6,10 @@
 package p2pcommon
 
 import (
+	"net"
+
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
-	"net"
 )
 
 // InternalService provides informations of self node and reference of other p2p components.

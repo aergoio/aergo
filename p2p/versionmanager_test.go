@@ -6,29 +6,28 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/golang/mock/gomock"
 	"reflect"
 	"testing"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
+	"github.com/golang/mock/gomock"
 )
 
 func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 
 	dummyChainID := &types.ChainID{}
 
-
 	type args struct {
 		versions []p2pcommon.P2PVersion
 	}
 	tests := []struct {
-		name   string
-		args   args
+		name string
+		args args
 
-		want   p2pcommon.P2PVersion
+		want p2pcommon.P2PVersion
 	}{
 		{"TSingle", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion033}}, p2pcommon.P2PVersion033},
 		{"TMulti", args{[]p2pcommon.P2PVersion{p2pcommon.P2PVersion031, p2pcommon.P2PVersion033}}, p2pcommon.P2PVersion033},
@@ -56,16 +55,15 @@ func Test_defaultVersionManager_FindBestP2PVersion(t *testing.T) {
 func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 	dummyChainID := &types.ChainID{}
 	if chain.Genesis == nil {
-		chain.Genesis = &types.Genesis{ID:*dummyChainID}
+		chain.Genesis = &types.Genesis{ID: *dummyChainID}
 	}
-
 
 	type args struct {
 		version p2pcommon.P2PVersion
 	}
 	tests := []struct {
-		name   string
-		args   args
+		name string
+		args args
 
 		wantErr bool
 	}{
@@ -97,7 +95,7 @@ func Test_defaultVersionManager_GetVersionedHandshaker(t *testing.T) {
 				return
 			}
 			if (got != nil) == tt.wantErr {
-				t.Errorf("defaultVersionManager.GetVersionedHandshaker() returns nil == %v , want %v", (got != nil), tt.wantErr )
+				t.Errorf("defaultVersionManager.GetVersionedHandshaker() returns nil == %v , want %v", (got != nil), tt.wantErr)
 				return
 			}
 		})

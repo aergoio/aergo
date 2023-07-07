@@ -2,6 +2,10 @@ package raftv2
 
 import (
 	"errors"
+	"io"
+	"sync"
+	"time"
+
 	chainsvc "github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/chain"
@@ -10,9 +14,6 @@ import (
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/types"
 	"github.com/aergoio/etcd/raft/raftpb"
-	"io"
-	"sync"
-	"time"
 )
 
 var (

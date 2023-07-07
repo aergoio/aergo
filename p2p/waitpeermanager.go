@@ -8,16 +8,17 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
 	"github.com/libp2p/go-libp2p-core/network"
-	"sort"
-	"time"
 )
 
-// connPeerResult is result of connection work of the waitingPeerManager. 
+// connPeerResult is result of connection work of the waitingPeerManager.
 type connPeerResult struct {
 	msgRW p2pcommon.MsgReadWriter
 
@@ -30,10 +31,10 @@ type connPeerResult struct {
 func NewWaitingPeerManager(logger *log.Logger, is p2pcommon.InternalService, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager: basePeerManager{is:is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager: basePeerManager{is: is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager: basePeerManager{is:is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager: basePeerManager{is: is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -103,7 +104,7 @@ func (dpm *basePeerManager) InstantConnect(meta p2pcommon.PeerMeta) {
 	} else {
 		// add to waiting peer
 		_, designated := dpm.pm.designatedPeers[meta.ID]
-		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, Designated:designated, NextTrial: time.Now().Add(-time.Hour)}
+		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, Designated: designated, NextTrial: time.Now().Add(-time.Hour)}
 	}
 	dpm.connectWaitingPeers(1)
 }
@@ -221,7 +222,7 @@ func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.Hand
 	rma := conn.RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(rma)
 	if err != nil {
-		panic("conn information is wrong : "+err.Error())
+		panic("conn information is wrong : " + err.Error())
 	}
 
 	connection := p2pcommon.RemoteConn{IP: ip, Port: port, Outbound: outbound}
@@ -239,7 +240,7 @@ func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.Hand
 		if len(r.Certificates) > 0 {
 			ri.AcceptedRole = types.PeerRole_Agent
 		} else {
-			dpm.logger.Debug().Str(p2putil.LogPeerID,p2putil.ShortForm(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
+			dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
 		}
 	default:
 		ri.AcceptedRole = r.Meta.Role
@@ -287,7 +288,7 @@ func (spm *staticWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := spm.pm.designatedPeers[peer.ID()]; ok {
 		spm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated:true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
+		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated: true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
 	}
 }
 
@@ -313,7 +314,7 @@ func (dpm *dynamicWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := dpm.pm.designatedPeers[peer.ID()]; ok {
 		dpm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated:true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
+		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated: true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
 		//dpm.pm.addAwait(peer.Meta())
 	}
 }

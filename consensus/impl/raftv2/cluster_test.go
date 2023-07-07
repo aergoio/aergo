@@ -36,19 +36,19 @@ func init() {
 	}
 
 	testMbrs = []*consensus.Member{
-		{types.MemberAttr{
+		{MemberAttr: types.MemberAttr{
 			ID:      1,
 			Name:    "testm1",
 			Address: "/ip4/127.0.0.1/13001",
 			PeerID:  []byte(testPeerIDs[0]),
 		}},
-		{types.MemberAttr{
+		{MemberAttr: types.MemberAttr{
 			ID:      2,
 			Name:    "testm2",
 			Address: "/ip4/127.0.0.1/tcp/13002",
 			PeerID:  []byte(testPeerIDs[1]),
 		}},
-		{types.MemberAttr{
+		{MemberAttr: types.MemberAttr{
 			ID:      3,
 			Name:    "testm3",
 			Address: "/ip4/127.0.0.1/tcp/13003",
@@ -76,7 +76,7 @@ func TestMemberJson(t *testing.T) {
 
 	assert.True(t, mbr.Equal(&newMbr))
 
-	mbrRemove := &consensus.Member{types.MemberAttr{ID: 1}}
+	mbrRemove := &consensus.Member{MemberAttr: types.MemberAttr{ID: 1}}
 	data, err = json.Marshal(mbrRemove)
 	assert.NoError(t, err)
 

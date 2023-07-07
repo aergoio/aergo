@@ -2,14 +2,15 @@ package p2putil
 
 import (
 	"bytes"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/golang/protobuf/proto"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func TestNewAgentCertV1(t *testing.T) {
@@ -67,7 +68,7 @@ func TestCheckAndGetV1(t *testing.T) {
 	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
 	pid1, _ := types.IDFromPrivateKey(libp2pKey1)
 	pid2 := types.RandomPeerID()
-	addrs := []string{"192.168.0.2","2001:0db8:85a3:08d3:1319:8a2e:370:7334","tester.aergo.io"}
+	addrs := []string{"192.168.0.2", "2001:0db8:85a3:08d3:1319:8a2e:370:7334", "tester.aergo.io"}
 	DAY := time.Hour * 24
 	w, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
 	tmpl, err := ConvertCertToProto(w)
@@ -75,8 +76,8 @@ func TestCheckAndGetV1(t *testing.T) {
 		t.Fatalf("Failed to create test input. %s ", err.Error())
 	}
 	w2, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, time.Second)
-	w3, _ :=  NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
-	w3.CreateTime = time.Now().Add(time.Second*10)
+	w3, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
+	w3.CreateTime = time.Now().Add(time.Second * 10)
 	SignCert(pk1, w3)
 	nftmpl, _ := ConvertCertToProto(w3)
 	w3.CreateTime = time.Now().Add(time.Hour)
@@ -94,10 +95,10 @@ func TestCheckAndGetV1(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		cert *types.AgentCertificate
+		cert    *types.AgentCertificate
 		wantErr error
 	}{
-		{"TSucc", NCB(tmpl).Build(), nil },
+		{"TSucc", NCB(tmpl).Build(), nil},
 		{"TEmptyBPID", NCB(tmpl).bpid(nil).Build(), p2pcommon.ErrInvalidPeerID},
 		{"TEmptyKey", NCB(tmpl).pubk(nil).Build(), p2pcommon.ErrInvalidKey},
 		{"TEmptyAgentID", NCB(tmpl).agid(nil).Build(), p2pcommon.ErrInvalidPeerID},
@@ -131,13 +132,15 @@ func TestCheckAndGetV1(t *testing.T) {
 		})
 	}
 }
+
 type cb struct {
 	tmpl *types.AgentCertificate
 	copy *types.AgentCertificate
 }
+
 func NCB(tmpl *types.AgentCertificate) *cb {
 	copy := proto.Clone(tmpl)
-	b := &cb{tmpl:tmpl, copy: copy.(*types.AgentCertificate) }
+	b := &cb{tmpl: tmpl, copy: copy.(*types.AgentCertificate)}
 	return b
 }
 func (b *cb) bpid(k []byte) *cb {
@@ -194,7 +197,7 @@ func TestAgentCertificateV1_Convert(t *testing.T) {
 		AgentAddress []string
 	}
 	tests := []struct {
-		name   string
+		name string
 		args args
 
 		wantErr bool
@@ -234,7 +237,7 @@ func Test_calculateCertificateHash(t *testing.T) {
 	pk1, _ := btcec.NewPrivateKey(btcec.S256())
 	//pk2, _ := btcec.NewPrivateKey(btcec.S256())
 	pid1, pid2 := types.RandomPeerID(), types.RandomPeerID()
-	addrs := []string{"192.168.0.2","2001:0db8:85a3:08d3:1319:8a2e:370:7334","tester.aergo.io"}
+	addrs := []string{"192.168.0.2", "2001:0db8:85a3:08d3:1319:8a2e:370:7334", "tester.aergo.io"}
 	DAY := time.Hour * 24
 	w, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, DAY)
 	w2, _ := NewAgentCertV1(pid1, pid2, pk1, addrs, time.Hour)

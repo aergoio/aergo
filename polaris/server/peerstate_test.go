@@ -50,7 +50,6 @@ func Test_pingChecker_DoCall(t *testing.T) {
 		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 6. cancel signal while reading
 		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
-
 	}
 	for _, tt := range tests {
 
@@ -121,7 +120,6 @@ func Test_pingChecker_DoCallWithTimer(t *testing.T) {
 		{"TTimeoutWrite", args{writeRet: nil, writeWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
 		// 6. cancel signal while reading
 		{"TTimeoutRead", args{writeRet: nil, readWait: 3, readRet2: nil, respSub: p2pcommon.PingResponse}, true},
-
 	}
 	for _, tt := range tests {
 

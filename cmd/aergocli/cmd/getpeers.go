@@ -68,7 +68,6 @@ func execGetPeers(cmd *cobra.Command, args []string) {
 	}
 }
 
-
 func Must(a0 string, _ error) string {
 	return a0
 }

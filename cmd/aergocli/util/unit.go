@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//var unit map[string]*big.Int
+// var unit map[string]*big.Int
 var units map[string]int
 var unitlist []string
 

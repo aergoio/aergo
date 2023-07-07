@@ -7,19 +7,17 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"runtime/debug"
 	"sync"
 	"time"
 
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/metric"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
-
-	lru "github.com/hashicorp/golang-lru"
-
-	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
+	lru "github.com/hashicorp/golang-lru"
+	"github.com/pkg/errors"
 )
 
 var TimeoutError = errors.New("timeout")
@@ -56,9 +54,9 @@ type remotePeerImpl struct {
 	stopChan chan struct{}
 
 	// direct write channel
-	writeBuf   chan p2pcommon.MsgOrder
+	writeBuf    chan p2pcommon.MsgOrder
 	writeDirect chan p2pcommon.MsgOrder
-	closeWrite chan struct{}
+	closeWrite  chan struct{}
 
 	// used to access request data from response handlers
 	requests map[p2pcommon.MsgID]*requestInfo
@@ -79,7 +77,7 @@ type remotePeerImpl struct {
 
 	rw p2pcommon.MsgReadWriter
 
-	taskChannel       chan p2pcommon.PeerTask
+	taskChannel chan p2pcommon.PeerTask
 
 	// lastTxQuery indicate last message for querying tx
 	blkQuerySlot int64
@@ -108,7 +106,7 @@ func newRemotePeer(remote p2pcommon.RemoteInfo, manageNum uint32, pm p2pcommon.P
 		txQueueLock:         &sync.Mutex{},
 		txNoticeQueue:       p2putil.NewPressableQueue(DefaultPeerTxQueueSize),
 		maxTxNoticeHashSize: DefaultPeerTxQueueSize,
-		taskChannel: make(chan p2pcommon.PeerTask, 1),
+		taskChannel:         make(chan p2pcommon.PeerTask, 1),
 	}
 	rPeer.writeBuf = make(chan p2pcommon.MsgOrder, writeMsgBufferSize)
 	rPeer.writeDirect = make(chan p2pcommon.MsgOrder)
@@ -200,7 +198,7 @@ READNOPLOOP:
 			p.cleanupCerts()
 		case c := <-p.certChan:
 			p.addCert(c)
-		case task := <- p.taskChannel:
+		case task := <-p.taskChannel:
 			p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Msg("Executing task for peer")
 			task(p)
 		case <-p.stopChan:
@@ -352,7 +350,6 @@ func (p *remotePeerImpl) SendMessage(msg p2pcommon.MsgOrder) {
 	}
 }
 
-
 func (p *remotePeerImpl) TrySendMessage(msg p2pcommon.MsgOrder) bool {
 	if p.State() > types.RUNNING {
 		p.logger.Debug().Str(p2putil.LogPeerName, p.Name()).Str(p2putil.LogProtoID, msg.GetProtocolID().String()).
@@ -439,7 +436,6 @@ func (p *remotePeerImpl) writeToPeer(m p2pcommon.MsgOrder) {
 	}
 }
 
-//
 func (p *remotePeerImpl) trySendTxNotices() {
 	p.txQueueLock.Lock()
 	defer p.txQueueLock.Unlock()
@@ -539,7 +535,7 @@ func (p *remotePeerImpl) UpdateTxCache(hashes []types.TxID) []types.TxID {
 }
 
 func (p *remotePeerImpl) UpdateLastNotice(blkHash types.BlockID, blkNumber types.BlockNo) {
-	p.lastStatus = &types.LastBlockStatus{time.Now(), blkHash[:], blkNumber}
+	p.lastStatus = &types.LastBlockStatus{CheckTime: time.Now(), BlockHash: blkHash[:], BlockNumber: blkNumber}
 }
 
 func (p *remotePeerImpl) sendGoAway(msg string) {
@@ -559,7 +555,7 @@ func (p *remotePeerImpl) addCert(cert *p2pcommon.AgentCertificateV1) {
 	p.remoteInfo.Certificates = newCerts
 	if len(newCerts) > 0 && p.AcceptedRole() == types.PeerRole_Watcher {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("peer has certificates now. peer is promoted to Agent")
-		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role:types.PeerRole_Agent}})
+		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role: types.PeerRole_Agent}})
 	}
 }
 
@@ -576,7 +572,7 @@ func (p *remotePeerImpl) cleanupCerts() {
 	p.remoteInfo.Certificates = certs2
 	if len(certs2) == 0 && p.AcceptedRole() == types.PeerRole_Agent {
 		p.logger.Info().Str(p2putil.LogPeerName, p.Name()).Msg("All Certificates are expired. peer is demoted to Watcher")
-		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role:types.PeerRole_Watcher}})
+		p.pm.UpdatePeerRole([]p2pcommon.RoleModifier{{ID: p.ID(), Role: types.PeerRole_Watcher}})
 	}
 }
 
@@ -586,7 +582,7 @@ func (p *remotePeerImpl) AddCertificate(cert *p2pcommon.AgentCertificateV1) {
 
 func (p *remotePeerImpl) DoTask(task p2pcommon.PeerTask) bool {
 	select {
-	case p.taskChannel <- task :
+	case p.taskChannel <- task:
 		return true
 	default:
 		// peer is busy

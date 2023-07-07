@@ -6,8 +6,9 @@
 package common
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"time"
+
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 )
 
 // PolarisMessage is data struct for transferring between polaris server and client.
@@ -27,13 +28,12 @@ type PolarisMessage struct {
 	payload []byte
 }
 
-
 // NewPolarisMessage create a new object
 func NewPolarisMessage(msgID p2pcommon.MsgID, protocol p2pcommon.SubProtocol, payload []byte) *PolarisMessage {
-	return &PolarisMessage{id: msgID, timestamp:time.Now().UnixNano(), subProtocol:protocol,payload:payload,length:uint32(len(payload))}
+	return &PolarisMessage{id: msgID, timestamp: time.Now().UnixNano(), subProtocol: protocol, payload: payload, length: uint32(len(payload))}
 }
-func NewPolarisRespMessage(msgID , orgReqID p2pcommon.MsgID, protocol p2pcommon.SubProtocol, payload []byte) *PolarisMessage {
-	return &PolarisMessage{id: msgID, originalID:orgReqID, timestamp:time.Now().UnixNano(), subProtocol:protocol,payload:payload,length:uint32(len(payload))}
+func NewPolarisRespMessage(msgID, orgReqID p2pcommon.MsgID, protocol p2pcommon.SubProtocol, payload []byte) *PolarisMessage {
+	return &PolarisMessage{id: msgID, originalID: orgReqID, timestamp: time.Now().UnixNano(), subProtocol: protocol, payload: payload, length: uint32(len(payload))}
 }
 
 func (m *PolarisMessage) Subprotocol() p2pcommon.SubProtocol {

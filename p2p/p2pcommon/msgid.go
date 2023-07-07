@@ -7,6 +7,7 @@ package p2pcommon
 
 import (
 	"fmt"
+
 	"github.com/gofrs/uuid"
 )
 

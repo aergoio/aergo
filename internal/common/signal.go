@@ -14,9 +14,9 @@ type interrupt struct {
 
 // HandleKillSig gets killing signals (interrupt, quit and terminate) and calls
 // a registered handler function for cleanup. Finally, this will exit program
-func HandleKillSig(handler func(), logger *log.Logger) interrupt{
+func HandleKillSig(handler func(), logger *log.Logger) interrupt {
 	i := interrupt{
-		C:make(chan struct{}),
+		C: make(chan struct{}),
 	}
 	sigChannel := make(chan os.Signal, 1)
 
