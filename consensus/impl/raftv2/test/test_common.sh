@@ -507,9 +507,6 @@ function getAdminUnlocked() {
 
 	_admin=`cat $_genesis`
 
-	echo "aergocli -p $rpcport account unlock --address $_admin --password 1234"
-	_ret=`aergocli -p $rpcport account unlock --address $_admin --password 1234`
-
 	if [ "$_admin" != "$_ret" ];then
 		echo "failed to unlock $_admin"
 	fi
@@ -611,6 +608,7 @@ function WaitPeerConnect() {
 			continue
 		fi
 
+        echo "WaitPeerConnect: $_res, $_reqcnt "
 		if [ "$_res" != "" -a $_res -gt 0 -a $_res -ge $_reqcnt ];then
 			echo "peer[$_res] connected"
 			return 1

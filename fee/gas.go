@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	txGasSize = uint64(100000)
+	txGasSize      = uint64(100000)
 	payloadGasSize = uint64(5)
 )
 

@@ -9,10 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
-
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
+	"github.com/opentracing/opentracing-go"
 )
 
 var _ IComponent = (*BaseComponent)(nil)

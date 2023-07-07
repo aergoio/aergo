@@ -9,13 +9,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/internal/network"
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/types"
-	"io"
 )
 
 // V033Handshaker exchange status data over protocol version .0.3.1
@@ -33,7 +34,7 @@ func (h *V033Handshaker) GetMsgRW() p2pcommon.MsgReadWriter {
 
 func NewV033VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, log *log.Logger, vm p2pcommon.VersionedManager, peerID types.PeerID, rwc io.ReadWriteCloser, genesis []byte) *V033Handshaker {
 	v032 := NewV032VersionedHS(pm, actor, log, vm.GetChainID(0), peerID, rwc, genesis)
-	h := &V033Handshaker{V032Handshaker:*v032, vm:vm}
+	h := &V033Handshaker{V032Handshaker: *v032, vm: vm}
 
 	return h
 }
@@ -111,7 +112,7 @@ func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 		return hsResult, nil
 	}
 
@@ -145,6 +146,6 @@ func (h *V033Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	if err != nil {
 		return nil, err
 	}
-	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 	return hsResult, nil
 }

@@ -6,8 +6,9 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
 	"time"
+
+	"github.com/aergoio/aergo/types"
 )
 
 // ListManager manages whitelist and blacklist
@@ -21,5 +22,5 @@ type ListManager interface {
 	RefineList()
 	Summary() map[string]interface{}
 }
-//go:generate mockgen -source=listmanager.go -package=p2pmock -destination=../p2pmock/mock_listmanager.go
 
+//go:generate mockgen -source=listmanager.go -package=p2pmock -destination=../p2pmock/mock_listmanager.go

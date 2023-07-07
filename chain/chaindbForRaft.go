@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/types"
@@ -199,7 +200,6 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 		if entry.Type == consensus.EntryBlock {
 			if err := cdb.addBlock(dbTx, blocks[i]); err != nil {
 				panic("add block entry")
-				return err
 			}
 
 			targetNo = blocks[i].BlockNo()
@@ -207,7 +207,6 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		if data, err = entry.ToBytes(); err != nil {
 			panic("failed to convert entry to bytes")
-			return err
 		}
 
 		lastIdx = entry.Index
@@ -390,33 +389,34 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 }
 
 /*
-func (cdb *ChainDB) WriteSnapshotDone() error {
-	data, err := encodeBool(true)
-	if err != nil {
-		return err
+	func (cdb *ChainDB) WriteSnapshotDone() error {
+		data, err := encodeBool(true)
+		if err != nil {
+			return err
+		}
+
+		dbTx := cdb.store.NewTx()
+		dbTx.Set(raftSnapStatusKey, data)
+		dbTx.Commit()
+
+		return nil
 	}
 
-	dbTx := cdb.store.NewTx()
-	dbTx.Set(raftSnapStatusKey, data)
-	dbTx.Commit()
+	func (cdb *ChainDB) GetSnapshotDone() (bool, error) {
+		data := cdb.store.Get(raftSnapStatusKey)
+		if len(data) == 0 {
+			return false, nil
+		}
 
-	return nil
-}
+		val, err := decodeBool(data)
+		if err != nil {
+			return false, err
+		}
 
-func (cdb *ChainDB) GetSnapshotDone() (bool, error) {
-	data := cdb.store.Get(raftSnapStatusKey)
-	if len(data) == 0 {
-		return false, nil
+		return val, nil
 	}
-
-	val, err := decodeBool(data)
-	if err != nil {
-		return false, err
-	}
-
-	return val, nil
-}
 */
+
 func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
 	data := cdb.store.Get(raftSnapKey)
 	if len(data) == 0 {

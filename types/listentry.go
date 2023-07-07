@@ -35,7 +35,9 @@ type RawEntry struct {
 	Cidr    string `json:"cidr"`
 	PeerId  string `json:"peerid"`
 }
+
 var dummyListEntry WhiteListEntry
+
 func init() {
 	dummyListEntry = WhiteListEntry{"", notSpecifiedCIDR, NotSpecifiedID}
 }
@@ -122,25 +124,25 @@ func ReadEntries(jsonBytes []byte) ([]WhiteListEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	eList := make([]WhiteListEntry,len(list))
+	eList := make([]WhiteListEntry, len(list))
 	for i, r := range list {
-		eList[i],err = NewListEntry(r)
+		eList[i], err = NewListEntry(r)
 		if err != nil {
-			return nil, fmt.Errorf("line %v. error %s",i, err.Error())
+			return nil, fmt.Errorf("line %v. error %s", i, err.Error())
 		}
 	}
 	return eList, nil
 }
 
 func WriteEntries(entries []WhiteListEntry, wr io.Writer) error {
-	rList := make([]RawEntry,len(entries))
+	rList := make([]RawEntry, len(entries))
 	for i, e := range entries {
 		r := RawEntry{}
 		if e.PeerID != NotSpecifiedID {
 			r.PeerId = IDB58Encode(e.PeerID)
 		}
 		if e.IpNet != nil && e.IpNet != notSpecifiedCIDR {
-			if m, b := e.IpNet.Mask.Size() ; m == b {
+			if m, b := e.IpNet.Mask.Size(); m == b {
 				// single ip
 				r.Address = e.IpNet.IP.String()
 			} else {

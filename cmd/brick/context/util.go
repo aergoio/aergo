@@ -1,6 +1,7 @@
 package context
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -60,4 +61,36 @@ func SplitSpaceAndAccent(input string, addLastInComplete bool) []Chunk {
 	}
 
 	return ret
+}
+
+func IsCompleteCommand(line string, line_no int, isOpen bool) (bool, error) {
+
+	chunks := strings.Fields(line)
+
+	for _, chunk := range chunks {
+		if isOpen {
+			if chunk == "`" {
+				isOpen = false
+			} else if strings.HasPrefix(chunk, "`") {
+				return false, fmt.Errorf("already open parameter at line %v", line_no)
+			} else if strings.HasSuffix(chunk, "`") {
+				isOpen = false
+			}
+		} else {
+			if chunk == "`" {
+				isOpen = true
+			} else if strings.HasPrefix(chunk, "`") {
+				if strings.HasSuffix(chunk, "`") {
+					// for example `keyword`
+				} else {
+					// for example `white space`
+					isOpen = true
+				}
+			} else if strings.HasSuffix(chunk, "`") {
+				return false, fmt.Errorf("closing not open parameter at line %v", line_no)
+			}
+		}
+	}
+
+	return isOpen, nil
 }

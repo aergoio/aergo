@@ -1,10 +1,11 @@
 package syncer
 
 import (
+	"testing"
+
 	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 // test blockfetcher without finder/hashfetcher

@@ -336,7 +336,7 @@ func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 
 			// genesis.ID is overwritten by the genesis block's chain
 			// id. Prefer the latter since it is sort of protected the block
-			// chain system (all the chaild blocks connected to the genesis
+			// chain system (all the child blocks connected to the genesis
 			// block).
 			rawCid := genesis.Block().GetHeader().GetChainID()
 			if len(rawCid) > 0 {
@@ -580,7 +580,7 @@ func (cdb *ChainDB) getBestBlockNo() (latestNo types.BlockNo) {
 	return latestNo
 }
 
-// GetBlockByNo returns the block with its block number as blockNo.
+// GetBlockByNo returns the block of which number is blockNo.
 func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	blockHash, err := cdb.getHashByNo(blockNo)
 	if err != nil {
@@ -785,7 +785,7 @@ func (cdb *ChainDB) IsNew() bool {
 	return true
 }
 
-func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
+func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbConfig {
 	var c config.HardforkDbConfig
 	data := cdb.store.Get(hardforkKey)
 	if len(data) == 0 {
@@ -794,7 +794,10 @@ func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil
 	}
-	return c
+	// When a new hardkfork height is added, the hardfork config from DB  (HardforkDBConfig)
+	// must be modified by using the height from HardforkConfig. Without this, aergosvr fails
+	// to start, since a harfork heght value not stored on DB is evaluated as 0.
+	return c.FixDbConfig(hConfig)
 }
 
 func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {

@@ -6,12 +6,12 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
 	"time"
 
+	"github.com/aergoio/aergo/chain"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/p2p/p2pmock"
 	"github.com/aergoio/aergo/types"
 	"github.com/golang/mock/gomock"
@@ -61,7 +61,7 @@ func TestBlocksChunkReceiver_StartGet(t *testing.T) {
 func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	chain.Init(1<<20 , "", false, 1, 1 )
+	chain.Init(1<<20, "", false, 1, 1)
 
 	seqNo := uint64(8723)
 	blkNo := uint64(100)
@@ -75,28 +75,28 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 		prevHash = hash
 	}
 	tests := []struct {
-		name        string
-		input       []message.BlockHash
-		blkInput    [][]*types.Block
+		name     string
+		input    []message.BlockHash
+		blkInput [][]*types.Block
 
 		// to verify
 		consumed  int
 		respError bool
 	}{
-		{"TSingleResp", inputHashes,  [][]*types.Block{inputBlocks}, 1,  false},
-		{"TMultiResp", inputHashes, [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1,  false},
+		{"TSingleResp", inputHashes, [][]*types.Block{inputBlocks}, 1, false},
+		{"TMultiResp", inputHashes, [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1, false},
 		// Fail1 remote err
-		{"TRemoteFail", inputHashes, [][]*types.Block{inputBlocks[:0]}, 1,  true},
+		{"TRemoteFail", inputHashes, [][]*types.Block{inputBlocks[:0]}, 1, true},
 		// server didn't sent last parts. and it is very similar to timeout
 		//{"TNotComplete", inputHashes, time.Minute,0,[][]*types.Block{inputBlocks[:2]},1,0, false},
 		// Fail2 missing some blocks in the middle
-		{"TMissingBlk", inputHashes, [][]*types.Block{inputBlocks[:1],inputBlocks[2:3],inputBlocks[3:]},0, true},
+		{"TMissingBlk", inputHashes, [][]*types.Block{inputBlocks[:1], inputBlocks[2:3], inputBlocks[3:]}, 0, true},
 		// Fail2-1 missing some blocks in last
-		{"TMissingBlkLast", inputHashes, [][]*types.Block{inputBlocks[:1],inputBlocks[1:2],inputBlocks[3:]},1, true},
+		{"TMissingBlkLast", inputHashes, [][]*types.Block{inputBlocks[:1], inputBlocks[1:2], inputBlocks[3:]}, 1, true},
 		// Fail3 unexpected block
-		{"TDupBlock", inputHashes, [][]*types.Block{inputBlocks[:2],inputBlocks[1:3],inputBlocks[3:]},0, true},
-		{"TTooManyBlks", inputHashes[:4], [][]*types.Block{inputBlocks[:1],inputBlocks[1:3],inputBlocks[3:]},1, true},
-		{"TTooManyBlksMiddle", inputHashes[:2], [][]*types.Block{inputBlocks[:1],inputBlocks[1:3],inputBlocks[3:]},0, true},
+		{"TDupBlock", inputHashes, [][]*types.Block{inputBlocks[:2], inputBlocks[1:3], inputBlocks[3:]}, 0, true},
+		{"TTooManyBlks", inputHashes[:4], [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1, true},
+		{"TTooManyBlksMiddle", inputHashes[:2], [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 0, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -140,11 +140,10 @@ func TestBlocksChunkReceiver_ReceiveResp(t *testing.T) {
 	}
 }
 
-
 func TestBlocksChunkReceiver_ReceiveRespTimeout(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	chain.Init(1<<20 , "", false, 1, 1 )
+	chain.Init(1<<20, "", false, 1, 1)
 
 	seqNo := uint64(8723)
 	blkNo := uint64(100)
@@ -165,8 +164,8 @@ func TestBlocksChunkReceiver_ReceiveRespTimeout(t *testing.T) {
 		blkInput    [][]*types.Block
 
 		// to verify
-		consumed  int
-		sentResp  int
+		consumed int
+		sentResp int
 	}{
 		// Fail4 response sent after timeout
 		{"TBefore", inputHashes, time.Millisecond * 40, time.Millisecond * 100, [][]*types.Block{inputBlocks[:1], inputBlocks[1:3], inputBlocks[3:]}, 1, 0},

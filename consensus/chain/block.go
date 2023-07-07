@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
-
 	"github.com/aergoio/aergo/chain"
+	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/p2p/p2putil"
 	"github.com/aergoio/aergo/pkg/component"
 	"github.com/aergoio/aergo/state"
 	"github.com/aergoio/aergo/types"
@@ -150,6 +149,7 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).
+			Int("no_receipts", len(bState.Receipts().Get())).
 			Msg("BF: tx root hash")
 	}
 
@@ -176,7 +176,8 @@ func (g *BlockGenerator) tteEnabled() bool {
 	return !g.noTTE
 }
 
-// ConnectBlock send an AddBlock request to the chain service.
+// ConnectBlock send an AddBlock request to the chain service. This method is called only when this node
+// produced a block.
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState, timeout time.Duration) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.

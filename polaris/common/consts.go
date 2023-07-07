@@ -36,4 +36,3 @@ func init() {
 	}
 	ONETestNet = tnGen.ID
 }
-

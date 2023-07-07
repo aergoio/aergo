@@ -24,7 +24,7 @@ type MessageValue struct {
 }
 
 // NewLiteMessageValue create MessageValue object which payload is empty
-func NewLiteMessageValue(protocol SubProtocol, msgID, originalID MsgID, timestamp int64,) *MessageValue {
+func NewLiteMessageValue(protocol SubProtocol, msgID, originalID MsgID, timestamp int64) *MessageValue {
 	return &MessageValue{id: msgID, originalID: originalID, timestamp: timestamp, subProtocol: protocol}
 }
 
@@ -74,4 +74,3 @@ func (m *MessageValue) SetPayload(payload []byte) {
 }
 
 var _ Message = (*MessageValue)(nil)
-

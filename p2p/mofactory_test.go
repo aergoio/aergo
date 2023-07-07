@@ -6,12 +6,12 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/gofrs/uuid"
 	"math/rand"
 	"testing"
 
+	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
+	"github.com/gofrs/uuid"
 )
 
 var sampleInputIDs []types.TxID

@@ -3,8 +3,9 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aergoio/etcd/raft/raftpb"
 	"strconv"
+
+	"github.com/aergoio/etcd/raft/raftpb"
 )
 
 type ChangeClusterStatus struct {

@@ -6,6 +6,12 @@
 package raftsupport
 
 import (
+	"io"
+	"net/http"
+	"strconv"
+	"sync"
+	"time"
+
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/consensus/impl/raftv2"
@@ -19,11 +25,6 @@ import (
 	"github.com/aergoio/etcd/snap"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/pkg/errors"
-	"io"
-	"net/http"
-	"strconv"
-	"sync"
-	"time"
 )
 
 // errors
@@ -33,6 +34,7 @@ var (
 	errRemovedMember     = errors.New("member was removed")
 	errUnreachableMember = errors.New("member is unreachable")
 )
+
 // AergoRaftTransport is wrapper of p2p module
 type AergoRaftTransport struct {
 	logger *log.Logger
@@ -108,7 +110,6 @@ func (t *AergoRaftTransport) Send(msgs []raftpb.Message) {
 			continue
 		}
 
-		t.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(member.GetPeerID())).Object("raftMsg", &RaftMsgMarshaller{&m}).Msg("can't send message to unconnected peer")
 	}
 }
 

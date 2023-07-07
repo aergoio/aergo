@@ -1,6 +1,6 @@
 loop_cnt = 1000
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
-tbl = { name= "kslee", year= 1981, age= 41 }
+tbl = { name= "user2", year= 1981, age= 41 }
 long_str = [[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as well.
 ]]
 long_str1 = [[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as werr.

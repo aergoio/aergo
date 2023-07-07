@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/aergoio/aergo/p2p/p2pkey"
-
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/p2p/p2pkey"
 	"github.com/aergoio/aergo/types"
 	"github.com/davecgh/go-spew/spew"
 )

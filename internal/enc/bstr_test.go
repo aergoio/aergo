@@ -10,14 +10,14 @@ func TestToString(t *testing.T) {
 		b []byte
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name        string
+		args        args
+		want        string
 		wantInverse bool
 	}{
-		{"TSingle", args{[]byte("A")},"28", true},
-		{"TEmpty", args{make([]byte,0)},"", false},
-		{"TNil", args{nil},"", false},
+		{"TSingle", args{[]byte("A")}, "28", true},
+		{"TEmpty", args{make([]byte, 0)}, "", false},
+		{"TNil", args{nil}, "", false},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {

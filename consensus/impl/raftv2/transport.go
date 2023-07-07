@@ -6,13 +6,14 @@
 package raftv2
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/aergoio/aergo/types"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/rafthttp"
 	"github.com/aergoio/etcd/snap"
-	"net/http"
-	"time"
 )
 
 type Transporter interface {
@@ -64,6 +65,6 @@ type HttpTransportWrapper struct {
 	rafthttp.Transport
 }
 
-func (t *HttpTransportWrapper)AddPeer(id rtypes.ID, peerID types.PeerID, urls []string) {
+func (t *HttpTransportWrapper) AddPeer(id rtypes.ID, peerID types.PeerID, urls []string) {
 	t.Transport.AddPeer(id, urls)
 }

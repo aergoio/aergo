@@ -85,7 +85,7 @@ deploy a raw text file on http also available.
 
 ### call
 
-call to execute a smart contract. `call <sender_name> <amount> <contract_name> <func_name> <call_json_str> [expected_error]`
+call to execute a smart contract. `call <sender_name> <amount> <contract_name> <func_name> <call_json_str> [expected_error] [expected_result]`
 
 ``` lua
 3> call tester 0 helloContract set_name `["aergo"]`

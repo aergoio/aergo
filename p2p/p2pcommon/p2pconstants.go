@@ -5,8 +5,5 @@
 
 package p2pcommon
 
-const (
-
-)
+const ()
 const IDLength = 16
-

@@ -24,7 +24,7 @@ type AccountService struct {
 	testConfig  bool
 }
 
-//NewAccountService create account service
+// NewAccountService create account service
 func NewAccountService(cfg *cfg.Config, sdb *state.ChainStateDB) *AccountService {
 	actor := &AccountService{
 		cfg: cfg,

@@ -28,7 +28,7 @@ var _ p2pcommon.MessageHandler = (*issueCertResponseHandler)(nil)
 
 // newAddressesReqHandler creates handler for PingRequest
 func NewIssueCertReqHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *issueCertRequestHandler {
-	ph := &issueCertRequestHandler{BaseMsgHandler{protocol: p2pcommon.IssueCertificateRequest, pm: pm, peer: peer, actor: actor, logger: logger}, cm } //TODO fill CertificateManager
+	ph := &issueCertRequestHandler{BaseMsgHandler{protocol: p2pcommon.IssueCertificateRequest, pm: pm, peer: peer, actor: actor, logger: logger}, cm} //TODO fill CertificateManager
 	return ph
 }
 
@@ -92,7 +92,6 @@ type certRenewedNoticeHandler struct {
 	cm p2pcommon.CertificateManager
 }
 
-
 // newAddressesRespHandler creates handler for PingRequest
 func NewCertRenewedNoticeHandler(pm p2pcommon.PeerManager, cm p2pcommon.CertificateManager, peer p2pcommon.RemotePeer, logger *log.Logger, actor p2pcommon.ActorService) *certRenewedNoticeHandler {
 	ph := &certRenewedNoticeHandler{BaseMsgHandler{protocol: p2pcommon.CertificateRenewedNotice, pm: pm, peer: peer, actor: actor, logger: logger}, cm}
@@ -125,7 +124,7 @@ func (h *certRenewedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 	if !p2putil.ContainsID(p.Meta().ProducerIDs, cert.BPID) {
 		// TODO add penalty
 		// this agent is not in charge of that bp id.
-		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID",p2putil.ShortForm(cert.BPID)).Msg("drop renewed certificate, since issuer is not managed producer of remote peer")
+		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("drop renewed certificate, since issuer is not managed producer of remote peer")
 		return
 	}
 	if !types.IsSamePeerID(p.ID(), cert.AgentID) {

@@ -77,7 +77,12 @@ func (ks *Store) ImportKey(imported []byte, oldpass string, newpass string) (Ide
 		return nil, err
 	}
 	privkey, _ := btcec.PrivKeyFromBytes(btcec.S256(), key)
-	return ks.addKey(privkey, newpass)
+	idendity, err := ks.addKey(privkey, newpass)
+	if err != nil {
+		address := crypto.GenerateAddress(&privkey.PublicKey)
+		return address, err
+	}
+	return idendity, nil
 }
 
 // ExportKey is to export encrypted key

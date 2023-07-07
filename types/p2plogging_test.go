@@ -8,15 +8,16 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/gofrs/uuid"
 	"strings"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/gofrs/uuid"
 )
 
 func TestLogB58EncMarshaller_MarshalZerologArray(t *testing.T) {
-	sampleID := make([][]byte,10)
-	for i:=0; i<10; i++ {
+	sampleID := make([][]byte, 10)
+	for i := 0; i < 10; i++ {
 		sampleID[i] = uuid.Must(uuid.NewV4()).Bytes()
 	}
 	type fields struct {
@@ -42,14 +43,14 @@ func TestLogB58EncMarshaller_MarshalZerologArray(t *testing.T) {
 			logger.Warn().Array("target", m).Msg("do test")
 			logStr := buf.String()
 
-			if tt.wantNum>0 {
+			if tt.wantNum > 0 {
 				moreMsg := fmt.Sprintf("%d more", tt.wantNum)
 				if !strings.Contains(logStr, moreMsg) {
-					t.Errorf("result %s, want exact %s items ",logStr, moreMsg)
+					t.Errorf("result %s, want exact %s items ", logStr, moreMsg)
 				}
 			} else {
-				if strings.Contains(logStr,  "more") {
-					t.Errorf("result %s, want no dropped item ",logStr)
+				if strings.Contains(logStr, "more") {
+					t.Errorf("result %s, want no dropped item ", logStr)
 				}
 			}
 		})
@@ -57,9 +58,9 @@ func TestLogB58EncMarshaller_MarshalZerologArray(t *testing.T) {
 }
 
 func TestLogBlockHashMarshaller_MarshalZerologArray(t *testing.T) {
-	sampleBlks := make([]*Block,10)
-	for i:=0; i<10; i++ {
-		sampleBlks[i] = &Block{Hash:uuid.Must(uuid.NewV4()).Bytes()}
+	sampleBlks := make([]*Block, 10)
+	for i := 0; i < 10; i++ {
+		sampleBlks[i] = &Block{Hash: uuid.Must(uuid.NewV4()).Bytes()}
 	}
 	type fields struct {
 		arr   []*Block
@@ -85,13 +86,13 @@ func TestLogBlockHashMarshaller_MarshalZerologArray(t *testing.T) {
 			}
 			logger.Warn().Array("target", m).Msg("do test")
 			logStr := buf.String()
-			if tt.wantNum>0 {
+			if tt.wantNum > 0 {
 				moreMsg := fmt.Sprintf("%d more", tt.wantNum)
 				if !strings.Contains(logStr, moreMsg) {
-					t.Errorf("result %s , want exact %s items ",buf.String(), moreMsg)
+					t.Errorf("result %s , want exact %s items ", buf.String(), moreMsg)
 				}
 			} else {
-				if strings.Contains(logStr,  "more") {
+				if strings.Contains(logStr, "more") {
 					t.Errorf("result %s , want no dropped item ", buf.String())
 				}
 			}

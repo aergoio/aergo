@@ -6,11 +6,12 @@
 package metric
 
 import (
+	"testing"
+	"time"
+
 	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"github.com/aergoio/aergo/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestMetricsManager_Stop(t *testing.T) {
@@ -25,7 +26,7 @@ func TestMetricsManager_Stop(t *testing.T) {
 			mm := NewMetricManager(1)
 			go mm.Start()
 
-			time.Sleep(time.Millisecond * 230 )
+			time.Sleep(time.Millisecond * 230)
 			mm.Stop()
 		})
 	}
@@ -39,16 +40,16 @@ func TestMetricsManager_Size(t *testing.T) {
 
 		// inSize should be small or equal to out
 		outSize int
-		inSize int
+		inSize  int
 
 		remove bool
 	}{
-		{"Tzero", 0,0, false},
-		{"TzeroRM", 0,0, true},
-		{"TSameInOut", 999,999, false},
-		{"TSameInOutRM", 999,999, true},
-		{"TLeave", 2999,999, false},
-		{"TLeaveRM", 2999,999, true},
+		{"Tzero", 0, 0, false},
+		{"TzeroRM", 0, 0, true},
+		{"TSameInOut", 999, 999, false},
+		{"TSameInOutRM", 999, 999, true},
+		{"TLeave", 2999, 999, false},
+		{"TLeaveRM", 2999, 999, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -58,8 +59,8 @@ func TestMetricsManager_Size(t *testing.T) {
 			assert.Equal(t, int64(0), mm.deadTotalIn)
 			assert.Equal(t, int64(0), mm.deadTotalOut)
 			if test.outSize > 0 {
-				peerMetric.OnWrite(p2pcommon.PingRequest,test.outSize)
-				peerMetric.OnRead(p2pcommon.PingResponse,test.inSize)
+				peerMetric.OnWrite(p2pcommon.PingRequest, test.outSize)
+				peerMetric.OnRead(p2pcommon.PingResponse, test.inSize)
 
 				assert.Equal(t, int64(0), mm.deadTotalIn)
 				assert.Equal(t, int64(0), mm.deadTotalOut)
@@ -68,7 +69,7 @@ func TestMetricsManager_Size(t *testing.T) {
 				result := mm.Remove(pid, 1)
 				assert.Equal(t, int64(test.inSize), result.totalIn)
 				assert.Equal(t, int64(test.outSize), result.totalOut)
-				assert.Equal(t, int64(test.inSize),  mm.deadTotalIn)
+				assert.Equal(t, int64(test.inSize), mm.deadTotalIn)
 				assert.Equal(t, int64(test.outSize), mm.deadTotalOut)
 			}
 

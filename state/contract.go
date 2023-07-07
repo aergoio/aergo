@@ -1,8 +1,8 @@
 package state
 
 import (
-	"math/big"
 	"bytes"
+	"math/big"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/internal/common"
