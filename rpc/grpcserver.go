@@ -66,6 +66,8 @@ type AergoRPCService struct {
 	clientAuthLock sync.RWMutex
 	clientAuthOn   bool
 	clientAuth     map[string]Authentication
+
+	types.UnimplementedAergoRPCServiceServer
 }
 
 // FIXME remove redundant constants

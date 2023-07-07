@@ -180,6 +180,8 @@ type PRPCServer struct {
 
 	hub         *component.ComponentHub
 	actorHelper p2pcommon.ActorService
+
+	types.UnimplementedPolarisRPCServiceServer
 }
 
 func (rs *PRPCServer) NodeState(ctx context.Context, in *types.NodeReq) (*types.SingleBytes, error) {

@@ -3,9 +3,11 @@
 
 package types
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type MetricType int32
 
@@ -31,6 +33,7 @@ var MetricType_name = map[int32]string{
 	0: "NOTHING",
 	1: "P2P_NETWORK",
 }
+
 var MetricType_value = map[string]int32{
 	"NOTHING":     0,
 	"P2P_NETWORK": 1,
@@ -39,12 +42,13 @@ var MetricType_value = map[string]int32{
 func (x MetricType) String() string {
 	return proto.EnumName(MetricType_name, int32(x))
 }
+
 func (MetricType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metric_7ac9b92acc82ce30, []int{0}
+	return fileDescriptor_da41641f55bff5df, []int{0}
 }
 
 type MetricsRequest struct {
-	Types                []MetricType `protobuf:"varint,1,rep,packed,name=types,enum=types.MetricType" json:"types,omitempty"`
+	Types                []MetricType `protobuf:"varint,1,rep,packed,name=types,proto3,enum=types.MetricType" json:"types,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
@@ -54,16 +58,17 @@ func (m *MetricsRequest) Reset()         { *m = MetricsRequest{} }
 func (m *MetricsRequest) String() string { return proto.CompactTextString(m) }
 func (*MetricsRequest) ProtoMessage()    {}
 func (*MetricsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metric_7ac9b92acc82ce30, []int{0}
+	return fileDescriptor_da41641f55bff5df, []int{0}
 }
+
 func (m *MetricsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MetricsRequest.Unmarshal(m, b)
 }
 func (m *MetricsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MetricsRequest.Marshal(b, m, deterministic)
 }
-func (dst *MetricsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MetricsRequest.Merge(dst, src)
+func (m *MetricsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MetricsRequest.Merge(m, src)
 }
 func (m *MetricsRequest) XXX_Size() int {
 	return xxx_messageInfo_MetricsRequest.Size(m)
@@ -82,7 +87,7 @@ func (m *MetricsRequest) GetTypes() []MetricType {
 }
 
 type Metrics struct {
-	Peers                []*PeerMetric `protobuf:"bytes,1,rep,name=peers" json:"peers,omitempty"`
+	Peers                []*PeerMetric `protobuf:"bytes,1,rep,name=peers,proto3" json:"peers,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -92,16 +97,17 @@ func (m *Metrics) Reset()         { *m = Metrics{} }
 func (m *Metrics) String() string { return proto.CompactTextString(m) }
 func (*Metrics) ProtoMessage()    {}
 func (*Metrics) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metric_7ac9b92acc82ce30, []int{1}
+	return fileDescriptor_da41641f55bff5df, []int{1}
 }
+
 func (m *Metrics) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metrics.Unmarshal(m, b)
 }
 func (m *Metrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metrics.Marshal(b, m, deterministic)
 }
-func (dst *Metrics) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metrics.Merge(dst, src)
+func (m *Metrics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metrics.Merge(m, src)
 }
 func (m *Metrics) XXX_Size() int {
 	return xxx_messageInfo_Metrics.Size(m)
@@ -121,10 +127,10 @@ func (m *Metrics) GetPeers() []*PeerMetric {
 
 type PeerMetric struct {
 	PeerID               []byte   `protobuf:"bytes,1,opt,name=peerID,proto3" json:"peerID,omitempty"`
-	SumIn                int64    `protobuf:"varint,2,opt,name=sumIn" json:"sumIn,omitempty"`
-	AvrIn                int64    `protobuf:"varint,3,opt,name=avrIn" json:"avrIn,omitempty"`
-	SumOut               int64    `protobuf:"varint,4,opt,name=sumOut" json:"sumOut,omitempty"`
-	AvrOut               int64    `protobuf:"varint,5,opt,name=avrOut" json:"avrOut,omitempty"`
+	SumIn                int64    `protobuf:"varint,2,opt,name=sumIn,proto3" json:"sumIn,omitempty"`
+	AvrIn                int64    `protobuf:"varint,3,opt,name=avrIn,proto3" json:"avrIn,omitempty"`
+	SumOut               int64    `protobuf:"varint,4,opt,name=sumOut,proto3" json:"sumOut,omitempty"`
+	AvrOut               int64    `protobuf:"varint,5,opt,name=avrOut,proto3" json:"avrOut,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -134,16 +140,17 @@ func (m *PeerMetric) Reset()         { *m = PeerMetric{} }
 func (m *PeerMetric) String() string { return proto.CompactTextString(m) }
 func (*PeerMetric) ProtoMessage()    {}
 func (*PeerMetric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metric_7ac9b92acc82ce30, []int{2}
+	return fileDescriptor_da41641f55bff5df, []int{2}
 }
+
 func (m *PeerMetric) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PeerMetric.Unmarshal(m, b)
 }
 func (m *PeerMetric) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PeerMetric.Marshal(b, m, deterministic)
 }
-func (dst *PeerMetric) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PeerMetric.Merge(dst, src)
+func (m *PeerMetric) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PeerMetric.Merge(m, src)
 }
 func (m *PeerMetric) XXX_Size() int {
 	return xxx_messageInfo_PeerMetric.Size(m)
@@ -190,29 +197,29 @@ func (m *PeerMetric) GetAvrOut() int64 {
 }
 
 func init() {
+	proto.RegisterEnum("types.MetricType", MetricType_name, MetricType_value)
 	proto.RegisterType((*MetricsRequest)(nil), "types.MetricsRequest")
 	proto.RegisterType((*Metrics)(nil), "types.Metrics")
 	proto.RegisterType((*PeerMetric)(nil), "types.PeerMetric")
-	proto.RegisterEnum("types.MetricType", MetricType_name, MetricType_value)
 }
 
-func init() { proto.RegisterFile("metric.proto", fileDescriptor_metric_7ac9b92acc82ce30) }
+func init() { proto.RegisterFile("metric.proto", fileDescriptor_da41641f55bff5df) }
 
-var fileDescriptor_metric_7ac9b92acc82ce30 = []byte{
-	// 226 bytes of a gzipped FileDescriptorProto
+var fileDescriptor_da41641f55bff5df = []byte{
+	// 235 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x44, 0x90, 0xcf, 0x4b, 0xc3, 0x30,
-	0x14, 0x80, 0x8d, 0xb5, 0x1b, 0xbc, 0x8e, 0x39, 0x83, 0x48, 0x8e, 0x65, 0x17, 0xcb, 0x0e, 0x3d,
-	0xd4, 0x93, 0x77, 0x45, 0x83, 0xd8, 0x96, 0x50, 0xf0, 0x28, 0x53, 0xde, 0xc1, 0x43, 0xb7, 0x98,
-	0x1f, 0x83, 0xde, 0xfc, 0xd3, 0x25, 0x79, 0x61, 0x3d, 0x7e, 0xdf, 0x7b, 0x5f, 0x20, 0x0f, 0x56,
-	0x23, 0x3a, 0xf3, 0xf3, 0x5d, 0x6b, 0x73, 0x74, 0x47, 0x9e, 0xbb, 0x49, 0xa3, 0xdd, 0x3e, 0xc2,
-	0xfa, 0x3d, 0x6a, 0xab, 0xf0, 0xd7, 0xa3, 0x75, 0xfc, 0x1e, 0x68, 0x24, 0x58, 0x99, 0x55, 0xeb,
-	0xe6, 0xa6, 0x8e, 0x54, 0xd3, 0xd6, 0x30, 0x69, 0x54, 0x29, 0x6d, 0x60, 0x99, 0xd2, 0xd0, 0x68,
-	0x44, 0x43, 0x4d, 0x71, 0x6e, 0x7a, 0x44, 0x43, 0x2b, 0x8a, 0xe6, 0xdb, 0x3f, 0x06, 0x30, 0x5b,
-	0x7e, 0x07, 0x8b, 0xe0, 0xe5, 0x93, 0x60, 0x25, 0xab, 0x56, 0x2a, 0x11, 0xbf, 0x85, 0xdc, 0xfa,
-	0x51, 0x1e, 0xc4, 0x65, 0xc9, 0xaa, 0x4c, 0x11, 0x04, 0xbb, 0x3f, 0x19, 0x79, 0x10, 0x19, 0xd9,
-	0x08, 0xe1, 0x0d, 0xeb, 0xc7, 0xce, 0x3b, 0x71, 0x15, 0x75, 0xa2, 0xe0, 0xf7, 0x27, 0x13, 0x7c,
-	0x4e, 0x9e, 0x68, 0xb7, 0x03, 0x98, 0xff, 0xc2, 0x0b, 0x58, 0xb6, 0xdd, 0xf0, 0x2a, 0xdb, 0x97,
-	0xcd, 0x05, 0xbf, 0x86, 0xa2, 0x6f, 0xfa, 0xcf, 0xf6, 0x79, 0xf8, 0xe8, 0xd4, 0xdb, 0x86, 0x7d,
-	0x2d, 0xe2, 0xad, 0x1e, 0xfe, 0x03, 0x00, 0x00, 0xff, 0xff, 0xf8, 0x5e, 0x48, 0xee, 0x3b, 0x01,
-	0x00, 0x00,
+	0x14, 0x80, 0x8d, 0xb5, 0x2b, 0xbe, 0x8e, 0x39, 0x83, 0x48, 0x8e, 0x65, 0x17, 0xcb, 0x0e, 0x15,
+	0xea, 0xc9, 0xab, 0x28, 0x5a, 0xc4, 0xb6, 0x84, 0x82, 0xe0, 0x45, 0xa6, 0xbc, 0x83, 0x87, 0x6e,
+	0x31, 0x3f, 0x06, 0xbb, 0xf9, 0xa7, 0x4b, 0xf2, 0xc2, 0x7a, 0xfc, 0xbe, 0xf7, 0xbe, 0xc0, 0x0b,
+	0xcc, 0x47, 0xb4, 0xfa, 0xe7, 0xbb, 0x52, 0x7a, 0x67, 0x77, 0x3c, 0xb5, 0x07, 0x85, 0x66, 0x75,
+	0x0f, 0x8b, 0xb7, 0xa0, 0x8d, 0xc4, 0x5f, 0x87, 0xc6, 0xf2, 0x1b, 0xa0, 0x91, 0x60, 0x45, 0x52,
+	0x2e, 0xea, 0xcb, 0x2a, 0x50, 0x45, 0x5b, 0xc3, 0x41, 0xa1, 0x8c, 0x69, 0x0d, 0x59, 0x4c, 0x7d,
+	0xa3, 0x10, 0x35, 0x35, 0xf9, 0xb1, 0xe9, 0x11, 0x35, 0xad, 0x48, 0x9a, 0xaf, 0xfe, 0x18, 0xc0,
+	0x64, 0xf9, 0x35, 0xcc, 0xbc, 0x6f, 0x1e, 0x05, 0x2b, 0x58, 0x39, 0x97, 0x91, 0xf8, 0x15, 0xa4,
+	0xc6, 0x8d, 0xcd, 0x56, 0x9c, 0x16, 0xac, 0x4c, 0x24, 0x81, 0xb7, 0x9b, 0xbd, 0x6e, 0xb6, 0x22,
+	0x21, 0x1b, 0xc0, 0xbf, 0x61, 0xdc, 0xd8, 0x39, 0x2b, 0xce, 0x82, 0x8e, 0xe4, 0xfd, 0x66, 0xaf,
+	0xbd, 0x4f, 0xc9, 0x13, 0xad, 0xd7, 0x00, 0xd3, 0x2d, 0x3c, 0x87, 0xac, 0xed, 0x86, 0x97, 0xa6,
+	0x7d, 0x5e, 0x9e, 0xf0, 0x0b, 0xc8, 0xfb, 0xba, 0xff, 0x6c, 0x9f, 0x86, 0xf7, 0x4e, 0xbe, 0x2e,
+	0xd9, 0xc3, 0xf9, 0x47, 0x56, 0xdd, 0x86, 0x5b, 0xbe, 0x66, 0xe1, 0xdb, 0xee, 0xfe, 0x03, 0x00,
+	0x00, 0xff, 0xff, 0x4d, 0x2f, 0x4c, 0xe3, 0x46, 0x01, 0x00, 0x00,
 }
