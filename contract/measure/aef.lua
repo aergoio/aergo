@@ -1,4 +1,4 @@
-loop_cnt = 1000
+loop_cnt = 100
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
 tbl = { name= "user2", year= 1981, age= 41,
  name1= "user2", year1= 1981, age1= 41,
@@ -258,10 +258,10 @@ function bignum_fns()
     m1k(bignum.pow, one_b, one_b)
     m1k(bignum.pow, bignum.number(-1), one_b)
     m1k(bignum.pow, nines_b, one_b)
-    m1k(bignum.pow, nines_b, bignum.number(3))
-    m1k(bignum.pow, nines_b, bignum.number(9))
+    --m1k(bignum.pow, nines_b, bignum.number(3))
+    --m1k(bignum.pow, nines_b, bignum.number(9))
     m1k(bignum.pow, nines1_b, bignum.number(3))
-    m1k(bignum.pow, nines1_b, bignum.number(9))
+    --m1k(bignum.pow, nines1_b, bignum.number(9))
     m1k(bignum.pow, pi1_b, one_b)
     m1k(bignum.pow, pi1_b, pi_b)
     m1k(bignum.pow, pi1_b, pi1_b)
