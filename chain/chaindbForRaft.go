@@ -199,14 +199,14 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		if entry.Type == consensus.EntryBlock {
 			if err := cdb.addBlock(dbTx, blocks[i]); err != nil {
-				panic("add block entry")
+				logger.Fatal().Err(err).Msg("failed to add block entry")
 			}
 
 			targetNo = blocks[i].BlockNo()
 		}
 
 		if data, err = entry.ToBytes(); err != nil {
-			panic("failed to convert entry to bytes")
+			logger.Fatal().Err(err).Msg("failed to convert entry to bytes")
 		}
 
 		lastIdx = entry.Index

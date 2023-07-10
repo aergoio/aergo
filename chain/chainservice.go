@@ -302,7 +302,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()
 	if err != nil {
-		panic("failed to read aergo.system state")
+		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
 	system.InitSystemParams(systemState, len(cs.GetGenesisInfo().BPs))
 
