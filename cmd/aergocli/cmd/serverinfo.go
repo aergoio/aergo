@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 

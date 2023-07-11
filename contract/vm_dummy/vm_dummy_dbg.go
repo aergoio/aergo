@@ -4,8 +4,8 @@
 package vm_dummy
 
 import (
-	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/contract"
+	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/contract"
 	"math/big"
 )
 

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
 )
 
 var index = make(map[string]map[string]string)

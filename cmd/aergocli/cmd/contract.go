@@ -3,19 +3,19 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"strconv"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	luacEncoding "github.com/aergoio/aergo/cmd/aergoluac/encoding"
-	luac "github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/types"
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	luacEncoding "github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
+	luac "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/types"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )
@@ -131,11 +131,11 @@ func init() {
 }
 
 func isHexString(s string) bool {
-  // check is the input has even number of characters
-  if len(s)%2 != 0 {
-    return false
-  }
-  // check if the input contains only hex characters
+	// check is the input has even number of characters
+	if len(s)%2 != 0 {
+		return false
+	}
+	// check if the input contains only hex characters
 	for _, c := range s {
 		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
 			return false

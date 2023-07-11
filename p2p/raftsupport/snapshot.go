@@ -8,7 +8,7 @@ package raftsupport
 import (
 	"io"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/etcd/snap"
 )
 

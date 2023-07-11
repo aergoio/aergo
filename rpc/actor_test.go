@@ -8,7 +8,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/v2/pkg/component"
 )
 
 func TestActorTimeout(t *testing.T) {

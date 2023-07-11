@@ -6,7 +6,7 @@
 package message
 
 import (
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // MemPoolSvc is exported name for MemPool service

@@ -3,7 +3,7 @@ package slot
 import (
 	"time"
 
-	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos/bp"
 )
 
 var (
