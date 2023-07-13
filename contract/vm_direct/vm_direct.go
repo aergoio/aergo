@@ -118,6 +118,13 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 
+	// before starting the LState factory
+	if chainType == ChainTypeUnitTest {
+		fee.EnableZeroFee()
+	} else {
+		contract.PubNet = true
+	}
+
 	// state sql database
 	contract.LoadTestDatabase(dataPath)
 	contract.SetStateSQLMaxDBSize(1024)
@@ -132,12 +139,6 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	// To pass dao parameters test
 	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	system.InitSystemParams(scs, 3)
-
-	if chainType == ChainTypeUnitTest {
-		fee.EnableZeroFee()
-	} else {
-		contract.PubNet = true
-	}
 
 	return bc, nil
 }
