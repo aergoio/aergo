@@ -118,7 +118,8 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 	bc.bestBlockNo = genesis.Block().BlockNo()
 	bc.bestBlockId = genesis.Block().BlockID()
 
-	contract.LoadTestDatabase(dataPath) // sql database
+	// state sql database
+	contract.LoadTestDatabase(dataPath)
 	contract.SetStateSQLMaxDBSize(1024)
 
 	contract.StartLStateFactory(lStateMaxSize, config.GetDefaultNumLStateClosers(), 1)
@@ -163,8 +164,8 @@ func (bc *DummyChain) SetTimestamp(value int64) {
 
 func (bc *DummyChain) getTimestamp() int64 {
 
-	if bc.timestamp > 0 {
-		return bc.timestamp * 1000000000
+	if bc.timestamp != 0 {
+		return bc.timestamp
 	} else {
 		return time.Now().UnixNano()
 	}
