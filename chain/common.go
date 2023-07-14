@@ -63,7 +63,7 @@ func Init(maxBlkBodySize uint32, coinbaseAccountStr string, isBp bool, maxAnchor
 	return nil
 }
 
-// IsPublic reports whether the block chain is public or not.
+// IsPublic reports whether the blockchain is public or not.
 func IsPublic() bool {
 	return pubNet
 }

@@ -112,7 +112,7 @@ func TestProposalBPCount(t *testing.T) {
 	assert.Error(t, err, "before v2")
 
 	blockInfo.No++ //set v2
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 
@@ -176,7 +176,7 @@ func TestFailProposals(t *testing.T) {
 	assert.Error(t, err, "before v2")
 
 	blockInfo.No++ //set v2
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 
 	invalidCandiTx := &types.Tx{
 		Body: &types.TxBody{

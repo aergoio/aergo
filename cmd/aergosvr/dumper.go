@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 
 	"github.com/aergoio/aergo/config"
 	"github.com/aergoio/aergo/consensus/chain"
 	"github.com/aergoio/aergo/contract/system"
 	"github.com/aergoio/aergo/pkg/component"
-	"github.com/gin-gonic/gin"
 )
 
 type dumper struct {
@@ -40,15 +40,13 @@ func (dmp *dumper) run() {
 		return net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	}
 
-	r := gin.Default()
-
 	///////////////////////////////////////////////////////////////////////////
 	// Dump Voting Power Rankers
 	///////////////////////////////////////////////////////////////////////////
 
 	// Dump Handler Generator
-	dumpFn := func(topN int) func(c *gin.Context) {
-		return func(c *gin.Context) {
+	dumpFn := func(topN int) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
 			var buf bytes.Buffer
 
 			dumpRankers := func() error {
@@ -59,30 +57,35 @@ func (dmp *dumper) run() {
 			}
 
 			if err := dumpRankers(); err != nil {
-				c.JSON(400, gin.H{
-					"message": err.Error(),
-				})
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(err.Error()))
 				return
 			}
 
-			c.Header("Content-Type", "application/json; charset=utf-8")
-			c.String(200, string(buf.Bytes()))
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Write(buf.Bytes())
 		}
 	}
-
 	// Dump all rankers.
-	r.GET("/debug/voting-power/rankers", dumpFn(0))
-
-	// Dump the top n rankers.
-	r.GET("/debug/voting-power/rankers/:topn", func(c *gin.Context) {
-		topN := 0
-		if n, err := strconv.Atoi(c.Params.ByName("topn")); err == nil && n > 0 {
-			topN = n
-		}
-		dumpFn(topN)(c)
+	http.HandleFunc("/debug/voting-power/rankers", func(w http.ResponseWriter, r *http.Request) {
+		dumpFn(0)(w, r)
 	})
 
-	if err := r.Run(hostPort(cfg.DumpPort)); err != nil {
+	// Dump the top n rankers.
+	http.HandleFunc("/debug/voting-power/rankers/", func(w http.ResponseWriter, r *http.Request) {
+		topN := 0
+		if n, err := strconv.Atoi(r.URL.Path[len("/debug/voting-power/rankers/"):]); err == nil && n > 0 {
+			topN = n
+		}
+		dumpFn(topN)(w, r)
+	})
+
+	// Start the HTTP server
+	server := &http.Server{
+		Addr: hostPort(dmp.cfg.DumpPort),
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		svrlog.Fatal().Err(err).Msg("failed to start dumper")
 	}
 }

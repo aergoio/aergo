@@ -260,7 +260,7 @@ func newChainProcessor(block *types.Block, state *state.BlockState, cs *ChainSer
 					return err
 				}
 
-				// Remove a block depnding on blk from the orphan cache.
+				// Remove a block depending on blk from the orphan cache.
 				if blk, err = cp.resolveOrphan(blk); err != nil {
 					return err
 				}
@@ -405,7 +405,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 	}
 
 	// The newly produced block becomes stale because the more block(s) are
-	// connected to the blockchain so that the best block is changed. In this
+	// connected to the blockchain so that the best block is cha/nged. In this
 	// case, newBlock is rejected because it is unlikely that newBlock belongs
 	// to the main branch. Warning: the condition 'usedBstate != nil' is used
 	// to check whether newBlock is produced by the current node itself. Later,
@@ -468,6 +468,7 @@ func (cs *ChainService) addBlockInternal(newBlock *types.Block, usedBstate *stat
 		return err, false
 	}
 
+	// try to acquire lock
 	select {
 	case InAddBlock <- struct{}{}:
 	}
@@ -620,19 +621,19 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preLoadService int) TxExecFn {
+func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
 			return ErrGatherChain
 		}
-		if bi.Version < 0 {
-			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.Version = %d", bi.Version)
+		if bi.ForkVersion < 0 {
+			logger.Error().Err(ErrInvalidBlockHeader).Msgf("ChainID.ForkVersion = %d", bi.ForkVersion)
 			return ErrInvalidBlockHeader
 		}
 		blockSnap := bState.Snapshot()
 
-		err := executeTx(ccc, cdb, bState, tx, bi, preLoadService)
+		err := executeTx(ccc, cdb, bState, tx, bi, preloadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(blockSnap); err2 != nil {
@@ -649,19 +650,22 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		var preLoadTx *types.Tx
-		nCand := len(e.txs)
+		var preloadTx *types.Tx
+		numTxs := len(e.txs)
 		for i, tx := range e.txs {
-			if i != nCand-1 {
-				preLoadTx = e.txs[i+1]
-				contract.PreLoadRequest(e.BlockState, e.bi, preLoadTx, tx, contract.ChainService)
+			// if tx is not the last one, preload the next tx
+			if i != numTxs-1 {
+				preloadTx = e.txs[i+1]
+				contract.RequestPreload(e.BlockState, e.bi, preloadTx, tx, contract.ChainService)
 			}
+			// execute the transaction
 			if err := e.execTx(e.BlockState, types.NewTransaction(tx)); err != nil {
 				//FIXME maybe system error. restart or panic
 				// all txs have executed successfully in BP node
 				return err
 			}
-			contract.SetPreloadTx(preLoadTx, contract.ChainService)
+			// mark the next preload tx to be executed
+			contract.SetPreloadTx(preloadTx, contract.ChainService)
 		}
 
 		if e.validateSignWait != nil {
@@ -881,7 +885,7 @@ func executeTx(
 	bs *state.BlockState,
 	tx types.Transaction,
 	bi *types.BlockHeaderInfo,
-	preLoadService int,
+	preloadService int,
 ) error {
 	var (
 		txBody    = tx.GetBody()
@@ -913,7 +917,7 @@ func executeTx(
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.Version)
+	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.ForkVersion)
 	if err != nil {
 		return err
 	}
@@ -942,7 +946,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, false)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -953,7 +957,7 @@ func executeTx(
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
 		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.Version)
+		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
 		if err != nil {
 			return err
 		}
@@ -974,13 +978,13 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, true)
+		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
 		receiver.SubBalance(txFee)
 	}
 
 	if err != nil {
 		// Reset events on error
-		if contract.HardforkConfig.IsV3Fork(bi.No) {
+		if bi.ForkVersion >= 3 {
 			events = nil
 		}
 
@@ -1034,7 +1038,7 @@ func executeTx(
 	receipt.TxHash = tx.GetHash()
 	receipt.Events = events
 	receipt.FeeDelegation = txBody.Type == types.TxType_FEEDELEGATION
-	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.Version)
+	receipt.GasUsed = contract.GasUsed(txFee, bs.GasPrice, txBody.Type, bi.ForkVersion)
 
 	return bs.AddReceipt(receipt)
 }

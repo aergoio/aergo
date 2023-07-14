@@ -61,7 +61,7 @@ func (c *stakeCmd) run() (*types.Event, error) {
 	}
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
-	if c.SystemContext.BlockInfo.Version < 2 {
+	if c.SystemContext.BlockInfo.ForkVersion < 2 {
 		return &types.Event{
 			ContractAddress: receiver.ID(),
 			EventIdx:        0,
@@ -114,7 +114,7 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}
 	sender.AddBalance(balanceAdjustment)
 	receiver.SubBalance(balanceAdjustment)
-	if c.SystemContext.BlockInfo.Version < 2 {
+	if c.SystemContext.BlockInfo.ForkVersion < 2 {
 		return &types.Event{
 			ContractAddress: receiver.ID(),
 			EventIdx:        0,

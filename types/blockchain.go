@@ -57,9 +57,9 @@ var (
 )
 
 func init() {
-	MaxAER, _ = new(big.Int).SetString("500000000000000000000000000", 10)
-	StakingMinimum, _ = new(big.Int).SetString("10000000000000000000000", 10)
-	ProposalPrice, _ = new(big.Int).SetString("0", 10)
+	MaxAER = NewAmount(5*1e8, Aergo)       // 500,000,000 aergo
+	StakingMinimum = NewAmount(1e4, Aergo) // 10,000 aergo
+	ProposalPrice = NewZeroAmount()        // 0 aergo
 	lastIndexOfBH = getLastIndexOfBH()
 }
 
@@ -225,7 +225,7 @@ func (v DummyBlockVersionner) Version(BlockNo) int32 {
 }
 
 func (v DummyBlockVersionner) IsV2Fork(BlockNo) bool {
-	return true
+	return (v >= 2)
 }
 
 // NewBlock represents to create a block to store transactions.
@@ -648,7 +648,7 @@ type BlockHeaderInfo struct {
 	Ts            int64
 	PrevBlockHash []byte
 	ChainId       []byte
-	Version       int32
+	ForkVersion   int32
 }
 
 var EmptyBlockHeaderInfo = &BlockHeaderInfo{}
