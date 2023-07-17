@@ -401,9 +401,8 @@ func (bs *bootLoader) decodeStatus(key []byte, dst interface{}) error {
 
 	err := common.GobDecode(value, dst)
 	if err != nil {
-		logger.Debug().Err(err).Str("key", string(key)).
+		logger.Panic().Err(err).Str("key", string(key)).
 			Msg("failed to decode DPoS status")
-		panic(err)
 	}
 	return nil
 }

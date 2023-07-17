@@ -386,7 +386,7 @@ func (cdb *ChainDB) connectToChain(dbtx db.Transaction, block *types.Block, skip
 	// Save the last consensus status.
 	if cdb.cc != nil {
 		if err := cdb.cc.Save(dbtx); err != nil {
-			logger.Error().Err(err).Msg("failed to save DPoS status")
+			logger.Error().Err(err).Uint64("blockNo", blockNo).Msg("failed to save DPoS status")
 		}
 	}
 
@@ -571,11 +571,14 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 }
 
 func (cdb *ChainDB) getBestBlockNo() (latestNo types.BlockNo) {
+	var ok bool
+
 	aopv := cdb.latest.Load()
-	if aopv != nil {
-		latestNo = aopv.(types.BlockNo)
-	} else {
-		panic("ChainDB:latest is nil")
+	if aopv == nil {
+		logger.Panic().Msg("ChainService: latest is nil")
+	}
+	if latestNo, ok = aopv.(types.BlockNo); !ok {
+		logger.Panic().Msg("ChainService: latest is not types.BlockNo")
 	}
 	return latestNo
 }

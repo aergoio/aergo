@@ -433,7 +433,7 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 		// notify to p2p TODO temporary code
 		peerID, err := types.IDFromBytes(member.PeerID)
 		if err != nil {
-			panic("invalid member peerid " + enc.ToString(member.PeerID))
+			logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
 		}
 
 		if cl.notifyFn != nil {
@@ -466,7 +466,7 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	// notify to p2p TODO temporary code
 	peerID, err := types.IDFromBytes(member.PeerID)
 	if err != nil {
-		panic("invalid member peerid " + enc.ToString(member.PeerID))
+		logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
 	}
 
 	if cl.notifyFn != nil {

@@ -102,7 +102,7 @@ func (bf *BlockFactory) InitCluster(cfg *config.Config) error {
 
 	raftConfig := cfg.Consensus.Raft
 	if raftConfig == nil {
-		panic("raftconfig is not set. please set raftName, raftBPs.")
+		logger.Panic().Msg("raft config is not set. please set raftName, raftBPs.")
 	}
 
 	chainID, err := genesis.ID.Bytes()

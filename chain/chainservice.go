@@ -228,8 +228,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	var err error
 	if cs.Core, err = NewCore(cfg.DbType, cfg.DataDir, cfg.EnableTestmode, types.BlockNo(cfg.Blockchain.ForceResetHeight)); err != nil {
-		logger.Fatal().Err(err).Msg("failed to initialize DB")
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to initialize DB")
 	}
 
 	if err = Init(cfg.Blockchain.MaxBlockSize,
@@ -237,8 +236,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 		cfg.Consensus.EnableBp,
 		cfg.Blockchain.MaxAnchorCount,
 		cfg.Blockchain.VerifierCount); err != nil {
-		logger.Error().Err(err).Msg("failed to init chainservice")
-		panic("invalid config: blockchain")
+		logger.Panic().Err(err).Msg("failed to init chainservice | invalid config: blockchain")
 	}
 
 	var verifyMode = cs.cfg.Blockchain.VerifyOnly || cs.cfg.Blockchain.VerifyBlock != 0
@@ -263,14 +261,11 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	// init genesis block
 	if _, err := cs.initGenesis(nil, !cfg.UseTestnet, cfg.EnableTestmode); err != nil {
-		logger.Fatal().Err(err).Msg("failed to create a genesis block")
-		panic("failed to init genesis block")
+		logger.Panic().Err(err).Msg("failed to create a genesis block")
 	}
 
 	if err := cs.checkHardfork(); err != nil {
-		msg := "check the hardfork compatibility"
-		logger.Fatal().Err(err).Msg(msg)
-		panic(msg)
+		logger.Panic().Err(err).Msg("check the hardfork compatibility")
 	}
 
 	if ConsensusName() == consensus.ConsensusName[consensus.ConsensusDPOS] {
@@ -302,7 +297,7 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()
 	if err != nil {
-		panic("failed to read aergo.system state")
+		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
 	system.InitSystemParams(systemState, len(cs.GetGenesisInfo().BPs))
 
@@ -404,12 +399,13 @@ func (cs *ChainService) setRecovered(val bool) {
 }
 
 func (cs *ChainService) isRecovered() bool {
-	var val bool
+	var val, ok bool
 	aopv := cs.recovered.Load()
-	if aopv != nil {
-		val = aopv.(bool)
-	} else {
-		panic("ChainService: recovered is nil")
+	if aopv == nil {
+		logger.Panic().Msg("ChainService: recovered is nil")
+	}
+	if val, ok = aopv.(bool); !ok {
+		logger.Panic().Msg("ChainService: recovered is not bool")
 	}
 	return val
 }
