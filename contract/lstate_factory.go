@@ -5,9 +5,8 @@ package contract
 #include "bignum_module.h"
 #include "vm.h"
 */
-
+import "C"
 import (
-	"C"
 	"sync"
 )
 
@@ -23,7 +22,7 @@ func StartLStateFactory(num, numClosers, numCloseLimit int) {
 		freeCh = make(chan *LState, num)
 
 		for i := 0; i < num; i++ {
-			getCh <- newLState(j)
+			getCh <- newLState()
 		}
 
 		for i := 0; i < numClosers; i++ {

@@ -69,7 +69,7 @@ static int loadLibs(lua_State *L) {
 
 lua_State *vm_newstate() {
 	int status;
-	lua_State *L = luaL_newstate_lock();
+	lua_State *L = luaL_newstate();
 	if (L == NULL)
 		return NULL;
 	status = lua_cpcall(L, loadLibs, NULL);
