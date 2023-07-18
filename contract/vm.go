@@ -260,14 +260,9 @@ func (s *vmContext) usedGas() uint64 {
 	return s.gasLimit - s.remainedGas
 }
 
-func newLState(lsType int) *LState {
-	ctrLgr.Debug().Int("type", lsType).Msg("LState created")
-	switch lsType {
-	case LStateVer3:
-		return C.vm_newstate(C.uchar(1))
-	default:
-		return C.vm_newstate(C.uchar(0))
-	}
+func newLState() *LState {
+       ctrLgr.Debug().Msg("LState created")
+       return C.vm_newstate()
 }
 
 func (L *LState) close() {
@@ -348,17 +343,9 @@ func newExecutor(
 	}
 	ctx.callDepth++
 
-	var lState *LState
-	if ctx.blockInfo.ForkVersion < 3 {
-		lState = GetLState(LStateDefault)
-	} else {
-		// To fix intermittent consensus failure by gas consumption mismatch,
-		// use mutex to access total gas after chain version 3.
-		lState = GetLState(LStateVer3)
-	}
 	ce := &executor{
 		code: contract,
-		L:    lState,
+		L:    GetLState(),
 		ctx:  ctx,
 	}
 	if ce.L == nil {
@@ -775,11 +762,7 @@ func (ce *executor) close() {
 			}
 		}
 		if ce.L != nil {
-			lsType := LStateDefault
-			if ce.ctx.blockInfo.ForkVersion >= 3 {
-				lsType = LStateVer3
-			}
-			FreeLState(ce.L, lsType)
+			FreeLState(ce.L)
 		}
 	}
 }
