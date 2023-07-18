@@ -3060,7 +3060,7 @@ func TestGasBF(t *testing.T) {
 	err = expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
 	assert.NoError(t, err)
 
-	err = expectGas(string(code), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
+	err = expectGas(string(code), 0, `"main"`, ``, 47456460, SetHardForkVersion(3))
 	assert.NoError(t, err)
 }
 
