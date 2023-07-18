@@ -224,7 +224,7 @@ func (s *Status) init(cdb consensus.ChainDB, resetHeight types.BlockNo) {
 
 	genesis, err := cdb.GetBlockByNo(0)
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to get genesis block")
 	}
 
 	best, err := cdb.GetBestBlock()

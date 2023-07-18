@@ -30,6 +30,13 @@ int getLuaExecContext(lua_State *L) {
 	return service;
 }
 
+#ifdef MEASURE
+static int nsec(lua_State *L) {
+	lua_pushnumber(L, luaL_nanosecond(L));
+	return 1;
+}
+#endif
+
 static void preloadModules(lua_State *L) {
 	int status;
 
@@ -46,7 +53,7 @@ static void preloadModules(lua_State *L) {
 	}
 
 #ifdef MEASURE
-	lua_register(L, "nsec", lj_cf_nsec);
+	lua_register(L, "nsec", nsec);
 	luaopen_jit(L);
 	lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
 	lua_getfield(L, -1, "jit");

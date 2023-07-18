@@ -100,7 +100,7 @@ func (chainsnap *ChainSnapshotter) createSnapshotData(cluster *Cluster, snapBloc
 
 	snap := consensus.NewSnapshotData(members, removedMembers, snapBlock)
 	if snap == nil {
-		panic("new snap failed")
+		logger.Panic().Msg("new snap failed")
 	}
 
 	return snap, nil
