@@ -23,6 +23,13 @@ extern void (*lj_internal_view_end)(lua_State *);
 void vm_internal_view_start(lua_State *L);
 void vm_internal_view_end(lua_State *L);
 
+#ifdef MEASURE
+static int nsec(lua_State *L) {
+	lua_pushnumber(L, luaL_nanosecond(L));
+	return 1;
+}
+#endif
+
 static void preloadModules(lua_State *L) {
 	int status;
 
@@ -39,7 +46,7 @@ static void preloadModules(lua_State *L) {
 	}
 
 #ifdef MEASURE
-	lua_register(L, "nsec", lj_cf_nsec);
+	lua_register(L, "nsec", nsec);
 	luaopen_jit(L);
 	lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
 	lua_getfield(L, -1, "jit");

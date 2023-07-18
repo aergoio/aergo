@@ -62,7 +62,7 @@ func (we *WalEntry) ToBytes() ([]byte, error) {
 	var val bytes.Buffer
 	encoder := gob.NewEncoder(&val)
 	if err := encoder.Encode(we); err != nil {
-		panic("raft entry to bytes error")
+		logger.Panic().Err(err).Msg("raft entry to bytes error")
 	}
 
 	return val.Bytes(), nil

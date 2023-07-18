@@ -46,7 +46,7 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 
 	snapData := consensus.NewSnapshotData(nil, nil, snapBlock)
 	if snapData == nil {
-		panic("new snap failed")
+		logger.Panic().Uint64("SnapBlockNo", snapBlock.BlockNo()).Msg("new snap failed")
 	}
 
 	data, err := snapData.Encode()
@@ -129,7 +129,6 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
-		return err
 	}
 	dbTx.Set(raftStateKey, data)
 	dbTx.Commit()
@@ -147,7 +146,6 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 	state := &raftpb.HardState{}
 	if err := proto.Unmarshal(data, state); err != nil {
 		logger.Panic().Msg("failed to unmarshal raft state")
-		return nil, ErrInvalidHardState
 	}
 
 	logger.Info().Uint64("term", state.Term).Str("vote", types.Uint64ToHexaString(state.Vote)).Uint64("commit", state.Commit).Msg("load hard state")
@@ -199,14 +197,14 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		if entry.Type == consensus.EntryBlock {
 			if err := cdb.addBlock(dbTx, blocks[i]); err != nil {
-				logger.Fatal().Err(err).Msg("failed to add block entry")
+				logger.Panic().Err(err).Uint64("BlockNo", blocks[i].BlockNo()).Msg("failed to add block entry")
 			}
 
 			targetNo = blocks[i].BlockNo()
 		}
 
 		if data, err = entry.ToBytes(); err != nil {
-			logger.Fatal().Err(err).Msg("failed to convert entry to bytes")
+			logger.Panic().Err(err).Uint64("BlockNo", blocks[i].BlockNo()).Uint64("index", entry.Index).Msg("failed to convert entry to bytes")
 		}
 
 		lastIdx = entry.Index

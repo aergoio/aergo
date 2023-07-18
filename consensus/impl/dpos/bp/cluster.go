@@ -333,7 +333,7 @@ func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 	if block, err := cdb.GetBestBlock(); err == nil {
 		snap.UpdateCluster(block.BlockNo())
 	} else {
-		panic(err.Error())
+		logger.Panic().Err(err).Msg("Failed to get the best block")
 	}
 
 	return snap
