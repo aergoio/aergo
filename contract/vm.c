@@ -123,21 +123,23 @@ static int xpcall(lua_State *L) {
 	// the stack is like this:
 	//   func errfunc arg1 arg2 ... argn
 
-	// get the error handler
+	// check the error handler
 	errfunc = 2;
 	if (!lua_isfunction(L, errfunc)) {
 		return luaL_error(L, "xpcall: error handler is not a function");
 	}
 
-	// move the error handler (position 2) to the top
-	lua_pushvalue(L, errfunc);
-	// remove the error handler from its original position
-	lua_remove(L, errfunc);
-	// update the error handler position
-	errfunc = argc;
+	// move the error handler to the first position
+	lua_pushvalue(L, 1);  // function
+	lua_pushvalue(L, 2);  // error handler
+	lua_replace(L, 1);    // 1: error handler
+	lua_replace(L, 2);    // 2: function
 
 	// now the stack is like this:
-	//   func arg1 arg2 ... argn errfunc
+	//   errfunc func arg1 arg2 ... argn
+
+	// update the error handler position
+	errfunc = 1;
 
 	// call the function
 	status = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
@@ -154,9 +156,18 @@ static int xpcall(lua_State *L) {
 		luaL_throwerror(L);
 	}
 
-	// insert the status at the bottom of the stack
+	// ensure the stack has 1 free slot
+	if (!lua_checkstack(L, 1)) {
+		// return: false, "stack overflow"
+		lua_settop(L, 0);
+		lua_pushboolean(L, 0);
+		lua_pushliteral(L, "stack overflow");
+		return 2;
+	}
+
+	// store the status at the bottom of the stack, replacing the error handler
 	lua_pushboolean(L, status == 0);
-	lua_insert(L, 1);
+	lua_replace(L, 1);
 
 	// return the number of items in the stack
 	return lua_gettop(L);
