@@ -68,27 +68,103 @@ static void preloadModules(lua_State *L) {
 #endif
 }
 
+/* override pcall to drop events upon error */
 static int pcall(lua_State *L) {
-	/* Override pcall to drop events upon error */
+	int argc = lua_gettop(L);
+	int status;
+
+	// get the current number of events
 	int service = getLuaExecContext(L);
-	int status, from;
+	int num_events = luaGetEventCount(L, service);
 
-	from = luaGetEventCount(L, service);
+	if (argc < 1) {
+		return luaL_error(L, "pcall: not enough arguments");
+	}
 
-	luaL_checkany(L, 1);
-	status = lua_pcall(L, lua_gettop(L) - 1, -1, 0);
+	// the stack is like this:
+	//   func arg1 arg2 ... argn
+
+	// call the function
+	status = lua_pcall(L, argc - 1, LUA_MULTRET, 0);
+
+	// if failed, drop the events
+	if (status != 0) {
+		if (vm_is_hardfork(L, 4)) {
+			luaDropEvent(L, service, num_events);
+		}
+	}
+
+	// throw the error if out of memory
+	if (status == LUA_ERRMEM) {
+		luaL_throwerror(L);
+	}
+
+	// insert the status at the bottom of the stack
 	lua_pushboolean(L, status == 0);
 	lua_insert(L, 1);
 
-	if (status != 0) {
-		luaDropEvent(L, service, from);
+	// return the number of items in the stack
+	return lua_gettop(L);
+}
+
+static int xpcall(lua_State *L) {
+	int argc = lua_gettop(L);
+	int errfunc;
+	int status;
+
+	// get the current number of events
+	int service = getLuaExecContext(L);
+	int num_events = luaGetEventCount(L, service);
+
+	if (argc < 2) {
+		return luaL_error(L, "xpcall: not enough arguments");
 	}
 
+	// the stack is like this:
+	//   func errfunc arg1 arg2 ... argn
+
+	// get the error handler
+	errfunc = 2;
+	if (!lua_isfunction(L, errfunc)) {
+		return luaL_error(L, "xpcall: error handler is not a function");
+	}
+
+	// move the error handler (position 2) to the top
+	lua_pushvalue(L, errfunc);
+	// remove the error handler from its original position
+	lua_remove(L, errfunc);
+	// update the error handler position
+	errfunc = argc;
+
+	// now the stack is like this:
+	//   func arg1 arg2 ... argn errfunc
+
+	// call the function
+	status = lua_pcall(L, argc - 2, LUA_MULTRET, errfunc);
+
+	// if failed, drop the events
+	if (status != 0) {
+		if (vm_is_hardfork(L, 4)) {
+			luaDropEvent(L, service, num_events);
+		}
+	}
+
+	// throw the error if out of memory
+	if (status == LUA_ERRMEM) {
+		luaL_throwerror(L);
+	}
+
+	// insert the status at the bottom of the stack
+	lua_pushboolean(L, status == 0);
+	lua_insert(L, 1);
+
+	// return the number of items in the stack
 	return lua_gettop(L);
 }
 
 static const struct luaL_Reg _basefuncs[] = {
 	{"pcall", pcall},
+	{"xpcall", xpcall},
 	{NULL, NULL}};
 
 static void override_basefuncs(lua_State *L) {
