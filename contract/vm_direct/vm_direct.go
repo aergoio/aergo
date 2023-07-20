@@ -446,6 +446,11 @@ func executeTx(
 				senderState.Balance = amount.Bytes()
 			}
 		}
+		case types.TxType_FEEDELEGATION:
+			if balance.Cmp(amount) <= 0 {
+				// set the balance as = amount
+				senderState.Balance = amount.Bytes()
+			}
 	}
 
 	err = tx.ValidateWithSenderState(senderState, bs.GasPrice, bi.ForkVersion)
