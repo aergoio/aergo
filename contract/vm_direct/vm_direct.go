@@ -409,12 +409,43 @@ func executeTx(
 		return err
 	}
 
-	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.ForkVersion)
+	// check for sufficient balance
+	senderState := sender.State()
+	amount := tx.GetBody().GetAmountBigInt()
+	balance := senderState.GetBalanceBigInt()
+
+	switch tx.GetBody().GetType() {
+	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
+		if balance.Cmp(amount) <= 0 {
+			// set the balance as amount + fee
+			to_add := new(big.Int).SetUint64(1000000000000000000)
+			balance = new(big.Int).Add(amount, to_add)
+			senderState.Balance = balance.Bytes()
+		}
+	case types.TxType_GOVERNANCE:
+		switch string(tx.GetBody().GetRecipient()) {
+		case types.AergoSystem:
+			if balance.Cmp(amount) <= 0 {
+				// set the balance as amount + fee
+				to_add := new(big.Int).SetUint64(1000000000000000000)
+				balance = new(big.Int).Add(amount, to_add)
+				senderState.Balance = balance.Bytes()
+			}
+		case types.AergoName:
+			if balance.Cmp(amount) <= 0 {
+				// set the balance as = amount
+				senderState.Balance = amount.Bytes()
+			}
+		}
+	}
+
+	err = tx.ValidateWithSenderState(senderState, bs.GasPrice, bi.ForkVersion)
 	if err != nil {
-			err = fmt.Errorf("%w: balance %s, amount %s, block %v, txhash: %s",
-				types.ErrInsufficientBalance,
+			err = fmt.Errorf("%w: balance %s, amount %s, gasPrice %s, block %v, txhash: %s",
+				err,
 				sender.Balance().String(),
 				tx.GetBody().GetAmountBigInt().String(),
+				bs.GasPrice.String(),
 				bi.No, enc.ToString(tx.GetHash()))
 		return err
 	}
