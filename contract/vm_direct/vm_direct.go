@@ -161,6 +161,15 @@ func (bc *DummyChain) BestBlockNo() uint64 {
 	return bc.bestBlockNo
 }
 
+func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
+	return bc.bestBlock, nil
+}
+
+func (bc *DummyChain) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
+	//return bc.blocks[blockNo], nil
+	return bc.bestBlock, nil
+}
+
 func (bc *DummyChain) SetTimestamp(value int64) {
 	bc.timestamp = value
 }
@@ -240,7 +249,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 	blockState := bc.newBlockState()
 	bi = types.NewBlockHeaderInfo(bc.cBlock)
 
-	exec = NewTxExecutor(nil, nil, bi, contract.ChainService)
+	exec = NewTxExecutor(nil, bc, bi, contract.ChainService)
 
 	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 
