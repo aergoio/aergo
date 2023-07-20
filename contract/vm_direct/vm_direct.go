@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
@@ -52,6 +53,7 @@ type DummyChain struct {
 	tmpDir          string
 	gasPrice        *big.Int
 	timestamp       int64
+	coinbaseAccount []byte
 }
 
 func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
@@ -173,6 +175,9 @@ func (bc *DummyChain) getTimestamp() int64 {
 
 }
 
+func (bc *DummyChain) SetCoinbaseAccount(address []byte) {
+	bc.coinbaseAccount = address
+}
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -246,7 +251,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 		sdb:              bc.sdb,
 		execTx:           exec,
 		txs:              txs,
-		//coinbaseAcccount: block.GetHeader().GetCoinbaseAccount(),
+		coinbaseAcccount: bc.coinbaseAccount,
 		//validatePost: func() error {
 		//	return cs.validator.ValidatePost(blockState.GetRoot(), blockState.Receipts(), block)
 		//},
@@ -305,9 +310,9 @@ func (e *blockExecutor) execute() error {
 		contract.SetPreloadTx(preloadTx, contract.ChainService)
 	}
 
-	//if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
-	//	return err
-	//}
+	if err := SendBlockReward(e.BlockState, e.coinbaseAcccount); err != nil {
+		return err
+	}
 
 	if err := contract.SaveRecoveryPoint(e.BlockState); err != nil {
 		return err
@@ -406,6 +411,11 @@ func executeTx(
 
 	err = tx.ValidateWithSenderState(sender.State(), bs.GasPrice, bi.ForkVersion)
 	if err != nil {
+			err = fmt.Errorf("%w: balance %s, amount %s, block %v, txhash: %s",
+				types.ErrInsufficientBalance,
+				sender.Balance().String(),
+				tx.GetBody().GetAmountBigInt().String(),
+				bi.No, enc.ToString(tx.GetHash()))
 		return err
 	}
 
@@ -561,6 +571,33 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 	}
 
 	return events, err
+}
+
+func SendBlockReward(bState *state.BlockState, coinbaseAccount []byte) error {
+	bpReward := &bState.BpReward
+	if bpReward.Cmp(new(big.Int).SetUint64(0)) <= 0 || coinbaseAccount == nil {
+		logger.Debug().Str("reward", bpReward.String()).Msg("coinbase is skipped")
+		return nil
+	}
+
+	receiverID := types.ToAccountID(coinbaseAccount)
+	receiverState, err := bState.GetAccountState(receiverID)
+	if err != nil {
+		return err
+	}
+
+	receiverChange := types.State(*receiverState)
+	receiverChange.Balance = new(big.Int).Add(receiverChange.GetBalanceBigInt(), bpReward).Bytes()
+
+	err = bState.PutState(receiverID, &receiverChange)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug().Str("reward", bpReward.String()).
+		Str("newbalance", receiverChange.GetBalanceBigInt().String()).Msg("send reward to coinbase account")
+
+	return nil
 }
 
 func IsPublic() bool {
