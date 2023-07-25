@@ -23,6 +23,7 @@ import (
 	"github.com/aergoio/aergo/contract/enterprise"
 	"github.com/aergoio/aergo/contract/name"
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/evm"
 	"github.com/aergoio/aergo/fee"
 	"github.com/aergoio/aergo/internal/enc"
 	"github.com/aergoio/aergo/message"
@@ -92,6 +93,7 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	}
 
 	contract.LoadDatabase(dataDir)
+	evm.LoadDatabase(dataDir)
 
 	return nil
 }
@@ -161,6 +163,7 @@ func (core *Core) Close() {
 		core.cdb.Close()
 	}
 	contract.CloseDatabase()
+	evm.CloseDatabase()
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary

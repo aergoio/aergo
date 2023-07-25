@@ -14,6 +14,7 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/evm"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -650,6 +651,8 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
+		defer evm.CloseDatabase()
+
 		var preLoadTx *types.Tx
 		nCand := len(e.txs)
 		for i, tx := range e.txs {
@@ -708,6 +711,10 @@ func (e *blockExecutor) commit() error {
 
 	//TODO: after implementing BlockRootHash, remove statedb.lastest
 	if err := e.sdb.UpdateRoot(e.BlockState); err != nil {
+		return err
+	}
+
+	if err := evm.Commit(); err != nil {
 		return err
 	}
 
@@ -945,6 +952,10 @@ func executeTx(
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
 		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, false)
 		sender.SubBalance(txFee)
+	case types.TxType_EVM:
+		logger.Info().Msgf("EVM tx with payload length %d", len(txBody.Payload))
+		// FIXME: set temporary fee as workaround
+		txFee = new(big.Int).SetUint64(0)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
 		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
