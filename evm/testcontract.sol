@@ -1,8 +1,15 @@
-pragma solidity ^0.5.8;
+pragma solidity ^0.4.0;
 
-contract  SampleContract {
+contract Contract {
 
-    function testFunc() public pure returns (int) {
-        return 1;
+    uint32 public perm;
+
+    function Contract(uint32 input){
+        perm = input;
+    }
+
+    function storageTest(address add) returns (uint32, address){
+        perm = perm+1;
+        return (perm, add);
     }
 }
