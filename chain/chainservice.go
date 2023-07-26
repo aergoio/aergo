@@ -43,6 +43,8 @@ var (
 	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
 
 	TestDebugger *Debugger
+
+	evmService *evm.EVM
 )
 
 // Core represents a storage layer of a blockchain (chain & state DB).
@@ -93,7 +95,8 @@ func (core *Core) init(dbType string, dataDir string, testModeOn bool, forceRese
 	}
 
 	contract.LoadDatabase(dataDir)
-	evm.LoadDatabase(dataDir)
+	evmService = evm.NewEVM()
+	evmService.LoadDatabase(dataDir)
 
 	return nil
 }
@@ -163,7 +166,7 @@ func (core *Core) Close() {
 		core.cdb.Close()
 	}
 	contract.CloseDatabase()
-	evm.CloseDatabase()
+	evmService.CloseDatabase()
 }
 
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
@@ -444,6 +447,7 @@ func (cs *ChainService) Receive(context actor.Context) {
 		*message.GetABI,
 		*message.GetQuery,
 		*message.GetStateQuery,
+		*message.GetEVMQuery,
 		*message.GetElected,
 		*message.GetVote,
 		*message.GetStaking,
@@ -854,6 +858,25 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 			Result: stateQuery,
 			Err:    err,
 		})
+	case *message.GetEVMQuery:
+		// FIXME: implement using EVM module
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
+		address, err := getAddressNameResolved(sdb, msg.Contract)
+		if err != nil {
+			context.Respond(message.GetEVMQueryRsp{Result: nil, Err: err})
+			break
+		}
+		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
+		if err != nil {
+			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
+			context.Respond(message.GetEVMQueryRsp{Result: nil, Err: err})
+		} else {
+			bs := state.NewBlockState(sdb)
+			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
+			context.Respond(message.GetEVMQueryRsp{Result: ret, Err: err})
+		}
 	case *message.GetElected:
 		top, err := cw.getVotes(msg.Id, msg.N)
 		context.Respond(&message.GetVoteRsp{

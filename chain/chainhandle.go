@@ -14,7 +14,6 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/evm"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -651,7 +650,7 @@ func (e *blockExecutor) execute() error {
 	// Receipt must be committed unconditionally.
 	if !e.commitOnly {
 		defer contract.CloseDatabase()
-		defer evm.CloseDatabase()
+		defer evmService.CloseDatabase()
 
 		var preLoadTx *types.Tx
 		nCand := len(e.txs)
@@ -714,7 +713,7 @@ func (e *blockExecutor) commit() error {
 		return err
 	}
 
-	if err := evm.Commit(); err != nil {
+	if err := evmService.Commit(); err != nil {
 		return err
 	}
 
