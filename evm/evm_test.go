@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"bytes"
 	"encoding/hex"
 	"io/ioutil"
 	"math/big"
@@ -16,6 +17,47 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+func TestLevelDB(t *testing.T) {
+	// set up levelDB
+	testFile, _ := ioutil.TempFile(os.TempDir(), "temp")
+	testPath, _ := filepath.Abs(filepath.Dir(testFile.Name()))
+	testPath = testPath + "/ethleveldb/test"
+	t.Log("creating temp DB at", testPath)
+	testLevelDB, _ := rawdb.NewLevelDBDatabase(testPath, 128, 1024, "", false)
+	defer os.RemoveAll(testPath)
+
+	res, _ := testLevelDB.Get([]byte("foo"))
+	if res != nil {
+		t.Errorf("fetching non-existant yields non nil item")
+		t.Log(string(res))
+	}
+
+	testLevelDB.Put([]byte("foo"), []byte("bar"))
+
+	res, _ = testLevelDB.Get([]byte("foo"))
+	if !bytes.Equal(res, []byte("bar")) {
+		t.Errorf("retrieved value does not match")
+	}
+
+	testLevelDB.Close()
+
+	// open level DB against
+	testLevelDB, _ = rawdb.NewLevelDBDatabase(testPath, 128, 1024, "", false)
+	res, _ = testLevelDB.Get([]byte("foo"))
+	if !bytes.Equal(res, []byte("bar")) {
+		t.Errorf("retrieved value does not match")
+	}
+
+	t.Log("foo value", string(res))
+
+	res, _ = testLevelDB.Get([]byte("foo2"))
+	if res != nil {
+		t.Errorf("fetching non-existant yields non nil item")
+		t.Log(string(res))
+	}
+
+}
+
 func TestGETH(t *testing.T) {
 	// set up levelDB
 	testFile, _ := ioutil.TempFile(os.TempDir(), "temp")
@@ -24,6 +66,7 @@ func TestGETH(t *testing.T) {
 	t.Log("creating temp DB at", testPath)
 	testLevelDB, _ := rawdb.NewLevelDBDatabase(testPath, 128, 1024, "", false)
 	defer testLevelDB.Close()
+	defer os.RemoveAll(testPath)
 
 	// set up state
 	testDB := state.NewDatabase(testLevelDB)
@@ -33,6 +76,18 @@ func TestGETH(t *testing.T) {
 		t.Errorf("eth state not created")
 	}
 	t.Log("created eth state")
+
+	testLevelDB.Put([]byte("foo"), []byte("bar"))
+	res, _ := testLevelDB.Get([]byte("foo"))
+	if !bytes.Equal(res, []byte("bar")) {
+		t.Errorf("retrieved value does not match")
+	}
+	t.Log("fetching foo:", string(res))
+
+	res, _ = testLevelDB.Get([]byte("foo2"))
+	if res != nil {
+		t.Errorf("fetching non-existant yields non nil item")
+	}
 
 	testAddress := common.HexToAddress("0x0a")
 	// create evmCfg
@@ -151,9 +206,27 @@ func TestEVM(t *testing.T) {
 	testFile, _ := ioutil.TempFile(os.TempDir(), "temp")
 	testPath, _ := filepath.Abs(filepath.Dir(testFile.Name()))
 	testPath = testPath + "/ethleveldb/test"
+
 	t.Log("creating temp DB at", testPath)
+	defer os.RemoveAll(testPath)
 
 	LoadDatabase(testPath)
+	if prevStateRoot.String() != nullRootHash {
+		t.Error("state root should be nil")
+	}
+
+	t.Log("root hash", prevStateRoot.String())
+
+	Commit()
+
+	if prevStateRoot.String() == nullRootHash {
+		t.Error("state root should not be nil")
+	}
+
+	t.Log("root hash", prevStateRoot.String())
+
+	Commit()
+	t.Log("root hash", prevStateRoot.String())
 
 	testAddress, _ := hex.DecodeString("0x000000000000000000000000000000000000000a")
 
@@ -193,6 +266,9 @@ func TestEVM(t *testing.T) {
 	t.Log("ret length", len(ret))
 	t.Log("deployed at", hex.EncodeToString(contractAddress))
 
+	Commit()
+	t.Log("root hash", prevStateRoot.String())
+
 	// test creating contract again from different address
 	testAddress2, _ := hex.DecodeString("0x0b")
 	ret, contractAddress, _, err = Create(testAddress2, contractByteCode)
@@ -207,6 +283,7 @@ func TestEVM(t *testing.T) {
 	t.Log("ret value", hex.EncodeToString(ret))
 
 	Commit()
+	t.Log("root hash", prevStateRoot.String())
 
 	// try calling the contract
 	// need to call testFunc
@@ -227,6 +304,9 @@ func TestEVM(t *testing.T) {
 	t.Log("ret length", len(ret))
 	t.Log("ret value", hex.EncodeToString(ret))
 
+	Commit()
+	t.Log("root hash", prevStateRoot.String())
+
 	// call again
 	ret, gas, err = Call(testAddress, contractAddress, payload)
 	if err != nil {
@@ -238,4 +318,12 @@ func TestEVM(t *testing.T) {
 	t.Log("ret length", len(ret))
 	t.Log("ret value", hex.EncodeToString(ret))
 
+	lastRootHash := prevStateRoot.String()
+
+	CloseDatabase()
+	// try loading EVM again
+	LoadDatabase(testPath)
+
+	currentRootHash := prevStateRoot.String()
+	t.Log("last root", lastRootHash, "current root", currentRootHash)
 }

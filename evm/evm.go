@@ -11,11 +11,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
+const (
+	rootHashKey  = "roothashkey"
+	nullRootHash = "0x0000000000000000000000000000000000000000000000000000000000000000"
+)
+
 var (
-	logger   = log.NewLogger("evm")
-	levelDB  ethdb.Database
-	stateDB  state.Database
-	ethState *state.StateDB
+	logger        = log.NewLogger("evm")
+	levelDB       ethdb.Database
+	stateDB       state.Database
+	ethState      *state.StateDB
+	prevStateRoot common.Hash
 )
 
 func init() {
@@ -27,13 +33,19 @@ func LoadDatabase(dbPath string) {
 	openDatabase(dbPath)
 
 	// set up state
-
-	stateRoot := common.Hash{} // FIXME: fetch prev root state hash
-	ethState, _ = state.New(stateRoot, stateDB, nil)
+	prevStateRoot = common.Hash{} // FIXME: fetch prev root state hash
+	item, err := levelDB.Get([]byte(rootHashKey))
+	if err != nil && item == nil {
+		// start with null root
+		logger.Info().Msg("loaded with null root")
+	} else {
+		prevStateRoot.SetBytes(item)
+	}
+	ethState, _ = state.New(prevStateRoot, stateDB, nil)
 	if ethState == nil {
 		logger.Error().Msgf("eth state not created")
 	}
-	logger.Info().Msgf("created eth state")
+	logger.Info().Msgf("created eth state with root %s", prevStateRoot.String())
 
 }
 
@@ -44,13 +56,14 @@ func openDatabase(dbPath string) error {
 }
 
 func CloseDatabase() {
-	logger.Info().Msgf("closing levelDB for EVM")
+	logger.Info().Msgf("closing levelDB for EVM with root %s", prevStateRoot.String())
 	levelDB.Close()
 }
 
 func Commit() error {
-	nextRoot, _ := ethState.Commit(true)
-	ethState, _ = state.New(nextRoot, stateDB, nil) // FIXME: save new root state hash
+	prevStateRoot, _ = ethState.Commit(true)
+	levelDB.Put([]byte(rootHashKey), prevStateRoot.Bytes())
+	ethState, _ = state.New(prevStateRoot, stateDB, nil) // FIXME: save new root state hash
 
 	return nil
 }
