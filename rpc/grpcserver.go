@@ -966,7 +966,7 @@ func (rpc *AergoRPCService) NodeState(ctx context.Context, in *types.NodeReq) (*
 	return &types.SingleBytes{Value: data}, nil
 }
 
-//GetVotes handle rpc request getvotes
+// GetVotes handle rpc request getvotes
 func (rpc *AergoRPCService) GetVotes(ctx context.Context, in *types.VoteParams) (*types.VoteList, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
@@ -1001,7 +1001,7 @@ func (rpc *AergoRPCService) GetAccountVotes(ctx context.Context, in *types.Accou
 	return rsp.Info, rsp.Err
 }
 
-//GetStaking handle rpc request getstaking
+// GetStaking handle rpc request getstaking
 func (rpc *AergoRPCService) GetStaking(ctx context.Context, in *types.AccountAddress) (*types.Staking, error) {
 	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
 		return nil, err
@@ -1107,6 +1107,22 @@ func (rpc *AergoRPCService) QueryContractState(ctx context.Context, in *types.St
 		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
 	}
 	return rsp.Result, rsp.Err
+}
+
+func (rpc *AergoRPCService) QueryEVMContract(ctx context.Context, in *types.Query) (*types.SingleBytes, error) {
+	if err := rpc.checkAuth(ctx, ReadBlockChain); err != nil {
+		return nil, err
+	}
+	result, err := rpc.hub.RequestFuture(message.ChainSvc,
+		&message.GetEVMQuery{Contract: in.ContractAddress, Queryinfo: in.Queryinfo}, defaultActorTimeout, "rpc.(*AergoRPCService).QueryEVMContract").Result()
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(message.GetEVMQueryRsp)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "internal type (%v) error", reflect.TypeOf(result))
+	}
+	return &types.SingleBytes{Value: rsp.Result}, rsp.Err
 }
 
 func toTimestamp(time time.Time) *timestamp.Timestamp {
@@ -1225,7 +1241,7 @@ func (rpc *AergoRPCService) ChainStat(ctx context.Context, in *types.Empty) (*ty
 	return &types.ChainStats{Report: ca.GetChainStats()}, nil
 }
 
-//GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
+// GetEnterpriseConfig return aergo.enterprise configure values. key "ADMINS" is for getting register admin addresses and "ALL" is for getting all key list.
 func (rpc *AergoRPCService) GetEnterpriseConfig(ctx context.Context, in *types.EnterpriseConfigKey) (*types.EnterpriseConfig, error) {
 	genesis := rpc.actorHelper.GetChainAccessor().GetGenesisInfo()
 	if genesis.PublicNet() {

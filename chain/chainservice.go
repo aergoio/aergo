@@ -862,21 +862,7 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		// FIXME: implement using EVM module
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		sdb = cw.sdb.OpenNewStateDB(cw.sdb.GetRoot())
-		address, err := getAddressNameResolved(sdb, msg.Contract)
-		if err != nil {
-			context.Respond(message.GetEVMQueryRsp{Result: nil, Err: err})
-			break
-		}
-		ctrState, err := sdb.OpenContractStateAccount(types.ToAccountID(address))
-		if err != nil {
-			logger.Error().Str("hash", enc.ToString(address)).Err(err).Msg("failed to get state for contract")
-			context.Respond(message.GetEVMQueryRsp{Result: nil, Err: err})
-		} else {
-			bs := state.NewBlockState(sdb)
-			ret, err := contract.Query(address, bs, cw.cdb, ctrState, msg.Queryinfo)
-			context.Respond(message.GetEVMQueryRsp{Result: ret, Err: err})
-		}
+		context.Respond(message.GetEVMQueryRsp{Result: nil, Err: nil})
 	case *message.GetElected:
 		top, err := cw.getVotes(msg.Id, msg.N)
 		context.Respond(&message.GetVoteRsp{

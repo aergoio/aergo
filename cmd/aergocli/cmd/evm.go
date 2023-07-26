@@ -8,7 +8,9 @@ package cmd
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/aergoio/aergo/cmd/aergocli/util"
 	"github.com/aergoio/aergo/types"
@@ -22,8 +24,16 @@ var evmCmd = &cobra.Command{
 	RunE:  execEVM,
 }
 
+var queryEvmCmd = &cobra.Command{
+	Use:   "queryevm",
+	Short: "Query EVM",
+	Args:  cobra.MinimumNArgs(0),
+	RunE:  runQueryEVMCmd,
+}
+
 func init() {
 	rootCmd.AddCommand(evmCmd)
+	rootCmd.AddCommand(queryEvmCmd)
 	evmCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
 	evmCmd.Flags().StringVar(&from, "from", "", "Sender account address")
 	evmCmd.MarkFlagRequired("from")
@@ -96,4 +106,38 @@ func sendEVMTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 		}
 		return util.JSON(msg)
 	}
+}
+
+func runQueryEVMCmd(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
+	contract, err := types.DecodeAddress(args[0])
+	if err != nil {
+		return fmt.Errorf("failed to decode address: %v", err.Error())
+	}
+	var ci types.CallInfo
+
+	ci.Name = args[1]
+	if len(args) > 2 {
+		err = json.Unmarshal([]byte(args[2]), &ci.Args)
+		if err != nil {
+			return fmt.Errorf("failed to parse JSON: %v", err.Error())
+		}
+	}
+	callinfo, err := json.Marshal(ci)
+	if err != nil {
+		return fmt.Errorf("failed to encode JSON: %v", err.Error())
+	}
+
+	query := &types.Query{
+		ContractAddress: contract,
+		Queryinfo:       callinfo,
+	}
+
+	ret, err := client.QueryEVMContract(context.Background(), query)
+	if err != nil {
+		return fmt.Errorf("failed to query EVM contract: %v", err.Error())
+	}
+	cmd.Println(ret)
+	return nil
 }
