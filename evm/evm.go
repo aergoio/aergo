@@ -17,58 +17,62 @@ const (
 )
 
 var (
-	logger        = log.NewLogger("evm")
+	logger = log.NewLogger("evm")
+)
+
+type EVM struct {
 	levelDB       ethdb.Database
 	stateDB       state.Database
 	ethState      *state.StateDB
 	prevStateRoot common.Hash
-)
-
-func init() {
-	// load previous state or create a new state
 }
 
-func LoadDatabase(dbPath string) {
+func NewEVM() *EVM {
+	evm := &EVM{}
+	return evm
+}
+
+func (evm *EVM) LoadDatabase(dbPath string) {
 	logger.Info().Msgf("opening a new levelDB for EVM")
-	openDatabase(dbPath)
+	evm.openDatabase(dbPath)
 
 	// set up state
-	prevStateRoot = common.Hash{} // FIXME: fetch prev root state hash
-	item, err := levelDB.Get([]byte(rootHashKey))
+	evm.prevStateRoot = common.Hash{} // FIXME: fetch prev root state hash
+	item, err := evm.levelDB.Get([]byte(rootHashKey))
 	if err != nil && item == nil {
 		// start with null root
 		logger.Info().Msg("loaded with null root")
 	} else {
-		prevStateRoot.SetBytes(item)
+		evm.prevStateRoot.SetBytes(item)
 	}
-	ethState, _ = state.New(prevStateRoot, stateDB, nil)
-	if ethState == nil {
+	evm.ethState, _ = state.New(evm.prevStateRoot, evm.stateDB, nil)
+	if evm.ethState == nil {
 		logger.Error().Msgf("eth state not created")
 	}
-	logger.Info().Msgf("created eth state with root %s", prevStateRoot.String())
+	logger.Info().Msgf("created eth state with root %s", evm.prevStateRoot.String())
 
 }
 
-func openDatabase(dbPath string) error {
-	levelDB, _ = rawdb.NewLevelDBDatabase(dbPath, 128, 1024, "", false)
-	stateDB = state.NewDatabase(levelDB)
+func (evm *EVM) openDatabase(dbPath string) error {
+	evm.levelDB, _ = rawdb.NewLevelDBDatabase(dbPath, 128, 1024, "", false)
+	evm.stateDB = state.NewDatabase(evm.levelDB)
 	return nil
 }
 
-func CloseDatabase() {
-	logger.Info().Msgf("closing levelDB for EVM with root %s", prevStateRoot.String())
-	levelDB.Close()
+func (evm *EVM) CloseDatabase() {
+	logger.Info().Msgf("closing levelDB for EVM with root %s", evm.prevStateRoot.String())
+	evm.levelDB.Close()
 }
 
-func Commit() error {
-	prevStateRoot, _ = ethState.Commit(true)
-	levelDB.Put([]byte(rootHashKey), prevStateRoot.Bytes())
-	ethState, _ = state.New(prevStateRoot, stateDB, nil) // FIXME: save new root state hash
-
+func (evm *EVM) Commit() error {
+	evm.prevStateRoot, _ = evm.ethState.Commit(true)
+	evm.levelDB.Put([]byte(rootHashKey), evm.prevStateRoot.Bytes())
+	evm.ethState, _ = state.New(evm.prevStateRoot, evm.stateDB, nil) // FIXME: save new root state hash
+	logger.Info().Msgf("commiting eth state with root hash %s", evm.prevStateRoot.String())
 	return nil
 }
 
-func Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
+func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
 	// create evmCfg
 	evmCfg := vm.Config{
 		Debug:     false,
@@ -77,7 +81,7 @@ func Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte,
 
 	// create call cfg
 	runtimeCfg := &runtime.Config{
-		State:     ethState,
+		State:     evm.ethState,
 		EVMConfig: evmCfg,
 	}
 
@@ -94,7 +98,7 @@ func Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte,
 	return ret, gas, nil
 }
 
-func Create(originAddress []byte, payload []byte) ([]byte, []byte, uint64, error) {
+func (evm *EVM) Create(originAddress []byte, payload []byte) ([]byte, []byte, uint64, error) {
 	// create evmCfg
 	evmCfg := vm.Config{
 		Debug: false,
@@ -104,7 +108,7 @@ func Create(originAddress []byte, payload []byte) ([]byte, []byte, uint64, error
 
 	// create call cfg
 	runtimeCfg := &runtime.Config{
-		State:     ethState,
+		State:     evm.ethState,
 		EVMConfig: evmCfg,
 	}
 
