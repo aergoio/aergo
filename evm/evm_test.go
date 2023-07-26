@@ -318,6 +318,52 @@ func TestEVM(t *testing.T) {
 	t.Log("ret length", len(ret))
 	t.Log("ret value", hex.EncodeToString(ret))
 
+	// try query
+	ret, gas, err = evm.Query(testAddress, contractAddress, payload)
+	if err != nil {
+		t.Log("code", gas)
+		t.Fatal("didn't expect error:", err)
+	}
+
+	t.Log("queried the contract")
+	t.Log("ret length", len(ret))
+	t.Log("ret value", hex.EncodeToString(ret))
+
+	// call again
+	ret, gas, err = evm.Call(testAddress, contractAddress, payload)
+	if err != nil {
+		t.Log("code", gas)
+		t.Fatal("didn't expect error:", err)
+	}
+
+	t.Log("called the contract")
+	t.Log("ret length", len(ret))
+	t.Log("ret value", hex.EncodeToString(ret))
+
+	// try query
+	ret, gas, err = evm.Query(testAddress, contractAddress, payload)
+	if err != nil {
+		t.Log("code", gas)
+		t.Fatal("didn't expect error:", err)
+	}
+
+	t.Log("queried the contract")
+	t.Log("ret length", len(ret))
+	t.Log("ret value", hex.EncodeToString(ret))
+
+	evm.Commit()
+
+	// try query
+	ret, gas, err = evm.Query(testAddress, contractAddress, payload)
+	if err != nil {
+		t.Log("code", gas)
+		t.Fatal("didn't expect error:", err)
+	}
+
+	t.Log("queried the contract")
+	t.Log("ret length", len(ret))
+	t.Log("ret value", hex.EncodeToString(ret))
+
 	lastRootHash := evm.prevStateRoot.String()
 
 	evm.CloseDatabase()

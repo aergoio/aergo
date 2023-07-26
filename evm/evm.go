@@ -21,10 +21,11 @@ var (
 )
 
 type EVM struct {
-	levelDB       ethdb.Database
-	stateDB       state.Database
-	ethState      *state.StateDB
-	prevStateRoot common.Hash
+	levelDB        ethdb.Database
+	stateDB        state.Database
+	ethState       *state.StateDB
+	queryStateRoot common.Hash
+	prevStateRoot  common.Hash
 }
 
 func NewEVM() *EVM {
@@ -65,11 +66,39 @@ func (evm *EVM) CloseDatabase() {
 }
 
 func (evm *EVM) Commit() error {
+	evm.queryStateRoot = evm.prevStateRoot
 	evm.prevStateRoot, _ = evm.ethState.Commit(true)
 	evm.levelDB.Put([]byte(rootHashKey), evm.prevStateRoot.Bytes())
-	evm.ethState, _ = state.New(evm.prevStateRoot, evm.stateDB, nil) // FIXME: save new root state hash
+	evm.ethState, _ = state.New(evm.prevStateRoot, evm.stateDB, nil)
 	logger.Info().Msgf("commiting eth state with root hash %s", evm.prevStateRoot.String())
 	return nil
+}
+
+func (evm *EVM) Query(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
+	// create evmCfg
+	evmCfg := vm.Config{
+		Debug:     false,
+		NoBaseFee: true,
+	}
+
+	// create call cfg
+	queryState, _ := state.New(evm.queryStateRoot, evm.stateDB, nil)
+	runtimeCfg := &runtime.Config{
+		State:     queryState,
+		EVMConfig: evmCfg,
+	}
+
+	ethOriginAddress := common.BytesToAddress(originAddress)
+	contractEthAddress := common.BytesToAddress(contractAddress)
+	runtimeCfg.Origin = ethOriginAddress
+	runtimeCfg.GasLimit = 1000000
+
+	ret, gas, err := runtime.Call(contractEthAddress, payload, runtimeCfg)
+	if err != nil {
+		return ret, gas, err
+	}
+
+	return ret, gas, nil
 }
 
 func (evm *EVM) Call(originAddress []byte, contractAddress []byte, payload []byte) ([]byte, uint64, error) {
