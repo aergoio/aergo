@@ -57,7 +57,7 @@ type DummyChain struct {
 }
 
 func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
-
+	var err error
 	var gasPrice *big.Int
 
 	switch chainType {
@@ -69,10 +69,8 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 		gasPrice = types.NewAmount(1, types.Aer)
 	}
 
-	dataPath, err := os.MkdirTemp("", "data")
-	if err != nil {
-		return nil, err
-	}
+	dataPath := "./data/state"
+
 	bc := &DummyChain{
 		sdb:       state.NewChainStateDB(),
 		tmpDir:    dataPath,
@@ -99,6 +97,9 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 		dbImpl = db.MemoryImpl
 	}
 
+	// clear folder if exists
+	_ = os.RemoveAll(dataPath)
+	// initialize the state database
 	err = bc.sdb.Init(string(dbImpl), dataPath, nil, false)
 	if err != nil {
 		return nil, err
