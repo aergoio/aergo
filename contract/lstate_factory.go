@@ -15,16 +15,16 @@ var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
 
-func StartLStateFactory(num, numClosers, numCloseLimit int) {
+func StartLStateFactory(numLStates, numClosers, numCloseLimit int) {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
 
-		maxLStates = num
-		getCh = make(chan *LState, num)
-		freeCh = make(chan *LState, num)
+		maxLStates = numLStates
+		getCh = make(chan *LState, numLStates)
+		freeCh = make(chan *LState, numLStates)
 
-		for i := 0; i < num; i++ {
+		for i := 0; i < numLStates; i++ {
 			getCh <- newLState()
 		}
 

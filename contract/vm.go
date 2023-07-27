@@ -335,8 +335,8 @@ func newExecutor(
 ) *executor {
 
 	if ctx.blockInfo.ForkVersion != currentForkVersion {
-		// make the StatePool generate new LStates
-		// this global variable is used by the pool goroutines
+		// force the StatePool to regenerate the LStates
+		// using the new hardfork version
 		currentForkVersion = ctx.blockInfo.ForkVersion
 		FlushLStates()
 	}
