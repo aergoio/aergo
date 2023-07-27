@@ -8,12 +8,14 @@ package chain
 import (
 	"bytes"
 	"container/list"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/aergoio/aergo/contract/system"
+	"github.com/aergoio/aergo/evm"
 
 	"github.com/aergoio/aergo/consensus"
 	"github.com/aergoio/aergo/contract"
@@ -951,9 +953,29 @@ func executeTx(
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
 		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preLoadService, false)
 		sender.SubBalance(txFee)
-	case types.TxType_EVM:
-		logger.Info().Msgf("EVM tx with payload length %d", len(txBody.Payload))
-		// FIXME: set temporary fee as workaround
+	case types.TxType_EVMDEPLOY:
+		senderETHAddress := evm.ConvertAddress(sender.ID())
+		logger.Info().Msgf("EVM contract deploy with payload length %d from %s", len(txBody.Payload), hex.EncodeToString(senderETHAddress))
+		_, contractAddress, _, err := evmService.Create(senderETHAddress, txBody.Payload)
+		if err != nil {
+			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("EVM contract deploy failed")
+		} else {
+			logger.Info().Msgf("EVM contract deployed at %s", hex.EncodeToString(contractAddress))
+		}
+
+		txFee = new(big.Int).SetUint64(0)
+	case types.TxType_EVMCALL:
+		senderETHAddress := evm.ConvertAddress(sender.ID())
+		contractAddress := txBody.Payload[0:20]
+		payload := txBody.Payload[20:]
+		logger.Info().Msgf("EVM contract call at %s with payload %s from %s", hex.EncodeToString(contractAddress), hex.EncodeToString(payload), hex.EncodeToString(senderETHAddress))
+		res, _, err := evmService.Call(senderETHAddress, contractAddress, payload)
+		if err != nil {
+			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("EVM contract call failed")
+		} else {
+			logger.Info().Msgf("EVM contract called at %s with res %s", hex.EncodeToString(contractAddress), hex.EncodeToString(res))
+		}
+
 		txFee = new(big.Int).SetUint64(0)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)

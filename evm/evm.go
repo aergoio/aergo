@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
@@ -62,6 +63,7 @@ func (evm *EVM) openDatabase(dbPath string) error {
 
 func (evm *EVM) CloseDatabase() {
 	logger.Info().Msgf("closing levelDB for EVM with root %s", evm.prevStateRoot.String())
+	evm.levelDB.Sync()
 	evm.levelDB.Close()
 }
 
@@ -70,7 +72,7 @@ func (evm *EVM) Commit() error {
 	evm.prevStateRoot, _ = evm.ethState.Commit(true)
 	evm.levelDB.Put([]byte(rootHashKey), evm.prevStateRoot.Bytes())
 	evm.ethState, _ = state.New(evm.prevStateRoot, evm.stateDB, nil)
-	logger.Info().Msgf("commiting eth state with root hash %s", evm.prevStateRoot.String())
+	logger.Debug().Msgf("commiting eth state with root hash %s", evm.prevStateRoot.String())
 	return nil
 }
 
@@ -149,4 +151,9 @@ func (evm *EVM) Create(originAddress []byte, payload []byte) ([]byte, []byte, ui
 	}
 
 	return ret, ethContractAddress.Bytes(), 0, nil
+}
+
+func ConvertAddress(aergoAddress []byte) []byte {
+	addressHash := crypto.Keccak256(aergoAddress)[:20]
+	return addressHash
 }

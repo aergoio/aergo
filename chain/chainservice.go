@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -862,7 +863,9 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		// FIXME: implement using EVM module
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
-		context.Respond(message.GetEVMQueryRsp{Result: nil, Err: nil})
+		logger.Info().Msgf("evm query received for contract %s with payload %s", hex.EncodeToString(msg.Contract), hex.EncodeToString(msg.Queryinfo))
+		res, _, err := evmService.Query(nil, msg.Contract, msg.Queryinfo)
+		context.Respond(message.GetEVMQueryRsp{Result: res, Err: err})
 	case *message.GetElected:
 		top, err := cw.getVotes(msg.Id, msg.N)
 		context.Respond(&message.GetVoteRsp{

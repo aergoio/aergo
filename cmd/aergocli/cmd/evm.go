@@ -8,7 +8,6 @@ package cmd
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -17,32 +16,50 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var evmCmd = &cobra.Command{
-	Use:   "evm",
+var evmDeployCmd = &cobra.Command{
+	Use:   "evmdeploy",
 	Short: "Invoke EVM",
 	Args:  cobra.MinimumNArgs(0),
-	RunE:  execEVM,
+	RunE:  deployEVM,
+}
+
+var evmCallCmd = &cobra.Command{
+	Use:   "evmcall",
+	Short: "Invoke EVM",
+	Args:  cobra.MinimumNArgs(0),
+	RunE:  callEVM,
 }
 
 var queryEvmCmd = &cobra.Command{
-	Use:   "queryevm",
-	Short: "Query EVM",
-	Args:  cobra.MinimumNArgs(0),
+	Use:   "evmquery [flags] <contractAddress> <payload> [args]",
+	Short: "Query EVM contract by executing read-only function",
+	Args:  cobra.MinimumNArgs(2),
 	RunE:  runQueryEVMCmd,
 }
 
 func init() {
-	rootCmd.AddCommand(evmCmd)
+	rootCmd.AddCommand(evmDeployCmd)
+	evmDeployCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
+	evmDeployCmd.Flags().StringVar(&from, "from", "", "Sender account address")
+	evmDeployCmd.MarkFlagRequired("from")
+	evmDeployCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+	evmDeployCmd.Flags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
+	evmDeployCmd.Flags().StringVar(&pw, "password", "", "Password")
+
+	rootCmd.AddCommand(evmCallCmd)
+	evmCallCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
+	evmCallCmd.Flags().StringVar(&from, "from", "", "Sender account address")
+	evmCallCmd.MarkFlagRequired("from")
+	evmCallCmd.Flags().StringVar(&to, "to", "", "contract address")
+	evmCallCmd.MarkFlagRequired("to")
+	evmCallCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
+	evmCallCmd.Flags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
+	evmCallCmd.Flags().StringVar(&pw, "password", "", "Password")
+
 	rootCmd.AddCommand(queryEvmCmd)
-	evmCmd.PersistentFlags().StringVar(&data, "payload", "", "result of compiling a contract")
-	evmCmd.Flags().StringVar(&from, "from", "", "Sender account address")
-	evmCmd.MarkFlagRequired("from")
-	evmCmd.Flags().Uint64Var(&nonce, "nonce", 0, "setting nonce manually")
-	evmCmd.Flags().Uint64VarP(&gas, "gaslimit", "g", 0, "Gas limit")
-	evmCmd.Flags().StringVar(&pw, "password", "", "Password")
 }
 
-func execEVM(cmd *cobra.Command, args []string) error {
+func deployEVM(cmd *cobra.Command, args []string) error {
 	account, err := types.DecodeAddress(from)
 	if err != nil {
 		return errors.New("Wrong address in --from flag\n" + err.Error())
@@ -57,7 +74,42 @@ func execEVM(cmd *cobra.Command, args []string) error {
 	}
 
 	tx := &types.Tx{Body: &types.TxBody{
-		Type:     types.TxType_EVM,
+		Type:     types.TxType_EVMDEPLOY,
+		Account:  account,
+		Payload:  payload,
+		Nonce:    nonce,
+		GasLimit: gas,
+	}}
+
+	cmd.Println(sendEVMTX(cmd, tx, account))
+	return nil
+}
+
+func callEVM(cmd *cobra.Command, args []string) error {
+	account, err := types.DecodeAddress(from)
+	if err != nil {
+		return errors.New("Wrong address in --from flag\n" + err.Error())
+	}
+
+	contractAddress, err := hex.DecodeString(to)
+	if err != nil {
+		return errors.New("Wrong address in --from flag\n" + err.Error())
+	}
+
+	var payload []byte
+	// process payload
+	// FIXME: use hex encoded bytecode to follow ethereum convention for now
+	payload, err = hex.DecodeString(data)
+	if err != nil {
+		return errors.New("failed to parse payload")
+	}
+
+	payload = append(contractAddress, payload...)
+
+	cmd.Println(hex.EncodeToString(payload))
+
+	tx := &types.Tx{Body: &types.TxBody{
+		Type:     types.TxType_EVMCALL,
 		Account:  account,
 		Payload:  payload,
 		Nonce:    nonce,
@@ -111,23 +163,8 @@ func sendEVMTX(cmd *cobra.Command, tx *types.Tx, account []byte) string {
 func runQueryEVMCmd(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	contract, err := types.DecodeAddress(args[0])
-	if err != nil {
-		return fmt.Errorf("failed to decode address: %v", err.Error())
-	}
-	var ci types.CallInfo
-
-	ci.Name = args[1]
-	if len(args) > 2 {
-		err = json.Unmarshal([]byte(args[2]), &ci.Args)
-		if err != nil {
-			return fmt.Errorf("failed to parse JSON: %v", err.Error())
-		}
-	}
-	callinfo, err := json.Marshal(ci)
-	if err != nil {
-		return fmt.Errorf("failed to encode JSON: %v", err.Error())
-	}
+	contract, _ := hex.DecodeString(args[0])
+	callinfo, _ := hex.DecodeString(args[1])
 
 	query := &types.Query{
 		ContractAddress: contract,
@@ -138,6 +175,6 @@ func runQueryEVMCmd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to query EVM contract: %v", err.Error())
 	}
-	cmd.Println(ret)
+	cmd.Println(hex.EncodeToString(ret.Value))
 	return nil
 }
