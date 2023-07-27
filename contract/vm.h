@@ -13,7 +13,7 @@ extern const char *construct_name;
 #define FORK_V2 "_FORK_V2"
 #define ERR_BF_TIMEOUT "contract timeout"
 
-lua_State *vm_newstate();
+lua_State *vm_newstate(int hardfork_version);
 void vm_closestates(lua_State *s[], int count);
 int vm_autoload(lua_State *L, char *func_name);
 void vm_remove_constructor(lua_State *L);

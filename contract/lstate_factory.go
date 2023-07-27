@@ -10,6 +10,7 @@ import (
 	"sync"
 )
 
+var maxLStates int
 var getCh chan *LState
 var freeCh chan *LState
 var once sync.Once
@@ -18,6 +19,8 @@ func StartLStateFactory(num, numClosers, numCloseLimit int) {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
+
+		maxLStates = num
 		getCh = make(chan *LState, num)
 		freeCh = make(chan *LState, num)
 
@@ -53,5 +56,12 @@ func FreeLState(state *LState) {
 	if state != nil {
 		freeCh <- state
 		ctrLgr.Debug().Msg("LState released")
+	}
+}
+
+func FlushLStates() {
+	for i := 0; i < maxLStates; i++ {
+		s := GetLState()
+		FreeLState(s)
 	}
 }

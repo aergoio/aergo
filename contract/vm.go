@@ -60,6 +60,7 @@ var (
 	contexts       []*vmContext
 	lastQueryIndex int
 	querySync      sync.Mutex
+	currentForkVersion int32
 )
 
 type ChainAccessor interface {
@@ -262,7 +263,7 @@ func (s *vmContext) usedGas() uint64 {
 
 func newLState() *LState {
        ctrLgr.Debug().Msg("LState created")
-       return C.vm_newstate()
+       return C.vm_newstate(C.int(currentForkVersion))
 }
 
 func (L *LState) close() {
@@ -332,6 +333,13 @@ func newExecutor(
 	isDelegation bool,
 	ctrState *state.ContractState,
 ) *executor {
+
+	if ctx.blockInfo.ForkVersion != currentForkVersion {
+		// make the StatePool generate new LStates
+		// this global variable is used by the pool goroutines
+		currentForkVersion = ctx.blockInfo.ForkVersion
+		FlushLStates()
+	}
 
 	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.ForkVersion) {
 		ce := &executor{
