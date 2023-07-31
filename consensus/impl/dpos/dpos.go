@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -77,6 +78,11 @@ func (bi *bpInfo) updateBestBlock() *types.Block {
 	}
 
 	return block
+}
+
+type bfWork struct {
+	context context.Context
+	bpi     *bpInfo
 }
 
 // GetName returns the name of the consensus.

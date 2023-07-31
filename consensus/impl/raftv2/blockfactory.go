@@ -193,8 +193,6 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 		}),
 	)
 
-	contract.SetBPTimeout(bf.bpTimeoutC)
-
 	return bf, nil
 }
 
@@ -516,7 +514,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 	blockState.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err := chain.NewBlockGenerator(bf, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
+	block, err := chain.NewBlockGenerator(bf, nil, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
 		return nil, nil, chain.ErrBlockEmpty

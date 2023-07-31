@@ -371,10 +371,6 @@ func useGas(version int32) bool {
 	return version >= 2 && PubNet
 }
 
-func SetBPTimeout(timeout <-chan struct{}) {
-	bpTimeout = timeout
-}
-
 func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint64 {
 	if fee.IsZeroFee() || txType == types.TxType_GOVERNANCE || version < 2 {
 		return 0

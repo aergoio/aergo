@@ -610,8 +610,8 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	nret := C.int(0)
 	startTime := time.Now()
 	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret)
-	vmExecTime := time.Now().Sub(startTime).Milliseconds()
-n	vmLogger.Trace().Int64("execMs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
+	vmExecTime := time.Now().Sub(startTime).Microseconds()
+	vmLogger.Trace().Int64("execµs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		if C.luaL_hassyserror(ce.L) != C.int(0) {

@@ -191,7 +191,7 @@ func (s *SimpleBlockFactory) Start() {
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
 				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.NewBlockGenerator(s, bi, blockState, txOp, false).GenerateBlock()
+				block, err := chain.NewBlockGenerator(s, nil, bi, blockState, txOp, false).GenerateBlock()
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

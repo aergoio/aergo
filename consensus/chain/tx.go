@@ -6,6 +6,7 @@
 package chain
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -136,8 +137,28 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		contract.CloseDatabase()
 	}()
 
+	// block generation timeout check. this function works like BlockFactory#checkBpTimeout()
+	checkBGTimeout := NewCompTxOp(
+		TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
+			select {
+			case <-g.ctx.Done():
+				// TODO use function Cause() for precise control, later. cause can be used in go1.20 and later
+				causeErr := g.ctx.Err()
+				//causeErr := context.Cause(g.ctx)
+				switch causeErr {
+				case context.Canceled: // Only quitting of Aergo triggers Canceled error for now.
+					return ErrQuit
+				default:
+					return ErrTimeout{Kind: "block"}
+				}
+			default:
+				return nil
+			}
+		}),
+	)
+
 	if nCand > 0 {
-		op := NewCompTxOp(g.txOp)
+		op := NewCompTxOp(checkBGTimeout, g.txOp)
 
 		var preloadTx *types.Tx
 		for i, tx := range txIn {

@@ -633,7 +633,7 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 			timeout <- struct{}{}
 		}
 	}()
-	contract.SetBPTimeout(timeout)
+	//contract.SetBPTimeout(timeout)
 	for _, x := range txs {
 		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
 			return err

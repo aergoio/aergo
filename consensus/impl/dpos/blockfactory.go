@@ -7,6 +7,7 @@ package dpos
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"runtime"
 	"runtime/debug"
@@ -51,7 +52,7 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 type BlockFactory struct {
 	*component.ComponentHub
 	jobQueue         chan interface{}
-	workerQueue      chan *bpInfo
+	workerQueue      chan bfWork
 	bpTimeoutC       chan struct{}
 	quit             <-chan interface{}
 	maxBlockBodySize uint32
@@ -60,6 +61,9 @@ type BlockFactory struct {
 	txOp             chain.TxOp
 	sdb              *state.ChainStateDB
 	bv               types.BlockVersionner
+
+	ctx           context.Context
+	ctxCancelFunc context.CancelFunc
 
 	recentRejectedTx *chain.RejTxInfo
 	noTTE            bool
@@ -76,7 +80,7 @@ func NewBlockFactory(
 	bf := &BlockFactory{
 		ComponentHub:     hub,
 		jobQueue:         make(chan interface{}, slotQueueMax),
-		workerQueue:      make(chan *bpInfo),
+		workerQueue:      make(chan bfWork),
 		bpTimeoutC:       make(chan struct{}, 1),
 		maxBlockBodySize: chain.MaxBlockBodySize(),
 		quit:             quitC,
@@ -92,8 +96,19 @@ func NewBlockFactory(
 			return bf.checkBpTimeout()
 		}),
 	)
-	contract.SetBPTimeout(bf.bpTimeoutC)
+	bf.initContext()
 	return bf
+}
+
+func (bf *BlockFactory) initContext() {
+	// TODO change context to WithCancelCause later for more precise control
+	bf.ctx, bf.ctxCancelFunc = context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-bf.quit:
+			bf.ctxCancelFunc()
+		}
+	}()
 }
 
 func (bf *BlockFactory) setStateDB(sdb *state.ChainStateDB) {
@@ -124,27 +139,20 @@ func (bf *BlockFactory) controller() {
 			return err
 		}
 
-		timeLeft := bpi.slot.RemainingTimeMS()
-		if timeLeft <= 0 {
-			return chain.ErrTimeout{Kind: "slot", Timeout: timeLeft}
+		timeLeftMSs := bpi.slot.GetBpTimeout()
+		if timeLeftMSs <= 0 {
+			return chain.ErrTimeout{Kind: "slot", Timeout: timeLeftMSs}
 		}
+		bfContext, _ := context.WithTimeout(bf.ctx, time.Duration(timeLeftMSs)*time.Millisecond)
 
 		select {
-		case bf.workerQueue <- bpi:
+		case bf.workerQueue <- bfWork{context: bfContext, bpi: bpi}:
 		default:
 			logger.Error().Msgf(
 				"skip block production for the slot %v (best block: %v) due to a pending job",
 				spew.Sdump(bpi.slot), bpi.bestBlock.ID())
 		}
 		return nil
-	}
-
-	notifyBpTimeout := func(bpi *bpInfo) {
-		timeout := bpi.slot.GetBpTimeout()
-		time.Sleep(time.Duration(timeout) * time.Millisecond)
-		// TODO: skip when the triggered block has already been generated!
-		bf.bpTimeoutC <- struct{}{}
-		logger.Debug().Int64("timeout", timeout).Msg("block production timeout signaled")
 	}
 
 	for {
@@ -163,7 +171,7 @@ func (bf *BlockFactory) controller() {
 				continue
 			}
 
-			notifyBpTimeout(bpi)
+			//notifyBpTimeout(bpi)
 
 		case <-bf.quit:
 			return
@@ -182,9 +190,10 @@ func (bf *BlockFactory) worker() {
 
 	for {
 		select {
-		case bpi := <-bf.workerQueue:
+		case bfw := <-bf.workerQueue:
 		retry:
-			block, blockState, err := bf.generateBlock(bpi, lpbNo)
+			bpi := bfw.bpi
+			block, blockState, err := bf.generateBlock(bfw.context, bpi, lpbNo)
 			if err == chain.ErrQuit {
 				return
 			}
@@ -217,7 +226,7 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *types.Block, bs *state.BlockState, err error) {
+func (bf *BlockFactory) generateBlock(ctx context.Context, bpi *bpInfo, lpbNo types.BlockNo) (block *types.Block, bs *state.BlockState, err error) {
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
 			block = nil
@@ -236,7 +245,7 @@ func (bf *BlockFactory) generateBlock(bpi *bpInfo, lpbNo types.BlockNo) (block *
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
 	bGen := chain.NewBlockGenerator(
-		bf, bi, bs, chain.NewCompTxOp(bf.txOp, newTxExec(bpi.ChainDB, bi)), false).
+		bf, ctx, bi, bs, newTxExec(bpi.ChainDB, bi), false).
 		WithDeco(bf.deco()).
 		SetNoTTE(bf.noTTE)
 

@@ -107,7 +107,7 @@ func (s *Slot) IsFor(bpIdx bp.Index, bpCount uint16) bool {
 	return s.NextBpIndex(bpCount) == int64(bpIdx)
 }
 
-// GetBpTimeout returns the time available for block production.
+// GetBpTimeout returns the time available for block production in milliseconds.
 func (s *Slot) GetBpTimeout() int64 {
 	rTime := s.RemainingTimeMS()
 
@@ -136,7 +136,7 @@ func (s *Slot) NextBpIndex(bpCount uint16) int64 {
 
 // BpMaxTime returns the max time limit for block production in nsec.
 func BpMaxTime() time.Duration {
-	return time.Duration(bpMaxTimeLimitMs) * 1000
+	return time.Duration(bpMaxTimeLimitMs) * time.Millisecond
 }
 
 func msToPrevIndex(ms int64) int64 {
