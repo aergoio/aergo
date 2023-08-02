@@ -62,10 +62,18 @@ func TestConfigFromToml(t *testing.T) {
 	cfg := readConfig(`
 [hardfork]
 v2 = "9223"
+v3 = "13000"
+v4 = "14000"
 `,
 	)
 	if cfg.V2 != 9223 {
 		t.Errorf("V2 = %d, want %d", cfg.V2, 9223)
+	}
+	if cfg.V3 != 13000 {
+		t.Errorf("V3 = %d, want %d", cfg.V3, 13000)
+	}
+	if cfg.V4 != 14000 {
+		t.Errorf("V4 = %d, want %d", cfg.V4, 14000)
 	}
 }
 
@@ -73,12 +81,15 @@ func TestCompatibility(t *testing.T) {
 	cfg := readConfig(`
 [hardfork]
 v2 = "9223"
-v3 = "11000"`,
+v3 = "11000"
+v4 = "14000"
+`,
 	)
 	dbCfg, _ := readDbConfig(`
 {
 	"V2": 18446744073709551515,
-	"V3": 18446744073709551615
+	"V3": 18446744073709551615,
+	"V4": 18446744073709551715
 }`,
 	)
 	err := cfg.CheckCompatibility(dbCfg, 10)
@@ -89,7 +100,8 @@ v3 = "11000"`,
 	dbCfg, _ = readDbConfig(`
 {
 	"V2": 9223,
-	"V3": 10000
+	"V3": 10000,
+	"V4": 14000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 10)
@@ -100,7 +112,8 @@ v3 = "11000"`,
 	dbCfg, _ = readDbConfig(`
 {
 	"V2": 9223,
-	"V3": 10000
+	"V3": 10000,
+	"V4": 14000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 9500)
@@ -111,7 +124,8 @@ v3 = "11000"`,
 	dbCfg, _ = readDbConfig(`
 {
 	"V2": 9221,
-	"V3": 10000
+	"V3": 10000,
+	"V4": 14000
 }`,
 	)
 	err = cfg.CheckCompatibility(dbCfg, 9500)
@@ -161,7 +175,9 @@ func TestVersion(t *testing.T) {
 	cfg := readConfig(`
 [hardfork]
 v2 = "9223"
-v3 = "10000"`,
+v3 = "10000"
+v4 = "14000"
+`,
 	)
 	tests := []struct {
 		name string
@@ -188,13 +204,36 @@ v3 = "10000"`,
 			9322,
 			2,
 		},
-		/*
-			{
-				"greater v3",
-				19322,
-				3,
-			},
-		*/
+		{
+			"before v3",
+			9999,
+			2,
+		},
+		{
+			"equal v3",
+			10000,
+			3,
+		},
+		{
+			"greater v3",
+			10001,
+			3,
+		},
+		{
+			"before v4",
+			13999,
+			3,
+		},
+		{
+			"equal v4",
+			14000,
+			4,
+		},
+		{
+			"greater v4",
+			21001,
+			4,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -209,7 +248,9 @@ func TestFixDbConfig(t *testing.T) {
 	cfg := readConfig(`
 [hardfork]
 v2 = "9223"
-v3 = "10000"`,
+v3 = "10000"
+v4 = "14000"
+`,
 	)
 	dbConfig, _ := readDbConfig(`
 {
