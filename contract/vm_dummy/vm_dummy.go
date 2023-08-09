@@ -626,13 +626,8 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 	defer tx.Commit()
 	defer contract.CloseDatabase()
 
-	timeout := make(chan struct{})
-	go func() {
-		if bc.timeout != 0 {
-			<-time.Tick(time.Duration(bc.timeout) * time.Millisecond)
-			timeout <- struct{}{}
-		}
-	}()
+	//timeout := make(chan struct{})
+	//blockContext, _ := context.WithTimeout(context.Background(), time.Duration(bc.timeout)*time.Millisecond)
 	//contract.SetBPTimeout(timeout)
 	for _, x := range txs {
 		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
