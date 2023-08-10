@@ -91,17 +91,26 @@ func Execute(
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	// check if the receiver is a not contract
+	// NORMAL and TRANSFER txns should NOT call a contract (after V4)
+	if bi.ForkVersion >= 4 &&
+	   (txBody.Type == types.TxType_NORMAL ||
+	    txBody.Type == types.TxType_TRANSFER) &&
+	   len(receiver.State().CodeHash) > 0 {
+		// emit an error
+		...
+	}
+
+	// check if the recipient is a not contract
 	if !receiver.IsDeploy() && len(receiver.State().CodeHash) == 0 {
-		// Before the chain version 3, any tx with no code hash is
-		// unconditionally executed as a simple Aergo transfer. Since this
-		// causes confusion, emit error for call-type tx with a wrong address
-		// from the chain version 3 by not returning error but fall-through for
-		// correct gas estimation.
-		if !(bi.ForkVersion >= 3 && txBody.Type == types.TxType_CALL) {
-			// Here, the condition for fee delegation TX essentially being
-			// call-type, is not necessary, because it is rejected from the
-			// mempool without code hash.
+		// before the hardfork version 3, all transactions in which the recipient
+		// is not a contract were executed as a simple Aergo transfer, including
+		// type CALL and FEEDELEGATION.
+		// starting from hardfork version 3, transactions expected to CALL a
+		// contract but without a valid recipient will emit an error.
+		// FEEDELEGATION txns with invalid recipient are rejected on mempool.
+		if bi.ForkVersion >= 3 && txBody.Type == types.TxType_CALL {
+			// continue now and emit an error below for correct gas estimation
+		} else {
 			return
 		}
 	}
