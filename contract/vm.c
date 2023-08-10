@@ -179,7 +179,7 @@ static const struct luaL_Reg _basefuncs[] = {
 	{NULL, NULL}};
 
 static void override_basefuncs(lua_State *L) {
-	// Override Lua builtins functions.
+	// override Lua builtin functions
 	lua_getglobal(L, "_G");
 	luaL_register(L, NULL, _basefuncs);
 	lua_pop(L, 1);
@@ -188,25 +188,19 @@ static void override_basefuncs(lua_State *L) {
 static int loadLibs(lua_State *L) {
 	luaL_openlibs(L);
 	preloadModules(L);
-	return 0;
-}
-
-static int loadLibsV3(lua_State *L) {
-	loadLibs(L);
-	override_basefuncs(L);
+	if (vm_is_hardfork(L, 4)) {
+		// override pcall to drop events upon error
+		override_basefuncs(L);
+	}
 	return 0;
 }
 
 lua_State *vm_newstate(int hardfork_version) {
-	int status;
 	lua_State *L = luaL_newstate(hardfork_version);
 	if (L == NULL)
 		return NULL;
-	if (use_lock)
-		// Overide pcall to drop events upon error.
-		status = lua_cpcall(L, loadLibsV3, NULL);
-	else
-		status = lua_cpcall(L, loadLibs, NULL);
+	// hardfork version set before loading modules
+	int status = lua_cpcall(L, loadLibs, NULL);
 	if (status != 0)
 		return NULL;
 	return L;
