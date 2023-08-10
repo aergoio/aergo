@@ -197,13 +197,9 @@ static int loadLibsV3(lua_State *L) {
 	return 0;
 }
 
-lua_State *vm_newstate(uint8_t use_lock) {
-	lua_State *L = NULL;
-	if (use_lock)
-		L = luaL_newstate_lock();
-	else
-		L = luaL_newstate();
+lua_State *vm_newstate(int hardfork_version) {
 	int status;
+	lua_State *L = luaL_newstate(hardfork_version);
 	if (L == NULL)
 		return NULL;
 	if (use_lock)
