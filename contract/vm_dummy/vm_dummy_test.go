@@ -2545,6 +2545,7 @@ func TestGasPerFunction(t *testing.T) {
 		// deploy 2 copies of the contract
 		NewLuaTxDeploy("user", "contract_v2", 0, code),
 		NewLuaTxDeploy("user", "contract_v3", 0, code),
+		NewLuaTxDeploy("user", "contract_v4", 0, code),
 	)
 	assert.NoError(t, err)
 
@@ -2552,6 +2553,7 @@ func TestGasPerFunction(t *testing.T) {
 	err = bc.ConnectBlock(
 		NewLuaTxCall("user", "contract_v2", uint64(10e18), `{"Name":"deposit"}`),
 		NewLuaTxCall("user", "contract_v3", uint64(10e18), `{"Name":"deposit"}`),
+		NewLuaTxCall("user", "contract_v4", uint64(10e18), `{"Name":"deposit"}`),
 	)
 	assert.NoError(t, err, "sending funds to contracts")
 
@@ -2834,7 +2836,7 @@ func TestGasPerFunction(t *testing.T) {
 
 		// print the function name and the used gas
 		// for this test:
-		//fmt.Printf("		{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+		//fmt.Printf("		{\"%s\", \"\", 0, %d},\n", funcName, usedGas)
 		// for integration tests (tests/test-gas-per-function-v2.sh):
 		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
@@ -2864,8 +2866,38 @@ func TestGasPerFunction(t *testing.T) {
 
 		// print the function name and the used gas
 		// for this test:
-		//fmt.Printf("		{ \"%s\", \"\", 0, %d },\n", funcName, usedGas)
+		//fmt.Printf("		{\"%s\", \"\", 0, %d},\n", funcName, usedGas)
 		// for integration tests (tests/test-gas-per-function-v3.sh):
+		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
+	}
+
+	// set the hard fork version
+	bc.HardforkVersion = 4
+
+	// iterate over the tests
+	for _, test := range tests_v3 {
+		funcName := test.funcName
+		funcArgs := test.funcArgs
+		amount := test.amount
+		expectedGas := test.expectedGas
+
+		var payload string
+		if len(funcArgs) == 0 {
+			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s"]}`, funcName)
+		} else {
+			payload = fmt.Sprintf(`{"Name":"run_test", "Args":["%s",%s]}`, funcName, funcArgs)
+		}
+		tx := NewLuaTxCall("user", "contract_v4", uint64(amount), payload)
+		err = bc.ConnectBlock(tx)
+		assert.NoError(t, err, "while executing %s", funcName)
+
+		usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
+		assert.Equal(t, expectedGas, int64(usedGas), "wrong used gas for %s", funcName)
+
+		// print the function name and the used gas
+		// for this test:
+		//fmt.Printf("		{\"%s\", \"\", 0, %d},\n", funcName, usedGas)
+		// for integration tests (tests/test-gas-per-function-v4.sh):
 		//fmt.Printf("add_test \"%s\" %d\n", funcName, usedGas)
 	}
 
