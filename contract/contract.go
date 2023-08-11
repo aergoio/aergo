@@ -91,11 +91,16 @@ func Execute(
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	// NORMAL and TRANSFER txns should NOT call a contract (after V4)
+	// transactions with type NORMAL should not call smart contracts
+	// transactions with type TRANSFER can only call smart contracts when:
+	//  * the amount is greater than 0
+	//  * the payload is empty (only transfer to "default" function)
 	if bi.ForkVersion >= 4 &&
+	   len(receiver.State().CodeHash) > 0 &&
 	   (txBody.Type == types.TxType_NORMAL ||
-	    txBody.Type == types.TxType_TRANSFER) &&
-	   len(receiver.State().CodeHash) > 0 {
+	   (txBody.Type == types.TxType_TRANSFER &&
+	     (len(txBody.GetPayload()) > 0 || txBody.GetAmountBigInt().Sign() == 0)
+	   )){
 		// emit an error
 		err = newVmError(types.ErrTxNotAllowedRecipient)
 		return
