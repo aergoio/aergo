@@ -3032,6 +3032,9 @@ func TestGasDeploy(t *testing.T) {
 
 	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(3))
 	assert.NoError(t, err)
+
+	err = expectGas(code, 0, `"testPcall"`, ``, 118350, SetHardForkVersion(4))
+	assert.NoError(t, err)
 }
 
 func TestGasOp(t *testing.T) {
@@ -3047,6 +3050,9 @@ func TestGasOp(t *testing.T) {
 
 	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(3))
 	assert.NoError(t, err)
+
+	err = expectGas(string(code), 0, `"main"`, ``, 130048, SetHardForkVersion(4))
+	assert.NoError(t, err)
 }
 
 func TestGasBF(t *testing.T) {
@@ -3061,6 +3067,9 @@ func TestGasBF(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = expectGas(string(code), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
+	assert.NoError(t, err)
+
+	err = expectGas(string(code), 0, `"main"`, ``, 57105265, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 
@@ -3082,6 +3091,14 @@ func TestGasLuaCryptoVerifyProof(t *testing.T) {
 
 	// v3 hex
 	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(3))
+	assert.NoError(t, err)
+
+	// v4 raw
+	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 160281, SetHardForkVersion(4))
+	assert.NoError(t, err)
+
+	// v4 hex
+	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(4))
 	assert.NoError(t, err)
 }
 
