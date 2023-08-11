@@ -97,7 +97,8 @@ func Execute(
 	    txBody.Type == types.TxType_TRANSFER) &&
 	   len(receiver.State().CodeHash) > 0 {
 		// emit an error
-		...
+		err = newVmError(types.ErrTxNotAllowedRecipient)
+		return
 	}
 
 	// check if the recipient is a not contract
