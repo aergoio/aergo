@@ -2811,6 +2811,130 @@ func TestGasPerFunction(t *testing.T) {
 		{ "contract.event", "", 0, 153263 },
 	}
 
+	tests_v4 := []struct {
+		funcName   string
+		funcArgs   string
+		amount     int64
+		expectedGas int64
+	}{
+		{"comp_ops", "", 0, 143204},
+		{"unarytest_n_copy_ops", "", 0, 143117},
+		{"unary_ops", "", 0, 143552},
+		{"binary_ops", "", 0, 145075},
+		{"constant_ops", "", 0, 143032},
+		{"upvalue_n_func_ops", "", 0, 144347},
+		{"table_ops", "", 0, 144482},
+		{"call_n_vararg_ops", "", 0, 145001},
+		{"return_ops", "", 0, 143037},
+		{"loop_n_branche_ops", "", 0, 146372},
+		{"function_header_ops", "", 0, 143016},
+
+		{"assert", "", 0, 143146},
+		{"getfenv", "", 0, 143041},
+		{"metatable", "", 0, 143988},
+		{"ipairs", "", 0, 143039},
+		{"pairs", "", 0, 143039},
+		{"next", "", 0, 143087},
+		{"rawequal", "", 0, 143216},
+		{"rawget", "", 0, 143087},
+		{"rawset", "", 0, 143941},
+		{"select", "", 0, 143166},
+		{"setfenv", "", 0, 143076},
+		{"tonumber", "", 0, 143186},
+		{"tostring", "", 0, 143457},
+		{"type", "", 0, 143285},
+		{"unpack", "", 0, 150745},
+		{"pcall", "", 0, 146165},
+		{"xpcall", "", 0, 146437},
+
+		{"string.byte", "", 0, 157040},
+		{"string.char", "", 0, 160397},
+		{"string.dump", "", 0, 150349},
+		{"string.find", "", 0, 147808},
+		{"string.format", "", 0, 143764},
+		{"string.gmatch", "", 0, 143799},
+		{"string.gsub", "", 0, 144943},
+		{"string.len", "", 0, 143097},
+		{"string.lower", "", 0, 148351},
+		{"string.match", "", 0, 143313},
+		{"string.rep", "", 0, 221928},
+		{"string.reverse", "", 0, 148351},
+		{"string.sub", "", 0, 145205},
+		{"string.upper", "", 0, 148351},
+
+		{"table.concat", "", 0, 163868},
+		{"table.insert", "", 0, 297254},
+		{"table.remove", "", 0, 156664},
+		{"table.maxn", "", 0, 147962},
+		{"table.sort", "", 0, 159866},
+
+		{"math.abs", "", 0, 143184},
+		{"math.ceil", "", 0, 143184},
+		{"math.floor", "", 0, 143184},
+		{"math.max", "", 0, 143556},
+		{"math.min", "", 0, 143556},
+		{"math.pow", "", 0, 143544},
+
+		{"bit.tobit", "", 0, 143079},
+		{"bit.tohex", "", 0, 143590},
+		{"bit.bnot", "", 0, 143056},
+		{"bit.bor", "", 0, 143130},
+		{"bit.band", "", 0, 143106},
+		{"bit.xor", "", 0, 143106},
+		{"bit.lshift", "", 0, 143079},
+		{"bit.rshift", "", 0, 143079},
+		{"bit.ashift", "", 0, 143079},
+		{"bit.rol", "", 0, 143079},
+		{"bit.ror", "", 0, 143079},
+		{"bit.bswap", "", 0, 143036},
+
+		{"bignum.number", "", 0, 144912},
+		{"bignum.isneg", "", 0, 145144},
+		{"bignum.iszero", "", 0, 145144},
+		{"bignum.tonumber", "", 0, 145464},
+		{"bignum.tostring", "", 0, 145755},
+		{"bignum.neg", "", 0, 147208},
+		{"bignum.sqrt", "", 0, 148084},
+		{"bignum.compare", "", 0, 145409},
+		{"bignum.add", "", 0, 146750},
+		{"bignum.sub", "", 0, 146695},
+		{"bignum.mul", "", 0, 149073},
+		{"bignum.div", "", 0, 148563},
+		{"bignum.mod", "", 0, 150498},
+		{"bignum.pow", "", 0, 149492},
+		{"bignum.divmod", "", 0, 154798},
+		{"bignum.powmod", "", 0, 154164},
+		{"bignum.operators", "", 0, 147416},
+
+		{"json", "", 0, 151357},
+
+		{"crypto.sha256", "", 0, 146183},
+		{"crypto.ecverify", "", 0, 148036},
+
+		{"state.set", "", 0, 145915},
+		{"state.get", "", 0, 145720},
+		{"state.delete", "", 0, 145727},
+
+		{"system.getSender", "", 0, 144261},
+		{"system.getBlockheight", "", 0, 143330},
+		{"system.getTxhash", "", 0, 143737},
+		{"system.getTimestamp", "", 0, 143330},
+		{"system.getContractID", "", 0, 144261},
+		{"system.setItem", "", 0, 144194},
+		{"system.getItem", "", 0, 144503},
+		{"system.getAmount", "", 0, 143408},
+		{"system.getCreator", "", 0, 143761},
+		{"system.getOrigin", "", 0, 144261},
+
+		{"contract.send", "", 0, 144321},
+		{"contract.balance", "", 0, 144333},
+		{"contract.deploy", "", 0, 168092},
+		{"contract.call", "", 0, 159738},
+		{"contract.pcall", "", 0, 160659},
+		{"contract.delegatecall", "", 0, 153795},
+		{"contract.event", "", 0, 163452},
+	}
+
 	// set the hard fork version
 	bc.HardforkVersion = 2
 
@@ -2875,7 +2999,7 @@ func TestGasPerFunction(t *testing.T) {
 	bc.HardforkVersion = 4
 
 	// iterate over the tests
-	for _, test := range tests_v3 {
+	for _, test := range tests_v4 {
 		funcName := test.funcName
 		funcArgs := test.funcArgs
 		amount := test.amount
