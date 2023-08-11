@@ -99,8 +99,7 @@ func Execute(
 	   len(receiver.State().CodeHash) > 0 &&
 	   (txBody.Type == types.TxType_NORMAL ||
 	   (txBody.Type == types.TxType_TRANSFER &&
-	     (len(txBody.GetPayload()) > 0 || txBody.GetAmountBigInt().Sign() == 0)
-	   )){
+	     (len(txBody.GetPayload()) > 0 || txBody.GetAmountBigInt().Sign() == 0))){
 		// emit an error
 		err = newVmError(types.ErrTxNotAllowedRecipient)
 		return
