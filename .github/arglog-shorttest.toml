@@ -1,0 +1,32 @@
+# config for logging
+
+ level = "warn" 			# default level formatter = "console_no_color"  	# console, console_no_color, json 도 가능
+ caller = true    			# 소스 코드명과 라인 프린트
+ formatter = "console_no_color"
+
+ #timefieldformat = RFC3339Nano
+ timefieldformat = "2006-01-02T15:04:05.000"
+ 
+ [test] 		# 보고싶은 모듈 명. chain, p2p, mempool, dpos ...
+ level = "info"
+
+ [actor]
+ level = "error"
+
+ [consensus]
+ level = "warn"
+
+ [contract]
+ level = "info"
+
+ [contract.vm]
+ level = "warn"
+
+ [mempool] 		# 이렇게 여러개 쓸수 있음
+ level = "warn"
+
+ [rpc] 		# 이렇게 여러개 쓸수 있음
+ level = "info"
+
+ [p2p] 		# 이렇게 여러개 쓸수 있음
+ level = "warn"

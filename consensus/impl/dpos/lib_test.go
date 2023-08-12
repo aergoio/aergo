@@ -1,7 +1,6 @@
 package dpos
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/aergoio/aergo/v2/internal/enc"
@@ -124,7 +123,7 @@ func TestTestChain(t *testing.T) {
 
 	for i := types.BlockNo(1); i <= maxBlockNo; i++ {
 		a.Nil(tc.addBlock(i))
-		fmt.Println("LIB:", tc.status.libState.Lib.BlockNo)
+		logger.Info().Uint64("LIB:", tc.status.libState.Lib.BlockNo).Msg("lib")
 	}
 
 	a.Equal(tc.bestNo, maxBlockNo)
