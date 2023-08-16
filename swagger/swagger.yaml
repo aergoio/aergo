@@ -1,0 +1,761 @@
+openapi: 3.0.0
+info:
+  title: Aergo Web3
+  description: Aergo Web3 API
+  version: 0.1.0
+servers:
+  - url: http://localhost/v1
+tags:
+  - name: Account
+    description: Blockchain related operations
+  - name: Block
+    description: Block related operations
+  - name: Transaction
+    description: Transaction related operations
+  - name: Etc
+    description: Etc related operations
+paths:
+  /getAccounts:
+    get:
+      summary: 연결된 노드에 저장된 모든 계정 조회
+      tags: [Account]
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getState:
+    get:
+      summary: 현재 잔액 및 Nonce 포함한 계정 상태 조회
+      tags: [Account]
+      parameters:
+        - name: account
+          in: query
+          required: true
+          description: 조회할 계정의 주소
+          schema:
+            type: string
+          example: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getProof:
+    get:
+      summary: 계정의 상태와 Merkle Proof를 포함하여 조회
+      tags: [Account]
+      parameters:
+        - name: account
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
+        - name: root
+          in: query
+          schema:
+            type: string
+        - name: compressed
+          in: query
+          required: true
+          schema:
+            type: boolean
+          example: true
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                proofKey: "4ki3xLRp8xJDttIL9KgjoQkP4AA025TP2Qf1Dm0t55M="
+                proofVal: "67rvGuYueuLnut1L40fXb/4DhgxGQBy74GJGrReJerg="
+                auditPath:
+                  [
+                    "LLP7wU6/v1XBrVZOqIDR6y2M+nWomqm21POat5mkT/g=",
+                    "AA==",
+                    "AA==",
+                    "uFrjYteNr2Hu52deqovW4V9RHSpjMn1LDM8Fg6sRZLk=",
+                    "DbtsQctnrKXJX5I/0yFw4peck9MSFzl98c4mWqqUmi8=",
+                  ]
+  /getNameInfo:
+    get:
+      summary: 계정 이름 조회
+      tags: [Account]
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+          example: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
+        - name: number
+          in: query
+          schema:
+            type: int
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                name:
+                  name: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
+  /getBalance:
+    get:
+      summary: 특정 주소의 잔액을 조회
+      tags: [Account]
+      parameters:
+        - name: account
+          required: true
+          in: query
+          schema:
+            type: string
+          example: "AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj"
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                balance: "1000000000000000000"
+  /getBlock:
+    get:
+      summary: 블록의 정보를 조회
+      tags: [Block]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: number
+          in: query
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                hash: "C0pxUo0dljwDELyLG9lijEdmBjOOH9XNsfPfGMQ0pmA="
+                header:
+                  chainID: "AwAAAAAAYm10LmFlcmdvLmlvL3JhZnQ="
+                  prevBlockHash: "lK4dq/zpT/Y8cSSdebJY9j8FmGJHjKG4SJF4r4++a8E="
+                  blockNo: 1
+                  timestamp: 1692154145436345000
+                  blocksRootHash: "4YQSYp0dkqUHYzTLAciMW9ZDc3RU89VMYuFBpfyHxaQ="
+                  txsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                  receiptsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                  pubKey: "CAISIQNmmKv+inhXk+dWY2XdX8MxkZk7SCxlBoXSrAaYKsweFQ=="
+                  sign: "MEQCIAu7xj6QIBKM+IfSLQho+b1l3fHXhxWYbpxC9ZnfLT2pAiAEbSmG7oeRGSfkWW96xAuaAZri9tlx4LD/eZNS9mQzlw=="
+                body: {}
+  /getBlockNumber:
+    get:
+      summary: 가장 최근 블록의 번호를 조회
+      tags: [Block]
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                best_block_hash: "OxnydGsA8B0VFcKOM09cq3qOlyZjkr10Zz9yUYR0eWg="
+                best_height: 491
+                consensus_info: '{"Type":"raft","Status":{"Leader":"local1","Total":3,"Name":"local1","RaftId":"6d3862958785a554","Status":null}}'
+                best_chain_id_hash: "mhY5TnCy9Uv4X9mQCk0ad0jdUqGMrX05oixwJBvQnH0="
+                chain_info:
+                  id:
+                    magic: "bmt.aergo.io"
+                    consensus: "raft"
+                    version: 3
+                  bpNumber: 3
+                  maxblocksize: 1000400
+                  maxtokens: "AkMGxAl4WcQ8AAAA"
+                  gasprice: "C6Q7dAA="
+                  nameprice: "DeC2s6dkAAA="
+  /getBlockBody:
+    get:
+      summary: 블록안의 트랜잭션 조회
+      tags: [Block]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+          example: ""
+        - name: number
+          in: query
+          require: true
+          schema:
+            type: integer
+          example: 1
+        - name: offset
+          in: query
+          require: true
+          schema:
+            type: integer
+          example: 1
+        - name: size
+          in: query
+          require: true
+          schema:
+            type: integer
+          example: 5
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                offset: 1,
+                size: 5,
+                body: {}
+  /listBlockHeaders:
+    get:
+      summary: 주어진 블록에서 시작하여 마지막 n개의 블록 검색
+      tags: [Block]
+      parameters:
+        - name: height
+          in: query
+          require: true
+          schema:
+            type: integer
+          example: 1
+        - name: size
+          in: query
+          require: true
+          schema:
+            type: integer
+          example: 5
+        - name: offset
+          in: query
+          require: true
+          schema:
+            type: integer
+          example: 1
+        - name: asc
+          in: query
+          require: true
+          schema:
+            type: bool
+          example: true
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                blocks:
+                  - hash: "lK4dq/zpT/Y8cSSdebJY9j8FmGJHjKG4SJF4r4++a8E="
+                    header:
+                      chainID: "AwAAAAAAYm10LmFlcmdvLmlvL3JhZnQ="
+                      timestamp: 1559883600000000000
+                      blocksRootHash: "4YQSYp0dkqUHYzTLAciMW9ZDc3RU89VMYuFBpfyHxaQ="
+                      txsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                      receiptsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  /getBlockMetadata:
+    get:
+      summary: 블록 메타데이터를 검색
+      tags: [Block]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: number
+          in: query
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                hash: "A7L0SFNlkIAGivGOMKyzQIeaIbIZzUN0KiB/XZzzyRU="
+                header:
+                  chainID: "AwAAAAAAYm10LmFlcmdvLmlvL3JhZnQ="
+                  prevBlockHash: "lK4dq/zpT/Y8cSSdebJY9j8FmGJHjKG4SJF4r4++a8E="
+                  blockNo: 1
+                  timestamp: 1692161210463122000
+                  blocksRootHash: "4YQSYp0dkqUHYzTLAciMW9ZDc3RU89VMYuFBpfyHxaQ="
+                  txsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                  receiptsRootHash: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                  pubKey: "CAISIQNmmKv+inhXk+dWY2XdX8MxkZk7SCxlBoXSrAaYKsweFQ=="
+                  sign: "MEUCIQC1ZOHY2Yi1tMl6zi4uvM5Rd2Mo+JAmlzYBNFd9hC7aRQIgbR+b5bhz06OBElZaiMt60gQK6KakgQjDZvomSRPIWEM="
+                size: 324
+  /getTransaction:
+    get:
+      summary: 트랜잭션의 정보 조회
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getTransactionReceipt:
+    get:
+      summary: 트랜잭션의 영수증 정보를 조회
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getBlockTX:
+    get:
+      summary: 트랜잭션 해시로 조회한 블록 내의 트랜잭션에 대한 정보 조회
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /verifyTX:
+    get:
+      summary: 트랜잭션의 유효성 검증
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: nonce
+          in: query
+          schema:
+            type: integer
+        - name: account
+          in: query
+          schema:
+            type: string
+        - name: recipient
+          in: query
+          schema:
+            type: string
+        - name: amount
+          in: query
+          schema:
+            type: string
+        - name: payload
+          in: query
+          schema:
+            type: string
+        - name: gasLimit
+          in: query
+          schema:
+            type: integer
+        - name: gasPrice
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: integer
+        - name: chainIdHash
+          in: query
+          schema:
+            type: string
+        - name: sign
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /sendSignedTransaction:
+    post:
+      summary: 서명된 트랜잭션을 커밋
+      tags: [Transaction]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signedTransaction:
+                  type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /call:
+    get:
+      summary: 스마트 컨트랙트의 상태 조회
+      tags: [Transaction]
+      parameters:
+        - name: contractAddress
+          in: query
+          schema:
+            type: string
+        - name: queryinfo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getPastEvents:
+    get:
+      summary: 지난 이벤트를 조회
+      tags: [Transaction]
+      parameters:
+        - name: contractAddress
+          in: query
+          schema:
+            type: string
+        - name: eventName
+          in: query
+          schema:
+            type: string
+        - name: blockfrom
+          in: query
+          schema:
+            type: integer
+        - name: blockto
+          in: query
+          schema:
+            type: integer
+        - name: desc
+          in: query
+          schema:
+            type: boolean
+        - name: argFilter
+          in: query
+          schema:
+            type: string
+        - name: recentBlockCnt
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getABI:
+    get:
+      summary: ABI 조회
+      tags: [Transaction]
+      parameters:
+        - name: address
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /queryContractState:
+    get:
+      summary: 스마트컨트랙트 상태 조회 (현재 저장값 조회용)
+      tags: [Transaction]
+      parameters:
+        - name: address
+          in: query
+          schema:
+            type: string
+        - name: root
+          in: query
+          schema:
+            type: string
+        - name: compressed
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getBlockTransactionCount:
+    get:
+      summary: 블록안의 트랜잭션 개수를 조회
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: number
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                transactionCount: 10
+  /getTransactionCount:
+    get:
+      summary: 주소에서 발생한 트랜잭션 개수를 조회
+      tags: [Transaction]
+      parameters:
+        - name: address
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                transactionCount: 20
+  /getBlockTransactionReceipts:
+    get:
+      summary: 블록에 포함된 트랜잭션 영수증(Receipt)들을 조회
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: number
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getChainInfo:
+    get:
+      summary: 블록체인의 현재 상태 조회
+      tags: [Etc]
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getConsensusInfo:
+    get:
+      summary: Consensus 정보 조회
+      tags: [Etc]
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                consensusAlgorithm: "PoA"
+                blockTime: 5
+  /getAccountVotes:
+    get:
+      summary: 가장 많이 투표된 블록 생산자 또는 시스템 변수 조회
+      tags: [Etc]
+      parameters:
+        - name: account
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                votes:
+                  - producer: "0x1234567890abcdef"
+                    votesCount: 100000
+                totalVotes: 5
+  /getNodeInfo:
+    get:
+      summary: 노드 상태 조회
+      tags: [Etc]
+      parameters:
+        - name: timeout
+          in: query
+          schema:
+            type: array
+            items:
+              type: byte
+        - name: component
+          in: query
+          schema:
+            type: array
+            items:
+              type: byte
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                nodeName: "MyNode"
+                nodeVersion: "1.2.3"
+  /getChainId:
+    get:
+      summary: 연결된 노드의 피어 목록 조회
+      tags: [Etc]
+      parameters:
+        - name: noHidden
+          in: query
+          schema:
+            type: boolean
+        - name: showSelf
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                peers:
+                  - peerId: "abc123"
+                    chainId: 12345
+                totalPeers: 5
+  /getServerInfo:
+    get:
+      summary: 서버 정보 반환
+      tags: [Etc]
+      parameters:
+        - name: key
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                serverName: "MyServer"
+                serverVersion: "2.0.1"
+  /getStaking:
+    get:
+      summary: 스테이킹 정보 반환
+      tags: [Etc]
+      parameters:
+        - name: account
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                stakingInfo:
+                  account: "0x1234567890abcdef"
+                  stakedAmount: "1000000000000000000"
+  /getVotes:
+    get:
+      summary: 투표에 대한 상위 결과 반환
+      tags: [Etc]
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: string
+        - name: count
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                votes:
+                  - producer: "0x1234567890abcdef"
+                    votesCount: 100000
+                totalCount: 5
+  /metric:
+    get:
+      summary: 노드 메트릭스를 반환
+      tags: [Etc]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: ["NOTHING", "P2P_NETWORK"]
+          example: "P2P_NETWORK"
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example: {}
+  /getEnterpriseConfig:
+    get:
+      summary: 엔터프라이즈(기업용) 구성 설정 조회
+      tags: [Etc]
+      parameters:
+        - name: key
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                configKey: "enterprise"
+                configValue: "enabled"
+  /getConfChangeProgress:
+    get:
+      summary: requestID로 조회한 changeCluster 트랜잭션의 상태 조회
+      tags: [Etc]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                progress:
+                  requestID: "abcd1234"
+                  status: "completed"

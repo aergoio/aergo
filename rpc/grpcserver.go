@@ -74,6 +74,10 @@ const defaultActorTimeout = time.Second * 3
 
 var _ types.AergoRPCServiceServer = (*AergoRPCService)(nil)
 
+func (ns *AergoRPCService) GetActorHelper() p2pcommon.ActorService {
+    return ns.actorHelper
+}
+
 func (rpc *AergoRPCService) SetConsensusAccessor(ca consensus.ConsensusAccessor) {
 	if rpc == nil {
 		return
