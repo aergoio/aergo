@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	rtypes "github.com/aergoio/etcd/pkg/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/rafthttp"

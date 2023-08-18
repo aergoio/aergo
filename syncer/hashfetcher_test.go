@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func TestHashFetcher_normal(t *testing.T) {

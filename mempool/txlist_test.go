@@ -9,9 +9,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 

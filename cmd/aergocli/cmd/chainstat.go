@@ -7,7 +7,7 @@ package cmd
 import (
 	"context"
 
-	aergorpc "github.com/aergoio/aergo/types"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 

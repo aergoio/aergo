@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 

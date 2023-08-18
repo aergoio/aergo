@@ -15,8 +15,8 @@ import (
 	"strings"
 	"sync"
 
-	crypto "github.com/aergoio/aergo/account/key/crypto"
-	"github.com/aergoio/aergo/types"
+	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (

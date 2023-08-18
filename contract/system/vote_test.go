@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
