@@ -8,8 +8,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 

@@ -36,11 +36,11 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
-	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -60,6 +60,7 @@ var (
 	contexts       []*vmContext
 	lastQueryIndex int
 	querySync      sync.Mutex
+	currentForkVersion int32
 )
 
 type ChainAccessor interface {
@@ -260,14 +261,9 @@ func (s *vmContext) usedGas() uint64 {
 	return s.gasLimit - s.remainedGas
 }
 
-func newLState(lsType int) *LState {
-	ctrLgr.Debug().Int("type", lsType).Msg("LState created")
-	switch lsType {
-	case LStateVer3:
-		return C.vm_newstate(C.uchar(1))
-	default:
-		return C.vm_newstate(C.uchar(0))
-	}
+func newLState() *LState {
+       ctrLgr.Debug().Msg("LState created")
+       return C.vm_newstate(C.int(currentForkVersion))
 }
 
 func (L *LState) close() {
@@ -338,6 +334,13 @@ func newExecutor(
 	ctrState *state.ContractState,
 ) *executor {
 
+	if ctx.blockInfo.ForkVersion != currentForkVersion {
+		// force the StatePool to regenerate the LStates
+		// using the new hardfork version
+		currentForkVersion = ctx.blockInfo.ForkVersion
+		FlushLStates()
+	}
+
 	if ctx.callDepth > MaxCallDepth(ctx.blockInfo.ForkVersion) {
 		ce := &executor{
 			code: contract,
@@ -348,17 +351,9 @@ func newExecutor(
 	}
 	ctx.callDepth++
 
-	var lState *LState
-	if ctx.blockInfo.ForkVersion < 3 {
-		lState = GetLState(LStateDefault)
-	} else {
-		// To fix intermittent consensus failure by gas consumption mismatch,
-		// use mutex to access total gas after chain version 3.
-		lState = GetLState(LStateVer3)
-	}
 	ce := &executor{
 		code: contract,
-		L:    lState,
+		L:    GetLState(),
 		ctx:  ctx,
 	}
 	if ce.L == nil {
@@ -775,11 +770,7 @@ func (ce *executor) close() {
 			}
 		}
 		if ce.L != nil {
-			lsType := LStateDefault
-			if ce.ctx.blockInfo.ForkVersion >= 3 {
-				lsType = LStateVer3
-			}
-			FreeLState(ce.L, lsType)
+			FreeLState(ce.L)
 		}
 	}
 }

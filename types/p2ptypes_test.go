@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aergoio/aergo/internal/network"
+	"github.com/aergoio/aergo/v2/internal/network"
 	"github.com/multiformats/go-multiaddr"
 )
 

@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/metric"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/metric"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 )

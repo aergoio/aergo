@@ -5,13 +5,13 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type SignVerifier struct {

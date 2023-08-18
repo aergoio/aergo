@@ -28,12 +28,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/etcdserver/stats"
 	etcdtypes "github.com/aergoio/etcd/pkg/types"
 	raftlib "github.com/aergoio/etcd/raft"
@@ -550,7 +550,7 @@ func (rs *raftServer) createAergoP2PTransporter() Transporter {
 	future := rs.RequestFuture(message.P2PSvc, message.GetRaftTransport{Cluster: rs.cluster}, time.Second<<4, "getbackend")
 	result, err := future.Result()
 	if err != nil {
-		panic(err.Error())
+		logger.Panic().Err(err).Msg("failed to get backend")
 	}
 	return result.(Transporter)
 }
@@ -674,7 +674,7 @@ func (rs *raftServer) serveChannels() {
 
 	snapshot, err := rs.raftStorage.Snapshot()
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to get snapshot")
 	}
 	rs.setConfState(&snapshot.Metadata.ConfState)
 	rs.setSnapshotIndex(snapshot.Metadata.Index)
@@ -969,7 +969,7 @@ func (rs *raftServer) triggerSnapshot() {
 		if err == raftlib.ErrCompacted {
 			return
 		}
-		panic(err)
+		logger.Fatal().Err(err).Uint64("index", compactIndex).Msg("failed to compact raft log")
 	}
 
 	logger.Info().Uint64("index", compactIndex).Msg("compacted raftLog.at index")

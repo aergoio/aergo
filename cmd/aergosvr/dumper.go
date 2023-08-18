@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus/chain"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/pkg/component"
 )
 
 type dumper struct {

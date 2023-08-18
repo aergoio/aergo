@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aergoio/aergo/internal/common"
+	"github.com/aergoio/aergo/v2/internal/common"
 )
 
 const (

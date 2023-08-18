@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -66,7 +66,7 @@ func newTestChain(clusterSize uint16) (*testChain, error) {
 
 func (tc *testChain) setGenesis(block *types.Block) {
 	if block.BlockNo() != 0 {
-		panic("invalid genesis block: non-zero block no")
+		logger.Panic().Msg("invalid genesis block: non-zero block no")
 	}
 	tc.status.libState.genesisInfo = &blockInfo{BlockHash: block.ID(), BlockNo: 0}
 	tc.status.bestBlock = block

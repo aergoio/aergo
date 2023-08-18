@@ -12,9 +12,9 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58"
 )
 
