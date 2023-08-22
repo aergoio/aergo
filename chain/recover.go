@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 
 	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -191,7 +192,7 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 
 	logger.Info().Uint64("bestno", rm.BrBestNo).Msg("update best block")
 
-	bulk.Set(latestKey, types.BlockNoToBytes(rm.BrBestNo))
+	bulk.Set([]byte(schema.LatestKey), types.BlockNoToBytes(rm.BrBestNo))
 	bulk.Flush()
 
 	cdb.setLatest(bestBlock)

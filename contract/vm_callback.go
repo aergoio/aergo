@@ -41,6 +41,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
@@ -49,7 +50,6 @@ import (
 
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
-	creatorMetaKey             = []byte("Creator")
 )
 
 const (
@@ -1227,7 +1227,7 @@ func luaDeployContract(
 	}
 
 	// save the contract creator
-	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData([]byte(schema.CreatorMetaKey), []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}

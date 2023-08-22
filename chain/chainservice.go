@@ -25,6 +25,7 @@ import (
 	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
@@ -567,7 +568,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != enterprise.AdminsKey {
+	if strings.ToUpper(key) != schema.EnterpriseAdmins {
 		return enterprise.GetConf(sdb, key)
 	}
 	return enterprise.GetAdmin(sdb)

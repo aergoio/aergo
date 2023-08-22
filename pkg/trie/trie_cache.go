@@ -41,8 +41,7 @@ func (c *CacheDB) commit(txn *DbTx) {
 	c.updatedMux.Lock()
 	defer c.updatedMux.Unlock()
 	for key, batch := range c.updatedNodes {
-		var node []byte
-		(*txn).Set(append(node, key[:]...), c.serializeBatch(batch))
+		(*txn).Set(trieKey(key[:]), c.serializeBatch(batch))
 	}
 }
 

@@ -19,11 +19,6 @@ const (
 )
 
 var (
-	reorgKeyStr = "_reorg_marker_"
-	reorgKey    = []byte(reorgKeyStr)
-)
-
-var (
 	ErrInvalidReorgMarker = errors.New("reorg marker is invalid")
 	ErrMarkerNil          = errors.New("reorg marker is nil")
 )

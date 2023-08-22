@@ -8,6 +8,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/golang/protobuf/proto"
@@ -89,7 +90,7 @@ func (cdb *ChainDB) ClearWAL() {
 			bulk.Delete(getRaftEntryKey(i))
 		}
 
-		bulk.Delete(raftEntryLastIdxKey)
+		bulk.Delete([]byte(schema.RaftEntryLastIdxKey))
 
 		bulk.Flush()
 	}
@@ -97,13 +98,13 @@ func (cdb *ChainDB) ClearWAL() {
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	dbTx.Delete(raftIdentityKey)
+	dbTx.Delete([]byte(schema.RaftIdentityKey))
 	// remove hardstate
 
-	dbTx.Delete(raftStateKey)
+	dbTx.Delete([]byte(schema.RaftStateKey))
 
 	// remove snapshot
-	dbTx.Delete(raftSnapKey)
+	dbTx.Delete([]byte(schema.RaftSnapKey))
 
 	logger.Debug().Msg("reset identify, hardstate, snapshot from datafiles")
 
@@ -130,14 +131,14 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
 	}
-	dbTx.Set(raftStateKey, data)
+	dbTx.Set([]byte(schema.RaftStateKey), data)
 	dbTx.Commit()
 
 	return nil
 }
 
 func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
-	data := cdb.store.Get(raftStateKey)
+	data := cdb.store.Get([]byte(schema.RaftStateKey))
 
 	if len(data) == 0 {
 		return nil, ErrWalNoHardState
@@ -155,7 +156,7 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 
 func getRaftEntryKey(idx uint64) []byte {
 	var key bytes.Buffer
-	key.Write(raftEntryPrefix)
+	key.Write([]byte(schema.RaftEntryPrefix))
 	l := make([]byte, 8)
 	binary.LittleEndian.PutUint64(l[:], idx)
 	key.Write(l)
@@ -164,7 +165,7 @@ func getRaftEntryKey(idx uint64) []byte {
 
 func getRaftEntryInvertKey(blockHash []byte) []byte {
 	var key bytes.Buffer
-	key.Write(raftEntryInvertPrefix)
+	key.Write([]byte(schema.RaftEntryInvertPrefix))
 	key.Write(blockHash)
 	return key.Bytes()
 }
@@ -241,7 +242,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64) {
 	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
 
-	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
+	dbTx.Set([]byte(schema.RaftEntryLastIdxKey), types.BlockNoToBytes(lastIdx))
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
@@ -290,7 +291,7 @@ func (cdb *ChainDB) GetRaftEntryOfBlock(hash []byte) (*consensus.WalEntry, error
 }
 
 func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
-	lastBytes := cdb.store.Get(raftEntryLastIdxKey)
+	lastBytes := cdb.store.Get([]byte(schema.RaftEntryLastIdxKey))
 	if lastBytes == nil || len(lastBytes) == 0 {
 		return 0, nil
 	}
@@ -380,7 +381,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 	}
 
 	dbTx := cdb.store.NewTx()
-	dbTx.Set(raftSnapKey, data)
+	dbTx.Set([]byte(schema.RaftSnapKey), data)
 	dbTx.Commit()
 
 	return nil
@@ -416,7 +417,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 */
 
 func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
-	data := cdb.store.Get(raftSnapKey)
+	data := cdb.store.Get([]byte(schema.RaftSnapKey))
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -448,14 +449,14 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 		return ErrEncodeRaftIdentity
 	}
 
-	dbTx.Set(raftIdentityKey, val.Bytes())
+	dbTx.Set([]byte(schema.RaftIdentityKey), val.Bytes())
 	dbTx.Commit()
 
 	return nil
 }
 
 func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
-	data := cdb.store.Get(raftIdentityKey)
+	data := cdb.store.Get([]byte(schema.RaftIdentityKey))
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -488,7 +489,7 @@ func (cdb *ChainDB) WriteConfChangeProgress(id uint64, progress *types.ConfChang
 
 func getConfChangeProgressKey(idx uint64) []byte {
 	var key bytes.Buffer
-	key.Write(raftConfChangeProgressPrefix)
+	key.Write([]byte(schema.RaftConfChangeProgressPrefix))
 	l := make([]byte, 8)
 	binary.LittleEndian.PutUint64(l[:], idx)
 	key.Write(l)

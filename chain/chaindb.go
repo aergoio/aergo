@@ -19,14 +19,9 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
-)
-
-const (
-	chainDBName       = "chain"
-	genesisKey        = chainDBName + ".genesisInfo"
-	genesisBalanceKey = chainDBName + ".genesisBalance"
 )
 
 var (
@@ -39,21 +34,6 @@ var (
 	ErrInvalidHardState    = errors.New("invalid hard state")
 	ErrInvalidRaftSnapshot = errors.New("invalid raft snapshot")
 	ErrInvalidCCProgress   = errors.New("invalid conf change progress")
-)
-
-var (
-	latestKey      = []byte(chainDBName + ".latest")
-	receiptsPrefix = []byte("r")
-
-	raftIdentityKey              = []byte("r_identity")
-	raftStateKey                 = []byte("r_state")
-	raftSnapKey                  = []byte("r_snap")
-	raftEntryLastIdxKey          = []byte("r_last")
-	raftEntryPrefix              = []byte("r_entry.")
-	raftEntryInvertPrefix        = []byte("r_inv.")
-	raftConfChangeProgressPrefix = []byte("r_ccstatus.")
-
-	hardforkKey = []byte("hardfork")
 )
 
 // ErrNoBlock reports there is no such a block with id (hash or block number).
@@ -101,7 +81,7 @@ func (cdb *ChainDB) NewTx() db.Transaction {
 func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
 		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
-		dbPath := common.PathMkdirAll(dataDir, chainDBName)
+		dbPath := common.PathMkdirAll(dataDir, schema.ChainDBName)
 		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
 	}
 
@@ -236,7 +216,7 @@ func (cdb *ChainDB) GetBestBlock() (*types.Block, error) {
 }
 
 func (cdb *ChainDB) loadChainData() error {
-	latestBytes := cdb.store.Get(latestKey)
+	latestBytes := cdb.store.Get([]byte(schema.LatestKey))
 	if latestBytes == nil || len(latestBytes) == 0 {
 		return nil
 	}
@@ -313,9 +293,9 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 	}
 
 	cdb.connectToChain(tx, block, false)
-	tx.Set([]byte(genesisKey), genesis.Bytes())
+	tx.Set([]byte(schema.GenesisKey), genesis.Bytes())
 	if totalBalance := genesis.TotalBalance(); totalBalance != nil {
-		tx.Set([]byte(genesisBalanceKey), totalBalance.Bytes())
+		tx.Set([]byte(schema.GenesisBalanceKey), totalBalance.Bytes())
 	}
 
 	tx.Commit()
@@ -329,7 +309,7 @@ func (cdb *ChainDB) addGenesisBlock(genesis *types.Genesis) error {
 
 // GetGenesisInfo returns Genesis info, which is read from cdb.
 func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
-	if b := cdb.Get([]byte(genesisKey)); len(b) != 0 {
+	if b := cdb.Get([]byte(schema.GenesisKey)); len(b) != 0 {
 		genesis := types.GetGenesisFromBytes(b)
 		if block, err := cdb.GetBlockByNo(0); err == nil {
 			genesis.SetBlock(block)
@@ -348,7 +328,7 @@ func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 
 		}
 
-		if v := cdb.Get([]byte(genesisBalanceKey)); len(v) != 0 {
+		if v := cdb.Get([]byte(schema.GenesisBalanceKey)); len(v) != 0 {
 			genesis.SetTotalBalance(v)
 		}
 
@@ -380,7 +360,7 @@ func (cdb *ChainDB) connectToChain(dbtx db.Transaction, block *types.Block, skip
 	}
 
 	// Update best block hash
-	dbtx.Set(latestKey, blockIdx)
+	dbtx.Set([]byte(schema.LatestKey), blockIdx)
 	dbtx.Set(blockIdx, block.BlockHash())
 
 	// Save the last consensus status.
@@ -420,7 +400,7 @@ func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 		bulk.Set(blockIdx, block.BlockHash())
 	}
 
-	bulk.Set(latestKey, blockIdx)
+	bulk.Set([]byte(schema.LatestKey), blockIdx)
 
 	// Save the last consensus status.
 	cdb.cc.Save(bulk)
@@ -552,7 +532,7 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 	dbTx.Delete(dropIdx)
 
 	// update latest
-	dbTx.Set(latestKey, newLatestIdx)
+	dbTx.Set([]byte(schema.LatestKey), newLatestIdx)
 
 	dbTx.Commit()
 
@@ -734,7 +714,7 @@ func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, block
 
 func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
 	var key bytes.Buffer
-	key.Write(receiptsPrefix)
+	key.Write([]byte(schema.ReceiptsPrefix))
 	key.Write(blockHash)
 	l := make([]byte, 8)
 	binary.LittleEndian.PutUint64(l[:], blockNo)
@@ -752,7 +732,7 @@ func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {
 		return err
 	}
 
-	dbTx.Set(reorgKey, val)
+	dbTx.Set([]byte(schema.ReOrgKey), val)
 
 	dbTx.Commit()
 	return nil
@@ -762,13 +742,13 @@ func (cdb *ChainDB) deleteReorgMarker() {
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	dbTx.Delete(reorgKey)
+	dbTx.Delete([]byte(schema.ReOrgKey))
 
 	dbTx.Commit()
 }
 
 func (cdb *ChainDB) getReorgMarker() (*ReorgMarker, error) {
-	data := cdb.store.Get(reorgKey)
+	data := cdb.store.Get([]byte(schema.ReOrgKey))
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -790,7 +770,7 @@ func (cdb *ChainDB) IsNew() bool {
 
 func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbConfig {
 	var c config.HardforkDbConfig
-	data := cdb.store.Get(hardforkKey)
+	data := cdb.store.Get([]byte(schema.HardForkKey))
 	if len(data) == 0 {
 		return c
 	}
@@ -808,6 +788,6 @@ func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {
 	if err != nil {
 		return err
 	}
-	cdb.store.Set(hardforkKey, data)
+	cdb.store.Set([]byte(schema.HardForkKey), data)
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -42,7 +43,7 @@ func InitSystemParams(g dataGetter, bpCount int) {
 }
 
 func genParamKey(id string) []byte {
-	return []byte("param\\" + strings.ToUpper(id))
+	return []byte(schema.SystemParam + strings.ToUpper(id))
 }
 
 func loadParam(g dataGetter) parameters {

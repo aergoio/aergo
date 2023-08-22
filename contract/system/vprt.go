@@ -13,6 +13,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
@@ -37,7 +38,6 @@ var (
 	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
 
 	zeroValue     = types.NewZeroAmount()
-	vprKeyPrefix  = []byte("VotingPowerBucket/")
 	million       = types.NewAmount(1e6, types.Aer)          // 1,000,000 Aer
 	annualRewardM = types.NewAmount(5045760000, types.Gaer)  // 5,045,760,000 Gaer
 	annualReward  = new(big.Int).Mul(annualRewardM, million) // 5,045,760 AERGO
@@ -724,7 +724,7 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 }
 
 func vprKey(i uint8) []byte {
-	var vk []byte = vprKeyPrefix
+	var vk []byte = []byte(schema.SystemVpr)
 	return append(vk, []byte(fmt.Sprintf("%v", i))...)
 }
 

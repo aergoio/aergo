@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
-
-var prefix = []byte("name")
 
 type NameMap struct {
 	Version     byte
@@ -49,7 +48,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
-	creator, err := contract.GetData([]byte("Creator"))
+	creator, err := contract.GetData([]byte(schema.CreatorMetaKey))
 	if err != nil {
 		return err
 	}
@@ -88,7 +87,7 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 }
 
 func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := bs.GetAccountStateV([]byte("aergo.name"))
+	v, err := bs.GetAccountStateV([]byte(types.AergoName))
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +138,7 @@ func getOwner(scs *state.ContractState, name []byte, useInitial bool) []byte {
 
 func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap {
 	lowerCaseName := strings.ToLower(string(name))
-	key := append(prefix, lowerCaseName...)
+	key := append([]byte(schema.NamePrefix), lowerCaseName...)
 	var err error
 	var ownerdata []byte
 	if useInitial {
@@ -169,7 +168,7 @@ func registerOwner(scs *state.ContractState, name, owner, destination []byte) er
 
 func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
 	lowerCaseName := strings.ToLower(string(name))
-	key := append(prefix, lowerCaseName...)
+	key := append([]byte(schema.NamePrefix), lowerCaseName...)
 	return scs.SetData(key, serializeNameMap(n))
 }
 

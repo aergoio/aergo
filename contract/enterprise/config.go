@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
-
-var confPrefix = []byte("conf\\")
 
 const (
 	RPCPermissions = "RPCPERMISSIONS"
@@ -113,7 +112,7 @@ func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error)
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
-	data, err := scs.GetData(append(confPrefix, genKey(key)...))
+	data, err := scs.GetData(append([]byte(schema.EnterpriseConfPrefix), genKey(key)...))
 	if err != nil || data == nil {
 		return nil, err
 	}
@@ -134,7 +133,7 @@ func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(append(confPrefix, genKey(key)...), serializeConf(conf))
+	return scs.SetData(append([]byte(schema.EnterpriseConfPrefix), genKey(key)...), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {

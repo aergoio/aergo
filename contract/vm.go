@@ -39,6 +39,7 @@ import (
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 	jsoniter "github.com/json-iterator/go"
@@ -55,11 +56,11 @@ const (
 )
 
 var (
-	maxContext     int
-	ctrLgr         *log.Logger
-	contexts       []*vmContext
-	lastQueryIndex int
-	querySync      sync.Mutex
+	maxContext         int
+	ctrLgr             *log.Logger
+	contexts           []*vmContext
+	lastQueryIndex     int
+	querySync          sync.Mutex
 	currentForkVersion int32
 )
 
@@ -262,8 +263,8 @@ func (s *vmContext) usedGas() uint64 {
 }
 
 func newLState() *LState {
-       ctrLgr.Debug().Msg("LState created")
-       return C.vm_newstate(C.int(currentForkVersion))
+	ctrLgr.Debug().Msg("LState created")
+	return C.vm_newstate(C.int(currentForkVersion))
 }
 
 func (L *LState) close() {
@@ -1054,7 +1055,7 @@ func Create(
 	}
 
 	// set the creator
-	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(ctx.curContract.sender)))
+	err = contractState.SetData([]byte(schema.CreatorMetaKey), []byte(types.EncodeAddress(ctx.curContract.sender)))
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}
