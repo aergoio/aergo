@@ -1,20 +1,24 @@
 package web3
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/aergoio/aergo/cmd/aergocli/util"
+	"github.com/aergoio/aergo/internal/common"
 	"github.com/aergoio/aergo/rpc"
 	"github.com/aergoio/aergo/types"
 	"github.com/asaskevich/govalidator"
 	"github.com/mr-tron/base58"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Web3APIv1 struct {
@@ -44,22 +48,29 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 			case "/getState":					return api.GetState();
 			case "/getProof":					return api.GetStateAndProof();
 			case "/getNameInfo":				return api.GetNameInfo();
+			case "/getBalance":					return api.GetBalance();
 			case "/getBlock":					return api.GetBlock();
 			case "/getBlockNumber":				return api.Blockchain();
 			case "/getBlockBody":				return api.GetBlockBody();
 			case "/listBlockHeaders":			return api.ListBlockHeaders();
 			case "/getBlockMetadata":			return api.GetBlockMetadata();
-			case "/getChainInfo":				return api.GetChainInfo();	
-			case "/getConsencusInfo":			return api.GetConsensusInfo();
+			
 			case "/getTransaction":				return api.GetTX();
 			case "/getTransactionReceipt":		return api.GetReceipt();
 			case "/getBlockTX":					return api.GetBlockTX();
-			case "/verifyTX":					return api.VerifyTX();
-			case "/call":						return api.QueryContract();
+			case "/verifyTX":					return api.VerifyTX();		// test
+			case "/call":						return api.QueryContract();	// test
 			case "/getPastEvents":				return api.ListEvents();
 			case "/getABI":						return api.GetABI();
-			case "/getAccountVotes":			return api.GetAccountVotes();
 			case "/queryContractState":			return api.QueryContractState();
+			
+			case "/getBlockTransactionCount":		return api.GetBlockTransactionCount();
+			// case "/getTransactionCount":			return api.GetTransactionCount();
+			// case "/getBlockTransactionReceipts":	return api.GetBlockTransactionReceipts();
+
+			case "/getChainInfo":				return api.GetChainInfo();	
+			case "/getConsensusInfo":			return api.GetConsensusInfo();
+			case "/getAccountVotes":			return api.GetAccountVotes();
 			case "/getNodeInfo":				return api.NodeState();
 			case "/getChainId":					return api.GetPeers();
 			case "/getServerInfo":				return api.GetServerInfo();
@@ -69,44 +80,21 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 			case "/getEnterpriseConfig":		return api.GetEnterpriseConfig();
 			case "/getConfChangeProgress":		return api.GetConfChangeProgress();
 
-			// case "/getBalance":						return api.GetBalance();
-			// case "/getBlockTransactionCount":		return api.GetBlockTransactionCount();
-			// case "/getTransactionCount":			return api.GetTransactionCount();
-			// case "/getBlockTransactionReceipts":	return api.GetBlockTransactionReceipts();
 			
-			case "/ChainStat":					return api.ChainStat();
+			
+			
+			case "/chainStat":					return api.ChainStat();
 			case "/ListBlockMetadata":			return api.ListBlockMetadata();
 			
 			default:							return nil, false
 		}
 	} else if r.Method == http.MethodPost {
 		switch path {
-			case "/sendSignedTransaction":		return api.CommitTX();
+			case "/sendSignedTransaction":		return api.CommitTX();		// test
 			default:							return nil, false
 		}
 	}
 	return nil, false
-}
-
-func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
-	values, err := url.ParseQuery(api.request.URL.RawQuery)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	// Params
-	request := &types.MetricsRequest{}
-	metricType := values.Get("type")
-	if metricType != "" {
-		request.Types = append(request.Types, types.MetricType(types.MetricType_value[metricType]))
-	}
-
-	// Validate	
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	return commonResponseHandler(api.rpc.Metric(api.request.Context(), request)), true
 }
 
 func (api *Web3APIv1) GetAccounts() (handler http.Handler, ok bool) {
@@ -120,24 +108,74 @@ func (api *Web3APIv1) GetState() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	// Params
 	request := &types.SingleBytes{}
 	account := values.Get("account")
 	if account != "" {
-		request.Value = []byte(account)
+		accountBytes, err := types.DecodeAddress(account)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = accountBytes
 	}
-
-	// Validate
+	
 	if _, err := govalidator.ValidateStruct(request); err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return commonResponseHandler(api.rpc.GetState(api.request.Context(), request)), true
+	msg, err := api.rpc.GetState(api.request.Context(), request);
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true		
+	}
+	balance, err := util.ConvertUnit(msg.GetBalanceBigInt(), "aergo")
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true				
+	}
+	
+	result := fmt.Sprintf(`{"account":"%s", "balance":"%s", "nonce":%d}`, account, balance, msg.GetNonce())
+	return stringResponseHandler(result, nil), true
 }
 
 func (api *Web3APIv1) GetStateAndProof() (handler http.Handler, ok bool) {
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
 	request := &types.AccountAndRoot{}
-	return commonResponseHandler(api.rpc.GetStateAndProof(api.request.Context(), request)), true
+	account := values.Get("account")
+	if account != "" {
+		accountBytes, err := types.DecodeAddress(account)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Account = accountBytes
+	}
+
+	compressed := values.Get("compressed")
+	if compressed != "" {
+		compressedValue, parseErr := strconv.ParseBool(compressed)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Compressed = compressedValue
+	}	
+	
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetStateAndProof(api.request.Context(), request);
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true		
+	}
+	balance, err := util.ConvertUnit(msg.GetState().GetBalanceBigInt(), "aergo")
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true				
+	}
+	
+	result := fmt.Sprintf(`{"account":"%s", "nonce":%d, "balance":"%s", "included":%t, "merkle proof length":%d, "height":%d}`+"\n",
+	account, msg.GetState().GetNonce(), balance, msg.GetInclusion(), len(msg.GetAuditPath()), msg.GetHeight())
+	return stringResponseHandler(result, nil), true
 }
 
 func (api *Web3APIv1) GetNameInfo() (handler http.Handler, ok bool) {
@@ -166,20 +204,58 @@ func (api *Web3APIv1) GetNameInfo() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	return commonResponseHandler(api.rpc.GetNameInfo(api.request.Context(), request)), true
+	msg, err := api.rpc.GetNameInfo(api.request.Context(), request);
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true		
+	}
+
+	result := fmt.Sprintf(`{"%s": {"Owner" : "%s", "Destination" : "%s" }}`,
+	msg.Name.Name, types.EncodeAddress(msg.Owner), types.EncodeAddress(msg.Destination))
+
+	return stringResponseHandler(result, nil), true
 }
+
+func (api *Web3APIv1) GetBalance() (handler http.Handler, ok bool) {
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.SingleBytes{}
+	account := values.Get("account")
+	if account != "" {
+		accountBytes, err := types.DecodeAddress(account)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = accountBytes
+	}
+	
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetState(api.request.Context(), request);
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true		
+	}
+
+	result := fmt.Sprintf(`{"balance":"%s"}`, msg.GetBalanceBigInt())
+	return stringResponseHandler(result, nil), true
+}
+
 
 func (api *Web3APIv1) GetBlock() (handler http.Handler, ok bool) {
 	values, err := url.ParseQuery(api.request.URL.RawQuery)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-
+	
 	// Params
 	request := &types.SingleBytes{}
 	hash := values.Get("hash")
 	if hash != "" {
-		hashBytes, err := base64.StdEncoding.DecodeString(hash)
+		hashBytes, err := base58.Decode(hash)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true			
 		}
@@ -206,6 +282,57 @@ func (api *Web3APIv1) GetBlock() (handler http.Handler, ok bool) {
 
 	return commonResponseHandler(api.rpc.GetBlock(api.request.Context(), request)), true
 }
+
+func (api *Web3APIv1) GetBlockTransactionCount() (handler http.Handler, ok bool) {
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	
+	// Params
+	request := &types.SingleBytes{}
+	hash := values.Get("hash")
+	if hash != "" {
+		hashBytes, err := base58.Decode(hash)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = hashBytes
+	}
+
+	
+	number := values.Get("number")
+	if number != "" {
+		numberValue, err := strconv.ParseUint(number, 10, 64)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+		number := uint64(numberValue) // Replace with your actual value
+		byteValue := make([]byte, 8)
+		binary.LittleEndian.PutUint64(byteValue, number)
+		request.Value = byteValue
+	}
+
+	// Validate
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetBlock(api.request.Context(), request)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	
+	result := fmt.Sprintf(`{"count":"%d"}`, func() int {
+		if msg.Body.Txs != nil {
+			return len(msg.Body.Txs)
+		}
+		return 0
+	}())
+
+	return stringResponseHandler(result, nil), true
+}
+
 
 func (api *Web3APIv1) Blockchain() (handler http.Handler, ok bool) {
 	ca := api.rpc.GetActorHelper().GetChainAccessor()
@@ -245,7 +372,7 @@ func (api *Web3APIv1) GetBlockBody() (handler http.Handler, ok bool) {
 
 	hash := values.Get("hash")
 	if hash != "" {
-		hashBytes, err := base64.StdEncoding.DecodeString(hash)
+		hashBytes, err := base58.Decode(hash)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true			
 		}
@@ -353,7 +480,7 @@ func (api *Web3APIv1) GetBlockMetadata() (handler http.Handler, ok bool) {
 	request := &types.SingleBytes{}
 	hash := values.Get("hash")
 	if hash != "" {
-		hashBytes, err := base64.StdEncoding.DecodeString(hash)
+		hashBytes, err := base58.Decode(hash)
 		if err != nil {
 			return commonResponseHandler(&types.Empty{}, err), true			
 		}
@@ -382,8 +509,52 @@ func (api *Web3APIv1) GetBlockMetadata() (handler http.Handler, ok bool) {
 }
 
 func (api *Web3APIv1) ListBlockMetadata() (handler http.Handler, ok bool) {
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.ListParams{}
+	height := values.Get("height")
+	if height != "" {
+		heightValue, parseErr := strconv.ParseUint(height, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Height = heightValue
+	}
+
+	size := values.Get("size")
+	if size != "" {
+		sizeValue, parseErr := strconv.ParseUint(size, 10, 32)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Size = uint32(sizeValue)
+	}
+
+	offset := values.Get("offset")
+	if offset != "" {
+		offsetValue, parseErr := strconv.ParseUint(offset, 10, 32)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Offset = uint32(offsetValue)
+	}
+
+	asc := values.Get("asc")
+	if asc != "" {
+		ascValue, parseErr := strconv.ParseBool(asc)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Asc = ascValue
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	return commonResponseHandler(api.rpc.ListBlockMetadata(api.request.Context(), request)), true
 }
 
 
@@ -409,7 +580,6 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
 
-	// Params
 	request := &types.SingleBytes{}
 	hash := values.Get("hash")
 	if hash != "" {
@@ -420,7 +590,6 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 		request.Value = hashBytes
 	}
 
-	// Validate
 	if _, err := govalidator.ValidateStruct(request); err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
@@ -428,68 +597,639 @@ func (api *Web3APIv1) GetReceipt() (handler http.Handler, ok bool) {
 }
 
 func (api *Web3APIv1) GetTX() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.SingleBytes{}
+	hash := values.Get("hash")
+	if hash != "" {
+		hashBytes, err := base58.Decode(hash)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = hashBytes
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetTX(api.request.Context(), request)
+	if err == nil {
+		return commonResponseHandler(util.ConvTxEx(msg, util.Base58), nil), true
+	} else {
+		msgblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
+
+		if err != nil {
+				return commonResponseHandler(&types.Empty{}, err), true
+		}
+		return commonResponseHandler(util.ConvTxInBlockEx(msgblock, util.Base58), nil), true
+	}
+
 }
+
 func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.SingleBytes{}
+	hash := values.Get("hash")
+	if hash != "" {
+		hashBytes, err := base58.Decode(hash)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = hashBytes
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetTX(api.request.Context(), request)
+	if err == nil {
+		return commonResponseHandler(util.ConvTxEx(msg, util.Base58), nil), true
+		
+	} else {
+		msgblock, err := api.rpc.GetBlockTX(api.request.Context(), request)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+		return commonResponseHandler(util.ConvTxInBlockEx(msgblock, util.Base58), nil), true
+	}
 }
+
 func (api *Web3APIv1) VerifyTX() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	// Params
+	request := &types.Tx{}
+	request.Body = &types.TxBody{}
+	hash := values.Get("hash")
+	if hash != "" {
+		hashBytes, err := base64.StdEncoding.DecodeString(hash)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Hash = hashBytes
+	}
+
+	nonce := values.Get("nonce")
+	if nonce != "" {
+		nonceValue, parseErr := strconv.ParseUint(nonce, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Body.Nonce = nonceValue
+	}
+
+	account := values.Get("account")
+	if account != "" {
+		request.Body.Account = []byte(account)
+	}
+
+	recipient := values.Get("recipient")
+	if recipient != "" {
+		recipientBytes, err := base64.StdEncoding.DecodeString(recipient)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Body.Recipient = recipientBytes
+	}
+
+	amount := values.Get("amount")
+	if amount != "" {
+		request.Body.Amount = []byte(amount)
+	}
+
+	payload := values.Get("payload")
+	if payload != "" {
+		request.Body.Payload = []byte(payload)
+	}
+
+	gasLimit := values.Get("gasLimit")
+	if gasLimit != "" {
+		gasLimitValue, parseErr := strconv.ParseUint(gasLimit, 10, 64)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Body.GasLimit = gasLimitValue
+	}
+
+	gasPrice := values.Get("gasPrice")
+	if gasPrice != "" {
+		request.Body.GasPrice = []byte(gasPrice)
+	}
+
+	txType := values.Get("type")
+	if txType != "" {
+		request.Body.Type = types.TxType(types.TxType_value[txType])
+	}
+
+	chainIdHash := values.Get("chainIdHash")
+	if hash != "" {
+		chainIdHashBytes, err := base64.StdEncoding.DecodeString(chainIdHash)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Body.ChainIdHash = chainIdHashBytes
+	}
+
+	sign := values.Get("sign")
+	if sign != "" {
+		signBytes, err := base64.StdEncoding.DecodeString(sign)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Body.Sign = signBytes
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.VerifyTX(api.request.Context(), request)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true			
+		
+	}
+	if msg.Tx != nil {
+		return commonResponseHandler(util.TxConvBase58Addr(msg.Tx), nil), true
+	} else {
+		return commonResponseHandler(&types.Empty{}, nil), true	
+	}
 }
+
 func (api *Web3APIv1) QueryContract() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.Query{}
+	address := values.Get("address")
+	if address != "" {
+		hashBytes, err := types.DecodeAddress(address)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.ContractAddress = hashBytes
+	}
+
+	var ci types.CallInfo
+	name := values.Get("name")
+	if name != "" {
+		ci.Name = name
+	}
+
+	query := values.Get("query")
+	if query != "" {
+		json.Unmarshal([]byte(query), &ci.Args)
+	}
+
+	callinfo, err := json.Marshal(ci)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true			
+	}
+	request.Queryinfo = callinfo;
+
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	return commonResponseHandler(api.rpc.QueryContract(api.request.Context(), request)), true
 }
+
 func (api *Web3APIv1) ListEvents() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.FilterInfo{}
+	address := values.Get("address")
+	if address != "" {
+		hashBytes, err := types.DecodeAddress(address)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.ContractAddress = hashBytes
+	}
+
+	EventName := values.Get("EventName")
+	if EventName != "" {
+		request.EventName = EventName
+	}
+
+	Blockfrom := values.Get("Blockfrom")
+	if Blockfrom != "" {
+		BlockfromValue, err := strconv.ParseUint(Blockfrom, 10, 64)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+		request.Blockfrom = uint64(BlockfromValue)		
+	}
+
+	Blockto := values.Get("Blockto")
+	if Blockto != "" {
+		BlocktoValue, err := strconv.ParseUint(Blockto, 10, 64)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+		request.Blockto = uint64(BlocktoValue)		
+	}
+
+	desc := values.Get("desc")
+	if desc != "" {
+		descValue, parseErr := strconv.ParseBool(desc)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Desc = descValue
+	}
+
+	argFilter := values.Get("argFilter")
+	if argFilter != "" {
+		request.ArgFilter = []byte(argFilter)
+	}
+
+	recentBlockCnt := values.Get("recentBlockCnt")
+	if recentBlockCnt != "" {
+		recentBlockCntValue, parseErr := strconv.ParseInt(recentBlockCnt, 10, 32)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.RecentBlockCnt = int32(recentBlockCntValue)
+	}else{
+		request.RecentBlockCnt = 0
+	}
+	
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	return commonResponseHandler(api.rpc.ListEvents(api.request.Context(), request)), true
 }
+
 func (api *Web3APIv1) GetABI() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	// Params
+	request := &types.SingleBytes{}
+	address := values.Get("address")
+	if address != "" {
+		hashBytes, err := types.DecodeAddress(address)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = hashBytes
+	}
+
+	// Validate
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	
+	return commonResponseHandler(api.rpc.GetABI(api.request.Context(), request)), true
 }
+
 func (api *Web3APIv1) GetAccountVotes() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.AccountAddress{}
+	address := values.Get("address")
+	if address != "" {
+		hashBytes, err := types.DecodeAddress(address)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = hashBytes
+	}
+
+	// Validate
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	
+	return commonResponseHandler(api.rpc.GetAccountVotes(api.request.Context(), request)), true
 }
+
 func (api *Web3APIv1) QueryContractState() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.StateQuery{}
+	address := values.Get("address")
+	if address != "" {
+		addressBytes, err := types.DecodeAddress(address)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.ContractAddress = addressBytes
+	}
+
+	storageKeyPlain := bytes.NewBufferString("_sv_")	
+	args1 := values.Get("varname1")
+	if args1 != "" {
+		storageKeyPlain.WriteString(args1)
+	}
+	args2 := values.Get("varname2")
+	if args2 != "" {
+		storageKeyPlain.WriteString("-")
+		storageKeyPlain.WriteString(args2)
+	}
+	
+	storageKey := common.Hasher([]byte(storageKeyPlain.Bytes()))
+	request.StorageKeys = [][]byte{storageKey}
+
+	compressed := values.Get("compressed")
+	if compressed != "" {
+		compressedValue, parseErr := strconv.ParseBool(compressed)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Compressed = compressedValue
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	
+	return commonResponseHandler(api.rpc.QueryContractState(api.request.Context(), request)), true
 }
+
 func (api *Web3APIv1) NodeState() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.NodeReq{}
+	component := values.Get("component")
+	if component != "" {
+		request.Component = []byte(component)
+	}
+
+	timeout := values.Get("timeout")
+	if timeout != "" {
+		timeoutValue, err := strconv.ParseUint(timeout, 10, 64)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true
+		}
+		timeout := uint64(timeoutValue) // Replace with your actual value
+		byteValue := make([]byte, 8)
+		binary.LittleEndian.PutUint64(byteValue, timeout)
+		request.Timeout = byteValue
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.NodeState(api.request.Context(), request)
+
+	return stringResponseHandler(string(msg.Value), nil), true	
 }
+
 func (api *Web3APIv1) GetPeers() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.PeersParams{}
+	noHidden := values.Get("noHidden")
+	if noHidden != "" {
+		noHiddenValue, parseErr := strconv.ParseBool(noHidden)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.NoHidden = noHiddenValue
+	}
+
+	showSelf := values.Get("showSelf")
+	if showSelf != "" {
+		showSelfValue, parseErr := strconv.ParseBool(showSelf)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.ShowSelf = showSelfValue
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	return commonResponseHandler(api.rpc.GetPeers(api.request.Context(), request)), true	
 }
+
 func (api *Web3APIv1) GetServerInfo() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.KeyParams{}
+	keys := values["key"]
+	if len(keys) > 0 {
+		request.Key = keys
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	return commonResponseHandler(api.rpc.GetServerInfo(api.request.Context(), request)), true		
 }
+
 func (api *Web3APIv1) GetStaking() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.AccountAddress{}
+	address := values.Get("address")
+	if address != "" {
+		addressBytes, err := types.DecodeAddress(address)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = addressBytes
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+	
+	return commonResponseHandler(api.rpc.GetStaking(api.request.Context(), request)), true
 }
-func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+
+func (api *Web3APIv1) GetVotes() (handler http.Handler, ok bool) {
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.VoteParams{}
+	request.Id = types.OpvoteBP.ID()
+	
+	count := values.Get("count")
+	if count != "" {
+		sizeValue, parseErr := strconv.ParseUint(count, 10, 32)
+		if parseErr != nil {
+			return commonResponseHandler(&types.Empty{}, parseErr), true
+		}
+		request.Count = uint32(sizeValue)
+	}
+	
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetVotes(api.request.Context(), request)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true		
+	}
+
+	result := "["
+	comma := ","
+	for i, r := range msg.GetVotes() {
+		result = result + "{\"" + base58.Encode(r.Candidate) + "\":" + r.GetAmountBigInt().String() + "}"
+		if i+1 == len(msg.GetVotes()) {
+			comma = ""
+		}
+		result = result + comma
+	}
+	result = result + "]"
+	
+	return stringResponseHandler(result, nil), true	
 }
+
+func (api *Web3APIv1) Metric() (handler http.Handler, ok bool) {
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	// Params
+	request := &types.MetricsRequest{}
+	metricType := values.Get("type")
+	if metricType != "" {
+		request.Types = append(request.Types, types.MetricType(types.MetricType_value[metricType]))
+	}
+
+	// Validate	
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	return commonResponseHandler(api.rpc.Metric(api.request.Context(), request)), true
+}
+
 func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.EnterpriseConfigKey{}
+
+	key := values.Get("key")
+	if key != "" {
+		request.Key = key
+	}
+	
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	msg, err := api.rpc.GetEnterpriseConfig(api.request.Context(), request)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	type outConf struct {
+		Key    string
+		On     *bool
+		Values []string
+	}
+
+	var out outConf
+	out.Key = msg.Key
+	out.Values = msg.Values
+	if strings.ToUpper(key) != "PERMISSIONS" {
+		out.On = &msg.On
+	}
+		
+	return stringResponseHandler(util.B58JSON(out), nil), true		
 }
+
 func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	values, err := url.ParseQuery(api.request.URL.RawQuery)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	request := &types.SingleBytes{}
+	hash := values.Get("hash")
+	if hash != "" {
+		hashBytes, err := base64.StdEncoding.DecodeString(hash)
+		if err != nil {
+			return commonResponseHandler(&types.Empty{}, err), true			
+		}
+		request.Value = hashBytes
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	block, err := api.rpc.GetBlock(api.request.Context(), request)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, block.BlockNo())
+
+	return commonResponseHandler(api.rpc.GetConfChangeProgress(api.request.Context(),  &types.SingleBytes{Value: b})), true
 }
 
 func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool)	{
-	request := &types.Empty{}
-	return commonResponseHandler(request, status.Errorf(codes.Unknown, "Preparing")), true
+	body, err := ioutil.ReadAll(api.request.Body)
+	if err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+		
+	// Params
+	request := &types.TxBody{}
+	if err := json.Unmarshal(body, request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	if _, err := govalidator.ValidateStruct(request); err != nil {
+		return commonResponseHandler(&types.Empty{}, err), true
+	}
+
+	tx := &types.Tx{Body: request}
+	txs := []*types.Tx{tx}
+	return commonResponseHandler(api.rpc.CommitTX(api.request.Context(), &types.TxList{Txs: txs})), true
 }
 

@@ -78,3 +78,21 @@ func commonResponseHandler(response interface{}, err error) http.Handler {
 	})
 }
 
+func stringResponseHandler(response string, err error) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// jsonResponse, err := json.Marshal(response)
+		// if err != nil {
+		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+		// 	return
+		// }
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(response))
+	})
+}
+
