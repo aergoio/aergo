@@ -8,9 +8,11 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"math/big"
+	"reflect"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -59,6 +61,7 @@ func init() {
 	MaxAER = NewAmount(5*1e8, Aergo)       // 500,000,000 aergo
 	StakingMinimum = NewAmount(1e4, Aergo) // 10,000 aergo
 	ProposalPrice = NewZeroAmount()        // 0 aergo
+	lastIndexOfBH = getLastIndexOfBH()
 }
 
 func NewAvgTime(sizeMavg int) *AvgTime {
@@ -90,6 +93,22 @@ func (avgTime *AvgTime) set(val time.Duration) {
 	avgTime.val.Store(val)
 }
 
+func getLastIndexOfBH() (lastIndex int) {
+	v := reflect.ValueOf(BlockHeader{})
+
+	nField := v.NumField()
+	var i int
+	for i = 0; i < nField; i++ {
+		name := v.Type().Field(i).Name
+		if name == lastFieldOfBH {
+			lastIndex = i
+			break
+		}
+	}
+
+	return i
+}
+
 //go:generate stringer -type=SystemValue
 type SystemValue int
 
@@ -103,9 +122,9 @@ const (
 )
 
 /*
-func (s SystemValue) String() string {
-	return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
-}
+  func (s SystemValue) String() string {
+	  return [...]string{"StakingTotal", "StakingMin", "GasPrice", "NamePrice"}[s]
+  }
 */
 
 // ChainAccessor is an interface for a another actor module to get info of chain
@@ -239,12 +258,48 @@ func (block *Block) Localtime() time.Time {
 // calculateBlockHash computes sha256 hash of block header.
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
-	writeBlockHeader(digest, block.Header)
-
+	serializeBH(digest, block.Header)
 	return digest.Sum(nil)
 }
 
-func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
+func serializeStructOmit(w io.Writer, s interface{}, stopIndex int, omit string) error {
+	v := reflect.Indirect(reflect.ValueOf(s))
+
+	var i int
+	for i = 0; i <= stopIndex; i++ {
+		if v.Type().Field(i).Name == omit {
+			continue
+		}
+		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func serializeStruct(w io.Writer, s interface{}, stopIndex int) error {
+	v := reflect.Indirect(reflect.ValueOf(s))
+
+	var i int
+	for i = 0; i <= stopIndex; i++ {
+		if err := binary.Write(w, binary.LittleEndian, v.Field(i).Interface()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func serializeBH(w io.Writer, bh *BlockHeader) error {
+	return serializeStruct(w, bh, lastIndexOfBH)
+}
+
+func serializeBhForDigest(w io.Writer, bh *BlockHeader) error {
+	return serializeStructOmit(w, bh, lastIndexOfBH, "Sign")
+}
+
+func writeBlockHeaderOld(w io.Writer, bh *BlockHeader) error {
 	for _, f := range []interface{}{
 		bh.PrevBlockHash,
 		bh.BlockNo,
@@ -255,26 +310,6 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 		bh.Confirms,
 		bh.PubKey,
 		bh.Sign,
-		bh.Consensus,
-	} {
-		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func writeBlockHeaderForDigest(w io.Writer, bh *BlockHeader) error {
-	for _, f := range []interface{}{
-		bh.PrevBlockHash,
-		bh.BlockNo,
-		bh.Timestamp,
-		bh.BlocksRootHash,
-		bh.TxsRootHash,
-		bh.ReceiptsRootHash,
-		bh.Confirms,
-		bh.PubKey,
 		bh.Consensus,
 	} {
 		if err := binary.Write(w, binary.LittleEndian, f); err != nil {
@@ -383,7 +418,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	var buf bytes.Buffer
 
-	if err := writeBlockHeaderForDigest(&buf, bh); err != nil {
+	if err := serializeBhForDigest(&buf, bh); err != nil {
 		return nil, err
 	}
 
@@ -638,6 +673,7 @@ func MakeChainId(cid []byte, v int32) []byte {
 	newCid := make([]byte, len(cid))
 	copy(newCid, nv)
 	copy(newCid[4:], cid[4:])
+	fmt.Println("chainid", newCid)
 	return newCid
 }
 
