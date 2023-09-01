@@ -45,4 +45,6 @@ jobs:
       run: make
 
     - name: Short Unit Tests
-      run: go test -short -timeout 999s -v ./...
+      run: go test -short -timeout 999s ./...
+      env:
+        ARGLIB_LOGCONFIG: "${{ github.workspace }}/.github/arglog-shorttest.toml"

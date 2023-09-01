@@ -50,7 +50,7 @@ jobs:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
       with:
         coverageCommand: go test -timeout 999s -coverprofile build/c.out  -v ./...
-        prefix: github.com/aergoio/aergo
+        prefix: github.com/aergoio/aergo/v2
         coverageLocations: ${{github.workspace}}/build/c.out:gocov
         debug: true
 

@@ -3,8 +3,8 @@ package enterprise
 import (
 	"bytes"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const AdminsKey = "ADMINS"

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 //go:generate stringer -type=statIndex

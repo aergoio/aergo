@@ -3,7 +3,7 @@ package p2pcommon
 import (
 	"fmt"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // PeerAccessor is an interface for a another actor module to get info of peers
@@ -34,6 +34,6 @@ type SyncManager interface {
 	RetryGetTx(peer RemotePeer, hashes [][]byte)
 }
 
-//go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon SyncManager,PeerAccessor | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_syncmanager.go"
+//go:generate sh -c "mockgen github.com/aergoio/aergo/v2/p2p/p2pcommon SyncManager,PeerAccessor | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_syncmanager.go"
 
 var SyncManagerBusyError = fmt.Errorf("server is busy")

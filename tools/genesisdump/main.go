@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func getGenesis(path string) *types.Genesis {

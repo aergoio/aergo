@@ -8,14 +8,14 @@ package p2pcommon
 import (
 	"time"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/network"
 )
 
 // NTContainer can provide NetworkTransport interface.
 //
-//go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon NTContainer,NetworkTransport | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_networktransport.go"
+//go:generate sh -c "mockgen github.com/aergoio/aergo/v2/p2p/p2pcommon NTContainer,NetworkTransport | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_networktransport.go"
 type NTContainer interface {
 	GetNetworkTransport() NetworkTransport
 

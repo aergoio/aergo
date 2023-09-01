@@ -5,13 +5,13 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/account/key"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/account/key"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type AccountService struct {
