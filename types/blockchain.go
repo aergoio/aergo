@@ -286,7 +286,7 @@ func writeBlockHeader(w io.Writer, bh *BlockHeader) error {
 	return nil
 }
 
-func writeBlockHeaderOmit(w io.Writer, bh *BlockHeader) error {
+func writeBlockHeaderOmitSign(w io.Writer, bh *BlockHeader) error {
 	for _, f := range []interface{}{
 		bh.ChainID,
 		bh.PrevBlockHash,
@@ -407,7 +407,7 @@ func (block *Block) Sign(privKey crypto.PrivKey) error {
 func (bh *BlockHeader) bytesForDigest() ([]byte, error) {
 	var buf bytes.Buffer
 
-	if err := writeBlockHeaderOmit(&buf, bh); err != nil {
+	if err := writeBlockHeaderOmitSign(&buf, bh); err != nil {
 		return nil, err
 	}
 
