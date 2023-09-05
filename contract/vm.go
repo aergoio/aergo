@@ -36,11 +36,11 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo-lib/log"
-	luacUtil "github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	jsoniter "github.com/json-iterator/go"
 )
 

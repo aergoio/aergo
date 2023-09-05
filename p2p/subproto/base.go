@@ -2,7 +2,7 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 )
 
 // func(msg *types.P2PMessage)

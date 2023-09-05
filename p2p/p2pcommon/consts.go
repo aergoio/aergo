@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	core "github.com/libp2p/go-libp2p-core"
 )
 

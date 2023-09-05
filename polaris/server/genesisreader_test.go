@@ -8,7 +8,7 @@ package server
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func Test_readGenesis(t *testing.T) {

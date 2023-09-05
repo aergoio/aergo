@@ -3,7 +3,7 @@ package p2pcommon
 import (
 	"net"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type PeerZone bool
