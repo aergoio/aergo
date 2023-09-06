@@ -9,8 +9,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 

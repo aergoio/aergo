@@ -2,8 +2,8 @@ package account
 
 import (
 	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/account/key"
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/v2/account/key"
+	"github.com/aergoio/aergo/v2/message"
 )
 
 type Signer struct {

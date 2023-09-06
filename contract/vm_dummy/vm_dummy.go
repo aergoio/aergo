@@ -14,14 +14,14 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	sha256 "github.com/minio/sha256-simd"
 )
 
@@ -76,23 +76,15 @@ func SetPubNet() DummyChainOptions {
 		// private chains have the db module and public ones don't.
 		// this is why we need to flush all Lua states and recreate
 		// them when moving to and from public chain.
-		flushLState := func() {
-			for i := 0; i <= lStateMaxSize; i++ {
-				s := contract.GetLState(contract.LStateDefault)
-				contract.FreeLState(s, contract.LStateDefault)
-				s = contract.GetLState(contract.LStateVer3)
-				contract.FreeLState(s, contract.LStateVer3)
-			}
-		}
 
 		contract.PubNet = true
 		fee.DisableZeroFee()
-		flushLState()
+		contract.FlushLStates()
 
 		dc.clearLState = func() {
 			contract.PubNet = false
 			fee.EnableZeroFee()
-			flushLState()
+			contract.FlushLStates()
 		}
 	}
 }
@@ -568,11 +560,11 @@ func NewLuaTxCall(sender, recipient string, amount uint64, payload string) *luaT
 func NewLuaTxCallBig(sender, recipient string, amount *big.Int, payload string) *luaTxCall {
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
-			_sender:   contract.StrHash(sender),
+			_sender:    contract.StrHash(sender),
 			_recipient: contract.StrHash(recipient),
-			_amount:   amount,
-			_payload:  []byte(payload),
-			txId:      newTxId(),
+			_amount:    amount,
+			_payload:   []byte(payload),
+			txId:       newTxId(),
 		},
 	}
 }
@@ -581,7 +573,7 @@ func NewLuaTxCallFeeDelegate(sender, recipient string, amount uint64, payload st
 	return &luaTxCall{
 		luaTxContractCommon: luaTxContractCommon{
 			_sender:     contract.StrHash(sender),
-			_recipient:   contract.StrHash(recipient),
+			_recipient:  contract.StrHash(recipient),
 			_amount:     types.NewAmount(amount, types.Aer),
 			_payload:    []byte(payload),
 			txId:        newTxId(),

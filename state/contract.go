@@ -5,8 +5,8 @@ import (
 	"math/big"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
 
