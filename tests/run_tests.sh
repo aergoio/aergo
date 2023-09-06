@@ -103,6 +103,7 @@ check ./test-gas-per-function-v3.sh
 # change the hardfork version
 set_version 4
 
+# run the integration tests - version 4
 check ./test-max-call-depth.sh
 check ./test-gas-deploy.sh
 check ./test-gas-op.sh
