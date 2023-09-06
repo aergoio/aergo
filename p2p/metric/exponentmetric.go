@@ -9,7 +9,7 @@ import (
 	"math"
 	"sync/atomic"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
 )
 
 // this struct calculate roughly approximate mean value.

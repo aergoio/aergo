@@ -5,7 +5,7 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
-	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/v2/pkg/component"
 )
 
 // SubComponent handles message with Receive(), and requests to other actor services with IComponentRequester

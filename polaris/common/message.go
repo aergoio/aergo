@@ -8,7 +8,7 @@ package common
 import (
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 )
 
 // PolarisMessage is data struct for transferring between polaris server and client.
