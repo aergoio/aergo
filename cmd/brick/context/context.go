@@ -12,7 +12,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/aergoio/aergo/contract/vm_dummy"
+	"github.com/aergoio/aergo/v2/contract/vm_dummy"
 )
 
 var (

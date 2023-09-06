@@ -1,3 +1,4 @@
+// The tests in vm_dummy_test.go are architecture independent tests.
 package vm_dummy
 
 import (
@@ -12,19 +13,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestMain(m *testing.M) {
-	if runtime.GOARCH != "amd64" {
-		fmt.Println("skip architecture dependent test")
-	} else {
-		os.Exit(m.Run())
-	}
-}
 
 func TestMaxCallDepth(t *testing.T) {
 	code := readLuaCode("maxcalldepth_1.lua")
@@ -467,44 +460,6 @@ func TestContractSend(t *testing.T) {
 		NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("user1"))),
 	)
 	assert.NoErrorf(t, err, "failed to connect new block")
-}
-
-func TestContractSendF(t *testing.T) {
-	code := readLuaCode("contract_sendf_1.lua")
-	require.NotEmpty(t, code, "failed to read contract_sendf_1.lua")
-	code2 := readLuaCode("contract_sendf_2.lua")
-	require.NotEmpty(t, code2, "failed to read contract_sendf_2.lua")
-
-	bc, err := LoadDummyChain(SetPubNet())
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
-
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("user1", 1, types.Aergo),
-		NewLuaTxDeploy("user1", "test1", 50000000000000000, code),
-		NewLuaTxDeploy("user1", "test2", 0, code2),
-	)
-	require.NoErrorf(t, err, "failed to connect new block")
-
-	tx := NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test2")))
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to connect new block")
-
-	r := bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, int64(105087), int64(r.GetGasUsed()), "gas used not equal")
-
-	state, err := bc.GetAccountState("test2")
-	assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance state not equal")
-
-	tx = NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, nameToAddress("test2")))
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to connect new block")
-
-	r = bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, int64(105179), int64(r.GetGasUsed()), "gas used not equal")
-
-	state, err = bc.GetAccountState("test2")
-	assert.Equalf(t, int64(6), state.GetBalanceBigInt().Int64(), "balance state not equal")
 }
 
 func TestContractQuery(t *testing.T) {
@@ -1694,39 +1649,6 @@ func TestTypeDupVar(t *testing.T) {
 	require.NoErrorf(t, err, "failed to call tx")
 }
 
-func TestTypeInvalidKey(t *testing.T) {
-	code := readLuaCode("type_invalidkey.lua")
-	require.NotEmpty(t, code, "failed to read type_invalidkey.lua")
-
-	bc, err := LoadDummyChain()
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
-
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "invalidkey", 0, code))
-	require.NoErrorf(t, err, "failed to deploy")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_table"}`).Fail("cannot use 'table' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_func"}`).Fail("cannot use 'function' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail("cannot use 'userdata' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statearray"}`).Fail("cannot use 'userdata' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail("cannot use 'userdata' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_upval"}`).Fail("cannot use 'table' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_nil"}`).Fail("invalid key type: 'nil', state.map: 'h'"))
-	require.NoErrorf(t, err, "failed to call tx")
-}
-
 func TestTypeByteKey(t *testing.T) {
 	code := readLuaCode("type_bytekey.lua")
 	require.NotEmpty(t, code, "failed to read type_bytekey.lua")
@@ -2213,38 +2135,6 @@ func TestTypeSparseTable(t *testing.T) {
 	require.Equalf(t, `1`, receipt.GetRet(), "contract Call ret error")
 }
 
-func TestTypeBigTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	code := readLuaCode("type_bigtable_1.lua")
-	require.NotEmpty(t, code, "failed to read type_bigtable_1.lua")
-	code2 := readLuaCode("type_bigtable_2.lua")
-	require.NotEmpty(t, code2, "failed to read type_bigtable_2.lua")
-
-	bc, err := LoadDummyChain()
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
-
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "big", 0, code))
-	require.NoErrorf(t, err, "failed to deploy")
-
-	// About 900MB
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[25]}`))
-	require.NoErrorf(t, err, "failed to call tx")
-
-	contract.SetStateSQLMaxDBSize(20)
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 100, types.Aer), NewLuaTxDeploy("user1", "big20", 0, code2))
-	require.NoErrorf(t, err, "failed to deploy")
-
-	for i := 0; i < 17; i++ {
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`))
-		require.NoErrorf(t, err, "failed to call tx")
-	}
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"))
-	require.NoErrorf(t, err, "failed to call tx")
-}
-
 func TestTypeJson(t *testing.T) {
 	code := readLuaCode("type_json.lua")
 	require.NotEmpty(t, code, "failed to read type_json.lua")
@@ -2655,95 +2545,6 @@ func TestFeatureFeeDelegationLoop(t *testing.T) {
 }
 */
 
-func TestGasHello(t *testing.T) {
-	var err error
-	code := readLuaCode("contract_hello.lua")
-	require.NotEmpty(t, code, "failed to read hello.lua")
-
-	err = expectGas(code, 0, `"hello"`, `"world"`, 100000, SetHardForkVersion(1))
-	assert.NoError(t, err)
-
-	err = expectGas(code, 0, `"hello"`, `"w"`, 101203+3*1, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"wo"`, 101203+3*2, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"wor"`, 101203+3*3, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"worl"`, 101203+3*4, SetHardForkVersion(2))
-	assert.NoError(t, err)
-	err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(code, 0, `"hello"`, `"world"`, 101203+3*5, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-func TestGasDeploy(t *testing.T) {
-	var err error
-	code := readLuaCode("gas_deploy.lua")
-	require.NotEmpty(t, code, "failed to read deployfee.lua")
-
-	// err = expectGas(code, 0, `"testPcall"`, ``, 0, SetHardForkVersion(0))
-	// assert.NoError(t, err)
-
-	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(code, 0, `"testPcall"`, ``, 117861, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-func TestGasOp(t *testing.T) {
-	var err error
-	code := readLuaCode("gas_op.lua")
-	require.NotEmpty(t, code, "failed to read op.lua")
-
-	err = expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(0))
-	assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 117610, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-func TestGasBF(t *testing.T) {
-	var err error
-	code := readLuaCode("gas_bf.lua")
-	require.NotEmpty(t, code, "failed to read bf.lua")
-
-	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
-	// assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 47456244, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	err = expectGas(string(code), 0, `"main"`, ``, 47456046, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
-func TestGasLuaCryptoVerifyProof(t *testing.T) {
-	code := readLuaCode("feature_luacryptoverifyproof.lua")
-	require.NotEmpty(t, code, "failed to read feature_luacryptoverifyproof.lua")
-
-	// v2 raw
-	err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	// v2 hex
-	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(2))
-	assert.NoError(t, err)
-
-	// v3 raw
-	err = expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(3))
-	assert.NoError(t, err)
-
-	// v3 hex
-	err = expectGas(string(code), 0, `"verifyProofHex"`, ``, 108404, SetHardForkVersion(3))
-	assert.NoError(t, err)
-}
-
 const (
 	DEF_TEST_CONTRACT = "testcontract"
 	DEF_TEST_ACCOUNT  = "testaccount"
@@ -2764,56 +2565,4 @@ func readLuaCode(file string) (luaCode string) {
 
 func nameToAddress(name string) (address string) {
 	return types.EncodeAddress(contract.StrHash(name))
-}
-
-func expectGas(contractCode string, amount int64, funcName, funcArgs string, expectGas int64, opt ...DummyChainOptions) error {
-	// append set pubnet
-	bc, err := LoadDummyChain(append(opt, SetPubNet())...)
-	if err != nil {
-		return err
-	}
-	defer bc.Release()
-
-	if err = bc.ConnectBlock(
-		NewLuaTxAccount(DEF_TEST_ACCOUNT, 1, types.Aergo),
-		NewLuaTxDeploy(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, 0, contractCode),
-	); err != nil {
-		return err
-	}
-
-	var code string
-	if len(funcArgs) == 0 {
-		code = fmt.Sprintf(`{"Name":%s}`, funcName)
-	} else {
-		code = fmt.Sprintf(`{"Name":%s, "Args":[%s]}`, funcName, funcArgs)
-	}
-
-	var balanceBefore, balanceAfter int64
-	// get before balance
-	if state, err := bc.GetAccountState(DEF_TEST_ACCOUNT); err != nil {
-		return fmt.Errorf("failed to get account state: %s", err)
-	} else {
-		balanceBefore = state.GetBalanceBigInt().Int64()
-	}
-	// execute tx in block
-	tx := NewLuaTxCall(DEF_TEST_ACCOUNT, DEF_TEST_CONTRACT, uint64(amount), code)
-	if err = bc.ConnectBlock(tx); err != nil {
-		return err
-	}
-	// get after balance
-	if state, err := bc.GetAccountState(DEF_TEST_ACCOUNT); err != nil {
-		return fmt.Errorf("failed to get account state: %s", err)
-	} else {
-		balanceAfter = state.GetBalanceBigInt().Int64()
-	}
-
-	usedGas := bc.GetReceipt(tx.Hash()).GetGasUsed()
-	if expectGas != int64(usedGas) {
-		return fmt.Errorf("wrong used gas, expected: %d, but got: %d", expectGas, usedGas)
-	}
-	if balanceBefore-expectGas != balanceAfter {
-		return fmt.Errorf("wrong balance status, expected: %d, but got: %d", expectGas, balanceBefore-balanceAfter)
-	}
-
-	return nil
 }

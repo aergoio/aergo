@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/minio/sha256-simd"

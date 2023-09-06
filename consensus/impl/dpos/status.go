@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos/bp"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var bsLoader *bootLoader
@@ -224,7 +224,7 @@ func (s *Status) init(cdb consensus.ChainDB, resetHeight types.BlockNo) {
 
 	genesis, err := cdb.GetBlockByNo(0)
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to get genesis block")
 	}
 
 	best, err := cdb.GetBestBlock()

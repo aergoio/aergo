@@ -16,7 +16,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"golang.org/x/crypto/scrypt"
 )

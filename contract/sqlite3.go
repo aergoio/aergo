@@ -11,6 +11,7 @@ package contract
 
 /*
 #cgo CFLAGS: -std=gnu99
+#cgo CFLAGS: -Wno-return-local-addr
 #cgo CFLAGS: -DSQLITE_THREADSAFE=1
 #cgo CFLAGS: -DHAVE_USLEEP=1
 #cgo CFLAGS: -DSQLITE_USE_URI=1

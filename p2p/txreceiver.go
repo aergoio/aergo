@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // GetTxsReceiver is send p2p getTXsRequest to target peer and receive p2p responses till all requests transactions are received

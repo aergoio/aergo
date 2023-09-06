@@ -6,8 +6,8 @@ package vm_dummy
 import (
 	"math/big"
 
-	"github.com/aergoio/aergo/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/contract"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
+	"github.com/aergoio/aergo/v2/contract"
 )
 
 func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *luaTxDeploy {
