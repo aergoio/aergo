@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func TestSnapshotReceiver_sendResp(t *testing.T) {

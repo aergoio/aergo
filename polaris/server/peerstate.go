@@ -12,11 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	v030 "github.com/aergoio/aergo/p2p/v030"
-	"github.com/aergoio/aergo/polaris/common"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	v030 "github.com/aergoio/aergo/v2/p2p/v030"
+	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type PeerHealth int

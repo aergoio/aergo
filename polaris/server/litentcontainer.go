@@ -13,16 +13,16 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/network"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/p2p/transport"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/transport"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // P2P is actor component for p2p

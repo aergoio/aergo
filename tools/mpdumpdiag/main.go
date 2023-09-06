@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )

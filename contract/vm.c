@@ -24,6 +24,13 @@ extern void (*lj_internal_view_end)(lua_State *);
 void vm_internal_view_start(lua_State *L);
 void vm_internal_view_end(lua_State *L);
 
+#ifdef MEASURE
+static int nsec(lua_State *L) {
+	lua_pushnumber(L, luaL_nanosecond(L));
+	return 1;
+}
+#endif
+
 static void preloadModules(lua_State *L) {
 	int status;
 
@@ -41,7 +48,7 @@ static void preloadModules(lua_State *L) {
 	}
 
 #ifdef MEASURE
-	lua_register(L, "nsec", lj_cf_nsec);
+	lua_register(L, "nsec", nsec);
 	luaopen_jit(L);
 	lua_getfield(L, LUA_REGISTRYINDEX, "_LOADED");
 	lua_getfield(L, -1, "jit");
@@ -62,13 +69,9 @@ static int loadLibs(lua_State *L) {
 	return 0;
 }
 
-lua_State *vm_newstate(uint8_t use_lock) {
-	lua_State *L = NULL;
-	if (use_lock)
-		L = luaL_newstate_lock();
-	else
-		L = luaL_newstate();
+lua_State *vm_newstate(int hardfork_version) {
 	int status;
+	lua_State *L = luaL_newstate(hardfork_version);
 	if (L == NULL)
 		return NULL;
 	status = lua_cpcall(L, loadLibs, NULL);

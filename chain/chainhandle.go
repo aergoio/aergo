@@ -13,14 +13,14 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
 

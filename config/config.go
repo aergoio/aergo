@@ -9,7 +9,7 @@ import (
 	"runtime"
 
 	"github.com/aergoio/aergo-lib/config"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const defaultDumpPort = 7070

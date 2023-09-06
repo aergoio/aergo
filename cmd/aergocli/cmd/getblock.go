@@ -11,8 +11,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	aergorpc "github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/spf13/cobra"
 )

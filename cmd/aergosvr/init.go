@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/consensus/impl"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/consensus/impl"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract/vm_dummy"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/contract/vm_dummy"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/rs/zerolog"
 )
 
