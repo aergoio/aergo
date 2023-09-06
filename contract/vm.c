@@ -37,11 +37,14 @@ static void preloadModules(lua_State *L) {
 	luaopen_system(L);
 	luaopen_contract(L);
 	luaopen_state(L);
-	luaopen_name(L);
 	luaopen_json(L);
 	luaopen_crypto(L);
 	luaopen_bignum(L);
 	luaopen_utf8(L);
+
+	if (vm_is_hardfork(L, 4)) {
+		luaopen_name(L);
+	}
 
 	if (!isPublic()) {
 		luaopen_db(L);
