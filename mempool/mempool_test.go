@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	crypto "github.com/aergoio/aergo/account/key/crypto"
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/types"
+	crypto "github.com/aergoio/aergo/v2/account/key/crypto"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/stretchr/testify/assert"
 )

@@ -17,7 +17,7 @@ endif()
 
 add_custom_target(build ALL DEPENDS aergocli aergosvr aergoluac brick)
 
-add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
+add_custom_target(aergocli GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/aergocli/cmd.githash=`git describe --tags`\" ./cmd/aergocli/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
@@ -28,14 +28,14 @@ add_custom_target(aergosvr GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS}
 add_custom_target(polaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/polaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
-add_custom_target(colaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/cmd/colaris/cmd.githash=`git describe --tags`\" ./cmd/colaris/...
+add_custom_target(colaris GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X github.com/aergoio/aergo/v2/cmd/colaris/cmd.githash=`git describe --tags`\" ./cmd/colaris/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
 add_custom_target(aergoluac GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} -ldflags \"-X main.githash=`git describe --tags`\" ./cmd/aergoluac/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
 
-add_custom_target(brick GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/cmd/brick/context.GitHash=`git describe --tags`'
+add_custom_target(brick GO111MODULE=on GOBIN=${BIN_DIR} go install ${GCFLAGS} ${GFLAG} -ldflags \"-X 'github.com/aergoio/aergo/v2/cmd/brick/context.GitHash=`git describe --tags`'
 -X 'github.com/aergoio/aergo-lib/log.defaultConfStr=`cat ./cmd/brick/arglog.toml`'\"  ./cmd/brick/...
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     DEPENDS libtool)
