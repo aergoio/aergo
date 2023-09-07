@@ -259,7 +259,6 @@ func (block *Block) Localtime() time.Time {
 func (block *Block) calculateBlockHash() []byte {
 	digest := sha256.New()
 	writeBlockHeader(digest, block.Header)
-	fmt.Println("hash", digest.Sum(nil))
 	return digest.Sum(nil)
 }
 
