@@ -117,7 +117,7 @@ func (h *toAgentBPNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 		}
 
 		if !checkBPNoticeSender(bpID, remotePeer) {
-			h.logger.Debug().Err(err).Str(p2putil.LogPeerName, remotePeer.Name()).Str("bpID", p2putil.ShortForm(bpID)).Str("blockID", block.BlockID().String()).Msg("peer is not access right to send bp notice")
+			h.logger.Debug().Err(err).Str(p2putil.LogPeerName, remotePeer.Name()).Stringer("bpID", types.LogPeerShort(bpID)).Str("blockID", block.BlockID().String()).Msg("peer is not access right to send bp notice")
 			return
 		}
 

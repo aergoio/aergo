@@ -8,7 +8,6 @@ import (
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
-	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
@@ -207,7 +206,7 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 }
 
 func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID types.PeerID) error {
-	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Uint64("no", targetNo).
+	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Uint64("no", targetNo).
 		Str("hash", enc.ToString(targetHash)).Msg("request to sync for consensus")
 
 	notiC := make(chan error)
@@ -225,7 +224,7 @@ func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.Blo
 		}
 	}
 
-	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Msg("succeeded to sync for consensus")
+	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Msg("succeeded to sync for consensus")
 	// TODO check best block is equal to target Hash/no
 	return nil
 }

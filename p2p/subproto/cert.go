@@ -124,13 +124,13 @@ func (h *certRenewedNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcomm
 	if !p2putil.ContainsID(p.Meta().ProducerIDs, cert.BPID) {
 		// TODO add penalty
 		// this agent is not in charge of that bp id.
-		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("drop renewed certificate, since issuer is not managed producer of remote peer")
+		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Stringer("bpID", types.LogPeerShort(cert.BPID)).Msg("drop renewed certificate, since issuer is not managed producer of remote peer")
 		return
 	}
 	if !types.IsSamePeerID(p.ID(), cert.AgentID) {
 		// TODO add penalty
 		// this certificate is not my certificate
-		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Str("bpID", p2putil.ShortForm(cert.BPID)).Str("agentID", p2putil.ShortForm(cert.AgentID)).Msg("drop renewed certificate, since agent id is not the remote peer")
+		h.logger.Info().Str(p2putil.LogPeerName, p.Name()).Stringer("bpID", types.LogPeerShort(cert.BPID)).Stringer("agentID", types.LogPeerShort(cert.AgentID)).Msg("drop renewed certificate, since agent id is not the remote peer")
 		return
 	}
 

@@ -7,7 +7,6 @@ package types
 
 import (
 	"fmt"
-
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/rs/zerolog"
 )
@@ -66,6 +65,14 @@ func (t LogBase58) String() string {
 	return enc.ToString(t)
 }
 
-func (t LogBase58) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("b58", enc.ToString(t))
+type LogPeerShort PeerID
+
+func (t LogPeerShort) String() string {
+	// basically this function is same as function p2putils.ShortForm()
+	pretty := PeerID(t).Pretty()
+	if len(pretty) > 10 {
+		return fmt.Sprintf("%s*%s", pretty[:2], pretty[len(pretty)-6:])
+	} else {
+		return pretty
+	}
 }

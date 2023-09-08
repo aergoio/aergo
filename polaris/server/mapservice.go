@@ -124,10 +124,10 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 	peerID := s.Conn().RemotePeer()
 	remoteIP, port, err := types.GetIPPortFromMultiaddr(s.Conn().RemoteMultiaddr())
 	if err != nil {
-		pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Invalid address information")
+		pms.Logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Invalid address information")
 		return
 	}
-	pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogFullID, peerID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remote peer connected")
+	pms.Logger.Info().Str("addr", s.Conn().RemoteMultiaddr().String()).Str(p2putil.LogFullID, peerID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("remote peer connected")
 
 	conn := p2pcommon.RemoteConn{IP: remoteIP, Port: port, Outbound: false}
 	tempMeta := p2pcommon.PeerMeta{ID: peerID, Addresses: []types.Multiaddr{s.Conn().RemoteMultiaddr()}}
@@ -137,27 +137,27 @@ func (pms *PeerMapService) onConnect(s types.Stream) {
 	// receive input
 	container, query, err := pms.readRequest(remotePeerInfo, rw)
 	if err != nil {
-		pms.Logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to read query")
+		pms.Logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("failed to read query")
 		return
 	}
 
 	// check blacklist
 	if banned, _ := pms.lm.IsBanned(remoteIP.String(), peerID); banned {
-		pms.Logger.Info().Str("address", remoteIP.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("close soon banned peer")
+		pms.Logger.Info().Str("address", remoteIP.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("close soon banned peer")
 		return
 	}
 	resp, err := pms.handleQuery(conn, container, query)
 	if err != nil {
-		pms.Logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to handle query")
+		pms.Logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("failed to handle query")
 		return
 	}
 
 	// response to peer
 	if err = pms.writeResponse(container, remotePeerInfo, resp, rw); err != nil {
-		pms.Logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("failed to write query")
+		pms.Logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("failed to write query")
 		return
 	}
-	pms.Logger.Debug().Str("status", resp.Status.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
+	pms.Logger.Debug().Str("status", resp.Status.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Int("peer_cnt", len(resp.Addresses)).Msg("Sent map response")
 
 	// TODO send goodbye message.
 	time.Sleep(time.Second * 3)
@@ -321,7 +321,7 @@ func isEqualMeta(m1, m2 p2pcommon.PeerMeta) (eq bool) {
 func (pms *PeerMapService) unregisterPeer(peerID types.PeerID) {
 	pms.rwmutex.Lock()
 	defer pms.rwmutex.Unlock()
-	pms.Logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Unregistering bad peer")
+	pms.Logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Unregistering bad peer")
 	delete(pms.peerRegistry, peerID)
 }
 
@@ -551,10 +551,10 @@ func (pms *PeerMapService) checkConnectness(meta p2pcommon.PeerMeta) bool {
 	tempState := &peerState{PeerMapService: pms, meta: meta, addr: meta.ToPeerAddress(), lCheckTime: time.Now(), temporary: true}
 	_, err := tempState.checkConnect(PolarisPingTTL)
 	if err != nil {
-		pms.Logger.Debug().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check was failed.")
+		pms.Logger.Debug().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Ping check was failed.")
 		return false
 	} else {
-		pms.Logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Ping check is succeeded.")
+		pms.Logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Ping check is succeeded.")
 		return true
 	}
 }

@@ -139,9 +139,9 @@ func (pcs *PolarisConnectSvc) queryPeers(msg *message.MapQueryMsg) *message.MapQ
 		addrs, err := pcs.connectAndQuery(meta, msg.BestBlock.Hash, msg.BestBlock.Header.BlockNo)
 		if err != nil {
 			if err == ErrTooLowVersion {
-				pcs.Logger.Error().Err(err).Str("polarisID", p2putil.ShortForm(meta.ID)).Msg("Polaris responded this aergosvr is too low, check and upgrade aergosvr")
+				pcs.Logger.Error().Err(err).Stringer("polarisID", types.LogPeerShort(meta.ID)).Msg("Polaris responded this aergosvr is too low, check and upgrade aergosvr")
 			} else {
-				pcs.Logger.Warn().Err(err).Str("polarisID", p2putil.ShortForm(meta.ID)).Msg("failed to get peer addresses")
+				pcs.Logger.Warn().Err(err).Stringer("polarisID", types.LogPeerShort(meta.ID)).Msg("failed to get peer addresses")
 			}
 			continue
 		}

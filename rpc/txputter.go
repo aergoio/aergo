@@ -110,7 +110,7 @@ func (m *txPutter) putToNextTx() int {
 		m.rs[m.offset] = &r
 		calculated := tx.CalculateTxHash()
 		if !bytes.Equal(hash, calculated) {
-			m.logger.Trace().Stringer("calculated", types.LogBase58(calculated)).Object("in", types.LogBase58(hash)).Msg("tx hash mismatch")
+			m.logger.Trace().Stringer("calculated", types.LogBase58(calculated)).Stringer("in", types.LogBase58(hash)).Msg("tx hash mismatch")
 			r.Error = types.CommitStatus_TX_INVALID_HASH
 		} else {
 			f := m.hub.RequestFuture(message.MemPoolSvc,

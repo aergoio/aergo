@@ -689,6 +689,7 @@ func (e *blockExecutor) execute() error {
 	}
 
 	if err := e.validatePost(); err != nil {
+		// TODO write verbose tx result if debug log is enabled
 		return err
 	}
 
