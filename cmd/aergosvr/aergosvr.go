@@ -124,7 +124,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 	syncSvc := syncer.NewSyncer(cfg, chainSvc, nil)
 	p2pSvc := p2p.NewP2P(cfg, chainSvc)
 	pmapSvc := polarisclient.NewPolarisConnectSvc(cfg.P2P, p2pSvc)
-	web3.NewWeb3(rpcSvc.GetActualServer())
+	web3.NewWeb3(cfg, rpcSvc.GetActualServer())
 	
 	var accountSvc component.IComponent
 	if cfg.Personal {

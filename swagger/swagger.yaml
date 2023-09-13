@@ -24,7 +24,7 @@ paths:
           description: Successful response
           content:
             application/json:
-              example: {}
+              example: ["AmNMcKNFfpAXn2iEV2stHsZtp4W7QPb2hEvZMTgWSdafdtrW2AC3"]
   /getState:
     get:
       summary: 현재 잔액 및 Nonce 포함한 계정 상태 조회
@@ -350,6 +350,46 @@ paths:
                   "feeDelegation": false,
                   "events": [],
                 }
+  /getBlockTransactionReceipts:
+    get:
+      summary: 블록에 포함된 트랜잭션 영수증(Receipt)들을 조회
+      tags: [Transaction]
+      parameters:
+        - name: hash
+          in: query
+          schema:
+            type: string
+        - name: number
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              example:
+                {
+                  "Receipts":
+                    [
+                      {
+                        "BlockNo": 0,
+                        "BlockHash": "",
+                        "contractAddress": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                        "status": "SUCCESS",
+                        "ret": {},
+                        "txHash": "C5r1VqkYWnBAHtEqJBHUjXPzbKG9f7QYXNEd5sD2KdQb",
+                        "txIndex": 0,
+                        "from": "",
+                        "to": "",
+                        "feeUsed": 0,
+                        "gasUsed": 0,
+                        "feeDelegation": false,
+                        "events": [],
+                      },
+                    ],
+                  "BlockNo": 9,
+                }
   /getBlockTX:
     get:
       summary: 트랜잭션 해시로 조회한 블록 내의 트랜잭션에 대한 정보 조회
@@ -569,7 +609,22 @@ paths:
           description: Successful response
           content:
             application/json:
-              example: {}
+              example:
+                {
+                  "events":
+                    [
+                      {
+                        "contractAddress": "AmggBF4etmnuX2rHAtKszY2GJyLXrhN3Md7tL2Y3s8JKd99xLsak",
+                        "eventName": "save",
+                        "Args": ["name", "hong"],
+                        "txHash": "6bJ7RBRAE6wFPRRQVH2TUGzQt93mHEZjSVbsPYnGxpve",
+                        "EventIdx": 0,
+                        "BlockHash": "AahyLGkriDwqCGR4xBfgxUPo95r4ySqbiVDXUq5HJETS",
+                        "BlockNo": 9981,
+                        "TxIndex": 0,
+                      },
+                    ],
+                }
   /getABI:
     get:
       summary: ABI 조회
@@ -584,10 +639,27 @@ paths:
           description: Successful response
           content:
             application/json:
-              example: {}
+              example:
+                {
+                  "version": "0.2",
+                  "language": "lua",
+                  "functions":
+                    [
+                      {
+                        "name": "get_value",
+                        "arguments": [{ "name": "key" }],
+                        "view": true,
+                      },
+                      {
+                        "name": "set_value",
+                        "arguments": [{ "name": "key" }, { "name": "value" }],
+                      },
+                    ],
+                  "state_variables": [{ "name": "values", "type": "map" }],
+                }
   /queryContractState:
     get:
-      summary: 스마트컨트랙트 상태 조회 (현재 저장값 조회용)
+      summary: 스마트컨트랙트 상태 조회
       tags: [Transaction]
       parameters:
         - name: address
@@ -658,25 +730,6 @@ paths:
   #           application/json:
   #             example:
   #               transactionCount: 20
-  # /getBlockTransactionReceipts:
-  #   get:
-  #     summary: 블록에 포함된 트랜잭션 영수증(Receipt)들을 조회
-  #     tags: [Transaction]
-  #     parameters:
-  #       - name: hash
-  #         in: query
-  #         schema:
-  #           type: string
-  #       - name: number
-  #         in: query
-  #         schema:
-  #           type: integer
-  #     responses:
-  #       "200":
-  #         description: Successful response
-  #         content:
-  #           application/json:
-  #             example: {}
   /getChainInfo:
     get:
       summary: 블록체인의 현재 상태 조회
@@ -709,9 +762,9 @@ paths:
                 type: "raft"
                 info: '{"Leader":"local1","Total":3,"Name":"local1","RaftId":"6d3862958785a554","Status":{"id":"6d3862958785a554","term":7,"vote":"6d3862958785a554","commit":6,"lead":"6d3862958785a554","raftState":"StateLeader","applied":6,"progress":{"57779d37986cc00":{"match":6,"next":7,"state":"ProgressStateReplicate"},"cf615af53daf2c6b":{"match":6,"next":7,"state":"ProgressStateReplicate"},"6d3862958785a554":{"match":6,"next":7,"state":"ProgressStateProbe"}},"leadtransferee":"0"}}'
                 bps:
-                  - '{"Name":"local3","RaftID":"cf615af53daf2c6b","PeerID":"16Uiu2HAkyDXhsCj63R3ufsrYaK72nFT1RLVg5upabi6WAQtJzGoM","Addr":"/ip4/192.168.3.87/tcp/37846"}'
-                  - '{"Name":"local1","RaftID":"6d3862958785a554","PeerID":"16Uiu2HAmKZUxcDNLo6BbhugZ8XfgdC4utmJ5M6HTjvFmYZ2tqTac","Addr":"/ip4/192.168.3.87/tcp/7846"}'
-                  - '{"Name":"local2","RaftID":"57779d37986cc00","PeerID":"16Uiu2HAm82vRXcL187jRhFW9jnNjueMc7bSJLdcydNWUwxeUCC2U","Addr":"/ip4/192.168.3.87/tcp/27846"}'
+                  - '{"Name":"local3","RaftID":"cf615af53daf2c6b","PeerID":"16Uiu2HAkyDXhsCj63R3ufsrYaK72nFT1RLVg5upabi6WAQtJzGoM","Addr":"/ip4/192.168.0.21/tcp/37846"}'
+                  - '{"Name":"local1","RaftID":"6d3862958785a554","PeerID":"16Uiu2HAmKZUxcDNLo6BbhugZ8XfgdC4utmJ5M6HTjvFmYZ2tqTac","Addr":"/ip4/192.168.0.21/tcp/7846"}'
+                  - '{"Name":"local2","RaftID":"57779d37986cc00","PeerID":"16Uiu2HAm82vRXcL187jRhFW9jnNjueMc7bSJLdcydNWUwxeUCC2U","Addr":"/ip4/192.168.0.21/tcp/27846"}'
   /getAccountVotes:
     get:
       summary: 가장 많이 투표된 블록 생산자 또는 시스템 변수 조회
@@ -879,7 +932,7 @@ paths:
                         {
                           "config":
                             {
-                              "NetProtocolAddr": "192.168.3.87",
+                              "NetProtocolAddr": "192.168.0.21",
                               "NetProtocolPort": 7846,
                               "NPBindAddr": "0.0.0.0",
                               "NPBindPort": 7846,
@@ -914,7 +967,7 @@ paths:
                                 [
                                   "16Uiu2HAmKZUxcDNLo6BbhugZ8XfgdC4utmJ5M6HTjvFmYZ2tqTac",
                                 ],
-                              "Addresses": ["/ip4/192.168.3.87/tcp/7846"],
+                              "Addresses": ["/ip4/192.168.0.21/tcp/7846"],
                               "Version": "v2.4.4-134-gaa1d7d30",
                               "Hidden": true,
                             },
@@ -960,12 +1013,12 @@ paths:
                       {
                         "address":
                           {
-                            "address": "192.168.3.87",
+                            "address": "192.168.0.21",
                             "port": 37846,
                             "peerID": "ACUIAhIhAjhSa/+nVg43tNhkJnaVx+xPjarZhVzd2PITk7uuJ8C0",
                             "role": "Producer",
                             "version": "v2.4.1",
-                            "addresses": ["/ip4/192.168.3.87/tcp/37846"],
+                            "addresses": ["/ip4/192.168.0.21/tcp/37846"],
                             "producerIDs":
                               [
                                 "ACUIAhIhAjhSa/+nVg43tNhkJnaVx+xPjarZhVzd2PITk7uuJ8C0",
@@ -985,12 +1038,12 @@ paths:
                       {
                         "address":
                           {
-                            "address": "192.168.3.87",
+                            "address": "192.168.0.21",
                             "port": 27846,
                             "peerID": "ACUIAhIhArtT5yoZccZO1OKI5stQRZf+h6dMC+KSg2UvdS1YY0Ep",
                             "role": "Producer",
                             "version": "v2.4.1",
-                            "addresses": ["/ip4/192.168.3.87/tcp/27846"],
+                            "addresses": ["/ip4/192.168.0.21/tcp/27846"],
                             "producerIDs":
                               [
                                 "ACUIAhIhArtT5yoZccZO1OKI5stQRZf+h6dMC+KSg2UvdS1YY0Ep",
@@ -1029,7 +1082,7 @@ paths:
                 {
                   "status":
                     {
-                      "addr": "192.168.3.87",
+                      "addr": "192.168.0.21",
                       "id": "16Uiu2HAmKZUxcDNLo6BbhugZ8XfgdC4utmJ5M6HTjvFmYZ2tqTac",
                       "port": "7846",
                       "version": "v2.4.4-134-gaa1d7d30",

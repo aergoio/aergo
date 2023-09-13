@@ -473,8 +473,8 @@ func (rm *ReceiptMerkle) GetHash() []byte {
 
 type Receipts struct {
 	bloom          *bloomFilter
-	receipts       []*Receipt
-	blockNo        BlockNo
+	Receipts       []*Receipt
+	BlockNo        BlockNo
 	hardForkConfig BlockVersionner
 }
 
@@ -482,16 +482,16 @@ func (rs *Receipts) Get() []*Receipt {
 	if rs == nil {
 		return nil
 	}
-	return rs.receipts
+	return rs.Receipts
 }
 
 func (rs *Receipts) Set(receipts []*Receipt) {
-	rs.receipts = receipts
+	rs.Receipts = receipts
 }
 
 func (rs *Receipts) SetHardFork(hardForkConfig BlockVersionner, blockNo BlockNo) {
 	rs.hardForkConfig = hardForkConfig
-	rs.blockNo = blockNo
+	rs.BlockNo = blockNo
 }
 
 const BloomBitByte = 256
@@ -521,13 +521,13 @@ func (rs *Receipts) MerkleRoot() []byte {
 	if rs == nil {
 		return merkle.CalculateMerkleRoot(nil)
 	}
-	rsSize := len(rs.receipts)
+	rsSize := len(rs.Receipts)
 	if rs.bloom != nil {
 		rsSize++
 	}
 	mes := make([]merkle.MerkleEntry, rsSize)
-	for i, r := range rs.receipts {
-		mes[i] = &ReceiptMerkle{r, rs.blockNo, rs.hardForkConfig}
+	for i, r := range rs.Receipts {
+		mes[i] = &ReceiptMerkle{r, rs.BlockNo, rs.hardForkConfig}
 	}
 	if rs.bloom != nil {
 		mes[rsSize-1] = rs.bloom
@@ -549,12 +549,12 @@ func (rs *Receipts) MarshalBinary() ([]byte, error) {
 	} else {
 		b.WriteByte(0)
 	}
-	binary.LittleEndian.PutUint32(l, uint32(len(rs.receipts)))
+	binary.LittleEndian.PutUint32(l, uint32(len(rs.Receipts)))
 	b.Write(l)
 	var rB []byte
 	var err error
-	for _, r := range rs.receipts {
-		if rs.hardForkConfig.IsV2Fork(rs.blockNo) {
+	for _, r := range rs.Receipts {
+		if rs.hardForkConfig.IsV2Fork(rs.BlockNo) {
 			rB, err = r.marshalStoreBinaryV2()
 		} else {
 			rB, err = r.marshalStoreBinary()
@@ -591,12 +591,12 @@ func (rs *Receipts) UnmarshalBinary(data []byte) error {
 	}
 	rCount := binary.LittleEndian.Uint32(data[pos:])
 	pos += 4
-	rs.receipts = make([]*Receipt, rCount)
+	rs.Receipts = make([]*Receipt, rCount)
 	unread := data[pos:]
 	var err error
 	for i := uint32(0); i < rCount; i++ {
 		var r Receipt
-		if rs.hardForkConfig.IsV2Fork(rs.blockNo) {
+		if rs.hardForkConfig.IsV2Fork(rs.BlockNo) {
 			unread, err = r.unmarshalStoreBinaryV2(unread)
 		} else {
 			unread, err = r.unmarshalStoreBinary(unread)
@@ -604,7 +604,7 @@ func (rs *Receipts) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return err
 		}
-		rs.receipts[i] = &r
+		rs.Receipts[i] = &r
 	}
 	return nil
 }
