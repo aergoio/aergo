@@ -11,17 +11,17 @@ import (
 
 const proposalPrefixKey = "proposal" //aergo proposal format
 
-func (i sysParamIndex) ID() string {
+func (i SysParamIndex) ID() string {
 	return strings.ToUpper(i.String())
 }
 
-func (i sysParamIndex) Key() []byte {
+func (i SysParamIndex) Key() []byte {
 	return GenProposalKey(i.String())
 }
 
 func GetVotingIssues() []types.VotingIssue {
-	vi := make([]types.VotingIssue, sysParamMax)
-	for i := sysParamIndex(0); i < sysParamMax; i++ {
+	vi := make([]types.VotingIssue, SysParamMax)
+	for i := SysParamIndex(0); i < SysParamMax; i++ {
 		vi[int(i)] = i
 	}
 	return vi
@@ -40,32 +40,32 @@ type Proposal struct {
 }
 
 var SystemProposal = map[string]*Proposal{
-	bpCount.ID(): {
-		ID:             bpCount.ID(),
+	BpCount.ID(): {
+		ID:             BpCount.ID(),
 		Description:    "",
 		Blockfrom:      0,
 		Blockto:        0,
 		MultipleChoice: 1,
 		Candidates:     nil,
 	},
-	stakingMin.ID(): {
-		ID:             stakingMin.ID(),
+	StakingMin.ID(): {
+		ID:             StakingMin.ID(),
 		Description:    "",
 		Blockfrom:      0,
 		Blockto:        0,
 		MultipleChoice: 1,
 		Candidates:     nil,
 	},
-	gasPrice.ID(): {
-		ID:             gasPrice.ID(),
+	GasPrice.ID(): {
+		ID:             GasPrice.ID(),
 		Description:    "",
 		Blockfrom:      0,
 		Blockto:        0,
 		MultipleChoice: 1,
 		Candidates:     nil,
 	},
-	namePrice.ID(): {
-		ID:             namePrice.ID(),
+	NamePrice.ID(): {
+		ID:             NamePrice.ID(),
 		Description:    "",
 		Blockfrom:      0,
 		Blockto:        0,
@@ -128,7 +128,7 @@ func serializeProposalHistory(wtv whereToVotes) []byte {
 }
 
 func isValidID(id string) bool {
-	for i := sysParamIndex(0); i < sysParamMax; i++ {
+	for i := SysParamIndex(0); i < SysParamMax; i++ {
 		if strings.ToUpper(id) == i.ID() {
 			return true
 		}

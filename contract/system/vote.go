@@ -126,7 +126,7 @@ type voteCmd struct {
 	newVote *types.Vote
 }
 
-func newVoteCmd(ctx *SystemContext) (sysCmd, error) {
+func NewVoteCmd(ctx *SystemContext) (SysCmd, error) {
 	var (
 		scs = ctx.scs
 
@@ -365,13 +365,13 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 // services start.
 func initDefaultBpCount(count int) {
 	// Ensure that it is not modified after it is initialized.
-	if DefaultParams[bpCount.ID()] == nil {
-		DefaultParams[bpCount.ID()] = big.NewInt(int64(count))
+	if DefaultParams[BpCount.ID()] == nil {
+		DefaultParams[BpCount.ID()] = big.NewInt(int64(count))
 	}
 }
 
 func GetBpCount() int {
-	return int(GetParam(bpCount.ID()).Uint64())
+	return int(GetParam(BpCount.ID()).Uint64())
 }
 
 // GetRankers returns the IDs of the top n rankers.

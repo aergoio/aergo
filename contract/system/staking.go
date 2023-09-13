@@ -13,7 +13,7 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-var consensusType string
+var ConsensusType string
 
 var (
 	stakingKey      = []byte("staking")
@@ -26,7 +26,7 @@ const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
 
 func InitGovernance(consensus string) {
-	consensusType = consensus
+	ConsensusType = consensus
 }
 
 type stakeCmd struct {
@@ -34,7 +34,7 @@ type stakeCmd struct {
 	amount *big.Int
 }
 
-func newStakeCmd(ctx *SystemContext) (sysCmd, error) {
+func NewStakeCmd(ctx *SystemContext) (SysCmd, error) {
 	var (
 		cmd    = &stakeCmd{SystemContext: ctx, amount: ctx.txBody.GetAmountBigInt()}
 		staked = cmd.Staked
@@ -85,7 +85,7 @@ type unstakeCmd struct {
 	*SystemContext
 }
 
-func newUnstakeCmd(ctx *SystemContext) (sysCmd, error) {
+func NewUnstakeCmd(ctx *SystemContext) (SysCmd, error) {
 	return &unstakeCmd{
 		SystemContext: ctx,
 	}, nil

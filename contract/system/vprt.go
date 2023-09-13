@@ -45,24 +45,24 @@ var (
 	defaultReward = new(big.Int).Div(annualReward, oneYIS) // 0.16 AERGO per sec
 	binSize       = types.NewAmount(1e4, types.Aergo)      // 10,000 AERGO
 
-	votingPowerRank *vpr
+	votingPowerRank *Vpr
 
 	vprLogger = log.NewLogger("vpr")
 	jsonIter  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
-type dataSetter interface {
+type DataSetter interface {
 	SetData(key, value []byte) error
 }
 
-type dataGetter interface {
+type DataGetter interface {
 	GetData(key []byte) ([]byte, error)
 }
 
 // InitVotingPowerRank reads the stored data from s and initializes the Voting
 // Power Rank, which contains each voters's voting power.
-func InitVotingPowerRank(s dataGetter) (err error) {
-	votingPowerRank, err = loadVpr(s)
+func InitVotingPowerRank(s DataGetter) (err error) {
+	votingPowerRank, err = LoadVpr(s)
 
 	return
 }
@@ -273,7 +273,7 @@ func (b *vprStore) addTail(i uint8, vp *votingPower) {
 	l.PushBack(vp)
 }
 
-func (b *vprStore) write(s dataSetter, i uint8) error {
+func (b *vprStore) write(s DataSetter, i uint8) error {
 	var buf bytes.Buffer
 
 	l := b.buckets[i]
@@ -284,7 +284,7 @@ func (b *vprStore) write(s dataSetter, i uint8) error {
 	return s.SetData(vprKey(i), buf.Bytes())
 }
 
-func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
+func (b *vprStore) read(s DataGetter, i uint8) ([]*votingPower, error) {
 	buf, err := s.GetData(vprKey(i))
 	if err != nil {
 		return nil, err
@@ -491,7 +491,7 @@ func (tv *topVoters) addVotingPower(id types.AccountID, delta *deltaVP) *votingP
 }
 
 // Voters Power Ranking (VPR)
-type vpr struct {
+type Vpr struct {
 	voters     *topVoters
 	store      *vprStore
 	totalPower *big.Int
@@ -500,8 +500,8 @@ type vpr struct {
 	changes map[types.AccountID]*deltaVP // temporary buffer for update
 }
 
-func newVpr() *vpr {
-	return &vpr{
+func newVpr() *Vpr {
+	return &Vpr{
 		voters:     newTopVoters(vprMax),
 		store:      newVprStore(vprBucketsMax),
 		totalPower: new(big.Int),
@@ -509,7 +509,7 @@ func newVpr() *vpr {
 	}
 }
 
-func loadVpr(s dataGetter) (*vpr, error) {
+func LoadVpr(s DataGetter) (*Vpr, error) {
 	v := newVpr()
 
 	for i := uint8(0); i < vprBucketsMax; i++ {
@@ -532,7 +532,7 @@ func loadVpr(s dataGetter) (*vpr, error) {
 	return v, nil
 }
 
-func (v *vpr) equals(rhs *vpr) bool {
+func (v *Vpr) equals(rhs *Vpr) bool {
 	if !reflect.DeepEqual(v.getTotalPower(), rhs.getTotalPower()) {
 		return false
 	}
@@ -552,18 +552,18 @@ func (v *vpr) equals(rhs *vpr) bool {
 	return true
 }
 
-func (v *vpr) getTotalPower() *big.Int {
+func (v *Vpr) getTotalPower() *big.Int {
 	if v == nil {
 		return nil
 	}
 	return new(big.Int).Set(v.totalPower)
 }
 
-func (v *vpr) getLowest() *votingPower {
+func (v *Vpr) getLowest() *votingPower {
 	return v.lowest
 }
 
-func (v *vpr) updateLowest(vp *votingPower) {
+func (v *Vpr) updateLowest(vp *votingPower) {
 	if vp.isZero() {
 		v.resetLowest()
 		return
@@ -576,20 +576,20 @@ func (v *vpr) updateLowest(vp *votingPower) {
 	}
 }
 
-func (v *vpr) setLowest(vp *votingPower) {
+func (v *Vpr) setLowest(vp *votingPower) {
 	v.lowest = vp
 }
 
-func (v *vpr) addTotal(delta *big.Int) {
+func (v *Vpr) addTotal(delta *big.Int) {
 	total := v.totalPower
 	total.Add(total, delta)
 }
 
-func (v *vpr) votingPowerOf(addr types.AccountID) *big.Int {
+func (v *Vpr) votingPowerOf(addr types.AccountID) *big.Int {
 	return v.voters.powerOf(addr)
 }
 
-func (v *vpr) prepare(id types.AccountID, addr types.Address, fn func(lhs *big.Int)) {
+func (v *Vpr) prepare(id types.AccountID, addr types.Address, fn func(lhs *big.Int)) {
 	if _, exist := v.changes[id]; !exist {
 		v.changes[id] = newDeltaVP(addr, new(big.Int))
 	}
@@ -601,7 +601,7 @@ func (v *vpr) prepare(id types.AccountID, addr types.Address, fn func(lhs *big.I
 	fn(ch.getAmount())
 }
 
-func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
+func (v *Vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 	if v == nil || power == nil || power.Cmp(zeroValue) == 0 {
 		return
 	}
@@ -621,7 +621,7 @@ func (v *vpr) add(id types.AccountID, addr []byte, power *big.Int) {
 	)
 }
 
-func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
+func (v *Vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 	if v == nil || v.voters.powers[id] == nil {
 		return
 	}
@@ -641,7 +641,7 @@ func (v *vpr) sub(id types.AccountID, addr []byte, power *big.Int) {
 	)
 }
 
-func (v *vpr) apply(s *state.ContractState) (int, error) {
+func (v *Vpr) apply(s *state.ContractState) (int, error) {
 	if v == nil || len(v.changes) == 0 {
 		return 0, nil
 	}
@@ -679,7 +679,7 @@ func (v *vpr) apply(s *state.ContractState) (int, error) {
 	return nApplied, nil
 }
 
-func (v *vpr) resetLowest() {
+func (v *Vpr) resetLowest() {
 	v.setLowest(v.voters.lowest())
 }
 
@@ -687,7 +687,7 @@ func PickVotingRewardWinner(seed int64) (types.Address, error) {
 	return votingPowerRank.pickVotingRewardWinner(seed)
 }
 
-func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
+func (v *Vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 	if v == nil {
 		return nil, ErrNoVotingRewardRank
 	}

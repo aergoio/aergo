@@ -185,13 +185,13 @@ func validateById(id string, candidate *big.Int) bool {
 		return false
 	}
 	switch id {
-	case bpCount.ID():
+	case BpCount.ID():
 		if big.NewInt(100).Cmp(candidate) < 0 {
 			return false
 		}
-	case stakingMin.ID(),
-		gasPrice.ID(),
-		namePrice.ID():
+	case StakingMin.ID(),
+		GasPrice.ID(),
+		NamePrice.ID():
 		if types.MaxAER.Cmp(candidate) < 0 {
 			return false
 		}

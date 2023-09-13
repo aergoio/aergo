@@ -51,21 +51,21 @@ func (c *SystemContext) updateStaking() error {
 	return setStaking(c.scs, c.Sender.ID(), c.Staked)
 }
 
-type sysCmd interface {
+type SysCmd interface {
 	run() (*types.Event, error)
 	arg(i int) interface{}
 }
 
-type sysCmdCtor func(ctx *SystemContext) (sysCmd, error)
+type SysCmdCtor func(ctx *SystemContext) (SysCmd, error)
 
 func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
-	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (sysCmd, error) {
+	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (SysCmd, error) {
 
-	cmds := map[types.OpSysTx]sysCmdCtor{
-		types.OpvoteBP:  newVoteCmd,
-		types.OpvoteDAO: newVoteCmd,
-		types.Opstake:   newStakeCmd,
-		types.Opunstake: newUnstakeCmd,
+	cmds := map[types.OpSysTx]SysCmdCtor{
+		types.OpvoteBP:  NewVoteCmd,
+		types.OpvoteDAO: NewVoteCmd,
+		types.Opstake:   NewStakeCmd,
+		types.Opunstake: NewUnstakeCmd,
 	}
 
 	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockInfo)

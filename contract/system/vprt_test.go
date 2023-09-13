@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"container/list"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
 	"math/big"
 	"math/rand"
 	"os"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/enc"
@@ -44,7 +45,7 @@ var (
 	initializedVprtTest bool
 )
 
-func (v *vpr) checkValidity(t *testing.T) {
+func (v *Vpr) checkValidity(t *testing.T) {
 	sum1 := &big.Int{}
 	sum2 := &big.Int{}
 	sum3 := &big.Int{}
@@ -78,7 +79,7 @@ func initVpr() {
 	votingPowerRank = newVpr()
 }
 
-func defaultVpr() *vpr {
+func defaultVpr() *Vpr {
 	return votingPowerRank
 }
 
@@ -275,7 +276,7 @@ func TestVprOp(t *testing.T) {
 
 	s = openSystemAccount(t)
 
-	lRank, err := loadVpr(s)
+	lRank, err := LoadVpr(s)
 	assert.NoError(t, err, "fail to load")
 	assert.Equal(t, n, lRank.voters.Count(), "size mismatch: voting power")
 }
@@ -350,7 +351,7 @@ func TestVprLoader(t *testing.T) {
 		"size mismatch: voting powers")
 
 	s := openSystemAccount(t)
-	r, err := loadVpr(s)
+	r, err := LoadVpr(s)
 	assert.NoError(t, err, "fail to load")
 	assert.Equal(t, nVoters, r.voters.Count(), "size mismatch: voting powers")
 
@@ -507,7 +508,7 @@ func TestVprZeroPowerVoter(t *testing.T) {
 	store(t, s)
 
 	s = openSystemAccount(t)
-	lRank, err := loadVpr(s)
+	lRank, err := LoadVpr(s)
 	assert.NoError(t, err, "fail to load")
 	assert.Equal(t, votingPowerRank.voters.Count(), lRank.voters.Count(), "size mismatch: voting power")
 

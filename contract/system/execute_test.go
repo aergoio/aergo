@@ -533,12 +533,12 @@ func TestProposalExecute(t *testing.T) {
 	t.Log(vinfo)
 	assert.Equal(t, "13", string(vinfo[0].Candidates[0]), "check vote")
 
-	v, err := getVote(scs, bpCount.Key(), sender.ID())
+	v, err := getVote(scs, BpCount.Key(), sender.ID())
 	assert.NoError(t, err, "failed in get vote")
 	assert.Equal(t, "[\"13\"]", string(v.Candidate), "check vote candidates")
 	assert.Equal(t, balance1, new(big.Int).SetBytes(v.Amount), "check vote amount")
 
-	voteResult, err := getVoteResult(scs, bpCount.Key(), 1)
+	voteResult, err := getVoteResult(scs, BpCount.Key(), 1)
 	assert.NoError(t, err, "get vote result")
 	assert.Equal(t, types.StakingMinimum, new(big.Int).SetBytes(voteResult.Votes[0].Amount), "")
 
@@ -555,7 +555,7 @@ func TestProposalExecute(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, new(big.Int).Sub(balance3, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, GenProposalKey(bpCount.ID()), 1)
+	voteResult, err = getVoteResult(scs, GenProposalKey(BpCount.ID()), 1)
 	assert.NoError(t, err, "get vote result")
 	assert.Equal(t, big.NewInt(0), new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
 	assert.Equal(t, 1, len(voteResult.Votes), "check result length")
@@ -744,7 +744,7 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, "13", string(voteResult.Votes[0].Candidate), "1st place")
 	assert.Equal(t, balance2, new(big.Int).SetBytes(voteResult.Votes[1].Amount), "")
 	assert.Equal(t, "23", string(voteResult.Votes[1].Candidate), "2nd place")
-	internalVoteResult, err := loadVoteResult(scs, GenProposalKey(bpCount.ID()))
+	internalVoteResult, err := loadVoteResult(scs, GenProposalKey(BpCount.ID()))
 	assert.Equal(t, new(big.Int).Mul(balance2, big.NewInt(3)), internalVoteResult.GetTotal(), "check result total")
 
 	votingTx = &types.Tx{
@@ -798,9 +798,9 @@ func TestProposalExecute2(t *testing.T) {
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, new(big.Int).Sub(balance2, types.ProposalPrice), sender.Balance(), "sender.Balance() should be 2 after unstaking")
 
-	voteResult, err = getVoteResult(scs, GenProposalKey(bpCount.ID()), 3)
+	voteResult, err = getVoteResult(scs, GenProposalKey(BpCount.ID()), 3)
 	assert.NoError(t, err, "get vote result")
-	internalVoteResult, err = loadVoteResult(scs, GenProposalKey(bpCount.ID()))
+	internalVoteResult, err = loadVoteResult(scs, GenProposalKey(BpCount.ID()))
 	assert.Equal(t, balance5, internalVoteResult.GetTotal(), "check result total")
 
 	assert.Equal(t, new(big.Int).Mul(balance2, big.NewInt(2)), new(big.Int).SetBytes(voteResult.Votes[0].Amount), "check result amount")
@@ -825,9 +825,9 @@ func TestProposalExecute2(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 
-	voteResult, err = getVoteResult(scs, GenProposalKey(namePrice.ID()), 3)
+	voteResult, err = getVoteResult(scs, GenProposalKey(NamePrice.ID()), 3)
 	assert.NoError(t, err, "get vote result")
-	internalVoteResult, err = loadVoteResult(scs, GenProposalKey(namePrice.ID()))
+	internalVoteResult, err = loadVoteResult(scs, GenProposalKey(NamePrice.ID()))
 	assert.Equal(t, new(big.Int).Mul(balance2, big.NewInt(2)), internalVoteResult.GetTotal(), "check result total")
 	assert.Equal(t, "1004", string(voteResult.Votes[0].Candidate), "1st place")
 	currentNamePrice := GetNamePrice()

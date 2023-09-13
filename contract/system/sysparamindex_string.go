@@ -8,19 +8,19 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[bpCount-0]
-	_ = x[stakingMin-1]
-	_ = x[gasPrice-2]
-	_ = x[namePrice-3]
-	_ = x[sysParamMax-4]
+	_ = x[BpCount-0]
+	_ = x[StakingMin-1]
+	_ = x[GasPrice-2]
+	_ = x[NamePrice-3]
+	_ = x[SysParamMax-4]
 }
 
 const _sysParamIndex_name = "bpCountstakingMingasPricenamePricesysParamMax"
 
 var _sysParamIndex_index = [...]uint8{0, 7, 17, 25, 34, 45}
 
-func (i sysParamIndex) String() string {
-	if i < 0 || i >= sysParamIndex(len(_sysParamIndex_index)-1) {
+func (i SysParamIndex) String() string {
+	if i < 0 || i >= SysParamIndex(len(_sysParamIndex_index)-1) {
 		return "sysParamIndex(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _sysParamIndex_name[_sysParamIndex_index[i]:_sysParamIndex_index[i+1]]

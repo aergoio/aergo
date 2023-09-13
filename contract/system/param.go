@@ -8,35 +8,35 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-type parameters map[string]*big.Int
+type Parameters map[string]*big.Int
 
 const (
 	RESET = -1
 )
 
 //go:generate stringer -type=sysParamIndex
-type sysParamIndex int
+type SysParamIndex int
 
 const (
-	bpCount sysParamIndex = iota // BP count
-	stakingMin
-	gasPrice
-	namePrice
-	sysParamMax
+	BpCount SysParamIndex = iota // BP count
+	StakingMin
+	GasPrice
+	NamePrice
+	SysParamMax
 )
 
 var (
-	systemParams parameters
+	systemParams Parameters
 
 	//DefaultParams is for aergo v1 compatibility
 	DefaultParams = map[string]*big.Int{
-		stakingMin.ID(): types.StakingMinimum,
-		gasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
-		namePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
+		StakingMin.ID(): types.StakingMinimum,
+		GasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
+		NamePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
 	}
 )
 
-func InitSystemParams(g dataGetter, bpCount int) {
+func InitSystemParams(g DataGetter, bpCount int) {
 	initDefaultBpCount(bpCount)
 	systemParams = loadParam(g)
 }
@@ -45,9 +45,9 @@ func genParamKey(id string) []byte {
 	return []byte("param\\" + strings.ToUpper(id))
 }
 
-func loadParam(g dataGetter) parameters {
+func loadParam(g DataGetter) Parameters {
 	ret := map[string]*big.Int{}
-	for i := sysParamIndex(0); i < sysParamMax; i++ {
+	for i := SysParamIndex(0); i < SysParamMax; i++ {
 		id := i.ID()
 		data, err := g.GetData(genParamKey(id))
 		if err != nil {
@@ -62,19 +62,19 @@ func loadParam(g dataGetter) parameters {
 	return ret
 }
 
-func (p parameters) getLastParam(proposalID string) *big.Int {
+func (p Parameters) getLastParam(proposalID string) *big.Int {
 	if val, ok := p[proposalID]; ok {
 		return val
 	}
 	return DefaultParams[proposalID]
 }
 
-func (p parameters) setLastParam(proposalID string, value *big.Int) *big.Int {
+func (p Parameters) setLastParam(proposalID string, value *big.Int) *big.Int {
 	p[proposalID] = value
 	return value
 }
 
-func updateParam(s dataSetter, id string, value *big.Int) (*big.Int, error) {
+func updateParam(s DataSetter, id string, value *big.Int) (*big.Int, error) {
 	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
 		return nil, err
 	}
@@ -83,23 +83,23 @@ func updateParam(s dataSetter, id string, value *big.Int) (*big.Int, error) {
 }
 
 func GetStakingMinimum() *big.Int {
-	return GetParam(stakingMin.ID())
+	return GetParam(StakingMin.ID())
 }
 
 func GetGasPrice() *big.Int {
-	return GetParam(gasPrice.ID())
+	return GetParam(GasPrice.ID())
 }
 
 func GetNamePrice() *big.Int {
-	return GetParam(namePrice.ID())
+	return GetParam(NamePrice.ID())
 }
 
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
-	return getParamFromState(scs, namePrice)
+	return getParamFromState(scs, NamePrice)
 }
 
 func GetStakingMinimumFromState(scs *state.ContractState) *big.Int {
-	return getParamFromState(scs, stakingMin)
+	return getParamFromState(scs, StakingMin)
 }
 
 func GetGasPriceFromState(ar AccountStateReader) *big.Int {
@@ -107,10 +107,10 @@ func GetGasPriceFromState(ar AccountStateReader) *big.Int {
 	if err != nil {
 		panic("could not open system state when get gas price")
 	}
-	return getParamFromState(scs, gasPrice)
+	return getParamFromState(scs, GasPrice)
 }
 
-func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
+func getParamFromState(scs *state.ContractState, id SysParamIndex) *big.Int {
 	data, err := scs.GetInitialData(genParamKey(id.ID()))
 	if err != nil {
 		panic("could not get blockchain parameter")
