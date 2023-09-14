@@ -6,10 +6,10 @@ package vm_dummy
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/v2/contract"
 	"runtime"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/contract"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -55,11 +55,11 @@ const (
 )
 
 var (
-	maxContext     int
-	ctrLgr         *log.Logger
-	contexts       []*vmContext
-	lastQueryIndex int
-	querySync      sync.Mutex
+	maxContext         int
+	ctrLgr             *log.Logger
+	contexts           []*vmContext
+	lastQueryIndex     int
+	querySync          sync.Mutex
 	currentForkVersion int32
 )
 
@@ -262,8 +262,8 @@ func (s *vmContext) usedGas() uint64 {
 }
 
 func newLState() *LState {
-       ctrLgr.Debug().Msg("LState created")
-       return C.vm_newstate(C.int(currentForkVersion))
+	ctrLgr.Debug().Msg("LState created")
+	return C.vm_newstate(C.int(currentForkVersion))
 }
 
 func (L *LState) close() {
