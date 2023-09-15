@@ -36,12 +36,16 @@ var (
 	}
 )
 
+func genParamKey(id string) []byte {
+	return []byte("param\\" + strings.ToUpper(id))
+}
+
 func InitSystemParams(g dataGetter, bpCount int) {
 	initDefaultBpCount(bpCount)
 	systemParams = loadParams(g)
 }
 
-// Caution: This function must be called only once before all the aergosvr
+// This function must be called before all the aergosvr
 // services start.
 func initDefaultBpCount(count int) {
 	// Ensure that it is not modified after it is initialized.
@@ -50,10 +54,7 @@ func initDefaultBpCount(count int) {
 	}
 }
 
-func genParamKey(id string) []byte {
-	return []byte("param\\" + strings.ToUpper(id))
-}
-
+// load the params from the database or use the default values
 func loadParams(g dataGetter) parameters {
 	ret := map[string]*big.Int{}
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
@@ -71,25 +72,54 @@ func loadParams(g dataGetter) parameters {
 	return ret
 }
 
-func (p parameters) getLastParam(proposalID string) *big.Int {
-	if val, ok := p[proposalID]; ok {
+func updateParam(s dataSetter, id string, value *big.Int) (error) {
+	// save the param to the database (in a db txn, commit when the block is connected)
+	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
+		return err
+	}
+	// save the new value for the param, only active on the next block
+	systemParams.setNextParam(id, value)
+	return nil
+}
+
+// save the new value for the param, to be active on the next block
+func (p parameters) setNextParam(proposalID string, value *big.Int) {
+	p[proposalID + "next"] = value
+}
+
+// if a system param was changed, apply or discard its new value
+func (p parameters) CommitParams(success bool) {
+	for i := sysParamIndex(0); i < sysParamMax; i++ {
+		id := i.ID()
+		if p[id + "next"] != nil {
+			if success {
+				p[id] = p[id + "next"]
+			}
+			p[id + "next"] = nil
+		}
+	}
+}
+
+// get the param value for the next block
+func GetNextParam(proposalID string) *big.Int {
+	if val, ok := systemParams[proposalID + "next"]; ok {
+		return val
+	}
+	if val, ok := systemParams[proposalID]; ok {
 		return val
 	}
 	return DefaultParams[proposalID]
 }
 
-func (p parameters) setLastParam(proposalID string, value *big.Int) *big.Int {
-	p[proposalID] = value
-	return value
+// get the param value for the current block
+func GetParam(proposalID string) *big.Int {
+	if val, ok := systemParams[proposalID]; ok {
+		return val
+	}
+	return DefaultParams[proposalID]
 }
 
-func updateParam(s dataSetter, id string, value *big.Int) (*big.Int, error) {
-	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
-		return nil, err
-	}
-	ret := systemParams.setLastParam(id, value)
-	return ret, nil
-}
+// these 4 functions are reading the param value for the current block
 
 func GetStakingMinimum() *big.Int {
 	return GetParam(stakingMin.ID())
@@ -107,6 +137,8 @@ func GetBpCount() int {
 	return int(GetParam(bpCount.ID()).Uint64())
 }
 
+// these functions are reading the param value directly from the state
+
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, namePrice)
 }
@@ -121,10 +153,6 @@ func GetGasPriceFromState(ar AccountStateReader) *big.Int {
 		panic("could not open system state when get gas price")
 	}
 	return getParamFromState(scs, gasPrice)
-}
-
-func GetParam(proposalID string) *big.Int {
-	return systemParams.getLastParam(proposalID)
 }
 
 func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {

@@ -83,6 +83,10 @@ func (s *Status) Update(block *types.Block) {
 		}
 
 		bps, _ = s.bps.AddSnapshot(block.BlockNo())
+
+		// if a system param was changed, apply its new value
+		system.CommitParams(true)
+
 	} else {
 		// Rollback resulting from a reorganization: The code below assumes
 		// that there is no block-by-block rollback; it assumes that the
@@ -109,6 +113,9 @@ func (s *Status) Update(block *types.Block) {
 		} else {
 			logger.Debug().Uint64("from block no", block.BlockNo()).Msg("VPR reloaded")
 		}
+
+		// if a system param was changed, discard its new value
+		system.CommitParams(false)
 	}
 
 	s.libState.gc(bps)
