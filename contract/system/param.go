@@ -38,14 +38,23 @@ var (
 
 func InitSystemParams(g dataGetter, bpCount int) {
 	initDefaultBpCount(bpCount)
-	systemParams = loadParam(g)
+	systemParams = loadParams(g)
+}
+
+// Caution: This function must be called only once before all the aergosvr
+// services start.
+func initDefaultBpCount(count int) {
+	// Ensure that it is not modified after it is initialized.
+	if DefaultParams[bpCount.ID()] == nil {
+		DefaultParams[bpCount.ID()] = big.NewInt(int64(count))
+	}
 }
 
 func genParamKey(id string) []byte {
 	return []byte("param\\" + strings.ToUpper(id))
 }
 
-func loadParam(g dataGetter) parameters {
+func loadParams(g dataGetter) parameters {
 	ret := map[string]*big.Int{}
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
@@ -53,11 +62,11 @@ func loadParam(g dataGetter) parameters {
 		if err != nil {
 			panic("could not load blockchain parameter")
 		}
-		if data == nil {
+		if data != nil {
+			ret[id] = new(big.Int).SetBytes(data)
+		} else {
 			ret[id] = DefaultParams[id]
-			continue
 		}
-		ret[id] = new(big.Int).SetBytes(data)
 	}
 	return ret
 }
@@ -94,6 +103,10 @@ func GetNamePrice() *big.Int {
 	return GetParam(namePrice.ID())
 }
 
+func GetBpCount() int {
+	return int(GetParam(bpCount.ID()).Uint64())
+}
+
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, namePrice)
 }
@@ -108,6 +121,10 @@ func GetGasPriceFromState(ar AccountStateReader) *big.Int {
 		panic("could not open system state when get gas price")
 	}
 	return getParamFromState(scs, gasPrice)
+}
+
+func GetParam(proposalID string) *big.Int {
+	return systemParams.getLastParam(proposalID)
 }
 
 func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
