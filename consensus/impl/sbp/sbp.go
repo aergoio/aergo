@@ -187,7 +187,7 @@ func (s *SimpleBlockFactory) Start() {
 					prevBlock.GetHeader().GetBlocksRootHash(),
 					state.SetPrevBlockHash(prevBlock.BlockHash()),
 				)
-				blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
+				blockState.SetGasPrice(system.GetGasPrice())
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
 				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
