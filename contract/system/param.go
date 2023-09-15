@@ -88,14 +88,14 @@ func (p parameters) setNextParam(proposalID string, value *big.Int) {
 }
 
 // if a system param was changed, apply or discard its new value
-func (p parameters) CommitParams(success bool) {
+func CommitParams(success bool) {
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
-		if p[id + "next"] != nil {
+		if systemParams[id + "next"] != nil {
 			if success {
-				p[id] = p[id + "next"]
+				systemParams[id] = systemParams[id + "next"]
 			}
-			p[id + "next"] = nil
+			systemParams[id + "next"] = nil
 		}
 	}
 }
