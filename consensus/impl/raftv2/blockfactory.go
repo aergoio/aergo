@@ -51,7 +51,7 @@ type txExec struct {
 func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(ccc, cdb, bi, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(nil, ccc, cdb, bi, contract.BlockFactory),
 	}
 }
 

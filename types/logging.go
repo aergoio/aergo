@@ -59,10 +59,18 @@ func marshalTrx(tr Transaction, a *zerolog.Array) {
 	}
 }
 
+// LogBase58 is thin wrapper which show base58 encoded string of byte array
 type LogBase58 []byte
 
 func (t LogBase58) String() string {
 	return enc.ToString(t)
+}
+
+// LogAddr is thin wrapper which show base58 encoded form of wallet or smart contract
+type LogAddr Address
+
+func (t LogAddr) String() string {
+	return EncodeAddress(t)
 }
 
 type LogPeerShort PeerID

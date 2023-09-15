@@ -22,7 +22,7 @@ var (
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
 
-// ErrTimeout can be used to indicatefor any kind of timeout.
+// ErrTimeout can be used to indicate for any kind of timeout.
 type ErrTimeout struct {
 	Kind    string
 	Timeout int64

@@ -33,13 +33,15 @@ const (
 )
 
 type txExec struct {
+	ctx    context.Context
 	execTx bc.TxExecFn
 }
 
-func newTxExec(cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
+func newTxExec(ctx context.Context, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, cdb, bi, contract.BlockFactory),
+		ctx:    ctx,
+		execTx: bc.NewTxExecutor(ctx, nil, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -245,7 +247,7 @@ func (bf *BlockFactory) generateBlock(ctx context.Context, bpi *bpInfo, lpbNo ty
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
 	bGen := chain.NewBlockGenerator(
-		bf, ctx, bi, bs, newTxExec(bpi.ChainDB, bi), false).
+		bf, ctx, bi, bs, newTxExec(ctx, bpi.ChainDB, bi), false).
 		WithDeco(bf.deco()).
 		SetNoTTE(bf.noTTE)
 

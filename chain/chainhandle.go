@@ -8,6 +8,7 @@ package chain
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -590,7 +591,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
-		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
+		exec = NewTxExecutor(nil, cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -621,10 +622,10 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(ctx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
-			logger.Error().Msg("bstate is nil in txexec")
+			logger.Error().Msg("bstate is nil in txExec")
 			return ErrGatherChain
 		}
 		if bi.ForkVersion < 0 {
@@ -633,7 +634,7 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 		}
 		blockSnap := bState.Snapshot()
 
-		err := executeTx(ccc, cdb, bState, tx, bi, preloadService)
+		err := executeTx(ctx, ccc, cdb, bState, tx, bi, preloadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(blockSnap); err2 != nil {
@@ -881,14 +882,7 @@ func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
 	return account.PutState()
 }
 
-func executeTx(
-	ccc consensus.ChainConsensusCluster,
-	cdb contract.ChainAccessor,
-	bs *state.BlockState,
-	tx types.Transaction,
-	bi *types.BlockHeaderInfo,
-	preloadService int,
-) error {
+func executeTx(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bs *state.BlockState, tx types.Transaction, bi *types.BlockHeaderInfo, preloadService int) error {
 	var (
 		txBody    = tx.GetBody()
 		isQuirkTx = types.IsQuirkTx(tx.GetHash())
@@ -948,7 +942,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -980,7 +974,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
 		receiver.SubBalance(txFee)
 	}
 

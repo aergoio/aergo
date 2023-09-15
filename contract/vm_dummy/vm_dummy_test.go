@@ -942,7 +942,7 @@ func xestInfiniteLoop(t *testing.T) {
 
 func TestInfiniteLoopOnPubNet(t *testing.T) {
 	// FIXME delete skip after gas limit patch
-	t.Skip("disabled until gas limit check is added")
+	//t.Skip("disabled until gas limit check is added")
 	code := readLuaCode("infiniteloop.lua")
 	require.NotEmpty(t, code, "failed to read infiniteloop.lua")
 

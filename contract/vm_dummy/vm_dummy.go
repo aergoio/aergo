@@ -2,6 +2,7 @@ package vm_dummy
 
 // helper functions
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -31,6 +32,9 @@ var (
 
 const (
 	lStateMaxSize = 10 * 7
+
+	dummyBlockIntervalSec = 1
+	dummyBlockExecTimeMs  = (dummyBlockIntervalSec * 1000) >> 2
 )
 
 func init() {
@@ -98,6 +102,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 		sdb:      state.NewChainStateDB(),
 		tmpDir:   dataPath,
 		gasPrice: types.NewAmount(1, types.Aer),
+		timeout:  dummyBlockExecTimeMs,
 	}
 	defer func() {
 		if err != nil {
@@ -240,7 +245,7 @@ func (bc *DummyChain) GetBestBlock() (*types.Block, error) {
 }
 
 type LuaTxTester interface {
-	run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error
+	run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error
 	Hash() []byte
 	okMsg() string
 }
@@ -273,7 +278,7 @@ func (l *luaTxAccount) okMsg() string {
 	return "SUCCESS"
 }
 
-func (l *luaTxAccount) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxAccount) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	id := types.ToAccountID(l.name)
 	accountState, err := bs.GetAccountState(id)
 	if err != nil {
@@ -311,7 +316,7 @@ func (l *luaTxSend) okMsg() string {
 	return "SUCCESS"
 }
 
-func (l *luaTxSend) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxSend) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	senderID := types.ToAccountID(l.sender)
 	receiverID := types.ToAccountID(l.receiver)
 
@@ -522,7 +527,7 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 
 }
 
-func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxDeploy) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	if l.cErr != nil {
 		return l.cErr
 	}
@@ -530,8 +535,7 @@ func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockH
 		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
 			contractV.State().SqlRecoveryPoint = 1
 
-			ctx := contract.NewVmContext(bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
+			ctx := contract.NewVmContext(execCtx, bs, nil, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, false)
 
 			rv, events, ctrFee, err := contract.Create(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
@@ -587,11 +591,10 @@ func (l *luaTxCall) Fail(expectedErr string) *luaTxCall {
 	return l
 }
 
-func (l *luaTxCall) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
+func (l *luaTxCall) run(execCtx context.Context, bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	err := contractFrame(l, bs, bc, receiptTx,
 		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
-			ctx := contract.NewVmContext(bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true,
-				false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
+			ctx := contract.NewVmContext(execCtx, bs, bc, sender, contractV, eContractState, sender.ID(), l.Hash(), bi, "", true, false, contractV.State().SqlRecoveryPoint, contract.BlockFactory, l.amount(), math.MaxUint64, l.feeDelegate)
 
 			rv, events, ctrFee, err := contract.Call(eContractState, l.payload(), l.recipient(), ctx)
 			if err != nil {
@@ -627,10 +630,10 @@ func (bc *DummyChain) ConnectBlock(txs ...LuaTxTester) error {
 	defer contract.CloseDatabase()
 
 	//timeout := make(chan struct{})
-	//blockContext, _ := context.WithTimeout(context.Background(), time.Duration(bc.timeout)*time.Millisecond)
+	blockContext, _ := context.WithTimeout(context.Background(), time.Duration(bc.timeout)*time.Millisecond)
 	//contract.SetBPTimeout(timeout)
 	for _, x := range txs {
-		if err := x.run(blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
+		if err := x.run(blockContext, blockState, bc, types.NewBlockHeaderInfo(bc.cBlock), tx); err != nil {
 			return err
 		}
 	}

@@ -285,7 +285,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
@@ -404,7 +404,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
@@ -527,7 +527,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 
 		// get the remaining gas from the parent LState
-		ctx.getRemainingGas(L)
+		ctx.refreshRemainingGas(L)
 		// create a new executor with the remaining gas on the child LState
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
@@ -1235,7 +1235,7 @@ func luaDeployContract(
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
@@ -1516,21 +1516,13 @@ func luaCheckTimeout(service C.int) C.int {
 	if service != BlockFactory {
 		return 0
 	}
-
-	// Temporarily disable timeout check to prevent contract timeout raised from chain service
-	// if service < BlockFactory {
-	// 	service = service + MaxVmService
-	// }
-	// if service != BlockFactory {
-	// 	return 0
-	// }
-	// select {
-	// case <-bpTimeout:
-	// 	return 1
-	// default:
-	// 	return 0
-	// }
-	return 0
+	ctx := contexts[service]
+	select {
+	case <-ctx.txContext.Done():
+		return 1
+	default:
+		return 0
+	}
 }
 
 //export luaIsFeeDelegation
