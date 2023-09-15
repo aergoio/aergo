@@ -91,10 +91,13 @@ func (p parameters) setNextParam(proposalID string, value *big.Int) {
 func CommitParams(success bool) {
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
+		// check if the param has a new value
 		if systemParams[id + "next"] != nil {
 			if success {
+				// save the new value for the current block
 				systemParams[id] = systemParams[id + "next"]
 			}
+			// delete the new value
 			systemParams[id + "next"] = nil
 		}
 	}
@@ -102,12 +105,15 @@ func CommitParams(success bool) {
 
 // get the param value for the next block
 func GetNextParam(proposalID string) *big.Int {
+	// check the value for the next block
 	if val, ok := systemParams[proposalID + "next"]; ok {
 		return val
 	}
+	// check the value for the current block
 	if val, ok := systemParams[proposalID]; ok {
 		return val
 	}
+	// default value
 	return DefaultParams[proposalID]
 }
 
