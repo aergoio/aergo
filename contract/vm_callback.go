@@ -1584,13 +1584,6 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 	return C.CString(strconv.FormatUint(curContract.rp, 10))
 }
 
-// set the remaining gas on the given LState
-func (ctx *vmContext) setRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
-		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
-	}
-}
-
 //export luaGetStaking
 func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char) {
 

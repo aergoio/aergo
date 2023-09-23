@@ -234,9 +234,17 @@ func (s *vmContext) IsGasSystem() bool {
 	return !s.isQuery && PubNet && s.blockInfo.ForkVersion >= 2
 }
 
+// get the remaining gas from the given LState
 func (s *vmContext) getRemainingGas(L *LState) {
 	if s.IsGasSystem() {
 		s.remainedGas = uint64(C.lua_gasget(L))
+	}
+}
+
+// set the remaining gas on the given LState
+func (ctx *vmContext) setRemainingGas(L *LState) {
+	if ctx.IsGasSystem() {
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
 	}
 }
 
