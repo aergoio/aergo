@@ -281,6 +281,12 @@ static int moduleBalance(lua_State *L) {
 	return 1;
 }
 
+static int moduleGasLeft(lua_State *L) {
+	// do not charge gas for this call for easier calculations
+	lua_pushinteger(L, lua_gasget(L));
+	return 1;
+}
+
 static int modulePcall(lua_State *L) {
 	int argc = lua_gettop(L) - 1;
 	int service = getLuaExecContext(L);
@@ -493,7 +499,20 @@ static const luaL_Reg deploy_call_meta[] = {
 	{NULL, NULL}
 };
 
-static const luaL_Reg contract_lib[] = {
+static const luaL_Reg contract_lib_v3[] = {
+	{"balance", moduleBalance},
+	{"send", moduleSend},
+	{"pcall", modulePcall},
+	{"event", moduleEvent},
+	{"stake", moduleStake},
+	{"unstake", moduleUnstake},
+	{"vote", moduleVote},
+	{"voteDao", moduleVoteDao},
+	{NULL, NULL}
+};
+
+static const luaL_Reg contract_lib_v4[] = {
+	{"gasLeft", moduleGasLeft},
 	{"balance", moduleBalance},
 	{"send", moduleSend},
 	{"pcall", modulePcall},
@@ -507,7 +526,11 @@ static const luaL_Reg contract_lib[] = {
 
 int luaopen_contract(lua_State *L) {
 
-	luaL_register(L, contract_str, contract_lib);
+	if (vm_is_hardfork(L, 4)) {
+		luaL_register(L, contract_str, contract_lib_v4);
+	} else {
+		luaL_register(L, contract_str, contract_lib_v3);
+	}
 
 	lua_createtable(L, 0, 3);
 	luaL_register(L, NULL, call_methods);
