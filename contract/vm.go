@@ -230,14 +230,14 @@ func NewVmContextQuery(
 	return ctx, nil
 }
 
-func (s *vmContext) IsGasSystem() bool {
-	return !s.isQuery && PubNet && s.blockInfo.ForkVersion >= 2
+func (ctx *vmContext) IsGasSystem() bool {
+	return !ctx.isQuery && PubNet && ctx.blockInfo.ForkVersion >= 2
 }
 
 // get the remaining gas from the given LState
-func (s *vmContext) getRemainingGas(L *LState) {
-	if s.IsGasSystem() {
-		s.remainedGas = uint64(C.lua_gasget(L))
+func (ctx *vmContext) getRemainingGas(L *LState) {
+	if ctx.IsGasSystem() {
+		ctx.remainedGas = uint64(C.lua_gasget(L))
 	}
 }
 
@@ -248,25 +248,25 @@ func (ctx *vmContext) setRemainingGas(L *LState) {
 	}
 }
 
-func (s *vmContext) usedFee() *big.Int {
+func (ctx *vmContext) usedFee() *big.Int {
 	if fee.IsZeroFee() {
 		return fee.NewZeroFee()
 	}
-	if s.IsGasSystem() {
-		usedGas := s.usedGas()
+	if ctx.IsGasSystem() {
+		usedGas := ctx.usedGas()
 		if ctrLgr.IsDebugEnabled() {
 			ctrLgr.Debug().Uint64("gas used", usedGas).Str("lua vm", "executed").Msg("gas information")
 		}
-		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(usedGas))
+		return new(big.Int).Mul(ctx.bs.GasPrice, new(big.Int).SetUint64(usedGas))
 	}
-	return fee.PaymentDataFee(s.dbUpdateTotalSize)
+	return fee.PaymentDataFee(ctx.dbUpdateTotalSize)
 }
 
-func (s *vmContext) usedGas() uint64 {
-	if fee.IsZeroFee() || !s.IsGasSystem() {
+func (ctx *vmContext) usedGas() uint64 {
+	if fee.IsZeroFee() || !ctx.IsGasSystem() {
 		return 0
 	}
-	return s.gasLimit - s.remainedGas
+	return ctx.gasLimit - ctx.remainedGas
 }
 
 func newLState() *LState {

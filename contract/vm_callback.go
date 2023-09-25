@@ -65,14 +65,14 @@ func init() {
 	zeroBig = types.NewZeroAmount()
 }
 
-func addUpdateSize(s *vmContext, updateSize int64) error {
-	if s.IsGasSystem() {
+func addUpdateSize(ctx *vmContext, updateSize int64) error {
+	if ctx.IsGasSystem() {
 		return nil
 	}
-	if s.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
+	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
 		return errors.New("exceeded size of updates in the state database")
 	}
-	s.dbUpdateTotalSize += updateSize
+	ctx.dbUpdateTotalSize += updateSize
 	return nil
 }
 
