@@ -17,7 +17,9 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/consensus/chain"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/governance/system"
+
+	"github.com/aergoio/aergo/v2/governance"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
@@ -48,10 +50,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
+func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, govSnap *governance.Snapshot, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(ccc, cdb, bi, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(ccc, cdb, bi, govSnap, contract.BlockFactory),
 	}
 }
 

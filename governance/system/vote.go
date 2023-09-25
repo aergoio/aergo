@@ -25,45 +25,23 @@ const (
 )
 
 var (
-	votingCatalog []types.VotingIssue
-
-	lastBpCount int
-
 	voteKey        = []byte("vote")
 	totalKey       = []byte("total")
 	sortKey        = []byte("sort")
 	defaultVoteKey = []byte(types.OpvoteBP.ID())
 )
 
-func init() {
-	initVotingCatalog()
-}
-
-func initVotingCatalog() {
-	votingCatalog = make([]types.VotingIssue, 0)
-
-	fuse := func(issues []types.VotingIssue) {
-		votingCatalog = append(votingCatalog, issues...)
-	}
-
-	fuse(types.GetVotingIssues())
-	fuse(GetVotingIssues())
-}
-
-func GetVotingCatalog() []types.VotingIssue {
-	return votingCatalog
-}
-
 type vprCmd struct {
 	*SystemContext
-	voteResult *VoteResult
+	voteResult      *VoteResult
+	votingPowerRank *Vpr
 
 	add func(v *types.Vote) error
 	sub func(v *types.Vote) error
 }
 
-func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
-	cmd := &vprCmd{SystemContext: ctx, voteResult: vr}
+func newVprCmd(ctx *SystemContext, vr *VoteResult, votingPowerRank *Vpr) *vprCmd {
+	cmd := &vprCmd{SystemContext: ctx, voteResult: vr, votingPowerRank: votingPowerRank}
 
 	if vprLogger.IsDebugEnabled() {
 		vprLogger.Debug().
@@ -91,26 +69,26 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 }
 
 func (c *vprCmd) subVote(v *types.Vote) error {
-	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+	c.votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
 	// Hotfix - reproduce vpr calculation for block 138015125
 	// When block is reverted, votingPowerRank is not reverted and calculated three times.
 	// TODO : implement commit, revert, reorg for governance variables.
 	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
 		for i := 0; i < 2; i++ {
-			votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+			c.votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
 		}
 	}
 	return c.voteResult.SubVote(v)
 }
 
 func (c *vprCmd) addVote(v *types.Vote) error {
-	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+	c.votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
 	// Hotfix - reproduce vpr calculation for block 138015125
 	// When block is reverted, votingPowerRank is not reverted and calculated three times.
 	// TODO : implement commit, revert, reorg for governance variables.
 	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
 		for i := 0; i < 2; i++ {
-			votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+			c.votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
 		}
 	}
 	return c.voteResult.AddVote(v)
@@ -175,12 +153,18 @@ func NewVoteCmd(ctx *SystemContext) (SysCmd, error) {
 		Amount:    staked.GetAmount(),
 	}
 
+	// TODO : VoteResult 랑 Vpr 모두 Snapshot 에서 받아야 함.
 	voteResult, err := loadVoteResult(scs, cmd.issue)
 	if err != nil {
 		return nil, err
 	}
 
-	cmd.vprCmd = newVprCmd(ctx, voteResult)
+	vpr, err := LoadVpr(scs)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.vprCmd = newVprCmd(ctx, voteResult, vpr)
 
 	return cmd, err
 }
@@ -240,11 +224,13 @@ func (c *voteCmd) updateVoteResult() error {
 			Str("add", c.Vote.GetAmountBigInt().String()).
 			Msg("update vote result")
 	}
-
+	if _, err := c.votingPowerRank.apply(c.scs); err != nil {
+		return err
+	}
 	return c.voteResult.Sync()
 }
 
-func refreshAllVote(context *SystemContext) error {
+func refreshAllVote(context *SystemContext, proposal map[string]*Proposal, votingCatalog map[string]types.VotingIssue) error {
 	var (
 		scs          = context.scs
 		account      = context.Sender.ID()
@@ -252,7 +238,7 @@ func refreshAllVote(context *SystemContext) error {
 		stakedAmount = new(big.Int).SetBytes(staked.Amount)
 	)
 
-	for _, i := range GetVotingCatalog() {
+	for _, i := range votingCatalog {
 		key := i.Key()
 
 		oldvote, err := getVote(scs, key, account)
@@ -264,8 +250,8 @@ func refreshAllVote(context *SystemContext) error {
 			continue
 		}
 		if types.OpvoteBP.ID() != i.ID() {
-			proposal, err := getProposal(i.ID())
-			if err != nil {
+			proposal, exist := proposal[i.ID()]
+			if exist != true {
 				return err
 			}
 			if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockInfo.No {
@@ -276,8 +262,12 @@ func refreshAllVote(context *SystemContext) error {
 		if err != nil {
 			return err
 		}
+		vpr, err := LoadVpr(scs)
+		if err != nil {
+			return err
+		}
 
-		cmd := newVprCmd(context, voteResult)
+		cmd := newVprCmd(context, voteResult, vpr)
 
 		if err = cmd.sub(oldvote); err != nil {
 			return err
@@ -287,6 +277,9 @@ func refreshAllVote(context *SystemContext) error {
 			return err
 		}
 		if err = cmd.add(oldvote); err != nil {
+			return err
+		}
+		if _, err = cmd.votingPowerRank.apply(scs); err != nil {
 			return err
 		}
 		if err = voteResult.Sync(); err != nil {
@@ -359,39 +352,19 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	return getVoteResult(scs, id, n)
 }
 
-// initDefaultBpCount sets lastBpCount to bpCount.
-//
-// Caution: This function must be called only once before all the aergosvr
-// services start.
-func initDefaultBpCount(count int) {
-	// Ensure that it is not modified after it is initialized.
-	if DefaultParams[BpCount.ID()] == nil {
-		DefaultParams[BpCount.ID()] = big.NewInt(int64(count))
-	}
-}
-
-func GetBpCount() int {
-	return int(GetParam(BpCount.ID()).Uint64())
-}
-
 // GetRankers returns the IDs of the top n rankers.
-func GetRankers(ar AccountStateReader) ([]string, error) {
-	n := GetBpCount()
+func GetRankers(ar AccountStateReader, bpCount int) ([]string, error) {
 
-	vl, err := GetVoteResult(ar, defaultVoteKey, n)
+	vl, err := GetVoteResult(ar, defaultVoteKey, bpCount)
 	if err != nil {
 		return nil, err
 	}
 
-	bps := make([]string, 0, n)
+	bps := make([]string, 0, bpCount)
 	for _, v := range vl.Votes {
 		bps = append(bps, enc.ToString(v.Candidate))
 	}
 	return bps, nil
-}
-
-func GetParam(proposalID string) *big.Int {
-	return systemParams.getLastParam(proposalID)
 }
 
 func serializeVoteList(vl *types.VoteList, ex bool) []byte {

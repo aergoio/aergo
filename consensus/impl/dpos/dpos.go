@@ -18,7 +18,7 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/consensus/impl/dpos/bp"
 	"github.com/aergoio/aergo/v2/consensus/impl/dpos/slot"
-	"github.com/aergoio/aergo/v2/contract/system"
+
 	"github.com/aergoio/aergo/v2/p2p/p2pkey"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
@@ -204,14 +204,6 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 		Msg("voting reward winner appointed")
 
 	return nil
-}
-
-func InitVPR(sdb *state.StateDB) error {
-	s, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-	if err != nil {
-		return err
-	}
-	return system.InitVotingPowerRank(s)
 }
 
 // Init initializes the DPoS parameters.

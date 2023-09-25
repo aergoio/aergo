@@ -37,8 +37,8 @@ import (
 	"unsafe"
 
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
-	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/governance/name"
+	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"

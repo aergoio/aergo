@@ -15,7 +15,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/governance/enterprise"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"

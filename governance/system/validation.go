@@ -14,7 +14,7 @@ import (
 
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
-func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
+func ValidateSystemTx(proposals map[string]*Proposal, account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
@@ -55,9 +55,9 @@ func ValidateSystemTx(account []byte, txBody *types.TxBody, sender *state.V,
 		if err != nil {
 			return nil, err
 		}
-		proposal, err := getProposal(id)
+		proposal := proposals[id]
 		if proposal == nil {
-			return nil, err
+			return nil, fmt.Errorf("not exist id")
 		}
 		if blockNo < proposal.Blockfrom {
 			return nil, fmt.Errorf("the voting begins at %d", proposal.Blockfrom)

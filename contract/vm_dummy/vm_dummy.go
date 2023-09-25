@@ -17,7 +17,7 @@ import (
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/contract/system"
+
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"

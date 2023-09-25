@@ -15,8 +15,8 @@ import (
 
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/governance"
+	"github.com/aergoio/aergo/v2/governance/name"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/state"
@@ -576,6 +576,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 
 	commitOnly := false
 
+	govSnap := cs.gov.Snapshot()
+
 	// The DPoS block factory executes transactions during block generation. In
 	// such a case it send block with block state so that bState != nil. On the
 	// contrary, the block propagated from the network is not half-executed.
@@ -590,7 +592,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
-		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
+		exec = NewTxExecutor(cs.ChainConsensus, cs.cdb, bi, govSnap, contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -601,7 +603,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		// executed by the block factory.
 		commitOnly = true
 	}
-	bState.SetGasPrice(system.GetGasPriceFromState(bState))
+	bState.SetGasPrice(govSnap.GetSystemGasPrice())
 	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
 
 	return &blockExecutor{
@@ -621,7 +623,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, govSnap *governance.Snapshot, preloadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txexec")
@@ -633,7 +635,7 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 		}
 		blockSnap := bState.Snapshot()
 
-		err := executeTx(ccc, cdb, bState, tx, bi, preloadService)
+		err := executeTx(ccc, cdb, bState, tx, bi, govSnap, preloadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(blockSnap); err2 != nil {
@@ -885,6 +887,7 @@ func executeTx(
 	bs *state.BlockState,
 	tx types.Transaction,
 	bi *types.BlockHeaderInfo,
+	govSnap *governance.Snapshot,
 	preloadService int,
 ) error {
 	var (
@@ -950,7 +953,11 @@ func executeTx(
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
-		events, err = executeGovernanceTx(ccc, bs, txBody, sender, receiver, bi)
+		ctx, err := governance.NewChainContext(bi, nil, txBody, bs, sender, receiver)
+		if err != nil {
+			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
+		}
+		events, err = govSnap.Execute(ccc, ctx)
 		if err != nil {
 			logger.Warn().Err(err).Str("txhash", enc.ToString(tx.GetHash())).Msg("governance tx Error")
 		}

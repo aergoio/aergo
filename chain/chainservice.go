@@ -12,7 +12,6 @@ import (
 	"math/big"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-actor/actor"
@@ -20,10 +19,10 @@ import (
 	cfg "github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/contract/enterprise"
-	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/governance"
+	"github.com/aergoio/aergo/v2/governance/name"
+	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2putil"
@@ -38,9 +37,8 @@ var (
 
 	dfltErrBlocks = 128
 
-	ErrNotSupportedConsensus = errors.New("not supported by this consensus")
-	ErrRecoNoBestStateRoot   = errors.New("state root of best block is not exist")
-	ErrRecoInvalidSdbRoot    = errors.New("state root of sdb is invalid")
+	ErrRecoNoBestStateRoot = errors.New("state root of best block is not exist")
+	ErrRecoInvalidSdbRoot  = errors.New("state root of sdb is invalid")
 
 	TestDebugger *Debugger
 )
@@ -164,6 +162,39 @@ func (core *Core) Close() {
 	contract.CloseDatabase()
 }
 
+// InitGenesisBPs opens system contract and put initial voting result
+// it also set *State in Genesis to use statedb
+func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
+	aid := types.ToAccountID([]byte(types.AergoSystem))
+	scs, err := states.OpenContractStateAccount(aid)
+	if err != nil {
+		return err
+	}
+
+	voteResult := make(map[string]*big.Int)
+	for _, v := range genesis.BPs {
+		voteResult[v] = new(big.Int).SetUint64(0)
+	}
+	if err = system.InitVoteResult(scs, voteResult); err != nil {
+		return err
+	}
+
+	// Set genesis.BPs to the votes-ordered BPs. This will be used later for
+	// bootstrapping.
+	genesis.BPs = system.BuildOrderedCandidates(voteResult)
+	if err = states.StageContractState(scs); err != nil {
+		return err
+	}
+	if err = states.Update(); err != nil {
+		return err
+	}
+	if err = states.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // InitGenesisBlock initialize chain database and generate specified genesis block if necessary
 func (core *Core) InitGenesisBlock(gb *types.Genesis, useTestnet bool) error {
 	_, err := core.initGenesis(gb, useTestnet, false)
@@ -199,6 +230,7 @@ type ChainService struct {
 	*Core
 
 	cfg       *cfg.Config
+	gov       *governance.Governance
 	op        *OrphanPool
 	errBlocks *lru.Cache
 
@@ -290,16 +322,14 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 	contract.StartLStateFactory((cfg.Blockchain.NumWorkers+2)*(int(contract.MaxCallDepth(cfg.Hardfork.Version(math.MaxUint64)))+2), cfg.Blockchain.NumLStateClosers, cfg.Blockchain.CloseLimit)
 	contract.InitContext(cfg.Blockchain.NumWorkers + 2)
 
+	// init governance
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
-	system.InitGovernance(cs.ConsensusType())
-
-	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()
 	if err != nil {
 		logger.Panic().Err(err).Msg("failed to read aergo.system state")
 	}
-	system.InitSystemParams(systemState, len(cs.GetGenesisInfo().BPs))
+	cs.gov = governance.NewGovernance(cs.GetGenesisInfo(), cs.ConsensusType(), systemState)
 
 	// init Debugger
 	cs.initDebugger()
@@ -357,7 +387,7 @@ func (cs *ChainService) GetEnterpriseConfig(key string) (*types.EnterpriseConfig
 }
 
 func (cs *ChainService) GetSystemValue(key types.SystemValue) (*big.Int, error) {
-	return cs.getSystemValue(key)
+	return cs.gov.GetSystemValue(key)
 }
 
 // SetChainConsensus sets cs.cc to cc.
@@ -493,103 +523,23 @@ func (cs *ChainService) GetChainTree() ([]byte, error) {
 }
 
 func (cs *ChainService) getVotes(id string, n uint32) (*types.VoteList, error) {
-	switch ConsensusName() {
-	case consensus.ConsensusName[consensus.ConsensusDPOS]:
-		sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-		if n == 0 {
-			return system.GetVoteResult(sdb, []byte(id), system.GetBpCount())
-		}
-		return system.GetVoteResult(sdb, []byte(id), int(n))
-	case consensus.ConsensusName[consensus.ConsensusRAFT]:
-		//return cs.GetBPs()
-		return nil, ErrNotSupportedConsensus
-	default:
-		return nil, ErrNotSupportedConsensus
-	}
+	return cs.gov.GetVotes(id, n)
 }
 
 func (cs *ChainService) getAccountVote(addr []byte) (*types.AccountVoteInfo, error) {
-	if cs.GetType() != consensus.ConsensusDPOS {
-		return nil, ErrNotSupportedConsensus
-	}
-
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := sdb.GetSystemAccountState()
-	if err != nil {
-		return nil, err
-	}
-	namescs, err := sdb.GetNameAccountState()
-	if err != nil {
-		return nil, err
-	}
-	voteInfo, err := system.GetVotes(scs, name.GetAddress(namescs, addr))
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.AccountVoteInfo{Voting: voteInfo}, nil
+	return cs.gov.GetAccountVote(addr)
 }
 
 func (cs *ChainService) getStaking(addr []byte) (*types.Staking, error) {
-	if cs.GetType() != consensus.ConsensusDPOS {
-		return nil, ErrNotSupportedConsensus
-	}
-
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := sdb.GetSystemAccountState()
-	if err != nil {
-		return nil, err
-	}
-	namescs, err := sdb.GetNameAccountState()
-	if err != nil {
-		return nil, err
-	}
-	staking, err := system.GetStaking(scs, name.GetAddress(namescs, addr))
-	if err != nil {
-		return nil, err
-	}
-	return staking, nil
+	return cs.gov.GetStaking(addr)
 }
 
 func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types.NameInfo, error) {
-	var stateDB *state.StateDB
-	if blockNo != 0 {
-		block, err := cs.cdb.GetBlockByNo(blockNo)
-		if err != nil {
-			return nil, err
-		}
-		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
-	} else {
-		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	}
-	return name.GetNameInfo(stateDB, qname)
+	return cs.gov.GetNameInfo(qname, blockNo)
 }
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != enterprise.AdminsKey {
-		return enterprise.GetConf(sdb, key)
-	}
-	return enterprise.GetAdmin(sdb)
-}
-
-func (cs *ChainService) getSystemValue(key types.SystemValue) (*big.Int, error) {
-	stateDB := cs.sdb.GetStateDB()
-	switch key {
-	case types.StakingTotal:
-		return system.GetStakingTotal(stateDB)
-	case types.StakingMin:
-		return system.GetStakingMinimum(), nil
-	case types.GasPrice:
-		return system.GetGasPrice(), nil
-	case types.NamePrice:
-		return system.GetNamePrice(), nil
-	case types.TotalVotingPower:
-		return system.GetTotalVotingPower(), nil
-	case types.VotingReward:
-		return system.GetVotingRewardAmount(), nil
-	}
-	return nil, fmt.Errorf("unsupported system value : %s", key)
+	return cs.gov.GetEnterpriseConf(key)
 }
 
 type ChainManager struct {
@@ -599,6 +549,7 @@ type ChainManager struct {
 }
 
 type ChainWorker struct {
+	govSnap *governance.Snapshot
 	*SubComponent
 	IChainHandler //to use chain APIs
 	*Core
@@ -885,8 +836,8 @@ func (cw *ChainWorker) Receive(context actor.Context) {
 		})
 	case *message.GetParams:
 		context.Respond(&message.GetParamsRsp{
-			BpCount:      system.GetBpCount(),
-			MinStaking:   system.GetStakingMinimum(),
+			BpCount:      cw.govSnap.GetSystemBpCount(),
+			MinStaking:   cw.govSnap.GetSystemStakingMinimum(),
 			MaxBlockSize: uint64(MaxBlockSize()),
 		})
 	case *message.CheckFeeDelegation:

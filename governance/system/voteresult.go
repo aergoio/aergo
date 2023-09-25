@@ -109,7 +109,7 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 
 // Sync is write vote result data to state DB. if vote result over the threshold,
 func (vr *VoteResult) Sync() error {
-	votingPowerRank.apply(vr.scs)
+
 	resultList := vr.buildVoteList()
 	if vr.ex {
 		if vr.threshold(resultList.Votes[0].GetAmountBigInt()) {
@@ -173,6 +173,7 @@ func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 	if voteResult == nil {
 		return errors.New("Invalid argument : voteReult should not nil")
 	}
+
 	res := newVoteResult(defaultVoteKey, nil)
 	res.rmap = voteResult
 	res.scs = scs

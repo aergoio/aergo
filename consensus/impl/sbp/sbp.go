@@ -10,7 +10,8 @@ import (
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/consensus/chain"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/governance/system"
+
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"

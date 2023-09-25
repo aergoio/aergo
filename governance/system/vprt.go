@@ -45,8 +45,6 @@ var (
 	defaultReward = new(big.Int).Div(annualReward, oneYIS) // 0.16 AERGO per sec
 	binSize       = types.NewAmount(1e4, types.Aergo)      // 10,000 AERGO
 
-	votingPowerRank *Vpr
-
 	vprLogger = log.NewLogger("vpr")
 	jsonIter  = jsoniter.ConfigCompatibleWithStandardLibrary
 )
@@ -57,14 +55,6 @@ type DataSetter interface {
 
 type DataGetter interface {
 	GetData(key []byte) ([]byte, error)
-}
-
-// InitVotingPowerRank reads the stored data from s and initializes the Voting
-// Power Rank, which contains each voters's voting power.
-func InitVotingPowerRank(s DataGetter) (err error) {
-	votingPowerRank, err = LoadVpr(s)
-
-	return
 }
 
 type votingPower struct {
@@ -683,11 +673,7 @@ func (v *Vpr) resetLowest() {
 	v.setLowest(v.voters.lowest())
 }
 
-func PickVotingRewardWinner(seed int64) (types.Address, error) {
-	return votingPowerRank.pickVotingRewardWinner(seed)
-}
-
-func (v *Vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
+func (v *Vpr) PickVotingRewardWinner(seed int64) (types.Address, error) {
 	if v == nil {
 		return nil, ErrNoVotingRewardRank
 	}
@@ -757,14 +743,10 @@ func GetVotingRewardAmount() *big.Int {
 	return defaultReward
 }
 
-func GetTotalVotingPower() *big.Int {
-	return votingPowerRank.getTotalPower()
+func (v *Vpr) GetTotalVotingPower() *big.Int {
+	return v.getTotalPower()
 }
 
-func DumpVotingPowerRankers(w io.Writer, topN int) error {
-	if votingPowerRank == nil {
-		return errors.New("not supported")
-	}
-
-	return votingPowerRank.voters.dump(w, topN)
+func (v *Vpr) DumpVotingPowerRankers(w io.Writer, topN int) error {
+	return v.voters.dump(w, topN)
 }

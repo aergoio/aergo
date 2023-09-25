@@ -2,7 +2,6 @@ package system
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"strings"
 
@@ -39,41 +38,6 @@ type Proposal struct {
 	Default        *big.Int
 }
 
-var SystemProposal = map[string]*Proposal{
-	BpCount.ID(): {
-		ID:             BpCount.ID(),
-		Description:    "",
-		Blockfrom:      0,
-		Blockto:        0,
-		MultipleChoice: 1,
-		Candidates:     nil,
-	},
-	StakingMin.ID(): {
-		ID:             StakingMin.ID(),
-		Description:    "",
-		Blockfrom:      0,
-		Blockto:        0,
-		MultipleChoice: 1,
-		Candidates:     nil,
-	},
-	GasPrice.ID(): {
-		ID:             GasPrice.ID(),
-		Description:    "",
-		Blockfrom:      0,
-		Blockto:        0,
-		MultipleChoice: 1,
-		Candidates:     nil,
-	},
-	NamePrice.ID(): {
-		ID:             NamePrice.ID(),
-		Description:    "",
-		Blockfrom:      0,
-		Blockto:        0,
-		MultipleChoice: 1,
-		Candidates:     nil,
-	},
-}
-
 func (a *Proposal) GetKey() []byte {
 	return []byte(strings.ToUpper(a.ID))
 }
@@ -87,18 +51,6 @@ func ProposalIDfromKey(key []byte) string {
 	return strings.Replace(string(key), proposalPrefixKey+"\\", "", 1)
 }
 */
-
-// getProposal find proposal using id
-func getProposal(id string) (*Proposal, error) {
-	if val, ok := SystemProposal[id]; ok {
-		return val, nil
-	}
-	return nil, fmt.Errorf("proposal %s is not found", id)
-}
-
-func setProposal(proposal *Proposal) {
-	SystemProposal[proposal.ID] = proposal
-}
 
 func serializeProposal(proposal *Proposal) []byte {
 	data, err := json.Marshal(proposal)

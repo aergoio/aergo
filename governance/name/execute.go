@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )

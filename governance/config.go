@@ -1,19 +1,23 @@
 package governance
 
 import (
-	"github.com/aergoio/aergo/v2/contract/system"
+	"fmt"
+
+	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/types"
 )
 
 type Config struct {
+	genesis        *types.Genesis
 	consensusType  string
 	cmds           map[types.OpSysTx]system.SysCmdCtor
 	systemProposal map[string]*system.Proposal
 	votingCatalog  []types.VotingIssue
 }
 
-func NewSystemImmutable(consensus string) *Config {
+func NewConfig(genesis *types.Genesis, consensus string) *Config {
 	si := &Config{}
+	si.genesis = genesis
 	si.consensusType = consensus
 	si.cmds = map[types.OpSysTx]system.SysCmdCtor{
 		types.OpvoteBP:  system.NewVoteCmd,
@@ -60,4 +64,16 @@ func NewSystemImmutable(consensus string) *Config {
 	si.votingCatalog = append(si.votingCatalog, types.GetVotingIssues()...)
 	si.votingCatalog = append(si.votingCatalog, system.GetVotingIssues()...)
 	return si
+}
+
+// getProposal find proposal using id
+func (c *Config) getProposal(id string) (*system.Proposal, error) {
+	if val, ok := c.systemProposal[id]; ok {
+		return val, nil
+	}
+	return nil, fmt.Errorf("proposal %s is not found", id)
+}
+
+func (c *Config) setProposal(proposal *system.Proposal) {
+	c.systemProposal[proposal.ID] = proposal
 }

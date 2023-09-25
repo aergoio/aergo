@@ -31,7 +31,7 @@ type SystemContext struct {
 	txBody *types.TxBody
 }
 
-func newSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
+func NewSystemContext(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	context, err := ValidateSystemTx(sender.ID(), txBody, sender, scs, blockInfo)
 	if err != nil {
@@ -68,7 +68,7 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 		types.Opunstake: NewUnstakeCmd,
 	}
 
-	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockInfo)
+	context, err := NewSystemContext(account, txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -97,10 +97,10 @@ func ExecuteSystemTx(scs *state.ContractState, txBody *types.TxBody,
 	return []*types.Event{event}, nil
 }
 
-func GetVotes(scs *state.ContractState, address []byte) ([]*types.VoteInfo, error) {
+func GetVotes(scs *state.ContractState, votingCatalog []types.VotingIssue, address []byte) ([]*types.VoteInfo, error) {
 	var results []*types.VoteInfo
 
-	for _, i := range GetVotingCatalog() {
+	for _, i := range votingCatalog {
 		id := i.ID()
 		key := i.Key()
 

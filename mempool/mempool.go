@@ -23,10 +23,8 @@ import (
 	"github.com/aergoio/aergo/v2/account/key"
 	"github.com/aergoio/aergo/v2/chain"
 	cfg "github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/contract/enterprise"
-	"github.com/aergoio/aergo/v2/contract/name"
-	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/governance"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
@@ -54,7 +52,8 @@ type MemPool struct {
 	*component.BaseComponent
 
 	sync.RWMutex
-	cfg *cfg.Config
+	cfg     *cfg.Config
+	govSnap *governance.Snapshot
 
 	sdb           *state.ChainStateDB
 	bestBlockID   types.BlockID
@@ -442,7 +441,7 @@ func (mp *MemPool) setStateDB(block *types.Block) (bool, bool) {
 			} else {
 				mp.isPublic = cid.PublicNet
 				if !mp.isPublic {
-					conf, err := enterprise.GetConf(mp.stateDB, enterprise.AccountWhite)
+					conf, err := mp.govSnap.GetEnterpriseConfWhiteList(mp.stateDB)
 					if err != nil {
 						mp.Warn().Err(err).Msg("failed to init whitelist")
 					}
@@ -597,9 +596,9 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return nil
 	}
 	if owner {
-		return name.GetOwner(scs, account)
+		return mp.govSnap.GetNameOwner(scs, account)
 	}
-	return name.GetAddress(scs, account)
+	return mp.govSnap.GetNameAddress(scs, account)
 }
 
 func (mp *MemPool) nextBlockVersion() int32 {
@@ -618,7 +617,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 	if err != nil {
 		return err
 	}
-	err = tx.ValidateWithSenderState(ns, system.GetGasPrice(), mp.nextBlockVersion())
+	err = tx.ValidateWithSenderState(ns, mp.govSnap.GetSystemGasPrice(), mp.nextBlockVersion())
 	if err != nil && err != types.ErrTxNonceToohigh {
 		return err
 	}
@@ -667,44 +666,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 		if err != nil {
 			return err
 		}
-		switch string(tx.GetBody().GetRecipient()) {
-		case types.AergoSystem:
-			sender, err := mp.stateDB.GetAccountStateV(account)
-			if err != nil {
-				return err
-			}
-			nextBlockInfo := types.BlockHeaderInfo{
-				No:          mp.bestBlockInfo.No + 1,
-				ForkVersion: mp.nextBlockVersion(),
-			}
-			if _, err := system.ValidateSystemTx(account, tx.GetBody(), sender, scs, &nextBlockInfo); err != nil {
-				return err
-			}
-		case types.AergoName:
-			systemcs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-			if err != nil {
-				return err
-			}
-			sender, err := mp.stateDB.GetAccountStateV(account)
-			if err != nil {
-				return err
-			}
-			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
-				return err
-			}
-		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
-			if err != nil {
-				return err
-			}
-			sender, err := mp.stateDB.GetAccountStateV(account)
-			if err != nil {
-				return err
-			}
-			if _, err := enterprise.ValidateEnterpriseTx(tx.GetBody(), sender, enterprisecs, mp.bestBlockInfo.No+1); err != nil {
-				return err
-			}
-		}
+		return mp.govSnap.ValidateMempool(scs, mp.stateDB, account)
 	case types.TxType_FEEDELEGATION:
 		var recipient []byte
 
@@ -723,7 +685,7 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return err
 		}
 		bal := aergoState.GetBalanceBigInt()
-		fee, err := tx.GetMaxFee(bal, system.GetGasPrice(), mp.nextBlockVersion())
+		fee, err := tx.GetMaxFee(bal, mp.govSnap.GetSystemGasPrice(), mp.nextBlockVersion())
 		if err != nil {
 			return err
 		}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/state"
@@ -173,8 +172,8 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 	}
 
 	cs.stat.updateEvent(ReorgStat, time.Since(begT), reorg.oldBlocks[0], reorg.newBlocks[0], reorg.brStartBlock)
-	systemStateDB, err := cs.SDB().GetSystemAccountState()
-	system.InitSystemParams(systemStateDB, system.RESET)
+	// TODO : governance reorg 제작 필요
+	cs.gov.Reorg()
 	logger.Info().Msg("reorg end")
 
 	return nil

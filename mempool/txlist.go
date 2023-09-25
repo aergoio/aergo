@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/types"
 )
 
@@ -146,7 +145,7 @@ func (tl *txList) FilterByState(st *types.State) (int, []types.Transaction) {
 	var left []types.Transaction
 	removed := tl.list[:0]
 	for i, x := range tl.list {
-		err := x.ValidateWithSenderState(st, system.GetGasPrice(), tl.mp.nextBlockVersion())
+		err := x.ValidateWithSenderState(st, tl.mp.govSnap.GetSystemGasPrice(), tl.mp.nextBlockVersion())
 		if err == nil || err == types.ErrTxNonceToohigh {
 			if err != nil && !balCheck {
 				left = append(left, tl.list[i:]...)

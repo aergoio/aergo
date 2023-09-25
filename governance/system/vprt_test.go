@@ -28,8 +28,9 @@ const (
 var (
 	logger = log.NewLogger("system.test")
 
-	valHundred = new(big.Int).SetUint64(100)
-	valTen     = new(big.Int).SetUint64(10)
+	valHundred      = new(big.Int).SetUint64(100)
+	valTen          = new(big.Int).SetUint64(10)
+	votingPowerRank *Vpr
 
 	vprOP = []func(types.AccountID, types.Address, *big.Int){
 		opAdd: func(id types.AccountID, addr types.Address, opr *big.Int) {
@@ -417,7 +418,7 @@ func TestVprSingleWinner(t *testing.T) {
 	stat := make(map[types.AccountID]uint16)
 
 	for i := int64(0); i < 1000; i++ {
-		addr, err := votingPowerRank.pickVotingRewardWinner(i)
+		addr, err := votingPowerRank.PickVotingRewardWinner(i)
 		assert.NoError(t, err)
 		id := types.ToAccountID(addr)
 		count := stat[id]
@@ -439,7 +440,7 @@ func TestVprPickWinner(t *testing.T) {
 	stat := make(map[types.AccountID]uint16)
 
 	for i := int64(0); i < nVoters; i++ {
-		addr, err := votingPowerRank.pickVotingRewardWinner(i)
+		addr, err := votingPowerRank.PickVotingRewardWinner(i)
 		assert.NoError(t, err)
 		id := types.ToAccountID(addr)
 		count := stat[id]
@@ -564,7 +565,7 @@ func TestVprReorg(t *testing.T) {
 	for i, root := range sRoots {
 		s := openSystemAccountWith(root)
 		assert.NotNil(t, s, "failed to open the system account")
-		InitVotingPowerRank(s)
+		votingPowerRank, _ = LoadVpr(s)
 		assert.Equal(t, defaultVpr().getTotalPower(), totalPowers[i], "invalid total voting power")
 	}
 }

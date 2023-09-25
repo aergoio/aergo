@@ -22,7 +22,7 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/governance/enterprise"
 	"github.com/aergoio/aergo/v2/internal/network"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"

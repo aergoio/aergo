@@ -3,6 +3,7 @@ package name
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
@@ -10,6 +11,20 @@ import (
 )
 
 var prefix = []byte("name")
+
+// params in memory
+type Names struct {
+	namePrice *big.Int
+	names     map[string]*NameMap
+	owner     map[string]*NameMap
+}
+
+func NewNames(namePrice *big.Int) *Names {
+	return &Names{
+		namePrice: namePrice,
+		names:     map[string]*NameMap{},
+	}
+}
 
 type NameMap struct {
 	Version     byte

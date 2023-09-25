@@ -15,7 +15,8 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/governance/system"
+
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
