@@ -116,6 +116,8 @@ func (s *Status) Update(block *types.Block) {
 		}
 
 		// if a system param was changed, discard its new value
+		// this is mainly for block revert case
+		// the params are reloaded from db on block reorganization
 		system.CommitParams(false)
 	}
 

@@ -40,7 +40,11 @@ func genParamKey(id string) []byte {
 	return []byte("param\\" + strings.ToUpper(id))
 }
 
+// This is also called on chain reorganization
 func InitSystemParams(g dataGetter, bpCount int) {
+	// discard any new params computed for the next block
+	CommitParams(false)
+	// (re)load param values from database
 	initDefaultBpCount(bpCount)
 	systemParams = loadParams(g)
 }
@@ -88,13 +92,13 @@ func (p parameters) setNextParam(proposalID string, value *big.Int) {
 }
 
 // if a system param was changed, apply or discard its new value
-func CommitParams(success bool) {
+func CommitParams(apply bool) {
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
 		// check if the param has a new value
 		if systemParams[id + "next"] != nil {
-			if success {
-				// save the new value for the current block
+			if apply {
+				// set the new value for the current block
 				systemParams[id] = systemParams[id + "next"]
 			}
 			// delete the new value
