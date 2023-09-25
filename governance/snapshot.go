@@ -58,15 +58,15 @@ func (ss *Snapshot) Copy() *Snapshot {
 // system
 func (ss *Snapshot) GetSystemBpCount() int {
 	// get from memory
-	param := ss.systemParams.GetBpCount()
-	if param != nil {
-		return int(param.Int64())
+	bpCount := ss.systemParams.GetBpCount()
+	if bpCount != nil {
+		return int(bpCount.Int64())
 	}
 
 	// get from state
-	param = system.GetBpCountFromState(ss.ctx.scs)
-	if param != nil {
-		return int(param.Int64())
+	bpCount = system.GetBpCountFromState(ss.ctx.scs)
+	if bpCount != nil {
+		return int(bpCount.Int64())
 	}
 
 	// TODO : return default value
@@ -75,15 +75,15 @@ func (ss *Snapshot) GetSystemBpCount() int {
 
 func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
 	// get from memory
-	param := ss.systemParams.GetStakingMinimum()
-	if param != nil {
-		return param
+	stakingMinimum := ss.systemParams.GetStakingMinimum()
+	if stakingMinimum != nil {
+		return stakingMinimum
 	}
 
 	// get from state
-	param = system.GetStakingMinimumFromState(ss.ctx.scs)
-	if param != nil {
-		return param
+	stakingMinimum = system.GetStakingMinimumFromState(ss.ctx.scs)
+	if stakingMinimum != nil {
+		return stakingMinimum
 	}
 
 	// TODO : return default value
@@ -92,15 +92,15 @@ func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
 
 func (ss *Snapshot) GetSystemNamePrice() *big.Int {
 	// get from memory
-	param := ss.systemParams.GetNamePrice()
-	if param != nil {
-		return param
+	namePrice := ss.systemParams.GetNamePrice()
+	if namePrice != nil {
+		return namePrice
 	}
 
 	// get from state
-	param = system.GetNamePriceFromState(ss.ctx.scs)
-	if param != nil {
-		return param
+	namePrice = system.GetNamePriceFromState(ss.ctx.scs)
+	if namePrice != nil {
+		return namePrice
 	}
 
 	// TODO : return default value
@@ -109,15 +109,15 @@ func (ss *Snapshot) GetSystemNamePrice() *big.Int {
 
 func (ss *Snapshot) GetSystemGasPrice() *big.Int {
 	// get from memory
-	param := ss.systemParams.GetGasPrice()
-	if param != nil {
-		return param
+	gasPrice := ss.systemParams.GetGasPrice()
+	if gasPrice != nil {
+		return gasPrice
 	}
 
 	// get from state
-	param = system.GetGasPriceFromState(ss.ctx.scs)
-	if param != nil {
-		return param
+	gasPrice = system.GetGasPriceFromState(ss.ctx.scs)
+	if gasPrice != nil {
+		return gasPrice
 	}
 
 	// TODO : return default value
