@@ -71,6 +71,10 @@ func (p *Parameters) UpdateParam(s DataSetter, id string, value *big.Int) (*big.
 	return ret, nil
 }
 
+func (p *Parameters) GetBpCount() *big.Int {
+	return p.getLastParam(BpCount.ID())
+}
+
 func (p *Parameters) GetStakingMinimum() *big.Int {
 	return p.getLastParam(StakingMin.ID())
 }
@@ -84,6 +88,10 @@ func (p *Parameters) GetNamePrice() *big.Int {
 }
 
 // params in state
+func GetBpCountFromState(scs *state.ContractState) *big.Int {
+	return getParamFromState(scs, BpCount)
+}
+
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, NamePrice)
 }
@@ -111,6 +119,7 @@ func getParamFromState(scs *state.ContractState, id SysParamIndex) *big.Int {
 	return new(big.Int).SetBytes(data)
 }
 
+/*
 func updateParam(s DataSetter, id string, value *big.Int) (*big.Int, error) {
 	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
 		return nil, err
@@ -118,3 +127,4 @@ func updateParam(s DataSetter, id string, value *big.Int) (*big.Int, error) {
 	ret := systemParams.setLastParam(id, value)
 	return ret, nil
 }
+*/

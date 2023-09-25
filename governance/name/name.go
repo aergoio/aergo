@@ -26,6 +26,14 @@ func NewNames(namePrice *big.Int) *Names {
 	}
 }
 
+func (n *Names) Get() {
+
+}
+
+func (n *Names) GetByOwner() {
+
+}
+
 type NameMap struct {
 	Version     byte
 	Owner       []byte

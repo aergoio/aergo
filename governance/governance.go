@@ -121,9 +121,9 @@ func (g *Governance) GetSystemValue(key types.SystemValue) (*big.Int, error) {
 	case types.NamePrice:
 		return g.beforeExec.GetSystemNamePrice(), nil
 	case types.TotalVotingPower:
-		return g.beforeExec.GetSystemTotalVotingPower(), nil
+		return g.beforeExec.GetTotalVotingPower(), nil
 	case types.VotingReward:
-		return g.beforeExec.GetSystemVotingRewardAmount(), nil
+		return g.beforeExec.GetVotingRewardAmount(), nil
 	}
 	return nil, fmt.Errorf("unsupported system value : %s", key)
 }

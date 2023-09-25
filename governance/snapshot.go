@@ -13,14 +13,18 @@ import (
 
 type Snapshot struct {
 	// do not access member directly
+	cfg             *Config
 	ctx             *ChainContext
 	systemParams    *system.Parameters
 	votingPowerRank *system.Vpr
 	nameParams      *name.Names
 }
 
-func (ss *Snapshot) Init(getter system.DataGetter) error {
+func (ss *Snapshot) Init(ctx *ChainContext, getter system.DataGetter) error {
 	var err error
+
+	// load ctx
+	ss.ctx = ctx
 
 	// load system
 	ss.systemParams = system.NewParameters()
@@ -49,49 +53,105 @@ func (ss *Snapshot) Copy() *Snapshot {
 	return new
 }
 
+// name
 func (ss *Snapshot) GetNameOwner(scs *state.ContractState, account []byte) []byte {
-	return name.GetOwner(scs, account) //1.메모리 // 2. state db / 3. trie (real db ) 4. default value
+
+	return name.GetOwner(scs, account) // 1.메모리 // 2. state db / 3. trie (real db ) 4. default value
 }
 
 func (ss *Snapshot) GetNameAddress(scs *state.ContractState, account []byte) []byte {
 	return name.GetAddress(scs, account)
 }
 
+// system
 func (ss *Snapshot) GetSystemBpCount() int {
+	// get from memory
+	param := ss.systemParams.GetBpCount()
+	if param != nil {
+		return int(param.Int64())
+	}
+
+	// get from state
+	param = system.GetBpCountFromState(ss.ctx.scs)
+	if param != nil {
+		return int(param.Int64())
+	}
+
+	// TODO : return default value
 	return 0
 }
+
 func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
-	return ss.systemParams.GetStakingMinimum()
+	// get from memory
+	param := ss.systemParams.GetStakingMinimum()
+	if param != nil {
+		return param
+	}
+
+	// get from state
+	param = system.GetStakingMinimumFromState(ss.ctx.scs)
+	if param != nil {
+		return param
+	}
+
+	// TODO : return default value
+	return nil
 }
 
 func (ss *Snapshot) GetSystemNamePrice() *big.Int {
-	return ss.systemParams.GetNamePrice()
+	// get from memory
+	param := ss.systemParams.GetNamePrice()
+	if param != nil {
+		return param
+	}
+
+	// get from state
+	param = system.GetNamePriceFromState(ss.ctx.scs)
+	if param != nil {
+		return param
+	}
+
+	// TODO : return default value
+	return nil
 }
 
 func (ss *Snapshot) GetSystemGasPrice() *big.Int {
-	return ss.systemParams.GetGasPrice()
+	// get from memory
+	param := ss.systemParams.GetGasPrice()
+	if param != nil {
+		return param
+	}
+
+	// get from state
+	param = system.GetNamePriceFromState(ss.ctx.scs)
+	if param != nil {
+		return param
+	}
+
+	// TODO : return default value
+	return nil
 }
 
-func (ss *Snapshot) GetSystemTotalVotingPower() *big.Int {
+// voting
+func (ss *Snapshot) GetTotalVotingPower() *big.Int {
 	return ss.votingPowerRank.GetTotalVotingPower()
 }
 
-// TODO
 func (ss *Snapshot) GetStakingTotal() *big.Int {
 	return ss.systemParams.GetStakingMinimum()
 }
 
-// TODO
-func (ss *Snapshot) GetSystemVotingRewardAmount() *big.Int {
+func (ss *Snapshot) GetVotingRewardAmount() *big.Int {
 	return nil
-}
-
-func (ss *Snapshot) GetEnterpriseConfWhiteList(r enterprise.AccountStateReader) (*types.EnterpriseConfig, error) {
-	return enterprise.GetConf(r, enterprise.AccountWhite)
 }
 
 func (ss *Snapshot) PickVotingRewardWinner(seed int64) (types.Address, error) {
 	return ss.votingPowerRank.PickVotingRewardWinner(seed)
+}
+
+// enterprise
+func (ss *Snapshot) GetEnterpriseConfWhiteList(r enterprise.AccountStateReader) (*types.EnterpriseConfig, error) {
+	return enterprise.GetConf(r, enterprise.AccountWhite)
 }
 
 func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster, ctx *ChainContext) ([]*types.Event, error) {
@@ -132,7 +192,7 @@ func (ss *Snapshot) ValidateMempool(scs *state.ContractState, sdb *state.StateDB
 			No:          ss.ctx.bestBlockNo + 1,
 			ForkVersion: ss.ctx.nextBlockVersion,
 		}
-		if _, err := system.ValidateSystemTx(account, ss.ctx.txInfo, sender, scs, &nextBlockInfo); err != nil {
+		if _, err := system.ValidateSystemTx(ss.cfg.proposals, account, ss.ctx.txInfo, sender, scs, &nextBlockInfo); err != nil {
 			return err
 		}
 	case types.AergoName:
