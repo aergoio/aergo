@@ -669,5 +669,6 @@ int luaopen_state(lua_State *L) {
 
 	luaL_register(L, "state", state_lib);
 
+	lua_pop(L, 1);
 	return 1;
 }
