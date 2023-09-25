@@ -15,10 +15,12 @@ type Snapshot struct {
 	cfg *Config
 	ctx *ChainContext
 
-	// do not access member directly
+	// do not access directly
 	systemParams    *system.Parameters
 	nameParams      *name.Names
 	votingPowerRank *system.Vpr
+
+	// TODO : vote, staking, enterprise
 }
 
 func (ss *Snapshot) Init(cfg *Config, ctx *ChainContext, getter system.DataGetter) error {
@@ -44,12 +46,13 @@ func (ss *Snapshot) Init(cfg *Config, ctx *ChainContext, getter system.DataGette
 }
 
 func (ss *Snapshot) Copy() *Snapshot {
-	new := &Snapshot{}
-	// TODO
-	// for k, v := range ss.systemParams {
-	// new.systemParams[k] = big.NewInt(0).Set(v)
-	// }
-	return new
+	return &Snapshot{
+		cfg:          ss.cfg,
+		ctx:          ss.ctx,
+		systemParams: ss.systemParams.Copy(),
+		nameParams:   ss.nameParams.Copy(),
+		// TODO : copy voting
+	}
 }
 
 // system

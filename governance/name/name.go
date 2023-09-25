@@ -22,6 +22,20 @@ func NewNames() *Names {
 	}
 }
 
+func (n *Names) Copy() *Names {
+	names := &Names{
+		names: map[string]*NameMap{},
+	}
+	for k, v := range n.names {
+		names.names[k] = &NameMap{
+			Version:     v.Version,
+			Owner:       v.Owner,
+			Destination: v.Destination,
+		}
+	}
+	return names
+}
+
 func (n *Names) GetAddress(name []byte) []byte {
 	if nameMap, ok := n.names[string(name)]; ok {
 		return nameMap.Destination

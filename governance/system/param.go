@@ -54,6 +54,16 @@ func NewParameters() *Parameters {
 	}
 }
 
+func (p *Parameters) Copy() *Parameters {
+	param := &Parameters{
+		params: map[string]*big.Int{},
+	}
+	for k, v := range p.params {
+		param.params[k] = new(big.Int).Set(v)
+	}
+	return param
+}
+
 func (p *Parameters) getLastParam(proposalID string) *big.Int {
 	return p.params[proposalID]
 }
