@@ -12,78 +12,44 @@ import (
 )
 
 type Snapshot struct {
+	cfg *Config
+	ctx *ChainContext
+
 	// do not access member directly
-	cfg             *Config
-	ctx             *ChainContext
 	systemParams    *system.Parameters
-	votingPowerRank *system.Vpr
 	nameParams      *name.Names
+	votingPowerRank *system.Vpr
 }
 
-func (ss *Snapshot) Init(ctx *ChainContext, getter system.DataGetter) error {
+func (ss *Snapshot) Init(cfg *Config, ctx *ChainContext, getter system.DataGetter) error {
 	var err error
 
-	// load ctx
+	// init cfg, ctx
+	ss.cfg = cfg
 	ss.ctx = ctx
 
-	// load system
+	// load systems
 	ss.systemParams = system.NewParameters()
 
-	// system.LoadParam(getter)
+	// load names
+	ss.nameParams = name.NewNames()
+
+	// load votingPowerRank
 	ss.votingPowerRank, err = system.LoadVpr(getter)
 	if err != nil {
 		return err
 	}
 
-	// load name
-	ss.nameParams = name.NewNames(ss.systemParams.GetGasPrice())
-
 	return nil
 }
 
 func (ss *Snapshot) Copy() *Snapshot {
-	new := &Snapshot{
-		systemParams: nil,
-		nameParams:   nil,
-	}
+	new := &Snapshot{}
 	// TODO
 	// for k, v := range ss.systemParams {
 	// new.systemParams[k] = big.NewInt(0).Set(v)
 	// }
 	return new
-}
-
-// name
-func (ss *Snapshot) GetNameOwner(scs *state.ContractState, account []byte) []byte {
-	// get from memory
-	owner := ss.nameParams.GetOwner(account)
-	if owner != nil {
-		return owner
-	}
-	// get from state
-	owner = name.GetOwnerFromState(scs, account)
-	if owner != nil {
-		return owner
-	}
-
-	// get default - nil
-	return nil
-}
-
-func (ss *Snapshot) GetNameAddress(scs *state.ContractState, account []byte) []byte {
-	// get from memory
-	addr := ss.nameParams.GetAddress(account)
-	if addr != nil {
-		return addr
-	}
-	// get from state
-	addr = name.GetAddressFromState(scs, account)
-	if addr != nil {
-		return addr
-	}
-
-	// get default - nil
-	return nil
 }
 
 // system
@@ -155,6 +121,39 @@ func (ss *Snapshot) GetSystemGasPrice() *big.Int {
 	return nil
 }
 
+// name
+func (ss *Snapshot) GetNameOwner(scs *state.ContractState, account []byte) []byte {
+	// get from memory
+	owner := ss.nameParams.GetOwner(account)
+	if owner != nil {
+		return owner
+	}
+	// get from state
+	owner = name.GetOwnerFromState(scs, account)
+	if owner != nil {
+		return owner
+	}
+
+	// get default - nil
+	return nil
+}
+
+func (ss *Snapshot) GetNameAddress(scs *state.ContractState, account []byte) []byte {
+	// get from memory
+	addr := ss.nameParams.GetAddress(account)
+	if addr != nil {
+		return addr
+	}
+	// get from state
+	addr = name.GetAddressFromState(scs, account)
+	if addr != nil {
+		return addr
+	}
+
+	// get default - nil
+	return nil
+}
+
 // voting
 func (ss *Snapshot) GetTotalVotingPower() *big.Int {
 	return ss.votingPowerRank.GetTotalVotingPower()
@@ -177,19 +176,17 @@ func (ss *Snapshot) GetEnterpriseConfWhiteList(r enterprise.AccountStateReader) 
 	return enterprise.GetConf(r, enterprise.AccountWhite)
 }
 
-func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster, ctx *ChainContext) ([]*types.Event, error) {
+func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster) ([]*types.Event, error) {
 	var err error
 
-	// 고민 : ctx 도 prev / next 를 나눌 필요가 있을까?
-
 	var events []*types.Event
-	switch ctx.governance {
+	switch ss.ctx.governance {
 	case types.AergoSystem:
-		events, err = system.ExecuteSystemTx(ctx.scs, ctx.txInfo, ctx.Sender, ctx.Receiver, ctx.blockInfo)
+		events, err = system.ExecuteSystemTx(ss.cfg.proposals, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo)
 	case types.AergoName:
-		events, err = name.ExecuteNameTx(ctx.bs, ctx.scs, ctx.txInfo, ctx.Sender, ctx.Receiver, ctx.blockInfo)
+		events, err = name.ExecuteNameTx(ss.ctx.bs, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo)
 	case types.AergoEnterprise:
-		events, err = enterprise.ExecuteEnterpriseTx(ctx.bs, ccc, ctx.scs, ctx.txInfo, ctx.Sender, ctx.Receiver, ctx.blockInfo.No)
+		events, err = enterprise.ExecuteEnterpriseTx(ss.ctx.bs, ccc, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo.No)
 		if err != nil {
 			err = NewGovEntErr(err)
 		}
@@ -198,7 +195,7 @@ func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster, ctx *ChainConte
 		err = types.ErrTxInvalidRecipient
 	}
 	if err == nil {
-		err = ctx.bs.StateDB.StageContractState(ctx.scs)
+		err = ss.ctx.bs.StateDB.StageContractState(ss.ctx.scs)
 	}
 
 	return events, err

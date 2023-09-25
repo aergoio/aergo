@@ -3,7 +3,6 @@ package name
 import (
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
@@ -14,16 +13,12 @@ var prefix = []byte("name")
 
 // names in memory
 type Names struct {
-	namePrice *big.Int
-	names     map[string]*NameMap // map[destination]*NameMap
-	// owners    map[string]*NameMap // map[owner]*NameMap
+	names map[string]*NameMap
 }
 
-func NewNames(namePrice *big.Int) *Names {
+func NewNames() *Names {
 	return &Names{
-		namePrice: namePrice,
-		names:     map[string]*NameMap{},
-		// owners:    map[string]*NameMap{},
+		names: map[string]*NameMap{},
 	}
 }
 
@@ -52,83 +47,7 @@ type AccountStateReader interface {
 	GetNameAccountState() (*state.ContractState, error)
 }
 
-func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
-	amount := tx.GetAmountBigInt()
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-	return createName(scs, []byte(name), sender.ID())
-}
-
-func createName(scs *state.ContractState, name []byte, owner []byte) error {
-	//	return setAddress(scs, name, owner)
-	return registerOwner(scs, name, owner, owner)
-}
-
-// UpdateName is avaliable after bid implement
-func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
-	sender, receiver *state.V, name, to string) error {
-	amount := tx.GetAmountBigInt()
-	if len(getAddress(scs, []byte(name))) <= types.NameLength {
-		return fmt.Errorf("%s is not created yet", string(name))
-	}
-	destination, _ := types.DecodeAddress(to)
-	destination = GetAddressFromState(scs, destination)
-	sender.SubBalance(amount)
-	receiver.AddBalance(amount)
-	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
-	if err != nil {
-		return types.ErrTxInvalidRecipient
-	}
-	creator, err := contract.GetData([]byte("Creator"))
-	if err != nil {
-		return err
-	}
-	ownerAddr := destination
-	if creator != nil {
-		ownerAddr, err = types.DecodeAddress(string(creator))
-		if err != nil {
-			return types.ErrTxInvalidRecipient
-		}
-	}
-	return updateName(scs, []byte(name), ownerAddr, destination)
-}
-
-func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) error {
-	//return setAddress(scs, name, to)
-	return registerOwner(scs, name, owner, to)
-}
-
-func isPredefined(name []byte, legacy bool) bool {
-	if legacy {
-		return len(name) == types.AddressLength || strings.Contains(string(name), ".")
-	}
-	return len(name) == types.AddressLength || types.IsSpecialAccount(name)
-}
-
-// Resolve is resolve name for chain
-func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
-	if isPredefined(name, legacy) {
-		return name, nil
-	}
-	scs, err := openContract(bs)
-	if err != nil {
-		return nil, err
-	}
-	return getAddress(scs, name), nil
-}
-
-func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := bs.GetAccountStateV([]byte("aergo.name"))
-	if err != nil {
-		return nil, err
-	}
-	scs, err := bs.StateDB.OpenContractState(v.AccountID(), v.State())
-	if err != nil {
-		return nil, err
-	}
-	return scs, nil
-}
-
+// names in state
 // GetAddressFromState is resolve name for mempool
 func GetAddressFromState(scs *state.ContractState, name []byte) []byte {
 	if len(name) == types.AddressLength ||
@@ -246,4 +165,81 @@ func deserializeNameMap(data []byte) *NameMap {
 		}
 	}
 	return nil
+}
+
+func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
+	amount := tx.GetAmountBigInt()
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
+	return createName(scs, []byte(name), sender.ID())
+}
+
+func createName(scs *state.ContractState, name []byte, owner []byte) error {
+	//	return setAddress(scs, name, owner)
+	return registerOwner(scs, name, owner, owner)
+}
+
+// UpdateName is avaliable after bid implement
+func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
+	sender, receiver *state.V, name, to string) error {
+	amount := tx.GetAmountBigInt()
+	if len(getAddress(scs, []byte(name))) <= types.NameLength {
+		return fmt.Errorf("%s is not created yet", string(name))
+	}
+	destination, _ := types.DecodeAddress(to)
+	destination = GetAddressFromState(scs, destination)
+	sender.SubBalance(amount)
+	receiver.AddBalance(amount)
+	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
+	if err != nil {
+		return types.ErrTxInvalidRecipient
+	}
+	creator, err := contract.GetData([]byte("Creator"))
+	if err != nil {
+		return err
+	}
+	ownerAddr := destination
+	if creator != nil {
+		ownerAddr, err = types.DecodeAddress(string(creator))
+		if err != nil {
+			return types.ErrTxInvalidRecipient
+		}
+	}
+	return updateName(scs, []byte(name), ownerAddr, destination)
+}
+
+func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) error {
+	//return setAddress(scs, name, to)
+	return registerOwner(scs, name, owner, to)
+}
+
+func isPredefined(name []byte, legacy bool) bool {
+	if legacy {
+		return len(name) == types.AddressLength || strings.Contains(string(name), ".")
+	}
+	return len(name) == types.AddressLength || types.IsSpecialAccount(name)
+}
+
+// Resolve is resolve name for chain
+func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
+	if isPredefined(name, legacy) {
+		return name, nil
+	}
+	scs, err := openContract(bs)
+	if err != nil {
+		return nil, err
+	}
+	return getAddress(scs, name), nil
+}
+
+func openContract(bs *state.BlockState) (*state.ContractState, error) {
+	v, err := bs.GetAccountStateV([]byte("aergo.name"))
+	if err != nil {
+		return nil, err
+	}
+	scs, err := bs.StateDB.OpenContractState(v.AccountID(), v.State())
+	if err != nil {
+		return nil, err
+	}
+	return scs, nil
 }
