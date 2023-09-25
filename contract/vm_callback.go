@@ -1612,7 +1612,7 @@ func luaGetStaking(service C.int, addr *C.char) (*C.char, C.lua_Integer, *C.char
 		return nil, 0, C.CString(err.Error())
 	}
 
-	staking, err = system.GetStaking(scs, name.GetAddress(namescs, types.ToAddress(C.GoString(addr))))
+	staking, err = system.GetStaking(scs, name.GetAddressFromState(namescs, types.ToAddress(C.GoString(addr))))
 	if err != nil {
 		return nil, 0, C.CString(err.Error())
 	}

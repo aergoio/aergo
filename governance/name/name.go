@@ -12,26 +12,33 @@ import (
 
 var prefix = []byte("name")
 
-// params in memory
+// names in memory
 type Names struct {
 	namePrice *big.Int
-	names     map[string]*NameMap
-	owner     map[string]*NameMap
+	names     map[string]*NameMap // map[destination]*NameMap
+	// owners    map[string]*NameMap // map[owner]*NameMap
 }
 
 func NewNames(namePrice *big.Int) *Names {
 	return &Names{
 		namePrice: namePrice,
 		names:     map[string]*NameMap{},
+		// owners:    map[string]*NameMap{},
 	}
 }
 
-func (n *Names) Get() {
-
+func (n *Names) GetAddress(name []byte) []byte {
+	if nameMap, ok := n.names[string(name)]; ok {
+		return nameMap.Destination
+	}
+	return nil
 }
 
-func (n *Names) GetByOwner() {
-
+func (n *Names) GetOwner(name []byte) []byte {
+	if nameMap, ok := n.names[string(name)]; ok {
+		return nameMap.Owner
+	}
+	return nil
 }
 
 type NameMap struct {
@@ -65,7 +72,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
 	destination, _ := types.DecodeAddress(to)
-	destination = GetAddress(scs, destination)
+	destination = GetAddressFromState(scs, destination)
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
@@ -122,8 +129,8 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 	return scs, nil
 }
 
-// GetAddress is resolve name for mempool
-func GetAddress(scs *state.ContractState, name []byte) []byte {
+// GetAddressFromState is resolve name for mempool
+func GetAddressFromState(scs *state.ContractState, name []byte) []byte {
 	if len(name) == types.AddressLength ||
 		types.IsSpecialAccount(name) {
 		return name
@@ -148,7 +155,7 @@ func getAddress(scs *state.ContractState, name []byte) []byte {
 	return nil
 }
 
-func GetOwner(scs *state.ContractState, name []byte) []byte {
+func GetOwnerFromState(scs *state.ContractState, name []byte) []byte {
 	return getOwner(scs, name, true)
 }
 
@@ -182,7 +189,7 @@ func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
 		return nil, err
 	}
 	owner := getOwner(scs, []byte(name), true)
-	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddress(scs, []byte(name))}, err
+	return &types.NameInfo{Name: &types.Name{Name: string(name)}, Owner: owner, Destination: GetAddressFromState(scs, []byte(name))}, err
 }
 
 func registerOwner(scs *state.ContractState, name, owner, destination []byte) error {

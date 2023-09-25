@@ -100,11 +100,15 @@ func GetStakingMinimumFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, StakingMin)
 }
 
-func GetGasPriceFromState(ar AccountStateReader) *big.Int {
+func GetGasPriceFromAccountState(ar AccountStateReader) *big.Int {
 	scs, err := ar.GetSystemAccountState()
 	if err != nil {
 		panic("could not open system state when get gas price")
 	}
+	return GetGasPriceFromState(scs)
+}
+
+func GetGasPriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, GasPrice)
 }
 

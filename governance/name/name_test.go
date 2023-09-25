@@ -95,10 +95,10 @@ func TestNameRecursive(t *testing.T) {
 	scs = nextBlockContractState(t, bs, scs)
 	ret := getAddress(scs, []byte(name2))
 	assert.Equal(t, owner, ret, "registed owner")
-	name1Owner := GetOwner(scs, []byte(name1))
+	name1Owner := GetOwnerFromState(scs, []byte(name1))
 	t.Logf("name1 owner is %s", types.EncodeAddress(name1Owner))
 	assert.Equal(t, owner, name1Owner, "check registed pubkey owner")
-	name2Owner := GetOwner(scs, []byte(name2))
+	name2Owner := GetOwnerFromState(scs, []byte(name2))
 	t.Logf("name2 owner is %s", types.EncodeAddress(name2Owner))
 	assert.Equal(t, owner, name2Owner, "check registed named owner")
 
@@ -213,7 +213,7 @@ func TestNameMap(t *testing.T) {
 	assert.Equal(t, testNameMap.Destination, res.Destination, "Destination")
 	assert.Equal(t, testNameMap.Version, res.Version, "Version")
 
-	resOwner = GetOwner(scs, []byte(name1))
+	resOwner = GetOwnerFromState(scs, []byte(name1))
 	assert.Equal(t, testNameMap.Owner, resOwner, "GetOwner")
 	resAddr := getAddress(scs, []byte(name1))
 	assert.Equal(t, testNameMap.Destination, resAddr, "getAddress")

@@ -40,9 +40,9 @@ func TestExcuteNameTx(t *testing.T) {
 	commitContractState(t, bs, scs)
 	scs = openContractState(t, bs)
 
-	ret := GetAddress(scs, []byte(name))
+	ret := GetAddressFromState(scs, []byte(name))
 	assert.Equal(t, txBody.Account, ret, "pubkey address")
-	ret = GetOwner(scs, []byte(name))
+	ret = GetOwnerFromState(scs, []byte(name))
 	assert.Equal(t, txBody.Account, ret, "pubkey owner")
 
 	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo)
@@ -59,9 +59,9 @@ func TestExcuteNameTx(t *testing.T) {
 	commitContractState(t, bs, scs)
 	scs = openContractState(t, bs)
 
-	ret = GetAddress(scs, []byte(name))
+	ret = GetAddressFromState(scs, []byte(name))
 	assert.Equal(t, buyer, types.EncodeAddress(ret), "pubkey address")
-	ret = GetOwner(scs, []byte(name))
+	ret = GetOwnerFromState(scs, []byte(name))
 	assert.Equal(t, buyer, types.EncodeAddress(ret), "pubkey owner")
 
 	//invalid case

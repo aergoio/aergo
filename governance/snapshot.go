@@ -55,12 +55,35 @@ func (ss *Snapshot) Copy() *Snapshot {
 
 // name
 func (ss *Snapshot) GetNameOwner(scs *state.ContractState, account []byte) []byte {
+	// get from memory
+	owner := ss.nameParams.GetOwner(account)
+	if owner != nil {
+		return owner
+	}
+	// get from state
+	owner = name.GetOwnerFromState(scs, account)
+	if owner != nil {
+		return owner
+	}
 
-	return name.GetOwner(scs, account) // 1.메모리 // 2. state db / 3. trie (real db ) 4. default value
+	// get default - nil
+	return nil
 }
 
 func (ss *Snapshot) GetNameAddress(scs *state.ContractState, account []byte) []byte {
-	return name.GetAddress(scs, account)
+	// get from memory
+	addr := ss.nameParams.GetAddress(account)
+	if addr != nil {
+		return addr
+	}
+	// get from state
+	addr = name.GetAddressFromState(scs, account)
+	if addr != nil {
+		return addr
+	}
+
+	// get default - nil
+	return nil
 }
 
 // system
@@ -123,7 +146,7 @@ func (ss *Snapshot) GetSystemGasPrice() *big.Int {
 	}
 
 	// get from state
-	param = system.GetNamePriceFromState(ss.ctx.scs)
+	param = system.GetGasPriceFromState(ss.ctx.scs)
 	if param != nil {
 		return param
 	}

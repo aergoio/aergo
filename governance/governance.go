@@ -159,7 +159,7 @@ func (g *Governance) GetAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 	if err != nil {
 		return nil, err
 	}
-	voteInfo, err := system.GetVotes(scs, name.GetAddress(namescs, addr))
+	voteInfo, err := system.GetVotes(scs, name.GetAddressFromState(namescs, addr))
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (g *Governance) GetStaking(addr []byte) (*types.Staking, error) {
 	if err != nil {
 		return nil, err
 	}
-	staking, err := system.GetStaking(scs, name.GetAddress(namescs, addr))
+	staking, err := system.GetStaking(scs, name.GetAddressFromState(namescs, addr))
 	if err != nil {
 		return nil, err
 	}

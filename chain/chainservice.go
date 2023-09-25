@@ -641,7 +641,7 @@ func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) 
 			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
 			return nil, err
 		}
-		return name.GetAddress(scs, account), nil
+		return name.GetAddressFromState(scs, account), nil
 	}
 	return account, nil
 }
