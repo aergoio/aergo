@@ -14,7 +14,6 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/governance/enterprise"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -102,7 +101,7 @@ func (lm *listManagerImpl) RefineList() {
 		return
 	}
 
-	wl, err := lm.chainAcc.GetEnterpriseConfig(enterprise.P2PWhite)
+	wl, err := lm.chainAcc.GetEnterpriseConfig(types.P2PWhite)
 	if err != nil {
 		lm.logger.Info().Msg("error while getting whitelist config. apply default policy instead (allow all)")
 		//ent, _ := ParseListEntry(":")

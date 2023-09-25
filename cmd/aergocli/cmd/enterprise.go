@@ -15,7 +15,6 @@ import (
 
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
 	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/v2/governance/enterprise"
 	"github.com/aergoio/aergo/v2/types"
 	aergorpc "github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
@@ -227,7 +226,7 @@ var enterpriseTxCmd = &cobra.Command{
 				Ret:    receipt.GetRet(),
 			}
 
-			if ci.Name == enterprise.ChangeCluster {
+			if ci.Name == types.ChangeCluster {
 				if confChange, err = getChangeClusterStatus(cmd, msgblock.TxIdx.BlockHash, timer); err != nil {
 					output.TxStatus.CCStatus = &types.ChangeClusterStatus{Error: err.Error()}
 				}

@@ -176,7 +176,7 @@ func (ss *Snapshot) PickVotingRewardWinner(seed int64) (types.Address, error) {
 
 // enterprise
 func (ss *Snapshot) GetEnterpriseConfWhiteList(r enterprise.AccountStateReader) (*types.EnterpriseConfig, error) {
-	return enterprise.GetConf(r, enterprise.AccountWhite)
+	return enterprise.GetConf(r, types.AccountWhite)
 }
 
 func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster) ([]*types.Event, error) {

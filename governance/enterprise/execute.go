@@ -61,7 +61,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 	}
 	var events []*types.Event
 	switch context.Call.Name {
-	case AppendAdmin:
+	case types.AppendAdmin:
 		requestAddress := types.ToAddress(context.Args[0])
 		err := setAdmins(scs,
 			append(context.Admins, requestAddress))
@@ -78,7 +78,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		})
-	case RemoveAdmin:
+	case types.RemoveAdmin:
 		for i, v := range context.Admins {
 			if bytes.Equal(v, types.ToAddress(context.Args[0])) {
 				context.Admins = append(context.Admins[:i], context.Admins[i+1:]...)
@@ -99,7 +99,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		})
-	case SetConf, AppendConf, RemoveConf:
+	case types.SetConf, types.AppendConf, types.RemoveConf:
 		key := context.Args[0]
 		err = setConf(scs, []byte(key), context.Conf)
 		if err != nil {
@@ -109,7 +109,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 		if err != nil {
 			return nil, err
 		}
-	case EnableConf:
+	case types.EnableConf:
 		key := context.Args[0]
 		err = setConf(scs, []byte(key), context.Conf)
 		if err != nil {
@@ -125,7 +125,7 @@ func ExecuteEnterpriseTx(bs *state.BlockState, ccc consensus.ChainConsensusClust
 			EventIdx:        0,
 			JsonArgs:        string(jsonArgs),
 		})
-	case ChangeCluster:
+	case types.ChangeCluster:
 		if bs.CCProposal != nil {
 			return nil, ErrTxEnterpriseAlreadyIncludeChangeCluster
 		}

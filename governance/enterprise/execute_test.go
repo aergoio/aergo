@@ -245,26 +245,26 @@ func TestCheckArgs(t *testing.T) {
 	cert := types.EncodeB64(block.Bytes)
 	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert + `:RWCS"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.NoError(t, err, RPCPermissions)
+	assert.NoError(t, err, types.RPCPermissions)
 
 	//missing permission string
 	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","` + cert + `"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.Error(t, err, RPCPermissions)
+	assert.Error(t, err, types.RPCPermissions)
 
 	//invalid rpc cert
 	tx.Payload = []byte(`{"name":"appendConf", "args":["rpcpermissions","-+TEST+-:RWCS"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.Error(t, err, RPCPermissions)
+	assert.Error(t, err, types.RPCPermissions)
 
 	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.NoError(t, err, AccountWhite)
+	assert.NoError(t, err, types.AccountWhite)
 
 	//invalid account address
 	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","BmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.Error(t, err, AccountWhite)
+	assert.Error(t, err, types.AccountWhite)
 }
 
 func TestEnterpriseAdminAccountWhitelist(t *testing.T) {
@@ -283,15 +283,15 @@ func TestEnterpriseAdminAccountWhitelist(t *testing.T) {
 
 	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmMMFgzR14wdQBTCCuyXQj3NYrBenecCmurutTqPqqBZ9TEY2z7c"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.NoError(t, err, AccountWhite)
+	assert.NoError(t, err, types.AccountWhite)
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", AccountWhite)
+	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", types.AccountWhite)
 
 	tx.Payload = []byte(`{"name":"appendConf", "args":["accountwhite","AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.NoError(t, err, AccountWhite)
+	assert.NoError(t, err, types.AccountWhite)
 
 	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
@@ -299,7 +299,7 @@ func TestEnterpriseAdminAccountWhitelist(t *testing.T) {
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", AccountWhite)
+	assert.EqualError(t, err, "the values of ACCOUNTWHITE should have at least one admin address", types.AccountWhite)
 
 	tx.Payload = []byte(`{"name":"appendAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
@@ -307,9 +307,9 @@ func TestEnterpriseAdminAccountWhitelist(t *testing.T) {
 
 	tx.Payload = []byte(`{"name":"enableConf", "args":["accountwhite",true]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.NoError(t, err, AccountWhite)
+	assert.NoError(t, err, types.AccountWhite)
 
 	tx.Payload = []byte(`{"name":"removeAdmin", "args":["AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7"]}`)
 	_, err = ExecuteEnterpriseTx(nil, ccc, scs, tx, sender, receiver, testBlockNo)
-	assert.EqualError(t, err, "admin is in the account whitelist: AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7", AccountWhite)
+	assert.EqualError(t, err, "admin is in the account whitelist: AmLt7Z3y2XTu7YS8KHNuyKM2QAszpFHSX77FLKEt7FAuRW7GEhj7", types.AccountWhite)
 }

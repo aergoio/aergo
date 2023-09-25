@@ -10,21 +10,6 @@ import (
 
 var confPrefix = []byte("conf\\")
 
-const (
-	RPCPermissions = "RPCPERMISSIONS"
-	P2PWhite       = "P2PWHITE"
-	P2PBlack       = "P2PBLACK"
-	AccountWhite   = "ACCOUNTWHITE"
-)
-
-// EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
-var enterpriseKeyDict = map[string]int{
-	RPCPermissions: 1,
-	P2PWhite:       2,
-	P2PBlack:       3,
-	AccountWhite:   4,
-}
-
 type Conf struct {
 	On     bool
 	Values []string
@@ -51,14 +36,14 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	}
 	strKey := string(key)
 	switch strKey {
-	case RPCPermissions:
+	case types.RPCPermissions:
 		for _, v := range c.Values {
 			if strings.Contains(strings.ToUpper(strings.Split(v, ":")[1]), "W") {
 				return nil
 			}
 		}
 		return fmt.Errorf("the values of %s should have at least one write permission", strKey)
-	case AccountWhite:
+	case types.AccountWhite:
 		for _, v := range context.Admins {
 			address := types.EncodeAddress(v)
 			if context.HasConfValue(address) {
@@ -83,7 +68,7 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	}
 	ret := &types.EnterpriseConfig{Key: key}
 	if strings.ToUpper(key) == "PERMISSIONS" {
-		for k := range enterpriseKeyDict {
+		for k := range types.EnterpriseKeyDict {
 			ret.Values = append(ret.Values, k)
 		}
 	} else {

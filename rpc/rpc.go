@@ -22,7 +22,6 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
-	"github.com/aergoio/aergo/v2/governance/enterprise"
 	"github.com/aergoio/aergo/v2/internal/network"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
@@ -193,20 +192,20 @@ func (ns *RPC) Receive(context actor.Context) {
 				conf := strings.ToUpper(eventName[1])
 				switch eventName[0] {
 				case "Enable":
-					if conf == enterprise.RPCPermissions {
+					if conf == types.RPCPermissions {
 						value := false
 						if e.JsonArgs == "true" {
 							value = true
 						}
 						server.setClientAuthOn(value)
-					} else if conf == enterprise.AccountWhite {
+					} else if conf == types.AccountWhite {
 						value := false
 						if e.JsonArgs == "true" {
 							value = true
 						}
 						msg := &message.MemPoolEnableWhitelist{On: value}
 						ns.TellTo(message.MemPoolSvc, msg)
-					} else if conf == enterprise.P2PBlack || conf == enterprise.P2PWhite {
+					} else if conf == types.P2PBlack || conf == types.P2PWhite {
 						value := false
 						if e.JsonArgs == "true" {
 							value = true
@@ -215,13 +214,13 @@ func (ns *RPC) Receive(context actor.Context) {
 						ns.TellTo(message.P2PSvc, msg)
 					}
 				case "Set":
-					if conf == enterprise.RPCPermissions {
+					if conf == types.RPCPermissions {
 						values := make([]string, 1024)
 						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
 							return
 						}
 						server.setClientAuthMap(values)
-					} else if conf == enterprise.AccountWhite {
+					} else if conf == types.AccountWhite {
 						values := make([]string, 1024)
 						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
 							return
@@ -230,7 +229,7 @@ func (ns *RPC) Receive(context actor.Context) {
 							Accounts: values,
 						}
 						ns.TellTo(message.MemPoolSvc, msg)
-					} else if conf == enterprise.P2PBlack || conf == enterprise.P2PWhite {
+					} else if conf == types.P2PBlack || conf == types.P2PWhite {
 						values := make([]string, 1024)
 						if err := json.Unmarshal([]byte(e.JsonArgs), &values); err != nil {
 							return

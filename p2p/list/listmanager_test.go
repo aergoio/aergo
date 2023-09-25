@@ -10,7 +10,6 @@ import (
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/config"
-	"github.com/aergoio/aergo/v2/governance/enterprise"
 	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
@@ -43,9 +42,9 @@ func TestListManagerImpl_Start(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ecfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: tt.confs}
+			ecfg := &types.EnterpriseConfig{Key: types.P2PWhite, On: true, Values: tt.confs}
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
-			mockCA.EXPECT().GetEnterpriseConfig(enterprise.P2PWhite).Return(ecfg, nil)
+			mockCA.EXPECT().GetEnterpriseConfig(types.P2PWhite).Return(ecfg, nil)
 			got := NewListManager(conf, "", mockCA, nil, logger, false).(*listManagerImpl)
 			func() {
 				defer checkPanic(t, tt.wantPanic)
@@ -85,8 +84,8 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	IDAddr := `{"peerid":"` + idother.Pretty() + `", "address":"` + addrother + `"}`
 
 	logger := log.NewLogger("p2p.list.test")
-	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: []string{IDOnly, AddrOnly, IDAddr}}
-	emptyCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: nil}
+	listCfg := &types.EnterpriseConfig{Key: types.P2PWhite, On: true, Values: []string{IDOnly, AddrOnly, IDAddr}}
+	emptyCfg := &types.EnterpriseConfig{Key: types.P2PWhite, On: true, Values: nil}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -126,7 +125,7 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
-			mockCA.EXPECT().GetEnterpriseConfig(enterprise.P2PWhite).Return(tt.cfg, nil)
+			mockCA.EXPECT().GetEnterpriseConfig(types.P2PWhite).Return(tt.cfg, nil)
 			mockPRM := p2pmock.NewMockPeerRoleManager(ctrl)
 			mockPRM.EXPECT().GetRole(gomock.Any()).Return(types.PeerRole_Watcher).AnyTimes()
 
@@ -159,8 +158,8 @@ func Test_blacklistManagerImpl_IsBanned2(t *testing.T) {
 	id7, _ := types.IDB58Decode("16Uiu2HAmDFV41vku39rsMtXBaFT1MFUDyHxXiDJrUDt7gJycSKnX")
 
 	logger := log.NewLogger("p2p.list.test")
-	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: ent}
-	disabledCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: false, Values: ent}
+	listCfg := &types.EnterpriseConfig{Key: types.P2PWhite, On: true, Values: ent}
+	disabledCfg := &types.EnterpriseConfig{Key: types.P2PWhite, On: false, Values: ent}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -207,7 +206,7 @@ func Test_blacklistManagerImpl_IsBanned2(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCA := p2pmock.NewMockChainAccessor(ctrl)
-			mockCA.EXPECT().GetEnterpriseConfig(enterprise.P2PWhite).Return(tt.cfg, nil)
+			mockCA.EXPECT().GetEnterpriseConfig(types.P2PWhite).Return(tt.cfg, nil)
 			mockPRM := p2pmock.NewMockPeerRoleManager(ctrl)
 			mockPRM.EXPECT().GetRole(gomock.Any()).Return(tt.role).AnyTimes()
 

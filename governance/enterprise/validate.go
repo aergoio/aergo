@@ -13,15 +13,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-const SetConf = "setConf"
-const AppendConf = "appendConf"
-const RemoveConf = "removeConf"
-const AppendAdmin = "appendAdmin"
-const RemoveAdmin = "removeAdmin"
-const EnableConf = "enableConf"
-const DisableConf = "disableConf"
-const ChangeCluster = "changeCluster"
-
 var ErrTxEnterpriseAdminIsNotSet = errors.New("admin is not set")
 
 func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
@@ -32,7 +23,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 	}
 	context := &EnterpriseContext{Call: &ci}
 	switch ci.Name {
-	case AppendAdmin, RemoveAdmin:
+	case types.AppendAdmin, types.RemoveAdmin:
 		if len(ci.Args) != 1 { //args[0] : encoded admin address
 			return nil, fmt.Errorf("invalid arguments in payload for SetAdmin: %s", ci.Args)
 		}
@@ -49,13 +40,13 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			return nil, err
 		}
 		context.Admins = admins
-		if ci.Name == AppendAdmin && context.IsAdminExist(address) {
+		if ci.Name == types.AppendAdmin && context.IsAdminExist(address) {
 			return nil, fmt.Errorf("already exist admin: %s", ci.Args[0])
-		} else if ci.Name == RemoveAdmin {
+		} else if ci.Name == types.RemoveAdmin {
 			if !context.IsAdminExist(address) {
 				return nil, fmt.Errorf("admins is not exist : %s", ci.Args[0])
 			}
-			conf, err := getConf(scs, []byte(AccountWhite))
+			conf, err := getConf(scs, []byte(types.AccountWhite))
 			if err != nil {
 				return nil, err
 			}
@@ -68,7 +59,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			}
 		}
 
-	case SetConf:
+	case types.SetConf:
 		if len(ci.Args) <= 1 { //args[0] : key, args[1:] : values
 			return nil, fmt.Errorf("invalid arguments in payload for setConf: %s", ci.Args)
 		}
@@ -91,7 +82,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			}
 		}
 
-	case AppendConf, RemoveConf:
+	case types.AppendConf, types.RemoveConf:
 		if len(ci.Args) != 2 { //args[0] : key, args[1] : a value
 			return nil, fmt.Errorf("invalid arguments in payload for %s : %s", ci.Name, ci.Args)
 		}
@@ -113,12 +104,12 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		context.Admins = admins
 
 		key := genKey([]byte(context.Args[0]))
-		if ci.Name == AppendConf {
+		if ci.Name == types.AppendConf {
 			if context.HasConfValue(context.Args[1]) {
 				return nil, fmt.Errorf("already included config value : %v", context.Args)
 			}
 			conf.AppendValue(context.Args[1])
-		} else if ci.Name == RemoveConf {
+		} else if ci.Name == types.RemoveConf {
 			if !context.HasConfValue(context.Args[1]) {
 				return nil, fmt.Errorf("value not exist : %v", context.Args)
 			}
@@ -129,7 +120,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			return nil, err
 		}
 
-	case EnableConf:
+	case types.EnableConf:
 		if len(ci.Args) != 2 { //args[0] : key, args[1] : true/false
 			return nil, fmt.Errorf("invalid arguments in payload for enableConf: %s", ci.Args)
 		}
@@ -137,7 +128,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 		if !ok {
 			return nil, fmt.Errorf("not string in payload for enableConf : %s", ci.Args)
 		}
-		if _, ok := enterpriseKeyDict[strings.ToUpper(ci.Args[0].(string))]; !ok {
+		if _, ok := types.EnterpriseKeyDict[strings.ToUpper(ci.Args[0].(string))]; !ok {
 			return nil, fmt.Errorf("not allowed key : %s", ci.Args[0])
 		}
 		context.Args = append(context.Args, arg0)
@@ -162,7 +153,7 @@ func ValidateEnterpriseTx(tx *types.TxBody, sender *state.V,
 			return nil, err
 		}
 
-	case ChangeCluster:
+	case types.ChangeCluster:
 		if !consensus.UseRaft() {
 			return nil, ErrNotSupportedMethod
 		}
@@ -203,18 +194,18 @@ type checkArgsFunc func(string) error
 
 func checkArgs(context *EnterpriseContext, ci *types.CallInfo) error {
 	key := strings.ToUpper(ci.Args[0].(string))
-	if _, ok := enterpriseKeyDict[key]; !ok {
+	if _, ok := types.EnterpriseKeyDict[key]; !ok {
 		return fmt.Errorf("not allowed key : %s", ci.Args[0])
 	}
 
 	unique := map[string]int{}
 	var op checkArgsFunc
 	switch key {
-	case P2PWhite, P2PBlack:
+	case types.P2PWhite, types.P2PBlack:
 		op = checkP2PBlackWhite
-	case AccountWhite:
+	case types.AccountWhite:
 		op = checkAccountWhite
-	case RPCPermissions:
+	case types.RPCPermissions:
 		op = checkRPCPermissions
 	default:
 		op = checkNone

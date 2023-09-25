@@ -6,10 +6,11 @@
 package metric
 
 import (
-	"github.com/aergoio/aergo-lib/log"
 	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
 )
 
 var logger = log.NewLogger("metric")
