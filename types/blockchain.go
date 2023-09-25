@@ -8,7 +8,6 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"math/big"
@@ -661,7 +660,6 @@ func MakeChainId(cid []byte, v int32) []byte {
 	newCid := make([]byte, len(cid))
 	copy(newCid, nv)
 	copy(newCid[4:], cid[4:])
-	fmt.Println("chainid", newCid)
 	return newCid
 }
 
