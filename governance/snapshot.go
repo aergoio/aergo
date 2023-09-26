@@ -187,7 +187,7 @@ func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster) ([]*types.Event
 	var err error
 
 	var events []*types.Event
-	switch ss.ctx.governance {
+	switch ss.ctx.govName {
 	case types.AergoSystem:
 		events, err = system.ExecuteSystemTx(ss.cfg.proposals, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo)
 	case types.AergoName:

@@ -37,8 +37,6 @@ func (p *Proposals) SetProposal(proposal *Proposal) *Proposal {
 	return proposal
 }
 
-type whereToVotes = [][]byte
-
 type Proposal struct {
 	ID             string
 	Description    string
@@ -78,6 +76,8 @@ func deserializeProposal(data []byte) *Proposal {
 	}
 	return &proposal
 }
+
+type whereToVotes = [][]byte
 
 func serializeProposalHistory(wtv whereToVotes) []byte {
 	var data []byte

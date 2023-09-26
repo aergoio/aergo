@@ -69,6 +69,6 @@ func (c *Config) GetProposal(id string) (*system.Proposal, error) {
 	return c.proposals.GetProposal(id)
 }
 
-func (c *Config) setProposal(proposal *system.Proposal) {
+func (c *Config) SetProposal(proposal *system.Proposal) {
 	c.proposals.SetProposal(proposal)
 }

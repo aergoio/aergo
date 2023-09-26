@@ -8,10 +8,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-const (
-	RESET = -1
-)
-
 func genParamKey(id string) []byte {
 	return []byte("param\\" + strings.ToUpper(id))
 }

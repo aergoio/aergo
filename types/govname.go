@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 )
@@ -21,28 +22,55 @@ const (
 	TxMaxSize = 200 * 1024
 )
 
-type validator func(tx *TxBody) error
+type NameMap struct {
+	Version     NameVer
+	Owner       []byte
+	Destination []byte
+}
 
-var govValidators map[string]validator
+func SerializeNameMap(n *NameMap) []byte {
+	var ret []byte
+	if n != nil {
+		ret = append(ret, byte(n.Version))
+		buf := make([]byte, 8)
+		binary.LittleEndian.PutUint64(buf, uint64(len(n.Owner)))
+		ret = append(ret, buf...)
+		ret = append(ret, n.Owner...)
+		binary.LittleEndian.PutUint64(buf, uint64(len(n.Destination)))
+		ret = append(ret, buf...)
+		ret = append(ret, n.Destination...)
+	}
+	return ret
+}
 
-func InitGovernance(consensus string, isPublic bool) {
-	sysValidator := ValidateSystemTx
-	if consensus != "dpos" {
-		sysValidator = func(tx *TxBody) error {
-			return ErrTxInvalidType
+func DeserializeNameMap(data []byte) *NameMap {
+	if data != nil {
+		version := NameVer(data[0])
+		if version != NameVer1 {
+			panic("could not deserializeOwner, not supported version")
+		}
+		offset := 1
+		next := offset + 8
+		sizeOfAddr := binary.LittleEndian.Uint64(data[offset:next])
+
+		offset = next
+		next = offset + int(sizeOfAddr)
+		owner := data[offset:next]
+
+		offset = next
+		next = offset + 8
+		sizeOfDest := binary.LittleEndian.Uint64(data[offset:next])
+
+		offset = next
+		next = offset + int(sizeOfDest)
+		destination := data[offset:next]
+		return &NameMap{
+			Version:     version,
+			Owner:       owner,
+			Destination: destination,
 		}
 	}
-
-	govValidators = map[string]validator{
-		AergoSystem: sysValidator,
-		AergoName:   validateNameTx,
-		AergoEnterprise: func(tx *TxBody) error {
-			if isPublic {
-				return ErrTxOnlySupportedInPriv
-			}
-			return nil
-		},
-	}
+	return nil
 }
 
 func validateNameTx(tx *TxBody) error {

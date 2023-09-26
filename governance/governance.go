@@ -80,16 +80,16 @@ func NewChainContext(blockInfo *types.BlockHeaderInfo, txHash []byte, txBody *ty
 	if err != nil {
 		return nil, err
 	}
-	governance := string(txBody.Recipient)
+	govName := string(txBody.Recipient)
 	return &ChainContext{
-		blockInfo:  blockInfo,
-		txHash:     txHash,
-		txInfo:     txBody,
-		governance: governance,
-		bs:         bs,
-		scs:        scs,
-		Sender:     sender,
-		Receiver:   receiver,
+		blockInfo: blockInfo,
+		txHash:    txHash,
+		txInfo:    txBody,
+		govName:   govName,
+		bs:        bs,
+		scs:       scs,
+		Sender:    sender,
+		Receiver:  receiver,
 	}, nil
 }
 
@@ -102,12 +102,12 @@ type ChainContext struct {
 	txInfo    *types.TxBody
 	callInfo  *types.CallInfo
 
-	// state
-	governance string
-	bs         *state.BlockState
-	scs        *state.ContractState
-	Sender     *state.V
-	Receiver   *state.V
+	// state per tx
+	govName  string
+	bs       *state.BlockState
+	scs      *state.ContractState
+	Sender   *state.V
+	Receiver *state.V
 }
 
 func (g *Governance) GetSystemValue(key types.SystemValue) (*big.Int, error) {

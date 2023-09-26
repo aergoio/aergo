@@ -27,6 +27,7 @@ func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
 	}
 	return ret, nil
 }
+
 func setAdmins(scs *state.ContractState, addresses [][]byte) error {
 	return scs.SetData([]byte(AdminsKey), bytes.Join(addresses, []byte("")))
 }

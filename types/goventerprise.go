@@ -10,6 +10,7 @@ const (
 	DisableConf   = "disableConf"
 	ChangeCluster = "changeCluster"
 )
+
 const (
 	RPCPermissions = "RPCPERMISSIONS"
 	P2PWhite       = "P2PWHITE"

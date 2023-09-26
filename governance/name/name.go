@@ -1,7 +1,6 @@
 package name
 
 import (
-	"encoding/binary"
 	"fmt"
 	"strings"
 
@@ -13,21 +12,21 @@ var prefix = []byte("name")
 
 // names in memory
 type Names struct {
-	names map[string]*NameMap
+	names map[string]*types.NameMap
 }
 
 func NewNames() *Names {
 	return &Names{
-		names: map[string]*NameMap{},
+		names: map[string]*types.NameMap{},
 	}
 }
 
 func (n *Names) Copy() *Names {
 	names := &Names{
-		names: map[string]*NameMap{},
+		names: map[string]*types.NameMap{},
 	}
 	for k, v := range n.names {
-		names.names[k] = &NameMap{
+		names.names[k] = &types.NameMap{
 			Version:     v.Version,
 			Owner:       v.Owner,
 			Destination: v.Destination,
@@ -51,17 +50,11 @@ func (n *Names) GetOwner(name []byte) []byte {
 }
 
 func (n *Names) SetOwner(name, owner []byte) {
-	n.names[string(name)] = &NameMap{
+	n.names[string(name)] = &types.NameMap{
 		Version:     types.NameVer1,
 		Owner:       owner,
 		Destination: owner,
 	}
-}
-
-type NameMap struct {
-	Version     types.NameVer
-	Owner       []byte
-	Destination []byte
 }
 
 // AccountStateReader is an interface for getting a name account state.
@@ -108,7 +101,7 @@ func getOwner(scs *state.ContractState, name []byte, useInitial bool) []byte {
 	return nil
 }
 
-func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap {
+func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *types.NameMap {
 	lowerCaseName := strings.ToLower(string(name))
 	key := append(prefix, lowerCaseName...)
 	var err error
@@ -121,7 +114,8 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	if err != nil {
 		return nil
 	}
-	return deserializeNameMap(ownerdata)
+
+	return types.DeserializeNameMap(ownerdata)
 }
 
 func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
@@ -134,59 +128,14 @@ func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
 }
 
 func registerOwner(scs *state.ContractState, name, owner, destination []byte) error {
-	nameMap := &NameMap{Version: types.NameVer1, Owner: owner, Destination: destination}
+	nameMap := &types.NameMap{Version: types.NameVer1, Owner: owner, Destination: destination}
 	return setNameMap(scs, name, nameMap)
 }
 
-func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
+func setNameMap(scs *state.ContractState, name []byte, n *types.NameMap) error {
 	lowerCaseName := strings.ToLower(string(name))
 	key := append(prefix, lowerCaseName...)
-	return scs.SetData(key, serializeNameMap(n))
-}
-
-func serializeNameMap(n *NameMap) []byte {
-	var ret []byte
-	if n != nil {
-		ret = append(ret, byte(n.Version))
-		buf := make([]byte, 8)
-		binary.LittleEndian.PutUint64(buf, uint64(len(n.Owner)))
-		ret = append(ret, buf...)
-		ret = append(ret, n.Owner...)
-		binary.LittleEndian.PutUint64(buf, uint64(len(n.Destination)))
-		ret = append(ret, buf...)
-		ret = append(ret, n.Destination...)
-	}
-	return ret
-}
-
-func deserializeNameMap(data []byte) *NameMap {
-	if data != nil {
-		version := types.NameVer(data[0])
-		if version != 1 {
-			panic("could not deserializeOwner, not supported version")
-		}
-		offset := 1
-		next := offset + 8
-		sizeOfAddr := binary.LittleEndian.Uint64(data[offset:next])
-
-		offset = next
-		next = offset + int(sizeOfAddr)
-		owner := data[offset:next]
-
-		offset = next
-		next = offset + 8
-		sizeOfDest := binary.LittleEndian.Uint64(data[offset:next])
-
-		offset = next
-		next = offset + int(sizeOfDest)
-		destination := data[offset:next]
-		return &NameMap{
-			Version:     version,
-			Owner:       owner,
-			Destination: destination,
-		}
-	}
-	return nil
+	return scs.SetData(key, types.SerializeNameMap(n))
 }
 
 func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {

@@ -181,7 +181,7 @@ func TestNameMap(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	testNameMap := &NameMap{Owner: owner, Destination: destination, Version: 1}
+	testNameMap := &types.NameMap{Owner: owner, Destination: destination, Version: 1}
 	err := setNameMap(scs, []byte(name1), testNameMap)
 	assert.NoError(t, err, "error return in setNameMap")
 
