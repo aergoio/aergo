@@ -508,7 +508,20 @@ paths:
           description: Successful response
           content:
             application/json:
-              example: {}
+              example:
+                {
+                  "Hash": "GwnLivMvAXKqoRCwQkhvrm8biC4JhpcJgmBL84iBnPtp",
+                  "Body":
+                    {
+                      "Nonce": 2,
+                      "Account": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R",
+                      "Recipient": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y",
+                      "Amount": "1000000000000000000",
+                      "Type": 4,
+                      "ChainIdHash": "BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn",
+                      "Sign": "AN1rKvtDAYfLhSXNHCXLzi36a7ZjNbp7jhsJoM5ZdyLNZbGLgqDaDRPoNYFwUCVwpCVMqf3kLotB1jmiYMBzjmGeWN7pmsSDs",
+                    },
+                }
   /getPastEvents:
     get:
       summary: 지난 이벤트를 조회
