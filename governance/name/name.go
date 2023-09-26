@@ -49,11 +49,11 @@ func (n *Names) GetOwner(name []byte) []byte {
 	return nil
 }
 
-func (n *Names) SetOwner(name, owner []byte) {
+func (n *Names) Set(name, owner, destination []byte) {
 	n.names[string(name)] = &types.NameMap{
 		Version:     types.NameVer1,
 		Owner:       owner,
-		Destination: owner,
+		Destination: destination,
 	}
 }
 

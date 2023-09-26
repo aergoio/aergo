@@ -5,18 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 
-	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
 
 func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
-	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
+	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo, namePrice *big.Int) ([]*types.Event, error) {
 
-	systemContractState, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-
-	ci, err := ValidateNameTx(txBody, sender, scs, systemContractState)
+	ci, err := ValidateNameTx(txBody, sender, scs, namePrice)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +86,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 }
 
 func ValidateNameTx(tx *types.TxBody, sender *state.V,
-	scs, systemcs *state.ContractState) (*types.CallInfo, error) {
+	scs *state.ContractState, namePrice *big.Int) (*types.CallInfo, error) {
 
 	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
 		return nil, types.ErrInsufficientBalance
@@ -103,7 +101,6 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 
 	switch ci.Name {
 	case types.NameCreate:
-		namePrice := system.GetNamePriceFromState(systemcs)
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
@@ -112,7 +109,6 @@ func ValidateNameTx(tx *types.TxBody, sender *state.V,
 			return nil, fmt.Errorf("aleady occupied %s", string(name))
 		}
 	case types.NameUpdate:
-		namePrice := system.GetNamePriceFromState(systemcs)
 		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}

@@ -14,6 +14,7 @@ import (
 
 var sdb *state.ChainStateDB
 var block *types.Block
+var namePrice *big.Int
 
 func initTest(t *testing.T) {
 	genesis := types.GetTestGenesis()
@@ -24,6 +25,7 @@ func initTest(t *testing.T) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	block = genesis.Block()
+	namePrice = types.NewAmount(1, types.Aergo)
 }
 
 func deinitTest() {
@@ -45,13 +47,12 @@ func TestName(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	systemcs := openSystemContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
-	_, err = ValidateNameTx(tx, sender, scs, systemcs)
+	_, err = ValidateNameTx(tx, sender, scs, namePrice)
 	assert.Error(t, err, "same name")
 
 	ret := getAddress(scs, []byte(name))
@@ -150,7 +151,7 @@ func TestNameSetContractOwner(t *testing.T) {
 	//systemcs := openSystemContractState(t, bs)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
-	_, err := ExecuteNameTx(bs, scs, tx, sender, receiver, blockInfo)
+	_, err := ExecuteNameTx(bs, scs, tx, sender, receiver, blockInfo, namePrice)
 	assert.NoError(t, err, "execute name")
 	assert.Equal(t, big.NewInt(0), receiver.Balance(), "check remain")
 }
