@@ -2,6 +2,7 @@ package raftv2
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -48,10 +49,10 @@ type txExec struct {
 	execTx bc.TxExecFn
 }
 
-func newTxExec(ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
+func newTxExec(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, ccc, cdb, bi, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(execCtx, ccc, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -62,7 +63,8 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 
 type Work struct {
 	*types.Block
-	term uint64
+	term    uint64
+	execCtx context.Context
 }
 
 func (work *Work) GetTimeout() time.Duration {
@@ -122,7 +124,7 @@ type BlockFactory struct {
 
 	workerQueue chan *Work
 	jobQueue    chan interface{}
-	bpTimeoutC  chan struct{}
+	bpTimeoutC  chan struct{} // FIXME change to context based logic like dpos factory
 	quit        chan interface{}
 
 	ready leaderReady
@@ -139,6 +141,9 @@ type BlockFactory struct {
 	raftServer *raftServer
 
 	bv types.BlockVersionner
+
+	ctx           context.Context
+	ctxCancelFunc context.CancelFunc
 }
 
 // GetName returns the name of the consensus.
@@ -192,8 +197,20 @@ func New(cfg *config.Config, hub *component.ComponentHub, cdb consensus.ChainWAL
 			return bf.checkBpTimeout()
 		}),
 	)
+	bf.initContext()
 
 	return bf, nil
+}
+
+func (bf *BlockFactory) initContext() {
+	// TODO change context to WithCancelCause later for more precise control
+	bf.ctx, bf.ctxCancelFunc = context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-bf.quit:
+			bf.ctxCancelFunc()
+		}
+	}()
 }
 
 func (bf *BlockFactory) newRaftServer(cfg *config.Config) error {
@@ -359,6 +376,9 @@ func (bf *BlockFactory) controller() {
 			return err
 		}
 
+		bfContext, _ := context.WithTimeout(bf.ctx, work.GetTimeout())
+		work.execCtx = bfContext
+
 		select {
 		case bf.workerQueue <- work:
 		default:
@@ -366,13 +386,6 @@ func (bf *BlockFactory) controller() {
 				"skip block production for %s due to a pending job", work.ToString())
 		}
 		return nil
-	}
-
-	notifyBpTimeout := func(work *Work) {
-		timeout := work.GetTimeout()
-		time.Sleep(timeout)
-		bf.bpTimeoutC <- struct{}{}
-		logger.Debug().Int64("timeout(ms)", timeout.Nanoseconds()/int64(time.Millisecond)).Msg("block production timeout signaled")
 	}
 
 	for {
@@ -390,8 +403,6 @@ func (bf *BlockFactory) controller() {
 				logger.Debug().Err(err).Msg("skip block production")
 				continue
 			}
-
-			notifyBpTimeout(work)
 
 		case <-bf.quit:
 			return
@@ -506,7 +517,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	}
 
 	bi := types.NewBlockHeaderInfoFromPrevBlock(bestBlock, time.Now().UnixNano(), bf.bv)
-	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(bf, bf.ChainWAL, bi))
+	txOp := chain.NewCompTxOp(bf.txOp, newTxExec(work.execCtx, bf, bf.ChainWAL, bi))
 	blockState := bf.sdb.NewBlockState(
 		bestBlock.GetHeader().GetBlocksRootHash(),
 		state.SetPrevBlockHash(bestBlock.BlockHash()),
@@ -514,7 +525,7 @@ func (bf *BlockFactory) generateBlock(work *Work) (*types.Block, *state.BlockSta
 	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 	blockState.Receipts().SetHardFork(bf.bv, bi.No)
 
-	block, err := chain.NewBlockGenerator(bf, nil, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
+	block, err := chain.NewBlockGenerator(bf, work.execCtx, bi, blockState, txOp, RaftSkipEmptyBlock).GenerateBlock()
 	if err == chain.ErrBlockEmpty {
 		//need reset previous work
 		return nil, nil, chain.ErrBlockEmpty
