@@ -81,7 +81,7 @@ func (bi *bpInfo) updateBestBlock() *types.Block {
 }
 
 type bfWork struct {
-	context context.Context
+	execCtx context.Context
 	bpi     *bpInfo
 }
 

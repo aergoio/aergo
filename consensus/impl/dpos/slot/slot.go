@@ -136,7 +136,8 @@ func (s *Slot) NextBpIndex(bpCount uint16) int64 {
 
 // BpMaxTime returns the max time limit for block production in nsec.
 func BpMaxTime() time.Duration {
-	return time.Duration(bpMaxTimeLimitMs) * time.Millisecond
+	// FIXME this function has a bug. it returns 1/1000 of actual value.
+	return time.Duration(bpMaxTimeLimitMs) * 1000
 }
 
 func msToPrevIndex(ms int64) int64 {

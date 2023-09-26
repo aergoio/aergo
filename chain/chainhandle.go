@@ -591,7 +591,8 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 			state.SetPrevBlockHash(block.GetHeader().GetPrevBlockHash()),
 		)
 		bi = types.NewBlockHeaderInfo(block)
-		exec = NewTxExecutor(nil, cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
+		// FIXME currently the verify only function is allowed long execution time,
+		exec = NewTxExecutor(context.Background(), cs.ChainConsensus, cs.cdb, bi, contract.ChainService)
 
 		validateSignWait = func() error {
 			return cs.validator.WaitVerifyDone()
@@ -622,7 +623,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 }
 
 // NewTxExecutor returns a new TxExecFn.
-func NewTxExecutor(ctx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
 	return func(bState *state.BlockState, tx types.Transaction) error {
 		if bState == nil {
 			logger.Error().Msg("bstate is nil in txExec")
@@ -634,7 +635,7 @@ func NewTxExecutor(ctx context.Context, ccc consensus.ChainConsensusCluster, cdb
 		}
 		blockSnap := bState.Snapshot()
 
-		err := executeTx(ctx, ccc, cdb, bState, tx, bi, preloadService)
+		err := executeTx(execCtx, ccc, cdb, bState, tx, bi, preloadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := bState.Rollback(blockSnap); err2 != nil {

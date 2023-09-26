@@ -54,7 +54,7 @@ const (
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
 
-	vmTimeoutErrMsg = "contract timeout of VmTimeoutError"
+	vmTimeoutErrMsg = "contract timeout during vm execution"
 )
 
 var (
@@ -99,7 +99,7 @@ type vmContext struct {
 	node              string
 	confirmed         bool
 	isQuery           bool
-	nestedView        int32 // nestedView indicate which parent called called the contract in view (read-only mode)
+	nestedView        int32 // indicates which parent called the contract in view (read-only mode)
 	isFeeDelegation   bool
 	service           C.int
 	callState         map[types.AccountID]*callState
@@ -112,7 +112,7 @@ type vmContext struct {
 	traceFile         *os.File
 	gasLimit          uint64
 	remainedGas       uint64
-	txContext         context.Context
+	execCtx           context.Context
 }
 
 type recoveryEntry struct {
@@ -178,7 +178,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func NewVmContext(txContext context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	cs := &callState{ctrState: contractState, curState: reciever.State()}
 
@@ -196,7 +196,7 @@ func NewVmContext(txContext context.Context, blockState *state.BlockState, cdb C
 		gasLimit:        gasLimit,
 		remainedGas:     gasLimit,
 		isFeeDelegation: feeDelegation,
-		txContext:       txContext,
+		execCtx:         execCtx,
 	}
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[reciever.AccountID()] = cs
@@ -229,7 +229,7 @@ func NewVmContextQuery(
 		confirmed:   true,
 		blockInfo:   types.NewBlockHeaderInfo(bb),
 		isQuery:     true,
-		txContext:   context.Background(), // FIXME query also should cancel if query is too long
+		execCtx:     context.Background(), // FIXME query also should cancel if query is too long
 	}
 
 	ctx.callState = make(map[types.AccountID]*callState)
@@ -612,18 +612,15 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 		return 0
 	}
 	ce.setCountHook(instLimit)
-	nret := C.int(0)
-	startTime := time.Now()
-	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret)
-	vmExecTime := time.Now().Sub(startTime).Microseconds()
-	vmLogger.Trace().Int64("execµs", vmExecTime).Stringer("contract", types.LogAddr(ce.ctx.curContract.contractId)).Msg("contract execute time in vm")
+	nRet := C.int(0)
+	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
 	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		if C.luaL_hassyserror(ce.L) != C.int(0) {
 			ce.err = newVmSystemError(errors.New(errMsg))
 		} else {
 			isUncatchable := C.luaL_hasuncatchablerror(ce.L) != C.int(0)
-			if isUncatchable && (C.ERR_BF_TIMEOUT == errMsg || vmTimeoutErrMsg == errMsg) {
+			if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
 				ce.err = &VmTimeoutError{}
 			} else {
 				ce.err = errors.New(errMsg)
@@ -645,14 +642,14 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	}
 	if target == nil {
 		var errRet C.int
-		retMsg := C.GoString(C.vm_get_json_ret(ce.L, nret, &errRet))
+		retMsg := C.GoString(C.vm_get_json_ret(ce.L, nRet, &errRet))
 		if errRet == 1 {
 			ce.err = errors.New(retMsg)
 		} else {
 			ce.jsonRet = retMsg
 		}
 	} else {
-		if c2ErrMsg := C.vm_copy_result(ce.L, target, nret); c2ErrMsg != nil {
+		if c2ErrMsg := C.vm_copy_result(ce.L, target, nRet); c2ErrMsg != nil {
 			errMsg := C.GoString(c2ErrMsg)
 			ce.err = errors.New(errMsg)
 			ctrLgr.Debug().Err(ce.err).Stringer(
@@ -674,7 +671,7 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 		_, _ = ce.ctx.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
 			address, ce.ctx.usedFee().String()))
 	}
-	return nret
+	return nRet
 }
 
 func (ce *executor) commitCalledContract() error {

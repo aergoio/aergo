@@ -33,15 +33,13 @@ const (
 )
 
 type txExec struct {
-	ctx    context.Context
 	execTx bc.TxExecFn
 }
 
-func newTxExec(ctx context.Context, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
+func newTxExec(execCtx context.Context, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		ctx:    ctx,
-		execTx: bc.NewTxExecutor(ctx, nil, cdb, bi, contract.BlockFactory),
+		execTx: bc.NewTxExecutor(execCtx, nil, cdb, bi, contract.BlockFactory),
 	}
 }
 
@@ -148,7 +146,7 @@ func (bf *BlockFactory) controller() {
 		bfContext, _ := context.WithTimeout(bf.ctx, time.Duration(timeLeftMSs)*time.Millisecond)
 
 		select {
-		case bf.workerQueue <- bfWork{context: bfContext, bpi: bpi}:
+		case bf.workerQueue <- bfWork{execCtx: bfContext, bpi: bpi}:
 		default:
 			logger.Error().Msgf(
 				"skip block production for the slot %v (best block: %v) due to a pending job",
@@ -173,8 +171,6 @@ func (bf *BlockFactory) controller() {
 				continue
 			}
 
-			//notifyBpTimeout(bpi)
-
 		case <-bf.quit:
 			return
 		}
@@ -195,7 +191,7 @@ func (bf *BlockFactory) worker() {
 		case bfw := <-bf.workerQueue:
 		retry:
 			bpi := bfw.bpi
-			block, blockState, err := bf.generateBlock(bfw.context, bpi, lpbNo)
+			block, blockState, err := bf.generateBlock(bfw.execCtx, bpi, lpbNo)
 			if err == chain.ErrQuit {
 				return
 			}
@@ -228,7 +224,7 @@ func (bf *BlockFactory) worker() {
 	}
 }
 
-func (bf *BlockFactory) generateBlock(ctx context.Context, bpi *bpInfo, lpbNo types.BlockNo) (block *types.Block, bs *state.BlockState, err error) {
+func (bf *BlockFactory) generateBlock(execCtx context.Context, bpi *bpInfo, lpbNo types.BlockNo) (block *types.Block, bs *state.BlockState, err error) {
 	defer func() {
 		if panicMsg := recover(); panicMsg != nil {
 			block = nil
@@ -247,7 +243,7 @@ func (bf *BlockFactory) generateBlock(ctx context.Context, bpi *bpInfo, lpbNo ty
 	bs.Receipts().SetHardFork(bf.bv, bi.No)
 
 	bGen := chain.NewBlockGenerator(
-		bf, ctx, bi, bs, newTxExec(ctx, bpi.ChainDB, bi), false).
+		bf, execCtx, bi, bs, newTxExec(execCtx, bpi.ChainDB, bi), false).
 		WithDeco(bf.deco()).
 		SetNoTTE(bf.noTTE)
 

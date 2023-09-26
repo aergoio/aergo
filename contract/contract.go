@@ -65,7 +65,8 @@ func SetPreloadTx(tx *types.Tx, service int) {
 	preloaders[service].requestedTx = tx
 }
 
-func Execute(txCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.V, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
+// Execute executes a normal transaction which is possibly executing smart contract.
+func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx *types.Tx, sender, receiver *state.V, bi *types.BlockHeaderInfo, preloadService int, isFeeDelegation bool) (rv string, events []*types.Event, usedFee *big.Int, err error) {
 
 	txBody := tx.GetBody()
 
@@ -180,7 +181,7 @@ func Execute(txCtx context.Context, bs *state.BlockState, cdb ChainAccessor, tx 
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
 		// create a new context
-		ctx := NewVmContext(txCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
 
 		// execute the transaction
 		if receiver.IsDeploy() {

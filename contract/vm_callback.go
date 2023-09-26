@@ -1500,9 +1500,7 @@ func luaCheckView(service C.int) C.int {
 	return C.int(ctx.nestedView)
 }
 
-// luaCheckTimeout checks two types of timeouts;
-// One is whether the block creation timeout is exceeded, and the other is whether
-// the transaction execution timeout is exceeded.
+// luaCheckTimeout checks whether the block creation timeout occurred.
 //
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
@@ -1522,9 +1520,10 @@ func luaCheckTimeout(service C.int) C.int {
 	if service != BlockFactory {
 		return 0
 	}
+
 	ctx := contexts[service]
 	select {
-	case <-ctx.txContext.Done():
+	case <-ctx.execCtx.Done():
 		return 1
 	default:
 		return 0
