@@ -1,5 +1,24 @@
 package system
 
+import (
+	"math/big"
+	"testing"
+
+	"github.com/aergoio/aergo/v2/types"
+)
+
+var (
+	TestParams *Parameters
+)
+
+func initParamsTest(t *testing.T) {
+	TestParams = NewParameters()
+	TestParams.SetBpCount(big.NewInt(3))
+	TestParams.SetStakingMinimum(types.StakingMinimum)
+	TestParams.SetGasPrice(types.NewAmount(50, types.Gaer))
+	TestParams.SetNamePrice(types.NewAmount(1, types.Aergo))
+}
+
 /*
 func TestValidateDefaultParams(t *testing.T) {
 	// Staking minimum amount ( 10,000 aergo )

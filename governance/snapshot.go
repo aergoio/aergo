@@ -63,7 +63,7 @@ func (ss *Snapshot) GetSystemBpCount() int {
 		return int(bpCount.Int64())
 	}
 
-	// get from state
+	// if not exist in memory, get from state
 	bpCount = system.GetBpCountFromState(ss.ctx.scs)
 	if bpCount != nil {
 		// set memory from db
@@ -81,7 +81,7 @@ func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
 		return stakingMinimum
 	}
 
-	// get from state
+	// if not exist in memory, get from state
 	stakingMinimum = system.GetStakingMinimumFromState(ss.ctx.scs)
 	if stakingMinimum != nil {
 		// set memory from state
@@ -99,7 +99,7 @@ func (ss *Snapshot) GetSystemNamePrice() *big.Int {
 		return namePrice
 	}
 
-	// get from state
+	// if not exist in memory, get from state
 	namePrice = system.GetNamePriceFromState(ss.ctx.scs)
 	if namePrice != nil {
 		// set memory from state
@@ -135,7 +135,7 @@ func (ss *Snapshot) GetNameOwner(scs *state.ContractState, account []byte) []byt
 	if owner != nil {
 		return owner
 	}
-	// get from state
+	// if not exist in memory, get from state
 	owner = name.GetOwnerFromState(scs, account)
 	if owner != nil {
 		return owner

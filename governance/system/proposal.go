@@ -2,28 +2,39 @@ package system
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strings"
-
-	"github.com/aergoio/aergo/v2/types"
 )
 
-const proposalPrefixKey = "proposal" //aergo proposal format
+const (
+	proposalPrefixKey = "proposal" //aergo proposal format
+)
 
-func (i SysParamIndex) ID() string {
-	return strings.ToUpper(i.String())
+type Proposals struct {
+	proposal map[string]*Proposal
 }
 
-func (i SysParamIndex) Key() []byte {
-	return GenProposalKey(i.String())
-}
-
-func GetVotingIssues() []types.VotingIssue {
-	vi := make([]types.VotingIssue, SysParamMax)
-	for i := SysParamIndex(0); i < SysParamMax; i++ {
-		vi[int(i)] = i
+func NewProposals(init map[string]*Proposal) *Proposals {
+	p := &Proposals{
+		proposal: make(map[string]*Proposal),
 	}
-	return vi
+	if init != nil {
+		p.proposal = init
+	}
+	return p
+}
+
+func (p *Proposals) GetProposal(id string) (*Proposal, error) {
+	if proposal, ok := p.proposal[strings.ToUpper(id)]; ok {
+		return proposal, nil
+	}
+	return nil, fmt.Errorf("proposal %s is not found", id)
+}
+
+func (p *Proposals) SetProposal(proposal *Proposal) *Proposal {
+	p.proposal[strings.ToUpper(proposal.ID)] = proposal
+	return proposal
 }
 
 type whereToVotes = [][]byte

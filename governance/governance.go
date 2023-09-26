@@ -28,13 +28,13 @@ type Governance struct {
 
 	// immutable params
 	cfg *Config
+	ctx *ChainContext
 
 	// snapshot params
 	// init : update beforeExec, afterExec to init
 	// commit : update beforeExec to afterExec
 	// revert : update afterExec to beforeExec
 	// reorg : update beforeExec, afterExec to db(reorg)
-	ctx        *ChainContext
 	initial    *Snapshot
 	beforeExec *Snapshot
 	afterExec  *Snapshot

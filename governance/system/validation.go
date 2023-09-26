@@ -14,7 +14,7 @@ import (
 
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
-func ValidateSystemTx(proposals map[string]*Proposal, account []byte, txBody *types.TxBody, sender *state.V,
+func ValidateSystemTx(proposals *Proposals, account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
@@ -55,8 +55,8 @@ func ValidateSystemTx(proposals map[string]*Proposal, account []byte, txBody *ty
 		if err != nil {
 			return nil, err
 		}
-		proposal := proposals[id]
-		if proposal == nil {
+		proposal, err := proposals.GetProposal(id)
+		if proposal == nil || err != nil {
 			return nil, fmt.Errorf("not exist id")
 		}
 		if blockNo < proposal.Blockfrom {

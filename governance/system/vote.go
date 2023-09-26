@@ -230,7 +230,7 @@ func (c *voteCmd) updateVoteResult() error {
 	return c.voteResult.Sync()
 }
 
-func refreshAllVote(context *SystemContext, proposal map[string]*Proposal, votingCatalog map[string]types.VotingIssue) error {
+func refreshAllVote(context *SystemContext, proposal *Proposals, votingCatalog map[string]types.VotingIssue) error {
 	var (
 		scs          = context.scs
 		account      = context.Sender.ID()
@@ -250,8 +250,8 @@ func refreshAllVote(context *SystemContext, proposal map[string]*Proposal, votin
 			continue
 		}
 		if types.OpvoteBP.ID() != i.ID() {
-			proposal, exist := proposal[i.ID()]
-			if exist != true {
+			proposal, err := proposal.GetProposal(i.ID())
+			if err != nil {
 				return err
 			}
 			if proposal != nil && proposal.Blockto != 0 && proposal.Blockto < context.BlockInfo.No {

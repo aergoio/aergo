@@ -5,7 +5,13 @@ import (
 	"fmt"
 )
 
-//governance type transaction which has aergo.system in recipient
+type NameVer byte
+
+const (
+	NameVer1 NameVer = iota + 1
+)
+
+// governance type transaction which has aergo.system in recipient
 
 const (
 	SetContractOwner = "v1setOwner"

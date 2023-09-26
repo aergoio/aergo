@@ -31,7 +31,7 @@ type SystemContext struct {
 	txBody *types.TxBody
 }
 
-func NewSystemContext(proposals map[string]*Proposal, account []byte, txBody *types.TxBody, sender, receiver *state.V,
+func NewSystemContext(proposals *Proposals, account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	context, err := ValidateSystemTx(proposals, sender.ID(), txBody, sender, scs, blockInfo)
 	if err != nil {
@@ -58,7 +58,7 @@ type SysCmd interface {
 
 type SysCmdCtor func(ctx *SystemContext) (SysCmd, error)
 
-func newSysCmd(proposals map[string]*Proposal, account []byte, txBody *types.TxBody, sender, receiver *state.V,
+func newSysCmd(proposals *Proposals, account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (SysCmd, error) {
 
 	cmds := map[types.OpSysTx]SysCmdCtor{
@@ -81,7 +81,7 @@ func newSysCmd(proposals map[string]*Proposal, account []byte, txBody *types.TxB
 	return ctor(context)
 }
 
-func ExecuteSystemTx(proposals map[string]*Proposal, scs *state.ContractState, txBody *types.TxBody,
+func ExecuteSystemTx(proposals *Proposals, scs *state.ContractState, txBody *types.TxBody,
 	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
 	cmd, err := newSysCmd(proposals, sender.ID(), txBody, sender, receiver, scs, blockInfo)

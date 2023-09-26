@@ -5,11 +5,16 @@ import (
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
 	RESET = -1
 )
+
+func genParamKey(id string) []byte {
+	return []byte("param\\" + strings.ToUpper(id))
+}
 
 //go:generate stringer -type=sysParamIndex
 type SysParamIndex int
@@ -22,8 +27,20 @@ const (
 	SysParamMax
 )
 
-func genParamKey(id string) []byte {
-	return []byte("param\\" + strings.ToUpper(id))
+func (i SysParamIndex) ID() string {
+	return strings.ToUpper(i.String())
+}
+
+func (i SysParamIndex) Key() []byte {
+	return GenProposalKey(i.String())
+}
+
+func GetVotingIssues() []types.VotingIssue {
+	vi := make([]types.VotingIssue, SysParamMax)
+	for i := SysParamIndex(0); i < SysParamMax; i++ {
+		vi[int(i)] = i
+	}
+	return vi
 }
 
 // func LoadParam(g DataGetter) Parameters {

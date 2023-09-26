@@ -1,8 +1,6 @@
 package governance
 
 import (
-	"fmt"
-
 	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -11,7 +9,7 @@ type Config struct {
 	genesis        *types.Genesis
 	consensusType  string
 	cmds           map[types.OpSysTx]system.SysCmdCtor
-	proposals      map[string]*system.Proposal
+	proposals      *system.Proposals
 	votingCatalogs []types.VotingIssue
 }
 
@@ -25,7 +23,7 @@ func NewConfig(genesis *types.Genesis, consensus string) *Config {
 		types.Opstake:   system.NewStakeCmd,
 		types.Opunstake: system.NewUnstakeCmd,
 	}
-	si.proposals = map[string]*system.Proposal{
+	si.proposals = system.NewProposals(map[string]*system.Proposal{
 		system.BpCount.ID(): {
 			ID:             system.BpCount.ID(),
 			Description:    "",
@@ -58,7 +56,7 @@ func NewConfig(genesis *types.Genesis, consensus string) *Config {
 			MultipleChoice: 1,
 			Candidates:     nil,
 		},
-	}
+	})
 
 	si.votingCatalogs = make([]types.VotingIssue, 0, 10)
 	si.votingCatalogs = append(si.votingCatalogs, types.GetVotingIssues()...)
@@ -67,13 +65,10 @@ func NewConfig(genesis *types.Genesis, consensus string) *Config {
 }
 
 // getProposal find proposal using id
-func (c *Config) getProposal(id string) (*system.Proposal, error) {
-	if val, ok := c.proposals[id]; ok {
-		return val, nil
-	}
-	return nil, fmt.Errorf("proposal %s is not found", id)
+func (c *Config) GetProposal(id string) (*system.Proposal, error) {
+	return c.proposals.GetProposal(id)
 }
 
 func (c *Config) setProposal(proposal *system.Proposal) {
-	c.proposals[proposal.ID] = proposal
+	c.proposals.SetProposal(proposal)
 }

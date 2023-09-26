@@ -35,12 +35,12 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	// Need to pass the
-	InitGovernance("dpos")
+	initProposalTest(t)
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := bs.OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
 	assert.NoError(t, err, "could not open contract state")
-	InitSystemParams(scs, 3)
+	initParamsTest(t)
 
 	account, err := types.DecodeAddress(testSender)
 	assert.NoError(t, err, "could not decode test address")
@@ -149,7 +149,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	tx.Body.Payload = buildStakingPayload(true)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
-	stake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	stake, err := newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")
 	event, err := stake.run()
 	assert.NoError(t, err, "staking failed")
@@ -160,7 +160,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildVotingPayload(1)
 	blockInfo.No += VotingDelay
-	voting, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	voting, err := newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
 	event, err = voting.run()
 	assert.NoError(t, err, "voting failed")
@@ -174,11 +174,11 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	_, err = ExecuteSystemTx(scs, tx.Body, sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(TestProposals, scs, tx.Body, sender, receiver, blockInfo)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
 	blockInfo.No += StakingDelay
-	unstake, err := newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	unstake, err := newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "unstaking failed")
 	event, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
@@ -194,7 +194,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	blockInfo.No += StakingDelay
 	blockInfo.ForkVersion = 2
 	tx.Body.Payload = buildStakingPayload(true)
-	stake, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	stake, err = newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")
 	event, err = stake.run()
 	assert.NoError(t, err, "staking failed")
@@ -205,7 +205,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildVotingPayload(30)
 	blockInfo.No += VotingDelay
-	voting, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	voting, err = newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
 	event, err = voting.run()
 	assert.NoError(t, err, "voting failed")
@@ -215,7 +215,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	blockInfo.No += StakingDelay
 	tx.Body.Payload = buildStakingPayload(false)
-	unstake, err = newSysCmd(tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	unstake, err = newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	event, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
 	assert.Equal(t, event.EventName, "unstake", "event name")

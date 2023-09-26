@@ -50,8 +50,16 @@ func (n *Names) GetOwner(name []byte) []byte {
 	return nil
 }
 
+func (n *Names) SetOwner(name, owner []byte) {
+	n.names[string(name)] = &NameMap{
+		Version:     types.NameVer1,
+		Owner:       owner,
+		Destination: owner,
+	}
+}
+
 type NameMap struct {
-	Version     byte
+	Version     types.NameVer
 	Owner       []byte
 	Destination []byte
 }
@@ -126,7 +134,7 @@ func GetNameInfo(r AccountStateReader, name string) (*types.NameInfo, error) {
 }
 
 func registerOwner(scs *state.ContractState, name, owner, destination []byte) error {
-	nameMap := &NameMap{Version: 1, Owner: owner, Destination: destination}
+	nameMap := &NameMap{Version: types.NameVer1, Owner: owner, Destination: destination}
 	return setNameMap(scs, name, nameMap)
 }
 
@@ -139,7 +147,7 @@ func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
 func serializeNameMap(n *NameMap) []byte {
 	var ret []byte
 	if n != nil {
-		ret = append(ret, n.Version)
+		ret = append(ret, byte(n.Version))
 		buf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(buf, uint64(len(n.Owner)))
 		ret = append(ret, buf...)
@@ -153,7 +161,7 @@ func serializeNameMap(n *NameMap) []byte {
 
 func deserializeNameMap(data []byte) *NameMap {
 	if data != nil {
-		version := data[0]
+		version := types.NameVer(data[0])
 		if version != 1 {
 			panic("could not deserializeOwner, not supported version")
 		}
