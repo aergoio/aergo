@@ -27,12 +27,10 @@ type Web3APIv1 struct {
 }
 
 func (api *Web3APIv1) handler(w http.ResponseWriter, r *http.Request) {
-    api.request = r;
-
+	api.request = r;
 	handler, ok := api.restAPIHandler(r)	
 	if(ok) {
 		handler.ServeHTTP(w, r)
-		
 	} else {
 		http.NotFound(w, r)
 	}
@@ -44,48 +42,42 @@ func (api *Web3APIv1) restAPIHandler(r *http.Request) (handler http.Handler, ok 
 
 	if r.Method == http.MethodGet {
 		switch path {
-			case "/getAccounts":				return api.GetAccounts();
-			case "/getState":					return api.GetState();
-			case "/getProof":					return api.GetStateAndProof();
-			case "/getNameInfo":				return api.GetNameInfo();
-			case "/getBalance":					return api.GetBalance();
-			case "/getBlock":					return api.GetBlock();
-			case "/getBlockNumber":				return api.Blockchain();
-			case "/getBlockBody":				return api.GetBlockBody();
-			case "/listBlockHeaders":			return api.ListBlockHeaders();
-			case "/getBlockMetadata":			return api.GetBlockMetadata();
-			
+			case "/getAccounts":					return api.GetAccounts();
+			case "/getState":						return api.GetState();
+			case "/getProof":						return api.GetStateAndProof();
+			case "/getNameInfo":					return api.GetNameInfo();
+			case "/getBalance":						return api.GetBalance();
+			case "/getBlock":						return api.GetBlock();
+			case "/getBlockNumber":					return api.Blockchain();
+			case "/getBlockBody":					return api.GetBlockBody();
+			case "/listBlockHeaders":				return api.ListBlockHeaders();
+			case "/getBlockMetadata":				return api.GetBlockMetadata();			
 			case "/getTransaction":					return api.GetTX();
 			case "/getTransactionReceipt":			return api.GetReceipt();
 			case "/getBlockTransactionReceipts":	return api.GetReceipts();			
 			case "/getBlockTX":						return api.GetBlockTX();
-			case "/verifyTX":						return api.VerifyTX();		// test
 			case "/call":							return api.QueryContract();
 			case "/getPastEvents":					return api.ListEvents();
 			case "/getABI":							return api.GetABI();
 			case "/queryContractState":				return api.QueryContractState();
-			case "/getBlockTransactionCount":		return api.GetBlockTransactionCount();
-			// case "/getTransactionCount":			return api.GetTransactionCount();
-			
-			case "/getChainInfo":				return api.GetChainInfo();	
-			case "/getConsensusInfo":			return api.GetConsensusInfo();
-			case "/getAccountVotes":			return api.GetAccountVotes();
-			case "/getNodeInfo":				return api.NodeState();
-			case "/getChainId":					return api.GetPeers();
-			case "/getServerInfo":				return api.GetServerInfo();
-			case "/getStaking":					return api.GetStaking();
-			case "/getVotes":					return api.GetVotes();
-			case "/metric":						return api.Metric();
-			case "/getEnterpriseConfig":		return api.GetEnterpriseConfig();
-			case "/getConfChangeProgress":		return api.GetConfChangeProgress();
-			case "/chainStat":					return api.ChainStat();
-			// case "/ListBlockMetadata":			return api.ListBlockMetadata();
-			
-			default:							return nil, false
+			case "/getBlockTransactionCount":		return api.GetBlockTransactionCount();			
+			case "/getChainInfo":					return api.GetChainInfo();	
+			case "/getConsensusInfo":				return api.GetConsensusInfo();
+			case "/getAccountVotes":				return api.GetAccountVotes();
+			case "/getNodeInfo":					return api.NodeState();
+			case "/getChainId":						return api.GetPeers();
+			case "/getServerInfo":					return api.GetServerInfo();
+			case "/getStaking":						return api.GetStaking();
+			case "/getVotes":						return api.GetVotes();
+			case "/metric":							return api.Metric();
+			case "/getEnterpriseConfig":			return api.GetEnterpriseConfig();
+			case "/getConfChangeProgress":			return api.GetConfChangeProgress();
+			case "/chainStat":						return api.ChainStat();						
+			default:								return nil, false
 		}
 	} else if r.Method == http.MethodPost {
 		switch path {
-			case "/sendSignedTransaction":		return api.CommitTX();		// test
+			case "/sendSignedTransaction":		return api.CommitTX();
 			default:							return nil, false
 		}
 	}
@@ -732,110 +724,6 @@ func (api *Web3APIv1) GetBlockTX() (handler http.Handler, ok bool)	{
 	}
 }
 
-func (api *Web3APIv1) VerifyTX() (handler http.Handler, ok bool)	{
-	values, err := url.ParseQuery(api.request.URL.RawQuery)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	// Params
-	request := &types.Tx{}
-	request.Body = &types.TxBody{}
-	hash := values.Get("hash")
-	if hash != "" {
-		hashBytes, err := base64.StdEncoding.DecodeString(hash)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true			
-		}
-		request.Hash = hashBytes
-	}
-
-	nonce := values.Get("nonce")
-	if nonce != "" {
-		nonceValue, parseErr := strconv.ParseUint(nonce, 10, 64)
-		if parseErr != nil {
-			return commonResponseHandler(&types.Empty{}, parseErr), true
-		}
-		request.Body.Nonce = nonceValue
-	}
-
-	account := values.Get("account")
-	if account != "" {
-		request.Body.Account = []byte(account)
-	}
-
-	recipient := values.Get("recipient")
-	if recipient != "" {
-		recipientBytes, err := base64.StdEncoding.DecodeString(recipient)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true			
-		}
-		request.Body.Recipient = recipientBytes
-	}
-
-	amount := values.Get("amount")
-	if amount != "" {
-		request.Body.Amount = []byte(amount)
-	}
-
-	payload := values.Get("payload")
-	if payload != "" {
-		request.Body.Payload = []byte(payload)
-	}
-
-	gasLimit := values.Get("gasLimit")
-	if gasLimit != "" {
-		gasLimitValue, parseErr := strconv.ParseUint(gasLimit, 10, 64)
-		if parseErr != nil {
-			return commonResponseHandler(&types.Empty{}, parseErr), true
-		}
-		request.Body.GasLimit = gasLimitValue
-	}
-
-	gasPrice := values.Get("gasPrice")
-	if gasPrice != "" {
-		request.Body.GasPrice = []byte(gasPrice)
-	}
-
-	txType := values.Get("type")
-	if txType != "" {
-		request.Body.Type = types.TxType(types.TxType_value[txType])
-	}
-
-	chainIdHash := values.Get("chainIdHash")
-	if hash != "" {
-		chainIdHashBytes, err := base64.StdEncoding.DecodeString(chainIdHash)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true			
-		}
-		request.Body.ChainIdHash = chainIdHashBytes
-	}
-
-	sign := values.Get("sign")
-	if sign != "" {
-		signBytes, err := base64.StdEncoding.DecodeString(sign)
-		if err != nil {
-			return commonResponseHandler(&types.Empty{}, err), true			
-		}
-		request.Body.Sign = signBytes
-	}
-
-	if _, err := govalidator.ValidateStruct(request); err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true
-	}
-
-	msg, err := api.rpc.VerifyTX(api.request.Context(), request)
-	if err != nil {
-		return commonResponseHandler(&types.Empty{}, err), true			
-		
-	}
-	if msg.Tx != nil {
-		return commonResponseHandler(util.TxConvBase58Addr(msg.Tx), nil), true
-	} else {
-		return commonResponseHandler(&types.Empty{}, nil), true	
-	}
-}
-
 func (api *Web3APIv1) QueryContract() (handler http.Handler, ok bool)	{
 	values, err := url.ParseQuery(api.request.URL.RawQuery)
 	if err != nil {
@@ -1275,7 +1163,7 @@ func (api *Web3APIv1) GetEnterpriseConfig() (handler http.Handler, ok bool)	{
 	return stringResponseHandler(util.B58JSON(out), nil), true		
 }
 
-func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool)	{
+func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool) {
 	values, err := url.ParseQuery(api.request.URL.RawQuery)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
@@ -1306,54 +1194,17 @@ func (api *Web3APIv1) GetConfChangeProgress() (handler http.Handler, ok bool)	{
 	return commonResponseHandler(api.rpc.GetConfChangeProgress(api.request.Context(),  &types.SingleBytes{Value: b})), true
 }
 
-func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool)	{
+func (api *Web3APIv1) CommitTX() (handler http.Handler, ok bool) {
 	body, err := ioutil.ReadAll(api.request.Body)
 	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-		
-	type TxBody struct {
-		Nonce      	int64  `json:"Nonce"`
-		Account     string `json:"Account"`
-		Recipient   string `json:"Recipient"`
-		Amount      string `json:"Amount"`
-		Type        int32  `json:"Type"`
-		ChainIdHash string `json:"ChainIdHash"`
-		Sign        string `json:"Sign"`
-	}
-
-	type Tx struct {
-		Hash       []byte `json:"Hash"`
-		Body       TxBody `json:"Body"`
-	}
-
-	var tx1 Tx
-
-	if err := json.Unmarshal(body, &tx1); err != nil {
+	
+	txs, err := util.ParseBase58Tx([]byte(body))
+	if err != nil {
 		return commonResponseHandler(&types.Empty{}, err), true
 	}
-		
-	Account, err := types.DecodeAddress(tx1.Body.Account)
-	Recipient, err := types.DecodeAddress(tx1.Body.Recipient)
-	ChainIdHash, _ := base58.Decode(tx1.Body.ChainIdHash)
-	amountBigInt, _ := util.ParseUnit(tx1.Body.Amount)
-	Sign, _ := base58.Decode(tx1.Body.Sign)
-
-	tx := &types.Tx{Hash: tx1.Hash, Body: 
-		&types.TxBody{
-			Nonce: uint64(tx1.Body.Nonce),
-			Account: Account,
-			Recipient: Recipient,
-			Amount: amountBigInt.Bytes(),
-			Type: types.TxType(tx1.Body.Type),
-			GasLimit:0,
-			ChainIdHash: ChainIdHash,
-			Sign: Sign,
-		},
-	}
-
-	txs := []*types.Tx{tx}
-
+	
 	return commonResponseHandler(api.rpc.CommitTX(api.request.Context(), &types.TxList{Txs: txs})), true
 }
 

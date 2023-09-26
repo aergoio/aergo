@@ -10,8 +10,8 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/rpc"
 
-	// "golang.org/x/tools/go/cfg"
 	"github.com/aergoio/aergo/config"
+	"github.com/didip/tollbooth"
 )
 
 type RestAPI struct {
@@ -28,17 +28,28 @@ var (
 )
 
 func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
-	// swagger setting
-	http.HandleFunc("/swagger.yaml", serveSwaggerYAML)
-	http.HandleFunc("/swagger", serveSwaggerUI)
-
-	// v1
-	web3svcV1 := &Web3APIv1{rpc: rpc}
-	http.HandleFunc("/v1/", web3svcV1.handler)
+	mux := http.NewServeMux()
 	
+	// set limit per second
+	maxLimit := float64(1)
+    if cfg.Web3.MaxLimit != 0 {
+		maxLimit = float64(cfg.Web3.MaxLimit)
+	}
+
+	limiter := tollbooth.NewLimiter(maxLimit, nil)
+    limiter.SetIPLookups([]string{"RemoteAddr", "X-Forwarded-For", "X-Real-IP"})
+
+	// swagger
+	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML)
+	mux.HandleFunc("/swagger", serveSwaggerUI)
+
+	// API v1
+	web3svcV1 := &Web3APIv1{rpc: rpc}
+	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, http.HandlerFunc(web3svcV1.handler)))
+
 	go func() {		
 		fmt.Println("Web3 Server is listening on port "+ strconv.Itoa(cfg.Web3.NetServicePort)+"...")
-    	http.ListenAndServe(":"+strconv.Itoa(cfg.Web3.NetServicePort), nil)
+		http.ListenAndServe(":"+strconv.Itoa(cfg.Web3.NetServicePort), mux)
 	}()
 }
 

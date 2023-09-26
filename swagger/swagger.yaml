@@ -426,72 +426,6 @@ paths:
                         },
                     },
                 }
-  /verifyTX:
-    get:
-      summary: 트랜잭션의 유효성 검증
-      tags: [Transaction]
-      parameters:
-        - name: hash
-          in: query
-          schema:
-            type: string
-        - name: nonce
-          in: query
-          schema:
-            type: integer
-        - name: account
-          in: query
-          schema:
-            type: string
-        - name: recipient
-          in: query
-          schema:
-            type: string
-        - name: amount
-          in: query
-          schema:
-            type: string
-        - name: payload
-          in: query
-          schema:
-            type: string
-        - name: gasLimit
-          in: query
-          schema:
-            type: integer
-        - name: gasPrice
-          in: query
-          schema:
-            type: string
-        - name: type
-          in: query
-          schema:
-            type: string
-            enum:
-              [
-                "NORMAL",
-                "GOVERNANCE",
-                "REDEPLOY",
-                "FEEDELEGATION",
-                "TRANSFER",
-                "CALL",
-                "DEPLOY",
-              ]
-          example: "NORMAL"
-        - name: chainIdHash
-          in: query
-          schema:
-            type: string
-        - name: sign
-          in: query
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              example: {}
   /sendSignedTransaction:
     post:
       summary: 서명된 트랜잭션을 커밋
@@ -540,7 +474,15 @@ paths:
           description: Successful response
           content:
             application/json:
-              example: {}
+              example:
+                {
+                  "results":
+                    [
+                      {
+                        "hash": "pK5LKSZ1mKIJyGJSkM4T496pCTu1xQhXv8ZBdjXTkkg=",
+                      },
+                    ],
+                }
   /call:
     get:
       summary: 스마트 컨트랙트의 상태 조회
@@ -714,22 +656,6 @@ paths:
             application/json:
               example:
                 transactionCount: 10
-  # /getTransactionCount:
-  #   get:
-  #     summary: 주소에서 발생한 트랜잭션 개수를 조회
-  #     tags: [Transaction]
-  #     parameters:
-  #       - name: address
-  #         in: query
-  #         schema:
-  #           type: string
-  #     responses:
-  #       "200":
-  #         description: Successful response
-  #         content:
-  #           application/json:
-  #             example:
-  #               transactionCount: 20
   /getChainInfo:
     get:
       summary: 블록체인의 현재 상태 조회

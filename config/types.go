@@ -60,6 +60,7 @@ type RPCConfig struct {
 // Web3Config defines configurations for web3 service
 type Web3Config struct {
 	NetServicePort  int    `mapstructure:"netserviceport" description:"Web3 service port"`	
+	MaxLimit  int    `mapstructure:"maxlimit" description:"Web3 connect linit per second"`	
 }
 
 // P2PConfig defines configurations for p2p service
@@ -231,6 +232,7 @@ peerrole = "{{.P2P.PeerRole}}"
 
 [web3]
 netserviceport = {{.Web3.NetServicePort}}
+maxlimit = {{.Web3.MaxLimit}}
 
 [polaris]
 allowprivate = {{.Polaris.AllowPrivate}}
