@@ -53,9 +53,3 @@ func TestSignWithPath(t *testing.T) {
 
 	os.RemoveAll(testDir)
 }
-// aergocli signtx --from AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R --to AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y --amount 1aergo --password bmttest
-// aergocli signtx --keystore . --password bmttest --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R --jsontx "{\"from\": \"AmNdzAYv3dYKFtPRgfUMGppGwBJS2JvZLRTF9gRruF49vppEepgj\", \"to\": \"AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y\", \"amount\", \"1aergo\"}"
-aergocli signtx --keystore . --password bmttest --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R --jsontx "{\"Account\": \"AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R\", \"Recipient\": \"AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y\", \"Amount\": \"1aergo\", \"Type\":4, \"Nonce\":0, \"GasLimit\":0, \"chainIdHash\": \"BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn\"}"
-
-{"from": "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R", "to": "AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y", "amount": "1aergo"}
-"{\"Account\": \"AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R\", \"Recipient\": \"AmM1M4jAxeTxfh9CHUmKXJwTLxGJ6Qe5urEeFXqbqkKnZ73Uvx4y\", \"Amount\": \"1aergo\", \"Type\":4, \"Nonce\":1, \"GasLimit\":0, \"chainIdHash\": \"BNVSYKKqSR78hTSrxkaroFK2S3mgsoocpWg9HYtb1Zhn\"}"
