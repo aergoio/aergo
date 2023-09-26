@@ -64,6 +64,38 @@ func (p *Parameters) Copy() *Parameters {
 	return param
 }
 
+func (p *Parameters) SetBpCount(bpCount *big.Int) *big.Int {
+	return p.setLastParam(BpCount.ID(), bpCount)
+}
+
+func (p *Parameters) GetBpCount() *big.Int {
+	return p.getLastParam(BpCount.ID())
+}
+
+func (p *Parameters) SetStakingMinimum(stakingMinimum *big.Int) *big.Int {
+	return p.setLastParam(StakingMin.ID(), stakingMinimum)
+}
+
+func (p *Parameters) GetStakingMinimum() *big.Int {
+	return p.getLastParam(StakingMin.ID())
+}
+
+func (p *Parameters) SetGasPrice(gasPrice *big.Int) *big.Int {
+	return p.setLastParam(GasPrice.ID(), gasPrice)
+}
+
+func (p *Parameters) GetGasPrice() *big.Int {
+	return p.getLastParam(GasPrice.ID())
+}
+
+func (p *Parameters) SetNamePrice(namePrice *big.Int) *big.Int {
+	return p.setLastParam(NamePrice.ID(), namePrice)
+}
+
+func (p *Parameters) GetNamePrice() *big.Int {
+	return p.getLastParam(NamePrice.ID())
+}
+
 func (p *Parameters) getLastParam(proposalID string) *big.Int {
 	return p.params[proposalID]
 }
@@ -71,30 +103,6 @@ func (p *Parameters) getLastParam(proposalID string) *big.Int {
 func (p *Parameters) setLastParam(proposalID string, value *big.Int) *big.Int {
 	p.params[proposalID] = value
 	return value
-}
-
-func (p *Parameters) UpdateParam(s DataSetter, id string, value *big.Int) (*big.Int, error) {
-	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
-		return nil, err
-	}
-	ret := p.setLastParam(id, value)
-	return ret, nil
-}
-
-func (p *Parameters) GetBpCount() *big.Int {
-	return p.getLastParam(BpCount.ID())
-}
-
-func (p *Parameters) GetStakingMinimum() *big.Int {
-	return p.getLastParam(StakingMin.ID())
-}
-
-func (p *Parameters) GetGasPrice() *big.Int {
-	return p.getLastParam(GasPrice.ID())
-}
-
-func (p *Parameters) GetNamePrice() *big.Int {
-	return p.getLastParam(NamePrice.ID())
 }
 
 // params in state

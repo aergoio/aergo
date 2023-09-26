@@ -66,7 +66,8 @@ func (ss *Snapshot) GetSystemBpCount() int {
 	// get from state
 	bpCount = system.GetBpCountFromState(ss.ctx.scs)
 	if bpCount != nil {
-		return int(bpCount.Int64())
+		// set memory from db
+		return int(ss.systemParams.SetBpCount(bpCount).Int64())
 	}
 
 	// TODO : return default value
@@ -83,7 +84,8 @@ func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
 	// get from state
 	stakingMinimum = system.GetStakingMinimumFromState(ss.ctx.scs)
 	if stakingMinimum != nil {
-		return stakingMinimum
+		// set memory from state
+		return ss.systemParams.SetStakingMinimum(stakingMinimum)
 	}
 
 	// TODO : return default value
@@ -100,7 +102,8 @@ func (ss *Snapshot) GetSystemNamePrice() *big.Int {
 	// get from state
 	namePrice = system.GetNamePriceFromState(ss.ctx.scs)
 	if namePrice != nil {
-		return namePrice
+		// set memory from state
+		return ss.systemParams.SetNamePrice(namePrice)
 	}
 
 	// TODO : return default value
@@ -117,7 +120,8 @@ func (ss *Snapshot) GetSystemGasPrice() *big.Int {
 	// get from state
 	gasPrice = system.GetGasPriceFromState(ss.ctx.scs)
 	if gasPrice != nil {
-		return gasPrice
+		// set memory from state
+		return ss.systemParams.SetGasPrice(gasPrice)
 	}
 
 	// TODO : return default value
