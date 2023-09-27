@@ -191,7 +191,7 @@ func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster) ([]*types.Event
 	case types.AergoSystem:
 		events, err = system.ExecuteSystemTx(ss.cfg.proposals, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo)
 	case types.AergoName:
-		events, err = name.ExecuteNameTx(ss.ctx.bs, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo, ss.GetSystemNamePrice())
+		events, err = name.ExecuteNameTx(ss.ctx.bs, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo, ss.nameParams, ss.GetSystemNamePrice())
 	case types.AergoEnterprise:
 		events, err = enterprise.ExecuteEnterpriseTx(ss.ctx.bs, ccc, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo.No)
 		if err != nil {

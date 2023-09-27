@@ -2,6 +2,7 @@ package name
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
@@ -47,6 +48,14 @@ func (n *Names) GetOwner(name []byte) []byte {
 		return nameMap.Owner
 	}
 	return nil
+}
+
+func (n *Names) updateName(name, owner, dest []byte) {
+	n.Set(name, owner, dest)
+}
+
+func (n *Names) createName(name, owner []byte) {
+	n.Set(name, owner, owner)
 }
 
 func (n *Names) Set(name, owner, destination []byte) {
@@ -138,29 +147,37 @@ func setNameMap(scs *state.ContractState, name []byte, n *types.NameMap) error {
 	return scs.SetData(key, types.SerializeNameMap(n))
 }
 
-func CreateName(scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
-	amount := tx.GetAmountBigInt()
+func CreateName(names *Names, scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string, amount *big.Int) error {
+	// modify balance
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
-	return createName(scs, []byte(name), sender.ID())
+
+	// create name to state
+	if err := createName(scs, []byte(name), sender.ID()); err != nil {
+		return err
+	}
+
+	// create name to memory
+	names.createName([]byte(name), sender.ID())
+	return nil
 }
 
 func createName(scs *state.ContractState, name []byte, owner []byte) error {
-	//	return setAddress(scs, name, owner)
 	return registerOwner(scs, name, owner, owner)
 }
 
 // UpdateName is avaliable after bid implement
-func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
-	sender, receiver *state.V, name, to string) error {
-	amount := tx.GetAmountBigInt()
+func UpdateName(names *Names, bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
+	sender, receiver *state.V, name, to string, amount *big.Int) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
-	destination, _ := types.DecodeAddress(to)
-	destination = GetAddressFromState(scs, destination)
+	// modify balance
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
+
+	destination, _ := types.DecodeAddress(to)
+	destination = GetAddressFromState(scs, destination)
 	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
 	if err != nil {
 		return types.ErrTxInvalidRecipient
@@ -176,11 +193,18 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 			return types.ErrTxInvalidRecipient
 		}
 	}
-	return updateName(scs, []byte(name), ownerAddr, destination)
+
+	// update name to state
+	if err := updateName(scs, []byte(name), ownerAddr, destination); err != nil {
+		return err
+	}
+
+	// update name to memory
+	names.updateName([]byte(name), ownerAddr, destination)
+	return nil
 }
 
 func updateName(scs *state.ContractState, name []byte, owner []byte, to []byte) error {
-	//return setAddress(scs, name, to)
 	return registerOwner(scs, name, owner, to)
 }
 
