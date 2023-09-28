@@ -15,7 +15,7 @@ static int systemPrint(lua_State *L) {
 	int service = getLuaExecContext(L);
 
 	lua_gasuse(L, 100);
-	jsonValue = lua_util_get_json_from_stack (L, 1, lua_gettop(L), true);
+	jsonValue = lua_util_get_json_from_stack(L, 1, lua_gettop(L), true);
 	if (jsonValue == NULL) {
 		luaL_throwerror(L);
 	}
@@ -50,7 +50,7 @@ int setItemWithPrefix(lua_State *L) {
 
 	dbKey = getDbKey(L, &keylen);
 
-	jsonValue = lua_util_get_json (L, 2, false);
+	jsonValue = lua_util_get_json(L, 2, false);
 	if (jsonValue == NULL) {
 		luaL_throwerror(L);
 	}
@@ -456,7 +456,14 @@ static int is_fee_delegation(lua_State *L) {
 	return 1;
 }
 
-static const luaL_Reg sys_lib[] = {
+static int system_version(lua_State *L) {
+	lua_gasuse(L, 100);
+	lua_pushinteger(L, luaL_hardforkversion(L));
+	return 1;
+}
+
+
+static const luaL_Reg system_lib_v1[] = {
 	{"print", systemPrint},
 	{"setItem", setItem},
 	{"getItem", getItem},
@@ -478,8 +485,35 @@ static const luaL_Reg sys_lib[] = {
 	{NULL, NULL}
 };
 
+static const luaL_Reg system_lib_v4[] = {
+	{"print", systemPrint},
+	{"setItem", setItem},
+	{"getItem", getItem},
+	{"getSender", getSender},
+	{"getCreator", getCreator},
+	{"getTxhash", getTxhash},
+	{"getBlockheight", getBlockHeight},
+	{"getTimestamp", getTimestamp},
+	{"getContractID", getContractID},
+	{"getOrigin", getOrigin},
+	{"getAmount", getAmount},
+	{"getPrevBlockHash", getPrevBlockHash},
+	{"date", os_date},
+	{"time", os_time},
+	{"difftime", os_difftime},
+	{"random", lua_random},
+	{"isContract", is_contract},
+	{"isFeeDelegation", is_fee_delegation},
+	{"version", system_version},
+	{NULL, NULL}
+};
+
 int luaopen_system(lua_State *L) {
-	luaL_register(L, "system", sys_lib);
+	if (vm_is_hardfork(L, 4)) {
+		luaL_register(L, "system", system_lib_v4);
+	} else {
+		luaL_register(L, "system", system_lib_v1);
+	}
 	lua_pop(L, 1);
 	return 1;
 }
