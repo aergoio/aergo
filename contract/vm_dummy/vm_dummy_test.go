@@ -1903,22 +1903,22 @@ func TestTypeDatetime(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "datetime", 0, code))
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"1998-09-17 02:48:10"`)
+	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"1998-09-10 22:05:18"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%x"]}`, "", `"09/17/98"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%x%X"]}`, "", `"%x%X"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%X"]}`, "", `"02:48:10"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%D"]}`, "", `"09/10/98"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%A"]}`, "", `"Thursday"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"1998-09-10T22:05:18"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"02:48:10 AM"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"10:05:18 PM"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `2890`)
+	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `72318`)
 	require.NoErrorf(t, err, "failed to query")
 }
 
