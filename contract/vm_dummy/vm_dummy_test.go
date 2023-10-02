@@ -1903,10 +1903,14 @@ func TestTypeDatetime(t *testing.T) {
 	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "datetime", 0, code))
 	require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.Query("datetime", `{"Name": "CreateDate"}`, "", `"1998-09-10 22:05:18"`)
+	// not allowed specifiers
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%a%A%b%B%h%r%x%X%z%Z"]}`, "", `"%a%A%b%B%h%r%x%X%z%Z"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%x%X"]}`, "", `"%x%X"`)
+	// allowed specifiers
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%c"]}`, "", `"1998-09-10 22:05:18"`)
 	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%D"]}`, "", `"09/10/98"`)
@@ -1918,8 +1922,39 @@ func TestTypeDatetime(t *testing.T) {
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"10:05:18 PM"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `72318`)
+	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `[72318,"20:05:18"]`)
 	require.NoErrorf(t, err, "failed to query")
+
+	// set a fixed timestamp for the next block
+  bc.SetTimestamp(false, 1696286666)
+	// need to create the block for the next queries to use the value
+	err = bc.ConnectBlock(
+		NewLuaTxCall("user1", "datetime", 0, `{"Name": "SetTimestamp", "Args": [2524642200]}`),
+	)
+	require.NoErrorf(t, err, "failed to call tx")
+
+	// use the block timestamp
+
+	err = bc.Query("datetime", `{"Name": "CreateDate", "Args":["%Y-%m-%d %H:%M:%S"]}`, "", `"2023-10-02 22:44:26"`)
+	require.NoErrorf(t, err, "failed to query")
+
+	// used the new stored timestamp
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%c"]}`, "", `"2050-01-01 09:30:00"`)
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%D"]}`, "", `"01/01/50"`)
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"2050-01-01T09:30:00"`)
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"09:30:00 AM"`)
+	require.NoErrorf(t, err, "failed to query")
+
+	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `[27000,"07:30:00"]`)
+	require.NoErrorf(t, err, "failed to query")
+
 }
 
 func TestTypeDynamicArray(t *testing.T) {
