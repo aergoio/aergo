@@ -384,9 +384,6 @@ static int state_array_get(lua_State *L) {
 		return 1;
 	}
 
-	if (nargs == 3) {
-		lua_pushvalue(L, 2);  //? why?
-	}
 	state_array_checkarg(L, arr);               /* a i */
 
 	// if this is a sub-array, update the index with the parent's array key
