@@ -303,7 +303,7 @@ static int os_date(lua_State *L) {
 #endif
 	lua_gasuse(L, 100);
 	if (*s == '!') { /* UTC? */
-		s++; /* Skip '!' */
+		s++; /* Skip '!' as it always use UTC */
 	}
 #if LJ_TARGET_POSIX
 	stm = gmtime_r(&t, &rtm);
@@ -322,7 +322,6 @@ static int os_date(lua_State *L) {
 		setfield(L, "year", stm->tm_year+1900);
 		setfield(L, "wday", stm->tm_wday+1);
 		setfield(L, "yday", stm->tm_yday+1);
-		setboolfield(L, "isdst", stm->tm_isdst);
 	} else {
 		char cc[3];
 		luaL_Buffer b;
@@ -351,19 +350,18 @@ static int os_date(lua_State *L) {
 static int os_time(lua_State *L) {
 	time_t t;
 	lua_gasuse(L, 100);
-	if (lua_isnoneornil(L, 1)) {
-		t = blocktime(L);
+	if (lua_isnoneornil(L, 1)) {  /* called without args? */
+		t = blocktime(L);  /* get current time */
 	} else {
-		struct tm ts;
+		struct tm ts = {0};
 		luaL_checktype(L, 1, LUA_TTABLE);
-		lua_settop(L, 1); /* make sure table is at the top */
+		lua_settop(L, 1);  /* make sure table is at the top */
 		ts.tm_sec = getfield(L, "sec", 0);
 		ts.tm_min = getfield(L, "min", 0);
 		ts.tm_hour = getfield(L, "hour", 12);
 		ts.tm_mday = getfield(L, "day", -1);
 		ts.tm_mon = getfield(L, "month", -1) - 1;
 		ts.tm_year = getfield(L, "year", -1) - 1900;
-		ts.tm_isdst = getboolfield(L, "isdst");
 #if LJ_TARGET_POSIX
 		t = timegm(&ts);
 #else
