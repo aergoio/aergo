@@ -331,15 +331,22 @@ static int os_date(lua_State *L) {
 			if (*s != '%' || *(s + 1) == '\0') { /* No conversion specifier? */
 				luaL_addchar(&b, *s);
 			} else {
-				size_t reslen;
-				char buff[200]; /* Should be big enough for any conversion result. */
+				/* strftime specifiers with deterministic output */
+				const char *allowed = "cCdDeFgGHIjmMnpRStTuUVwWyY%";
 				cc[1] = *(++s);
-				if (cc[1] == 'c') {
-					reslen = strftime(buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", stm);
+				if (strchr(allowed, cc[1])) { /* Check if the specifier is allowed */
+					size_t reslen;
+					char buff[200]; /* Should be big enough for any conversion result. */
+					if (cc[1] == 'c') {
+						reslen = strftime(buff, sizeof(buff), "%Y-%m-%d %H:%M:%S", stm);
+					} else {
+						reslen = strftime(buff, sizeof(buff), cc, stm);
+					}
+					luaL_addlstring(&b, buff, reslen);
 				} else {
-					reslen = strftime(buff, sizeof(buff), cc, stm);
+					luaL_addchar(&b, '%');   /* Add the previously skipped '%' */
+					luaL_addchar(&b, cc[1]); /* Add the not allowed character */
 				}
-				luaL_addlstring(&b, buff, reslen);
 			}
 		}
 		luaL_pushresult(&b);
