@@ -1905,7 +1905,7 @@ func TestTypeDatetime(t *testing.T) {
 
 	// not allowed specifiers
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%a%A%b%B%h%r%x%X%z%Z"]}`, "", `"%a%A%b%B%h%r%x%X%z%Z"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%a%A%b%B%h%I%p%r%x%X%z%Z"]}`, "", `"%a%A%b%B%h%I%p%r%x%X%z%Z"`)
 	require.NoErrorf(t, err, "failed to query")
 
 	// allowed specifiers
@@ -1919,14 +1919,14 @@ func TestTypeDatetime(t *testing.T) {
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"1998-09-10T22:05:18"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"10:05:18 PM"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%Y-%m-%d %H:%M:%S"]}`, "", `"1998-09-10 22:05:18"`)
 	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `[72318,"20:05:18"]`)
 	require.NoErrorf(t, err, "failed to query")
 
 	// set a fixed timestamp for the next block
-  bc.SetTimestamp(false, 1696286666)
+	bc.SetTimestamp(false, 1696286666)
 	// need to create the block for the next queries to use the value
 	err = bc.ConnectBlock(
 		NewLuaTxCall("user1", "datetime", 0, `{"Name": "SetTimestamp", "Args": [2524642200]}`),
@@ -1949,7 +1949,7 @@ func TestTypeDatetime(t *testing.T) {
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"2050-01-01T09:30:00"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%I:%M:%S %p"]}`, "", `"09:30:00 AM"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%Y-%m-%d %H:%M:%S"]}`, "", `"2050-01-01 09:30:00"`)
 	require.NoErrorf(t, err, "failed to query")
 
 	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `[27000,"07:30:00"]`)
