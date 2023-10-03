@@ -1,7 +1,6 @@
 
 get_deploy_args() {
   contract_file=$1
-  forkversion=$2
 
   if [ "$fork_version" -ge "4" ]; then
     deploy_args="$contract_file"
@@ -14,7 +13,7 @@ get_deploy_args() {
 
 deploy() {
 
-  get_deploy_args $1 $2
+  get_deploy_args $1
 
   txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \

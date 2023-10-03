@@ -6,7 +6,7 @@ fork_version=$1
 
 echo "-- deploy --"
 
-deploy ../contract/vm_dummy/test_files/gas_per_function.lua $fork_version
+deploy ../contract/vm_dummy/test_files/gas_per_function.lua
 
 get_receipt $txhash
 

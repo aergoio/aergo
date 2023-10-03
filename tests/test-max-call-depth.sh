@@ -15,7 +15,7 @@ declare -a addresses
 account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
 nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
 
-get_deploy_args test-max-call-depth-2.lua $fork_version
+get_deploy_args test-max-call-depth-2.lua
 
 for i in {1..66}
 do
@@ -138,7 +138,7 @@ echo "-- deploy 66 contracts --"
 account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
 nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
 
-get_deploy_args test-max-call-depth-3.lua $fork_version
+get_deploy_args test-max-call-depth-3.lua
 
 declare -a txhashes
 declare -a addresses
@@ -281,7 +281,7 @@ echo "-- deploy 4 contracts --"
 account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
 nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
 
-get_deploy_args test-max-call-depth-2.lua $fork_version
+get_deploy_args test-max-call-depth-2.lua
 
 declare -a txhashes
 declare -a addresses
@@ -419,7 +419,7 @@ echo "-- deploy 2 contracts --"
 account_state=$(../bin/aergocli getstate --address AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R)
 nonce=$(echo $account_state | jq .nonce | sed 's/"//g')
 
-get_deploy_args test-max-call-depth-2.lua $fork_version
+get_deploy_args test-max-call-depth-2.lua
 
 declare -a txhashes
 declare -a addresses

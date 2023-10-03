@@ -6,7 +6,7 @@ fork_version=$1
 
 echo "-- deploy --"
 
-deploy ../contract/vm_dummy/test_files/feature_luacryptoverifyproof.lua $fork_version
+deploy ../contract/vm_dummy/test_files/feature_luacryptoverifyproof.lua
 
 get_receipt $txhash
 
