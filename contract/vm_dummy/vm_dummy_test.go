@@ -1910,11 +1910,38 @@ func TestTypeDatetime(t *testing.T) {
 
 	// allowed specifiers
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%c"]}`, "", `"1998-09-10 22:05:18"`)
-	require.NoErrorf(t, err, "failed to query")
+	specifiers := map[string]string{
+		"%c": "1998-09-10 22:05:18",
+		"%C": "19",
+		"%d": "10",
+		"%D": "09/10/98",
+		"%e": "10",
+		"%F": "1998-09-10",
+		"%g": "98",
+		"%G": "1998",
+		"%H": "22",
+		"%j": "253", // Day of the year [001,366]
+		"%m": "09",
+		"%M": "05",
+		"%n": "\n",
+		"%R": "22:05",
+		"%S": "18",
+		"%t": "\t",
+		"%T": "22:05:18",
+		"%u": "4",  // Monday as 1 through Sunday as 7
+		"%U": "36", // Week number of the year (Sunday as the first day of the week)
+		"%V": "37", // ISO 8601 week number
+		"%w": "4",  // Sunday as 0, Saturday as 6
+		"%W": "36", // Week number of the year (Monday as the first day of the week)
+		"%y": "98",
+		"%Y": "1998",
+		"%%": "%",
+	}
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%D"]}`, "", `"09/10/98"`)
-	require.NoErrorf(t, err, "failed to query")
+	for specifier, expected := range specifiers {
+		err := bc.Query("datetime", `{"Name": "Extract", "Args":["`+specifier+`"]}`, "", `"`+expected+`"`)
+		require.NoErrorf(t, err, "failed to query with specifier %s", specifier)
+	}
 
 	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"1998-09-10T22:05:18"`)
 	require.NoErrorf(t, err, "failed to query")
@@ -1929,7 +1956,7 @@ func TestTypeDatetime(t *testing.T) {
 	bc.SetTimestamp(false, 1696286666)
 	// need to create the block for the next queries to use the value
 	err = bc.ConnectBlock(
-		NewLuaTxCall("user1", "datetime", 0, `{"Name": "SetTimestamp", "Args": [2524642200]}`),
+		NewLuaTxCall("user1", "datetime", 0, `{"Name": "SetTimestamp", "Args": [2527491900]}`),
 	)
 	require.NoErrorf(t, err, "failed to call tx")
 
@@ -1940,19 +1967,46 @@ func TestTypeDatetime(t *testing.T) {
 
 	// used the new stored timestamp
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%c"]}`, "", `"2050-01-01 09:30:00"`)
+	specifiers = map[string]string{
+		"%c": "2050-02-03 09:05:00",
+		"%C": "20",
+		"%d": "03",
+		"%D": "02/03/50",
+		"%e": " 3", // Space-padded day of the month
+		"%F": "2050-02-03",
+		"%g": "50",
+		"%G": "2050",
+		"%H": "09",
+		"%j": "034", // Day of the year [001,366]
+		"%m": "02",
+		"%M": "05",
+		"%n": "\n",
+		"%R": "09:05",
+		"%S": "00",
+		"%t": "\t",
+		"%T": "09:05:00",
+		"%u": "4",  // Thursday (Monday as 1, Sunday as 7)
+		"%U": "05", // Week number of the year (Sunday as the first day of the week)
+		"%V": "05", // ISO 8601 week number
+		"%w": "4",  // Sunday as 0, Saturday as 6
+		"%W": "05", // Week number of the year (Monday as the first day of the week)
+		"%y": "50",
+		"%Y": "2050",
+		"%%": "%",
+	}
+
+	for specifier, expected := range specifiers {
+		err := bc.Query("datetime", `{"Name": "Extract", "Args":["`+specifier+`"]}`, "", `"`+expected+`"`)
+		require.NoErrorf(t, err, "failed to query with specifier %s", specifier)
+	}
+
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"2050-02-03T09:05:00"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%D"]}`, "", `"01/01/50"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%Y-%m-%d %H:%M:%S"]}`, "", `"2050-02-03 09:05:00"`)
 	require.NoErrorf(t, err, "failed to query")
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%FT%T"]}`, "", `"2050-01-01T09:30:00"`)
-	require.NoErrorf(t, err, "failed to query")
-
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%Y-%m-%d %H:%M:%S"]}`, "", `"2050-01-01 09:30:00"`)
-	require.NoErrorf(t, err, "failed to query")
-
-	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `[27000,"07:30:00"]`)
+	err = bc.Query("datetime", `{"Name": "Difftime"}`, "", `[25500,"07:05:00"]`)
 	require.NoErrorf(t, err, "failed to query")
 
 }
