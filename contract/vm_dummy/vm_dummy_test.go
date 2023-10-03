@@ -1905,7 +1905,7 @@ func TestTypeDatetime(t *testing.T) {
 
 	// not allowed specifiers
 
-	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%a%A%b%B%h%I%p%r%x%X%z%Z"]}`, "", `"%a%A%b%B%h%I%p%r%x%X%z%Z"`)
+	err = bc.Query("datetime", `{"Name": "Extract", "Args":["%a%A%b%B%h%I%n%p%r%t%x%X%z%Z"]}`, "", `"%a%A%b%B%h%I%n%p%r%t%x%X%z%Z"`)
 	require.NoErrorf(t, err, "failed to query")
 
 	// allowed specifiers
@@ -1923,10 +1923,8 @@ func TestTypeDatetime(t *testing.T) {
 		"%j": "253", // Day of the year [001,366]
 		"%m": "09",
 		"%M": "05",
-		"%n": "\n",
 		"%R": "22:05",
 		"%S": "18",
-		"%t": "\t",
 		"%T": "22:05:18",
 		"%u": "4",  // Monday as 1 through Sunday as 7
 		"%U": "36", // Week number of the year (Sunday as the first day of the week)
@@ -1980,10 +1978,8 @@ func TestTypeDatetime(t *testing.T) {
 		"%j": "034", // Day of the year [001,366]
 		"%m": "02",
 		"%M": "05",
-		"%n": "\n",
 		"%R": "09:05",
 		"%S": "00",
-		"%t": "\t",
 		"%T": "09:05:00",
 		"%u": "4",  // Thursday (Monday as 1, Sunday as 7)
 		"%U": "05", // Week number of the year (Sunday as the first day of the week)

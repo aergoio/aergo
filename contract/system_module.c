@@ -332,7 +332,7 @@ static int os_date(lua_State *L) {
 				luaL_addchar(&b, *s);
 			} else {
 				/* strftime specifiers with deterministic output */
-				const char *allowed = "cCdDeFgGHjmMnRStTuUVwWyY%";
+				const char *allowed = "cCdDeFgGHjmMRSTuUVwWyY%";
 				cc[1] = *(++s);
 				if (strchr(allowed, cc[1])) { /* Check if the specifier is allowed */
 					size_t reslen;
