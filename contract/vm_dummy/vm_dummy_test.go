@@ -2074,14 +2074,20 @@ func checkRandomIntValue(v string, min, max int) error {
 }
 
 func TestTypeRandom(t *testing.T) {
-	code := readLuaCode("type_random.lua")
-	require.NotEmpty(t, code, "failed to read type_random.lua")
+	code1 := readLuaCode("type_random.lua")
+	require.NotEmpty(t, code1, "failed to read type_random.lua")
+	code2 := readLuaCode("type_random_caller.lua")
+	require.NotEmpty(t, code2, "failed to read type_random_caller.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "random", 0, code))
+	err = bc.ConnectBlock(
+		NewLuaTxAccount("user1", 1, types.Aergo),
+		NewLuaTxDeploy("user1", "random", 0, code1),
+		NewLuaTxDeploy("user1", "caller", 0, code2),
+	)
 	require.NoErrorf(t, err, "failed to deploy")
 
 	err = bc.ConnectBlock(NewLuaTxCall("user1", "random", 0, `{"Name": "random", "Args":[]}`).Fail("1 or 2 arguments required"))
@@ -2117,6 +2123,13 @@ func TestTypeRandom(t *testing.T) {
 
 	err = bc.Query("random", `{"Name": "random", "Args":[3,1]}`, "system.random: the maximum value must be greater than the minimum value", "")
 	require.NoErrorf(t, err, "failed to query")
+
+	tx = NewLuaTxCall("user1", "caller", 0, `{"Name": "check_if_equal", "Args":["`+nameToAddress("random")+`"]}`)
+	err = bc.ConnectBlock(tx)
+	require.NoErrorf(t, err, "failed to call tx")
+	receipt = bc.GetReceipt(tx.Hash())
+	assert.Equalf(t, `false`, receipt.GetRet(), "random numbers are the same on the same transaction")
+
 }
 
 func TestTypeSparseTable(t *testing.T) {
