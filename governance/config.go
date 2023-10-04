@@ -6,11 +6,11 @@ import (
 )
 
 type Config struct {
-	genesis        *types.Genesis
-	consensusType  string
-	cmds           map[types.OpSysTx]system.SysCmdCtor
-	proposals      *system.Proposals
-	votingCatalogs []types.VotingIssue
+	genesis         *types.Genesis
+	consensusType   string
+	cmds            map[types.OpSysTx]system.SysCmdCtor
+	proposalCatalog *system.ProposalCatalog
+	votingCatalog   []types.VotingIssue
 }
 
 func NewConfig(genesis *types.Genesis, consensus string) *Config {
@@ -23,7 +23,7 @@ func NewConfig(genesis *types.Genesis, consensus string) *Config {
 		types.Opstake:   system.NewStakeCmd,
 		types.Opunstake: system.NewUnstakeCmd,
 	}
-	si.proposals = system.NewProposals(map[string]*system.Proposal{
+	si.proposalCatalog = system.NewProposalCatalog(map[string]*system.Proposal{
 		system.BpCount.ID(): {
 			ID:             system.BpCount.ID(),
 			Description:    "",
@@ -58,17 +58,8 @@ func NewConfig(genesis *types.Genesis, consensus string) *Config {
 		},
 	})
 
-	si.votingCatalogs = make([]types.VotingIssue, 0, 10)
-	si.votingCatalogs = append(si.votingCatalogs, types.GetVotingIssues()...)
-	si.votingCatalogs = append(si.votingCatalogs, system.GetVotingIssues()...)
+	si.votingCatalog = make([]types.VotingIssue, 0, 10)
+	si.votingCatalog = append(si.votingCatalog, types.GetVotingIssues()...)
+	si.votingCatalog = append(si.votingCatalog, system.GetVotingIssues()...)
 	return si
-}
-
-// getProposal find proposal using id
-func (c *Config) GetProposal(id string) (*system.Proposal, error) {
-	return c.proposals.GetProposal(id)
-}
-
-func (c *Config) SetProposal(proposal *system.Proposal) {
-	c.proposals.SetProposal(proposal)
 }

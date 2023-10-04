@@ -11,12 +11,12 @@ const (
 	proposalPrefixKey = "proposal" //aergo proposal format
 )
 
-type Proposals struct {
+type ProposalCatalog struct {
 	proposal map[string]*Proposal
 }
 
-func NewProposals(init map[string]*Proposal) *Proposals {
-	p := &Proposals{
+func NewProposalCatalog(init map[string]*Proposal) *ProposalCatalog {
+	p := &ProposalCatalog{
 		proposal: make(map[string]*Proposal),
 	}
 	if init != nil {
@@ -25,14 +25,14 @@ func NewProposals(init map[string]*Proposal) *Proposals {
 	return p
 }
 
-func (p *Proposals) GetProposal(id string) (*Proposal, error) {
+func (p *ProposalCatalog) GetProposal(id string) (*Proposal, error) {
 	if proposal, ok := p.proposal[strings.ToUpper(id)]; ok {
 		return proposal, nil
 	}
 	return nil, fmt.Errorf("proposal %s is not found", id)
 }
 
-func (p *Proposals) SetProposal(proposal *Proposal) *Proposal {
+func (p *ProposalCatalog) SetProposal(proposal *Proposal) *Proposal {
 	p.proposal[strings.ToUpper(proposal.ID)] = proposal
 	return proposal
 }

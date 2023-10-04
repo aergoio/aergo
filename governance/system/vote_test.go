@@ -21,8 +21,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var cdb *state.ChainStateDB
-var bs *state.BlockState
+var (
+	cdb               *state.ChainStateDB
+	bs                *state.BlockState
+	testVotingCatalog []types.VotingIssue
+)
 
 func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	cdb = state.NewChainStateDB()
@@ -34,8 +37,10 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	if err != nil {
 		t.Fatalf("failed init : %s", err.Error())
 	}
-	// Need to pass the
 	initProposalTest(t)
+	initVotingCatalogTest(t)
+
+	// Need to pass the
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
 	scs, err := bs.OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
@@ -49,6 +54,13 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	receiver, err := bs.GetAccountStateV([]byte(types.AergoSystem))
 	assert.NoError(t, err, "could not get test address state")
 	return scs, sender, receiver
+}
+
+func initVotingCatalogTest(t *testing.T) {
+	testVotingCatalog = make([]types.VotingIssue, 0, 10)
+	testVotingCatalog = append(testVotingCatalog, types.GetVotingIssues()...)
+	testVotingCatalog = append(testVotingCatalog, GetVotingIssues()...)
+	assert.Equal(t, 5, len(testVotingCatalog))
 }
 
 func getSender(t *testing.T, addr string) *state.V {
@@ -149,7 +161,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	tx.Body.Payload = buildStakingPayload(true)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
-	stake, err := newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	stake, err := newSysCmd(testProposals, testVotingCatalog, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")
 	event, err := stake.run()
 	assert.NoError(t, err, "staking failed")
@@ -160,7 +172,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildVotingPayload(1)
 	blockInfo.No += VotingDelay
-	voting, err := newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	voting, err := newSysCmd(testProposals, testVotingCatalog, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
 	event, err = voting.run()
 	assert.NoError(t, err, "voting failed")
@@ -174,11 +186,11 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum.Bytes(), result.GetVotes()[0].Amount, "invalid amount in voting result")
 
 	tx.Body.Payload = buildStakingPayload(false)
-	_, err = ExecuteSystemTx(TestProposals, scs, tx.Body, sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, tx.Body, sender, receiver, blockInfo)
 	assert.EqualError(t, err, types.ErrLessTimeHasPassed.Error(), "unstaking failed")
 
 	blockInfo.No += StakingDelay
-	unstake, err := newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	unstake, err := newSysCmd(testProposals, testVotingCatalog, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "unstaking failed")
 	event, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
@@ -194,7 +206,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 	blockInfo.No += StakingDelay
 	blockInfo.ForkVersion = 2
 	tx.Body.Payload = buildStakingPayload(true)
-	stake, err = newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	stake, err = newSysCmd(testProposals, testVotingCatalog, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "staking validation")
 	event, err = stake.run()
 	assert.NoError(t, err, "staking failed")
@@ -205,7 +217,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	tx.Body.Payload = buildVotingPayload(30)
 	blockInfo.No += VotingDelay
-	voting, err = newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	voting, err = newSysCmd(testProposals, testVotingCatalog, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "voting failed")
 	event, err = voting.run()
 	assert.NoError(t, err, "voting failed")
@@ -215,7 +227,7 @@ func TestBasicStakingVotingUnstaking(t *testing.T) {
 
 	blockInfo.No += StakingDelay
 	tx.Body.Payload = buildStakingPayload(false)
-	unstake, err = newSysCmd(TestProposals, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
+	unstake, err = newSysCmd(testProposals, testVotingCatalog, tx.Body.Account, tx.Body, sender, receiver, scs, blockInfo)
 	event, err = unstake.run()
 	assert.NoError(t, err, "unstaking failed")
 	assert.Equal(t, event.EventName, "unstake", "event name")
@@ -254,12 +266,4 @@ func buildStakingPayload(isStaking bool) []byte {
 		return []byte(`{"Name":"v1stake"}`)
 	}
 	return []byte(`{"Name":"v1unstake"}`)
-}
-
-func TestVotingCatalog(t *testing.T) {
-	cat := GetVotingCatalog()
-	assert.Equal(t, 5, len(cat))
-	for _, issue := range cat {
-		fmt.Println(issue.ID())
-	}
 }

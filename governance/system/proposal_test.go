@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	TestProposals *Proposals
+	testProposals *ProposalCatalog
 )
 
 func initProposalTest(t *testing.T) {
-	TestProposals = NewProposals(map[string]*Proposal{
+	testProposals = NewProposalCatalog(map[string]*Proposal{
 		BpCount.ID(): {
 			ID:             BpCount.ID(),
 			Description:    "",
@@ -53,7 +53,7 @@ func initProposalTest(t *testing.T) {
 }
 
 func deInitProposalTest() {
-	TestProposals = nil
+	testProposals = nil
 }
 
 type TestAccountStateReader struct {
@@ -79,10 +79,10 @@ func TestProposalSetGet(t *testing.T) {
 		Candidates:     []string{"13", "23", "45"},
 		MultipleChoice: 2,
 	}
-	_, err := TestProposals.GetProposal(originProposal.ID)
+	_, err := testProposals.GetProposal(originProposal.ID)
 	assert.Error(t, err, "before set")
-	TestProposals.SetProposal(originProposal)
-	testProposal, err := TestProposals.GetProposal(originProposal.ID)
+	testProposals.SetProposal(originProposal)
+	testProposal, err := testProposals.GetProposal(originProposal.ID)
 	assert.NoError(t, err, "could not get proposal")
 	assert.Equal(t, originProposal.ID, testProposal.ID, "proposal name")
 	assert.Equal(t, originProposal.Description, testProposal.Description, "proposal description")
@@ -97,9 +97,9 @@ func TestProposalSetGet(t *testing.T) {
 		Candidates:     []string{"13", "23", "45"},
 		MultipleChoice: 2,
 	}
-	TestProposals.SetProposal(originProposal2)
+	testProposals.SetProposal(originProposal2)
 	assert.NoError(t, err, "could not get proposal")
-	testProposal2, err := TestProposals.GetProposal(originProposal2.ID)
+	testProposal2, err := testProposals.GetProposal(originProposal2.ID)
 	assert.NoError(t, err, "could not get proposal")
 	assert.Equal(t, originProposal2.ID, testProposal2.ID, "proposal name")
 	assert.Equal(t, originProposal2.Description, testProposal2.Description, "proposal description")
@@ -133,17 +133,17 @@ func TestProposalBPCount(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err := ExecuteSystemTx(TestProposals, scs, stakingTx.GetBody(), sender, receiver, blockInfo)
+	_, err := ExecuteSystemTx(testProposals, testVotingCatalog, scs, stakingTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	stakingTx.Body.Account = sender2.ID()
-	_, err = ExecuteSystemTx(TestProposals, scs, stakingTx.GetBody(), sender2, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, stakingTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender2.Balance(), "sender.Balance() should be 2 after staking")
 
 	stakingTx.Body.Account = sender3.ID()
-	_, err = ExecuteSystemTx(TestProposals, scs, stakingTx.GetBody(), sender3, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, stakingTx.GetBody(), sender3, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender3.Balance(), "sender.Balance() should be 2 after staking")
 
@@ -154,12 +154,12 @@ func TestProposalBPCount(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "before v2")
 
 	blockInfo.No++ //set v2
 	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 
 	assert.Equal(t, 3, TestParams.GetBpCount(), "check bp")
@@ -167,7 +167,7 @@ func TestProposalBPCount(t *testing.T) {
 	validCandiTx.Body.Account = sender2.ID()
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`)
 
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, 13, TestParams.GetBpCount(), "check bp")
 }
@@ -197,17 +197,17 @@ func TestFailProposals(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err := ExecuteSystemTx(TestProposals, scs, stakingTx.GetBody(), sender, receiver, blockInfo)
+	_, err := ExecuteSystemTx(testProposals, testVotingCatalog, scs, stakingTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	stakingTx.Body.Account = sender2.ID()
-	_, err = ExecuteSystemTx(TestProposals, scs, stakingTx.GetBody(), sender2, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, stakingTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender2.Balance(), "sender.Balance() should be 2 after staking")
 
 	stakingTx.Body.Account = sender3.ID()
-	_, err = ExecuteSystemTx(TestProposals, scs, stakingTx.GetBody(), sender3, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, stakingTx.GetBody(), sender3, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 	assert.Equal(t, balance2, sender3.Balance(), "sender.Balance() should be 2 after staking")
 
@@ -218,7 +218,7 @@ func TestFailProposals(t *testing.T) {
 			Type:    types.TxType_GOVERNANCE,
 		},
 	}
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "before v2")
 
 	blockInfo.No++ //set v2
@@ -232,14 +232,14 @@ func TestFailProposals(t *testing.T) {
 		},
 	}
 
-	_, err = ExecuteSystemTx(TestProposals, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "invalid range")
 
 	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "101"]}`)
-	_, err = ExecuteSystemTx(TestProposals, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "invalid range")
 
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 
 	assert.Equal(t, 3, TestParams.GetBpCount(), "check bp")
@@ -247,25 +247,25 @@ func TestFailProposals(t *testing.T) {
 	validCandiTx.Body.Account = sender2.ID()
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["bpcount", "13"]}`)
 
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, 13, TestParams.GetBpCount(), "check bp")
 
 	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "500000000000000000000000001"]}`)
-	_, err = ExecuteSystemTx(TestProposals, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.Error(t, err, "invalid range")
 
 	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "5000aergo"]}`)
-	_, err = ExecuteSystemTx(TestProposals, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.EqualError(t, err, "include invalid number", "invalid number")
 
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, TestParams.params[GasPrice.ID()], TestParams.GetGasPrice(), "check gas price")
 
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
-	_, err = ExecuteSystemTx(TestProposals, scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 	assert.Equal(t, big.NewInt(101), TestParams.GetGasPrice(), "check gas price")
 }

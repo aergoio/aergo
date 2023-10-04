@@ -174,6 +174,14 @@ func (ss *Snapshot) GetVotingRewardAmount() *big.Int {
 	return nil
 }
 
+func (ss *Snapshot) GetVoteList(key []byte, n uint32) (*types.VoteList, error) {
+	if n == 0 {
+		n = uint32(ss.GetSystemBpCount())
+	}
+
+	return nil, nil
+}
+
 func (ss *Snapshot) PickVotingRewardWinner(seed int64) (types.Address, error) {
 	return ss.votingPowerRank.PickVotingRewardWinner(seed)
 }
@@ -189,7 +197,7 @@ func (ss *Snapshot) Execute(ccc consensus.ChainConsensusCluster) ([]*types.Event
 	var events []*types.Event
 	switch ss.ctx.govName {
 	case types.AergoSystem:
-		events, err = system.ExecuteSystemTx(ss.cfg.proposals, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo)
+		events, err = system.ExecuteSystemTx(ss.cfg.proposalCatalog, ss.cfg.votingCatalog, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo)
 	case types.AergoName:
 		events, err = name.ExecuteNameTx(ss.ctx.bs, ss.ctx.scs, ss.ctx.txInfo, ss.ctx.Sender, ss.ctx.Receiver, ss.ctx.blockInfo, ss.GetSystemNamePrice())
 	case types.AergoEnterprise:
@@ -219,7 +227,7 @@ func (ss *Snapshot) ValidateMempool(scs *state.ContractState, sdb *state.StateDB
 			No:          ss.ctx.bestBlockNo + 1,
 			ForkVersion: ss.ctx.nextBlockVersion,
 		}
-		if _, err := system.ValidateSystemTx(ss.cfg.proposals, account, ss.ctx.txInfo, sender, scs, &nextBlockInfo); err != nil {
+		if _, err := system.ValidateSystemTx(ss.cfg.proposalCatalog, ss.cfg.votingCatalog, account, ss.ctx.txInfo, sender, scs, &nextBlockInfo); err != nil {
 			return err
 		}
 	case types.AergoName:

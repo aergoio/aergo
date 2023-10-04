@@ -230,12 +230,14 @@ func (c *voteCmd) updateVoteResult() error {
 	return c.voteResult.Sync()
 }
 
-func refreshAllVote(context *SystemContext, proposal *Proposals, votingCatalog map[string]types.VotingIssue) error {
+func refreshAllVote(context *SystemContext) error {
 	var (
-		scs          = context.scs
-		account      = context.Sender.ID()
-		staked       = context.Staked
-		stakedAmount = new(big.Int).SetBytes(staked.Amount)
+		scs           = context.scs
+		account       = context.Sender.ID()
+		staked        = context.Staked
+		stakedAmount  = new(big.Int).SetBytes(staked.Amount)
+		votingCatalog = context.VotingCatalog
+		proposals     = context.Proposals
 	)
 
 	for _, i := range votingCatalog {
@@ -250,7 +252,7 @@ func refreshAllVote(context *SystemContext, proposal *Proposals, votingCatalog m
 			continue
 		}
 		if types.OpvoteBP.ID() != i.ID() {
-			proposal, err := proposal.GetProposal(i.ID())
+			proposal, err := proposals.GetProposal(i.ID())
 			if err != nil {
 				return err
 			}

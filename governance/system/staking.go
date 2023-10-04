@@ -21,7 +21,6 @@ var (
 )
 
 const StakingDelay = 60 * 60 * 24 //block interval
-//const StakingDelay = 5
 
 type stakeCmd struct {
 	*SystemContext

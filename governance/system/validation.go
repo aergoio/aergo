@@ -14,7 +14,7 @@ import (
 
 var ErrTxSystemOperatorIsNotSet = errors.New("operator is not set")
 
-func ValidateSystemTx(proposals *Proposals, account []byte, txBody *types.TxBody, sender *state.V,
+func ValidateSystemTx(proposals *ProposalCatalog, votingCatalog []types.VotingIssue, account []byte, txBody *types.TxBody, sender *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
 	var ci types.CallInfo
 	if err := json.Unmarshal(txBody.Payload, &ci); err != nil {
@@ -22,7 +22,15 @@ func ValidateSystemTx(proposals *Proposals, account []byte, txBody *types.TxBody
 	}
 	blockNo := blockInfo.No
 
-	context := &SystemContext{Call: &ci, Sender: sender, BlockInfo: blockInfo, op: types.GetOpSysTx(ci.Name), scs: scs, txBody: txBody}
+	context := &SystemContext{
+		Proposals:     proposals,
+		VotingCatalog: votingCatalog,
+		Call:          &ci,
+		Sender:        sender,
+		BlockInfo:     blockInfo,
+		op:            types.GetOpSysTx(ci.Name),
+		scs:           scs,
+		txBody:        txBody}
 
 	switch context.op {
 	case types.Opstake:

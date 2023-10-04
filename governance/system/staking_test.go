@@ -28,7 +28,7 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	sender.AddBalance(minplusmin)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
-	staking, err := newSysCmd(TestProposals, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	staking, err := newSysCmd(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	event, err := staking.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
@@ -40,11 +40,11 @@ func TestBasicStakingUnstaking(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum, total, "total value")
 	blockInfo.No += (StakingDelay - 1)
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
-	_, err = ValidateSystemTx(TestProposals, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
+	_, err = ValidateSystemTx(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 
 	blockInfo.No++
-	unstake, err := newSysCmd(TestProposals, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	unstake, err := newSysCmd(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "should be success")
 	event, err = unstake.run()
 	assert.NoError(t, err, "should be success")
@@ -73,7 +73,7 @@ func TestBasicStakingUnstakingV2(t *testing.T) {
 	sender.AddBalance(minplusmin)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 2}
-	staking, err := newSysCmd(TestProposals, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	staking, err := newSysCmd(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	event, err := staking.run()
 	assert.NoError(t, err, "staking failed")
 	assert.Equal(t, sender.Balance(), types.StakingMinimum, "sender.Balance() should be 0 after staking")
@@ -85,11 +85,11 @@ func TestBasicStakingUnstakingV2(t *testing.T) {
 	assert.Equal(t, types.StakingMinimum, total, "total value")
 	blockInfo.No += (StakingDelay - 1)
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
-	_, err = ValidateSystemTx(TestProposals, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
+	_, err = ValidateSystemTx(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 
 	blockInfo.No++
-	unstake, err := newSysCmd(TestProposals, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	unstake, err := newSysCmd(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	assert.NoError(t, err, "should be success")
 	event, err = unstake.run()
 	assert.NoError(t, err, "should be success")
@@ -117,7 +117,7 @@ func TestStaking1Unstaking2(t *testing.T) {
 	sender.AddBalance(types.MaxAER)
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
 
-	stake, err := newSysCmd(TestProposals, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
+	stake, err := newSysCmd(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, receiver, scs, blockInfo)
 	_, err = stake.run()
 	assert.Equal(t, err, nil, "staking failed")
 	assert.Equal(t, sender.Balance().Bytes(), new(big.Int).Sub(types.MaxAER, types.StakingMinimum).Bytes(),
@@ -125,12 +125,12 @@ func TestStaking1Unstaking2(t *testing.T) {
 
 	blockInfo.No += (StakingDelay - 1)
 	tx.Body.Payload = []byte(`{"Name":"v1unstake"}`)
-	_, err = ValidateSystemTx(TestProposals, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
+	_, err = ValidateSystemTx(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Equal(t, err, types.ErrLessTimeHasPassed, "should be return ErrLessTimeHasPassed")
 
 	blockInfo.No++
 	tx.Body.Amount = new(big.Int).Add(types.StakingMinimum, types.StakingMinimum).Bytes()
-	_, err = ValidateSystemTx(TestProposals, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
+	_, err = ValidateSystemTx(testProposals, testVotingCatalog, sender.ID(), tx.GetBody(), sender, scs, blockInfo)
 	assert.Error(t, err, "should return exceed error")
 }
 
@@ -158,6 +158,6 @@ func TestUnstakingError(t *testing.T) {
 	sender.AddBalance(types.MaxAER)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0)}
-	_, err = ExecuteSystemTx(TestProposals, scs, tx.Body, sender, receiver, blockInfo)
+	_, err = ExecuteSystemTx(testProposals, testVotingCatalog, scs, tx.Body, sender, receiver, blockInfo)
 	assert.EqualError(t, types.ErrMustStakeBeforeUnstake, err.Error(), "should be success")
 }

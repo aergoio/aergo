@@ -21,19 +21,22 @@ type SystemContext struct {
 	Call      *types.CallInfo
 	Args      []string
 	Staked    *types.Staking
-	Vote      *types.Vote // voting
-	Proposal  *Proposal   // voting
-	Sender    *state.V
-	Receiver  *state.V
+
+	Proposals     *ProposalCatalog
+	VotingCatalog []types.VotingIssue
+	Vote          *types.Vote // voting
+	Proposal      *Proposal   // voting
+	Sender        *state.V
+	Receiver      *state.V
 
 	op     types.OpSysTx
 	scs    *state.ContractState
 	txBody *types.TxBody
 }
 
-func NewSystemContext(proposals *Proposals, account []byte, txBody *types.TxBody, sender, receiver *state.V,
+func NewSystemContext(proposals *ProposalCatalog, votingCatalog []types.VotingIssue, account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (*SystemContext, error) {
-	context, err := ValidateSystemTx(proposals, sender.ID(), txBody, sender, scs, blockInfo)
+	context, err := ValidateSystemTx(proposals, votingCatalog, sender.ID(), txBody, sender, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +61,7 @@ type SysCmd interface {
 
 type SysCmdCtor func(ctx *SystemContext) (SysCmd, error)
 
-func newSysCmd(proposals *Proposals, account []byte, txBody *types.TxBody, sender, receiver *state.V,
+func newSysCmd(proposals *ProposalCatalog, votingCatalog []types.VotingIssue, account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (SysCmd, error) {
 
 	cmds := map[types.OpSysTx]SysCmdCtor{
@@ -68,7 +71,7 @@ func newSysCmd(proposals *Proposals, account []byte, txBody *types.TxBody, sende
 		types.Opunstake: NewUnstakeCmd,
 	}
 
-	context, err := NewSystemContext(proposals, account, txBody, sender, receiver, scs, blockInfo)
+	context, err := NewSystemContext(proposals, votingCatalog, account, txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +84,10 @@ func newSysCmd(proposals *Proposals, account []byte, txBody *types.TxBody, sende
 	return ctor(context)
 }
 
-func ExecuteSystemTx(proposals *Proposals, scs *state.ContractState, txBody *types.TxBody,
+func ExecuteSystemTx(proposals *ProposalCatalog, votingCatalog []types.VotingIssue, scs *state.ContractState, txBody *types.TxBody,
 	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
-	cmd, err := newSysCmd(proposals, sender.ID(), txBody, sender, receiver, scs, blockInfo)
+	cmd, err := newSysCmd(proposals, votingCatalog, sender.ID(), txBody, sender, receiver, scs, blockInfo)
 	if err != nil {
 		return nil, err
 	}

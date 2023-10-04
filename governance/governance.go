@@ -129,20 +129,10 @@ func (g *Governance) GetSystemValue(key types.SystemValue) (*big.Int, error) {
 }
 
 func (g *Governance) GetVotes(id string, n uint32) (*types.VoteList, error) {
-	switch g.cfg.consensusType {
-	case consensus.ConsensusName[consensus.ConsensusDPOS]:
-		// sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-		// if n == 0 {
-		// return system.GetVoteResult(sdb, []byte(id), system.GetBpCount())
-		// }
-		// return system.GetVoteResult(sdb, []byte(id), int(n))
-		return nil, nil
-	case consensus.ConsensusName[consensus.ConsensusRAFT]:
-		//return cs.GetBPs()
-		return nil, ErrNotSupportedConsensus
-	default:
+	if g.cfg.consensusType != consensus.ConsensusName[consensus.ConsensusDPOS] {
 		return nil, ErrNotSupportedConsensus
 	}
+	return g.beforeExec.GetVoteList([]byte(id), n)
 }
 
 func (g *Governance) GetAccountVote(addr []byte) (*types.AccountVoteInfo, error) {
@@ -150,21 +140,12 @@ func (g *Governance) GetAccountVote(addr []byte) (*types.AccountVoteInfo, error)
 		return nil, ErrNotSupportedConsensus
 	}
 
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	scs, err := sdb.GetSystemAccountState()
+	voteInfo, err := g.beforeExec.GetVoteList(addr)
 	if err != nil {
 		return nil, err
 	}
-	namescs, err := sdb.GetNameAccountState()
-	if err != nil {
-		return nil, err
-	}
-	voteInfo, err := system.GetVotes(scs, name.GetAddressFromState(namescs, addr))
-	if err != nil {
-		return nil, err
-	}
-
 	return &types.AccountVoteInfo{Voting: voteInfo}, nil
+
 }
 
 func (g *Governance) GetStaking(addr []byte) (*types.Staking, error) {
@@ -189,16 +170,7 @@ func (g *Governance) GetStaking(addr []byte) (*types.Staking, error) {
 }
 
 func (g *Governance) GetNameInfo(qname string, blockNo types.BlockNo) (*types.NameInfo, error) {
-	var stateDB *state.StateDB
-	if blockNo != 0 {
-		block, err := cs.cdb.GetBlockByNo(blockNo)
-		if err != nil {
-			return nil, err
-		}
-		stateDB = cs.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())
-	} else {
-		stateDB = cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	}
+
 	return name.GetNameInfo(stateDB, qname)
 }
 
