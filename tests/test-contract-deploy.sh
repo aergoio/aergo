@@ -1,14 +1,12 @@
 set -e
 source common.sh
 
+fork_version=$1
+
 
 echo "-- deploy ARC1 factory --"
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/arc1-factory.lua > payload.out
-
-txhash=$(../bin/aergocli --keystore . --password bmttest \
-    contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    --payload `cat payload.out` | jq .hash | sed 's/"//g')
+deploy ../contract/vm_dummy/test_files/arc1-factory.lua
 
 get_receipt $txhash
 
@@ -20,11 +18,7 @@ assert_equals "$status" "CREATED"
 
 echo "-- deploy ARC2 factory --"
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/arc2-factory.lua > payload.out
-
-txhash=$(../bin/aergocli --keystore . --password bmttest \
-    contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    --payload `cat payload.out` | jq .hash | sed 's/"//g')
+deploy ../contract/vm_dummy/test_files/arc2-factory.lua
 
 get_receipt $txhash
 
@@ -36,11 +30,11 @@ assert_equals "$status" "CREATED"
 
 echo "-- deploy caller contract --"
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/token-deployer.lua > payload.out
+get_deploy_args ../contract/vm_dummy/test_files/token-deployer.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    --payload `cat payload.out` "[\"$arc1_address\",\"$arc2_address\"]" | jq .hash | sed 's/"//g')
+    $deploy_args "[\"$arc1_address\",\"$arc2_address\"]" | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 
