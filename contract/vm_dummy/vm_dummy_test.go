@@ -903,7 +903,8 @@ func TestNDeploy(t *testing.T) {
 
 	err = bc.ConnectBlock(
 		NewLuaTxAccount("user1", 1, types.Aergo),
-		NewLuaTxDeploy("user1", "n-deploy", 0, code),
+		NewLuaTxDeploy("user1", "n-deploy", 100000, code),
+		NewLuaTxCall("user1", "n-deploy", 200000, `{"Name":"testall"}`),
 	)
 	require.NoErrorf(t, err, "failed to connect new block")
 }
