@@ -30,13 +30,13 @@ func (ss *Snapshot) Init(cfg *Config, ctx *ChainContext, getter system.DataGette
 	ss.cfg = cfg
 	ss.ctx = ctx
 
-	// load systems
-	ss.systemParams = system.NewParameters()
+	// TODO : load systems
+	ss.systemParams = system.NewParameters(nil)
 
-	// load names
+	// TODO : load names
 	ss.nameParams = name.NewNames()
 
-	// load votingPowerRank
+	// TODO : load votingPowerRank
 	ss.votingPowerRank, err = system.LoadVpr(getter)
 	if err != nil {
 		return err
@@ -70,8 +70,10 @@ func (ss *Snapshot) GetSystemBpCount() int {
 		return int(ss.systemParams.SetBpCount(bpCount).Int64())
 	}
 
-	// TODO : return default value
-	return 0
+	// if not exist in state, get from default value
+	bpCount = ss.cfg.params.GetBpCount()
+	system.SetBpCountToState(ss.ctx.scs, bpCount)           // set db
+	return int(ss.systemParams.SetBpCount(bpCount).Int64()) // set memory
 }
 
 func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
@@ -88,8 +90,10 @@ func (ss *Snapshot) GetSystemStakingMinimum() *big.Int {
 		return ss.systemParams.SetStakingMinimum(stakingMinimum)
 	}
 
-	// TODO : return default value
-	return nil
+	// if not exist in state, get from default value
+	stakingMinimum = ss.cfg.params.GetStakingMinimum()
+	system.SetStakingMinimumToState(ss.ctx.scs, stakingMinimum) // set db
+	return ss.systemParams.SetStakingMinimum(stakingMinimum)    // set memory
 }
 
 func (ss *Snapshot) GetSystemNamePrice() *big.Int {
@@ -106,8 +110,10 @@ func (ss *Snapshot) GetSystemNamePrice() *big.Int {
 		return ss.systemParams.SetNamePrice(namePrice)
 	}
 
-	// TODO : return default value
-	return nil
+	// if not exist in state, get from default value
+	namePrice = ss.cfg.params.GetNamePrice()
+	system.SetNamePriceToState(ss.ctx.scs, namePrice) // set db
+	return ss.systemParams.SetNamePrice(namePrice)    // set memory
 }
 
 func (ss *Snapshot) GetSystemGasPrice() *big.Int {
@@ -124,8 +130,10 @@ func (ss *Snapshot) GetSystemGasPrice() *big.Int {
 		return ss.systemParams.SetGasPrice(gasPrice)
 	}
 
-	// TODO : return default value
-	return nil
+	// if not exist in state, get from default value
+	gasPrice = ss.cfg.params.GetGasPrice()
+	system.SetGasPriceToState(ss.ctx.scs, gasPrice) // set db
+	return ss.systemParams.SetGasPrice(gasPrice)    // set memory
 }
 
 // name
@@ -141,7 +149,7 @@ func (ss *Snapshot) GetNameOwner(scs *state.ContractState, account []byte) []byt
 		return owner
 	}
 
-	// get default - nil
+	// default - nil
 	return nil
 }
 
@@ -157,7 +165,7 @@ func (ss *Snapshot) GetNameAddress(scs *state.ContractState, account []byte) []b
 		return addr
 	}
 
-	// get default - nil
+	// default - nil
 	return nil
 }
 

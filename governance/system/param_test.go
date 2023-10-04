@@ -12,11 +12,12 @@ var (
 )
 
 func initParamsTest(t *testing.T) {
-	TestParams = NewParameters()
-	TestParams.SetBpCount(big.NewInt(3))
-	TestParams.SetStakingMinimum(types.StakingMinimum)
-	TestParams.SetGasPrice(types.NewAmount(50, types.Gaer))
-	TestParams.SetNamePrice(types.NewAmount(1, types.Aergo))
+	TestParams = NewParameters(map[string]*big.Int{
+		BpCount.ID():    big.NewInt(3),
+		StakingMin.ID(): types.StakingMinimum,
+		GasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
+		NamePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
+	})
 }
 
 /*

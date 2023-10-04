@@ -3,7 +3,6 @@ package governance
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
@@ -175,9 +174,9 @@ func (g *Governance) GetNameInfo(qname string, blockNo types.BlockNo) (*types.Na
 }
 
 func (g *Governance) GetEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
-	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != enterprise.AdminsKey {
-		return enterprise.GetConf(sdb, key)
-	}
+	// sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
+	// if strings.ToUpper(key) != enterprise.AdminsKey {
+	// 	return enterprise.GetConf(sdb, key)
+	// }
 	return enterprise.GetAdmin(sdb)
 }

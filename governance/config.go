@@ -1,6 +1,8 @@
 package governance
 
 import (
+	"math/big"
+
 	"github.com/aergoio/aergo/v2/governance/system"
 	"github.com/aergoio/aergo/v2/types"
 )
@@ -11,19 +13,31 @@ type Config struct {
 	cmds            map[types.OpSysTx]system.SysCmdCtor
 	proposalCatalog *system.ProposalCatalog
 	votingCatalog   []types.VotingIssue
+	params          *system.Parameters
 }
 
 func NewConfig(genesis *types.Genesis, consensus string) *Config {
-	si := &Config{}
-	si.genesis = genesis
-	si.consensusType = consensus
-	si.cmds = map[types.OpSysTx]system.SysCmdCtor{
+	c := &Config{}
+	c.genesis = genesis
+	c.consensusType = consensus
+
+	// init cmds
+	c.cmds = map[types.OpSysTx]system.SysCmdCtor{
 		types.OpvoteBP:  system.NewVoteCmd,
 		types.OpvoteDAO: system.NewVoteCmd,
 		types.Opstake:   system.NewStakeCmd,
 		types.Opunstake: system.NewUnstakeCmd,
 	}
-	si.proposalCatalog = system.NewProposalCatalog(map[string]*system.Proposal{
+
+	// init default params
+	c.params = system.NewParameters(map[string]*big.Int{
+		system.StakingMin.ID(): types.StakingMinimum,
+		system.GasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
+		system.NamePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
+	})
+
+	// init proposal catalog
+	c.proposalCatalog = system.NewProposalCatalog(map[string]*system.Proposal{
 		system.BpCount.ID(): {
 			ID:             system.BpCount.ID(),
 			Description:    "",
@@ -58,8 +72,10 @@ func NewConfig(genesis *types.Genesis, consensus string) *Config {
 		},
 	})
 
-	si.votingCatalog = make([]types.VotingIssue, 0, 10)
-	si.votingCatalog = append(si.votingCatalog, types.GetVotingIssues()...)
-	si.votingCatalog = append(si.votingCatalog, system.GetVotingIssues()...)
-	return si
+	// init voting catalog
+	c.votingCatalog = make([]types.VotingIssue, 0, 10)
+	c.votingCatalog = append(c.votingCatalog, types.GetVotingIssues()...)
+	c.votingCatalog = append(c.votingCatalog, system.GetVotingIssues()...)
+
+	return c
 }

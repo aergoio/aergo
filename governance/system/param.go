@@ -61,7 +61,7 @@ type Parameters struct {
 	params map[string]*big.Int
 }
 
-func NewParameters() *Parameters {
+func NewParameters(init map[string]*big.Int) *Parameters {
 	return &Parameters{
 		params: map[string]*big.Int{},
 	}
@@ -123,12 +123,24 @@ func GetBpCountFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, BpCount)
 }
 
+func SetBpCountToState(scs *state.ContractState, value *big.Int) error {
+	return setParamState(scs, BpCount, value)
+}
+
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, NamePrice)
 }
 
+func SetNamePriceToState(scs *state.ContractState, value *big.Int) error {
+	return setParamState(scs, NamePrice, value)
+}
+
 func GetStakingMinimumFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, StakingMin)
+}
+
+func SetStakingMinimumToState(scs *state.ContractState, value *big.Int) error {
+	return setParamState(scs, StakingMin, value)
 }
 
 func GetGasPriceFromAccountState(ar AccountStateReader) *big.Int {
@@ -143,6 +155,10 @@ func GetGasPriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, GasPrice)
 }
 
+func SetGasPriceToState(scs *state.ContractState, value *big.Int) error {
+	return setParamState(scs, GasPrice, value)
+}
+
 func getParamFromState(scs *state.ContractState, id SysParamIndex) *big.Int {
 	data, err := scs.GetInitialData(genParamKey(id.ID()))
 	if err != nil {
@@ -154,12 +170,6 @@ func getParamFromState(scs *state.ContractState, id SysParamIndex) *big.Int {
 	return new(big.Int).SetBytes(data)
 }
 
-/*
-func updateParam(s DataSetter, id string, value *big.Int) (*big.Int, error) {
-	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
-		return nil, err
-	}
-	ret := systemParams.setLastParam(id, value)
-	return ret, nil
+func setParamState(scs *state.ContractState, id SysParamIndex, value *big.Int) error {
+	return scs.SetData(genParamKey(id.ID()), value.Bytes())
 }
-*/
