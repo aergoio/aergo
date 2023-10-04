@@ -12,6 +12,7 @@ import (
 	"github.com/aergoio/aergo-lib/log"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
@@ -127,7 +128,7 @@ func initVprtTest(t *testing.T, initTable func()) {
 func initVprtTestWithSc(t *testing.T, initTable func(*state.ContractState)) {
 	initDB(t)
 
-	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := vprStateDB.GetSystemAccountState()
 	assert.NoError(t, err, "fail to open the system contract state")
 
 	initTable(s)
@@ -150,7 +151,7 @@ func getStateRoot() []byte {
 }
 
 func openSystemAccountWith(root []byte) *state.ContractState {
-	s, err := vprChainStateDB.OpenNewStateDB(root).OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := vprChainStateDB.OpenNewStateDB(root).GetSystemAccountState()
 	if err != nil {
 		return nil
 	}
@@ -174,7 +175,7 @@ func initRankTableRand(rankMax uint32) {
 }
 
 func openSystemAccount(t *testing.T) *state.ContractState {
-	s, err := vprStateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := vprStateDB.GetSystemAccountState()
 	assert.NoError(t, err, "fail to open the system contract state")
 	logger.Debug().Msgf(
 		"(after) state, contract: %s, %s\n",

@@ -636,7 +636,7 @@ func (cm *ChainManager) Receive(context actor.Context) {
 
 func getAddressNameResolved(sdb *state.StateDB, account []byte) ([]byte, error) {
 	if len(account) == types.NameLength {
-		scs, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoName)))
+		scs, err := sdb.GetNameAccountState()
 		if err != nil {
 			logger.Error().Str("hash", enc.ToString(account)).Err(err).Msg("failed to get state for account")
 			return nil, err

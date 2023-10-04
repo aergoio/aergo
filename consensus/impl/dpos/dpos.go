@@ -206,6 +206,14 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 	return nil
 }
 
+func InitVPR(sdb *state.StateDB) error {
+	s, err := sdb.GetSystemAccountState()
+	if err != nil {
+		return err
+	}
+	return system.InitVotingPowerRank(s)
+}
+
 // Init initializes the DPoS parameters.
 func Init(bpCount uint16) {
 	blockProducers = bpCount

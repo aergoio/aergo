@@ -746,6 +746,7 @@ func (cs *ChainService) executeBlock(bstate *state.BlockState, block *types.Bloc
 
 	// contract & state DB update is done during execution.
 	if err := ex.execute(); err != nil {
+		cs.Update(bestBlock)
 		return err
 	}
 
