@@ -123,17 +123,20 @@ const char *vm_loadcall(lua_State *L) {
 		}
 		luaL_enablemaxmem(L);
 	}
+
 	err = lua_pcall(L, 0, 0, 0);
+
 	if (lua_usegas(L)) {
 		lua_disablegas(L);
 	} else {
 		luaL_disablemaxmem(L);
 	}
+
 	lua_sethook(L, NULL, 0, 0);
+
 	if (err != 0) {
 		return lua_tostring(L, -1);
 	}
-
 	return NULL;
 }
 
