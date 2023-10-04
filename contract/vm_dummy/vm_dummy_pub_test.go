@@ -25,10 +25,8 @@ func skipNotOnAmd64(t *testing.T) {
 func TestContractSendF(t *testing.T) {
 	skipNotOnAmd64(t)
 
-	code := readLuaCode("contract_sendf_1.lua")
-	require.NotEmpty(t, code, "failed to read contract_sendf_1.lua")
-	code2 := readLuaCode("contract_sendf_2.lua")
-	require.NotEmpty(t, code2, "failed to read contract_sendf_2.lua")
+	code := readLuaCode(t, "contract_sendf_1.lua")
+	code2 := readLuaCode(t, "contract_sendf_2.lua")
 
 	bc, err := LoadDummyChain(SetPubNet())
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -66,8 +64,7 @@ func TestGasPerFunction(t *testing.T) {
 	skipNotOnAmd64(t)
 
 	var err error
-	code := readLuaCode("gas_per_function.lua")
-	require.NotEmpty(t, code, "failed to read gas_per_function.lua")
+	code := readLuaCode(t, "gas_per_function.lua")
 
 	bc, err := LoadDummyChain(SetPubNet())
 	assert.NoError(t, err)
@@ -409,8 +406,7 @@ func TestGasHello(t *testing.T) {
 	skipNotOnAmd64(t)
 
 	var err error
-	code := readLuaCode("contract_hello.lua")
-	require.NotEmpty(t, code, "failed to read hello.lua")
+	code := readLuaCode(t, "contract_hello.lua")
 
 	err = expectGas(code, 0, `"hello"`, `"world"`, 100000, SetHardForkVersion(1))
 	assert.NoError(t, err)
@@ -434,8 +430,7 @@ func TestGasDeploy(t *testing.T) {
 	skipNotOnAmd64(t)
 
 	var err error
-	code := readLuaCode("gas_deploy.lua")
-	require.NotEmpty(t, code, "failed to read deployfee.lua")
+	code := readLuaCode(t, "gas_deploy.lua")
 
 	// err = expectGas(code, 0, `"testPcall"`, ``, 0, SetHardForkVersion(0))
 	// assert.NoError(t, err)
@@ -451,8 +446,7 @@ func TestGasOp(t *testing.T) {
 	skipNotOnAmd64(t)
 
 	var err error
-	code := readLuaCode("gas_op.lua")
-	require.NotEmpty(t, code, "failed to read op.lua")
+	code := readLuaCode(t, "gas_op.lua")
 
 	err = expectGas(string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(0))
 	assert.NoError(t, err)
@@ -468,8 +462,7 @@ func TestGasBF(t *testing.T) {
 	skipNotOnAmd64(t)
 
 	var err error
-	code := readLuaCode("gas_bf.lua")
-	require.NotEmpty(t, code, "failed to read bf.lua")
+	code := readLuaCode(t, "gas_bf.lua")
 
 	// err = expectGas(t, string(code), 0, `"main"`, ``, 100000, SetHardForkVersion(1))
 	// assert.NoError(t, err)
@@ -484,8 +477,7 @@ func TestGasBF(t *testing.T) {
 func TestGasLuaCryptoVerifyProof(t *testing.T) {
 	skipNotOnAmd64(t)
 
-	code := readLuaCode("feature_luacryptoverifyproof.lua")
-	require.NotEmpty(t, code, "failed to read feature_luacryptoverifyproof.lua")
+	code := readLuaCode(t, "feature_luacryptoverifyproof.lua")
 
 	// v2 raw
 	err := expectGas(string(code), 0, `"verifyProofRaw"`, ``, 154137, SetHardForkVersion(2))
@@ -559,8 +551,7 @@ func expectGas(contractCode string, amount int64, funcName, funcArgs string, exp
 func TestTypeInvalidKey(t *testing.T) {
 	skipNotOnAmd64(t)
 
-	code := readLuaCode("type_invalidkey.lua")
-	require.NotEmpty(t, code, "failed to read type_invalidkey.lua")
+	code := readLuaCode(t, "type_invalidkey.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
@@ -597,10 +588,8 @@ func TestTypeBigTable(t *testing.T) {
 	}
 	skipNotOnAmd64(t)
 
-	code := readLuaCode("type_bigtable_1.lua")
-	require.NotEmpty(t, code, "failed to read type_bigtable_1.lua")
-	code2 := readLuaCode("type_bigtable_2.lua")
-	require.NotEmpty(t, code2, "failed to read type_bigtable_2.lua")
+	code := readLuaCode(t, "type_bigtable_1.lua")
+	code2 := readLuaCode(t, "type_bigtable_2.lua")
 
 	bc, err := LoadDummyChain()
 	require.NoErrorf(t, err, "failed to create dummy chain")
