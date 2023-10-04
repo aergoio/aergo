@@ -12,9 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var sdb *state.ChainStateDB
-var block *types.Block
-var namePrice *big.Int
+var (
+	sdb        *state.ChainStateDB
+	block      *types.Block
+	nameParams *Names
+	namePrice  *big.Int
+)
 
 func initTest(t *testing.T) {
 	genesis := types.GetTestGenesis()
@@ -26,6 +29,7 @@ func initTest(t *testing.T) {
 	}
 	block = genesis.Block()
 	namePrice = types.NewAmount(1, types.Aergo)
+	nameParams = NewNames()
 }
 
 func deinitTest() {
@@ -48,7 +52,7 @@ func TestName(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 
-	err := CreateName(scs, tx, sender, receiver, name)
+	err := CreateName(nameParams, scs, tx, sender, receiver, name)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -59,7 +63,7 @@ func TestName(t *testing.T) {
 	assert.Equal(t, owner, ret, "registed owner")
 
 	tx.Payload = buildNamePayload(name, types.NameUpdate, buyer)
-	err = UpdateName(bs, scs, tx, sender, receiver, name, buyer)
+	err = UpdateName(nameParams, bs, scs, tx, sender, receiver, name, buyer)
 	assert.NoError(t, err, "update name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -82,7 +86,7 @@ func TestNameRecursive(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	err := CreateName(scs, tx, sender, receiver, name1)
+	err := CreateName(nameParams, scs, tx, sender, receiver, name1)
 	assert.NoError(t, err, "create name")
 
 	tx.Account = []byte(name1)
@@ -90,7 +94,7 @@ func TestNameRecursive(t *testing.T) {
 	tx.Payload = buildNamePayload(name2, types.NameCreate, "")
 
 	scs = nextBlockContractState(t, bs, scs)
-	err = CreateName(scs, tx, sender, receiver, name2)
+	err = CreateName(nameParams, scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "redirect name")
 
 	scs = nextBlockContractState(t, bs, scs)
@@ -105,7 +109,7 @@ func TestNameRecursive(t *testing.T) {
 
 	tx.Payload = buildNamePayload(name1, types.NameUpdate, buyer)
 
-	err = UpdateName(bs, scs, tx, sender, receiver, name1, buyer)
+	err = UpdateName(nameParams, bs, scs, tx, sender, receiver, name1, buyer)
 	assert.NoError(t, err, "update name")
 	scs = nextBlockContractState(t, bs, scs)
 	ret = getAddress(scs, []byte(name1))
@@ -124,7 +128,7 @@ func TestNameNil(t *testing.T) {
 	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 
-	err = CreateName(scs, tx, sender, receiver, name2)
+	err = CreateName(nameParams, scs, tx, sender, receiver, name2)
 	assert.NoError(t, err, "create name")
 }
 
@@ -151,7 +155,7 @@ func TestNameSetContractOwner(t *testing.T) {
 	//systemcs := openSystemContractState(t, bs)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
-	_, err := ExecuteNameTx(bs, scs, tx, sender, receiver, blockInfo, namePrice)
+	_, err := ExecuteNameTx(bs, scs, tx, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.NoError(t, err, "execute name")
 	assert.Equal(t, big.NewInt(0), receiver.Balance(), "check remain")
 }

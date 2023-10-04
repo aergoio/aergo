@@ -39,9 +39,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 	switch ci.Name {
 	case types.NameCreate:
 		name := ci.Args[0].(string)
-		amount := txBody.GetAmountBigInt()
-
-		if err = CreateName(names, scs, txBody, sender, nameState, name, amount); err != nil {
+		if err = CreateName(names, scs, txBody, sender, nameState, name); err != nil {
 			return nil, err
 		}
 
@@ -58,11 +56,10 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			JsonArgs:        jsonArgs,
 		})
 	case types.NameUpdate:
-		amount := txBody.GetAmountBigInt()
 		name := ci.Args[0].(string)
 		to := ci.Args[1].(string)
 
-		if err = UpdateName(names, bs, scs, txBody, sender, nameState, name, to, amount); err != nil {
+		if err = UpdateName(names, bs, scs, txBody, sender, nameState, name, to); err != nil {
 			return nil, err
 		}
 

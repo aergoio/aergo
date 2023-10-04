@@ -2,7 +2,6 @@ package name
 
 import (
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/aergoio/aergo/v2/state"
@@ -147,8 +146,9 @@ func setNameMap(scs *state.ContractState, name []byte, n *types.NameMap) error {
 	return scs.SetData(key, types.SerializeNameMap(n))
 }
 
-func CreateName(names *Names, scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string, amount *big.Int) error {
+func CreateName(names *Names, scs *state.ContractState, tx *types.TxBody, sender, receiver *state.V, name string) error {
 	// modify balance
+	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 
@@ -168,11 +168,12 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 
 // UpdateName is avaliable after bid implement
 func UpdateName(names *Names, bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
-	sender, receiver *state.V, name, to string, amount *big.Int) error {
+	sender, receiver *state.V, name, to string) error {
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
 	// modify balance
+	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 

@@ -26,14 +26,14 @@ func TestExcuteNameTx(t *testing.T) {
 	scs := openContractState(t, bs)
 
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
-	event, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	event, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.NoError(t, err, "execute name tx")
 	assert.Equal(t, "create name", event[0].EventName, "event name")
 	assert.Equal(t, "{\"name\":\"AB1234567890\"}", event[0].JsonArgs, "event args")
 	//race
 	tmpAddress := "AmNHAxiGbZJjKjdGGNj2NBoAXGwdzX9Bg59eqbek9n49JpiaZ3As"
 	txBody.Account = types.ToAddress(tmpAddress)
-	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.Error(t, err, "race execute name tx")
 
 	txBody.Account = types.ToAddress("AmMXVdJ8DnEFysN58cox9RADC74dF1CLrQimKCMdB4XXMkJeuQgL")
@@ -45,13 +45,13 @@ func TestExcuteNameTx(t *testing.T) {
 	ret = GetOwnerFromState(scs, []byte(name))
 	assert.Equal(t, txBody.Account, ret, "pubkey owner")
 
-	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.Error(t, err, "execute name tx")
 
 	buyer := "AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay"
 	txBody.Payload = buildNamePayload(name, types.NameUpdate, buyer)
 	blockInfo.No++
-	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.NoError(t, err, "execute to update name")
 	assert.Equal(t, "update name", event[0].EventName, "event name")
 	assert.Equal(t, "{\"name\":\"AB1234567890\",\"to\":\"AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay\"}", event[0].JsonArgs, "event args")
@@ -66,18 +66,18 @@ func TestExcuteNameTx(t *testing.T) {
 
 	//invalid case
 	blockInfo.No++
-	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.Error(t, err, "execute invalid updating name")
 
 	txBody.Payload = txBody.Payload[1:]
-	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	_, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.Error(t, err, "execute invalid payload")
 
 	blockInfo.No++
 	blockInfo.ForkVersion = 2
 	name2 := "1234567890V2"
 	txBody.Payload = buildNamePayload(name2, types.NameCreate, "")
-	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.NoError(t, err, "execute name tx")
 	assert.Equal(t, "create name", event[0].EventName, "event name")
 	assert.Equal(t, "[\"1234567890V2\"]", event[0].JsonArgs, "event args")
@@ -86,7 +86,7 @@ func TestExcuteNameTx(t *testing.T) {
 	scs = openContractState(t, bs)
 	blockInfo.No++
 	txBody.Payload = buildNamePayload(name2, types.NameUpdate, buyer)
-	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	event, err = ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.NoError(t, err, "execute to update name")
 	assert.Equal(t, "update name", event[0].EventName, "event name")
 	assert.Equal(t, "[\"1234567890V2\",\"AmMSMkVHQ6qRVA7G7rqwjvv2NBwB48tTekJ2jFMrjfZrsofePgay\"]", event[0].JsonArgs, "event args")
@@ -108,7 +108,7 @@ func TestExcuteFailNameTx(t *testing.T) {
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
 	blockInfo := &types.BlockHeaderInfo{No: uint64(0), ForkVersion: 0}
-	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, namePrice)
+	_, err := ExecuteNameTx(bs, scs, txBody, sender, receiver, blockInfo, nameParams, namePrice)
 	assert.Error(t, err, "execute name tx")
 }
 
