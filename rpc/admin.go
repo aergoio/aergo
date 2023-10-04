@@ -21,6 +21,8 @@ type AdminService struct {
 	*component.ComponentHub
 	*log.Logger
 	run func()
+
+	types.UnimplementedAdminRPCServiceServer
 }
 
 func NewAdminService(conf *config.RPCConfig, hub *component.ComponentHub) *AdminService {
