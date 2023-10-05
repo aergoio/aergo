@@ -14,7 +14,7 @@ import (
 func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
 	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
-	systemContractState, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	systemContractState, err := bs.StateDB.GetSystemAccountState()
 
 	ci, err := ValidateNameTx(txBody, sender, scs, systemContractState)
 	if err != nil {
