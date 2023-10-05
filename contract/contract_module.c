@@ -230,7 +230,6 @@ static int moduleSend(lua_State *L) {
 static int moduleBalance(lua_State *L) {
 	char *contract;
 	int service = getLuaExecContext(L);
-	lua_Integer amount;
 	struct luaGetBalance_return balance;
 	int nArg;
 
