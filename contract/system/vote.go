@@ -194,23 +194,18 @@ func (c *voteCmd) run() (*types.Event, error) {
 	if err := c.updateVoteResult(); err != nil {
 		return nil, err
 	}
+
+	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
-		return &types.Event{
-			ContractAddress: c.Receiver.ID(),
-			EventIdx:        0,
-			EventName:       c.op.ID(),
-			JsonArgs: `{"who":"` +
-				types.EncodeAddress(c.txBody.Account) +
-				`", "vote":` + string(c.args) + `}`,
-		}, nil
+		jsonArgs = `{"who":"` + types.EncodeAddress(c.txBody.Account) + `", "vote":` + string(c.args) + `}`
+	} else {
+		jsonArgs = `["` + types.EncodeAddress(c.txBody.Account) + `", ` + string(c.args) + `]`
 	}
 	return &types.Event{
 		ContractAddress: c.Receiver.ID(),
 		EventIdx:        0,
 		EventName:       c.op.ID(),
-		JsonArgs: `["` +
-			types.EncodeAddress(c.txBody.Account) +
-			`", ` + string(c.args) + `]`,
+		JsonArgs:        jsonArgs,
 	}, nil
 }
 
