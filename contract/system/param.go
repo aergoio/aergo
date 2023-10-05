@@ -10,7 +10,7 @@ import (
 )
 
 type parameters struct {
-	mtx    sync.Mutex
+	mtx    sync.RWMutex
 	params map[string]*big.Int
 }
 
@@ -38,10 +38,16 @@ func (p *parameters) delNextParam(proposalID string) {
 }
 
 func (p *parameters) getNextParam(proposalID string) *big.Int {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	return p.params[nextParamKey(proposalID)]
 }
 
 func (p *parameters) getParam(proposalID string) *big.Int {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	return p.params[proposalID]
 }
 
@@ -66,13 +72,13 @@ const (
 
 var (
 	systemParams *parameters = &parameters{
-		mtx:    sync.Mutex{},
+		mtx:    sync.RWMutex{},
 		params: map[string]*big.Int{},
 	}
 
 	//DefaultParams is for aergo v1 compatibility
 	DefaultParams *parameters = &parameters{
-		mtx: sync.Mutex{},
+		mtx: sync.RWMutex{},
 		params: map[string]*big.Int{
 			stakingMin.ID(): types.StakingMinimum,
 			gasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
@@ -119,7 +125,7 @@ func loadParams(g dataGetter) *parameters {
 		}
 	}
 	return &parameters{
-		mtx:    sync.Mutex{},
+		mtx:    sync.RWMutex{},
 		params: ret,
 	}
 }
