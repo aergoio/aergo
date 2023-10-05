@@ -10,41 +10,42 @@ import (
 )
 
 type parameters struct {
-	mtx    sync.RWMutex
+	mutex  sync.RWMutex
 	params map[string]*big.Int
 }
 
 func (p *parameters) setParam(proposalID string, value *big.Int) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	p.params[proposalID] = value
 }
 
 // save the new value for the param, to be active on the next block
 func (p *parameters) setNextParam(proposalID string, value *big.Int) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	p.params[nextParamKey(proposalID)] = value
 }
 
 func (p *parameters) delNextParam(proposalID string) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	delete(p.params, nextParamKey(proposalID))
 }
 
 func (p *parameters) getNextParam(proposalID string) *big.Int {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	return p.params[nextParamKey(proposalID)]
 }
 
 func (p *parameters) getParam(proposalID string) *big.Int {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	return p.params[proposalID]
 }
@@ -70,12 +71,12 @@ const (
 
 var (
 	systemParams *parameters = &parameters{
-		mtx:    sync.RWMutex{},
+		mutex:  sync.RWMutex{},
 		params: map[string]*big.Int{},
 	}
 
 	//DefaultParams is for aergo v1 compatibility
-	DefaultParams map[string]*big.Int = map[string]*big.Int{
+	DefaultParams = map[string]*big.Int{
 		stakingMin.ID(): types.StakingMinimum,
 		gasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
 		namePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
@@ -120,7 +121,7 @@ func loadParams(g dataGetter) *parameters {
 		}
 	}
 	return &parameters{
-		mtx:    sync.RWMutex{},
+		mutex:  sync.RWMutex{},
 		params: ret,
 	}
 }
@@ -174,6 +175,7 @@ func GetParam(proposalID string) *big.Int {
 }
 
 // these 4 functions are reading the param value for the current block
+
 func GetStakingMinimum() *big.Int {
 	return GetParam(stakingMin.ID())
 }
@@ -191,6 +193,7 @@ func GetBpCount() int {
 }
 
 // these functions are reading the param value directly from the state
+
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, namePrice)
 }
