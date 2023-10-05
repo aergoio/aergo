@@ -3,12 +3,51 @@ package system
 import (
 	"math/big"
 	"strings"
+	"sync"
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
 )
 
-type parameters map[string]*big.Int
+type parameters struct {
+	mtx    sync.Mutex
+	params map[string]*big.Int
+}
+
+func (p *parameters) setParam(proposalID string, value *big.Int) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	p.params[proposalID] = value
+}
+
+// save the new value for the param, to be active on the next block
+func (p *parameters) setNextParam(proposalID string, value *big.Int) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	p.params[nextParamKey(proposalID)] = value
+}
+
+// save the new value for the param, to be active on the next block
+func (p *parameters) delNextParam(proposalID string) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	delete(p.params, nextParamKey(proposalID))
+}
+
+func (p *parameters) getNextParam(proposalID string) *big.Int {
+	return p.params[nextParamKey(proposalID)]
+}
+
+func (p *parameters) getParam(proposalID string) *big.Int {
+	return p.params[proposalID]
+}
+
+func nextParamKey(id string) string {
+	return id + "next"
+}
 
 const (
 	RESET = -1
@@ -26,13 +65,19 @@ const (
 )
 
 var (
-	systemParams parameters
+	systemParams *parameters = &parameters{
+		mtx:    sync.Mutex{},
+		params: map[string]*big.Int{},
+	}
 
 	//DefaultParams is for aergo v1 compatibility
-	DefaultParams = map[string]*big.Int{
-		stakingMin.ID(): types.StakingMinimum,
-		gasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
-		namePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
+	DefaultParams *parameters = &parameters{
+		mtx: sync.Mutex{},
+		params: map[string]*big.Int{
+			stakingMin.ID(): types.StakingMinimum,
+			gasPrice.ID():   types.NewAmount(50, types.Gaer), // 50 gaer
+			namePrice.ID():  types.NewAmount(1, types.Aergo), // 1 aergo
+		},
 	}
 )
 
@@ -53,13 +98,13 @@ func InitSystemParams(g dataGetter, bpCount int) {
 // services start.
 func initDefaultBpCount(count int) {
 	// Ensure that it is not modified after it is initialized.
-	if DefaultParams[bpCount.ID()] == nil {
-		DefaultParams[bpCount.ID()] = big.NewInt(int64(count))
+	if DefaultParams.getParam(bpCount.ID()) == nil {
+		DefaultParams.setParam(bpCount.ID(), big.NewInt(int64(count)))
 	}
 }
 
 // load the params from the database or use the default values
-func loadParams(g dataGetter) parameters {
+func loadParams(g dataGetter) *parameters {
 	ret := map[string]*big.Int{}
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
@@ -70,13 +115,16 @@ func loadParams(g dataGetter) parameters {
 		if data != nil {
 			ret[id] = new(big.Int).SetBytes(data)
 		} else {
-			ret[id] = DefaultParams[id]
+			ret[id] = DefaultParams.getParam(id)
 		}
 	}
-	return ret
+	return &parameters{
+		mtx:    sync.Mutex{},
+		params: ret,
+	}
 }
 
-func updateParam(s dataSetter, id string, value *big.Int) (error) {
+func updateParam(s dataSetter, id string, value *big.Int) error {
 	// save the param to the database (in a db txn, commit when the block is connected)
 	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
 		return err
@@ -86,23 +134,18 @@ func updateParam(s dataSetter, id string, value *big.Int) (error) {
 	return nil
 }
 
-// save the new value for the param, to be active on the next block
-func (p parameters) setNextParam(proposalID string, value *big.Int) {
-	p[proposalID + "next"] = value
-}
-
 // if a system param was changed, apply or discard its new value
 func CommitParams(apply bool) {
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
 		// check if the param has a new value
-		if systemParams[id + "next"] != nil {
+		if param := systemParams.getNextParam(id); param != nil {
 			if apply {
 				// set the new value for the current block
-				systemParams[id] = systemParams[id + "next"]
+				systemParams.setParam(id, param)
 			}
 			// delete the new value
-			systemParams[id + "next"] = nil
+			systemParams.delNextParam(id)
 		}
 	}
 }
@@ -110,27 +153,26 @@ func CommitParams(apply bool) {
 // get the param value for the next block
 func GetNextParam(proposalID string) *big.Int {
 	// check the value for the next block
-	if val, ok := systemParams[proposalID + "next"]; ok {
+	if val := systemParams.getNextParam(proposalID); val != nil {
 		return val
 	}
 	// check the value for the current block
-	if val, ok := systemParams[proposalID]; ok {
+	if val := systemParams.getParam(proposalID); val != nil {
 		return val
 	}
 	// default value
-	return DefaultParams[proposalID]
+	return DefaultParams.getParam(proposalID)
 }
 
 // get the param value for the current block
 func GetParam(proposalID string) *big.Int {
-	if val, ok := systemParams[proposalID]; ok {
+	if val := systemParams.getParam(proposalID); val != nil {
 		return val
 	}
-	return DefaultParams[proposalID]
+	return DefaultParams.getParam(proposalID)
 }
 
 // these 4 functions are reading the param value for the current block
-
 func GetStakingMinimum() *big.Int {
 	return GetParam(stakingMin.ID())
 }
@@ -148,7 +190,6 @@ func GetBpCount() int {
 }
 
 // these functions are reading the param value directly from the state
-
 func GetNamePriceFromState(scs *state.ContractState) *big.Int {
 	return getParamFromState(scs, namePrice)
 }
@@ -171,7 +212,7 @@ func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
 		panic("could not get blockchain parameter")
 	}
 	if data == nil {
-		return DefaultParams[id.ID()]
+		return DefaultParams.getParam(id.ID())
 	}
 	return new(big.Int).SetBytes(data)
 }

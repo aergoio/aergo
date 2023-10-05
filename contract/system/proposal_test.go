@@ -221,7 +221,6 @@ func TestFailProposals(t *testing.T) {
 	// check the value for the current block
 	assert.Equal(t, 13, GetBpCount(), "check bp")
 
-
 	// gas price
 
 	oldGasPrice := GetGasPrice()
@@ -237,7 +236,7 @@ func TestFailProposals(t *testing.T) {
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
-	assert.Equal(t, DefaultParams[gasPrice.ID()], GetGasPrice(), "check gas price")
+	assert.Equal(t, DefaultParams.getParam(gasPrice.ID()), GetGasPrice(), "check gas price")
 
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
