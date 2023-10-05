@@ -25,8 +25,7 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 		if bytes.Equal(sender.ID(), owner) {
 			nameState = sender
 		} else {
-			nameState, err = bs.GetAccountStateV(owner)
-			if err != nil {
+			if nameState, err = bs.GetAccountStateV(owner); err != nil {
 				return nil, err
 			}
 		}

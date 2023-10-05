@@ -292,7 +292,6 @@ func NewChainService(cfg *cfg.Config) *ChainService {
 
 	// For a strict governance transaction validation.
 	types.InitGovernance(cs.ConsensusType(), cs.IsPublic())
-	system.InitGovernance(cs.ConsensusType())
 
 	//reset parameter of aergo.system
 	systemState, err := cs.SDB().GetSystemAccountState()

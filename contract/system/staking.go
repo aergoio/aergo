@@ -13,8 +13,6 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-var consensusType string
-
 var (
 	stakingKey      = []byte("staking")
 	stakingTotalKey = []byte("stakingtotal")
@@ -24,10 +22,6 @@ var (
 
 const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
-
-func InitGovernance(consensus string) {
-	consensusType = consensus
-}
 
 type stakeCmd struct {
 	*SystemContext

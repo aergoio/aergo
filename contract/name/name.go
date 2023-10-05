@@ -37,12 +37,13 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 // UpdateName is avaliable after bid implement
 func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
 	sender, receiver *state.V, name, to string) error {
-	amount := tx.GetAmountBigInt()
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
 	destination, _ := types.DecodeAddress(to)
 	destination = GetAddress(scs, destination)
+
+	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
@@ -101,8 +102,7 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 
 // GetAddress is resolve name for mempool
 func GetAddress(scs *state.ContractState, name []byte) []byte {
-	if len(name) == types.AddressLength ||
-		types.IsSpecialAccount(name) {
+	if len(name) == types.AddressLength || types.IsSpecialAccount(name) {
 		return name
 	}
 	return getAddress(scs, name)
@@ -110,8 +110,7 @@ func GetAddress(scs *state.ContractState, name []byte) []byte {
 
 // GetAddressLegacy is resolve name for mempool by buggy logic, leaved for backward compatibility
 func GetAddressLegacy(scs *state.ContractState, name []byte) []byte {
-	if len(name) == types.AddressLength ||
-		strings.Contains(string(name), ".") {
+	if len(name) == types.AddressLength || strings.Contains(string(name), ".") {
 		return name
 	}
 	return getAddress(scs, name)
