@@ -213,7 +213,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 }
 
 func InitVPR(sdb *state.StateDB) error {
-	s, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return err
 	}

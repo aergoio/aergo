@@ -137,7 +137,7 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 	system.InitGovernance("dpos")
 
 	// To pass dao parameters test
-	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
 	system.InitSystemParams(scs, 3)
 
 	fee.EnableZeroFee()
@@ -229,7 +229,7 @@ func (bc *DummyChain) GetAccountState(name string) (*types.State, error) {
 }
 
 func (bc *DummyChain) GetStaking(name string) (*types.Staking, error) {
-	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
 	if err != nil {
 		return nil, err
 	}
