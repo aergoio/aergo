@@ -129,7 +129,6 @@ func LoadDummyChain(opts ...DummyChainOptions) (*DummyChain, error) {
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
-	system.InitGovernance("dpos")
 
 	// To pass dao parameters test
 	scs, err := bc.sdb.GetStateDB().GetSystemAccountState()
