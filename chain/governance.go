@@ -56,8 +56,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
 func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
-	aid := types.ToAccountID([]byte(types.AergoSystem))
-	scs, err := states.OpenContractStateAccount(aid)
+	scs, err := states.GetSystemAccountState()
 	if err != nil {
 		return err
 	}
