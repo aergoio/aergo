@@ -407,6 +407,19 @@ func NewLuaTxDeploy(sender, recipient string, amount uint64, code string) *luaTx
 	return NewLuaTxDeployBig(sender, recipient, types.NewAmount(amount, types.Aer), code)
 }
 
+func NewLuaTxDeployBig(sender, recipient string, amount *big.Int, code string) *luaTxDeploy {
+	return &luaTxDeploy{
+		luaTxContractCommon: luaTxContractCommon{
+			_sender:    contract.StrHash(sender),
+			_recipient: contract.StrHash(recipient),
+			_payload:   util.NewLuaCodePayload([]byte(code), nil),
+			_amount:    amount,
+			txId:       newTxId(),
+		},
+		cErr: nil,
+	}
+}
+
 /*
 	func contract.StrHash(d string) []byte {
 		// using real address
@@ -525,6 +538,16 @@ func contractFrame(l luaTxContract, bs *state.BlockState, cdb contract.ChainAcce
 func (l *luaTxDeploy) run(bs *state.BlockState, bc *DummyChain, bi *types.BlockHeaderInfo, receiptTx db.Transaction) error {
 	if l.cErr != nil {
 		return l.cErr
+	}
+	if bc.HardforkVersion < 4 {
+		// compile the plain code to bytecode
+		payload := util.LuaCodePayload(l._payload)
+		code := string(payload.Code())
+		byteCode, err := contract.Compile(code, nil)
+		if err != nil {
+			return err
+		}
+		l._payload = util.NewLuaCodePayload(byteCode, payload.Args())
 	}
 	return contractFrame(l, bs, bc, receiptTx,
 		func(sender, contractV *state.V, contractId types.AccountID, eContractState *state.ContractState) (string, []*types.Event, *big.Int, error) {
