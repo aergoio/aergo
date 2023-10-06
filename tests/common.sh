@@ -3,10 +3,10 @@ get_deploy_args() {
   contract_file=$1
 
   #if [ "$fork_version" -ge "4" ]; then
-    deploy_args="$contract_file"
+  #  deploy_args="$contract_file"
   #else
-  #  ../bin/aergoluac --payload $contract_file > payload.out
-  #  deploy_args="--payload `cat payload.out`"
+    ../bin/aergoluac --payload $contract_file > payload.out
+    deploy_args="--payload `cat payload.out`"
   #fi
 
 }
