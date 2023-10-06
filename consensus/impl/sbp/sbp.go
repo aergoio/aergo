@@ -35,7 +35,7 @@ type txExec struct {
 func newTxExec(cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		// FIXME
+		// FIXME block creation timeout check will not work in SBP unless the context is changed to context.WithTimeout()
 		execTx: bc.NewTxExecutor(context.Background(), nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
 	}
 }

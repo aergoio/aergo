@@ -976,8 +976,6 @@ func xestInfiniteLoop(t *testing.T) {
 }
 
 func TestInfiniteLoopOnPubNet(t *testing.T) {
-	// FIXME delete skip after gas limit patch
-	//t.Skip("disabled until gas limit check is added")
 	code := readLuaCode(t, "infiniteloop.lua")
 
 	for version := min_version; version <= max_version; version++ {
