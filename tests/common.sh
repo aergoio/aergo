@@ -1,4 +1,26 @@
 
+get_deploy_args() {
+  contract_file=$1
+
+  #if [ "$fork_version" -ge "4" ]; then
+    deploy_args="$contract_file"
+  #else
+  #  ../bin/aergoluac --payload $contract_file > payload.out
+  #  deploy_args="--payload `cat payload.out`"
+  #fi
+
+}
+
+deploy() {
+
+  get_deploy_args $1
+
+  txhash=$(../bin/aergocli --keystore . --password bmttest \
+    contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
+    $deploy_args | jq .hash | sed 's/"//g')
+
+}
+
 get_receipt() {
   txhash=$1
   counter=0

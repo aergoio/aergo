@@ -19,6 +19,11 @@ pid=$!
 sleep 2
 
 version=$(../bin/aergocli blockchain | jq .ChainInfo.Chainid.Version | sed 's/"//g')
+if [ $version -ne 2 ]; then
+  echo "Wrong hardfork version!"
+  echo "Desired: 2, Actual: $version"
+  exit 1
+fi
 
 function set_version() {
   # stop on errors
@@ -35,11 +40,7 @@ function set_version() {
   kill $pid
   # save the hardfork config on the config file
   echo "updating the config file..."
-  if [ $version -eq 2 ]; then
-    sed -i "s/^v2 = \"10000\"$/v2 = \"${block_no}\"/" ./aergo-files/config.toml
-  elif [ $version -eq 3 ]; then
-    sed -i "s/^v3 = \"10000\"$/v3 = \"${block_no}\"/" ./aergo-files/config.toml
-  fi
+  sed -i "s/^v${version} = \"10000\"$/v${version} = \"${block_no}\"/" ./aergo-files/config.toml
   # restart the aergo server
   echo "restarting the aergo server..."
   ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
@@ -87,6 +88,7 @@ check ./test-gas-op.sh
 check ./test-gas-bf.sh
 check ./test-gas-verify-proof.sh
 check ./test-gas-per-function-v2.sh
+check ./test-contract-deploy.sh
 
 # change the hardfork version
 set_version 3
@@ -98,6 +100,18 @@ check ./test-gas-op.sh
 check ./test-gas-bf.sh
 check ./test-gas-verify-proof.sh
 check ./test-gas-per-function-v3.sh
+check ./test-contract-deploy.sh
+
+# change the hardfork version
+set_version 4
+
+# run the integration tests - version 4
+check ./test-max-call-depth.sh
+check ./test-gas-deploy.sh
+check ./test-gas-op.sh
+check ./test-gas-bf.sh
+check ./test-gas-verify-proof.sh
+check ./test-gas-per-function-v4.sh
 
 # terminate the server process
 echo ""
