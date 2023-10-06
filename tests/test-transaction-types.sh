@@ -121,7 +121,7 @@ nonce=$(../bin/aergocli getstate --address $from | jq -r '.nonce')
 #echo "-- TRANSFER type, trying to make a call --"
 
 
-echo "-- NORMAL type, contract without 'default' function --"
+echo "-- NORMAL type, contract without 'default' function (not sending) --"
 
 nonce=$((nonce + 1))
 
@@ -129,7 +129,43 @@ nonce=$((nonce + 1))
 
 jsontx='{
 "Account": "'$from'",
-"Recipient": "'$no_default'", 
+"Recipient": "'$no_default'",
+"Amount": "0",
+"Type": 0,
+"Nonce": '$nonce',
+"chainIdHash": "'$chainIdHash'"}'
+
+jsontx=$(../bin/aergocli --keystore . --password bmttest \
+  signtx --address $from --jsontx "$jsontx" )
+
+txhash=$(../bin/aergocli committx --jsontx "$jsontx" | jq .results[0].hash | sed 's/"//g')
+
+get_receipt $txhash
+
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
+
+if [ "$fork_version" -ge "4" ]; then
+	assert_equals "$status"   "ERROR"
+	assert_equals "$ret"      "tx not allowed recipient"
+	#assert_equals "$gasUsed"  "117861"
+else
+	assert_equals "$status"   "ERROR"
+	assert_equals "$ret"      "undefined function: default"
+	#assert_equals "$gasUsed"  "117861"
+fi
+
+
+echo "-- NORMAL type, contract without 'default' function (sending) --"
+
+nonce=$((nonce + 1))
+
+#"Payload": "'$from'",
+
+jsontx='{
+"Account": "'$from'",
+"Recipient": "'$no_default'",
 "Amount": "1.23aergo",
 "Type": 0,
 "Nonce": '$nonce',
@@ -157,7 +193,41 @@ else
 fi
 
 
-echo "-- NORMAL type, contract with not payable 'default' function --"
+echo "-- NORMAL type, contract with not payable 'default' function (not sending) --"
+
+nonce=$((nonce + 1))
+
+jsontx='{
+"Account": "'$from'",
+"Recipient": "'$not_payable'",
+"Amount": "0",
+"Type": 0,
+"Nonce": '$nonce',
+"chainIdHash": "'$chainIdHash'"}'
+
+jsontx=$(../bin/aergocli --keystore . --password bmttest \
+  signtx --address $from --jsontx "$jsontx" )
+
+txhash=$(../bin/aergocli committx --jsontx "$jsontx" | jq .results[0].hash | sed 's/"//g')
+
+get_receipt $txhash
+
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
+
+if [ "$fork_version" -ge "4" ]; then
+	assert_equals "$status"   "ERROR"
+	assert_equals "$ret"      "tx not allowed recipient"
+	#assert_equals "$gasUsed"  "117861"
+else
+	assert_equals "$status"   "SUCCESS"
+	assert_equals "$ret"      "0"
+	#assert_equals "$gasUsed"  "117861"
+fi
+
+
+echo "-- NORMAL type, contract with not payable 'default' function (sending) --"
 
 nonce=$((nonce + 1))
 
@@ -191,7 +261,41 @@ else
 fi
 
 
-echo "-- NORMAL type, contract with payable 'default' function --"
+echo "-- NORMAL type, contract with payable 'default' function (not sending) --"
+
+nonce=$((nonce + 1))
+
+jsontx='{
+"Account": "'$from'",
+"Recipient": "'$payable_default'",
+"Amount": "0",
+"Type": 0,
+"Nonce": '$nonce',
+"chainIdHash": "'$chainIdHash'"}'
+
+jsontx=$(../bin/aergocli --keystore . --password bmttest \
+  signtx --address $from --jsontx "$jsontx" )
+
+txhash=$(../bin/aergocli committx --jsontx "$jsontx" | jq .results[0].hash | sed 's/"//g')
+
+get_receipt $txhash
+
+status=$(cat receipt.json | jq .status | sed 's/"//g')
+ret=$(cat receipt.json | jq .ret | sed 's/"//g')
+gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
+
+if [ "$fork_version" -ge "4" ]; then
+	assert_equals "$status"   "ERROR"
+	assert_equals "$ret"      "tx not allowed recipient"
+	#assert_equals "$gasUsed"  "117861"
+else
+	assert_equals "$status"   "SUCCESS"
+	assert_equals "$ret"      "0"
+	#assert_equals "$gasUsed"  "117861"
+fi
+
+
+echo "-- NORMAL type, contract with payable 'default' function (sending) --"
 
 nonce=$((nonce + 1))
 
