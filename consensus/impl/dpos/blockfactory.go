@@ -139,11 +139,11 @@ func (bf *BlockFactory) controller() {
 			return err
 		}
 
-		timeLeftMSs := bpi.slot.GetBpTimeout()
-		if timeLeftMSs <= 0 {
-			return chain.ErrTimeout{Kind: "slot", Timeout: timeLeftMSs}
+		timeLeftMS := bpi.slot.GetBpTimeout()
+		if timeLeftMS <= 0 {
+			return chain.ErrTimeout{Kind: "slot", Timeout: timeLeftMS}
 		}
-		bfContext, _ := context.WithTimeout(bf.ctx, time.Duration(timeLeftMSs)*time.Millisecond)
+		bfContext, _ := context.WithTimeout(bf.ctx, time.Duration(timeLeftMS)*time.Millisecond)
 
 		select {
 		case bf.workerQueue <- bfWork{execCtx: bfContext, bpi: bpi}:
