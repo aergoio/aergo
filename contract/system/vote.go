@@ -92,13 +92,27 @@ func newVprCmd(ctx *SystemContext, vr *VoteResult) *vprCmd {
 
 func (c *vprCmd) subVote(v *types.Vote) error {
 	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-
+	// Hotfix - reproduce vpr calculation for block 138015125
+	// When block is reverted, votingPowerRank is not reverted and calculated three times.
+	// TODO : implement commit, revert, reorg for governance variables.
+	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
+		for i := 0; i < 2; i++ {
+			votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+		}
+	}
 	return c.voteResult.SubVote(v)
 }
 
 func (c *vprCmd) addVote(v *types.Vote) error {
 	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
-
+	// Hotfix - reproduce vpr calculation for block 138015125
+	// When block is reverted, votingPowerRank is not reverted and calculated three times.
+	// TODO : implement commit, revert, reorg for governance variables.
+	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
+		for i := 0; i < 2; i++ {
+			votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
+		}
+	}
 	return c.voteResult.AddVote(v)
 }
 

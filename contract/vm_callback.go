@@ -65,14 +65,14 @@ func init() {
 	zeroBig = types.NewZeroAmount()
 }
 
-func addUpdateSize(s *vmContext, updateSize int64) error {
-	if s.IsGasSystem() {
+func addUpdateSize(ctx *vmContext, updateSize int64) error {
+	if ctx.IsGasSystem() {
 		return nil
 	}
-	if s.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
+	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
 		return errors.New("exceeded size of updates in the state database")
 	}
-	s.dbUpdateTotalSize += updateSize
+	ctx.dbUpdateTotalSize += updateSize
 	return nil
 }
 
@@ -1615,13 +1615,6 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 	curContract := stateSet.curContract
 
 	return C.CString(strconv.FormatUint(curContract.rp, 10))
-}
-
-// set the remaining gas on the given LState
-func (ctx *vmContext) setRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
-		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
-	}
 }
 
 //export luaGetStaking
