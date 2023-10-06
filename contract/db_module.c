@@ -600,36 +600,36 @@ int lua_db_release_resource(lua_State *L) {
 	return 0;
 }
 
+static const luaL_Reg rs_methods[] = {
+	{"next",  db_rs_next},
+	{"get", db_rs_get},
+	{"colcnt", db_rs_colcnt},
+	{"__tostring", db_rs_tostr},
+	{"__gc", db_rs_gc},
+	{NULL, NULL}
+};
+
+static const luaL_Reg pstmt_methods[] = {
+	{"exec",  db_pstmt_exec},
+	{"query", db_pstmt_query},
+	{"column_info", db_pstmt_column_info},
+	{"bind_param_cnt", db_pstmt_bind_param_cnt},
+	{"__tostring", db_pstmt_tostr},
+	{"__gc", db_pstmt_gc},
+	{NULL, NULL}
+};
+
+static const luaL_Reg db_lib[] = {
+	{"exec", db_exec},
+	{"query", db_query},
+	{"prepare", db_prepare},
+	{"getsnap", db_get_snapshot},
+	{"open_with_snapshot", db_open_with_snapshot},
+	{"last_insert_rowid", db_last_insert_rowid},
+	{NULL, NULL}
+};
+
 int luaopen_db(lua_State *L) {
-
-	static const luaL_Reg rs_methods[] = {
-		{"next",  db_rs_next},
-		{"get", db_rs_get},
-		{"colcnt", db_rs_colcnt},
-		{"__tostring", db_rs_tostr},
-		{"__gc", db_rs_gc},
-		{NULL, NULL}
-	};
-
-	static const luaL_Reg pstmt_methods[] = {
-		{"exec",  db_pstmt_exec},
-		{"query", db_pstmt_query},
-		{"column_info", db_pstmt_column_info},
-		{"bind_param_cnt", db_pstmt_bind_param_cnt},
-		{"__tostring", db_pstmt_tostr},
-		{"__gc", db_pstmt_gc},
-		{NULL, NULL}
-	};
-
-	static const luaL_Reg db_lib[] = {
-		{"exec", db_exec},
-		{"query", db_query},
-		{"prepare", db_prepare},
-		{"getsnap", db_get_snapshot},
-		{"open_with_snapshot", db_open_with_snapshot},
-		{"last_insert_rowid", db_last_insert_rowid},
-		{NULL, NULL}
-	};
 
 	luaL_newmetatable(L, DB_RS_ID);
 	lua_pushvalue(L, -1);
@@ -642,6 +642,7 @@ int luaopen_db(lua_State *L) {
 	luaL_register(L, NULL, pstmt_methods);
 
 	luaL_register(L, "db", db_lib);
+
 	lua_pop(L, 3);
 	return 1;
 }
