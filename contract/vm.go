@@ -21,6 +21,7 @@ package contract
 import "C"
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -52,6 +53,8 @@ const (
 	maxCallDepth         = 64
 	checkFeeDelegationFn = "check_delegation"
 	constructor          = "constructor"
+
+	vmTimeoutErrMsg = "contract timeout during vm execution"
 )
 
 var (
@@ -83,6 +86,9 @@ type contractInfo struct {
 	amount     *big.Int
 }
 
+// vmContext contains context datas during execution of smart contract.
+// It has both call infos which are immutable, and real time statuses
+// which are mutable during execution
 type vmContext struct {
 	curContract       *contractInfo
 	bs                *state.BlockState
@@ -93,7 +99,7 @@ type vmContext struct {
 	node              string
 	confirmed         bool
 	isQuery           bool
-	nestedView        int32
+	nestedView        int32 // indicates which parent called the contract in view (read-only mode)
 	isFeeDelegation   bool
 	service           C.int
 	callState         map[types.AccountID]*callState
@@ -106,6 +112,7 @@ type vmContext struct {
 	traceFile         *os.File
 	gasLimit          uint64
 	remainedGas       uint64
+	execCtx           context.Context
 }
 
 type recoveryEntry struct {
@@ -171,9 +178,7 @@ func getTraceFile(blkno uint64, tx []byte) *os.File {
 	return f
 }
 
-func NewVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V,
-	contractState *state.ContractState, senderID []byte, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed bool,
-	query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
+func NewVmContext(execCtx context.Context, blockState *state.BlockState, cdb ChainAccessor, sender, reciever *state.V, contractState *state.ContractState, senderID, txHash []byte, bi *types.BlockHeaderInfo, node string, confirmed, query bool, rp uint64, service int, amount *big.Int, gasLimit uint64, feeDelegation bool) *vmContext {
 
 	cs := &callState{ctrState: contractState, curState: reciever.State()}
 
@@ -191,6 +196,7 @@ func NewVmContext(blockState *state.BlockState, cdb ChainAccessor, sender, recie
 		gasLimit:        gasLimit,
 		remainedGas:     gasLimit,
 		isFeeDelegation: feeDelegation,
+		execCtx:         execCtx,
 	}
 	ctx.callState = make(map[types.AccountID]*callState)
 	ctx.callState[reciever.AccountID()] = cs
@@ -223,6 +229,7 @@ func NewVmContextQuery(
 		confirmed:   true,
 		blockInfo:   types.NewBlockHeaderInfo(bb),
 		isQuery:     true,
+		execCtx:     context.Background(), // FIXME query also should cancel if query is too long
 	}
 
 	ctx.callState = make(map[types.AccountID]*callState)
@@ -230,35 +237,43 @@ func NewVmContextQuery(
 	return ctx, nil
 }
 
-func (s *vmContext) IsGasSystem() bool {
-	return !s.isQuery && PubNet && s.blockInfo.ForkVersion >= 2
+func (ctx *vmContext) IsGasSystem() bool {
+	return !ctx.isQuery && PubNet && ctx.blockInfo.ForkVersion >= 2
 }
 
-func (s *vmContext) getRemainingGas(L *LState) {
-	if s.IsGasSystem() {
-		s.remainedGas = uint64(C.lua_gasget(L))
+// get the remaining gas from the given LState
+func (ctx *vmContext) refreshRemainingGas(L *LState) {
+	if ctx.IsGasSystem() {
+		ctx.remainedGas = uint64(C.lua_gasget(L))
 	}
 }
 
-func (s *vmContext) usedFee() *big.Int {
+// set the remaining gas on the given LState
+func (ctx *vmContext) setRemainingGas(L *LState) {
+	if ctx.IsGasSystem() {
+		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
+	}
+}
+
+func (ctx *vmContext) usedFee() *big.Int {
 	if fee.IsZeroFee() {
 		return fee.NewZeroFee()
 	}
-	if s.IsGasSystem() {
-		usedGas := s.usedGas()
+	if ctx.IsGasSystem() {
+		usedGas := ctx.usedGas()
 		if ctrLgr.IsDebugEnabled() {
 			ctrLgr.Debug().Uint64("gas used", usedGas).Str("lua vm", "executed").Msg("gas information")
 		}
-		return new(big.Int).Mul(s.bs.GasPrice, new(big.Int).SetUint64(usedGas))
+		return new(big.Int).Mul(ctx.bs.GasPrice, new(big.Int).SetUint64(usedGas))
 	}
-	return fee.PaymentDataFee(s.dbUpdateTotalSize)
+	return fee.PaymentDataFee(ctx.dbUpdateTotalSize)
 }
 
-func (s *vmContext) usedGas() uint64 {
-	if fee.IsZeroFee() || !s.IsGasSystem() {
+func (ctx *vmContext) usedGas() uint64 {
+	if fee.IsZeroFee() || !ctx.IsGasSystem() {
 		return 0
 	}
-	return s.gasLimit - s.remainedGas
+	return ctx.gasLimit - ctx.remainedGas
 }
 
 func newLState() *LState {
@@ -368,7 +383,7 @@ func newExecutor(
 	if ctx.IsGasSystem() {
 		ce.setGas()
 		defer func() {
-			ce.getRemainingGas()
+			ce.refreshRemainingGas()
 			if ctrLgr.IsDebugEnabled() {
 				ctrLgr.Debug().Uint64("gas used", ce.ctx.usedGas()).Str("lua vm", "loaded").Msg("gas information")
 			}
@@ -561,7 +576,7 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	if ce.err != nil {
 		return 0
 	}
-	defer ce.getRemainingGas()
+	defer ce.refreshRemainingGas()
 	if ce.isView == true {
 		ce.ctx.nestedView++
 		defer func() {
@@ -592,27 +607,28 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	}
 	ce.processArgs()
 	if ce.err != nil {
-		ctrLgr.Debug().Err(ce.err).Str("contract",
-			types.EncodeAddress(ce.ctx.curContract.contractId)).Msg("invalid argument")
+		ctrLgr.Debug().Err(ce.err).Stringer("contract",
+			types.LogAddr(ce.ctx.curContract.contractId)).Msg("invalid argument")
 		return 0
 	}
 	ce.setCountHook(instLimit)
-	nret := C.int(0)
-	if cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nret); cErrMsg != nil {
+	nRet := C.int(0)
+	cErrMsg := C.vm_pcall(ce.L, ce.numArgs, &nRet)
+	if cErrMsg != nil {
 		errMsg := C.GoString(cErrMsg)
 		if C.luaL_hassyserror(ce.L) != C.int(0) {
 			ce.err = newVmSystemError(errors.New(errMsg))
 		} else {
-			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) &&
-				C.ERR_BF_TIMEOUT == errMsg {
+			isUncatchable := C.luaL_hasuncatchablerror(ce.L) != C.int(0)
+			if isUncatchable && (errMsg == C.ERR_BF_TIMEOUT || errMsg == vmTimeoutErrMsg) {
 				ce.err = &VmTimeoutError{}
 			} else {
 				ce.err = errors.New(errMsg)
 			}
 		}
-		ctrLgr.Debug().Err(ce.err).Str(
+		ctrLgr.Debug().Err(ce.err).Stringer(
 			"contract",
-			types.EncodeAddress(ce.ctx.curContract.contractId),
+			types.LogAddr(ce.ctx.curContract.contractId),
 		).Msg("contract is failed")
 		if target != nil {
 			if C.luaL_hasuncatchablerror(ce.L) != C.int(0) {
@@ -626,19 +642,19 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 	}
 	if target == nil {
 		var errRet C.int
-		retMsg := C.GoString(C.vm_get_json_ret(ce.L, nret, &errRet))
+		retMsg := C.GoString(C.vm_get_json_ret(ce.L, nRet, &errRet))
 		if errRet == 1 {
 			ce.err = errors.New(retMsg)
 		} else {
 			ce.jsonRet = retMsg
 		}
 	} else {
-		if cErrMsg := C.vm_copy_result(ce.L, target, nret); cErrMsg != nil {
-			errMsg := C.GoString(cErrMsg)
+		if c2ErrMsg := C.vm_copy_result(ce.L, target, nRet); c2ErrMsg != nil {
+			errMsg := C.GoString(c2ErrMsg)
 			ce.err = errors.New(errMsg)
-			ctrLgr.Debug().Err(ce.err).Str(
+			ctrLgr.Debug().Err(ce.err).Stringer(
 				"contract",
-				types.EncodeAddress(ce.ctx.curContract.contractId),
+				types.LogAddr(ce.ctx.curContract.contractId),
 			).Msg("failed to move results")
 		}
 	}
@@ -655,7 +671,7 @@ func (ce *executor) call(instLimit C.int, target *LState) C.int {
 		_, _ = ce.ctx.traceFile.WriteString(fmt.Sprintf("contract %s used fee: %s\n",
 			address, ce.ctx.usedFee().String()))
 	}
-	return nret
+	return nRet
 }
 
 func (ce *executor) commitCalledContract() error {
@@ -775,8 +791,8 @@ func (ce *executor) close() {
 	}
 }
 
-func (ce *executor) getRemainingGas() {
-	ce.ctx.getRemainingGas(ce.L)
+func (ce *executor) refreshRemainingGas() {
+	ce.ctx.refreshRemainingGas(ce.L)
 }
 
 func (ce *executor) gas() uint64 {
@@ -831,8 +847,11 @@ func Call(
 	ce := newExecutor(contract, contractAddress, ctx, &ci, ctx.curContract.amount, false, false, contractState)
 	defer ce.close()
 
+	startTime := time.Now()
 	// execute the contract call
 	ce.call(callMaxInstLimit, nil)
+	vmExecTime := time.Now().Sub(startTime).Microseconds()
+	vmLogger.Trace().Int64("execµs", vmExecTime).Stringer("txHash", types.LogBase58(ce.ctx.txHash)).Msg("tx execute time in vm")
 
 	// check if there is an error
 	err = ce.err

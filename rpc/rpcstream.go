@@ -115,7 +115,7 @@ SEND_LOOP:
 				if err != nil {
 					logger.Warn().Uint32("streamId", s.id).Err(err).Msg("failed to broadcast block metadata stream")
 				} else {
-					logger.Trace().Uint32("streamId", s.id).Object("hash", types.LogBase58{Bytes: &block.Hash}).Msg("broadcast new block metadata")
+					logger.Trace().Uint32("streamId", s.id).Stringer("hash", types.LogBase58(block.Hash)).Msg("broadcast new block metadata")
 				}
 			}
 		}

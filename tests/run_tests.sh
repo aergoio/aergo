@@ -87,6 +87,7 @@ check ./test-gas-op.sh
 check ./test-gas-bf.sh
 check ./test-gas-verify-proof.sh
 check ./test-gas-per-function-v2.sh
+check ./test-contract-deploy.sh
 
 # change the hardfork version
 set_version 3
@@ -98,6 +99,7 @@ check ./test-gas-op.sh
 check ./test-gas-bf.sh
 check ./test-gas-verify-proof.sh
 check ./test-gas-per-function-v3.sh
+check ./test-contract-deploy.sh
 
 # terminate the server process
 echo ""

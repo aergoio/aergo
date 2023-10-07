@@ -6,6 +6,7 @@
 package dpos
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -77,6 +78,11 @@ func (bi *bpInfo) updateBestBlock() *types.Block {
 	}
 
 	return block
+}
+
+type bfWork struct {
+	execCtx context.Context
+	bpi     *bpInfo
 }
 
 // GetName returns the name of the consensus.
@@ -207,7 +213,7 @@ func sendVotingReward(bState *state.BlockState, dummy []byte) error {
 }
 
 func InitVPR(sdb *state.StateDB) error {
-	s, err := sdb.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
+	s, err := sdb.GetSystemAccountState()
 	if err != nil {
 		return err
 	}

@@ -34,11 +34,11 @@ func (s *rPeerStatus) activate() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.active {
-		s.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(s.pid)).Str("raftID", s.id.String()).Msgf("peer became active")
+		s.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(s.pid)).Str("raftID", s.id.String()).Msgf("peer became active")
 		s.active = true
 		s.since = time.Now()
 	} else {
-		s.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(s.pid)).Str("raftID", s.id.String()).Msgf("activate called to already active peer")
+		s.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(s.pid)).Str("raftID", s.id.String()).Msgf("activate called to already active peer")
 	}
 }
 
@@ -47,12 +47,12 @@ func (s *rPeerStatus) deactivate(cause string) {
 	defer s.mu.Unlock()
 
 	if s.active {
-		s.logger.Info().Str("cause", cause).Str(p2putil.LogPeerID, p2putil.ShortForm(s.pid)).Str("raftID", s.id.String()).Msgf("peer became inactive")
+		s.logger.Info().Str("cause", cause).Stringer(p2putil.LogPeerID, types.LogPeerShort(s.pid)).Str("raftID", s.id.String()).Msgf("peer became inactive")
 
 		s.active = false
 		s.since = time.Time{}
 	} else {
-		s.logger.Debug().Str("cause", cause).Str(p2putil.LogPeerID, p2putil.ShortForm(s.pid)).Str("raftID", s.id.String()).Msgf("deactivate called to already inactive peer")
+		s.logger.Debug().Str("cause", cause).Stringer(p2putil.LogPeerID, types.LogPeerShort(s.pid)).Str("raftID", s.id.String()).Msgf("deactivate called to already inactive peer")
 	}
 }
 
