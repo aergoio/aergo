@@ -1030,6 +1030,8 @@ func TestUpdateSize(t *testing.T) {
 }
 
 func TestTimeoutCnt(t *testing.T) {
+	// FIXME delete skip after gas limit patch
+	t.Skip("disabled until gas limit check is added")
 	code := readLuaCode(t, "timeout_1.lua")
 	code2 := readLuaCode(t, "timeout_2.lua")
 

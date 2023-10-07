@@ -696,7 +696,7 @@ func MaxUint64(x, y uint64) uint64 {
 				}
 
 				if state.Get() != types.RUNNING {
-					logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("peer is not running")
+					logger.Debug().Stringer("peer", types.LogPeerShort(peerID)).Msg("peer is not running")
 					continue
 
 				}
