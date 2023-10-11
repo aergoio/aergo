@@ -4,9 +4,10 @@
 package vm_dummy
 
 import (
+	"math/big"
+
 	luacUtil "github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract"
-	"math/big"
 )
 
 func getCompiledABI(code string) ([]byte, error) {

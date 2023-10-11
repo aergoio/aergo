@@ -1,6 +1,7 @@
 package sbp
 
 import (
+	"context"
 	"runtime"
 	"time"
 
@@ -34,7 +35,8 @@ type txExec struct {
 func newTxExec(cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
+		// FIXME block creation timeout check will not work in SBP unless the context is changed to context.WithTimeout()
+		execTx: bc.NewTxExecutor(context.Background(), nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
 	}
 }
 
@@ -191,7 +193,7 @@ func (s *SimpleBlockFactory) Start() {
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
 				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.NewBlockGenerator(s, bi, blockState, txOp, false).GenerateBlock()
+				block, err := chain.NewBlockGenerator(s, context.Background(), bi, blockState, txOp, false).GenerateBlock()
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

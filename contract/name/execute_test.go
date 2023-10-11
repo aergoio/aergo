@@ -113,19 +113,13 @@ func TestExcuteFailNameTx(t *testing.T) {
 }
 
 func openContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	nameContractID := types.ToAccountID([]byte(types.AergoName))
-	nameContract, err := bs.GetAccountState(nameContractID)
-	assert.NoError(t, err, "could not get account state")
-	scs, err := bs.OpenContractState(nameContractID, nameContract)
+	scs, err := bs.GetNameAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }
 
 func openSystemContractState(t *testing.T, bs *state.BlockState) *state.ContractState {
-	systemContractID := types.ToAccountID([]byte(types.AergoSystem))
-	systemContract, err := bs.GetAccountState(systemContractID)
-	assert.NoError(t, err, "could not get account state")
-	scs, err := bs.OpenContractState(systemContractID, systemContract)
+	scs, err := bs.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return scs
 }

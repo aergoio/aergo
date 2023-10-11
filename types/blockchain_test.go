@@ -26,7 +26,7 @@ func TestBlockHash(t *testing.T) {
 	blockHash := func(block *Block) []byte {
 		header := block.Header
 		digest := sha256.New()
-		writeBlockHeaderOld(digest, header)
+		writeBlockHeader(digest, header)
 		return digest.Sum(nil)
 	}
 

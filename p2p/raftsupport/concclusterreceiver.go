@@ -148,17 +148,17 @@ func (r *ConcurrentClusterInfoReceiver) handleInWaiting(peer p2pcommon.RemotePee
 	// remote peer response malformed data.
 	body, ok := msgBody.(*types.GetClusterInfoResponse)
 	if !ok {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("get cluster invalid response data")
+		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("get cluster invalid response data")
 		return
 	} else if len(body.MbrAttrs) == 0 || body.Error != "" {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Err(errors.New(body.Error)).Msg("get cluster response empty member")
+		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Err(errors.New(body.Error)).Msg("get cluster response empty member")
 		return
 	}
 
-	r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Object("resp", body).Msg("received get cluster response")
+	r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Object("resp", body).Msg("received get cluster response")
 	// return the result
 	if len(body.Error) != 0 {
-		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Err(errors.New(body.Error)).Msg("get cluster response error")
+		r.logger.Debug().Str(p2putil.LogPeerName, peer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Err(errors.New(body.Error)).Msg("get cluster response error")
 		return
 	}
 	r.succResps[peer.ID()] = body
@@ -206,7 +206,7 @@ func (r *ConcurrentClusterInfoReceiver) calculate(err error) *message.GetCluster
 			}
 		}
 		if bestRsp != nil {
-			r.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(bestPid)).Object("resp", bestRsp).Msg("chosed best response")
+			r.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(bestPid)).Object("resp", bestRsp).Msg("chosed best response")
 			rsp.ClusterID = bestRsp.GetClusterID()
 			rsp.ChainID = bestRsp.GetChainID()
 			rsp.Members = bestRsp.GetMbrAttrs()
