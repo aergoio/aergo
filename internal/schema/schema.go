@@ -37,13 +37,12 @@ const (
 
 // contract
 const (
-	// enterprise
 	EnterpriseAdmins     = "ADMINS"
 	EnterpriseConfPrefix = "conf\\"
-	// name
+
 	NamePrefix = "name"
-	// system
-	SystemParam        = "param\\"
+
+	SystemParamPrefix  = "param\\"
 	SystemProposal     = "proposal"
 	SystemStaking      = "staking"
 	SystemStakingTotal = "stakingtotal"

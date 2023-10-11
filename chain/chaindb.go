@@ -7,7 +7,6 @@ package chain
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
@@ -646,7 +645,7 @@ func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int3
 
 func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	hardForkConfig *config.HardforkConfig) (*types.Receipts, error) {
-	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
+	data := cdb.store.Get(schema.KeyReceipts(blockHash, blockNo))
 	if len(data) == 0 {
 		return nil, errors.New("cannot find a receipt")
 	}
@@ -662,7 +661,7 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 }
 
 func (cdb *ChainDB) checkExistReceipts(blockHash []byte, blockNo types.BlockNo) bool {
-	data := cdb.store.Get(receiptsKey(blockHash, blockNo))
+	data := cdb.store.Get(schema.KeyReceipts(blockHash, blockNo))
 	if len(data) == 0 {
 		return false
 	}
@@ -703,23 +702,13 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	gobEncoder := gob.NewEncoder(&val)
 	gobEncoder.Encode(receipts)
 
-	dbTx.Set(receiptsKey(blockHash, blockNo), val.Bytes())
+	dbTx.Set(schema.KeyReceipts(blockHash, blockNo), val.Bytes())
 
 	dbTx.Commit()
 }
 
 func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
-	(*dbTx).Delete(receiptsKey(blockHash, blockNo))
-}
-
-func receiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
-	var key bytes.Buffer
-	key.Write([]byte(schema.ReceiptsPrefix))
-	key.Write(blockHash)
-	l := make([]byte, 8)
-	binary.LittleEndian.PutUint64(l[:], blockNo)
-	key.Write(l)
-	return key.Bytes()
+	(*dbTx).Delete(schema.KeyReceipts(blockHash, blockNo))
 }
 
 func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {

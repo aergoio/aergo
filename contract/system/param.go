@@ -2,7 +2,6 @@ package system
 
 import (
 	"math/big"
-	"strings"
 
 	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/state"
@@ -42,15 +41,11 @@ func InitSystemParams(g dataGetter, bpCount int) {
 	systemParams = loadParam(g)
 }
 
-func genParamKey(id string) []byte {
-	return []byte(schema.SystemParam + strings.ToUpper(id))
-}
-
 func loadParam(g dataGetter) parameters {
 	ret := map[string]*big.Int{}
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
-		data, err := g.GetData(genParamKey(id))
+		data, err := g.GetData(schema.KeyParam([]byte(id)))
 		if err != nil {
 			panic("could not load blockchain parameter")
 		}
@@ -76,7 +71,7 @@ func (p parameters) setLastParam(proposalID string, value *big.Int) *big.Int {
 }
 
 func updateParam(s dataSetter, id string, value *big.Int) (*big.Int, error) {
-	if err := s.SetData(genParamKey(id), value.Bytes()); err != nil {
+	if err := s.SetData(schema.KeyParam([]byte(id)), value.Bytes()); err != nil {
 		return nil, err
 	}
 	ret := systemParams.setLastParam(id, value)
@@ -112,7 +107,7 @@ func GetGasPriceFromState(ar AccountStateReader) *big.Int {
 }
 
 func getParamFromState(scs *state.ContractState, id sysParamIndex) *big.Int {
-	data, err := scs.GetInitialData(genParamKey(id.ID()))
+	data, err := scs.GetInitialData(schema.KeyParam([]byte(id.ID())))
 	if err != nil {
 		panic("could not get blockchain parameter")
 	}

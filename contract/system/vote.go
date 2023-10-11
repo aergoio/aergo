@@ -299,8 +299,7 @@ func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote,
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
-	dataKey := append(append([]byte(schema.SystemVote), key...), voter...)
-	data, err := scs.GetData(dataKey)
+	data, err := scs.GetData(schema.KeyVote(key, voter))
 	if err != nil {
 		return nil, err
 	}
@@ -317,11 +316,10 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 }
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
-	dataKey := append(append([]byte(schema.SystemVote), key...), voter...)
 	if bytes.Equal(key, defaultVoteKey) {
-		return scs.SetData(dataKey, serializeVote(vote))
+		return scs.SetData(schema.KeyVote(key, voter), serializeVote(vote))
 	} else {
-		return scs.SetData(dataKey, serializeVoteEx(vote))
+		return scs.SetData(schema.KeyVote(key, voter), serializeVoteEx(vote))
 	}
 }
 

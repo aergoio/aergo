@@ -281,11 +281,11 @@ func (b *vprStore) write(s dataSetter, i uint8) error {
 		buf.Write(toVotingPower(e).marshal())
 	}
 
-	return s.SetData(vprKey(i), buf.Bytes())
+	return s.SetData(schema.KeyVpr(i), buf.Bytes())
 }
 
 func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
-	buf, err := s.GetData(vprKey(i))
+	buf, err := s.GetData(schema.KeyVpr(i))
 	if err != nil {
 		return nil, err
 	}
@@ -721,11 +721,6 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 	}
 
 	return nil, ErrNoVotingRewardWinner
-}
-
-func vprKey(i uint8) []byte {
-	var vk []byte = []byte(schema.SystemVpr)
-	return append(vk, []byte(fmt.Sprintf("%v", i))...)
 }
 
 func toVotingPower(e *list.Element) *votingPower {
