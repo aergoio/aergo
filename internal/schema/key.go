@@ -30,15 +30,18 @@ func KeyRaftConfChangeProgress(id uint64) []byte {
 
 // governance
 func KeyEnterpriseConf(conf []byte) []byte {
-	return append([]byte(EnterpriseConfPrefix), conf...)
+	// upper double check
+	return append([]byte(EnterpriseConfPrefix), bytes.ToUpper(conf)...)
 }
 
 func KeyName(name []byte) []byte {
+	// lower double check
 	return append([]byte(NamePrefix), bytes.ToLower(name)...)
 }
 
 func KeyParam(id []byte) []byte {
-	return append([]byte(SystemParamPrefix), id...)
+	// upper double check
+	return append([]byte(SystemParamPrefix), bytes.ToUpper(id)...)
 }
 
 func KeyStaking(who []byte) []byte {
