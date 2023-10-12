@@ -50,7 +50,7 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 	// NOTE The tx interface doesnt handle ErrTxnTooBig
 	txn := s.db.Store.NewTx()
 	for _, key := range s.db.nodesToRevert {
-		txn.Delete(trieKey(key[:HashLength]))
+		txn.Delete(key[:HashLength])
 	}
 	txn.Commit()
 
@@ -62,7 +62,7 @@ func (s *Trie) Revert(toOldRoot []byte) error {
 		// If toOldRoot is a shortcut batch, it is possible that
 		// revert has deleted it if the key was ever stored at height0
 		// because in leafHash byte(0) = byte(256)
-		s.db.Store.Set(trieKey(toOldRoot), s.db.serializeBatch(batch))
+		s.db.Store.Set(toOldRoot, s.db.serializeBatch(batch))
 	}
 	return nil
 }

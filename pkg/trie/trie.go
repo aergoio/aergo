@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/v2/internal/schema"
 )
 
 // Trie is a modified sparse Merkle tree.
@@ -483,7 +482,7 @@ func (s *Trie) loadBatch(root []byte) ([][]byte, error) {
 		s.loadDbMux.Unlock()
 	}
 	s.db.lock.Lock()
-	dbval := s.db.Store.Get(trieKey(root[:HashLength]))
+	dbval := s.db.Store.Get(root[:HashLength])
 	s.db.lock.Unlock()
 	nodeSize := len(dbval)
 	if nodeSize != 0 {
@@ -583,8 +582,4 @@ func (s *Trie) updatePastTries() {
 	} else {
 		s.pastTries = append(s.pastTries, s.Root)
 	}
-}
-
-func trieKey(key []byte) []byte {
-	return append([]byte(schema.TriePrefix), key...)
 }
