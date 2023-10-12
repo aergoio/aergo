@@ -52,7 +52,6 @@ import (
 
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
-	creatorMetaKey             = []byte("Creator")
 	vmLogger                   = log.NewLogger("contract.vm")
 )
 
