@@ -10,8 +10,8 @@ import (
 	"runtime/debug"
 
 	"github.com/aergoio/aergo/v2/internal/enc"
-	"github.com/aergoio/aergo/v2/internal/schema"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/schema"
 )
 
 var (

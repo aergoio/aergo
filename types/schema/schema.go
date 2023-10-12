@@ -3,7 +3,6 @@ package schema
 
 // chain
 const (
-	// TODO : migrate
 	// BlockHeaderPrefix    = "h" // headerPrefix + num (uint64 big endian) + hash -> header
 	// BlockNumByHashPrefix = "n" // blockNumberPrefix + hash -> num (uint64 big endian)
 	// BlockBodyPrefix      = "b" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
@@ -56,9 +55,8 @@ const (
 
 // state
 const (
-	// codePrefix = "c" // CodePrefix + code hash -> account code
-	TriePrefix = "s"
-
-	// TrieAccountPrefix = "A"
-	// TrieStoragePrefix = "O"
+// codePrefix = "c" // CodePrefix + code hash -> account code
+// TriePrefix = "s"
+// TrieAccountPrefix = "A"
+// TrieStoragePrefix = "O"
 )
