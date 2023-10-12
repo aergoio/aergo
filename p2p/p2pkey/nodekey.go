@@ -46,7 +46,11 @@ func InitNodeInfo(baseCfg *config.BaseConfig, p2pCfg *config.P2PConfig, version 
 	}
 
 	if p2pCfg.NPKey != "" {
-		priv, pub, err = p2putil.LoadKeyFile(p2pCfg.NPKey)
+		NPKeyFilePath := p2pCfg.NPKey
+		if len(NPKeyFilePath) > 0 && NPKeyFilePath[0] != '/' && NPKeyFilePath[0] != '.' {
+			NPKeyFilePath = filepath.Join(baseCfg.AuthDir, NPKeyFilePath)
+		}
+		priv, pub, err = p2putil.LoadKeyFile(NPKeyFilePath)
 		if err != nil {
 			panic("Failed to load Keyfile '" + p2pCfg.NPKey + "' " + err.Error())
 		}
