@@ -48,7 +48,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
-	creator, err := contract.GetData([]byte(schema.CreatorMetaKey))
+	creator, err := contract.GetData([]byte(schema.CreatorMeta))
 	if err != nil {
 		return err
 	}

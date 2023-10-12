@@ -1074,7 +1074,7 @@ func Create(
 	}
 
 	// set the creator
-	err = contractState.SetData([]byte(schema.CreatorMetaKey), []byte(types.EncodeAddress(ctx.curContract.sender)))
+	err = contractState.SetData([]byte(schema.CreatorMeta), []byte(types.EncodeAddress(ctx.curContract.sender)))
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}

@@ -240,7 +240,7 @@ func (ls *libStatus) save(tx consensus.TxWriter) error {
 		return err
 	}
 
-	tx.Set([]byte(schema.DposLibStatusKey), b)
+	tx.Set([]byte(schema.DposLibStatus), b)
 
 	logger.Debug().Int("proposed lib len", len(ls.Prpsd)).Msg("lib status stored to DB")
 
@@ -248,7 +248,7 @@ func (ls *libStatus) save(tx consensus.TxWriter) error {
 }
 
 func reset(tx db.Transaction) {
-	tx.Delete([]byte(schema.DposLibStatusKey))
+	tx.Delete([]byte(schema.DposLibStatus))
 }
 
 func (ls *libStatus) gc(bps []string) {
@@ -383,7 +383,7 @@ func newConfirmInfo(block *types.Block, confirmsRequired uint16) *confirmInfo {
 
 func (bs *bootLoader) loadLibStatus() *libStatus {
 	pls := newLibStatus(bs.confirmsRequired)
-	if err := bs.decodeStatus([]byte(schema.DposLibStatusKey), pls); err != nil {
+	if err := bs.decodeStatus([]byte(schema.DposLibStatus), pls); err != nil {
 		return nil
 	}
 	pls.load(bs.best.BlockNo())

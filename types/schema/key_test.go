@@ -33,10 +33,10 @@ func TestKeyRaftEntry(t *testing.T) {
 		blockNo   types.BlockNo
 		expectKey []byte
 	}{
-		{0, append([]byte(RaftEntryPrefix), 0, 0, 0, 0, 0, 0, 0, 0)},
-		{1, append([]byte(RaftEntryPrefix), 1, 0, 0, 0, 0, 0, 0, 0)},
-		{255, append([]byte(RaftEntryPrefix), 255, 0, 0, 0, 0, 0, 0, 0)},
-		{math.MaxUint64, append([]byte(RaftEntryPrefix), 255, 255, 255, 255, 255, 255, 255, 255)},
+		{0, append([]byte(RaftEntry), 0, 0, 0, 0, 0, 0, 0, 0)},
+		{1, append([]byte(RaftEntry), 1, 0, 0, 0, 0, 0, 0, 0)},
+		{255, append([]byte(RaftEntry), 255, 0, 0, 0, 0, 0, 0, 0)},
+		{math.MaxUint64, append([]byte(RaftEntry), 255, 255, 255, 255, 255, 255, 255, 255)},
 	} {
 		key := KeyRaftEntry(test.blockNo)
 		assert.Equal(t, test.expectKey, key, "TestKeyRaftEntry(%v)", test.blockNo)
@@ -48,9 +48,9 @@ func TestKeyRaftEntryInvert(t *testing.T) {
 		blockHash []byte
 		expectKey []byte
 	}{
-		{[]byte{1, 2, 3, 4}, append([]byte(RaftEntryInvertPrefix), 1, 2, 3, 4)},
-		{decodeB58("AiGVpwGUUs1kjK2oZkAEkzBzptZs25LoSakEtu5cCqFV"), append([]byte(RaftEntryInvertPrefix), decodeB58("AiGVpwGUUs1kjK2oZkAEkzBzptZs25LoSakEtu5cCqFV")...)},
-		{decodeB58("5bSKqpcWnMgrr1GhU1Ed5yHajRC4WwZEZYxFtw3fVBmq"), append([]byte(RaftEntryInvertPrefix), decodeB58("5bSKqpcWnMgrr1GhU1Ed5yHajRC4WwZEZYxFtw3fVBmq")...)},
+		{[]byte{1, 2, 3, 4}, append([]byte(RaftEntryInvert), 1, 2, 3, 4)},
+		{decodeB58("AiGVpwGUUs1kjK2oZkAEkzBzptZs25LoSakEtu5cCqFV"), append([]byte(RaftEntryInvert), decodeB58("AiGVpwGUUs1kjK2oZkAEkzBzptZs25LoSakEtu5cCqFV")...)},
+		{decodeB58("5bSKqpcWnMgrr1GhU1Ed5yHajRC4WwZEZYxFtw3fVBmq"), append([]byte(RaftEntryInvert), decodeB58("5bSKqpcWnMgrr1GhU1Ed5yHajRC4WwZEZYxFtw3fVBmq")...)},
 	} {
 		key := KeyRaftEntryInvert(test.blockHash)
 		assert.Equal(t, test.expectKey, key, "TestKeyRaftEntryInvert(%v)", test.blockHash)
@@ -62,10 +62,10 @@ func TestKeyRaftConfChangeProgress(t *testing.T) {
 		id        uint64
 		expectKey []byte
 	}{
-		{0, append([]byte(RaftConfChangeProgressPrefix), 0, 0, 0, 0, 0, 0, 0, 0)},
-		{1, append([]byte(RaftConfChangeProgressPrefix), 1, 0, 0, 0, 0, 0, 0, 0)},
-		{255, append([]byte(RaftConfChangeProgressPrefix), 255, 0, 0, 0, 0, 0, 0, 0)},
-		{math.MaxUint64, append([]byte(RaftConfChangeProgressPrefix), 255, 255, 255, 255, 255, 255, 255, 255)},
+		{0, append([]byte(RaftConfChangeProgress), 0, 0, 0, 0, 0, 0, 0, 0)},
+		{1, append([]byte(RaftConfChangeProgress), 1, 0, 0, 0, 0, 0, 0, 0)},
+		{255, append([]byte(RaftConfChangeProgress), 255, 0, 0, 0, 0, 0, 0, 0)},
+		{math.MaxUint64, append([]byte(RaftConfChangeProgress), 255, 255, 255, 255, 255, 255, 255, 255)},
 	} {
 		key := KeyRaftConfChangeProgress(test.id)
 		assert.Equal(t, test.expectKey, key, "TestKeyRaftConfChangeProgress(%v)", test.id)
@@ -78,14 +78,14 @@ func TestKeyEnterpriseConf(t *testing.T) {
 		conf      []byte
 		expectKey []byte
 	}{
-		{[]byte("rpcpermissions"), append([]byte(EnterpriseConfPrefix), []byte("RPCPERMISSIONS")...)},
-		{[]byte("RPCPERMISSIONS"), append([]byte(EnterpriseConfPrefix), []byte("RPCPERMISSIONS")...)},
-		{[]byte("p2pwhite"), append([]byte(EnterpriseConfPrefix), []byte("P2PWHITE")...)},
-		{[]byte("P2PWHITE"), append([]byte(EnterpriseConfPrefix), []byte("P2PWHITE")...)},
-		{[]byte("p2pblack"), append([]byte(EnterpriseConfPrefix), []byte("P2PBLACK")...)},
-		{[]byte("P2PBLACK"), append([]byte(EnterpriseConfPrefix), []byte("P2PBLACK")...)},
-		{[]byte("accountwhite"), append([]byte(EnterpriseConfPrefix), []byte("ACCOUNTWHITE")...)},
-		{[]byte("ACCOUNTWHITE"), append([]byte(EnterpriseConfPrefix), []byte("ACCOUNTWHITE")...)},
+		{[]byte("rpcpermissions"), append([]byte(EnterpriseConf), []byte("RPCPERMISSIONS")...)},
+		{[]byte("RPCPERMISSIONS"), append([]byte(EnterpriseConf), []byte("RPCPERMISSIONS")...)},
+		{[]byte("p2pwhite"), append([]byte(EnterpriseConf), []byte("P2PWHITE")...)},
+		{[]byte("P2PWHITE"), append([]byte(EnterpriseConf), []byte("P2PWHITE")...)},
+		{[]byte("p2pblack"), append([]byte(EnterpriseConf), []byte("P2PBLACK")...)},
+		{[]byte("P2PBLACK"), append([]byte(EnterpriseConf), []byte("P2PBLACK")...)},
+		{[]byte("accountwhite"), append([]byte(EnterpriseConf), []byte("ACCOUNTWHITE")...)},
+		{[]byte("ACCOUNTWHITE"), append([]byte(EnterpriseConf), []byte("ACCOUNTWHITE")...)},
 	} {
 		key := KeyEnterpriseConf(test.conf)
 		assert.Equal(t, test.expectKey, key, "TestKeyRaftConfChangeProgress(%v)", test.conf)
@@ -97,9 +97,9 @@ func TestKeyName(t *testing.T) {
 		name      []byte
 		expectKey []byte
 	}{
-		{nil, []byte(NamePrefix)},
-		{[]byte("aergo.name"), append([]byte(NamePrefix), []byte("aergo.name")...)},
-		{[]byte("AERGO.NAME"), append([]byte(NamePrefix), []byte("aergo.name")...)},
+		{nil, []byte(Name)},
+		{[]byte("aergo.name"), append([]byte(Name), []byte("aergo.name")...)},
+		{[]byte("AERGO.NAME"), append([]byte(Name), []byte("aergo.name")...)},
 	} {
 		key := KeyName(test.name)
 		assert.Equal(t, test.expectKey, key, "TestKeyName(%v)", test.name)
@@ -111,11 +111,11 @@ func TestKeyParam(t *testing.T) {
 		param     []byte
 		expectKey []byte
 	}{
-		{nil, []byte(SystemParamPrefix)},
-		{[]byte("bpCount"), append([]byte(SystemParamPrefix), []byte("BPCOUNT")...)},
-		{[]byte("stakingMin"), append([]byte(SystemParamPrefix), []byte("STAKINGMIN")...)},
-		{[]byte("gasPrice"), append([]byte(SystemParamPrefix), []byte("GASPRICE")...)},
-		{[]byte("namePrice"), append([]byte(SystemParamPrefix), []byte("NAMEPRICE")...)},
+		{nil, []byte(SystemParam)},
+		{[]byte("bpCount"), append([]byte(SystemParam), []byte("BPCOUNT")...)},
+		{[]byte("stakingMin"), append([]byte(SystemParam), []byte("STAKINGMIN")...)},
+		{[]byte("gasPrice"), append([]byte(SystemParam), []byte("GASPRICE")...)},
+		{[]byte("namePrice"), append([]byte(SystemParam), []byte("NAMEPRICE")...)},
 	} {
 		key := KeyParam(test.param)
 		assert.Equal(t, test.expectKey, key, "TestKeyParam(%v)", test.param)

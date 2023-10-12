@@ -17,31 +17,31 @@ func KeyReceipts(blockHash []byte, blockNo types.BlockNo) []byte {
 
 // raft
 func KeyRaftEntry(blockNo types.BlockNo) []byte {
-	return append([]byte(RaftEntryPrefix), types.BlockNoToBytes(blockNo)...)
+	return append([]byte(RaftEntry), types.BlockNoToBytes(blockNo)...)
 }
 
 func KeyRaftEntryInvert(blockHash []byte) []byte {
-	return append([]byte(RaftEntryInvertPrefix), blockHash...)
+	return append([]byte(RaftEntryInvert), blockHash...)
 }
 
 func KeyRaftConfChangeProgress(id uint64) []byte {
-	return append([]byte(RaftConfChangeProgressPrefix), types.Uint64ToBytes(id)...)
+	return append([]byte(RaftConfChangeProgress), types.Uint64ToBytes(id)...)
 }
 
 // governance
 func KeyEnterpriseConf(conf []byte) []byte {
 	// upper double check
-	return append([]byte(EnterpriseConfPrefix), bytes.ToUpper(conf)...)
+	return append([]byte(EnterpriseConf), bytes.ToUpper(conf)...)
 }
 
 func KeyName(name []byte) []byte {
 	// lower double check
-	return append([]byte(NamePrefix), bytes.ToLower(name)...)
+	return append([]byte(Name), bytes.ToLower(name)...)
 }
 
 func KeyParam(id []byte) []byte {
 	// upper double check
-	return append([]byte(SystemParamPrefix), bytes.ToUpper(id)...)
+	return append([]byte(SystemParam), bytes.ToUpper(id)...)
 }
 
 func KeyStaking(who []byte) []byte {

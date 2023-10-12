@@ -89,7 +89,7 @@ func (cdb *ChainDB) ClearWAL() {
 			bulk.Delete(schema.KeyRaftEntry(i))
 		}
 
-		bulk.Delete([]byte(schema.RaftEntryLastIdxKey))
+		bulk.Delete([]byte(schema.RaftEntryLastIdx))
 
 		bulk.Flush()
 	}
@@ -97,13 +97,13 @@ func (cdb *ChainDB) ClearWAL() {
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	dbTx.Delete([]byte(schema.RaftIdentityKey))
+	dbTx.Delete([]byte(schema.RaftIdentity))
 	// remove hardstate
 
-	dbTx.Delete([]byte(schema.RaftStateKey))
+	dbTx.Delete([]byte(schema.RaftState))
 
 	// remove snapshot
-	dbTx.Delete([]byte(schema.RaftSnapKey))
+	dbTx.Delete([]byte(schema.RaftSnap))
 
 	logger.Debug().Msg("reset identify, hardstate, snapshot from datafiles")
 
@@ -130,14 +130,14 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
 	}
-	dbTx.Set([]byte(schema.RaftStateKey), data)
+	dbTx.Set([]byte(schema.RaftState), data)
 	dbTx.Commit()
 
 	return nil
 }
 
 func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
-	data := cdb.store.Get([]byte(schema.RaftStateKey))
+	data := cdb.store.Get([]byte(schema.RaftState))
 
 	if len(data) == 0 {
 		return nil, ErrWalNoHardState
@@ -225,7 +225,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64) {
 	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
 
-	dbTx.Set([]byte(schema.RaftEntryLastIdxKey), types.BlockNoToBytes(lastIdx))
+	dbTx.Set([]byte(schema.RaftEntryLastIdx), types.BlockNoToBytes(lastIdx))
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
@@ -274,7 +274,7 @@ func (cdb *ChainDB) GetRaftEntryOfBlock(hash []byte) (*consensus.WalEntry, error
 }
 
 func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
-	lastBytes := cdb.store.Get([]byte(schema.RaftEntryLastIdxKey))
+	lastBytes := cdb.store.Get([]byte(schema.RaftEntryLastIdx))
 	if lastBytes == nil || len(lastBytes) == 0 {
 		return 0, nil
 	}
@@ -364,7 +364,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 	}
 
 	dbTx := cdb.store.NewTx()
-	dbTx.Set([]byte(schema.RaftSnapKey), data)
+	dbTx.Set([]byte(schema.RaftSnap), data)
 	dbTx.Commit()
 
 	return nil
@@ -400,7 +400,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 */
 
 func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
-	data := cdb.store.Get([]byte(schema.RaftSnapKey))
+	data := cdb.store.Get([]byte(schema.RaftSnap))
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -432,14 +432,14 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 		return ErrEncodeRaftIdentity
 	}
 
-	dbTx.Set([]byte(schema.RaftIdentityKey), val.Bytes())
+	dbTx.Set([]byte(schema.RaftIdentity), val.Bytes())
 	dbTx.Commit()
 
 	return nil
 }
 
 func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
-	data := cdb.store.Get([]byte(schema.RaftIdentityKey))
+	data := cdb.store.Get([]byte(schema.RaftIdentity))
 	if len(data) == 0 {
 		return nil, nil
 	}

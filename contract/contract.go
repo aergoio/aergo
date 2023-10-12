@@ -346,7 +346,7 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
 	// get the contract creator
-	creator, err := contractState.GetData([]byte(schema.CreatorMetaKey))
+	creator, err := contractState.GetData([]byte(schema.CreatorMeta))
 	if err != nil {
 		return err
 	}
