@@ -122,11 +122,11 @@ func (vr *VoteResult) Sync() error {
 				return err
 			}
 		}
-		if err := vr.scs.SetData(schema.VoteTotalKey(vr.key), vr.total.Bytes()); err != nil {
+		if err := vr.scs.SetData(schema.SystemVoteTotalKey(vr.key), vr.total.Bytes()); err != nil {
 			return err
 		}
 	}
-	return vr.scs.SetData(schema.VoteSortKey(vr.key), serializeVoteList(resultList, vr.ex))
+	return vr.scs.SetData(schema.SystemVoteSortKey(vr.key), serializeVoteList(resultList, vr.ex))
 }
 
 func (vr *VoteResult) threshold(power *big.Int) bool {
@@ -144,11 +144,11 @@ func (vr *VoteResult) threshold(power *big.Int) bool {
 }
 
 func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
-	data, err := scs.GetData(schema.VoteSortKey(key))
+	data, err := scs.GetData(schema.SystemVoteSortKey(key))
 	if err != nil {
 		return nil, err
 	}
-	total, err := scs.GetData(schema.VoteTotalKey(key))
+	total, err := scs.GetData(schema.SystemVoteTotalKey(key))
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 }
 
 func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList, error) {
-	data, err := scs.GetData(schema.VoteSortKey(key))
+	data, err := scs.GetData(schema.SystemVoteSortKey(key))
 	if err != nil {
 		return nil, err
 	}

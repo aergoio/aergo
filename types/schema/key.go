@@ -39,27 +39,27 @@ func NameKey(name []byte) []byte {
 	return append([]byte(Name), bytes.ToLower(name)...)
 }
 
-func ParamKey(id string) []byte {
+func SystemParamKey(id string) []byte {
 	// upper double check
 	return append([]byte(SystemParam), bytes.ToUpper([]byte(id))...)
 }
 
-func StakingKey(account []byte) []byte {
+func SystemStakingKey(account []byte) []byte {
 	return append([]byte(SystemStaking), account...)
 }
 
-func VoteKey(key, voter []byte) []byte {
+func SystemVoteKey(key, voter []byte) []byte {
 	return append(append([]byte(SystemVote), key...), voter...)
 }
 
-func VoteSortKey(key []byte) []byte {
+func SystemVoteSortKey(key []byte) []byte {
 	return append([]byte(SystemVoteSort), key...)
 }
 
-func VoteTotalKey(key []byte) []byte {
+func SystemVoteTotalKey(key []byte) []byte {
 	return append([]byte(SystemVoteTotal), key...)
 }
 
-func VprKey(i uint8) []byte {
+func SystemVprKey(i uint8) []byte {
 	return append([]byte(SystemVpr), []byte(fmt.Sprintf("%v", i))...)
 }

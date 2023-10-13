@@ -106,7 +106,7 @@ func TestNameKey(t *testing.T) {
 	}
 }
 
-func TestParamParam(t *testing.T) {
+func TestSystemParamKey(t *testing.T) {
 	for _, test := range []struct {
 		param     string
 		expectKey []byte
@@ -117,25 +117,25 @@ func TestParamParam(t *testing.T) {
 		{"gasPrice", append([]byte(SystemParam), []byte("GASPRICE")...)},
 		{"namePrice", append([]byte(SystemParam), []byte("NAMEPRICE")...)},
 	} {
-		key := ParamKey(test.param)
-		assert.Equal(t, test.expectKey, key, "TestParamParam(%v)", test.param)
+		key := SystemParamKey(test.param)
+		assert.Equal(t, test.expectKey, key, "TestSystemParamKey(%v)", test.param)
 	}
 }
 
-func TestStakingKey(t *testing.T) {
+func TestSystemStakingKey(t *testing.T) {
 	for _, test := range []struct {
-		who       []byte
+		account   []byte
 		expectKey []byte
 	}{
 		{nil, []byte(SystemStaking)},
 		{decodeAddr("AmNpn7K9wg6wsn6oMkTirQSUNdqtDm94iCrrpP5ZpwCAAxxPrsU2"), append([]byte(SystemStaking), decodeAddr("AmNpn7K9wg6wsn6oMkTirQSUNdqtDm94iCrrpP5ZpwCAAxxPrsU2")...)},
 	} {
-		key := StakingKey(test.who)
-		assert.Equal(t, test.expectKey, key, "TestStakingKey(%v)", test.who)
+		key := SystemStakingKey(test.account)
+		assert.Equal(t, test.expectKey, key, "TestSystemStakingKey(%v)", test.account)
 	}
 }
 
-func TestVoteKey(t *testing.T) {
+func TestSystemVoteKey(t *testing.T) {
 	for _, test := range []struct {
 		key       []byte
 		voter     []byte
@@ -146,12 +146,12 @@ func TestVoteKey(t *testing.T) {
 		{decodeAddr("AmNpn7K9wg6wsn6oMkTirQSUNdqtDm94iCrrpP5ZpwCAAxxPrsU2"), []byte("Opstake"), append([]byte(SystemVote), append(decodeAddr("AmNpn7K9wg6wsn6oMkTirQSUNdqtDm94iCrrpP5ZpwCAAxxPrsU2"), []byte("Opstake")...)...)},
 		{decodeAddr("AmNpn7K9wg6wsn6oMkTirQSUNdqtDm94iCrrpP5ZpwCAAxxPrsU2"), []byte("Opunstake"), append([]byte(SystemVote), append(decodeAddr("AmNpn7K9wg6wsn6oMkTirQSUNdqtDm94iCrrpP5ZpwCAAxxPrsU2"), []byte("Opunstake")...)...)},
 	} {
-		key := VoteKey(test.key, test.voter)
-		assert.Equal(t, test.expectKey, key, "TestVoteKey(%v, %v)", test.key, test.voter)
+		key := SystemVoteKey(test.key, test.voter)
+		assert.Equal(t, test.expectKey, key, "TestSystemVoteKey(%v, %v)", test.key, test.voter)
 	}
 }
 
-func TestVoteSortKey(t *testing.T) {
+func TestSystemVoteSortKey(t *testing.T) {
 	for _, test := range []struct {
 		key       []byte
 		expectKey []byte
@@ -161,12 +161,12 @@ func TestVoteSortKey(t *testing.T) {
 		{[]byte("Opstake"), append([]byte(SystemVoteSort), []byte("Opstake")...)},
 		{[]byte("Opunstake"), append([]byte(SystemVoteSort), []byte("Opunstake")...)},
 	} {
-		key := VoteSortKey(test.key)
-		assert.Equal(t, test.expectKey, key, "TestVoteSortKey(%v)", test.key)
+		key := SystemVoteSortKey(test.key)
+		assert.Equal(t, test.expectKey, key, "TestSystemVoteSortKey(%v)", test.key)
 	}
 }
 
-func TestVoteTotalKey(t *testing.T) {
+func TestSystemVoteTotalKey(t *testing.T) {
 	for _, test := range []struct {
 		key       []byte
 		expectKey []byte
@@ -176,12 +176,12 @@ func TestVoteTotalKey(t *testing.T) {
 		{[]byte("Opstake"), append([]byte(SystemVoteTotal), []byte("Opstake")...)},
 		{[]byte("Opunstake"), append([]byte(SystemVoteTotal), []byte("Opunstake")...)},
 	} {
-		key := VoteTotalKey(test.key)
-		assert.Equal(t, test.expectKey, key, "TestVoteTotalKey(%v)", test.key)
+		key := SystemVoteTotalKey(test.key)
+		assert.Equal(t, test.expectKey, key, "TestSystemVoteTotalKey(%v)", test.key)
 	}
 }
 
-func TestVprKey(t *testing.T) {
+func TestSystemVprKey(t *testing.T) {
 	for _, test := range []struct {
 		i         uint8
 		expectKey []byte
@@ -190,8 +190,8 @@ func TestVprKey(t *testing.T) {
 		{1, append([]byte(SystemVpr), '1')},
 		{255, append([]byte(SystemVpr), '2', '5', '5')},
 	} {
-		key := VprKey(test.i)
-		assert.Equal(t, test.expectKey, key, "TestVprKey(%v)", test.i)
+		key := SystemVprKey(test.i)
+		assert.Equal(t, test.expectKey, key, "TestSystemVprKey(%v)", test.i)
 	}
 }
 
