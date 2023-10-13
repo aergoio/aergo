@@ -132,12 +132,12 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}, nil
 }
 
-func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
-	return scs.SetData(schema.StakingKey(who), serializeStaking(staking))
+func setStaking(scs *state.ContractState, account []byte, staking *types.Staking) error {
+	return scs.SetData(schema.StakingKey(account), serializeStaking(staking))
 }
 
-func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
-	data, err := scs.GetData(schema.StakingKey(who))
+func getStaking(scs *state.ContractState, account []byte) (*types.Staking, error) {
+	data, err := scs.GetData(schema.StakingKey(account))
 	if err != nil {
 		return nil, err
 	}

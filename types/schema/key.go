@@ -44,8 +44,8 @@ func ParamKey(id string) []byte {
 	return append([]byte(SystemParam), bytes.ToUpper([]byte(id))...)
 }
 
-func StakingKey(who []byte) []byte {
-	return append([]byte(SystemStaking), who...)
+func StakingKey(account []byte) []byte {
+	return append([]byte(SystemStaking), account...)
 }
 
 func VoteKey(key, voter []byte) []byte {
