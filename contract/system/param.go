@@ -22,25 +22,25 @@ func (p *parameters) setParam(proposalID string, value *big.Int) {
 }
 
 // save the new value for the param, to be active on the next block
-func (p *parameters) setNextParam(proposalID string, value *big.Int) {
+func (p *parameters) setNextBlockParam(proposalID string, value *big.Int) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	p.params[nextParamKey(proposalID)] = value
+	p.params[nextBlockParamKey(proposalID)] = value
 }
 
-func (p *parameters) delNextParam(proposalID string) {
+func (p *parameters) delNextBlockParam(proposalID string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	delete(p.params, nextParamKey(proposalID))
+	delete(p.params, nextBlockParamKey(proposalID))
 }
 
-func (p *parameters) getNextParam(proposalID string) *big.Int {
+func (p *parameters) getNextBlockParam(proposalID string) *big.Int {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	return p.params[nextParamKey(proposalID)]
+	return p.params[nextBlockParamKey(proposalID)]
 }
 
 func (p *parameters) getParam(proposalID string) *big.Int {
@@ -50,7 +50,7 @@ func (p *parameters) getParam(proposalID string) *big.Int {
 	return p.params[proposalID]
 }
 
-func nextParamKey(id string) string {
+func nextBlockParamKey(id string) string {
 	return id + "next"
 }
 
@@ -132,7 +132,7 @@ func updateParam(s dataSetter, id string, value *big.Int) error {
 		return err
 	}
 	// save the new value for the param, only active on the next block
-	systemParams.setNextParam(id, value)
+	systemParams.setNextBlockParam(id, value)
 	return nil
 }
 
@@ -141,21 +141,21 @@ func CommitParams(apply bool) {
 	for i := sysParamIndex(0); i < sysParamMax; i++ {
 		id := i.ID()
 		// check if the param has a new value
-		if param := systemParams.getNextParam(id); param != nil {
+		if param := systemParams.getNextBlockParam(id); param != nil {
 			if apply {
 				// set the new value for the current block
 				systemParams.setParam(id, param)
 			}
 			// delete the new value
-			systemParams.delNextParam(id)
+			systemParams.delNextBlockParam(id)
 		}
 	}
 }
 
 // get the param value for the next block
-func GetNextParam(proposalID string) *big.Int {
+func GetNextBlockParam(proposalID string) *big.Int {
 	// check the value for the next block
-	if val := systemParams.getNextParam(proposalID); val != nil {
+	if val := systemParams.getNextBlockParam(proposalID); val != nil {
 		return val
 	}
 	// check the value for the current block

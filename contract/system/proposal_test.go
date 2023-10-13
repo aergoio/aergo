@@ -127,7 +127,7 @@ func TestProposalBPCount(t *testing.T) {
 	// check the value for the current block
 	assert.Equal(t, 3, GetBpCount(), "check bp")
 	// check the value for the next block
-	assert.Equal(t, big.NewInt(13), GetNextParam("BPCOUNT"), "check bp")
+	assert.Equal(t, big.NewInt(13), GetNextBlockParam("BPCOUNT"), "check bp")
 	// commit the new value
 	CommitParams(true)
 	// check the value for the current block
@@ -215,7 +215,7 @@ func TestFailProposals(t *testing.T) {
 	// check the value for the current block
 	assert.Equal(t, 3, GetBpCount(), "check bp")
 	// check the value for the next block
-	assert.Equal(t, big.NewInt(13), GetNextParam("BPCOUNT"), "check bp")
+	assert.Equal(t, big.NewInt(13), GetNextBlockParam("BPCOUNT"), "check bp")
 	// commit the new value
 	CommitParams(true)
 	// check the value for the current block
@@ -245,7 +245,7 @@ func TestFailProposals(t *testing.T) {
 	// check the value for the current block
 	assert.Equal(t, oldGasPrice, GetGasPrice(), "check gas price")
 	// check the value for the next block
-	assert.Equal(t, big.NewInt(101), GetNextParam("GASPRICE"), "check gas price")
+	assert.Equal(t, big.NewInt(101), GetNextBlockParam("GASPRICE"), "check gas price")
 	// commit the new value
 	CommitParams(true)
 	// check the value for the current block

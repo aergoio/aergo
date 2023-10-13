@@ -794,7 +794,7 @@ func TestProposalExecute2(t *testing.T) {
 	// check the value for the current block
 	assert.Equal(t, origGasPrice, GetGasPrice(), "result of gas price voting")
 	// check the value for the next block
-	assert.Equal(t, balance0_5, GetNextParam("GASPRICE"), "result of gas price voting")
+	assert.Equal(t, balance0_5, GetNextBlockParam("GASPRICE"), "result of gas price voting")
 	// commit the new value
 	CommitParams(true)
 	// check the value for the current block
@@ -851,7 +851,7 @@ func TestProposalExecute2(t *testing.T) {
 	// check the value for the current block
 	assert.Equal(t, oldNamePrice, GetNamePrice(), "check name price")
 	// check the value for the next block
-	assert.Equal(t, big.NewInt(1004), GetNextParam("NAMEPRICE"), "check name price")
+	assert.Equal(t, big.NewInt(1004), GetNextBlockParam("NAMEPRICE"), "check name price")
 	// commit the new value
 	CommitParams(true)
 	// check the value for the current block
