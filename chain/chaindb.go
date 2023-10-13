@@ -645,7 +645,7 @@ func (cdb *ChainDB) getReceipt(blockHash []byte, blockNo types.BlockNo, idx int3
 
 func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 	hardForkConfig *config.HardforkConfig) (*types.Receipts, error) {
-	data := cdb.store.Get(schema.KeyReceipts(blockHash, blockNo))
+	data := cdb.store.Get(schema.ReceiptsKey(blockHash, blockNo))
 	if len(data) == 0 {
 		return nil, errors.New("cannot find a receipt")
 	}
@@ -661,7 +661,7 @@ func (cdb *ChainDB) getReceipts(blockHash []byte, blockNo types.BlockNo,
 }
 
 func (cdb *ChainDB) checkExistReceipts(blockHash []byte, blockNo types.BlockNo) bool {
-	data := cdb.store.Get(schema.KeyReceipts(blockHash, blockNo))
+	data := cdb.store.Get(schema.ReceiptsKey(blockHash, blockNo))
 	if len(data) == 0 {
 		return false
 	}
@@ -702,13 +702,13 @@ func (cdb *ChainDB) writeReceipts(blockHash []byte, blockNo types.BlockNo, recei
 	gobEncoder := gob.NewEncoder(&val)
 	gobEncoder.Encode(receipts)
 
-	dbTx.Set(schema.KeyReceipts(blockHash, blockNo), val.Bytes())
+	dbTx.Set(schema.ReceiptsKey(blockHash, blockNo), val.Bytes())
 
 	dbTx.Commit()
 }
 
 func (cdb *ChainDB) deleteReceipts(dbTx *db.Transaction, blockHash []byte, blockNo types.BlockNo) {
-	(*dbTx).Delete(schema.KeyReceipts(blockHash, blockNo))
+	(*dbTx).Delete(schema.ReceiptsKey(blockHash, blockNo))
 }
 
 func (cdb *ChainDB) writeReorgMarker(marker *ReorgMarker) error {

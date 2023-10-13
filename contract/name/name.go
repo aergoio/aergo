@@ -140,9 +140,9 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	var err error
 	var ownerdata []byte
 	if useInitial {
-		ownerdata, err = scs.GetInitialData(schema.KeyName(name))
+		ownerdata, err = scs.GetInitialData(schema.NameKey(name))
 	} else {
-		ownerdata, err = scs.GetData(schema.KeyName(name))
+		ownerdata, err = scs.GetData(schema.NameKey(name))
 	}
 	if err != nil {
 		return nil
@@ -165,7 +165,7 @@ func registerOwner(scs *state.ContractState, name, owner, destination []byte) er
 }
 
 func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
-	return scs.SetData(schema.KeyName(name), serializeNameMap(n))
+	return scs.SetData(schema.NameKey(name), serializeNameMap(n))
 }
 
 func serializeNameMap(n *NameMap) []byte {

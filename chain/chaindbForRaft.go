@@ -86,7 +86,7 @@ func (cdb *ChainDB) ClearWAL() {
 		defer bulk.DiscardLast()
 
 		for i := lastIdx; i >= 1; i-- {
-			bulk.Delete(schema.KeyRaftEntry(i))
+			bulk.Delete(schema.RaftEntryKey(i))
 		}
 
 		bulk.Delete([]byte(schema.RaftEntryLastIdx))
@@ -172,7 +172,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		for i := ents[0].Index; i <= last; i++ {
 			// delete ents[0].Index ~ lastIndex of wal
-			dbTx.Delete(schema.KeyRaftEntry(i))
+			dbTx.Delete(schema.RaftEntryKey(i))
 		}
 	}
 
@@ -192,11 +192,11 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 		}
 
 		lastIdx = entry.Index
-		dbTx.Set(schema.KeyRaftEntry(entry.Index), data)
+		dbTx.Set(schema.RaftEntryKey(entry.Index), data)
 
 		// invert key to search raft entry corresponding to block hash
 		if entry.Type == consensus.EntryBlock {
-			dbTx.Set(schema.KeyRaftEntryInvert(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
+			dbTx.Set(schema.RaftEntryInvertKey(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
 		}
 
 		if entry.Type == consensus.EntryConfChange {
@@ -229,7 +229,7 @@ func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64)
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
-	data := cdb.store.Get(schema.KeyRaftEntry(idx))
+	data := cdb.store.Get(schema.RaftEntryKey(idx))
 	if len(data) == 0 {
 		return nil, ErrNoWalEntry
 	}
@@ -251,7 +251,7 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 }
 
 func (cdb *ChainDB) GetRaftEntryIndexOfBlock(hash []byte) (uint64, error) {
-	data := cdb.store.Get(schema.KeyRaftEntryInvert(hash))
+	data := cdb.store.Get(schema.RaftEntryInvertKey(hash))
 	if len(data) == 0 {
 		return 0, ErrNoWalEntryForBlock
 	}
@@ -485,13 +485,13 @@ func (cdb *ChainDB) writeConfChangeProgress(dbTx db.Transaction, id uint64, prog
 		return err
 	}
 
-	dbTx.Set(schema.KeyRaftConfChangeProgress(id), data)
+	dbTx.Set(schema.RaftConfChangeProgressKey(id), data)
 
 	return nil
 }
 
 func (cdb *ChainDB) GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error) {
-	data := cdb.store.Get(schema.KeyRaftConfChangeProgress(id))
+	data := cdb.store.Get(schema.RaftConfChangeProgressKey(id))
 	if len(data) == 0 {
 		return nil, nil
 	}

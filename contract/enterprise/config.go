@@ -112,7 +112,7 @@ func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error)
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
-	data, err := scs.GetData(schema.KeyEnterpriseConf(genKey(key)))
+	data, err := scs.GetData(schema.EnterpriseConfKey(genKey(key)))
 	if err != nil || data == nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(schema.KeyEnterpriseConf(genKey(key)), serializeConf(conf))
+	return scs.SetData(schema.EnterpriseConfKey(genKey(key)), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {
