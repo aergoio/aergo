@@ -5,7 +5,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
@@ -17,7 +17,7 @@ func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := &types.EnterpriseConfig{Key: schema.EnterpriseAdmins, On: false}
+	ret := &types.EnterpriseConfig{Key: dbkey.EnterpriseAdmins, On: false}
 	if admins != nil {
 		ret.On = true
 		for _, admin := range admins {
@@ -27,11 +27,11 @@ func GetAdmin(r AccountStateReader) (*types.EnterpriseConfig, error) {
 	return ret, nil
 }
 func setAdmins(scs *state.ContractState, addresses [][]byte) error {
-	return scs.SetData([]byte(schema.EnterpriseAdmins), bytes.Join(addresses, []byte("")))
+	return scs.SetData([]byte(dbkey.EnterpriseAdmins), bytes.Join(addresses, []byte("")))
 }
 
 func getAdmins(scs *state.ContractState) ([][]byte, error) {
-	data, err := scs.GetData([]byte(schema.EnterpriseAdmins))
+	data, err := scs.GetData([]byte(dbkey.EnterpriseAdmins))
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 type NameMap struct {
@@ -48,7 +48,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
-	creator, err := contract.GetData([]byte(schema.CreatorMeta))
+	creator, err := contract.GetData([]byte(dbkey.CreatorMeta))
 	if err != nil {
 		return err
 	}
@@ -140,9 +140,9 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	var err error
 	var ownerdata []byte
 	if useInitial {
-		ownerdata, err = scs.GetInitialData(schema.NameKey(name))
+		ownerdata, err = scs.GetInitialData(dbkey.NameKey(name))
 	} else {
-		ownerdata, err = scs.GetData(schema.NameKey(name))
+		ownerdata, err = scs.GetData(dbkey.NameKey(name))
 	}
 	if err != nil {
 		return nil
@@ -165,7 +165,7 @@ func registerOwner(scs *state.ContractState, name, owner, destination []byte) er
 }
 
 func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
-	return scs.SetData(schema.NameKey(name), serializeNameMap(n))
+	return scs.SetData(dbkey.NameKey(name), serializeNameMap(n))
 }
 
 func serializeNameMap(n *NameMap) []byte {

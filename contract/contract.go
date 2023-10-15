@@ -12,7 +12,7 @@ import (
 	"github.com/aergoio/aergo/v2/fee"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/minio/sha256-simd"
 )
 
@@ -346,7 +346,7 @@ func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
 	}
 	// get the contract creator
-	creator, err := contractState.GetData([]byte(schema.CreatorMeta))
+	creator, err := contractState.GetData([]byte(dbkey.CreatorMeta))
 	if err != nil {
 		return err
 	}

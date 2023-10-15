@@ -11,7 +11,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/mr-tron/base58"
 )
 
@@ -122,11 +122,11 @@ func (vr *VoteResult) Sync() error {
 				return err
 			}
 		}
-		if err := vr.scs.SetData(schema.SystemVoteTotalKey(vr.key), vr.total.Bytes()); err != nil {
+		if err := vr.scs.SetData(dbkey.SystemVoteTotalKey(vr.key), vr.total.Bytes()); err != nil {
 			return err
 		}
 	}
-	return vr.scs.SetData(schema.SystemVoteSortKey(vr.key), serializeVoteList(resultList, vr.ex))
+	return vr.scs.SetData(dbkey.SystemVoteSortKey(vr.key), serializeVoteList(resultList, vr.ex))
 }
 
 func (vr *VoteResult) threshold(power *big.Int) bool {
@@ -144,11 +144,11 @@ func (vr *VoteResult) threshold(power *big.Int) bool {
 }
 
 func loadVoteResult(scs *state.ContractState, key []byte) (*VoteResult, error) {
-	data, err := scs.GetData(schema.SystemVoteSortKey(key))
+	data, err := scs.GetData(dbkey.SystemVoteSortKey(key))
 	if err != nil {
 		return nil, err
 	}
-	total, err := scs.GetData(schema.SystemVoteTotalKey(key))
+	total, err := scs.GetData(dbkey.SystemVoteTotalKey(key))
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func InitVoteResult(scs *state.ContractState, voteResult map[string]*big.Int) er
 }
 
 func getVoteResult(scs *state.ContractState, key []byte, n int) (*types.VoteList, error) {
-	data, err := scs.GetData(schema.SystemVoteSortKey(key))
+	data, err := scs.GetData(dbkey.SystemVoteSortKey(key))
 	if err != nil {
 		return nil, err
 	}

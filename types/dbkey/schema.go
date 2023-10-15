@@ -1,5 +1,5 @@
-// package schema contains a key prefix collection of low level database accessors.
-package schema
+// package dbkey contains a key prefix collection of low level database accessors.
+package dbkey
 
 // chain
 const (

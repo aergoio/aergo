@@ -15,7 +15,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/sanity-io/litter"
@@ -281,11 +281,11 @@ func (b *vprStore) write(s dataSetter, i uint8) error {
 		buf.Write(toVotingPower(e).marshal())
 	}
 
-	return s.SetData(schema.SystemVprKey(i), buf.Bytes())
+	return s.SetData(dbkey.SystemVprKey(i), buf.Bytes())
 }
 
 func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
-	buf, err := s.GetData(schema.SystemVprKey(i))
+	buf, err := s.GetData(dbkey.SystemVprKey(i))
 	if err != nil {
 		return nil, err
 	}

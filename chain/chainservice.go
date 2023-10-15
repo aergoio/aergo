@@ -29,7 +29,7 @@ import (
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -567,7 +567,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != schema.EnterpriseAdmins {
+	if strings.ToUpper(key) != dbkey.EnterpriseAdmins {
 		return enterprise.GetConf(sdb, key)
 	}
 	return enterprise.GetAdmin(sdb)

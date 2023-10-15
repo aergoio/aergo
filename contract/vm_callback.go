@@ -45,7 +45,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/minio/sha256-simd"
 )
@@ -1236,7 +1236,7 @@ func luaDeployContract(
 	}
 
 	// save the contract creator
-	err = contractState.SetData([]byte(schema.CreatorMeta), []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData([]byte(dbkey.CreatorMeta), []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}

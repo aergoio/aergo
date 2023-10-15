@@ -6,7 +6,7 @@ import (
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
-	"github.com/aergoio/aergo/v2/types/schema"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 const (
@@ -112,7 +112,7 @@ func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error)
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
-	data, err := scs.GetData(schema.EnterpriseConfKey(genKey(key)))
+	data, err := scs.GetData(dbkey.EnterpriseConfKey(genKey(key)))
 	if err != nil || data == nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(schema.EnterpriseConfKey(genKey(key)), serializeConf(conf))
+	return scs.SetData(dbkey.EnterpriseConfKey(genKey(key)), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {

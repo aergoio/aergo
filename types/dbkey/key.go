@@ -1,4 +1,4 @@
-package schema
+package dbkey
 
 import (
 	"bytes"
