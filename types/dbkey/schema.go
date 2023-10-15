@@ -12,7 +12,7 @@ const (
 
 	genesis        = ChainDBName + ".genesisInfo"
 	genesisBalance = ChainDBName + ".genesisBalance"
-	latest         = ChainDBName + ".latest"
+	latestBlock    = ChainDBName + ".latest"
 	hardFork       = "hardfork"
 	reOrg          = "_reorg_marker_"
 

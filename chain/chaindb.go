@@ -215,7 +215,7 @@ func (cdb *ChainDB) GetBestBlock() (*types.Block, error) {
 }
 
 func (cdb *ChainDB) loadChainData() error {
-	latestBytes := cdb.store.Get(dbkey.Latest())
+	latestBytes := cdb.store.Get(dbkey.LatestBlock())
 	if latestBytes == nil || len(latestBytes) == 0 {
 		return nil
 	}
@@ -359,7 +359,7 @@ func (cdb *ChainDB) connectToChain(dbtx db.Transaction, block *types.Block, skip
 	}
 
 	// Update best block hash
-	dbtx.Set(dbkey.Latest(), blockIdx)
+	dbtx.Set(dbkey.LatestBlock(), blockIdx)
 	dbtx.Set(blockIdx, block.BlockHash())
 
 	// Save the last consensus status.
@@ -399,7 +399,7 @@ func (cdb *ChainDB) swapChainMapping(newBlocks []*types.Block) error {
 		bulk.Set(blockIdx, block.BlockHash())
 	}
 
-	bulk.Set(dbkey.Latest(), blockIdx)
+	bulk.Set(dbkey.LatestBlock(), blockIdx)
 
 	// Save the last consensus status.
 	cdb.cc.Save(bulk)
@@ -531,7 +531,7 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 	dbTx.Delete(dropIdx)
 
 	// update latest
-	dbTx.Set(dbkey.Latest(), newLatestIdx)
+	dbTx.Set(dbkey.LatestBlock(), newLatestIdx)
 
 	dbTx.Commit()
 

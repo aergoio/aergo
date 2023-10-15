@@ -192,7 +192,7 @@ func (rm *ReorgMarker) RecoverChainMapping(cdb *ChainDB) error {
 
 	logger.Info().Uint64("bestno", rm.BrBestNo).Msg("update best block")
 
-	bulk.Set(dbkey.Latest(), types.BlockNoToBytes(rm.BrBestNo))
+	bulk.Set(dbkey.LatestBlock(), types.BlockNoToBytes(rm.BrBestNo))
 	bulk.Flush()
 
 	cdb.setLatest(bestBlock)

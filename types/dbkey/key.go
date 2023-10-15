@@ -29,8 +29,8 @@ func GenesisBalance() []byte {
 	return []byte(genesisBalance)
 }
 
-func Latest() []byte {
-	return []byte(latest)
+func LatestBlock() []byte {
+	return []byte(latestBlock)
 }
 
 func HardFork() []byte {
