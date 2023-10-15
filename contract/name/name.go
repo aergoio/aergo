@@ -48,7 +48,7 @@ func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
-	creator, err := contract.GetData([]byte(dbkey.CreatorMeta))
+	creator, err := contract.GetData(dbkey.CreatorMeta())
 	if err != nil {
 		return err
 	}
@@ -140,9 +140,9 @@ func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap
 	var err error
 	var ownerdata []byte
 	if useInitial {
-		ownerdata, err = scs.GetInitialData(dbkey.NameKey(name))
+		ownerdata, err = scs.GetInitialData(dbkey.Name(name))
 	} else {
-		ownerdata, err = scs.GetData(dbkey.NameKey(name))
+		ownerdata, err = scs.GetData(dbkey.Name(name))
 	}
 	if err != nil {
 		return nil
@@ -165,7 +165,7 @@ func registerOwner(scs *state.ContractState, name, owner, destination []byte) er
 }
 
 func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
-	return scs.SetData(dbkey.NameKey(name), serializeNameMap(n))
+	return scs.SetData(dbkey.Name(name), serializeNameMap(n))
 }
 
 func serializeNameMap(n *NameMap) []byte {

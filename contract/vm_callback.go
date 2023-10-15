@@ -1236,7 +1236,7 @@ func luaDeployContract(
 	}
 
 	// save the contract creator
-	err = contractState.SetData([]byte(dbkey.CreatorMeta), []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}

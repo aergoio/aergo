@@ -281,11 +281,11 @@ func (b *vprStore) write(s dataSetter, i uint8) error {
 		buf.Write(toVotingPower(e).marshal())
 	}
 
-	return s.SetData(dbkey.SystemVprKey(i), buf.Bytes())
+	return s.SetData(dbkey.SystemVpr(i), buf.Bytes())
 }
 
 func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
-	buf, err := s.GetData(dbkey.SystemVprKey(i))
+	buf, err := s.GetData(dbkey.SystemVpr(i))
 	if err != nil {
 		return nil, err
 	}

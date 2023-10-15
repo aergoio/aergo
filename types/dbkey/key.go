@@ -7,59 +7,128 @@ import (
 	"github.com/aergoio/aergo/v2/types"
 )
 
-func ReceiptsKey(blockHash []byte, blockNo types.BlockNo) []byte {
-	key := make([]byte, len(ReceiptsPrefix)+len(blockHash)+8)
-	copy(key, []byte(ReceiptsPrefix))
-	copy(key[len(ReceiptsPrefix):], blockHash)
-	copy(key[len(ReceiptsPrefix)+len(blockHash):], types.BlockNoToBytes(blockNo))
+//---------------------------------------------------------------------------------//
+// chain
+
+func Receipts(blockHash []byte, blockNo types.BlockNo) []byte {
+	key := make([]byte, len(receiptsPrefix)+len(blockHash)+8)
+	copy(key, []byte(receiptsPrefix))
+	copy(key[len(receiptsPrefix):], blockHash)
+	copy(key[len(receiptsPrefix)+len(blockHash):], types.BlockNoToBytes(blockNo))
 	return key
 }
 
+//---------------------------------------------------------------------------------//
+// metadata
+
+func Genesis() []byte {
+	return []byte(genesis)
+}
+
+func GenesisBalance() []byte {
+	return []byte(genesisBalance)
+}
+
+func Latest() []byte {
+	return []byte(latest)
+}
+
+func HardFork() []byte {
+	return []byte(hardFork)
+}
+
+func ReOrg() []byte {
+	return []byte(reOrg)
+}
+
+// dpos
+func DposLibStatus() []byte {
+	return []byte(dposLibStatus)
+}
+
 // raft
-func RaftEntryKey(blockNo types.BlockNo) []byte {
-	return append([]byte(RaftEntry), types.BlockNoToBytes(blockNo)...)
+func RaftIdentity() []byte {
+	return []byte(raftIdentity)
 }
 
-func RaftEntryInvertKey(blockHash []byte) []byte {
-	return append([]byte(RaftEntryInvert), blockHash...)
+func RaftState() []byte {
+	return []byte(raftState)
 }
 
-func RaftConfChangeProgressKey(id uint64) []byte {
-	return append([]byte(RaftConfChangeProgress), types.Uint64ToBytes(id)...)
+func RaftSnap() []byte {
+	return []byte(raftSnap)
 }
 
+func RaftEntryLastIdx() []byte {
+	return []byte(raftEntryLastIdx)
+}
+
+func RaftEntry(blockNo types.BlockNo) []byte {
+	return append([]byte(raftEntry), types.BlockNoToBytes(blockNo)...)
+}
+
+func RaftEntryInvert(blockHash []byte) []byte {
+	return append([]byte(raftEntryInvert), blockHash...)
+}
+
+func RaftConfChangeProgress(id uint64) []byte {
+	return append([]byte(raftConfChangeProgress), types.Uint64ToBytes(id)...)
+}
+
+//---------------------------------------------------------------------------------//
 // governance
-func EnterpriseConfKey(conf []byte) []byte {
-	// upper double check
-	return append([]byte(EnterpriseConf), bytes.ToUpper(conf)...)
+
+// enterprise
+func EnterpriseAdmins() []byte {
+	return []byte(enterpriseAdmins)
 }
 
-func NameKey(name []byte) []byte {
+func EnterpriseConf(conf []byte) []byte {
+	// upper double check
+	return append([]byte(enterpriseConf), bytes.ToUpper(conf)...)
+}
+
+// name
+func Name(accountName []byte) []byte {
 	// lower double check
-	return append([]byte(Name), bytes.ToLower(name)...)
+	return append([]byte(name), bytes.ToLower(accountName)...)
 }
 
-func SystemParamKey(id string) []byte {
+// system
+func SystemParam(id string) []byte {
 	// upper double check
-	return append([]byte(SystemParam), bytes.ToUpper([]byte(id))...)
+	return append([]byte(systemParam), bytes.ToUpper([]byte(id))...)
 }
 
-func SystemStakingKey(account []byte) []byte {
-	return append([]byte(SystemStaking), account...)
+func SystemProposal() []byte {
+	return []byte(systemProposal)
 }
 
-func SystemVoteKey(key, voter []byte) []byte {
-	return append(append([]byte(SystemVote), key...), voter...)
+func SystemStaking(account []byte) []byte {
+	return append([]byte(systemStaking), account...)
 }
 
-func SystemVoteSortKey(key []byte) []byte {
-	return append([]byte(SystemVoteSort), key...)
+func SystemStakingTotal() []byte {
+	return []byte(systemStakingTotal)
 }
 
-func SystemVoteTotalKey(key []byte) []byte {
-	return append([]byte(SystemVoteTotal), key...)
+func SystemVote(key, voter []byte) []byte {
+	return append(append([]byte(systemVote), key...), voter...)
 }
 
-func SystemVprKey(i uint8) []byte {
-	return append([]byte(SystemVpr), []byte(fmt.Sprintf("%v", i))...)
+func SystemVoteTotal(key []byte) []byte {
+	return append([]byte(systemVoteTotal), key...)
+}
+
+func SystemVoteSort(key []byte) []byte {
+	return append([]byte(systemVoteSort), key...)
+}
+
+func SystemVpr(i uint8) []byte {
+	return append([]byte(systemVpr), []byte(fmt.Sprintf("%v", i))...)
+}
+
+// creator
+func CreatorMeta() []byte {
+	return []byte(creatorMeta)
 }

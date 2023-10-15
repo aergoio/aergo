@@ -567,7 +567,7 @@ func (cs *ChainService) getNameInfo(qname string, blockNo types.BlockNo) (*types
 
 func (cs *ChainService) getEnterpriseConf(key string) (*types.EnterpriseConfig, error) {
 	sdb := cs.sdb.OpenNewStateDB(cs.sdb.GetRoot())
-	if strings.ToUpper(key) != dbkey.EnterpriseAdmins {
+	if strings.ToUpper(key) != string(dbkey.EnterpriseAdmins()) {
 		return enterprise.GetConf(sdb, key)
 	}
 	return enterprise.GetAdmin(sdb)

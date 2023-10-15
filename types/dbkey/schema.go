@@ -3,47 +3,51 @@ package dbkey
 
 // chain
 const (
-	ReceiptsPrefix = "r"
+	receiptsPrefix = "r"
 )
 
 // metadata
 const (
-	ChainDBName    = "chain"
-	Genesis        = ChainDBName + ".genesisInfo"
-	GenesisBalance = ChainDBName + ".genesisBalance"
-	Latest         = ChainDBName + ".latest"
-	HardFork       = "hardfork"
-	ReOrg          = "_reorg_marker_"
+	ChainDBName = "chain"
+
+	genesis        = ChainDBName + ".genesisInfo"
+	genesisBalance = ChainDBName + ".genesisBalance"
+	latest         = ChainDBName + ".latest"
+	hardFork       = "hardfork"
+	reOrg          = "_reorg_marker_"
 
 	// dpos
-	DposLibStatus = "dpos.LibStatus" // LibStatusKey is the key when a LIB information is put into the chain DB.
+	dposLibStatus = "dpos.LibStatus" // LibStatusKey is the key when a LIB information is put into the chain DB.
 
 	// raft
-	RaftPrefix             = "r_"
-	RaftIdentity           = RaftPrefix + "identity"
-	RaftState              = RaftPrefix + "state"
-	RaftSnap               = RaftPrefix + "snap"
-	RaftEntryLastIdx       = RaftPrefix + "last"
-	RaftEntry              = RaftPrefix + "entry."
-	RaftEntryInvert        = RaftPrefix + "inv."
-	RaftConfChangeProgress = RaftPrefix + "ccstatus."
+	raftPrefix             = "r_"
+	raftIdentity           = raftPrefix + "identity"
+	raftState              = raftPrefix + "state"
+	raftSnap               = raftPrefix + "snap"
+	raftEntryLastIdx       = raftPrefix + "last"
+	raftEntry              = raftPrefix + "entry."
+	raftEntryInvert        = raftPrefix + "inv."
+	raftConfChangeProgress = raftPrefix + "ccstatus."
 )
 
 // governance
 const (
-	EnterpriseAdmins = "ADMINS"
-	EnterpriseConf   = "conf\\"
+	// enterprise
+	enterpriseAdmins = "ADMINS"
+	enterpriseConf   = "conf\\"
 
-	Name = "name"
+	// name
+	name = "name"
 
-	SystemParam        = "param\\"
-	SystemProposal     = "proposal"
-	SystemStaking      = "staking"
-	SystemStakingTotal = "stakingtotal"
-	SystemVote         = "vote"
-	SystemVoteTotal    = "total"
-	SystemVoteSort     = "sort"
-	SystemVpr          = "VotingPowerBucket/"
+	// system
+	systemParam        = "param\\"
+	systemProposal     = "proposal"
+	systemStaking      = "staking"
+	systemStakingTotal = "stakingtotal"
+	systemVote         = "vote"
+	systemVoteTotal    = "total"
+	systemVoteSort     = "sort"
+	systemVpr          = "VotingPowerBucket/"
 
-	CreatorMeta = "Creator"
+	creatorMeta = "Creator"
 )
