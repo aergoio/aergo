@@ -1,23 +1,72 @@
 # stop on errors
 set -e
+source common.sh
 
-# run the brick test
-./test-brick.sh
+arg=$1
+if [ "$arg" != "sbp" ] && [ "$arg" != "dpos" ] && [ "$arg" != "raft" ] && [ "$arg" != "brick" ]; then
+  echo "Usage: $0 [brick|sbp|dpos|raft]"
+  exit 1
+fi
+echo "Running integration tests for $arg"
 
-# delete and recreate the aergo folder
-rm -rf ./aergo-files
-mkdir aergo-files
-# copy the config file
-cp config.toml ./aergo-files/
+if [ "$arg" == "brick" ]; then
+  # run the brick test
+  ../bin/brick -V test.brick
+  exit 0
+fi
 
-# open the aergo server in testmode to create the config file
+consensus=$arg
+
+if [ "$consensus" == "sbp" ]; then
+  # delete and recreate the aergo folder
+  rm -rf ./aergo-files
+  mkdir aergo-files
+  # copy the config file
+  cp config-sbp.toml ./aergo-files/config.toml
+  # delete the old logs
+  rm -f logs
+else
+  # delete and recreate the aergo folder
+  rm -rf node1
+  rm -rf node2
+  rm -rf node3
+  mkdir node1
+  mkdir node2
+  mkdir node3
+  # copy the config files
+  cp config-node1.toml node1/config.toml
+  cp config-node2.toml node2/config.toml
+  cp config-node3.toml node3/config.toml
+  # delete the old logs
+  rm -f logs1 logs2 logs3
+  # create the genesis block
+  echo "creating genesis block..."
+  ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node1
+  ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node2
+  ../bin/aergosvr init --genesis ./genesis-$consensus.json --home ./node3
+fi
+
+# define the config files according to the consensus
+if [ "$consensus" == "sbp" ]; then
+  config_files=("./aergo-files/config.toml")
+elif [ "$consensus" == "dpos" ]; then
+  config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml")
+elif [ "$consensus" == "raft" ]; then
+  config_files=("./node1/config.toml" "./node2/config.toml" "./node3/config.toml")
+fi
+
+# define which port used for queries
+if [ "$consensus" == "sbp" ]; then
+  query_port="7845"
+else
+  query_port="9845"
+fi
+
 echo ""
-echo "starting the aergo server..."
-../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
-pid=$!
-# wait it to be ready
-sleep 2
+echo "starting nodes..."
+start_nodes
 
+# get the current hardfork version
 version=$(../bin/aergocli blockchain | jq .ChainInfo.Chainid.Version | sed 's/"//g')
 
 function set_version() {
@@ -31,21 +80,16 @@ function set_version() {
   block_no=$(../bin/aergocli blockchain | jq .Height | sed 's/"//g')
   # increment 2 numbers
   block_no=$((block_no+2))
-  # terminate the server process
-  kill $pid
-  # save the hardfork config on the config file
-  echo "updating the config file..."
-  if [ $version -eq 2 ]; then
-    sed -i "s/^v2 = \"10000\"$/v2 = \"${block_no}\"/" ./aergo-files/config.toml
-  elif [ $version -eq 3 ]; then
-    sed -i "s/^v3 = \"10000\"$/v3 = \"${block_no}\"/" ./aergo-files/config.toml
-  fi
+  # terminate the server process(es)
+  stop_nodes
+  # save the hardfork config on the config file(s)
+  echo "updating the config file(s)..."
+  for config_file in "${config_files[@]}"; do
+    sed -i "s/^v$version = \"10000\"$/v$version = \"${block_no}\"/" $config_file
+  done
   # restart the aergo server
-  echo "restarting the aergo server..."
-  ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
-  pid=$!
-  # wait it to be ready
-  sleep 3
+  echo "restarting the aergo nodes..."
+  start_nodes
   # check if it worked
   new_version=$(../bin/aergocli blockchain | jq .ChainInfo.Chainid.Version | sed 's/"//g')
   if [ $new_version -ne $version ]; then
@@ -77,6 +121,10 @@ function check() {
     fi
 }
 
+# make these variables accessible to the called scripts
+export consensus
+export query_port
+
 # create the account used on tests
 echo "creating user account..."
 ../bin/aergocli account import --keystore . --if 47zh1byk8MqWkQo5y8dvbrex99ZMdgZqfydar7w2QQgQqc7YrmFsBuMeF1uHWa5TwA1ZwQ7V6 --password bmttest
@@ -103,9 +151,9 @@ check ./test-contract-deploy.sh
 
 # terminate the server process
 echo ""
-echo "closing the aergo server"
+echo "closing the aergo nodes"
 echo ""
-kill $pid
+stop_nodes
 
 # print the summary
 if [ $num_failed_tests -gt 0 ]; then
