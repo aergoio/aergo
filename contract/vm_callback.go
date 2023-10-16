@@ -1070,7 +1070,7 @@ func transformAmount(amountStr string, ctx *vmContext) (*big.Int, error) {
 	res := index.FindAllIndex(r, -1)
 	for _, pair := range res {
 		parsedAmount := strings.TrimSpace(amountStr[prev:pair[0]])
-		if HardforkConfig.IsV3Fork(ctx.blockInfo.No) {
+		if HardforkConfig.IsV4Fork(ctx.blockInfo.No) {
 			if strings.Contains(parsedAmount,".") && pair[1] - pair[0] == 5 {
 				parsedAmount = parseDecimalAmount(parsedAmount, 18)
 				if parsedAmount == "error" {
