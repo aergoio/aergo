@@ -2,23 +2,23 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcd/btcec"
-
 	"sync"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 var emptyIDArr []types.PeerID
 var emptyCertArr []*p2pcommon.AgentCertificateV1
 
 func newCertificateManager(actor p2pcommon.ActorService, is p2pcommon.InternalService, logger *log.Logger) p2pcommon.CertificateManager {
-	d := baseCertManager{actor: actor, self: is.SelfMeta(), settings:is.LocalSettings(), logger: logger}
+	d := baseCertManager{actor: actor, self: is.SelfMeta(), settings: is.LocalSettings(), logger: logger}
 	switch d.self.Role {
 	case types.PeerRole_Producer:
 		pk := p2putil.ConvertPKToBTCEC(p2pkey.NodePrivKey())
@@ -81,7 +81,7 @@ type bpCertificateManager struct {
 func (cm *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {
 	if !types.IsSamePeerID(cm.settings.AgentID, remoteMeta.ID) {
 		// this agent is not in charge of that bp id.
-		cm.logger.Info().Str("agentID", p2putil.ShortForm(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
+		cm.logger.Info().Stringer("agentID", types.LogPeerShort(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
 		return nil, p2pcommon.ErrInvalidRole
 	}
 
@@ -117,16 +117,16 @@ func (cm *agentCertificateManager) Start() {
 }
 
 func (cm *agentCertificateManager) checkCertificates(now time.Time) {
-	cm.logger.Debug().Int("certCnt",len(cm.certs)).Msg("periodic check for local certificates")
+	cm.logger.Debug().Int("certCnt", len(cm.certs)).Msg("periodic check for local certificates")
 
 	certs2 := make([]*p2pcommon.AgentCertificateV1, 0, len(cm.certs))
 	for _, cert := range cm.certs {
 		if cert.IsNeedUpdate(now, p2pcommon.DefaultExpireBufTerm) {
-			cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{cert.BPID})
+			cm.actor.TellRequest(message.P2PSvc, message.IssueAgentCertificate{ProducerID: cert.BPID})
 			if cert.IsValidInTime(now, p2pcommon.TimeErrorTolerance) {
 				certs2 = append(certs2, cert)
 			} else {
-				cm.logger.Debug().Int("certCnt",len(cm.certs)).Msg("removing expired certificates")
+				cm.logger.Debug().Int("certCnt", len(cm.certs)).Msg("removing expired certificates")
 				delete(cm.certMap, cert.BPID)
 			}
 		} else {
@@ -161,12 +161,12 @@ func (cm *agentCertificateManager) AddCertificate(cert *p2pcommon.AgentCertifica
 	defer cm.mutex.Unlock()
 	if !p2putil.ContainsID(cm.self.ProducerIDs, cert.BPID) {
 		// this agent is not in charge of that bp id.
-		cm.logger.Info().Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("drop issued certificate, since issuer is not my managed producer")
+		cm.logger.Info().Stringer("bpID", types.LogPeerShort(cert.BPID)).Msg("drop issued certificate, since issuer is not my managed producer")
 		return
 	}
 	if !types.IsSamePeerID(cm.self.ID, cert.AgentID) {
 		// this certificate is not my certificate
-		cm.logger.Info().Str("bpID", p2putil.ShortForm(cert.BPID)).Str("agentID", p2putil.ShortForm(cert.AgentID)).Msg("drop issued certificate, since agent id is not me")
+		cm.logger.Info().Stringer("bpID", types.LogPeerShort(cert.BPID)).Stringer("agentID", types.LogPeerShort(cert.AgentID)).Msg("drop issued certificate, since agent id is not me")
 		return
 	}
 
@@ -178,14 +178,14 @@ func (cm *agentCertificateManager) AddCertificate(cert *p2pcommon.AgentCertifica
 		}
 	}
 	newCerts = append(newCerts, cert)
-	cm.logger.Info().Object("cert", p2putil.AgentCertMarshaller{cert}).Msg("issued certificate is added to my certificate list")
+	cm.logger.Info().Object("cert", p2putil.AgentCertMarshaller{AgentCertificateV1: cert}).Msg("issued certificate is added to my certificate list")
 	cm.certs = newCerts
 	cm.certMap[cert.BPID] = cert
 	pCert, err := p2putil.ConvertCertToProto(cert)
 	if err != nil {
 		return
 	}
-	cm.actor.TellRequest(message.P2PSvc, message.NotifyCertRenewed{pCert})
+	cm.actor.TellRequest(message.P2PSvc, message.NotifyCertRenewed{Cert: pCert})
 }
 
 func (cm *agentCertificateManager) OnPeerConnect(pid types.PeerID) {

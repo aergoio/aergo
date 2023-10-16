@@ -3,8 +3,8 @@ package cmd
 import (
 	"testing"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util/encoding/json"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util/encoding/json"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +24,7 @@ func TestCommitTxWithMock(t *testing.T) {
 		gomock.Any(), // expect any value for second parameter
 	).Return(
 		&types.CommitResultList{Results: []*types.CommitResult{
-			&types.CommitResult{
+			{
 				Hash:   nil,
 				Error:  types.CommitStatus_TX_INVALID_FORMAT,
 				Detail: "tx invalid format",
@@ -44,7 +44,7 @@ func TestCommitTxWithMock(t *testing.T) {
 		gomock.Any(), // expect any value for second parameter
 	).Return(
 		&types.CommitResultList{Results: []*types.CommitResult{
-			&types.CommitResult{
+			{
 				Hash:   testTxHash,
 				Error:  types.CommitStatus_TX_OK,
 				Detail: "",

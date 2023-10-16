@@ -2,8 +2,9 @@ package raftv2
 
 import (
 	"errors"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/types"
+
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
@@ -58,7 +59,8 @@ func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry
 		case raftpb.EntryConfChange:
 			return consensus.EntryConfChange
 		default:
-			panic("not support raftpb entrytype")
+			logger.Panic().Str("entry", types.RaftEntryToString(entry)).Msg("invalid entry type")
+			panic("invalid entry type")
 		}
 	}
 
@@ -99,11 +101,11 @@ func (wal *WalDB) convertFromRaft(entries []raftpb.Entry) ([]*consensus.WalEntry
 	)
 	for i, entry := range entries {
 		if blocks[i], data, err = getWalData(&entry); err != nil {
-			panic("entry unmarshalEntryData error")
+			logger.Panic().Err(err).Str("entry", types.RaftEntryToString(&entry)).Msg("entry unmarshalEntryData error")
 		}
 
 		if confChanges[i], err = getConfChange(&entry); err != nil {
-			panic("entry unmarshalEntryConfChange error")
+			logger.Panic().Err(err).Str("entry", types.RaftEntryToString(&entry)).Msg("entry unmarshalEntryConfChange error")
 		}
 
 		walents[i] = &consensus.WalEntry{

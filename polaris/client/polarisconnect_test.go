@@ -7,22 +7,21 @@ package client
 
 import (
 	"errors"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/polaris/common"
 	"testing"
 
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
 
-
 type dummyNTC struct {
-	nt      p2pcommon.NetworkTransport
-	chainID *types.ChainID
+	nt       p2pcommon.NetworkTransport
+	chainID  *types.ChainID
 	selfMeta p2pcommon.PeerMeta
 }
 
@@ -143,24 +142,24 @@ func TestPolarisConnectSvc_BeforeStop(t *testing.T) {
 }
 
 func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
-	sampleCahinID := &types.ChainID{Consensus:"dpos"}
-	sm := p2pcommon.PeerMeta{ID:types.RandomPeerID()}
+	sampleCahinID := &types.ChainID{Consensus: "dpos"}
+	sm := p2pcommon.PeerMeta{ID: types.RandomPeerID()}
 	ss := &types.Status{}
 
 	sErr := errors.New("send erroor")
 	rErr := errors.New("send erroor")
 
-	succR  := &types.MapResponse{Status:types.ResultStatus_OK, Addresses:[]*types.PeerAddress{&types.PeerAddress{}}}
-	oldVerR  := &types.MapResponse{Status:types.ResultStatus_FAILED_PRECONDITION, Message:common.TooOldVersionMsg}
-	otherR  := &types.MapResponse{Status:types.ResultStatus_INVALID_ARGUMENT,Message:"arg is wrong"}
+	succR := &types.MapResponse{Status: types.ResultStatus_OK, Addresses: []*types.PeerAddress{{}}}
+	oldVerR := &types.MapResponse{Status: types.ResultStatus_FAILED_PRECONDITION, Message: common.TooOldVersionMsg}
+	otherR := &types.MapResponse{Status: types.ResultStatus_INVALID_ARGUMENT, Message: "arg is wrong"}
 
 	type args struct {
 		mapServerMeta p2pcommon.PeerMeta
-		peerStatus *types.Status
+		peerStatus    *types.Status
 	}
 	tests := []struct {
-		name    string
-		args    args
+		name string
+		args args
 
 		sendErr error
 		readErr error
@@ -170,8 +169,8 @@ func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
 		wantErr bool
 	}{
 		{"TSingle", args{sm, ss}, nil, nil, succR, 1, false},
-		{"TSendFail", args{sm, ss}, sErr, nil, succR,0, true},
-		{"TRecvFail", args{sm, ss}, nil, rErr, succR,0, true},
+		{"TSendFail", args{sm, ss}, sErr, nil, succR, 0, true},
+		{"TRecvFail", args{sm, ss}, nil, rErr, succR, 0, true},
 		{"TOldVersion", args{sm, ss}, nil, nil, oldVerR, 0, true},
 		{"TFailResp", args{sm, ss}, nil, nil, otherR, 0, true},
 	}
@@ -196,7 +195,6 @@ func TestPolarisConnectSvc_queryToPolaris(t *testing.T) {
 				mockRW.EXPECT().ReadMsg().Return(dummyData, tt.readErr)
 			}
 			pcs := NewPolarisConnectSvc(cfg, mockNTC)
-
 
 			got, err := pcs.queryToPolaris(tt.args.mapServerMeta, mockRW, tt.args.peerStatus)
 			if (err != nil) != tt.wantErr {

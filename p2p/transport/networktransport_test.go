@@ -11,18 +11,18 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	cfg "github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	cfg "github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 )
 
 const (
-	sampleKeyFile = "../../test/sample.key"
+	sampleKeyFile = "../test/sample/sample.key"
 )
 
 func init() {
@@ -154,14 +154,13 @@ func Test_networkTransport_initServiceBindAddress(t *testing.T) {
 		{"TLoopbackDN", dnMeta, withAddr(svrctx.GetDefaultP2PConfig(), "127.0.0.1"), "127.0.0.1", initialPort},
 		{"TCustAddr", ipMeta, withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), "211.1.2.3", initialPort},
 		{"TCustAddrPort", ipMeta, withPort(withAddr(svrctx.GetDefaultP2PConfig(), "211.1.2.3"), 7777), "211.1.2.3", 7777},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sl := &networkTransport{conf: tt.conf,
 				logger:   logger,
 				bindPort: uint32(initialPort),
-				selfMeta:tt.meta,
+				selfMeta: tt.meta,
 			}
 			sl.initServiceBindAddress()
 

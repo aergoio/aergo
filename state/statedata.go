@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
 

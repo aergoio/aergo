@@ -6,16 +6,17 @@
 package subproto
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBlockRequestHandler_handle(t *testing.T) {
@@ -71,7 +72,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			}).MinTimes(1)
 
 			h := NewBlockReqHandler(mockPM, mockPeer, logger, mockActor)
-			dummyMsg := &testMessage{subProtocol: p2pcommon.GetBlocksRequest,id: p2pcommon.NewMsgID()}
+			dummyMsg := &testMessage{subProtocol: p2pcommon.GetBlocksRequest, id: p2pcommon.NewMsgID()}
 			msgBody := &types.GetBlockRequest{Hashes: make([][]byte, test.hashCnt)}
 			//h.Handle(dummyMsg, msgBody)
 			h.handleBlkReq(dummyMsg, msgBody)
@@ -83,7 +84,7 @@ func TestBlockRequestHandler_handle(t *testing.T) {
 			lastStatus := mockMF.lastStatus
 			mockMF.mutex.Unlock()
 
-			assert.Equal(t, test.succResult, lastStatus== types.ResultStatus_OK)
+			assert.Equal(t, test.succResult, lastStatus == types.ResultStatus_OK)
 		})
 	}
 }
@@ -139,7 +140,7 @@ func TestBlockResponseHandler_handle(t *testing.T) {
 			return true
 		}, 0, 0},
 		// 2. exist receiver but not consumed
-		{"TExistWrong", func (msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
+		{"TExistWrong", func(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) bool {
 			return false
 		}, 1, 1},
 		// TODO: test cases

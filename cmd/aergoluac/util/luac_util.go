@@ -20,7 +20,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/aergoio/aergo/cmd/aergoluac/encoding"
+	"github.com/aergoio/aergo/v2/cmd/aergoluac/encoding"
 )
 
 func NewLState() *C.lua_State {
@@ -122,7 +122,7 @@ func DumpFromStdin() error {
 
 func dumpToBytes(L *C.lua_State) LuaCode {
 	var (
-		c, a *C.char
+		c, a   *C.char
 		lc, la C.size_t
 	)
 	c = C.lua_tolstring(L, -2, &lc)
@@ -147,7 +147,7 @@ func (c LuaCode) ByteCode() []byte {
 	if !c.IsValidFormat() {
 		return nil
 	}
-	return c[byteCodeLenLen:byteCodeLenLen+ c.byteCodeLen()]
+	return c[byteCodeLenLen : byteCodeLenLen+c.byteCodeLen()]
 }
 
 func (c LuaCode) byteCodeLen() int {
@@ -172,7 +172,7 @@ func (c LuaCode) IsValidFormat() bool {
 	if c.Len() <= byteCodeLenLen {
 		return false
 	}
-	return byteCodeLenLen + c.byteCodeLen() < c.Len()
+	return byteCodeLenLen+c.byteCodeLen() < c.Len()
 }
 
 func (c LuaCode) Bytes() []byte {

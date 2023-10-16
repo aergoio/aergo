@@ -1,20 +1,21 @@
 package sbp
 
 import (
+	"context"
 	"runtime"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	bc "github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/chain"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	bc "github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/chain"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
@@ -34,7 +35,8 @@ type txExec struct {
 func newTxExec(cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
+		// FIXME block creation timeout check will not work in SBP unless the context is changed to context.WithTimeout()
+		execTx: bc.NewTxExecutor(context.Background(), nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
 	}
 }
 
@@ -187,11 +189,11 @@ func (s *SimpleBlockFactory) Start() {
 					prevBlock.GetHeader().GetBlocksRootHash(),
 					state.SetPrevBlockHash(prevBlock.BlockHash()),
 				)
-				blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
+				blockState.SetGasPrice(system.GetGasPrice())
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
 				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.NewBlockGenerator(s, bi, blockState, txOp, false).GenerateBlock()
+				block, err := chain.NewBlockGenerator(s, context.Background(), bi, blockState, txOp, false).GenerateBlock()
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

@@ -7,7 +7,8 @@ package types
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
+
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/rs/zerolog"
 )
 
@@ -86,7 +87,7 @@ func (m LogTxIDsMarshaller) MarshalZerologArray(a *zerolog.Array) {
 }
 
 type RaftMbrsMarshaller struct {
-	arr []*MemberAttr
+	arr   []*MemberAttr
 	limit int
 }
 
@@ -113,11 +114,11 @@ func (m *AddressesResponse) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetTransactionsRequest) MarshalZerologObject(e *zerolog.Event) {
-	e.Int("count",len(m.Hashes)).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
+	e.Int("count", len(m.Hashes)).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
 }
 
 func (m *GetTransactionsResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogRespStatus, m.Status.String()).Bool(LogHasNext, m.HasNext).Int("count",len(m.Hashes)).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
+	e.Str(LogRespStatus, m.Status.String()).Bool(LogHasNext, m.HasNext).Int("count", len(m.Hashes)).Array("hashes", NewLogB58EncMarshaller(m.Hashes, 10))
 }
 
 func (m *GetBlockRequest) MarshalZerologObject(e *zerolog.Event) {
@@ -125,11 +126,11 @@ func (m *GetBlockRequest) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetBlockResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogRespStatus, m.Status.String()).Bool(LogHasNext, m.HasNext).Int("count",len(m.Blocks)).Array("hashes", LogBlockHashMarshaller{m.Blocks, 10})
+	e.Str(LogRespStatus, m.Status.String()).Bool(LogHasNext, m.HasNext).Int("count", len(m.Blocks)).Array("hashes", LogBlockHashMarshaller{m.Blocks, 10})
 }
 
 func (m *NewTransactionsNotice) MarshalZerologObject(e *zerolog.Event) {
-	e.Int("count",len(m.TxHashes)).Array("hashes", NewLogB58EncMarshaller(m.TxHashes, 10))
+	e.Int("count", len(m.TxHashes)).Array("hashes", NewLogB58EncMarshaller(m.TxHashes, 10))
 }
 
 func (m *BlockProducedNotice) MarshalZerologObject(e *zerolog.Event) {
@@ -177,7 +178,7 @@ func (m *GetClusterInfoRequest) MarshalZerologObject(e *zerolog.Event) {
 }
 
 func (m *GetClusterInfoResponse) MarshalZerologObject(e *zerolog.Event) {
-	e.Str(LogChainID, enc.ToString(m.ChainID)).Str("err", m.Error).Array("members",RaftMbrsMarshaller{arr:m.MbrAttrs, limit:10}).Uint64("cluster_id", m.ClusterID)
+	e.Str(LogChainID, enc.ToString(m.ChainID)).Str("err", m.Error).Array("members", RaftMbrsMarshaller{arr: m.MbrAttrs, limit: 10}).Uint64("cluster_id", m.ClusterID)
 }
 
 func (m *IssueCertificateResponse) MarshalZerologObject(e *zerolog.Event) {

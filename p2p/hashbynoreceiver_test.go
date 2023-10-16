@@ -6,13 +6,13 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/p2p/p2pcommon"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -122,4 +122,3 @@ func TestBlockHashByNoReceiver_ReceiveResp(t *testing.T) {
 		})
 	}
 }
-

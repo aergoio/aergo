@@ -7,17 +7,17 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type blockProducedNoticeHandler struct {
 	BaseMsgHandler
 	settings p2pcommon.LocalSettings
-	myAgent bool
+	myAgent  bool
 }
 
 var _ p2pcommon.MessageHandler = (*blockProducedNoticeHandler)(nil)
@@ -117,15 +117,15 @@ func (h *toAgentBPNoticeHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon
 		}
 
 		if !checkBPNoticeSender(bpID, remotePeer) {
-			h.logger.Debug().Err(err).Str(p2putil.LogPeerName, remotePeer.Name()).Str("bpID", p2putil.ShortForm(bpID)).Str("blockID", block.BlockID().String()).Msg("peer is not access right to send bp notice")
+			h.logger.Debug().Err(err).Str(p2putil.LogPeerName, remotePeer.Name()).Stringer("bpID", types.LogPeerShort(bpID)).Str("blockID", block.BlockID().String()).Msg("peer is not access right to send bp notice")
 			return
 		}
 
 		switch h.isToToss(bpID, block) {
 		case tossOut:
-			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{block, bool(p2pcommon.ExternalZone), msg})
+			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{Block: block, TossIn: bool(p2pcommon.ExternalZone), OriginalMsg: msg})
 		case tossIn:
-			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{block, bool(p2pcommon.InternalZone), msg})
+			h.actor.TellRequest(message.P2PSvc, message.TossBPNotice{Block: block, TossIn: bool(p2pcommon.InternalZone), OriginalMsg: msg})
 		default:
 			// do nothing
 		}

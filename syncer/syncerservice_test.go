@@ -2,15 +2,18 @@ package syncer
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo/chain"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/message"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/message"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSyncer_sync1000(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
@@ -36,6 +39,9 @@ func TestSyncer_sync1000(t *testing.T) {
 }
 
 func TestSyncer_sync10000(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 10002
 	localChainLen := 10000
 	targetNo := uint64(10000)
@@ -62,6 +68,9 @@ func TestSyncer_sync10000(t *testing.T) {
 }
 
 func TestSyncer_sync_multiPeer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
@@ -91,8 +100,11 @@ func TestSyncer_sync_multiPeer(t *testing.T) {
 	assert.Equal(t, int(targetNo), syncer.localChain.Best, "sync failed")
 }
 
-//case : peer1 is slow (timeout)
+// case : peer1 is slow (timeout)
 func TestSyncer_sync_slowPeer(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)
@@ -245,6 +257,9 @@ func TestSyncerAlreadySynched(t *testing.T) {
 }
 
 func TestSyncer_invalid_seq_getancestor(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	remoteChainLen := 1002
 	localChainLen := 10
 	targetNo := uint64(1000)

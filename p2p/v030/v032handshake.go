@@ -9,12 +9,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
 	"io"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // V032Handshaker exchange status data over protocol version .0.3.1
@@ -52,9 +53,8 @@ func (h *V032Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 	return nil
 }
 
-
 func (h *V032Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
 	if err != nil {
@@ -81,14 +81,14 @@ func (h *V032Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 	if err = h.checkRemoteStatus(remotePeerStatus); err != nil {
 		return nil, err
 	} else {
-		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+		hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 		return hsResult, nil
 	}
 
 }
 
 func (h *V032Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
 	remotePeerStatus, err := h.receiveRemoteStatus(ctx)
@@ -114,6 +114,6 @@ func (h *V032Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 	if err != nil {
 		return nil, err
 	}
-	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash:h.remoteHash, BestBlockNo:h.remoteNo, MsgRW:h.msgRW, Hidden:remotePeerStatus.NoExpose}
+	hsResult := &p2pcommon.HandshakeResult{Meta: h.remoteMeta, BestBlockHash: h.remoteHash, BestBlockNo: h.remoteNo, MsgRW: h.msgRW, Hidden: remotePeerStatus.NoExpose}
 	return hsResult, nil
 }

@@ -9,10 +9,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type BlockValidator struct {
@@ -24,7 +25,7 @@ type BlockValidator struct {
 
 var (
 	ErrorBlockVerifySign           = errors.New("Block verify failed")
-	ErrorBlockVerifyTxRoot         = errors.New("Block verify failed, because Tx root hash is invaild")
+	ErrorBlockVerifyTxRoot         = errors.New("Block verify failed, because Tx root hash is invalid")
 	ErrorBlockVerifyExistStateRoot = errors.New("Block verify failed, because state root hash is already exist")
 	ErrorBlockVerifyStateRoot      = errors.New("Block verify failed, because state root hash is not equal")
 	ErrorBlockVerifyReceiptRoot    = errors.New("Block verify failed, because receipt root hash is not equal")
@@ -37,7 +38,7 @@ func NewBlockValidator(comm component.IComponentRequester, sdb *state.ChainState
 		verbose:      verbose,
 	}
 
-	logger.Info().Bool("verbose", bv.verbose).Msg("started signverifier")
+	logger.Info().Bool("verbose", bv.verbose).Msg("started signVerifier")
 	return &bv
 }
 
@@ -58,7 +59,7 @@ func (bv *BlockValidator) ValidateBlock(block *types.Block) error {
 
 func (bv *BlockValidator) ValidateHeader(header *types.BlockHeader) error {
 	// TODO : more field?
-	// Block, State not exsit
+	// Block, State not exist
 	//	MaxBlockSize
 	//	MaxHeaderSize
 	//	ChainVersion

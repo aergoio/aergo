@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/aergoio/aergo/fee"
+	"github.com/aergoio/aergo/v2/fee"
 	"github.com/golang/protobuf/proto"
 	"github.com/mr-tron/base58/base58"
 )
@@ -342,7 +342,7 @@ func (tx *transaction) ValidateWithSenderState(senderState *State, gasPrice *big
 	return nil
 }
 
-//TODO : refoctor after ContractState move to types
+// TODO : refoctor after ContractState move to types
 func (tx *Tx) ValidateWithContractState(contractState *State) error {
 	//in system.ValidateSystemTx
 	//in name.ValidateNameTx

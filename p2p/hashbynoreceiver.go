@@ -8,9 +8,9 @@ package p2p
 import (
 	"time"
 
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requests blocks are received
@@ -56,13 +56,13 @@ func (br *BlockHashByNoReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pc
 	// remote peer response failure
 	body := msgBody.(*types.GetHashByNoResponse)
 	if body.Status != types.ResultStatus_OK {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq:br.syncerSeq, BlockHash: nil, Err: message.RemotePeerFailError})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq: br.syncerSeq, BlockHash: nil, Err: message.RemotePeerFailError})
 		br.finished = true
 		br.peer.ConsumeRequest(br.requestID)
 		return
 	}
 	br.got = body.BlockHash
-	br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq:br.syncerSeq, BlockHash: br.got})
+	br.actor.TellRequest(message.SyncerSvc, &message.GetHashByNoRsp{Seq: br.syncerSeq, BlockHash: br.got})
 	br.finished = true
 	br.peer.ConsumeRequest(br.requestID)
 	return

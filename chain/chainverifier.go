@@ -2,13 +2,14 @@ package chain
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
 	"reflect"
 	"time"
+
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type ChainVerifier struct {
@@ -61,7 +62,7 @@ func (cv *ChainVerifier) Receive(context actor.Context) {
 
 		logger.Info().Msg("verify chain finished")
 
-	case *actor.Stopping, *actor.Stopped, *component.CompStatReq: // donothing
+	case *actor.Stopping, *actor.Stopped, *component.CompStatReq: // do nothing
 	default:
 		debug := fmt.Sprintf("[%s] Missed message. (%v) %s", cv.name, reflect.TypeOf(msg), msg)
 		logger.Debug().Msg(debug)
@@ -111,7 +112,7 @@ const (
 var TestStageStr = []string{
 	"Test if previous block exist",
 	"Test if target block exist",
-	"Test if block exeuction succeed",
+	"Test if block execution succeed",
 	"All tests completed",
 }
 
@@ -212,7 +213,7 @@ func (cv *ChainVerifier) VerifyChain() error {
 		return cv.VerifyBlockWithReport()
 	}
 
-	logger.Info().Msg("start verifychan")
+	logger.Info().Msg("start verifyChain")
 
 	// get genesis block
 	if block, err = cv.reader.getNext(); err != nil || block == nil {

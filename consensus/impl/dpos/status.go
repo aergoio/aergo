@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/dpos/bp"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos/bp"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var bsLoader *bootLoader
 
-// Status manages DPoS-related infomations like LIB.
+// Status manages DPoS-related information like LIB.
 type Status struct {
 	sync.RWMutex
 	done      bool
@@ -34,7 +35,7 @@ func NewStatus(c bp.ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 	return s
 }
 
-// load restores the last LIB status by using the informations loaded from the
+// load restores the last LIB status by using the information loaded from the
 // DB.
 func (s *Status) load() {
 	if s.done {
@@ -83,6 +84,10 @@ func (s *Status) Update(block *types.Block) {
 		}
 
 		bps, _ = s.bps.AddSnapshot(block.BlockNo())
+
+		// if a system param was changed, apply its new value
+		system.CommitParams(true)
+
 	} else {
 		// Rollback resulting from a reorganization: The code below assumes
 		// that there is no block-by-block rollback; it assumes that the
@@ -101,7 +106,7 @@ func (s *Status) Update(block *types.Block) {
 		// Rollback BP list. -- BP list is alos affected by a fork.
 		bps = s.bps.UpdateCluster(block.BlockNo())
 
-		// Rollback Voting Powerank: the snapshot fully re-loaded from the
+		// Rollback Voting Power Rank: the snapshot fully re-loaded from the
 		// branch block. TODO: let's find a smarter way or use parallel
 		// loading.
 		if err := InitVPR(s.sdb.OpenNewStateDB(block.GetHeader().GetBlocksRootHash())); err != nil {
@@ -109,6 +114,11 @@ func (s *Status) Update(block *types.Block) {
 		} else {
 			logger.Debug().Uint64("from block no", block.BlockNo()).Msg("VPR reloaded")
 		}
+
+		// if a system param was changed, discard its new value
+		// this is mainly for block revert case
+		// the params are reloaded from db on block reorganization
+		system.CommitParams(false)
 	}
 
 	s.libState.gc(bps)
@@ -224,7 +234,7 @@ func (s *Status) init(cdb consensus.ChainDB, resetHeight types.BlockNo) {
 
 	genesis, err := cdb.GetBlockByNo(0)
 	if err != nil {
-		panic(err)
+		logger.Panic().Err(err).Msg("failed to get genesis block")
 	}
 
 	best, err := cdb.GetBestBlock()

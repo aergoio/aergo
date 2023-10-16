@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +24,7 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	}
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := cdb.GetStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

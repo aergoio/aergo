@@ -7,19 +7,19 @@ package raftsupport
 
 import (
 	"bytes"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/etcd/raft/raftpb"
-	"github.com/golang/mock/gomock"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/protocol"
-	"github.com/pkg/errors"
 	"testing"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/aergoio/etcd/snap"
+	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/pkg/errors"
 )
 
 func Test_snapshotSender_Send(t *testing.T) {

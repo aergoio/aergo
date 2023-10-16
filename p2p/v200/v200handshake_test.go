@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"net"
 	"reflect"
 	"sort"
@@ -17,13 +16,18 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/crypto"
+)
+
+const (
+	sampleKeyFile = "../test/sample/sample.key"
 )
 
 var (
@@ -77,7 +81,6 @@ func init() {
 	theirChainID.Magic = "itsdiff2"
 	theirChainBytes, _ = theirChainID.Bytes()
 
-	sampleKeyFile := "../../test/sample.key"
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", log.NewLogger("v200.test"))
@@ -348,14 +351,14 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 	dummyMeta.Version = sampleVersion
 
 	sampleSize := 5
-	certs := make([]*p2pcommon.AgentCertificateV1,sampleSize)
-	pids := make([]types.PeerID,sampleSize)
+	certs := make([]*p2pcommon.AgentCertificateV1, sampleSize)
+	pids := make([]types.PeerID, sampleSize)
 
-	for i := 0 ; i<5 ; i++ {
+	for i := 0; i < 5; i++ {
 		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		id, _ := types.IDFromPrivateKey(priv)
 		pids[i] = id
- 		certs[i], _ = p2putil.NewAgentCertV1(id, samplePeerID,p2putil.ConvertPKToBTCEC(priv), []string{"192.168.1.3"}, time.Hour*24 )
+		certs[i], _ = p2putil.NewAgentCertV1(id, samplePeerID, p2putil.ConvertPKToBTCEC(priv), []string{"192.168.1.3"}, time.Hour*24)
 	}
 	wrongCert := *certs[0]
 	wrongCert.AgentAddress = []string{}
@@ -367,7 +370,7 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 	tests := []struct {
 		name string
 
-		args        args
+		args args
 
 		wantProdIDs []types.PeerID
 		wantCert    []*p2pcommon.AgentCertificateV1
@@ -376,8 +379,8 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 		{"TBP", args{types.PeerRole_Producer, nil, nil}, nil, nil, false},
 		{"TWatcher", args{types.PeerRole_Watcher, nil, nil}, nil, nil, false},
 		{"TAgent", args{types.PeerRole_Agent, pids, certs}, pids, certs, false},
-		{"TAgentLessCert", args{types.PeerRole_Agent, pids, certs[1:3]},  pids, certs[1:3], false},
-		{"TWrongCert", args{types.PeerRole_Agent, pids, []*p2pcommon.AgentCertificateV1{&wrongCert}},  pids, certs[1:3], true},
+		{"TAgentLessCert", args{types.PeerRole_Agent, pids, certs[1:3]}, pids, certs[1:3], false},
+		{"TWrongCert", args{types.PeerRole_Agent, pids, []*p2pcommon.AgentCertificateV1{&wrongCert}}, pids, certs[1:3], true},
 
 		//{"TAgentUnknownCert", args{types.PeerRole_Agent, pids[:2], certs}, nil, nil, true},
 	}
@@ -423,7 +426,7 @@ func TestV200Handshaker_createLocalStatus(t *testing.T) {
 					}
 				}
 				if len(got.Certificates) != len(tt.wantCert) {
-					t.Errorf("createLocalStatus() certs size = %v, want %v", len(got.Certificates) , len(tt.wantCert))
+					t.Errorf("createLocalStatus() certs size = %v, want %v", len(got.Certificates), len(tt.wantCert))
 					return
 				} else {
 					for i, c := range tt.wantCert {
@@ -449,16 +452,16 @@ func TestV200Handshaker_checkAgent(t *testing.T) {
 	//ipExternal2 := "211.44.55.66"
 
 	agentID := types.RandomPeerID()
-	producerIDs := make([]types.PeerID,5)
-	certs := make([]*p2pcommon.AgentCertificateV1,5)
-	for i := 0 ; i<5 ; i++ {
+	producerIDs := make([]types.PeerID, 5)
+	certs := make([]*p2pcommon.AgentCertificateV1, 5)
+	for i := 0; i < 5; i++ {
 		priv, _, _ := crypto.GenerateKeyPair(crypto.Secp256k1, 256)
 		id, _ := types.IDFromPrivateKey(priv)
 		producerIDs[i] = id
-		certs[i], _ = p2putil.NewAgentCertV1(id, agentID,p2putil.ConvertPKToBTCEC(priv), []string{ipExternal1}, time.Hour*24 )
-		logger.Info().Str("peerID",p2putil.ShortForm(id)).Int("idx",i).Msg("producer id")
+		certs[i], _ = p2putil.NewAgentCertV1(id, agentID, p2putil.ConvertPKToBTCEC(priv), []string{ipExternal1}, time.Hour*24)
+		logger.Info().Stringer("peerID", types.LogPeerShort(id)).Int("idx", i).Msg("producer id")
 	}
-	pCerts,_  := p2putil.ConvertCertsToProto(certs)
+	pCerts, _ := p2putil.ConvertCertsToProto(certs)
 	wrongCert := *certs[0]
 	wrongPCert, _ := p2putil.ConvertCertToProto(&wrongCert)
 	wrongPCert.AgentAddress = [][]byte{}
@@ -466,28 +469,27 @@ func TestV200Handshaker_checkAgent(t *testing.T) {
 	selfMeta := p2pcommon.NewMetaWith1Addr(samplePeerID, "dummy.aergo.io", 7846, "v2.0.0")
 	selfMeta.Version = sampleVersion
 
-	_, n, _  := net.ParseCIDR(ipInternal+"/24")
-	sampleSettings := p2pcommon.LocalSettings{InternalZones:[]*net.IPNet{n} }
+	_, n, _ := net.ParseCIDR(ipInternal + "/24")
+	sampleSettings := p2pcommon.LocalSettings{InternalZones: []*net.IPNet{n}}
 	type args struct {
-		rID types.PeerID
-		rAddr string
+		rID    types.PeerID
+		rAddr  string
 		rCerts []*types.AgentCertificate
-
 	}
 	tests := []struct {
-		name    string
+		name string
 
 		args    args
 		wantErr bool
 	}{
 		// success
-		{"T1",args{agentID, ipInternal, pCerts[:3]}, false},
+		{"T1", args{agentID, ipInternal, pCerts[:3]}, false},
 		// agentID mismatch
-		{"TAgentIDMismatch",args{types.RandomPeerID(), ipInternal, pCerts[:3]}, true},
+		{"TAgentIDMismatch", args{types.RandomPeerID(), ipInternal, pCerts[:3]}, true},
 		// not in charged
-		{"TBPIDMismatch",args{agentID, ipInternal, pCerts[2:4]}, true},
+		{"TBPIDMismatch", args{agentID, ipInternal, pCerts[2:4]}, true},
 		// wrong cert
-		{"TWrongCert",args{agentID, ipInternal, []*types.AgentCertificate{pCerts[2], wrongPCert}}, true},
+		{"TWrongCert", args{agentID, ipInternal, []*types.AgentCertificate{pCerts[2], wrongPCert}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -505,7 +507,7 @@ func TestV200Handshaker_checkAgent(t *testing.T) {
 			rMeta.Role = types.PeerRole_Agent
 			rMeta.ProducerIDs = producerIDs[:3]
 			pa := rMeta.ToPeerAddress()
-			inStatus := &types.Status{Sender:&pa, Certificates:tt.args.rCerts}
+			inStatus := &types.Status{Sender: &pa, Certificates: tt.args.rCerts}
 
 			h := NewV200VersionedHS(mockIS, logger, mockVM, mockCM, samplePeerID, dummyReader, dummyGenHash)
 			h.remoteMeta = rMeta

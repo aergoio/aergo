@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/golang/protobuf/proto"
 )
@@ -45,7 +46,7 @@ func (cdb *ChainDB) ResetWAL(hardStateInfo *types.HardStateInfo) error {
 
 	snapData := consensus.NewSnapshotData(nil, nil, snapBlock)
 	if snapData == nil {
-		panic("new snap failed")
+		logger.Panic().Uint64("SnapBlockNo", snapBlock.BlockNo()).Msg("new snap failed")
 	}
 
 	data, err := snapData.Encode()
@@ -128,7 +129,6 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
-		return err
 	}
 	dbTx.Set(raftStateKey, data)
 	dbTx.Commit()
@@ -146,7 +146,6 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 	state := &raftpb.HardState{}
 	if err := proto.Unmarshal(data, state); err != nil {
 		logger.Panic().Msg("failed to unmarshal raft state")
-		return nil, ErrInvalidHardState
 	}
 
 	logger.Info().Uint64("term", state.Term).Str("vote", types.Uint64ToHexaString(state.Vote)).Uint64("commit", state.Commit).Msg("load hard state")
@@ -198,16 +197,14 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		if entry.Type == consensus.EntryBlock {
 			if err := cdb.addBlock(dbTx, blocks[i]); err != nil {
-				panic("add block entry")
-				return err
+				logger.Panic().Err(err).Uint64("BlockNo", blocks[i].BlockNo()).Msg("failed to add block entry")
 			}
 
 			targetNo = blocks[i].BlockNo()
 		}
 
 		if data, err = entry.ToBytes(); err != nil {
-			panic("failed to convert entry to bytes")
-			return err
+			logger.Panic().Err(err).Uint64("BlockNo", blocks[i].BlockNo()).Uint64("index", entry.Index).Msg("failed to convert entry to bytes")
 		}
 
 		lastIdx = entry.Index
@@ -390,33 +387,34 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 }
 
 /*
-func (cdb *ChainDB) WriteSnapshotDone() error {
-	data, err := encodeBool(true)
-	if err != nil {
-		return err
+	func (cdb *ChainDB) WriteSnapshotDone() error {
+		data, err := encodeBool(true)
+		if err != nil {
+			return err
+		}
+
+		dbTx := cdb.store.NewTx()
+		dbTx.Set(raftSnapStatusKey, data)
+		dbTx.Commit()
+
+		return nil
 	}
 
-	dbTx := cdb.store.NewTx()
-	dbTx.Set(raftSnapStatusKey, data)
-	dbTx.Commit()
+	func (cdb *ChainDB) GetSnapshotDone() (bool, error) {
+		data := cdb.store.Get(raftSnapStatusKey)
+		if len(data) == 0 {
+			return false, nil
+		}
 
-	return nil
-}
+		val, err := decodeBool(data)
+		if err != nil {
+			return false, err
+		}
 
-func (cdb *ChainDB) GetSnapshotDone() (bool, error) {
-	data := cdb.store.Get(raftSnapStatusKey)
-	if len(data) == 0 {
-		return false, nil
+		return val, nil
 	}
-
-	val, err := decodeBool(data)
-	if err != nil {
-		return false, err
-	}
-
-	return val, nil
-}
 */
+
 func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
 	data := cdb.store.Get(raftSnapKey)
 	if len(data) == 0 {

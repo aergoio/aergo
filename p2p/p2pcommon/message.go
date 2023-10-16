@@ -7,9 +7,10 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/protobuf/proto"
 	"time"
+
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/golang/protobuf/proto"
 )
 
 // Message is unit structure transferred from a peer to another peer.
@@ -60,6 +61,7 @@ type AsyncHandler interface {
 	HandleOrNot(msg Message, msgBody MessageBody) bool
 	Handle(msg Message, msgBody MessageBody, ttl time.Duration)
 }
+
 // MsgSigner sign or verify p2p message
 // this is not used since v0.3, but interface is not removed for future version.
 type MsgSigner interface {

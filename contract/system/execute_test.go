@@ -8,9 +8,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/aergoio/aergo/config"
-
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 )
@@ -243,7 +242,7 @@ func TestValidateSystemTxForStaking(t *testing.T) {
 	scs, sender, receiver := initTest(t)
 	defer deinitTest()
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := cdb.GetStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	tx := &types.Tx{
@@ -266,7 +265,7 @@ func TestValidateSystemTxForUnstaking(t *testing.T) {
 	defer deinitTest()
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := cdb.GetStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)
@@ -515,7 +514,7 @@ func TestProposalExecute(t *testing.T) {
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	blockInfo.No++
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
@@ -609,7 +608,7 @@ func TestProposalExecuteFail1(t *testing.T) {
 	assert.Error(t, err, "the voting begins at 1")
 
 	blockInfo.No += 10
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	tooManyCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -664,7 +663,7 @@ func TestProposalExecuteFail2(t *testing.T) {
 	assert.Equal(t, balance2, sender.Balance(), "sender.Balance() should be 1 after staking")
 
 	blockInfo.No++
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	validCandiTx := &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -719,7 +718,9 @@ func TestProposalExecute2(t *testing.T) {
 	assert.Equal(t, balance1, sender3.Balance(), "sender.Balance() should be 1 after staking")
 
 	blockInfo.No++
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+
+	// BP Count
 
 	votingTx := &types.Tx{
 		Body: &types.TxBody{
@@ -748,6 +749,8 @@ func TestProposalExecute2(t *testing.T) {
 	internalVoteResult, err := loadVoteResult(scs, GenProposalKey(bpCount.ID()))
 	assert.Equal(t, new(big.Int).Mul(balance2, big.NewInt(3)), internalVoteResult.GetTotal(), "check result total")
 
+	// Staking Min
+
 	votingTx = &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -766,6 +769,10 @@ func TestProposalExecute2(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 
+	// Gas Price
+
+	origGasPrice := GetGasPrice()
+
 	votingTx = &types.Tx{
 		Body: &types.TxBody{
 			Account: sender.ID(),
@@ -783,8 +790,15 @@ func TestProposalExecute2(t *testing.T) {
 	votingTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["GASPRICE", "1004"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender3, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
-	gasPrice := GetGasPrice()
-	assert.Equal(t, balance0_5, gasPrice, "result of gas price voting")
+
+	// check the value for the current block
+	assert.Equal(t, origGasPrice, GetGasPrice(), "result of gas price voting")
+	// check the value for the next block
+	assert.Equal(t, balance0_5, GetNextBlockParam("GASPRICE"), "result of gas price voting")
+	// commit the new value
+	CommitParams(true)
+	// check the value for the current block
+	assert.Equal(t, balance0_5, GetGasPrice(), "result of gas price voting")
 
 	blockInfo.No += StakingDelay
 	unstakingTx := &types.Tx{
@@ -816,6 +830,8 @@ func TestProposalExecute2(t *testing.T) {
 	_, err = ExecuteSystemTx(scs, unstakingTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "could not execute system tx")
 
+	oldNamePrice := GetNamePrice()
+
 	votingTx.Body.Account = sender2.ID()
 	votingTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["NAMEPRICE", "1004"]}`)
 	_, err = ExecuteSystemTx(scs, votingTx.GetBody(), sender2, receiver, blockInfo)
@@ -831,8 +847,15 @@ func TestProposalExecute2(t *testing.T) {
 	internalVoteResult, err = loadVoteResult(scs, GenProposalKey(namePrice.ID()))
 	assert.Equal(t, new(big.Int).Mul(balance2, big.NewInt(2)), internalVoteResult.GetTotal(), "check result total")
 	assert.Equal(t, "1004", string(voteResult.Votes[0].Candidate), "1st place")
-	currentNamePrice := GetNamePrice()
-	assert.Equal(t, "1004", currentNamePrice.String(), "current name price")
+
+	// check the value for the current block
+	assert.Equal(t, oldNamePrice, GetNamePrice(), "check name price")
+	// check the value for the next block
+	assert.Equal(t, big.NewInt(1004), GetNextBlockParam("NAMEPRICE"), "check name price")
+	// commit the new value
+	CommitParams(true)
+	// check the value for the current block
+	assert.Equal(t, big.NewInt(1004), GetNamePrice(), "check name price")
 
 	/*
 		blockInfo += StakingDelay

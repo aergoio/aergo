@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var confPrefix = []byte("conf\\")
@@ -17,7 +17,7 @@ const (
 	AccountWhite   = "ACCOUNTWHITE"
 )
 
-//EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
+// EnterpriseKeyDict is represent allowed key list and used when validate tx, int values are meaningless.
 var enterpriseKeyDict = map[string]int{
 	RPCPermissions: 1,
 	P2PWhite:       2,
@@ -69,7 +69,6 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	default:
 		return nil
 	}
-	return nil
 }
 
 // AccountStateReader is an interface for getting a enterprise account state.
@@ -84,7 +83,7 @@ func GetConf(r AccountStateReader, key string) (*types.EnterpriseConfig, error) 
 	}
 	ret := &types.EnterpriseConfig{Key: key}
 	if strings.ToUpper(key) == "PERMISSIONS" {
-		for k, _ := range enterpriseKeyDict {
+		for k := range enterpriseKeyDict {
 			ret.Values = append(ret.Values, k)
 		}
 	} else {

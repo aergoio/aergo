@@ -8,16 +8,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
@@ -433,7 +433,7 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 		// notify to p2p TODO temporary code
 		peerID, err := types.IDFromBytes(member.PeerID)
 		if err != nil {
-			panic("invalid member peerid " + enc.ToString(member.PeerID))
+			logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
 		}
 
 		if cl.notifyFn != nil {
@@ -466,7 +466,7 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	// notify to p2p TODO temporary code
 	peerID, err := types.IDFromBytes(member.PeerID)
 	if err != nil {
-		panic("invalid member peerid " + enc.ToString(member.PeerID))
+		logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
 	}
 
 	if cl.notifyFn != nil {
@@ -666,76 +666,77 @@ func MaxUint64(x, y uint64) uint64 {
 
 /*
 // hasSynced get result of GetPeers request from P2P service and check if chain of this node is synchronized with majority of members
-func (cc *Cluster) hasSynced() (bool, error) {
-	var peers map[types.PeerID]*message.PeerInfo
-	var err error
-	var peerBestNo uint64 = 0
 
-	if cc.Size == 1 {
+	func (cc *Cluster) hasSynced() (bool, error) {
+		var peers map[types.PeerID]*message.PeerInfo
+		var err error
+		var peerBestNo uint64 = 0
+
+		if cc.Size == 1 {
+			return true, nil
+		}
+
+		// request GetPeers to p2p
+		getBPPeers := func() (map[types.PeerID]*message.PeerInfo, error) {
+			peers := make(map[types.PeerID]*message.PeerInfo)
+
+			result, err := cc.RequestFuture(message.P2PSvc, &message.GetPeers{}, time.Second, "raft cluster sync test").Result()
+			if err != nil {
+				return nil, err
+			}
+
+			msg := result.(*message.GetPeersRsp)
+
+			for _, peerElem := range msg.Peers {
+				peerID := types.PeerID(peerElem.Addr.PeerID)
+				state := peerElem.State
+
+				if peerElem.Self {
+					continue
+				}
+
+				if state.Get() != types.RUNNING {
+					logger.Debug().Stringer("peer", types.LogPeerShort(peerID)).Msg("peer is not running")
+					continue
+
+				}
+
+				// check if peer is not bp
+				if _, ok := cc.Index[peerID]; !ok {
+					continue
+				}
+
+				peers[peerID] = peerElem
+
+				peerBestNo = MaxUint64(peerElem.LastBlockNumber, peerBestNo)
+			}
+
+			return peers, nil
+		}
+
+		if peers, err = getBPPeers(); err != nil {
+			return false, err
+		}
+
+		if uint16(len(peers)) < (cc.Quorum() - 1) {
+			logger.Debug().Msg("a majority of peers are not connected")
+			return false, nil
+		}
+
+		var best *types.Block
+		if best, err = cc.cdb.GetBestBlock(); err != nil {
+			return false, err
+		}
+
+		if best.BlockNo()+DefaultMarginChainDiff < peerBestNo {
+			logger.Debug().Uint64("best", best.BlockNo()).Uint64("peerbest", peerBestNo).Msg("chain was not synced with majority of peers")
+			return false, nil
+		}
+
+		logger.Debug().Uint64("best", best.BlockNo()).Uint64("peerbest", peerBestNo).Int("margin", DefaultMarginChainDiff).Msg("chain has been synced with majority of peers")
+
 		return true, nil
 	}
-
-	// request GetPeers to p2p
-	getBPPeers := func() (map[types.PeerID]*message.PeerInfo, error) {
-		peers := make(map[types.PeerID]*message.PeerInfo)
-
-		result, err := cc.RequestFuture(message.P2PSvc, &message.GetPeers{}, time.Second, "raft cluster sync test").Result()
-		if err != nil {
-			return nil, err
-		}
-
-		msg := result.(*message.GetPeersRsp)
-
-		for _, peerElem := range msg.Peers {
-			peerID := types.PeerID(peerElem.Addr.PeerID)
-			state := peerElem.State
-
-			if peerElem.Self {
-				continue
-			}
-
-			if state.Get() != types.RUNNING {
-				logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("peer is not running")
-				continue
-
-			}
-
-			// check if peer is not bp
-			if _, ok := cc.Index[peerID]; !ok {
-				continue
-			}
-
-			peers[peerID] = peerElem
-
-			peerBestNo = MaxUint64(peerElem.LastBlockNumber, peerBestNo)
-		}
-
-		return peers, nil
-	}
-
-	if peers, err = getBPPeers(); err != nil {
-		return false, err
-	}
-
-	if uint16(len(peers)) < (cc.Quorum() - 1) {
-		logger.Debug().Msg("a majority of peers are not connected")
-		return false, nil
-	}
-
-	var best *types.Block
-	if best, err = cc.cdb.GetBestBlock(); err != nil {
-		return false, err
-	}
-
-	if best.BlockNo()+DefaultMarginChainDiff < peerBestNo {
-		logger.Debug().Uint64("best", best.BlockNo()).Uint64("peerbest", peerBestNo).Msg("chain was not synced with majority of peers")
-		return false, nil
-	}
-
-	logger.Debug().Uint64("best", best.BlockNo()).Uint64("peerbest", peerBestNo).Int("margin", DefaultMarginChainDiff).Msg("chain has been synced with majority of peers")
-
-	return true, nil
-}
 */
 func (cl *Cluster) toStringWithLock() string {
 	var buf string
@@ -1047,13 +1048,13 @@ var (
 // case remove : avaliable node except node to remove < (n - 1) / 2 - 1
 //
 // Default :
-// - Add : 1 node라도 장애 node or slow node가 존재하면 add는 불가
-//         slow node기준 - block 높이가 100이상 차이 나는 경우
-// - Remove :
-//         현재 cluster가 available 해야함
-//		   node를 뺄때는 (정상node - 1) >= (n - 1) / 2 + 1 이어야함
-//         slow node는 항상 뺄수 있다. slow node를 뺌으로써 cluster를 정상으로 만들기 위함
-// - force 모드: 무조건 실행 한다.
+//   - Add : 1 node라도 장애 node or slow node가 존재하면 add는 불가
+//     slow node기준 - block 높이가 100이상 차이 나는 경우
+//   - Remove :
+//     현재 cluster가 available 해야함
+//     node를 뺄때는 (정상node - 1) >= (n - 1) / 2 + 1 이어야함
+//     slow node는 항상 뺄수 있다. slow node를 뺌으로써 cluster를 정상으로 만들기 위함
+//   - force 모드: 무조건 실행 한다.
 func (cl *Cluster) isEnableChangeMembership(cc *raftpb.ConfChange) error {
 	status := cl.rs.Status()
 	if status.ID == 0 {

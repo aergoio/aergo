@@ -6,17 +6,19 @@
 package server
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/mock/gomock"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/golang/mock/gomock"
 )
 
 var sampleEntries []types.WhiteListEntry
+
 func init() {
 	eIDIP, _ := types.ParseListEntry(`{"peerid":"16Uiu2HAmPZE7gT1hF2bjpg1UVH65xyNUbBVRf3mBFBJpz3tgLGGt", "address":"172.21.3.35" }`)
 	eIDIR, _ := types.ParseListEntry(`{"peerid":"16Uiu2HAmN5YU8V2LnTy9neuuJCLNsxLnd5xVSRZqkjvZUHS3mLoD", "cidr":"172.21.3.35/16" }`)
@@ -27,11 +29,11 @@ func init() {
 	sampleEntries = []types.WhiteListEntry{eIDIP, eIDIR, eID, eIR, eIP6, eIR6}
 }
 func Test_polarisListManager_saveListFile(t *testing.T) {
-	tmpAuthDir, err := ioutil.TempDir("","aergoTestPolaris")
+	tmpAuthDir, err := ioutil.TempDir("", "aergoTestPolaris")
 	if err != nil {
-		t.Fatalf("Failed to create temp directory to test: %v ",err.Error())
+		t.Fatalf("Failed to create temp directory to test: %v ", err.Error())
 	} else {
-		t.Logf("Create tmp directory on %v",tmpAuthDir)
+		t.Logf("Create tmp directory on %v", tmpAuthDir)
 		defer os.RemoveAll(tmpAuthDir)
 	}
 
@@ -65,11 +67,11 @@ func Test_polarisListManager_RemoveEntry(t *testing.T) {
 		idx  int
 		want bool
 	}{
-		{"TFirst",0, true},
-		{"TMid",1, true},
-		{"TLast",5, true},
-		{"TOverflow",6, false},
-		{"TNegative",-1, false},
+		{"TFirst", 0, true},
+		{"TMid", 1, true},
+		{"TLast", 5, true},
+		{"TOverflow", 6, false},
+		{"TNegative", -1, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -90,13 +92,13 @@ func Test_polarisListManager_AddEntry(t *testing.T) {
 	conf := &config.PolarisConfig{EnableBlacklist: true}
 
 	tests := []struct {
-		name string
-		args []types.WhiteListEntry
+		name     string
+		args     []types.WhiteListEntry
 		wantSize int
 	}{
-		{"TFirst",sampleEntries[:0], 0},
-		{"T1",sampleEntries[:1], 1},
-		{"TAll",sampleEntries, 6},
+		{"TFirst", sampleEntries[:0], 0},
+		{"T1", sampleEntries[:1], 1},
+		{"TAll", sampleEntries, 6},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -112,8 +114,6 @@ func Test_polarisListManager_AddEntry(t *testing.T) {
 	}
 }
 
-
-
 func Test_polarisListManager_IsBanned(t *testing.T) {
 	conf := config.NewServerContext("", "").GetDefaultPolarisConfig()
 	conf.EnableBlacklist = true
@@ -126,15 +126,14 @@ func Test_polarisListManager_IsBanned(t *testing.T) {
 	thirdAddr := "222.8.8.8"
 	thirdID := types.RandomPeerID()
 
-	IDOnly, e1 := types.ParseListEntry(`{"peerid":"`+id1.Pretty()+`"}`)
-	AddrOnly, e2 := types.ParseListEntry(`{"address":"`+addr1+`"}`)
-	IDAddr, e3 := types.ParseListEntry(`{"peerid":"`+idother.Pretty()+`", "address":"`+addrother+`"}`)
-	if e1 !=nil || e2 != nil || e3 != nil {
-		t.Fatalf("Inital entry value failure %v , %v , %v",e1,e2,e3)
+	IDOnly, e1 := types.ParseListEntry(`{"peerid":"` + id1.Pretty() + `"}`)
+	AddrOnly, e2 := types.ParseListEntry(`{"address":"` + addr1 + `"}`)
+	IDAddr, e3 := types.ParseListEntry(`{"peerid":"` + idother.Pretty() + `", "address":"` + addrother + `"}`)
+	if e1 != nil || e2 != nil || e3 != nil {
+		t.Fatalf("Inital entry value failure %v , %v , %v", e1, e2, e3)
 	}
 	listCfg := []types.WhiteListEntry{IDOnly, AddrOnly, IDAddr}
 	emptyCfg := []types.WhiteListEntry{}
-
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -144,10 +143,10 @@ func Test_polarisListManager_IsBanned(t *testing.T) {
 		pid  types.PeerID
 	}
 	tests := []struct {
-		name string
+		name   string
 		preset []types.WhiteListEntry
-		args args
-		want bool
+		args   args
+		want   bool
 	}{
 		{"TFoundBoth", listCfg, args{addr1, id1}, true},
 		{"TIDOnly", listCfg, args{addrother, id1}, true},

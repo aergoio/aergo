@@ -8,7 +8,8 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
-	"github.com/aergoio/aergo/types"
+
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/spf13/cobra"
 )
 
@@ -20,9 +21,10 @@ var (
 		Run:   execNodeState,
 	}
 
-	timeout uint64
+	timeout   uint64
 	component string
 )
+
 func init() {
 	rootCmd.AddCommand(nodeCmd)
 	nodeCmd.Flags().Uint64VarP(&timeout, "timeout", "t", 3, "Per module time out")

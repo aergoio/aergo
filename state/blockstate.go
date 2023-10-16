@@ -3,8 +3,8 @@ package state
 import (
 	"math/big"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/bluele/gcache"
 	"github.com/willf/bloom"
 )
@@ -63,6 +63,26 @@ func NewBlockState(states *StateDB, options ...BlockStateOptFn) *BlockState {
 		opt(b)
 	}
 	return b
+}
+
+type BlockSnapshot struct {
+	state   Snapshot
+	storage map[types.AccountID]int
+}
+
+func (bs *BlockState) Snapshot() BlockSnapshot {
+	result := BlockSnapshot{
+		state:   bs.StateDB.Snapshot(),
+		storage: bs.StateDB.cache.snapshot(),
+	}
+	return result
+}
+
+func (bs *BlockState) Rollback(bSnap BlockSnapshot) error {
+	if err := bs.StateDB.cache.rollback(bSnap.storage); err != nil {
+		return err
+	}
+	return bs.StateDB.Rollback(bSnap.state)
 }
 
 func (bs *BlockState) Consensus() []byte {

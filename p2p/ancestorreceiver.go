@@ -6,10 +6,11 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
 	"time"
+
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // BlocksChunkReceiver is send p2p getBlocksRequest to target peer and receive p2p responses till all requests blocks are received
@@ -21,7 +22,7 @@ type AncestorReceiver struct {
 	peer  p2pcommon.RemotePeer
 	actor p2pcommon.ActorService
 
-	hashes  [][]byte
+	hashes   [][]byte
 	timeout  time.Time
 	finished bool
 }
@@ -51,14 +52,14 @@ func (br *AncestorReceiver) ReceiveResp(msg p2pcommon.Message, msgBody p2pcommon
 	// remote peer response failure
 	data := msgBody.(*types.GetAncestorResponse)
 	if data.Status != types.ResultStatus_OK {
-		br.actor.TellRequest(message.SyncerSvc, &message.GetSyncAncestorRsp{Seq:br.syncerSeq, Ancestor: nil})
+		br.actor.TellRequest(message.SyncerSvc, &message.GetSyncAncestorRsp{Seq: br.syncerSeq, Ancestor: nil})
 		br.finished = true
 		br.peer.ConsumeRequest(br.requestID)
 		return
 	}
 	ancestor := &types.BlockInfo{Hash: data.AncestorHash, No: data.AncestorNo}
 
-	br.actor.TellRequest(message.SyncerSvc, &message.GetSyncAncestorRsp{Seq:br.syncerSeq, Ancestor: ancestor})
+	br.actor.TellRequest(message.SyncerSvc, &message.GetSyncAncestorRsp{Seq: br.syncerSeq, Ancestor: ancestor})
 	br.finished = true
 	br.peer.ConsumeRequest(br.requestID)
 	return

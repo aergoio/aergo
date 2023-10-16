@@ -6,9 +6,10 @@
 package p2pcommon
 
 import (
-	"github.com/aergoio/aergo/types"
-	"github.com/multiformats/go-multiaddr"
 	"strconv"
+
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/multiformats/go-multiaddr"
 )
 
 // PeerMeta contains non changeable information of peer node during connected state

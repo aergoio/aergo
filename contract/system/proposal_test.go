@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -112,7 +112,7 @@ func TestProposalBPCount(t *testing.T) {
 	assert.Error(t, err, "before v2")
 
 	blockInfo.No++ //set v2
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
 
@@ -123,6 +123,14 @@ func TestProposalBPCount(t *testing.T) {
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
+
+	// check the value for the current block
+	assert.Equal(t, 3, GetBpCount(), "check bp")
+	// check the value for the next block
+	assert.Equal(t, big.NewInt(13), GetNextBlockParam("BPCOUNT"), "check bp")
+	// commit the new value
+	CommitParams(true)
+	// check the value for the current block
 	assert.Equal(t, 13, GetBpCount(), "check bp")
 }
 
@@ -176,7 +184,7 @@ func TestFailProposals(t *testing.T) {
 	assert.Error(t, err, "before v2")
 
 	blockInfo.No++ //set v2
-	blockInfo.Version = config.AllEnabledHardforkConfig.Version(blockInfo.No)
+	blockInfo.ForkVersion = config.AllEnabledHardforkConfig.Version(blockInfo.No)
 
 	invalidCandiTx := &types.Tx{
 		Body: &types.TxBody{
@@ -203,7 +211,19 @@ func TestFailProposals(t *testing.T) {
 
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
+
+	// check the value for the current block
+	assert.Equal(t, 3, GetBpCount(), "check bp")
+	// check the value for the next block
+	assert.Equal(t, big.NewInt(13), GetNextBlockParam("BPCOUNT"), "check bp")
+	// commit the new value
+	CommitParams(true)
+	// check the value for the current block
 	assert.Equal(t, 13, GetBpCount(), "check bp")
+
+	// gas price
+
+	oldGasPrice := GetGasPrice()
 
 	invalidCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "500000000000000000000000001"]}`)
 	_, err = ExecuteSystemTx(scs, invalidCandiTx.GetBody(), sender, receiver, blockInfo)
@@ -221,5 +241,13 @@ func TestFailProposals(t *testing.T) {
 	validCandiTx.Body.Payload = []byte(`{"Name":"v1voteDAO", "Args":["gasprice", "101"]}`)
 	_, err = ExecuteSystemTx(scs, validCandiTx.GetBody(), sender2, receiver, blockInfo)
 	assert.NoError(t, err, "valid")
+
+	// check the value for the current block
+	assert.Equal(t, oldGasPrice, GetGasPrice(), "check gas price")
+	// check the value for the next block
+	assert.Equal(t, big.NewInt(101), GetNextBlockParam("GASPRICE"), "check gas price")
+	// commit the new value
+	CommitParams(true)
+	// check the value for the current block
 	assert.Equal(t, big.NewInt(101), GetGasPrice(), "check gas price")
 }

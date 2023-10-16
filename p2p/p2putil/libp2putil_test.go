@@ -6,15 +6,15 @@
 package p2putil
 
 import (
-	"github.com/aergoio/aergo/internal/network"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/network"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/multiformats/go-multiaddr"
 )
 

@@ -14,10 +14,10 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/pkg/trie"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/pkg/trie"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
@@ -270,7 +270,7 @@ func (states *StateDB) GetAccountStateV(id []byte) (*V, error) {
 				sdb:    states,
 				id:     id,
 				aid:    aid,
-				oldV:   &types.State{},
+				oldV:   &types.State{Balance: amount.Bytes()},
 				newV:   &types.State{Balance: amount.Bytes()},
 				newOne: true,
 			}, nil

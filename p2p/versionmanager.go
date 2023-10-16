@@ -7,13 +7,14 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	v030 "github.com/aergoio/aergo/p2p/v030"
-	v200 "github.com/aergoio/aergo/p2p/v200"
-	"github.com/aergoio/aergo/types"
 	"io"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	v030 "github.com/aergoio/aergo/v2/p2p/v030"
+	v200 "github.com/aergoio/aergo/v2/p2p/v200"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type defaultVersionManager struct {
@@ -28,7 +29,7 @@ type defaultVersionManager struct {
 }
 
 func newDefaultVersionManager(is p2pcommon.InternalService, actor p2pcommon.ActorService, pm p2pcommon.PeerManager, ca types.ChainAccessor, logger *log.Logger, localChainID *types.ChainID) *defaultVersionManager {
-	return &defaultVersionManager{is:is, pm: pm, actor: actor, ca: ca, logger: logger, localChainID: localChainID}
+	return &defaultVersionManager{is: is, pm: pm, actor: actor, ca: ca, logger: logger, localChainID: localChainID}
 }
 
 func (vm *defaultVersionManager) FindBestP2PVersion(versions []p2pcommon.P2PVersion) p2pcommon.P2PVersion {

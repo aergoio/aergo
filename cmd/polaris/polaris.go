@@ -6,18 +6,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/aergoio/aergo-actor/actor"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/pkg/component"
-	common2 "github.com/aergoio/aergo/polaris/common"
-	"github.com/aergoio/aergo/polaris/server"
-	"github.com/spf13/cobra"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+
+	"github.com/aergoio/aergo-actor/actor"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	common2 "github.com/aergoio/aergo/v2/polaris/common"
+	"github.com/aergoio/aergo/v2/polaris/server"
+	"github.com/spf13/cobra"
 )
 
 func main() {

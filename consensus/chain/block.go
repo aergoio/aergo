@@ -1,18 +1,17 @@
 package chain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2putil"
-
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
@@ -23,7 +22,7 @@ var (
 	errBlockSizeLimit = errors.New("the transactions included exceeded the block size limit")
 )
 
-// ErrTimeout can be used to indicatefor any kind of timeout.
+// ErrTimeout can be used to indicate for any kind of timeout.
 type ErrTimeout struct {
 	Kind    string
 	Timeout int64
@@ -72,6 +71,7 @@ type BlockGenerator struct {
 	rejected *RejTxInfo
 	noTTE    bool // disable eviction by timeout if true
 
+	ctx              context.Context // block generation context
 	hs               component.ICompSyncRequester
 	bi               *types.BlockHeaderInfo
 	txOp             TxOp
@@ -80,11 +80,13 @@ type BlockGenerator struct {
 	maxBlockBodySize uint32
 }
 
-func NewBlockGenerator(hs component.ICompSyncRequester, bi *types.BlockHeaderInfo, bState *state.BlockState,
-	txOp TxOp, skipEmpty bool) *BlockGenerator {
+func NewBlockGenerator(hs component.ICompSyncRequester, ctx context.Context, bi *types.BlockHeaderInfo, bState *state.BlockState, txOp TxOp, skipEmpty bool) *BlockGenerator {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return &BlockGenerator{
-		bState: bState,
-
+		bState:           bState,
+		ctx:              ctx,
 		hs:               hs,
 		bi:               bi,
 		txOp:             txOp,
@@ -150,6 +152,7 @@ func (g *BlockGenerator) GenerateBlock() (*types.Block, error) {
 		logger.Debug().
 			Str("txroothash", types.EncodeB64(block.GetHeader().GetTxsRootHash())).
 			Int("hashed", len(txs)).
+			Int("no_receipts", len(bState.Receipts().Get())).
 			Msg("BF: tx root hash")
 	}
 
@@ -176,7 +179,8 @@ func (g *BlockGenerator) tteEnabled() bool {
 	return !g.noTTE
 }
 
-// ConnectBlock send an AddBlock request to the chain service.
+// ConnectBlock send an AddBlock request to the chain service. This method is called only when this node
+// produced a block.
 func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockState *state.BlockState, timeout time.Duration) error {
 	// blockState does not include a valid BlockHash since it is constructed
 	// from an incomplete block. So set it here.
@@ -206,7 +210,7 @@ func ConnectBlock(hs component.ICompSyncRequester, block *types.Block, blockStat
 }
 
 func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.BlockNo, peerID types.PeerID) error {
-	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Uint64("no", targetNo).
+	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Uint64("no", targetNo).
 		Str("hash", enc.ToString(targetHash)).Msg("request to sync for consensus")
 
 	notiC := make(chan error)
@@ -224,7 +228,7 @@ func SyncChain(hs *component.ComponentHub, targetHash []byte, targetNo types.Blo
 		}
 	}
 
-	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Msg("succeeded to sync for consensus")
+	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Msg("succeeded to sync for consensus")
 	// TODO check best block is equal to target Hash/no
 	return nil
 }

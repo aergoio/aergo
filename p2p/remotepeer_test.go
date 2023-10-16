@@ -8,18 +8,18 @@ package p2p
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"net"
 	"testing"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/gofrs/uuid"
 	"github.com/golang/mock/gomock"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -334,8 +334,8 @@ func TestRemotePeerImpl_UpdateBlkCache(t *testing.T) {
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
-			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+			sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, hash := range test.inCache {
@@ -366,8 +366,8 @@ func TestRemotePeerImpl_UpdateTxCache(t *testing.T) {
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
-			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+			sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 			target := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, hash := range test.inCache {
@@ -420,14 +420,14 @@ func TestRemotePeerImpl_GetReceiver(t *testing.T) {
 			mockPeerManager := new(p2pmock.MockPeerManager)
 			mockSigner := new(p2pmock.MockMsgSigner)
 			mockMF := new(p2pmock.MockMoFactory)
-			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+			sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 			mockMo := p2pmock.NewMockMsgOrder(ctrl)
 			mockMo.EXPECT().GetProtocolID().Return(p2pcommon.GetBlocksRequest).AnyTimes()
 
 			p := newRemotePeer(sampleRemote, 0, mockPeerManager, mockActor, logger, mockMF, mockSigner, nil)
 			for _, add := range test.toAdd {
-				p.requests[add] = &requestInfo{receiver: recvList[add],reqMO:mockMo}
+				p.requests[add] = &requestInfo{receiver: recvList[add], reqMO: mockMo}
 			}
 			actual := p.GetReceiver(test.inID)
 			assert.NotNil(t, actual)
@@ -475,8 +475,8 @@ func TestRemotePeerImpl_pushTxsNotice(t *testing.T) {
 			mockMF.EXPECT().NewMsgTxBroadcastOrder(gomock.Any()).Return(mockMO).
 				Times(test.expectSend)
 
-			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+			sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, mockMF, mockSigner, nil)
 			p.txNoticeQueue = p2putil.NewPressableQueue(maxTxHashSize)
@@ -530,8 +530,8 @@ func TestRemotePeer_writeToPeer(t *testing.T) {
 			mockMO.EXPECT().GetProtocolID().Return(p2pcommon.PingRequest).AnyTimes()
 			mockMO.EXPECT().GetMsgID().Return(sampleMsgID).AnyTimes()
 
-			sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn}
+			sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn}
 
 			p := newRemotePeer(sampleRemote, 0, mockPeerManager, nil, logger, nil, nil, dummyRW)
 			p.state.SetAndGet(types.RUNNING)
@@ -558,14 +558,13 @@ func Test_remotePeerImpl_handleMsg_InPanic(t *testing.T) {
 	msg.EXPECT().ID().Return(p2pcommon.NewMsgID()).AnyTimes()
 	msg.EXPECT().Payload().DoAndReturn(func() []byte {
 		panic("for test")
-		return nil
 	})
 	mockHandler := p2pmock.NewMockMessageHandler(ctrl)
 	mockHandler.EXPECT().PreHandle().AnyTimes()
 
 	p := &remotePeerImpl{
-		logger: logger,
-		handlers:make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
+		logger:   logger,
+		handlers: make(map[p2pcommon.SubProtocol]p2pcommon.MessageHandler),
 	}
 	p.handlers[p2pcommon.PingRequest] = mockHandler
 
@@ -593,17 +592,17 @@ func Test_remotePeerImpl_addCert(t *testing.T) {
 	sampleMeta := p2pcommon.NewMetaWith1Addr(peerID, addrs[0], 7846, "v2.0.0")
 	sampleMeta.Role = types.PeerRole_Agent
 	sampleMeta.ProducerIDs = bpIds
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
 
 	type fields struct {
 		prevCert []*p2pcommon.AgentCertificateV1
 	}
 
 	tests := []struct {
-		name   string
-		fields fields
-		args   *p2pcommon.AgentCertificateV1
-		wantAdd bool
+		name           string
+		fields         fields
+		args           *p2pcommon.AgentCertificateV1
+		wantAdd        bool
 		wantChangeRole bool
 	}{
 		{"TNew1", fields{bpCerts[:0]}, bpCerts[1], true, true},
@@ -616,12 +615,12 @@ func Test_remotePeerImpl_addCert(t *testing.T) {
 			defer ctrl.Finish()
 
 			prevRole := types.PeerRole_Watcher
-			preAdded := make([]*p2pcommon.AgentCertificateV1,len(tt.fields.prevCert))
+			preAdded := make([]*p2pcommon.AgentCertificateV1, len(tt.fields.prevCert))
 			if len(tt.fields.prevCert) > 0 {
 				copy(preAdded, tt.fields.prevCert)
 				prevRole = types.PeerRole_Agent
 			}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn, Certificates:preAdded, AcceptedRole:prevRole}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn, Certificates: preAdded, AcceptedRole: prevRole}
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 			expectSize := len(sampleRemote.Certificates)
@@ -632,13 +631,13 @@ func Test_remotePeerImpl_addCert(t *testing.T) {
 				mockPM.EXPECT().UpdatePeerRole(gomock.Any())
 			}
 			p := &remotePeerImpl{
-				logger:              logger,
-				remoteInfo:          sampleRemote,
-				pm: mockPM,
+				logger:     logger,
+				remoteInfo: sampleRemote,
+				pm:         mockPM,
 			}
 			p.addCert(tt.args)
 			if len(p.remoteInfo.Certificates) != expectSize {
-				t.Errorf("addCert() result size %v, want %v",len(p.remoteInfo.Certificates), expectSize)
+				t.Errorf("addCert() result size %v, want %v", len(p.remoteInfo.Certificates), expectSize)
 			}
 		})
 	}
@@ -651,7 +650,7 @@ func Test_remotePeerImpl_cleanupCerts(t *testing.T) {
 
 	bpSize := 4
 	oldSize := 2
-	yesterday := time.Now().Add(-time.Hour*24)
+	yesterday := time.Now().Add(-time.Hour * 24)
 	bpKeys := make([]crypto.PrivKey, bpSize)
 	bpIds := make([]types.PeerID, bpSize)
 	bpCerts := make([]*p2pcommon.AgentCertificateV1, bpSize)
@@ -667,16 +666,16 @@ func Test_remotePeerImpl_cleanupCerts(t *testing.T) {
 	sampleMeta := p2pcommon.NewMetaWith1Addr(peerID, addrs[0], 7846, "v2.0.0")
 	sampleMeta.Role = types.PeerRole_Agent
 	sampleMeta.ProducerIDs = bpIds
-	sampleConn := p2pcommon.RemoteConn{IP:net.ParseIP(sampleMeta.PrimaryAddress()),Port:sampleMeta.PrimaryPort()}
+	sampleConn := p2pcommon.RemoteConn{IP: net.ParseIP(sampleMeta.PrimaryAddress()), Port: sampleMeta.PrimaryPort()}
 
 	type fields struct {
 		prevCert []*p2pcommon.AgentCertificateV1
 	}
 
 	tests := []struct {
-		name   string
-		fields fields
-		wantSize int
+		name           string
+		fields         fields
+		wantSize       int
 		wantChangeRole bool
 	}{
 		{"TNothing", fields{bpCerts[:0]}, 0, false},
@@ -690,25 +689,25 @@ func Test_remotePeerImpl_cleanupCerts(t *testing.T) {
 			defer ctrl.Finish()
 
 			prevRole := types.PeerRole_Watcher
-			preAdded := make([]*p2pcommon.AgentCertificateV1,len(tt.fields.prevCert))
+			preAdded := make([]*p2pcommon.AgentCertificateV1, len(tt.fields.prevCert))
 			if len(tt.fields.prevCert) > 0 {
 				copy(preAdded, tt.fields.prevCert)
 				prevRole = types.PeerRole_Agent
 			}
-			sampleRemote := p2pcommon.RemoteInfo{Meta:sampleMeta, Connection:sampleConn, Certificates:preAdded, AcceptedRole:prevRole}
+			sampleRemote := p2pcommon.RemoteInfo{Meta: sampleMeta, Connection: sampleConn, Certificates: preAdded, AcceptedRole: prevRole}
 			mockPM := p2pmock.NewMockPeerManager(ctrl)
 
 			if tt.wantChangeRole {
 				mockPM.EXPECT().UpdatePeerRole(gomock.Any())
 			}
 			p := &remotePeerImpl{
-				logger:              logger,
-				remoteInfo:          sampleRemote,
-				pm: mockPM,
+				logger:     logger,
+				remoteInfo: sampleRemote,
+				pm:         mockPM,
 			}
 			p.cleanupCerts()
 			if len(p.remoteInfo.Certificates) != tt.wantSize {
-				t.Errorf("addCert() result size %v, want %v",len(p.remoteInfo.Certificates), tt.wantSize)
+				t.Errorf("addCert() result size %v, want %v", len(p.remoteInfo.Certificates), tt.wantSize)
 			}
 		})
 	}

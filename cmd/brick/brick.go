@@ -1,14 +1,15 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/cmd/brick/exec"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/cmd/brick/exec"
 	prompt "github.com/c-bata/go-prompt"
 )
 
@@ -80,7 +81,27 @@ func completerBroker(d prompt.Document) []prompt.Suggest {
 }
 
 func main() {
-	if len(os.Args) <= 1 {
+	flag.Usage = func() {
+		fmt.Fprintln(flag.CommandLine.Output(), "Usage:")
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s [-p] [-V] [-w] <filename>\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+	verbose := flag.Bool("V", false, "verbose output (only batch)")
+	watch := flag.Bool("w", false, "enable watch (only batch)")
+	private := flag.Bool("p", false, "enable private features")
+
+	flag.Parse()
+
+	var exitCode int
+
+	context.Open(*private)
+	defer func() {
+		context.Close()
+		os.Exit(exitCode)
+	}()
+
+	if flag.NArg() == 0 {
 		// cli mode
 		p := prompt.New(
 			exec.Broker,
@@ -93,23 +114,15 @@ func main() {
 	} else {
 		// call batch executor
 		cmd := "batch"
-		args := os.Args[1]
 
-		// set user-defined log level
-		if len(os.Args) > 2 {
-			for i := 2; i < len(os.Args); i++ {
-				if os.Args[i] == "-v" {
-					exec.EnableVerbose()
-				} else if os.Args[i] == "-w" {
-					exec.EnableWatch()
-				} else {
-					fmt.Println("Invalid Parameter. Usage: brick filename [-v|-w]\n\t-v\tverbose mode\n\t-w\twatch mode")
-					os.Exit(1)
-				}
-			}
+		if *verbose {
+			exec.EnableVerbose()
+		}
+		if *watch {
+			exec.EnableWatch()
 		}
 
-		exec.Execute(cmd, args)
-		os.Exit(exec.GetBatchErrorCount())
+		exec.Execute(cmd, flag.Arg(0))
+		exitCode = exec.GetBatchErrorCount()
 	}
 }

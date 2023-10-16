@@ -8,16 +8,17 @@ package p2p
 import (
 	"errors"
 	"fmt"
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-core/network"
 	"sort"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/libp2p/go-libp2p-core/network"
 )
 
-// connPeerResult is result of connection work of the waitingPeerManager. 
+// connPeerResult is result of connection work of the waitingPeerManager.
 type connPeerResult struct {
 	msgRW p2pcommon.MsgReadWriter
 
@@ -30,10 +31,10 @@ type connPeerResult struct {
 func NewWaitingPeerManager(logger *log.Logger, is p2pcommon.InternalService, pm *peerManager, lm p2pcommon.ListManager, maxCap int, useDiscover bool) p2pcommon.WaitingPeerManager {
 	var wpm p2pcommon.WaitingPeerManager
 	if !useDiscover {
-		sp := &staticWPManager{basePeerManager: basePeerManager{is:is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
+		sp := &staticWPManager{basePeerManager: basePeerManager{is: is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}}
 		wpm = sp
 	} else {
-		dp := &dynamicWPManager{basePeerManager: basePeerManager{is:is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
+		dp := &dynamicWPManager{basePeerManager: basePeerManager{is: is, pm: pm, lm: lm, logger: logger, workingJobs: make(map[types.PeerID]ConnWork)}, maxPeers: maxCap}
 		wpm = dp
 	}
 
@@ -54,7 +55,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	addr := s.Conn().RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(addr)
 	if err != nil {
-		dpm.logger.Warn().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Can't get ip address and port from inbound peer")
+		dpm.logger.Warn().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Can't get ip address and port from inbound peer")
 		s.Close()
 	}
 	conn := p2pcommon.RemoteConn{Outbound: false, IP: ip, Port: port}
@@ -62,7 +63,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 
 	dpm.logger.Info().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
 	if banned, _ := dpm.lm.IsBanned(ip.String(), peerID); banned {
-		dpm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("multiaddr", addr.String()).Msg("inbound peer is banned by list manager")
+		dpm.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("multiaddr", addr.String()).Msg("inbound peer is banned by list manager")
 		s.Close()
 		return
 	}
@@ -70,7 +71,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	query := inboundConnEvent{conn: conn, meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
-		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("same peer as inbound peer already exists.")
+		dpm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("same peer as inbound peer already exists.")
 		s.Close()
 		return
 	}
@@ -103,7 +104,7 @@ func (dpm *basePeerManager) InstantConnect(meta p2pcommon.PeerMeta) {
 	} else {
 		// add to waiting peer
 		_, designated := dpm.pm.designatedPeers[meta.ID]
-		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, Designated:designated, NextTrial: time.Now().Add(-time.Hour)}
+		dpm.pm.waitingPeers[meta.ID] = &p2pcommon.WaitingPeer{Meta: meta, Designated: designated, NextTrial: time.Now().Add(-time.Hour)}
 	}
 	dpm.connectWaitingPeers(1)
 }
@@ -132,7 +133,7 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 			//	dpm.logger.Info().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(wp.Meta)).Msg("Skipping banned peer")
 			//	continue
 			//}
-			dpm.logger.Info().Int("trial", wp.TrialCnt).Str(p2putil.LogPeerID, p2putil.ShortForm(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
+			dpm.logger.Info().Int("trial", wp.TrialCnt).Stringer(p2putil.LogPeerID, types.LogPeerShort(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
 
 			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID: wp.Meta.ID, StartTime: time.Now()}
 			go dpm.runTryOutboundConnect(wp)
@@ -167,7 +168,7 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 	meta := wp.Meta
 	s, err := dpm.getStream(meta)
 	if err != nil {
-		dpm.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to get stream.")
+		dpm.logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Failed to get stream.")
 		workResult.Result = err
 		return
 	}
@@ -180,7 +181,7 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 		return
 		//} else {
 		//	if meta.IPAddress != completeMeta.IPAddress {
-		//		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(completeMeta.ID)).Str("before", meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
+		//		dpm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(completeMeta.ID)).Str("before", meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
 		//	}
 	}
 }
@@ -205,7 +206,7 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (network.Stream, 
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	hResult, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
-		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
+		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Failed to handshake")
 		return meta, false
 	}
 
@@ -221,7 +222,7 @@ func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.Hand
 	rma := conn.RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(rma)
 	if err != nil {
-		panic("conn information is wrong : "+err.Error())
+		panic("conn information is wrong : " + err.Error())
 	}
 
 	connection := p2pcommon.RemoteConn{IP: ip, Port: port, Outbound: outbound}
@@ -239,7 +240,7 @@ func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.Hand
 		if len(r.Certificates) > 0 {
 			ri.AcceptedRole = types.PeerRole_Agent
 		} else {
-			dpm.logger.Debug().Str(p2putil.LogPeerID,p2putil.ShortForm(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
+			dpm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
 		}
 	default:
 		ri.AcceptedRole = r.Meta.Role
@@ -287,7 +288,7 @@ func (spm *staticWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := spm.pm.designatedPeers[peer.ID()]; ok {
 		spm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated:true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
+		spm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated: true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
 	}
 }
 
@@ -313,7 +314,7 @@ func (dpm *dynamicWPManager) OnPeerDisconnect(peer p2pcommon.RemotePeer) {
 	if _, ok := dpm.pm.designatedPeers[peer.ID()]; ok {
 		dpm.logger.Debug().Str(p2putil.LogPeerID, peer.Name()).Msg("server will try to reconnect designated peer after cooltime")
 		// These peers must have cool time.
-		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated:true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
+		dpm.pm.waitingPeers[peer.ID()] = &p2pcommon.WaitingPeer{Meta: peer.Meta(), Designated: true, NextTrial: time.Now().Add(firstReconnectCoolTime)}
 		//dpm.pm.addAwait(peer.Meta())
 	}
 }

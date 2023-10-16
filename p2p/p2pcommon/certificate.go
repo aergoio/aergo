@@ -2,31 +2,29 @@ package p2pcommon
 
 import (
 	"errors"
-	"github.com/aergoio/aergo/types"
-	"github.com/btcsuite/btcd/btcec"
 	"time"
+
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 var (
 	ErrInvalidCertVersion = errors.New("invalid certificate version")
-	ErrInvalidRole = errors.New("invalid peer role") // receiver is not bp or requester is not registered agent
-	ErrInvalidKey = errors.New("invalid key in certificate ")
-	ErrInvalidPeerID = errors.New("invalid peer id in certificate ")
+	ErrInvalidRole        = errors.New("invalid peer role") // receiver is not bp or requester is not registered agent
+	ErrInvalidKey         = errors.New("invalid key in certificate ")
+	ErrInvalidPeerID      = errors.New("invalid peer id in certificate ")
 	ErrVerificationFailed = errors.New("signature verification failed")
-	ErrMalformedCert    = errors.New("malformed certificate data")
-	ErrInvalidCertField = errors.New("invalid field in certificate ")
+	ErrMalformedCert      = errors.New("malformed certificate data")
+	ErrInvalidCertField   = errors.New("invalid field in certificate ")
 )
 
 const (
 	CertVersion0001 uint32 = 0x01
 )
 
-
 const (
 	timeErrorTolerance = time.Minute
-
 )
-
 
 // AgentCertificateV1 is a certificate issued by a block producer to guarantee that it is a trustworthy agent.
 type AgentCertificateV1 struct {
@@ -42,7 +40,7 @@ type AgentCertificateV1 struct {
 
 // IsValidInTime check if this certificate is expired
 func (c *AgentCertificateV1) IsValidInTime(t time.Time, errTolerance time.Duration) bool {
-	return (c.CreateTime.Sub(t) < errTolerance ) && t.Before(c.ExpireTime)
+	return (c.CreateTime.Sub(t) < errTolerance) && t.Before(c.ExpireTime)
 }
 
 // IsNeedUpdate check if this certificate need to be renewed.
@@ -72,4 +70,5 @@ type CertificateManager interface {
 
 	CanHandle(bpID types.PeerID) bool
 }
-//go:generate sh -c "mockgen github.com/aergoio/aergo/p2p/p2pcommon CertificateManager | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_certificate.go"
+
+//go:generate sh -c "mockgen github.com/aergoio/aergo/v2/p2p/p2pcommon CertificateManager | sed -e 's/^package mock_p2pcommon/package p2pmock/g' > ../p2pmock/mock_certificate.go"

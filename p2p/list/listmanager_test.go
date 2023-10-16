@@ -6,13 +6,14 @@
 package list
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract/enterprise"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
-	"github.com/golang/mock/gomock"
 	"testing"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/golang/mock/gomock"
 )
 
 func TestListManagerImpl_Start(t *testing.T) {
@@ -79,9 +80,9 @@ func Test_blacklistManagerImpl_IsBanned(t *testing.T) {
 	thirdAddr := "222.8.8.8"
 	thirdID := types.RandomPeerID()
 
-	IDOnly := `{"peerid":"`+id1.Pretty()+`"}`
-	AddrOnly := `{"address":"`+addr1+`"}`
-	IDAddr := `{"peerid":"`+idother.Pretty()+`", "address":"`+addrother+`"}`
+	IDOnly := `{"peerid":"` + id1.Pretty() + `"}`
+	AddrOnly := `{"address":"` + addr1 + `"}`
+	IDAddr := `{"peerid":"` + idother.Pretty() + `", "address":"` + addrother + `"}`
 
 	logger := log.NewLogger("p2p.list.test")
 	listCfg := &types.EnterpriseConfig{Key: enterprise.P2PWhite, On: true, Values: []string{IDOnly, AddrOnly, IDAddr}}

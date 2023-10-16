@@ -6,15 +6,15 @@
 package p2p
 
 import (
-	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
-	lru "github.com/hashicorp/golang-lru"
 	"time"
+
+	"github.com/aergoio/aergo-lib/log"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const inTxPeerBufSize = 4
@@ -31,7 +31,7 @@ type syncManager struct {
 
 func newSyncManager(actor p2pcommon.ActorService, pm p2pcommon.PeerManager, logger *log.Logger) p2pcommon.SyncManager {
 	var err error
-	sm := &syncManager{actor: actor, pm: pm, logger: logger,}
+	sm := &syncManager{actor: actor, pm: pm, logger: logger}
 	sm.tm = newTxSyncManager(sm, actor, pm, logger)
 
 	sm.blkCache, err = lru.New(DefaultGlobalBlockCacheSize)
@@ -88,7 +88,7 @@ func (sm *syncManager) HandleNewBlockNotice(peer p2pcommon.RemotePeer, data *typ
 	// request block info if selfnode does not have block already
 	foundBlock, _ := sm.actor.GetChainAccessor().GetBlock(data.BlockHash)
 	if foundBlock == nil {
-		sm.logger.Debug().Str(p2putil.LogBlkHash, enc.ToString(data.BlockHash)).Str(p2putil.LogPeerName, peer.Name()).Msg("new block notice of unknown hash. request back to notifier")
+		sm.logger.Debug().Stringer(p2putil.LogBlkHash, types.LogBase58(data.BlockHash)).Str(p2putil.LogPeerName, peer.Name()).Msg("new block notice of unknown hash. request back to notifier")
 		sm.actor.SendRequest(message.P2PSvc, &message.GetBlockInfos{ToWhom: peerID,
 			Hashes: []message.BlockHash{message.BlockHash(data.BlockHash)}})
 	}
@@ -132,22 +132,21 @@ func (sm *syncManager) RetryGetTx(peer p2pcommon.RemotePeer, hashes [][]byte) {
 	sm.tm.retryGetTx(peer.ID(), hashes)
 }
 
-
 func (sm *syncManager) Summary() map[string]interface{} {
 	type sizes struct {
 		fcSize, qSize int
 	}
-	var retChan = make(chan sizes,1)
+	var retChan = make(chan sizes, 1)
 	sm.tm.taskChannel <- func() {
-		retChan<-sizes{fcSize:len(sm.tm.frontCache), qSize:sm.tm.toNoticeIdQueue.Len()}
+		retChan <- sizes{fcSize: len(sm.tm.frontCache), qSize: sm.tm.toNoticeIdQueue.Len()}
 	}
 
 	txMap := make(map[string]interface{})
 	select {
-	case s := <- retChan:
+	case s := <-retChan:
 		txMap["queryQueue"] = s.qSize
 		txMap["frontCache"] = s.fcSize
-	case <- time.NewTimer(time.Millisecond<<4).C:
+	case <-time.NewTimer(time.Millisecond << 4).C:
 		// timeout
 	}
 	// There can be a little error

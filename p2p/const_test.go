@@ -10,14 +10,15 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"testing"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"testing"
 )
 
 // this file collect sample global constants used in unit test. I'm tired of creating less meaningful variables in each tests.
@@ -37,7 +38,7 @@ func init() {
 	samplePeerID, _ = types.IDB58Decode("16Uiu2HAkvvhjxVm2WE9yFBDdPQ9qx6pX9taF6TTwDNHs8VPi1EeR")
 	sampleErr = fmt.Errorf("err in unittest")
 	sampleMA, _ := types.ParseMultiaddr("/ip4/192.168.1.2/tcp/7846")
-	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, Addresses:[]types.Multiaddr{sampleMA}}
+	sampleMeta = p2pcommon.PeerMeta{ID: samplePeerID, Addresses: []types.Multiaddr{sampleMA}}
 
 }
 
@@ -146,17 +147,17 @@ func createDummyMo(ctrl *gomock.Controller) *p2pmock.MockMsgOrder {
 }
 
 func TestTXIDs(t *testing.T) {
-	for i:=0; i<len(sampleTxIDs); i++ {
+	for i := 0; i < len(sampleTxIDs); i++ {
 		if !bytes.Equal(sampleTxs[i], sampleTxIDs[i][:]) {
-			t.Errorf("TX hash %v and converted ID %v are differ.",enc.ToString(sampleTxs[i]), sampleTxIDs[i])
+			t.Errorf("TX hash %v and converted ID %v are differ.", enc.ToString(sampleTxs[i]), sampleTxIDs[i])
 		}
 	}
 }
 
 func TestBlockIDs(t *testing.T) {
-	for i:=0; i<len(sampleBlksIDs); i++ {
+	for i := 0; i < len(sampleBlksIDs); i++ {
 		if !bytes.Equal(sampleBlks[i], sampleBlksIDs[i][:]) {
-			t.Errorf("TX hash %v and converted ID %v are differ.",enc.ToString(sampleBlks[i]), sampleBlksIDs[i])
+			t.Errorf("TX hash %v and converted ID %v are differ.", enc.ToString(sampleBlks[i]), sampleBlksIDs[i])
 		}
 	}
 }
@@ -261,7 +262,7 @@ var testIn = []string{
 	"4uuTDcGAX6hqFxp2B9VAdJnSSydBwF3NdMyyZrgArsGe",
 	"EH9qmdvLvrnbD6uoTDxbT8Zwq2ZaPSYXtnAtqeLsXAXp",
 	"FLhRBjMdk8BMLsEZHH7v5A9FciFarydJfmygzVoNgwC5",
-	"EuTYz2vQcaPXGzmzbWjQb9fDgq34Sb3ZgLoU2sLJUnLg",	
+	"EuTYz2vQcaPXGzmzbWjQb9fDgq34Sb3ZgLoU2sLJUnLg",
 }
 
 func TestMoreTXIDs(t *testing.T) {
@@ -269,9 +270,9 @@ func TestMoreTXIDs(t *testing.T) {
 		hash, _ := enc.ToBytes(in)
 		id, err := types.ParseToTxID(hash)
 		if err != nil {
-			t.Errorf("Failed to parse TX hash %v : %v",enc.ToString(hash), err)
+			t.Errorf("Failed to parse TX hash %v : %v", enc.ToString(hash), err)
 		} else if !bytes.Equal(hash, id[:]) {
-			t.Errorf("TX hash %v and converted ID %v are differ.",enc.ToString(hash), id)
+			t.Errorf("TX hash %v and converted ID %v are differ.", enc.ToString(hash), id)
 		}
 	}
 }

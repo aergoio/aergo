@@ -7,23 +7,17 @@ package trie
 
 import (
 	"bytes"
-	"runtime"
-
-	//"io/ioutil"
-	"os"
-	"path"
-	"time"
-
-	//"encoding/hex"
 	"fmt"
 	"math/rand"
+	"os"
+	"path"
+	"runtime"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/internal/common"
-	//"github.com/dgraph-io/badger"
-	//"github.com/dgraph-io/badger/options"
+	"github.com/aergoio/aergo/v2/internal/common"
 )
 
 func TestTrieEmpty(t *testing.T) {
@@ -417,12 +411,12 @@ func TestTrieRevert(t *testing.T) {
 		t.Fatal("live cache not reset after revert")
 	}
 	// Check all reverted nodes have been deleted
-	for node, _ := range updatedNodes2 {
+	for node := range updatedNodes2 {
 		if len(smt.db.Store.Get(node[:])) != 0 {
 			t.Fatal("nodes not deleted from database", node)
 		}
 	}
-	for node, _ := range updatedNodes1 {
+	for node := range updatedNodes1 {
 		if len(smt.db.Store.Get(node[:])) != 0 {
 			t.Fatal("nodes not deleted from database", node)
 		}
@@ -672,7 +666,7 @@ func benchmark10MAccounts10Ktps(smt *Trie, b *testing.B) {
 	}
 }
 
-//go test -run=xxx -bench=. -benchmem -test.benchtime=20s
+// go test -run=xxx -bench=. -benchmem -test.benchtime=20s
 func BenchmarkCacheHeightLimit233(b *testing.B) {
 	dbPath := path.Join(".aergo", "db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {

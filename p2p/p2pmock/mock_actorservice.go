@@ -6,7 +6,7 @@ package p2pmock
 
 import (
 	actor "github.com/aergoio/aergo-actor/actor"
-	types "github.com/aergoio/aergo/types"
+	types "github.com/aergoio/aergo/v2/types"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 	time "time"

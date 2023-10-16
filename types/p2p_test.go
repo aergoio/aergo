@@ -8,10 +8,11 @@ package types
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/aergoio/aergo/internal/enc"
+	"testing"
+
+	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestUnmarshalSize(t *testing.T) {
@@ -23,8 +24,8 @@ func TestUnmarshalSize(t *testing.T) {
 	expectedLen := proto.Size(sample)
 	actual, err := proto.Marshal(sample)
 	assert.Nil(t, err)
-	fmt.Println("Empty notice size ",len(actual))
-	assert.Equal(t,expectedLen, len(actual) )
+	fmt.Println("Empty notice size ", len(actual))
+	assert.Equal(t, expectedLen, len(actual))
 
 	// single member
 	hashes := make([][]byte, 0, 10)
@@ -33,34 +34,34 @@ func TestUnmarshalSize(t *testing.T) {
 	expectedLen = proto.Size(sample)
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
-	fmt.Println("Single hash notice size ",len(actual))
+	fmt.Println("Single hash notice size ", len(actual))
 	fmt.Println("Hex: ", hex.EncodeToString(actual))
-	assert.Equal(t,expectedLen, len(actual) )
+	assert.Equal(t, expectedLen, len(actual))
 
 	// 100 hashes
-	hashes = make([][]byte,100)
-	for i:=0; i<100 ; i++ {
+	hashes = make([][]byte, 100)
+	for i := 0; i < 100; i++ {
 		hashes[i] = dummyTxHash
 	}
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
-	fmt.Println("Hundred hashes notice size ",len(actual))
+	fmt.Println("Hundred hashes notice size ", len(actual))
 	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
-	assert.Equal(t,expectedLen, len(actual) )
+	assert.Equal(t, expectedLen, len(actual))
 
 	// 1000 hashes
-	hashes = make([][]byte,1000)
-	for i:=0; i<1000 ; i++ {
+	hashes = make([][]byte, 1000)
+	for i := 0; i < 1000; i++ {
 		hashes[i] = dummyTxHash
 	}
 	sample.TxHashes = hashes
 	expectedLen = proto.Size(sample)
 	actual, err = proto.Marshal(sample)
 	assert.Nil(t, err)
-	fmt.Println("Thousand hashes notice size ",len(actual))
+	fmt.Println("Thousand hashes notice size ", len(actual))
 	fmt.Println("Hex: ", hex.EncodeToString(actual[0:40]))
-	assert.Equal(t,expectedLen, len(actual) )
+	assert.Equal(t, expectedLen, len(actual))
 
 }

@@ -17,4 +17,3 @@ type HostAccessor interface {
 	// StartTime is the time when server was booted
 	StartTime() time.Time
 }
-

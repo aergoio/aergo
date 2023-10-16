@@ -17,7 +17,7 @@ func TestChannelPipe(t *testing.T) {
 		mos[i] = &testItem{i}
 	}
 
-	logger := log.NewLogger("test")
+	logger := log.NewLogger("test.channel")
 	tests := []struct {
 		name     string
 		cap      int
@@ -49,7 +49,7 @@ func TestChannelPipe(t *testing.T) {
 			actStat := statListener
 			lock.Unlock()
 
-			fmt.Printf("In %d , out %d , consecutive drop %d\n", actStat.incnt, actStat.outcnt, actStat.consecdrop)
+			t.Logf("In %d , out %d , consecutive drop %d\n", actStat.incnt, actStat.outcnt, actStat.consecdrop)
 			assert.True(t, actStat.incnt == arrSize)
 			if tt.expectConsec == 0 {
 				assert.Equal(t, uint64(consumeCount), actStat.outcnt)
@@ -70,7 +70,7 @@ func Test_nonBlockWriteChan2(t *testing.T) {
 	for i := 0; i < arrSize; i++ {
 		mos[i] = &testItem{i}
 	}
-	logger := log.NewLogger("test")
+	logger := log.NewLogger("test.channel")
 
 	tests := []struct {
 		name     string
@@ -203,7 +203,7 @@ func TestLongTerm(t *testing.T) {
 		mos[i] = &testItem{i}
 	}
 
-	logger := log.NewLogger("test")
+	logger := log.NewLogger("test.channel")
 	tests := []struct {
 		name     string
 		cap      int

@@ -64,8 +64,8 @@ func TestNewListEntry(t *testing.T) {
 						t.Errorf("ParseListEntry().IpNet = %v, want not", got.IpNet)
 					}
 				} else {
-					m,b := got.IpNet.Mask.Size()
-					if (m==b) != (tt.wantAddr==addr) {
+					m, b := got.IpNet.Mask.Size()
+					if (m == b) != (tt.wantAddr == addr) {
 						t.Errorf("ParseListEntry().IpNet = %v, want type %v ", got.IpNet, tt.wantAddr)
 					}
 				}

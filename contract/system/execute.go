@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58"
 )
 
-//SystemContext is context of executing aergo.system transaction and filled after validation.
+// SystemContext is context of executing aergo.system transaction and filled after validation.
 type SystemContext struct {
 	BlockInfo *types.BlockHeaderInfo
 	Call      *types.CallInfo
@@ -62,10 +62,10 @@ func newSysCmd(account []byte, txBody *types.TxBody, sender, receiver *state.V,
 	scs *state.ContractState, blockInfo *types.BlockHeaderInfo) (sysCmd, error) {
 
 	cmds := map[types.OpSysTx]sysCmdCtor{
-		types.OpvoteBP:    newVoteCmd,
+		types.OpvoteBP:  newVoteCmd,
 		types.OpvoteDAO: newVoteCmd,
-		types.Opstake:     newStakeCmd,
-		types.Opunstake:   newUnstakeCmd,
+		types.Opstake:   newStakeCmd,
+		types.Opunstake: newUnstakeCmd,
 	}
 
 	context, err := newSystemContext(account, txBody, sender, receiver, scs, blockInfo)

@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58"
 )
 
@@ -107,7 +107,7 @@ func (vr *VoteResult) buildVoteList() *types.VoteList {
 	return &voteList
 }
 
-//Sync is write vote result data to state DB. if vote result over the threshold,
+// Sync is write vote result data to state DB. if vote result over the threshold,
 func (vr *VoteResult) Sync() error {
 	votingPowerRank.apply(vr.scs)
 	resultList := vr.buildVoteList()
@@ -117,7 +117,7 @@ func (vr *VoteResult) Sync() error {
 			if !ok {
 				return fmt.Errorf("abnormal winner is in vote %s", string(vr.key))
 			}
-			if _, err := updateParam(vr.scs, string(vr.key), value); err != nil {
+			if err := updateParam(vr.scs, string(vr.key), value); err != nil {
 				return err
 			}
 		}

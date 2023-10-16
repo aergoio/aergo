@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // txList is internal struct for transactions per account
@@ -176,7 +176,7 @@ func (tl *txList) updateReady() {
 	}
 }
 
-//RemoveTx will remove a transaction in the list and return the number of changed orphan, removed transaction
+// RemoveTx will remove a transaction in the list and return the number of changed orphan, removed transaction
 func (tl *txList) RemoveTx(tx *types.Tx) (int, types.Transaction) {
 	oldLen := tl.Len()
 	for i, x := range tl.list {
@@ -222,7 +222,7 @@ func (tl *txList) GetAll() []types.Transaction {
 
 }
 
-func (tl *txList) len() int {
+func (tl *txList) allLen() int {
 	return len(tl.list)
 }
 

@@ -1,14 +1,15 @@
 package subproto
 
 import (
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
-	"github.com/libp2p/go-libp2p-core/network"
 	"testing"
 
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/libp2p/go-libp2p-core/network"
+
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
 	"github.com/golang/mock/gomock"
 )
 
@@ -123,4 +124,3 @@ func Test_pingRequestHandler_handle(t *testing.T) {
 		})
 	}
 }
-

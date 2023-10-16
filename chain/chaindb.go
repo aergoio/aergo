@@ -15,11 +15,11 @@ import (
 	"sync/atomic"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -336,7 +336,7 @@ func (cdb *ChainDB) GetGenesisInfo() *types.Genesis {
 
 			// genesis.ID is overwritten by the genesis block's chain
 			// id. Prefer the latter since it is sort of protected the block
-			// chain system (all the chaild blocks connected to the genesis
+			// chain system (all the child blocks connected to the genesis
 			// block).
 			rawCid := genesis.Block().GetHeader().GetChainID()
 			if len(rawCid) > 0 {
@@ -386,7 +386,7 @@ func (cdb *ChainDB) connectToChain(dbtx db.Transaction, block *types.Block, skip
 	// Save the last consensus status.
 	if cdb.cc != nil {
 		if err := cdb.cc.Save(dbtx); err != nil {
-			logger.Error().Err(err).Msg("failed to save DPoS status")
+			logger.Error().Err(err).Uint64("blockNo", blockNo).Msg("failed to save DPoS status")
 		}
 	}
 
@@ -571,16 +571,19 @@ func (cdb *ChainDB) dropBlock(dropNo types.BlockNo) error {
 }
 
 func (cdb *ChainDB) getBestBlockNo() (latestNo types.BlockNo) {
+	var ok bool
+
 	aopv := cdb.latest.Load()
-	if aopv != nil {
-		latestNo = aopv.(types.BlockNo)
-	} else {
-		panic("ChainDB:latest is nil")
+	if aopv == nil {
+		logger.Panic().Msg("ChainService: latest is nil")
+	}
+	if latestNo, ok = aopv.(types.BlockNo); !ok {
+		logger.Panic().Msg("ChainService: latest is not types.BlockNo")
 	}
 	return latestNo
 }
 
-// GetBlockByNo returns the block with its block number as blockNo.
+// GetBlockByNo returns the block of which number is blockNo.
 func (cdb *ChainDB) GetBlockByNo(blockNo types.BlockNo) (*types.Block, error) {
 	blockHash, err := cdb.getHashByNo(blockNo)
 	if err != nil {
@@ -785,7 +788,7 @@ func (cdb *ChainDB) IsNew() bool {
 	return true
 }
 
-func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
+func (cdb *ChainDB) Hardfork(hConfig config.HardforkConfig) config.HardforkDbConfig {
 	var c config.HardforkDbConfig
 	data := cdb.store.Get(hardforkKey)
 	if len(data) == 0 {
@@ -794,7 +797,10 @@ func (cdb *ChainDB) Hardfork() config.HardforkDbConfig {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil
 	}
-	return c
+	// When a new hardkfork height is added, the hardfork config from DB  (HardforkDBConfig)
+	// must be modified by using the height from HardforkConfig. Without this, aergosvr fails
+	// to start, since a harfork heght value not stored on DB is evaluated as 0.
+	return c.FixDbConfig(hConfig)
 }
 
 func (cdb *ChainDB) WriteHardfork(c *config.HardforkConfig) error {
