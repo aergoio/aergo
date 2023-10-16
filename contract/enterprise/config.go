@@ -48,7 +48,7 @@ func (c *Conf) Validate(key []byte, context *EnterpriseContext) error {
 	if !c.On {
 		return nil
 	}
-	strKey := string(key)
+	strKey := strings.ToUpper(string(key))
 	switch strKey {
 	case RPCPermissions:
 		for _, v := range c.Values {
@@ -112,7 +112,7 @@ func enableConf(scs *state.ContractState, key []byte, value bool) (*Conf, error)
 }
 
 func getConf(scs *state.ContractState, key []byte) (*Conf, error) {
-	data, err := scs.GetData(dbkey.EnterpriseConf(genKey(key)))
+	data, err := scs.GetData(dbkey.EnterpriseConf(key))
 	if err != nil || data == nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func setConfValues(scs *state.ContractState, key []byte, values []string) (*Conf
 }
 
 func setConf(scs *state.ContractState, key []byte, conf *Conf) error {
-	return scs.SetData(dbkey.EnterpriseConf(genKey(key)), serializeConf(conf))
+	return scs.SetData(dbkey.EnterpriseConf(key), serializeConf(conf))
 }
 
 func serializeConf(c *Conf) []byte {
@@ -159,8 +159,4 @@ func deserializeConf(data []byte) *Conf {
 		ret.On = true
 	}
 	return ret
-}
-
-func genKey(key []byte) []byte {
-	return []byte(strings.ToUpper(string(key)))
 }
