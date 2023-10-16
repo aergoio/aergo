@@ -117,7 +117,7 @@ func (vr *VoteResult) Sync() error {
 			if !ok {
 				return fmt.Errorf("abnormal winner is in vote %s", string(vr.key))
 			}
-			if _, err := updateParam(vr.scs, string(vr.key), value); err != nil {
+			if err := updateParam(vr.scs, string(vr.key), value); err != nil {
 				return err
 			}
 		}
