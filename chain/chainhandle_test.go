@@ -13,7 +13,6 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/account/key"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/contract/system"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
@@ -37,7 +36,6 @@ func initTest(t *testing.T, testmode bool) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	types.InitGovernance("dpos", true)
-	system.InitGovernance("dpos")
 
 }
 

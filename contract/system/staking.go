@@ -14,18 +14,12 @@ import (
 	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
-var consensusType string
-
 var (
 	ErrInvalidCandidate = errors.New("invalid candidate")
 )
 
 const StakingDelay = 60 * 60 * 24 //block interval
 //const StakingDelay = 5
-
-func InitGovernance(consensus string) {
-	consensusType = consensus
-}
 
 type stakeCmd struct {
 	*SystemContext
@@ -59,23 +53,18 @@ func (c *stakeCmd) run() (*types.Event, error) {
 	}
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
+
+	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
-		return &types.Event{
-			ContractAddress: receiver.ID(),
-			EventIdx:        0,
-			EventName:       "stake",
-			JsonArgs: `{"who":"` +
-				types.EncodeAddress(sender.ID()) +
-				`", "amount":"` + amount.String() + `"}`,
-		}, nil
+		jsonArgs = `{"who":"` + types.EncodeAddress(sender.ID()) + `", "amount":"` + amount.String() + `"}`
+	} else {
+		jsonArgs = `["` + types.EncodeAddress(sender.ID()) + `", {"_bignum":"` + amount.String() + `"}]`
 	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "stake",
-		JsonArgs: `["` +
-			types.EncodeAddress(sender.ID()) +
-			`", {"_bignum":"` + amount.String() + `"}]`,
+		JsonArgs:        jsonArgs,
 	}, nil
 }
 
@@ -112,23 +101,18 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}
 	sender.AddBalance(balanceAdjustment)
 	receiver.SubBalance(balanceAdjustment)
+
+	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
-		return &types.Event{
-			ContractAddress: receiver.ID(),
-			EventIdx:        0,
-			EventName:       "unstake",
-			JsonArgs: `{"who":"` +
-				types.EncodeAddress(sender.ID()) +
-				`", "amount":"` + balanceAdjustment.String() + `"}`,
-		}, nil
+		jsonArgs = `{"who":"` + types.EncodeAddress(sender.ID()) + `", "amount":"` + balanceAdjustment.String() + `"}`
+	} else {
+		jsonArgs = `["` + types.EncodeAddress(sender.ID()) + `", {"_bignum":"` + balanceAdjustment.String() + `"}]`
 	}
 	return &types.Event{
 		ContractAddress: receiver.ID(),
 		EventIdx:        0,
 		EventName:       "unstake",
-		JsonArgs: `["` +
-			types.EncodeAddress(sender.ID()) +
-			`", {"_bignum":"` + balanceAdjustment.String() + `"}]`,
+		JsonArgs:        jsonArgs,
 	}, nil
 }
 

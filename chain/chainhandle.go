@@ -603,7 +603,7 @@ func newBlockExecutor(cs *ChainService, bState *state.BlockState, block *types.B
 		// executed by the block factory.
 		commitOnly = true
 	}
-	bState.SetGasPrice(system.GetGasPriceFromState(bState))
+	bState.SetGasPrice(system.GetGasPrice())
 	bState.Receipts().SetHardFork(cs.cfg.Hardfork, block.BlockNo())
 
 	return &blockExecutor{
