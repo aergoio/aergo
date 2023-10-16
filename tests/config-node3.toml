@@ -1,8 +1,6 @@
 # aergo TOML Configuration File (https://github.com/toml-lang/toml)
 # base configurations
-#datadir = "./data"
-enableprofile = true
-profileport = 6060
+enableprofile = false
 
 [rpc]
 netserviceaddr = "0.0.0.0"
@@ -36,7 +34,6 @@ maxblocksize = 1000000
 
 [mempool]
 showmetrics = false
-#dumpfilepath ="./data1/mempool.dump"
 
 [consensus]
 enablebp = true

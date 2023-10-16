@@ -32,9 +32,6 @@ stop_nodes() {
     kill $pid
   else
     kill $pid1 $pid2 $pid3
-    #kill $pid1
-    #kill $pid2
-    #kill $pid3
   fi
 
 }
