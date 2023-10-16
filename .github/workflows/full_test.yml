@@ -61,9 +61,8 @@ jobs:
 
     - name: Integration Tests
       run: |
-        if [ -d "tests" ]; then
-          cd tests
-          ./run_tests.sh
-        else
-          echo "The 'tests' folder does not exist."
-        fi
+        cd tests
+        ./run_tests.sh brick
+        ./run_tests.sh sbp
+        ./run_tests.sh dpos
+        ./run_tests.sh raft
