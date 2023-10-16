@@ -237,7 +237,7 @@ func (bf *BlockFactory) Ticker() *time.Ticker {
 	return time.NewTicker(BlockFactoryTickMs)
 }
 
-// QueueJob send a block triggering information to jq.
+// QueueJob send a block triggering information to jq, and hold to wait
 func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 	bf.jobLock.Lock()
 	defer bf.jobLock.Unlock()
@@ -279,6 +279,7 @@ func (bf *BlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 
 		logger.Debug().Str("work", work.ToString()).Str("prev", prevToString(prev)).Msg("new work generated")
 		jq <- work
+		time.Sleep(BlockIntervalMs)
 	}
 }
 
