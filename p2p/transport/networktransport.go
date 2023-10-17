@@ -117,12 +117,12 @@ func (sl *networkTransport) AddStreamHandler(pid core.ProtocolID, handler networ
 func (sl *networkTransport) GetOrCreateStreamWithTTL(meta p2pcommon.PeerMeta, ttl time.Duration, protocolIDs ...core.ProtocolID) (core.Stream, error) {
 	var peerAddr = meta.Addresses[0]
 	var peerID = meta.ID
-	sl.logger.Debug().Str("peerAddr", peerAddr.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("connecting to peer")
+	sl.logger.Debug().Str("peerAddr", peerAddr.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("connecting to peer")
 	sl.Peerstore().AddAddr(peerID, peerAddr, ttl)
 	ctx := context.Background()
 	s, err := sl.NewStream(ctx, peerID, protocolIDs...)
 	if err != nil {
-		sl.logger.Info().Err(err).Str("addr", peerAddr.String()).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Str("p2p_proto", p2putil.ProtocolIDsToString(protocolIDs)).Msg("Error while get stream")
+		sl.logger.Info().Err(err).Str("addr", peerAddr.String()).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Str("p2p_proto", p2putil.ProtocolIDsToString(protocolIDs)).Msg("Error while get stream")
 		return nil, err
 	}
 	return s, nil
@@ -178,7 +178,7 @@ func (sl *networkTransport) startListener() {
 		panic(err.Error())
 	}
 	sl.Host = newHost
-	sl.logger.Info().Str(p2putil.LogFullID, sl.ID().Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(sl.ID())).Str("addr[0]", listens[0].String()).Msg("Set self node's pid, and listening for connections")
+	sl.logger.Info().Str(p2putil.LogFullID, sl.ID().Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(sl.ID())).Str("addr[0]", listens[0].String()).Msg("Set self node's pid, and listening for connections")
 }
 
 func (sl *networkTransport) Stop() error {

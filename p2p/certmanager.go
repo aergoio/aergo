@@ -81,7 +81,7 @@ type bpCertificateManager struct {
 func (cm *bpCertificateManager) CreateCertificate(remoteMeta p2pcommon.PeerMeta) (*p2pcommon.AgentCertificateV1, error) {
 	if !types.IsSamePeerID(cm.settings.AgentID, remoteMeta.ID) {
 		// this agent is not in charge of that bp id.
-		cm.logger.Info().Str("agentID", p2putil.ShortForm(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
+		cm.logger.Info().Stringer("agentID", types.LogPeerShort(remoteMeta.ID)).Msg("failed to issue certificate, since peer is not registered agent")
 		return nil, p2pcommon.ErrInvalidRole
 	}
 
@@ -161,12 +161,12 @@ func (cm *agentCertificateManager) AddCertificate(cert *p2pcommon.AgentCertifica
 	defer cm.mutex.Unlock()
 	if !p2putil.ContainsID(cm.self.ProducerIDs, cert.BPID) {
 		// this agent is not in charge of that bp id.
-		cm.logger.Info().Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("drop issued certificate, since issuer is not my managed producer")
+		cm.logger.Info().Stringer("bpID", types.LogPeerShort(cert.BPID)).Msg("drop issued certificate, since issuer is not my managed producer")
 		return
 	}
 	if !types.IsSamePeerID(cm.self.ID, cert.AgentID) {
 		// this certificate is not my certificate
-		cm.logger.Info().Str("bpID", p2putil.ShortForm(cert.BPID)).Str("agentID", p2putil.ShortForm(cert.AgentID)).Msg("drop issued certificate, since agent id is not me")
+		cm.logger.Info().Stringer("bpID", types.LogPeerShort(cert.BPID)).Stringer("agentID", types.LogPeerShort(cert.AgentID)).Msg("drop issued certificate, since agent id is not me")
 		return
 	}
 
