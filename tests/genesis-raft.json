@@ -1,0 +1,31 @@
+{
+    "chain_id":{
+        "magic":"test.chain",
+        "public":true,
+        "mainnet":false,
+        "consensus":"raft"
+    },
+		"timestamp": 1559883600000000000,
+    "balance": {
+        "AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R": "1000000000000000000000"
+    },
+    "bps": [
+    ],
+    "enterprise_bps": [
+      {
+        "name": "bp01",
+        "address": "/ip4/127.0.0.1/tcp/2001",
+        "peerid": "16Uiu2HAmG4PSXYUxkPbNb7qTcEExFpgAwBrm3hB32aJXuvX2f1sd"
+      },
+      {
+        "name": "bp02",
+        "address": "/ip4/127.0.0.1/tcp/2002",
+        "peerid": "16Uiu2HAmMzncFmnpjigZJRoraToKkABvZimMUAyXf6bdrZeN7mbJ"
+      },
+      {
+        "name": "bp03",
+        "address": "/ip4/127.0.0.1/tcp/2003",
+        "peerid": "16Uiu2HAmKB7RYXe1uHNYMtkuuM2fEHxsv6P9PZ45ogJw6aZD3y7x"
+      }
+    ]
+}

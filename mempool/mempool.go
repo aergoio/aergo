@@ -586,12 +586,7 @@ func (mp *MemPool) getNameDest(account []byte, owner bool) []byte {
 		return account
 	}
 
-	nameState, err := mp.getAccountState([]byte(types.AergoName))
-	if err != nil {
-		mp.Error().Str("for name", string(account)).Msgf("failed to get state %s", types.AergoName)
-		return nil
-	}
-	scs, err := mp.stateDB.OpenContractState(types.ToAccountID([]byte(types.AergoName)), nameState)
+	scs, err := mp.stateDB.GetNameAccountState()
 	if err != nil {
 		mp.Error().Str("for name", string(account)).Msgf("failed to open contract %s", types.AergoName)
 		return nil
@@ -681,19 +676,15 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			systemcs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-			if err != nil {
-				return err
-			}
 			sender, err := mp.stateDB.GetAccountStateV(account)
 			if err != nil {
 				return err
 			}
-			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
+			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs); err != nil {
 				return err
 			}
 		case types.AergoEnterprise:
-			enterprisecs, err := mp.stateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoEnterprise)))
+			enterprisecs, err := mp.stateDB.GetEnterpriseAccountState()
 			if err != nil {
 				return err
 			}

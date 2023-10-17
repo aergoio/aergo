@@ -52,7 +52,7 @@ func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	}
 
 	// generate response message
-	ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("Sending ping response")
+	ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("Sending ping response")
 	resp := &types.Pong{}
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.PingResponse, resp))
 }

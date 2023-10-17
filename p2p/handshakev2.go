@@ -72,7 +72,7 @@ func (h *InboundWireHandshaker) handleInboundPeer(ctx context.Context, rwc io.Re
 	if bestVer == p2pcommon.P2PVersionUnknown {
 		return h.writeErrAndReturn(fmt.Errorf("no matched p2p version for %v", hsReq.Versions), p2pcommon.HSCodeNoMatchedVersion, rwc)
 	} else {
-		h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("version", bestVer.String()).Msg("Responding best p2p version")
+		h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Str("version", bestVer.String()).Msg("Responding best p2p version")
 		resp := p2pcommon.HSHeadResp{Magic: hsReq.Magic, RespCode: bestVer.Uint32()}
 		err = h.writeWireHSResponse(resp, rwc)
 		select {
@@ -138,7 +138,7 @@ func (h *OutboundWireHandshaker) handleOutboundPeer(ctx context.Context, rwc io.
 		return nil, fmt.Errorf("remote peer failed: %v", respHeader.RespCode)
 	}
 	bestVersion := p2pcommon.P2PVersion(respHeader.RespCode)
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("version", bestVersion.String()).Msg("Responded best p2p version")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Str("version", bestVersion.String()).Msg("Responded best p2p version")
 	// continue to handshake with VersionedHandshaker
 	innerHS, err := h.verM.GetVersionedHandshaker(bestVersion, h.peerID, rwc)
 	if err != nil {
