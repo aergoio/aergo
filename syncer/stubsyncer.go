@@ -11,7 +11,6 @@ import (
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/message"
-	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/stretchr/testify/assert"
@@ -212,9 +211,9 @@ func (syncer *StubSyncer) GetAnchors(msg *message.GetAnchors) {
 	go func() {
 		if syncer.cfg.debugContext.debugFinder {
 			if syncer.stubPeers[0].timeDelaySec > 0 {
-				logger.Debug().Str("peer", p2putil.ShortForm(types.PeerID(syncer.stubPeers[0].addr.PeerID))).Msg("slow target peer sleep")
+				logger.Debug().Stringer("peer", types.LogPeerShort(types.PeerID(syncer.stubPeers[0].addr.PeerID))).Msg("slow target peer sleep")
 				time.Sleep(syncer.stubPeers[0].timeDelaySec)
-				logger.Debug().Str("peer", p2putil.ShortForm(types.PeerID(syncer.stubPeers[0].addr.PeerID))).Msg("slow target peer wakeup")
+				logger.Debug().Stringer("peer", types.LogPeerShort(types.PeerID(syncer.stubPeers[0].addr.PeerID))).Msg("slow target peer wakeup")
 			}
 		}
 
@@ -274,9 +273,9 @@ func (syncer *StubSyncer) GetBlockChunks(msg *message.GetBlockChunks) {
 	}
 	go func() {
 		if stubPeer.timeDelaySec > 0 {
-			logger.Debug().Str("peer", p2putil.ShortForm(types.PeerID(stubPeer.addr.PeerID))).Msg("slow peer sleep")
+			logger.Debug().Stringer("peer", types.LogPeerShort(types.PeerID(stubPeer.addr.PeerID))).Msg("slow peer sleep")
 			time.Sleep(stubPeer.timeDelaySec)
-			logger.Debug().Str("peer", p2putil.ShortForm(types.PeerID(stubPeer.addr.PeerID))).Msg("slow peer wakeup")
+			logger.Debug().Stringer("peer", types.LogPeerShort(types.PeerID(stubPeer.addr.PeerID))).Msg("slow peer wakeup")
 		}
 
 		//send reply
@@ -305,7 +304,7 @@ func (syncer *StubSyncer) findStubPeer(peerID types.PeerID) *StubPeer {
 		}
 	}
 
-	logger.Error().Str("peer", p2putil.ShortForm(peerID)).Msg("can't find peer")
+	logger.Error().Stringer("peer", types.LogPeerShort(peerID)).Msg("can't find peer")
 	panic("peer find fail")
 }
 

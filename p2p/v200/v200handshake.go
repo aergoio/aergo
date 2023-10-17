@@ -64,7 +64,7 @@ func NewV200VersionedHS(is p2pcommon.InternalService, log *log.Logger, vm p2pcom
 
 // handshakeOutboundPeer start handshake with outbound peer
 func (h *V200Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	// find my best block
 	bestBlock, err := h.is.GetChainAccessor().GetBestBlock()
@@ -102,13 +102,13 @@ func (h *V200Handshaker) sendLocalStatus(ctx context.Context, hostStatus *types.
 	var err error
 	container := createMessage(p2pcommon.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
 	if container == nil {
-		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("failed to create p2p message")
+		h.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("failed to create p2p message")
 		h.sendGoAway("internal error")
 		// h.logger.Warn().Str(LogPeerID, ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return fmt.Errorf("failed to craete container message")
 	}
 	if err = h.msgRW.WriteMsg(container); err != nil {
-		h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Err(err).Msg("failed to write local status ")
+		h.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Err(err).Msg("failed to write local status ")
 		return err
 	}
 	select {
@@ -138,7 +138,7 @@ func (h *V200Handshaker) receiveRemoteStatus(ctx context.Context) (*types.Status
 		if data.Subprotocol() == p2pcommon.GoAway {
 			return h.handleGoAway(h.peerID, data)
 		} else {
-			h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("expected", p2pcommon.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+			h.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Str("expected", p2pcommon.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
 			h.sendGoAway("unexpected message type")
 			return nil, fmt.Errorf("unexpected message type")
 		}
@@ -183,7 +183,7 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
-		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
+		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("inconsistent peerID")
 	}
@@ -207,7 +207,7 @@ func (h *V200Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 // DoForInbound is handle handshake from inbound peer
 func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
 	remotePeerStatus, err := h.receiveRemoteStatus(ctx)
@@ -242,7 +242,7 @@ func (h *V200Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 func (h *V200Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
 	if err := p2putil.UnmarshalMessageBody(data.Payload(), goAway); err != nil {
-		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remote peer sent goAway but failed to decode internal message")
+		h.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Err(err).Msg("Remote peer sent goAway but failed to decode internal message")
 		return nil, err
 	}
 	return nil, fmt.Errorf("remote peer refuse handshake: %s", goAway.GetMessage())
@@ -266,7 +266,7 @@ func (h *V200Handshaker) checkByRole(status *types.Status) error {
 }
 
 func (h *V200Handshaker) checkAgent(status *types.Status) error {
-	h.logger.Debug().Int("certCnt", len(status.Certificates)).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("checking peer as agent")
+	h.logger.Debug().Int("certCnt", len(status.Certificates)).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.remoteMeta.ID)).Msg("checking peer as agent")
 
 	// Agent must have at least one block producer
 	if len(h.remoteMeta.ProducerIDs) == 0 {
@@ -280,16 +280,16 @@ func (h *V200Handshaker) checkAgent(status *types.Status) error {
 	for i, pCert := range status.Certificates {
 		cert, err := p2putil.CheckAndGetV1(pCert)
 		if err != nil {
-			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("invalid agent certificate")
+			h.logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.remoteMeta.ID)).Msg("invalid agent certificate")
 			return ErrInvalidAgentStatus
 		}
 		// check certificate
 		if !types.IsSamePeerID(cert.AgentID, h.remoteMeta.ID) {
-			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Msg("certificate is not for this agent")
+			h.logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.remoteMeta.ID)).Msg("certificate is not for this agent")
 			return ErrInvalidAgentStatus
 		}
 		if _, exist := producers[cert.BPID]; !exist {
-			h.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(h.remoteMeta.ID)).Str("bpID", p2putil.ShortForm(cert.BPID)).Msg("peer id of certificate not matched")
+			h.logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.remoteMeta.ID)).Stringer("bpID", types.LogPeerShort(cert.BPID)).Msg("peer id of certificate not matched")
 			return ErrInvalidAgentStatus
 		}
 
