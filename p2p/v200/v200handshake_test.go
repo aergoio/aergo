@@ -459,7 +459,7 @@ func TestV200Handshaker_checkAgent(t *testing.T) {
 		id, _ := types.IDFromPrivateKey(priv)
 		producerIDs[i] = id
 		certs[i], _ = p2putil.NewAgentCertV1(id, agentID, p2putil.ConvertPKToBTCEC(priv), []string{ipExternal1}, time.Hour*24)
-		logger.Info().Str("peerID", p2putil.ShortForm(id)).Int("idx", i).Msg("producer id")
+		logger.Info().Stringer("peerID", types.LogPeerShort(id)).Int("idx", i).Msg("producer id")
 	}
 	pCerts, _ := p2putil.ConvertCertsToProto(certs)
 	wrongCert := *certs[0]

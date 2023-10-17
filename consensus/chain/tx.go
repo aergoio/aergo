@@ -6,13 +6,13 @@
 package chain
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/contract"
-	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/state"
@@ -136,8 +136,28 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 		contract.CloseDatabase()
 	}()
 
+	// block generation timeout check. this function works like BlockFactory#checkBpTimeout()
+	checkBGTimeout := NewCompTxOp(
+		TxOpFn(func(bState *state.BlockState, txIn types.Transaction) error {
+			select {
+			case <-g.ctx.Done():
+				// TODO use function Cause() for precise control, later. cause can be used in go1.20 and later
+				causeErr := g.ctx.Err()
+				//causeErr := context.Cause(g.ctx)
+				switch causeErr {
+				case context.Canceled: // Only quitting of Aergo triggers Canceled error for now.
+					return ErrQuit
+				default:
+					return ErrTimeout{Kind: "block"}
+				}
+			default:
+				return nil
+			}
+		}),
+	)
+
 	if nCand > 0 {
-		op := NewCompTxOp(g.txOp)
+		op := NewCompTxOp(checkBGTimeout, g.txOp)
 
 		var preloadTx *types.Tx
 		for i, tx := range txIn {
@@ -153,15 +173,11 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 
 			//don't include tx that error is occurred
 			if e, ok := err.(ErrTimeout); ok {
-				if logger.IsDebugEnabled() {
-					logger.Debug().Msg("stop gathering tx due to time limit")
-				}
+				logger.Debug().Msg("finishing gathering tx due to time limit")
 				err = e
 				break
 			} else if cause, ok := err.(*contract.VmTimeoutError); ok {
-				if logger.IsDebugEnabled() {
-					logger.Debug().Msg("stop gathering tx due to time limit")
-				}
+				logger.Debug().Msg("stop gathering tx and cancel last tx due to time limit")
 				// Mark the rejected TX by timeout. The marked TX will be
 				// forced to be the first TX of the next block. By doing this,
 				// the TX may have a chance to use the maximum block execution
@@ -181,9 +197,8 @@ func (g *BlockGenerator) GatherTXs() ([]types.Transaction, error) {
 				}
 				break
 			} else if err != nil {
-				if logger.IsDebugEnabled() {
-					logger.Debug().Err(err).Int("idx", i).Str("hash", enc.ToString(tx.GetHash())).Msg("skip error tx")
-				}
+				logger.Debug().Err(err).Int("idx", i).Stringer("hash", types.LogBase58(tx.GetHash())).Msg("skip error tx")
+
 				//FIXME handling system error (panic?)
 				// ex) gas error/nonce error skip, but other system error panic
 				continue
