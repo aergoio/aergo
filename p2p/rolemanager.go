@@ -44,12 +44,12 @@ func (rm *RaftRoleManager) UpdateBP(toAdd []types.PeerID, toRemove []types.PeerI
 	for _, pid := range toRemove {
 		delete(rm.raftBP, pid)
 		changes = append(changes, p2pcommon.RoleModifier{ID: pid, Role: types.PeerRole_Watcher})
-		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP removed")
+		rm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("raftBP removed")
 	}
 	for _, pid := range toAdd {
 		rm.raftBP[pid] = true
 		changes = append(changes, p2pcommon.RoleModifier{ID: pid, Role: types.PeerRole_Producer})
-		rm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("raftBP added")
+		rm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("raftBP added")
 	}
 	rm.is.PeerManager().UpdatePeerRole(changes)
 }

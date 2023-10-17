@@ -1,14 +1,12 @@
 set -e
 source common.sh
 
+fork_version=$1
+
 
 echo "-- deploy --"
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/gas_deploy.lua > payload.out
-
-txhash=$(../bin/aergocli --keystore . --password bmttest \
-    contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    --payload `cat payload.out` | jq .hash | sed 's/"//g')
+deploy ../contract/vm_dummy/test_files/gas_deploy.lua
 
 get_receipt $txhash
 
