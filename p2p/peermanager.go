@@ -203,7 +203,7 @@ func (pm *peerManager) initDesignatedPeerList() {
 			pm.logger.Warn().Err(err).Str("str", addrStr).Msg("invalid NPAddPeer address")
 			continue
 		}
-		pm.logger.Info().Str(p2putil.LogFullID, peerMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerMeta.ID)).Str("addr", peerMeta.Addresses[0].String()).Msg("Adding Designated peer")
+		pm.logger.Info().Str(p2putil.LogFullID, peerMeta.ID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerMeta.ID)).Str("addr", peerMeta.Addresses[0].String()).Msg("Adding Designated peer")
 		pm.designatedPeers[peerMeta.ID] = peerMeta
 	}
 }
@@ -328,14 +328,14 @@ func (pm *peerManager) tryRegister(hsResult connPeerResult) p2pcommon.RemotePeer
 	peerID := meta.ID
 	preExistPeer, ok := pm.remotePeers[peerID]
 	if ok {
-		pm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Peer add collision. Outbound connection of higher hash will survive.")
+		pm.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Peer add collision. Outbound connection of higher hash will survive.")
 		iAmLowerOrEqual := p2putil.ComparePeerID(pm.is.SelfNodeID(), meta.ID) <= 0
 		if iAmLowerOrEqual == remote.Connection.Outbound {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Close connection and keep earlier handshake connection.")
+			pm.logger.Info().Stringer("local_peer_id", types.LogPeerShort(pm.is.SelfNodeID())).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Close connection and keep earlier handshake connection.")
 			return nil
 		} else {
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
-			pm.logger.Info().Str("local_peer_id", p2putil.ShortForm(pm.is.SelfNodeID())).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			pm.logger.Info().Stringer("local_peer_id", types.LogPeerShort(pm.is.SelfNodeID())).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
+			pm.logger.Info().Stringer("local_peer_id", types.LogPeerShort(pm.is.SelfNodeID())).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Bool("outbound", remote.Connection.Outbound).Msg("Keep connection and close earlier handshake connection.")
 			// stopping lower valued connection
 			preExistPeer.Stop()
 		}
@@ -418,14 +418,14 @@ func (pm *peerManager) removePeer(peer p2pcommon.RemotePeer) bool {
 		return false
 	}
 	if target.ManageNumber() != peer.ManageNumber() {
-		pm.logger.Debug().Uint32("remove_num", peer.ManageNumber()).Uint32("exist_num", target.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but already removed and other instance is on")
+		pm.logger.Debug().Uint32("remove_num", peer.ManageNumber()).Uint32("exist_num", target.ManageNumber()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("remove peer is requested but already removed and other instance is on")
 		return false
 	}
 	if target.State() == types.RUNNING {
-		pm.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("remove peer is requested but peer is still running")
+		pm.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("remove peer is requested but peer is still running")
 	}
 	pm.deletePeer(peer)
-	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("removed peer in peermanager")
+	pm.logger.Info().Uint32("manage_num", peer.ManageNumber()).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("removed peer in peermanager")
 
 	pm.mutex.Lock()
 	defer pm.mutex.Unlock()
