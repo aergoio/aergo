@@ -11,7 +11,6 @@ import (
 
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
-	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/rs/zerolog"
@@ -554,7 +553,7 @@ func (bf *BlockFetcher) findFinished(msg *message.GetBlockChunksRsp, peerMatch b
 			if task.isPeerMatched(msg.ToWhom) {
 				bf.runningQueue.Remove(e)
 
-				logger.Debug().Str("peer", p2putil.ShortForm(msg.ToWhom)).Err(msg.Err).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
+				logger.Debug().Stringer("peer", types.LogPeerShort(msg.ToWhom)).Err(msg.Err).Str("start", enc.ToString(task.hashes[0])).Int("count", task.count).Int("runqueue", bf.runningQueue.Len()).Msg("task finished with error")
 				return task, nil
 			}
 		} else {
@@ -655,7 +654,7 @@ func (ps *PeerSet) addNew(peerID types.PeerID) {
 	ps.pushFree(&SyncPeer{No: peerno, ID: peerID})
 	ps.total++
 
-	logger.Info().Str("peer", p2putil.ShortForm(peerID)).Int("peerno", peerno).Int("no", ps.total).Msg("new peer added")
+	logger.Info().Stringer("peer", types.LogPeerShort(peerID)).Int("peerno", peerno).Int("no", ps.total).Msg("new peer added")
 }
 
 /*

@@ -54,7 +54,7 @@ func (h *V032Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 }
 
 func (h *V032Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
 	if err != nil {
@@ -88,7 +88,7 @@ func (h *V032Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 }
 
 func (h *V032Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
 	remotePeerStatus, err := h.receiveRemoteStatus(ctx)

@@ -66,7 +66,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
-		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
+		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("inconsistent peerID")
 	}
@@ -83,7 +83,7 @@ func (h *V033Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 }
 
 func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 
 	// find my best block
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
@@ -119,7 +119,7 @@ func (h *V033Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.Handshak
 }
 
 func (h *V033Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
 	remotePeerStatus, err := h.receiveRemoteStatus(ctx)

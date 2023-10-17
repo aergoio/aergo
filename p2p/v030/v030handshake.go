@@ -46,7 +46,7 @@ func NewV030VersionedHS(pm p2pcommon.PeerManager, actor p2pcommon.ActorService, 
 
 // handshakeOutboundPeer start handshake with outbound peer
 func (h *V030Handshaker) DoForOutbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for outbound peer connection")
 	bestBlock, err := h.actor.GetChainAccessor().GetBestBlock()
 	if err != nil {
 		return nil, err
@@ -81,13 +81,13 @@ func (h *V030Handshaker) sendLocalStatus(ctx context.Context, hostStatus *types.
 	var err error
 	container := createMessage(p2pcommon.StatusRequest, p2pcommon.NewMsgID(), hostStatus)
 	if container == nil {
-		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("failed to create p2p message")
+		h.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("failed to create p2p message")
 		h.sendGoAway("internal error")
 		// h.logger.Warn().Str(LogPeerID, ShortForm(peerID)).Err(err).Msg("failed to create p2p message")
 		return fmt.Errorf("failed to craete container message")
 	}
 	if err = h.msgRW.WriteMsg(container); err != nil {
-		h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Err(err).Msg("failed to write local status ")
+		h.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Err(err).Msg("failed to write local status ")
 		return err
 	}
 	select {
@@ -117,7 +117,7 @@ func (h *V030Handshaker) receiveRemoteStatus(ctx context.Context) (*types.Status
 		if data.Subprotocol() == p2pcommon.GoAway {
 			return h.handleGoAway(h.peerID, data)
 		} else {
-			h.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Str("expected", p2pcommon.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
+			h.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Str("expected", p2pcommon.StatusRequest.String()).Str("actual", data.Subprotocol().String()).Msg("unexpected message type")
 			h.sendGoAway("unexpected message type")
 			return nil, fmt.Errorf("unexpected message type")
 		}
@@ -175,7 +175,7 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 	rMeta := p2pcommon.NewMetaFromStatus(remotePeerStatus)
 	if rMeta.ID != h.peerID {
-		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Inconsistent peerID")
+		h.logger.Debug().Str("received_peer_id", rMeta.ID.Pretty()).Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Inconsistent peerID")
 		h.sendGoAway("Inconsistent peerID")
 		return fmt.Errorf("Inconsistent peerID")
 	}
@@ -186,7 +186,7 @@ func (h *V030Handshaker) checkRemoteStatus(remotePeerStatus *types.Status) error
 
 // DoForInbound is handle handshake from inbound peer
 func (h *V030Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.HandshakeResult, error) {
-	h.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
+	h.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(h.peerID)).Msg("Starting versioned handshake for inbound peer connection")
 
 	// inbound: receive, check and send
 	remotePeerStatus, err := h.receiveRemoteStatus(ctx)
@@ -219,7 +219,7 @@ func (h *V030Handshaker) DoForInbound(ctx context.Context) (*p2pcommon.Handshake
 func (h *V030Handshaker) handleGoAway(peerID types.PeerID, data p2pcommon.Message) (*types.Status, error) {
 	goAway := &types.GoAwayNotice{}
 	if err := p2putil.UnmarshalMessageBody(data.Payload(), goAway); err != nil {
-		h.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Err(err).Msg("Remote peer sent goAway but failed to decode internal message")
+		h.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Err(err).Msg("Remote peer sent goAway but failed to decode internal message")
 		return nil, err
 	}
 	return nil, fmt.Errorf("remote peer refuse handshake: %s", goAway.GetMessage())

@@ -52,7 +52,7 @@ func (th *txRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mess
 	p2putil.DebugLogReceive(th.logger, th.protocol, msg.ID().String(), remotePeer, body)
 
 	if err := th.sm.HandleGetTxReq(remotePeer, msg.ID(), body); err != nil {
-		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Err(err).Msg("return err for concurrent get tx request")
+		th.logger.Info().Str(p2putil.LogPeerName, remotePeer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Err(err).Msg("return err for concurrent get tx request")
 		resp := &types.GetTransactionsResponse{
 			Status: types.ResultStatus_RESOURCE_EXHAUSTED,
 			Hashes: nil,
@@ -77,7 +77,7 @@ func (th *txResponseHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Mes
 	p2putil.DebugLogReceiveResponse(th.logger, th.protocol, msg.ID().String(), msg.OriginalID().String(), th.peer, data)
 
 	if !remotePeer.GetReceiver(msg.OriginalID())(msg, data) {
-		th.logger.Warn().Str(p2putil.LogMsgID, msg.ID().String()).Msg("unknown getTX response")
+		th.logger.Warn().Stringer(p2putil.LogMsgID, msg.ID()).Msg("unknown getTX response")
 		remotePeer.ConsumeRequest(msg.OriginalID())
 	}
 }

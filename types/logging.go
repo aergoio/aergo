@@ -7,7 +7,6 @@ package types
 
 import (
 	"fmt"
-
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/rs/zerolog"
 )
@@ -60,10 +59,28 @@ func marshalTrx(tr Transaction, a *zerolog.Array) {
 	}
 }
 
-type LogBase58 struct {
-	Bytes *[]byte
+// LogBase58 is thin wrapper which show base58 encoded string of byte array
+type LogBase58 []byte
+
+func (t LogBase58) String() string {
+	return enc.ToString(t)
 }
 
-func (t LogBase58) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("b58", enc.ToString(*t.Bytes))
+// LogAddr is thin wrapper which show base58 encoded form of wallet or smart contract
+type LogAddr Address
+
+func (t LogAddr) String() string {
+	return EncodeAddress(t)
+}
+
+type LogPeerShort PeerID
+
+func (t LogPeerShort) String() string {
+	// basically this function is same as function p2putils.ShortForm()
+	pretty := PeerID(t).Pretty()
+	if len(pretty) > 10 {
+		return fmt.Sprintf("%s*%s", pretty[:2], pretty[len(pretty)-6:])
+	} else {
+		return pretty
+	}
 }
