@@ -676,15 +676,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 				return err
 			}
 		case types.AergoName:
-			systemcs, err := mp.stateDB.GetSystemAccountState()
-			if err != nil {
-				return err
-			}
 			sender, err := mp.stateDB.GetAccountStateV(account)
 			if err != nil {
 				return err
 			}
-			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs, systemcs); err != nil {
+			if _, err := name.ValidateNameTx(tx.GetBody(), sender, scs); err != nil {
 				return err
 			}
 		case types.AergoEnterprise:

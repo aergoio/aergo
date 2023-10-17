@@ -80,7 +80,7 @@ func (mm *metricsManager) NewMetric(pid types.PeerID, manNum uint32) *PeerMetric
 	mm.mutex.Lock()
 	defer mm.mutex.Unlock()
 	if old, found := mm.metricsMap[pid]; found {
-		mm.logger.Warn().Str("peer_id", p2putil.ShortForm(pid)).Uint32("oldNum", old.seq).Uint32("newNum", manNum).Msg("metric for to add peer is already exist. replacing new metric")
+		mm.logger.Warn().Stringer("peer_id", types.LogPeerShort(pid)).Uint32("oldNum", old.seq).Uint32("newNum", manNum).Msg("metric for to add peer is already exist. replacing new metric")
 	}
 	peerMetric := &PeerMetric{mm: mm, PeerID: pid, seq: manNum, InMetric: NewExponentMetric5(mm.interval), OutMetric: NewExponentMetric5(mm.interval), Since: time.Now()}
 	mm.metricsMap[pid] = peerMetric
@@ -91,11 +91,11 @@ func (mm *metricsManager) Remove(pid types.PeerID, manNum uint32) *PeerMetric {
 	mm.mutex.Lock()
 	defer mm.mutex.Unlock()
 	if metric, found := mm.metricsMap[pid]; !found {
-		mm.logger.Warn().Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("metric for to remove peer is not exist.")
+		mm.logger.Warn().Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("metric for to remove peer is not exist.")
 		return nil
 	} else {
 		if metric.seq != manNum {
-			mm.logger.Warn().Uint32("exist_num", metric.seq).Uint32("man_num", manNum).Str(p2putil.LogPeerID, p2putil.ShortForm(pid)).Msg("ignore remove. different manage number")
+			mm.logger.Warn().Uint32("exist_num", metric.seq).Uint32("man_num", manNum).Stringer(p2putil.LogPeerID, types.LogPeerShort(pid)).Msg("ignore remove. different manage number")
 		}
 		atomic.AddInt64(&mm.deadTotalIn, metric.totalIn)
 		atomic.AddInt64(&mm.deadTotalOut, metric.totalOut)
