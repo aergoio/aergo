@@ -69,7 +69,7 @@ get_receipt() {
     #echo "output: $output"
 
     if [[ $output == *"tx not found"* ]]; then
-      sleep 0.5
+      sleep 0.4
       counter=$((counter+1))
       if [ $counter -gt 10 ]; then
         echo "Error: tx not found: $txhash"
