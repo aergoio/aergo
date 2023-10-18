@@ -8,7 +8,6 @@ import (
 	"github.com/aergoio/aergo/v2/chain"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/message"
-	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/aergoio/aergo/v2/pkg/component"
 	"github.com/aergoio/aergo/v2/types"
 	"github.com/pkg/errors"
@@ -171,7 +170,7 @@ func (finder *Finder) getAnchors() ([][]byte, error) {
 
 func (finder *Finder) getAncestor(anchors [][]byte) (*types.BlockInfo, error) {
 	//	send remote Peer
-	logger.Debug().Str("peer", p2putil.ShortForm(finder.ctx.PeerID)).Msg("send GetAncestor message to peer")
+	logger.Debug().Stringer("peer", types.LogPeerShort(finder.ctx.PeerID)).Msg("send GetAncestor message to peer")
 	finder.compRequester.TellTo(message.P2PSvc, &message.GetSyncAncestor{Seq: finder.GetSeq(), ToWhom: finder.ctx.PeerID, Hashes: anchors})
 
 	timer := time.NewTimer(finder.dfltTimeout)

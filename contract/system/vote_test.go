@@ -35,10 +35,9 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 		t.Fatalf("failed init : %s", err.Error())
 	}
 	// Need to pass the
-	InitGovernance("dpos")
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := bs.OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := bs.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	InitSystemParams(scs, 3)
 
@@ -64,10 +63,7 @@ func commitNextBlock(t *testing.T, scs *state.ContractState) *state.ContractStat
 	bs.Update()
 	bs.Commit()
 	cdb.UpdateRoot(bs)
-	systemContractID := types.ToAccountID([]byte(types.AergoSystem))
-	systemContract, err := bs.GetAccountState(systemContractID)
-	assert.NoError(t, err, "could not get account state")
-	ret, err := bs.OpenContractState(systemContractID, systemContract)
+	ret, err := bs.GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	return ret
 }
