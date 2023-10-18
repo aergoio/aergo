@@ -152,7 +152,8 @@ function bignum_fns()
     local b_b = bignum.number(b)
     local pi_b = bignum.number(pi)
     local pi1_b = bignum.number(pi1)
-  if system.version() >= 4 then
+  --if system.version() >= 4 then
+  if type(bignum.ispositive) == "function" then
     print("bignum.ispositive")
     m1k(bignum.ispositive, nines_b)
     m1k(bignum.ispositive, nines1_b)

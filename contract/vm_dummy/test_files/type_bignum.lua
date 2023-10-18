@@ -44,7 +44,8 @@ function calcBignum()
     assert(bg3 == bg4 and bg4 == bg5)
     bg5 = bg1 - bg3
     system.print(bg3, bg5, bg6)
-    if system.version() >= 4 then
+    --if system.version() >= 4 then
+    if type(bignum.ispositive) == "function" then
       -- ispositive() and isnegative() and iszero()
       assert(bignum.isnegative(bg5) and bg5 == bignum.neg(bg1))
       assert(bignum.ispositive(bg1) and bignum.ispositive(bg3))
