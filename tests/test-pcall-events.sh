@@ -6,11 +6,7 @@ fork_version=$1
 
 echo "-- deploy --"
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/pcall-events-3.lua > payload.out
-
-txhash=$(../bin/aergocli --keystore . --password bmttest \
-    contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    --payload `cat payload.out` | jq .hash | sed 's/"//g')
+deploy ../contract/vm_dummy/test_files/pcall-events-3.lua
 
 get_receipt $txhash
 
@@ -20,11 +16,11 @@ address3=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
 assert_equals "$status" "CREATED"
 
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/pcall-events-2.lua > payload.out
+get_deploy_args ../contract/vm_dummy/test_files/pcall-events-2.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    '["'$address3'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
+    $deploy_args '["'$address3'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 
@@ -34,11 +30,11 @@ address2=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
 assert_equals "$status" "CREATED"
 
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/pcall-events-1.lua > payload.out
+get_deploy_args ../contract/vm_dummy/test_files/pcall-events-1.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    '["'$address2'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
+    $deploy_args '["'$address2'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 
@@ -48,11 +44,11 @@ address1=$(cat receipt.json | jq .contractAddress | sed 's/"//g')
 assert_equals "$status" "CREATED"
 
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/pcall-events-0.lua > payload.out
+get_deploy_args ../contract/vm_dummy/test_files/pcall-events-0.lua
 
 txhash=$(../bin/aergocli --keystore . --password bmttest \
     contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    '["'$address2'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
+    $deploy_args '["'$address2'"]' --payload `cat payload.out` | jq .hash | sed 's/"//g')
 
 get_receipt $txhash
 
