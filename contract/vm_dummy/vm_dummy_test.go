@@ -507,41 +507,112 @@ func TestContractCall(t *testing.T) {
 
 		err = bc.ConnectBlock(
 			NewLuaTxAccount("user1", 1, types.Aergo),
+			// deploy the counter contract
 			NewLuaTxDeploy("user1", "counter", 0, code).Constructor("[1]"),
+			// increment the value
 			NewLuaTxCall("user1", "counter", 0, `{"Name":"inc", "Args":[]}`),
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
+
+		// check the value
 
 		err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "2")
 		require.NoErrorf(t, err, "failed to query")
 
 		err = bc.ConnectBlock(
+			// deploy the caller contract
 			NewLuaTxDeploy("user1", "caller", 0, code2).Constructor(fmt.Sprintf(`["%s"]`, nameToAddress("counter"))),
-			NewLuaTxCall("user1", "caller", 0, `{"Name":"add", "Args":[]}`),
+			// indirectly increment the value on the counter contract
+			NewLuaTxCall("user1", "caller", 0, `{"Name":"cinc", "Args":[]}`),
 		)
 		require.NoErrorf(t, err, "failed to connect new block")
 
-		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
+		// check the value on both contracts
+
+		err = bc.Query("caller", `{"Name":"cget", "Args":[]}`, "", "3")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "3")
 		require.NoErrorf(t, err, "failed to query")
 
 		err = bc.Query("caller", `{"Name":"dget", "Args":[]}`, "", "99")
 		require.NoErrorf(t, err, "failed to query")
 
-		tx := NewLuaTxCall("user1", "caller", 0, `{"Name":"dadd", "Args":[]}`)
+		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "99")
+		require.NoErrorf(t, err, "failed to query")
+
+		// use deletage call to increment the value on the same contract
+
+		tx := NewLuaTxCall("user1", "caller", 0, `{"Name":"dinc", "Args":[]}`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
-
 		receipt := bc.GetReceipt(tx.Hash())
 		assert.Equalf(t, `99`, receipt.GetRet(), "contract Call ret error")
 
-		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"dadd", "Args":[]}`)
+		// do it again
+
+		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"dinc", "Args":[]}`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
-
 		receipt = bc.GetReceipt(tx.Hash())
 		assert.Equalf(t, `100`, receipt.GetRet(), "contract Call ret error")
 
-		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "3")
+		// check the value on both contracts
+
+		err = bc.Query("caller", `{"Name":"cget", "Args":[]}`, "", "3")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "3")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("caller", `{"Name":"dget", "Args":[]}`, "", "101")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "101")
+		require.NoErrorf(t, err, "failed to query")
+
+		// use deletage call to set the value on the same contract
+
+		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"dset", "Args":[500]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
+		assert.Equalf(t, ``, receipt.GetRet(), "contract Call ret error")
+
+		// check the value on both contracts
+
+		err = bc.Query("caller", `{"Name":"cget", "Args":[]}`, "", "3")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "3")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("caller", `{"Name":"dget", "Args":[]}`, "", "500")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "500")
+		require.NoErrorf(t, err, "failed to query")
+
+		// indirectly set the value on the counter contract
+
+		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"cset", "Args":[750]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
+		assert.Equalf(t, ``, receipt.GetRet(), "contract Call ret error")
+
+		// check the value on both contracts
+
+		err = bc.Query("caller", `{"Name":"cget", "Args":[]}`, "", "750")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("counter", `{"Name":"get", "Args":[]}`, "", "750")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("caller", `{"Name":"dget", "Args":[]}`, "", "500")
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "500")
 		require.NoErrorf(t, err, "failed to query")
 
 	}
