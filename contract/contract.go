@@ -94,7 +94,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// check validity of tx
 	var valid bool
-	if valid, err = validateTxType(txType, txAmount, len(txPayload), bi.ForkVersion, receiver.IsDeploy(), len(receiver.State().CodeHash) > 0); valid != true {
+	if valid, err = validateTxType(txType, txAmount, len(txPayload), bi.ForkVersion, receiver.IsDeploy(), receiver.IsContract()); valid != true {
 		return
 	}
 
@@ -271,7 +271,7 @@ func preloadWorker() {
 		}
 
 		// when deploy and call in same block and not deployed yet
-		if receiver.IsNew() || len(receiver.State().CodeHash) == 0 {
+		if receiver.IsNew() || !receiver.IsContract() {
 			// do not preload an executor for a contract that is not deployed yet
 			replyCh <- &preloadReply{tx, nil, nil}
 			continue
@@ -371,7 +371,7 @@ func CreateContractID(account []byte, nonce uint64) []byte {
 
 func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
 	// check if the contract exists
-	if len(receiver.State().CodeHash) == 0 || receiver.IsNew() {
+	if !receiver.IsContract() || receiver.IsNew() {
 		receiverAddr := types.EncodeAddress(receiver.ID())
 		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
 		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
