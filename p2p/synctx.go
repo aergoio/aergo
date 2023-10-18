@@ -191,7 +191,7 @@ func (tm *syncTxManager) HandleNewTxNotice(peer p2pcommon.RemotePeer, txIDs []ty
 			tm.toNoticeIdQueue.PushBack(&queryQueue{peerID: peerID, txIDs: toQueue})
 		}
 
-		tm.logger.Trace().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Int("newCnt", len(newComer)).Int("queCnt", len(queued)).Int("dupCnt", len(duplicated)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize", len(tm.frontCache)).Msg("push txs, to query next time")
+		tm.logger.Trace().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Int("newCnt", len(newComer)).Int("queCnt", len(queued)).Int("dupCnt", len(duplicated)).Array("newComer", types.NewLogTxIDsMarshaller(newComer, 10)).Array("duplicated", types.NewLogTxIDsMarshaller(duplicated, 10)).Array("queued", types.NewLogTxIDsMarshaller(queued, 10)).Int("frontCacheSize", len(tm.frontCache)).Msg("push txs, to query next time")
 	}
 }
 
@@ -220,7 +220,7 @@ func (tm *syncTxManager) retryGetTx(peerID types.PeerID, hashes [][]byte) {
 		for i, hash := range hashes {
 			txIDs[i] = types.ToTxID(hash)
 		}
-		tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("txIDs", types.NewLogTxIDsMarshaller(txIDs, 10)).Msg("push txs that are failed to get by server busy")
+		tm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Array("txIDs", types.NewLogTxIDsMarshaller(txIDs, 10)).Msg("push txs that are failed to get by server busy")
 		tm.pushBackToFrontCache(peerID, txIDs)
 	}
 }
@@ -464,7 +464,7 @@ func (tm *syncTxManager) refineFrontCache() {
 			tm.sendGetTx(peer, ids)
 		} else {
 			// peer probably disconnected.
-			tm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager failed to send get tx, since peer is disconnected just before")
+			tm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Array("hashes", types.NewLogTxIDsMarshaller(ids, 10)).Msg("syncManager failed to send get tx, since peer is disconnected just before")
 			toRetry := make([]types.TxID, len(ids))
 			copy(toRetry, ids)
 			tm.burnFailedTxFrontCache(peerID, toRetry)
