@@ -545,7 +545,7 @@ static const luaL_Reg system_lib_v4[] = {
 	{"time", os_time},
 	{"difftime", os_difftime},
 	{"random", lua_random},
-	{"toPubkey", toPubkey},
+	{"toPubKey", toPubkey},
 	{"toAddress", toAddress},
 	{"isContract", is_contract},
 	{"isFeeDelegation", is_fee_delegation},
