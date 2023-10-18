@@ -2163,10 +2163,9 @@ func TestTypeBignum(t *testing.T) {
 }
 
 func TestBignumValues(t *testing.T) {
-	code := readLuaCode("bignum_values.lua")
-	require.NotEmpty(t, code, "failed to read bignum_values.lua")
+	code := readLuaCode(t, "bignum_values.lua")
 
-	bc, err := LoadDummyChain()
+	bc, err := LoadDummyChain(SetHardForkVersion(2))
 	require.NoErrorf(t, err, "failed to create dummy chain")
 	defer bc.Release()
 
@@ -2221,31 +2220,42 @@ func TestBignumValues(t *testing.T) {
 	require.NoErrorf(t, err, "failed to query")
 
 
-	// hardfork 4
-	bc.HardforkVersion = 4
+	// hardfork 4 and after
 
-	// process hex, binary. block octal
+	for version := int32(4); version <= max_version; version++ {
+		bc, err = LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
 
-	tx = NewLuaTxCall("user1", "contract1", 0, `{"Name":"parse_bignum", "Args":["01234567"]}`)
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to call tx")
-	receipt = bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, `"1234567"`, receipt.GetRet(), "contract Call ret error")
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxDeploy("user1", "contract1", 0, code),
+		)
+		require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"1234567"`)
-	require.NoErrorf(t, err, "failed to query")
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "", `"81985529216486895"`)
-	require.NoErrorf(t, err, "failed to query")
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "", `"5461"`)
-	require.NoErrorf(t, err, "failed to query")
+		// process hex, binary. block octal
 
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"1234567"`)
-	require.NoErrorf(t, err, "failed to query")
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "", `"81985529216486895"`)
-	require.NoErrorf(t, err, "failed to query")
-	err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0b1010101010101"}]}`, "", `"5461"`)
-	require.NoErrorf(t, err, "failed to query")
+		tx = NewLuaTxCall("user1", "contract1", 0, `{"Name":"parse_bignum", "Args":["01234567"]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to call tx")
+		receipt = bc.GetReceipt(tx.Hash())
+		assert.Equalf(t, `"1234567"`, receipt.GetRet(), "contract Call ret error")
 
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["01234567"]}`, "", `"1234567"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0x123456789abcdef"]}`, "", `"81985529216486895"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":["0b1010101010101"]}`, "", `"5461"`)
+		require.NoErrorf(t, err, "failed to query")
+
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"01234567"}]}`, "", `"1234567"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0x123456789abcdef"}]}`, "", `"81985529216486895"`)
+		require.NoErrorf(t, err, "failed to query")
+		err = bc.Query("contract1", `{"Name":"parse_bignum", "Args":[{"_bignum":"0b1010101010101"}]}`, "", `"5461"`)
+		require.NoErrorf(t, err, "failed to query")
+
+	}
 }
 
 func checkRandomIntValue(v string, min, max int) error {
