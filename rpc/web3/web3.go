@@ -12,6 +12,7 @@ import (
 
 	"github.com/aergoio/aergo/config"
 	"github.com/didip/tollbooth"
+	"github.com/rs/cors"
 )
 
 type RestAPI struct {
@@ -43,9 +44,16 @@ func NewWeb3(cfg *config.Config, rpc *rpc.AergoRPCService) {
 	mux.HandleFunc("/swagger.yaml", serveSwaggerYAML)
 	mux.HandleFunc("/swagger", serveSwaggerUI)
 
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST"},
+		AllowedHeaders: []string{"*"},
+		AllowCredentials: true,
+	})
+	
 	// API v1
 	web3svcV1 := &Web3APIv1{rpc: rpc}
-	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, http.HandlerFunc(web3svcV1.handler)))
+	mux.Handle("/v1/", tollbooth.LimitHandler(limiter, c.Handler(http.HandlerFunc(web3svcV1.handler))))
 
 	go func() {		
 		fmt.Println("Web3 Server is listening on port "+ strconv.Itoa(cfg.Web3.NetServicePort)+"...")
