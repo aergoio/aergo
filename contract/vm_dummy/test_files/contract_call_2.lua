@@ -43,3 +43,25 @@ function dset(val)
 end
 
 abi.register(inc, cinc, dinc, get, cget, dget, set, cset, dset)
+
+
+function get_call_info(info)
+		info = get_call_info2(info)
+    return contract.delegatecall(system.getItem("addr"), "get_call_info", system.getContractID(), "get_call_info2", info)
+end
+
+function get_call_info2(info)
+
+    local call_info = {
+      sender = system.getSender(),
+      origin = system.getOrigin(),
+      ctr_id = system.getContractID()
+    }
+
+    if info == nil then info = {} end
+    table.insert(info, call_info)
+
+    return info
+end
+
+abi.register(get_call_info, get_call_info2)

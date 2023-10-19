@@ -541,7 +541,7 @@ func TestContractCall(t *testing.T) {
 		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "99")
 		require.NoErrorf(t, err, "failed to query")
 
-		// use deletage call to increment the value on the same contract
+		// use delegate call to increment the value on the same contract
 
 		tx := NewLuaTxCall("user1", "caller", 0, `{"Name":"dinc", "Args":[]}`)
 		err = bc.ConnectBlock(tx)
@@ -571,7 +571,7 @@ func TestContractCall(t *testing.T) {
 		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "101")
 		require.NoErrorf(t, err, "failed to query")
 
-		// use deletage call to set the value on the same contract
+		// use delegate call to set the value on the same contract
 
 		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"dset", "Args":[500]}`)
 		err = bc.ConnectBlock(tx)
@@ -613,6 +613,21 @@ func TestContractCall(t *testing.T) {
 		require.NoErrorf(t, err, "failed to query")
 
 		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "500")
+		require.NoErrorf(t, err, "failed to query")
+
+		// collect call info using delegate call
+
+		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"get_call_info", "Args":[]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
+		expected := `[{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr","sender":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr"},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr","sender":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr"},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr","sender":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn"}]`
+		assert.Equalf(t, expected, receipt.GetRet(), "contract Call ret error")
+
+		// collect call info via delegate call using query
+
+		expected = `[{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":""},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":""},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn"}]`
+		err = bc.Query("caller", `{"Name":"get_call_info", "Args":[]}`, "", expected)
 		require.NoErrorf(t, err, "failed to query")
 
 	}
