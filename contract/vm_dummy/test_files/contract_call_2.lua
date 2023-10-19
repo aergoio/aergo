@@ -45,9 +45,9 @@ end
 abi.register(inc, cinc, dinc, get, cget, dget, set, cset, dset)
 
 
-function get_call_info(info)
-		info = get_call_info2(info)
-    return contract.delegatecall(system.getItem("addr"), "get_call_info", system.getContractID(), "get_call_info2", info)
+function get_call_info(address, fname, info)
+    info = get_call_info2(info)
+    return contract.delegatecall(system.getItem("addr"), "get_call_info", address, fname, info)
 end
 
 function get_call_info2(info)

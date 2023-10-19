@@ -497,8 +497,9 @@ func TestContractQuery(t *testing.T) {
 }
 
 func TestContractCall(t *testing.T) {
-	code := readLuaCode(t, "contract_call_1.lua")
+	code1 := readLuaCode(t, "contract_call_1.lua")
 	code2 := readLuaCode(t, "contract_call_2.lua")
+	code3 := readLuaCode(t, "contract_call_3.lua")
 
 	for version := min_version; version <= max_version; version++ {
 		bc, err := LoadDummyChain(SetHardForkVersion(version))
@@ -508,7 +509,7 @@ func TestContractCall(t *testing.T) {
 		err = bc.ConnectBlock(
 			NewLuaTxAccount("user1", 1, types.Aergo),
 			// deploy the counter contract
-			NewLuaTxDeploy("user1", "counter", 0, code).Constructor("[1]"),
+			NewLuaTxDeploy("user1", "counter", 0, code1).Constructor("[1]"),
 			// increment the value
 			NewLuaTxCall("user1", "counter", 0, `{"Name":"inc", "Args":[]}`),
 		)
@@ -615,9 +616,9 @@ func TestContractCall(t *testing.T) {
 		err = bc.Query("caller", `{"Name":"get", "Args":[]}`, "", "500")
 		require.NoErrorf(t, err, "failed to query")
 
-		// collect call info using delegate call
+		// collect call info using delegate call: A -> delegate_call(B) -> A
 
-		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"get_call_info", "Args":[]}`)
+		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"get_call_info", "Args":["AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","get_call_info2"]}`)
 		err = bc.ConnectBlock(tx)
 		require.NoErrorf(t, err, "failed to connect new block")
 		receipt = bc.GetReceipt(tx.Hash())
@@ -627,7 +628,29 @@ func TestContractCall(t *testing.T) {
 		// collect call info via delegate call using query
 
 		expected = `[{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":""},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":""},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn"}]`
-		err = bc.Query("caller", `{"Name":"get_call_info", "Args":[]}`, "", expected)
+		err = bc.Query("caller", `{"Name":"get_call_info", "Args":["AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","get_call_info2"]}`, "", expected)
+		require.NoErrorf(t, err, "failed to query")
+
+		// deploy the third contract
+
+		err = bc.ConnectBlock(
+			NewLuaTxDeploy("user1", "third", 0, code3),
+		)
+		require.NoErrorf(t, err, "failed to connect new block")
+
+		// collect call info using delegate call: A -> delegate_call(B) -> C
+
+		tx = NewLuaTxCall("user1", "caller", 0, `{"Name":"get_call_info", "Args":["AmhJ2JWVSDeXxYrMRtH38hjnGDLVkLJCLD1XCTGZSjoQV2xCQUEg","get_call_info"]}`)
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
+		receipt = bc.GetReceipt(tx.Hash())
+		expected = `[{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr","sender":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr"},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr","sender":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr"},{"ctr_id":"AmhJ2JWVSDeXxYrMRtH38hjnGDLVkLJCLD1XCTGZSjoQV2xCQUEg","origin":"Amg25cfD4ibjmjPYbtWnMKocrF147gJJxKy5uuFymEBNF2YiPwzr","sender":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn"}]`
+		assert.Equalf(t, expected, receipt.GetRet(), "contract Call ret error")
+
+		// collect call info via delegate call using query
+
+		expected = `[{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":""},{"ctr_id":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn","origin":"","sender":""},{"ctr_id":"AmhJ2JWVSDeXxYrMRtH38hjnGDLVkLJCLD1XCTGZSjoQV2xCQUEg","origin":"","sender":"AmggmgtWPXtsDkC5hkYYx2iYaWfGs8D4ZvZNwxwdm4gxGSDaCqKn"}]`
+		err = bc.Query("caller", `{"Name":"get_call_info", "Args":["AmhJ2JWVSDeXxYrMRtH38hjnGDLVkLJCLD1XCTGZSjoQV2xCQUEg","get_call_info"]}`, "", expected)
 		require.NoErrorf(t, err, "failed to query")
 
 	}
