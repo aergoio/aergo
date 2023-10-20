@@ -215,7 +215,7 @@ func (pms *PeerMapService) handleQuery(conn p2pcommon.RemoteConn, container p2pc
 
 	// check peer version
 	if !p2pcommon.CheckVersion(receivedMeta.Version) {
-		pms.Logger.Debug().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Str("version", receivedMeta.Version).Msg("peer version is too old, or too new")
+		pms.Logger.Info().Str(p2putil.LogPeerID, receivedMeta.ID.String()).Str("version", receivedMeta.Version).Msg("peer version is too old, or too new")
 		resp.Status = types.ResultStatus_FAILED_PRECONDITION
 		resp.Message = common.TooOldVersionMsg
 		return resp, nil
