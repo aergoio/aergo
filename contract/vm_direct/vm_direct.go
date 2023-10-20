@@ -5,21 +5,22 @@ import (
 	"math/big"
 	"bytes"
 	"encoding/json"
+	"context"
 	"os"
 	"fmt"
 	"time"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/fee"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/fee"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type ChainType int
@@ -137,7 +138,6 @@ func LoadDummyChainEx(chainType ChainType) (*DummyChain, error) {
 
 	// To pass the governance tests.
 	types.InitGovernance("dpos", true)
-	system.InitGovernance("dpos")
 
 	// To pass dao parameters test
 	scs, err := bc.sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
@@ -250,7 +250,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 	blockState := bc.newBlockState()
 	bi = types.NewBlockHeaderInfo(bc.cBlock)
 
-	exec = NewTxExecutor(nil, bc, bi, contract.ChainService)
+	exec = NewTxExecutor(context.Background(), nil, bc, bi, contract.ChainService)
 
 	blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
 
@@ -270,7 +270,7 @@ func newBlockExecutor(bc *DummyChain, txs []*types.Tx) (*blockExecutor, error) {
 
 }
 
-func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
+func NewTxExecutor(execCtx context.Context, ccc consensus.ChainConsensusCluster, cdb contract.ChainAccessor, bi *types.BlockHeaderInfo, preloadService int) TxExecFn {
 
 	return func(blockState *state.BlockState, tx types.Transaction) error {
 
@@ -283,7 +283,7 @@ func NewTxExecutor(ccc consensus.ChainConsensusCluster, cdb contract.ChainAccess
 
 		blockSnap := blockState.Snapshot()
 
-		err := executeTx(ccc, cdb, blockState, tx, bi, preloadService)
+		err := executeTx(execCtx, ccc, cdb, blockState, tx, bi, preloadService)
 		if err != nil {
 			logger.Error().Err(err).Str("hash", enc.ToString(tx.GetHash())).Msg("tx failed")
 			if err2 := blockState.Rollback(blockSnap); err2 != nil {
@@ -381,6 +381,7 @@ func resetAccount(account *state.V, fee *big.Int, nonce *uint64) error {
 }
 
 func executeTx(
+	execCtx context.Context,
 	ccc consensus.ChainConsensusCluster,
 	cdb contract.ChainAccessor,
 	bs *state.BlockState,
@@ -489,7 +490,7 @@ func executeTx(
 	var events []*types.Event
 	switch txBody.Type {
 	case types.TxType_NORMAL, types.TxType_REDEPLOY, types.TxType_TRANSFER, types.TxType_CALL, types.TxType_DEPLOY:
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, false)
 		sender.SubBalance(txFee)
 	case types.TxType_GOVERNANCE:
 		txFee = new(big.Int).SetUint64(0)
@@ -521,7 +522,7 @@ func executeTx(
 			}
 			return types.ErrNotAllowedFeeDelegation
 		}
-		rv, events, txFee, err = contract.Execute(bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
+		rv, events, txFee, err = contract.Execute(execCtx, bs, cdb, tx.GetTx(), sender, receiver, bi, preloadService, true)
 		receiver.SubBalance(txFee)
 	}
 
