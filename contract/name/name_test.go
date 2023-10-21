@@ -45,13 +45,12 @@ func TestName(t *testing.T) {
 	receiver, _ := sdb.GetStateDB().GetAccountStateV(tx.Recipient)
 	bs := sdb.NewBlockState(sdb.GetRoot())
 	scs := openContractState(t, bs)
-	systemcs := openSystemContractState(t, bs)
 
 	err := CreateName(scs, tx, sender, receiver, name)
 	assert.NoError(t, err, "create name")
 
 	scs = nextBlockContractState(t, bs, scs)
-	_, err = ValidateNameTx(tx, sender, scs, systemcs)
+	_, err = ValidateNameTx(tx, sender, scs)
 	assert.Error(t, err, "same name")
 
 	ret := getAddress(scs, []byte(name))
@@ -117,7 +116,7 @@ func TestNameNil(t *testing.T) {
 	name1 := "AB1234567890"
 	name2 := "1234567890CD"
 
-	scs, err := sdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := sdb.GetStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 	tx := &types.TxBody{Account: []byte(name1), Payload: buildNamePayload(name2, types.NameCreate, "")}
 	sender, _ := sdb.GetStateDB().GetAccountStateV(tx.Account)

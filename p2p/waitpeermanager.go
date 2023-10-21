@@ -55,7 +55,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	addr := s.Conn().RemoteMultiaddr()
 	ip, port, err := types.GetIPPortFromMultiaddr(addr)
 	if err != nil {
-		dpm.logger.Warn().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("Can't get ip address and port from inbound peer")
+		dpm.logger.Warn().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("Can't get ip address and port from inbound peer")
 		s.Close()
 	}
 	conn := p2pcommon.RemoteConn{Outbound: false, IP: ip, Port: port}
@@ -63,7 +63,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 
 	dpm.logger.Info().Str(p2putil.LogFullID, peerID.Pretty()).Str("multiaddr", addr.String()).Msg("new inbound peer arrived")
 	if banned, _ := dpm.lm.IsBanned(ip.String(), peerID); banned {
-		dpm.logger.Info().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Str("multiaddr", addr.String()).Msg("inbound peer is banned by list manager")
+		dpm.logger.Info().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Str("multiaddr", addr.String()).Msg("inbound peer is banned by list manager")
 		s.Close()
 		return
 	}
@@ -71,7 +71,7 @@ func (dpm *basePeerManager) OnInboundConn(s network.Stream) {
 	query := inboundConnEvent{conn: conn, meta: tempMeta, p2pVer: p2pcommon.P2PVersionUnknown, foundC: make(chan bool)}
 	dpm.pm.inboundConnChan <- query
 	if exist := <-query.foundC; exist {
-		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(peerID)).Msg("same peer as inbound peer already exists.")
+		dpm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(peerID)).Msg("same peer as inbound peer already exists.")
 		s.Close()
 		return
 	}
@@ -133,7 +133,7 @@ func (dpm *basePeerManager) connectWaitingPeers(maxJob int) {
 			//	dpm.logger.Info().Str(p2putil.LogPeerName, p2putil.ShortMetaForm(wp.Meta)).Msg("Skipping banned peer")
 			//	continue
 			//}
-			dpm.logger.Info().Int("trial", wp.TrialCnt).Str(p2putil.LogPeerID, p2putil.ShortForm(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
+			dpm.logger.Info().Int("trial", wp.TrialCnt).Stringer(p2putil.LogPeerID, types.LogPeerShort(wp.Meta.ID)).Msg("Starting scheduled try to connect peer")
 
 			dpm.workingJobs[wp.Meta.ID] = ConnWork{Meta: wp.Meta, PeerID: wp.Meta.ID, StartTime: time.Now()}
 			go dpm.runTryOutboundConnect(wp)
@@ -168,7 +168,7 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 	meta := wp.Meta
 	s, err := dpm.getStream(meta)
 	if err != nil {
-		dpm.logger.Info().Err(err).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to get stream.")
+		dpm.logger.Info().Err(err).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Failed to get stream.")
 		workResult.Result = err
 		return
 	}
@@ -181,7 +181,7 @@ func (dpm *basePeerManager) runTryOutboundConnect(wp *p2pcommon.WaitingPeer) {
 		return
 		//} else {
 		//	if meta.IPAddress != completeMeta.IPAddress {
-		//		dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(completeMeta.ID)).Str("before", meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
+		//		dpm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(completeMeta.ID)).Str("before", meta.IPAddress).Str("after", completeMeta.IPAddress).Msg("IP address of remote peer is changed to ")
 		//	}
 	}
 }
@@ -206,7 +206,7 @@ func (dpm *basePeerManager) getStream(meta p2pcommon.PeerMeta) (network.Stream, 
 func (dpm *basePeerManager) tryAddPeer(outbound bool, meta p2pcommon.PeerMeta, s network.Stream, h p2pcommon.HSHandler) (p2pcommon.PeerMeta, bool) {
 	hResult, err := h.Handle(s, defaultHandshakeTTL)
 	if err != nil {
-		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Str(p2putil.LogPeerID, p2putil.ShortForm(meta.ID)).Msg("Failed to handshake")
+		dpm.logger.Debug().Err(err).Bool("outbound", outbound).Stringer(p2putil.LogPeerID, types.LogPeerShort(meta.ID)).Msg("Failed to handshake")
 		return meta, false
 	}
 
@@ -240,7 +240,7 @@ func (dpm *basePeerManager) createRemoteInfo(conn network.Conn, r p2pcommon.Hand
 		if len(r.Certificates) > 0 {
 			ri.AcceptedRole = types.PeerRole_Agent
 		} else {
-			dpm.logger.Debug().Str(p2putil.LogPeerID, p2putil.ShortForm(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
+			dpm.logger.Debug().Stringer(p2putil.LogPeerID, types.LogPeerShort(r.Meta.ID)).Msg("treat peer which claims agent but with no certificates, as Watcher")
 		}
 	default:
 		ri.AcceptedRole = r.Meta.Role
