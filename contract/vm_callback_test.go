@@ -129,11 +129,10 @@ func TestTransformAmount(t *testing.T) {
 				assert.Equal(t, tt.expectedError.Error(), err.Error())
 			}
 		} else {
-			assert.NoError(t, err, "Expected no error, but got: %v", err)
-		}
-
-		if tt.expectedAmount != nil {
-			assert.Equal(t, tt.expectedAmount, result)
+			if assert.NoError(t, err) && tt.expectedAmount != nil {
+				assert.Equal(t, tt.expectedAmount, result)
+			}
 		}
 	}
+
 }
