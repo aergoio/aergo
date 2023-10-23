@@ -16,6 +16,7 @@ import (
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/config"
 	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/db_pebble"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
@@ -81,7 +82,11 @@ func (cdb *ChainDB) Init(dbType string, dataDir string) error {
 	if cdb.store == nil {
 		logger.Info().Str("datadir", dataDir).Msg("chain database initialized")
 		dbPath := common.PathMkdirAll(dataDir, dbkey.ChainDBName)
-		cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		if dbType == "pebbledb" {
+			cdb.store = db_pebble.NewPebbleDB(dbPath)
+		} else {
+			cdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		}
 	}
 
 	// load data

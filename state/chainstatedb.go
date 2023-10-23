@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/db_pebble"
 	"github.com/aergoio/aergo/v2/internal/common"
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/types"
@@ -45,7 +46,11 @@ func (sdb *ChainStateDB) Init(dbType string, dataDir string, bestBlock *types.Bl
 	// init db
 	if sdb.store == nil {
 		dbPath := common.PathMkdirAll(dataDir, stateName)
-		sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		if dbType == "pebbledb" {
+			sdb.store = db_pebble.NewPebbleDB(dbPath)
+		} else {
+			sdb.store = db.NewDB(db.ImplType(dbType), dbPath)
+		}
 	}
 
 	// init trie
