@@ -27,7 +27,7 @@ static int state_array_pairs(lua_State *L);
 ** If this is a sub-element, update the index at position 2 with
 ** the parent's element key.
 */
-static void state_update_key_with_parent(lua_State *L, char *parent_key) {
+static void update_key_with_parent(lua_State *L, char *parent_key) {
 	if (parent_key != NULL) {
 		// concatenate the key at this level with the given index
 		lua_pushstring(L, parent_key);
@@ -147,10 +147,10 @@ static int state_map_get(lua_State *L) {
 		subm->key_type = m->key_type;
 		subm->dimension = m->dimension - 1;
 
-		luaL_getmetatable(L, STATE_MAP_ID);                 /* m mt */
-		lua_setmetatable(L, -2);                            /* m */
+		luaL_getmetatable(L, STATE_MAP_ID);  /* m mt */
+		lua_setmetatable(L, -2);             /* m */
 
-		if (m->key == NULL) {          /* m key */
+		if (m->key == NULL) {                /* m key */
 			subm->key = strdup(lua_tostring(L, 2));
 		} else {
 			lua_pushstring(L, m->key);   /* m key id */
@@ -163,14 +163,13 @@ static int state_map_get(lua_State *L) {
 		return 1;
 	}
 
-	// if this is a sub-map, update the index with the parent's map key
-	state_update_key_with_parent(L, m->key);
-
 	// read the value associated with the given key
 	lua_pushcfunction(L, getItemWithPrefix);    /* m key f */
+	// if this is a sub-map, update the index with the parent's map key
+	update_key_with_parent(L, m->key);
 	state_map_push_key(L, m);                   /* m key f id-key */
 	if (nargs == 3) {                           /* m key h f id-key */
-		lua_pushvalue(L, 3);                      /* m key h f id-key h */
+		lua_pushvalue(L, 3);                /* m key h f id-key h */
 	}
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key f id-key prefix */
 	lua_call(L, nargs, 1);                      /* m key value */
@@ -208,11 +207,10 @@ static int state_map_set(lua_State *L) {
 
 	luaL_checkany(L, 3);
 
-	// if this is a sub-map, update the index with the parent's map key
-	state_update_key_with_parent(L, m->key);
-
 	// save the value with the given key
 	lua_pushcfunction(L, setItemWithPrefix);    /* m key value f */
+	// if this is a sub-map, update the index with the parent's map key
+	update_key_with_parent(L, m->key);
 	state_map_push_key(L, m);                   /* m key value f id-key */
 	lua_pushvalue(L, 3);                        /* m key value f id-key value */
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key value f id-key value prefix */
@@ -230,11 +228,10 @@ static int state_map_delete(lua_State *L) {
 
 	state_map_check_index_type(L, m);
 
-	// if this is a sub-map, update the index with the parent's map key
-	state_update_key_with_parent(L, m->key);
-
 	// delete the item with the given key
 	lua_pushcfunction(L, delItemWithPrefix);    /* m key f */
+	// if this is a sub-map, update the index with the parent's map key
+	update_key_with_parent(L, m->key);
 	state_map_push_key(L, m);                   /* m key f id-key */
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* m key f id-key prefix */
 	lua_call(L, 2, 1);                          /* m key rv */
@@ -371,7 +368,7 @@ static int state_array_get(lua_State *L) {
 		luaL_getmetatable(L, STATE_ARRAY_ID);                 /* m mt */
 		lua_setmetatable(L, -2);                              /* m */
 
-		if (arr->key == NULL) {        /* a i */
+		if (arr->key == NULL) {              /* a i */
 			suba->key = strdup(lua_tostring(L, 2));
 		} else {
 			lua_pushstring(L, arr->key); /* a i key */
@@ -389,14 +386,13 @@ static int state_array_get(lua_State *L) {
 	}
 	state_array_checkarg(L, arr);               /* a i */
 
-	// if this is a sub-array, update the index with the parent's array key
-	state_update_key_with_parent(L, arr->key);
-
 	// read the value at the given position
 	lua_pushcfunction(L, getItemWithPrefix);    /* a i f */
+	// if this is a sub-array, update the index with the parent's array key
+	update_key_with_parent(L, arr->key);
 	state_array_push_key(L, arr->id);           /* a i [h] f id-i */
 	if (nargs == 3) {                           /* a i h f id-i */
-		lua_pushvalue(L, 3);                      /* a i h f id-i h */
+		lua_pushvalue(L, 3);                /* a i h f id-i h */
 	}
 	lua_pushstring(L, STATE_VAR_KEY_PREFIX);    /* a i [h] f id-i [h] prefix */
 	lua_call(L, nargs, 1);                      /* a i value */
@@ -416,7 +412,7 @@ static int state_array_set(lua_State *L) {
 	state_array_checkarg(L, arr);               /* a i v */
 
 	// if this is a sub-array, update the index with the parent's array key
-	state_update_key_with_parent(L, arr->key);
+	update_key_with_parent(L, arr->key);
 
 	// save the value at the given position
 	lua_pushcfunction(L, setItemWithPrefix);    /* a i v f */
