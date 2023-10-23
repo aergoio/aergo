@@ -42,17 +42,24 @@ func (db *PebbleDB) Open(path string, opt *pebble.Options) error {
 }
 
 func (db *PebbleDB) Set(key, value []byte) {
-	db.store.Set(key, value, pebble.Sync)
+	key = convNilToBytes(key)
+	value = convNilToBytes(value)
+	err := db.store.Set(key, value, pebble.Sync)
+	if err != nil {
+		panic(fmt.Sprintf("Database Error: %v", err))
+	}
 }
 
 func (db *PebbleDB) Delete(key []byte) {
-	db.store.Delete(key, pebble.Sync)
+	key = convNilToBytes(key)
+	err := db.store.Delete(key, pebble.Sync)
+	if err != nil {
+		panic(fmt.Sprintf("Database Error: %v", err))
+	}
 }
 
 func (db *PebbleDB) Get(key []byte) []byte {
-	if key == nil {
-		key = []byte{}
-	}
+	key = convNilToBytes(key)
 	value, closer, err := db.store.Get(key)
 	if err != nil {
 		if err == pebble.ErrNotFound {
@@ -71,7 +78,6 @@ func (db *PebbleDB) Exist(key []byte) bool {
 
 func (db *PebbleDB) NewTx() db.Transaction {
 	batch := db.store.NewBatch()
-
 	return &pebbleTransaction{
 		batch: batch,
 	}
@@ -79,7 +85,6 @@ func (db *PebbleDB) NewTx() db.Transaction {
 
 func (db *PebbleDB) NewBulk() db.Bulk {
 	batch := db.store.NewBatch()
-
 	return &pebbleBulk{
 		batch: batch,
 	}
@@ -123,19 +128,43 @@ func (db *PebbleDB) Close() {
 //=========================================================
 
 type pebbleTransaction struct {
-	batch *pebble.Batch
+	batch     *pebble.Batch
+	setCount  uint
+	delCount  uint
+	keySize   uint64
+	valueSize uint64
 }
 
 func (tx *pebbleTransaction) Set(key, value []byte) {
-	tx.batch.Set(key, value, pebble.Sync)
+	key = convNilToBytes(key)
+	value = convNilToBytes(value)
+
+	err := tx.batch.Set(key, value, pebble.Sync)
+	if err != nil {
+		panic(fmt.Sprintf("Database Error: %v", err))
+	}
+
+	tx.setCount++
+	tx.keySize += uint64(len(key))
+	tx.valueSize += uint64(len(value))
 }
 
 func (tx *pebbleTransaction) Delete(key []byte) {
-	tx.batch.Delete(key, pebble.Sync)
+	key = convNilToBytes(key)
+
+	err := tx.batch.Delete(key, pebble.Sync)
+	if err != nil {
+		panic(fmt.Sprintf("Database Error: %v", err))
+	}
+
+	tx.delCount++
 }
 
 func (tx *pebbleTransaction) Commit() {
-	tx.batch.Commit(pebble.Sync)
+	err := tx.batch.Commit(pebble.Sync)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (tx *pebbleTransaction) Discard() {
@@ -147,19 +176,43 @@ func (tx *pebbleTransaction) Discard() {
 //=========================================================
 
 type pebbleBulk struct {
-	batch *pebble.Batch
+	batch     *pebble.Batch
+	setCount  uint
+	delCount  uint
+	keySize   uint64
+	valueSize uint64
 }
 
 func (bulk *pebbleBulk) Set(key, value []byte) {
-	bulk.batch.Set(key, value, pebble.Sync)
+	key = convNilToBytes(key)
+	value = convNilToBytes(value)
+
+	err := bulk.batch.Set(key, value, pebble.Sync)
+	if err != nil {
+		panic(fmt.Sprintf("Database Error: %v", err))
+	}
+
+	bulk.setCount++
+	bulk.keySize += uint64(len(key))
+	bulk.valueSize += uint64(len(value))
 }
 
 func (bulk *pebbleBulk) Delete(key []byte) {
-	bulk.batch.Delete(key, pebble.Sync)
+	key = convNilToBytes(key)
+
+	err := bulk.batch.Delete(key, pebble.Sync)
+	if err != nil {
+		panic(fmt.Sprintf("Database Error: %v", err))
+	}
+
+	bulk.delCount++
 }
 
 func (bulk *pebbleBulk) Flush() {
-	bulk.batch.Commit(pebble.Sync)
+	err := bulk.batch.Commit(pebble.Sync)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (bulk *pebbleBulk) DiscardLast() {
@@ -195,4 +248,11 @@ func (i *pebbleIterator) Key() []byte {
 
 func (i *pebbleIterator) Value() []byte {
 	return i.iter.Value()
+}
+
+func convNilToBytes(byteArray []byte) []byte {
+	if byteArray == nil {
+		return []byte{}
+	}
+	return byteArray
 }
