@@ -102,7 +102,7 @@ func TestGasLimit(t *testing.T) {
 	}
 }
 
-func TestValidateTxType(t *testing.T) {
+func TestCheckExecution(t *testing.T) {
 	initContractTest(t)
 	defer deinitContractTest(t)
 
@@ -115,38 +115,37 @@ func TestValidateTxType(t *testing.T) {
 		isContract  bool
 
 		expectErr   error
-		expectValid bool
+		expectExec bool
 	}{
 		// deploy
-		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectValid:true},
-		{version:2, txType:types.TxType_DEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectValid:true},
-		{version:2, txType:types.TxType_REDEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_DEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_REDEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectValid:true},
+		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
+		{version:2, txType:types.TxType_DEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
+		{version:2, txType:types.TxType_REDEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_DEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_REDEPLOY, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:true, isContract:false, expectErr:nil, expectExec:true},
 		// recipient is contract
-		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:2, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:2, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:2, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectValid:true},
+		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:2, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:2, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:2, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:true, expectErr:nil, expectExec:true},
 		// recipient is not a contract
-		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
-		{version:2, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
-		{version:2, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
-		{version:2, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
-
-		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
-		{version:3, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
-		{version:3, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:true},
-		{version:3, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectValid:false},
+		{version:2, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version:2, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version:2, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version:2, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version:3, txType:types.TxType_NORMAL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version:3, txType:types.TxType_TRANSFER, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
+		{version:3, txType:types.TxType_CALL, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:true},
+		{version:3, txType:types.TxType_FEEDELEGATION, amount:types.NewAmount(1,types.Aergo), payloadSize:1000, isDeploy:false, isContract:false, expectErr:nil, expectExec:false},
 	} {
-		valid, err := validateTxType(test.txType, test.amount, test.payloadSize, test.version, test.isDeploy, test.isContract)
-		assert.Equal(t, test.expectErr, err, "validateTxType(version:%d, txType:%d, amount:%s, payloadSize:%d)", test.version, test.txType, test.amount, test.payloadSize)
-		assert.Equal(t, test.expectValid, valid, "validateTxType(version:%d, txType:%d, amount:%s, payloadSize:%d)", test.version, test.txType, test.amount, test.payloadSize)
+		do_execute, err := checkExecution(test.txType, test.amount, test.payloadSize, test.version, test.isDeploy, test.isContract)
+		assert.Equal(t, test.expectErr, err, "checkExecution(version:%d, txType:%d, amount:%s, payloadSize:%d)", test.version, test.txType, test.amount, test.payloadSize)
+		assert.Equal(t, test.expectExec, do_execute, "checkExecution(version:%d, txType:%d, amount:%s, payloadSize:%d)", test.version, test.txType, test.amount, test.payloadSize)
 	}
 }
 

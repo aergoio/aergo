@@ -92,9 +92,9 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		receiver.AddBalance(txBody.GetAmountBigInt())
 	}
 
-	// check validity of tx
-	var valid bool
-	if valid, err = validateTxType(txType, txAmount, len(txPayload), bi.ForkVersion, receiver.IsDeploy(), receiver.IsContract()); valid != true {
+	// check if the tx is valid and if the code should be executed
+	var do_execute bool
+	if do_execute, err = checkExecution(txType, txAmount, len(txPayload), bi.ForkVersion, receiver.IsDeploy(), receiver.IsContract()); do_execute != true {
 		return
 	}
 
@@ -299,20 +299,22 @@ func preloadWorker() {
 	}
 }
 
-// check if the tx is valid per tx type and fork version
-func validateTxType(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (valid bool, err error) {
+// check if the tx is valid and if the code should be executed
+func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, version int32, isDeploy, isContract bool) (do_execute bool, err error) {
 
 	// check if the receiver is a not contract
 	if !isDeploy && !isContract {
-		// Before the chain version 3, any tx with no code hash is
-		// unconditionally executed as a simple Aergo transfer. Since this
-		// causes confusion, emit error for call-type tx with a wrong address
-		// from the chain version 3 by not returning error but fall-through for
-		// correct gas estimation.
-		if !(version >= 3 && txType == types.TxType_CALL) {
-			// Here, the condition for fee delegation TX essentially being
-			// call-type, is not necessary, because it is rejected from the
-			// mempool without code hash.
+		// before the hardfork version 3, all transactions in which the recipient
+		// is not a contract were processed as a simple Aergo transfer, including
+		// type CALL and FEEDELEGATION.
+		// starting from hardfork version 3, transactions expected to CALL a
+		// contract but without a valid recipient will emit an error.
+		// FEEDELEGATION txns with invalid recipient are rejected on mempool.
+		if version >= 3 && txType == types.TxType_CALL {
+			// continue and emit an error for correct gas estimation
+			// it will fail because there is no code to execute
+		} else {
+			// no code to execute, just return
 			return false, nil
 		}
 	}
