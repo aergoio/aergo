@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // LoadCache loads the first layers of the merkle tree given a root

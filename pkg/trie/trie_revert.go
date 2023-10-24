@@ -8,6 +8,8 @@ package trie
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // Revert rewinds the state tree to a previous version

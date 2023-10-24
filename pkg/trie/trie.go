@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // Trie is a modified sparse Merkle tree.

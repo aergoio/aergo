@@ -18,6 +18,7 @@ import (
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 func TestTrieEmpty(t *testing.T) {

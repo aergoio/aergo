@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 // DbTx represents Set and Delete interface to store data

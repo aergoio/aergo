@@ -11,7 +11,7 @@ import (
 // state trie
 
 func Trie(key []byte) []byte {
-	return append(triePrefix, key...)
+	return append([]byte(triePrefix), key...)
 }
 
 //---------------------------------------------------------------------------------//
