@@ -1,4 +1,41 @@
 
+start_nodes() {
+
+  if [ "$consensus" == "sbp" ]; then
+    # open the aergo node in testmode
+    ../bin/aergosvr --testmode --home ./aergo-files > logs 2> logs &
+    pid=$!
+  else
+    # open the 3 nodes
+    ../bin/aergosvr --home ./node1 >> logs1 2>> logs1 &
+    pid1=$!
+    ../bin/aergosvr --home ./node2 >> logs2 2>> logs2 &
+    pid2=$!
+    ../bin/aergosvr --home ./node3 >> logs3 2>> logs3 &
+    pid3=$!
+  fi
+
+  # wait the node(s) to be ready
+  if [ "$consensus" == "sbp" ]; then
+    sleep 3
+  elif [ "$consensus" == "dpos" ]; then
+    sleep 5
+  elif [ "$consensus" == "raft" ]; then
+    sleep 2
+  fi
+
+}
+
+stop_nodes() {
+
+  if [ "$consensus" == "sbp" ]; then
+    kill $pid
+  else
+    kill $pid1 $pid2 $pid3
+  fi
+
+}
+
 get_deploy_args() {
   contract_file=$1
 
@@ -27,7 +64,7 @@ get_receipt() {
   set +e
 
   while true; do
-    output=$(../bin/aergocli receipt get $txhash 2>&1 > receipt.json)
+    output=$(../bin/aergocli receipt get --port $query_port $txhash 2>&1 > receipt.json)
 
     #echo "output: $output"
 

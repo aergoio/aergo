@@ -81,8 +81,8 @@ func TestGasPerFunction(t *testing.T) {
 
 	// transfer funds to the contracts
 	err = bc.ConnectBlock(
-		NewLuaTxCall("user", "contract_v2", uint64(10e18), `{"Name":"deposit"}`),
-		NewLuaTxCall("user", "contract_v3", uint64(10e18), `{"Name":"deposit"}`),
+		NewLuaTxCall("user", "contract_v2", uint64(10e18), `{"Name":"default"}`),
+		NewLuaTxCall("user", "contract_v3", uint64(10e18), `{"Name":"default"}`),
 	)
 	assert.NoError(t, err, "sending funds to contracts")
 

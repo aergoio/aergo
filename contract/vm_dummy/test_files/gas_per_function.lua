@@ -1286,9 +1286,9 @@ function run_test(function_name, ...)
 
 end
 
-function deposit()
+function default()
   -- do nothing, only receive native aergo tokens
 end
 
 abi.register(run_test)
-abi.payable(deposit)
+abi.payable(default)

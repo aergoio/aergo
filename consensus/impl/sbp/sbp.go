@@ -45,7 +45,7 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 	return err
 }
 
-// SimpleBlockFactory implments a simple block factory which generate block each cfg.Consensus.BlockInterval.
+// SimpleBlockFactory implements a simple block factory which generate block each cfg.Consensus.BlockInterval.
 //
 // This can be used for testing purpose.
 type SimpleBlockFactory struct {
@@ -118,6 +118,7 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		}
 		s.prevBlock = b
 		jq <- b
+		time.Sleep(s.blockInterval)
 	}
 }
 
@@ -189,7 +190,7 @@ func (s *SimpleBlockFactory) Start() {
 					prevBlock.GetHeader().GetBlocksRootHash(),
 					state.SetPrevBlockHash(prevBlock.BlockHash()),
 				)
-				blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
+				blockState.SetGasPrice(system.GetGasPrice())
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
 				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
