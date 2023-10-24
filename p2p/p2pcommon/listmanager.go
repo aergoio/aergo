@@ -8,7 +8,7 @@ package p2pcommon
 import (
 	"time"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // ListManager manages whitelist and blacklist

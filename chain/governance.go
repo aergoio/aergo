@@ -8,13 +8,13 @@ package chain
 import (
 	"math/big"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/contract/enterprise"
-	"github.com/aergoio/aergo/contract/name"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract"
+	"github.com/aergoio/aergo/v2/contract/enterprise"
+	"github.com/aergoio/aergo/v2/contract/name"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockState, txBody *types.TxBody, sender, receiver *state.V,
@@ -56,8 +56,7 @@ func executeGovernanceTx(ccc consensus.ChainConsensusCluster, bs *state.BlockSta
 // InitGenesisBPs opens system contract and put initial voting result
 // it also set *State in Genesis to use statedb
 func InitGenesisBPs(states *state.StateDB, genesis *types.Genesis) error {
-	aid := types.ToAccountID([]byte(types.AergoSystem))
-	scs, err := states.OpenContractStateAccount(aid)
+	scs, err := states.GetSystemAccountState()
 	if err != nil {
 		return err
 	}

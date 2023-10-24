@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aergoio/aergo/cmd/aergocli/util"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/aergocli/util"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	raftlib "github.com/aergoio/etcd/raft"
 	"github.com/aergoio/etcd/raft/raftpb"
 )
@@ -433,7 +433,7 @@ func (cl *Cluster) addMember(member *consensus.Member, applied bool) error {
 		// notify to p2p TODO temporary code
 		peerID, err := types.IDFromBytes(member.PeerID)
 		if err != nil {
-			panic("invalid member peerid " + enc.ToString(member.PeerID))
+			logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
 		}
 
 		if cl.notifyFn != nil {
@@ -466,7 +466,7 @@ func (cl *Cluster) removeMember(member *consensus.Member) error {
 	// notify to p2p TODO temporary code
 	peerID, err := types.IDFromBytes(member.PeerID)
 	if err != nil {
-		panic("invalid member peerid " + enc.ToString(member.PeerID))
+		logger.Panic().Err(err).Str("peerid", enc.ToString(member.PeerID)).Msg("invalid member peerid")
 	}
 
 	if cl.notifyFn != nil {
@@ -696,7 +696,7 @@ func MaxUint64(x, y uint64) uint64 {
 				}
 
 				if state.Get() != types.RUNNING {
-					logger.Debug().Str("peer", p2putil.ShortForm(peerID)).Msg("peer is not running")
+					logger.Debug().Stringer("peer", types.LogPeerShort(peerID)).Msg("peer is not running")
 					continue
 
 				}

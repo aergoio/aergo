@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/fsnotify/fsnotify"
 	"github.com/mattn/go-colorable"
 	"github.com/rs/zerolog"
@@ -97,13 +97,28 @@ func (c *batch) readBatchFile(batchFilePath string) ([]string, error) {
 	}
 	defer batchFile.Close()
 
-	var cmdLines []string
+	var commands []string
+	var command string
+	var line_no int = 0
+	var isOpen bool = false
 	scanner := bufio.NewScanner(batchFile)
 	for scanner.Scan() {
-		cmdLines = append(cmdLines, scanner.Text())
+		line := scanner.Text()
+		line_no += 1
+		command += line
+		if len(line) > 0 && line[0:1] != "#" {
+			isOpen, err = context.IsCompleteCommand(line, line_no, isOpen)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if !isOpen {
+			commands = append(commands, command)
+			command = ""
+		}
 	}
 
-	return cmdLines, nil
+	return commands, nil
 }
 
 func (c *batch) parse(args string) (string, error) {

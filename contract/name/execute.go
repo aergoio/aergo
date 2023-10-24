@@ -6,21 +6,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types.TxBody,
 	sender, receiver *state.V, blockInfo *types.BlockHeaderInfo) ([]*types.Event, error) {
 
-	systemContractState, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID([]byte(types.AergoSystem)))
-
-	ci, err := ValidateNameTx(txBody, sender, scs, systemContractState)
+	ci, err := ValidateNameTx(txBody, sender, scs)
 	if err != nil {
 		return nil, err
 	}
-	var events []*types.Event
 
 	var nameState *state.V
 	owner := getOwner(scs, []byte(types.AergoName), false)
@@ -28,25 +25,26 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 		if bytes.Equal(sender.ID(), owner) {
 			nameState = sender
 		} else {
-			nameState, err = bs.GetAccountStateV(owner)
-			if err != nil {
+			if nameState, err = bs.GetAccountStateV(owner); err != nil {
 				return nil, err
 			}
 		}
 	} else {
 		nameState = receiver
 	}
+
+	var events []*types.Event
 	switch ci.Name {
 	case types.NameCreate:
-		if err = CreateName(scs, txBody, sender, nameState,
-			ci.Args[0].(string)); err != nil {
+		nameArg := ci.Args[0].(string)
+		if err = CreateName(scs, txBody, sender, nameState, nameArg); err != nil {
 			return nil, err
 		}
 		jsonArgs := ""
-		if blockInfo.Version < 2 {
-			jsonArgs = `{"name":"` + ci.Args[0].(string) + `"}`
+		if blockInfo.ForkVersion < 2 {
+			jsonArgs = `{"name":"` + nameArg + `"}`
 		} else {
-			jsonArgs = `["` + ci.Args[0].(string) + `"]`
+			jsonArgs = `["` + nameArg + `"]`
 		}
 		events = append(events, &types.Event{
 			ContractAddress: receiver.ID(),
@@ -55,16 +53,16 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			JsonArgs:        jsonArgs,
 		})
 	case types.NameUpdate:
-		if err = UpdateName(bs, scs, txBody, sender, nameState,
-			ci.Args[0].(string), ci.Args[1].(string)); err != nil {
+		nameArg := ci.Args[0].(string)
+		toArg := ci.Args[1].(string)
+		if err = UpdateName(bs, scs, txBody, sender, nameState, nameArg, toArg); err != nil {
 			return nil, err
 		}
 		jsonArgs := ""
-		if blockInfo.Version < 2 {
-			jsonArgs = `{"name":"` + ci.Args[0].(string) +
-				`","to":"` + ci.Args[1].(string) + `"}`
+		if blockInfo.ForkVersion < 2 {
+			jsonArgs = `{"name":"` + nameArg + `","to":"` + toArg + `"}`
 		} else {
-			jsonArgs = `["` + ci.Args[0].(string) + `","` + ci.Args[1].(string) + `"]`
+			jsonArgs = `["` + nameArg + `","` + toArg + `"]`
 		}
 		events = append(events, &types.Event{
 			ContractAddress: receiver.ID(),
@@ -73,71 +71,77 @@ func ExecuteNameTx(bs *state.BlockState, scs *state.ContractState, txBody *types
 			JsonArgs:        jsonArgs,
 		})
 	case types.SetContractOwner:
-		ownerState, err := SetContractOwner(bs, scs, ci.Args[0].(string), nameState)
+		ownerArg := ci.Args[0].(string)
+		ownerState, err := SetContractOwner(bs, scs, ownerArg, nameState)
 		if err != nil {
 			return nil, err
 		}
 		ownerState.PutState()
 	}
+
 	nameState.PutState()
+
 	return events, nil
 }
 
-func ValidateNameTx(tx *types.TxBody, sender *state.V,
-	scs, systemcs *state.ContractState) (*types.CallInfo, error) {
+func ValidateNameTx(tx *types.TxBody, sender *state.V, scs *state.ContractState) (*types.CallInfo, error) {
 	if sender != nil && sender.Balance().Cmp(tx.GetAmountBigInt()) < 0 {
 		return nil, types.ErrInsufficientBalance
 	}
+
 	var ci types.CallInfo
 	if err := json.Unmarshal(tx.Payload, &ci); err != nil {
 		return nil, err
 	}
-	name := ci.Args[0].(string)
+
+	nameArg := ci.Args[0].(string)
 	switch ci.Name {
 	case types.NameCreate:
-		namePrice := system.GetNamePriceFromState(systemcs)
-		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
+		if system.GetNamePrice().Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
-		owner := getOwner(scs, []byte(name), false)
-		if owner != nil {
-			return nil, fmt.Errorf("aleady occupied %s", string(name))
+		if owner := getOwner(scs, []byte(nameArg), false); owner != nil {
+			return nil, fmt.Errorf("aleady occupied %s", string(nameArg))
 		}
 	case types.NameUpdate:
-		namePrice := system.GetNamePriceFromState(systemcs)
-		if namePrice.Cmp(tx.GetAmountBigInt()) > 0 {
+		if system.GetNamePrice().Cmp(tx.GetAmountBigInt()) > 0 {
 			return nil, types.ErrTooSmallAmount
 		}
-		if (!bytes.Equal(tx.Account, []byte(name))) &&
-			(!bytes.Equal(tx.Account, getOwner(scs, []byte(name), false))) {
-			return nil, fmt.Errorf("owner not matched : %s", name)
+		if (!bytes.Equal(tx.Account, []byte(nameArg))) &&
+			(!bytes.Equal(tx.Account, getOwner(scs, []byte(nameArg), false))) {
+			return nil, fmt.Errorf("owner not matched : %s", nameArg)
 		}
 	case types.SetContractOwner:
-		owner := getOwner(scs, []byte(types.AergoName), false)
-		if owner != nil {
+		if owner := getOwner(scs, []byte(types.AergoName), false); owner != nil {
 			return nil, fmt.Errorf("owner aleady set to %s", types.EncodeAddress(owner))
 		}
 	default:
 		return nil, errors.New("could not execute unknown cmd")
 	}
+
 	return &ci, nil
 }
 
 func SetContractOwner(bs *state.BlockState, scs *state.ContractState,
 	address string, nameState *state.V) (*state.V, error) {
-	name := []byte(types.AergoName)
+
 	rawaddr, err := types.DecodeAddress(address)
 	if err != nil {
 		return nil, err
 	}
+
 	ownerState, err := bs.GetAccountStateV(rawaddr)
 	if err != nil {
 		return nil, err
 	}
+
 	ownerState.AddBalance(nameState.Balance())
 	nameState.SubBalance(nameState.Balance())
+
+	name := []byte(types.AergoName)
 	if err = registerOwner(scs, name, rawaddr, name); err != nil {
 		return nil, err
 	}
+
 	return ownerState, nil
 }

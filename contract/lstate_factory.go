@@ -2,7 +2,7 @@ package contract
 
 /*
 #include <lualib.h>
-#include "lgmp.h"
+#include "bignum_module.h"
 #include "vm.h"
 */
 import "C"
@@ -10,29 +10,22 @@ import (
 	"sync"
 )
 
-const (
-	LStateDefault = iota
-	LStateVer3
-	LStateMax
-)
-
-var getCh [LStateMax]chan *LState
-var freeCh [LStateMax]chan *LState
+var maxLStates int
+var getCh chan *LState
+var freeCh chan *LState
 var once sync.Once
 
-func StartLStateFactory(num, numClosers, numCloseLimit int) {
+func StartLStateFactory(numLStates, numClosers, numCloseLimit int) {
 	once.Do(func() {
 		C.init_bignum()
 		C.initViewFunction()
-		for i := 0; i < LStateMax; i++ {
-			getCh[i] = make(chan *LState, num)
-			freeCh[i] = make(chan *LState, num)
-		}
 
-		for i := 0; i < num; i++ {
-			for j := 0; j < LStateMax; j++ {
-				getCh[j] <- newLState(j)
-			}
+		maxLStates = numLStates
+		getCh = make(chan *LState, numLStates)
+		freeCh = make(chan *LState, numLStates)
+
+		for i := 0; i < numLStates; i++ {
+			getCh <- newLState()
 		}
 
 		for i := 0; i < numClosers; i++ {
@@ -46,23 +39,29 @@ func statePool(numCloseLimit int) {
 
 	for {
 		select {
-		case state := <-freeCh[LStateDefault]:
+		case state := <-freeCh:
 			s.append(state)
-			getCh[LStateDefault] <- newLState(LStateDefault)
-		case state := <-freeCh[LStateVer3]:
-			s.append(state)
-			getCh[LStateVer3] <- newLState(LStateVer3)
+			getCh <- newLState()
 		}
 	}
 }
 
-func getLState(lsType int) *LState {
-	state := <-getCh[lsType]
-	ctrLgr.Debug().Int("type", lsType).Msg("LState acquired")
+func GetLState() *LState {
+	state := <-getCh
+	ctrLgr.Debug().Msg("LState acquired")
 	return state
 }
 
-func freeLState(state *LState, lsType int) {
-	freeCh[lsType] <- state
-	ctrLgr.Debug().Int("type", lsType).Msg("LState released")
+func FreeLState(state *LState) {
+	if state != nil {
+		freeCh <- state
+		ctrLgr.Debug().Msg("LState released")
+	}
+}
+
+func FlushLStates() {
+	for i := 0; i < maxLStates; i++ {
+		s := GetLState()
+		FreeLState(s)
+	}
 }

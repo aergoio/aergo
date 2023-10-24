@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
@@ -21,6 +21,8 @@ type AdminService struct {
 	*component.ComponentHub
 	*log.Logger
 	run func()
+
+	types.UnimplementedAdminRPCServiceServer
 }
 
 func NewAdminService(conf *config.RPCConfig, hub *component.ComponentHub) *AdminService {

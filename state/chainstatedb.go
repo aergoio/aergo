@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/db"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // ChainStateDB manages statedb and additional informations about blocks like a state root hash
@@ -102,7 +102,7 @@ func (sdb *ChainStateDB) SetGenesis(genesis *types.Genesis, bpInit func(*StateDB
 		}
 
 		aid := types.ToAccountID([]byte(types.AergoSystem))
-		scs, err := stateDB.OpenContractStateAccount(aid)
+		scs, err := stateDB.GetSystemAccountState()
 		if err != nil {
 			return err
 		}

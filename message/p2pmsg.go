@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const P2PSvc = "p2pSvc"

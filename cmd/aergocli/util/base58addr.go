@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/mr-tron/base58/base58"
 )
 
 type InOutBlockHeader struct {
 	ChainID          string
+	Version          int32
 	PrevBlockHash    string
 	BlockNo          uint64
 	Timestamp        int64
@@ -222,6 +223,7 @@ func ConvBlock(b *types.Block) *InOutBlock {
 	if b != nil {
 		out.Hash = base58.Encode(b.Hash)
 		out.Header.ChainID = base58.Encode(b.GetHeader().GetChainID())
+		out.Header.Version = types.DecodeChainIdVersion(b.GetHeader().GetChainID())
 		out.Header.PrevBlockHash = base58.Encode(b.GetHeader().GetPrevBlockHash())
 		out.Header.BlockNo = b.GetHeader().GetBlockNo()
 		out.Header.Timestamp = b.GetHeader().GetTimestamp()

@@ -6,21 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 const (
 	initBlkCount = 20
-)
-
-var (
-	reorgKeyStr = "_reorg_marker_"
-	reorgKey    = []byte(reorgKeyStr)
 )
 
 var (
@@ -136,7 +131,7 @@ func (cs *ChainService) reorg(topBlock *types.Block, marker *ReorgMarker) error 
 
 	reorg, err := newReorganizer(cs, topBlock, marker)
 	if err != nil {
-		logger.Error().Err(err).Msg("new reorganazier failed")
+		logger.Error().Err(err).Msg("new reorganizer failed")
 		return err
 	}
 
@@ -361,7 +356,7 @@ func (reorg *reorganizer) dumpOldBlocks() {
 	}
 }
 
-// Find branch root and gather rollforard/rollback target blocks
+// Find branch root and gather rollforward/rollback target blocks
 func (reorg *reorganizer) gather() error {
 	//find branch root block , gather rollforward Target block
 	var err error

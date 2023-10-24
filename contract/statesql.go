@@ -15,9 +15,9 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 var (
@@ -97,7 +97,7 @@ func LoadDatabase(dataDir string) error {
 	return err
 }
 
-func loadTestDatabase(dataDir string) error {
+func LoadTestDatabase(dataDir string) error {
 	var err error
 	path := filepath.Join(dataDir, statesqlDriver)
 	sqlLgr.Debug().Str("path", path).Msg("loading statesql")

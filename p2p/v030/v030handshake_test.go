@@ -13,13 +13,17 @@ import (
 	"testing"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
+)
+
+const (
+	sampleKeyFile = "../test/sample/sample.key"
 )
 
 var (
@@ -45,7 +49,6 @@ func init() {
 	theirChainID.Magic = "itsdiff2"
 	theirChainBytes, _ = theirChainID.Bytes()
 
-	sampleKeyFile := "../../test/sample.key"
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", log.NewLogger("v030.test"))

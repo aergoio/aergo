@@ -7,9 +7,9 @@ package subproto
 
 import (
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 type pingRequestHandler struct {
@@ -52,7 +52,7 @@ func (ph *pingRequestHandler) Handle(msg p2pcommon.Message, msgBody p2pcommon.Me
 	}
 
 	// generate response message
-	ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Str(p2putil.LogMsgID, msg.ID().String()).Msg("Sending ping response")
+	ph.logger.Debug().Str(p2putil.LogPeerName, remotePeer.Name()).Stringer(p2putil.LogMsgID, msg.ID()).Msg("Sending ping response")
 	resp := &types.Pong{}
 	remotePeer.SendMessage(remotePeer.MF().NewMsgResponseOrder(msg.ID(), p2pcommon.PingResponse, resp))
 }

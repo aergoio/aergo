@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/aergoio/aergo/cmd/brick/context"
-	"github.com/aergoio/aergo/contract"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/cmd/brick/context"
+	"github.com/aergoio/aergo/v2/contract/vm_dummy"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 func init() {
@@ -61,7 +61,7 @@ func (c *injectAccount) Run(args string) (string, uint64, []*types.Event, error)
 	accountName, amount, _ := c.parse(args)
 
 	err := context.Get().ConnectBlock(
-		contract.NewLuaTxAccountBig(accountName, amount),
+		vm_dummy.NewLuaTxAccountBig(accountName, amount),
 	)
 
 	if err != nil {

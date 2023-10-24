@@ -8,17 +8,17 @@ package impl
 import (
 	"strings"
 
-	"github.com/aergoio/aergo/chain"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/consensus/impl/dpos"
-	"github.com/aergoio/aergo/consensus/impl/raftv2"
-	"github.com/aergoio/aergo/consensus/impl/sbp"
-	"github.com/aergoio/aergo/p2p"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/rpc"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/chain"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/consensus/impl/dpos"
+	"github.com/aergoio/aergo/v2/consensus/impl/raftv2"
+	"github.com/aergoio/aergo/v2/consensus/impl/sbp"
+	"github.com/aergoio/aergo/v2/p2p"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/rpc"
+	"github.com/aergoio/aergo/v2/types"
 )
 
 // New returns consensus.Consensus based on the configuration parameters.

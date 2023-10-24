@@ -16,14 +16,18 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/config"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2pkey"
-	"github.com/aergoio/aergo/p2p/p2pmock"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/config"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2pkey"
+	"github.com/aergoio/aergo/v2/p2p/p2pmock"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/golang/mock/gomock"
 	"github.com/libp2p/go-libp2p-core/crypto"
+)
+
+const (
+	sampleKeyFile = "../test/sample/sample.key"
 )
 
 var (
@@ -77,7 +81,6 @@ func init() {
 	theirChainID.Magic = "itsdiff2"
 	theirChainBytes, _ = theirChainID.Bytes()
 
-	sampleKeyFile := "../../test/sample.key"
 	baseCfg := &config.BaseConfig{AuthDir: "test"}
 	p2pCfg := &config.P2PConfig{NPKey: sampleKeyFile}
 	p2pkey.InitNodeInfo(baseCfg, p2pCfg, "0.0.1-test", log.NewLogger("v200.test"))
@@ -456,7 +459,7 @@ func TestV200Handshaker_checkAgent(t *testing.T) {
 		id, _ := types.IDFromPrivateKey(priv)
 		producerIDs[i] = id
 		certs[i], _ = p2putil.NewAgentCertV1(id, agentID, p2putil.ConvertPKToBTCEC(priv), []string{ipExternal1}, time.Hour*24)
-		logger.Info().Str("peerID", p2putil.ShortForm(id)).Int("idx", i).Msg("producer id")
+		logger.Info().Stringer("peerID", types.LogPeerShort(id)).Int("idx", i).Msg("producer id")
 	}
 	pCerts, _ := p2putil.ConvertCertsToProto(certs)
 	wrongCert := *certs[0]

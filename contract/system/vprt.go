@@ -12,9 +12,10 @@ import (
 	"reflect"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/internal/enc"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/internal/enc"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	rb "github.com/emirpasic/gods/trees/redblacktree"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/sanity-io/litter"
@@ -36,16 +37,13 @@ var (
 	ErrNoVotingRewardWinner = errors.New("voting reward: no winner")
 	ErrNoVotingRewardRank   = errors.New("voting reward rank: not initialized")
 
-	zeroValue = &big.Int{}
-
-	vprKeyPrefix     = []byte("VotingPowerBucket/")
-	million          = new(big.Int).Exp(ten, new(big.Int).SetUint64(6), nil)
-	annualRewardM, _ = new(big.Int).SetString("5045760000000000000", 10)
-	annualReward     = new(big.Int).Mul(annualRewardM, million)
-	ten              = new(big.Int).SetUint64(10)
-	oneYIS           = new(big.Int).SetUint64(365 * 24 * 60 * 60)
-	defaultReward    = new(big.Int).Div(annualReward, oneYIS)                // 0.16 AERGO per sec
-	binSize, _       = new(big.Int).SetString("10000000000000000000000", 10) // 10000 AERGO
+	zeroValue     = types.NewZeroAmount()
+	million       = types.NewAmount(1e6, types.Aer)          // 1,000,000 Aer
+	annualRewardM = types.NewAmount(5045760000, types.Gaer)  // 5,045,760,000 Gaer
+	annualReward  = new(big.Int).Mul(annualRewardM, million) // 5,045,760 AERGO
+	oneYIS        = new(big.Int).SetUint64(365 * 24 * 60 * 60)
+	defaultReward = new(big.Int).Div(annualReward, oneYIS) // 0.16 AERGO per sec
+	binSize       = types.NewAmount(1e4, types.Aergo)      // 10,000 AERGO
 
 	votingPowerRank *vpr
 
@@ -283,11 +281,11 @@ func (b *vprStore) write(s dataSetter, i uint8) error {
 		buf.Write(toVotingPower(e).marshal())
 	}
 
-	return s.SetData(vprKey(i), buf.Bytes())
+	return s.SetData(dbkey.SystemVpr(i), buf.Bytes())
 }
 
 func (b *vprStore) read(s dataGetter, i uint8) ([]*votingPower, error) {
-	buf, err := s.GetData(vprKey(i))
+	buf, err := s.GetData(dbkey.SystemVpr(i))
 	if err != nil {
 		return nil, err
 	}
@@ -723,11 +721,6 @@ func (v *vpr) pickVotingRewardWinner(seed int64) (types.Address, error) {
 	}
 
 	return nil, ErrNoVotingRewardWinner
-}
-
-func vprKey(i uint8) []byte {
-	var vk []byte = vprKeyPrefix
-	return append(vk, []byte(fmt.Sprintf("%v", i))...)
 }
 
 func toVotingPower(e *list.Element) *votingPower {

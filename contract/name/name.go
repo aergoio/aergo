@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
-
-var prefix = []byte("name")
 
 type NameMap struct {
 	Version     byte
@@ -37,19 +36,20 @@ func createName(scs *state.ContractState, name []byte, owner []byte) error {
 // UpdateName is avaliable after bid implement
 func UpdateName(bs *state.BlockState, scs *state.ContractState, tx *types.TxBody,
 	sender, receiver *state.V, name, to string) error {
-	amount := tx.GetAmountBigInt()
 	if len(getAddress(scs, []byte(name))) <= types.NameLength {
 		return fmt.Errorf("%s is not created yet", string(name))
 	}
 	destination, _ := types.DecodeAddress(to)
 	destination = GetAddress(scs, destination)
+
+	amount := tx.GetAmountBigInt()
 	sender.SubBalance(amount)
 	receiver.AddBalance(amount)
 	contract, err := bs.StateDB.OpenContractStateAccount(types.ToAccountID(destination))
 	if err != nil {
 		return types.ErrTxInvalidRecipient
 	}
-	creator, err := contract.GetData([]byte("Creator"))
+	creator, err := contract.GetData(dbkey.CreatorMeta())
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func Resolve(bs *state.BlockState, name []byte, legacy bool) ([]byte, error) {
 }
 
 func openContract(bs *state.BlockState) (*state.ContractState, error) {
-	v, err := bs.GetAccountStateV([]byte("aergo.name"))
+	v, err := bs.GetAccountStateV([]byte(types.AergoName))
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +101,7 @@ func openContract(bs *state.BlockState) (*state.ContractState, error) {
 
 // GetAddress is resolve name for mempool
 func GetAddress(scs *state.ContractState, name []byte) []byte {
-	if len(name) == types.AddressLength ||
-		types.IsSpecialAccount(name) {
+	if len(name) == types.AddressLength || types.IsSpecialAccount(name) {
 		return name
 	}
 	return getAddress(scs, name)
@@ -110,8 +109,7 @@ func GetAddress(scs *state.ContractState, name []byte) []byte {
 
 // GetAddressLegacy is resolve name for mempool by buggy logic, leaved for backward compatibility
 func GetAddressLegacy(scs *state.ContractState, name []byte) []byte {
-	if len(name) == types.AddressLength ||
-		strings.Contains(string(name), ".") {
+	if len(name) == types.AddressLength || strings.Contains(string(name), ".") {
 		return name
 	}
 	return getAddress(scs, name)
@@ -138,14 +136,12 @@ func getOwner(scs *state.ContractState, name []byte, useInitial bool) []byte {
 }
 
 func getNameMap(scs *state.ContractState, name []byte, useInitial bool) *NameMap {
-	lowerCaseName := strings.ToLower(string(name))
-	key := append(prefix, lowerCaseName...)
 	var err error
 	var ownerdata []byte
 	if useInitial {
-		ownerdata, err = scs.GetInitialData(key)
+		ownerdata, err = scs.GetInitialData(dbkey.Name(name))
 	} else {
-		ownerdata, err = scs.GetData(key)
+		ownerdata, err = scs.GetData(dbkey.Name(name))
 	}
 	if err != nil {
 		return nil
@@ -168,9 +164,7 @@ func registerOwner(scs *state.ContractState, name, owner, destination []byte) er
 }
 
 func setNameMap(scs *state.ContractState, name []byte, n *NameMap) error {
-	lowerCaseName := strings.ToLower(string(name))
-	key := append(prefix, lowerCaseName...)
-	return scs.SetData(key, serializeNameMap(n))
+	return scs.SetData(dbkey.Name(name), serializeNameMap(n))
 }
 
 func serializeNameMap(n *NameMap) []byte {

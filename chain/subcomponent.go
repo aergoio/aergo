@@ -5,14 +5,14 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-actor/router"
-	"github.com/aergoio/aergo/pkg/component"
+	"github.com/aergoio/aergo/v2/pkg/component"
 )
 
 // SubComponent handles message with Receive(), and requests to other actor services with IComponentRequester
 // To use SubComponent, only need to implement Actor interface
 type SubComponent struct {
 	actor.Actor
-	component.IComponentRequester // use basecomponent to request to other actors
+	component.IComponentRequester // use baseComponent to request to other actors
 
 	name  string
 	pid   *actor.PID

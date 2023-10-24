@@ -8,10 +8,10 @@ import (
 
 	"github.com/aergoio/aergo-actor/actor"
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/message"
-	"github.com/aergoio/aergo/p2p/p2putil"
-	"github.com/aergoio/aergo/pkg/component"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/message"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/pkg/component"
+	"github.com/aergoio/aergo/v2/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -110,7 +110,7 @@ func (m *txPutter) putToNextTx() int {
 		m.rs[m.offset] = &r
 		calculated := tx.CalculateTxHash()
 		if !bytes.Equal(hash, calculated) {
-			m.logger.Trace().Object("calculated", types.LogBase58{Bytes: &calculated}).Object("in", types.LogBase58{Bytes: &hash}).Msg("tx hash mismatch")
+			m.logger.Trace().Stringer("calculated", types.LogBase58(calculated)).Stringer("in", types.LogBase58(hash)).Msg("tx hash mismatch")
 			r.Error = types.CommitStatus_TX_INVALID_HASH
 		} else {
 			f := m.hub.RequestFuture(message.MemPoolSvc,

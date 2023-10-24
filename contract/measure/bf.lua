@@ -1,6 +1,6 @@
 loop_cnt = 1000
 arr = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }
-tbl = { name= "kslee", year= 1981, age= 41 }
+tbl = { name= "user2", year= 1981, age= 41 }
 long_str = [[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as well.
 ]]
 long_str1 = [[Looks for the first match of pattern in the string s. If it finds a match, then find returns the indices of s where this occurrence starts and ends; otherwise, it returns nil. A third, optional numerical argument init specifies where to start the search; its default value is 1 and can be negative. A value of true as a fourth, optional argument plain turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in pattern being considered "magic". Note that if plain is given, then init must be given as werr.
@@ -345,6 +345,7 @@ function math_fns()
     end
     print("math.abs")
     md(math.abs, d)
+    --[[
     print("math.acos")
     md(math.acos, f)
     print("math.asin")
@@ -353,8 +354,11 @@ function math_fns()
     md(math.atan, f)
     print("math.atan2")
     md(math.atan2, f, 2)
+    ]]
     print("math.ceil")
+    md(math.ceil, d)
     md(math.ceil, f)
+    --[[
     print("math.cos")
     md(math.cos, d)
     md(math.cos, f)
@@ -366,15 +370,18 @@ function math_fns()
     print("math.exp")
     md(math.exp, d)
     md(math.exp, f)
+    ]]
     print("math.floor")
     md(math.floor, d)
     md(math.floor, f)
+    --[[
     print("math.fmod")
     md(math.fmod, f, 1.4)
     print("math.frexp")
     md(math.frexp, d)
     md(math.frexp, f)
     print("math.log")
+    ]]
     local filter = function(l, cond)
         r = {}
         for i, v in ipairs(l) do
@@ -386,11 +393,13 @@ function math_fns()
     end
     ud = filter(d, function(v) return v >= 0 end)
     uf = filter(f, function(v) return v >= 0 end)
+    --[[
     md(math.log, ud)
     md(math.log, uf)
     print("math.log10")
     md(math.log10, ud)
     md(math.log10, uf)
+    ]]
     print("math.max")
     m1k(math.max, unpack(ud))
     m1k(math.max, unpack(d))
@@ -401,9 +410,11 @@ function math_fns()
     m1k(math.min, unpack(d))
     m1k(math.min, unpack(uf))
     m1k(math.min, unpack(f))
+    --[[
     print("math.modf")
     md(math.modf, d)
     md(math.modf, f)
+    ]]
     print("math.pow")
     md(math.pow, d, 2)
     md(math.pow, d, 4)
@@ -413,6 +424,7 @@ function math_fns()
     md(math.pow, f, 8)
     md(math.pow, ud, 8.4)
     md(math.pow, uf, 8.4)
+    --[[
     print("math.sin")
     md(math.sin, d)
     md(math.sin, f)
@@ -427,6 +439,7 @@ function math_fns()
     md(math.tan, f)
     print("math.tanh")
     md(math.tanh, f)
+    ]]
 end
 
 function bit_fns()

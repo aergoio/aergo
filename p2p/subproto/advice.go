@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/p2p/p2pcommon"
-	"github.com/aergoio/aergo/p2p/p2putil"
+	"github.com/aergoio/aergo/v2/p2p/p2pcommon"
+	"github.com/aergoio/aergo/v2/p2p/p2putil"
 	"github.com/rs/zerolog"
 )
 
@@ -32,7 +32,7 @@ func (a *LogHandleTimeAdvice) PreHandle() {
 func (a *LogHandleTimeAdvice) PostHandle(msg p2pcommon.Message, msgBody p2pcommon.MessageBody) {
 	a.logger.WithLevel(a.level).
 		Int64("elapsed", time.Since(a.timestamp).Nanoseconds()/1000).
-		Str(p2putil.LogProtoID, msg.Subprotocol().String()).
-		Str(p2putil.LogMsgID, msg.ID().String()).
+		Stringer(p2putil.LogProtoID, msg.Subprotocol()).
+		Stringer(p2putil.LogMsgID, msg.ID()).
 		Msg("handle takes")
 }

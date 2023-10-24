@@ -14,11 +14,11 @@ import (
 	"sync"
 
 	"github.com/aergoio/aergo-lib/log"
-	"github.com/aergoio/aergo/consensus"
-	"github.com/aergoio/aergo/contract/system"
-	"github.com/aergoio/aergo/internal/common"
-	"github.com/aergoio/aergo/state"
-	"github.com/aergoio/aergo/types"
+	"github.com/aergoio/aergo/v2/consensus"
+	"github.com/aergoio/aergo/v2/contract/system"
+	"github.com/aergoio/aergo/v2/internal/common"
+	"github.com/aergoio/aergo/v2/state"
+	"github.com/aergoio/aergo/v2/types"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -50,7 +50,7 @@ func Max() uint16 {
 	return max
 }
 
-// ClusterMember is an interface which corresponds to BP member udpate.
+// ClusterMember is an interface which corresponds to BP member update.
 type ClusterMember interface {
 	Size() uint16
 	Update(ids []string) error
@@ -100,7 +100,7 @@ func (c *Cluster) init() error {
 	c.size = uint16(len(genesisBpList))
 
 	// The boot time BP member loading is later performed along with DPoS
-	// status initilization.
+	// status initialization.
 
 	return nil
 }
@@ -217,7 +217,7 @@ func (idx Index) IsNil() bool {
 	return idx == indexNil
 }
 
-// BpIndex2ID returns the ID correspinding to idx.
+// BpIndex2ID returns the ID corresponding to idx.
 func (c *Cluster) BpIndex2ID(bpIdx Index) (types.PeerID, bool) {
 	c.Lock()
 	defer c.Unlock()
@@ -333,7 +333,7 @@ func NewSnapshots(c ClusterMember, cdb consensus.ChainDB, sdb *state.ChainStateD
 	if block, err := cdb.GetBestBlock(); err == nil {
 		snap.UpdateCluster(block.BlockNo())
 	} else {
-		panic(err.Error())
+		logger.Panic().Err(err).Msg("Failed to get the best block")
 	}
 
 	return snap
@@ -352,7 +352,7 @@ func (sn *Snapshots) AddSnapshot(refBlockNo types.BlockNo) ([]string, error) {
 		sn.reset()
 	}
 
-	// Add BP list every 'sn.bpCount'rd block.
+	// Add BP list every 'sn.bpCount()'th block.
 	if sn.sdb == nil || !isSnapPeriod(refBlockNo) || refBlockNo == 0 {
 		return nil, nil
 	}
@@ -437,7 +437,7 @@ func (sn *Snapshots) del(refBlockNo types.BlockNo) error {
 
 	delete(sn.snaps, refBlockNo)
 
-	logger.Debug().Uint64("block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP snaphost removed")
+	logger.Debug().Uint64("block no", refBlockNo).Int("len", len(sn.snaps)).Msg("BP snapshot removed")
 
 	return nil
 }
