@@ -46,7 +46,7 @@ static int set_value(lua_State *L, const char *str) {
 			luaL_error(L, "not enough memory");
 		}
 		lua_pushstring(L, str);
-		free (str);
+		free(str);
 		break;
 	}
 	default:
@@ -282,8 +282,10 @@ static int moduleBalance(lua_State *L) {
 }
 
 static int moduleGasLeft(lua_State *L) {
+	char str[64];
 	// do not charge gas for this call for easier calculations
-	lua_pushinteger(L, lua_gasget(L));
+	snprintf(str, sizeof(str), "%llu", lua_gasget(L));
+	lua_pushstring(L, str);
 	return 1;
 }
 
