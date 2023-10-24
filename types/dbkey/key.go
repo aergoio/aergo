@@ -8,6 +8,13 @@ import (
 )
 
 //---------------------------------------------------------------------------------//
+// state trie
+
+func Trie(key []byte) []byte {
+	return append(triePrefix, key...)
+}
+
+//---------------------------------------------------------------------------------//
 // chain
 
 func Receipts(blockHash []byte, blockNo types.BlockNo) []byte {
