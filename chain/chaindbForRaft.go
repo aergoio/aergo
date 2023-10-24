@@ -2,13 +2,13 @@ package chain
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/gob"
 	"errors"
 
 	"github.com/aergoio/aergo-lib/db"
 	"github.com/aergoio/aergo/v2/consensus"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/aergoio/etcd/raft/raftpb"
 	"github.com/golang/protobuf/proto"
 )
@@ -86,10 +86,10 @@ func (cdb *ChainDB) ClearWAL() {
 		defer bulk.DiscardLast()
 
 		for i := lastIdx; i >= 1; i-- {
-			bulk.Delete(getRaftEntryKey(i))
+			bulk.Delete(dbkey.RaftEntry(i))
 		}
 
-		bulk.Delete(raftEntryLastIdxKey)
+		bulk.Delete(dbkey.RaftEntryLastIdx())
 
 		bulk.Flush()
 	}
@@ -97,13 +97,13 @@ func (cdb *ChainDB) ClearWAL() {
 	dbTx := cdb.store.NewTx()
 	defer dbTx.Discard()
 
-	dbTx.Delete(raftIdentityKey)
+	dbTx.Delete(dbkey.RaftIdentity())
 	// remove hardstate
 
-	dbTx.Delete(raftStateKey)
+	dbTx.Delete(dbkey.RaftState())
 
 	// remove snapshot
-	dbTx.Delete(raftSnapKey)
+	dbTx.Delete(dbkey.RaftSnap())
 
 	logger.Debug().Msg("reset identify, hardstate, snapshot from datafiles")
 
@@ -130,14 +130,14 @@ func (cdb *ChainDB) WriteHardState(hardstate *raftpb.HardState) error {
 	if data, err = proto.Marshal(hardstate); err != nil {
 		logger.Panic().Msg("failed to marshal raft state")
 	}
-	dbTx.Set(raftStateKey, data)
+	dbTx.Set(dbkey.RaftState(), data)
 	dbTx.Commit()
 
 	return nil
 }
 
 func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
-	data := cdb.store.Get(raftStateKey)
+	data := cdb.store.Get(dbkey.RaftState())
 
 	if len(data) == 0 {
 		return nil, ErrWalNoHardState
@@ -151,22 +151,6 @@ func (cdb *ChainDB) GetHardState() (*raftpb.HardState, error) {
 	logger.Info().Uint64("term", state.Term).Str("vote", types.Uint64ToHexaString(state.Vote)).Uint64("commit", state.Commit).Msg("load hard state")
 
 	return state, nil
-}
-
-func getRaftEntryKey(idx uint64) []byte {
-	var key bytes.Buffer
-	key.Write(raftEntryPrefix)
-	l := make([]byte, 8)
-	binary.LittleEndian.PutUint64(l[:], idx)
-	key.Write(l)
-	return key.Bytes()
-}
-
-func getRaftEntryInvertKey(blockHash []byte) []byte {
-	var key bytes.Buffer
-	key.Write(raftEntryInvertPrefix)
-	key.Write(blockHash)
-	return key.Bytes()
 }
 
 func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.Block, ccProposes []*raftpb.ConfChange) error {
@@ -188,7 +172,7 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 
 		for i := ents[0].Index; i <= last; i++ {
 			// delete ents[0].Index ~ lastIndex of wal
-			dbTx.Delete(getRaftEntryKey(i))
+			dbTx.Delete(dbkey.RaftEntry(i))
 		}
 	}
 
@@ -208,11 +192,11 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 		}
 
 		lastIdx = entry.Index
-		dbTx.Set(getRaftEntryKey(entry.Index), data)
+		dbTx.Set(dbkey.RaftEntry(entry.Index), data)
 
 		// invert key to search raft entry corresponding to block hash
 		if entry.Type == consensus.EntryBlock {
-			dbTx.Set(getRaftEntryInvertKey(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
+			dbTx.Set(dbkey.RaftEntryInvert(blocks[i].BlockHash()), types.Uint64ToBytes(entry.Index))
 		}
 
 		if entry.Type == consensus.EntryConfChange {
@@ -241,11 +225,11 @@ func (cdb *ChainDB) WriteRaftEntry(ents []*consensus.WalEntry, blocks []*types.B
 func (cdb *ChainDB) writeRaftEntryLastIndex(dbTx db.Transaction, lastIdx uint64) {
 	logger.Debug().Uint64("index", lastIdx).Msg("set last wal entry")
 
-	dbTx.Set(raftEntryLastIdxKey, types.BlockNoToBytes(lastIdx))
+	dbTx.Set(dbkey.RaftEntryLastIdx(), types.BlockNoToBytes(lastIdx))
 }
 
 func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
-	data := cdb.store.Get(getRaftEntryKey(idx))
+	data := cdb.store.Get(dbkey.RaftEntry(idx))
 	if len(data) == 0 {
 		return nil, ErrNoWalEntry
 	}
@@ -267,7 +251,7 @@ func (cdb *ChainDB) GetRaftEntry(idx uint64) (*consensus.WalEntry, error) {
 }
 
 func (cdb *ChainDB) GetRaftEntryIndexOfBlock(hash []byte) (uint64, error) {
-	data := cdb.store.Get(getRaftEntryInvertKey(hash))
+	data := cdb.store.Get(dbkey.RaftEntryInvert(hash))
 	if len(data) == 0 {
 		return 0, ErrNoWalEntryForBlock
 	}
@@ -290,7 +274,7 @@ func (cdb *ChainDB) GetRaftEntryOfBlock(hash []byte) (*consensus.WalEntry, error
 }
 
 func (cdb *ChainDB) GetRaftEntryLastIdx() (uint64, error) {
-	lastBytes := cdb.store.Get(raftEntryLastIdxKey)
+	lastBytes := cdb.store.Get(dbkey.RaftEntryLastIdx())
 	if lastBytes == nil || len(lastBytes) == 0 {
 		return 0, nil
 	}
@@ -380,7 +364,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 	}
 
 	dbTx := cdb.store.NewTx()
-	dbTx.Set(raftSnapKey, data)
+	dbTx.Set(dbkey.RaftSnap(), data)
 	dbTx.Commit()
 
 	return nil
@@ -416,7 +400,7 @@ func (cdb *ChainDB) WriteSnapshot(snap *raftpb.Snapshot) error {
 */
 
 func (cdb *ChainDB) GetSnapshot() (*raftpb.Snapshot, error) {
-	data := cdb.store.Get(raftSnapKey)
+	data := cdb.store.Get(dbkey.RaftSnap())
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -448,14 +432,14 @@ func (cdb *ChainDB) WriteIdentity(identity *consensus.RaftIdentity) error {
 		return ErrEncodeRaftIdentity
 	}
 
-	dbTx.Set(raftIdentityKey, val.Bytes())
+	dbTx.Set(dbkey.RaftIdentity(), val.Bytes())
 	dbTx.Commit()
 
 	return nil
 }
 
 func (cdb *ChainDB) GetIdentity() (*consensus.RaftIdentity, error) {
-	data := cdb.store.Get(raftIdentityKey)
+	data := cdb.store.Get(dbkey.RaftIdentity())
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -486,22 +470,11 @@ func (cdb *ChainDB) WriteConfChangeProgress(id uint64, progress *types.ConfChang
 	return nil
 }
 
-func getConfChangeProgressKey(idx uint64) []byte {
-	var key bytes.Buffer
-	key.Write(raftConfChangeProgressPrefix)
-	l := make([]byte, 8)
-	binary.LittleEndian.PutUint64(l[:], idx)
-	key.Write(l)
-	return key.Bytes()
-}
-
 func (cdb *ChainDB) writeConfChangeProgress(dbTx db.Transaction, id uint64, progress *types.ConfChangeProgress) error {
 	if id == 0 {
 		// it's for intial member's for startup
 		return nil
 	}
-
-	ccKey := getConfChangeProgressKey(id)
 
 	// Make CC Data
 	var data []byte
@@ -512,15 +485,13 @@ func (cdb *ChainDB) writeConfChangeProgress(dbTx db.Transaction, id uint64, prog
 		return err
 	}
 
-	dbTx.Set(ccKey, data)
+	dbTx.Set(dbkey.RaftConfChangeProgress(id), data)
 
 	return nil
 }
 
 func (cdb *ChainDB) GetConfChangeProgress(id uint64) (*types.ConfChangeProgress, error) {
-	ccKey := getConfChangeProgressKey(id)
-
-	data := cdb.store.Get(ccKey)
+	data := cdb.store.Get(dbkey.RaftConfChangeProgress(id))
 	if len(data) == 0 {
 		return nil, nil
 	}
