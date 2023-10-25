@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	votingCatalog []types.VotingIssue
+	votingCatalog  []types.VotingIssue
 	lastBpCount    int
 	defaultVoteKey = []byte(types.OpvoteBP.ID())
 )

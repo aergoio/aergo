@@ -1042,7 +1042,7 @@ func transformAmount(amountStr string) (*big.Int, error) {
 
 	// Define the units and corresponding multipliers
 	for _, data := range []struct {
-		unit string
+		unit       string
 		multiplier *big.Int
 	}{
 		{"aergo", mulAergo},

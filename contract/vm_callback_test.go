@@ -10,19 +10,19 @@ import (
 )
 
 func bigIntFromString(str string) *big.Int {
-    bigInt, success := new(big.Int).SetString(str, 10)
-    if !success {
-        panic("bigIntFromString: invalid number: " + str)
-    }
-    return bigInt
+	bigInt, success := new(big.Int).SetString(str, 10)
+	if !success {
+		panic("bigIntFromString: invalid number: " + str)
+	}
+	return bigInt
 }
 
 func TestTransformAmount(t *testing.T) {
 	// Define the test cases
 	tests := []struct {
-		amountStr       string
-		expectedAmount  *big.Int
-		expectedError   error
+		amountStr      string
+		expectedAmount *big.Int
+		expectedError  error
 	}{
 		// Empty Input String
 		{"", big.NewInt(0), nil},
