@@ -78,18 +78,18 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 	)
 
 	// compute the base fee
-	usedFee = TxFee(len(txBody.GetPayload()), bs.GasPrice, bi.ForkVersion)
+	usedFee = TxFee(len(txPayload), bs.GasPrice, bi.ForkVersion)
 
 	// check if sender and receiver are not the same
 	if sender.AccountID() != receiver.AccountID() {
 		// check if sender has enough balance
-		if sender.Balance().Cmp(txBody.GetAmountBigInt()) < 0 {
+		if sender.Balance().Cmp(txAmount) < 0 {
 			err = types.ErrInsufficientBalance
 			return
 		}
 		// transfer the amount from the sender to the receiver
-		sender.SubBalance(txBody.GetAmountBigInt())
-		receiver.AddBalance(txBody.GetAmountBigInt())
+		sender.SubBalance(txAmount)
+		receiver.AddBalance(txAmount)
 	}
 
 	// check if the tx is valid and if the code should be executed
@@ -151,7 +151,7 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 		rv, events, ctrFee, err = PreCall(ex, bs, sender, contractState, receiver.RP(), gasLimit)
 	} else {
 		// create a new context
-		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txBody.GetAmountBigInt(), gasLimit, isFeeDelegation)
+		ctx := NewVmContext(execCtx, bs, cdb, sender, receiver, contractState, sender.ID(), tx.GetHash(), bi, "", true, false, receiver.RP(), preloadService, txAmount, gasLimit, isFeeDelegation)
 
 		// execute the transaction
 		if receiver.IsDeploy() {
@@ -200,17 +200,6 @@ func Execute(execCtx context.Context, bs *state.BlockState, cdb ChainAccessor, t
 
 	// return the result
 	return rv, events, usedFee, nil
-}
-
-// compute the base fee for a transaction
-func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
-	if version < 2 {
-		return fee.PayloadTxFee(payloadSize)
-	}
-	// get the amount of gas needed for the payload
-	txGas := fee.TxGas(payloadSize)
-	// multiply the amount of gas with the gas price
-	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
 }
 
 // send a request to preload an executor for the next tx
@@ -322,6 +311,37 @@ func checkExecution(txType types.TxType, amount *big.Int, payloadSize int, versi
 	return true, nil
 }
 
+func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
+	// check if the contract exists
+	if !receiver.IsContract() || receiver.IsNew() {
+		receiverAddr := types.EncodeAddress(receiver.ID())
+		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
+		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
+	}
+	// get the contract creator
+	creator, err := contractState.GetData(dbkey.CreatorMeta())
+	if err != nil {
+		return err
+	}
+	// check if the sender is the creator
+	if !bytes.Equal(creator, []byte(types.EncodeAddress(sender.ID()))) {
+		return newVmError(types.ErrCreatorNotMatch)
+	}
+	// no problem found
+	return nil
+}
+
+// compute the base fee for a transaction
+func TxFee(payloadSize int, GasPrice *big.Int, version int32) *big.Int {
+	if version < 2 {
+		return fee.PayloadTxFee(payloadSize)
+	}
+	// get the amount of gas needed for the payload
+	txGas := fee.TxGas(payloadSize)
+	// multiply the amount of gas with the gas price
+	return new(big.Int).Mul(new(big.Int).SetUint64(txGas), GasPrice)
+}
+
 func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSize int, gasPrice, usedFee, senderBalance, receiverBalance *big.Int) (gasLimit uint64, err error) {
 	// 1. no gas limit
 	if useGas(version) != true {
@@ -363,34 +383,6 @@ func GasLimit(version int32, isFeeDelegation bool, txGasLimit uint64, payloadSiz
 	return gasLimit, nil
 }
 
-func CreateContractID(account []byte, nonce uint64) []byte {
-	h := sha256.New()
-	h.Write(account)
-	h.Write([]byte(strconv.FormatUint(nonce, 10)))
-	recipientHash := h.Sum(nil)                   // byte array with length 32
-	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
-}
-
-func checkRedeploy(sender, receiver *state.V, contractState *state.ContractState) error {
-	// check if the contract exists
-	if !receiver.IsContract() || receiver.IsNew() {
-		receiverAddr := types.EncodeAddress(receiver.ID())
-		ctrLgr.Warn().Str("error", "not found contract").Str("contract", receiverAddr).Msg("redeploy")
-		return newVmError(fmt.Errorf("not found contract %s", receiverAddr))
-	}
-	// get the contract creator
-	creator, err := contractState.GetData(dbkey.CreatorMeta())
-	if err != nil {
-		return err
-	}
-	// check if the sender is the creator
-	if !bytes.Equal(creator, []byte(types.EncodeAddress(sender.ID()))) {
-		return newVmError(types.ErrCreatorNotMatch)
-	}
-	// no problem found
-	return nil
-}
-
 func useGas(version int32) bool {
 	return version >= 2 && PubNet
 }
@@ -400,6 +392,14 @@ func GasUsed(txFee, gasPrice *big.Int, txType types.TxType, version int32) uint6
 		return 0
 	}
 	return new(big.Int).Div(txFee, gasPrice).Uint64()
+}
+
+func CreateContractID(account []byte, nonce uint64) []byte {
+	h := sha256.New()
+	h.Write(account)
+	h.Write([]byte(strconv.FormatUint(nonce, 10)))
+	recipientHash := h.Sum(nil)                   // byte array with length 32
+	return append([]byte{0x0C}, recipientHash...) // prepend 0x0C to make it same length as account addresses
 }
 
 func SetStateSQLMaxDBSize(size uint64) {
