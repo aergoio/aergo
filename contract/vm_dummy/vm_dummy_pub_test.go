@@ -45,7 +45,8 @@ func TestContractSendF(t *testing.T) {
 		require.NoErrorf(t, err, "failed to connect new block")
 
 		r := bc.GetReceipt(tx.Hash())
-		assert.Equalf(t, int64(105087), int64(r.GetGasUsed()), "gas used not equal")
+		expectedGas := map[int32]int64{3: 105087, 4: 105087}[version]
+		assert.Equalf(t, expectedGas, int64(r.GetGasUsed()), "gas used not equal")
 
 		state, err := bc.GetAccountState("test2")
 		assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance state not equal")
@@ -55,7 +56,8 @@ func TestContractSendF(t *testing.T) {
 		require.NoErrorf(t, err, "failed to connect new block")
 
 		r = bc.GetReceipt(tx.Hash())
-		assert.Equalf(t, int64(105179), int64(r.GetGasUsed()), "gas used not equal")
+		expectedGas = map[int32]int64{3: 105179, 4: 105755}[version]
+		assert.Equalf(t, expectedGas, int64(r.GetGasUsed()), "gas used not equal")
 
 		state, err = bc.GetAccountState("test2")
 		assert.Equalf(t, int64(6), state.GetBalanceBigInt().Int64(), "balance state not equal")
