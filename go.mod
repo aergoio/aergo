@@ -1,6 +1,6 @@
 module github.com/aergoio/aergo/v2
 
-go 1.19
+go 1.21
 
 require (
 	github.com/aergoio/aergo-actor v0.0.0-20190219030625-562037d5fec7
