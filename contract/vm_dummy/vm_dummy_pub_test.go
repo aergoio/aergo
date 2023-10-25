@@ -28,36 +28,40 @@ func TestContractSendF(t *testing.T) {
 	code := readLuaCode(t, "contract_sendf_1.lua")
 	code2 := readLuaCode(t, "contract_sendf_2.lua")
 
-	bc, err := LoadDummyChain(SetPubNet())
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
+	for version := int32(3); version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version), SetPubNet())
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
 
-	err = bc.ConnectBlock(
-		NewLuaTxAccount("user1", 1, types.Aergo),
-		NewLuaTxDeploy("user1", "test1", 50000000000000000, code),
-		NewLuaTxDeploy("user1", "test2", 0, code2),
-	)
-	require.NoErrorf(t, err, "failed to connect new block")
+		err = bc.ConnectBlock(
+			NewLuaTxAccount("user1", 1, types.Aergo),
+			NewLuaTxDeploy("user1", "test1", 50000000000000000, code),
+			NewLuaTxDeploy("user1", "test2", 0, code2),
+		)
+		require.NoErrorf(t, err, "failed to connect new block")
 
-	tx := NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test2")))
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to connect new block")
+		tx := NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send", "Args":["%s"]}`, nameToAddress("test2")))
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
 
-	r := bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, int64(105087), int64(r.GetGasUsed()), "gas used not equal")
+		r := bc.GetReceipt(tx.Hash())
+		expectedGas := map[int32]int64{3: 105087, 4: 105087}[version]
+		assert.Equalf(t, expectedGas, int64(r.GetGasUsed()), "gas used not equal")
 
-	state, err := bc.GetAccountState("test2")
-	assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance state not equal")
+		state, err := bc.GetAccountState("test2")
+		assert.Equalf(t, int64(2), state.GetBalanceBigInt().Int64(), "balance state not equal")
 
-	tx = NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, nameToAddress("test2")))
-	err = bc.ConnectBlock(tx)
-	require.NoErrorf(t, err, "failed to connect new block")
+		tx = NewLuaTxCall("user1", "test1", 0, fmt.Sprintf(`{"Name":"send2", "Args":["%s"]}`, nameToAddress("test2")))
+		err = bc.ConnectBlock(tx)
+		require.NoErrorf(t, err, "failed to connect new block")
 
-	r = bc.GetReceipt(tx.Hash())
-	assert.Equalf(t, int64(105179), int64(r.GetGasUsed()), "gas used not equal")
+		r = bc.GetReceipt(tx.Hash())
+		expectedGas = map[int32]int64{3: 105179, 4: 105755}[version]
+		assert.Equalf(t, expectedGas, int64(r.GetGasUsed()), "gas used not equal")
 
-	state, err = bc.GetAccountState("test2")
-	assert.Equalf(t, int64(6), state.GetBalanceBigInt().Int64(), "balance state not equal")
+		state, err = bc.GetAccountState("test2")
+		assert.Equalf(t, int64(6), state.GetBalanceBigInt().Int64(), "balance state not equal")
+	}
 }
 
 func TestGasPerFunction(t *testing.T) {
@@ -726,33 +730,35 @@ func TestTypeInvalidKey(t *testing.T) {
 
 	code := readLuaCode(t, "type_invalidkey.lua")
 
-	bc, err := LoadDummyChain()
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
+	for version := int32(3); version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "invalidkey", 0, code))
-	require.NoErrorf(t, err, "failed to deploy")
+		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "invalidkey", 0, code))
+		require.NoErrorf(t, err, "failed to deploy")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_table"}`).Fail("cannot use 'table' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_table"}`).Fail("cannot use 'table' as a key"))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_func"}`).Fail("cannot use 'function' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_func"}`).Fail("cannot use 'function' as a key"))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail("cannot use 'userdata' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statemap"}`).Fail("cannot use 'userdata' as a key"))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statearray"}`).Fail("cannot use 'userdata' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statearray"}`).Fail("cannot use 'userdata' as a key"))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail("cannot use 'userdata' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_statevalue"}`).Fail("cannot use 'userdata' as a key"))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_upval"}`).Fail("cannot use 'table' as a key"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_upval"}`).Fail("cannot use 'table' as a key"))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_nil"}`).Fail("invalid key type: 'nil', state.map: 'h'"))
-	require.NoErrorf(t, err, "failed to call tx")
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "invalidkey", 0, `{"Name":"key_nil"}`).Fail("invalid key type: 'nil', state.map: 'h'"))
+		require.NoErrorf(t, err, "failed to call tx")
+	}
 }
 
 func TestTypeBigTable(t *testing.T) {
@@ -764,25 +770,27 @@ func TestTypeBigTable(t *testing.T) {
 	code := readLuaCode(t, "type_bigtable_1.lua")
 	code2 := readLuaCode(t, "type_bigtable_2.lua")
 
-	bc, err := LoadDummyChain()
-	require.NoErrorf(t, err, "failed to create dummy chain")
-	defer bc.Release()
+	for version := int32(3); version <= max_version; version++ {
+		bc, err := LoadDummyChain(SetHardForkVersion(version))
+		require.NoErrorf(t, err, "failed to create dummy chain")
+		defer bc.Release()
 
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "big", 0, code))
-	require.NoErrorf(t, err, "failed to deploy")
+		err = bc.ConnectBlock(NewLuaTxAccount("user1", 1, types.Aergo), NewLuaTxDeploy("user1", "big", 0, code))
+		require.NoErrorf(t, err, "failed to deploy")
 
-	// About 900MB
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[25]}`))
-	require.NoErrorf(t, err, "failed to call tx")
+		// About 900MB
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "big", 0, `{"Name": "inserts", "Args":[25]}`))
+		require.NoErrorf(t, err, "failed to call tx")
 
-	contract.SetStateSQLMaxDBSize(20)
-	err = bc.ConnectBlock(NewLuaTxAccount("user1", 100, types.Aer), NewLuaTxDeploy("user1", "big20", 0, code2))
-	require.NoErrorf(t, err, "failed to deploy")
+		contract.SetStateSQLMaxDBSize(20)
+		err = bc.ConnectBlock(NewLuaTxAccount("user1", 100, types.Aer), NewLuaTxDeploy("user1", "big20", 0, code2))
+		require.NoErrorf(t, err, "failed to deploy")
 
-	for i := 0; i < 17; i++ {
-		err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`))
+		for i := 0; i < 17; i++ {
+			err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`))
+			require.NoErrorf(t, err, "failed to call tx")
+		}
+		err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"))
 		require.NoErrorf(t, err, "failed to call tx")
 	}
-	err = bc.ConnectBlock(NewLuaTxCall("user1", "big20", 0, `{"Name": "inserts"}`).Fail("database or disk is full"))
-	require.NoErrorf(t, err, "failed to call tx")
 }

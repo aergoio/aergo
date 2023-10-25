@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/mr-tron/base58"
 )
 
@@ -26,10 +27,7 @@ const (
 
 var (
 	votingCatalog []types.VotingIssue
-
-	voteKey        = []byte("vote")
-	totalKey       = []byte("total")
-	sortKey        = []byte("sort")
+	lastBpCount    int
 	defaultVoteKey = []byte(types.OpvoteBP.ID())
 )
 
@@ -293,8 +291,7 @@ func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote,
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
-	dataKey := append(append(voteKey, key...), voter...)
-	data, err := scs.GetData(dataKey)
+	data, err := scs.GetData(dbkey.SystemVote(key, voter))
 	if err != nil {
 		return nil, err
 	}
@@ -311,11 +308,10 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 }
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
-	dataKey := append(append(voteKey, key...), voter...)
 	if bytes.Equal(key, defaultVoteKey) {
-		return scs.SetData(dataKey, serializeVote(vote))
+		return scs.SetData(dbkey.SystemVote(key, voter), serializeVote(vote))
 	} else {
-		return scs.SetData(dataKey, serializeVoteEx(vote))
+		return scs.SetData(dbkey.SystemVote(key, voter), serializeVoteEx(vote))
 	}
 }
 

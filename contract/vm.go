@@ -42,6 +42,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -1073,7 +1074,7 @@ func Create(
 	}
 
 	// set the creator
-	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(ctx.curContract.sender)))
+	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(ctx.curContract.sender)))
 	if err != nil {
 		return "", nil, ctx.usedFee(), err
 	}

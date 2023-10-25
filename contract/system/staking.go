@@ -11,12 +11,10 @@ import (
 
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 )
 
 var (
-	stakingKey      = []byte("staking")
-	stakingTotalKey = []byte("stakingtotal")
-
 	ErrInvalidCandidate = errors.New("invalid candidate")
 )
 
@@ -118,14 +116,12 @@ func (c *unstakeCmd) run() (*types.Event, error) {
 	}, nil
 }
 
-func setStaking(scs *state.ContractState, who []byte, staking *types.Staking) error {
-	key := append(stakingKey, who...)
-	return scs.SetData(key, serializeStaking(staking))
+func setStaking(scs *state.ContractState, account []byte, staking *types.Staking) error {
+	return scs.SetData(dbkey.SystemStaking(account), serializeStaking(staking))
 }
 
-func getStaking(scs *state.ContractState, who []byte) (*types.Staking, error) {
-	key := append(stakingKey, who...)
-	data, err := scs.GetData(key)
+func getStaking(scs *state.ContractState, account []byte) (*types.Staking, error) {
+	data, err := scs.GetData(dbkey.SystemStaking(account))
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +148,7 @@ func GetStakingTotal(ar AccountStateReader) (*big.Int, error) {
 }
 
 func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
-	data, err := scs.GetData(stakingTotalKey)
+	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return nil, err
 	}
@@ -160,21 +156,21 @@ func getStakingTotal(scs *state.ContractState) (*big.Int, error) {
 }
 
 func addTotal(scs *state.ContractState, amount *big.Int) error {
-	data, err := scs.GetData(stakingTotalKey)
+	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return err
 	}
 	total := new(big.Int).SetBytes(data)
-	return scs.SetData(stakingTotalKey, new(big.Int).Add(total, amount).Bytes())
+	return scs.SetData(dbkey.SystemStakingTotal(), new(big.Int).Add(total, amount).Bytes())
 }
 
 func subTotal(scs *state.ContractState, amount *big.Int) error {
-	data, err := scs.GetData(stakingTotalKey)
+	data, err := scs.GetData(dbkey.SystemStakingTotal())
 	if err != nil {
 		return err
 	}
 	total := new(big.Int).SetBytes(data)
-	return scs.SetData(stakingTotalKey, new(big.Int).Sub(total, amount).Bytes())
+	return scs.SetData(dbkey.SystemStakingTotal(), new(big.Int).Sub(total, amount).Bytes())
 }
 
 func serializeStaking(v *types.Staking) []byte {
