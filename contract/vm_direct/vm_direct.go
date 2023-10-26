@@ -498,12 +498,12 @@ func executeTx(
 		}
 	case types.TxType_FEEDELEGATION:
 		balance := receiver.Balance()
-		var fee *big.Int
-		fee, err = tx.GetMaxFee(balance, bs.GasPrice, bi.ForkVersion)
+		var maxFee *big.Int
+		maxFee, err = fee.TxMaxFee(bi.ForkVersion, len(tx.GetBody().GetPayload()), tx.GetBody().GetGasLimit(), balance, bs.GasPrice)
 		if err != nil {
 			return err
 		}
-		if fee.Cmp(balance) > 0 {
+		if maxFee.Cmp(balance) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		var contractState *state.ContractState

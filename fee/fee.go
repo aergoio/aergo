@@ -1,6 +1,9 @@
 package fee
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 const (
 	baseTxFee            = "2000000000000000" // 0.002 AERGO
@@ -75,4 +78,21 @@ func TxExecuteFee(version int32, isQuery bool, gasPrice *big.Int, usedGas uint64
 		return CalcFee(gasPrice, usedGas)
 	}
 	return PaymentDataFee(dbUpdateTotalSize)
+}
+
+func TxMaxFee(version int32, lenPayload int, gasLimit uint64, balance, gasPrice *big.Int) (*big.Int, error) {
+	if IsZeroFee() {
+		return NewZeroFee(), nil
+	}
+	if IsUseTxGas(version) {
+		minGasLimit := TxGas(lenPayload)
+		if gasLimit == 0 {
+			gasLimit = MaxGasLimit(balance, gasPrice)
+		}
+		if minGasLimit > gasLimit {
+			return nil, fmt.Errorf("the minimum required amount of gas: %d", minGasLimit)
+		}
+		return CalcFee(gasPrice, gasLimit), nil
+	}
+	return MaxPayloadTxFee(lenPayload), nil
 }

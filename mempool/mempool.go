@@ -714,11 +714,11 @@ func (mp *MemPool) validateTx(tx types.Transaction, account types.Address) error
 			return err
 		}
 		bal := aergoState.GetBalanceBigInt()
-		fee, err := tx.GetMaxFee(bal, system.GetGasPrice(), mp.nextBlockVersion())
+		maxFee, err := fee.TxMaxFee(mp.nextBlockVersion(), len(tx.GetBody().GetPayload()), tx.GetBody().GetGasLimit(), bal, system.GetGasPrice())
 		if err != nil {
 			return err
 		}
-		if fee.Cmp(bal) > 0 {
+		if maxFee.Cmp(bal) > 0 {
 			return types.ErrInsufficientBalance
 		}
 		txBody := tx.GetBody()
