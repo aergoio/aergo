@@ -80,10 +80,12 @@ func TxExecuteFee(version int32, isQuery bool, gasPrice *big.Int, usedGas uint64
 	return PaymentDataFee(dbUpdateTotalSize)
 }
 
+// estimate the max fee for a transaction
 func TxMaxFee(version int32, lenPayload int, gasLimit uint64, balance, gasPrice *big.Int) (*big.Int, error) {
 	if IsZeroFee() {
 		return NewZeroFee(), nil
 	}
+
 	if IsUseTxGas(version) {
 		minGasLimit := TxGas(lenPayload)
 		if gasLimit == 0 {
