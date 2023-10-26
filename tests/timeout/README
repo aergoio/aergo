@@ -1,0 +1,8 @@
+This files is contract sources for testing timeout.
+
+The timeout test is not automated yet, and you should test it manually.
+
+1. build your own chain (make local private network)
+2. compile and deploy both callercontract.lua and longloop.lua
+3. call upgradeto of `callercontract` contract with param `longloop` contract
+4. call `justLoop` function on `longloop` , `invoke` and `directInvoke` on `callercontract` and watch log of aergo server or debug with IDE .

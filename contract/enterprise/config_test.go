@@ -24,7 +24,7 @@ func initTest(t *testing.T) (*state.ContractState, *state.V, *state.V) {
 	}
 	const testSender = "AmPNYHyzyh9zweLwDyuoiUuTVCdrdksxkRWDjVJS76WQLExa2Jr4"
 
-	scs, err := cdb.GetStateDB().OpenContractStateAccount(types.ToAccountID([]byte("aergo.system")))
+	scs, err := cdb.GetStateDB().GetSystemAccountState()
 	assert.NoError(t, err, "could not open contract state")
 
 	account, err := types.DecodeAddress(testSender)

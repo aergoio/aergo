@@ -521,7 +521,7 @@ func (p2ps *P2P) initLocalSettings(conf *config.P2PConfig) {
 			if err != nil {
 				panic("invalid agentID " + conf.Agent + " : " + err.Error())
 			}
-			p2ps.Logger.Info().Str("fullID", pid.String()).Str("agentID", p2putil.ShortForm(pid)).Msg("found agent setting. use peer as agent if connected")
+			p2ps.Logger.Info().Str("fullID", pid.String()).Stringer("agentID", types.LogPeerShort(pid)).Msg("found agent setting. use peer as agent if connected")
 			p2ps.localSettings.AgentID = pid
 		} else {
 			p2ps.Logger.Debug().Msg("no agent was set. local peer is standalone producer.")

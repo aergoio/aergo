@@ -36,6 +36,8 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/aergoio/aergo-lib/log"
+
 	"github.com/aergoio/aergo/v2/cmd/aergoluac/util"
 	"github.com/aergoio/aergo/v2/contract/name"
 	"github.com/aergoio/aergo/v2/contract/system"
@@ -43,13 +45,14 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/minio/sha256-simd"
 )
 
 var (
 	mulAergo, mulGaer, zeroBig *big.Int
-	creatorMetaKey             = []byte("Creator")
+	vmLogger                   = log.NewLogger("contract.vm")
 )
 
 const (
@@ -65,14 +68,14 @@ func init() {
 	zeroBig = types.NewZeroAmount()
 }
 
-func addUpdateSize(s *vmContext, updateSize int64) error {
-	if s.IsGasSystem() {
+func addUpdateSize(ctx *vmContext, updateSize int64) error {
+	if ctx.IsGasSystem() {
 		return nil
 	}
-	if s.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
+	if ctx.dbUpdateTotalSize+updateSize > dbUpdateMaxLimit {
 		return errors.New("exceeded size of updates in the state database")
 	}
-	s.dbUpdateTotalSize += updateSize
+	ctx.dbUpdateTotalSize += updateSize
 	return nil
 }
 
@@ -283,7 +286,7 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(callee, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 	defer func() {
@@ -341,7 +344,13 @@ func luaCallContract(L *LState, service C.int, contractId *C.char, fname *C.char
 		if ctx.traceFile != nil {
 			_, _ = ctx.traceFile.WriteString(fmt.Sprintf("recovery snapshot: %d\n", seq))
 		}
-		return -1, C.CString("[Contract.LuaCallContract] call err: " + ce.err.Error())
+		switch ceErr := ce.err.(type) {
+		case *VmTimeoutError:
+			return -1, C.CString(ceErr.Error())
+		default:
+			return -1, C.CString("[Contract.LuaCallContract] call err: " + ceErr.Error())
+
+		}
 	}
 
 	if seq == 1 {
@@ -402,7 +411,7 @@ func luaDelegateCallContract(L *LState, service C.int, contractId *C.char,
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(contract, cid, ctx, &ci, zeroBig, false, false, contractState)
 	defer func() {
@@ -525,7 +534,7 @@ func luaSendAmount(L *LState, service C.int, contractId *C.char, amount *C.char)
 		}
 
 		// get the remaining gas from the parent LState
-		ctx.getRemainingGas(L)
+		ctx.refreshRemainingGas(L)
 		// create a new executor with the remaining gas on the child LState
 		ce := newExecutor(code, cid, ctx, &ci, amountBig, false, false, cs.ctrState)
 		defer func() {
@@ -1227,13 +1236,13 @@ func luaDeployContract(
 	}
 
 	// save the contract creator
-	err = contractState.SetData(creatorMetaKey, []byte(types.EncodeAddress(prevContractInfo.contractId)))
+	err = contractState.SetData(dbkey.CreatorMeta(), []byte(types.EncodeAddress(prevContractInfo.contractId)))
 	if err != nil {
 		return -1, C.CString("[Contract.LuaDeployContract]:" + err.Error())
 	}
 
 	// get the remaining gas from the parent LState
-	ctx.getRemainingGas(L)
+	ctx.refreshRemainingGas(L)
 	// create a new executor with the remaining gas on the child LState
 	ce := newExecutor(runCode, newContract.ID(), ctx, &ci, amountBig, true, false, contractState)
 	defer func() {
@@ -1492,6 +1501,8 @@ func luaCheckView(service C.int) C.int {
 	return C.int(ctx.nestedView)
 }
 
+// luaCheckTimeout checks whether the block creation timeout occurred.
+//
 //export luaCheckTimeout
 func luaCheckTimeout(service C.int) C.int {
 
@@ -1511,27 +1522,13 @@ func luaCheckTimeout(service C.int) C.int {
 		return 0
 	}
 
+	ctx := contexts[service]
 	select {
-	case <-bpTimeout:
+	case <-ctx.execCtx.Done():
 		return 1
 	default:
 		return 0
 	}
-
-	// Temporarily disable timeout check to prevent contract timeout raised from chain service
-	// if service < BlockFactory {
-	// 	service = service + MaxVmService
-	// }
-	// if service != BlockFactory {
-	// 	return 0
-	// }
-	// select {
-	// case <-bpTimeout:
-	// 	return 1
-	// default:
-	// 	return 0
-	// }
-	//return 0
 }
 
 //export luaIsFeeDelegation
@@ -1582,13 +1579,6 @@ func LuaGetDbSnapshot(service C.int) *C.char {
 	curContract := stateSet.curContract
 
 	return C.CString(strconv.FormatUint(curContract.rp, 10))
-}
-
-// set the remaining gas on the given LState
-func (ctx *vmContext) setRemainingGas(L *LState) {
-	if ctx.IsGasSystem() {
-		C.lua_gasset(L, C.ulonglong(ctx.remainedGas))
-	}
 }
 
 //export luaGetStaking

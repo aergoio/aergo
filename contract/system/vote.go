@@ -15,6 +15,7 @@ import (
 	"github.com/aergoio/aergo/v2/internal/enc"
 	"github.com/aergoio/aergo/v2/state"
 	"github.com/aergoio/aergo/v2/types"
+	"github.com/aergoio/aergo/v2/types/dbkey"
 	"github.com/mr-tron/base58"
 )
 
@@ -26,12 +27,7 @@ const (
 
 var (
 	votingCatalog []types.VotingIssue
-
-	lastBpCount int
-
-	voteKey        = []byte("vote")
-	totalKey       = []byte("total")
-	sortKey        = []byte("sort")
+	lastBpCount    int
 	defaultVoteKey = []byte(types.OpvoteBP.ID())
 )
 
@@ -94,7 +90,6 @@ func (c *vprCmd) subVote(v *types.Vote) error {
 	votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
 	// Hotfix - reproduce vpr calculation for block 138015125
 	// When block is reverted, votingPowerRank is not reverted and calculated three times.
-	// TODO : implement commit, revert, reorg for governance variables.
 	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
 		for i := 0; i < 2; i++ {
 			votingPowerRank.sub(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
@@ -107,7 +102,6 @@ func (c *vprCmd) addVote(v *types.Vote) error {
 	votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
 	// Hotfix - reproduce vpr calculation for block 138015125
 	// When block is reverted, votingPowerRank is not reverted and calculated three times.
-	// TODO : implement commit, revert, reorg for governance variables.
 	if c.BlockInfo.No == 138015125 && c.Sender.AccountID().String() == "36t2u7Q31HmEbkkYZng7DHNm3xepxHKUfgGrAXNA8pMW" {
 		for i := 0; i < 2; i++ {
 			votingPowerRank.add(c.Sender.AccountID(), c.Sender.ID(), v.GetAmountBigInt())
@@ -198,23 +192,18 @@ func (c *voteCmd) run() (*types.Event, error) {
 	if err := c.updateVoteResult(); err != nil {
 		return nil, err
 	}
+
+	jsonArgs := ""
 	if c.SystemContext.BlockInfo.ForkVersion < 2 {
-		return &types.Event{
-			ContractAddress: c.Receiver.ID(),
-			EventIdx:        0,
-			EventName:       c.op.ID(),
-			JsonArgs: `{"who":"` +
-				types.EncodeAddress(c.txBody.Account) +
-				`", "vote":` + string(c.args) + `}`,
-		}, nil
+		jsonArgs = `{"who":"` + types.EncodeAddress(c.txBody.Account) + `", "vote":` + string(c.args) + `}`
+	} else {
+		jsonArgs = `["` + types.EncodeAddress(c.txBody.Account) + `", ` + string(c.args) + `]`
 	}
 	return &types.Event{
 		ContractAddress: c.Receiver.ID(),
 		EventIdx:        0,
 		EventName:       c.op.ID(),
-		JsonArgs: `["` +
-			types.EncodeAddress(c.txBody.Account) +
-			`", ` + string(c.args) + `]`,
+		JsonArgs:        jsonArgs,
 	}, nil
 }
 
@@ -302,8 +291,7 @@ func GetVote(scs *state.ContractState, voter []byte, issue []byte) (*types.Vote,
 }
 
 func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
-	dataKey := append(append(voteKey, key...), voter...)
-	data, err := scs.GetData(dataKey)
+	data, err := scs.GetData(dbkey.SystemVote(key, voter))
 	if err != nil {
 		return nil, err
 	}
@@ -320,11 +308,10 @@ func getVote(scs *state.ContractState, key, voter []byte) (*types.Vote, error) {
 }
 
 func setVote(scs *state.ContractState, key, voter []byte, vote *types.Vote) error {
-	dataKey := append(append(voteKey, key...), voter...)
 	if bytes.Equal(key, defaultVoteKey) {
-		return scs.SetData(dataKey, serializeVote(vote))
+		return scs.SetData(dbkey.SystemVote(key, voter), serializeVote(vote))
 	} else {
-		return scs.SetData(dataKey, serializeVoteEx(vote))
+		return scs.SetData(dbkey.SystemVote(key, voter), serializeVoteEx(vote))
 	}
 }
 
@@ -359,21 +346,6 @@ func GetVoteResult(ar AccountStateReader, id []byte, n int) (*types.VoteList, er
 	return getVoteResult(scs, id, n)
 }
 
-// initDefaultBpCount sets lastBpCount to bpCount.
-//
-// Caution: This function must be called only once before all the aergosvr
-// services start.
-func initDefaultBpCount(count int) {
-	// Ensure that it is not modified after it is initialized.
-	if DefaultParams[bpCount.ID()] == nil {
-		DefaultParams[bpCount.ID()] = big.NewInt(int64(count))
-	}
-}
-
-func GetBpCount() int {
-	return int(GetParam(bpCount.ID()).Uint64())
-}
-
 // GetRankers returns the IDs of the top n rankers.
 func GetRankers(ar AccountStateReader) ([]string, error) {
 	n := GetBpCount()
@@ -388,10 +360,6 @@ func GetRankers(ar AccountStateReader) ([]string, error) {
 		bps = append(bps, enc.ToString(v.Candidate))
 	}
 	return bps, nil
-}
-
-func GetParam(proposalID string) *big.Int {
-	return systemParams.getLastParam(proposalID)
 }
 
 func serializeVoteList(vl *types.VoteList, ex bool) []byte {

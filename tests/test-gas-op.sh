@@ -1,14 +1,12 @@
 set -e
 source common.sh
 
+fork_version=$1
+
 
 echo "-- deploy --"
 
-../bin/aergoluac --payload ../contract/vm_dummy/test_files/gas_op.lua > payload.out
-
-txhash=$(../bin/aergocli --keystore . --password bmttest \
-    contract deploy AmPpcKvToDCUkhT1FJjdbNvR4kNDhLFJGHkSqfjWe3QmHm96qv4R \
-    --payload `cat payload.out` | jq .hash | sed 's/"//g')
+deploy ../contract/vm_dummy/test_files/gas_op.lua
 
 get_receipt $txhash
 
@@ -32,4 +30,9 @@ gasUsed=$(cat receipt.json | jq .gasUsed | sed 's/"//g')
 
 assert_equals "$status"   "SUCCESS"
 #assert_equals "$ret"      "{}"
-assert_equals "$gasUsed"  "117610"
+
+if [ "$fork_version" -eq "4" ]; then
+  assert_equals "$gasUsed"  "130048"
+else
+  assert_equals "$gasUsed"  "117610"
+fi

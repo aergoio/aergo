@@ -1,6 +1,7 @@
 package sbp
 
 import (
+	"context"
 	"runtime"
 	"time"
 
@@ -34,7 +35,8 @@ type txExec struct {
 func newTxExec(cdb consensus.ChainDB, bi *types.BlockHeaderInfo) chain.TxOp {
 	// Block hash not determined yet
 	return &txExec{
-		execTx: bc.NewTxExecutor(nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
+		// FIXME block creation timeout check will not work in SBP unless the context is changed to context.WithTimeout()
+		execTx: bc.NewTxExecutor(context.Background(), nil, contract.ChainAccessor(cdb), bi, contract.BlockFactory),
 	}
 }
 
@@ -43,7 +45,7 @@ func (te *txExec) Apply(bState *state.BlockState, tx types.Transaction) error {
 	return err
 }
 
-// SimpleBlockFactory implments a simple block factory which generate block each cfg.Consensus.BlockInterval.
+// SimpleBlockFactory implements a simple block factory which generate block each cfg.Consensus.BlockInterval.
 //
 // This can be used for testing purpose.
 type SimpleBlockFactory struct {
@@ -116,6 +118,7 @@ func (s *SimpleBlockFactory) QueueJob(now time.Time, jq chan<- interface{}) {
 		}
 		s.prevBlock = b
 		jq <- b
+		time.Sleep(s.blockInterval)
 	}
 }
 
@@ -187,11 +190,11 @@ func (s *SimpleBlockFactory) Start() {
 					prevBlock.GetHeader().GetBlocksRootHash(),
 					state.SetPrevBlockHash(prevBlock.BlockHash()),
 				)
-				blockState.SetGasPrice(system.GetGasPriceFromState(blockState))
+				blockState.SetGasPrice(system.GetGasPrice())
 				blockState.Receipts().SetHardFork(s.bv, bi.No)
 				txOp := chain.NewCompTxOp(s.txOp, newTxExec(s.ChainDB, bi))
 
-				block, err := chain.NewBlockGenerator(s, bi, blockState, txOp, false).GenerateBlock()
+				block, err := chain.NewBlockGenerator(s, context.Background(), bi, blockState, txOp, false).GenerateBlock()
 				if err == chain.ErrQuit {
 					return
 				} else if err != nil {

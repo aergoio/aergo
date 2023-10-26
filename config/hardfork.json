@@ -8,5 +8,10 @@
         "Version": 3,
         "MainNetHeight": 111499715,
         "TestNetHeight": 100360545
+    },
+    {
+        "Version": 4,
+        "MainNetHeight": 1000000000,
+        "TestNetHeight": 1000000000
     }
 ]
