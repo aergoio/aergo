@@ -41,3 +41,11 @@ func IsZeroFee() bool {
 func NewZeroFee() *big.Int {
 	return big.NewInt(0)
 }
+
+//---------------------------------------------------------------//
+// calc fee
+
+// fee = gas price * gas
+func CalcFee(gasPrice *big.Int, gas uint64) *big.Int {
+	return new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gas))
+}

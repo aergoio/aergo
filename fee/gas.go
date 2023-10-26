@@ -25,11 +25,16 @@ func IsReceiptGasUsed(version int32, isGovernance bool) bool {
 //---------------------------------------------------------------//
 // calc gas
 
+// gas = fee / gas price
+func CalcGas(fee, gasPrice *big.Int) uint64 {
+	return new(big.Int).Div(fee, gasPrice).Uint64()
+}
+
 func ReceiptGasUsed(version int32, isGovernance bool, txFee, gasPrice *big.Int) uint64 {
 	if IsReceiptGasUsed(version, isGovernance) != true {
 		return 0
 	}
-	return new(big.Int).Div(txFee, gasPrice).Uint64()
+	return CalcGas(txFee, gasPrice)
 }
 
 func TxGas(payloadSize int) uint64 {
